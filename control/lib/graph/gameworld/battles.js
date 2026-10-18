@@ -33,7 +33,7 @@ import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
-import { libraryFigure, stand, facing } from './stage-figures.js';
+import { foeFigure, beastLook, readBeastFoe, stand, facing } from './stage-figures.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -79,7 +79,8 @@ export function readBattles(v, characters = null) {
   const packs = v.packs === undefined ? null : (Array.isArray(v.packs) && v.packs.length ? v.packs.map((p, i) => packOf(p, `.packs[${i}]`)) : (() => { throw err('.packs is a list of packs, each 1 to 6 foe ids'); })());
   if (v.per !== undefined && !(Number.isInteger(v.per) && v.per >= 0 && v.per <= 6)) throw err('.per is the packs on each trail stage, 0 to 6');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
-  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec: how a foe on the map looks');
+  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), or { species } for a beast');
+  if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   if (v.rest !== undefined && typeof v.rest !== 'boolean') throw err('.rest is false for no rest at each stage\'s start');
   if (v.random !== undefined) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
@@ -166,7 +167,7 @@ export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    stand({ figures, entities }, id, libraryFigure(ref), b.at, facing(b.at, back));
+    stand({ figures, entities }, id, foeFigure(ref, B.foe), b.at, facing(b.at, back));
     const boss = B.boss && k === n - 1 && packs[k] === B.boss;
     encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: id, ...(boss ? { flee: false } : {}) });
   });

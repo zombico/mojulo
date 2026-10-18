@@ -111,6 +111,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   each member by path). Its party and familiars walk beside the hero from the start on the escort motive and fight what
   it fights, on the pilot's side in a team game; a rival with a person's body stands as the first foe in a battle, a
   shooter or a deathmatch; the readout says where each went. A quick game without one makes the steps it did.
+- **Every person a run makes can take a blow on its own rig** (a world's `moves: true`, a quick game's lever; egocube/moves.js
+  `REACT_MOTION`, `reactStatesOf`): the hero (through its motion page), the battles' foe, a keeper, and every quick
+  figure (foes, guards, towers, farmhands) are made with their own hit, stagger, fall and rise, and each figure standing
+  for one plays them over the library's (levels.js stageLevelOrder `moves`); a mascot hero its own flinch, fall and rise.
+- **Beast foes** (`foe: { species }` on the book's battles, a quick battle or a defence; stage-figures.js `foeFigure`): the
+  foe is made through the animal door with its two gaits and its reactions (design_game realizes an `animal` order) and
+  stands, walks and takes a blow on its own body; a shooter's or a deathmatch's foes keep a person's hands.
 
 ## [3.1.1] - 2026-10-16
 

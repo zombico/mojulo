@@ -39,7 +39,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf, creatureMovesOf, beastGaitsOf, beastMovesOf } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf } from '../egocube/moves.js';
 import { cubeOfWorld } from './intent.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -154,10 +154,7 @@ export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stan
  * Null for a beast whose species the fauna does not know (no gait to rig).
  */
 export function fieldOf(m) {
-  if (m.body === 'beast') {
-    let g, M; try { g = beastGaitsOf(m.beast.species); M = beastMovesOf(m.beast.species); } catch { return null; }
-    return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
-  }
+  if (m.body === 'beast') { try { return beastFieldOf(m.beast.species); } catch { return null; } }
   if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } };
   if (m.sheet.ancestry?.door === 'hero') return { moves: fieldStatesOf(moveSetOf(m.sheet.facets).moves) };
   return { own: { forward: 'jog', idle: 'idle', turn: 'walk', strafe: 'jog' }, moves: fieldStatesOf(creatureMovesOf(m.sheet.facets).moves) };

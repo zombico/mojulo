@@ -308,7 +308,28 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
+/**
+ * (`moves`: { <ref>: states } the figures a run made with their own reactions, by the made ref they stand for (the
+ * world's `moves`): each figure of the level standing for one, the pilot's included, plays them over the library's.)
+ */
+export function stageLevelOrder(G, stage, opts = {}) {
+  const L = levelOrder(G, stage, opts);
+  return opts.moves ? withOwnMoves(L, opts.moves) : L;
+}
+function withOwnMoves(L, byRef) {
+  const m = L.args?.manifest;
+  if (!m?.figures) return L;
+  let changed = false;
+  const figures = Object.fromEntries(Object.entries(m.figures).map(([id, f]) => {
+    const st = f && !f.moves && f.heroRef ? byRef[f.heroRef] : null;
+    if (!st) return [id, f];
+    changed = true;
+    return [id, { ...f, moves: st }];
+  }));
+  return changed ? { ...L, args: { ...L.args, manifest: { ...m, figures } } } : L;
+}
+
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });

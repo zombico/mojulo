@@ -21,6 +21,11 @@
  *   beastGaitsOf(species)→ [walk, run]: the two gaits a beast crosses the field in (fauna/locomotion), slowest first
  *   beastMovesOf(species)→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two gaits and its
  *                          flinch, fall and rise: fauna/behavior/react.js) and the field states they play
+ *   beastFieldOf(species) → a beast's figure on the level map: its own gaits as the walker's states, its reactions as
+ *                          its moves (a cast's beast, a battle's beast foe); throws for a species the fauna does not know
+ *   REACT_MOTION          the reactions any person a run makes may carry (a world's `moves`): a hit, a stagger, the
+ *                          fall and the rise, as hero motion words
+ *   reactStatesOf(words)  → the field states the reactions among a figure's motion words play, or null (none)
  *
  * Pure. First readings, for the eyes gate.
  */
@@ -45,6 +50,14 @@ export function moveSetOf(f) {
   };
   const words = [moves.ready, moves.attack, ...moves.react, moves.win].filter(Boolean);
   return { motion: Object.fromEntries([...new Set(words)].map((w) => [w, true])), moves };
+}
+
+export const REACT_MOTION = Object.freeze({ hitHigh: true, stagger: true, knockedOut: true });
+
+export function reactStatesOf(words) {
+  const has = new Set(words ?? []);
+  if (!has.has('hitHigh') && !has.has('stagger')) return null;
+  return { stagger: has.has('stagger') ? 'stagger' : 'hitHigh', ...(has.has('knockedOut') ? { topple: 'knockedOutDown', getup: 'knockedOutUp' } : {}) };
 }
 
 /** The runtime's states (worlds/controllable: combat-hit.js, combat-melee.js) a member's own moves play on the field. */
@@ -82,4 +95,9 @@ export function beastMovesOf(species) {
     motion: [...beastGaitsOf(species), ...reacts],
     states: reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {},
   };
+}
+
+export function beastFieldOf(species) {
+  const g = beastGaitsOf(species), M = beastMovesOf(species);
+  return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }

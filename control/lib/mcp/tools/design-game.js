@@ -89,6 +89,18 @@ async function realize(step, action) {
     }
     return {};
   }
+  if (order.animal) {
+    // a figure that is a beast (a battle's wolf, a wave of spiders: runner.js): made through the animal door
+    // (create_character { as: 'animal' }) with its gaits and reactions; remade beside and moved in, as a cast member is
+    if (action === 'make') await createCharacterHandler({ as: 'animal', spec: order.animal, title: order.title, ref });
+    else {
+      const beside = childRef(ref, 'remake');
+      await createCharacterHandler({ as: 'animal', spec: order.animal, title: order.title, ref: beside });
+      try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a beast remade' }); }
+      finally { SketchRepository.deleteByRef(beside); }
+    }
+    return {};
+  }
   if (HERO_STEP.test(key)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
