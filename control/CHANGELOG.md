@@ -14,6 +14,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fractal structures
+
+- **Towers for any world, from a few words.** A new kind-generic `structures` channel grows landmark towers from
+  four words: a plan (square, turned squares, a star, a stepped circle, offset faces cut again to a depth), a rise
+  (how the plan narrows, turns and is banded as it climbs, r(f) = top + (1 − top)(1 − f^p)), a crown (a ribbed disc,
+  a dome or a finial) and an echo (smaller copies of the whole against its own flanks, each echoing again: a tower of
+  towers). The principles are the Indian temple builders', lifted off the temple. Eight presets (`spire`, `cluster`,
+  `ziggurat`, `star`, `drum`, `turning`, `rotunda`, `needle`) and a seeded `auto` that rolls a varied skyline.
+- Pass them to `compose_world` as `overrides.structures` on any base, or set `structures` on a stored world and
+  patch it in place. The faces join before the material, texture and shadow passes; an entity world also gets a box
+  collider for each tier and plinth step, so a stepped rise's terraces stand a walker. A face budget trims the
+  deepest copies first, never the tower. Absent, every world is byte-identical. Manual: the `structures` view-vocab
+  card; kernel: `lib/graph/fractal-structure/`.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

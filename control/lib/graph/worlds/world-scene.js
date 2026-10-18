@@ -392,6 +392,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // structures (fractal-structure/): towers grown from a plan, a rise, a crown and an echo, stood anywhere in any
+  // world by a few words each. Their faces join here, before the material / AO / texture passes, so those passes see
+  // them; their box colliders join an entity world's below. Opt-in; absent ⇒ byte-identical.
+  let structureColliders = [];
+  if (payload && sketch.manifest.structures !== undefined) {
+    const { structureFaces, validateStructures } = await import('@/lib/graph/fractal-structure/index.js');
+    const errs = validateStructures(sketch.manifest.structures);
+    if (errs.length) throw new Error(`structures is invalid — see get_view_vocab({ id: 'structures' }):\n- ${errs.join('\n- ')}`);
+    const S = structureFaces(sketch.manifest.structures, ctx.light ? { light: ctx.light } : {});
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
+    structureColliders = S.colliders;
+  }
+
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
   // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
   // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)
@@ -585,6 +598,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // lateral blocking: analytic AABB colliders (the invisible collision hull under the visual
     // faces) — the platform rule ejects the suit's footprint from them. See mobile-suit-city.plan.md.
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
+    // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
+    if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
