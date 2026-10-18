@@ -7,7 +7,7 @@
  * game are derived from them (later), as the game mesh is derived from the field.
  *
  *   hair.colour   an egocube hair colour's name, or a hex
- *   hair.brows    the brow groom: a shape word (`BROW_SHAPES`) and its numbers over it — `arch` (0 straight … 1 high),
+ *   hair.brows    the brow groom, hung on the head's brow bridge (its strings and the fold's arc): a shape word (`BROW_SHAPES`) and its numbers over it — `arch` (0 straight … 1 high),
  *                 `thickness`, `density` (hairs per mm²), `length` (mm, the body's hairs), `seed`
  *   hair.lashes   the lash groom, rooted on the eye rig's lid margins: a shape word (`LASH_SHAPES`) and its numbers —
  *                 `length` (mm, the upper's longest), `curl` (0 straight … 1 curled), `density` (1 a natural count),
@@ -21,7 +21,7 @@
 import { streamOf } from '../city/plan/dice.js';
 import { rayIn } from '../polygonizer/head-field-view.js';
 import { HAIR_COLOURS } from '../egocube/ancestry.js';
-import { GLOBE } from '../polygonizer/head-relational-eye.js';
+import { browBridge } from '../polygonizer/head-relational-eye.js';
 
 const MM = 1 / 230;   // a millimetre in head heights (the relational head's V)
 
@@ -67,19 +67,18 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
 
 /**
- * THE BROW — its line from the relations (V units, side `s`): the HEAD over the inner canthus (a touch medial), the
- * ARCH'S PEAK over the iris's outer edge, the TAIL on the line from the nose's wing through the outer canthus; a spine
- * through them (rising convex to the peak, falling to the tail), a width that is broad at the head, narrowing past the
- * peak to a fine tail. Returns { spine(u) → {x, z}, slope(u), width(u), span } for u ∈ [0, 1] medial → lateral.
+ * THE BROW: hung on the bridge's strings (head-relational-eye.js `browBridge`), as the fold under it is. The HEAD is
+ * tied on the medial string, a touch medial of the inner canthus; the TAIL on the lateral string, which runs on the
+ * line from the nose's wing through the outer canthus; the ARCH'S PEAK rides the fold's arc, over the iris's outer
+ * edge, `arch` lifting it. A spine runs through them, rising convex to the peak and falling to the tail. Its width is
+ * broad at the head and narrows past the peak to a fine tail. `side` is the bridge's for this side (pulled by the
+ * brow's action: the strings carry the brow with the fold); at rest when absent. Returns { spine(u) → {x, z},
+ * slope(u), width(u), span, sg, uK } for u ∈ [0, 1] medial → lateral, in V.
  */
-export function browLine(P, s, brow) {
-  const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], al = P[`al${s}`];
-  const sg = Math.sign(ex.x - en.x);
-  const H = { x: en.x - sg * 0.008, z: en.z + 0.075 };
-  const archH = 0.01 + 0.025 * brow.arch;
-  const K = { x: e.x + sg * GLOBE.iris, z: H.z + archH };
-  const dx = ex.x - al.x, dz = ex.z - al.z, tau = (H.z + 0.004 - ex.z) / dz;
-  const T = { x: ex.x + dx * tau, z: ex.z + dz * tau };
+export function browLine(P, s, brow, side = browBridge(P).sides[s]) {
+  const sg = Math.sign(P[`ex${s}`].x - P[`en${s}`].x), H = side.head, T = side.tail;
+  const K = { x: side.arc.K.x, z: side.arc.K.z + 0.005 + 0.025 * brow.arch };
+  const archH = K.z - H.z;
   const uK = Math.abs(K.x - H.x) / Math.abs(T.x - H.x);
   const spine = (u) => {
     const x = lerp(H.x, T.x, u);
@@ -97,14 +96,15 @@ export function browLine(P, s, brow) {
  * The brow groom for side `s`: roots scattered over the brow's band (more where it is broad), each hair combed by its
  * region — the HEAD's straight up, the BODY's out and up along the line, the TAIL's out and down — with the
  * HERRINGBONE across the band (the lower hairs angled up, the upper down, meeting along the spine); laid flat on the
- * skin (`skinY`), lifting a hair's breadth at its middle. `shift(u)` is how far the brow pad's action moved the line
- * there. Returns strands in V: [{ pts: [{x, y, z}], r }].
+ * skin (`skinY`), lifting a hair's breadth at its middle. `side` is the bridge's, as `browLine` takes it. Returns
+ * strands in V: [{ pts: [{x, y, z}], r }].
  */
-export function growBrow(P, s, brow, skinY, shift) {
-  const L = browLine(P, s, brow);
+export function growBrow(P, s, brow, skinY, side) {
+  const L = browLine(P, s, brow, side);
   const dice = streamOf(brow.seed ?? 1, 'brow', s);
-  // how many: the band's area (mm²) × the density
-  let area = 0; for (let i = 0; i < 40; i++) area += L.width((i + 0.5) / 40) * (L.span / 40);
+  // how many: the band's area at rest (mm²) × the density — the same hairs whatever pulls the strings
+  const L0 = browLine(P, s, brow);
+  let area = 0; for (let i = 0; i < 40; i++) area += L0.width((i + 0.5) / 40) * (L0.span / 40);
   const n = Math.round((area / (MM * MM)) * brow.density);
   const strands = [];
   const deg = Math.PI / 180;
@@ -125,8 +125,7 @@ export function growBrow(P, s, brow, skinY, shift) {
     let x = root.x, z = root.z;
     for (let k = 0; k <= 5; k++) {
       const t = k / 5;
-      const d = shift(u);
-      pts.push({ x: x + d.x, y: skinY(x + d.x, z + d.z) + (0.12 + 0.35 * Math.sin(Math.PI * t)) * MM, z: z + d.z });
+      pts.push({ x, y: skinY(x, z) + (0.12 + 0.35 * Math.sin(Math.PI * t)) * MM, z });
       const a = phi + bend * t;
       x += L.sg * Math.cos(a) * (len / 5); z += Math.sin(a) * (len / 5);
     }
@@ -223,7 +222,8 @@ export function growEpidermis(head, cube) {
   if (cube.hair.brows) {
     counts.brows = 0;
     for (const s of ['L', 'R']) {
-      const L = browLine(P, s, cube.hair.brows);
+      // the brow hangs on the bridge's strings, as the action pulled them
+      const side = R.bridge.sides[s], L = browLine(P, s, cube.hair.brows, side);
       // the skin's depth over the brow's reach, on a grid
       const x0 = Math.min(L.spine(0).x, L.spine(1).x) - 0.03, x1 = Math.max(L.spine(0).x, L.spine(1).x) + 0.03;
       const z0 = Math.min(L.spine(0).z, L.spine(1).z) - 0.05, z1 = L.spine(L.uK).z + 0.08, NX = 28, NZ = 16;
@@ -243,11 +243,7 @@ export function growEpidermis(head, cube) {
         const fill = known.reduce((m, y) => m + y, 0) / known.length, [c00, c10, c01, c11] = c.map((y) => (y === null ? fill : y));
         return lerp(lerp(c00, c10, a), lerp(c01, c11, a), b);
       };
-      // the brow pad's action: how far its medial and lateral beads moved (rest → moved), across the line
-      const pr = R.rest.browPad, pm = R.moved.browPad;
-      const lat = s === 'L' ? 'a' : 'b', dMed = { x: pm.c.x - pr.c.x, z: pm.c.z - pr.c.z }, dLat = { x: pm[lat].x - pr[lat].x, z: pm[lat].z - pr[lat].z };
-      const shift = (u) => ({ x: lerp(dMed.x, dLat.x, u), z: lerp(dMed.z, dLat.z, u) });
-      const grown = growBrow(P, s, cube.hair.brows, skinY, shift);
+      const grown = growBrow(P, s, cube.hair.brows, skinY, side);
       counts.brows += grown.length;
       // WALK each hair over the skin: its root laid on the skin along the normal (the field's gradient), then each step
       // taken in the skin's tangent plane toward the comb's next point, snapped back to a hair's lift above the skin

@@ -1,11 +1,12 @@
 /**
  * epidermis — the cube's concepts on one relational head: the brows grow deterministically from their seed, lie on
- * the skin (never inside it, each hair its own length), ride the brow pad's action, and a shape word changes them;
+ * the skin (never inside it, each hair its own length), hang on the brow bridge's strings with the fold and ride the
+ * brow pad's action, and a shape word changes them;
  * the lashes root on the lid margins, never enter the skin or the globe, and ride the lid (a shut lid's hang).
  */
 import { describe, expect, it } from 'vitest';
 
-import { readEpidermis, growEpidermis, BROW_SHAPES, LASH_SHAPES } from './epidermis.js';
+import { readEpidermis, growEpidermis, browLine, BROW_SHAPES, LASH_SHAPES } from './epidermis.js';
 import { relationalHead } from '../polygonizer/head-relational.js';
 
 const head = relationalHead({ sex: 'male' });
@@ -63,5 +64,19 @@ describe('the epidermis cube', () => {
   it('rides the brow pad: a raised brow carries its hairs up', () => {
     const raised = growEpidermis(relationalHead({ sex: 'male', actions: { browRaise: 1 } }), readEpidermis('default'));
     expect(mm(rootZ(raised) - rootZ(grown))).toBeGreaterThan(3);
+    expect(raised.counts.brows).toBe(grown.counts.brows);   // the same hairs, carried
+  });
+  it('hangs the brow on the bridge\'s strings with the fold: head and tail on the strings, the peak over the arc\'s', () => {
+    const brow = readEpidermis('default').hair.brows, P = head.relational.points;
+    for (const h of [head, relationalHead({ sex: 'male', actions: { browLower: 1 } })]) {
+      const side = h.relational.bridge.sides.R, L = browLine(P, 'R', brow, side);
+      expect(L.spine(0)).toEqual({ x: side.head.x, z: side.head.z });
+      expect(L.spine(1).z).toBeCloseTo(side.tail.z, 9);
+      expect(L.spine(L.uK).z - side.arc.K.z).toBeCloseTo(0.005 + 0.025 * brow.arch, 9);
+    }
+    // a pulled string carries the brow's head and the fold's foot alike
+    const low = relationalHead({ sex: 'male', actions: { browLower: 1 } }).relational.bridge.sides.R, rest = head.relational.bridge.sides.R;
+    expect(low.head.z - rest.head.z).toBeCloseTo(low.arc.Fm.z - rest.arc.Fm.z, 9);
+    expect(low.head.z).toBeLessThan(rest.head.z);
   });
 });

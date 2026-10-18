@@ -55,7 +55,7 @@ describe('the bridge and its strings', () => {
     expect(A.Fl.x).toBeGreaterThan(P.exR.x);
     expect(A.z(mid)).toBeGreaterThan(P.eyeR.z + 0.05);
     expect(A.z(A.Fl.x + 0.01)).toBeNull();
-    for (const [top, foot] of strings) expect(top.z).toBeGreaterThan(foot.z + 0.1);
+    for (const st of strings) expect(st[0].z).toBeGreaterThan(st.at(-1).z + 0.1);   // the top well above the foot
     expect(bridge[1].z).toBeGreaterThan(A.K.z);
   });
   it('a pulled string carries what hangs from it', () => {

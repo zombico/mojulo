@@ -116,31 +116,41 @@ function bump(t, a, shape) {
  * across the forehead, and from it hang four STRINGS: two medial, down either side of the nose's root to just above the
  * inner canthi, and two lateral, down the temples to just past the outer canthi. Each eye's ARC (the fold's edge under
  * the brow) hangs between its two strings' feet, its peak over the iris's outer edge, so the fold closes onto the lid
- * at the corners. Pulling a string moves what hangs from it: `pull` is the brow pad's action ({ med, L, R }, each a
- * { x, z } shift in V from rest to moved); the medial strings take the medial pull, each lateral string its side's.
- * Returns { bridge: [{x, z}…], strings: [[top, foot]…], arcs: { L, R } }, each arc { Fm, Fl, K, z(x) } (z null past
- * the feet). V units, the head's frame.
+ * at the corners. The BROW is tied on the same strings: its head on the medial string over the inner canthus, its tail
+ * on the lateral, which runs on the line from the nose's wing through the outer canthus (the tail's classic line); its
+ * peak rides the arc's (the epidermis's `browLine` hangs it). Pulling a string moves all that hangs from it: `pull`
+ * is the brow pad's action ({ med, L, R }, each a { x, z } shift in V from rest to moved); the medial strings take the
+ * medial pull, each lateral string its side's. Returns { bridge: [{x, z}…], strings: [[top, tie, foot]…], arcs,
+ * sides }: each arc { Fm, Fl, K, z(x) } (z null past the feet), each side { arc, head, tail } (the brow's ties). V
+ * units, the head's frame.
  */
 export function browBridge(P, pull = {}) {
   const zero = { x: 0, z: 0 }, med = pull.med || zero, sides = ['L', 'R'].filter((s) => P[`en${s}`]);
   const bz = sides.reduce((m, s) => m + P[`en${s}`].z, 0) / sides.length + 0.16;
-  const arcs = {}, strings = [], tops = {};
+  const arcs = {}, strings = [], tops = {}, out = {};
   for (const s of sides) {
-    const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], sg = Math.sign(ex.x - en.x), lat = pull[s] || zero;
+    const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], al = P[`al${s}`], sg = Math.sign(ex.x - en.x), lat = pull[s] || zero;
     const Fm = { x: en.x - sg * 0.012 + med.x, z: en.z + 0.004 + med.z };
     const Fl = { x: ex.x + sg * 0.022 + lat.x, z: ex.z + 0.004 + lat.z };
+    // the brow's ties: its head a touch medial of the inner canthus, its tail on the wing-to-canthus line (straight up
+    // past the canthus when there is no wing), both carried by their strings' pulls
+    const head = { x: en.x - sg * 0.008 + med.x, z: en.z + 0.075 + med.z }, tz = en.z + 0.079;
+    const tail = al ? { x: ex.x + (ex.x - al.x) * ((tz - ex.z) / (ex.z - al.z)) + lat.x, z: tz + lat.z } : { x: ex.x + sg * 0.03 + lat.x, z: tz + lat.z };
+    // each string a line from its foot through its tie, up to the bridge
+    const along = (foot, tie, z) => ({ x: foot.x + ((tie.x - foot.x) * (z - foot.z)) / (tie.z - foot.z), z });
     const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 + (med.z + lat.z) / 2 };
     const W = Fl.x - Fm.x, uK = (K.x - Fm.x) / W;
     const chord = (u) => Fm.z + (Fl.z - Fm.z) * u;
     const z = (x) => { const u = (x - Fm.x) / W; return u <= 0 || u >= 1 ? null : chord(u) + (K.z - chord(uK)) * bump(u, uK, -0.35); };
     arcs[s] = { Fm, Fl, K, z };
-    tops[s] = { med: { x: Fm.x, z: bz }, lat: { x: Fl.x + sg * 0.012, z: bz - 0.03 } };
-    strings.push([tops[s].med, Fm], [tops[s].lat, Fl]);
+    out[s] = { arc: arcs[s], head, tail };
+    tops[s] = { med: along(Fm, head, bz), lat: along(Fl, tail, bz - 0.03) };
+    strings.push([tops[s].med, head, Fm], [tops[s].lat, tail, Fl]);
   }
   // (one side given: the bridge mirrors it)
   const tL = tops.L ? tops.L.lat : { ...tops.R.lat, x: -tops.R.lat.x }, tR = tops.R ? tops.R.lat : { ...tL, x: -tL.x };
   const bridge = [tL, { x: tL.x * 0.7, z: bz }, { x: tR.x * 0.7, z: bz }, tR];
-  return { bridge, strings, arcs };
+  return { bridge, strings, arcs, sides: out };
 }
 
 /**

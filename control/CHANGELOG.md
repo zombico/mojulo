@@ -20,8 +20,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   is a level's look: its first groom is the brows, grown as strands on the relational head by its relations (the
   head over the inner canthus, the arch's peak over the outer edge of the iris, the tail on the line from the nose's
   wing through the outer canthus), in three regions (the head's hairs up, the body's out and up, the tail's out and
-  down) with the herringbone along the spine, laid on the skin and riding the brow pad, so a raised or lowered brow
-  carries them. The field lane draws them (`--epidermis`).
+  down) with the herringbone along the spine, laid on the skin. The brow hangs on the brow bridge's strings with the
+  fold under it: its head is tied on the medial string, its tail on the lateral string (which runs on the line from
+  the nose's wing through the outer canthus), and its peak rides the fold's arc. A raised or lowered brow pulls the
+  strings, so the hairs and the fold move together, and the same hairs are carried rather than regrown. The field
+  lane draws them (`--epidermis`).
 - **Lashes.** The cube's second groom roots on the eye rig's lid margins, which the rig now exposes as lash lines.
   The upper lashes are longest centre-lateral and curl up; the lower are shorter and sparser and curl down; the
   lateral lashes flare outward. Each leaves the margin at an elevation set by where the margin sits on the globe and
@@ -88,7 +91,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The brow's bridge, and the lid space hung from it.** An invisible bridge runs across the forehead (`browBridge`)
   with four strings hanging from it: two medial strings down beside the nose's root, and two lateral strings down the
   temples. Each eye's arc, the edge of its fold under the brow, hangs between its two strings' feet just past the
-  canthi. The brow pad's action pulls the strings, so a raised brow lifts the arc and a lowered one drops it. The
+  canthi, and the brow is tied on the same strings. The brow pad's action pulls the strings, so a raised brow lifts the arc and a lowered one drops it. The
   upper lid now drapes the globe from its margin to the crease. The fold rolls out of the crease and rises forward
   to the brow at the arc, and the lid space closes where the arc's feet meet the canthi. Before this, the brow's skin
   stood about 19 mm proud of the cornea right down to the lid margin, which hid the lid, the crease and the hood. The
