@@ -69,6 +69,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Godot and Roblox** name the wall lost.
   - **The registry** marks `space.traversal=wall` built on the web. The City stalker probe now waits on the swinger,
     the idiom and the look.
+- **The swinger.** A platform body with `rule.gear: 'swinger'` casts a line to a building's face and swings on it
+  (`worlds/controllable/swing.js`, a body owner after the wall). A gear is a set of direction constraints on where
+  its line lands; the swinger's are a face above and ahead.
+  - **The anchor** is found for the hero, never aimed. It is the face point nearest an ideal one (55° up, out along
+    the heading), within reach, at least 25° up, inside a 75° cone either side of the heading, with a clear line.
+    With no face in reach (an open plaza, a park) there is no line. A `hold: false` box takes none.
+  - **The swing:** the gear's key (`boost`, F) held in the air. The line cannot stretch; gravity pulls the body; A / D
+    steer and forward pumps. Its pivot is the anchor drawn three quarters of the way toward the hero's own line, so
+    the arc runs down the street rather than into the wall the line is on. Its length keeps the arc's bottom clear of
+    the street.
+  - **Letting go:** the key let go, a jump (with a lift), a box across the line, a box met (the wall then takes the
+    body), or the ground. The body flies on with the swing's speed.
+  - **The zip:** the key pressed on the ground pulls the hero straight to the face, where the wall takes hold.
+
+  Supporting pieces:
+  - **The page** draws the line from the hand to the anchor, emitted only where a body has a gear.
+  - **The new states** (`swing`, `swing_release`, `zip`) fall back to the leap.
+  - **The city hero** carries the swinger unless `level.hero.gear: false`, and its controls legend names F.
+  - **Godot and Roblox** name the gear lost.
+  - **The registry** marks `power.gear=swinger` built on the web. The City stalker probe now waits on the idiom and
+    the look.
 
 ### Epidermis cube: skin and hair as a recipe
 

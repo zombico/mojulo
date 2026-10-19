@@ -193,7 +193,7 @@ export function readCityPlan(rec) {
     // a hero plays it (level.js cityHero): a made character by ref, or a stand-in with none
     if (rec.level.hero !== undefined) {
       const h = rec.level.hero;
-      if (!isObj(h) || Object.keys(h).some((k) => !['ref', 'gaits', 'wall'].includes(k)) || (h.ref !== undefined && typeof h.ref !== 'string') || (h.wall !== undefined && typeof h.wall !== 'boolean') || (h.gaits !== undefined && !(Array.isArray(h.gaits) && h.gaits.every((g) => typeof g === 'string')))) no("level.hero is { ref?, gaits?, wall? }: the made character who plays the segment third person (its sketch ref; none plays a stand-in), its own door gaits, and wall: false to hold no wall");
+      if (!isObj(h) || Object.keys(h).some((k) => !['ref', 'gaits', 'wall', 'gear'].includes(k)) || (h.ref !== undefined && typeof h.ref !== 'string') || (h.wall !== undefined && typeof h.wall !== 'boolean') || (h.gear !== undefined && h.gear !== false) || (h.gaits !== undefined && !(Array.isArray(h.gaits) && h.gaits.every((g) => typeof g === 'string')))) no("level.hero is { ref?, gaits?, wall?, gear? }: the made character who plays the segment third person (its sketch ref; none plays a stand-in), its own door gaits, wall: false to hold no wall and gear: false to cast no line");
     }
     level = rec.level;
   }

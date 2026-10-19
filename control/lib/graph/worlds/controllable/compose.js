@@ -27,6 +27,7 @@ import { buildCombatRanged } from './combat-ranged.js';
 import { buildCombatMelee } from './combat-melee.js';
 import { buildRulesPlatform } from './rules-platform.js';
 import { buildWall } from './wall.js';
+import { buildSwing } from './swing.js';
 import { buildRulesDrive } from './rules-drive.js';
 import { buildRulesFly } from './rules-fly.js';
 import { buildLock } from './lock.js';
@@ -49,7 +50,7 @@ export function composeControllable(builders) {
 // the mobile-suit pack's two behavior modules were lifted into the engine whole (maneuvers.js, the
 // pack's ms-maneuvers; mind.js, its ai brain), so no pack content composes in any more. Kept as its
 // own export for the callers that name it. S4: all.js is dissolved.
-export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildWall, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildNav, buildMind, buildGroup];
+export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildWall, buildSwing, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildNav, buildMind, buildGroup];
 export const EMISSION = [...EMISSION_ENGINE];
 
 // The live Node instance factory (the façade composes one; tests may compose their own).

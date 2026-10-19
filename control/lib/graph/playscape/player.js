@@ -76,13 +76,17 @@ export function playerStates(clipNames, library = null, gaits = []) {
   return { ...own, ...LIBRARY_STATES[library], ...ownGaits };
 }
 
-/** The traversal states a model need not have (the city stalker's wall, worlds/controllable/wall.js): each falls back,
- *  in order, to a state every player already plays, so no figure is refused for a clip it lacks. */
+/** The traversal states a model need not have (the city stalker's wall and gear, worlds/controllable/wall.js and
+ *  swing.js): each falls back, in order, to a state every player already plays, so no figure is refused for a clip it
+ *  lacks. */
 export const TRAVERSAL_FALLBACK = Object.freeze({
   wall_crawl: ['climb', 'leap'],
   mantle: ['climb', 'squat', 'leap'],
   perch: ['kneel', 'squat', 'idle'],
   dive: ['leap'],
+  swing: ['leap'],
+  swing_release: ['leap'],
+  zip: ['leap'],
 });
 /** A states map (runtime state → clip) with each traversal state it lacks played by its first fallback it has. */
 export function traversalStates(states) {

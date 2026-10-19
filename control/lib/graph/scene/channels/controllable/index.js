@@ -66,6 +66,30 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
+  // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
+  // entity carries a gear → the emitted channel is byte-identical
+  const gearUsed = (entities || []).some((e) => e && e.rule && e.rule.gear);
+  const gearBlock = gearUsed ? `
+// ---- the gear's line (swing.js): hand to anchor while a body swings or zips ----
+const __gearLines = {};
+function __updateGearLines() {
+  for (const e of __world.entities) {
+    const S = e.swinging || (e.zipping ? { anchor: e.zipping.anchor } : null);
+    let ln = __gearLines[e.id];
+    if (!S) { if (ln) ln.visible = false; continue; }
+    if (!ln) {
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+      ln = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xf2f2f2 })); ln.frustumCulled = false; ln.raycast = function () {};
+      scene.add(ln); __gearLines[e.id] = ln;
+    }
+    const r = e.rule, H = r.collideHeight != null ? r.collideHeight : 1.7 * (r.metre || 1), a = ln.geometry.attributes.position.array;
+    a[0] = e.transform.pos[0]; a[1] = e.transform.pos[1]; a[2] = e.transform.pos[2] - (r.eye || 0) + H * 0.9;
+    a[3] = S.anchor[0]; a[4] = S.anchor[1]; a[5] = S.anchor[2];
+    ln.geometry.attributes.position.needsUpdate = true; ln.visible = true;
+  }
+}` : '';
+  const gearHook = gearUsed ? `
+    __updateGearLines();` : '';
   // a bone part carrying metal (a hero wearing its cube's materials, rig-bake.js `metal`): the metal channel's patch on
   // its mesh. Soup parts only (the hero's encoding); no metal part → the emitted channel is byte-identical
   const rigMetalHook = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.parts) && f.parts.some((p) => p && p.metal))
@@ -2698,7 +2722,7 @@ function __updateThrusters(dt) {
   }
 }
 for (const e of __world.entities) { const m = __makeBody(e); if (m) __bodies[e.id] = m; }
-for (const e of __world.entities) __syncEntity(e);${shadowBlock}${smokeBlock}${hangarBlock}
+for (const e of __world.entities) __syncEntity(e);${shadowBlock}${smokeBlock}${hangarBlock}${gearBlock}
 // ---- MATCH layer (mobile-suit-arena.plan.md M1b/M3): scoreboard + kill feed + result + game seam ----
 // Built only when the world runs a match; matchless worlds emit the same bytes they always did
 // (the block below is inert without __world.match). The scoreboard is the top-left kill tally per
@@ -3121,7 +3145,7 @@ ${hangarHook}  __msHookParams();
     __updateProjectiles();
     __updateClashes();
     __updateThrusters(dt);${figHasJuice ? `
-    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${breakables ? `
+    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);

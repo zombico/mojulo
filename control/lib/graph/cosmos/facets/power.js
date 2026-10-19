@@ -59,7 +59,8 @@ export const POWER = Object.freeze({
     gear: {
       values: {
         none: { status: 'built', godot: 'built', roblox: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
-        swinger: { status: 'absent', effort: 'L', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero, swung on as a pendulum that clears the street, released with its speed; a zip to a point; no face in reach, no swing' },
+        // built 10-19 (phase 3): a body owner after the wall, the line to a face found for the hero; web only
+        swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
       },
     },
     idiom: {

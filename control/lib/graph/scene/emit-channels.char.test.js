@@ -169,6 +169,10 @@ import { emitThreeWorld } from './scene-three.js';
 // corners, mantles onto its roof, jumps or launches off it; the `wall-pose` pass), and normalizeColliders keeps a box's
 // `hold: false`. On the `controllable` fixture 1 line is replaced (the collider record, the same without `hold`) and
 // 176 added. The same 14 fixtures that embed the runtime re-pinned with it; no page asks for the wall yet.
+// Re-pinned 2026-10-19 (city hunter: the swinger): the runtime gained the `swing` builder (worlds/controllable/swing.js:
+// a platform body with `rule.gear` casts the swinger's line to a face above and ahead, swings under it, zips to it; the
+// `gear-pose` pass). On the `controllable` fixture 158 lines are added and none changed; the page's line drawer is
+// emitted only where a body has a gear, so no fixture carries it. The same 14 re-pinned.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

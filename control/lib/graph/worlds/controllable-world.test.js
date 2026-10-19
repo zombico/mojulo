@@ -1128,16 +1128,17 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // without rule.missiles).
     // The city stalker added the 'wall' body owner after the climb (a platform body with rule.wall holds any collider's
     // face: wall.js; a ladder's climb wins) and the 'wall-pose' pass after the launch (perch and dive labels); both are
-    // no-ops without rule.wall.
+    // no-ops without rule.wall. Its gear added the 'swing' body owner after the wall (the swinger's line: swing.js; a held
+    // wall wins) and the 'gear-pose' pass after 'wall-pose'; no-ops without rule.gear.
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'wall', 'cast'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'wall', 'swing', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'missiles', 'melee', 'tackle'],
-      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
+      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });
 

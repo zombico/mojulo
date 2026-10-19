@@ -16,7 +16,7 @@
  *
  * Everything is in the world's units (the legacy city's, CITY_METERS_PER_UNIT).
  *
- * THE HERO (opt-in `level.hero`: { ref?, gaits?, wall? }, the city stalker): a third-person hero plays the segment in place of
+ * THE HERO (opt-in `level.hero`: { ref?, gaits?, wall?, gear? }, the city stalker): a third-person hero plays the segment in place of
  * the walker. It is the player slot every game uses (playscape/player.js playerWorld: the platform rule, a figure-rig
  * body, its clips), tuned in metres (CITY_HERO) and turned into the city's units once here: every length and speed of
  * its rule and its camera divided by the unit, its body drawn at 1 / unit. With no `ref` a stand-in box plays it. Its
@@ -24,7 +24,8 @@
  * standing between the chase camera and the hero (its stand-off read off the hero's own capsule, so it holds in the
  * city's units: follow-pull-in.js), and the segment's edges rise to the sky (a hero who climbs is not held by
  * a walker's 8 m wall, and not one it can hold: `hold: false`). It holds any other wall (wall.js), crawls it and mantles
- * onto its roof, unless `wall: false`; its figure's clips fall back for the wall's states (player.js traversalStates).
+ * onto its roof, unless `wall: false`, and swings on the swinger's line (swing.js; F held in the air, a zip on the ground),
+ * unless `gear: false`; its figure's clips fall back for those states (player.js traversalStates).
  * Absent, the walker plays it, byte for byte.
  */
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
@@ -43,7 +44,7 @@ export const CITY_LEVEL = Object.freeze({ eye: 1.7, speed: 5, wall: 8, arrive: 7
 /** The city's hero, in metres: its rule's run, jump and fall (a person's, as playerWorld's, falling as the platform rule
  *  does by default), its capsule, the chase camera, and the sky its edges rise to over the tallest mass in reach. */
 export const CITY_HERO = Object.freeze({
-  rule: { speed: 6, jumpSpeed: 6.5, gravity: 20, maxFall: 26, step: 0.35, snap: 0.15, collideRadius: 0.35, collideHeight: 1.7, wall: true },
+  rule: { speed: 6, jumpSpeed: 6.5, gravity: 20, maxFall: 26, step: 0.35, snap: 0.15, collideRadius: 0.35, collideHeight: 1.7, wall: true, gear: 'swinger' },
   camera: { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
   standIn: { size: [0.5, 0.5, 1.7], color: '#d8b04a' },
   sky: 60,
@@ -222,11 +223,11 @@ export function withCityLevel(m, d, ref) {
 /** The hero who plays a segment (`level.hero`), in the city's units: the player slot's entity at the spawn, its figure
  *  (a made character by `ref`, drawn at 1 / unit) or a stand-in box, the chase camera, and the controls legend. The stand-in stands at its half height (a box body is drawn about the entity's point). */
 function cityHero(H, L) {
-  const C = CITY_HERO.camera, legend = 'W / S  run · A / D  turn · Space  jump';
+  const C = CITY_HERO.camera, legend = `W / S  run · A / D  turn · Space  jump${H.gear === false ? '' : ' · F  swing (in the air), zip (on the ground)'}`;
   const P = playerWorld({ heroRef: H.ref ?? 'none', ...(H.gaits ? { gaits: H.gaits } : {}), id: 'hero', controls: legend });
   const standIn = !H.ref, half = CITY_HERO.standIn.size[2] / 2;
-  const { wall, ...base } = CITY_HERO.rule;
-  const rule = ruleInUnits({ ...P.entities[0].rule, ...base, ...(H.wall === false ? {} : { wall }), ...(standIn ? { eye: half } : {}) });
+  const { wall, gear, ...base } = CITY_HERO.rule;
+  const rule = ruleInUnits({ ...P.entities[0].rule, ...base, ...(H.wall === false ? {} : { wall }), ...(H.gear === false ? {} : { gear }), ...(standIn ? { eye: half } : {}) });
   const eye = standIn ? u(half) : 0;
   const body = standIn ? { type: 'mesh', shape: 'box', size: CITY_HERO.standIn.size.map(u), color: CITY_HERO.standIn.color } : { ...P.entities[0].body, scale: r3(1 / U) };
   return {

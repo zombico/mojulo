@@ -94,11 +94,30 @@ describe('a city segment played by a hero', () => {
     expect(sim.time).toBeGreaterThan((lot.max[2] * U) / 3);
   });
 
-  it('is asked for as { ref?, gaits?, wall? }, and nothing else', () => {
+  it('swings down its street on the swinger\'s line, in the city\'s units, at the speeds it was tuned to in metres', () => {
+    const m = lower({ hero: {} }), hero = m.entities[0], eye = hero.rule.eye;
+    expect(hero.rule.gear).toBe('swinger');
+    expect(lower({ hero: { gear: false } }).entities[0].rule.gear).toBeUndefined();
+    // the district's roofs and its street, as the page's faces stand them
+    const R = s.rect, box = (c) => ({ corners: [[c.min[0], c.min[1], c.max[2]], [c.max[0], c.min[1], c.max[2]], [c.max[0], c.max[1], c.max[2]], [c.min[0], c.max[1], c.max[2]]] });
+    const pad = 60 / U, street = { corners: [[R.x0 / U - pad, R.y0 / U - pad, 0], [R.x1 / U + pad, R.y0 / U - pad, 0], [R.x1 / U + pad, R.y1 / U + pad, 0], [R.x0 / U - pad, R.y1 / U + pad, 0]] };
+    const lots = m.colliders.filter((c) => !c.of.startsWith('edge'));
+    // airborne over the spawn's street, 12 m up, facing along it, the gear's key held
+    const [x, y] = hero.transform.pos, sim = simLevel({ entities: [{ ...hero, transform: { pos: [x, y, 12 / U + eye], heading: hero.transform.heading } }], colliders: m.colliders }, { ground: faceGround([...lots.map(box), street]) });
+    const h = sim.world.byId.hero;
+    sim.input.boost = 1;
+    let swung = 0, fastest = 0;
+    for (let i = 0; i < 45; i++) { sim.frame(1 / 30); if (h.swinging) { swung++; fastest = Math.max(fastest, Math.hypot(...h.swinging.v) * U); } }
+    expect(swung).toBeGreaterThan(10);
+    expect(fastest).toBeGreaterThan(5);
+    expect(fastest).toBeLessThanOrEqual(45 + 1e-6);
+  });
+
+  it('is asked for as { ref?, gaits?, wall?, gear? }, and nothing else', () => {
     const plan = (hero) => readCityPlan({ ...recipe, level: { segment: s.id, hero } });
     expect(() => plan({})).not.toThrow();
     expect(() => plan({ ref: 'sk_hero', gaits: ['jog'] })).not.toThrow();
-    expect(() => plan(true)).toThrow(/level.hero is \{ ref\?, gaits\?, wall\? \}/);
+    expect(() => plan(true)).toThrow(/level.hero is \{ ref\?, gaits\?, wall\?, gear\? \}/);
     expect(() => plan({ ref: 3 })).toThrow(/level.hero/);
     expect(() => plan({ speed: 9 })).toThrow(/level.hero/);
   });
