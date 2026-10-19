@@ -112,6 +112,12 @@ in CSS 3D. In progress:
   castling, en passant, promotion, check, the fifty-move rule and threefold repetition, and English draughts with
   compulsory and chained jumps and crowning. A chess position loads from FEN. Their move counts match the published
   perft tables (chess from the start, Kiwipete and the standard test positions; checkers from the start).
+- **The computer across the table** (`lib/graph/tabletop/tabletop-mind.js`), built: alpha-beta over the kernel's
+  moves, captures followed past the horizon, scored by what the game declares (its pieces' values, a promoting
+  piece's progress, the middle of the board), three levels (easy, fair, hard) by depth and by how far below the best
+  a pick may fall. Bounded by a count of positions, never a clock, with seeded dice between equal moves: the same
+  position and seed give the same move on any machine. A closure over the kernel, so a page carries both. The attack
+  test walks each capturing rule backwards from the square, which made the search about three times faster.
 
 ## [3.1.1] - 2026-10-16
 

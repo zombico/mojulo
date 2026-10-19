@@ -45,7 +45,7 @@
  *
  *   K = compile(L, G)            the game over its board, every rule's vectors turned for every player
  *   S = start(K)                 { board: [piece | -1 per cell], pieces: [{ kind, side, at, moved }], side, left, chain,
- *                                  marks, turn, quiet, seen, clock?, over }   over: null | { winner: side | null, reason }
+ *                                  marks, turn, quiet, trail, clock?, over }   over: null | { winner: side | null, reason }
  *   legal(K, S) → [move]         move: { p, from, to, r, cap: [piece], partner?, promote?, pass?, name }
  *   apply(K, S, move, { ms }?) → S
  *   outcome(K, S) → over | null  ends the game when the side to move has no move (apply does not look ahead)
@@ -155,7 +155,7 @@ export function buildTabletop() {
         }
       }
     }
-    const S = { board, pieces, side: 0, left: K.moves, chain: -1, marks: [], turn: 0, quiet: 0, seen: {}, over: null };
+    const S = { board, pieces, side: 0, left: K.moves, chain: -1, marks: [], turn: 0, quiet: 0, trail: null, over: null };
     // a position part-played: who moves, which pieces have moved, the marks the last move left
     const from = K.G.start || {}, cellOf = (name) => {
       const i = K.T.byName.get(name);
@@ -169,7 +169,7 @@ export function buildTabletop() {
     for (const name of from.moved || []) { const p = board[cellOf(name)]; if (p >= 0) pieces[p].moved = 1; }
     for (const mk of from.marks || []) S.marks.push({ kind: mk.kind, cell: cellOf(mk.cell), side: K.sideOf[mk.side], by: board[cellOf(mk.by)] });
     if (K.G.clock) S.clock = K.players.map(() => K.G.clock.base);
-    S.seen[key(K, S)] = 1;
+    S.trail = { k: key(K, S), prev: null };
     return S;
   }
 
@@ -193,11 +193,10 @@ export function buildTabletop() {
   };
   const markAt = (S, cell, kind, side) => { for (const m of S.marks) if (m.cell === cell && m.kind === kind && m.side !== side) return m; return null; };
 
-  // the moves one piece could make, before the royal rule; `probe` a cell treated as holding a foe (attack tests)
-  function pieceMoves(K, S, p, rules, probe, out) {
+  // the moves one piece could make, before the royal rule
+  function pieceMoves(K, S, p, rules, out) {
     const P = S.pieces[p], side = P.side, kind = K.kinds[P.kind];
     for (const R of rules) {
-      if (probe >= 0 && (R.to === 'empty' || R.capture !== 'land' || R.partner)) continue;
       let fromRow = true;
       if (R.when) {
         for (const c of R.when) {
@@ -223,11 +222,11 @@ export function buildTabletop() {
           const land = cellAt(K.T, cur, V.v);
           if (land < 0) break;
           const q = S.board[land];
-          const foeHere = land === probe || (q >= 0 && S.pieces[q].side !== side);
+          const foeHere = q >= 0 && S.pieces[q].side !== side;
           if (q >= 0 && !foeHere) break;   // the mover's own
           if (foeHere ? R.to === 'empty' : R.to === 'enemy') { if (foeHere) break; cur = land; continue; }
           const m = { p, from: P.at, to: land, r: R.i, cap: [] };
-          if (foeHere && R.capture === 'land') { if (q >= 0) m.cap.push(q); }
+          if (foeHere && R.capture === 'land') m.cap.push(q);
           else if (foeHere) break;           // a foe it cannot take stops it
           if (!foeHere && markWant) {
             const mk = markAt(S, land, markWant.mark, side);
@@ -244,12 +243,12 @@ export function buildTabletop() {
             if (!Q || Q.side !== side || Q.kind !== R.partner.kind || Q.moved || !passed.length) break;
             m.partner = { p: found, to: passed[passed.length - 1] };
           }
-          if (R.safe && probe < 0) {
+          if (R.safe) {
             const foeSides = K.players.map((_, s) => s).filter((s) => s !== side);
             const risk = [P.at].concat(passed, [land]);
             if (risk.some((c) => foeSides.some((s) => attacked(K, S, c, s)))) break;
           }
-          if (kind.promote && probe < 0 && rowIs(K, side, land, kind.promote.row)) {
+          if (kind.promote && rowIs(K, side, land, kind.promote.row)) {
             for (const to of kind.promote.to) out.push(Object.assign({}, m, { promote: to }));
           } else out.push(m);
           if (foeHere) break;
@@ -260,22 +259,54 @@ export function buildTabletop() {
     return out;
   }
 
+  // whether a piece of `side` could take on the cell: each capturing rule walked backwards from it (the cell counts
+  // as holding a foe), to the piece that would make it
   function attacked(K, S, cell, side) {
-    for (let p = 0; p < S.pieces.length; p++) {
-      const P = S.pieces[p];
-      if (P.at < 0 || P.side !== side) continue;
-      const hits = pieceMoves(K, S, p, K.kinds[P.kind].rules, cell, []);
-      for (const m of hits) if (m.to === cell) return true;
+    for (const id in K.kinds) {
+      for (const R of K.kinds[id].rules) {
+        if (R.to === 'empty' || R.capture !== 'land' || R.partner) continue;
+        for (const V of R.vecs[side]) {
+          const back = [-V.v[0], -V.v[1]];
+          let cur = cell;
+          for (let n = 0; n < R.max; n++) {
+            const src = cellAt(K.T, cur, back);
+            if (src < 0) break;
+            let blocked = false;
+            for (const o of V.pass) {
+              const c = cellAt(K.T, src, o);
+              const q = c < 0 ? -1 : S.board[c], foe = q >= 0 && S.pieces[q].side !== side;
+              if (c < 0 || (R.pass === 'empty' && q >= 0) || (R.pass === 'enemy' && !foe)) { blocked = true; break; }
+            }
+            if (blocked) break;
+            const q = S.board[src];
+            if (q >= 0) {
+              const P = S.pieces[q];
+              if (P.side === side && P.kind === id && whenHolds(K, R, P)) return true;
+              break;
+            }
+            cur = src;
+          }
+        }
+      }
     }
     return false;
+  }
+  function whenHolds(K, R, P) {
+    if (!R.when) return true;
+    for (const c of R.when) {
+      if (c === 'unmoved' && P.moved) return false;
+      if (c && c.row !== undefined && !rowIs(K, P.side, P.at, c.row)) return false;
+      if (c && c.mark) return false;
+    }
+    return true;
   }
 
   function pseudo(K, S) {
     const out = [];
-    if (S.chain >= 0) return pieceMoves(K, S, S.chain, K.kinds[S.pieces[S.chain].kind].chainRules, -1, out);
+    if (S.chain >= 0) return pieceMoves(K, S, S.chain, K.kinds[S.pieces[S.chain].kind].chainRules, out);
     for (let p = 0; p < S.pieces.length; p++) {
       const P = S.pieces[p];
-      if (P.at >= 0 && P.side === S.side) pieceMoves(K, S, p, K.kinds[P.kind].rules, -1, out);
+      if (P.at >= 0 && P.side === S.side) pieceMoves(K, S, p, K.kinds[P.kind].rules, out);
     }
     return out;
   }
@@ -332,12 +363,14 @@ export function buildTabletop() {
     // the chain: the same piece again, by chain rules only, while it can
     N.chain = -1;
     if (R && R.chain && !(m.promote && K.kinds[S.pieces[m.p].kind].promote.stop)) {
-      const more = pieceMoves(K, Object.assign({}, N, { chain: m.p }), m.p, K.kinds[N.pieces[m.p].kind].chainRules, -1, []);
+      const more = pieceMoves(K, Object.assign({}, N, { chain: m.p }), m.p, K.kinds[N.pieces[m.p].kind].chainRules, []);
       if (more.length) N.chain = m.p;
     }
     const resets = K.quiet && K.quiet.reset ? K.quiet.reset : [];
     const loud = m.cap.length > 0 || (m.p >= 0 && resets.indexOf(S.pieces[m.p].kind) >= 0);
     N.quiet = loud ? 0 : S.quiet;
+    const trail = loud ? null : S.trail;
+    N.trail = trail;
     let ends = false;
     if (N.chain < 0) {
       N.left = S.left - 1;
@@ -364,9 +397,11 @@ export function buildTabletop() {
     }
     if (ends) {
       const k = key(K, N);
-      N.seen = Object.assign({}, S.seen);
-      N.seen[k] = (N.seen[k] || 0) + 1;
-      if (K.G.repetition && N.seen[k] >= K.G.repetition) N.over = { winner: null, reason: 'repetition' };
+      // the positions since the last move that cannot be undone (a capture, a reset kind): none before can return
+      N.trail = { k, prev: trail };
+      let times = 0;
+      for (let t = N.trail; t; t = t.prev) if (t.k === k) times++;
+      if (K.G.repetition && times >= K.G.repetition) N.over = { winner: null, reason: 'repetition' };
       else if (K.quiet && N.quiet >= K.quiet.plies) N.over = { winner: null, reason: 'quiet' };
       else if (K.G.cap && N.turn >= K.G.cap) N.over = { winner: null, reason: 'cap' };
     }
