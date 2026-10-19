@@ -818,6 +818,15 @@ const MECHANICS = {
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
   // numbers only). The level's rpg channel loads the roster as it starts, and puts each changed number back as a
   // setStat after every fight, class switch, skill bought and rest
+  // a BOARD battle (a terminal): the level is a tactics battle on its own ground (its `board.battle`, board/), won and
+  // lost where the board page says so on the bus (board-won; board-lost, or a draw at the turn cap)
+  board: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower() {
+      return { on: { 'board-won': { end: 'success' }, 'board-lost': { end: 'fail' }, 'board-draw': { end: 'fail' } } };
+    },
+  },
+
   party: {
     role: 'emitter', requires: ['party'],
     lower(p, ctx) {
