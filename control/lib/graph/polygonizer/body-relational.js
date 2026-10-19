@@ -406,6 +406,13 @@ const mixW = (a, b, t) => {
   const w = {}; for (const k of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) { const v = r6((a[k] ?? 0) * (1 - t) + (b[k] ?? 0) * t); if (v > 0) w[k] = v; }
   const ks = Object.keys(w), big = ks.reduce((x, k) => (w[k] > w[x] ? k : x), ks[0]); w[big] = r6(1 - ks.filter((k) => k !== big).reduce((t2, k) => t2 + w[k], 0)); return w;
 };
+/** a blend held to the four bones a vertex carries: the weakest dropped and the rest made whole again (a mix of five,
+ * left out whole, had dropped a point's new share for one ring and kept it on the next: a step where a ramp was meant) */
+const four = (w) => {
+  const ks = Object.keys(w); if (ks.length <= 4) return w;
+  const keep = ks.sort((a, b) => w[b] - w[a] || (a < b ? -1 : 1)).slice(0, 4).sort(), sum = keep.reduce((t, k) => t + w[k], 0);
+  return mixW(Object.fromEntries(keep.map((k) => [k, w[k] / sum])), {}, 0);
+};
 const stationId = (u) => (Number.isInteger(u) ? `st${u}` : `st${Math.floor(u)}_st${Math.ceil(u)}_${String(Math.round((u - Math.floor(u)) * 1000)).padStart(3, '0')}`);
 
 /** a closed part re-sampled onto a field: `rings` stations over its authored u, `around` slots round each, each slot on
@@ -628,18 +635,32 @@ export function formSlice(recipe, R, build, opts = {}) {
     const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
     return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * down(q);
   };
-  // (`ownArm`: the arm's own top, between the collarbone and the arm's bone by `down` alone, as the cap over it reads
-  // it; the torso mixed toward the arm's bone by the deltoid's share)
+  // THE SHOULDER'S FOLD: a helper at the shoulder's joint turned half the arm's swing (the rig's fold, as the hip's: the
+  // arm's rest line carried by the collarbone into the socket; unpushed: pushed to the armpit's side, a raised arm's
+  // underside swelled there in a lobe over the chest's wall). The arm's own top goes from the collarbone to the arm's
+  // bone THROUGH it, by `down`: straight from one to the other, a raised arm's top rings, by turns the collarbone's and
+  // the arm's, pinched the arm's root to a point at the armpit
+  for (const S of ['R', 'L']) {
+    const J = R.joints, id = `shoulderFold${S}`; if (!J[`clavicle${S}`] || !r.rig.folds) continue;
+    r.rig.folds[id] = { joint: `shoulder${S}`, inAxis: [0, 1, 2].map((k) => r6(J[`elbow${S}`][k] - J[`shoulder${S}`][k])), to: `elbow${S}`, front: [0, 1, 0], push: 0, bones: [`clavicle${S}`, `upperArm${S}`], head: id, tail: `shoulderFoldTip${S}`, aim: `shoulderFoldAim${S}` };
+    r.rig.bones.push({ id, head: id, tail: `shoulderFoldTip${S}`, aux: [id, `shoulderFoldAim${S}`] });
+  }
+  const viaFold = (S, f) => {
+    const cl = { [`clavicle${S}`]: 1 }, arm = { [`upperArm${S}`]: 1 }, F = `shoulderFold${S}`;
+    return !r.rig.folds?.[F] ? mixW(cl, arm, f) : f < 0.5 ? mixW(cl, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, arm, 2 * f - 1);
+  };
+  // (`ownArm`: the arm's own top, from the collarbone through the shoulder's fold to the arm's bone by `down` alone; the
+  // torso mixed toward the arm's bone by the deltoid's share)
   const rideDeltoid = (P, ownArm) => {
     if (!delt.length) return P;
     const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
     const ride = (key, fallback, p) => {
       if (p[0] === 0) return;
       const S = p[0] < 0 ? 'L' : 'R', arm = `upperArm${S}`;
-      if (ownArm) { const f = down(p); if (f < 0.999) blend[key] = mixW({ [`clavicle${S}`]: 1 }, { [arm]: 1 }, f); return; }
+      if (ownArm) { const f = down(p); if (f < 0.999) blend[key] = viaFold(S, f); return; }
       const f = deltoidShare(p); if (f < 1e-3) return;
       const w = mixW(blend[key] || fallback || own, { [arm]: 1 }, f);
-      if (Object.keys(w).length <= 4) blend[key] = w;
+      blend[key] = four(w);
     };
     for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
     for (const [k, q] of Object.entries(P.caps || {})) ride(k, null, q);
@@ -669,7 +690,7 @@ export function formSlice(recipe, R, build, opts = {}) {
       const key = `${st.id}.${sl}`, w0 = blend[key] || blend[st.id] || own, cl = `clavicle${p[0] < 0 ? 'L' : 'R'}`, cur = w0[cl] ?? 0;
       if (f <= cur) continue;
       const w = mixW(w0, { [cl]: 1 }, (f - cur) / (1 - cur));
-      if (Object.keys(w).length <= 4) blend[key] = w;
+      blend[key] = four(w);
     }
     return { ...P, bind: { ...b, blend } };
   };

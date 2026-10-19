@@ -198,7 +198,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   column now ends at the thoracic inlet and the dome under it, and the upper trapezius leaves the neck's side lower
   (it had begun at the jaw's height), so the neck is a column to its root and the trapezius falls from it at about 30
   degrees to a shoulder that stands where it stood (the collarbone was already nearly level: the slope was the fill).
-  Only the feet are still the authored cage.
+  THE RAISED ARM LEAVES THE SHOULDER ROUND: a fold at the shoulder (the rig's helper turned half the arm's swing, as the
+  hip's, `shoulderFold<S>`) carries the arm's own top from the collarbone to the arm's bone, where it had gone straight
+  from one to the other and a raised arm's root pinched to a point at the armpit (its ring 0.55 of its rest, now 0.84;
+  its band 0.09, now 0.53; its folds gone); and a skin share that would make a fifth bone on a vertex now drops the
+  weakest instead of the share, which had vanished for one ring of the torso under the arm and come back on the next,
+  a step where the deltoid's ramp was meant. Hands behind the head is hittable: the forearms reach behind the skull
+  on the shoulder's roll (the elbow's hinge alone folds them forward, across the face). The stretch audit takes
+  `--poses` (rig poses, `--only` for those alone). Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -7,9 +7,11 @@
  * each opens or presses in), each naming the ring and the frame. The realistic register's baseline and its phase-4 "after".
  *
  *   node scripts/hero-stretch.mjs [--cast male|female|<a figure cast>] [--form norrin|shalla] [--samples 12] [--rings] [--json]
+ *                                 [--poses '<json>'] [--only]
  *
  * --form audits the realistic register's form-field slice of a build (body-relational.js, its tune worn, bald) in place
- * of the authored shell; --rings prints every ring's own worst; --json the whole report.
+ * of the authored shell; --rings prints every ring's own worst; --json the whole report. --poses adds rig poses as
+ * rigNodesAt takes them (an object, or a list of them or of { label, pose }); --only audits those alone.
  */
 import { parseArgs } from 'node:util';
 import { register } from 'node:module';
@@ -20,7 +22,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 process.chdir(path.resolve(here, '..'));
 
-const { values: args } = parseArgs({ options: { cast: { type: 'string', default: 'male' }, form: { type: 'string' }, samples: { type: 'string', default: '12' }, rings: { type: 'boolean' }, json: { type: 'boolean' } } });
+const { values: args } = parseArgs({ options: { cast: { type: 'string', default: 'male' }, form: { type: 'string' }, samples: { type: 'string', default: '12' }, rings: { type: 'boolean' }, json: { type: 'boolean' }, poses: { type: 'string' }, only: { type: 'boolean' } } });
 const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
 const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
 const { validateRig, bindLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
@@ -37,18 +39,21 @@ const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...w
 if (args.form) m.recipe = formSlice(m.recipe, validateRig(m.recipe.rig), args.form).recipe;
 const R = validateRig(m.recipe.rig), mesh = compileLayered(m.recipe, m.dials), skin = bindLayered(mesh, m.recipe, R);
 // the frames: the planted stand, each gait over its cycle, and each stand gesture as the door mints it on this cast
-const frames = [{ label: 'stand', pose: {} }, ...gaitFrames(R, { samples: Number(args.samples) })];
-for (const g of GESTURE_WORDS.filter((w) => w !== 'rest')) {
+const extra = args.poses ? [JSON.parse(args.poses)].flat().map((p, i) => (p.pose ? { label: p.label ?? `pose ${i + 1}`, pose: p.pose } : { label: `pose ${i + 1}`, pose: p })) : [];
+if (args.only && !extra.length) throw new Error('hero-stretch: --only audits the --poses alone, and none were given');
+const frames = args.only ? [{ label: 'stand', pose: {} }] : [{ label: 'stand', pose: {} }, ...gaitFrames(R, { samples: Number(args.samples) })];
+for (const g of args.only ? [] : GESTURE_WORDS.filter((w) => w !== 'rest')) {
   const mg = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, gesture: g, ...worn }) });
   const pose = standPose(mg.recipe, validateRig(mg.recipe.rig));
   if (pose) frames.push({ label: `gesture ${g}`, pose });
 }
+frames.push(...extra);
 const A = stretchAudit(mesh, skin, R, m.recipe, frames);
 if (args.json) { console.log(JSON.stringify({ cast, ...A }, null, 2)); process.exit(0); }
 
 const f = (x, d = 2) => (typeof x === 'number' ? x.toFixed(d) : String(x));
 const at = (w) => `${w.ring} @ ${w.at}`;
-console.log(`${cast}${args.form ? ` · form ${args.form}` : ''}: ${A.rings.length} rings over ${A.frames} frames (the stand, ${args.samples} phases of each gait, the gestures)`);
+console.log(`${cast}${args.form ? ` · form ${args.form}` : ''}: ${A.rings.length} rings over ${A.frames} frames (${args.only ? 'the stand and the poses given' : `the stand, ${args.samples} phases of each gait, the gestures${extra.length ? ', the poses given' : ''}`})`);
 const show = (name, w) => {
   console.log(`${name.padEnd(9)} ring area ${f(w.areaMin.value)} (${at(w.areaMin)}) … ${f(w.areaMax.value)} (${at(w.areaMax)});  pinch ${f(w.pinch.value)} (${at(w.pinch)});  twist ${f(w.twist.value, 1)}° (${at(w.twist)})`);
   console.log(`${''.padEnd(9)} band ${f(w.bandMin.value)} (${at(w.bandMin)}) … ${f(w.bandMax.value)} (${at(w.bandMax)});  folds ${w.folds.value}${w.folds.value ? ` (${at(w.folds)})` : ''}`);
