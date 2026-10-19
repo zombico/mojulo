@@ -78,6 +78,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   neck, the head and the stature stay. On the hero proportions' adult casts only: a child's and the anime and herobot
   casts' proportions are their own. Every structured-core hero is now stamped `laws: 4`; a row stamped 3, 2 or 1 builds
   byte for byte.
+- **The arm length, hero laws 5.** Read in Leonardo's figures (the body lane's `--vitruvian`), the hero reached 1.08 to
+  1.09 of its stature fingertip to fingertip (Leonardo's 1, the body's about 1.03) and its fingertips passed his circle by
+  7 to 10 cm. Not the trunk's breadth nor the thighs (the shoulder's joints 0.20 of the stature apart, the femur 0.245,
+  as the body's): the humerus stood at 0.189 of the stature from the shoulder's joint to the elbow (the body's about
+  0.165) and the forearm at 0.161 (0.146). Hero laws 5 (`HERO_LAWS_VERSION` 5, hero-form.js `ARM_LENGTH`) shortens the
+  upper arm's dial by 0.88 and the forearm's by 0.91 on the casts the leg length takes: the span 1.01 and 0.99 of the
+  stature on the realistic slice's builds, the middle fingertips on the circle with the arms raised to the head's top.
+  A row stamped 4 or before builds byte for byte; the anime wave's raised elbow reads its drop as a share of the humerus.
 - **A boot under a skirt.** A garment piece is lifted over every garment already worn on its part, and a skirt (a hull
   round the hips and both legs) counts as worn on the shank: a boot's shaft worn after it was lifted round the skirt's
   whole hem, a ring 21 cm across round both legs (the operative's card read as a bell for it). A piece on a shank, a foot,
@@ -90,9 +98,10 @@ Opt-in and versioned: a default hero keeps its bytes.
   limbs square to their bones) with each girth as a tape reads it, and a measures table (stature, heads tall, the
   shoulders' and hips' breadths, the girths). `--tint` colours each part its own (which shell shows where two hand
   over), `--parts` keeps only the parts a pattern names, and `--vitruvian` adds Leonardo's two figures, the front large
-  in its square (the arms level: the span against the stature) and its circle (the arms raised, the feet spread: the
-  circle on the navel through the soles), with what each reads in the margin; norrin's span is 1.11 of its stature,
-  shalla's 1.08, where Leonardo's is 1. The eyes gate beside the stretch audit's numbers: the sprint's knee crop
+  in its square (the arms level: the span against the stature) and its circle as his note sets it on the figure's own
+  joints (the legs opened to an equilateral triangle, the figure lowered his 1/14, the arms raised till the middle
+  fingertips are level with the head's top; the circle on the navel, its radius the standing navel's height), with what
+  each reads in the margin. The eyes gate beside the stretch audit's numbers: the sprint's knee crop
   shows the shank's top out of the thigh where the audit measures it. Baseline, male and female: stature 1753 and
   1664 mm, 7.15 and 6.79 heads tall; chest 107 and 88 cm, waist 84 and 64, seat 86 and 90.
 - **The form field, a vertical slice** (`body-relational.js`; seen through `body-study --form`, not yet on the door).

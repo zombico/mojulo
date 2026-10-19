@@ -19,7 +19,8 @@
  * trapezius climbs the neck; a statue stored before reads laws 1 and keeps its bytes), and again for the hero laws 3
  * (hero-form.js LEG_SET: the leg turned back about the ankle, the hip's joint set into the pelvis), and again for the
  * hero laws 4 (hero-form.js LEG_LENGTH: the adult leg lengthened by the lumbar's run) with the figure seated on its base's
- * top exactly (base.js: the lift to the base's rounded top, which had left the lowest point a micrometre off).
+ * top exactly (base.js: the lift to the base's rounded top, which had left the lowest point a micrometre off), and again
+ * for the hero laws 5 (hero-form.js ARM_LENGTH: the adult humerus and forearm shortened).
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -29,34 +30,34 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { STATUE_STYLES } from './styles.js';
 
 const PINS = {
-  'archaic·male': '0ac7dd657596917c:396b20d5e8ba380d',
-  'archaic·female': 'a334dde703290ade:193228ef60c4c80b',
-  'classical·male': '12ba5d0e850b0c0f:baabeb3f45238afe',
-  'classical·female': 'e01a3c89679b248d:9d7815fd30145433',
-  'hellenistic·male': '51d305fa7915c852:a57d3bf9ba215e15',
-  'hellenistic·female': '7e2edefaa58d0733:a54aca55a3820f18',
-  'roman·male': '5ac2cede2b949529:9aa85ff223652268',
-  'roman·female': '040225b3e6ab7a48:aab3536da1effe51',
-  'roman-bust·male': '3cb3e2a5d6f250fe:2d46463537eca5a6',
-  'roman-bust·female': 'adeccd25694fc644:eb366597245163f5',
-  'egyptian·male': 'b0957ab91da00d6f:9601959973483725',
-  'egyptian·female': '69a92958fe5cd6ce:4f8f6527310adfa4',
-  'sumerian·male': 'e90ab7ff39033e1f:a22eb555d91e04dc',
-  'sumerian·female': 'c8a4d86abf07f3ed:4233a1fb9a6e0367',
-  'renaissance·male': 'f91baca30b847083:e4687efb1219d9c6',
-  'renaissance·female': 'a853686d8f3bf5cc:023992d94053befc',
-  'classical:bust': 'd75772987e720f95:5921b66eeba8d7da',
-  'classical:herm': 'a0779fb920233011:131d2d009219eb93',
-  'classical:torso': '9e07194d939c47d9:4744eb79c965bcfb',
-  'classical:marble': '9c64c8050fcc7e6a:92791ec1821f9ebe',
-  'classical:limestone': '5a36cfc5b3ac435a:baac04d8f30acf98',
-  'classical:sandstone': '6c80ec59a9d05f81:82b46c6239d57607',
-  'classical:granite': '80eb8ab035d3c73a:4fec6c28de71d3c6',
-  'classical:basalt': '31171a2abd8d7954:192a08c08e0beedc',
-  'classical:gilt': '6a035cfe1f6b203a:318fb19ea46823b6',
-  'classical:painted': '5ac27853453c2951:c150d4e90ca64c51',
-  'classical:worn': '570af0e30587da61:64dd72c392e3a430',
-  'roman:broken': '42bbfcc3e0e3a877:d2a5366ee3fde927',
+  'archaic·male': '66841ad6ec39aaa0:5fde6d4292bee84b',
+  'archaic·female': '2da94919899b4d34:12658ecf3a7e2050',
+  'classical·male': '6a16c7dcb6b983e1:eac710a0157bc989',
+  'classical·female': '3074bddc7c3b0921:a3fd92901944ff7b',
+  'hellenistic·male': '9f899fcb8a778954:7108c09e2fd1e1d7',
+  'hellenistic·female': 'd0f4593bbb2ce7d5:d77c95ec27b3004f',
+  'roman·male': '35fb2272f9028adc:f07e2285b48d8bdb',
+  'roman·female': 'b59727985fd1cdb1:727b8f431e4c210e',
+  'roman-bust·male': 'b60db6920862b66a:a05426c50c2113b9',
+  'roman-bust·female': 'de018f9152800f52:8740a661dec5af23',
+  'egyptian·male': 'f29c9619a5775f56:cc2e48334f0d546c',
+  'egyptian·female': 'a9c23e0f5c239d37:28528f42243bf760',
+  'sumerian·male': '7d8a779e4747c6af:8bd3486fd262c2a8',
+  'sumerian·female': '4c3df9d8e20f963a:dca32df6051b7c07',
+  'renaissance·male': '49e0a57f1c458a77:b0e178e98804fd27',
+  'renaissance·female': '73eed84fb35cdf0a:52a34a9b2b85cc84',
+  'classical:bust': 'ded56af95f6e8e9c:ea20db46c1fc341c',
+  'classical:herm': '3d1f331383721631:131d2d009219eb93',
+  'classical:torso': 'ad4124735486292e:393750c20f4b517b',
+  'classical:marble': '3d51294ddf1d3f4e:db47b0dc4f227150',
+  'classical:limestone': '8fe5ee27e7025f59:aa45679d4b890afe',
+  'classical:sandstone': 'c83d7159749c1e82:4010f37f0265ad36',
+  'classical:granite': '602bd12de6af5bf5:bd8dd246a0b028aa',
+  'classical:basalt': '4c5a9363a088a7c5:2555c2b48507df08',
+  'classical:gilt': '63920c4f3118c271:bf5a0bed5ce2251a',
+  'classical:painted': '0b9e8a4565ae383a:975c3e381ee5b6e8',
+  'classical:worn': '519674ac2268fbcb:c3d6407a7b90e18e',
+  'roman:broken': 'cfb52e77b18c6eba:652639340af36b58',
 };
 
 const CASES = [

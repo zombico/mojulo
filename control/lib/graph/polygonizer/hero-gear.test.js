@@ -56,7 +56,12 @@ describe('the mounts', () => {
     const [st, bw] = gearMounts(h2, R2);
     expect(gearRestPoint(st, st.sockets.heel.origin)[2]).toBeGreaterThan(0.01); expect(gearRestPoint(st, st.sockets.heel.origin)[2]).toBeLessThan(0.1);
     expect(gearRestPoint(bw, [0, 0, -1.5])[2]).toBeGreaterThan(0.01);
-    expect(gearRestPoint(bw, bw.sockets.nockTop.origin)[1]).toBeLessThan(gearRestPoint(bw, [0.44, 0, 180])[1]);   // the string behind the limb
+    // the upper limb leaning forward of the grip, the string braced off the limb at the nock's height (a point beyond the
+    // tip against the string's top read the lean the floor's clamp left a low hand; at the bow's own tilt, 78°, the two
+    // stand level, and hero laws 5's shorter arm let the bow reach it)
+    const top = gearRestPoint(bw, [0.44, 0, bw.sockets.nockTop.origin[2]]), nock = gearRestPoint(bw, bw.sockets.nockTop.origin);
+    expect(top[1]).toBeGreaterThan(gearRestPoint(bw, bw.sockets.grip.origin)[1]);
+    expect(Math.hypot(...[0, 1, 2].map((i) => nock[i] - top[i]))).toBeGreaterThan(0.04);
   });
   it('back and hip gear ride the torso and the pelvis, behind and at the side', () => {
     expect(G.back.bone).toBe('torso'); expect(G.hip.bone).toBe('pelvis');

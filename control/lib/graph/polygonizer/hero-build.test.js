@@ -4,7 +4,7 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH, ARM_LENGTH } from './hero-form.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
@@ -141,15 +141,15 @@ describe('the child-coded guard reads the resolved cast', () => {
 });
 
 describe('the hero laws: a hero reading the newer tables is stamped at mint; laws 1 builds as an unstamped row', () => {
-  it('stamps every structured-core hero (the shoulder line, laws 2; the leg set, laws 3; the leg length, laws 4) and the newer tables; leaves the inline hero alone', () => {
+  it('stamps every structured-core hero (the shoulder line, laws 2; the leg set, laws 3; the leg length, laws 4; the arm length, laws 5) and the newer tables; leaves the inline hero alone', () => {
     for (const spec of [{ cast: 'male' }, { cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(4);
+    expect(HERO_LAWS_VERSION).toBe(5);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 4/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 5/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -190,6 +190,19 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     // a child's proportions are its own (the build chosen from the catalog)
     const child = { cast: { pole: 'male', build: HERO_BUILD_NAMES.find((n) => castOf({ pole: 'male', build: n }).child) } };
     expect(J(child, 4)).toEqual(J(child, 3));
+  });
+  it('laws 5 shortens an adult\'s humerus and forearm by ARM_LENGTH, the shoulder where it stood; a child keeps its own', () => {
+    const J = (spec, laws) => { const m = expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }); return Object.fromEntries(Object.entries(m.recipe.rig.joints).map(([k, j]) => [k, j.at])); };
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const adult = { cast: { pole: 'male', build: 'lithe' } }, four = J(adult, 4), five = J(adult, 5);
+    for (const S of ['R', 'L']) {
+      expect(five[`shoulder${S}`]).toEqual(four[`shoulder${S}`]);
+      expect(d(five[`shoulder${S}`], five[`elbow${S}`]) / d(four[`shoulder${S}`], four[`elbow${S}`])).toBeCloseTo(ARM_LENGTH.upperArm, 2);
+      expect(d(five[`elbow${S}`], five[`wrist${S}`]) / d(four[`elbow${S}`], four[`wrist${S}`])).toBeCloseTo(ARM_LENGTH.forearm, 2);
+    }
+    expect(five.hipR).toEqual(four.hipR);
+    const child = { cast: { pole: 'female', build: HERO_BUILD_NAMES.find((n) => castOf({ pole: 'female', build: n }).child) } };
+    expect(J(child, 5)).toEqual(J(child, 4));
   });
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

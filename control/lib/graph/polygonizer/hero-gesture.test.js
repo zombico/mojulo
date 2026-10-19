@@ -202,7 +202,8 @@ describe('the anime wave', () => {
     for (const [cast, ctx] of Object.entries(heroProps)) {
       const S = sets(ctx), [, IN, OUT] = ctx.m.recipe.clips.wave, r = read(ctx.R, IN);
       expect(r.drop, cast).toBeGreaterThan(25); expect(r.drop, cast).toBeLessThan(30);   // about 27° below horizontal
-      expect(r.n.shoulderR[2] - r.n.elbowR[2], cast).toBeGreaterThan(0.13);             // the elbow well below the shoulder
+      // the elbow well below the shoulder: 0.4 of the humerus (a fixed 13 cm read the arm's length; laws 5 shortened it)
+      expect((r.n.shoulderR[2] - r.n.elbowR[2]) / Math.hypot(...[0, 1, 2].map((k) => r.n.shoulderR[k] - r.n.elbowR[k])), cast).toBeGreaterThan(0.4);
       expect(r.n.elbowR[0] - S.torsoX, cast).toBeGreaterThan(0.2);                        // and out past the torso's side
       expect(r.vert, cast).toBeLessThan(1);                                              // the forearm upright
       expect(r.hand[2], cast).toBeGreaterThan(S.chinZ + 0.04); expect(r.hand[2], cast).toBeLessThan(S.eyeZ);   // beside the head, below the eyes
@@ -280,13 +281,14 @@ describe('the anime wave', () => {
 // builds the record, plan and recipe pinned before it (LAWS_2 below); then for the hero laws 4 (hero-form.js
 // LEG_LENGTH: the adult leg lengthened by the lumbar's run): every structured-core hero stamped `laws: 4`, the adult ones
 // built anew, the chibi's plan and recipe as they were (a child's proportions are its own), and each at laws 3 builds the
-// record, plan and recipe pinned before it (LAWS_3 below)
+// record, plan and recipe pinned before it (LAWS_3 below); then for the hero laws 5 (hero-form.js ARM_LENGTH: the
+// adult humerus and forearm shortened), the same again, each at laws 4 as pinned before it (LAWS_4 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['a8925b37b2368f10', '0cd87957f1f8b265', 'ce13555b2f3f9dcc'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c8df34c66468bd4e', 'f461a9ef1f5a7010', '4a772f431b24529d'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['99445a734cc9a5ab', '47ee165f3473eaca', '8630ddd46fbb0d2e'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['dbfcdbd606890fac', '614cfdf46293b64e', 'e21cd5c5c0bfc229'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['d7b9d264c21a0643', '37e5e2f421d7cf79', 'ba1b546d97b8f573'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['fa996040b1394ceb', '7397a1ac3c1ed81f', '6111f68e79d32b0c'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['e81f5d4603481a31', '7b305c8c422339b5', '2ad6d83fae2927de'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['3f63cede6aa963f9', '9b51e97bcfbbb7a9', 'd85c53bd6488ecf4'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['199852b0873026dd', 'e44b99db1b6081f6', 'e3b457efbaa16a3e'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['85ed6657f2ad45a8', '37e5e2f421d7cf79', 'ba1b546d97b8f573'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */
@@ -305,6 +307,13 @@ const LAWS_3 = {
   headNone: ['01fc673134e6b6f2', '87feb33ad9015e92', '5031b535c6bc4adb'], ranger: ['ec2f6b3fe13d0315', '744e70fbdf6c9733', 'eca6418dfa7e93b7'],
   chibiFaced: ['3378615a2366db0e', '37e5e2f421d7cf79', 'ba1b546d97b8f573'],
 };
+/** the structured heroes as minted under the hero laws 4 (the leg length, before the arm length): their record stamped
+ * laws 4, and the plan and recipe it still builds */
+const LAWS_4 = {
+  landmarkMale: ['a8925b37b2368f10', '0cd87957f1f8b265', 'ce13555b2f3f9dcc'], landmarkFemaleLowpoly: ['c8df34c66468bd4e', 'f461a9ef1f5a7010', '4a772f431b24529d'],
+  headNone: ['99445a734cc9a5ab', '47ee165f3473eaca', '8630ddd46fbb0d2e'], ranger: ['dbfcdbd606890fac', '614cfdf46293b64e', 'e21cd5c5c0bfc229'],
+  chibiFaced: ['d7b9d264c21a0643', '37e5e2f421d7cf79', 'ba1b546d97b8f573'],
+};
 describe('the door: no gesture ⇒ byte-identical', () => {
   // (the structured core's plans and recipes re-pinned when its pelvis bone took the hip hinge's tilt, `pelvisTilt`: the
   // rig gained the reference joint; the streamlined core's pins did not move), and again for its shoulder girdle (the
@@ -320,12 +329,12 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a row minted before the hero laws 2 builds as it did, byte for byte', () => {
     for (const [name, [record, plan, recipe]] of Object.entries(LAWS_1)) {
       const { laws, ...bare } = heroRecord(PINS[name][0]);
-      expect(laws).toBe(4); expect(h(bare)).toBe(record);
+      expect(laws).toBe(5); expect(h(bare)).toBe(record);
       for (const hr of [bare, { ...bare, laws: 1 }]) { const p = heroPlanOf(hr); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe); }
     }
   });
-  it('a row minted under the hero laws 2 or 3 builds as it did, byte for byte', () => {
-    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
+  it('a row minted under the hero laws 2, 3 or 4 builds as it did, byte for byte', () => {
+    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3], [4, LAWS_4]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
       const hr = { ...heroRecord(PINS[name][0]), laws: L }, p = heroPlanOf(hr);
       expect(h(hr), `${name} laws ${L}`).toBe(record); expect(h(p), `${name} laws ${L}`).toBe(plan); expect(h(expandPlan(p)), `${name} laws ${L}`).toBe(recipe);
     }

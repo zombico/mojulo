@@ -140,16 +140,25 @@ function hero(cast, extra = {}) {
   return h;
 }
 /** THE VITRUVIAN rows (`--vitruvian`, or a row's `vitruvian`): Leonardo's two figures. The SQUARE, the arms level out
- * and the feet together: the span against the stature, the square's centre at the groin; the CIRCLE, the arms raised
- * 18° and the feet spread to a stance of 2.8 hip spans (the hips sunk 3.5 cm, as Leonardo's figure sinks into the spread),
- * the circle centred on the navel through the soles */
+ * and the feet together: the span against the stature, the square's centre at the groin. The CIRCLE as his note sets it
+ * on this figure's own joints: the legs opened to an equilateral triangle between them (each 30° off the plumb, the
+ * figure lowered by the leg's (1 − cos 30°), his 1/14 of the height) and the arms raised till the middle fingertips are
+ * level with the top of the head; the circle centred on the navel through the soles */
 const VITRUVIAN = {
-  square: { armR: 'outward', armL: 'outward' },
-  circle: { armR: ['outward', 'outward', 'outward', 'up'], armL: ['outward', 'outward', 'outward', 'up'], stance: 2.8, sink: 0.035 },
+  square: () => ({ armR: 'outward', armL: 'outward' }),
+  circle: (R) => {
+    const J = R.joints, leg = J.hipR[2] - J.ankleR[2], c30 = Math.cos(Math.PI / 6);
+    const legs = { stance: 1 + (leg * 0.5) / Math.abs(J.hipR[0]), sink: leg * (1 - c30) };
+    const arm = (th) => { const a = { x: Math.cos(th), y: 0, z: Math.sin(th) }; return { armR: a, armL: { ...a, x: -a.x } }; };
+    // (the arms' angle found on the posed figure: the collarbone lifts the shoulder as the arm rises)
+    let th = 0.3;
+    for (let i = 0; i < 6; i++) { const N = rigNodesAt(R, { ...legs, ...arm(th) }).nodes, tip = N.middleTipR ?? N.knucklesR; th += Math.asin(Math.max(-1, Math.min(1, (N.headTop[2] - tip[2]) / Math.hypot(...[0, 1, 2].map((k) => tip[k] - N.shoulderR[k]))))); }
+    return { ...legs, ...arm(th) };
+  },
 };
 /** a row's posed joints and its label */
 function rowNodes(cast, H, row) {
-  if (row.vitruvian) { if (!VITRUVIAN[row.vitruvian]) throw new Error(`body-study: vitruvian is ${Object.keys(VITRUVIAN).join(' or ')}`); return { nodes: rigNodesAt(H.R, VITRUVIAN[row.vitruvian]).nodes, label: `vitruvian ${row.vitruvian}` }; }
+  if (row.vitruvian) { if (!VITRUVIAN[row.vitruvian]) throw new Error(`body-study: vitruvian is ${Object.keys(VITRUVIAN).join(' or ')}`); return { nodes: rigNodesAt(H.R, VITRUVIAN[row.vitruvian](H.R)).nodes, label: `vitruvian ${row.vitruvian}` }; }
   if (row.gait) { const ph = row.phase ?? 0; return { nodes: rigNodesAt(H.R, gaitPose(H.R, row.gait)(ph)).nodes, label: `${row.gait} ${ph}` }; }
   if (row.gesture) { const g = hero(cast, { gesture: row.gesture }); const pose = standPose(g.m.recipe, g.R); return { nodes: rigNodesAt(H.R, pose || {}).nodes, label: `gesture ${row.gesture}` }; }
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
@@ -280,7 +289,10 @@ async function vitruvianCell(H, nodes, kind, cast, y) {
   for (const v of V) { floor = Math.min(floor, v[2]); top = Math.max(top, v[2]); xl = Math.min(xl, v[0]); xr = Math.max(xr, v[0]); }
   const stature = top - floor, span = xr - xl;
   // the navel: the form's dimple where the slice has one, else the rig's navel joint
-  const navel = H.navelZ ?? nodes.navel[2], R0 = navel - floor;
+  // (the circle on the posed navel, its radius the STANDING navel's height: Leonardo's circle meets the square's base under
+  // the standing figure, and the spread feet, lowered with the figure, stand on it)
+  let lo0 = Infinity, hi0 = -Infinity; for (const v of posed(H, H.R.joints).V) { lo0 = Math.min(lo0, v[2]); hi0 = Math.max(hi0, v[2]); }
+  const navel0 = H.navelZ ?? H.R.joints.navel[2], navel = navel0 + (nodes.navel[2] - H.R.joints.navel[2]), R0 = kind === 'circle' ? navel0 - lo0 : navel - floor;
   const side = Math.max(stature, span), half = side / 2 + 0.06, cz = kind === 'circle' ? navel : floor + stature / 2, rz = kind === 'circle' ? Math.max(R0, half) : half;
   const box = { min: [-rz - 0.04, -0.3, cz - rz - 0.04], max: [rz + 0.04, 0.3, cz + rz + 0.04] };
   const cam = camera(0, 0, box, W, Hh);
@@ -291,7 +303,12 @@ async function vitruvianCell(H, nodes, kind, cast, y) {
   const groin = H.crotchZ ?? null, mm = (m) => `${Math.round(m * 1000)} mm`;
   const lines = kind === 'square'
     ? [`stature ${mm(stature)}, span ${mm(span)}: span/stature ${(span / stature).toFixed(3)} (Leonardo 1)`, `square's centre ${mm(stature / 2)} up${groin !== null ? `; the crotch ${mm(groin - floor)} (${((groin - floor) / stature).toFixed(3)})` : ''}`]
-    : [`navel ${mm(R0)} up: navel/stature ${(R0 / stature).toFixed(3)} (Leonardo ~0.6)`, `circle through the soles; the hands reach ${mm(V.reduce((m, v) => Math.max(m, Math.hypot(v[0], v[2] - navel)), 0))} of ${mm(R0)}`];
+    : (() => {
+      // (the standing figure's height, the drop against Leonardo's 1/14, and how far the hands and the feet reach of
+      // the circle's radius: on his figure both touch it)
+      const H0 = hi0 - lo0, part = (i) => H.mesh.provenance[i]?.part ?? '', reach = (re) => V.reduce((m, v, i) => (re.test(part(i)) ? Math.max(m, Math.hypot(v[0], v[2] - navel)) : m), 0);
+      return [`standing ${mm(H0)}; lowered ${mm(H0 - stature)} (${((H0 - stature) / H0 * 14).toFixed(2)} of Leonardo's 1/14)`, `navel ${mm(R0)} up standing: ${(R0 / H0).toFixed(3)} of the height (Leonardo ~0.6)`, `circle r ${mm(R0)}: the hands reach ${mm(reach(/^(hand|thumb|index|middle|ring|little)[RL]$/))}, the feet ${mm(reach(/^(foot|toes)[RL]$/))}`];
+    })();
   lines.forEach((t, i) => parts.push(`<text x="${W + 16}" y="${y + 40 + i * 20}" font-family="monospace" font-size="13" fill="#333">${esc(t)}</text>`));
   label(0, y + Hh - 10, `${cast} · vitruvian ${kind} · front`, 12);
   return W + 560;

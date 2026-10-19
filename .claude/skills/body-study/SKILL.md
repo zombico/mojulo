@@ -50,10 +50,13 @@ hero changes. The pelvis and the legs are on the field too; only the feet are st
 **The Vitruvian rows** (`--vitruvian`, or a row's `{ "vitruvian": "square" | "circle" }`): the front alone, large, in
 Leonardo's two figures, to tune the ratios against. The SQUARE: the arms level, the feet together, the square of the
 stature drawn round the figure and its centre dashed; the margin reads the stature, the span (span / stature, Leonardo's
-1) and the crotch against the square's centre. The CIRCLE: the arms raised 18°, the feet spread (a stance of 2.8 hip
-spans, the hips sunk 3.5 cm into it), the circle centred on the navel through the soles; the margin reads the navel's
-height (of the stature, Leonardo's about 0.6) and how far the hands reach of the circle's radius. On the form field the
-navel and the crotch are the slice's own (`formSlice` `landmarks`), else the rig's navel joint.
+1) and the crotch against the square's centre. The CIRCLE as Leonardo's note sets it, on the figure's own joints: the
+legs opened to an equilateral triangle between them (each 30° off the plumb, the figure lowered by the leg's
+(1 − cos 30°), his 1/14 of the height), the arms raised till the middle fingertips are level with the head's top; the
+circle centred on the navel, its radius the standing navel's height (his circle meets the square's base under the
+standing figure, and the spread feet stand on it); the margin reads the drop against his 1/14, the navel's height of the
+stature (his about 0.6) and how far the hands and the feet reach of the radius (on his figure, both touch it). On the
+form field the navel and the crotch are the slice's own (`formSlice` `landmarks`), else the rig's navel joint.
 
 **Which shell shows** (`--tint`): each part in its own colour, so a handover between two shells (the torso and the
 pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps

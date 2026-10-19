@@ -290,9 +290,11 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * Laws 4 adds the LEG LENGTH (LEG_LENGTH) on the adult hero casts: the leg longer and the lumbar shorter by the same
  * run, so the hip's joint rises and the neck, the shoulders and the head stay; laws 1 to 3 stood the hip's joint at
  * 0.49 of the stature (the body's own, 0.52) and the trunk from the shoulder's joint to the hip's at 0.30 (0.28).
+ * Laws 5 adds the ARM LENGTH (ARM_LENGTH) on the same casts: the humerus and the forearm shortened to the body's own;
+ * laws 1 to 4 reached 1.08 to 1.09 of the stature fingertip to fingertip (the body's about 1.03, Leonardo's 1).
  */
-export const HERO_LAWS_VERSION = 4;
-/** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, and leg length, laws 4:
+export const HERO_LAWS_VERSION = 5;
+/** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
 /** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
@@ -358,6 +360,10 @@ export const LEG_SET = Object.freeze({ hipBack: 0.035 });
  * the stature it stood 6 cm under the body's own (0.52, ANSUR II's trochanterion), the femur at 0.23 (0.245) and the
  * trunk long over it. A child's and the anime and herobot casts' proportions are their own, and keep them */
 export const LEG_LENGTH = Object.freeze({ rise: 0.055, thigh: 0.55 });
+/** THE ARM LENGTH (hero laws 5, on the casts LEG_LENGTH takes): the upper arm's and the forearm's dials by these. The
+ * humerus stood at 0.189 of the stature from the shoulder's joint to the elbow (the body's about 0.165) and the forearm
+ * at 0.161 (0.146), so the span ran 1.08 to 1.09 of the stature and the fingertips passed Leonardo's circle by 7 to 10 cm */
+export const ARM_LENGTH = Object.freeze({ upperArm: 0.88, forearm: 0.91 });
 const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.95, mid: 0.28, top: 0.8 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
@@ -466,7 +472,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH
+ *              4 LEG_LENGTH, 5 ARM_LENGTH
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
@@ -494,6 +500,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const run = LEG_LENGTH.rise * (m0.hipR.z - m0.ankleR.z), lt = len('hipR', 'kneeR'), ls = len('kneeR', 'ankleR'), ll = len('pelvisHub', 'navel');
     castDials.thigh = r6(castDials.thigh * (lt + LEG_LENGTH.thigh * run) / lt); castDials.shank = r6(castDials.shank * (ls + (1 - LEG_LENGTH.thigh) * run) / ls); castDials.lumbar = r6(castDials.lumbar * (ll - run) / ll);
   }
+  // laws 5: the arm length (ARM_LENGTH), on the same casts
+  if (structured && laws >= 5 && proportions === 'hero' && preset && !preset.child) { castDials.upperArm = r6(castDials.upperArm * ARM_LENGTH.upperArm); castDials.forearm = r6(castDials.forearm * ARM_LENGTH.forearm); }
   const m = withMath(dmath, () => castArmature(castDials));   // the shared figure cast, on dmath (util/math-scope.js)
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
