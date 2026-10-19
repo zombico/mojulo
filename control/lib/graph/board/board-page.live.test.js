@@ -365,6 +365,9 @@ describe('the board on the World page', () => {
       const trained = r.trainAt(2); go(20);
       const S = r.state(), looks = r.looks(), drawn = (kind, side = 'player') => S.units.concat(S.buildings).filter((x) => x.side === side && x.kind === kind).map((x) => looks[x.id]);
       // a fighter without a weapon: the cargo helicopter, the army right-clicked onto it, carried, and unloaded
+      // (flight first: the tree's branch that opens what flies)
+      r.selectBuilding(r.state().buildings.find((b) => b.kind === 'mast' && b.side === 'player').id); const flight = r.researchStep('flight'); go(31);
+      r.selectBuilding(r.state().buildings.find((b) => b.kind === 'works' && b.side === 'player').id);
       const lifts = r.trainAt(3); go(20);
       const lifter = r.state().units.find((u) => u.kind === 'lifter'), army = r.state().units.filter((u) => u.side === 'player' && ['carbine', 'shield'].includes(u.kind)).map((u) => u.id);
       r.select(army); const boarded = r.command(lifter.at); go(8);
@@ -375,9 +378,9 @@ describe('the board on the World page', () => {
       const home = r.state().buildings.find((b) => b.side === 'player' && b.kind === 'base').id;
       r.selectBuilding(home); const grows = r.upgradeSel(); go(41);
       const fort = r.state().buildings.find((b) => b.id === home).kind;
-      return { built, tooSoon, step, trained, lifts, boarded, aboard, out, grows, fort, n: army.length, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
+      return { built, tooSoon, step, trained, flight, lifts, boarded, aboard, out, grows, fort, n: army.length, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
     });
-    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true, lifts: true, boarded: 'board', grows: true, fort: 'fort' });
+    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true, lifts: true, boarded: 'board', grows: true, fort: 'fort', flight: 'flight' });
     expect([out.aboard, out.out]).toEqual([Math.min(out.n, 4), out.n]);
     expect(out.tooSoon).toMatch(/needs Machines researched first/);
     // what it crafted is drawn as crafted (coloured meshes); what it did not (the plain base) as before

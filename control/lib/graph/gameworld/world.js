@@ -242,7 +242,8 @@ function readCivilization(c, at) {
   if (out.technology !== undefined) {
     const T = out.technology;
     if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, direction?, ${TECH_LISTS.join('?, ')}? }`);
-    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, ${TECH_LISTS.join(', ')})`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', 'research', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, research, ${TECH_LISTS.join(', ')})`);
+    if (T.research !== undefined) readResearch(T.research, `${at}.technology.research`);
     if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
     if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
     // every list is { <id>: words }: one library, so a crafted thing's id names it alone (things keep their old
@@ -263,9 +264,29 @@ function readCivilization(c, at) {
       return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
     }));
     for (const k of TECH_LISTS) if (T[k] !== undefined && !isObj(T[k])) throw new Error(`gameworld: ${at}.technology.${k} is { <id>: words | { intent, seed? } }`);
-    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}) };
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}), ...(T.research !== undefined ? { research: T.research } : {}) };
   }
   return out;
+}
+// a civilization's own research, its steps in a skirmish (board/board-rts-tech.js): shape only; what a step opens and
+// follows is read against what it fields there
+const RESEARCH_KEYS = ['name', 'after', 'opens', 'cost', 'time', 'buff'], BUFF_KEYS = ['who', 'atk', 'rate', 'speed', 'ward', 'range'];
+function readResearch(R, at) {
+  const shape = `${at} is { <id>: { name?, after?: <step or building> | [..], opens?: [<crafted id>, ..], cost?, time?, buff?: { who?, atk?, rate?, speed?, ward?, range? } } }`;
+  if (!isObj(R)) throw new Error(`gameworld: ${shape}`);
+  for (const [id, r] of Object.entries(R)) {
+    if (!ID.test(id)) throw new Error(`gameworld: ${at} '${id}': an id is a short lower-case name`);
+    if (!isObj(r)) throw new Error(`gameworld: ${shape}`);
+    for (const k of Object.keys(r)) if (!RESEARCH_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.${k} is not part of a step (${RESEARCH_KEYS.join(', ')})`);
+    if (r.name !== undefined && (typeof r.name !== 'string' || !r.name.trim())) throw new Error(`gameworld: ${at}.${id}.name is a few words`);
+    for (const k of ['after', 'opens']) if (r[k] !== undefined && !([].concat(r[k]).length && [].concat(r[k]).every((x) => typeof x === 'string' && ID.test(x)))) throw new Error(`gameworld: ${at}.${id}.${k} is an id or a list of them`);
+    for (const k of ['cost', 'time']) if (r[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0 && r[k] <= 2000)) throw new Error(`gameworld: ${at}.${id}.${k} is 0 to 2000`);
+    if (r.buff !== undefined) {
+      if (!isObj(r.buff)) throw new Error(`gameworld: ${at}.${id}.buff is { who?, atk?, rate?, speed?, ward?, range? }`);
+      for (const k of Object.keys(r.buff)) if (!BUFF_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is not part of a buff (${BUFF_KEYS.join(', ')})`);
+      for (const k of BUFF_KEYS.slice(1)) if (r.buff[k] !== undefined && !(Number.isFinite(r.buff[k]) && r.buff[k] > 0 && r.buff[k] <= 4)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is a factor (range: metres added), above 0 to 4`);
+    }
+  }
 }
 const intentOf = (v, at) => {
   const o = typeof v === 'string' ? { intent: v } : isObj(v) ? { ...v } : null;

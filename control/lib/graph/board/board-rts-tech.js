@@ -53,6 +53,8 @@ const HOUSE = {
 // the ladder: what each step costs and how long it takes
 const STEP = { tier2: { cost: 150, time: 30 }, tier3: { cost: 250, time: 45 }, income: { cost: 100, time: 25 } };
 const INCOME = 0.2, INCOMES = 2;
+// the derived steps by the words an author uses for them
+const STEP_WORDS = { machines: 'tier2', showpieces: 'tier3', flight: 'flight', siege: 'siege' };
 const RESEARCH_FORMS = ['tower', 'dish', 'launch', 'portal'];
 // what words give a unit beyond its blow (the functions do not say it: the words do)
 const POISON = /\b(poison|poisoned|venom|venomous|toxic|acid|chemical|gas)\b/i, FROST = /\b(frost|ice|cryo|freeze|freezing|chill)\b/i;
@@ -234,9 +236,30 @@ export function rtsRoster(G, cid) {
       research.arms = { name: charged ? 'Charged weapons' : 'Honed weapons', cost: 125, time: 30, at, needs: 'tier2', gives: { buff: { who: 'fighters', atk: 1.15 } } };
       research.plating = { name: `${named(T.finish ?? 'alloy')} plating`, cost: 125, time: 30, at, needs: 'tier2', gives: { buff: { who: 'all', ward: 0.85 } } };
     }
-    // the mind's order: the machines, an income step, the showpieces, the rest
+    // the tree branches past its machines: flight opens what flies, siege works its siege; upgrades run in lines
+    const lock = (k, step) => { const X = units[k] || buildings[k]; X.needs = [].concat(X.needs || [], step); };
+    const branch = (id, name, ks) => { if (!research.tier2 || !ks.length) return; research[id] = { name, cost: 125, time: 30, at, needs: 'tier2', gives: {}, opens: ks }; ks.forEach((k) => lock(k, id)); research.tier2.opens = research.tier2.opens.filter((k) => !ks.includes(k)); };
+    branch('flight', 'Flight', machines.filter((k) => units[k].fly));
+    branch('siege', 'Siege works', machines.filter((k) => units[k].role === 'siege'));
+    if (research.arms) {
+      const top = research.tier3 ? 'tier3' : 'tier2';
+      research.arms2 = { ...research.arms, name: `${research.arms.name} II`, cost: 200, time: 40, needs: ['arms', top] };
+      research.plating2 = { ...research.plating, name: `${research.plating.name} II`, cost: 200, time: 40, needs: ['plating', top] };
+    }
+    // its own steps, as its technology writes them: what each opens (what it crafts, fielded) and follows
+    const own = [];
+    for (const [id, r] of Object.entries(T.research ?? {})) {
+      const fielded = (c) => { const l = ledger.find((x) => x.of && x.of.endsWith(`/${c}`) && x.as); return l ? l.as : units[c] || buildings[c] ? c : null; };
+      const opens = [].concat(r.opens ?? []).map((c) => fielded(c) ?? (() => { throw new Error(`board rts: ${cid}.technology.research.${id}.opens '${c}' is not something it fields (${Object.keys(units).concat(Object.keys(buildings)).join(', ')})`); })());
+      const after = [].concat(r.after ?? []).map((c) => STEP_WORDS[c] || c).map((c) => (research[c] || T.research[c] ? c : fielded(c) && buildings[fielded(c)] ? fielded(c) : (() => { throw new Error(`board rts: ${cid}.technology.research.${id}.after '${c}' is neither a step (${Object.keys(research).concat(Object.keys(T.research)).join(', ')}) nor a building it raises`); })()));
+      research[id] = { name: r.name ?? named(id), cost: r.cost ?? 150, time: r.time ?? 30, at, ...(after.length ? { needs: after } : {}), gives: r.buff ? { buff: { who: 'fighters', ...r.buff } } : {}, ...(opens.length ? { opens } : {}) };
+      opens.forEach((k) => lock(k, id));
+      own.push(id);
+      said(null, null, `its own step, ${research[id].name}: ${opens.length ? `opens ${opens.map((k) => (units[k] || buildings[k]).name).join(', ')}` : 'opens nothing'}${after.length ? `, after ${after.join(', ')}` : ''}${r.buff ? ', a buff across its side' : ''}`);
+    }
+    // the mind's order: the machines, an income step, the branches, the showpieces, its own steps, the rest
     const inc = Object.keys(research).filter((k) => research[k].gives.income);
-    study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1), 'arms', 'plating'].filter((k) => k && research[k]));
+    study.push(...['tier2', inc[0], 'flight', 'siege', 'tier3', ...own, ...inc.slice(1), 'arms', 'plating', 'arms2', 'plating2'].filter((k, i, a) => k && research[k] && a.indexOf(k) === i));
     // the lab's research capability: every step of the ladder is researched there
     buildings[at].studies = Object.keys(research);
     if (research.tier2) {

@@ -92,6 +92,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   aura its ring on the ground, a selected unit its reach; a struck unit flashes; a cloaked foe shows only once seen.
   The mind casts when a foe is in sight, trains its latest factory's best first and saves for what a tier opened,
   spends what it has when it can earn no more; a worker stopped between spots by its depot steps back to drop off.
+- **The skirmish's tree** (in progress): past its machines a civilization's research branches (flight opens what
+  flies, siege works its siege; the showpieces their own step), and its upgrades run in lines (weapons II, plating II
+  after the first and its top tier). A civilization may write its own steps in `technology.research` (what each
+  opens of what it crafts, what it follows: a step, by name or as machines / showpieces, or a building it raises; a
+  buff across its side), every name it uses read against what it fields and refused with what it could name. The
+  mind passes over a step that opens only what it never fields, and saves for one that opens what it does.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

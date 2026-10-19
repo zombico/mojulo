@@ -438,6 +438,7 @@ export function boardRtsPage(api) {
       state: () => R, get selected() { return { units: sel.slice(), building: selB }; }, get result() { return result; },
       select(ids) { sel = ids.slice(); selB = null; drawPanel(); }, selectBuilding(id) { sel = []; selB = id; drawPanel(); },
       selectAt, command, armedClick, deploy, upgradeSel, castSel,
+      researchStep(id) { try { R = RTK.research(B, cfg, R, selB, id); return id; } catch (e) { return String(e.message).replace(/^rts: /, ''); } },
       marks(id) { const g = meshes[id]; if (!g) return null; const m = g.userData.marks || {}; return { marks: Object.keys(m).filter((k) => m[k].visible), visible: g.visible, flash: g.userData.flash > 0 }; }, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
       looks() { const out = {}; for (const id in meshes) { let n = 0; meshes[id].traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.color) n++; }); out[id] = n; } return out; },
       order(o) { R = RTK.order(B, cfg, R, sel, o); }, run(dt) { advance(dt); sync(); },

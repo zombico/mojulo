@@ -376,7 +376,9 @@ export function buildBoardRts() {
     const sent = R.sent && R.sent[side], standing = (k) => R.buildings.some((b) => b.side === side && b.kind === k && b.raising <= 0);
     const want = S.builds.find((k) => !R.buildings.some((b) => b.side === side && b.kind === k));
     const can = (K) => !lockOf(cfg, R, side, K);
-    const L = S.research || {}, step = sent ? (S.study || []).find((id) => !known(R, side)[id] && !R.buildings.some((b) => b.side === side && b.study && b.study.id === id)) : null;
+    // (a step that opens only what it never fields, a transport or a folded thing, it passes over)
+    const dull = (id) => L[id].opens && L[id].opens.length && L[id].opens.every((k) => { const X = UN(cfg, side, k); return X && (X.carries || X.deploys); });
+    const L = S.research || {}, step = sent ? (S.study || []).find((id) => !known(R, side)[id] && !dull(id) && !R.buildings.some((b) => b.side === side && b.study && b.study.id === id)) : null;
     const lab = step && R.buildings.find((b) => b.side === side && studiesAt(BU(cfg, side, b.kind), step) && b.raising <= 0 && !b.study);
     if (step && lab && !lockOf(cfg, R, side, L[step]) && R.gold[side] >= L[step].cost) R = research(B, cfg, R, lab.id, step);
     // its base grown into what it upgrades to, once it can: last, its buildings raised and its ladder climbed
@@ -399,7 +401,7 @@ export function buildBoardRts() {
     // once it has sent a wave, it keeps back what the next thing it wants costs
     const nextBuild = want && want !== S.builds[0] && sent && can(BU(cfg, side, want)) ? BU(cfg, side, want).cost : 0;
     // (what it researches beyond the tiers, income and upgrades, comes from what is spare: it saves for a tier only)
-    const nextStep = step && lab && L[step].gives.tier && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
+    const nextStep = step && lab && (L[step].gives.tier || (L[step].opens && L[step].opens.length)) && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
     // (nothing more to earn, no worker or the nodes spent: it saves for nothing and spends what it has)
     const earns = R.units.some((u) => u.side === side && isWorker(cfg, u)) && R.nodes.some((n) => n.left > 0);
     let keep = sent && earns ? Math.max(nextBuild, nextStep) : 0;

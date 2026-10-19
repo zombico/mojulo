@@ -73,6 +73,19 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(corps.research.arms).toMatchObject({ needs: 'tier2', gives: { buff: { who: 'fighters', atk: 1.15 } } });
   });
 
+  it('takes the steps its technology writes: what each opens and follows, refused when it names what it does not field', () => {
+    const own = (research) => readGameworld({ ...W, civilizations: { ...W.civilizations, 'survey-corps': { ...W.civilizations['survey-corps'], technology: { ...W.civilizations['survey-corps'].technology, research } } } });
+    const R = rtsRoster(own({ servos: { name: 'Leg servos', opens: ['walker'], after: 'machines' }, overclock: { after: ['servos', 'mast'], buff: { atk: 1.2 }, cost: 90 } }), 'survey-corps');
+    expect(R.research.servos).toMatchObject({ name: 'Leg servos', needs: ['tier2'], opens: ['walker'] });
+    expect(R.units.walker.needs).toEqual(['servos']);
+    expect(R.research.overclock).toMatchObject({ name: 'Overclock', cost: 90, needs: ['servos', 'mast'], gives: { buff: { who: 'fighters', atk: 1.2 } } });
+    expect(R.study.indexOf('servos')).toBeGreaterThan(R.study.indexOf('tier2'));
+    expect(R.ledger.some((l) => /its own step, Leg servos: opens Walker, after tier2/.test(l.line))).toBe(true);
+    expect(() => rtsRoster(own({ wings: { opens: ['dragon'] } }), 'survey-corps')).toThrow(/research.wings.opens 'dragon' is not something it fields/);
+    expect(() => rtsRoster(own({ wings: { after: ['nothing'] } }), 'survey-corps')).toThrow(/research.wings.after 'nothing' is neither a step/);
+    expect(() => own({ wings: { power: 3 } })).toThrow(/research.wings.power is not part of a step/);
+  });
+
   it('prices every fight by one formula, so no side buys more of it for its gold', () => {
     const K = 60 / Math.sqrt(80 * 8);
     for (const cid of CIVS) {
@@ -110,7 +123,11 @@ describe('the ladder', () => {
     const corps = rtsRoster(G, 'survey-corps');
     expect([corps.units.skimmer.tier, corps.units.walker.tier, corps.units.carbine.tier]).toEqual([2, 3, undefined]);
     expect(corps.builds).toEqual(['barracks', 'mast', 'works']);
-    expect(corps.research.tier2).toMatchObject({ at: 'mast', gives: { tier: 2 }, opens: ['skimmer', 'lifter', 'works'] });
+    expect(corps.research.tier2).toMatchObject({ at: 'mast', gives: { tier: 2 }, opens: ['skimmer', 'works'] });
+    // past the machines the tree branches: flight opens what flies (the lifter needs both)
+    expect(corps.research.flight).toMatchObject({ needs: 'tier2', opens: ['lifter'] });
+    expect(corps.units.lifter.needs).toEqual(['flight']);
+    expect(corps.research.arms2.needs).toEqual(['arms', 'tier3']);
     expect(corps.research.tier3).toMatchObject({ needs: 'tier2', gives: { tier: 3 }, opens: ['walker', 'crawler'] });
     expect(Object.values(corps.research).filter((r) => r.gives.income)).toHaveLength(2);
     expect(corps.study[0]).toBe('tier2');
