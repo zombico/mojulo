@@ -303,7 +303,7 @@ export const FIXTURES = Object.freeze([
     why: 'a party of classed units on a board of spots, a turn each on a charge-time clock: move, act, face; height and facing count',
     cube: {
       reality: { medium: '3d' },
-      space: { camera: 'tactical', board: 'spots', levelForm: 'meru' },
+      space: { camera: 'tactical', board: 'spots', levelForm: 'trail' },
       power: { combat: ['tactics'], stats: ['xp', 'level'], systems: ['equip'] },
       soul: { party: 'party' },
       mind: { squad: 'team-aware' },

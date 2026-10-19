@@ -226,6 +226,16 @@ describe('the board kernel: spots, one unit a spot, and the turns played on them
     expect(boardReach(B, S, 'a')).toEqual([1]);
   });
 
+  it('parts two spots where a wall stands across the step: no walk crosses it, no blow reaches over it', () => {
+    const B = boardOf(flat(3, 2), { cut: [[0, 1], [3, 4]] });
+    const S = boardStart(B, {}, [{ id: 'a', side: 'p', at: 'A1', move: 4 }, { id: 'b', side: 'q', at: 'B1' }]);
+    expect(boardReach(B, S, 'a').map((i) => boardSpotName(B, i))).toEqual(['A2']);
+    expect(boardLegal(B, {}, S).some((x) => x.kind === 'act')).toBe(false);
+    const C = boardOf(flat(3, 2), { cut: [[0, 1]] }), T = boardStart(C, {}, [{ id: 'a', side: 'p', at: 'A1', move: 4 }]);
+    expect(boardPath(C, T, 'a', 1).map((i) => boardSpotName(C, i))).toEqual(['A1', 'A2', 'B2', 'B1']);
+    expect(() => boardOf(flat(3, 2), { cut: [[0, 2]] })).toThrow(/neighbouring spots/);
+  });
+
   it('refuses what cannot stand: a unit off the board, on a cliff, or on another', () => {
     const B = boardOf([[0, null], [0, 0]], { types: [['ground', 'ground'], ['cliff', 'ground']] });
     expect(() => boardStart(B, {}, [{ id: 'a', side: 'p', at: 'B1' }])).toThrow(/not a spot/);

@@ -11,9 +11,10 @@
  * `apply` returns a new state, so the same start and the same moves are the same battle to the byte, and a mind can
  * look ahead on a copy.
  *
- *   B (the board, constant through a battle): { cols, rows, cell, step, spots: [spot | null] }, spot index
+ *   B (the board, constant through a battle): { cols, rows, cell, step, spots: [spot | null], cut? }, spot index
  *     i = r * cols + c; column c runs east (+x, letters A, B, C…), row r north (+y, 1, 2, 3…), so 'C4' is c 2, r 3.
  *     spot: { h (whole steps), type: 'ground' | 'sand' | 'trail' | 'rock' | 'cliff' | 'water', walk }
+ *     cut: { 'a,b': 1 } (a < b) the steps a wall stands across: no walk crosses one, and no reach-1 aim
  *   cfg: { seed, skills: { <id>: skill }, rules }
  *     skill: { name, mp, target: 'foe' | 'ally', power, stat: 'atk' | 'mag', scale, element, heal,
  *              min, max (the aim's reach, in steps along the board), kind: 'diamond' | 'line', area (the hit's
@@ -31,7 +32,8 @@
  * the next turn sooner. Ending is always legal, so `legal` is never empty while the battle runs: running out of
  * options means only ending is left.
  *
- *   board(heights, { types?, walk?, cell?, step? }) → B      heights[r][c]: whole steps, or null for no spot
+ *   board(heights, { types?, walk?, cut?, cell?, step? }) → B   heights[r][c]: whole steps, or null for no spot;
+ *                                                              cut: [[a, b]] neighbouring spots a wall parts
  *   nameOf(B, i) / parse(B, 'C4') / centre(B, i) / neighbours(B, i)
  *   start(B, cfg, units) → S                                 units: [{ id, side, at: 'C4' | i, … }]; S.turn set
  *   reach(B, S, id) → [i]          the spots the unit can end a move on (4-way steps within `jump`; through allies,
@@ -108,8 +110,18 @@ export function buildBoard() {
         spots.push({ h, type, walk: w });
       }
     }
-    return { cols, rows, cell: o.cell != null ? o.cell : 2, step: o.step != null ? o.step : 0.5, spots };
+    const B = { cols, rows, cell: o.cell != null ? o.cell : 2, step: o.step != null ? o.step : 0.5, spots };
+    if (o.cut && o.cut.length) {
+      B.cut = {};
+      for (const e of o.cut) {
+        const a = Math.min(e[0], e[1]), b = Math.max(e[0], e[1]);
+        if (!(a >= 0 && b < spots.length) || neighbours(B, a).indexOf(b) < 0) throw new Error('board: a cut is between two neighbouring spots, not ' + JSON.stringify(e));
+        B.cut[a + ',' + b] = 1;
+      }
+    }
+    return B;
   }
+  const cutAt = (B, a, b) => !!B.cut && !!B.cut[(a < b ? a + ',' + b : b + ',' + a)];
   const idx = (B, c, r) => (c < 0 || r < 0 || c >= B.cols || r >= B.rows ? -1 : r * B.cols + c);
   const cOf = (B, i) => i % B.cols;
   const rOf = (B, i) => (i - (i % B.cols)) / B.cols;
@@ -181,7 +193,7 @@ export function buildBoard() {
       for (const b of neighbours(B, a)) {
         if (b < 0 || d[b] >= 0) continue;
         const s = B.spots[b];
-        if (!s || !s.walk || Math.abs(s.h - ha) > U.jump) continue;
+        if (!s || !s.walk || Math.abs(s.h - ha) > U.jump || cutAt(B, a, b)) continue;
         const o = occ[b];
         if (o !== undefined && S.u[o].side !== U.side) continue;
         d[b] = d[a] + 1; from[b] = a; q.push(b);
@@ -211,6 +223,7 @@ export function buildBoard() {
       const dc = cOf(B, i) - c0, dr = rOf(B, i) - r0, d = Math.abs(dc) + Math.abs(dr);
       if (d < sk.min || d > sk.max || Math.abs(s.h - h0) > sk.v) continue;
       if (sk.kind === 'line' && dc !== 0 && dr !== 0) continue;
+      if (d === 1 && cutAt(B, from, i)) continue;
       out.push(i);
     }
     return out;

@@ -31,6 +31,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   move listed, ending always among them. The turn is FFT's: move once and act once, in either order, then face; a
   charge-time clock on the party battles' timeline rule, a turn costing less for not moving or not acting. Blows
   follow the party battles' formula. Pure and seeded, a self-contained closure a page can carry.
+- **Boards from a geocube** (`lib/graph/board/board-lay.js`), built, indoors and out:
+  - a diorama the cube paints: seeded columns in whole steps, banded a step at a time so a height reads at a
+    glance, grass and stone outside, floor and trim inside, water optional;
+  - over the cube's rooms: spots on the floor, props shutting theirs, the rooms joined only through their
+    doorways;
+  - over the cube's land (a trail's valley by default): heights and types read off the ground, trees shutting
+    their spots, laid inside the site where the most ground can be stood on.
 - **The tactical camera**: a locked pitch, quarter-turn rotation, zoom stops and pan held to the board, with an RTS
   form that pans and edge-scrolls instead of rotating.
 - **A `tactics` quick goal**, and **tower defence on a board** (`defend` with `board`): towers fill spots, and foes
