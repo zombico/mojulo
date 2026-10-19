@@ -119,6 +119,47 @@ describe("mint_solid kind 'animal'", () => {
   });
 });
 
+// OOZES (graph/mutagen): the door half. The law and the form are the mutagen suite's; here a species takes an ooze,
+// the stored plan is the mutated body, the manifest keeps the list, and every other door refuses it.
+describe("mint_solid kind 'animal' — oozes", () => {
+  it('mints an oozed species: the stored plan is the mutated body and the manifest keeps the oozes', async () => {
+    const { OOZES, resolveMutagen, oozeParams } = await import('@/lib/graph/mutagen/index');
+    const { speciesParams } = await import('@/lib/graph/fauna/species');
+    const { buildFauna } = await import('@/lib/graph/fauna/build');
+    const id = Object.keys(OOZES).find((o) => OOZES[o].form?.scale);
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_oozed', spec: { species: 'wolf', ooze: [id] } });
+    expect(res.ooze.oozes).toEqual([{ id, strength: 1 }]);
+    expect(res.ooze.form.scale).toBe(OOZES[id].form.scale);
+    const m = SketchRepository.getByRef('an_oozed').manifest;
+    expect(m.ooze).toEqual({ oozes: [{ id, strength: 1 }], seed: res.ooze.seed });
+    expect(m.plan).toEqual(buildFauna(oozeParams(speciesParams('wolf'), resolveMutagen([id], { key: 'wolf' }))));
+    expect(m.species).toBe('wolf');
+  });
+
+  it('nothing acts ⇒ the plain species, byte-identical, with no ooze stored', async () => {
+    const { OOZES } = await import('@/lib/graph/mutagen/index');
+    const id = Object.keys(OOZES)[0];
+    await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_plain', spec: { species: 'wolf' } });
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_zero', spec: { species: 'wolf', ooze: { id, strength: 0 } } });
+    expect(res.ooze).toBeUndefined();
+    const [a, b] = ['an_plain', 'an_zero'].map((r) => SketchRepository.getByRef(r).manifest);
+    expect(b.ooze).toBeUndefined();
+    expect(JSON.stringify(b.plan)).toBe(JSON.stringify(a.plan));
+  });
+
+  it('refuses an ooze off a fauna species, beside motion, or that it cannot read', async () => {
+    const { OOZES } = await import('@/lib/graph/mutagen/index');
+    const { BUG_SPECIES } = await import('@/lib/graph/bugs/species');
+    const id = Object.keys(OOZES)[0], bug = Object.keys(BUG_SPECIES)[0];
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'ectoplasm' } })).rejects.toThrow(/unknown ooze[\s\S]*Oozes/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { archetype: 'canine', ooze: id } })).rejects.toThrow(/mutates a `species`/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', ooze: id } })).rejects.toThrow(/mutates a `species`/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: bug, ooze: id } })).rejects.toThrow(/is a bug/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: id, motion: 'walk' } })).rejects.toThrow(/`ooze` or `motion`/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', seed: 3 } })).rejects.toThrow(/pass it with `ooze`/);
+  });
+});
+
 describe("mint_solid kind 'animal' — the maker door", () => {
   const closed = async (plan) => {
     const { expandPlan } = await import('@/lib/graph/polygonizer/station-loft-plan.js');

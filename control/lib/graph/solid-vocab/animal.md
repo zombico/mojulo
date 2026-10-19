@@ -96,6 +96,8 @@ spec: {
   elev?:      <camera elevation°, -89…89; default 12>,
   crop?:      'head',          // a face study close-up instead of the whole animal
   statue?:    true | { type: 'statue', material?, base?, dials?: { wear } },   // carved as sculpture (below)
+  ooze?:      <word> | { id, strength? } | [<either>],   // species only: a game creature made of it (Oozes, below)
+  seed?:      <integer ≥ 0>,   // with ooze: places its spots (default from the species and the oozes)
   background?: <boolean>
 }
 ```
@@ -156,6 +158,21 @@ body) is already a closed solid and carries the statue on its layered manifest; 
 `statue` with `motion` refuses. Absent, the animal is byte-identical. An equestrian statue is a hero statue with
 `stand: 'mounted'` (the layered kind's STATUE section): its horse is this filter over the layered kind's horse ring plan
 (`docs/examples/ring-plans/horse.plan.json`).
+
+## Oozes — a species made into a game creature
+
+`ooze` turns a ring-plan species into an enemy or a beast for a game, keeping its limbs and its rig: `{ species: 'wolf',
+ooze: 'dire' }`. Reach for it when a world needs creatures that belong to it; nobody voices the word. The shelf
+(`lib/graph/mutagen/oozes/`): `dire` (grown whole ×1.45, heavier through the chest, legs and head, still the animal).
+
+- A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
+  multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to
+  ×2.5). An ooze is named once; its strength says how much.
+- A form moves no joint but by uniform size, so the creature is the species' skeleton grown; girth is ring radius.
+- The stored plan is the mutated body (`/plan/...` patches retune it); the manifest keeps `ooze: { oozes, seed }`.
+  The result says the form it composed to.
+- Strength 0 or an empty list is the plain species, byte-identical, with nothing stored.
+- Not yet: `motion` beside `ooze` (refused until the rig follows the size), the `maker`, `archetype` and `bug` doors.
 
 ## Honest limits
 
