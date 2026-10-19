@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
 import { HERO_WALK, HERO_RUN } from './hero-gaits.js';
+import { HERO_LAWS_VERSION } from './hero-form.js';
 import { stampAuthoredMotion, stampHero, withDefaultWalk } from './motion-stamp.js';
 
 const PHASES = Array.from({ length: 12 }, (_, i) => i / 12);
@@ -97,9 +98,9 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     const m = stampAuthoredMotion(next, prev);
     expect(m.figures.kept).toBe(next.figures.kept);
     expect(m.figures.fresh.hero.motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
-    expect(m.figures.fresh.hero.laws).toBe(1);
+    expect(m.figures.fresh.hero.laws).toBe(HERO_LAWS_VERSION);
     expect(m.figures.own.hero.motion.walk).toBe(false);
-    expect(m.figures.own.hero.laws).toBeUndefined();
+    expect(m.figures.own.hero.laws).toBe(HERO_LAWS_VERSION);   // a structured-core hero reads the shoulder line (laws 2)
   });
 
   it("stamps a layered hero's motion, and leaves a hero without one alone", () => {

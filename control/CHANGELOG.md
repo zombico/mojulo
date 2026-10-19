@@ -50,6 +50,17 @@ Opt-in and versioned: a default hero keeps its bytes.
   folds as far as the gait means it to (the sprint's `swingTuck`: the level foot had held the knee shallower). Through
   the sprint and the jog the swing ankle stays within 3° of its standing angle; no toe goes through the floor, and each
   gait's speed is unchanged.
+- **The shoulder line, hero laws 2.** The hero's shoulders read shrugged: its girdle already declines (8° male, 11°
+  female, the casts' `shoulderDrop`), but the trapezius met the neck's side 8 cm over the shoulder joint and the neck rose
+  out of it like a post, plainest from behind. Hero laws 2 (`HERO_LAWS_VERSION` 2, hero-form.js `SHOULDER_LINE`) lifts
+  the torso's top ring, the neck's root, at its sides and back (its front stays at the sternal notch; the top cap's tip
+  rises with it, the cage staying closed on every cast), so the trapezius
+  climbs the neck in a concave curve and falls to the acromion at about 27° (male) and 34° (female) from the neck's side.
+  Every hero on the structured core reads it, so every one minted now is stamped `laws: 2`; a row minted before (stamped
+  laws 1, or unstamped, as a world's inline hero re-recorded on each render is) builds its plan and recipe byte for
+  byte, pinned. Garments that reach the shoulders follow the new line on a hero minted now (the outfit laws' ring pins
+  re-pinned as a body change; their expansions unchanged). The legacy vajra figure's girdle (figure-vajra.js `CLAVICLE_DECLINE`) and its body chart are left as
+  they are: the hero reads neither. `body-study` takes `--laws` to render a hero as minted under an earlier version.
 - **The body lane** (the `body-study` skill). The hero's body as an engine gets it, the skinned cage shaded smooth,
   from the front, the front ¾, the lateral, the back and below; rows posed at the bind, a gait at a phase, a stand
   gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the

@@ -5,7 +5,7 @@
  * register alternating, so every cast meets every register). */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { heroPlan, ANIME_NECK_FORMS } from './hero-form.js';
+import { heroPlan, ANIME_NECK_FORMS, SHOULDER_LINE } from './hero-form.js';
 import { humanoidPlan } from './humanoid-plan.js';
 import { GESTURE_PRESETS, standPose, poseLayered } from './hero-gesture.js';
 import { validateRig, bindLayered } from './station-loft-rig.js';
@@ -53,8 +53,11 @@ describe('the neck form: absent ⇒ the plan as it was', () => {
     expect(m.st.r).toEqual(T.r); expect(m.st.yc).toBe(T.yc); expect(m.st.z).toBeCloseTo(zs + T.z, 6); expect(m.tip[2]).toBeCloseTo(zs + T.tip, 6); expect(m.blend).toEqual(T.blend);
     // the structured core's neck root narrows and lowers it (the form's held the shoulder line flat out from the neck),
     // its cap and weights the form's
-    const s = top({ cast: 'male', head: 'anime' }), zS = heroPlanOf(heroRecord({ cast: 'male', head: 'anime' })).joints.neckHub[2];
+    // (under laws 1; laws 2 lifts the root by the shoulder line's rise, SHOULDER_LINE, so the trapezius climbs the neck)
+    const s = top({ cast: 'male', head: 'anime', laws: 1 }), zS = heroPlanOf(heroRecord({ cast: 'male', head: 'anime', laws: 1 })).joints.neckHub[2];
     expect(s.st.r[0]).toBeLessThan(0.75 * T.r[0]); expect(s.st.z).toBeLessThan(zS + T.z); expect(s.tip[2]).toBeCloseTo(zS + T.tip, 6); expect(s.blend).toEqual(T.blend);
+    const s2 = top({ cast: 'male', head: 'anime' });
+    expect(s2.st.z).toBeCloseTo(s.st.z + SHOULDER_LINE.male.rootRise, 6); expect(s2.st.r).toEqual(s.st.r);
     expect(ANIME_NECK_FORMS.female.trap).toBeUndefined();
     const f = top({ cast: 'female', head: 'anime' }); expect(f.st.yc).toBeUndefined(); expect(f.blend).toEqual({ torso: 0.6, neck: 0.4 });
   });

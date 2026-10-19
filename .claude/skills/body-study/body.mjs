@@ -15,6 +15,8 @@
 //   --crop          torso | shoulder | hip | knee | hand | foot | neck (the right side's, the neck seam where the head
 //                   sits), framed on the posed joints; default the whole body.
 //   --register      the hero's register word (the door's `register`, default its own).
+//   --laws          the hero laws to mint under (hero-form.js HERO_LAWS_VERSION; default the current): 1 for a hero as
+//                   rows minted before laws 2 read
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
 //
 // Each cast gets a SECTIONS panel at the bind (the trunk cut level at the neck, the chest, the waist and the seat; the
@@ -41,13 +43,14 @@ const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--acts') { acts = JSON.parse(args[++i]); continue; }
   if (a === '--crop') { crop = args[++i]; continue; }
   if (a === '--register') { reg = args[++i]; continue; }
+  if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
   if (a.startsWith('--')) throw new Error(`body-study: unknown option ${a}`);
   casts.push(a);
@@ -111,7 +114,7 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...extra }) });
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...extra }) });
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
   const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R) };
   heroes.set(key, h);
@@ -257,7 +260,7 @@ for (const cast of casts) {
   const lines = Object.entries(M.table).map(([k, v]) => `${k.padEnd(30)} ${typeof v === 'number' && Number.isInteger(v) ? `${v} mm` : v}`);
   lines.push('targets: none yet (the register\'s relations, phase 3a)');
   lines.forEach((t, i) => parts.push(`<text x="40" y="${y0 + 40 + ph + 34 + i * 17}" font-family="monospace" font-size="13" fill="#333">${esc(t)}</text>`));
-  console.log(`\n${cast}${reg ? ` (${reg})` : ''}:`); for (const t of lines) console.log(`  ${t}`);
+  console.log(`\n${cast}${reg ? ` (${reg})` : ''}${laws ? ` laws ${laws}` : ''}:`); for (const t of lines) console.log(`  ${t}`);
   y0 += ph + 330;
 }
 sheetW = Math.max(sheetW, 1500);

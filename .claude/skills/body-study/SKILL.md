@@ -1,6 +1,6 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>]`.
+description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>]`.
 ---
 
 # body-study
@@ -35,6 +35,10 @@ Any entry may carry its own `"crop"`.
 
 **Crops** (`--crop`, or per row): `torso`, `shoulder`, `hip`, `knee`, `hand`, `foot` (the right side's), `neck` (the
 seam where the head sits). Framed on the POSED joints, so a crop follows its joint through a gait.
+
+**Laws** (`--laws <n>`): mint the hero under an earlier version of the hero laws (hero-form.js `HERO_LAWS_VERSION`;
+default the current), so a change a laws bump carries can be seen against the hero as rows minted before it read
+(`--laws 1`: the shoulder line before laws 2).
 
 **The sections panel and the measures table** come at the bind, per cast:
 

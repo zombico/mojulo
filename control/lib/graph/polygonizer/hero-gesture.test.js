@@ -271,14 +271,21 @@ describe('the anime wave', () => {
 // cores' own), and left the head-none pair as it was; then for the ear (head-ear.js: the side shape, a thin plate with the
 // rim, the antihelix and the bowl), the same heroes again; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): the rig rides in every jawed
 // (landmark-headed) recipe, so the same heroes again, the head-none pair as it was; then for
-// the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): every capped hero again, head-none as it was
+// the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): every capped hero again, head-none as it was;
+// then for the hero laws 2 (hero-form.js SHOULDER_LINE: the neck's root lifted so the trapezius climbs the neck): every
+// structured-core hero minted now is stamped `laws: 2` (its record) and builds the new shoulder line (its plan and
+// recipe); the streamlined pair as it was, and each hero at laws 1 (a row minted before) builds the plan and recipe it
+// did, byte for byte (LAWS_1 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'f0aa4d041466bd73', 'df8192d31cce17f6'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', 'c68fff3680b9f622', '8f8d9eec7262ce55'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', 'bbaab5524004c1c0', 'e79e41b49d2ff353'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', 'd4409ba20f536c61', '1dd57903a518fe50'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', 'e8a0df74ba434303', 'c00a4001726ef12d'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['c5e4ec3953f739bc', 'ee766e8f6ac5e1e4', 'cd62c872f04e37ee'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['0afcf1e51c0b5c8b', '2bc8920b922c7c19', 'f4481051247f7a6d'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['ec2185303256dc25', 'd2010ee4b78fe501', '8904c9ac08f92576'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['e04253927f74ff3b', '500c5039eeaa7e5e', '342b0a1b93f84208'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['ce19085af719126a', 'c97540a4c7c2aa63', 'f6c16f24ee4f1612'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
+/** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
+ * row stamped laws 1 (or unstamped) still builds */
+const LAWS_1 = { landmarkMale: ['5151980a1491275e', 'f0aa4d041466bd73', 'df8192d31cce17f6'], headNone: ['2abfcb8d912a8fef', 'bbaab5524004c1c0', 'e79e41b49d2ff353'] };
 describe('the door: no gesture ⇒ byte-identical', () => {
   // (the structured core's plans and recipes re-pinned when its pelvis bone took the hip hinge's tilt, `pelvisTilt`: the
   // rig gained the reference joint; the streamlined core's pins did not move), and again for its shoulder girdle (the
@@ -291,6 +298,13 @@ describe('the door: no gesture ⇒ byte-identical', () => {
       const old = heroPlanOf(heroRecord({ ...spec, core: 'streamlined' })); expect(h(old)).toBe(oldPlan); expect(h(expandPlan(old))).toBe(oldRecipe);
     });
   }
+  it('a row minted before the hero laws 2 builds as it did, byte for byte', () => {
+    for (const [name, [record, plan, recipe]] of Object.entries(LAWS_1)) {
+      const { laws, ...bare } = heroRecord(PINS[name][0]);
+      expect(laws).toBe(2); expect(h(bare)).toBe(record);
+      for (const hr of [bare, { ...bare, laws: 1 }]) { const p = heroPlanOf(hr); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe); }
+    }
+  });
   // a tune control added after these pins (hero-form.js SPARSE_TUNE_KEYS) stores nothing at 1, as a word or a list too:
   // stored at 1 it moved every record above, and with it the face's seed (anime-face-tracks faceSeed)
   it('a later tune control stores nothing at 1 and its value when moved', () => {

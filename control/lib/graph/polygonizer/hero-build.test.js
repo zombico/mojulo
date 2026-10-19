@@ -5,7 +5,7 @@
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
 import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION } from './hero-form.js';
-import { compileLayered } from './station-loft.js';
+import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
 import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures } from '../../mcp/tools/layered.js';
@@ -112,7 +112,8 @@ describe('scale on a worn head', () => {
     expect(z({ cast: 'male', tune: { stature: 0.8 } }) / z({ cast: 'male' })).toBeCloseTo(0.8, 5);
   });
   it('a spec re-recorded on every render (a world\'s inline hero) keeps rendering, as it always did, without it', () => {
-    const plain = expand({ cast: 'female' }), stale = expand({ cast: 'female', scale: 0.7 }, { staleScale: true });
+    // (an inline hero is never stamped, so it reads laws 1: it is held to the same hero minted under laws 1)
+    const plain = expand({ cast: 'female', laws: 1 }), stale = expand({ cast: 'female', scale: 0.7 }, { staleScale: true });
     expect(stale.plan).toEqual(plain.plan); expect(stale.recipe).toEqual(plain.recipe);
   });
 });
@@ -139,19 +140,38 @@ describe('the child-coded guard reads the resolved cast', () => {
   });
 });
 
-describe('the hero laws: a hero reading the newer tables is stamped at mint, and the stamp moves nothing', () => {
-  it('stamps a build, the tiered form, the painterly look and a cube; leaves the rest and the inline hero alone', () => {
-    for (const spec of [{ cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
+describe('the hero laws: a hero reading the newer tables is stamped at mint; laws 1 builds as an unstamped row', () => {
+  it('stamps every structured-core hero (the shoulder line, laws 2) and the newer tables; leaves the inline hero alone', () => {
+    for (const spec of [{ cast: 'male' }, { cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(heroRecord({ cast: 'male' }).laws).toBeUndefined();
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1/)]);
+    expect(HERO_LAWS_VERSION).toBe(2);
+    expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
+    expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 2/)]);
   });
-  it('a stamped hero builds what an unstamped one does: absent reads as laws 1', () => {
+  it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
-    const stamped = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
-    const bare = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, { staleScale: true }) });
-    expect(stamped.plan).toEqual(bare.plan); expect(stamped.recipe).toEqual(bare.recipe);
+    const at = (laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), ...(laws ? { laws } : {}) } });
+    const bare = at(null), one = at(1), two = at(2);
+    expect(one.plan).toEqual(bare.plan); expect(one.recipe).toEqual(bare.recipe);
+    // laws 2: only the torso differs, and in it only the top rings (the trapezius and the neck's root)
+    const moved = Object.keys(two.recipe.parts).filter((k) => JSON.stringify(two.recipe.parts[k]) !== JSON.stringify(one.recipe.parts[k]));
+    expect(moved).toEqual(['torso']);
+    const st = (r) => Object.fromEntries((r.parts.torso.stations ?? []).map((s, i) => [s.id ?? i, JSON.stringify(s)]));
+    const a = st(one.recipe), b = st(two.recipe);
+    expect(Object.keys(a).filter((k) => a[k] !== b[k]).sort()).toEqual(['st3_st4_50', 'st4']);
+  });
+  it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
+    // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk
+    const off = (c) => Object.values(CAST_PRESETS[c].dials).reduce((t, v) => t + Math.abs(v - 1), 0);
+    const far = CAST_PRESET_NAMES.reduce((a, c) => (off(c) > off(a) ? c : a));
+    for (const spec of [{ cast: far }, { cast: 'male', head: 'none' }]) {
+      const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
+      const torso = auditLayered(compileLayered(m.recipe, m.dials)).torso;
+      expect(torso.windingErrors, JSON.stringify(spec)).toBe(0); expect(torso.pass, JSON.stringify(spec)).toBe(true);
+    }
   });
 });
+

@@ -281,11 +281,15 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * tiered form's face and hair (tiered-form.js TIERED_FACE*), the painterly soft edge (station-loft-shade.js
  * PAINTERLY_SOFT) and the geocube's cast light (era/cast-light.js CAST_LIGHT). A hero using any of them is stamped
  * `laws` at mint, as armour, outfit and statue builds are; an absent stamp reads as laws 1, the tables as they stand,
- * so a row minted before the stamp keeps them. A retune adds laws 2 beside them, never in place.
+ * so a row minted before the stamp keeps them. A retune adds a version beside them, never in place.
+ * Laws 2 adds the structured core's SHOULDER LINE (SHOULDER_LINE): the trapezius running straight from the neck's root
+ * down to the shoulder, where laws 1 sagged it into a level shelf with the neck rising out of it like a post (the
+ * shrug). Every structured-core hero reads it, so every one minted now is stamped.
  */
-export const HERO_LAWS_VERSION = 1;
-/** Does this spec read a table the hero laws cover? */
-export const readsHeroLaws = (spec) => spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
+export const HERO_LAWS_VERSION = 2;
+/** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2: every hero on the
+ * default core) */
+export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
 /** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
 export const isBuiltCast = (cast) => !!cast && typeof cast === 'object' && !Array.isArray(cast) && ('pole' in cast || 'build' in cast);
 /** the hero pole a cast stands on: the word itself, the build form's `pole` (male unless named), else the cast as given */
@@ -329,6 +333,12 @@ export const castOf = (cast, proportions = 'hero') => {
  * (0.5 sagged under the straight line: a shelf, then the neck); `deltoid` the upper arm's top: its ring's overshoot (of
  * its radius; negative, under the joint) and its cap's height over it (0.03 and 0.45 before: a square corner), the
  * belly's ring `mid` down the arm at its full radius and the top ring `top` of it (the dome) */
+/** THE SHOULDER LINE (hero laws 2, structured core): `rootRise` (m) lifts the torso's top ring, the neck's root, at its
+ * sides and back (its front stays at the sternal notch, NECK_ROOT), and the trapezius ring with it by its height share,
+ * so the trapezius climbs the neck in a concave curve and falls to the acromion at about 27° (male) and 34° (female)
+ * from the neck's side. Laws 1 met the neck's side with the line 8 cm over the shoulder joint, the neck rising out of
+ * it as a post: the shoulders read shrugged, most from behind. */
+export const SHOULDER_LINE = Object.freeze({ male: Object.freeze({ rootRise: 0.03 }), female: Object.freeze({ rootRise: 0.025 }) });
 const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.95, mid: 0.28, top: 0.8 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
@@ -436,13 +446,14 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              multiply `scale` and `headScale`; lengths and `shoulders` multiply the cast's dials; the widths and
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
+ *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
  *              pelvis part, converged legs) or 'streamlined' (the hero before it)
  *   bare       the torso shown bare (the swimsuit's, hero-dress.js): the structured core adds the navel (CHEST_FORM)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, laws = 1 } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
@@ -539,12 +550,18 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // between them at fractional `u` (the costal margin, the armpit, the trapezius), so every torso address (s 0 … 4, a
   // collar's station) keeps its meaning. A shaping ring takes the name refine would give it (`st3_st4_50`).
   if (structured) {
-    const F = TORSO_FORM[preset?.silhouette === 'female' ? 'female' : 'male'];
+    const sex = preset?.silhouette === 'female' ? 'female' : 'male';
+    // laws 2: the shoulder line (SHOULDER_LINE)
+    const SL = laws >= 2 ? SHOULDER_LINE[sex] : null, F = TORSO_FORM[sex];
     if (dense) Object.assign(torso, { slots: trunkFam, slotT: denseT });
     const SF = SLOT_FAMILIES[trunkFam] ?? trunkFam;
     const dT = Math.max(...SF.map((_, k) => Math.abs(dmath.sin(2 * Math.PI * k / SF.length))));
     // the trapezius ring (a neck form's) narrower and lower, behind the neck's front (NECK_ROOT.trap)
     if (neckForm?.trap) { const T = NECK_ROOT.trap, top = torso.stations[4]; top.z = r6(zs + T.z); top.r = g([T.r[0], T.r[1]]); top.yc = r6(T.yc); }
+    // laws 2: the neck's root ring raised (its sides and back: the front is held at the sternal notch below), so the
+    // trapezius climbs the neck instead of meeting it at a corner
+    // (the top cap's tip with it: left under the lifted ring, the cap fanned down from it and its faces turned over)
+    if (SL) { torso.stations[4] = { ...torso.stations[4], z: r6(torso.stations[4].z + SL.rootRise) }; const tip = torso.caps.tip; torso.caps.tip = [tip[0], tip[1], r6(tip[2] + SL.rootRise)]; }
     const [h0, , , , n4] = torso.stations, aR = g(armBase), Sx = shoulderHalf;   // the untuned arm: the yoke is the torso's, `upperArm` thickens only the arm
     const E = (i) => (reg.e <= 3 ? { e: F.e[i] } : {});
     const ring = (id, u, z, X, Y, yc, i) => ({ id, u, z: r6(z), r: [r6(X / dT), r6(Y)], ...(yc ? { yc: r6(yc) } : {}), ...E(i) });
@@ -557,7 +574,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       ring('st2', 2, zC, xC, F.chestDepth * g(b.chestDepth), F.yc[0], 2),
       ring('st2_st3_50', 2.5, zA, F.lat * Sx, F.depth[2] * D, F.yc[1], 3),
       ring('st3', 3, zS, xS, F.depth[3] * D, F.yc[2], 4),
-      ring('st3_st4_50', 3.5, zS + NECK_ROOT.trapZ[preset?.silhouette === 'female' ? 'female' : 'male'] * (n4.z - zS), xS + F.trap * (xNeck - xS), F.depth[4] * D, F.yc[3], 5),
+      ring('st3_st4_50', 3.5, zS + NECK_ROOT.trapZ[sex] * (n4.z - zS), xS + F.trap * (xNeck - xS), F.depth[4] * D, F.yc[3], 5),
       { ...n4, id: 'st4', u: 4 },
     ];
     if (dense) for (const [id, push] of Object.entries(TORSO_SCULPT[preset?.silhouette === 'female' ? 'female' : 'male'])) addPush(torso.stations.find((x) => x.id === id), Object.fromEntries(Object.entries(push).map(([k, d]) => [k, g(d)])));
