@@ -52,6 +52,27 @@ jobs:
         working-directory: control
         run: npm run test:book
 
+  # The e2e tier (vitest.e2e.config.js): whole worlds through the real handlers and games whose audit walks each
+  # level in headless Chrome. A third of the suite's time, so `npm test` leaves it out and it runs here, once, on
+  # one leg; the byte pins it rests on still run on every leg of the matrix above.
+  e2e:
+    name: e2e / ubuntu-latest / node 22
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install control
+        working-directory: control
+        run: npm install
+
+      - name: Test the e2e tier
+        working-directory: control
+        run: npm run test:e2e
+
   lint-hygiene:
     name: lint hygiene (node --check + locale validator + manifest pins)
     runs-on: ubuntu-latest

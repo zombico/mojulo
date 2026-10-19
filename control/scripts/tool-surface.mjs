@@ -20,7 +20,15 @@ import { FACETS, STATUSES } from '../lib/graph/cosmos/facets/index.js';
 import { capabilityRegistry } from '../lib/graph/cosmos/registry.js';
 import { FIXTURES } from '../lib/graph/cosmos/fixtures.js';
 import { sweep } from '../lib/graph/cosmos/sweep.js';
+import { dryRun } from '../lib/graph/cosmos/cosmos.js';
 import { composeCandidates } from '../lib/graph/cosmos/compose.js';
+import { ENGINES, MARKED_ENGINES } from '../lib/graph/scene/engines/registry.js';
+
+// what proves an engine's marks, said under its scoreboard
+const SCOREBOARD_PROOF = {
+  godot: 'The fixture matrix (`npm run test:godot`)\nplays them in both engines.',
+  roblox: 'A built mark names its Lune conformance test;\nthe Roblox kernel is young, so its flow offers only what is marked.',
+};
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOCS = resolve(HERE, '../../docs/tool-surface');
@@ -77,12 +85,12 @@ export function cosmosBoard({ n, seed, density }, notes = {}) {
   };
   const cubes = Object.fromEntries(FIXTURES.map((f) => [f.id, f]));
   const fixtures = r.fixtures.map((f) => ({
-    id: f.id, name: f.name, anchor: !!f.anchor, why: cubes[f.id]?.why || '', verdict: f.verdict, godot: !!f.godot,
+    id: f.id, name: f.name, anchor: !!f.anchor, why: cubes[f.id]?.why || '', verdict: f.verdict, godot: !!f.engines.godot,
     touched: Object.keys(cubes[f.id]?.cube || {}),
     issues: [...f.blocked, ...f.gaps].map((k) => [k, statusOf(k)]),
   }));
   return {
-    seed: r.seed, n: r.n, density: r.density, roll: r.roll, verdicts: r.verdicts, godotOk: r.godotOk,
+    seed: r.seed, n: r.n, density: r.density, roll: r.roll, verdicts: r.verdicts, godotOk: r.engines.godot.ok,
     facets, fixtures, packages: r.unlock.packages, values: r.unlock.values.slice(0, 15),
     now: notes.now || '', next: notes.next || '', board: notes.board || '', log: notes.log || [],
   };
@@ -146,12 +154,13 @@ export function hillclimbMd(opts) {
   L.push('1. Pick from the three rankings below: a package that lifts many worlds per effort, a recipe many worlds wait on,');
   L.push('   or a pair with synergy (build the two as one concept).');
   L.push('2. Write its plan section and its Unreleased changelog entry; build it opt-in (absent keys keep every byte).');
-  L.push('3. Mark the registry (status, lowers, godot) in lib/graph/cosmos/facets; a pair worth keeping becomes a package.');
+  L.push('3. Mark the registry (status, lowers, each engine\'s mark) in lib/graph/cosmos/facets; a pair worth keeping becomes a package.');
   L.push('4. `npm run tool-surface`, read this page again, and note the move (verdict totals, the genre probes).', '');
   L.push('## Where it stands', '');
-  L.push('| sweep | makeable | gaps | blocked | plays in Godot |', '|---|---|---|---|---|');
-  L.push(`| ${n} random worlds | ${r.verdicts.makeable} | ${r.verdicts.gaps} | ${r.verdicts.blocked} | ${r.godotOk} |`);
-  L.push(`| ${n} worlds near the genre probes | ${probes.verdicts.makeable} | ${probes.verdicts.gaps} | ${probes.verdicts.blocked} | ${probes.godotOk} |`, '');
+  const plays = MARKED_ENGINES.map((e) => `plays in ${ENGINES[e].name}`), bars = MARKED_ENGINES.map(() => '---');
+  L.push(`| sweep | makeable | gaps | blocked | ${plays.join(' | ')} |`, `|---|---|---|---|${bars.join('|')}|`);
+  L.push(`| ${n} random worlds | ${r.verdicts.makeable} | ${r.verdicts.gaps} | ${r.verdicts.blocked} | ${MARKED_ENGINES.map((e) => r.engines[e].ok).join(' | ')} |`);
+  L.push(`| ${n} worlds near the genre probes | ${probes.verdicts.makeable} | ${probes.verdicts.gaps} | ${probes.verdicts.blocked} | ${MARKED_ENGINES.map((e) => probes.engines[e].ok).join(' | ')} |`, '');
   L.push('## One at a time: packages by worlds lifted per effort', '');
   L.push('Lifted: a world steps up a verdict once the package (and what it needs) is built. Made: it becomes makeable.', '');
   L.push('| package | effort | cost with needs | lifted | made | per effort | needs |', '|---|---|---|---|---|---|---|');
@@ -165,9 +174,29 @@ export function hillclimbMd(opts) {
   L.push('| synergy | worlds | cost | pair |', '|---|---|---|---|');
   for (const p of c.pairs.filter((x) => x.synergy).slice(0, 15)) L.push(`| ${p.synergy} | ${p.worlds} | ${p.cost ?? '–'} | ${name(p.a)} + ${name(p.b)} |`);
   L.push('', '## The genre probes', '');
-  L.push('| genre | verdict | plays in Godot | waits on |', '|---|---|---|---|');
+  L.push(`| genre | verdict | ${plays.join(' | ')} | waits on |`, `|---|---|${bars.join('|')}|---|`);
   const cubes = Object.fromEntries(FIXTURES.map((x) => [x.id, x]));
-  for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${x.godot ? 'yes' : 'no'} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
+  for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${MARKED_ENGINES.map((e) => (x.engines[e] ? 'yes' : 'no')).join(' | ')} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
+  // THE ENGINE SCOREBOARDS: what each engine's export plays, read from its marks module through the registry. A value the
+  // web builds and the export loses fails a world; one it carries simpler does not.
+  for (const e of MARKED_ENGINES) {
+    const E = ENGINES[e], u = r.engines[e].unlock;
+    L.push('', `## ${E.name}: what an export plays`, '');
+    L.push('Marks: built, approximated (it runs, simpler) or absent (nothing in the kernel runs it), from');
+    L.push(`\`${E.marksPath}\` and the export's own tables (a mechanic's by lowering it). A world survives`);
+    L.push(`the export when it asks for nothing the web builds and ${E.name} loses. ${SCOREBOARD_PROOF[e]}`, '');
+    L.push(`| genre | lost on ${E.name} export | carried simpler |`, '|---|---|---|');
+    for (const f of FIXTURES) {
+      const g = dryRun(f.cube).engines[e], k = (x) => code(`${x.facet}.${x.setting}=${x.value}`);
+      L.push(`| ${f.name}${f.anchor ? ' (anchor)' : ''} | ${g.lost.map(k).join(', ') || '–'} | ${g.approximated.length} |`);
+    }
+    L.push('', 'Each facet\'s settings made to travel one at a time, the largest gain first (worlds of ' + n + ' surviving):', '');
+    L.push('| facet | now | ladder |', '|---|---|---|');
+    for (const [facet, ladder] of Object.entries(u.ladders)) L.push(`| ${facet} | ${r.engines[e].ok} | ${ladder.filter((x) => x.gain).map((x) => `${code(x.setting)} +${x.gain}`).join(', ') || '–'} |`);
+    L.push('', 'The values whose travelling alone would free the most worlds:', '');
+    L.push('| value | worlds it alone would free | worlds that ask for it |', '|---|---|---|');
+    for (const x of u.values.slice(0, 15)) L.push(`| ${code(x.key)} | ${x.survives} | ${x.touches} |`);
+  }
   L.push('', '## The matrix', '');
   L.push('Every setting of every facet, its values by status. Statuses: ' + STATUSES.join(', ') + '.', '');
   for (const { id, asks } of FACETS) {

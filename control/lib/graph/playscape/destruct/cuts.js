@@ -57,7 +57,7 @@ export function readCut(v, where = 'cut') {
 // what dealt the blow → its cut
 export const SOURCE_CUTS = Object.freeze({ swing: 'slash', back: 'cleave', round: 'chip', burst: 'blast', explosion: 'blast', beam: 'shatter', power: 'shatter', call: 'chip' });
 // a beam by its kind (playscape/elements/beams.js BEAMS)
-export const BEAM_CUTS = Object.freeze({ orb: 'shatter', serpent: 'slash', ray: 'burn', nova: 'blast', barrage: 'chip', braid: 'slash', laser: 'burn' });
+export const BEAM_CUTS = Object.freeze({ orb: 'shatter', serpent: 'slash', ray: 'burn', nova: 'blast', barrage: 'chip', braid: 'slash', laser: 'burn', lightning: 'cleave', fireball: 'burn', sigil: 'burn', itano: 'chip', 'itano-laser': 'burn' });
 // an element's look (playscape/elements LOOKS) → its cut; a look not here keeps the source's
 export const ELEMENT_CUTS = Object.freeze({ fire: 'burn', blaze: 'burn', embers: 'burn', ice: 'shatter', frost: 'shatter', snow: 'shatter', wind: 'slash', shock: 'cleave', dusty: 'sever' });
 

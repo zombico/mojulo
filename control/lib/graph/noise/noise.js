@@ -41,6 +41,10 @@ export const FLAVOURS = Object.freeze(['fbm', 'ridged', 'billow', 'damped']);
 
 function gh(i, j, sd) { let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(sd, 1274126177); h = Math.imul(h ^ (h >>> 13), 1103515245); return (h ^ (h >>> 16)) & 7; }
 
+/** The page's copy of gnoise2 (a World page's spines, effects/beam-channel.js): one closure built from this module's own
+ * source, its names kept inside it, so the noise a page draws with is this noise. */
+export const GNOISE2_PAGE_SRC = `(() => { const GX = ${JSON.stringify(GX)}, GY = ${JSON.stringify(GY)}, SCALE = ${SCALE}; ${gh.toString()} return ${gnoise2.toString()}; })()`;
+
 /** 2D gradient noise, ≈ [−1, 1]: the terrain kernel's `gn`. */
 export function gnoise2(x, y, sd) {
   const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;

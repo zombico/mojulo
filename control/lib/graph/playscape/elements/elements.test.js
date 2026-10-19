@@ -12,7 +12,7 @@ const DT = 1 / 30;
 
 describe('looks', () => {
   it('presets start from what they do; each reads apart with the colour taken out', () => {
-    expect(LOOK_NAMES).toEqual(['glow', 'orbit', 'rise', 'spiral', 'burst', 'converge', 'ring', 'twinkle', 'fall', 'column', 'flare', 'kokusen', 'fire', 'blaze', 'ice', 'frost', 'wet', 'steam', 'shock', 'rain', 'snow', 'wind', 'embers', 'dusty']);
+    expect(LOOK_NAMES).toEqual(['glow', 'orbit', 'rise', 'spiral', 'burst', 'converge', 'ring', 'twinkle', 'fall', 'column', 'flare', 'kokusen', 'fire', 'blaze', 'ice', 'frost', 'wet', 'steam', 'shock', 'rain', 'snow', 'wind', 'embers', 'ward', 'dusty']);
     const sigs = LOOK_NAMES.map((n) => valueSignature(LOOKS[n]));
     expect(new Set(sigs).size).toBe(LOOK_NAMES.length);
   });

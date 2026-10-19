@@ -21,7 +21,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { loadSketch, refusePixelizer } from './engines/pack.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { isPrintableFace } from '@/lib/graph/scene/scene-stl';
@@ -33,6 +33,7 @@ import { fireShot, fireShotTime, fireShotFaces, fireAirFor, fireWorldFor } from 
 
 export const BLENDER_BASES = ['lit', 'unlit', 'shaded'];
 
+// the raw manifest's hash (not engines/pack.js packHash): pack.json and the art pass's staleness check carry it as it is
 const hashOf = (m) => createHash('sha256').update(JSON.stringify(m)).digest('hex').slice(0, 16);
 const r4 = (v) => Math.round(v * 10000) / 10000;
 
@@ -40,13 +41,7 @@ const r4 = (v) => Math.round(v * 10000) / 10000;
 // Re-exported so the pack's callers keep their import.
 export { metersPerUnitFor };
 
-function refuse(sketch, ref) {
-  const manifest = sketch?.manifest ?? {};
-  if (manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
-    throw new Error(`refused: '${ref}' is a pixelizer game — a 2D reducer has no mesh realization (export-blender.plan.md)`);
-  }
-  return manifest;
-}
+const refuse = (sketch, ref) => refusePixelizer(sketch, ref, 'a 2D reducer has no mesh realization (export-blender.plan.md)');
 
 // Faces that are NOT the object: water, shadow / ink decals, studio furniture. Counted, not hidden.
 function splitPrintable(faces) {
@@ -119,8 +114,7 @@ async function packFire({ sketch, manifest, payload, shaded, fireT, fireDetail, 
  */
 export async function buildBlenderPack({ ref, outDir, base = 'lit', posture = null, fireT = null, fireDetail = 1, log = () => {} }) {
   if (!BLENDER_BASES.includes(base)) throw new Error(`\`base\` must be one of ${BLENDER_BASES.join(' | ')} (got '${base}')`);
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  const sketch = loadSketch(ref);
   const manifest = refuse(sketch, ref);
   const declaredPosture = resolvePosture(posture, manifest);
 

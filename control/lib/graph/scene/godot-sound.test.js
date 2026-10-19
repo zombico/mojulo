@@ -120,7 +120,8 @@ describe('the pack', () => {
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8'), game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8');
     expect(level).toContain('const SoundScript := preload("res://kernel/sound.gd")');
     expect(level).toMatch(/bus_event\.emit\(String\(e\["type"\]\), e\)\n\t\tif sound != null:\n\t\t\tsound\.hear\(/);
-    expect(game).toMatch(/func level_finish[\s\S]*play_stinger\("victory" if success else "defeat"\)/);
+    // as the web shell: a level that travels on plays none; a fail plays the defeat, an abort nothing (since 0.23.0)
+    expect(game).toMatch(/func level_finish[\s\S]*play_stinger\("victory" if success else "defeat" if envelope\.get\("result"\) == "fail" else ""\)/);
   });
 });
 

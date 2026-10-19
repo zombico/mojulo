@@ -304,8 +304,13 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
     const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
     const outDir = path.join(outcomeDirFor(ref), 'godot');
     const pack = await buildGodotGamePack({ ref, outDir, posture });
+    const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
+    const stamp = exportVerdict(pack.portability);
     return {
       ok: true,
+      // plays | plays-partly | hollow, and what it rests on: a stamp beside ok, never a refusal
+      verdict: stamp.verdict,
+      lost: stamp.lost,
       ref,
       target: 'godot',
       dir: outDir,
@@ -318,6 +323,29 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       ...(pack.scope === 'arcade' ? { arcade: { reducer: pack.reducer, replay: pack.replay.file, replay_steps: pack.replay.steps } } : {}),
       note: 'Pack emitted (data + versioned kernel). Machine gate + web build live in the CLI: '
         + `node scripts/export-godot.mjs --ref ${ref} — or open the folder in Godot ≥4.5 and run.`,
+    };
+  }
+
+  if (target === 'roblox') {
+    const { buildRobloxGamePack } = await import('@/lib/graph/scene/roblox-pack.js');
+    const outDir = path.join(outcomeDirFor(ref), 'roblox');
+    const pack = await buildRobloxGamePack({ ref, outDir, posture });
+    const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
+    const stamp = exportVerdict(pack.portability, 'roblox');
+    return {
+      ok: true,
+      verdict: stamp.verdict,
+      lost: stamp.lost,
+      ref,
+      target: 'roblox',
+      dir: outDir,
+      ...(posture ? { posture } : {}),
+      files: pack.written.length,
+      total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
+      levels: pack.levels,
+      portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+      note: 'Rojo project emitted (the Luau kernel, a greybox per level, one player driving). Machine gate lives in the CLI: '
+        + `node scripts/export-roblox.mjs --ref ${ref} — or \`rojo build default.project.json -o game.rbxl\` in the folder and open it in Studio (Max Players 1).`,
     };
   }
 
@@ -669,23 +697,24 @@ export function registerExportGameTools() {
     // May fetch Chrome for Testing first, then bake: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      'Materialize a stored game as a portable folder to share — the game sibling of export_model / export_beats. '
+      'Materialize a stored game as a portable folder — the game sibling of export_model / export_beats. '
       + 'Pass a game `ref` (a create_game / create_pixelizer_game sketch). The default writes `data/outcomes/<ref>/`: '
       + '`game.html` (the shell), `levels/<ref>.html` (three.js inlined; `cdn: true`: off the pinned CDN; banks hoisted '
       + 'to `assets/` — serve over HTTP, file:// does not load levels), `assets/<ref>.wav` (the score), `recipe/*.json` '
-      + '(the SOVEREIGN manifests — anyone with mojulo re-mints) + a README; `git init && gh repo create` away from a '
+      + '(the SOVEREIGN manifests: re-mintable) + a README; `git init && gh repo create` away from a '
       + "GitHub-Pages URL. `target:'desktop'` adds `package.json` + `main.js`: the same folder is an Electron app "
-      + '(`npm install && npm start`, offline, no web server). Deterministic; previews at `/outcomes/<ref>/game.html`, '
-      + 'exactly what ships. Slow for big games (each level is a full world bake). Reach for "export this game", "make '
+      + '(`npm install && npm start`, offline). Deterministic; previews at `/outcomes/<ref>/game.html`, '
+      + 'exactly what ships. Slow for big games (each level a full bake). Reach for "export this game", "make '
       + 'it playable outside mojulo", "publish it to GitHub Pages", "make it a desktop app". The engines get a '
       + "translation with a portability report: `target:'godot'` a Godot 4 pack under `<ref>/godot/` (per-level GLB, "
-      + "score, game.json, audio, run by the versioned mojulo-godot kernel); `'unity'` the Unity 6 sibling (the "
-      + "mojulo-unity kernel + an import guide); `'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin).",
+      + "score, audio, run by the versioned mojulo-godot kernel); `'unity'` the Unity 6 sibling (its "
+      + "kernel + an import guide); `'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin); "
+      + "`'roblox'` a Rojo project (the Luau kernel, a greybox, a Humanoid).",
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`unreal` emit the engine pack instead.' },
+        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'unreal', 'roblox'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`unreal`/`roblox` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
         cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },

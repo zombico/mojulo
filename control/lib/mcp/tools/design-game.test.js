@@ -42,6 +42,17 @@ describe('design_game', () => {
     expect(ground.made).toBeUndefined();
   });
 
+  it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
+    const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer', target: 'roblox' } }, ref: 'gw-aimed' });
+    expect(out.intent.target).toMatchObject({ engine: 'roblox', carries: false });
+    expect(step(out, 'target')).toEqual({ step: 'target', engine: 'roblox', lost: out.intent.target.lost, card: 'gameworld-intent' });
+    expect(gameworldOf(stored('gw-aimed')).intent).toEqual({ from: 'kart-racer', target: 'roblox' });
+    // the same world with no target: no advice, no step
+    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer' } }, ref: 'gw-plain' });
+    expect(plain.intent.target).toBeUndefined();
+    expect(step(plain, 'target')).toBeUndefined();
+  });
+
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {
     const out = await designGameHandler({ world: GATED, ref: 'gw', run: true });
     expect(action(out, 'hero')).toBe('make');
@@ -252,4 +263,70 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(W.byId[enc.who].downed).toBe(true);
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
+
+  it('minigames heard in the prompt: a keeper is made, a stall stands on a trail, the level\'s page plays its round', async () => {
+    const out = await designGameHandler({ world: { ...AUTO, battles: { per: 1, rules: { defeat: 'retry' } }, brief: { prompt: 'a jrpg with a fishing pond' } }, ref: 'gm', run: true });
+    expect(action(out, 'keeper')).toBe('make');
+    expect(stored('gm-keeper')).toMatchObject({ kind: 'layered' });
+    const ref = out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.ref).find((r) => stored(r).play?.minigames);
+    const L = stored(ref), g = L.play.minigames[0];
+    expect(g).toMatchObject({ id: 'fishing', game: 'fishing', purse: 'held:bag:gold' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(ref));
+    expect(payload.events.minigames.games.map((x) => x.id)).toEqual(['fishing']);
+    expect(payload.events.rpg).toBeDefined();
+    // the hero walks up to the keeper and presses interact: the round is asked for on the bus
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId];
+    hero.transform.pos = [g.at.at[0], g.at.at[1], hero.transform.pos[2]];
+    sim.run(0.3);
+    const use = payload.events.reactions.find((r) => r.do === 'emit' && r.type === 'minigame:fishing');
+    sim.run(0.2, { 0: [{ type: use.on }] });
+    expect(sim.bus.log.some((e) => e.type === 'minigame:fishing')).toBe(true);
+  }, 600_000);
+
+  it('a casting page: the cast rolled as one row, each member made from it by path, the first party and the familiar in the battle party', async () => {
+    const casting = { scale: 'party', n: 1, cast: { party: { relation: 'party', n: 1, body: 'person' }, sprite: { relation: 'party', body: 'mascot' }, kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } }, pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } };
+    const world = { ...AUTO, characters: { ...AUTO.characters, casting }, battles: { per: 1 } };
+    const out = await designGameHandler({ world, ref: 'gc', run: true });
+    expect([action(out, 'casting'), action(out, 'cast-party-1'), action(out, 'cast-pet')]).toEqual(['make', 'make', 'make']);
+    expect(stored('gc-casting')).toMatchObject({ kind: 'egocube', castSheet: { order: ['hero', 'hero/party-1', 'hero/sprite', 'hero/kin', 'hero/pet'] } });
+    expect(stored('gc-cast-party-1')).toMatchObject({ kind: 'layered', egocube: { ref: 'gc-casting', member: 'hero/party-1' } });
+    expect(stored('gc-cast-pet')).toMatchObject({ species: 'wolf' });   // the animal door's row
+    // the hero's familiar fights beside it, picking for itself
+    expect(stored('gc-level-meadow-ascent-0').play.rpg.party.map((p) => [p.id, p.auto?.keeper ?? null])).toEqual([['hero', null], ['party-1', null], ['sprite', null], ['kin', null], ['pet', 'hero']]);
+    expect(out.parts.find((p) => p.id === 'characters:cast')).toBeTruthy();
+    // on the level map the member walks beside the hero from the start and plays its own moves over the library's
+    const level = SketchRepository.getByRef('gc-level-meadow-ascent-0');
+    expect(level.manifest.play.party).toContainEqual({ who: 'party-1' });
+    const { payload } = await resolveWorldScene(level);
+    const fig = payload.figures['party-1'];
+    expect(fig.clips.topple).toEqual(fig.clips.knockedOutDown);
+    expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
+    expect(fig.clips.stagger).toBeTruthy();
+    // the mascot, the beast-kin on the creature loop's rig and the wolf walk beside them on their own clips, no library
+    expect(level.manifest.play.party).toEqual(expect.arrayContaining([{ who: 'sprite' }, { who: 'kin' }, { who: 'pet' }]));
+    const own = (id) => payload.figures[id].clips;
+    expect(own('sprite').forward).toEqual(own('sprite').run);
+    expect(own('kin').forward).toEqual(own('kin').jog);
+    expect(own('kin').topple).toEqual(own('kin').knockedOutDown);
+    expect(own('pet').forward).toEqual(own('pet').trot);
+    expect([own('pet').stagger, own('pet').topple, own('pet').getup]).toEqual([own('pet').flinch, own('pet').fall, own('pet').rise]);
+    expect([own('sprite').stagger, own('sprite').topple, own('sprite').getup]).toEqual([own('sprite').flinch, own('sprite').fall, own('sprite').rise]);
+    expect(own('sprite').fall.once).toBe(true);
+    const again = await designGameHandler({ ref: 'gc', run: true });
+    expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
+  }, 900_000);
+
+  it('a journey cast is proposed: its part waits for the creator, and approving it readies the members', async () => {
+    const world = { ...GATED, characters: { ...GATED.characters, casting: { scale: 'journey', n: 1 } } };
+    const out = await designGameHandler({ world, ref: 'gj' });
+    expect(out.parts.find((p) => p.id === 'characters:cast')).toMatchObject({ status: 'proposed' });
+    expect(out.steps.cast).toBe('waiting');
+    const approved = await designGameHandler({ ref: 'gj', approve: 'characters:cast' });
+    expect(approved.parts.find((p) => p.id === 'characters:cast').status).toBe('approved');
+    expect(approved.steps.cast).toBe('ready');
+    // a book without the page reads as it did: no cast part, no cast step
+    const plain = await designGameHandler({ world: GATED, ref: 'gp' });
+    expect(plain.steps.cast).toBeUndefined();
+    expect(plain.parts.some((p) => p.id === 'characters:cast')).toBe(false);
+  }, 300_000);
 });

@@ -1,0 +1,9 @@
+{
+  "name": "mojulo-claude-plugin-server",
+  "private": true,
+  "description": "Installs the mojulo MCP server for the Claude plugin from the lockfile beside it (launch.mjs).",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "mojulo": "3.1.1"
+  }
+}

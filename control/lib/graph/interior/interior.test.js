@@ -86,6 +86,13 @@ describe('the functional solver graph', () => {
     if (conv) expect(conv.refused?.length).toBeGreaterThan(0);
     for (const g of readout.gaps) expect(g.why).toBeTruthy();
   });
+  it('lays a dining room: chairs tucked under the table on both long sides, as many as the seats asked', () => {
+    const dining = { kind: 'floorplan', title: 'dining', windows: true, rooms: [{ x: 0, y: 0, w: 14, h: 20, glyph: 'D' }], doors: [{ x: 7, y: 20, edge: 'S', entry: true }] };
+    const chairs = (brief) => compileInterior({ kind: 'interior', house: dining, room: 'dining', ...(brief ? { brief } : {}) }, dining).solved.placed.filter((p) => p.piece === 'dining-chair');
+    const laid = chairs();
+    expect(new Set(laid.map((c) => c.facing)).size).toBe(2);
+    expect(chairs({ seats: 8 })).toHaveLength(8);
+  });
   it('lays a bedroom: the bed’s head to a wall and a nightstand beside it', () => {
     const { solved } = compileInterior({ kind: 'interior', house: HOUSE, room: 'bedroom' }, HOUSE);
     const bed = solved.placed.find((p) => p.id === 'sleep.bed');
@@ -131,6 +138,14 @@ describe('the skin: a style card worn', () => {
     const chair = mixed.find((i) => /chair/.test(i.name) && i.compose);
     if (chair) expect(chair.compose.finish.timber).toBe(STYLE_CARDS['mid-century'].timber);
   });
+  it('a plain cloth asked by name changes the cloth and keeps the scheme’s colour; a patterned one keeps its own', () => {
+    const p = { id: 'conversation.sofa', piece: 'sofa', w: 2130, d: 940, h: 820 };
+    const card = styleCard({ name: 'modern-farmhouse', palette: { upholstery: 'rust' } });
+    const plain = skinPiece(p, card).compose.finish.fabric;
+    const velvet = skinPiece(p, card, { finish: { fabric: 'velvet' } }).compose.finish.fabric;
+    expect(velvet).toEqual({ preset: 'velvet', warp: plain.warp });
+    expect(skinPiece(p, card, { finish: { fabric: 'tartan' } }).compose.finish.fabric).toBe('tartan');
+  });
 });
 
 describe('the fit-out, on the house kernel', () => {
@@ -155,6 +170,17 @@ describe('the fit-out, on the house kernel', () => {
     expect(interiorErrors({ kind: 'interior' }).join(' ')).toMatch(/interior\.house.*interior\.room/);
     expect(interiorErrors({ kind: 'interior', house: 'sk_x', room: 'L', style: 'baroque' }).join(' ')).toMatch(/not a style/);
     expect(() => compileInterior({ kind: 'interior', house: HOUSE, room: 'attic' }, HOUSE)).toThrow(/no room 'attic'/);
+  });
+});
+
+describe('the reply', () => {
+  it('says where each piece stands and the way it faces, so a move can be told and checked', async () => {
+    const { interiorReadout } = await import('../../mcp/tools/interior.js');
+    const r = interiorReadout(lounge());
+    const sofa = r.pieces.find((p) => p.id === 'conversation.sofa');
+    expect(sofa.at).toHaveLength(2);
+    expect(sofa.at.every((v) => v >= 0)).toBe(true);
+    expect(['N', 'E', 'S', 'W']).toContain(sofa.facing);
   });
 });
 

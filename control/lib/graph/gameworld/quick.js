@@ -47,6 +47,13 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
+ *     moves?: true,                         // every person the run makes (the hero, foes, guards, towers, farmhands) is
+ *                                           // made with its own hit, stagger, fall and rise, and plays them (the world's)
+ *     cast?: true | { scale?, n?, cast?, anchor?, bodies?, factions?, seed? },   // on foot: the people rolled for the
+ *                                           // game (gameworld/casting.js, its page less the journey; true: a party of
+ *                                           // one). Its party and familiars walk beside you from the start and fight
+ *                                           // what you fight; a rival with a person's body is the first foe where the
+ *                                           // goal has foes (battle, shoot, deathmatch)
  *     roster?: [<fighter>, …],              // fight: the fighters, each a CHARACTER (versus/versus-sheet.js): an Egocube
  *                                           // sheet (an archetype word, a brief, { brief?, facets?, seed?, archetype?,
  *                                           // role?, build?, age?, name?, color? }) made into one by the run, or { hero:
@@ -77,7 +84,7 @@ import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
-import { playerStates } from '../playscape/player.js';
+import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
@@ -149,9 +156,22 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
+
+// a quick game's cast: the casting page's words less the journey's (no review to approve its sheets), on foot only
+export const QUICK_CAST_KEYS = Object.freeze(['scale', 'n', 'cast', 'anchor', 'bodies', 'factions', 'seed']);
+export const QUICK_CAST_SCALES = Object.freeze(['hero', 'rival', 'party']);
+function readQuickCast(Q) {
+  const C = Q.cast;
+  if (['fight', 'fly', 'race'].includes(Q.goal) || Q.ride !== undefined || Q.craft !== undefined) throw fail(`.cast walks beside a hero on foot: a ${Q.ride !== undefined ? 'ride' : Q.craft !== undefined ? 'craft' : Q.goal} has none (a fight's roster is its cast)`);
+  if (C === true) return;
+  if (!isObj(C)) throw fail(`.cast is true (a party of one) or { ${QUICK_CAST_KEYS.join('?, ')}? } (the casting page: get_game_vocab({ id: 'gameworld-story' }))`);
+  for (const k of Object.keys(C)) if (!QUICK_CAST_KEYS.includes(k)) throw fail(`.cast.${k} is not part of a quick game's cast (${QUICK_CAST_KEYS.join(', ')})`);
+  if (C.scale !== undefined && !QUICK_CAST_SCALES.includes(C.scale)) throw fail(`.cast.scale is ${QUICK_CAST_SCALES.join(', ')} (a journey's cast is the book's: its sheets wait on the creator's approval)`);
+  if (C.n !== undefined && !(Number.isInteger(C.n) && C.n >= 1 && C.n <= 4)) throw fail('.cast.n is the party beside you, 1 to 4');
+}
 
 /** Read the quick block and say what is wrong. */
 export function readQuick(Q) {
@@ -166,6 +186,8 @@ export function readQuick(Q) {
   }
   if (isObj(Q.hero) && Q.hero.ref !== undefined && (Object.keys(Q.hero).length !== 1 || !(typeof Q.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(Q.hero.ref)))) throw fail('.hero { ref } adopts a hero made with create_character, by its sketch ref alone (its words are its own row\'s)');
   if (Q.climb !== undefined && typeof Q.climb !== 'boolean') throw fail('.climb is true or false');
+  if (Q.cast !== undefined) readQuickCast(Q);
+  if (Q.moves !== undefined && typeof Q.moves !== 'boolean') throw fail('.moves is true: every person the run makes takes a blow on its own rig (a hit, a stagger, a fall and a rise)');
   if (Q.ride !== undefined) {
     if (!RIDES[Q.ride]) throw fail(`.ride is one of ${Object.entries(RIDES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
     if (Q.hero) throw fail('.ride and .hero: the ride is the hero (one or the other)');
@@ -275,6 +297,7 @@ export function readQuick(Q) {
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
   for (const k of ['foe', 'tower']) if (Q[k] !== undefined && !isObj(Q[k])) throw fail(`.${k} is a hero-door spec, as .hero is`);
+  if (beastLook(Q.foe)) readBeastFoe(Q.foe, ['battle', 'defend'].includes(Q.goal) ? null : `a ${Q.goal}'s foes carry guns: a person's hands`, '.foe', fail);
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
   if (Q.goal !== 'puzzle' && Q.boulders !== undefined) throw fail('.boulders belongs to the puzzle goal');
   if (Q.boulders !== undefined && !(Number.isInteger(Q.boulders) && Q.boulders >= 1 && Q.boulders <= 4)) throw fail('.boulders is 1 to 4');
@@ -373,7 +396,7 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
-  const { camera: named, ...quick } = given;
+  const { camera: named, moves, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -403,7 +426,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}),
     style: { ...(style ?? {}), kit },
     levels,
     quick,
@@ -693,8 +716,8 @@ export function farmCast(quick, ends, ref) {
   const figures = {}, entities = [], routines = [];
   for (let k = 1; k <= n; k++) {
     const id = `farmhand-${k}`;
-    figures[id] = { heroRef: refAt(ref, k - 1), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', speed: 1.6, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: [r3(s[0] + 2 * k), r3(s[1] - 2), s[2]], heading: 0 } });
+    figures[id] = libraryFigure(refAt(ref, k - 1));
+    entities.push({ id, rule: standRule({ speed: 1.6 }), body: { type: 'figure-rig', figure: id }, transform: { pos: [r3(s[0] + 2 * k), r3(s[1] - 2), s[2]], heading: 0 } });
     routines.push({ who: id, plan: [{ hour: 7, to: `field-${k}` }, { hour: 18, to: 'home' }] });
   }
   const spots = [{ id: 'home', at: [s[0], s[1]] }, ...Array.from({ length: n }, (_, k) => ({ id: `field-${k + 1}`, at: [r3(field[0] + (k - (n - 1) / 2) * 1.5), r3(field[1] - 3)] }))];
@@ -710,16 +733,16 @@ export function battleCast(quick, ends, ref) {
   const figures = {}, entities = [], foes = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    standFoe(figures, entities, id, refAt(ref, k), b.at, back);
+    standFoe(figures, entities, id, refAt(ref, k), b.at, back, quick.foe);
     foes.push({ who: id, at: [b.at[0], b.at[1]], name: `Foe ${k + 1}`, hp: BATTLE.foeHp[k], atk: BATTLE.foeAtk[k] });
   });
   return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
 }
 
-// a foe fought turn by turn: its figure, standing at `at`, facing `back` (the way the hero comes)
-function standFoe(figures, entities, id, ref, at, back) {
-  figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-  entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: at, heading: r3(Math.atan2(back[1] - at[1], back[0] - at[0])) } });
+// a foe fought turn by turn: its figure (a person, or the beast its `look` names), standing at `at`, facing `back` (the
+// way the hero comes)
+function standFoe(figures, entities, id, ref, at, back, look = null) {
+  stand({ figures, entities }, id, foeFigure(ref, look), at, facing(at, back));
 }
 
 /**
@@ -754,7 +777,7 @@ export function levelGoalMechanics(goal, ends, { last = false } = {}) {
 
 /** What a level goal stands in a stage beside the pilot (stageLevelOrder's `goalCast`, its `extra`'s shape): the boss
  * at the end of the last stage (`ref`: its figure), the bag's menu on I (and its `legend`). Null when it stands nothing. */
-export function levelGoalCast(goal, ends, { last = false, ref = null } = {}) {
+export function levelGoalCast(goal, ends, { last = false, ref = null, look = null } = {}) {
   const bag = goal.collect ? bagPlay({ pickup: goal.collect === true ? 'gem' : goal.collect }) : null;
   const boss = goal.boss && last && ref;
   if (!bag && !boss) return null;
@@ -762,7 +785,7 @@ export function levelGoalCast(goal, ends, { last = false, ref = null } = {}) {
   if (boss) {
     // (it stands on the floor: a building's exit is at its walker's eye, `bossAt` its floor)
     const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead'), at = ends.bossAt ?? ends.exit;
-    standFoe(figures, entities, 'boss', ref, at, along.at(-1)?.at ?? ends.spawn);
+    standFoe(figures, entities, 'boss', ref, at, along.at(-1)?.at ?? ends.spawn, look);
     play.battle = { hero: { atk: BATTLE.atk, hp: 'hp' }, foes: [{ who: 'boss', at: [at[0], at[1]], name: 'The boss', hp: LEVEL_GOAL.boss.hp, atk: LEVEL_GOAL.boss.atk }] };
   }
   return { ...(boss ? { figures, entities } : {}), play, ...(bag ? { inputs: bag.inputs, legend: 'I  bag' } : {}) };
@@ -791,7 +814,7 @@ export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p, k) => {
-    figures[p.id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[p.id] = libraryFigure(refAt(ref, k));
     entities.push({
       id: p.id, team: 'foes',
       rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -883,7 +906,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const teamRule = S ? { clearLine: true, ...(quick.mode === 'control' ? { objective: { at: deathmatchPoint(ends), radius: 2.5 } } : {}) } : {};
   bots.forEach((id, k) => {
     const at = spot(id, k + 1);
-    figures[id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[id] = libraryFigure(refAt(ref, k));
     entities.push({
       id, ...(S ? { team: sideOf(id) } : {}),
       rule: { ...teamRule, type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn, ...(d.slot ? { slot: d.slot } : {}) })), ...(ends.arena.floors ? { floors: ends.arena.floors } : {}), ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, 1.4), keepRange: true, perches: [...ends.arena.drops.filter((d) => d.slot === 'long').map((d) => d.at), ...(ends.arena.floors ?? []).map((f) => [r3((f.area[0] + f.area[2]) / 2), r3((f.area[1] + f.area[3]) / 2), f.z])] } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -914,12 +937,11 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
 export function defendCast(quick, ends, refs) {
   const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
   const foes = DEFEND.perWave.slice(0, quick.waves ?? 3).reduce((a, b) => a + b, 0);
-  const fig = (ref) => ({ heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } });
-  const body = { eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
+  const fig = libraryFigure, body = PERSON_BODY;
   const figures = {}, entities = [], cues = [];
   const x = ends.exit, back = along.length ? along[along.length - 1].at : ends.spawn, face = Math.atan2(back[1] - x[1], back[0] - x[0]);
   for (let k = 1; k <= foes; k++) {
-    figures[`foe-${k}`] = fig(refAt(refs.foe, k - 1));
+    figures[`foe-${k}`] = foeFigure(refAt(refs.foe, k - 1), quick.foe);
     entities.push({ id: `foe-${k}`, dormant: true, team: 'wave', rule: { type: 'static', speed: 2.2, ...body }, body: { type: 'figure-rig', figure: `foe-${k}`, hittable: true, hp: DEFEND.hp, poise: 2, radius: 0.6 }, transform: { pos: [x[0], x[1], x[2]], heading: r3(face) } });
   }
   // the pads beside the road, on land level with it (the intent's road-to-base concern, lay-concerns.js padSites)

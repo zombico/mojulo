@@ -28,10 +28,11 @@ const uOf = (R, edge, x, y) => ({ N: x, E: y, S: R.W - x, W: R.D - y }[edge]);
 
 // ── shared moves ────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Stand one piece where `spec` says, or refuse. spec: { id, piece, x, y, w, d, h, facing, mount? } */
-function stand(ctx, spec, { optional = false } = {}) {
+/** Stand one piece where `spec` says, or refuse. spec: { id, piece, x, y, w, d, h, facing, mount? }; `ignore` names placed
+ * pieces it may overlap (a chair tucked under its table). */
+function stand(ctx, spec, { optional = false, ignore = [] } = {}) {
   const rect = footprint(spec.x, spec.y, spec.w, spec.d, spec.facing);
-  const why = whyNot(ctx.R, rect, { h: spec.h, skin: spec.mount === 'skin' });
+  const why = whyNot(ctx.R, rect, { h: spec.h, skin: spec.mount === 'skin', ignore });
   if (why) {
     if (optional) { ctx.note(`${spec.id}: left out — ${why}`); return null; }
     refuse(`${spec.id}: ${why}`);
@@ -458,7 +459,8 @@ function layDining(ctx) {
       const [cx, cy] = long ? [x + along, y + side * off] : [x + side * off, y + along];
       const f = long ? (side < 0 ? 'S' : 'N') : (side < 0 ? 'E' : 'W');
       k += 1;
-      stand(ctx, { id: `dining.chair-${k}`, piece: 'dining-chair', fn: 'dine', x: cx, y: cy, w: cw, d: cd, h: ch, facing: f }, { optional: true });
+      // a chair tucks under its own table, so the table is not in its way
+      stand(ctx, { id: `dining.chair-${k}`, piece: 'dining-chair', fn: 'dine', x: cx, y: cy, w: cw, d: cd, h: ch, facing: f }, { optional: true, ignore: ['dining.table'] });
     }
   }
   if (ctx.wants('anchor')) {

@@ -7,7 +7,10 @@
  *
  *   battles?: {
  *     party?: { hero?: { class?, name?, level?, bonus?, classes? }, <cast id>: { … } }
- *                          each member's class (hero: fighter; those who join, in turn: mage, cleric, rogue, knight, monk)
+ *                          each member's class (hero: fighter; those who join, in turn: mage, cleric, rogue, knight, monk;
+ *                          a casting page's (casting.js): the hero and its first party each the class their sheet reads as,
+ *                          the rolled party in from the start unless the page gives one a joins flag; a rolled
+ *                          familiar beside its keeper, picking for itself: play.rpg `auto`)
  *     packs?: [[foe ids]], the packs met along the way, in walking order across the game's trail stages; past the last,
  *                          the last again (default PACKS)
  *     per?: n,             packs on each trail stage (2), on its beats
@@ -28,8 +31,9 @@
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
-import { playerStates } from '../playscape/player.js';
 import { cubeOfWorld } from './intent.js';
+import { castingOf, castingIds } from './casting.js';
+import { foeFigure, beastLook, readBeastFoe, stand, facing } from './stage-figures.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -61,10 +65,13 @@ export function readBattles(v, characters = null) {
   if (!isObj(v)) throw err(' is { party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
   const cast = characters?.cast ?? {};
+  // (a casting page's first party may be named too: its ids are read from its words, without rolling, at the largest
+  // scale when the page names none, since the prompt's words decide it)
+  const rolled = characters?.casting ? new Set(castingIds({ scale: 'journey', ...characters.casting }).filter((x) => x.bond === 'party').map((x) => x.id)) : new Set();
   if (v.party !== undefined) {
     if (!isObj(v.party)) throw err('.party is { hero?: { class }, <cast id>: { class } }: each member\'s class');
     for (const [id, m] of Object.entries(v.party)) {
-      if (id !== 'hero' && !cast[id]?.joins) throw err(`.party.${id}: the party is the hero and the cast who join it (characters.cast.<id>.joins)${cast[id] ? `; give ${id} a joins flag` : ''}`);
+      if (id !== 'hero' && !cast[id]?.joins && !rolled.has(id)) throw err(`.party.${id}: the party is the hero and the cast who join it (characters.cast.<id>.joins)${cast[id] ? `; give ${id} a joins flag` : ''}`);
       if (!isObj(m)) throw err(`.party.${id} is { class?, name?, level?, bonus?, classes? }`);
       for (const k of Object.keys(m)) if (!MEMBER_KEYS.includes(k)) throw err(`.party.${id}.${k} is not part of a member (${MEMBER_KEYS.join(', ')})`);
     }
@@ -72,7 +79,8 @@ export function readBattles(v, characters = null) {
   const packs = v.packs === undefined ? null : (Array.isArray(v.packs) && v.packs.length ? v.packs.map((p, i) => packOf(p, `.packs[${i}]`)) : (() => { throw err('.packs is a list of packs, each 1 to 6 foe ids'); })());
   if (v.per !== undefined && !(Number.isInteger(v.per) && v.per >= 0 && v.per <= 6)) throw err('.per is the packs on each trail stage, 0 to 6');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
-  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec: how a foe on the map looks');
+  if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), or { species } for a beast');
+  if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   if (v.rest !== undefined && typeof v.rest !== 'boolean') throw err('.rest is false for no rest at each stage\'s start');
   if (v.random !== undefined) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
@@ -101,9 +109,17 @@ export function battleParty(G) {
     const m = P[id] ?? {};
     return { id, name: m.name ?? name, class: m.class ?? cls, ...(m.level !== undefined ? { level: m.level } : {}), ...(m.bonus ? { bonus: m.bonus } : {}), ...(m.classes ? { classes: m.classes } : {}), ...(m.gear ? { gear: m.gear } : {}), ...(joins ? { joins } : {}) };
   };
-  out.push(at('hero', 'fighter', 'Hero', null));
+  const C = G.characters?.casting ? castingOf(G) : null, laid = new Set(G.characters?.rolled ?? []);
+  out.push(at('hero', C ? C.anchor.cls : 'fighter', 'Hero', null));
   let k = 0;
-  for (const [id, c] of Object.entries(G.characters?.cast ?? {})) if (c.joins) out.push(at(id, JOINER_CLASSES[k++ % JOINER_CLASSES.length], c.name ?? words(id), c.joins));
+  for (const [id, c] of Object.entries(G.characters?.cast ?? {})) if (c.joins && !laid.has(id)) out.push(at(id, JOINER_CLASSES[k++ % JOINER_CLASSES.length], c.name ?? words(id), c.joins));
+  for (const M of C?.members ?? []) if (M.bond === 'party') out.push(at(M.id, M.cls, M.name, M.joins ?? null));
+  // a familiar of the hero or of a first-party member fights beside its keeper, picking for itself
+  const keeperOf = (M) => (M.of === C.sheet.anchor ? 'hero' : C.members.find((K) => K.path === M.of)?.id);
+  for (const M of C?.members ?? []) {
+    const keeper = M.bond === 'familiar' && keeperOf(M);
+    if (keeper && out.some((x) => x.id === keeper)) out.push({ ...at(M.id, M.cls, M.name, M.joins ?? null), auto: { keeper } });
+  }
   return out;
 }
 
@@ -151,8 +167,7 @@ export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
+    stand({ figures, entities }, id, foeFigure(ref, B.foe), b.at, facing(b.at, back));
     const boss = B.boss && k === n - 1 && packs[k] === B.boss;
     encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: id, ...(boss ? { flee: false } : {}) });
   });

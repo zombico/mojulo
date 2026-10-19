@@ -14,7 +14,7 @@
  */
 import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
-import { CHARACTER_PART_IDS } from './characters.js';
+import { CHARACTER_PART_IDS, CAST_PART } from './characters.js';
 import { resolveTechDirection } from './tech-direction.js';
 import { cubeOfWorld } from './intent.js';
 import { concernsOf } from './concerns.js';
@@ -76,7 +76,7 @@ export function readReview(world, parts = reviewParts(world)) {
   const review = world.review ?? {}, ids = parts.map((p) => p.id);
   if (typeof review !== 'object' || Array.isArray(review)) throw new Error('gameworld: review is { <part>: { status, print?, note? } }');
   for (const [id, r] of Object.entries(review)) {
-    if (!ids.includes(id) && !CHARACTER_PART_IDS.includes(id)) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
+    if (!ids.includes(id) && !CHARACTER_PART_IDS.includes(id) && id !== CAST_PART) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
     checkReviewEntry(id, r);
   }
   return review;

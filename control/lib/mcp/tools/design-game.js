@@ -26,7 +26,7 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
+  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
@@ -65,12 +65,42 @@ function withPin(world, pin) {
 
 /** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
-const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand)(-\d+)?|cast-.+)$/;
+const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand|keeper)(-\d+)?|cast-.+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
 
 /** Make or remake one step; → the record to keep. */
 async function realize(step, action) {
   const { key, ref, order } = step;
+  if (key === 'casting') {
+    // the casting page's cast (an egocube row, casting.js): rolled where it is written; a changed request rolls it anew in place
+    if (action === 'make') await createSketchHandler({ ...order, ref });
+    else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
+    return {};
+  }
+  if (key.startsWith('cast-') && order.egocube) {
+    // a rolled cast member: the character its cast makes by path (create_character { egocube, member }); remade beside
+    // and moved into its own row, as a fighter is, so the ref and its history stay
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref });
+    else {
+      const beside = childRef(ref, 'remake');
+      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref: beside });
+      try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a cast member remade from its cast' }); }
+      finally { SketchRepository.deleteByRef(beside); }
+    }
+    return {};
+  }
+  if (order.animal) {
+    // a figure that is a beast (a battle's wolf, a wave of spiders: runner.js): made through the animal door
+    // (create_character { as: 'animal' }) with its gaits and reactions; remade beside and moved in, as a cast member is
+    if (action === 'make') await createCharacterHandler({ as: 'animal', spec: order.animal, title: order.title, ref });
+    else {
+      const beside = childRef(ref, 'remake');
+      await createCharacterHandler({ as: 'animal', spec: order.animal, title: order.title, ref: beside });
+      try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a beast remade' }); }
+      finally { SketchRepository.deleteByRef(beside); }
+    }
+    return {};
+  }
   if (HERO_STEP.test(key)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
@@ -200,7 +230,7 @@ function readout(ref, world, context = {}) {
   };
   const stamps = [...reviewState(world), ...(world.characters ? characterState(world, { lookup, machine: edited }) : [])];
   const parts = stamps.map((s) => ({ id: s.id, status: s.status, ...(s.machine?.length ? { advises: s.machine } : {}), ...(s.note ? { note: s.note } : {}) }));
-  const steps = world.characters ? characterReady(world, { state: stamps.filter((s) => CHARACTER_PART_IDS.includes(s.id)) }) : null;
+  const steps = world.characters ? characterReady(world, { state: stamps.filter((s) => CHARACTER_PART_IDS.includes(s.id) || s.id === CAST_PART) }) : null;
   const made = Object.fromEntries(Object.entries(world.made ?? {}).map(([k, v]) => [k, v.ref]));
   // the next moves as step ids: what each means is the gameworld-next card (get_game_vocab),
   // read once, not re-said on every call
@@ -241,6 +271,8 @@ function readout(ref, world, context = {}) {
   // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
   const intent = intentReport(world);
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
+  // the engine the intent names, and what of the world it does not carry: advice, never a refusal
+  if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
@@ -251,16 +283,18 @@ function readout(ref, world, context = {}) {
 function reviewWith(world, { approve, revise, note }) {
   let review = { ...(world.review ?? {}) }, W = world;
   const worldIds = reviewParts(world).map((p) => p.id);
+  // the book's parts: every book's, and the cast's where it has a casting page
+  const bookIds = world.characters ? [...CHARACTER_PART_IDS, ...(world.characters.casting ? [CAST_PART] : [])] : [];
   for (const part of list(approve)) {
     if (typeof part !== 'string') throw new Error('design_game: approve is a part id or a list of them');
-    if (CHARACTER_PART_IDS.includes(part)) review = approveCharacter(W, part, note);
+    if (bookIds.includes(part)) review = approveCharacter(W, part, note);
     else if (worldIds.includes(part)) review = approveWorldPart(W, part, note);
-    else throw new Error(`design_game: '${part}' is not a part (parts: ${[...worldIds, ...(world.characters ? CHARACTER_PART_IDS : [])].join(', ')})`);
+    else throw new Error(`design_game: '${part}' is not a part (parts: ${[...worldIds, ...bookIds].join(', ')})`);
     W = { ...W, review };
   }
   for (const r of list(revise)) {
     if (!isObj(r) || typeof r.part !== 'string' || typeof r.note !== 'string' || !r.note.trim()) throw new Error('design_game: revise is { part, note }: the part sent back and what to change');
-    if (!CHARACTER_PART_IDS.includes(r.part) && !worldIds.includes(r.part)) throw new Error(`design_game: '${r.part}' is not a part`);
+    if (!bookIds.includes(r.part) && !worldIds.includes(r.part)) throw new Error(`design_game: '${r.part}' is not a part`);
     review = { ...review, [r.part]: { status: 'revise', note: r.note.trim() } };
   }
   return review;

@@ -32,7 +32,9 @@ export function interiorReadout(manifest) {
     room: { tag: r.room.tag, name: r.room.name, size: r.room.size, doors: r.room.doors, windows: r.room.windows.length },
     style: r.style.id + (r.style.accent ? ` + ${r.style.accent}` : '') + (r.style.solved ? ` in palette ${r.style.solved.id} (${r.style.solved.scheme}, ${r.style.solved.key} key)` : ''),
     focal: r.focal,
-    pieces: r.pieces.map((p) => ({ id: p.id, piece: p.piece, size: p.size, ...(p.like ? { like: p.like } : {}) })),
+    // where each piece stands (its centre in mm from the room's corner, and the way it faces), so the next call can
+    // move it by id and a reader can tell what moved
+    pieces: r.pieces.map((p) => ({ id: p.id, piece: p.piece, size: p.size, at: p.at, facing: p.facing, ...(p.like ? { like: p.like } : {}) })),
     ...(r.resolved.some((x) => x.refused?.length) ? { refused: r.resolved.filter((x) => x.refused?.length).map((x) => ({ fn: x.fn, won: x.strategy, refused: x.refused })) } : {}),
     ...(r.gaps.length ? { gaps: r.gaps } : {}),
     notes: r.notes,

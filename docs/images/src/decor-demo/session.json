@@ -1,0 +1,734 @@
+{
+ "note": "The session behind docs/images/decor-demo.gif, as run.mjs recorded it: each ask, the calls the agent made, its reply, and what print mode reported. recipes are the rows it left; capture.mjs replays the calls and checks it gets them back.",
+ "when": "2026-10-17",
+ "model": "claude-sonnet-5-5",
+ "turns": [
+  {
+   "prompt": "We just moved in, here's our floor plan! Can you put it into mojulo and come up with some ideas for how we could live in it? We like warm, natural and a bit cozy. Show us the living room, the dining room and the big bedroom.",
+   "image": "floor-plan.png",
+   "durationMs": 41858,
+   "apiMs": 20627,
+   "numTurns": 9,
+   "usage": {
+    "input": 10,
+    "output": 2441,
+    "cacheRead": 421151,
+    "cacheWrite": 15532
+   },
+   "costUsdSoFar": 0.12867309999999998,
+   "tools": [
+    {
+     "name": "get_sketch_vocab",
+     "error": true,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "house-layout"
+     }
+    },
+    {
+     "name": "get_sketch_vocab",
+     "error": true,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "interior"
+     }
+    },
+    {
+     "name": "get_sketch_vocab",
+     "error": false,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "house-layout"
+     }
+    },
+    {
+     "name": "get_sketch_vocab",
+     "error": false,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "interior"
+     }
+    },
+    {
+     "name": "mint_building",
+     "error": false,
+     "ref": "sk_8c79eurf5c",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Our new home",
+      "manifest": {
+       "width": 46.67,
+       "height": 34.67,
+       "view": "cutaway",
+       "furnish": true,
+       "windows": true,
+       "rooms": [
+        {
+         "x": 0,
+         "y": 0,
+         "w": 22.33,
+         "h": 16.33,
+         "glyph": "L"
+        },
+        {
+         "x": 22.33,
+         "y": 0,
+         "w": 10,
+         "h": 16.33,
+         "glyph": "K"
+        },
+        {
+         "x": 32.33,
+         "y": 0,
+         "w": 14.34,
+         "h": 16.33,
+         "glyph": "D"
+        },
+        {
+         "x": 0,
+         "y": 16.33,
+         "w": 46.67,
+         "h": 4,
+         "glyph": "H"
+        },
+        {
+         "x": 0,
+         "y": 20.33,
+         "w": 15.33,
+         "h": 14.34,
+         "glyph": "B"
+        },
+        {
+         "x": 15.33,
+         "y": 20.33,
+         "w": 9,
+         "h": 14.34,
+         "glyph": "W"
+        },
+        {
+         "x": 24.33,
+         "y": 20.33,
+         "w": 22.34,
+         "h": 14.34,
+         "glyph": "B"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_v52u713phl",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "house": "sk_8c79eurf5c",
+      "room": "lounge",
+      "title": "Lounge — warm & natural",
+      "style": {
+       "name": "modern-organic",
+       "accent": "wabi-sabi"
+      },
+      "brief": {
+       "uses": [
+        "converse",
+        "media",
+        "read",
+        "display",
+        "anchor",
+        "light-task"
+       ],
+       "tags": [
+        "no-tv"
+       ]
+      }
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_am3heosp4v",
+     "room": "dining",
+     "tag": "103",
+     "input": {
+      "house": "sk_8c79eurf5c",
+      "room": "dining",
+      "title": "Dining — warm & natural",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "warm-minimal"
+      },
+      "brief": {
+       "uses": [
+        "dine",
+        "display",
+        "store"
+       ],
+       "tags": [
+        "entertaining"
+       ]
+      }
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_zkbkm9d498",
+     "room": "bedroom",
+     "tag": "107",
+     "input": {
+      "house": "sk_8c79eurf5c",
+      "room": "107",
+      "title": "Big bedroom — warm & natural",
+      "style": {
+       "name": "warm-minimal",
+       "accent": "japandi"
+      },
+      "brief": {
+       "uses": [
+        "sleep",
+        "dress",
+        "read",
+        "anchor",
+        "light-task"
+       ],
+       "bed": "king"
+      }
+     }
+    }
+   ],
+   "reply": "I put your floor plan into mojulo as a house, with all seven rooms at the sizes on your drawing, and designed the three rooms you asked to see. You can open them at these links:\n\n- **House:** `/sketches/sk_8c79eurf5c`\n- **Lounge:** `/sketches/sk_v52u713phl`\n- **Dining room:** `/sketches/sk_am3heosp4v`\n- **Big bedroom:** `/sketches/sk_zkbkm9d498`\n\nI haven't opened any of the renders, so I haven't checked how the rooms look.\n\nI placed the doors and windows with mojulo's defaults, so they may not match your drawing exactly. The house link is the one to check.\n\n- **Lounge (modern-organic with wabi-sabi touches):** The sofa faces the wide north windows. Two armchairs and a rug make a conversation group around a coffee table. A reading nook with a lamp sits in the far corner, and two bookcases line the south wall. I left out a TV, so the room is built for talking and reading.\n- **Dining room (modern-farmhouse with warm-minimal touches):** There's a farmhouse table with six Windsor chairs on a big rug, and a sideboard and a bookcase for storage. It only has one overhead light, so I'd add a pendant over the table and a lamp on the sideboard.\n- **Big bedroom (warm-minimal with japandi touches):** A king bed has a nightstand on each side, with a rug under it. There's a dresser on the west wall and a reading chair with a lamp by the windows. The mojulo bed tops out at 2000 mm, so it's slightly narrower than a standard king. The reading chair also didn't get a side table, because there wasn't room.\n\nI can change the styles, move pieces, or try a different scheme for any room, such as a fireplace in the lounge or wood-paneled walls in the bedroom."
+  },
+  {
+   "prompt": "Could the living room walls be a soft sage green? And we'd love the furniture rearranged so the sofa looks out the windows instead of at the TV.",
+   "image": null,
+   "durationMs": 32076,
+   "apiMs": 40798,
+   "numTurns": 5,
+   "usage": {
+    "input": 10,
+    "output": 2152,
+    "cacheRead": 486798,
+    "cacheWrite": 8397
+   },
+   "costUsdSoFar": 0.2324809,
+   "tools": [
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_v52u713phl",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "ref": "sk_v52u713phl",
+      "focal": "view",
+      "surface": {
+       "walls": {
+        "paint": "sage"
+       },
+       "accentWall": false
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "at": [
+         3275,
+         3300
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.coffee-table",
+        "at": [
+         3275,
+         2100
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.rug",
+        "at": [
+         3275,
+         2350
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.chair-1",
+        "at": [
+         1900,
+         2100
+        ],
+        "facing": "E"
+       },
+       {
+        "id": "conversation.chair-2",
+        "at": [
+         4650,
+         2100
+        ],
+        "facing": "W"
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_v52u713phl",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "ref": "sk_v52u713phl",
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "at": [
+         2700,
+         3000
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.coffee-table",
+        "at": [
+         2700,
+         1850
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.rug",
+        "at": [
+         2700,
+         2100
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "conversation.chair-1",
+        "at": [
+         1300,
+         1850
+        ],
+        "facing": "E"
+       },
+       {
+        "id": "conversation.chair-2",
+        "at": [
+         4100,
+         1850
+        ],
+        "facing": "W"
+       },
+       {
+        "id": "conversation.lamp",
+        "at": [
+         4000,
+         3000
+        ],
+        "facing": "N"
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_v52u713phl",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "ref": "sk_v52u713phl",
+      "pieces": [
+       {
+        "id": "conversation.chair-1",
+        "at": [
+         1000,
+         1850
+        ],
+        "facing": "E"
+       },
+       {
+        "id": "conversation.chair-2",
+        "at": [
+         4400,
+         1850
+        ],
+        "facing": "W"
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_v52u713phl",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "ref": "sk_v52u713phl",
+      "pieces": [
+       {
+        "id": "conversation.chair-1",
+        "at": [
+         900,
+         3300
+        ],
+        "facing": "N"
+       },
+       {
+        "id": "reading.chair",
+        "at": [
+         920,
+         580
+        ],
+        "facing": "S"
+       },
+       {
+        "id": "reading.side-table",
+        "at": [
+         1670,
+         580
+        ],
+        "facing": "S"
+       }
+      ]
+     }
+    }
+   ],
+   "reply": "The lounge is updated at `/sketches/sk_v52u713phl`. I haven't opened the render, so I haven't seen the sage green or the new layout.\n\n- **Walls:** I set them to sage and turned off the accent wall, so all the walls are the same soft green.\n- **Sofa:** It now faces the big north windows, and the coffee table and rug sit between it and the glass. The room never had a TV, so the sofa wasn't pointed at one. I read your note as wanting the window view to be the focus, and I've set that as the room's focal point.\n- **Armchair (one still collides):** One armchair is now by the south-west corner, and the other is across the rug facing it. mojulo still reports that the coffee table collides with that south-west chair. The layout isn't clean yet.\n\nThe reading nook in the north-west corner (chair, lamp, side table) is unchanged. I can nudge the chair or the table to clear the collision, or swap that armchair for a small ottoman."
+  },
+  {
+   "prompt": "Love it. Can you make us a walkthrough video of the three rooms?",
+   "image": null,
+   "durationMs": 64756,
+   "apiMs": 51671,
+   "numTurns": 6,
+   "usage": {
+    "input": 8,
+    "output": 1334,
+    "cacheRead": 417534,
+    "cacheWrite": 4324
+   },
+   "costUsdSoFar": 0.30488629999999994,
+   "tools": [
+    {
+     "name": "get_motion_vocab",
+     "error": false,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "world"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_475b6570d63a",
+     "mp4_path": "/outcomes/mo_475b6570d63a/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Lounge tour",
+      "subject": {
+       "world_ref": "sk_v52u713phl"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": -40,
+        "to": 40,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 36,
+       "fps": 12,
+       "loop": false
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_ded6128b1e3f",
+     "mp4_path": "/outcomes/mo_ded6128b1e3f/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Dining room tour",
+      "subject": {
+       "world_ref": "sk_am3heosp4v"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": -40,
+        "to": 40,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 36,
+       "fps": 12,
+       "loop": false
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_ea7cd9c8d9bf",
+     "mp4_path": "/outcomes/mo_ea7cd9c8d9bf/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Big bedroom tour",
+      "subject": {
+       "world_ref": "sk_zkbkm9d498"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": -40,
+        "to": 40,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 36,
+       "fps": 12,
+       "loop": false
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "stitch_motion",
+     "error": false,
+     "motion_ref": "mo_491f5d24395c",
+     "mp4_path": "/outcomes/mo_491f5d24395c/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Our new home — three-room walkthrough",
+      "clips": [
+       "mo_475b6570d63a",
+       "mo_ded6128b1e3f",
+       "mo_ea7cd9c8d9bf"
+      ],
+      "fps": 12,
+      "width": 960
+     }
+    }
+   ],
+   "reply": "I made a 9-second video that visits the lounge, the dining room and the big bedroom in turn: `/outcomes/mo_491f5d24395c/` (the file is `motion.mp4`). I haven't watched it, so I can't say how it looks.\n\nIt isn't a walk-through at eye level. For each room the camera orbits around the room from outside, about 3 seconds each. A true walking tour would need a step-by-step route for each room, which I didn't set up. The lounge clip uses the sage walls and new layout from your last round of changes.\n\nThe three clips are also saved separately, if you want any one on its own:\n- **Lounge:** `/outcomes/mo_475b6570d63a/`\n- **Dining room:** `/outcomes/mo_ded6128b1e3f/`\n- **Big bedroom:** `/outcomes/mo_ea7cd9c8d9bf/`\n\nI can make the orbits longer or slower, or try a walking-style version."
+  }
+ ],
+ "recipes": {
+  "sk_8c79eurf5c": {
+   "kind": "floorplan",
+   "title": "Our new home",
+   "width": 46.67,
+   "height": 34.67,
+   "view": "cutaway",
+   "furnish": true,
+   "windows": true,
+   "rooms": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 22.33,
+     "h": 16.33,
+     "glyph": "L"
+    },
+    {
+     "x": 22.33,
+     "y": 0,
+     "w": 10,
+     "h": 16.33,
+     "glyph": "K"
+    },
+    {
+     "x": 32.33,
+     "y": 0,
+     "w": 14.34,
+     "h": 16.33,
+     "glyph": "D"
+    },
+    {
+     "x": 0,
+     "y": 16.33,
+     "w": 46.67,
+     "h": 4,
+     "glyph": "H"
+    },
+    {
+     "x": 0,
+     "y": 20.33,
+     "w": 15.33,
+     "h": 14.34,
+     "glyph": "B"
+    },
+    {
+     "x": 15.33,
+     "y": 20.33,
+     "w": 9,
+     "h": 14.34,
+     "glyph": "W"
+    },
+    {
+     "x": 24.33,
+     "y": 20.33,
+     "w": 22.34,
+     "h": 14.34,
+     "glyph": "B"
+    }
+   ],
+   "seed": 1608554071,
+   "style": "auto",
+   "layout": "varied",
+   "furnishing": "composed",
+   "finishes": "auto"
+  },
+  "sk_v52u713phl": {
+   "kind": "interior",
+   "house": "sk_8c79eurf5c",
+   "room": "lounge",
+   "style": {
+    "name": "modern-organic",
+    "accent": "wabi-sabi"
+   },
+   "brief": {
+    "uses": [
+     "converse",
+     "media",
+     "read",
+     "display",
+     "anchor",
+     "light-task"
+    ],
+    "tags": [
+     "no-tv"
+    ]
+   },
+   "focal": "view",
+   "surface": {
+    "walls": {
+     "paint": "sage"
+    },
+    "accentWall": false
+   },
+   "pieces": [
+    {
+     "id": "conversation.sofa",
+     "at": [
+      2700,
+      3000
+     ],
+     "facing": "N"
+    },
+    {
+     "id": "conversation.coffee-table",
+     "at": [
+      2700,
+      1850
+     ],
+     "facing": "N"
+    },
+    {
+     "id": "conversation.rug",
+     "at": [
+      2700,
+      2100
+     ],
+     "facing": "N"
+    },
+    {
+     "id": "conversation.chair-1",
+     "at": [
+      900,
+      3300
+     ],
+     "facing": "N"
+    },
+    {
+     "id": "conversation.chair-2",
+     "at": [
+      4400,
+      1850
+     ],
+     "facing": "W"
+    },
+    {
+     "id": "conversation.lamp",
+     "at": [
+      4000,
+      3000
+     ],
+     "facing": "N"
+    },
+    {
+     "id": "reading.chair",
+     "at": [
+      920,
+      580
+     ],
+     "facing": "S"
+    },
+    {
+     "id": "reading.side-table",
+     "at": [
+      1670,
+      580
+     ],
+     "facing": "S"
+    }
+   ]
+  },
+  "sk_am3heosp4v": {
+   "kind": "interior",
+   "house": "sk_8c79eurf5c",
+   "room": "dining",
+   "style": {
+    "name": "modern-farmhouse",
+    "accent": "warm-minimal"
+   },
+   "brief": {
+    "uses": [
+     "dine",
+     "display",
+     "store"
+    ],
+    "tags": [
+     "entertaining"
+    ]
+   }
+  },
+  "sk_zkbkm9d498": {
+   "kind": "interior",
+   "house": "sk_8c79eurf5c",
+   "room": "107",
+   "style": {
+    "name": "warm-minimal",
+    "accent": "japandi"
+   },
+   "brief": {
+    "uses": [
+     "sleep",
+     "dress",
+     "read",
+     "anchor",
+     "light-task"
+    ],
+    "bed": "king"
+   }
+  }
+ }
+}

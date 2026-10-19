@@ -949,8 +949,8 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
     ...(statue !== undefined ? { statue } : {}),   // a creature carved (above); absent ⇒ byte-identical
     ...(typeof species === 'string' && species ? { species } : {}),   // the species a ring plan was minted as (animal.js): the row is an animal; never read by the resolve
-    ...(egocube && typeof egocube === 'object' && typeof egocube.ref === 'string' ? { egocube } : {}),
-    ...(geocube !== undefined && geocube !== null ? { geocube } : {}),   // a creature's level (above): its materials, drawn in its light   // the sheet it was made from { ref, rev, print, years? } (create_character { egocube }); never read by the resolve
+    ...(egocube && typeof egocube === 'object' && typeof egocube.ref === 'string' ? { egocube } : {}),   // the sheet it was made from { ref, rev, print, years?, member? } (create_character { egocube }); never read by the resolve
+    ...(geocube !== undefined && geocube !== null ? { geocube } : {}),   // a creature's level (above): its materials, drawn in its light
   };
   const planned = planLayered(manifest); const { stats } = planned;
   if (typeof onPlanned === 'function') onPlanned({ mesh: planned.mesh, recipe: manifest.recipe, stats, dials: manifest.dials, channels: manifest.channels });

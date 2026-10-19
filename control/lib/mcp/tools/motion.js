@@ -55,6 +55,7 @@ import {
   encodeGifBuffers,
   encodeStitchMp4,
   encodeFramesMp4,
+  decodeMp4Frames,
   CAMERA_MOTIONS,
   DECK_MOTIONS,
   MOTION_NAMES,
@@ -732,17 +733,20 @@ async function recoverClip(clipRef) {
       `clip '${clipRef}' is itself a stitch; stitching a stitch is not supported yet — pass its source clips directly.`,
     );
   }
-  if (recipe.subject?.world_ref) {
-    throw new Error(
-      `clip '${clipRef}' is a three.js WORLD motion (raster-native, no frame SVGs). Stitching world clips is not supported yet — `
-      + 'it already exports an MP4 directly (forge_motion export:"mp4"|"both").',
-    );
+  // a World clip is raster. One its forge baked to MP4 is decoded from that (seconds, where a fresh headless WebGL
+  // render takes as long as the forge did); else its frames come back as PNGs from the same render, which may fetch
+  // a browser.
+  const mp4 = path.join(dir, 'motion.mp4');
+  if (recipe.subject?.world_ref && await fs.stat(mp4).then(() => true, () => false)) {
+    const framePngs = await decodeMp4Frames(mp4);
+    return { ref: clipRef, title: recipe.title || clipRef, framePngs, fps: recipe.meta?.fps ?? recipe.shot?.fps ?? 12, frames: framePngs.length };
   }
-  const { result } = await renderShot({ subject: recipe.subject, shot: recipe.shot });
+  const { value: { result } } = await withChromiumFetch(() => renderShot({ subject: recipe.subject, shot: recipe.shot }));
   return {
     ref: clipRef,
     title: recipe.title || clipRef,
     frameSvgs: result.frameSvgs,
+    framePngs: result.framePngs,
     fps: result.meta.fps,
     frames: result.meta.frames,
   };

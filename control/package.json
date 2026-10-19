@@ -112,6 +112,7 @@
     "test:deep": "vitest run --config vitest.deep.config.js",
     "test:deep:changed": "vitest run --config vitest.deep.config.js --passWithNoTests --changed",
     "test:e2e": "vitest run --config vitest.e2e.config.js",
+    "test:godot": "vitest run --config vitest.godot.config.js",
     "test:book": "node --test 'book/**/*.test.js' && node book/tools/validate.js",
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },

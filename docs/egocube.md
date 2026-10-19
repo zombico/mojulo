@@ -2,9 +2,13 @@
 
 Code: [control/lib/graph/egocube/](../control/lib/graph/egocube/). One Egocube (the anchor alone, H + 0) is built:
 the channels and the dial register (`channels.js`), the facet tables (`facets.js`), the brief's words (`lexicon.js`)
-and the roller (`egocube.js`); `node scripts/egocube-roll.mjs --brief "a weary paladin"` prints a sheet. Relations,
-cast laws, factions and the fate thread below are design, not code yet. A sheet compiles to a first character
-by the method in From a sheet to a character, below.
+and the roller (`egocube.js`); `node scripts/egocube-roll.mjs --brief "a weary paladin"` prints a sheet. The fate
+thread is built (`thread.js`). The cast is built (`cast.js`, `rollCast`): the relations and their operators, bonds and
+bodies (a familiar, beast-kin, a beast, a mascot), the cast laws checked as each member is rolled, path-keyed growth,
+and factions as each faction's own setting words; a game's casting page rolls one for it
+([gameworld/casting.js](../control/lib/graph/gameworld/casting.js)), and each member is made with its moves
+(`moves.js`). What the cast does not do yet is listed under Gaps. A sheet compiles to a first character by the method in
+From a sheet to a character, below.
 
 A **mascot** is designed by another method: from a promise, not a life, on a head-heavy body of any topology. The
 egocube takes it as its `mascot` tuning (`roll.tuning: 'mascot'`, or a cartoony brief); the laws and the facets are in
@@ -474,11 +478,17 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   nothing. The bands above map onto what exists.
 - **Archetype looks are anime-only**: `look` is refused on the landmark head, so the western face takes notes
   through `face`, `expression` and stance.
-- **Factions**: the gameworld has one world kit; a faction layer is new. A game's setting is one language for its
-  whole cast today.
+- **Factions**: a faction is its own setting words (tradition, era, lean) over the game's (`cast.js`); a faction's own
+  kit, motif and dress language for its uniforms are not drawn yet.
 - **Era gear**: a game book's equipment table (`gameworld/equipment.js`) is still the myth's classes, a row per sword,
   bow and shield; a modern game's book has no firearm class to fill. Helmets and visors are the armour's only.
 - **A quick game's crowd is three faces**: a role rolls a pool of at most three (`CAST_POOL`), cycled over its members;
   a larger crowd repeats them.
 - **No free text on `create_character`**: notes reach it through the catalyst and the character book.
-- **Non-hero cast**: waits on story-cast and party landing; on this branch the book still refuses `characters.cast`.
+- **The cast laws a person's sheet cannot measure**: palette spread and the bookends' value, shape language and
+  saturation are carried as `unread`, for the eyes; the roll holds motivation alone. There are four person silhouette
+  words (column, needle, barrel, bell), so a party of more than four people repeats one (a beast or a mascot does not).
+- **Rolled members on the level map**: a person plays its own hit, fall, rise and swing over the library's walk; a
+  beast walks on its two gaits and flinches, falls and rises on its own body (a legless one on its own coil), a mascot
+  runs on its own clips and has its own flinch, fall and rise, a beast-kin below the hero door jogs and plays its moves.
+  A swimmer has no reactions yet.

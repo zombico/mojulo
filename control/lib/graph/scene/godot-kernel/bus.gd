@@ -3,12 +3,12 @@ extends RefCounted
 # mojulo lowers (cues, chapters, menu picks, mechanics) arrives as a bus fragment: reactions, watches, sequences,
 # timers, vars. This script runs that fragment the way the web page does, so behaviour travels as data and one
 # reducer performs it on both sides. The port is held EQUAL to the web reducer by a conformance corpus
-# (scripts/godot-bus-conformance.mjs): the same event script gives the same canonical state string, frame by frame.
+# (scripts/conformance.mjs --engine godot --corpus bus): the same event script gives the same canonical state string, frame by frame.
 #
 # JS semantics, made explicit: Godot reads every JSON number as a float, so numbers are compared as numbers, printed
 # the way JSON.stringify prints them, and hashed over UTF-16 code units. Read the fragment with kernel/json_exact.gd:
 # Godot's own JSON parser rounds some decimals to a neighbouring double, and the bus would then diverge. A key the reducer never wrote reads as
-# UNDEF (JS undefined), which is distinct from null where JS tells them apart (match wildcards, `!== undefined`).
+# Js.UNDEF (JS undefined), which is distinct from null where JS tells them apart (match wildcards, `!== undefined`).
 # Numbers print as JS prints them (kernel/json_exact.gd js_number: the shortest digits, exponent forms included).
 #
 #   var bus = preload("res://kernel/bus.gd").new()
@@ -18,222 +18,37 @@ extends RefCounted
 #   bus.hash_state(st)              the canonical snapshot the conformance corpus compares
 
 const JsonExact := preload("res://kernel/json_exact.gd")
-const UNDEF := "\uE000undef"   # a private-use mark no score spells
+const Js := preload("res://kernel/js.gd")
 const RESERVED := {"do": 1, "type": 1, "source": 1, "scope": 1, "on": 1, "match": 1, "await": 1, "target": 1, "template": 1, "at": 1, "to": 1, "vector": 1, "dir": 1, "gain": 1, "var": 1, "by": 1, "if": 1}
 const DIRS := {"up": [0, 0, 1], "down": [0, 0, -1], "left": [-1, 0, 0], "right": [1, 0, 0], "forward": [0, 1, 0], "back": [0, -1, 0]}
 
-var _rx_cache := {}
-
-# ── JS value semantics ───────────────────────────────────────────────────────────────────────────────────────────
-static func is_num(v) -> bool:
-	return typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT
-
-static func is_undef(v) -> bool:
-	return typeof(v) == TYPE_STRING and v == UNDEF
-
-static func finite(v) -> bool:
-	return is_num(v) and not is_nan(float(v)) and not is_inf(float(v))
-
-# JS ToNumber: undefined → NaN, null → 0, booleans → 0 / 1, strings parsed (blank → 0, junk → NaN)
-static func to_number(v) -> float:
-	if is_num(v):
-		return float(v)
-	if v == null:
-		return 0.0
-	if typeof(v) == TYPE_BOOL:
-		return 1.0 if v else 0.0
-	if typeof(v) == TYPE_STRING:
-		if is_undef(v):
-			return NAN
-		var s: String = v.strip_edges()
-		if s == "":
-			return 0.0
-		if s.is_valid_float() or s.is_valid_int():
-			return s.to_float()
-		return NAN
-	return NAN
-
-static func truthy(v) -> bool:
-	if v == null or is_undef(v):
-		return false
-	match typeof(v):
-		TYPE_BOOL: return v
-		TYPE_INT, TYPE_FLOAT: return float(v) != 0.0 and not is_nan(float(v))
-		TYPE_STRING: return v != ""
-	return true
-
-# JS ===: numbers by value, strings / booleans / null by value, arrays and objects by identity
-static func strict_eq(a, b) -> bool:
-	if is_undef(a) or is_undef(b):
-		return is_undef(a) and is_undef(b)
-	if is_num(a) and is_num(b):
-		return float(a) == float(b)
-	if typeof(a) != typeof(b):
-		return false
-	if typeof(a) == TYPE_ARRAY or typeof(a) == TYPE_DICTIONARY:
-		return is_same(a, b)
-	return a == b
-
-# JS relational (<, <=, >, >=): two strings compare as strings; anything else as numbers (NaN compares false)
-static func rel(a, b, op: String) -> bool:
-	if typeof(a) == TYPE_STRING and typeof(b) == TYPE_STRING and not is_undef(a) and not is_undef(b):
-		match op:
-			"<": return a < b
-			"<=": return a <= b
-			">": return a > b
-			">=": return a >= b
-	var x := to_number(a)
-	var y := to_number(b)
-	if is_nan(x) or is_nan(y):
-		return false
-	match op:
-		"<": return x < y
-		"<=": return x <= y
-		">": return x > y
-		">=": return x >= y
-	return false
-
-# JS String(v), for glob
-static func js_string(v) -> String:
-	if is_undef(v):
-		return "undefined"
-	if v == null:
-		return "null"
-	if typeof(v) == TYPE_BOOL:
-		return "true" if v else "false"
-	if is_num(v):
-		return num_str(float(v), "NaN")
-	if typeof(v) == TYPE_ARRAY:
-		var parts := []
-		for x in v:
-			parts.append("" if x == null or is_undef(x) else js_string(x))
-		return ",".join(parts)
-	if typeof(v) == TYPE_DICTIONARY:
-		return "[object Object]"
-	return str(v)
-
-# a number the way JS prints it: integers whole, the rest as the shortest decimal that names the double
-static func num_str(x: float, nan_as: String = "null") -> String:
-	if is_nan(x) or is_inf(x):
-		return nan_as
-	if x == floor(x) and absf(x) < 9007199254740992.0:
-		return str(int(x))
-	return JsonExact.js_number(x)
-
-static func js_quote(s: String) -> String:
-	var out := "\""
-	for i in s.length():
-		var c := s.unicode_at(i)
-		match c:
-			34: out += "\\\""
-			92: out += "\\\\"
-			8: out += "\\b"
-			12: out += "\\f"
-			10: out += "\\n"
-			13: out += "\\r"
-			9: out += "\\t"
-			_:
-				if c < 0x20:
-					out += "\\u%04x" % c
-				else:
-					out += String.chr(c)
-	return out + "\""
-
-# the deterministic stringify (sorted keys): the sort key and the state hash
-static func ss(v) -> String:
-	if v == null or is_undef(v):
-		return "null"
-	match typeof(v):
-		TYPE_BOOL: return "true" if v else "false"
-		TYPE_INT, TYPE_FLOAT: return num_str(float(v))
-		TYPE_STRING, TYPE_STRING_NAME: return js_quote(String(v))
-		TYPE_ARRAY:
-			var parts := []
-			for x in v:
-				parts.append(ss(x))
-			return "[" + ",".join(parts) + "]"
-		TYPE_DICTIONARY:
-			var ks: Array = v.keys()
-			ks.sort()
-			var parts := []
-			for k in ks:
-				parts.append(js_quote(String(k)) + ":" + ss(v[k]))
-			return "{" + ",".join(parts) + "}"
-	return js_quote(str(v))
-
-# FNV-1a over UTF-16 code units, base 36 (the content-derived spawn id)
-static func fnv(s: String) -> String:
-	var h := 0x811c9dc5
-	for i in s.length():
-		var c := s.unicode_at(i)
-		var units := [c]
-		if c > 0xFFFF:
-			var u := c - 0x10000
-			units = [0xD800 + (u >> 10), 0xDC00 + (u & 0x3FF)]
-		for unit in units:
-			h = h ^ unit
-			h = (h * 0x01000193) & 0xFFFFFFFF
-	var digits := "0123456789abcdefghijklmnopqrstuvwxyz"
-	if h == 0:
-		return "0"
-	var out := ""
-	while h > 0:
-		out = digits[h % 36] + out
-		h = h / 36
-	return out
-
-# ── glob / match / references ────────────────────────────────────────────────────────────────────────────────────
-func glob(value, pat) -> bool:
-	if is_undef(pat) or (typeof(pat) == TYPE_STRING and pat == "*"):
-		return true
-	var p := js_string(pat)
-	var sv := js_string(value)
-	if p.find("*") < 0:
-		return sv == p
-	if not _rx_cache.has(p):
-		var parts := []
-		for piece in p.split("*"):
-			parts.append(_rx_escape(piece))
-		var rx := RegEx.new()
-		rx.compile("^" + ".*".join(parts) + "$")
-		_rx_cache[p] = rx
-	return (_rx_cache[p] as RegEx).search(sv) != null
-
-static func _rx_escape(s: String) -> String:
-	var out := ""
-	for ch in s:
-		if ".*+?^${}()|[]\\".find(ch) >= 0:
-			out += "\\" + ch
-		else:
-			out += ch
-	return out
 
 static func get_or_undef(obj, key):
 	if typeof(obj) == TYPE_DICTIONARY:
-		return obj[key] if obj.has(key) else UNDEF
-	return UNDEF
+		return obj[key] if obj.has(key) else Js.UNDEF
+	return Js.UNDEF
 
 func matches(ev: Dictionary, match_obj) -> bool:
 	if typeof(match_obj) != TYPE_DICTIONARY:
 		return true
 	for k in match_obj:
-		if not glob(get_or_undef(ev, k), match_obj[k]):
+		if not Js.glob(get_or_undef(ev, k), match_obj[k]):
 			return false
 	return true
 
 # 'event.<path>' reads from the firing / context event; anything else is literal
 static func resolve_ref(v, ev):
-	if typeof(v) == TYPE_STRING and not is_undef(v) and v.begins_with("event."):
+	if typeof(v) == TYPE_STRING and not Js.is_undef(v) and v.begins_with("event."):
 		var cur = ev
 		for part in v.substr(6).split("."):
-			if cur == null or is_undef(cur):
-				return UNDEF
+			if cur == null or Js.is_undef(cur):
+				return Js.UNDEF
 			if typeof(cur) == TYPE_DICTIONARY:
-				cur = cur[part] if cur.has(part) else UNDEF
+				cur = cur[part] if cur.has(part) else Js.UNDEF
 			elif typeof(cur) == TYPE_ARRAY and part.is_valid_int() and int(part) >= 0 and int(part) < cur.size():
 				cur = cur[int(part)]
 			else:
-				return UNDEF
+				return Js.UNDEF
 		return cur
 	return v
 
@@ -243,14 +58,14 @@ static func resolve_fields(obj: Dictionary, ev) -> Dictionary:
 		out[k] = resolve_ref(obj[k], ev)
 	return out
 
-# a value written into state as it resolved: an undefined stays UNDEF (JS keeps undefined, which compares false
+# a value written into state as it resolved: an undefined stays Js.UNDEF (JS keeps undefined, which compares false
 # where null compares as 0); ss prints it as null, as JSON does
 static func stored(v):
 	return v
 
 # JS `x.k !== undefined`
 static func defined(d: Dictionary, k) -> bool:
-	return d.has(k) and not is_undef(d[k])
+	return d.has(k) and not Js.is_undef(d[k])
 
 static func dup(v):
 	if typeof(v) == TYPE_ARRAY or typeof(v) == TYPE_DICTIONARY:
@@ -260,8 +75,8 @@ static func dup(v):
 # ── events ───────────────────────────────────────────────────────────────────────────────────────────────────────
 static func normalize_event(raw: Dictionary) -> Dictionary:
 	var e := raw.duplicate()
-	if typeof(e.get("type")) != TYPE_STRING or is_undef(e.get("type")):
-		e["type"] = js_string(e["type"]) if e.has("type") and truthy(e["type"]) else "event"
+	if typeof(e.get("type")) != TYPE_STRING or Js.is_undef(e.get("type")):
+		e["type"] = Js.js_string(e["type"]) if e.has("type") and Js.truthy(e["type"]) else "event"
 	if not defined(e, "source"):
 		e["source"] = e["a"] if defined(e, "a") else (e["id"] if defined(e, "id") else "")
 	if not defined(e, "scope"):
@@ -269,7 +84,7 @@ static func normalize_event(raw: Dictionary) -> Dictionary:
 	return e
 
 static func sort_key(e) -> String:
-	return ss(e)
+	return Js.ss(e)
 
 static func sort_events(list: Array) -> Array:
 	var keyed := []
@@ -284,9 +99,9 @@ static func sort_events(list: Array) -> Array:
 # ── entities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 static func add_entity(state: Dictionary, raw: Dictionary) -> Dictionary:
 	var e := {
-		"id": stored(raw.get("id", UNDEF)),
-		"type": raw["type"] if raw.has("type") and truthy(raw["type"]) else "entity",
-		"on": truthy(raw.get("on")),
+		"id": stored(raw.get("id", Js.UNDEF)),
+		"type": raw["type"] if raw.has("type") and Js.truthy(raw["type"]) else "entity",
+		"on": Js.truthy(raw.get("on")),
 		"position": (raw["position"] as Array).duplicate() if typeof(raw.get("position")) == TYPE_ARRAY else [0, 0, 0],
 		"velocity": (raw["velocity"] as Array).duplicate() if typeof(raw.get("velocity")) == TYPE_ARRAY else [0, 0, 0],
 	}
@@ -294,39 +109,39 @@ static func add_entity(state: Dictionary, raw: Dictionary) -> Dictionary:
 		e["pose"] = raw["pose"]
 	if raw.has("color"):
 		e["color"] = raw["color"]
-	if finite(raw.get("radius")):
+	if Js.finite(raw.get("radius")):
 		e["radius"] = raw["radius"]
 	state["entities"].append(e)
-	state["byId"][js_string(e["id"])] = e
+	state["byId"][Js.js_string(e["id"])] = e
 	return e
 
 static func impulse_vec(spec: Dictionary, ev) -> Array:
-	var v = resolve_ref(spec.get("vector", UNDEF), ev)
+	var v = resolve_ref(spec.get("vector", Js.UNDEF), ev)
 	if typeof(v) == TYPE_ARRAY:
 		return v
-	var dk = resolve_ref(spec.get("dir", UNDEF), ev)
-	var d: Array = DIRS.get(js_string(dk), [0, 0, 0]) if typeof(dk) == TYPE_STRING and not is_undef(dk) else [0, 0, 0]
-	var g0 = resolve_ref(spec.get("gain", UNDEF), ev)
-	var g := float(g0) if finite(g0) else 1.0
+	var dk = resolve_ref(spec.get("dir", Js.UNDEF), ev)
+	var d: Array = DIRS.get(Js.js_string(dk), [0, 0, 0]) if typeof(dk) == TYPE_STRING and not Js.is_undef(dk) else [0, 0, 0]
+	var g0 = resolve_ref(spec.get("gain", Js.UNDEF), ev)
+	var g := float(g0) if Js.finite(g0) else 1.0
 	return [d[0] * g, d[1] * g, d[2] * g]
 
 static func clamp_var(v: float, spec: Dictionary) -> float:
-	if finite(spec.get("min")) and v < float(spec["min"]):
+	if Js.finite(spec.get("min")) and v < float(spec["min"]):
 		v = float(spec["min"])
-	if finite(spec.get("max")) and v > float(spec["max"]):
+	if Js.finite(spec.get("max")) and v > float(spec["max"]):
 		v = float(spec["max"])
 	return v
 
 # one verb, from a reaction or a sequence step; only `emit` returns events
 func apply_verb(state: Dictionary, spec: Dictionary, ev: Dictionary) -> Array:
 	var verb = spec.get("do")
-	if not truthy(verb):
+	if not Js.truthy(verb):
 		return []
 	if verb == "emit":
-		var out := {"type": stored(spec.get("type", UNDEF))}
-		var src = resolve_ref(spec.get("source", UNDEF), ev)
-		out["source"] = stored(ev.get("source", UNDEF)) if is_undef(src) else src
-		out["scope"] = stored(resolve_ref(spec["scope"], ev)) if spec.has("scope") else stored(ev.get("scope", UNDEF))
+		var out := {"type": stored(spec.get("type", Js.UNDEF))}
+		var src = resolve_ref(spec.get("source", Js.UNDEF), ev)
+		out["source"] = stored(ev.get("source", Js.UNDEF)) if Js.is_undef(src) else src
+		out["scope"] = stored(resolve_ref(spec["scope"], ev)) if spec.has("scope") else stored(ev.get("scope", Js.UNDEF))
 		for k in spec:
 			if not RESERVED.has(k):
 				out[k] = stored(resolve_ref(spec[k], ev))
@@ -345,42 +160,42 @@ func apply_verb(state: Dictionary, spec: Dictionary, ev: Dictionary) -> Array:
 		state["_ctrlOps"].append(op)
 		return []
 	if verb == "set":
-		var v = resolve_ref(spec.get("to", UNDEF), ev)
-		if is_num(v):
+		var v = resolve_ref(spec.get("to", Js.UNDEF), ev)
+		if Js.is_num(v):
 			v = clamp_var(float(v), spec)
 		state["vars"][spec.get("var")] = stored(v)
 		return []
 	if verb == "inc":
-		var by := to_number(resolve_ref(spec.get("by", UNDEF), ev))
-		var cur := to_number(state["vars"].get(spec.get("var"), UNDEF))
+		var by := Js.to_number(resolve_ref(spec.get("by", Js.UNDEF), ev))
+		var cur := Js.to_number(state["vars"].get(spec.get("var"), Js.UNDEF))
 		if is_nan(cur) or cur == 0.0:
 			cur = 0.0
 		state["vars"][spec.get("var")] = clamp_var(cur + (by if not is_nan(by) and not is_inf(by) else 1.0), spec)
 		return []
 
-	var tid = resolve_ref(spec.get("target", UNDEF), ev)
+	var tid = resolve_ref(spec.get("target", Js.UNDEF), ev)
 	var by_id: Dictionary = state["byId"]
-	var tkey := js_string(tid)
+	var tkey := Js.js_string(tid)
 	if not by_id.has(tkey):
 		if verb == "move":
-			var to = resolve_ref(spec.get("to", UNDEF), ev)
+			var to = resolve_ref(spec.get("to", Js.UNDEF), ev)
 			if typeof(to) == TYPE_ARRAY:
 				if not state.has("_ctrlWarps"):
 					state["_ctrlWarps"] = {}
 				state["_ctrlWarps"][tkey] = to.duplicate()
 				return []
 		state["metrics"]["noops"] += 1
-		state["log"].append({"op": "noop", "verb": verb, "target": null if is_undef(tid) else tid})
+		state["log"].append({"op": "noop", "verb": verb, "target": null if Js.is_undef(tid) else tid})
 		return []
 	var target: Dictionary = by_id[tkey]
 	if verb == "toggle":
-		target["on"] = truthy(resolve_ref(spec["to"], ev)) if spec.has("to") else not truthy(target["on"])
+		target["on"] = Js.truthy(resolve_ref(spec["to"], ev)) if spec.has("to") else not Js.truthy(target["on"])
 	elif verb == "impulse":
 		var iv := impulse_vec(spec, ev)
 		var vel: Array = target["velocity"]
-		target["velocity"] = [to_number(vel[0]) + to_number(iv[0]), to_number(vel[1]) + to_number(iv[1]), to_number(vel[2]) + to_number(iv[2])]
+		target["velocity"] = [Js.to_number(vel[0]) + Js.to_number(iv[0]), Js.to_number(vel[1]) + Js.to_number(iv[1]), Js.to_number(vel[2]) + Js.to_number(iv[2])]
 	elif verb == "move":
-		var to = resolve_ref(spec.get("to", UNDEF), ev)
+		var to = resolve_ref(spec.get("to", Js.UNDEF), ev)
 		if typeof(to) == TYPE_ARRAY:
 			target["position"] = to.duplicate()
 		else:
@@ -390,15 +205,15 @@ func apply_verb(state: Dictionary, spec: Dictionary, ev: Dictionary) -> Array:
 # the spawned id is CONTENT-derived (from the spawning event), so spawn order never changes ids
 func _spawn_entity(state: Dictionary, spec: Dictionary, ev: Dictionary) -> void:
 	var tmpl: Dictionary = spec["template"] if typeof(spec.get("template")) == TYPE_DICTIONARY else {}
-	var at = resolve_ref(spec.get("at", UNDEF), ev)
-	var typ = tmpl["type"] if truthy(tmpl.get("type")) else (spec["type"] if truthy(spec.get("type")) else "spawn")
-	var id = tmpl["id"] if truthy(tmpl.get("id")) else (js_string(typ) + "-" + fnv(sort_key(ev)))
+	var at = resolve_ref(spec.get("at", Js.UNDEF), ev)
+	var typ = tmpl["type"] if Js.truthy(tmpl.get("type")) else (spec["type"] if Js.truthy(spec.get("type")) else "spawn")
+	var id = tmpl["id"] if Js.truthy(tmpl.get("id")) else (Js.js_string(typ) + "-" + Js.fnv(sort_key(ev)))
 	var raw := {
-		"id": id, "type": typ, "on": truthy(tmpl.get("on")),
-		"position": at if typeof(at) == TYPE_ARRAY else (tmpl["position"] if truthy(tmpl.get("position")) else [0, 0, 0]),
-		"velocity": tmpl["velocity"] if truthy(tmpl.get("velocity")) else [0, 0, 0],
+		"id": id, "type": typ, "on": Js.truthy(tmpl.get("on")),
+		"position": at if typeof(at) == TYPE_ARRAY else (tmpl["position"] if Js.truthy(tmpl.get("position")) else [0, 0, 0]),
+		"velocity": tmpl["velocity"] if Js.truthy(tmpl.get("velocity")) else [0, 0, 0],
 	}
-	var key := js_string(id)
+	var key := Js.js_string(id)
 	if state["byId"].has(key):
 		var e: Dictionary = state["byId"][key]
 		e["type"] = raw["type"]; e["on"] = raw["on"]
@@ -409,11 +224,11 @@ func _spawn_entity(state: Dictionary, spec: Dictionary, ev: Dictionary) -> void:
 # ── sequences (sagas): ordered steps, one instance per resolved scope ───────────────────────────────────────────
 func _instantiate(state: Dictionary, def: Dictionary, ev: Dictionary) -> Array:
 	var scope = resolve_ref(def["scope"], ev) if def.has("scope") else null
-	var key := js_string(def.get("id", UNDEF)) + " " + ss(scope)
+	var key := Js.js_string(def.get("id", Js.UNDEF)) + " " + Js.ss(scope)
 	if state["sagaIndex"].has(key):
 		return []
 	var ctx := ev.duplicate()
-	if scope != null and not is_undef(scope):
+	if scope != null and not Js.is_undef(scope):
 		ctx["scope"] = scope
 	var saga := {"def": def, "key": key, "scope": scope, "ctx": ctx, "stepIndex": 0, "awaiting": null, "done": false}
 	state["sagas"].append(saga)
@@ -425,7 +240,7 @@ func _run_forward(state: Dictionary, saga: Dictionary) -> Array:
 	var out := []
 	while saga["stepIndex"] < steps.size():
 		var step: Dictionary = steps[saga["stepIndex"]]
-		if truthy(step.get("do")):
+		if Js.truthy(step.get("do")):
 			out.append_array(apply_verb(state, step, saga["ctx"]))
 		if step.has("await"):
 			var aw = step["await"]
@@ -440,7 +255,7 @@ func _run_forward(state: Dictionary, saga: Dictionary) -> Array:
 				for k in aw:
 					if k != "on":
 						rest[k] = aw[k]
-			saga["awaiting"] = {"type": aw.get("on", UNDEF) if typeof(aw) == TYPE_DICTIONARY else UNDEF, "match": resolve_fields(rest, saga["ctx"])}
+			saga["awaiting"] = {"type": aw.get("on", Js.UNDEF) if typeof(aw) == TYPE_DICTIONARY else Js.UNDEF, "match": resolve_fields(rest, saga["ctx"])}
 			return out
 		saga["stepIndex"] += 1
 	saga["done"] = true
@@ -454,8 +269,8 @@ func _run_forward(state: Dictionary, saga: Dictionary) -> Array:
 	return out
 
 func _await_matches(awaiting: Dictionary, ev: Dictionary) -> bool:
-	var t = awaiting.get("type", UNDEF)
-	return not is_undef(t) and strict_eq(ev.get("type"), t) and matches(ev, awaiting.get("match"))
+	var t = awaiting.get("type", Js.UNDEF)
+	return not Js.is_undef(t) and Js.strict_eq(ev.get("type"), t) and matches(ev, awaiting.get("match"))
 
 func _advance_saga(state: Dictionary, saga: Dictionary) -> Array:
 	saga["awaiting"] = null
@@ -469,14 +284,14 @@ static func _sagas_sorted(state: Dictionary) -> Array:
 
 # a reaction's `if`: it matches only while its predicate holds, read against the state the reactions before it left
 func _reaction_match(state: Dictionary, ev: Dictionary, r: Dictionary) -> bool:
-	return strict_eq(ev.get("type"), r.get("on", UNDEF)) and matches(ev, r["match"] if typeof(r.get("match")) == TYPE_DICTIONARY else {}) \
-		and (not truthy(r.get("if", UNDEF)) or eval_predicate(state, r["if"]))
+	return Js.strict_eq(ev.get("type"), r.get("on", Js.UNDEF)) and matches(ev, r["match"] if typeof(r.get("match")) == TYPE_DICTIONARY else {}) \
+		and (not Js.truthy(r.get("if", Js.UNDEF)) or eval_predicate(state, r["if"]))
 
 func _trigger_match(ev: Dictionary, s: Dictionary) -> bool:
 	var tr = s.get("trigger")
-	if not truthy(tr) or typeof(tr) != TYPE_DICTIONARY:
+	if not Js.truthy(tr) or typeof(tr) != TYPE_DICTIONARY:
 		return false
-	if not strict_eq(ev.get("type"), tr.get("on", UNDEF)):
+	if not Js.strict_eq(ev.get("type"), tr.get("on", Js.UNDEF)):
 		return false
 	var rest := {}
 	for k in tr:
@@ -495,7 +310,7 @@ static func _drop(state: Dictionary, n: int, reason: String) -> void:
 func create_bus_state(config, initial_entities = []) -> Dictionary:
 	var c: Dictionary = config if typeof(config) == TYPE_DICTIONARY else {}
 	var state := {
-		"config": {"budget": c["budget"] if finite(c.get("budget")) else 4096, "depthCap": c["depthCap"] if finite(c.get("depthCap")) else 8},
+		"config": {"budget": c["budget"] if Js.finite(c.get("budget")) else 4096, "depthCap": c["depthCap"] if Js.finite(c.get("depthCap")) else 8},
 		"reactions": c["reactions"] if typeof(c.get("reactions")) == TYPE_ARRAY else [],
 		"seqDefs": c["sequences"] if typeof(c.get("sequences")) == TYPE_ARRAY else [],
 		"watches": c["watches"] if typeof(c.get("watches")) == TYPE_ARRAY else [],
@@ -514,14 +329,14 @@ func create_bus_state(config, initial_entities = []) -> Dictionary:
 # ── watches: edge-detected predicates over vars, entities and the log ───────────────────────────────────────────
 static func cmp(v, p: Dictionary) -> bool:
 	if p.has("eq"):
-		return strict_eq(v, p["eq"])
+		return Js.strict_eq(v, p["eq"])
 	if p.has("ne"):
-		return not strict_eq(v, p["ne"])
+		return not Js.strict_eq(v, p["ne"])
 	var ok := true
-	if p.has("gte"): ok = ok and rel(v, p["gte"], ">=")
-	if p.has("gt"): ok = ok and rel(v, p["gt"], ">")
-	if p.has("lte"): ok = ok and rel(v, p["lte"], "<=")
-	if p.has("lt"): ok = ok and rel(v, p["lt"], "<")
+	if p.has("gte"): ok = ok and Js.rel(v, p["gte"], ">=")
+	if p.has("gt"): ok = ok and Js.rel(v, p["gt"], ">")
+	if p.has("lte"): ok = ok and Js.rel(v, p["lte"], "<=")
+	if p.has("lt"): ok = ok and Js.rel(v, p["lt"], "<")
 	return ok
 
 static func field_of(e: Dictionary, field):
@@ -534,7 +349,7 @@ static func field_of(e: Dictionary, field):
 func _match_entities(state: Dictionary, pat) -> Array:
 	var out := []
 	for e in state["entities"]:
-		if glob(e["id"], pat):
+		if Js.glob(e["id"], pat):
 			out.append(e)
 	return out
 
@@ -546,23 +361,23 @@ func eval_predicate(state: Dictionary, when) -> bool:
 	if when.has("count"):
 		var n := 0
 		for r in state["log"]:
-			if r.has("type") and strict_eq(r["type"], when["count"]):
+			if r.has("type") and Js.strict_eq(r["type"], when["count"]):
 				n += 1
 		return cmp(n, when)
 	if when.has("entity"):
-		var key := js_string(when["entity"])
-		return cmp(field_of(state["byId"][key], when.get("field", UNDEF)), when) if state["byId"].has(key) else false
+		var key := Js.js_string(when["entity"])
+		return cmp(field_of(state["byId"][key], when.get("field", Js.UNDEF)), when) if state["byId"].has(key) else false
 	if when.has("all"):
 		var es := _match_entities(state, when["all"])
 		if es.is_empty():
 			return false
 		for e in es:
-			if not cmp(field_of(e, when.get("field", UNDEF)), when):
+			if not cmp(field_of(e, when.get("field", Js.UNDEF)), when):
 				return false
 		return true
 	if when.has("any"):
 		for e in _match_entities(state, when["any"]):
-			if cmp(field_of(e, when.get("field", UNDEF)), when):
+			if cmp(field_of(e, when.get("field", Js.UNDEF)), when):
 				return true
 		return false
 	return false
@@ -574,8 +389,8 @@ func watch_events(state: Dictionary) -> Array:
 		var w: Dictionary = watches[i]
 		var now := eval_predicate(state, w.get("when"))
 		var key := "w" + str(i)
-		if now and not truthy(state["_watchPrev"].get(key)):
-			var ev := {"type": stored(w.get("type", UNDEF)), "source": stored(w.get("type", UNDEF)), "scope": w["scope"] if w.has("scope") else null}
+		if now and not Js.truthy(state["_watchPrev"].get(key)):
+			var ev := {"type": stored(w.get("type", Js.UNDEF)), "source": stored(w.get("type", Js.UNDEF)), "scope": w["scope"] if w.has("scope") else null}
 			for k in w:
 				if k != "type" and k != "when" and k != "scope":
 					ev[k] = w[k]
@@ -609,7 +424,7 @@ func process_events(state: Dictionary, incoming: Array) -> Dictionary:
 			var ev: Dictionary = frontier[i]
 			spent += 1
 			state["metrics"]["processed"] += 1
-			state["log"].append({"type": ev["type"], "source": stored(ev.get("source", UNDEF)), "scope": stored(ev.get("scope", UNDEF)), "depth": depth})
+			state["log"].append({"type": ev["type"], "source": stored(ev.get("source", Js.UNDEF)), "scope": stored(ev.get("scope", Js.UNDEF)), "depth": depth})
 			for r in state["reactions"]:
 				if _reaction_match(state, ev, r):
 					next.append_array(apply_verb(state, r, ev))
@@ -632,18 +447,18 @@ func tick_timers(state: Dictionary, dt: float) -> Array:
 	var timers: Array = state["timers"]
 	for i in timers.size():
 		var t = timers[i]
-		if typeof(t) != TYPE_DICTIONARY or not truthy(t.get("emit")):
+		if typeof(t) != TYPE_DICTIONARY or not Js.truthy(t.get("emit")):
 			continue
-		if truthy(t.get("while")) and not eval_predicate(state, t["while"]):
+		if Js.truthy(t.get("while")) and not eval_predicate(state, t["while"]):
 			continue
 		var key := "t" + str(i)
-		var period := maxf(1e-3, float(t["every"])) if finite(t.get("every")) else 1.0
+		var period := maxf(1e-3, float(t["every"])) if Js.finite(t.get("every")) else 1.0
 		state["_timerAcc"][key] = float(state["_timerAcc"].get(key, 0.0)) + dt
 		var guard := 0
 		while state["_timerAcc"][key] >= period and guard < 64:
 			guard += 1
 			state["_timerAcc"][key] -= period
-			var ev := {"source": stored(t["emit"].get("type", UNDEF)), "scope": null}
+			var ev := {"source": stored(t["emit"].get("type", Js.UNDEF)), "scope": null}
 			for k in t["emit"]:
 				ev[k] = t["emit"][k]
 			out.append(ev)
@@ -655,7 +470,7 @@ func step_time(state: Dictionary, dt: float) -> Array:
 	for saga in _sagas_sorted(state):
 		var aw = saga["awaiting"]
 		if aw != null and aw.has("timer") and aw["timer"] != null:
-			aw["timer"] = to_number(aw["timer"]) - dt
+			aw["timer"] = Js.to_number(aw["timer"]) - dt
 			if aw["timer"] <= 0:
 				emitted.append_array(_advance_saga(state, saga))
 	return emitted
@@ -663,9 +478,9 @@ func step_time(state: Dictionary, dt: float) -> Array:
 # the canonical snapshot of what happened: entities by id, vars, the durable log, the loud-cap counters
 func hash_state(state: Dictionary) -> String:
 	var entities: Array = (state["entities"] as Array).duplicate()
-	entities.sort_custom(func(a, b): return js_string(a["id"]) < js_string(b["id"]))
+	entities.sort_custom(func(a, b): return Js.js_string(a["id"]) < Js.js_string(b["id"]))
 	var m: Dictionary = state["metrics"]
-	return ss({"entities": entities, "vars": state["vars"], "log": state["log"], "metrics": {"processed": m["processed"], "emitted": m["emitted"], "dropped": m["dropped"], "capTrips": m["capTrips"], "noops": m["noops"], "maxDepth": m["maxDepth"]}})
+	return Js.ss({"entities": entities, "vars": state["vars"], "log": state["log"], "metrics": {"processed": m["processed"], "emitted": m["emitted"], "dropped": m["dropped"], "capTrips": m["capTrips"], "noops": m["noops"], "maxDepth": m["maxDepth"]}})
 
 # ── zone facts: entities' positions against declared { type: 'zone' } sources, edge-triggered enter / exit ───────
 static func _zone_pos(e):
@@ -679,16 +494,16 @@ static func _in_zone(p, s: Dictionary) -> bool:
 	if typeof(p) != TYPE_ARRAY:
 		return false
 	var at: Array = s["at"] if typeof(s.get("at")) == TYPE_ARRAY else [0, 0, 0]
-	var dims := 2 if truthy(s.get("planar")) else 3
+	var dims := 2 if Js.truthy(s.get("planar")) else 3
 	if typeof(s.get("half")) == TYPE_ARRAY:
 		for i in dims:
-			if absf(to_number(p[i]) - to_number(at[i])) > to_number(s["half"][i]):
+			if absf(Js.to_number(p[i]) - Js.to_number(at[i])) > Js.to_number(s["half"][i]):
 				return false
 		return true
-	var r := float(s["radius"]) if finite(s.get("radius")) else 1.0
+	var r := float(s["radius"]) if Js.finite(s.get("radius")) else 1.0
 	var d2 := 0.0
 	for i in dims:
-		var dd := to_number(p[i]) - to_number(at[i])
+		var dd := Js.to_number(p[i]) - Js.to_number(at[i])
 		d2 += dd * dd
 	return d2 <= r * r
 
@@ -697,17 +512,17 @@ func derive_zone_events(entities: Array, prev, sources: Array) -> Dictionary:
 	var events := []
 	var cur := {}
 	for s in sources:
-		if typeof(s) != TYPE_DICTIONARY or s.get("type") != "zone" or not truthy(s.get("zone")):
+		if typeof(s) != TYPE_DICTIONARY or s.get("type") != "zone" or not Js.truthy(s.get("zone")):
 			continue
-		var watch = s["watch"] if truthy(s.get("watch")) else "*"
+		var watch = s["watch"] if Js.truthy(s.get("watch")) else "*"
 		for e in entities:
-			if typeof(e) != TYPE_DICTIONARY or not truthy(e.get("id")) or truthy(e.get("gone")):
+			if typeof(e) != TYPE_DICTIONARY or not Js.truthy(e.get("id")) or Js.truthy(e.get("gone")):
 				continue
-			if not glob(e["id"], watch):
+			if not Js.glob(e["id"], watch):
 				continue
 			if not _in_zone(_zone_pos(e), s):
 				continue
-			var key := js_string(s["zone"]) + "|" + js_string(e["id"])
+			var key := Js.js_string(s["zone"]) + "|" + Js.js_string(e["id"])
 			cur[key] = 1
 			if inside.has(key):
 				continue

@@ -4,10 +4,11 @@
  * Every command mojulo tells an agent or an operator to run (an install group, a missing optional
  * helper, an update, the dashboard) is written here, so it names the version that is running and
  * the way it was installed:
- *   - 'claude-plugin': started by the Claude plugin, whose manifest runs `npx -y mojulo@<version>`
- *     and sets MOJULO_DISTRIBUTION=claude-plugin (plugins/mojulo/.claude-plugin/plugin.json). The
- *     plugin owns the version: an update is a plugin update, and an unpinned `npx mojulo` would start
- *     another version of the server on the same $MOJULO_HOME.
+ *   - 'claude-plugin': started by the Claude plugin, whose manifest runs its launcher (server/launch.mjs:
+ *     `npm ci` from the lockfile it ships, then this package's server) and sets
+ *     MOJULO_DISTRIBUTION=claude-plugin (plugins/mojulo/.claude-plugin/plugin.json). The plugin owns
+ *     the version: an update is a plugin update, and an unpinned `npx mojulo` would start another
+ *     version of the server on the same $MOJULO_HOME.
  *   - 'source': a repo checkout (a .git beside control/). Commands run from control/.
  *   - 'npm': any other npm install (npx, global, a project dependency).
  * Outside a checkout a command names `mojulo@<running version>`, never a bare `mojulo`, which npx

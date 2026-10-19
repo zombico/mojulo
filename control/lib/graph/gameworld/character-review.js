@@ -13,10 +13,15 @@
  * the actions settled; the game's systems (numbers and UI) also need the motion; the equipment (the gear classes, made)
  * needs the systems' parts AND the stats settled (`mechanics:stats`). It advises; nothing refuses.
  *
+ * A book with a casting page (casting.js) has one part more, `characters:cast`: the rolled cast, each member's reading,
+ * and the laws it kept. A journey cast's members are made once it is settled (`characterReady(...).cast`).
+ *
  * `resolveBook(world)` resolves every page once; the parts, the machine gate and the bible all read it.
  */
 import { readGameworld } from './world.js';
-import { CHARACTER_PART_IDS } from './characters.js';
+import { CHARACTER_PART_IDS, CAST_PART } from './characters.js';
+import { castingOf, CLASS_GAPS } from './casting.js';
+import { castLines } from '../egocube/cast.js';
 import { composeHero, heroLooks } from './hero-looks.js';
 import { resolveActions } from './actions.js';
 import { resolveMotion } from './hero-vibe.js';
@@ -32,7 +37,10 @@ const NAMES = Object.freeze({
   'characters:direction': 'Direction', 'hero:body': 'Hero · body', 'hero:head': 'Hero · head', 'hero:hair': 'Hero · hair',
   'hero:colour': 'Hero · colour', 'hero:base': 'Hero · base', 'hero:motion': 'Hero · motion', 'hero:actions': 'Hero · actions',
   'hero:adornment': 'Hero · adornment', equipment: 'Equipment', 'mechanics:stats': 'Systems · stats', 'mechanics:hud': 'Systems · HUD',
+  [CAST_PART]: 'Cast',
 });
+/** The parts a book is reviewed in: every book's, and the cast's where it has a casting page. */
+const partIdsOf = (G) => (G.characters?.casting ? [...CHARACTER_PART_IDS, CAST_PART] : CHARACTER_PART_IDS);
 
 /**
  * The character book resolved, every page once: `{ G, D, looks, composed, hero, actions, motion, adornment, equipment,
@@ -44,7 +52,7 @@ export function resolveBook(world) {
   const looks = heroLooks(G), D = looks.direction, hero = G.characters.hero ?? {}, actions = resolveActions(hero.actions ?? {}, D);
   const adornment = hero.adornment ? resolveAdornment(hero.adornment, actions) : null, equipment = resolveEquipment(G);
   return {
-    G, D, looks, composed: composeHero(G, looks), hero, actions,
+    G, D, looks, composed: composeHero(G, looks), hero, actions, casting: castingOf(G),
     motion: hero.motion ? resolveMotion(hero.motion) : null,
     adornment, equipment, mechanics: resolveMechanics(G, { actions, equipment, adornment }),
   };
@@ -64,8 +72,9 @@ export function characterParts(world, B = resolveBook(world)) {
     equipment: { rows: E.rows, ledger: E.ledger },
     'mechanics:stats': B.mechanics && { stats: B.mechanics.play.stats, powers: B.mechanics.powers, ledger: B.mechanics.ledger },
     'mechanics:hud': B.mechanics && { parts: B.mechanics.play.parts ?? [], cues: B.mechanics.play.cues ?? [], menus: B.mechanics.play.menus ?? [], inputs: B.mechanics.inputs, ui: B.mechanics.play.ui },
+    ...(B.casting ? { [CAST_PART]: { scale: B.casting.scale, from: B.casting.from, members: castLines(B.casting.sheet), classes: { hero: B.casting.anchor.cls, ...Object.fromEntries(B.casting.members.filter((M) => M.cls).map((M) => [M.id, M.cls])) }, kept: B.casting.sheet.kept } } : {}),
   };
-  return CHARACTER_PART_IDS.map((id) => ({ id, name: NAMES[id], content: content[id], print: fingerprint(content[id]) }));
+  return partIdsOf(G).map((id) => ({ id, name: NAMES[id], content: content[id], print: fingerprint(content[id]) }));
 }
 
 /**
@@ -85,6 +94,11 @@ function characterMachine(B, lookup) {
   out.equipment = B.equipment.rows.some((r) => r.status !== 'empty') ? [] : ['no class has a template yet'];
   out['mechanics:stats'] = B.mechanics ? B.mechanics.open : ['no systems are laid out yet (mechanics)'];
   out['mechanics:hud'] = !B.mechanics ? ['no systems are laid out yet (mechanics)'] : B.mechanics.play.parts?.length ? [] : ['the systems show nothing on the HUD'];
+  // the cast: the laws it kept broken, and the classes a role has none of its own for
+  if (B.casting) {
+    const C = B.casting, roles = [C.sheet.members[C.sheet.anchor], ...C.members.filter((M) => M.cls).map((M) => C.sheet.members[M.path])].map((m) => (m.temperament ?? m.sheet.facets).role);
+    out[CAST_PART] = [...C.sheet.kept.filter((k) => !k.held).map((k) => `${k.path}: ${k.why} (kept after its re-draws)`), ...[...new Set(roles)].filter((r) => CLASS_GAPS[r]).map((r) => `${r}: ${CLASS_GAPS[r]}`)];
+  }
   return out;
 }
 
@@ -94,7 +108,7 @@ export function characterState(world, { machine = {}, lookup, book } = {}) {
   if (!parts.length) return [];
   // the world's own parts share the field and are read by its page; these are the character book's
   const review = world.review ?? {}, mode = world.mode ?? 'gated';
-  for (const id of CHARACTER_PART_IDS) if (review[id] !== undefined) checkReviewEntry(id, review[id]);
+  for (const id of partIdsOf(B.G)) if (review[id] !== undefined) checkReviewEntry(id, review[id]);
   if (!MODES[mode]) throw new Error(`gameworld: mode is ${Object.keys(MODES).join(' or ')}`);
   const measured = characterMachine(B, lookup);
   return parts.map((p) => stampPart(p, review[p.id], mode, [...(measured[p.id] ?? []), ...(machine[p.id] ?? [])]));
@@ -103,7 +117,7 @@ export function characterState(world, { machine = {}, lookup, book } = {}) {
 /** The creator's approval of a character part, on what it resolves to now: the review entry to write. */
 export function approveCharacter(world, part, note) {
   const p = characterParts(world).find((x) => x.id === part);
-  if (!p) throw new Error(`gameworld: '${part}' is not a character part (${CHARACTER_PART_IDS.join(', ')})`);
+  if (!p) throw new Error(`gameworld: '${part}' is not a character part (${partIdsOf(readGameworld(world)).join(', ')})`);
   return { ...(world.review ?? {}), [part]: { status: 'approved', print: p.print, ...(note ? { note } : {}) } };
 }
 
@@ -121,5 +135,5 @@ export function characterReady(world, { state: given, ...opts } = {}) {
     return { ready: state.length > 0 && !waiting.length, waiting };
   };
   const systems = ['hero:base', 'hero:actions', 'hero:motion'];
-  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step([...systems, 'mechanics:stats']) };
+  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step([...systems, 'mechanics:stats']), ...(world.characters?.casting ? { cast: step([CAST_PART]) } : {}) };
 }

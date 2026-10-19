@@ -62,7 +62,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
 - Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
-- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal, Rojo, Lune) are never dependencies.
   Absence degrades a loop, never breaks one. Search orders live in `control/lib/workers/find.js` (`version({ workers: true })`).
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
@@ -87,7 +87,7 @@ cp .env.example .env         # first time
 npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npm run build                # --webpack too: Turbopack ignores next.config's webpack rules and fails on an absent pack or recall runtime
-npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+npx vitest run               # the whole suite but the e2e tier; *.spike.gen.test.js are excluded and gitignored
 npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
 npm run test:deep:changed    # the *.deep.test.js sweeps whose imports touch an uncommitted change (none if none do)
 npm run test:e2e             # whole worlds through the real handlers, games whose audit walks each level in headless Chrome
@@ -101,7 +101,8 @@ entry points `chdir` there and `getServerVersion` reads `package.json` from cwd.
 
 Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
 folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
-kernels; the whole suite once before merging into the release candidate (CI runs it and `test:deep`).
+kernels; the whole suite and `test:e2e` once before merging into the release candidate (CI runs both and `test:deep`,
+the e2e tier in its own job on one leg).
 
 Test the concept, not the catalog. Species, presets, cultures, landmarks and climates are inputs to procedures:
 a test picks one case per distinct procedure (a rig topology, a family, a code path), chosen in code from the
@@ -110,7 +111,7 @@ adds nothing) on it. No test iterates a whole catalog, in any tier; a new entry 
 runs through. Build the smallest input that still exercises the concept (a small board, a short run, one city).
 An exhaustive sweep over a word's range ends goes in a `*.deep.test.js` beside the law
 tests, importing only the modules it sweeps, so `--changed` can select it. A suite that makes whole worlds or
-mints with `autoAudit: true` goes on the `E2E` list in `vitest.e2e.config.js`, never in critical (guarded by
+mints with `autoAudit: true` goes on the `E2E` list in `vitest.config.js`, never in critical or `npm test` (guarded by
 `lib/mcp/test-tiers.test.js`); test the audit gate itself with a stub `runTraversal`.
 
 Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`
@@ -128,7 +129,10 @@ On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path
 
 Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, run `npm run smoke:tarball` (packs, installs
 the tarball into an empty temp dir, boots the dashboard; the npx cache reuses old trees and hides
-fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section.
+fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section. The Claude plugin
+installs only what its lockfile names, and the lockfile needs the published tarball's hash: `npm publish` before the
+tag, then `node control/scripts/plugin-lock.mjs` and commit its two files, since the tag's version check refuses a
+lockfile for another version.
 
 ## Data and native landmines
 
@@ -157,8 +161,10 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`; CLIs in
-  `control/scripts/export-*.mjs`; gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL`.
+  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`, `roblox-project.js`;
+  one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
+  need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
+  GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)
@@ -171,6 +177,8 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+- Fractal structures: [fractal-structure/](control/lib/graph/fractal-structure/) (towers from a plan, a rise, a crown and
+  an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image

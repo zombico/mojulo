@@ -118,6 +118,24 @@ const b64ToF32 = (s) => new Float32Array(b64ToBytes(s).buffer);
 const b64ToU16 = (s) => new Uint16Array(b64ToBytes(s).buffer);
 const b64ToU32 = (s) => new Uint32Array(b64ToBytes(s).buffer);
 
+// smooth vertex normals for an indexed mesh: each triangle's (area-weighted) normal summed into its corners, normalized;
+// a vertex no triangle touches points up the figure (+z, the rig's frame)
+function restNormals(pos, idx) {
+  const n = new Float32Array(pos.length);
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+    const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; }
+  }
+  for (let i = 0; i < n.length; i += 3) {
+    const l = Math.hypot(n[i], n[i + 1], n[i + 2]);
+    if (l > 1e-12) { n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; } else { n[i] = 0; n[i + 1] = 0; n[i + 2] = 1; }
+  }
+  return n;
+}
+
 // Decode one packed rig part (rig-bake.js) into GLB-ready arrays, with every vertex re-expressed
 // relative to the bone's REST HEAD — the runtime poses parts as M = T(head)·R(q)·T(-restHead)
 // (channels/controllable __syncRigEntity), which decomposes exactly into glTF node TRS once the
@@ -805,6 +823,9 @@ class GlbBuilder {
       JOINTS_0: this.jointAccessor(Uint16Array.from(jnt)),
       WEIGHTS_0: this.floatAccessor(Float32Array.from(wgt), 4),
       ...(uvs ? { TEXCOORD_0: this.floatAccessor(Float32Array.from(uvs), 2) } : {}),
+      // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
+      // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
+      ...(this.lit ? { NORMAL: this.floatAccessor(restNormals(positions, idx), 3) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
@@ -1194,7 +1215,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // Water renders in its own translucent pass; pull it out before surface-card expansion
   // exactly as emitThreeWorld does (water quads carry no cards).
   const waterRaw = faceList.filter((f) => f && f.water);
-  const expanded0 = expandSurfaceCards(faceList.filter((f) => !(f && f.water)), { light });
+  // Blend faces (a second tile over the ground) go LAST: the page draws them in their own pass and de-collides the rest
+  // without them, so here they are lifted over the ground they lie on and the ground stays where the page stands its
+  // walkers (a lift goes to the later face). A world without blend faces keeps its order, byte-identical.
+  const opaque = faceList.filter((f) => !(f && f.water));
+  const expanded0 = expandSurfaceCards(opaque.some((f) => f && f.blend) ? [...opaque.filter((f) => !f.blend), ...opaque.filter((f) => f && f.blend)] : opaque, { light });
   // De-collide ONCE over the whole opaque face set, exactly where emitThreeWorld does it —
   // coincident faces that land in DIFFERENT render groups (separate glTF nodes, the worst
   // z-fight case in an importer) get lifted apart too. Groups below then mesh with
@@ -1264,6 +1289,36 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
         const hair = sname !== name && (sfs[0].layer === 'hair' || sfs[0].layer === 'veil');
         if (im.positions.length) inkSoups.push({ name: sname, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)), ...(hair ? { hair: name } : {}) });
       }
+    }
+    // BLEND faces (the two-tile vertex blend, channels/blend-layer.js): a group of them is a second tile faded in over the
+    // ground, so it exports as the page draws it: per texture key one node, its texel × the baked corner colour, the corner
+    // weight (`cornerAlpha`) as COLOR_0's alpha under a BLEND material (a `cut` layer alpha-MASKED at ½). Before this they
+    // left as opaque tiles over the ground. A world without blend faces never reaches here.
+    if (fs.length && fs.every((f) => f && f.blend)) {
+      const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+      const hexLin = (h) => [1, 3, 5].map((i) => lin(parseInt(String(h).slice(i, i + 2), 16) / 255));
+      const byKey = new Map();
+      for (const f of fs) {
+        if (!Array.isArray(f.corners) || f.corners.length < 4) continue;
+        const key = typeof f.texture === 'string' ? f.texture : '';
+        const g = byKey.get(key) || byKey.set(key, { pos: [], uv: [], col: [], cut: false }).get(key);
+        if (f.blend === 'cut') g.cut = true;
+        const cols = (Array.isArray(f.cornerFills) && f.cornerFills.length >= 4 ? f.cornerFills : [0, 1, 2, 3].map(() => f.fill || '#ffffff')).map(hexLin);
+        const al = Array.isArray(f.cornerAlpha) && f.cornerAlpha.length >= 4 ? f.cornerAlpha : [1, 1, 1, 1];
+        const uvAt = (k) => (f.uvScale > 0 ? [f.corners[k][0] / f.uvScale, f.corners[k][1] / f.uvScale] : Array.isArray(f.uv) ? f.uv[k] : [0, 0]);
+        for (const k of [0, 1, 2, 0, 2, 3]) {
+          g.pos.push(f.corners[k][0], f.corners[k][1], f.corners[k][2]);
+          const u = uvAt(k); g.uv.push(u[0], u[1]);
+          g.col.push(cols[k][0], cols[k][1], cols[k][2], Math.max(0, Math.min(1, al[k])));
+        }
+      }
+      for (const [key, g] of [...byKey].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        const texIdx = key ? b.imageFromDataUrl(textures[key]) : null;
+        const mat = b.unlitMaterial({ alpha: 1, ...(texIdx != null ? { baseColorTexture: texIdx } : {}), name: `${name}:${key || 'blend'}` });
+        if (g.cut) { b.json.materials[mat].alphaMode = 'MASK'; b.json.materials[mat].alphaCutoff = 0.5; }
+        tally(b.addNode(`${name}:${key || 'blend'}`, Float32Array.from(g.pos), Float32Array.from(g.col), 4, mat, texIdx != null ? Float32Array.from(g.uv) : undefined));
+      }
+      continue;
     }
     // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
     // their own node with a REAL pbrMetallicRoughness material, one node per distinct factor

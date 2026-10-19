@@ -1,0 +1,174 @@
+// THE ROBLOX LOOK (roblox-look.js): a face's colour and material, the level's non-floor faces voxelized into boxes of
+// one look each, the shell decoration only (no body, ray or touch meets it), and the floors wearing their faces' looks
+// without the look ever changing what the player stands on.
+import { describe, it, expect } from 'vitest';
+import zlib from 'node:zlib';
+import { faceLook, materialOf, textureMeans, voxelShell, lookModel, repeatFaces, VOXEL } from './roblox-look.js';
+import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
+import { floorSlabs, greyboxModel } from './roblox-project.js';
+
+const quad = (x0, y0, x1, y1, z, extra = {}) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], ...extra });
+// an upright wall along x at y, from z0 to z1
+const wall = (x0, x1, y, z0, z1, extra = {}) => ({ corners: [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], ...extra });
+
+// an RGBA PNG as a data URL (one row per entry of rows: [[r, g, b, a], …])
+function png(rows) {
+  const W = rows[0].length, H = rows.length;
+  const chunk = (t, d) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(td)); return Buffer.concat([len, td, crc]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 6;
+  const raw = Buffer.concat(rows.map((r) => Buffer.from([0, ...r.flat()])));
+  const buf = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+  return `data:image/png;base64,${buf.toString('base64')}`;
+}
+
+describe('a face\'s look', () => {
+  it('names a material by its texture first, then its group, else smooth plastic', () => {
+    expect(materialOf({ texture: 'bark-spruce', group: 'trail:rock' })).toBe('Wood');
+    expect(materialOf({ texture: 'card:x', group: 'stage:moss' })).toBe('Grass');
+    expect(materialOf({ group: 'stage:prop' })).toBe('SmoothPlastic');
+    expect(faceLook({ water: true, fill: '#3366aa' })).toMatchObject({ material: 'Glass', transparency: expect.any(Number) });
+  });
+
+  it('a plain face wears its fill; a textured one its tint times its texture\'s mean, the cut-out not counted', () => {
+    expect(faceLook({ fill: '#ffffff' }).color).toEqual([1, 1, 1]);
+    // half the texture is cut out: its mean is the opaque half's green, not a blend with the clear red
+    const means = textureMeans({ leaf: png([[[0, 255, 0, 255], [255, 0, 0, 0]]]) });
+    expect(faceLook({ texture: 'leaf', fill: '#ffffff' }, means).color).toEqual([0, 1, 0]);
+    // a mid-grey tint darkens it in linear light (sRGB 0.5 × 1 → 0.5 back in sRGB, to a level)
+    expect(faceLook({ texture: 'leaf', fill: '#808080' }, means).color[1]).toBeCloseTo(0.5, 1);
+    expect(means('missing')).toBe(null);
+  });
+});
+
+describe('what the material shelf stamped', () => {
+  // the shelf's own stamp on a face, as a builder applies it
+  const stamped = (m, extra = {}) => tagFacesWithMaterial([wall(0, 1, 0, 0, 1, { fill: '#c0c0c0', ...extra })], resolveMaterial(m))[0];
+
+  it('names a metal Metal (mill scale corroded) and the glass row Glass, when the texture names nothing', () => {
+    expect(materialOf(stamped('gold'))).toBe('Metal');
+    expect(materialOf(stamped({ metal: 'copper' }))).toBe('Metal');
+    expect(materialOf(stamped({ metal: 'steel', finish: 'mill' }))).toBe('CorrodedMetal');
+    expect(faceLook(stamped('glass'))).toMatchObject({ material: 'Glass', transparency: expect.any(Number) });
+    // a matte row stamps nothing a material reads: the group's word, else plastic
+    expect(materialOf(stamped('stone', { group: 'stage:prop' }))).toBe('SmoothPlastic');
+  });
+
+  it('the texture\'s word comes first and the shelf before the group\'s', () => {
+    expect(materialOf(stamped('steel', { texture: 'bark-oak' }))).toBe('Wood');
+    expect(materialOf(stamped('steel', { group: 'trail:rock' }))).toBe('Metal');
+  });
+});
+
+describe('the repeats', () => {
+  const tpl = [wall(0, 1, 0, 0, 1, { fill: '#ff0000' }), quad(0, 0, 1, 1, 1, { fill: '#00ff00' })];
+
+  it('place each instance as the page does: scaled, turned about z, then moved', () => {
+    const [w] = repeatFaces([{ template: [tpl[0]], transforms: [{ pos: [10, 0, 0], scale: 2, rotZ: Math.PI / 2 }] }]);
+    expect(w.corners.map((p) => p.map((v) => Math.round(v * 1e9) / 1e9 + 0))).toEqual([[10, 0, 0], [10, 2, 0], [10, 2, 2], [10, 0, 2]]);
+    expect(w.fill).toBe('#ff0000');
+    // a unit box stretched per axis, and an instance's tint on its fill
+    const [v] = repeatFaces([{ template: [tpl[0]], transforms: [{ pos: [0, 0, 0], scale: [3, 1, 2], tint: [0.5, 1, 1] }] }]);
+    expect(v.corners).toEqual([[0, 0, 0], [3, 0, 0], [3, 0, 2], [0, 0, 2]]);
+    expect(v.fill).toBe('#800000');
+  });
+
+  it('join the shell whole, their tops included, and none adds nothing', () => {
+    const faces = [wall(20, 21, 0.1, 0, 1, { fill: '#0000ff' })];
+    const plain = lookModel(faces);
+    expect(lookModel(faces, { repeats: [] }).model).toEqual(plain.model);
+    const worn = lookModel(faces, { repeats: [{ template: tpl, transforms: [{ pos: [0, 0, 0] }, { pos: [5, 0, 0] }] }] });
+    expect(worn.boxes).toBeGreaterThan(plain.boxes);
+    // a budget of their own: many repeats coarsen themselves, never the level
+    const forest = lookModel(faces, { max: 25, repeats: [{ template: tpl, transforms: Array.from({ length: 40 }, (_, i) => ({ pos: [i * 2, 10, 0] })) }] });
+    expect(forest.voxel).toBe(plain.voxel);
+    expect(forest.repeatVoxel).toBeGreaterThan(plain.voxel);
+    // the template's top (an upward face) is voxelized, for no floor slab carries it; a level's own floor is not
+    const tops = repeatFaces([{ template: [tpl[1]], transforms: [{ pos: [0, 0, 0] }] }]);
+    expect(voxelShell(tops, { whole: new Set(tops) }).map((b) => b.color)).toEqual([[0, 1, 0]]);
+    expect(voxelShell(tops)).toEqual([]);
+  });
+});
+
+describe('the shell', () => {
+  it('voxelizes a wall into one box of its look, leaves floors to the slabs and drops what the page draws as ground or sky', () => {
+    const boxes = voxelShell([
+      wall(0, 2, 0.1, 0, 1, { fill: '#ff0000' }),
+      quad(0, 0, 4, 4, 0, { fill: '#00ff00' }),                                   // a floor: the slabs carry it
+      wall(5, 6, 0.1, 0, 1, { fill: '#0000ff', group: 'trail:ridge' }),           // a backdrop
+      wall(7, 8, 0.1, 0, 1, { fill: '#0000ff', group: 'trail:shadow' }),          // a ground's shadow
+      wall(9, 10, 0.1, 0, 1, { fill: '#0000ff', texture: 'card:meadow' }),        // ground cover drawn as a card
+    ]);
+    expect(boxes).toEqual([{ min: [0, 0, 0], max: [2, VOXEL, 1], color: [1, 0, 0], material: 'SmoothPlastic' }]);
+  });
+
+  it('keeps two looks apart, the first face to cross a cell holds it, and the same faces make the same boxes', () => {
+    const faces = [wall(0, 1, 0.1, 0, 1, { fill: '#ff0000' }), wall(1, 2, 0.1, 0, 1, { fill: '#0000ff' }), wall(0, 1, 0.2, 0, 1, { fill: '#00ff00' })];
+    const boxes = voxelShell(faces);
+    expect(new Set(boxes.map((b) => b.color.join(',')))).toEqual(new Set(['1,0,0', '0,0,1']));
+    expect(voxelShell(faces)).toEqual(boxes);
+  });
+
+  it('is decoration only: no part collides, meets a ray or is touched; its voxel coarsens to fit the budget', () => {
+    const faces = Array.from({ length: 40 }, (_, i) => wall(i * 2, i * 2 + 1, 0.1, 0, 1, { fill: i % 2 ? '#ff0000' : '#0000ff' }));
+    const { model, boxes, voxel } = lookModel(faces, { max: 25 });
+    expect(boxes).toBeLessThanOrEqual(25);
+    expect(voxel).toBeGreaterThan(VOXEL);
+    expect(model.Children.every((p) => p.Properties.CanCollide === false && p.Properties.CanQuery === false && p.Properties.CanTouch === false && p.Properties.Anchored)).toBe(true);
+  });
+});
+
+describe('the floors wear their faces\' looks', () => {
+  it('the slabs cover the same cells at the same heights with a look as without, split where the look changes', () => {
+    const faces = [quad(0, 0, 3, 1, 0, { fill: '#ff0000' }), quad(3, 0, 4, 1, 0, { fill: '#0000ff' })];
+    const plain = floorSlabs(faces), worn = floorSlabs(faces, { lookOf: (f) => faceLook(f) });
+    expect(plain).toHaveLength(1);
+    expect(worn.map(({ min, max, look }) => ({ min, max, color: look.color }))).toEqual([
+      { min: [0, 0, -0.2], max: [3, 1, 0], color: [1, 0, 0] }, { min: [3, 0, -0.2], max: [4, 1, 0], color: [0, 0, 1] }]);
+  });
+
+  it('a face smaller than a cell marks it but colours it only where nothing covering it lies near', () => {
+    const road = quad(0, 0, 8, 8, 0, { fill: '#333333' }), dash = quad(1, 1, 3, 1.2, 0.02, { fill: '#ffffff' });
+    const lookOf = (f) => faceLook(f);
+    expect(floorSlabs([dash, road], { lookOf, cell: 4 }).every((s) => s.look.color.join() === faceLook(road).color.join())).toBe(true);
+    // alone, it is its cell's look
+    expect(floorSlabs([dash], { lookOf, cell: 4 })[0].look.color).toEqual([1, 1, 1]);
+  });
+
+  it('a ground\'s shadow decal never colours the floor', () => {
+    const soil = quad(0, 0, 2, 2, 0, { fill: '#7a5230' });
+    const worn = floorSlabs([soil, quad(0, 0, 1, 1, 0.01, { decal: true, group: 'trail:shadow' })], { lookOf: (f) => faceLook(f) });
+    expect(worn.every((s) => s.look.color.join() === faceLook(soil).color.join())).toBe(true);
+  });
+
+  it('with a look, the colliders are the physics only, unseen as on the page, and the look rides in the greybox', () => {
+    const faces = [quad(0, 0, 2, 2, 0, { fill: '#808080' }), wall(0, 2, 1, 0, 2, { fill: '#aa0000' })];
+    const look = lookModel(faces);
+    const { model } = greyboxModel({ faces, colliders: [{ min: [0, 0.9, 0], max: [2, 1.1, 2] }], lookOf: look.lookOf, look });
+    expect(model.Children.find((c) => c.Name === 'wall-0').Properties.Transparency).toBe(1);
+    expect(model.Children.find((c) => c.Name === 'Look').Children.length).toBe(look.boxes);
+    expect(model.Children.find((c) => c.Name === 'floor-0').Properties.CanCollide).toBeUndefined();
+  });
+});
+
+describe('a blend tile over the ground', () => {
+  it('its look holds the cells it covers, as the page draws it on top; the slabs are the same', () => {
+    const soil = { corners: [[0, 0, 0], [4, 0, 0], [4, 1, 0], [0, 1, 0]], fill: '#7a5230' };
+    const grass = { corners: [[0, 0, 0], [3, 0, 0], [3, 1, 0], [0, 1, 0]], fill: '#4a8a30', blend: true };
+    const worn = floorSlabs([soil, grass], { lookOf: (f) => faceLook(f) });
+    expect(worn.map((s) => [s.min[0], s.max[0], s.look.color.join()])).toEqual([[0, 3, faceLook(grass).color.join()], [3, 4, faceLook(soil).color.join()]]);
+    // faded out (its corner alpha under a half), the tile lets the ground show through
+    const faded = floorSlabs([soil, { ...grass, cornerAlpha: [0.2, 0.2, 0.2, 0.2] }], { lookOf: (f) => faceLook(f) });
+    expect(faded[0].look.color).toEqual(faceLook(soil).color);
+  });
+
+  it('a tile floating a layer over its ground still colours it, and a faded one\'s own cells wear the ground', () => {
+    const soil = { corners: [[0, 0, 0], [4, 0, 0], [4, 1, 0], [0, 1, 0]], fill: '#7a5230' };
+    const grass = { corners: [[0, 0, 0.15], [4, 0, 0.15], [4, 1, 0.15], [0, 1, 0.15]], fill: '#4a8a30', blend: true };
+    const lookOf = (f) => faceLook(f);
+    const worn = floorSlabs([soil, grass], { lookOf });
+    expect(worn.map(({ min, max }) => ({ min, max }))).toEqual(floorSlabs([soil, grass]));
+    expect(worn.every((s) => s.look.color.join() === faceLook(grass).color.join())).toBe(true);
+    const faded = floorSlabs([soil, { ...grass, cornerAlpha: [0, 0, 0, 0] }], { lookOf });
+    expect(faded.every((s) => s.look.color.join() === faceLook(soil).color.join())).toBe(true);
+  });
+});

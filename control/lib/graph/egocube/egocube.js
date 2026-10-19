@@ -4,7 +4,12 @@
  * names the dials that can carry it; the character loop decides the amounts.
  *
  *   readEgocube(spec)                                            throws on an unknown facet or value, naming the known ones
- *   rollEgocube({ brief?, facets?, seed = 1, path, setting? })   → the sheet
+ *   rollEgocube({ brief?, facets?, seed = 1, path, setting?, lean?, pull?, redraw? })   → the sheet
+ *
+ * A cast (cast.js) rolls each member against another with three more words, none of them an ask: `lean` multiplies the
+ * priors after the setting's ({ <facet>: { <value>: × } }), `pull` draws motivation and order near a target on each
+ * attempt's own die ({ motivation?: { at, spread, min?, max? }, order?: … }), and `redraw` n starts the attempts at
+ * n × MAX_ATTEMPTS (the cast's re-draw of a member that broke a cast law). Absent, the roll is as it always was.
  *
  * A facet is decided by, in order: an explicit `facets` entry, a brief word (lexicon.js), the seed, whose priors the
  * game's SETTING leans when one is given (setting.js). Every facet throws its die whether or not it is used, so fixing
@@ -84,8 +89,9 @@ function pick(rand, weights) {
 const unit = (rand) => Math.round(rand() * 100) / 100;
 
 /** Every facet's die, thrown in a fixed order; a new facet's die goes last, so an old seed rolls the old character. */
-function throwDice(rand, lean = {}) {
-  const P = (k) => leanPriors(PRIORS[k], lean[k]);   // the setting's lean (setting.js); absent, the priors as they are
+function throwDice(rand, lean = {}, also = null) {
+  // the setting's lean (setting.js), then a cast relation's (cast.js); absent, the priors as they are
+  const P = (k) => (also?.[k] ? leanPriors(leanPriors(PRIORS[k], lean[k]), also[k]) : leanPriors(PRIORS[k], lean[k]));
   return {
     age: pick(rand, P('age')), pole: pick(rand, P('pole')), build: pick(rand, P('build')),
     role: pick(rand, P('role')), archetype: pick(rand, P('archetype')), motivation: unit(rand), order: unit(rand),
@@ -170,7 +176,15 @@ export function bandOfYears(years) {
   return years <= 12 ? 'child' : years <= 19 ? 'youth' : years < 40 ? 'adult' : years < 60 ? 'seasoned' : 'elder';
 }
 
-export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 'hero', lineages = {}, years, setting } = {}) {
+const PULLED = ['motivation', 'order'];
+/** A pulled facet on an attempt's own die: a normal at `at` (Box-Muller), clamped to [min, max] and [0, 1]. */
+function pullOf(P, rand) {
+  const u = Math.max(1e-9, rand()), v = rand();
+  const x = P.at + (P.spread ?? 0.15) * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  return Math.round(Math.min(P.max ?? 1, Math.max(P.min ?? 0, x, 0), 1) * 100) / 100;
+}
+
+export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 'hero', lineages = {}, years, setting, lean: also = null, pull = null, redraw = 0 } = {}) {
   for (const [id, lin] of Object.entries(lineages)) readLineage(id, lin);
   if (setting !== undefined) readSetting(setting);
   const lean = leanOf(setting, 'person');
@@ -180,13 +194,18 @@ export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 
   readEgocube(fromBrief.facets);
   const given = { ...fromBrief.facets, ...facets };
   const asked = new Set(Object.keys(given));   // a brief word is an ask too
-  let f, attempt = 0, broken = [];
-  for (; attempt < MAX_ATTEMPTS; attempt++) {
-    f = { ...throwDice(mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}`)), lean), ...given };
+  const first = redraw * MAX_ATTEMPTS, end = first + MAX_ATTEMPTS;
+  let f, attempt = first, broken = [];
+  for (; attempt < end; attempt++) {
+    f = { ...throwDice(mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}`)), lean, also), ...given };
+    if (pull) {
+      const rand = mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}::pull`));
+      for (const k of PULLED) if (pull[k]) { const v = pullOf(pull[k], rand); if (!asked.has(k)) f[k] = v; }
+    }
     broken = FAULTS.filter((x) => x.when(f, lineages));
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;   // none, or only the operator's own
   }
-  if (attempt === MAX_ATTEMPTS) attempt -= 1;
+  if (attempt === end) attempt -= 1;
   f.humanity = humanityOf(f, asked, lineages);
   const anc = resolveAncestry(f.ancestry, mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}::ancestry`)), f.humanity, lineages);
   const reading = archetypeReading(f.motivation);

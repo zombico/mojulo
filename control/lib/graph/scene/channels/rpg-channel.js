@@ -125,7 +125,7 @@ export function rpgPage(cfg, K, ctl, jk) {
 
   const memberName = (id) => { for (const p of cfg.party) if (p.id === id) return p.name; return id; };
   // who picks now: every standing member in rounds; on the timeline, the one whose turn it is
-  const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep));
+  const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep && !K.isAuto(cfg, m)));
   const busy = () => (window.__mojMenus && window.__mojMenus.open && window.__mojMenus.open()) || (window.__mojScenes && window.__mojScenes.on && window.__mojScenes.on());
 
   // ── the juice (playscape/rpg/juice.js): each beat says its happenings on the bus, and plays the most specific

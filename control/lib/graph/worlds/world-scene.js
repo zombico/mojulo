@@ -92,7 +92,7 @@ async function heroFigure(name, spec) {
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
     const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
-    const refused = heroRefError(name, spec.heroRef, src);
+    const refused = heroRefError(name, spec.heroRef, src, { walker: spec.walker === true });
     if (refused) throw new Error(refused);
     manifest = src.manifest;
   } else {
@@ -114,6 +114,9 @@ async function heroFigure(name, spec) {
     if (!clips[clip]) throw new Error(`figures.${name}: clips.${state} names '${clip}', which the hero does not have (it has ${Object.keys(pack.clips).join(', ')}${lib ? `; the ${lib.id} library has ${Object.keys(lib.clips).join(', ')}` : ''})`);
     clips[state] = clips[clip];
   }
+  // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
+  // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
+  for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
   return { ...pack, clips };
 }
 
@@ -392,6 +395,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // structures (fractal-structure/): towers grown from a plan, a rise, a crown and an echo, stood anywhere in any
+  // world by a few words each. Their faces join here, before the material / AO / texture passes, so those passes see
+  // them; their box colliders join an entity world's below. Opt-in; absent ⇒ byte-identical.
+  let structureColliders = [];
+  if (payload && sketch.manifest.structures !== undefined) {
+    const { structureFaces, validateStructures } = await import('@/lib/graph/fractal-structure/index.js');
+    const errs = validateStructures(sketch.manifest.structures);
+    if (errs.length) throw new Error(`structures is invalid — see get_view_vocab({ id: 'structures' }):\n- ${errs.join('\n- ')}`);
+    const S = structureFaces(sketch.manifest.structures, ctx.light ? { light: ctx.light } : {});
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
+    structureColliders = S.colliders;
+  }
+
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
   // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
   // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)
@@ -551,6 +567,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
+  // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
+  if (payload && sketch.manifest.fxLight !== undefined) {
+    if (typeof sketch.manifest.fxLight !== 'boolean') throw new Error('fxLight is true (the light a world\'s beams, puffs and explosions throw on it, by rule) or false');
+    if (sketch.manifest.fxLight && payload.events) payload.events = { ...payload.events, fxLight: true };
+  }
+  // the effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word
+  if (payload && sketch.manifest.fxStyle !== undefined) {
+    if (typeof sketch.manifest.fxStyle !== 'boolean') throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule) or false');
+    if (sketch.manifest.fxStyle && payload.events) payload.events = { ...payload.events, fxStyle: true };
+  }
   if (payload && sketch.manifest.crystalLight) {
     const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');
     const errs = validateCrystalLight(sketch.manifest.crystalLight);
@@ -586,6 +612,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // lateral blocking: analytic AABB colliders (the invisible collision hull under the visual
     // faces) — the platform rule ejects the suit's footprint from them. See mobile-suit-city.plan.md.
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
+    // structures (above): a box for each tier and plinth step of each tower, so a walker stands on its terraces
+    if (structureColliders.length) payload.colliders = [...(payload.colliders || []), ...structureColliders];
     // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
     // cover: low walls, crates). Absent ⇒ byte-identical.
     if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
@@ -936,7 +964,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
-  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, rpg: _playRpg, ...playBus } = playEv || {};
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   if (ev && playEv) {
     if (playEv.style && ev.style === undefined) ev = { ...ev, style: playEv.style };
@@ -950,6 +978,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // legend) would otherwise lose it
     if (playEv.stats) ev = { ...ev, stats: playEv.stats };
     if (playEv.rpg) ev = { ...ev, rpg: playEv.rpg };   // the battle kernel's cfg (playscape/rpg), the same way
+    if (playEv.minigames) ev = { ...ev, minigames: playEv.minigames };   // the games inside the game (playscape/ui/minigames.js)
   }
   // a mechanic that moves the cast (waves: spawn and walk on the ctrl verb) reaches the characters as a play's cues do
   const ctrlIn = (list) => Array.isArray(list) && list.some((r) => r && r.do === 'ctrl');

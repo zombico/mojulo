@@ -4,7 +4,8 @@
 # surfaces came in compressed or with LODs; then runs the pack's scene for a few frames and reports the clip it
 # plays, its loop mode and the current camera. A second argument sets the scene's `clip` before it enters the tree
 # (the ambient layer's run). Gate-only: nothing of this rides the pack. One line:
-#   [mojulo-figure] skeletons=N bones=N players=N animations=a,b,… compressed=N lods=N playing=<anim> loop=N camera=<node>
+#   [mojulo-figure] skeletons=N bones=N players=N animations=a,b,… compressed=N lods=N general=0|1 hips=0|1 playing=<anim> loop=N
+#   camera=<node>  (general: the skeleton is GeneralSkeleton; hips: it has the profile's Hips bone)
 # A figure whose mesh carries blend shapes (the anime face) adds: shapes=a,b,… (the blend shapes by name), face=v,…
 # (their values when the scene is ready, before anything plays), face_tracks=<anim>:N,… (the blend-shape tracks of
 # each clip), lengths=<anim>:s,… (each clip's length) and tree=0|1 (an active AnimationTree; its body clip is then the
@@ -46,7 +47,10 @@ func _init() -> void:
 				compressed += 1
 			lods += (RenderingServer.mesh_get_surface(m.get_rid(), s).get("lods", []) as Array).size()
 	var bones: int = (skels[0] as Skeleton3D).get_bone_count() if skels.size() > 0 else 0
-	_line = "skeletons=%d bones=%d players=%d animations=%s compressed=%d lods=%d" % [skels.size(), bones, players.size(), ",".join(anims), compressed, lods]
+	# a humanoid's BoneMap (model.glb.import): the retargeter names the skeleton GeneralSkeleton and its bones the profile's
+	var general := 1 if skels.size() > 0 and String(skels[0].name) == "GeneralSkeleton" else 0
+	var hips := 1 if skels.size() > 0 and (skels[0] as Skeleton3D).find_bone("Hips") >= 0 else 0
+	_line = "skeletons=%d bones=%d players=%d animations=%s compressed=%d lods=%d general=%d hips=%d" % [skels.size(), bones, players.size(), ",".join(anims), compressed, lods, general, hips]
 	var bm := _blend_mesh(root)
 	if bm != null and players.size() > 0:
 		var shapes := PackedStringArray()

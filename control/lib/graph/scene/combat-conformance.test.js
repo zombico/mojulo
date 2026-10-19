@@ -33,14 +33,21 @@ describe('the combat conformance corpus', () => {
     expect(last('swept').bodies.thin.hits).toBe(1);
     expect(ever('death-blast', (s) => s.bodies.bystander.staggerT !== null && s.bodies.bystander.hits === 0)).toBe(true);
     expect(last('away-and-back').bodies).toMatchObject({ a: { downed: true }, b: { hittable: true } });
+    // the reserve runs dry and the weapon stops; a rearm by 5 adds to it; a rearm with no by fills the magazine
+    const rr = runCombat(SCENARIOS.find((s) => s.id === 'reserve-and-rearm')).snaps.map((x) => JSON.parse(x).hero.weapon);
+    expect(rr.slice(0, 120).some((w) => w.ammo === 0 && w.reserve === 0 && !w.reloading)).toBe(true);
+    expect(rr[130].reserve + rr[130].ammo).toBeGreaterThan(0);
+    // the fill lands with the frame's ops: rounds again, with no reserve and no reload
+    expect(rr.slice(215, 222).some((w) => w.ammo >= 2 && w.reserve === 0 && !w.reloading)).toBe(true);
   });
 
   it.skipIf(!GODOT)('the Godot kernel is equal to the web, frame by frame (MOJULO_GODOT)', async () => {
-    const { runGodotCombat, compare } = await import('../../../scripts/godot-combat-conformance.mjs');
+    const { runCorpus } = await import('./engines/runners.js');
+    const { compare } = await import('./engines/conformance.js');
     const opts = { random: 12, seed: 1 }, scenarios = corpus(opts);
-    const { out, errors } = runGodotCombat(scenarios, GODOT);
+    const { out, errors } = runCorpus('godot', 'combat', scenarios, { bin: GODOT });
     expect(errors).toEqual([]);
-    const rows = compare(scenarios, out, opts);
+    const rows = compare('combat', scenarios, out, opts);
     expect(rows.filter((r) => !r.equal)).toEqual([]);
     expect(rows.length).toBe(scenarios.length);
   }, 300000);

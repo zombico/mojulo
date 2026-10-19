@@ -37,6 +37,7 @@ import { DEFAULT_LIGHT } from './vexar.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import { boneFrames } from './station-loft-rig.js';
 import { heroRise } from './hero-rise.js';
+import { REACTS, heroReact } from './hero-react.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -250,6 +251,8 @@ const MOVE_FAMILIES = Object.freeze({
   aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws, act: { family: 'aura', faces: A.faces } }; } },
   stance: { table: STANCES, seconds: 0.7, mirrors: (S, n) => STANCE_NAMES.includes(`${n}Left`), solve: (name, R, seconds) => { const S = heroStance(name, R, { seconds }); return { fn: S.clip.fn, seconds: S.clip.seconds ?? seconds, laws: S.checks?.laws }; } },
   strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand, act: { family: 'strike', action: K } }; } },
+  // the reactions (hero-react.js): a blow taken, lifted from the versus fighter's library; each starts and ends on the stand
+  react: { table: REACTS, seconds: 0.5, mirrors: () => false, solve: (name, R, seconds) => heroReact(name, R, { seconds }) },
 });
 /** solved moves and rests kept by their rig and word (a few dozen): a chair's getting down and up is seconds of solving,
  * and the World page compiles its clips on every read */
@@ -263,8 +266,9 @@ export const MOTION_GAITS = Object.freeze({
   ...Object.fromEntries(Object.entries(JUMPS).map(([k, J]) => [k, Object.freeze({ motion: 'jump', seconds: J.seconds })])),
   // the stops (heroStop): one-shot, out of a gait when forward is let go
   ...Object.fromEntries(Object.entries({ walk: 0.6, jog: 0.75, sprint: 0.9 }).map(([g, sec]) => [`${g}Stop`, Object.freeze({ motion: 'stop', from: g, seconds: sec })])),
-  // the MOVES (MOVE_FAMILIES): the showcase poses (hero-aura), the ready stances (hero-stance) and the strikes
-  // (hero-strike), each a one-shot ending on the pose to hold, and each mirror (`…Left`)
+  // the MOVES (MOVE_FAMILIES): the showcase poses (hero-aura), the ready stances (hero-stance), the strikes
+  // (hero-strike) and the reactions (hero-react: a blow taken, the versus fighter's own), each a one-shot ending on the
+  // pose to hold, and each mirror (`…Left`) where the family has one
   ...Object.fromEntries(Object.entries(MOVE_FAMILIES).flatMap(([family, F]) => Object.entries(F.table).flatMap(([n, P]) => {
     const sec = P.seconds ?? F.seconds, entry = Object.freeze({ motion: 'move', family, word: n, seconds: sec });
     return F.mirrors(P, n) ? [[n, entry], [`${n}Left`, Object.freeze({ ...entry, left: true })]] : [[n, entry]];

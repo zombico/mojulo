@@ -25,6 +25,15 @@ var forced = null             # {n, t0, from, len}: easing to a forced state, th
 var freed = null              # {t0, from, len}: easing back to the schedule
 var force_key := ""           # the force last handed in (its name, var and order)
 var last: Dictionary = {}
+# THE CLOCK DIAL (since 0.22.0; weather/clock-dial.js): a level with a clock hands in the bus's minute and season each
+# frame. Night darkens the sky (its dim toward 0.78, the air toward the style's shade by three quarters, the light down),
+# and a season swaps the climate the schedule plays for that season's (score.weather.seasons, in turn).
+var clock_on := false
+var night := 0.0
+var season := 0
+var seasons: Array = []
+var shade := Color(0.2, 0.22, 0.3)
+var shown: Dictionary = {}    # the look applied last, night and all (the probe's)
 
 
 func setup(w: Dictionary, e: Environment, light_nodes: Array) -> void:
@@ -34,6 +43,11 @@ func setup(w: Dictionary, e: Environment, light_nodes: Array) -> void:
 	for s in w.get("states", []):
 		states[String(s["name"])] = s
 	blend = float(w.get("blend", 20.0))
+	clock_on = bool(w.get("clock", false))
+	seasons = w.get("seasons", [])
+	var air = w.get("air")
+	if air is Dictionary and air.get("shade") is String:
+		shade = Color(String(air["shade"]))
 	base_density = float(w.get("fogDensity", 0.01))
 	base_ambient = e.ambient_light_energy
 	for n in light_nodes:
@@ -46,6 +60,31 @@ func setup(w: Dictionary, e: Environment, light_nodes: Array) -> void:
 func _process(delta: float) -> void:
 	t += delta
 	_apply(t)
+
+
+# the dial's night at a minute of the day (clock-dial.js nightAt): no minute reads as noon
+static func night_at(minute) -> float:
+	var h := (float(minute) if (minute is float or minute is int) else 720.0) / 60.0
+	if h < 5.0 or h >= 20.0:
+		return 1.0
+	if h < 7.0:
+		return 1.0 - _smooth((h - 5.0) / 2.0)
+	if h >= 18.0:
+		return _smooth((h - 18.0) / 2.0)
+	return 0.0
+
+
+# the bus's clock, read: the night now, and the season's climate when the season turns
+func clock(minute, s) -> void:
+	night = night_at(minute)
+	var k := int(s) if (s is int or (s is float and s == floor(s))) else 0
+	if k != season and k >= 0 and k < seasons.size() and seasons[k] is Dictionary:
+		season = k
+		var S: Dictionary = seasons[k]
+		timeline = S.get("timeline", timeline)
+		blend = float(S.get("blend", blend))
+		for st in S.get("states", []):
+			states[String(st["name"])] = st
 
 
 static func _smooth(u: float) -> float:
@@ -136,12 +175,16 @@ func look(s: float) -> Dictionary:
 
 
 func _apply(s: float) -> void:
-	var L := look(s)
+	var L := look(s).duplicate()
+	if clock_on and night > 0.0:
+		L["dim"] = float(L["dim"]) + (0.78 - float(L["dim"])) * night
+		L["color"] = (L["color"] as Color).lerp(shade, 0.75 * night)
+	shown = L
 	env.fog_density = L["density"]
 	env.fog_light_color = L["color"]
 	if env.background_mode == Environment.BG_COLOR:
 		env.background_color = L["color"]
-	var off := 1.0 - minf(0.7, float(L["dim"]) * 0.7)
+	var off := 1.0 - minf(0.7 + 0.12 * night, float(L["dim"]) * 0.7)
 	env.ambient_light_energy = base_ambient * off
 	for l in lights:
 		if is_instance_valid(l["node"]):

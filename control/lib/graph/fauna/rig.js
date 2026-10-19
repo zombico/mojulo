@@ -25,6 +25,7 @@ import { locomotionFor } from './locomotion/index.js';
 import { SPECIES, speciesPlan } from './species.js';
 import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
 import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
+import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
 
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -94,6 +95,8 @@ export const motionGaits = (id) => Object.keys(locomotionFor(SPECIES[id].family,
 
 /** The behaviors a species can be minted with: those whose strategy is posed (behavior/pose.js `posable`). */
 export const motionBehaviors = (id) => Object.keys(BEHAVIORS).filter((b) => posable(id, b).ok);
+/** The reactions species `id` can take a blow with (behavior/react.js): a flinch, a fall and a rise; none for a swimmer. */
+export const motionReactions = (id) => reactsOf(id);
 
 /**
  * Check a motion's behaviors (and their `variants`) against what the species can do; throws naming them. A variant is a
@@ -117,18 +120,20 @@ export function checkBehaviors(id, behaviors = [], variants = {}) {
  * A copy of `plan` (the species' own) bound to its skeleton and carrying `motion`. Throws on a gait it does not have,
  * or a behavior it cannot be posed doing. `extra`: `{ behaviors, variants }`.
  */
-export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {} } = {}) {
+export function withMotion(plan, id, gaits = motionGaits(id), keys = 24, { behaviors = [], variants = {}, reactions = [] } = {}) {
   const have = motionGaits(id);
   for (const g of gaits) if (!have.includes(g)) throw new Error(`'${id}' has no gait '${g}' (it can: ${have.join(', ')})`);
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('motion keys must be an integer in [4, 96]');
   checkBehaviors(id, behaviors, variants);
-  if (!gaits.length && !behaviors.length) throw new Error('motion carries no clip: name a gait or a behavior');
+  for (const w of reactions) if (!reactsOf(id).includes(w)) throw new Error(`'${id}' has no reaction '${w}' (it can: ${reactsOf(id).join(', ') || 'none yet'})`);
+  if (!gaits.length && !behaviors.length && !reactions.length) throw new Error('motion carries no clip: name a gait, a behavior or a reaction');
   const B = faunaBinds(id), out = structuredClone(plan);
   for (const s of out.segments) if (B.segments[s.name] !== undefined) s.bind = B.segments[s.name];
   if (out.heads?.length) out.heads[0] = { ...out.heads[0], bind: B.head };
   out.motion = { species: id, gaits: [...gaits], keys };
   if (behaviors.length) out.motion.behaviors = [...behaviors];
   if (Object.keys(variants || {}).length) out.motion.variants = { ...variants };
+  if (reactions.length) out.motion.reactions = [...reactions];
   return out;
 }
 
@@ -174,7 +179,7 @@ export function behaviorSeconds(id, behavior, { variant } = {}) {
  * (dz, normals, light, …).
  */
 export function packFaunaRig(mesh, skin, motion, opts = {}) {
-  const { species: id, gaits = [], behaviors = [], variants = {}, keys = 24 } = motion, dz = opts.dz || 0;
+  const { species: id, gaits = [], behaviors = [], variants = {}, reactions = [], keys = 24 } = motion, dz = opts.dz || 0;
   const S = faunaSkeleton(id);
   const stand = { joints: {}, bones: S.bones.map((b) => ({ id: b.id, head: `${b.id}:h`, tail: `${b.id}:t` })) };
   for (const b of S.bones) { stand.joints[`${b.id}:h`] = b.head; stand.joints[`${b.id}:t`] = b.tail; }
@@ -193,5 +198,7 @@ export function packFaunaRig(mesh, skin, motion, opts = {}) {
     const variant = variants?.[w];
     clips[w] = { k: keys, b: packed(behaviorFrames(id, w, keys, { variant })), s: behaviorSeconds(id, w, { variant }) };
   }
+  // a reaction (behavior/react.js): a one-shot, its keys 0 … 1 inclusive, at its own seconds
+  for (const w of reactions) clips[w] = { k: keys, b: packed(reactionFrames(id, w, keys)), s: REACTION_SECONDS[w] };
   return { ...pack, clips };
 }

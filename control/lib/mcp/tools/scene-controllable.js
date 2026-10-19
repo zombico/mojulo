@@ -132,7 +132,7 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
   // a world whose /world link then fails
   for (const [name, spec] of Object.entries(effective.figures || {})) {
     if (!spec || typeof spec !== 'object' || typeof spec.heroRef !== 'string') continue;
-    const refused = heroRefError(name, spec.heroRef, SketchRepository.getByRef(spec.heroRef));
+    const refused = heroRefError(name, spec.heroRef, SketchRepository.getByRef(spec.heroRef), { walker: spec.walker === true });
     if (refused) throw new Error(refused);
   }
   if (camera && camera.target && !manifest.entities.some((e) => e.id === camera.target)) {
