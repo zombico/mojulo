@@ -183,6 +183,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "1033ae91",
     "title": "mojulo quadratic",
   },
+  "quantum-view": {
+    "hash": "b572946a",
+    "title": "mojulo quantum world",
+  },
   "reactor-view": {
     "hash": "f6a5e570",
     "title": "mojulo reactor",

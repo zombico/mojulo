@@ -32,17 +32,18 @@ import { planDerivativeScene, sampleDerivativeExact } from '@/lib/graph/views/ma
 import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/series-view';
 import { solveClassical, classicalStats } from '@/lib/graph/science-worlds/classical/solve';
 import { solveMicroscopic, microscopicStats } from '@/lib/graph/science-worlds/microscopic/solve';
+import { solveQuantum, quantumStats } from '@/lib/graph/science-worlds/quantum/solve';
 
 // kinds with an honest sampler, in two tiers: 'si' (real physical units — mechanics
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -86,6 +87,7 @@ export function recomputeViewStats(manifest) {
     return classicalStats(solveClassical({ model: manifest.model }));
   }
   if (kind === 'microscopic-view') return microscopicStats(solveMicroscopic({ model: manifest.model }));
+  if (kind === 'quantum-view') return quantumStats(solveQuantum({ model: manifest.model }));
   throw new Error(
     `recomputeViewStats: kind '${kind}' is not reviewable. Reviewable kinds: ${[...REVIEWABLE_VIEW_KINDS].join(', ')}.`,
   );
@@ -139,6 +141,7 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
   }
   if (kind === 'classical-view') return sampleClassical(manifest, every);
   if (kind === 'microscopic-view') return sampleMicroscopic(manifest, every);
+  if (kind === 'quantum-view') return sampleQuantum(manifest, every);
   throw new Error(
     `measure_view: kind '${kind}' has no honest read-back channel — its numbers are render units `
     + `or presets, so samples would lie. Measurable kinds: ${[...MEASURABLE_VIEW_KINDS].join(', ')}.`,
@@ -187,6 +190,57 @@ function sampleMicroscopic(manifest, every) {
       }));
       return { name: sp.id, label: sp.id, D: r.D[s], samples, count: samples.length };
     }),
+  };
+}
+
+// a quantum world's samples, per system, from the same run the page plays: a line's ⟨x⟩, spread, ⟨E⟩, total probability
+// and the share past its barrier or step (with the allowed levels when it has them); an atom's orbitals, their exact
+// energies and mean radii beside what the drawn cloud measures; each magnet's counts beside the odds; the nuclei left
+function sampleQuantum(manifest, every) {
+  const r = solveQuantum({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), m = r.model;
+  const thin = (n) => Array.from({ length: n }, (_, k) => k).filter((k) => k % step === 0 || k === n - 1);
+  const head = {
+    kind: 'quantum-view', tier: 'si', scenario: 'composed', system: r.system, seed: m.seed, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed, sources: r.sources, reviewed: r.reviewed,
+  };
+  if (r.system === 'line') {
+    const s = r.run.series, keep = thin(s.t.length);
+    return {
+      ...head, units: { t: 's', x: 'm', spread: 'm', E: 'eV', norm: 'probability', past: 'probability', levels: 'eV' },
+      T: m.duration * 1e-15, ...(r.run.levels ? { levels: r.run.levels } : {}),
+      series: [{ name: 'particle', label: m.particle, count: keep.length, samples: keep.map((k) => ({
+        t: s.t[k] * 1e-15, x: s.x[k] * 1e-9, spread: s.sigma[k] * 1e-9, E: s.E[k], norm: s.norm[k], ...(r.run.cut !== null ? { past: s.right[k] } : {}),
+      })) }],
+    };
+  }
+  if (r.system === 'atom') {
+    const A0 = 5.29177210903e-11;
+    return {
+      ...head, units: { energy: 'eV', radius: 'm', pos: 'm' },
+      series: r.run.clouds.map((c) => {
+        const keep = thin(c.points.length);
+        const measured = c.points.reduce((a, p) => a + Math.hypot(...p), 0) / c.points.length;
+        return {
+          name: c.name, label: c.name, n: c.n, l: c.l, m: c.m, energy: c.energy, meanRadius: c.meanR * A0, measuredMeanRadius: measured * A0,
+          radialNodes: c.n - c.l - 1, angularNodes: c.l, count: keep.length,
+          samples: keep.map((k) => ({ pos: c.points[k].map((x) => x * A0), sign: c.signs[k] })),
+        };
+      }),
+    };
+  }
+  if (r.system === 'spin') {
+    return {
+      ...head, units: { reached: 'atoms', up: 'atoms', down: 'atoms', expected: 'atoms' },
+      series: r.run.stages.map((e, k) => ({ name: `magnet ${k + 1}`, label: `magnet ${k + 1} (${m.magnets[k].name})`, axis: m.magnets[k].axis, keep: m.magnets[k].keep,
+        count: 1, samples: [{ reached: e.reached, up: e.up, down: e.reached - e.up, expected: e.expected, sd: e.sd }] })),
+    };
+  }
+  const keep = thin(r.run.t.length);
+  return {
+    ...head, units: { t: 's', left: 'nuclei', decayed: 'nuclei' }, T: m.duration, half_life: m.halfLife,
+    series: [{ name: 'nuclei', label: 'the nuclei', count: keep.length, samples: keep.map((k) => ({ t: r.run.t[k], left: r.run.left[k], decayed: m.nuclei - r.run.left[k] })) }],
   };
 }
 

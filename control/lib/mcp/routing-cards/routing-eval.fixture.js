@@ -46,6 +46,8 @@ export const FIXTURE = [
   ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_view', 'classical'],
   ['simulate two moons going around a planet so my students can watch the orbits', 'create_view', 'classical'],
   ['show my biology class how a drop of dye spreads out through water, molecule by molecule', 'create_view', 'microscopic'],
+  ['show my chemistry students what the 2p and 3d orbitals of hydrogen actually look like', 'create_view', 'quantum'],
+  ['a demo of an electron getting through a wall it does not have the energy to climb', 'create_view', 'quantum'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],

@@ -42,6 +42,8 @@ describe('science worlds: the contract', () => {
   it('sends a law to the scale that owns it: chemistry goes where its explanation needs', () => {
     expect(gapFor('reaction', 'classical', []).why).toMatch(/microscopic/);
     expect(gapFor('bond', 'microscopic', []).why).toMatch(/quantum/);
-    expect(gapFor('bond', 'quantum', ['x']).why).toMatch(/not a quantum law/);
+    expect(gapFor('bond', 'quantum', ['x']).why).toMatch(/more than one electron/);   // a quantum word with no row says why
+    expect(gapFor('tunnelling', 'quantum', ['barrier']).why).toMatch(/barrier row/);
+    expect(gapFor('frobnicate', 'quantum', ['x']).why).toMatch(/not a quantum law/);
   });
 });

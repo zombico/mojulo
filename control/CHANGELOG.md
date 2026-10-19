@@ -16,7 +16,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 
-- **In progress.** `create_view` gains three kinds that compose a demo from a closed table of laws instead of
+- **In progress** (the docs remain). `create_view` gains three kinds that compose a demo from a closed table of laws instead of
   one hand-authored experiment per kind: `classical` (Newtonian laws, body scale to orbits), `microscopic` (cells
   down to molecules; DNA is the floor) and `quantum` (states in concept space, faithful to the model and claiming
   nothing about reality; it supersedes `atom` for new asks). Chemistry goes to the scale its explanation needs.
@@ -74,6 +74,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   on each side of a membrane and its spread at tier `si`. The science readout became rows, shared by both scales,
   and the page helpers moved to `science-worlds/page.js`. `machina/quantities` gains concentration, rate constants,
   diffusivity and the small units.
+- **`create_view({ kind: 'quantum' })`**: states and the rules they follow, faithful to the model and claiming
+  nothing about reality. A world is one system: a particle on a line (an infinite well, a harmonic well, a
+  rectangular barrier, a step, summed into one potential) stepped by Crank–Nicolson; the hydrogen atom's orbitals
+  as the exact functions, each drawn as a cloud of points sampled from |ψ|² and coloured by the wavefunction's sign;
+  spin-½ atoms through a chain of Stern–Gerlach magnets, each outcome drawn with its odds; unstable nuclei with a
+  half-life. It is checked: the total probability and the energy stay as they began, a well's and an oscillator's
+  levels, a two-level beat, a displaced packet swinging like a classical mass, a free packet's spreading, a
+  barrier's or step's transmission averaged over the packet, an orbital's nodes, norm and mean radius and a χ² that
+  its cloud follows |ψ|², each magnet's counts against cos²(θ/2), the measured half-life; and it advises when the
+  waves are tiny next to the features, so a classical world would do. Every row carries its sources and the date it
+  was last reviewed, and the page lists them. A quantum word that is not a row (tunnelling, superposition, bond)
+  comes back as a gap naming the row that is or why there is none. `measure_view` reads each system back. It
+  supersedes the curated `atom` kind for orbitals at the door (the routing cards and the atom card point there);
+  the `atom` kind still renders. An atom's proposed film circles its clouds. The science readout gains a femto
+  prefix and a page without a clock; `machina/quantities` gains eV, Å, pm, fs, ps and the atomic mass unit.
 - **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
   the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
   measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.

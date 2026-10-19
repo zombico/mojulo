@@ -104,6 +104,7 @@ import { assembleAtomScene } from '@/lib/graph/views/science/atom-view';
 import { assembleMechanicsScene } from '@/lib/graph/views/science/mechanics-view';
 import { assembleClassicalScene } from '@/lib/graph/science-worlds/classical/world';
 import { assembleMicroscopicScene } from '@/lib/graph/science-worlds/microscopic/world';
+import { assembleQuantumScene } from '@/lib/graph/science-worlds/quantum/world';
 import { assembleRocketScene } from '@/lib/graph/views/science/rocket-view';
 import { assembleAirplaneScene } from '@/lib/graph/views/science/airplane-view';
 import { assembleOrbitScene } from '@/lib/graph/views/science/orbit-view';
@@ -376,6 +377,7 @@ export const WORLD_KINDS = {
   'mechanics-view': view(assembleMechanicsScene, 'mojulo mechanics'),
   'classical-view': view(assembleClassicalScene, 'mojulo classical world'),
   'microscopic-view': view(assembleMicroscopicScene, 'mojulo microscopic world'),
+  'quantum-view': view(assembleQuantumScene, 'mojulo quantum world'),
   'rocket-view': view(assembleRocketScene, 'mojulo rocket'),
   'airplane-view': view(assembleAirplaneScene, 'mojulo airplane'),
   'orbit-view': view(assembleOrbitScene, 'mojulo orbit'),

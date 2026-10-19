@@ -52,6 +52,25 @@ const NOT_YET = {
   diffusion: 'the brownian row is diffusion',
   'brownian-motion': 'the brownian row',
   'random-walk': 'the brownian row',
+  // quantum words that are not row ids: the row that is, or why the table has none
+  orbital: 'the hydrogen row (an atom world, state.orbitals)',
+  wavefunction: 'every line world solves the Schrödinger equation for ψ; the rows are its potentials',
+  'wave-function': 'every line world solves the Schrödinger equation for ψ; the rows are its potentials',
+  schrodinger: 'every line world solves the Schrödinger equation; the rows are its potentials',
+  'schrödinger': 'every line world solves the Schrödinger equation; the rows are its potentials',
+  tunnelling: 'the barrier row', tunneling: 'the barrier row',
+  superposition: 'a state, not a row: state.superpose on a line, or a spin along x through a z magnet',
+  spin: 'the stern-gerlach row (a spin world)',
+  quantization: 'the well or harmonic row: their levels are the quantization', 'energy-levels': 'the well or harmonic row',
+  'radioactive-decay': 'the decay row',
+  uncertainty: 'not a row: every line world reads its spread, and a packet narrow in position spreads fastest',
+  bond: 'bonds need more than one electron, which is not in the table yet; the curated `molecule` kind shows molecules',
+  bonding: 'bonds need more than one electron, which is not in the table yet; the curated `molecule` kind shows molecules',
+  covalent: 'bonds need more than one electron, which is not in the table yet; the curated `molecule` kind shows molecules',
+  entanglement: 'two-particle states are not in the table yet',
+  photon: 'light as particles is not in the table yet', photoelectric: 'the photoelectric effect is not in the table yet',
+  interference: 'a two-slit plane is not in the table yet; the curated `double-slit` kind shows it',
+  'double-slit': 'a two-slit plane is not in the table yet; the curated `double-slit` kind shows it',
 };
 
 /** The gap for a law id `scale` lacks: which scale owns it, or why the table has no row for it. */

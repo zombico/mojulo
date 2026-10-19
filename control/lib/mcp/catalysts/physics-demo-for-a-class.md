@@ -36,8 +36,8 @@ ask for what the explanation needs to resolve:
 | The ask needs… | Scale | What to do |
 |---|---|---|
 | bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst) |
-| molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | not built yet: say so, offer the curated `cellular` / `molecule` kinds |
-| why a bond forms, orbitals, tunnelling, spin, superposition | quantum | not built yet: say so, offer the curated `atom` / `wavepacket` / `double-slit` kinds |
+| molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_view_vocab({ id: 'microscopic' })` |
+| energy levels, tunnelling, orbitals, spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
 | relativity, black holes, gravitational waves | outside the scales | the curated `black-hole` / `gravity-wave` kinds |
 
 A ready-made kind is quicker when it already *is* the demo (the mechanics kind's simple machines and engines, the
@@ -125,7 +125,7 @@ checks a single pendulum), so cite the two measured periods side by side instead
 - **Chaos read as error.** A double pendulum or three bodies diverge from tiny differences; the run is still
   sound (the energy gate holds). Say "this is chaotic" rather than presenting one run as the only outcome.
 - **The regime edge.** An electron at a large fraction of light speed, or in a nanometre box, leaves classical
-  physics; the regime gates advise. Do not caption over it; offer the curated quantum views.
+  physics; the regime gates advise. Do not caption over it; compose it as a quantum world.
 - **Slow motion unannounced.** The film tags its slowed replay and lists it on the end card. A recipe's own shoot
   plan with a `speed` keeps that honesty; do not cut a slowed shot in as if it were real time.
 - **Claiming the eyes gate.** The machine gate is the solver's; whether it teaches is a person looking at it.

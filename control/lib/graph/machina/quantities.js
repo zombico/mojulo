@@ -46,7 +46,7 @@ const dimName = (d) => Object.keys(DIM).find((k) => dimEq(DIM[k], d))
 const U = (d, f) => [d, f];
 export const UNITS = {
   // mass
-  kg: U(DIM.mass, 1), g: U(DIM.mass, 1e-3), t: U(DIM.mass, 1000), lb: U(DIM.mass, 0.45359237),
+  kg: U(DIM.mass, 1), g: U(DIM.mass, 1e-3), u: U(DIM.mass, 1.66053906660e-27), Da: U(DIM.mass, 1.66053906660e-27), t: U(DIM.mass, 1000), lb: U(DIM.mass, 0.45359237),
   // length
   m: U(DIM.length, 1), mm: U(DIM.length, 1e-3), cm: U(DIM.length, 0.01), km: U(DIM.length, 1000),
   ft: U(DIM.length, 0.3048), in: U(DIM.length, 0.0254),
@@ -57,7 +57,7 @@ export const UNITS = {
   // force
   N: U(DIM.force, 1), kN: U(DIM.force, 1000), pN: U(DIM.force, 1e-12), fN: U(DIM.force, 1e-15), kgf: U(DIM.force, 9.80665), lbf: U(DIM.force, 4.4482216152605),
   // work / energy
-  J: U(DIM.work, 1), kJ: U(DIM.work, 1000), Wh: U(DIM.work, 3600), kWh: U(DIM.work, 3.6e6),
+  J: U(DIM.work, 1), kJ: U(DIM.work, 1000), eV: U(DIM.work, 1.602176634e-19), meV: U(DIM.work, 1.602176634e-22), keV: U(DIM.work, 1.602176634e-16), MeV: U(DIM.work, 1.602176634e-13), Wh: U(DIM.work, 3600), kWh: U(DIM.work, 3.6e6),
   // power
   W: U(DIM.power, 1), kW: U(DIM.power, 1000), hp: U(DIM.power, 745.699872),
   // torque (dimensionally work; named apart for the reader)
@@ -71,9 +71,9 @@ export const UNITS = {
   pallet: U(DIM.scalar, 1), pallets: U(DIM.scalar, 1), case: U(DIM.scalar, 1), cases: U(DIM.scalar, 1), item: U(DIM.scalar, 1), items: U(DIM.scalar, 1),
   // the science worlds' units. Small lengths and masses, short times, angles (dimensionless), acceleration, the
   // fluid and spring constants, charge and fields, temperature and amount.
-  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), mg: U(DIM.mass, 1e-6),
+  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
   AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
-  ms: U(DIM.time, 1e-3), ns: U(DIM.time, 1e-9), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
+  ms: U(DIM.time, 1e-3), ns: U(DIM.time, 1e-9), ps: U(DIM.time, 1e-12), fs: U(DIM.time, 1e-15), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
   rad: U(DIM.scalar, 1), deg: U(DIM.scalar, Math.PI / 180), '°': U(DIM.scalar, Math.PI / 180),
   'm/s²': U(DIM.accel, 1), 'm/s2': U(DIM.accel, 1),
   'kg/m³': U(DIM.density, 1), 'kg/m3': U(DIM.density, 1), 'g/cm³': U(DIM.density, 1000), 'g/cm3': U(DIM.density, 1000),

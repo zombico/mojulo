@@ -29,8 +29,8 @@ function _sciFmt(v, unit) {
   if (a === 0) return '0 ' + unit;
   // a compound unit takes no prefix (a 'Tkg·m/s' reads wrong): powers of ten instead, outside the plain range
   if (unit.indexOf('·') >= 0) return (a >= 1e-3 && a < 1e6 ? v.toPrecision(3) : v.toExponential(2).replace('e+', 'e')) + ' ' + unit;
-  if (a >= 1e15 || a < 1e-12) return v.toExponential(2).replace('e+', 'e') + ' ' + unit;   // past the prefixes
-  const P = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
+  if (a >= 1e15 || a < 1e-18) return v.toExponential(2).replace('e+', 'e') + ' ' + unit;   // past the prefixes
+  const P = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p'], [1e-15, 'f']];
   for (const [f, p] of P) if (a >= f * 0.9995) return (v / f).toPrecision(3) + ' ' + p + unit;
   return v.toExponential(2) + ' ' + unit;
 }
@@ -126,7 +126,7 @@ function stepScience(t) {
     e.style.display = ''; e.style.left = ((_sciV.x + 1) / 2 * 100) + '%'; e.style.top = ((1 - _sciV.y) / 2 * 100) + '%';
   }
   if (!_sciRo) return;
-  let h = '<b>' + SCI.titleHtml + '</b><span>t = ' + _sciTime(SCI.t[i]) + '</span>', bars = '';
+  let h = '<b>' + SCI.titleHtml + '</b>' + (SCI.noClock ? '' : '<span>t = ' + _sciTime(SCI.t[i]) + '</span>'), bars = '';
   const val = (r) => (r.int ? String(Math.round(r.values[i])) + (r.unit ? ' ' + r.unit : '') : _sciFmt(r.values[i], r.unit));
   const flush = () => { if (bars) { h += '<div style="width:' + SCI.barWidth + 'px;margin-top:4px">' + bars + '</div>'; bars = ''; } };
   for (const r of SCI.rows) {

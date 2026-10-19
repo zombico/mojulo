@@ -30,7 +30,10 @@ export function drawScale(L) {
 
 const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
 export const pow10 = (k) => `10${String(k).split('').map((c) => SUP[c]).join('')}`;
-export const times = (x) => (x >= 10 ? `${sig(x, 2).toLocaleString('en-US')}×` : `${sig(x, 2)}×`);
+export const times = (x) => {
+  if (x >= 1e6) { const e = Math.floor(Math.log10(x)); return `${sig(x / 10 ** e, 2)} × ${pow10(e)}×`; }
+  return x >= 10 ? `${sig(x, 2).toLocaleString('en-US')}×` : `${sig(x, 2)}×`;
+};
 
 /** The liberty a drawing scale other than one metre per unit takes (none at 1). */
 export function scaleLiberty(s) {
