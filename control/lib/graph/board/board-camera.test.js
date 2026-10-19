@@ -78,3 +78,54 @@ describe('the tactical camera: a locked pitch, quarter turns, zoom stops, the fo
     expect(boardCameraScreenStep(C, 'up')).toEqual(boardCameraScreenStep(D, 'up'));
   });
 });
+
+describe('the tactical camera\'s shots, shakes and orbits', () => {
+  it('takes a shot to a point and back, eased or cut', async () => {
+    const C0 = await import('./board-camera.js');
+    const run = (C, n) => { for (let i = 0; i < n; i++) C0.boardCameraStep(C, 1 / 30); return C; };
+    const C = run(C0.boardCameraInit({ bounds: [0, 0, 20, 20], z: 0 }), 5), rest = C0.boardCameraPose(C);
+    C0.boardCameraShot(C, [3, 4, 1], { share: 0.16 });
+    run(C, 200);
+    expect(C.focus.map((v) => Math.round(v * 100) / 100)).toEqual([3, 4, 1]);
+    expect(C.dist).toBeCloseTo(C.frame * 0.16, 6);
+    C0.boardCameraUnshot(C);
+    run(C, 400);
+    expect(C0.boardCameraPose(C)).toEqual(rest);
+    const cut = C0.boardCameraShot(run(C0.boardCameraInit({ bounds: [0, 0, 20, 20] }), 1), [5, 5, 0], { share: 0.3, cut: true, pitch: 20 });
+    expect([cut.focus, cut.dist, cut.pitch]).toEqual([[5, 5, 0], cut.frame * 0.3, (20 * Math.PI) / 180]);
+  });
+
+  it('shakes the same way every time, dying away to rest; orbits and settles on a quarter', async () => {
+    const C0 = await import('./board-camera.js');
+    const shook = () => { const C = C0.boardCameraShake(C0.boardCameraInit({ bounds: [0, 0, 20, 20] }), 0.8, 0.5), out = []; for (let i = 0; i < 30; i++) out.push(C0.boardCameraPose(C0.boardCameraStep(C, 1 / 30)).pos); return [out, C]; };
+    const [a, Ca] = shook(), [b] = shook();
+    expect(a).toEqual(b);
+    expect(a.some((p, i) => i && p[0] !== a[0][0])).toBe(true);
+    expect(Ca.shakes).toEqual([]);
+    expect(Ca.jolt).toEqual([0, 0, 0]);
+    const C = C0.boardCameraOrbit(C0.boardCameraInit({ bounds: [0, 0, 20, 20] }), 1.2);
+    for (let i = 0; i < 40; i++) C0.boardCameraStep(C, 1 / 30);
+    C0.boardCameraOrbit(C, 0);
+    for (let i = 0; i < 300; i++) C0.boardCameraStep(C, 1 / 30);
+    const q = (C.yaw - Math.PI / 4) / (Math.PI / 2);
+    expect(Math.abs(q - Math.round(q))).toBeLessThan(1e-6);
+    expect(C.yawIdx).toBe(((Math.round(q) % 4) + 4) % 4);
+  });
+});
+
+describe('a shot seen from the front', () => {
+  it('turns to the quarter that faces whoever it is on, the short way round, and gives the player\'s quarter back', async () => {
+    const C0 = await import('./board-camera.js');
+    const C = C0.boardCameraInit({ bounds: [0, 0, 20, 20], yaw: 1 }), was = [C.yawTo, C.yawIdx];
+    for (const face of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const cur = C.yawTo;
+      C0.boardCameraShot(C, [5, 5, 0], { face, cut: true });
+      // the camera looks back at the face: its way within a quarter of the face's opposite
+      const d = Math.atan2(Math.sin(C.yaw - (face + Math.PI)), Math.cos(C.yaw - (face + Math.PI)));
+      expect(Math.abs(d)).toBeLessThanOrEqual(Math.PI / 4 + 1e-9);
+      expect(Math.abs(C.yawTo - cur)).toBeLessThanOrEqual(Math.PI + 1e-9);
+    }
+    C0.boardCameraUnshot(C);
+    expect([C.yawTo, C.yawIdx]).toEqual(was);
+  });
+});

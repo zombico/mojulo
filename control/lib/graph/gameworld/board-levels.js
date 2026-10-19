@@ -47,7 +47,7 @@ export function boardLevelOrder(G, stage, { ref, title, packs = [], figures = {}
   const foes = packs.flat().slice(0, MAX_FOES).map((foe) => ({ id: `foe-${++n}`, foe }));
   const own = Object.fromEntries(OWN.filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   const battle = { party, ...(draw ? { draw: draw.map((p) => p.slice(0, MAX_FOES)) } : { foes }), deploy: 'near', cap: opts.cap ?? BOARD_CAP, seed: `${G.id}:${seed}`, rules: { lose: { leader: 'hero' }, ...(opts.rules ?? {}) }, ...(Object.keys(own).length ? { rpg: own } : {}) };
-  const board = { ...(opts.cols !== undefined ? { cols: opts.cols } : {}), ...(opts.rows !== undefined ? { rows: opts.rows } : {}), battle };
+  const board = { ...(opts.cols !== undefined ? { cols: opts.cols } : {}), ...(opts.rows !== undefined ? { rows: opts.rows } : {}), battle, ...(opts.talk ? { talk: opts.talk } : {}) };
   const game = { levelRef: ref, mechanics: [{ kind: 'board', ...(exit ? { exit } : {}) }, { kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }] };
   return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, ...slotPlay(G, scenes), game } } };
 }
@@ -90,5 +90,6 @@ export function mapLevelOrder(G, { ref, dots, geocube, name: epoch = 'map', seed
   const name = `${G.name ?? G.id} · ${epoch}`;
   const board = { from: 'blocks', side: 'outside', ...MAP_SIZE, seed: `${G.id}:${seed}`, relief: 0.45, ...(geocube !== undefined ? { geocube } : {}) };
   const game = { levelRef: ref, mechanics: [{ kind: 'map', slice: MAP_SLICE, dots: dots.map((d) => d.id) }] };
-  return { tool: 'create_sketch', args: { title: name, manifest: { kind: 'board', title: name, board, map: { dots }, ...slotPlay(G, scenes), game } } };
+  const talk = G.battles?.board?.talk;
+  return { tool: 'create_sketch', args: { title: name, manifest: { kind: 'board', title: name, board, map: { dots }, ...(talk ? { talk } : {}), ...slotPlay(G, scenes), game } } };
 }

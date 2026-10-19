@@ -166,6 +166,38 @@ describe('the board on the World page', () => {
     await page.close();
   }, 120000);
 
+  it('tells a scene on the map: the camera cut to the speaker, the words over them, the figure gesturing, a portrait beside', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'told', title: null, manifest: { kind: 'board', board: { seed: 'flat', relief: 0, cols: 8, rows: 8 }, talk: { portrait: true },
+      battle: { party: [{ id: 'ayla', class: 'fighter', at: 'C2' }], foes: [{ id: 'g', foe: 'goblin', at: 'F7' }] },
+      play: { scenes: [{ id: 'intro', when: { on: 'slot:before' }, names: { ayla: 'Ayla' }, beats: [{ shot: { frame: 'close', on: ['ayla'] } }, { line: { who: 'ayla', say: 'Hold the line.' } }] }] },
+      game: { levelRef: 'told', mechanics: [{ kind: 'board' }] } } });
+    expect(payload.board.talk).toEqual({ portrait: true });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.talk.talking === 'ayla' && window.__mojBoard.talk.portrait > 2, { timeout: 60000 });
+    const seen = await page.evaluate(() => {
+      const b = window.__mojBoard, S = b.state(), at = b.board.spots[S.u.ayla.at], box = document.querySelector('.moj-scene-box'), r = box.getBoundingClientRect();
+      const e = window.__mojCtrl.world.entities.find((x) => x.id === 'board-ayla');
+      // the portrait: drawn, not blank
+      const cv = [...document.querySelectorAll('canvas')].find((c) => c.width === 336), g = document.createElement('canvas'); g.width = 336; g.height = 336;
+      const x = g.getContext('2d'); x.drawImage(cv, 0, 0); const px = x.getImageData(0, 0, 336, 336).data; let lit = 0;
+      for (let i = 3; i < px.length; i += 4) if (px[i] > 0) lit++;
+      return { shot: b.talk.shot, near: e ? Math.hypot(b.talk.shot[0] - e.transform.pos[0], b.talk.shot[1] - e.transform.pos[1]) : null, h: at.h, bubble: box.classList.contains('moj-board-bubble'), boxTop: r.top, gesture: e && e.moving && e.locomotion, lit };
+    });
+    expect(seen.bubble).toBe(true);
+    expect(seen.boxTop).toBeLessThan(780 - 200);   // over the speaker, not along the bottom
+    expect(seen.gesture).toBe('talk');
+    expect(seen.lit).toBeGreaterThan(336 * 336 * 0.2);
+    expect(seen.near).toBeLessThan(0.05);   // the camera cut to the speaker
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/talk.png` });
+    await page.waitForFunction(() => { if (window.__mojScenes.on()) window.__mojScenes.next(); return window.__mojBoard.mode !== 'scene'; }, { polling: 200, timeout: 10000 });
+    const after = await page.evaluate(() => ({ shot: window.__mojBoard.talk.shot, bubble: document.querySelector('.moj-scene-box').classList.contains('moj-board-bubble') }));
+    expect(after).toEqual({ shot: null, bubble: false });
+    await page.close();
+  }, 180000);
+
   it('opens an epoch\'s map on its begin slot: the party waits on the scene before it may set out', async () => {
     if (!browser) return;
     const dots = [{ id: 'gate', ref: 'lv-gate' }, { id: 'keep', ref: 'lv-keep', gate: 'gate' }];

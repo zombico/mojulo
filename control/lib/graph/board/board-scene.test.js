@@ -89,6 +89,8 @@ describe('the board world kind', () => {
     expect(() => assembleBoardScene({ size: 3 })).toThrow(/'size' is not a setting of the board kind/);
     expect(() => assembleBoardScene({ camera: { spin: true } })).toThrow(/camera.spin is not a camera setting/);
     expect(() => assembleBoardScene({ camera: { yaw: 5 } })).toThrow(/camera.yaw is 0 to 3/);
+    expect(() => assembleBoardScene({ talk: { voice: true } })).toThrow(/talk.voice is not part of it \(bubble, portrait\)/);
+    expect(() => assembleBoardScene({ talk: { portrait: 'yes' } })).toThrow(/talk.portrait is true or false/);
     expect(() => assembleBoardScene({ board: { seed: 'fft', holes: ['B2'] }, units })).toThrow(/stands at B2, which is not a spot/);
   });
 });

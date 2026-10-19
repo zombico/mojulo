@@ -4,7 +4,7 @@ import { assembleBoardScene } from './board-scene.js';
 import { boardParse, boardCentre } from './board-kernel.js';
 
 // a stand-in for the hero door (resolving a real hero takes a moment; what is asked of it is the law here)
-const stub = () => { const asked = []; return { asked, heroFigure: async (name, spec) => { asked.push([name, spec]); return { rig: name }; } }; };
+const stub = () => { const asked = []; return { asked, heroFigure: async (name, spec) => { asked.push([name, spec]); return { rig: name, clips: name === 'foe-goblin' ? { idle: 'I', forward: 'W' } : { idle: 'I', forward: 'W', wave: 'V' } }; } }; };
 const battle = { party: [{ id: 'ayla', class: 'fighter', at: 'A1' }, { id: 'bram', class: 'mage', at: 'B1' }, { id: 'cid', class: 'fighter', at: 'C1' }],
   foes: [{ id: 'g', foe: 'goblin', at: 'D5' }, { id: 'w', foe: 'wolf', at: 'E5' }] };
 
@@ -14,6 +14,8 @@ describe('figures on the board', () => {
     const P = await boardFigures(assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle }), { heroFigure });
     expect(asked).toEqual([['class-fighter', { hero: CLASS_LOOKS.fighter, clips: { idle: 'idle', forward: 'walk' } }], ['class-mage', { hero: CLASS_LOOKS.mage, clips: { idle: 'idle', forward: 'walk' } }], ['foe-goblin', { hero: FOE_LOOKS.goblin, clips: { idle: 'idle', forward: 'walk' } }]]);
     expect(Object.keys(P.figures)).toEqual(['class-fighter', 'class-mage', 'foe-goblin']);
+    // speaking, a figure gestures: its wave as its talk, or it stands
+    expect([P.figures['class-fighter'].clips.talk, P.figures['foe-goblin'].clips.talk]).toEqual(['V', 'I']);
     expect(P.board.figures).toEqual({ ayla: 'board-ayla', bram: 'board-bram', cid: 'board-cid', g: 'board-g' });
     expect(P.entities.map((e) => [e.id, e.body.figure])).toEqual([['board-ayla', 'class-fighter'], ['board-bram', 'class-mage'], ['board-cid', 'class-fighter'], ['board-g', 'foe-goblin']]);
     // each stands on its spot

@@ -33,12 +33,12 @@ import { boardParse } from './board-kernel.js';
 const SIDE_COLOURS = ['#4aa3ff', '#ff5a4a', '#5ad17a', '#f2c14e'];
 
 /** What the page takes, from a laid board (board-lay.js layBoard). */
-export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots } = {}) {
+export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots, talk } = {}) {
   const B = laid.board, at = cursor !== undefined ? boardParse(B, cursor) : -1;
   const first = at >= 0 && B.spots[at] ? at : B.spots.findIndex((s) => s && s.walk);
   const sides = [...new Set((battle ? battle.units : units).map((u) => u.side))];
   return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])),
-    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}) };
+    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}), ...(talk ? { talk } : {}) };
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
@@ -701,6 +701,95 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
       for (const d of S.spoils.drops) __inputQueue.push({ type: 'in:bag:' + d + ':1' });   // eslint-disable-line no-undef
     }
   }
+  // ── the story told on the map: a scene's shot is the board camera's (cut to whoever it is on), its words float over
+  //    whoever speaks, a speaking figure gestures, and with board.talk.portrait a close view of them stands beside ────
+  const TALK = Object.assign({ bubble: true, portrait: false }, D.talk || {});
+  const SHOT_SHARE = { close: 0.15, medium: 0.24, wide: 0.42 };
+  // where someone (or something) a scene names stands: a unit, a dot or the party on a map, a spot by its name
+  function whereIs(who) {
+    if (typeof who !== 'string') return null;
+    if (S && S.u[who] && tokens[who] && tokens[who].g.visible) { const q = tokens[who].g.position; return [q.x, q.y, q.z]; }
+    if (MAP) {
+      if ((who === 'hero' || who === 'party') && walker && walker.from) { const q = walker.g.position; return [q.x, q.y, q.z]; }
+      const d = MAP.dots.find((x) => x.id === who);
+      if (d) return tops[d.at];
+    }
+    const i = /^[A-Z][0-9]{1,2}$/.test(who) ? K.parse(B, who) : -1;
+    return i >= 0 && tops[i] ? tops[i] : null;
+  }
+  // the scene's camera ops, taken by the board (the rest handed down to the figures' runtime)
+  const castOf = CTRL && typeof CTRL.cast === 'function' ? CTRL.cast : null;
+  function boardCast(ops) {
+    const rest = [];
+    for (const o of ops || []) {
+      if (o && o.op === 'shot' && o.shot) {
+        const on = [].concat(o.shot.on || []), k = on.findIndex((w) => whereIs(w)), p = k >= 0 ? whereIs(on[k]) : null;
+        // seen from the front: a unit's facing (its token's), so the cut shows the speaker's face
+        const T = k >= 0 && tokens[on[k]];
+        if (p) CAM.shot(C, [p[0], p[1], p[2] + 1], { share: SHOT_SHARE[o.shot.frame] || SHOT_SHARE.medium, cut: o.shot.cut !== false, ...(T ? { face: T.g.rotation.z } : {}) });
+      } else if (o && o.op === 'unshot') CAM.unshot(C);
+      else if (o && o.op === 'shake') CAM.shake(C, Number.isFinite(o.k) ? o.k : 0.5, Number.isFinite(o.for) ? o.for : 0.5);
+      else rest.push(o);
+    }
+    if (rest.length && castOf) castOf(rest);
+  }
+  if (typeof window !== 'undefined') {
+    if (CTRL) CTRL.cast = boardCast;
+    else if (!window.__mojCtrl) window.__mojCtrl = { world: { entities: [] }, cast: boardCast };
+  }
+  const TALK_CSS = '.moj-board-bubble{bottom:auto!important;transform:translate(-50%,-100%)!important;width:min(380px,calc(100vw - 32px))!important;font-size:14px!important}'
+    + '.moj-board-bubble::after{content:"";position:absolute;left:50%;bottom:-10px;margin-left:-10px;border:10px solid transparent;border-bottom:0;border-top-color:var(--moj-panel-a,rgba(12,16,26,.92))}';
+  if (typeof document !== 'undefined') { const st = document.createElement('style'); st.textContent = TALK_CSS; document.head.appendChild(st); }
+  let talking = null;
+  const portrait = TALK.portrait ? (() => {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;z-index:31;width:168px;height:196px;display:none;border:1px solid var(--moj-line,#2a3b58);border-radius:10px;overflow:hidden;background:rgba(12,16,26,.92);pointer-events:none';
+    const cv = document.createElement('canvas'); cv.width = 336; cv.height = 336; cv.style.cssText = 'width:168px;height:168px;display:block';
+    const name = document.createElement('div'); name.style.cssText = 'font:11px/28px ui-monospace,Menlo,monospace;color:#e8ecf2;text-align:center;text-transform:uppercase;letter-spacing:.08em';
+    box.appendChild(cv); box.appendChild(name); document.body.appendChild(box);
+    let R = null;
+    try { R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true }); } catch (e) { R = null; }
+    const cam = new THREE.PerspectiveCamera(26, 1, 0.05, 60);
+    cam.up.set(0, 0, 1);
+    return { box, name, R, cam, drawn: 0 };
+  })() : null;
+  function stepTalk() {
+    const SC = typeof window !== 'undefined' ? window.__mojScenes : null;
+    const v = SC ? SC.view() : null, L = v && v.on ? v.line : null, at = L ? whereIs(L.who) : null;
+    talking = at && L ? L.who : null;
+    const b = typeof document !== 'undefined' ? document.querySelector('.moj-scene-box') : null;
+    let head = null;
+    if (at) {
+      const q = new THREE.Vector3(at[0], at[1], at[2] + 2.2).project(camera), r = renderer.domElement.getBoundingClientRect();
+      head = [r.left + ((q.x + 1) / 2) * r.width, r.top + ((1 - q.y) / 2) * r.height];
+    }
+    // the words over the speaker, held on the screen; the bottom of it again when the speaker is not on the board
+    if (b) {
+      if (TALK.bubble && head) {
+        b.classList.add('moj-board-bubble');
+        const w = Math.min(380, window.innerWidth - 32), h = b.offsetHeight || 80;
+        b.style.left = Math.max(16 + w / 2, Math.min(window.innerWidth - 16 - w / 2, head[0])) + 'px';
+        b.style.top = Math.max(h + 16, Math.min(window.innerHeight - 16, head[1] - 12)) + 'px';
+      } else if (b.classList.contains('moj-board-bubble')) { b.classList.remove('moj-board-bubble'); b.style.left = ''; b.style.top = ''; }
+    }
+    // the portrait: the speaker's own figure, close, in a view of its own beside the words
+    if (portrait) {
+      const fig = talking && figureOf(talking), T = talking && tokens[talking];
+      portrait.box.style.display = fig && T && portrait.R && b ? 'block' : 'none';
+      if (fig && T && portrait.R && b) {
+        const br = b.getBoundingClientRect(), g = T.g.position, hd = T.g.rotation.z, face = [g.x, g.y, g.z + 1.6];
+        portrait.box.style.left = Math.max(8, br.left - 176) + 'px';
+        portrait.box.style.top = Math.max(8, br.top + br.height / 2 - 98) + 'px';
+        portrait.name.textContent = L.name || L.who;
+        // head and shoulders, a little to one side of straight on
+        portrait.cam.position.set(face[0] + Math.cos(hd) * 1.15 + Math.cos(hd + 1.57) * 0.2, face[1] + Math.sin(hd) * 1.15 + Math.sin(hd + 1.57) * 0.2, face[2] + 0.04);
+        portrait.cam.lookAt(face[0], face[1], face[2] - 0.1);
+        portrait.R.render(scene, portrait.cam);
+        portrait.drawn++;
+      }
+    }
+  }
+
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
     state: () => S, highlight, moveCursor, stepCursor, select, get drawn() { return own ? drawn : null; },
@@ -709,6 +798,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
     // the map's: where the party stands, the dot chosen, each dot's state; go there, as Enter would
     get slot() { return slotWait ? slotWait.name : null; },
+    // the story on the map: who speaks, where the camera's shot is, the portrait's frames drawn
+    get talk() { return { talking, shot: C.shot ? C.shot.focus.slice() : null, portrait: portrait ? portrait.drawn : null }; },
     get map() { return MAP && { at: mapAt, cursor: MAP.dots[mapCur].id, gone: mapGone, dots: MAP.dots.map((d) => ({ id: d.id, state: stateOf(d) })) }; },
     goTo(id) { if (!MAP || mode !== 'map') return false; const k = dotIdx(id); if (k < 0) return false; mapCur = k; mapGo(); return true; },
     // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
@@ -763,12 +854,15 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
         const p = T.g.position;
         F.e.transform.pos = [p.x, p.y, p.z];
         F.e.transform.heading = T.g.rotation.z;
-        F.e.moving = T.hops.length > 0;
-        F.e.locomotion = 'forward';
+        // walking spot to spot, or speaking (its talk: a gesture), or standing
+        const says = talking === id && !T.hops.length;
+        F.e.moving = T.hops.length > 0 || says;
+        F.e.locomotion = says ? 'talk' : 'forward';
         F.e.gone = U.hp <= 0;   // the runtime hides a body that is gone; a raised one stands again
       }
     }
     stepSlot(dt);
+    stepTalk();
     if (battle) { drawFloats(dt); run(dt); }
     if (MAP && walker && walker.from) {
       if (walker.hops.length) {

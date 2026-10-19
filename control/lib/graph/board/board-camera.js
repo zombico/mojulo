@@ -17,6 +17,14 @@
  *   focusOn(C, [x, y, z?])  where it looks, held inside the bounds; pan(C, right, up, dt) by the screen's axes (RTS)
  *   step(C, dt)    eases yaw, pitch, distance and focus toward where they are going
  *   pose(C) → { pos: [x, y, z], target: [x, y, z], fov, up: [0, 0, 1] }
+ *   shot(C, [x, y, z], { share?, pitch?, cut?, face? })   a directed shot: the view taken to a point at `share` of
+ *                  the whole-board distance (0.16, close on a figure) and a pitch in degrees (its own, unless asked),
+ *                  eased there or cut; `face` (radians, the way someone there faces) turns the view to the quarter that
+ *                  sees them from the front; unshot(C) gives the view back (its own quarter too), easing from there
+ *   shake(C, k, dur)   the view shakes k (0..1, a fraction of a metre at the widest) for dur seconds, dying away: a sum
+ *                  of fixed sines, the same every time
+ *   orbit(C, rate) the view turns round its focus at rate radians a second (a summon's sweep); orbit(C, 0) settles it
+ *                  on the nearest quarter, and rotate's quarters hold again
  *   screenStep(C, 'up' | 'down' | 'left' | 'right') → [dc, dr]   the board step a key means on screen: up is the board
  *                  axis most along the way the camera looks (the one clockwise of it on the diagonal's tie), right the
  *                  one most along the screen's right; read off the yaw it is turning to, so a key pressed mid-turn
@@ -40,7 +48,7 @@ export function buildBoardCamera() {
     const focus = [(x0 + x1) / 2, (y0 + y1) / 2, o.z];
     const yaw = DIAG + yawIdx * QUARTER;
     return { o, frame, yawIdx, zoomIdx, pitchIdx, middle: focus.slice(), focusTo: focus.slice(), focus: focus.slice(), yawTo: yaw, yaw,
-      pitch: o.pitches[0] * RAD, dist: frame * o.zooms[0] };
+      pitch: o.pitches[0] * RAD, dist: frame * o.zooms[0], shot: null, shakes: [], spin: 0, jolt: [0, 0, 0], t: 0 };
   }
   function rotate(C, by) {
     if (!C.o.rotate) return C;
@@ -60,21 +68,61 @@ export function buildBoardCamera() {
     C.focusTo = hold(C, [C.focusTo[0] + (r[0] * right + f[0] * up) * speed, C.focusTo[1] + (r[1] * right + f[1] * up) * speed, C.focusTo[2]]);
     return C;
   }
+  function shot(C, p, opt) {
+    const o = opt || {}, was = C.shot ? C.shot.was : { yawTo: C.yawTo, yawIdx: C.yawIdx };
+    C.shot = { focus: [p[0], p[1], p[2] != null ? p[2] : C.focus[2]], dist: C.frame * (o.share != null ? o.share : 0.16), pitch: o.pitch != null ? o.pitch * RAD : null, was };
+    // seen from the front: the diagonal nearest the way that looks back at them, the short way round from where it is
+    if (o.face != null && C.o.rotate) {
+      const want = o.face + Math.PI, q = Math.round((want - DIAG) / QUARTER), cur = C.yawTo;
+      let to = DIAG + q * QUARTER;
+      while (to - cur > Math.PI) to -= 2 * Math.PI;
+      while (cur - to > Math.PI) to += 2 * Math.PI;
+      C.yawTo = to;
+    }
+    if (o.cut) { C.focus = C.shot.focus.slice(); C.dist = C.shot.dist; C.yaw = C.yawTo; if (C.shot.pitch != null) C.pitch = C.shot.pitch; }
+    return C;
+  }
+  function unshot(C) {
+    if (C.shot) { C.yawTo = C.shot.was.yawTo; C.yawIdx = C.shot.was.yawIdx; }
+    C.shot = null;
+    return C;
+  }
+  function shake(C, k, dur) { C.shakes.push({ k: clamp(k, 0, 1), dur: Math.max(0.05, dur), t: 0 }); return C; }
+  function orbit(C, rate) {
+    if (rate) { C.spin = rate; return C; }
+    // settled on the nearest quarter from a diagonal, its index the one rotate turns from
+    if (C.spin) { const q = Math.round((C.yaw - DIAG) / QUARTER); C.yawTo = DIAG + q * QUARTER; C.yawIdx = ((q % 4) + 4) % 4; }
+    C.spin = 0;
+    return C;
+  }
   function step(C, dt) {
     const k = ease(10, dt), kz = ease(8, dt), kf = ease(7, dt);
+    C.t += dt;
+    if (C.spin) { C.yaw += C.spin * dt; C.yawTo = C.yaw; }
     C.yaw += (C.yawTo - C.yaw) * k;
     if (Math.abs(C.yawTo - C.yaw) < 1e-4) C.yaw = C.yawTo;
     const near = (v, to, k) => (Math.abs(to - v) < 1e-4 ? to : v + (to - v) * k);   // eased, and at rest once there
-    C.pitch = near(C.pitch, C.o.pitches[C.pitchIdx] * RAD, kz);
-    C.dist = near(C.dist, C.frame * C.o.zooms[C.zoomIdx], kz);
+    const S = C.shot;
+    C.pitch = near(C.pitch, S && S.pitch != null ? S.pitch : C.o.pitches[C.pitchIdx] * RAD, kz);
+    C.dist = near(C.dist, S ? S.dist : C.frame * C.o.zooms[C.zoomIdx], kz);
     // the RTS form pans the focus itself; the tactics form leans from the middle toward it by the zoom stop's share
     const lean = C.o.edge ? 1 : C.o.follow[Math.min(C.zoomIdx, C.o.follow.length - 1)];
-    for (let i = 0; i < 3; i++) C.focus[i] = near(C.focus[i], C.middle[i] + (C.focusTo[i] - C.middle[i]) * lean, kf);
+    for (let i = 0; i < 3; i++) C.focus[i] = near(C.focus[i], S ? S.focus[i] : C.middle[i] + (C.focusTo[i] - C.middle[i]) * lean, kf);
+    // the shakes, each dying away over its time: fixed sines, so the same dt is the same shake
+    const j = [0, 0, 0], amp = C.frame * 0.012;
+    C.shakes = C.shakes.filter((q) => (q.t += dt) < q.dur);
+    for (const q of C.shakes) {
+      const a = q.k * amp * (1 - q.t / q.dur), t = C.t;
+      j[0] += a * (Math.sin(t * 61) * 0.6 + Math.sin(t * 37 + 1.3) * 0.4);
+      j[1] += a * (Math.sin(t * 53 + 0.7) * 0.6 + Math.sin(t * 29 + 2.1) * 0.4);
+      j[2] += a * 0.5 * Math.sin(t * 71 + 0.4);
+    }
+    C.jolt = j;
     return C;
   }
   function pose(C) {
-    const c = Math.cos(C.pitch), s = Math.sin(C.pitch), f = C.focus;
-    return { pos: [f[0] - Math.cos(C.yaw) * C.dist * c, f[1] - Math.sin(C.yaw) * C.dist * c, f[2] + C.dist * s], target: f.slice(), fov: C.o.fov, up: [0, 0, 1] };
+    const c = Math.cos(C.pitch), s = Math.sin(C.pitch), f = C.focus, j = C.jolt || [0, 0, 0];
+    return { pos: [f[0] - Math.cos(C.yaw) * C.dist * c + j[0], f[1] - Math.sin(C.yaw) * C.dist * c + j[1], f[2] + C.dist * s + j[2]], target: [f[0] + j[0], f[1] + j[1], f[2] + j[2]], fov: C.o.fov, up: [0, 0, 1] };
   }
   function screenStep(C, key) {
     // the way it looks, nudged clockwise a degree so the diagonal's tie falls the same way every time
@@ -88,7 +136,7 @@ export function buildBoardCamera() {
     throw new Error("board camera: a step is 'up', 'down', 'left' or 'right'");
   }
 
-  return { DEFAULTS, init, rotate, zoom, tilt, focusOn, pan, step, pose, screenStep };
+  return { DEFAULTS, init, rotate, zoom, tilt, focusOn, pan, step, pose, screenStep, shot, unshot, shake, orbit };
 }
 
 const _cam = buildBoardCamera();
@@ -102,3 +150,7 @@ export const boardCameraPan = _cam.pan;
 export const boardCameraStep = _cam.step;
 export const boardCameraPose = _cam.pose;
 export const boardCameraScreenStep = _cam.screenStep;
+export const boardCameraShot = _cam.shot;
+export const boardCameraUnshot = _cam.unshot;
+export const boardCameraShake = _cam.shake;
+export const boardCameraOrbit = _cam.orbit;

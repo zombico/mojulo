@@ -23,7 +23,7 @@ import { boardChannelData } from './board-page.js';
 import { readBoardBattle } from './board-battle.js';
 import { layMap } from './board-map.js';
 
-const KEYS = ['kind', 'board', 'units', 'battle', 'map', 'camera', 'cursor', 'title'];
+const KEYS = ['kind', 'board', 'units', 'battle', 'map', 'camera', 'cursor', 'talk', 'title'];
 // a level's own keys the world lowers beside the board (its contract, its bus, its play, its sound)
 const LEVEL_KEYS = ['game', 'events', 'play', 'audio'];
 const CAMERA_KEYS = ['rotate', 'edge', 'fov', 'pitches', 'zooms', 'yaw'];
@@ -52,8 +52,17 @@ export function slotsOf(play) {
 }
 
 // the board's part of a page, from a laid board and what stands on it: the page's data and a camera at its rest
-function boardParts(L, { units = [], battle: b, camera: c, cursor, play } = {}) {
-  const camera = readCamera(c);
+// how a scene is told on the board: its words over the speaker (bubble, on unless false), a portrait of them beside
+function readTalk(t) {
+  if (t === undefined) return null;
+  if (!isObj(t)) no('talk is { bubble?, portrait? }: the words over whoever speaks (true unless false), a close portrait of them beside (false unless true)');
+  for (const k of Object.keys(t)) if (!['bubble', 'portrait'].includes(k)) no(`talk.${k} is not part of it (bubble, portrait)`);
+  for (const k of Object.keys(t)) if (typeof t[k] !== 'boolean') no(`talk.${k} is true or false`);
+  return Object.keys(t).length ? { ...t } : null;
+}
+
+function boardParts(L, { units = [], battle: b, camera: c, cursor, play, talk: t } = {}) {
+  const camera = readCamera(c), talk = readTalk(t);
   if (!Array.isArray(units)) no('units are [{ id, side, at: \'C4\', move?, jump?, spd?, hp?, … }]');
   if (units.length && b !== undefined) no('units or battle: tokens to look at, or a battle to play; not both');
   if (units.length) boardStart(L.board, {}, units);   // the kernel says what cannot stand, before a page is made
@@ -98,7 +107,7 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor, play } = {}) 
   }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;
-  const data = boardChannelData(L, { units, camera, cursor, drape: L.drape, clip, battle, slots: slotsOf(play) });
+  const data = boardChannelData(L, { units, camera, cursor, drape: L.drape, clip, battle, slots: slotsOf(play), talk });
   const B = L.board, O = L.frame.origin, zs = B.spots.filter(Boolean).map((s) => O[2] + s.h * B.step);
   const P = boardCameraPose(boardCameraInit({ bounds: [O[0], O[1], O[0] + B.cols * B.cell, O[1] + B.rows * B.cell], z: (Math.min(...zs) + Math.max(...zs)) / 2, ...camera }));
   const hfov = (2 * Math.atan(Math.tan((P.fov * Math.PI) / 360) * ASPECT) * 180) / Math.PI;
@@ -127,22 +136,22 @@ export function assembleBoardScene(manifest = {}, ctx = {}) {
   return { ...scene, ...(L.source.side === 'inside' ? {} : { haze }), faces: D.faces, cameras, title, walk: false, board: data };
 }
 
-const OVER_KEYS = ['cols', 'rows', 'cell', 'step', 'origin', 'holes', 'battle', 'units', 'camera', 'cursor'];
+const OVER_KEYS = ['cols', 'rows', 'cell', 'step', 'origin', 'holes', 'battle', 'units', 'camera', 'cursor', 'talk'];
 /**
  * A board laid over a world's own stage (a level's `board`: its spots a layer over the level's ground, inside or out),
  * → the changes to that world's payload: its faces dressed for the board's camera, the board's data, its camera at rest,
  * no walking and no camera entity (the board owns the view). The world's other keys (its game contract, its events,
  * its entities) stand.
- *   board: { cols?, rows?, cell?, step?, origin?, holes?, battle?, units?, camera?, cursor? }
+ *   board: { cols?, rows?, cell?, step?, origin?, holes?, battle?, units?, camera?, cursor?, talk? }
  */
 export function boardOverWorld(P, spec = {}, { play } = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) no(`a level's board is { ${OVER_KEYS.join(', ')} } (every one optional)`);
   for (const k of Object.keys(spec)) if (!OVER_KEYS.includes(k)) no(`board.${k} is not a setting of a board over a level (settings: ${OVER_KEYS.join(', ')}); its ground is the level's own`);
   if (!Array.isArray(P.faces) || !P.faces.length) no('a board lies over a level\'s ground, and this world has none');
   const side = Array.isArray(P.rooms) && P.rooms.length ? 'inside' : 'outside';
-  const { battle, units, camera, cursor, ...lay } = spec;
+  const { battle, units, camera, cursor, talk, ...lay } = spec;
   const L = layBoard({ ...lay, from: 'stage', side }, { scene: P });
-  const { data, cameras } = boardParts(L, { battle, units, camera, cursor, play });
+  const { data, cameras } = boardParts(L, { battle, units, camera, cursor, play, talk });
   const D = dressed(P, L);
   return { ...D, cameras, walk: false, camera: null, board: data };
 }

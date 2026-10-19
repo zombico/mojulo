@@ -36,5 +36,7 @@ describe('a tactics book\'s epochs', () => {
     expect(on([{ levels: ['fort', 'vale', 'peak'] }])).toThrow(/every level once, in the book's order/);
     expect(on([{ levels: ['vale', 'fort', 'peak'], when: 1 }])).toThrow(/epochs\[0\].when is not part of an epoch/);
     expect(on([])).toThrow(/cut into chapters/);
+    expect(() => readBattles({ on: 'board', board: { talk: { portrait: 1 } } })).toThrow(/board.talk is \{ bubble\?, portrait\? \}/);
+    expect(() => readBattles({ on: 'board', board: { talk: { portrait: true } } })).not.toThrow();
   });
 });

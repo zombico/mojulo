@@ -27,7 +27,7 @@ export const FOE_LOOKS = Object.freeze({
   bandit: { cast: 'male', palette: { Top: '#3a2f2f' } },
   shaman: { cast: 'female', palette: { Top: '#6b3d7a' } },
 });
-// the hero's own clips under the runtime's names: standing, and walking from spot to spot
+// the hero's own clips under the runtime's names: standing, and walking from spot to spot (and talking, below)
 const CLIPS = { idle: 'idle', forward: 'walk' };
 const BODY = { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
 
@@ -44,7 +44,11 @@ export async function boardFigures(payload, { heroFigure, figures = true } = {})
   const looks = [...new Set(all.map(lookOf).filter(Boolean))];
   if (!looks.length) return payload;
   const figs = {};
-  for (const look of looks) figs[look] = await heroFigure(look, { ...askOf(look), clips: CLIPS });
+  for (const look of looks) {
+    const f = await heroFigure(look, { ...askOf(look), clips: CLIPS });
+    // speaking in a scene on the board: its wave, a gesture as it talks (else it stands)
+    figs[look] = f.clips.talk ? f : { ...f, clips: { ...f.clips, talk: f.clips.wave ?? f.clips.idle } };
+  }
   const B = payload.board.B, O = payload.board.origin, of = {};
   const entities = [];
   for (const u of all) {

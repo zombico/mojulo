@@ -79,6 +79,11 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   game, and an epoch's end follows its last stage's own after. The book fills one with a story moment
   (`when: { slot }`, `where: { level }` or `where: { epoch }`), bound and reported as other moments are. A slot
   nobody fills adds nothing to the page.
+- **Scenes told on the board**, built: a scene's shot on a board cuts the tactical camera to whoever it names (a unit,
+  a dot, the party on a map, a spot), turned to see them from the front, and gives the player's view back after. The
+  words float over whoever speaks, a speaking figure gestures, and `talk: { portrait: true }` (on a board, or the
+  book's `battles.board.talk`) adds a close portrait of the speaker, their own figure drawn live beside the words. The
+  camera also shakes (the same way every time) and orbits, for what comes next.
 - **A game's final level** (`final` on `create_game`, the light shell): its first win completes the game. The front's
   end plays (or the result says the game is complete) instead of travelling on, and the game counts as cleared by
   that level alone, not every level. A game without one is unchanged.
