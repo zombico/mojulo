@@ -675,6 +675,18 @@ renders byte-identically without them.
   it: `column`, `rotunda` (a tholos with its lantern), `cloister`, `hall` (a pillared hall under a stepped roof) and
   `arena` (an oval bowl behind a storeyed, columned wall). The stepped-circle spire is now `beehive`.
 
+### Mutagenic oozes: base animals made into game creatures
+
+- **An animal takes oozes.** `create_character({ as: 'animal', spec: { species, ooze } })` turns a real species
+  into a game creature: `dire` (bigger, bulkier, still the animal), `skeletal`, `zombie`, `techno`, `crystal`,
+  `mythical` (boss size), and the elements `fire`, `frost`, `storm`, `venom`, `shadow`. Oozes compose
+  (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
+  uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
+  live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
+- **Same limbs, same rig.** An ooze never changes a skeleton. A scaled creature's rig is the species' own at its
+  size, so every gait and behavior the species has, its mutated forms play, on the World page and in the skinned
+  GLB and Godot exports. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
