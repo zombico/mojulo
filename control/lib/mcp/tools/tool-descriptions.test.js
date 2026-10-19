@@ -401,7 +401,9 @@ const DESCRIPTION_ALLOWLIST = {
 // `preset` enum (the palette's own list, a place a flight world names) and its line naming them.
 // Raised 2026-10-15 (211_100 -> 211_300; measured 211,171) for the level demo: design_game's `compose` (the interpreter as a
 // door: a world read from a few words), one schema property and its clause in the description. No new tool.
-const PAYLOAD_CEILING = 211_300;
+// Raised 2026-10-19 (211_300 -> 211_500; measured 211,304) for the science worlds: create_view's `kind` enum gains
+// 'classical', 'microscopic' and 'quantum' (laws composed into a demo, each an argument on the view door). No new tool.
+const PAYLOAD_CEILING = 211_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

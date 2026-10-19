@@ -7,7 +7,7 @@ vi.mock('@/lib/motion/world-frames', () => ({
 
 const { renderWorldPlan } = await import('@/lib/motion/world-motion');
 const { QUANTUM_LAW } = await import('./laws.js');
-const { planQuantumWorld } = await import('./world.js');
+const { planQuantumWorld, planQuantumFilm } = await import('./world.js');
 
 describe('science worlds: the quantum film', () => {
   it('circles an atom\'s clouds, then holds the end card short of the wrap', async () => {
@@ -17,6 +17,13 @@ describe('science worlds: the quantum film', () => {
     const plan = planQuantumWorld(manifest);
     const end = captured.specs.filter((s) => s.shot === 1).map((s) => s.t / 1000);
     expect(Math.max(...end)).toBeLessThan(plan.playback + plan.hold);
+  });
+
+  it('sways across the front of several orbitals side by side, so they never line up behind each other', () => {
+    const plan = planQuantumWorld({ kind: 'quantum-view', model: { ...QUANTUM_LAW.hydrogen.example, samples: 200, state: { orbitals: [{ n: 1 }, { n: 2, l: 1, m: 0 }] } } });
+    const keys = planQuantumFilm({}, plan).shoot.cameras[0].keys, c = plan.bounds.center;
+    // the clouds sit along x: every key looks at them more from the front (y) than from the side (x)
+    expect(keys.every((k) => Math.abs(k.pos[1] - c[1]) > Math.abs(k.pos[0] - c[0]))).toBe(true);
   });
 
   it('films a line\'s run and its end card', async () => {

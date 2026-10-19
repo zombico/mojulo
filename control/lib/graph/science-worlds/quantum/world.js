@@ -209,11 +209,13 @@ function scienceConfig(plan, title) {
   };
 }
 
-// an atom's film circles its clouds: one camera keyed round them over the playback, then the end card
+// an atom's film turns round its clouds over the playback, then the end card: a full circle round one orbital; with
+// several side by side, a sway across their front, so they never line up behind each other
 function circleShoot(plan, film) {
-  const { center, radius } = plan.bounds, d = radius * 3.1, P = plan.playback, keys = [];
+  const { center, radius } = plan.bounds, d = radius * 2.3, P = plan.playback, keys = [];
+  const several = plan.solved.run.clouds.length > 1;
   for (let k = 0; k <= 8; k++) {
-    const a = -Math.PI / 2 + (2 * Math.PI * k) / 8;
+    const a = -Math.PI / 2 + (several ? 0.6 * Math.sin((2 * Math.PI * k) / 8) : (2 * Math.PI * k) / 8);
     keys.push({ t: +(P * k / 8).toFixed(4), pos: [center[0] + d * Math.cos(a), center[1] + d * Math.sin(a), center[2] + d * 0.35].map((c) => +c.toFixed(4)), poi: center.map((c) => +c.toFixed(4)), hfov: 46 });
   }
   return { fps: 24, cameras: [{ id: 'orbit', name: 'orbit', type: 'two_node', keys }], shots: [{ name: 'run', camera: 'orbit', span: [0, P] }, ...(film.endCard ? [{ name: 'end', camera: 'orbit', span: [P, +(P + 0.95 * plan.hold).toFixed(4)] }] : [])] };

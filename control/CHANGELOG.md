@@ -16,7 +16,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 
-- **In progress** (the docs remain). `create_view` gains three kinds that compose a demo from a closed table of laws instead of
+- `create_view` gains three kinds that compose a demo from a closed table of laws instead of
   one hand-authored experiment per kind: `classical` (Newtonian laws, body scale to orbits), `microscopic` (cells
   down to molecules; DNA is the floor) and `quantum` (states in concept space, faithful to the model and claiming
   nothing about reality; it supersedes `atom` for new asks). Chemistry goes to the scale its explanation needs.
@@ -87,8 +87,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   was last reviewed, and the page lists them. A quantum word that is not a row (tunnelling, superposition, bond)
   comes back as a gap naming the row that is or why there is none. `measure_view` reads each system back. It
   supersedes the curated `atom` kind for orbitals at the door (the routing cards and the atom card point there);
-  the `atom` kind still renders. An atom's proposed film circles its clouds. The science readout gains a femto
+  the `atom` kind still renders. An atom's proposed film circles one orbital, or sways across the front of several. The science readout gains a femto
   prefix and a page without a clock; `machina/quantities` gains eV, Å, pm, fs, ps and the atomic mass unit.
+- **Docs.** `docs/AGENT-REFERENCE.md` describes the science worlds (the model and dress split, gaps, the science block,
+  the proposed film, the generated cards); the `get_substrate` drawer says in one line that a composed science view
+  returns its solver's gates and that its page says what is the model and what is drawn. The `tools/list` payload pin
+  rises by 200 bytes for the three new `create_view` kinds (no new tool).
 - **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
   the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
   measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
