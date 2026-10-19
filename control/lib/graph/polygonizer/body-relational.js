@@ -47,6 +47,8 @@ function sdCone(p, a, b, r1, r2) {
   if (Math.sign(y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
   return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
 }
+/** a mass's signed distance, unclipped (an egg or a round cone, as the fields build them) */
+const sdPrim = (p, q) => (p.cone ? sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]) : sdEgg(q, p));
 /** the skin wave: −k · ln Σ e^(−dᵢ/k) (the union's surface, each mass a bump in it; shifted by the least for range) */
 function lse(ds, k) {
   let m = Infinity; for (const d of ds) if (d < m) m = d;
@@ -68,11 +70,14 @@ const NORRIN = {
   base: [
     { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 1.0]], r: [0.3, 0.27] },
     { id: 'ribcage', egg: [0, -0.06, 0.5], r: [0.62, 0.44, 0.8] },
-    { id: 'abdomen', egg: [0, 0.0, -0.16], r: [0.58, 0.42, 0.56] },
-    { id: 'flank', egg: [0, -0.02, -0.4], r: [0.76, 0.46, 0.35] },
+    { id: 'abdomen', egg: [0, -0.02, -0.05], r: [0.58, 0.4, 0.5] },
+    { id: 'flank', egg: [0, -0.02, -0.45], r: [0.6, 0.38, 0.3] },
     // (the neck thin at the top and flaring out to its root, into the trapezius: a column read pinched at the base)
     { id: 'neck', cone: [[0, -0.05, 0.86], [0, -0.06, 1.8]], r: [0.31, 0.2] },
     { id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
+    // the pelvis: the basin (the iliac bowl, the sacrum behind) and the pubic mound between the thighs
+    { id: 'basin', egg: [0, -0.06, -0.72], r: [0.72, 0.36, 0.45] },
+    { id: 'pubis', egg: [0, 0.22, -1.2], r: [0.3, 0.3, 0.28] },
   ],
   muscles: [
     // the pectoral: the sternal head thickest at its lower border (the line the eye reads, its own tight blend `k`), its
@@ -85,8 +90,8 @@ const NORRIN = {
     { id: 'rectus1', on: { x: 0.15, t: 0.36, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.05 },
     { id: 'rectus2', on: { x: 0.15, t: 0.15, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
     { id: 'rectus3', on: { x: 0.15, t: -0.05, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
-    { id: 'rectus4', on: { x: 0.14, t: -0.3, face: 'front' }, along: [0, 0, 1], r: [0.2, 0.13, 0.05], proud: 0.05 },
-    { id: 'obliqueExternal', on: { az: 74, t: -0.24 }, along: [0, 0.3, 1], r: [0.3, 0.22, 0.08], proud: 0.045 },
+    { id: 'rectus4', on: { x: 0.14, t: -0.3, face: 'front' }, along: [0, 0, 1], r: [0.2, 0.13, 0.05], proud: 0.03 },
+    { id: 'obliqueExternal', on: { az: 74, t: -0.3 }, along: [0, 0.3, 1], r: [0.3, 0.22, 0.08], proud: 0.03 },
     { id: 'serratus1', on: { az: 60, t: 0.3 }, along: [0, 1, -0.5], r: [0.13, 0.05, 0.035], proud: 0.03 },
     { id: 'serratus2', on: { az: 62, t: 0.44 }, along: [0, 1, -0.45], r: [0.13, 0.05, 0.035], proud: 0.03 },
     { id: 'serratus3', on: { az: 64, t: 0.58 }, along: [0, 1, -0.4], r: [0.12, 0.05, 0.035], proud: 0.03 },
@@ -94,6 +99,9 @@ const NORRIN = {
     { id: 'infraspinatus', on: { x: 0.42, t: 0.68, face: 'back' }, along: [1, 0, -0.35], r: [0.26, 0.18, 0.11], proud: 0.05 },
     { id: 'trapeziusLower', on: { x: 0, t: 0.62, face: 'back' }, along: [0, 0, 1], r: [0.6, 0.36, 0.12], proud: 0.035, mid: true },
     { id: 'erector', on: { x: 0.14, t: -0.2, face: 'back' }, along: [0, 0, 1], r: [0.5, 0.13, 0.08], proud: 0.07 },
+    // the seat: the gluteus maximus round and low behind, the medius high on the hip's side under the iliac crest
+    { id: 'gluteusMaximus', on: { x: 0.48, t: -1.05, face: 'back' }, along: [0.25, 0, -1], r: [0.5, 0.36, 0.2], proud: 0.11 },
+    { id: 'gluteusMedius', on: { az: 110, t: -0.8 }, along: [0, 0, 1], r: [0.3, 0.26, 0.1], proud: 0.06 },
     // the sternocleidomastoid: from behind the ear down and in to the sternum's head, the neck's V from the front
     { id: 'sternocleidomastoid', cone: [[0.22, -0.06, 1.58], [0.06, 0.2, 0.98]], r: [0.07, 0.06] },
     { id: 'trapeziusUpper', cone: [[0.12, -0.15, 1.3], [0.7, -0.06, 0.98]], r: [0.14, 0.1] },
@@ -130,6 +138,29 @@ const NORRIN = {
       { id: 'extensors', s: 0.3, az: 135, off: 0.09, r: [0.34, 0.15, 0.11] },
       { id: 'wrist', s: 0.97, r: [0.1, 0.1, 0.14] },
     ] },
+    // the legs (the right; the left its mirror): the thigh from the hip's socket, the shank from the knee
+    thigh: { from: 'hipR', to: 'kneeR', rings: 25, masses: [
+      // (the bone slim, begun below the joint: a 6 cm ball at the hip's socket, forward of the trunk, read through the
+      // pelvis's skin as an action figure's ball joint; the thigh's breadth up top is its muscles')
+      { id: 'femur', cone: [0.12, 1], r: [0.17, 0.17] },
+      { id: 'rectusFemoris', s: 0.42, az: 5, off: 0.2, r: [0.65, 0.22, 0.2] },
+      { id: 'vastusLateralis', s: 0.48, az: 80, off: 0.2, r: [0.7, 0.27, 0.22] },
+      { id: 'vastusMedialis', s: 0.8, az: -45, off: 0.17, r: [0.3, 0.22, 0.18] },
+      { id: 'adductors', s: 0.25, az: -100, off: 0.18, r: [0.5, 0.28, 0.24] },
+      { id: 'hamstrings', s: 0.5, az: 175, off: 0.2, r: [0.6, 0.27, 0.22] },
+      { id: 'knee', s: 1, r: [0.22, 0.27, 0.25] },
+      { id: 'patella', s: 0.96, az: 0, off: 0.17, r: [0.13, 0.13, 0.07] },
+    ] },
+    shank: { from: 'kneeR', to: 'ankleR', rings: 23, masses: [
+      { id: 'tibia', cone: [0, 1], r: [0.22, 0.12] },
+      { id: 'knee', s: 0, r: [0.2, 0.26, 0.23] },
+      { id: 'gastrocnemiusMedial', s: 0.27, az: -150, off: 0.15, r: [0.38, 0.19, 0.17] },
+      { id: 'gastrocnemiusLateral', s: 0.25, az: 150, off: 0.14, r: [0.33, 0.17, 0.15] },
+      { id: 'soleus', s: 0.52, az: 180, off: 0.1, r: [0.42, 0.24, 0.14] },
+      { id: 'tibialisAnterior', s: 0.35, az: 45, off: 0.12, r: [0.45, 0.13, 0.1] },
+      { id: 'achilles', cone: [0.62, 0.95], az: 180, off: [0.1, 0.08], r: [0.07, 0.06] },
+      { id: 'ankle', s: 0.98, r: [0.12, 0.17, 0.12] },
+    ] },
   },
 };
 /** a build's masses with their radii (and a belly's proud) scaled: one hand on a whole group's mass */
@@ -139,11 +170,12 @@ const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
   kBase: 0.12, kMuscle: 0.04,
   // (the half biacromial already carries her narrower shoulders: on it her waist and flank stand wider than his)
-  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, flank: { r: [0.8, 0.5, 0.38] } }),
+  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, flank: { r: [0.7, 0.44, 0.32] }, basin: { r: [0.86, 0.4, 0.48] } }),
   muscles: [
     ...byId(scaled(NORRIN.muscles.filter((m) => !/^pectoral(Sternal|Clavicular)$/.test(m.id)), 1, 0.6), {
       rectus1: { proud: 0.025 }, rectus2: { proud: 0.028 }, rectus3: { proud: 0.028 }, rectus4: { proud: 0.03 },
       trapeziusUpper: { r: [0.13, 0.08] }, sternocleidomastoid: { r: [0.07, 0.055] },
+      gluteusMaximus: { r: [0.56, 0.42, 0.24], proud: 0.15 }, gluteusMedius: { proud: 0.07 },
     }),
     { id: 'pectoralSternal', on: { x: 0.34, t: 0.6, face: 'front' }, along: [1, 0, 0.45], r: [0.38, 0.24, 0.09], proud: 0.07, k: 0.016 },
   ],
@@ -164,6 +196,8 @@ const SHALLA = {
   limbs: {
     upperArm: { ...NORRIN.limbs.upperArm, masses: scaled(NORRIN.limbs.upperArm.masses, 0.98) },
     foreArm: { ...NORRIN.limbs.foreArm, masses: scaled(NORRIN.limbs.foreArm.masses, 1.02) },
+    thigh: { ...NORRIN.limbs.thigh, masses: scaled(NORRIN.limbs.thigh.masses, 1.04, 0.8) },
+    shank: { ...NORRIN.limbs.shank, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8) },
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
@@ -194,7 +228,8 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // leaves through it once; a level cut left a flat underside the rays grazed)
   const sdOf = (p, q) => {
     const d = p.cone ? sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]) : sdEgg(q, p); if (!p.clip) return d;
-    const c = p.clip, s2 = Math.hypot(1, c.slope), cut = (c.slope * (Math.hypot(q[0], q[1]) - c.rho) - (q[2] - c.z)) / s2;
+    // (or cut under a level, `below`: the thigh's root, owned by the pelvis above the hip's handover)
+    const c = p.clip, cut = c.below !== undefined ? c.below - q[2] : (c.slope * (Math.hypot(q[0], q[1]) - c.rho) - (q[2] - c.z)) / Math.hypot(1, c.slope);
     return smaxp(d, cut, c.k);
   };
   const baseP = B.base.flatMap((m) => sides(m, { ...prim(m), id: m.id })), kB = B.kBase * W, kM = B.kMuscle * W;
@@ -292,7 +327,7 @@ const stationId = (u) => (Number.isInteger(u) ? `st${u}` : `st${Math.floor(u)}_s
  * crossing outward; `ease(u)` how far the field wins over the authored point (1 everywhere by default). The bind's
  * shares interpolated: per slot where the authored bind names slots, by station elsewhere; a HARD limb (`bind.zone`)
  * keeps its bone rigid, a joint's share easing in only within the zone of the joint's ring (the refine pass's rule) */
-export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = () => 1, relax = 0, capsOnto = false } = {}) {
+export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = () => 1, relax = 0, capsAlong = null, shrinkOutside = 0 } = {}) {
   // (stations without a `u` are at their index, as the compiler reads them)
   const st = P.stations.map((x, i) => ({ ...x, u: x.u ?? i })), SL = P.slots, n0 = SL.length, U = st[st.length - 1].u, b = P.bind, own = { [b.bone]: 1 };
   const centre = (s) => scl(SL.reduce((a, k) => add(a, s.points[k]), [0, 0, 0]), 1 / n0);
@@ -315,21 +350,31 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
   for (let i = 0; i < rings; i++) {
     const u = r6((U * i) / (rings - 1)), [a, c2, t] = bracket(u), id = stationId(u);
     const c = add(scl(centre(a), 1 - t), scl(centre(c2), t)), o = origin(c), points = {}, e = ease(u);
+    // a ring the field does not reach at all (`origin` finds no point of the skin to cast from: the thigh's top rings
+    // above the hip's joint, inside the pelvis's skin) keeps the authored ring drawn in toward its centre by
+    // `shrinkOutside`, ordered and hidden: cast onto the field from elsewhere, those rings folded back on one another
+    const outside = shrinkOutside && !o;
     if (b.zone > 0) { const w = zoneShare(u, c); if (!rigid(w)) blend[id] = w; }
     slots.forEach((sl, j) => {
-      const q = j / around, p0 = cageAt(u, q), hit = crossing(sd, o, unit(sub(p0, o)), 2.5 * len(sub(p0, o)) + 0.05);
-      points[sl] = (hit ? add(scl(p0, 1 - e), scl(hit, e)) : p0).map(r6);
+      const q = j / around, p0 = cageAt(u, q);
+      if (outside) { points[sl] = add(c, scl(sub(p0, c), shrinkOutside)).map(r6); if (!(b.zone > 0)) { const w = mixW(shareAt(a, q), shareAt(c2, q), t); if (!rigid(w)) blend[`${id}.${sl}`] = w; } return; }
+      const hit = crossing(sd, o, unit(sub(p0, o)), 2.5 * len(sub(p0, o)) + 0.05);
+      // (a ray that finds no skin, the pelvis's lowest ring between the thighs, takes the nearest skin to the authored
+      // point, not the authored point itself: those stood off the new skin in a jagged hem under the seat)
+      const got = hit ?? project(sd, p0);
+      points[sl] = (got ? add(scl(p0, 1 - e), scl(got, e)) : p0).map(r6);
       if (!(b.zone > 0)) { const w = mixW(shareAt(a, q), shareAt(c2, q), t); if (!rigid(w)) blend[`${id}.${sl}`] = w; }
     });
     stations.push({ id, u, points });
   }
   if (relax) relaxOnto(stations, slots, sd, relax, (i) => ease(stations[i].u) >= 1);
-  // the poles on the field too (`caps`): from the end ring's centre toward the authored pole (an authored pole stood
-  // proud of the new skin, a tent on the shoulder's top)
-  const caps = P.caps && capsOnto ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => {
-    const ring = stations[k === 'back' ? 0 : stations.length - 1], c = scl(slots.reduce((a, sl) => add(a, ring.points[sl]), [0, 0, 0]), 1 / slots.length);
-    const hit = crossing(sd, c, unit(sub(q, c)), 2 * len(sub(q, c)) + 0.05);
-    return [k, (hit ?? q).map(r6)];
+  // a limb's poles (`capsAlong`, the bone's direction): each end ring's centre carried a third of its radius on along
+  // the bone, inside the neighbour's skin as the end ring is (an authored pole stood proud of the new skin, a tent on the
+  // shoulder; one cast onto the field from a ring whose centre lay outside it stayed behind the ring and turned the fan)
+  const caps = P.caps && capsAlong ? Object.fromEntries(Object.entries(P.caps).map(([k, q]) => {
+    const ring = stations[k === 'back' ? 0 : stations.length - 1], pts = slots.map((sl) => ring.points[sl]);
+    const c = scl(pts.reduce((a, x) => add(a, x), [0, 0, 0]), 1 / pts.length), rad = pts.reduce((a, x) => a + len(sub(x, c)), 0) / pts.length;
+    return [k, add(c, scl(capsAlong, (k === 'back' ? -1 : 1) * rad / 3)).map(r6)];
   })) : P.caps;
   const { slotT: _t, ...rest } = P;
   return { ...rest, slots, stations, ...(caps ? { caps } : {}), bind: { ...b, blend } };
@@ -357,7 +402,7 @@ const swapRL = (k) => k.replace(/([RL])$/, (m) => (m === 'R' ? 'L' : 'R'));
 function mirrorPart(P, L) {
   const flip = (p) => [-p[0], p[1], p[2]], swapW = (w) => Object.fromEntries(Object.entries(w).map(([k, v]) => [swapRL(k), v]));
   const blend = Object.fromEntries(Object.entries(P.bind.blend).map(([k, w]) => { const [s, sl] = k.split('.'); return [sl ? `${s}.${swapRL(sl)}` : s, swapW(w)]; }));
-  return { ...L, slots: P.slots, stations: P.stations.map((s) => ({ ...s, points: Object.fromEntries(P.slots.map((sl) => [sl, flip(s.points[swapRL(sl)])])) })), bind: { ...L.bind, blend } };
+  return { ...L, slots: P.slots, stations: P.stations.map((s) => ({ ...s, points: Object.fromEntries(P.slots.map((sl) => [sl, flip(s.points[swapRL(sl)])])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, flip(q)])) } : {}), bind: { ...L.bind, blend } };
 }
 
 /** a limb's field for a build: its masses in the bone's frame (s along it from its head joint, az round it from the
@@ -397,29 +442,76 @@ export function formSlice(recipe, R, build, opts = {}) {
   // hanging from a stalk. The torso's cut is sharp (`k`) and the arm's inset begins `gap` above it, so across the
   // handover only the arm's skin shows: two fades over one band crossed back and forth a few millimetres apart, a sawtooth
   const W0 = bodyFrame(R).W, clip = { rho: 0.9 * W0, z: R.joints.shoulderR[2] - 0.6 * W0, slope: 1, k: 0.02 * W0 }, tuck = 0.003, band = 0.01, gap = 0.004;
+  const ease = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
+  // A LIMB'S TWO SEGMENTS share one field (both segments' masses, the knee's and the elbow's from each side) and hand over
+  // by the plane through the joint square to the upper bone, the deltoid's pattern: past it the lower segment's skin
+  // shows, the upper's set `tuck` inside; before it the reverse (each segment's own knee mass, of its own size, met the
+  // other's in a step)
+  const chain = (a, b, joint) => {
+    if (!limbs[a] || !limbs[b]) return;
+    const all = [...limbs[a].prims, ...limbs[b].prims], k = B.kLimb * W0, both = (q) => lse(all.map((p) => sdPrim(p, q)), k);
+    const J = R.joints[joint], n = unit(sub(J, R.joints[B.limbs[a].from])), past = (q) => dot(sub(q, J), n);
+    limbs[a].sd = (q) => both(q) + tuck * ease((past(q) - gap) / band);
+    limbs[b].sd = (q) => both(q) + tuck * ease((-past(q) - gap) / band);
+  };
+  chain('upperArm', 'foreArm', B.limbs?.upperArm?.to); chain('thigh', 'shank', B.limbs?.thigh?.to);
   const shared = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)).map((p) => ({ ...p, clip }));
+  // THE HIP'S HANDOVER, by height (`zHip`, under the hip's joint): the pelvis samples a field carrying the thighs' masses
+  // whole, so its skin goes round the thigh's root; above `zHip` the thigh is set `tuck` inside (its top ring and cap
+  // under the pelvis's skin: the hip's joint sits forward of the trunk's axis, and the thigh's top ring stood out of the
+  // pelvis's front in a shelf); below it the pelvis is set inside where it lies along the thigh's skin only (`near`), so
+  // the thigh shows there and the seat and the pubis keep their size (the thighs' masses cut at `zHip` left the pelvis's
+  // low rings nothing to land on behind, and they fell back to the authored cage in flat panels)
+  const pelvicB = B.base.some((m) => m.id === 'basin'), zHip = R.joints.hipR[2] - 0.3 * W0;
+  let pelvisSd = null;
+  if (pelvicB && limbs.thigh) {
+    const th = limbs.thigh.sd, thighs = (q) => Math.min(th(q), th([-q[0], q[1], q[2]]));
+    const pf = bodyField(R, B, { extra: limbs.thigh.prims });
+    pelvisSd = (q) => pf.sd(q) + tuck * ease((zHip - q[2] - gap) / band) * ease(1 - Math.max(0, thighs(q)) / 0.01);
+    limbs.thigh.sd = (q) => th(q) + tuck * ease((q[2] - zHip - gap) / band);
+  }
   const field = bodyField(R, B, { extra: shared }), r = structuredClone(recipe), P = r.parts.torso;
   const under = (q) => (clip.slope * (Math.hypot(q[0], q[1]) - clip.rho) - (q[2] - clip.z)) / Math.hypot(1, clip.slope);
-  if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => { const x = Math.max(0, Math.min(1, (-under(q) - gap) / band)); return arm(q) + tuck * x * x * (3 - 2 * x); }; }
+  if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => arm(q) + tuck * ease((-under(q) - gap) / band); }
   // the torso: above the chest the rays fan from one point on the trunk's axis (a ring's own radial line grazes the
   // shoulder's slope and the neck's root, where the authored rings tilt; rays from one origin never cross), and under
-  // the navel it lands on the authored pelvis's top, the field easing in from the waist's first station
+  // the navel, on a build without a basin, it lands on the authored pelvis's top, the field easing in from the waist's
+  // first station
   const bottom = P.stations.find((s) => s.id === 'st1')?.u ?? 1, zFan = R.joints.shoulderR[2] - 0.35 * field.frame.W;
   // and round an undercut (`lift`: the fold under the bust) they come down from a point raised above the ring, so they
   // meet the underside face on (level rays left one ring on the bust's underside and the next on the chest's wall, and
   // the band between them shaded in a sawtooth)
   const Fr = field.frame, L = B.lift, raise = (z) => { if (!L) return 0; const x = Math.min(1, Math.abs((z - Fr.z0) / Fr.T - L.t) / L.w); return L.h * Fr.W * (1 - x * x * (3 - 2 * x)); };
-  r.parts.torso = resamplePart(P, field.sd, { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 });
+  // THE PELVIS on the field too (a build with a `basin`): the torso no longer eases onto the authored pelvis, and the two
+  // hand over by height at the middle of their overlap (`zH`), as the deltoid does: below it the pelvis's skin shows
+  // (the torso's set `tuck` inside), above it the torso's (the pelvis's inside)
+  const cz = (st, Pt) => Pt.slots.reduce((a, sl) => a + st.points[sl][2], 0) / Pt.slots.length;
+  const pelvic = !!r.parts.pelvis && B.base.some((m) => m.id === 'basin');
+  const zH = pelvic ? (cz(P.stations[0], P) + cz(r.parts.pelvis.stations.at(-1), r.parts.pelvis)) / 2 : null;
+  const handed = (sd, sign) => (q) => sd(q) + tuck * ease((sign * (zH - q[2]) - gap) / band);
+  r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 });
+  if (pelvic) r.parts.pelvis = resamplePart(r.parts.pelvis, handed(pelvisSd ?? field.sd, -1), { around, rings: B.pelvisRings ?? 25, relax: 2 });
   // the neck on its own masses of the same field (its column, the sternocleidomastoids, the trapezius's climb), so the
   // torso's top and the neck's root agree
   if (r.parts.neck) r.parts.neck = resamplePart(r.parts.neck, field.only(['neck', 'sternocleidomastoid', 'trapeziusUpper']), { around: 32, rings: 15, relax: 2 });
   // the midline exactly on it, the left the right's mirror (a midline part's contract)
-  for (const T of [r.parts.torso, r.parts.neck].filter(Boolean)) for (const s of T.stations) { s.points.front[0] = 0; s.points.back[0] = 0; for (const sl of T.slots) if (sl.endsWith('L')) { const p = s.points[`${sl.slice(0, -1)}R`]; s.points[sl] = [-p[0], p[1], p[2]]; } }
+  for (const T of [r.parts.torso, r.parts.neck, pelvic && r.parts.pelvis].filter(Boolean)) for (const s of T.stations) { s.points.front[0] = 0; s.points.back[0] = 0; for (const sl of T.slots) if (sl.endsWith('L')) { const p = s.points[`${sl.slice(0, -1)}R`]; s.points[sl] = [-p[0], p[1], p[2]]; } }
   // the limbs: the right one sampled on its field, the left its mirror
-  const done = ['torso', 'neck'];
+  const done = ['torso', 'neck', ...(pelvic ? ['pelvis'] : [])];
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
-    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: limbAround, rings: Lb.rings, capsOnto: true });
+    // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
+    // the way to the bone, a few millimetres in: the thigh's top rings are centred behind the hip's joint, outside the
+    // leg's masses, and their rays found nothing to land on; from the bone itself, the joint at those rings' edge, they
+    // wrapped the ring's far side backward)
+    const a0 = R.joints[Lb.from], ab = sub(R.joints[Lb.to], a0), l2 = dot(ab, ab), lsd = limbs[limb].sd;
+    const onBone = (c) => {
+      if (lsd(c) < 0) return c;
+      const bp = add(a0, scl(ab, Math.max(0, Math.min(1, dot(sub(c, a0), ab) / l2)))), d = sub(bp, c), L = len(d);
+      for (let t = 0; t <= L; t += 0.002) { const q = add(c, scl(d, t / L)); if (lsd(q) < -0.004) return q; }
+      return null;   // (the bone itself not in the skin: the thigh's top rings above the hip's joint)
+    };
+    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }

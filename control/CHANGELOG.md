@@ -88,7 +88,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   its upper pole is the pectoral's slope, read as the Female Titan's in Attack on Titan: firm and high, set apart over
   the sternum, the apex rounded, the lower pole full over a clean fold; her torso on a finer cage, 64 by 49, for it). Every re-sampled part closes on both builds; deterministic. The lane wears
   the RELATIONAL head on it (head-relational.js, meshed and fitted vertex to menton, carried by the head bone), bald, in
-  a matte silver-grey. The legs and the pelvis are still the authored cage.
+  a matte silver-grey. The pelvis and the legs are on the field too: the basin, the pubis and the gluteus maximus and
+  medius; the thigh (rectus femoris, vastus lateralis and the medialis's teardrop, the adductors, the hamstrings, the
+  patella) and the shank (both heads of the gastrocnemius, the soleus, the tibialis anterior, the Achilles, the ankle).
+  A limb's two segments share one field and hand over by the plane through the joint (each segment's own knee had met
+  the other's in a step); the torso and the pelvis hand over by height; the pelvis's field carries the thighs' masses,
+  so its skin goes round the thigh's root, the thigh tucked under it above the hip. Only the feet are still the
+  authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -1,4 +1,4 @@
-// body-relational.test.js — the form field's slice: the torso, the neck and the arms re-sampled onto a build's field
+// body-relational.test.js — the form field's slice: the torso, the neck, the pelvis and the limbs re-sampled onto a build's field
 // close, stand on the field's skin, keep the midline and the mirror, still pose by the rig, and come out the same
 // twice. Each build is its own procedure (norrin the plain field; shalla the bust and the raised rays under it).
 import { describe, it, expect } from 'vitest';
@@ -14,7 +14,7 @@ const slice = (build) => {
   const R = validateRig(m.recipe.rig);
   return { m, R, ...formSlice(m.recipe, R, build) };
 };
-const SLICED = ['torso', 'neck', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL'];
+const SLICED = ['torso', 'neck', 'pelvis', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shankR', 'shankL'];
 
 describe('the form field slice', () => {
   for (const build of Object.keys(BODY_BUILDS)) {
@@ -22,6 +22,10 @@ describe('the form field slice', () => {
       const { m, recipe, removed } = slice(build);
       const A = auditLayered(compileLayered(recipe, m.dials));
       for (const p of SLICED) { expect(A[p].pass, p).toBe(true); expect(A[p].windingErrors, p).toBe(0); }
+      // every re-sampled part encloses its volume outward (a ring wrapped backward, or a pole behind its ring, turned
+      // the thigh inside out while the audit's edges still closed)
+      const mesh = compileLayered(recipe, m.dials), vol = (part) => mesh.faces.reduce((v, t) => { if (mesh.provenance[t[0]].part !== part) return v; const [a, b, c] = t.map((i) => mesh.vertices[i]); return v + (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6; }, 0);
+      for (const p of SLICED) expect(vol(p), p).toBeGreaterThan(0);
       expect(recipe.parts.torso.slots.length).toBeGreaterThan(m.recipe.parts.torso.slots.length);
       expect(recipe.parts.torso.stations.length).toBeGreaterThan(m.recipe.parts.torso.stations.length);
       expect(removed.length).toBeGreaterThan(0);
