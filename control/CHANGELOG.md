@@ -114,6 +114,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lower row and the tongue. A septum fills the nose's midline (a
   pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane finds none over
   the jaw's range in tenths, plain and smiling.
+- **A rounder chin.** The mental tubercles (the chin's corners) sit closer in, lower and smaller (the mandible's front
+  ends follow them in), so the chin's front rounds off from the midline instead of standing flat between two balls:
+  12 mm out it falls 0.7 to 1.1 mm behind the pogonion and 18 mm out 1.5 to 2.3 mm (both were flat to 0.2 mm). The
+  jaw's width and the face's height are unchanged. `head-study --field` gains `--crop chin`.
 - **The female face's proportions.** Read as ratios (both poles are drawn at one head height, so millimetres against
   adult norms mostly show the female head's smaller size), her face was as long as his for a narrower width and her
   skull too broad: her facial index stood above the male's where the norm (Farkas) sets it ~2.4 below. Her thirds

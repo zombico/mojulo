@@ -19,6 +19,7 @@
 //                   what each moved from that pole's first row; no sections or table
 //   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
 //   --crop nose     frame the nose's base and wings (the lip's top to the mid-bridge, just past the alae)
+//   --crop chin     frame the lower face (the nose's base to under the menton, between the jaw's corners)
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
@@ -141,6 +142,10 @@ for (const { sex, actions } of ROWS) {
     // the nose's base and wings: cheek to cheek just past the alae, the lip's top to the mid-bridge
     min: { x: -(L.alaR.x + 0.008), y: L.subnasale.y - 0.02, z: L.subnasale.z - 0.01 },
     max: { x: L.alaR.x + 0.008, y: L.noseTip.y + 0.003, z: L.subnasale.z + 0.018 },
+  } : crop === 'chin' ? {
+    // the lower face: between the jaw's corners, the nose's base to under the menton
+    min: { x: -(L.gonionR.x + 0.004), y: L.tragionR.y, z: L.menton.z - 0.006 },
+    max: { x: L.gonionR.x + 0.004, y: L.noseTip.y + 0.004, z: L.subnasale.z + 0.004 },
   } : head.bounds;
   const holes = source === 'relational' ? throughHoles(head) : null;
   const actLabel = actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts ? ' · rest' : '';

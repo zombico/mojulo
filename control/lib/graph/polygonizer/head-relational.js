@@ -136,7 +136,7 @@ export function corePoints(rel = RELATIONS) {
   side('fz', exX + 0.01, g.y - 0.07, zG - 0.01);             // frontozygomatic: the brow's outer end
   side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
   side('go', goX, 0.07, zSto - 0.03);                        // the jaw's corner
-  side('ment', goX * 0.42, pg.y - 0.035, 0.05);              // the mental tubercle: the chin's corners
+  side('ment', goX * 0.35, pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
   side('en', enX, n.y - 0.045, zEye);
   side('ex', exX, n.y - 0.09, zEye + R.canthalTilt);
   side('eye', (enX + exX) / 2, n.y - 0.07, zEye);
@@ -343,8 +343,11 @@ export function coreVajras(P, rel = RELATIONS) {
   for (const s of ['L', 'R']) w(`mandible${s}`, P[`condyle${s}`], inX(P[`go${s}`], 0.045), at(inX(P[`ment${s}`], 0.02), { y: -0.03 }), [0.035, 0.045, 0.03], [null, J, J]);
   // the chin: one rounded mass on the midline (the mental protuberance) with its tubercles small either side
   // (the chin and the floor face forward and down: their bone steps toward the head's centre, `stepIn`, never
-  // sideways as a width bead's does — a sideways step left the tubercles proud and cleft the chin)
-  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.025, 0.05, 0.025], [J, J, J], { stepIn: true });
+  // sideways as a width bead's does — a sideways step left the tubercles proud and cleft the chin). The tubercles sit
+  // a third of the jaw's half-width out, low, and small (the mandible's front ends follow them in, at their size: made
+  // smaller too, they thinned the floor of the mouth to a hole behind the lower incisors), so the chin's front rounds
+  // off from the midline (out at 0.42 of it, higher and fuller, they held a flat plate 36 mm wide between two balls)
+  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05, 0.02], [J, J, J], { stepIn: true });
   w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
   // THE BROW — frontozygomatic to frontozygomatic through the glabella, its radius the sex's ridge
   const rb = 0.03 + 0.02 * R.brow;
