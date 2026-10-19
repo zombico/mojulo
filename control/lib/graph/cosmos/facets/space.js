@@ -51,6 +51,10 @@ export const SPACE = Object.freeze({
         building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'built', roblox: 'approximated', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
         // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
         airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: 'absent', roblox: 'absent', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
+        // a city segment played as a level (city/plan/level.js, gameworld cityStages): its lots as solid boxes, lobbies walked
+        // into, doors to insides, a ring of the city as its backdrop. No Godot fixture plays one: its traffic and walkers do
+        // not step there (godot-marks.js), and the rest is unproven
+        city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', roblox: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, no roofs to stand on yet' },
       },
     },
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it
@@ -63,6 +67,13 @@ export const SPACE = Object.freeze({
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', marks: 'linkMarks' } },
     // the runtime rule each object lowers to (a lift and a moving deck: mover; a catapult: launcher; a ladder: a climb)
-    traversal: { source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' } },
+    traversal: {
+      source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' },
+      // the city stalker (10-19): every building's face a surface the hero holds, crawls, wraps and mantles off onto its
+      // roof, read from the level's own lot boxes (a body owner beside the climb, not an object placed)
+      planned: {
+        wall: { status: 'absent', effort: 'M', godot: 'absent', roblox: 'absent', note: 'any building\'s face held and crawled, round its corners and up onto its roof, and launched from (a wall-jump, a charged leap); the climb holds only a placed ladder, rope or net' },
+      },
+    },
   },
 });

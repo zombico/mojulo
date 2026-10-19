@@ -54,6 +54,19 @@ export const POWER = Object.freeze({
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' }, roblox: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
-    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
+    // the gear that moves the hero through the air, its directions held by the gear: a line to a face above and ahead (a
+    // swinger), and later one to an edge or a roof (a grapnel) or two to any face in a cone (a twin hook). The city stalker (10-19)
+    gear: {
+      values: {
+        none: { status: 'built', godot: 'built', roblox: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
+        swinger: { status: 'absent', effort: 'L', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero, swung on as a pendulum that clears the street, released with its speed; a zip to a point; no face in reach, no swing' },
+      },
+    },
+    idiom: {
+      source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' },
+      planned: {
+        'city-stalker-like': { status: 'absent', effort: 'M', godot: 'absent', roblox: 'absent', requires: ['power.gear=swinger', 'space.traversal=wall'], note: 'traversal is the verb and the gear\'s reach gates the city: which roofs a gear reaches, measured on the district, opens the next; a city level refuses a key laid in it today' },
+      },
+    },
   },
 });

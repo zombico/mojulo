@@ -29,6 +29,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Characters** plug into the hero's slot; each new movement state falls back to one every model already has.
 
   Every key is opt-in; absent, every city level and game renders as before.
+- **The probe.** The capability registry (`lib/graph/cosmos`) names the genre, so the hill-climb page measures what it
+  waits on:
+  - A **City stalker** fixture.
+  - `space.levelForm=city`: a city segment played as a level, which is built today (first person, no roofs).
+  - Four planned gaps, priced: `power.gear` (a new setting: `none`, built, and `swinger`), `space.traversal=wall`,
+    `power.idiom=city-stalker-like` (it requires the swinger and the wall), and `reality.look=city-night`.
+
+  The probe reads blocked on exactly those four. Its Godot export would lose the city level, which no Godot fixture
+  plays yet.
 
 ### Epidermis cube: skin and hair as a recipe
 

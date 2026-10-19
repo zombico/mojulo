@@ -32,7 +32,13 @@ export const REALITY = Object.freeze({
     // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
     cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
     // a look's bake and palette ride the GLB; its sky and haze travel approximated, its tone whole (godot-marks.js PAGE_MARKS)
-    look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' }, roblox: { all: 'approximated' } } },
+    look: {
+      source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' }, roblox: { all: 'approximated' } },
+      // the city stalker (10-19): a city's own look, and the air that carries it past the district's edge
+      planned: {
+        'city-night': { status: 'absent', effort: 'M', godot: 'absent', roblox: 'absent', note: 'concrete, asphalt and signage under a night sky, its windows lit; the rest of the city as massing and a skyline past it, hidden in a haze planned from the roofs, street smog below and a cloud deck above' },
+      },
+    },
     kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' }, roblox: { all: 'approximated' } } },
     medium: {
       values: {

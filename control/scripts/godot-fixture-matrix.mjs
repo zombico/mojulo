@@ -65,6 +65,7 @@ export const FIXTURE_VARIANTS = Object.freeze({
 export const NOT_QUICK = Object.freeze({
   'story-adventure': 'the quick path has no talk, scenes or quests: a story game is written on the full rail (design_game world)',
   'arena-brawler': 'the quick path has no arena of hunting foes to fight in melee: an arena is written on the full rail',
+  'city-stalker': 'the swinger and the wall are not built: there is no stalker\'s district to mint yet',
 });
 
 const SCRIPT_ERR = /SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Failed loading resource/;
