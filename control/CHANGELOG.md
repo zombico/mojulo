@@ -114,6 +114,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lower row and the tongue. A septum fills the nose's midline (a
   pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane finds none over
   the jaw's range in tenths, plain and smiling.
+- **The female face's proportions.** Read as ratios (both poles are drawn at one head height, so millimetres against
+  adult norms mostly show the female head's smaller size), her face was as long as his for a narrower width and her
+  skull too broad: her facial index stood above the male's where the norm (Farkas) sets it ~2.4 below. Her thirds
+  shorten (`third` 0.28, the eye line following to 0.49 so the brow keeps its height over the eye) and her vault
+  narrows (`cephalic` 0.79): facial index 87.2 → 84.7 (male 86.3), n-gn/g-op 0.615 → 0.592 (male 0.608), n-sn/g-op
+  0.291 → 0.280 (male 0.285), eu/g-op 0.802 → 0.790 (male 0.781). The face sits lower on a relatively larger, rounder
+  vault; the tune meets every relation as before.
 - **The wings' bases.** Each wing meets the face in one crease: the alar crease runs behind the wing's root, clear of
   it, its edge blended, so the root's round end is the wing's heel (cut across the wing in front of the root, it left a
   curled flap outside the groove; cut into the root's back, a point), the root sits just inside the alare so the

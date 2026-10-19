@@ -94,7 +94,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.79, third: 0.28, eyeLine: 0.49, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
