@@ -181,8 +181,11 @@ and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph
 | `storm` | an element: a slate coat, lightning chevrons, tall sparking prongs, eyes of white light |
 | `venom` | an element: a dark green coat, glowing acid spots and belly, barbs, long fangs, acid eyes |
 | `shadow` | an element: a near-black coat, a violet line down the spine, a wisping crest, pale violet eyes |
-| `herobot` | a toy hero robot in the herobot language, its face its own: a big round head under a dark helmet, a light face, ear domes, a red brow gem, ball pauldrons, a chest plate, flared boots, two-tone glossy plastic |
+| `herobot` | a toy hero robot in the herobot language, its face its own, in its own colours: a big round head under a helmet, ear domes, a brow gem, twin antennae, ball pauldrons, ball joints at every elbow, knee and hock, a chest plate, panel seams and vent grilles, a segmented tail, flared boots, LED eyes, glossy plastic |
 | `transmetal` | beast mode: the animal's outline and fur kept, its details machined: a chrome faceplate (cheeks left fur), chrome lower legs, teeth and back plate, joint rings, pistons along the upper limbs, a segmented chrome tail, red visor eyes |
+
+The machine oozes paint in the animal's own colours, never one fixed hue: a light suit, the coat darkened into armour,
+darker seams, and one warm accent from the coat's hue (amber on a brown, red on a grey or an orange).
 
 They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war
 machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a machined brute.

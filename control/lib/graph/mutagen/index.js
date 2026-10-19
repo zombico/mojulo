@@ -8,7 +8,7 @@
 // head's rows, fangs, hackles, the rest face, glowing eyes).
 import { OOZES } from './oozes/index.js';
 import { oozeErrors, normalizeOozes, composeForm, FORM_KEYS } from './compose.js';
-import { composePush, pushParams, pushPlan, pushErrors, growMesh } from './push.js';
+import { composePush, pushParams, pushPlan, pushErrors, growMesh, resolveColorWords } from './push.js';
 import { buildFauna } from '../fauna/build.js';
 import { stylismErrors, resolveStylism, heighten, spendDetail, registerNote } from './stylism.js';
 import { graftParams, graftPush } from './chimera.js';
@@ -67,6 +67,8 @@ export function oozeParams(P, mutagen) {
  * is the share of the face's pushes the head could seat (push.js `pushPlan`).
  */
 export function oozeFauna(P, mutagen, report = {}) {
+  // the colour words (suit, armor, seam, accent) resolved against the animal's own coat, once, for both halves
+  if (mutagen?.push) mutagen = { ...mutagen, push: resolveColorWords(mutagen.push, P.colors) };
   let Q = oozeParams(P, mutagen), push = mutagen?.push;
   const S = mutagen?.stylism;
   if (S) {

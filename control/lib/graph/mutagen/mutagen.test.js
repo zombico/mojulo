@@ -3,6 +3,7 @@ import { stylismErrors } from './stylism.js';
 import { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, resolveMutagen, oozeParams, oozeFauna, mutagenErrors, FORM_KEYS } from './index.js';
 import { SPECIES, speciesParams, speciesPlan } from '../fauna/species.js';
 import { buildFauna } from '../fauna/build.js';
+import { colorWords } from './push.js';
 import { PER_RIG } from '../fauna/test-cases.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 
@@ -168,16 +169,36 @@ describe('mutagen: the form on a species', () => {
   it('the machine pieces: boots flare the lower leg, pauldrons and pistons stand in the armour, groups recolour and take a material', () => {
     const id = PER_RIG[0], P = speciesParams(id);
     const M = { form: {}, push: { boots: { flare: 1.6 }, pauldrons: { size: 1 }, pistons: { size: 1 }, earDomes: { size: 1 }, gem: true,
-      armor: { color: '#1f5fc8', material: 'plastic' }, groups: { Skull: { color: '#c3cad3', material: 'chrome' } }, motif: 'toy' } };
+      jointBalls: { size: 1 }, antenna: { size: 1 }, armor: { color: '#1f5fc8', material: 'plastic' }, groups: { Skull: { color: '#c3cad3', material: 'chrome' } }, motif: 'toy' } };
     const plan = oozeFauna(P, M), base = buildFauna(P);
     const froms = new Set(P.legs.map((r) => r[1])), foot = P.legs.find((r) => !froms.has(r[2])), ankle = P.legs.find((r) => r[2] === foot[1]);
     const rB = (p) => Math.max(...[p.segments.find((g) => g.name === ankle[0]).rB].flat());
     expect(rB(plan)).toBeGreaterThan(1.5 * rB(base));
     expect(plan.segments.some((g) => g.name === 'oozePauldronR' && g.group === 'Armor')).toBe(true);
     expect(plan.segments.filter((g) => /^oozePiston/.test(g.name)).length).toBeGreaterThan(0);
-    expect(plan.heads[0].plan.ornaments.map((o) => o.name)).toEqual(expect.arrayContaining(['oozeEarDome', 'oozeGem']));
+    expect(plan.segments.filter((g) => /^oozeJoint/.test(g.name)).every((g) => g.group === 'Armor' && g.mirror)).toBe(true);
+    expect(plan.segments.some((g) => g.name === `oozeJoint${ankle[0].replace(/R$/, '')}R`)).toBe(true);
+    expect(plan.heads[0].plan.ornaments.map((o) => o.name)).toEqual(expect.arrayContaining(['oozeEarDome', 'oozeGem', 'oozeAntenna', 'oozeAntennaTip']));
     expect([plan.palette.Armor, plan.palette.Skull, plan.heads[0].plan.palette.Skull]).toEqual(['#1f5fc8', '#c3cad3', '#c3cad3']);
     expect(expandPlan(plan).surfaces).toMatchObject({ Armor: 'plastic', Skull: 'chrome' });
+  });
+
+  it('colour words are the animal\'s own: a suit lighter than the coat, armour and seams darker, a warm accent never blue', () => {
+    const L = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const hue = (h) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+      return ((mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60 + 360) % 360; };
+    for (const coat of ['#857a6a', '#6b4a31', '#b8602a', '#cf1f27']) {   // a grey, a brown, a vivid orange, a vivid red
+      const W = colorWords(coat);
+      expect(L(W.suit)).toBeGreaterThan(L(coat));
+      expect(L(W.seam)).toBeLessThan(L(W.armor));
+      expect(L(W.armor)).toBeLessThan(L(coat));
+      expect(hue(W.accent) < 70 || hue(W.accent) >= 330).toBe(true);
+    }
+    const P = speciesParams(PER_RIG[0]), W = colorWords(P.colors.coat);
+    const plan = oozeFauna(P, { form: {}, push: { armor: { color: 'armor' }, pauldrons: { size: 1 }, motif: 'toy', motifColor: 'accent', marks: [{ on: 'torso', kind: 'band', group: 'Seam', color: 'seam' }] } });
+    expect([plan.palette.Armor, plan.palette.Seam]).toEqual([W.armor, W.seam]);
+    expect(pushErrors({ tint: { color: 'suit', amount: 1 } })).toEqual([]);
+    expect(pushErrors({ tint: { color: 'rust', amount: 1 } })[0]).toMatch(/suit \| armor/);
   });
 
   it('a two-tone tint takes the light values toward their own colour', () => {

@@ -39,6 +39,8 @@
 //   earDomes { size }          a round dome on each side of the head where the ears were (a worn head mesh: none)
 //   gem      true              a gem on the brow, in the motif
 //   pistons  { size }          a hydraulic rod along the outside of each upper limb, in the armour (the machine's joint)
+//   jointBalls { size }        a ball at every joint down each leg (elbow, knee, wrist, hock), in the armour: a toy's joints
+//   antenna  { size }          twin antennae off the crown, ball-tipped in the motif
 //   tipGlow  true              the tail's tip drawn full-bright
 //   motif    <word>            the shape family the ornaments are made in (the last ooze's, else `horn`)
 //   motifGlow true             the ornaments drawn full-bright whatever their motif (the stylist's accent)
@@ -47,6 +49,10 @@
 //   groups   { <Group>: { color, material?, glow? } }   a palette group recoloured and given a material on the body,
 //            the head and a worn head mesh alike (a chrome faceplate: Skull and Snout)
 //   boots    { flare }         each lower leg widened toward the foot, a cone (the toy hero's flared boots)
+// COLOUR WORDS: wherever a push names a colour it may name one of the animal's own instead of a hex: `suit` (its coat
+//   lightened and quietened), `armor` (its coat darkened), `seam` (darker still: panel lines), `accent` (one warm
+//   signal colour from the coat's own hue, bright): a machine made in its own colours, never one fixed hue (resolveColorWords)
+//   motifColor <colour>         the motif's colour over its own (a gem in the creature's accent)
 // SURFACE
 //   coat     darken            the coat's colours toward black
 //   desaturate d               the coat's colours toward their own grey
@@ -77,13 +83,15 @@ const LEAVES = {
   coat: 'compound', desaturate: 'compound', 'eyes.color': 'last', 'eyes.glow': 'glow', 'eyes.open': 'mul', 'eyes.socket': 'last',
   'horns.size': 'max', 'horns.curl': 'last', 'horns.pairs': 'max', 'plates.count': 'last', 'plates.height': 'max', 'cheeks.size': 'max', 'shoulders.size': 'max', 'spurs.size': 'max',
   'tailSpikes.count': 'last', 'tailSpikes.size': 'max', 'ruff.size': 'max', bands: 'glow', tipGlow: 'glow', motif: 'last', motifGlow: 'glow',
-  'pauldrons.size': 'max', 'earDomes.size': 'max', gem: 'glow', 'pistons.size': 'max', 'boots.flare': 'mul',
+  'pauldrons.size': 'max', 'earDomes.size': 'max', gem: 'glow', 'pistons.size': 'max', 'boots.flare': 'mul', 'jointBalls.size': 'max', 'antenna.size': 'max', motifColor: 'last',
   'armor.color': 'last', 'armor.material': 'last', 'armor.glow': 'glow',
 };
 const LISTS = ['tint', 'marks'];   // stacked in list order, not merged
 const leafOf = (path) => LEAVES[path] ?? (path.startsWith('expression.') ? 'add' : path.startsWith('surfaces.') || /^groups\.[A-Za-z]\w*\.(color|material)$/.test(path) ? 'last' : /^groups\.[A-Za-z]\w*\.glow$/.test(path) ? 'glow' : null);
 const MUL_CLAMP = [0.3, 3];
 const HEX = /^#[0-9a-f]{6}$/i;
+export const COLOR_WORDS = Object.freeze(['suit', 'armor', 'seam', 'accent']);
+const COLORISH = (c) => HEX.test(c ?? '') || COLOR_WORDS.includes(c);
 const MARK_KINDS = ['band', 'belly', 'stripes', 'patch', 'spots'];
 const TRUNK_DENSITY = 5, LEG_DENSITY = 3, PART_DENSITY = 3;   // rings per station interval under a mark
 
@@ -100,8 +108,8 @@ export function pushErrors(push, label = 'push') {
   if (push === undefined) return [];
   if (!push || typeof push !== 'object') return [`${label}: an object of pushes`];
   const errs = flatten(push).filter(([p]) => !leafOf(p)).map(([p]) => `${label}.${p}: not a push (have ${Object.keys(LEAVES).join(', ')}, tint, marks, surfaces.<group>, expression.<control>)`);
-  if (push.tint !== undefined && !(push.tint && HEX.test(push.tint.color) && Number.isFinite(push.tint.amount) && (push.tint.lightColor === undefined || HEX.test(push.tint.lightColor)))) errs.push(`${label}.tint: { color: '#rrggbb', amount, light?, lightColor?: '#rrggbb' }`);
-  for (const [g, v] of Object.entries(push.groups ?? {})) if (!v || !HEX.test(v.color ?? '') || (v.material !== undefined && typeof v.material !== 'string')) errs.push(`${label}.groups.${g}: { color: '#rrggbb', material?, glow? }`);
+  if (push.tint !== undefined && !(push.tint && COLORISH(push.tint.color) && Number.isFinite(push.tint.amount) && (push.tint.lightColor === undefined || COLORISH(push.tint.lightColor)))) errs.push(`${label}.tint: { color: '#rrggbb' | ${COLOR_WORDS.join(' | ')}, amount, light?, lightColor? }`);
+  for (const [g, v] of Object.entries(push.groups ?? {})) if (!v || !COLORISH(v.color) || (v.material !== undefined && typeof v.material !== 'string')) errs.push(`${label}.groups.${g}: { color: '#rrggbb' | ${COLOR_WORDS.join(' | ')}, material?, glow? }`);
   for (const [i, m] of (push.marks ?? []).entries()) if (!m || !MARK_KINDS.includes(m.kind) || !m.on || !m.group) errs.push(`${label}.marks[${i}]: { on, kind: ${MARK_KINDS.join(' | ')}, group, color?, glow?, … }`);
   for (const [g, m] of Object.entries(push.surfaces ?? {})) if (typeof m !== 'string') errs.push(`${label}.surfaces.${g}: a material name`);
   if (push.motif !== undefined && !MOTIFS[push.motif]) errs.push(`${label}.motif: one of ${MOTIF_NAMES.join(', ')}`);
@@ -147,6 +155,33 @@ const TOOTHLESS = new Set(['avian', 'testudine', 'monotreme']);
 
 /** A worn head mesh (fauna build.js `wearHeadMesh`, sized in metres nape to nose) grown by k. */
 export const growMesh = (H, k) => ({ ...H, ...(H.length ? { length: H.length * k } : {}), ...(H.lift ? { lift: H.lift * k } : {}) });
+
+// ── the animal's own colours, named by word ──
+const hsl = (h) => { const [r, g, b] = rgb(h).map((x) => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l]; const s2 = d / (1 - Math.abs(2 * l - 1)); const hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [((hh * 60) + 360) % 360, s2, l]; };
+const fromHsl = (h, s2, l) => { const c = (1 - Math.abs(2 * l - 1)) * s2, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]; return hex([r + m, g + m, b + m].map((v) => v * 255)); };
+/**
+ * The colour words against a coat: `suit` lighter and quieter, `armor` darker, `seam` darker still, and `accent` the one
+ * bright note, a warm signal colour wherever the coat allows (a toy's light, not a cool blue). A muted coat (chroma under
+ * 0.35: most animals, browns and greys) has no hue worth turning, so its accent is its own hue made vivid (amber on a
+ * brown, red on a grey); a vivid warm coat steps along the warm band away from itself (an orange fox to red, a red macaw
+ * to amber); a vivid cool coat takes its complement, which is warm.
+ */
+export function colorWords(coat = '#7a6a58') {
+  const [h, s2, l] = hsl(coat), chroma = s2 * (1 - Math.abs(2 * l - 1)), warm = h < 70 || h >= 330;
+  const hue = chroma < 0.35 ? (s2 < 0.08 ? 4 : h) : !warm ? (h + 180) % 360 : (h < 15 || h >= 330) ? (h + 40) % 360 : h - 30;
+  const accent = fromHsl((hue + 360) % 360, 0.85, 0.52);
+  return { suit: grey(mixHex(coat, '#ffffff', 0.4), 0.25), armor: darken(grey(coat, 0.15), 0.5), seam: darken(coat, 0.75), accent };
+}
+const COLOR_PATHS = /(^|\.)(color|lightColor|motifColor)$/;
+/** A composed push with every colour word resolved against the animal's own coat (a new object). */
+export function resolveColorWords(push, colors) {
+  if (!push) return push;
+  const W = colorWords(colors?.coat), walk = (v, k = '') => (typeof v === 'string' && COLOR_PATHS.test(k) && W[v] ? W[v]
+    : Array.isArray(v) ? v.map((x, i) => walk(x, `${k}.${i}`)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([kk, x]) => [kk, walk(x, kk)])) : v);
+  return walk(push);
+}
 
 /** Species params with a push's param-level half laid over them (a new object). */
 export function pushParams(P, push) {
@@ -242,7 +277,7 @@ function pushLimbs(P, { fore = 1, hind = 1, paws = 1, flare = 1 }) {
  */
 export function pushPlan(plan, push, P, report = {}) {
   if (!push) return plan;
-  const faced = push.head || push.expression || push.horns || push.cheeks || push.earDomes || push.gem;
+  const faced = push.head || push.expression || push.horns || push.cheeks || push.earDomes || push.gem || push.antenna;
   for (const f of faced ? [1, 0.75, 0.5, 0.25, 0] : [1]) {
     const out = pushOnce(plan, f === 1 ? push : faceAt(push, f), P);
     if (!faced) return out;
@@ -253,7 +288,8 @@ export function pushPlan(plan, push, P, report = {}) {
 
 // the face's pushes at a share f: its multipliers raised to f, its controls × f (`pace` is the body's: it stays)
 function faceAt(push, f) {
-  const { head, expression, horns, cheeks, earDomes, gem, ...rest } = push;
+  const { head, expression, horns, cheeks, earDomes, gem, antenna, ...rest } = push;
+  if (f > 0 && antenna) rest.antenna = { ...antenna, size: antenna.size * f };
   if (f > 0 && horns) rest.horns = { ...horns, size: horns.size * f };
   if (f > 0 && cheeks) rest.cheeks = { ...cheeks, size: cheeks.size * f };
   if (f > 0 && earDomes) rest.earDomes = { ...earDomes, size: earDomes.size * f };
@@ -301,21 +337,21 @@ function cone(plan, name, A, B, rA, mirror) {
 function ornaments(plan, push, P) {
   const M = MOTIFS[push.motif ?? 'horn'], out = { glow: [], material: null };
   armorAndGroups(plan, push, out);
-  const any = push.horns?.size || push.plates?.count || push.cheeks?.size || push.pauldrons?.size || push.earDomes?.size || push.gem || push.pistons?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
+  const any = push.horns?.size || push.plates?.count || push.cheeks?.size || push.pauldrons?.size || push.earDomes?.size || push.gem || push.pistons?.size || push.jointBalls?.size || push.antenna?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
   // the tail's tip burns in the motif's colour (a dark tip glowing is still dark)
   if (push.tipGlow) { out.glow.push('Tip'); plan.palette = { ...plan.palette, Tip: M.glow ? M.color : (push.eyes?.color ?? M.color) }; }
   if (!any) return out;
   // VALUE: the ornament a clear step from the coat it stands on (value.js: local contrast), else it vanishes into it
-  const color = valueStep(M.color, P.colors?.coat, M.glow || push.motifGlow);
+  const color = push.motifColor ?? valueStep(M.color, P.colors?.coat, M.glow || push.motifGlow);
   plan.palette = { ...plan.palette, Motif: color };
   if (M.glow || push.motifGlow) out.glow.push('Motif');
   if (M.material) out.material = M.material;
   // armour no ooze coloured is the motif's
-  if (!push.armor?.color && (push.pauldrons?.size || push.earDomes?.size || push.pistons?.size)) armorAndGroups(plan, { armor: { color, ...(M.material ? { material: M.material } : {}) } }, out);
+  if (!push.armor?.color && (push.pauldrons?.size || push.earDomes?.size || push.pistons?.size || push.jointBalls?.size || push.antenna?.size)) armorAndGroups(plan, { armor: { color, ...(M.material ? { material: M.material } : {}) } }, out);
   const J = plan.joints, depth = depthOf(plan), H = plan.heads?.[0]?.plan;
   // HORNS and CHEEK SPURS: sweeps in the head's own units, rooted inside the skull on its own rows (behind the brow;
   // at the cheek), sized in the skull's length, so every head takes them at its own scale
-  if (H && (push.horns?.size || push.cheeks?.size || push.earDomes?.size || push.gem)) {
+  if (H && (push.horns?.size || push.cheeks?.size || push.earDomes?.size || push.gem || push.antenna?.size)) {
     const C = H.parts.cranium, Lh = C.caps.tip[1] - C.caps.back[1], row = (i) => C.rows[Math.min(i, C.rows.length - 1)];
     const xz = (S, k) => (Array.isArray(S[k]) ? S[k] : [0, S[k]]), orn = [];
     if (push.horns?.size) {
@@ -338,6 +374,12 @@ function ornaments(plan, push, P) {
     if (push.gem) {   // a gem on the brow's midline, standing a little proud
       const [, y, S] = row(2), top = typeof S.top === 'number' ? S.top : xz(S, 'top')[1], L = 0.12 * Lh, root = [0.01 * Lh, y, top];
       orn.push({ kind: 'sweep', name: 'oozeGem', at: [2, 0], space: 'head', spine: [[0, 0, -0.2], [0, 0.15, 0.25], [0, 0.3, 0.3]].map((q) => v3(q.map((x, i) => root[i] + x * L))), radii: [0.45, 0.4, 0.05].map((r) => r6(r * L)), m: 6, group: 'Motif' });
+    }
+    if (push.antenna?.size) {   // twin antennae off the crown, a thin rod and a ball at its tip
+      const [, y, S] = row(1), [cx, cz] = xz(S, 'crown'), L = 0.5 * Lh * push.antenna.size, root = [cx * 0.45, y, cz * 0.9];
+      const tip = [root[0] + 0.12 * L, root[1] - 0.15 * L, root[2] + L];
+      orn.push({ kind: 'sweep', name: 'oozeAntenna', at: [1, 1], space: 'head', spine: [root, [root[0] + 0.05 * L, root[1] - 0.06 * L, root[2] + 0.5 * L], tip].map(v3), radii: [0.05, 0.035, 0.03].map((r) => r6(r * L)), m: 6, group: 'Armor' });
+      orn.push({ kind: 'sweep', name: 'oozeAntennaTip', at: [1, 1], space: 'head', spine: [[0, 0, -0.08], [0, 0, 0], [0, 0, 0.08]].map((q) => v3(q.map((x, i) => tip[i] + x * L))), radii: [0.04, 0.1, 0.04].map((r) => r6(r * L)), m: 8, group: 'Motif' });
     }
     H.ornaments = [...(H.ornaments || []), ...orn];
     H.palette = { ...H.palette, Motif: color, ...(push.armor?.color ? { Armor: push.armor.color } : {}) };
@@ -369,6 +411,19 @@ function ornaments(plan, push, P) {
     const h = 0.55 * depth * push.pauldrons.size, c = [J.shoulder[0] + 0.3 * h, J.shoulder[1], J.shoulder[2] + 0.35 * h], n = 7;
     const stations = Array.from({ length: n }, (_, i) => { const u = (i + 0.5) / n, y = c[1] + h * (2 * u - 1), rr = h * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2)); return { at: v3([c[0], y, c[2]]), r: r6(rr) }; });
     plan.segments.push({ name: 'oozePauldronR', kind: 'loft', slots: 'ring12', group: 'Armor', mirror: 'name', stations, caps: { back: v3([c[0], c[1] - h, c[2]]), tip: v3([c[0], c[1] + h, c[2]]) } });
+  }
+  // JOINT BALLS: a round ball at every joint down each leg (the end of each row but the foot's), a little wider than the
+  // limb there, in the armour: the toy's ball joints; each rides the limb it caps
+  if (push.jointBalls?.size && Array.isArray(P.legs)) {
+    const froms = new Set(P.legs.map((r) => r[1]));
+    for (const row of P.legs.filter((r) => froms.has(r[2]))) {
+      const seg = plan.segments.find((g) => g.name === row[0]), c = J[row[2]];
+      if (!seg || !c) continue;
+      const rad = (v) => (v === undefined ? NaN : Math.max(...[v].flat())), rb = rad(seg.rB);
+      const h = (Number.isFinite(rb) && rb > 0 ? rb : 0.05 * depth) * 1.3 * push.jointBalls.size, n = 5, name = `oozeJoint${row[0].replace(/R$/, '')}R`;
+      const stations = Array.from({ length: n }, (_, i) => { const u = (i + 0.5) / n; return { at: v3([c[0], c[1] + h * (2 * u - 1), c[2]]), r: r6(h * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2))) }; });
+      plan.segments.push({ name, kind: 'loft', slots: 'ring12', group: 'Armor', mirror: 'name', stations, caps: { back: v3([c[0], c[1] - h, c[2]]), tip: v3([c[0], c[1] + h, c[2]]) } });
+    }
   }
   // PISTONS: a rod along the outside of each upper limb, half sunk in it, from its top joint most of the way down
   if (push.pistons?.size && Array.isArray(P.legs)) {
