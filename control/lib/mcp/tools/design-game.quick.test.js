@@ -371,6 +371,19 @@ describe('design_game quick', () => {
     await expect(designGameHandler({ quick: { goal: 'reach', board: true, world: { id: 'keep3' } }, ref: 'tdy' })).rejects.toThrow(/board belongs to the defend goal/);
   }, 240_000);
 
+  it('conquer: a real-time skirmish over the stage\'s spots, two bases and a purse, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'conquer', board: { gold: 200 }, world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'rtq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rtq-level-run-0').board).toEqual({ rts: { gold: 200 } });
+    expect(mechanicsOf('rtq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rtq-level-run-0'));
+    expect(payload.board.rts).toMatchObject({ gold: 200 });
+    expect(payload.board.rts.bases.player).not.toBe(payload.board.rts.bases.enemy);
+    expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', hero: false, world: { id: 'field2' } }, ref: 'rtx' })).rejects.toThrow(/conquer is a skirmish/);
+  }, 240_000);
+
   it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {
     await designGameHandler({ quick: { goal: 'puzzle', boulders: 2, world: { id: 'rocks', style: { kit: 'trail-valley', pixel: true } } }, ref: 'z' });
     const L = stored('z-level-run-0'), P = L.game.mechanics[0];

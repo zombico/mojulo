@@ -61,6 +61,8 @@ export const GENRES = Object.freeze({
   // a versus fighter (versus/): every fighter is a person on the hero door (no mascot until non-human fighters exist),
   // never a bystander or a child; the rushdown and the grappler first, the archetypes a fighting game casts
   fight:      { weight: 0, mascot: {}, person: { role: { frontline: 3, flanker: 3, ranged: 1.5, caster: 1.5, 'non-combatant': 0 }, archetype: { hero: 2, outlaw: 2, ruler: 1.5, jester: 1.5, magician: 1.5 }, build: { heroic: 1.5, brute: 1.5, lithe: 1.5 }, age: combat } },
+  // a skirmish commanded from above: a commander's cast, never a child
+  conquer:    { weight: 0.2, mascot: { promise: { might: 2, pride: 3 } }, person: { role: { frontline: 2, ranged: 2 }, archetype: { ruler: 3, hero: 1.5, outlaw: 1.5 }, age: { adult: 1.5, seasoned: 2, ...combat } } },
   fly:        { weight: 0.4, mascot: { promise: { speed: 3, wonder: 2 } }, person: { archetype: { explorer: 3, hero: 2 }, role: { ranged: 2 } } },
 });
 

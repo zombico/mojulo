@@ -56,7 +56,8 @@ export const POWER = Object.freeze({
         // built 10-19 (the strategy board): the maze defence's placement
         maze: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-td.js', note: 'a tower on any free spot of a board, paid from the purse, where every gate and every walking foe keeps a way to the base: the road bends round the towers (board td; quick defend with board)' },
         // priced 10-19: the real-time strategist's verbs
-        orders: { status: 'absent', effort: 'L', requires: ['space.camera=tactical'], ...WEB, note: 'select a unit or a box of them and order it: move, attack-move, hold, a rally point; nothing selects or orders a body the player does not pilot' },
+        // built 10-19 (the strategy board): the skirmish's orders
+        orders: { status: 'built', requires: ['space.camera=tactical'], ...WEB, lowers: 'lib/graph/board/board-rts.js', note: 'select a unit or a box of them and order it: move, attack-move, attack, hold, stop, gather; buildings train for gold and send out to a rally point; an enemy mind plays the other side (board rts; quick conquer)' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)

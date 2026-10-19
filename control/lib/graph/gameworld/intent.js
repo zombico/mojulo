@@ -63,7 +63,7 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter',
+  fight: 'versus-fighter', conquer: 'rts',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

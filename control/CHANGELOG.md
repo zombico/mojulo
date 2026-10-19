@@ -18,17 +18,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 A game can carry a board: square spots laid over its terrain as their own layer, each with a height, a terrain type
 and at most one unit. From any state the board lists every legal move, so a player can run out of options. Turn-based
-tactics (in the manner of Final Fantasy Tactics) and tower defence share it. A board lies over a geocube's level,
+tactics (in the manner of Final Fantasy Tactics), tower defence and real-time strategy share it. A board lies over a geocube's level,
 indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only. In progress:
 
-- **Real-time strategy on the board** (in progress): units given orders (move, attack-move, attack, hold, stop,
-  gather), workers mining for a purse, buildings training units to a rally point, against a plain mind that builds
-  and attacks in waves; destroy the other base.
+- **Real-time strategy on the board** (`lib/graph/board/board-rts.js`, `board-rts-page.js`), built, North star
+  StarCraft at a spike's depth: two bases on the board's spots, workers mining gold nodes, a barracks raised over
+  time, soldiers and archers trained for gold and sent to a rally point. Units take orders, one or a box of them:
+  move, attack-move, attack, hold, stop, gather. Paths walk round buildings and nodes. The other side is played by a
+  plain mind (workers to a count, a barracks, waves that grow), and the game ends when a base falls. A fixed step
+  and no dice: the same orders at the same times make the same game, however the time is cut. On the page: click,
+  shift-click or drag a box; right-click to move, attack, gather or set a rally; A attack-move, B build, H hold, S
+  stop, Q / W train, Ctrl+A the army. The board kind and a board over a stage take `rts` (one of `td`, `rts`, a
+  battle or units), with `enemy` for a handicap. The quick goal `conquer` is a skirmish on the stage's spots
+  (`board: { cols, rows, gold }`), the level the board's to end. Web only.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
   defence's placement (`systems: maze`) and the summons. The tactics probe asks for FFT's whole shape and is
-  makeable; the real-time strategy probe waits only on unit orders (`systems: orders`). Re-swept on
+  makeable; so is the real-time strategy probe, with unit orders built (`systems: orders`). Re-swept on
   `docs/tool-surface/hillclimb.md`: more rolled worlds makeable, the board no longer the top gap.
 
 - **The board kernel** (`lib/graph/board/board-kernel.js`), built: square spots with heights and terrain types, one

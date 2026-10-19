@@ -40,6 +40,7 @@
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
+ *     board?: true | { cols?, rows?, gold? }   // conquer: the skirmish's board and its purse (board/board-rts.js)
  *     board?: true | { cols?, rows?, gold? }   // defend: a TOWER DEFENCE on the stage's spots (board/board-td.js):
  *                                           // towers on any free spot that keeps the road open, the waves the
  *                                           // ladder's (waves: 1 to 5), no hero; without it, the trail's defence
@@ -123,6 +124,7 @@ export const QUICK_GOALS = Object.freeze({
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
+  conquer: 'a real-time skirmish on the stage\'s spots, seen from above: workers mine gold, a barracks trains soldiers and archers; select and order them (move, attack-move, hold) and take the enemy\'s base before it takes yours',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -280,8 +282,9 @@ export function readQuick(Q) {
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
   for (const k of ['foe', 'tower']) if (Q[k] !== undefined && !isObj(Q[k])) throw fail(`.${k} is a hero-door spec, as .hero is`);
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
+  if (Q.goal === 'conquer' && (Q.building !== undefined || Q.climb || Q.ride || Q.hero !== undefined || Q.run !== undefined)) throw fail('.conquer is a skirmish on the stage\'s spots, commanded from above: no hero, climb, building, ride or run');
   if (Q.board !== undefined) {
-    if (Q.goal !== 'defend') throw fail('.board belongs to the defend goal (a tower defence on the stage\'s spots)');
+    if (Q.goal !== 'defend' && Q.goal !== 'conquer') throw fail('.board belongs to the defend goal (a tower defence on the stage\'s spots) and the conquer goal (the skirmish\'s board)');
     if (Q.board !== true && !isObj(Q.board)) throw fail('.board is true, or { cols?, rows?, gold? }');
     if (isObj(Q.board)) {
       for (const k of Object.keys(Q.board)) if (!['cols', 'rows', 'gold'].includes(k)) throw fail(`.board.${k} is not part of it (cols, rows, gold)`);
@@ -289,7 +292,7 @@ export function readQuick(Q) {
       if (Q.board.gold !== undefined && !(Number.isInteger(Q.board.gold) && Q.board.gold >= 0 && Q.board.gold <= 999)) throw fail('.board.gold is 0 to 999');
     }
     for (const k of ['pads', 'tower']) if (Q[k] !== undefined) throw fail(`.${k} is the trail's defence; on a board a tower stands on any free spot that keeps the road open`);
-    if (Q.waves !== undefined && Q.waves > TD_WAVES.length) throw fail(`.waves is 1 to ${TD_WAVES.length} on a board (its ladder)`);
+    if (Q.goal === 'defend' && Q.waves !== undefined && Q.waves > TD_WAVES.length) throw fail(`.waves is 1 to ${TD_WAVES.length} on a board (its ladder)`);
   }
   if (Q.goal !== 'puzzle' && Q.boulders !== undefined) throw fail('.boulders belongs to the puzzle goal');
   if (Q.boulders !== undefined && !(Number.isInteger(Q.boulders) && Q.boulders >= 1 && Q.boulders <= 4)) throw fail('.boulders is 1 to 4');

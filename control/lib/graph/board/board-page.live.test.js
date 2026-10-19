@@ -280,6 +280,59 @@ describe('the board on the World page', () => {
     await p2.close();
   }, 180000);
 
+  it('plays a skirmish: units boxed and ordered by the mouse, workers mining, a barracks trained from, the enemy base taken', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'rts', title: null, manifest: { kind: 'board', board: { seed: 'rts', relief: 0.1, cols: 9, rows: 12 },
+      rts: { army: 4, gold: 300, enemy: { gold: 0, workers: 0, army: 0 }, ai: { workers: 0, wave: 30 } }, game: { levelRef: 'rts', mechanics: [{ kind: 'board' }] } } });
+    expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    // a box dragged over the whole view: every unit of the player's, none of the enemy's
+    await page.mouse.move(4, 4); await page.mouse.down(); await page.mouse.move(600, 400, { steps: 4 }); await page.mouse.move(1116, 776, { steps: 4 }); await page.mouse.up();
+    const boxed = await page.evaluate(() => { const r = window.__mojBoard.rts, S = r.state(); return { sel: r.selected.units.length, mine: S.units.filter((u) => u.side === 'player').length }; });
+    expect(boxed.sel).toBe(boxed.mine);
+    // a right-click on the ground: the selection walks there
+    await page.mouse.click(560, 470, { button: 'right' });
+    expect(await page.evaluate(() => { const r = window.__mojBoard.rts, S = r.state(); return [...new Set(S.units.filter((u) => r.selected.units.includes(u.id)).map((u) => u.order.kind))]; })).toEqual(['move']);
+    // the workers to a node: the purse fills (the army home first: left in the middle, the enemy's base is in its sight,
+    // and an idle army fights what it sees)
+    const out = await page.evaluate(() => {
+      const r = window.__mojBoard.rts, S0 = r.state(), home = S0.buildings.find((b) => b.side === 'player').at;
+      r.select(S0.units.filter((u) => u.side === 'player' && u.kind !== 'worker').map((u) => u.id));
+      r.order({ kind: 'move', to: home + 9 });
+      const S = r.state(), gold0 = S.gold.player;
+      r.select(S.units.filter((u) => u.side === 'player' && u.kind === 'worker').map((u) => u.id));
+      const node = S.nodes.find((n) => Math.floor(n.at / 9) < 6).at, how = r.command(node);
+      for (let k = 0; k < 300; k++) r.run(0.1);
+      // a barracks a few steps off the base, raised, then a soldier from it
+      r.arm('build');
+      const base = S.buildings.find((b) => b.side === 'player').at, spot = [base + 2 * 9 + 2, base + 2 * 9 - 2, base + 3 * 9].find((i) => window.__mojBoard.board.spots[i]);
+      const built = r.armedClick(spot);
+      for (let k = 0; k < 220; k++) r.run(0.1);
+      const bar = r.state().buildings.find((b) => b.side === 'player' && b.kind === 'barracks');
+      r.selectBuilding(bar.id);
+      const trained = r.trainAt(0);
+      for (let k = 0; k < 120; k++) r.run(0.1);
+      return { how, mined: r.state().gold.player > gold0 - 150, built, trained, soldiers: r.state().units.filter((u) => u.side === 'player' && u.kind === 'soldier').length};
+    });
+    expect(out).toMatchObject({ how: 'gather', mined: true, built: 'built', trained: true });
+    expect(out.soldiers).toBeGreaterThanOrEqual(3);
+    // the army attack-moves on the enemy's base, and takes it
+    await page.evaluate(() => {
+      const r = window.__mojBoard.rts, S = r.state();
+      r.select(S.units.filter((u) => u.side === 'player' && u.kind !== 'worker').map((u) => u.id));
+      r.arm('amove');
+      r.armedClick(S.buildings.find((b) => b.side === 'enemy' && b.kind === 'base').at);
+      for (let k = 0; k < 3000 && !r.result; k++) r.run(0.1);
+    });
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts.png` });
+    await page.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
+    expect(await page.evaluate(() => ({ result: window.__mojBoard.rts.result, end: window.__mojGame.envelope.result }))).toEqual({ result: { won: true }, end: 'success' });
+    await page.close();
+  }, 180000);
+
   it('opens an epoch\'s map on its begin slot: the party waits on the scene before it may set out', async () => {
     if (!browser) return;
     const dots = [{ id: 'gate', ref: 'lv-gate' }, { id: 'keep', ref: 'lv-keep', gate: 'gate' }];

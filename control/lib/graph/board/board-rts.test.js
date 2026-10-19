@@ -29,6 +29,10 @@ describe('a skirmish read from a board', () => {
     expect(() => readBoardRts(B, { bases: { player: 'C3', enemy: 'C3' } })).toThrow(/two bases are two spots/);
     expect(() => readBoardRts(B, { siege: 1 })).toThrow(/'siege' is not part of a skirmish/);
     expect(() => readBoardRts(B, { ai: { mood: 'angry' } })).toThrow(/ai.mood is not part of it/);
+    expect(() => readBoardRts(B, { enemy: { lives: 3 } })).toThrow(/enemy.lives is not part of it/);
+    // a handicap: the other side's own start
+    const R = rtsStart(B, readBoardRts(B, { gold: 200, enemy: { gold: 50, workers: 1, army: 2 } }));
+    expect([R.gold, mine(R, 'enemy').map((u) => u.kind)]).toEqual([{ player: 200, enemy: 50 }, ['worker', 'soldier', 'archer']]);
     const W = boardOf([[0, 0, 0], [null, null, null], [0, 0, 0]]);
     expect(() => readBoardRts(W, { bases: { player: 'B1', enemy: 'B3' } })).toThrow(/the bases have no way to each other/);
   });

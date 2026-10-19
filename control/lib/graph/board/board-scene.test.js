@@ -51,7 +51,7 @@ describe('the board world kind', () => {
     expect(Object.keys(P.board.battle.cfg.skills)).toContain('power-strike');
     expect(P.board.colours).toEqual({ party: expect.any(String), foe: expect.any(String) });
     expect(assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, players: [] } }).board.battle.players).toEqual([]);
-    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle, units })).toThrow(/units or battle/);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle, units })).toThrow(/td, rts, battle or units/);
     expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, players: 'party' } })).toThrow(/battle.players are the sides the player moves/);
   });
 

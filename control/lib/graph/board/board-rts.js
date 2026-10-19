@@ -8,7 +8,8 @@
  * referencing nothing outside itself: the page runs it from its source and Node tests it. No dice and no clock: a fixed
  * step over the dt handed in, ties to the lowest id, so the same orders at the same times are the same game.
  *
- *   cfg: { bases: { player: spot, enemy: spot }, nodes: [{ at, amount }], gold, workers, army, ai, jump }
+ *   cfg: { bases: { player: spot, enemy: spot }, nodes: [{ at, amount }], gold, workers, army, enemy?: { gold, workers,
+ *          army } (the other side's own start), ai, jump }
  *        (readBoardRts builds it from a manifest's `rts`)
  *   start(B, cfg) → R
  *   order(B, cfg, R, ids, o) → R   o: { kind: 'move', to } | { kind: 'amove', to } | { kind: 'attack', target }
@@ -97,15 +98,17 @@ export function buildBoardRts() {
   }
 
   function start(B, cfg) {
-    const R = { t: 0, acc: 0, gold: { player: cfg.gold, enemy: cfg.gold }, units: [], buildings: [], nodes: cfg.nodes.map((n) => ({ at: n.at, left: n.amount })), n: 0, mindT: 0, wave: (cfg.ai || AI).wave, over: null };
+    // the enemy's start may be its own (cfg.enemy: a handicap either way)
+    const of = (side, k) => (side === 'enemy' && cfg.enemy && cfg.enemy[k] != null ? cfg.enemy[k] : cfg[k]);
+    const R = { t: 0, acc: 0, gold: { player: cfg.gold, enemy: of('enemy', 'gold') }, units: [], buildings: [], nodes: cfg.nodes.map((n) => ({ at: n.at, left: n.amount })), n: 0, mindT: 0, wave: (cfg.ai || AI).wave, over: null };
     for (const side of ['player', 'enemy']) {
       R.buildings.push({ id: 'b' + (++R.n), side, kind: 'base', at: cfg.bases[side], hp: BUILDINGS.base.hp, hpMax: BUILDINGS.base.hp, raising: 0, queue: [], rally: null });
     }
     for (const side of ['player', 'enemy']) {
       const spots = around(B, cfg, R, cfg.bases[side], 3);
       let k = 0;
-      for (let i = 0; i < cfg.workers; i++) unit(R, side, 'worker', spots[k++ % spots.length], B);
-      for (let i = 0; i < cfg.army; i++) unit(R, side, i % 2 ? 'archer' : 'soldier', spots[k++ % spots.length], B);
+      for (let i = 0; i < of(side, 'workers'); i++) unit(R, side, 'worker', spots[k++ % spots.length], B);
+      for (let i = 0; i < of(side, 'army'); i++) unit(R, side, i % 2 ? 'archer' : 'soldier', spots[k++ % spots.length], B);
     }
     if (path(B, cfg, R, cfg.bases.player, cfg.bases.enemy) === null) throw new Error('rts: the bases have no way to each other');
     return R;
@@ -335,12 +338,13 @@ export const rtsTick = _rts.tick;
 export const rtsPath = _rts.path;
 export const rtsOpen = _rts.open;
 
-const RTS_KEYS = ['bases', 'nodes', 'gold', 'workers', 'army', 'ai', 'jump'];
+const RTS_KEYS = ['bases', 'nodes', 'gold', 'workers', 'army', 'enemy', 'ai', 'jump'];
 const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
  * readBoardRts(B, spec) → cfg   a manifest's `rts`, read against its board:
  *   rts: { bases?: { player?: 'C2' | 'near', enemy?: 'C9' | 'far' }, nodes?: ['A3', …] | n (beside each base, 2),
- *          gold?, workers?, army?, ai?: { workers?, wave?, grow? }, jump? }
+ *          gold?, workers?, army?, enemy?: { gold?, workers?, army? } (the other side's start, else the same), ai?:
+ *          { workers?, wave?, grow? }, jump? }
  *   near / far: the near (far) row's walkable spot nearest its middle, a row in from the edge; nodes 400 each
  */
 export function readBoardRts(B, spec = {}) {
@@ -385,10 +389,14 @@ export function readBoardRts(B, spec = {}) {
     }
     nodes = out;
   }
+  const foe = spec.enemy ?? {};
+  if (typeof foe !== 'object' || Array.isArray(foe)) rtsNo('enemy is { gold?, workers?, army? }: the other side\'s start');
+  for (const k of Object.keys(foe)) if (!['gold', 'workers', 'army'].includes(k)) rtsNo(`enemy.${k} is not part of it (gold, workers, army)`);
   const ai = spec.ai ?? {};
   if (typeof ai !== 'object' || Array.isArray(ai)) rtsNo('ai is { workers?, wave?, grow? }');
   for (const k of Object.keys(ai)) if (!['workers', 'wave', 'grow'].includes(k)) rtsNo(`ai.${k} is not part of it (workers, wave, grow)`);
   const cfg = { bases: { player, enemy }, nodes, gold: num(spec.gold, 100, 0, 9999, 'gold'), workers: num(spec.workers, 3, 0, 12, 'workers'), army: num(spec.army, 0, 0, 12, 'army'),
+    ...(Object.keys(foe).length ? { enemy: { ...(foe.gold !== undefined ? { gold: num(foe.gold, 0, 0, 9999, 'enemy.gold') } : {}), ...(foe.workers !== undefined ? { workers: num(foe.workers, 0, 0, 12, 'enemy.workers') } : {}), ...(foe.army !== undefined ? { army: num(foe.army, 0, 0, 12, 'enemy.army') } : {}) } } : {}),
     ai: { workers: num(ai.workers, RTS_AI.workers, 0, 20, 'ai.workers'), wave: num(ai.wave, RTS_AI.wave, 1, 30, 'ai.wave'), grow: num(ai.grow, RTS_AI.grow, 0, 10, 'ai.grow') }, jump };
   rtsStart(B, cfg);   // bases the board parts are said here, before a page is made
   return cfg;

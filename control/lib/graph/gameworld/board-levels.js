@@ -26,6 +26,9 @@
  *     own), each its stages in play order
  *   epochDraw(G, stages, battles, at) → [pack]   a skirmish's packs in an epoch: the book's packs met by the epoch's end
  *     (two at least), so a later epoch's skirmish meets harder foes
+ *   rtsLevelOrder(G, stage, { ref, title?, quick }) → { tool: 'create_sketch', args: { title, manifest } }   a quick
+ *     skirmish (goal conquer): the stage laid as ever, a skirmish over its spots (board-rts.js; the player's base its
+ *     near side, the enemy's its far), the level ending on the board
  *   tdLevelOrder(G, stage, { ref, title?, quick }) → { tool: 'create_sketch', args: { title, manifest } }   a quick
  *     defence on a board (quick.board): the stage laid as ever, a tower defence over its spots (board-td.js; the
  *     spawns its far row, the base its near), its waves and lives the quick's; the level ends on the board
@@ -56,6 +59,13 @@ export function boardLevelOrder(G, stage, { ref, title, packs = [], figures = {}
 }
 // a level's story slots, as its play: its scenes, and the story slice they ride
 const slotPlay = (G, scenes) => (scenes.length ? { play: { scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}) } } : {});
+
+export function rtsLevelOrder(G, stage, { ref, title, quick: Q } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`, own = Q.board === undefined || Q.board === true ? {} : Q.board;
+  const rts = { ...(own.gold !== undefined ? { gold: own.gold } : {}) };
+  const board = { ...(own.cols !== undefined ? { cols: own.cols } : {}), ...(own.rows !== undefined ? { rows: own.rows } : {}), rts };
+  return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, game: { levelRef: ref, mechanics: [{ kind: 'board' }] } } } };
+}
 
 export function tdLevelOrder(G, stage, { ref, title, quick: Q } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`, own = Q.board === true ? {} : Q.board;

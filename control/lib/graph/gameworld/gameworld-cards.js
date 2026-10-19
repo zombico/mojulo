@@ -315,6 +315,12 @@ const QUICK_LEVERS = {
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
     '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
   ],
+  conquer: () => [
+    '  board: true | { cols?, rows?, gold? }   the skirmish\'s board (the stage\'s spots) and the purse each side starts with',
+    '  you: a base, three workers; them: the same and a plain mind that mines, builds and attacks in growing waves',
+    '  orders: click / drag to select, right-click to move, attack, gather or rally; A attack-move, S stop, H hold,',
+    '  B a barracks, Q / W train. No hero, climb, building, ride or run',
+  ],
   fly: () => [
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
     '  assist: arcade (never stalls, the wings level quickly) | sim (the bank holds where it is put); laps: n (not a glider)',

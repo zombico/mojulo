@@ -32,7 +32,7 @@ import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
-import { boardLevelOrder, mapLevelOrder, tdLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
+import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
@@ -429,9 +429,9 @@ function quickSteps(world, G, ref, lookup) {
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    // a tower defence on the stage's spots (board-levels.js tdLevelOrder): no hero, the level the board's
-    if (Q.goal === 'defend' && Q.board !== undefined) {
-      const L = tdLevelOrder(G, s, { ref: levelRefs[i], quick: Q });
+    // a tower defence or a skirmish on the stage's spots (board-levels.js): no hero, the level the board's
+    if ((Q.goal === 'defend' && Q.board !== undefined) || Q.goal === 'conquer') {
+      const L = Q.goal === 'conquer' ? rtsLevelOrder(G, s, { ref: levelRefs[i], quick: Q }) : tdLevelOrder(G, s, { ref: levelRefs[i], quick: Q });
       steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
       return;
     }

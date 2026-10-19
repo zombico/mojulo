@@ -8,7 +8,8 @@
 // for probes. It owns the camera (`__ctrlOwnsCamera`), so a board carries no pilot. A battle brings the party battles'
 // kernel and the carry (board-carry.js) with it, so a game's party fights as the store has it and keeps its spoils; a
 // battle, or a level whose scenes fill a story slot, brings the effects (board-fx.js), played on the map itself; a
-// tower defence (`td`) brings its kernel and its page (board-td.js, board-td-page.js), and the effects for its shots.
+// tower defence (`td`) brings its kernel and its page (board-td.js, board-td-page.js), and the effects for its shots; a
+// skirmish (`rts`) its own (board-rts.js, board-rts-page.js).
 
 import { safeJson } from '../emit-util.js';
 import { buildBoard } from '../../board/board-kernel.js';
@@ -19,12 +20,15 @@ import { buildBoardCarry } from '../../board/board-carry.js';
 import { buildBoardFx } from '../../board/board-fx.js';
 import { buildBoardTd } from '../../board/board-td.js';
 import { boardTdPage } from '../../board/board-td-page.js';
+import { buildBoardRts } from '../../board/board-rts.js';
+import { boardRtsPage } from '../../board/board-rts-page.js';
 import { buildRpg } from '../../playscape/rpg/kernel.js';
 
 export function boardChannelScript(cfg) {
   // the trailing arguments a page needs, each null when a later one is there and it is not
-  const carry = cfg.battle && cfg.battle.rpg, td = !!cfg.td, fx = cfg.battle || (cfg.slots && cfg.slots.length) || td;
-  const args = [carry && `(${buildRpg.toString()})()`, carry && `(${buildBoardCarry.toString()})()`, fx && `(${buildBoardFx.toString()})()`, td && `(${buildBoardTd.toString()})()`, td && `(${boardTdPage.toString()})`];
+  const carry = cfg.battle && cfg.battle.rpg, td = !!cfg.td, rts = !!cfg.rts, fx = cfg.battle || (cfg.slots && cfg.slots.length) || td || rts;
+  const args = [carry && `(${buildRpg.toString()})()`, carry && `(${buildBoardCarry.toString()})()`, fx && `(${buildBoardFx.toString()})()`, td && `(${buildBoardTd.toString()})()`, td && `(${boardTdPage.toString()})`,
+    rts && `(${buildBoardRts.toString()})()`, rts && `(${boardRtsPage.toString()})`];
   while (args.length && !args[args.length - 1]) args.pop();
   const rest = args.map((a) => a || 'null');
   return `
