@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readCityPlan, inferCity } from './card.js';
 import { designCity } from './design.js';
 import { withCityLevel, CITY_HERO, ruleInUnits, CITY_LEVEL } from './level.js';
+import { assembleCityScene } from './scene.js';
 import { simLevel } from '../../game/level-sim.js';
 import { faceGround } from '../../game/level-equivalence.js';
 import { CITY_METERS_PER_UNIT as U } from '../fractal-city.js';
@@ -46,6 +47,12 @@ describe('a city segment played by a hero', () => {
     expect(stand.entities[0].body.type).toBe('mesh');
     // a box is drawn about its point: the point at its half height stands it on the street
     expect(stand.entities[0].transform.pos[2]).toBeCloseTo(stand.entities[0].body.size[2] / 2, 3);
+  });
+
+  it('draws as a city with its made character aboard: the level\'s own channels are not the plan\'s', () => {
+    const lowered = lower({ hero: { ref: 'sk_hero' } });
+    expect(lowered.figures).toBeTruthy();
+    expect(() => assembleCityScene(lowered)).not.toThrow();
   });
 
   it('is chased by a follow camera, arrives where it came in, and is walled to the sky', () => {

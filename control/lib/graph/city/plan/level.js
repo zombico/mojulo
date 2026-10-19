@@ -26,7 +26,8 @@
  * a walker's 8 m wall, and not one it can hold: `hold: false`). It holds any other wall (wall.js), crawls it and mantles
  * onto its roof, unless `wall: false`, and swings on the swinger's line (swing.js; F held in the air, a zip on the ground),
  * unless `gear: false`; its figure's clips fall back for those states (player.js traversalStates).
- * Absent, the walker plays it, byte for byte.
+ * A hero's district carries a cloud deck (`clouds`, unless the recipe names its own), dark by night. Absent, the walker
+ * plays it, byte for byte.
  */
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { registerLevelKind } from '../../structure/level.js';
@@ -34,6 +35,8 @@ import { designCity } from './design.js';
 import { lobbyOf, LOBBY } from './doors.js';
 import { cityGreen, PLANTER } from './green.js';
 import { playerWorld, traversalStates } from '../../playscape/player.js';
+import { readCityLook, readPaint } from './look.js';
+import { resolveLookSpec } from '../../era/look.js';
 // a tree's trunk as a walker meets it (m, half its side)
 const TRUNK = 0.35;
 
@@ -48,6 +51,9 @@ export const CITY_HERO = Object.freeze({
   camera: { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
   standIn: { size: [0.5, 0.5, 1.7], color: '#d8b04a' },
   sky: 60,
+  // the cloud deck over a hero's district (world-scene.js composeCloudDeck, its band defaults already in the city's units:
+  // 44 m over the tallest mass, 48 m deep), dark by night so it reads against the sky instead of glowing
+  clouds: { day: { coverage: 0.35 }, night: { coverage: 0.4, color: [0.16, 0.17, 0.2] } },
 });
 // the lengths a platform rule reads (and its speeds and accelerations, in lengths per second): the ones a unit divides
 const RULE_LENGTHS = ['speed', 'jumpSpeed', 'gravity', 'fallGravity', 'maxFall', 'step', 'snap', 'stride', 'collideRadius', 'collideHeight', 'eye', 'glideFall'];
@@ -200,6 +206,7 @@ export function withCityLevel(m, d, ref) {
   if (pilot) {
     return {
       ...m,
+      ...(m.clouds === undefined ? { clouds: CITY_HERO.clouds[nightOf(m) ? 'night' : 'day'] } : {}),
       game,
       ...(pilot.figures ? { figures: { ...(m.figures || {}), ...pilot.figures } } : {}),
       entities: [pilot.entity],
@@ -218,6 +225,12 @@ export function withCityLevel(m, d, ref) {
     colliders: L.colliders,
     walk: false,
   };
+}
+
+/** Whether the city's look (its own, or its paint's cube's) has no sun: its night (look.js lookLight's reading). */
+function nightOf(m) {
+  const paint = readPaint(m.paint), spec = readCityLook(m.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
+  return !!(spec && !spec.ref.light.key);
 }
 
 /** The hero who plays a segment (`level.hero`), in the city's units: the player slot's entity at the spawn, its figure

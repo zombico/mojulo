@@ -90,6 +90,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Godot and Roblox** name the gear lost.
   - **The registry** marks `power.gear=swinger` built on the web. The City stalker probe now waits on the idiom and
     the look.
+- **The air: distance and scale.** A hero's district is a few hundred metres across; from its tallest roof the city
+  goes on for kilometres. The stalker's eye (`city/plan/eye.js`) plans the air that carries it past the edge, on the
+  pilot's eye's law (`skyscape/map.js`): fog opaque where ρ·d reaches 1.978, its density thinning with height.
+  - **The plan:** from the street the hero sees the district and the 140 m ring of real masses round it; from the
+    tallest roof, out to a skyline past the plan's edge.
+  - **The far ring:** the rest of the plan stands round the district as massing, one instance a lot (two instanced
+    meshes in all), lit as the city is and tinted with each lot's own colours.
+  - **The skyline band:** seeded cards past the plan's edge, so the city never visibly ends.
+  - **The page** thins the haze with the camera's height (`hazeHeight`), composed with any other writer of the fog
+    (the weather), and emitted only where a world asks.
+  - **A cloud deck** over the district by default (`clouds`: the recipe's own wins), dark by night.
+  - **The city kind** now honours `fog` (street smog, clipped to the level) and `clouds`. Both were accepted in a
+    recipe before and silently dropped.
+  - **The `city-night` look:** concrete, asphalt and neon under a glowing night sky, no sun, so the windows light.
+    Its reference card is Midnight Club II. A `city-night` geocube preset carries its colours, buildings and palette.
+    The registry marks `reality.look=city-night` built.
+  - **Godot and Roblox** name the height thinning lost.
+
+  The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
+  swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
+  draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.
 
 ### Epidermis cube: skin and hair as a recipe
 

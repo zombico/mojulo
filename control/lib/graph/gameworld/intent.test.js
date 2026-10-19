@@ -23,6 +23,7 @@ describe('the genres and the suggestion', () => {
     expect(suggestGenres('a cosy farming game where you plant crops and harvest before the seasons turn').map((g) => g.id)[0]).toBe('farming');
     expect(suggestGenres('race your car through the checkpoints')[0].id).toBe('racing');
     expect(suggestGenres('a quiet painting of a lighthouse')).toEqual([]);
+    expect(suggestGenres('a superhero who swings between skyscrapers and fights on the rooftops at night')[0].id).toBe('city-stalker');
     // flight's three: a sim, a space shooter, air combat
     expect(suggestGenres('a trench run in a starfighter: blow up the exhaust port of the battle station')[0].id).toBe('space-shooter');
     expect(suggestGenres('a dogfight between fighter jets over the mountains, shoot down the enemy planes')[0].id).toBe('air-combat');

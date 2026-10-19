@@ -113,7 +113,7 @@ export const PAGE_MARKS = Object.freeze({
     'picks', 'tracers', 'planets', 'movers', 'comets', 'fields', 'surfaces', 'heatSpheres', 'starSurfaces',
     'buildups', 'transports', 'deforms', 'raymarch', 'signs', 'physics', 'actions',
     'spectate', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',
-    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'splats', 'audio', 'fx',
+    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'hazeHeight', 'splats', 'audio', 'fx',
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
     'doors', 'items', 'shallows', 'wetSand', 'softGround', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'wetRoad',

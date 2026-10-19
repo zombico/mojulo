@@ -139,6 +139,7 @@ export const PAGE_MARKS = Object.freeze({
   events: m(B, 'bus.json and score.json carry what the kernel runs; the keys they drop are named by EVENT_MARKS'),
   fog: m(A, 'the page\'s fog rides only on weather (weather-score.js)'),
   haze: m(P, 'score.haze: exponential fog in the horizon colour, the background with it, the sky clear of it; Godot\'s exponential curve is not three\'s squared one, so the falloff differs'),
+  hazeHeight: m(A, 'the haze does not thin with the camera\'s height (a city stalker\'s district): Godot keeps its density'),
   splats: m(A, 'fur and grass splats are not drawn'),
   audio: m(P, 'the soundtrack and one-shot sounds play (kernel/sound.gd); positional sound and weather beds are the web\'s'),
   fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),

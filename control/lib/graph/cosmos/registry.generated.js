@@ -3,7 +3,7 @@
  * them (read-sources.js), held equal to the live read by registry.test.js.
  */
 export const GENERATED = Object.freeze({
-  "reality.look": Object.freeze({"lowers":"lib/graph/era/sixth-gen.js#SIXTH_GEN_LOOKS","values":["gothic-night","desert-dusk","island-noon","jungle-haze","lab-dark"]}),
+  "reality.look": Object.freeze({"lowers":"lib/graph/era/sixth-gen.js#SIXTH_GEN_LOOKS","values":["gothic-night","desert-dusk","island-noon","jungle-haze","lab-dark","city-night"]}),
   "reality.kit": Object.freeze({"lowers":"lib/graph/era/stage.js#STAGE_KITS","values":["gothic-stone","gothic-nave","island-plaza","research-lab","catacomb","trail-valley","jungle-trail","isekai-meadow","isekai-bamboo","isekai-sakura","alien-night","airless-plain","isekai-garden"]}),
   "reality.climate": Object.freeze({"lowers":"lib/graph/weather/weather.js#CLIMATES","values":["temperate","monsoon","alpine","desert","spring-blossom","autumn","storm-coast"]}),
   "space.links": Object.freeze({"lowers":"lib/graph/era/floormap.js#LINK_KINDS","values":["open","door","stair","gap"],"godot":{"open":"built","door":"approximated","stair":"built","gap":"built"},"roblox":{"open":"approximated","door":"absent","stair":"approximated","gap":"approximated"}}),

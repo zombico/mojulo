@@ -58,6 +58,7 @@ const WORDS = Object.freeze({
   'tower-defense': ['tower defence', 'tower defense', 'towers', 'waves', 'defend', 'base'],
   'block-puzzle': ['boulder', 'boulders', 'push', 'sokoban', 'block puzzle', 'plates'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
+  'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));

@@ -28,7 +28,7 @@ import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
-import { assembleCityScene } from '@/lib/graph/city/plan/scene';
+import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -443,6 +443,8 @@ export const WORLD_KINDS = {
   city: {
     title: 'mojulo city plan',
     walk: true,
+    // its masses as the volumetric fog's and the cloud deck's solids (`fog`, `clouds`: a level's segment and its ring)
+    fogBoxes: (m) => cityFogBoxes(m).map((b) => boxFromFootprint(b, { up: 'z' })),
     // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title }))),
   },
