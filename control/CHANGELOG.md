@@ -61,7 +61,7 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   them into rosters and looks as it renders, met through the top-down camera (technology's LOD). A world's bible
   shows, on each civilization's technology page, what it fields in a skirmish: its units, buildings, ladder and the
   ledger of why. The registry holds `power.systems=research`, and the real-time strategy probe asks for it.
-- **The skirmish's principles: jobs and capabilities** (in progress): a building is its capabilities, any of them
+- **The skirmish's principles: jobs and capabilities**, built: a building is its capabilities, any of them
   together (a factory training over time, research over time, a stationary unit that shoots, a depot), and one lock
   serves buildings, units and research steps alike (a building standing or a step known, then a tier). Workers
   build at the site: a building laid is a foundation, raised only while workers build it (faster with more); the
@@ -72,6 +72,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   transport, a shuttle), is a transport: units board it (right-click it), ride where it goes, a flyer's over what
   they cannot cross, and unload (U); what it carries falls with it. What its words call medical (a medic, an
   ambulance) mends its own nearby, never a machine. Each is priced by what it carries or mends.
+  Transforms: siege deploys to fire (farther and harder, but still until it packs up: D); a building grows in place
+  into another (the base into its civilization's fort once its machines are known, harder and shooting farther: G);
+  what technology calls deployable (a deployable sentry turret) comes out of the works folded and is set up where
+  it stops. The mind deploys its siege where a foe is in reach and packs it to walk on, and grows its fort last. A
+  side counts as spent when nothing more can come (it cannot earn, nothing is queued and nothing is in its purse's
+  reach), and a skirmish where neither side can is a draw.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

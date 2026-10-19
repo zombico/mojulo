@@ -6,7 +6,8 @@
  *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every fighter
  *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), your foundation
  *   (workers build it), your damaged building or machine (workers repair it), your transport (the rest board it), with a
- *   building selected its rally point; U: a transport unloads where it stands; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
+ *   building selected its rally point; U: a transport unloads where it stands; D: a siege deploys (or packs), what comes
+ *   folded is set up where it stands; G: the selected building grows into what it upgrades to; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
  *   building the side can raise) · Q / W / E / R: the selected building trains its first … fourth kind · T: it researches
  *   its next step · Esc lets go
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
@@ -136,13 +137,17 @@ export function boardRtsPage(api) {
       const g = meshes[u.id], w = api.worldAt([u.x, u.y]);
       g.position.set(w[0], w[1], w[2]);
       g.visible = !u.inside;
+      // deployed: squat and wide, as a siege set to fire
+      const squat = u.mode ? 0.72 : 1; g.userData.body.scale.set(2 - squat, 2 - squat, squat);
       if (u.path.length) { const to = tops[u.path[0]]; g.userData.body.rotation.z = Math.atan2(to[1] - w[1], to[0] - w[0]); }
       fillBar(g.userData.fill, u.hp / UN(u.side, u.kind).hp, 0.8);
       g.userData.ring.visible = sel.indexOf(u.id) >= 0;
     }
     for (const b of R.buildings) {
       live[b.id] = 1;
-      if (!meshes[b.id]) { meshes[b.id] = buildingMesh(b); const p = tops[b.at]; meshes[b.id].position.set(p[0], p[1], p[2]); root.add(meshes[b.id]); }
+      // (upgraded in place: drawn again as what it became)
+      if (meshes[b.id] && meshes[b.id].userData.kind !== b.kind) { root.remove(meshes[b.id]); delete meshes[b.id]; }
+      if (!meshes[b.id]) { meshes[b.id] = buildingMesh(b); meshes[b.id].userData.kind = b.kind; const p = tops[b.at]; meshes[b.id].position.set(p[0], p[1], p[2]); root.add(meshes[b.id]); }
       const g = meshes[b.id], up = b.raising > 0 ? 1 - b.raising / BU(b.side, b.kind).time : 1;
       g.userData.box.scale.z = Math.max(0.05, up);
       if (!g.userData.look) { g.userData.box.position.z = (g.userData.box.geometry.parameters.depth * up) / 2; g.userData.roof.visible = up >= 1; }
@@ -181,12 +186,13 @@ export function boardRtsPage(api) {
     const kinds = {};
     for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
     const carrying = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).carries).map((u) => `${(u.cargo || []).length} / ${UN('player', u.kind).carries} aboard`).join(', ');
-    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}` : '';
+    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
       const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
       what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
-        + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
+        + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}`
+        + `${b.up ? `  becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : K.upgrades ? `  G: grow into a ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}${needsOf(Object.assign({}, BU('player', K.upgrades.to), { needs: K.upgrades.needs, tier: K.upgrades.tier })) ? ' (locked)' : ''}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
     }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
     const text = `gold ${R.gold.player}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
@@ -243,6 +249,19 @@ export function boardRtsPage(api) {
     if (!kind) return null;
     try { R = RTK.train(B, cfg, R, selB, kind); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
   }
+  // D: what is selected deploys (a siege sets up to fire, or packs; what comes folded is set up where it stands)
+  function deploy() {
+    const us = R.units.filter((u) => sel.indexOf(u.id) >= 0);
+    const modal = us.filter((u) => UN('player', u.kind).modes), folded = us.filter((u) => UN('player', u.kind).deploys);
+    for (const u of modal) R = RTK.order(B, cfg, R, [u.id], { kind: 'mode', to: u.mode ? null : Object.keys(UN('player', u.kind).modes)[0] });
+    if (folded.length) R = RTK.order(B, cfg, R, folded.map((u) => u.id), { kind: 'deploy' });
+    return modal.length + folded.length;
+  }
+  // G: the selected building grows into what it upgrades to
+  function upgradeSel() {
+    if (!selB) return null;
+    try { R = RTK.upgrade(B, cfg, R, selB); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+  }
   function researchNext() {
     const b = selB && R.buildings.find((x) => x.id === selB), id = b && nextStep(b);
     if (!id) return null;
@@ -285,6 +304,8 @@ export function boardRtsPage(api) {
       else if (e.code === 'KeyR') trainAt(3);
       else if (e.code === 'KeyT') researchNext();
       else if (e.code === 'KeyU' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'unload' });
+      else if (e.code === 'KeyD' && sel.length) deploy();
+      else if (e.code === 'KeyG') upgradeSel();
       else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
       drawPanel();
     });
@@ -346,7 +367,7 @@ export function boardRtsPage(api) {
     probe: {
       state: () => R, get selected() { return { units: sel.slice(), building: selB }; }, get result() { return result; },
       select(ids) { sel = ids.slice(); selB = null; drawPanel(); }, selectBuilding(id) { sel = []; selB = id; drawPanel(); },
-      selectAt, command, armedClick, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
+      selectAt, command, armedClick, deploy, upgradeSel, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
       looks() { const out = {}; for (const id in meshes) { let n = 0; meshes[id].traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.color) n++; }); out[id] = n; } return out; },
       order(o) { R = RTK.order(B, cfg, R, sel, o); }, run(dt) { advance(dt); sync(); },
     },

@@ -370,9 +370,13 @@ describe('the board on the World page', () => {
       const aboard = (r.state().units.find((u) => u.id === lifter.id).cargo || []).length;
       r.select([lifter.id]); r.order({ kind: 'unload' }); go(1);
       const out = r.state().units.filter((u) => army.includes(u.id) && !u.inside).length;
-      return { built, tooSoon, step, trained, lifts, boarded, aboard, out, n: army.length, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
+      // the base grows into its fort (G), the machines known
+      const home = r.state().buildings.find((b) => b.side === 'player' && b.kind === 'base').id;
+      r.selectBuilding(home); const grows = r.upgradeSel(); go(41);
+      const fort = r.state().buildings.find((b) => b.id === home).kind;
+      return { built, tooSoon, step, trained, lifts, boarded, aboard, out, grows, fort, n: army.length, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
     });
-    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true, lifts: true, boarded: 'board' });
+    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true, lifts: true, boarded: 'board', grows: true, fort: 'fort' });
     expect([out.aboard, out.out]).toEqual([Math.min(out.n, 4), out.n]);
     expect(out.tooSoon).toMatch(/needs Machines researched first/);
     // what it crafted is drawn as crafted (coloured meshes); what it did not (the plain base) as before

@@ -57,6 +57,8 @@ const MELEE_FORMS = ['blade', 'polearm', 'axe'], RANGED_FORMS = ['bow', 'gun', '
 const FLY_FORMS = ['rotor', 'winged', 'airship'];
 // what its words call medical mends its own (no function says it: the words do)
 const MEDICAL = /\b(medic|medics|medical|ambulance|hospital|healer|healing|infirmary|nurse|surgeon|triage)\b/i;
+// what they call deployable is carried folded and set up where it stops
+const DEPLOY = /\b(deployable|portable|mobile|packed|collapsible|foldable|drop)\b/i;
 // and what they call a carrier of people carries them, whatever its functions read
 const CARRIER = /\b(transport|transports|troop|troops|carrier|apc|shuttle|dropship|ferry|bus|personnel)\b/i;
 // a vehicle's pace, by what it goes on
@@ -159,9 +161,18 @@ export function rtsRoster(G, cid) {
     else machines.push(field(e, 'scout', null, true));
   }
   for (const e of weapons) if (e.t.block?.tier !== 'held' && SIEGE_FORMS.includes(e.t.form)) machines.push(field(e, 'siege', 'crew', true));
+  // siege deploys to fire: farther and harder, but still until it packs up
+  for (const k of machines) {
+    const U = units[k];
+    if (U.role !== 'siege') continue;
+    U.modes = { deployed: { range: r1(U.range + 2), atk: r1(U.atk * 1.25), still: true, time: 3 } };
+    ledger.find((l) => l.as === k).line += `; it deploys to fire (reach ${U.modes.deployed.range}, strike ${U.modes.deployed.atk}, still; 3 s to set up or pack)`;
+  }
 
   // buildings
   buildings.base = { name: 'Base', ...RTS_BUILDINGS.base, trains: [worker] };
+  // the base grows into its civilization's fort once its machines are known: harder, and it shoots farther
+  const fortName = typeof C.fort === 'string' ? `${named(C.fort)} fort` : 'Fort';
   buildings.barracks = { name: 'Barracks', ...HOUSE.barracks, trains: infantry };
   const builds = ['barracks'];
   // the ladder: the machines (tier 2), then the showpieces (tier 3), and income steps between, researched at what
@@ -188,6 +199,11 @@ export function rtsRoster(G, cid) {
     study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1)].filter((k) => k && research[k]));
     // the lab's research capability: every step of the ladder is researched there
     buildings[at].studies = Object.keys(research);
+    if (research.tier2) {
+      buildings.fort = { ...RTS_BUILDINGS.base, name: fortName, hp: 1600, atk: 10, range: 5, trains: [worker] };
+      buildings.base.upgrades = { to: 'fort', cost: 200, time: 40, tier: 2 };
+      said(null, 'fort', `its base grows into its fort (${fortName.toLowerCase()}) once its machines are known: hp 1600, it shoots farther, 200 gold, 40 s`);
+    }
   }
   if (machines.length) {
     const maker = things.find((e) => e.fns.includes('make'));
@@ -208,6 +224,21 @@ export function rtsRoster(G, cid) {
     said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${why}${more.length ? ` (${more.join('; ')})` : ''}, ${H.cost} gold`);
   };
   for (const e of weapons) if (e.t.block?.tier !== 'held' && e.t.form === 'turret') house(e, 'defence', 'a defence, it shoots what comes in range');
+  // what is deployable comes out of the works folded, a unit, and is set up where it stops
+  const folded = [];
+  for (const k of Object.keys(buildings)) {
+    const l = ledger.find((x) => x.as === k && x.of), e = l && [...weapons, ...structures, ...things].find((x) => `${x.list}/${x.id}` === l.of);
+    if (!e || !DEPLOY.test(e.t.intent) || !buildings[k].cost) continue;
+    const id = idFor(`${k}-kit`), H = buildings[k];
+    units[id] = { name: `${H.name} (folded)`, role: 'deploy', hp: Math.round(H.hp * 0.4), atk: 0, range: 0, rate: 1, speed: 1.6, cost: H.cost, time: Math.max(4, Math.round(H.cost / 6)), tier: 2, machine: true, deploys: k };
+    H.time = Math.min(H.time, 8);
+    folded.push(id);
+    l.line += `; deployable: it comes out of the works folded (${units[id].name}) and is set up where it stops`;
+    said(null, id, `${H.name} folded: carried out of the works and set up where it stops into the ${H.name.toLowerCase()} (${H.cost} gold)`);
+  }
+  // the works makes them (with the machines); a side with no works, its barracks, from the start
+  if (folded.length && buildings.works) { buildings.works.trains.push(...folded); if (research.tier2) research.tier2.opens.splice(-1, 0, ...folded); }
+  else if (folded.length) { for (const id of folded) delete units[id].tier; buildings.barracks.trains.push(...folded); }
   for (const e of structures) if (e.t.form === 'barrier' || e.t.form === 'gate') house(e, 'wall', 'a wall, cheap and hard to break');
   const depot = things.find((e) => e.fns.includes('store') && !e.fns.includes('move'));
   if (depot) house(depot, 'depot', 'a depot, where workers drop what they mine');

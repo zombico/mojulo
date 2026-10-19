@@ -94,6 +94,8 @@ export function rtsLooks(G, cid, roster, { kit, seed = 1 } = {}) {
     const look = lookOf(facesOf(G, cid, list, id, seed), paint, { ceiling, foot: U ? FOOT[U.role] ?? 1 : BUILDING_FOOT, hand });
     if (look) looks[l.as] = look;
   }
+  // what comes folded looks as what it is set up into
+  for (const [id, U] of Object.entries(roster.units)) if (U.deploys && looks[U.deploys] && !looks[id]) looks[id] = looks[U.deploys];
   return looks;
 }
 

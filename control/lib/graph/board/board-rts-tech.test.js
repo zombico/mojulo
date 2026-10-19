@@ -8,7 +8,7 @@ import { boardOf, boardParse } from './board-kernel.js';
 // the example's two civilizations, and two more: one crafting what they do not (a flyer, siege, a scout, a fighting
 // vehicle, a sword alone), one crafting nothing
 const W = { ...HALDEN_REACH, civilizations: { ...HALDEN_REACH.civilizations,
-  raiders: { name: 'Raiders', builds: 'timber longhouses', technology: { weapons: { sword: 'a sword', cannon: 'a bronze cannon' }, vehicles: { gunship: 'an armed attack helicopter', bike: 'a motorcycle', jeep: 'an armed jeep' } } },
+  raiders: { name: 'Raiders', builds: 'timber longhouses', technology: { weapons: { sword: 'a sword', cannon: 'a bronze cannon', sentry: 'a deployable sentry turret' }, vehicles: { gunship: 'an armed attack helicopter', bike: 'a motorcycle', jeep: 'an armed jeep' } } },
   hermits: { name: 'Hermits', builds: 'stone huts' } } };
 const G = readGameworld(W);
 const CIVS = Object.keys(G.civilizations);
@@ -42,6 +42,13 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(growers.ledger.find((l) => l.of === 'vehicles/barge').line).toMatch(/waiting for water/);
     // a fighter without a weapon: the cargo helicopter carries units over anything
     expect(corps.units.lifter).toMatchObject({ role: 'transport', atk: 0, fly: true, carries: 4, tier: 2 });
+    // transforms: siege deploys to fire; the base grows into its fort once machines are known; what is deployable
+    // comes folded out of the works and is set up as its building
+    expect(growers.units.launcher.modes.deployed).toMatchObject({ still: true, range: growers.units.launcher.range + 2 });
+    expect(corps.buildings.base.upgrades).toMatchObject({ to: 'fort', tier: 2 });
+    expect(corps.buildings.fort).toMatchObject({ name: 'Battered fort', role: 'base' });
+    expect(raiders.units['sentry-kit']).toMatchObject({ deploys: 'sentry', tier: 2, atk: 0 });
+    expect(raiders.buildings.works.trains).toContain('sentry-kit');
     // dials move the stats: armour the hp, energy the strike, the showpiece more
     expect(corps.units.crawler.hp).toBeGreaterThan(Math.round(260 * 1.5) - 1);
     expect(corps.units.carbine.atk).toBe(RTS_UNITS.archer.atk * 1.25);

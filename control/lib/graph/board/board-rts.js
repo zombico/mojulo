@@ -17,7 +17,10 @@
  *   worker, base, army:
  *   [ids, in turn], builds: [ids the mind raises, in order] }. A unit with no `atk` never strikes; one that `carries`
  *   n is a transport (units board it, ride where it goes, unload; they fall with it), one that `heals` hp a second a
- *   medic (the nearest hurt of its own within its range, no machine). Roles that act: a worker gathers; a flyer goes straight
+ *   medic (the nearest hurt of its own within its range, no machine). A unit's `modes` ({ <mode>: { stat overrides,
+ *   still?, time } }) are switched by order { kind: 'mode', to } (a siege deployed: farther, harder, still); one that
+ *   `deploys` (a building id) becomes that building where it stands, raised on its own. A building's `upgrades`
+ *   ({ to, cost, time, needs?, tier? }) grow it in place into another (upgrade). Roles that act: a worker gathers; a flyer goes straight
  *   over any spot and is out of reach of what strikes from closer than REACH_UP; siege strikes buildings `siege` times
  *   as hard; a building with `atk` shoots (at units: a base defends itself); a depot takes in what workers mine; a
  *   building is its capabilities, any of them together: a factory (`trains`, a queue over time), research (`studies`:
@@ -65,6 +68,8 @@ export function buildBoardRts() {
   const UN = (cfg, side, kind) => roster(cfg, side).units[kind];
   const BU = (cfg, side, kind) => roster(cfg, side).buildings[kind];
   const isWorker = (cfg, u) => UN(cfg, u.side, u.kind).role === 'worker';
+  // a unit's stats as it stands: its kind's, and the mode it is in over them (a siege deployed: farther, harder, still)
+  const ST = (cfg, u) => { const U = UN(cfg, u.side, u.kind); return u.mode && U.modes && U.modes[u.mode] ? Object.assign({}, U, U.modes[u.mode]) : U; };
   // the ladder: the tier a side has researched to, and what its trips pay over what they carry
   const known = (R, side) => (R.known && R.known[side]) || {};
   function tierOf(cfg, R, side) {
@@ -145,7 +150,7 @@ export function buildBoardRts() {
   const route = (B, cfg, R, u, goal) => (UN(cfg, u.side, u.kind).fly ? flyPath(B, u.at, goal) : path(B, cfg, R, u.at, goal));
 
   const copy = (R) => Object.assign({}, R, { gold: Object.assign({}, R.gold), units: R.units.map((u) => Object.assign({}, u, { path: u.path.slice(), order: Object.assign({}, u.order) })),
-    buildings: R.buildings.map((b) => Object.assign({}, b, { queue: b.queue.map((q) => Object.assign({}, q)) }, b.study ? { study: Object.assign({}, b.study) } : {})), nodes: R.nodes.map((n) => Object.assign({}, n)) });
+    buildings: R.buildings.map((b) => Object.assign({}, b, { queue: b.queue.map((q) => Object.assign({}, q)) }, b.study ? { study: Object.assign({}, b.study) } : {}, b.up ? { up: Object.assign({}, b.up) } : {})), nodes: R.nodes.map((n) => Object.assign({}, n)) });
   function unit(R, side, kind, at, B, cfg) {
     const U = UN(cfg, side, kind), p = mid(B, at);
     const u = { id: 'u' + (++R.n), side, kind, hp: U.hp, x: p[0], y: p[1], at, path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 };
@@ -193,6 +198,11 @@ export function buildBoardRts() {
       if (ids.indexOf(u.id) < 0) continue;
       if ((o.kind === 'gather' || o.kind === 'build' || o.kind === 'repair') && !isWorker(cfg, u)) continue;
       if (u.inside || (o.kind === 'unload' && !UN(cfg, u.side, u.kind).carries) || (o.kind === 'attack' && !UN(cfg, u.side, u.kind).atk)) continue;
+      // a mode switch, and what becomes a building where it stands, are orders of their own
+      if (o.kind === 'mode') { const U = UN(cfg, u.side, u.kind), to = o.to || null; if ((to && !(U.modes && U.modes[to])) || to === (u.mode || null) || u.shift > 0) continue; u.shift = ((U.modes || {})[to || u.mode] || {}).time || 2; u.toMode = to; u.path = []; continue; }
+      if (o.kind === 'deploy' && !UN(cfg, u.side, u.kind).deploys) continue;
+      // still (deployed, switching): it goes nowhere until it packs up
+      if ((ST(cfg, u).still || u.shift > 0) && (o.kind === 'move' || o.kind === 'amove' || o.kind === 'gather' || o.kind === 'board')) continue;
       if (o.kind === 'board') { const t = R.units.find((x) => x.id === o.target); if (!t || t.side !== u.side || t.id === u.id || !UN(cfg, t.side, t.kind).carries || UN(cfg, u.side, u.kind).carries) continue; }
       // a worker sent to build or repair goes back to its mining after
       const back = (o.kind === 'build' || o.kind === 'repair') && u.order.kind === 'gather' ? { after: Object.assign({}, u.order) } : {};
@@ -261,6 +271,34 @@ export function buildBoardRts() {
     c.study = { id, left: L.time };
     return R;
   }
+  // a building upgraded in place into another (its `upgrades`: { to, cost, time }): paid now, the other when done
+  function upgrade(B, cfg, R0, bid) {
+    const b = R0.buildings.find((x) => x.id === bid);
+    if (!b) throw new Error('rts: no such building');
+    const K = BU(cfg, b.side, b.kind), Up = K.upgrades, T = Up && BU(cfg, b.side, Up.to);
+    if (!T) throw new Error('rts: a ' + K.name + ' upgrades into nothing');
+    if (b.raising > 0) throw new Error('rts: the ' + K.name + ' is still going up');
+    if (b.up) throw new Error('rts: the ' + K.name + ' is becoming a ' + T.name + ' already');
+    const lock = lockOf(cfg, R0, b.side, Object.assign({}, T, { needs: Up.needs, tier: Up.tier || T.tier }));
+    if (lock) throw new Error('rts: a ' + T.name + ' needs ' + lock + ' first');
+    if (R0.gold[b.side] < Up.cost) throw new Error('rts: ' + Up.cost + ' gold for a ' + T.name + ', ' + R0.gold[b.side] + ' in the purse');
+    const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
+    R.gold[c.side] -= Up.cost;
+    c.up = { to: Up.to, left: Up.time };
+    return R;
+  }
+  // a unit that becomes a building where it stands (its `deploys`: a building id), raised on its own
+  function deployAt(B, cfg, R, u, events) {
+    const kind = UN(cfg, u.side, u.kind).deploys, K = BU(cfg, u.side, kind);
+    const others = R.units.some((x) => x !== u && !x.inside && spotAt(B, x.x, x.y) === u.at);
+    const blocked = !K || !B.spots[u.at] || !B.spots[u.at].walk || taken(R, u.at) || others;
+    if (!blocked) {
+      R.buildings.push({ id: 'b' + (++R.n), side: u.side, kind, at: u.at, hp: Math.round(K.hp * 0.2), hpMax: K.hp, raising: K.time, queue: [], rally: null, self: true });
+      if (path(B, cfg, R, cfg.bases.player, cfg.bases.enemy) !== null) { u.hp = 0; u.gone = true; events.push({ kind: 'deployed', id: u.id, into: R.buildings[R.buildings.length - 1].id }); return; }
+      R.buildings.pop(); R.n--;
+    }
+    u.order = { kind: 'stop' };
+  }
   function rally(B, cfg, R0, bid, at) {
     const R = copy(R0), b = R.buildings.find((x) => x.id === bid);
     if (!b) throw new Error('rts: no such building');
@@ -268,12 +306,21 @@ export function buildBoardRts() {
     return R;
   }
 
+  // nothing more is coming to a side: it cannot earn (no worker, or the nodes spent), nothing is queued or carried home,
+  // and nothing its standing buildings train is within its purse
+  function stuck(cfg, R, side) {
+    const ws = R.units.filter((u) => u.side === side && isWorker(cfg, u));
+    if (ws.length && R.nodes.some((n) => n.left > 0)) return false;
+    if (ws.some((u) => u.carry > 0) || R.buildings.some((b) => b.side === side && (b.queue.length || b.raising > 0))) return false;
+    return !R.buildings.some((b) => b.side === side && b.raising <= 0 && (BU(cfg, side, b.kind).trains || []).some((k) => R.gold[side] >= UN(cfg, side, k).cost && !lockOf(cfg, R, side, UN(cfg, side, k))));
+  }
   // ── the plain mind: mine, a barracks, an army, a wave on the other base; after a wave, its ladder ───────────────
   function mind(B, cfg, R0, side) {
     let R = R0;
     const ai = cfg.ai || AI, foe = side === 'player' ? 'enemy' : 'player', S = roster(cfg, side);
     const mine = (k) => R.units.filter((u) => u.side === side && (!k || u.kind === k));
-    const base = R.buildings.find((b) => b.side === side && b.kind === S.base);
+    // (its base by role: it may have grown into its fort)
+    const base = R.buildings.find((b) => b.side === side && roleOf(cfg, b) === 'base');
     if (!base) return R;
     const workers = mine(S.worker), queued = (b, k) => b.queue.filter((q) => q.kind === k).length;
     if (workers.length + queued(base, S.worker) < ai.workers && !base.queue.length && R.gold[side] >= UN(cfg, side, S.worker).cost) R = train(B, cfg, R, base.id, S.worker);
@@ -292,6 +339,17 @@ export function buildBoardRts() {
     const L = S.research || {}, step = sent ? (S.study || []).find((id) => !known(R, side)[id] && !R.buildings.some((b) => b.side === side && b.study && b.study.id === id)) : null;
     const lab = step && R.buildings.find((b) => b.side === side && studiesAt(BU(cfg, side, b.kind), step) && b.raising <= 0 && !b.study);
     if (step && lab && !lockOf(cfg, R, side, L[step]) && R.gold[side] >= L[step].cost) R = research(B, cfg, R, lab.id, step);
+    // its base grown into what it upgrades to, once it can: last, its buildings raised and its ladder climbed
+    const home = !base.up && base, Up = home && BU(cfg, side, home.kind).upgrades;
+    if (sent && Up && !want && !step && R.gold[side] >= Up.cost && !lockOf(cfg, R, side, Object.assign({}, BU(cfg, side, Up.to), { needs: Up.needs, tier: Up.tier }))) R = upgrade(B, cfg, R, home.id);
+    // its siege deploys where a foe is in its deployed reach, and packs up (to walk on) when none is
+    for (const u of R.units) {
+      const U = UN(cfg, side, u.kind);
+      if (u.side !== side || u.inside || u.shift > 0 || !U.modes || !U.modes.deployed) continue;
+      const reach = U.modes.deployed.range || U.range;
+      if (!u.mode && nearestFoe(B, cfg, R, u, reach, reach)) R = order(B, cfg, R, [u.id], { kind: 'mode', to: 'deployed' });
+      else if (u.mode === 'deployed' && !nearestFoe(B, cfg, R, u, reach, reach)) R = order(B, cfg, R, [u.id], { kind: 'mode', to: null });
+    }
     // once it has sent a wave, it keeps back what the next thing it wants costs
     const nextBuild = want && want !== S.builds[0] && sent && can(BU(cfg, side, want)) ? BU(cfg, side, want).cost : 0;
     const nextStep = step && lab && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
@@ -314,16 +372,16 @@ export function buildBoardRts() {
     for (const k of S.builds) {
       const b = R.buildings.find((x) => x.side === side && x.kind === k);
       // (the best it has opened: the highest tier unlocked there)
-      // (the mind fields no transports: it carries nobody)
-      const open = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !UN(cfg, side, t).carries && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
+      // (the mind fields no transports, it carries nobody, and nothing folded, it sets nothing up)
+      const open = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !UN(cfg, side, t).carries && !UN(cfg, side, t).deploys && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
       const top = Math.max(1, ...open.map((t) => UN(cfg, side, t).tier || 1)), trains = open.filter((t) => (UN(cfg, side, t).tier || 1) === top);
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
       if (R.gold[side] - keep >= UN(cfg, side, kind).cost) R = train(B, cfg, R, b.id, kind);
     }
     // a wave: every idle fighter, attack-moving on the other base once there are enough of them
-    // (once the nodes are spent and nothing more is coming, whatever it has goes, its workers too)
-    const spent = R.nodes.length > 0 && !R.nodes.some((n) => n.left > 0) && !R.buildings.some((b) => b.side === side && b.queue.length) && !mine().some((u) => u.carry > 0);
+    // (once nothing more is coming, whatever it has goes, its workers too)
+    const spent = stuck(cfg, R, side);
     const ready = mine().filter((u) => (spent || !isWorker(cfg, u)) && u.order.kind === 'stop');
     const target = R.buildings.find((b) => b.side === foe && roleOf(cfg, b) === 'base');
     if (target && ready.length && (ready.length >= R.wave || spent)) {
@@ -351,13 +409,15 @@ export function buildBoardRts() {
   }
   function walk(B, cfg, u, dt) {
     if (!u.path.length) return;
-    const to = mid(B, u.path[0]), d = dist([u.x, u.y], to), v = UN(cfg, u.side, u.kind).speed * dt;
+    const S = ST(cfg, u);
+    if (S.still) return;
+    const to = mid(B, u.path[0]), d = dist([u.x, u.y], to), v = S.speed * dt;
     if (d <= v) { u.x = to[0]; u.y = to[1]; u.at = u.path.shift(); }
     else { u.x += ((to[0] - u.x) / d) * v; u.y += ((to[1] - u.y) / d) * v; }
   }
   // close on a target: in range, strike (the cooldown); else walk toward it, the path again now and then
   function engage(B, cfg, R, u, x, events, canMove) {
-    const U = UN(cfg, u.side, u.kind), d = dist([u.x, u.y], placeOf(B, x)) - reachOf(x);
+    const U = ST(cfg, u), d = dist([u.x, u.y], placeOf(B, x)) - reachOf(x);
     if (d <= U.range) {
       u.path = [];
       if (u.cd <= 0) { x.hp -= x.x == null && U.siege ? U.atk * U.siege : U.atk; u.cd = U.rate; events.push({ kind: 'shot', from: u.id, to: x.id, uk: u.kind }); }
@@ -465,13 +525,17 @@ export function buildBoardRts() {
       // buildings: raised over time, then training their queue, a unit out beside them (to the rally, if any)
       for (const b of R.buildings) {
         const K = BU(cfg, b.side, b.kind);
+        if (b.up && b.raising <= 0) {
+          b.up.left -= STEP;
+          if (b.up.left <= 1e-9) { const T = BU(cfg, b.side, b.up.to); b.hp = Math.round((b.hp / b.hpMax) * T.hp); b.hpMax = T.hp; b.kind = b.up.to; b.up = null; events.push({ kind: 'upgraded', id: b.id, to: b.kind }); }
+        }
         if (b.study && b.raising <= 0) {
           b.study.left -= STEP;
           if (b.study.left <= 1e-9) { R.known = Object.assign({}, R.known, { [b.side]: Object.assign({}, known(R, b.side), { [b.study.id]: true }) }); events.push({ kind: 'researched', side: b.side, id: b.study.id }); b.study = null; }
         }
         if (b.raising > 0) {
           // raised by the workers at it, each after the first adding half again
-          const n = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id && u.side === b.side && atSite(B, u, b)).length, k = n ? 1 + 0.5 * (n - 1) : 0;
+          const n = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id && u.side === b.side && atSite(B, u, b)).length, k = b.self ? 1 : n ? 1 + 0.5 * (n - 1) : 0;
           b.raising -= STEP * k; b.hp = Math.min(b.hpMax, b.hp + (b.hpMax * 0.8 * STEP * k) / K.time);
           if (b.raising <= 1e-9) { b.raising = 0; b.hp = Math.min(b.hpMax, Math.round(b.hp)); events.push({ kind: 'built', id: b.id }); }
           continue;
@@ -503,8 +567,11 @@ export function buildBoardRts() {
         u.cd = Math.max(0, u.cd - STEP);
         // inside a transport: carried where it goes, and nothing else
         if (u.inside) { const t = R.units.find((x) => x.id === u.inside); if (t) { u.x = t.x; u.y = t.y; u.at = t.at; } continue; }
-        const o = u.order, U = UN(cfg, u.side, u.kind);
+        // switching modes: nothing else until it is done
+        if (u.shift > 0) { u.shift -= STEP; if (u.shift <= 1e-9) { u.shift = 0; u.mode = u.toMode || null; events.push({ kind: 'mode', id: u.id, mode: u.mode }); } continue; }
+        const o = u.order, U = ST(cfg, u);
         const range = U.range;
+        if (o.kind === 'deploy') { deployAt(B, cfg, R, u, events); continue; }
         // a medic mends the nearest hurt of its own that is no machine, within its reach, whatever its order
         if (U.heals) {
           let best = null, bd = Infinity;
@@ -521,9 +588,10 @@ export function buildBoardRts() {
           if (!x || x.hp <= 0 || !canHit(cfg, range, x)) { u.order = { kind: 'stop' }; u.path = []; } else engage(B, cfg, R, u, x, events, true);
         } else if (o.kind === 'hold') { const x = U.atk ? nearestFoe(B, cfg, R, u, range, range) : null; if (x) engage(B, cfg, R, u, x, events, false); }
         else {
-          // stop and attack-move: what comes in sight is fought (an idle worker keeps to its work: it fights when told);
+          // stop and attack-move: what comes in sight (never shorter than its reach) is fought (an idle worker keeps to its
+          // work: it fights when told);
           // an attack-move then goes on where it was going
-          const x = (o.kind === 'stop' && isWorker(cfg, u)) || !U.atk ? null : nearestFoe(B, cfg, R, u, SIGHT, range);
+          const x = (o.kind === 'stop' && isWorker(cfg, u)) || !U.atk ? null : nearestFoe(B, cfg, R, u, Math.max(SIGHT, range), range);
           if (x) engage(B, cfg, R, u, x, events, true);
           else if (o.kind === 'amove') {
             if (!u.path.length) u.path = route(B, cfg, R, u, o.to) || [];
@@ -534,21 +602,20 @@ export function buildBoardRts() {
       }
       // the fallen, and the end (what a fallen transport carried falls with it)
       for (const t of R.units) if (t.hp <= 0 && t.cargo) for (const id of t.cargo) { const c = R.units.find((x) => x.id === id); if (c) c.hp = 0; }
-      for (const x of R.units.concat(R.buildings)) if (x.hp <= 0) events.push({ kind: 'down', id: x.id, side: x.side, kind2: x.kind, at: placeOf(B, x) });
+      for (const x of R.units.concat(R.buildings)) if (x.hp <= 0 && !x.gone) events.push({ kind: 'down', id: x.id, side: x.side, kind2: x.kind, at: placeOf(B, x) });
       R.units = R.units.filter((u) => u.hp > 0);
       R.buildings = R.buildings.filter((b) => b.hp > 0);
       const lost = (side) => !R.buildings.some((b) => b.side === side && roleOf(cfg, b) === 'base');
-      // a draw: the nodes spent, nobody left standing on either side, and no gold for anyone to train again
-      const done = (side) => !R.units.some((u) => u.side === side) && !R.buildings.some((b) => b.side === side && b.queue.length)
-        && !R.buildings.some((b) => b.side === side && b.raising <= 0 && (BU(cfg, side, b.kind).trains || []).some((k) => R.gold[side] >= UN(cfg, side, k).cost));
+      // a draw: nobody left standing on either side, and neither able to train again
+      const done = (side) => !R.units.some((u) => u.side === side) && stuck(cfg, R, side);
       if (lost('enemy')) { R.over = { won: true }; events.push({ kind: 'won' }); }
       else if (lost('player')) { R.over = { won: false }; events.push({ kind: 'lost' }); }
-      else if (!R.nodes.some((n) => n.left > 0) && done('player') && done('enemy')) { R.over = { won: false, draw: true }; events.push({ kind: 'draw' }); }
+      else if (done('player') && done('enemy')) { R.over = { won: false, draw: true }; events.push({ kind: 'draw' }); }
     }
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, roster, tierOf, incomeOf, lockOf, start, order, train, build, research, rally, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, roster, tierOf, incomeOf, lockOf, statsOf: ST, start, order, train, build, research, upgrade, rally, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -561,6 +628,7 @@ export const rtsTrain = _rts.train;
 export const rtsBuild = _rts.build;
 export const rtsRally = _rts.rally;
 export const rtsResearch = _rts.research;
+export const rtsUpgrade = _rts.upgrade;
 export const rtsTierOf = _rts.tierOf;
 export const rtsLockOf = _rts.lockOf;
 export const rtsMind = _rts.mind;

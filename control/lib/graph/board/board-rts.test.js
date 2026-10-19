@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsLockOf, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -279,6 +279,42 @@ describe('a side\'s own roster', () => {
     expect([E.R.units.find((u) => u.id === 'xC6').hp, E.R.units.find((u) => u.id === 'xD5').hp]).toEqual([80, 30]);
     expect(E.ev.some((e) => e.kind === 'shot' && e.from === 'xC5')).toBe(false);
     expect(E.ev.some((e) => e.kind === 'healed' && e.from === 'xC5' && e.to === 'xC6')).toBe(true);
+  });
+
+  it('transforms: siege deploys to fire farther and stands still; a base grows into its fort; what comes folded is set up', () => {
+    const SHIFT = { ...OWN,
+      units: { ...OWN.units, crew: { ...OWN.units.crew, modes: { deployed: { range: 8, atk: 30, still: true, time: 3 } } },
+        kit: { name: 'Tower (folded)', role: 'deploy', hp: 100, atk: 0, range: 0, rate: 1, speed: 1.6, cost: 120, time: 20, machine: true, deploys: 'tower' } },
+      buildings: { ...OWN.buildings, base: { ...OWN.buildings.base, upgrades: { to: 'fort', cost: 200, time: 10, needs: 'drill' } }, fort: { ...OWN.buildings.base, name: 'Fort', hp: 1600, atk: 10, range: 5 }, tower: { ...OWN.buildings.tower, time: 8 } },
+      research: { drill: { name: 'Drill', cost: 0, time: 1, gives: {} } } };
+    const B = flat(5, 20), cfg = own(B, { workers: 0 }, { player: SHIFT });
+    let R = { ...rtsStart(B, cfg), units: [] };
+    const put = (side, kind, n) => { const i = at(B, n); R.units.push({ id: 'x' + n, side, kind, hp: (side === 'player' ? SHIFT : { units: RTS_UNITS }).units[kind].hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 }); };
+    put('player', 'crew', 'C5'); put('enemy', 'soldier', 'C12');
+    // packed: the soldier, seven away, is out of its reach; deployed (3 s), it is struck, and a move goes nowhere
+    expect(run(B, cfg, R, 2).ev.some((e) => e.kind === 'shot' && e.from === 'xC5')).toBe(false);
+    let D = run(B, cfg, rtsOrder(B, cfg, R, ['xC5'], { kind: 'mode', to: 'deployed' }), 4);
+    expect(D.ev.some((e) => e.kind === 'mode' && e.mode === 'deployed')).toBe(true);
+    D = run(B, cfg, rtsOrder(B, cfg, D.R, ['xC5'], { kind: 'move', to: at(B, 'A3') }), 3);
+    expect(D.ev.some((e) => e.kind === 'shot' && e.from === 'xC5' && e.to === 'xC12')).toBe(true);
+    expect(D.R.units.find((u) => u.id === 'xC5').at).toBe(at(B, 'C5'));
+    // packed again, it walks
+    D = run(B, cfg, rtsOrder(B, cfg, D.R, ['xC5'], { kind: 'mode', to: null }), 3.5);
+    expect(run(B, cfg, rtsOrder(B, cfg, D.R, ['xC5'], { kind: 'move', to: at(B, 'A3') }), 6).R.units.find((u) => u.id === 'xC5').at).toBe(at(B, 'A3'));
+    // the base into its fort, once Drill is known; its hp in proportion, still the side's base
+    let F = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } };
+    const base = F.buildings.find((b) => b.side === 'player').id;
+    expect(() => rtsUpgrade(B, cfg, F, base)).toThrow(/a Fort needs Drill researched first/);
+    F = { ...F, known: { player: { drill: true }, enemy: {} } };
+    F = run(B, cfg, rtsUpgrade(B, cfg, F, base), 10.2).R;
+    expect(F.buildings.find((b) => b.id === base)).toMatchObject({ kind: 'fort', hp: 1600, hpMax: 1600 });
+    // folded, then set up where it stopped: raised on its own, and the unit gone without a fall
+    let K = { ...rtsStart(B, cfg), units: [] };
+    K.units.push({ id: 'xk', side: 'player', kind: 'kit', hp: 100, x: 2.5, y: 6.5, at: at(B, 'C7'), path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    const S = run(B, cfg, rtsOrder(B, cfg, K, ['xk'], { kind: 'deploy' }), 9);
+    expect(S.ev.filter((e) => e.kind === 'down')).toEqual([]);
+    expect(S.R.units.find((u) => u.id === 'xk')).toBeUndefined();
+    expect(S.R.buildings.find((b) => b.kind === 'tower')).toMatchObject({ at: at(B, 'C7'), raising: 0, hp: OWN.buildings.tower.hp });
   });
 
   it('is a draw when the gold is gone and nobody stands on either side', () => {
