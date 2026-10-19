@@ -31,6 +31,17 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   stop, Q / W train, Ctrl+A the army. The board kind and a board over a stage take `rts` (one of `td`, `rts`, a
   battle or units), with `enemy` for a handicap. The quick goal `conquer` is a skirmish on the stage's spots
   (`board: { cols, rows, gold }`), the level the board's to end. Web only.
+- **Civilizations as skirmish sides** (in progress; `lib/graph/board/board-rts-tech.js`): a gameworld civilization's
+  technology read into the roster it fields, as StarCraft's sides are unalike. Its hand weapons arm its infantry
+  (melee, ranged, a shield's guard); what moves and carries is its worker; armoured vehicles are heavy, small ones
+  scout, armed ones fight, armed flyers cross any spot out of melee's reach; machine weapons are siege, three times
+  as hard on a building; a turret is a defence that shoots, a barrier a wall, a thing that stores a depot, a thing
+  that makes the works its vehicles come from (after a barracks). Stats move with the words (armour, energy, a size,
+  a showpiece's rank), and every cost comes from one worth formula, so no side buys more fight for its gold. What a
+  civilization lacks is filled from the plain worker, soldier and archer, and every crafted thing says what it
+  fields as or why not (a vessel waits for water). The skirmish kernel takes a roster per side; a side without one
+  plays as before. The mind raises what it builds in order, past the first only once it has sent a wave, and sends
+  everything it has once the gold nodes are spent; a skirmish where the gold is gone and nobody stands is a draw.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

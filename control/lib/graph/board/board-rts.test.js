@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
 const flat = (cols, rows) => boardOf(Array.from({ length: rows }, () => Array(cols).fill(0)));
@@ -112,6 +113,80 @@ describe('orders', () => {
     const { R: E } = run(B, cfg, R, RTS_BUILDINGS.barracks.time + 0.5);
     expect(E.buildings.find((b) => b.id === bar.id)).toMatchObject({ raising: expect.any(Number), hp: RTS_BUILDINGS.barracks.hp });
     expect(() => rtsTrain(B, cfg, E, bar.id, 'soldier')).not.toThrow();
+  });
+});
+
+// a side's own roster (as board-rts-tech.js reads one from a civilization): a flyer and siege at its works, a defence
+// and a depot to raise
+const OWN = {
+  units: { ...RTS_UNITS,
+    gunship: { name: 'Gunship', role: 'flyer', hp: 110, atk: 9, range: 3, rate: 1.2, speed: 2.4, fly: true, cost: 200, time: 30 },
+    crew: { name: 'Cannon crew', role: 'siege', hp: 90, atk: 24, range: 6, rate: 3, speed: 1.2, siege: 3, cost: 180, time: 30 } },
+  buildings: { ...RTS_BUILDINGS,
+    works: { name: 'Works', role: 'works', hp: 400, cost: 200, time: 25, needs: 'barracks', trains: ['gunship', 'crew'] },
+    tower: { name: 'Tower', role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
+    depot: { name: 'Depot', role: 'depot', hp: 250, cost: 100, time: 15 } },
+  worker: 'worker', base: 'base', army: ['soldier', 'archer'], builds: ['barracks', 'works'],
+};
+const own = (B, extra = {}, sides = { player: OWN }) => ({ ...quiet(B, extra), sides });
+const raise = (B, cfg, R, kind, n) => { R = rtsBuild(B, cfg, { ...R, gold: { ...R.gold, player: 999 } }, 'player', kind, at(B, n)); return run(B, cfg, R, cfg.sides.player.buildings[kind].time + 0.5).R; };
+
+describe('a side\'s own roster', () => {
+  it('flies a flyer straight over what walkers go round, out of reach of what strikes from close in', () => {
+    // holes across the board but at its edge: a walker goes round by E, a flyer over
+    const B = boardOf(Array.from({ length: 12 }, (_, r) => Array.from({ length: 5 }, (_, c) => (r === 5 && c < 4 ? null : 0))));
+    const cfg = own(B, { workers: 0 }, { player: OWN, enemy: OWN });
+    let R = rtsStart(B, cfg);
+    R = { ...R, units: [] };
+    const put = (side, kind, n) => { const i = at(B, n), u = { id: 'x' + n, side, kind, hp: OWN.units[kind].hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 }; R.units.push(u); };
+    put('player', 'gunship', 'A4'); put('player', 'soldier', 'B4');
+    R = rtsOrder(B, cfg, R, ['xA4', 'xB4'], { kind: 'move', to: at(B, 'A8') });
+    expect(R.units.find((u) => u.id === 'xA4').path).toHaveLength(4);
+    expect(R.units.find((u) => u.id === 'xB4').path.length).toBeGreaterThan(8);
+    // a soldier told to strike a flyer stands down, and the soldier is not what the flyer is struck by; an archer is
+    R = { ...R, units: R.units.slice(0, 1).map((u) => ({ ...u, side: 'enemy', path: [], order: { kind: 'stop' } })) };
+    put('player', 'soldier', 'A3'); put('player', 'archer', 'B3');
+    const S = run(B, cfg, rtsOrder(B, cfg, R, ['xA3'], { kind: 'attack', target: 'xA4' }), 1);
+    expect(S.R.units.find((u) => u.id === 'xA3').order.kind).toBe('stop');
+    expect(S.ev.filter((e) => e.kind === 'shot' && e.to === 'xA4').map((e) => e.from)).not.toContain('xA3');
+    const A = run(B, cfg, rtsOrder(B, cfg, R, ['xB3'], { kind: 'attack', target: 'xA4' }), 3).ev;
+    expect(A.some((e) => e.kind === 'shot' && e.from === 'xB3' && e.to === 'xA4')).toBe(true);
+  });
+
+  it('raises its works only after a barracks; siege strikes a building three times as hard', () => {
+    const B = flat(5, 12), cfg = own(B);
+    let R = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } };
+    expect(() => rtsBuild(B, cfg, R, 'player', 'works', at(B, 'A4'))).toThrow(/a Works needs a Barracks standing first/);
+    R = raise(B, cfg, R, 'barracks', 'A4');
+    expect(() => rtsBuild(B, cfg, R, 'player', 'works', at(B, 'E4'))).not.toThrow();
+    const base = R.buildings.find((b) => b.side === 'enemy');
+    const p = [(base.at % 5) + 0.5, Math.floor(base.at / 5) - 3.5];
+    R.units.push({ id: 'xc', side: 'player', kind: 'crew', hp: 90, x: p[0], y: p[1], at: base.at - 20, path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    const { ev } = run(B, cfg, rtsOrder(B, cfg, R, ['xc'], { kind: 'attack', target: base.id }), 0.2);
+    expect(ev.filter((e) => e.kind === 'shot' && e.from === 'xc')).toHaveLength(1);
+    expect(run(B, cfg, rtsOrder(B, cfg, R, ['xc'], { kind: 'attack', target: base.id }), 0.2).R.buildings.find((b) => b.id === base.id).hp).toBe(RTS_BUILDINGS.base.hp - 24 * 3);
+  });
+
+  it('shoots from a defence at what comes in range; drops what is mined at the nearer depot', () => {
+    const B = flat(7, 14), cfg = own(B, { nodes: ['B10'], workers: 1 });
+    let R = raise(B, cfg, rtsStart(B, cfg), 'tower', 'D5');
+    R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 7.5, at: at(B, 'D8'), path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    const T = run(B, cfg, R, 20);
+    expect(T.ev.some((e) => e.kind === 'shot' && e.to === 'xe')).toBe(true);
+    expect(T.R.units.find((u) => u.id === 'xe')).toBeUndefined();
+    // a depot beside the node: the worker carries home there, never back to the base
+    let D = raise(B, cfg, rtsStart(B, cfg), 'depot', 'D10');
+    const w = D.units.find((u) => u.side === 'player');
+    D = rtsOrder(B, cfg, D, [w.id], { kind: 'gather', node: at(B, 'B10') });
+    let near = Infinity, got = 0;
+    for (let k = 0; k < 400; k++) { const o = rtsTick(B, cfg, D, 0.1); D = o.R; got += o.events.filter((e) => e.kind === 'gathered' && e.side === 'player').length; const u = D.units.find((x) => x.id === w.id); if (got) near = Math.min(near, Math.abs(u.y - 1.5)); }
+    expect(got).toBeGreaterThan(2);
+    expect(near).toBeGreaterThan(5);
+  });
+
+  it('is a draw when the gold is gone and nobody stands on either side', () => {
+    const B = flat(5, 10), cfg = readBoardRts(B, { nodes: 0, gold: 0, workers: 0, ai: { workers: 0, wave: 30 } });
+    expect(rtsTick(B, cfg, rtsStart(B, cfg), 0.1).R.over).toEqual({ won: false, draw: true });
   });
 });
 

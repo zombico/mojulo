@@ -1,7 +1,7 @@
 /**
  * REAL-TIME STRATEGY ON THE WORLD PAGE — the skirmish (board-rts.js) played over the board: units drawn by side and
  * kind with their health over them, buildings and resource nodes on their spots, the selection ringed, a panel with
- * the purse and what is selected. The level hears `board-won` or `board-lost` (the `board` mechanic ends it).
+ * the purse and what is selected. The level hears `board-won`, `board-lost` or `board-draw` (the `board` mechanic ends it).
  *
  *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every soldier and archer
  *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), with a building
@@ -221,14 +221,14 @@ export function boardRtsPage(api) {
         const from = api.worldAt([a.x, a.y]), to = t.x != null ? api.worldAt([t.x, t.y]) : tops[t.at];
         FX.play(e.uk === 'archer' ? 'arrow' : 'hit', { from: [from[0], from[1], from[2] + 0.6], at: to, targets: [to], seed: 'rts:' + R.t.toFixed(1) + ':' + e.from });
       } else if (e.kind === 'down' && FX) { const w = api.worldAt(e.at); FX.play(e.kind2 === 'base' || e.kind2 === 'barracks' ? 'strike' : 'hit', { at: w, targets: [w], seed: 'down:' + e.id }); }
-      else if (e.kind === 'won' || e.kind === 'lost') end(e.kind === 'won');
+      else if (e.kind === 'won' || e.kind === 'lost' || e.kind === 'draw') end(e.kind === 'won', e.kind === 'draw');
     }
   }
-  function end(won) {
-    result = { won };
+  function end(won, draw) {
+    result = { won, ...(draw ? { draw } : {}) };
     banner.style.display = 'block';
-    banner.textContent = won ? 'Victory\ntheir base has fallen' : 'Defeat\nyour base has fallen';
-    api.push(won ? 'board-won' : 'board-lost');
+    banner.textContent = won ? 'Victory\ntheir base has fallen' : draw ? 'Stalemate\nthe gold is gone and nobody stands' : 'Defeat\nyour base has fallen';
+    api.push(won ? 'board-won' : draw ? 'board-draw' : 'board-lost');
   }
 
   function advance(dt) {
