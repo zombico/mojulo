@@ -77,6 +77,27 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
 - **Tower defence on a board** on the quick path (`defend` with `board`): towers fill spots, and foes path over the
   free ones.
 
+### Traditional board games: a board world of tiles, pieces and rules
+
+Board games composed, not coded: a board is a connection of tiles, and chess, checkers and (later) a settlers game
+are put together from the same pieces, move rules, turns and exceptions, played against the computer. The board is
+abstract (representational state, heights allowed, no map yet), drawn as an SVG plan and, where it is good enough,
+in CSS 3D. In progress:
+
+- **The lattice** (`lib/graph/polygonizer/lattice.js`), built: mandala-space tiled. Square and hex boards (pointy or
+  flat, a rectangle or a hexagon of hexes, carved by holes or a heights grid) as cells, corners and edges with shared
+  ids, so a piece can stand on a cell, a corner (a settlement) or an edge (a road). The relations are explicit: each
+  cell's neighbour by direction, in manji names (N E S W on a square; E NE NW W SW SE on a pointy hex), its corners
+  and edges in order round it, each corner's cells and edges, each edge's two corners and its cells. Heights stand on
+  the meru. Cells are named as on a chessboard (`C4`), a corner or an edge by any cell it touches and the way to it
+  (`C4.ne`), every alias the same record. Lattice vectors move on it (a step, a slide until the board or a hole
+  ends it, a jump) and turn and mirror with the board, so a piece's moves are one vector under the board's symmetry:
+  a knight is eight moves from one, and the same piece plays on a hex. The relations' invariants are checked
+  (`latticeLaws`), and Euler counts the holes.
+- **The board drawn** (`lattice-svg.js`, `lattice-css3d.js`), built: the plan as SVG (cells in the board's own
+  colouring, corners, edges and names, highlights over them), and the board in CSS 3D, a top a cell, sides where a
+  cell stands above its neighbour or the rim, a seat at the table and a view from above.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
