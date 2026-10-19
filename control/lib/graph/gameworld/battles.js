@@ -29,6 +29,7 @@
  * roster as the game starts.
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
+import { withBoardBook } from '../board/board-battle.js';
 import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { cubeOfWorld } from './intent.js';
@@ -47,7 +48,8 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: battles${m}`);
@@ -60,9 +62,22 @@ const packOf = (v, where) => {
 };
 
 /** The concern as written, read; `characters` (the world's, read) say who can be in the party. */
-export function readBattles(v, characters = null) {
+// the book's epochs (board-levels.js): its levels in order, cut into chapters, each a map of its own
+function readEpochs(E, ids) {
+  const shape = '.board.epochs is the book\'s levels in order, cut into chapters: [{ name?, levels: [level id, …] }, …]';
+  if (!Array.isArray(E) || !E.length) throw err(shape);
+  for (const [k, e] of E.entries()) {
+    if (!isObj(e) || !Array.isArray(e.levels) || !e.levels.length || !e.levels.every((l) => typeof l === 'string')) throw err(`${shape} (epochs[${k}])`);
+    for (const x of Object.keys(e)) if (!['name', 'levels'].includes(x)) throw err(`.board.epochs[${k}].${x} is not part of an epoch (name, levels)`);
+    if (e.name !== undefined && (typeof e.name !== 'string' || !e.name.trim())) throw err(`.board.epochs[${k}].name is the epoch's name, a few words`);
+  }
+  const flat = E.flatMap((e) => e.levels);
+  if (ids && flat.join('|') !== ids.join('|')) throw err(`.board.epochs: every level once, in the book's order (${ids.join(', ')}); they hold ${flat.join(', ')}`);
+}
+
+export function readBattles(v, characters = null, ids = null) {
   if (v === undefined) return null;
-  if (!isObj(v)) throw err(' is { party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
+  if (!isObj(v)) throw err(' is { on?, board?, party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
   const cast = characters?.cast ?? {};
   // (a casting page's first party may be named too: its ids are read from its words, without rolling, at the largest
@@ -86,6 +101,17 @@ export function readBattles(v, characters = null) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
     for (const k of Object.keys(v.random)) if (!['every', 'chance', 'after'].includes(k)) throw err(`.random.${k} is not part of it (every, chance, after)`);
   }
+  // on: 'board' fights each stage's packs as a tactics battle on spots over the stage's own ground (board/), the stage
+  // the battle's level (gameworld/board-levels.js); absent, the party battles' fights on the trail
+  if (v.on !== undefined && v.on !== 'board') throw err(".on is 'board' (each stage a tactics battle on its own ground), or absent (fights met on the trail)");
+  if (v.board !== undefined) {
+    if (v.on !== 'board') throw err(".board is the board's own settings, for on: 'board'");
+    if (!isObj(v.board)) throw err(`.board is { ${BOARD_KEYS.join(', ')} } (every one optional)`);
+    for (const k of Object.keys(v.board)) if (!BOARD_KEYS.includes(k)) throw err(`.board.${k} is not part of it (${BOARD_KEYS.join(', ')})`);
+    if (v.board.skirmish !== undefined && typeof v.board.skirmish !== 'boolean') throw err('.board.skirmish is true or false: a battle on each area\'s map to fight again (true by default)');
+    if (v.board.epochs !== undefined) readEpochs(v.board.epochs, ids);
+    if (v.board.talk !== undefined && !(isObj(v.board.talk) && Object.entries(v.board.talk).every(([k, x]) => ['bubble', 'portrait'].includes(k) && typeof x === 'boolean'))) throw err('.board.talk is { bubble?, portrait? }: the words over whoever speaks (on unless false), a close portrait of them beside (off unless true)');
+  }
   const out = { ...v, ...(packs ? { packs } : {}), ...(boss ? { boss } : {}) };
   // the play.rpg it makes, read now, so a wrong class, skill, foe or rule is said where it was written
   readRpg({ rpg: battleBase({ battles: out, characters }) });
@@ -94,12 +120,14 @@ export function readBattles(v, characters = null) {
 }
 
 /** The world as the run lays it: a world whose cube fights turn by turn (power.combat turn-based: the jrpg genre, or
- * its own cube) and writes no battles is laid with the defaults, the encounters concern laid as the cover concern is.
+ * its own cube) and writes no battles is laid with the defaults, the encounters concern laid as the cover concern is;
+ * one whose cube fights tactics (power.combat tactics) with its battles on boards.
  * A quick world is its own (its goal says what it fights). */
 export function laidBattles(G) {
   if (G.battles !== undefined || G.quick) return G;
-  const c = cubeOfWorld(G).cube.power?.combat;
-  return (Array.isArray(c) ? c.includes('turn-based') : c === 'turn-based') ? { ...G, battles: {} } : G;
+  const c = cubeOfWorld(G).cube.power?.combat, has = (x) => (Array.isArray(c) ? c.includes(x) : c === x);
+  // tactics: the battles on boards (board-levels.js); turn-based: met on the trail
+  return has('tactics') ? { ...G, battles: { on: 'board' } } : has('turn-based') ? { ...G, battles: {} } : G;
 }
 
 /** The party: the hero first, then each cast member who joins, in the cast's order. */
@@ -128,7 +156,9 @@ export function battleBase(G) {
   const B = G.battles ?? {};
   const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
-  return { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  // a book fighting on boards has the board's own book besides (the summoner and its summons), when it uses it
+  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  return B.on === 'board' ? withBoardBook(base) : base;
 }
 
 // the beats a pack may stand on: along the way, the exit and the trailhead left free

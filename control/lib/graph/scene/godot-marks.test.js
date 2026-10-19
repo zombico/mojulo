@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PLATFORM_KEYS, platformLost, RULE_MARKS, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark, FIGURE_MARKS, BUS_MARKS, LEDGER_MARKS, SHELL_MARKS } from './godot-marks.js';
-import { MARKS, worstMark, CAMERA_RULE, figureOverlays, LEDGER_INFO } from './engines/marks.js';
+import { MARKS, worstMark, CAMERA_RULE, PAGE_CAMERAS, figureOverlays, LEDGER_INFO } from './engines/marks.js';
 import { supercarFigure } from '../car-designer/supercar-figure.js';
 import { bakeJuice } from '../car-designer/juice.js';
 import { mechanicMarks, MECHANIC_SAMPLES, carriedMechanics, carriedRules, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
@@ -58,7 +58,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(rules.filter((k) => !marked(RULE_MARKS[k]))).toEqual([]);
     expect(Object.keys(RULE_MARKS).filter((k) => !rules.includes(k))).toEqual([]);
     for (const [cam, rule] of Object.entries(CAMERA_RULE)) expect(marked(RULE_MARKS[rule]), cam).toBe(true);
-    expect(Object.keys(CAMERA_RULE).sort()).toEqual(Object.keys(capabilityRegistry().space.camera.values).sort());
+    expect([...Object.keys(CAMERA_RULE), ...Object.keys(PAGE_CAMERAS)].sort()).toEqual(Object.keys(capabilityRegistry().space.camera.values).sort());
   });
 
   it('every key the platform rule reads is where the kernel runs it: ported, the fight\'s, or named lost', () => {
@@ -168,7 +168,7 @@ describe('the cosmos registry and the export read the same marks', () => {
   it('mechanics, rules, cameras, kits, systems, idioms, links, traversal, gaits, mind', () => {
     agree(reg.power.mechanics, MECHANIC_MARKS);
     agree(reg.power.rules, RULE_MARKS);
-    agree(reg.space.camera, null, (v) => RULE_MARKS[CAMERA_RULE[v]].godot);
+    agree(reg.space.camera, null, (v) => (PAGE_CAMERAS[v] ? 'absent' : RULE_MARKS[CAMERA_RULE[v]].godot));
     agree(reg.power.kit, null, (v) => kitMark(v).godot);
     agree(reg.power.systems, SYSTEM_MARKS);
     agree(reg.space.links, LINK_MARKS);
@@ -177,7 +177,8 @@ describe('the cosmos registry and the export read the same marks', () => {
     for (const axis of ['motivation', 'aggressiveness', 'rank', 'skill', 'perception', 'pathing', 'squad', 'social', 'commander']) agree(reg.mind[axis], null, (v) => mindMark(axis, v).godot);
   });
   it('the story: shots, framing, quests and talk travel no further than scenes and quests do', () => {
-    for (const v of Object.values(reg.time.shots.values)) expect(v.godot).toBe(EVENT_MARKS.scenes.godot);
+    // (a shot told on the board itself is the board page's: no engine kernel plays a board)
+    for (const v of Object.values(reg.time.shots.values)) expect(v.godot).toBe(v.requires?.includes('space.board=spots') ? 'absent' : EVENT_MARKS.scenes.godot);
     for (const v of Object.values(reg.time.framing.values)) expect(v.godot).toBe(EVENT_MARKS.scenes.godot);
     expect(reg.time.advance.values.quests.godot).toBe(EVENT_MARKS.quests.godot);
     expect(reg.time.advance.values.steps.godot).toBe(EVENT_MARKS.quests.godot);

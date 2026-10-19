@@ -246,7 +246,9 @@ function readCivilization(c, at) {
   if (out.technology !== undefined) {
     const T = out.technology;
     if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, direction?, ${TECH_LISTS.join('?, ')}? }`);
-    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, ${TECH_LISTS.join(', ')})`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', 'research', 'doctrines', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, research, doctrines, ${TECH_LISTS.join(', ')})`);
+    if (T.doctrines !== undefined && !(Array.isArray(T.doctrines) && T.doctrines.length && T.doctrines.every((d) => typeof d === 'string' && ID.test(d)))) throw new Error(`gameworld: ${at}.technology.doctrines is a list of the doctrines it may choose before a skirmish (economy, aggression, fortress, science)`);
+    if (T.research !== undefined) readResearch(T.research, `${at}.technology.research`);
     if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
     if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
     // every list is { <id>: words }: one library, so a crafted thing's id names it alone (things keep their old
@@ -267,9 +269,29 @@ function readCivilization(c, at) {
       return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
     }));
     for (const k of TECH_LISTS) if (T[k] !== undefined && !isObj(T[k])) throw new Error(`gameworld: ${at}.technology.${k} is { <id>: words | { intent, seed? } }`);
-    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}) };
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}), ...(T.research !== undefined ? { research: T.research } : {}), ...(T.doctrines !== undefined ? { doctrines: [...T.doctrines] } : {}) };
   }
   return out;
+}
+// a civilization's own research, its steps in a skirmish (board/board-rts-tech.js): shape only; what a step opens and
+// follows is read against what it fields there
+const RESEARCH_KEYS = ['name', 'after', 'opens', 'cost', 'time', 'buff'], BUFF_KEYS = ['who', 'atk', 'rate', 'speed', 'ward', 'range'];
+function readResearch(R, at) {
+  const shape = `${at} is { <id>: { name?, after?: <step or building> | [..], opens?: [<crafted id>, ..], cost?, time?, buff?: { who?, atk?, rate?, speed?, ward?, range? } } }`;
+  if (!isObj(R)) throw new Error(`gameworld: ${shape}`);
+  for (const [id, r] of Object.entries(R)) {
+    if (!ID.test(id)) throw new Error(`gameworld: ${at} '${id}': an id is a short lower-case name`);
+    if (!isObj(r)) throw new Error(`gameworld: ${shape}`);
+    for (const k of Object.keys(r)) if (!RESEARCH_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.${k} is not part of a step (${RESEARCH_KEYS.join(', ')})`);
+    if (r.name !== undefined && (typeof r.name !== 'string' || !r.name.trim())) throw new Error(`gameworld: ${at}.${id}.name is a few words`);
+    for (const k of ['after', 'opens']) if (r[k] !== undefined && !([].concat(r[k]).length && [].concat(r[k]).every((x) => typeof x === 'string' && ID.test(x)))) throw new Error(`gameworld: ${at}.${id}.${k} is an id or a list of them`);
+    for (const k of ['cost', 'time']) if (r[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0 && r[k] <= 2000)) throw new Error(`gameworld: ${at}.${id}.${k} is 0 to 2000`);
+    if (r.buff !== undefined) {
+      if (!isObj(r.buff)) throw new Error(`gameworld: ${at}.${id}.buff is { who?, atk?, rate?, speed?, ward?, range? }`);
+      for (const k of Object.keys(r.buff)) if (!BUFF_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is not part of a buff (${BUFF_KEYS.join(', ')})`);
+      for (const k of BUFF_KEYS.slice(1)) if (r.buff[k] !== undefined && !(Number.isFinite(r.buff[k]) && r.buff[k] > 0 && r.buff[k] <= 4)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is a factor (range: metres added), above 0 to 4`);
+    }
+  }
 }
 const intentOf = (v, at) => {
   const o = typeof v === 'string' ? { intent: v } : isObj(v) ? { ...v } : null;
@@ -380,6 +402,21 @@ function differences(base, top, scope, at) {
 
 /** Read a gameworld and say what is wrong. → { id, name, seed, style, civilizations, civIds, levels, ids, links, start }. */
 const READ = Symbol('read gameworld');
+/**
+ * Civilizations read and tunnelled on their own, outside a world (a skirmish's sides, board/board-rts-tech.js): each as
+ * readGameworld reads it, on the kit and seed given. → { civilizations, civIds }, the shape tech-direction.js reads.
+ */
+export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}) {
+  if (!isObj(civs) || !Object.keys(civs).length) throw new Error('gameworld: civilizations is { <id>: { name?, builds?, technology? } }, at least one');
+  const civilizations = {}, civIds = Object.keys(civs);
+  for (const id of civIds) {
+    if (!ID.test(id)) throw new Error(`gameworld: civilization '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
+    civilizations[id] = { name: id, ...readCivilization(civs[id], `civilizations.${id}`) };
+    if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, kit, seed);
+  }
+  return { civilizations, civIds };
+}
+
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
@@ -577,7 +614,7 @@ export function readGameworld(W) {
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**

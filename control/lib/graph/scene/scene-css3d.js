@@ -81,7 +81,7 @@ function windToward(corners, towardPt) {
 const m3d = (c) => `matrix3d(${c.map((n) => n.toFixed(5)).join(',')})`;
 
 /** A plane div placed in world: local x→u, local y→v, local z→normal, origin at c0. */
-function planeMatrix(c0, uVec, vVec, unitScale) {
+export function planeMatrix(c0, uVec, vVec, unitScale) {
   const U = norm(uVec), V = norm(vVec), n = cross(U, V), o = scale(c0, unitScale);
   return m3d([U[0], U[1], U[2], 0, V[0], V[1], V[2], 0, n[0], n[1], n[2], 0, o[0], o[1], o[2], 1]);
 }

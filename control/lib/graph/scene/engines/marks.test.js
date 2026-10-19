@@ -4,7 +4,7 @@
 // proof tests, its kernel files) stays in that engine's own test (godot-marks.test.js). No engine needed.
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
-import { MARKS, worstMark, CAMERA_RULE, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
+import { MARKS, worstMark, CAMERA_RULE, PAGE_CAMERAS, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
 import { ENGINES, MARKED_ENGINES, DEFAULT_ENGINE, ENGINE_OUT_DIRS, engineOf, marksOf, marksAcross } from './registry.js';
 import { pageInputs, controllableRules, platformRuleKeys, ledgerKeys, busRows, systemKinds, linkKinds, pageEventKeys } from './mark-sources.js';
 import { mechanicMarks, kitMark, carriedMechanics, carriedRules, assessPortability } from '../engine-portability.js';
@@ -113,7 +113,7 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
     const MECH = mechanicMarks(e);
     agree(reg.power.mechanics, (v) => MECH[v]?.[e]);
     agree(reg.power.rules, (v) => M.RULE_MARKS[v]?.[e]);
-    agree(reg.space.camera, (v) => M.RULE_MARKS[CAMERA_RULE[v]][e]);
+    agree(reg.space.camera, (v) => (PAGE_CAMERAS[v] ? 'absent' : M.RULE_MARKS[CAMERA_RULE[v]][e]));
     agree(reg.power.kit, (v) => kitMark(v, e)[e]);
     agree(reg.power.systems, (v) => M.SYSTEM_MARKS[v]?.[e]);
     agree(reg.power.idiom, (v) => M.SYSTEM_MARKS[IDIOMS[v].system.kind][e]);

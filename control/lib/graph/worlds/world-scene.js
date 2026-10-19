@@ -85,7 +85,7 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
-async function heroFigure(name, spec) {
+export async function heroFigure(name, spec) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -1187,6 +1187,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+  }
+  // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
+  // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
+  // (a city's `board` is its plan's street grid, city/plan: never spots)
+  if (payload && kind !== 'board' && kind !== 'city' && sketch.manifest.board && typeof sketch.manifest.board === 'object') {
+    const [{ boardOverWorld }, { boardFigures }] = await Promise.all([import('@/lib/graph/board/board-scene.js'), import('@/lib/graph/board/board-figures.js')]);
+    Object.assign(payload, boardOverWorld(payload, sketch.manifest.board, { play: sketch.manifest.play }));
+    Object.assign(payload, await boardFigures(payload, { heroFigure, figures: sketch.manifest.board.battle?.figures }));
   }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade

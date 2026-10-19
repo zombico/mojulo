@@ -458,7 +458,8 @@ export function playShellRuntime(cfg, K) {
     }
     if (d.moj === W.outcome && !session.ended) {
       session.ended = true;
-      const before = front && allCleared();
+      // THE END: a game with a final level (M.final) is cleared by its first win alone
+      const before = (front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
@@ -474,16 +475,17 @@ export function playShellRuntime(cfg, K) {
       }
       // a RUN: on to its next level, or its end
       if (run) { const sess = session; setTimeout(() => { if (session === sess) runOutcome(env, r.ok); }, 1400); return; }
+      // the game first completed: the end, not on through the level's exit
+      const fin = (front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
       // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
-      const to = r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      const to = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       const onward = to && LEVELS.find((l) => l.ref === to);
       if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       const sess = session;
       // the last level first cleared: the front's end (its card, then the roll) in place of the result
-      const fin = front && !before && r.ok && env.result === 'success' && allCleared();
       // the level shows its own end card first; the result follows it
-      setTimeout(() => { if (session !== sess) return; if (fin && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok); }, env.stats ? 2400 : 1600);
+      setTimeout(() => { if (session !== sess) return; if (fin && front && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok, fin); }, env.stats ? 2400 : 1600);
     }
   });
 
@@ -593,7 +595,7 @@ export function playShellRuntime(cfg, K) {
       return el('li', { text: k.label + ' ' + fmt(k, v) + tail });
     }));
   }
-  function renderResult(lv, env, applied) {
+  function renderResult(lv, env, applied, done) {
     session = null;
     show('result');
     const res = env.result === 'success' ? 'cleared' : env.result === 'fail' ? 'failed' : 'left';
@@ -605,6 +607,7 @@ export function playShellRuntime(cfg, K) {
       el('h1', { text: lv.title }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
+      done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
       shut && shut.gate ? el('div', { cls: 'muted', text: 'The way to ' + levelTitle(shut.to) + ' is shut: ' + needs(shut.gate) + '.' }) : null,
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(lv, env) : null,
@@ -619,7 +622,7 @@ export function playShellRuntime(cfg, K) {
   }
 
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
-  const allCleared = () => !!progression && LEVELS.every((l) => cleared(l.ref));
+  const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));
   const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
     el, app, show, home, launch, startRun, renderLevels, cleared, isOpen, saveSettings, pushPrefs,
     levels: LEVELS, run: !!RUN, playtest: PLAYTEST, title: M.title,

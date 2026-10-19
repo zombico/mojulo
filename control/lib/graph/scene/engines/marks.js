@@ -29,6 +29,9 @@ export const BUS_STATUS_MARK = Object.freeze({ built: 'built', partial: 'approxi
 
 // space.camera's values, by the camera rule each lowers to (gameworld/cameras.js)
 export const CAMERA_RULE = Object.freeze({ 'third-person': 'follow', 'first-person': 'eye', 'top-down': 'overhead', side: 'side', fixed: 'fixed' });
+// space.camera values no controllable rule plays: the board page owns its camera (board/board-camera.js), and no engine
+// kernel plays a board, so it is absent in every engine
+export const PAGE_CAMERAS = Object.freeze({ tactical: 'the board page\'s own camera (board/board-camera.js); no engine kernel plays a board' });
 
 // space.traversal (playscape/objects ENTRIES): the runtime rule each lowers to, if any
 export const TRAVERSAL_RULE = Object.freeze({ door: null, platform: 'mover', lift: 'mover', catapult: 'launcher', bridge: null, ladder: 'platform', stairs: null });

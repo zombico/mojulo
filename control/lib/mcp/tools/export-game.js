@@ -189,7 +189,7 @@ function menuModeLines(menu) {
 }
 
 function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryBank, desktop = false }) {
-  const modeLines = engine === 'pixelizer' || engine === 'versus' ? [] : menuModeLines(manifest.menu);
+  const modeLines = engine === 'pixelizer' || engine === 'versus' || engine === 'tabletop' ? [] : menuModeLines(manifest.menu);
   const lines = [
     `# ${manifest.title}`,
     '',
@@ -204,6 +204,7 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
     ...(engine === 'pixelizer'
       ? [`- engine: pixelizer (single-file 2D reducer game)`]
       : engine === 'versus' ? [`- engine: versus (single-file side-view fighter; roster of ${(manifest.roster || []).length || 'the default'} fighters)`]
+      : engine === 'tabletop' ? [`- engine: tabletop (single-file board game against the computer: ${typeof manifest.tabletop?.game === 'string' ? manifest.tabletop.game : 'a game written out'})`]
       : [`- levels: ${(manifest.levels || []).length} minted level worlds (one \`recipe/<ref>.json\` each)`]),
     '',
     '## How to play',
@@ -527,6 +528,21 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file versus fighter: game.html plays anywhere, file:// included, two players on one keyboard or two pads.',
+    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
+  }
+
+  // ── tabletop branch: a board game's page is single-file, the kernel and the computer inside it ──
+  if (manifest.engine === 'tabletop') {
+    const { emitTabletopGame } = await import('@/lib/graph/tabletop/tabletop-manifest');
+    await write('game.html', emitTabletopGame(manifest, { title: sketch.title }));
+    await writeRecipe('recipe/game.json', manifest);
+    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'tabletop' }));
+    const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
+    return withHandoff({
+      ok: true, ref, engine: 'tabletop', dir,
+      preview_url: `${outcomeUrlFor(ref)}game.html`,
+      files, total_bytes: totalBytes,
+      note: 'Single-file board game: game.html plays anywhere, file:// included, against the computer.',
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 

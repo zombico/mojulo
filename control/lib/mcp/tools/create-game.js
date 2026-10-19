@@ -94,7 +94,7 @@ export function themeOf(theme, palette, ref) {
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }
 
-export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -115,7 +115,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   }
 
   const { theme, palette: solved } = themeOf(themeIn, palette, ref);
-  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -207,13 +207,36 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   };
 }
 
+// A board game against the computer (lib/graph/tabletop): no store, no levels, its own page (as a pixelizer game is).
+async function mintTabletop(input, context) {
+  const { title, tabletop, ref, folder_ref: folderRef } = input;
+  const mixed = ['store', 'levels', 'menu', 'music', 'setup', 'links', 'difficulty', 'shell', 'run', 'front', 'audits'].filter((k) => input[k] !== undefined);
+  if (mixed.length) throw new Error(`a board game (tabletop) has no ${mixed.join(', ')}: it is its own page, played against the computer`);
+  if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
+  if (folderRef !== undefined && !SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
+  const { buildTabletopGameManifest } = await import('@/lib/graph/tabletop/tabletop-manifest');
+  const manifest = buildTabletopGameManifest({ title, tabletop });
+  const sketch = SketchRepository.create({ title: manifest.title, manifest, ref, ...(folderRef ? { folderRef } : {}) });
+  const playUrl = `/api/sketches/${encodeURIComponent(sketch.ref)}/game`;
+  return {
+    ok: true,
+    ref: sketch.ref,
+    engine: 'tabletop',
+    game: typeof tabletop.game === 'string' ? tabletop.game : 'written out',
+    url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    playUrl,
+    share: shareForContext(context, { ref: sketch.ref, engine: 'tabletop', playUrl }),
+  };
+}
+
 export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  if (input.tabletop !== undefined) return mintTabletop(input, context);
   try {
-    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
     // the game is complete: now is when the operator is asked how to share it (share-offer.js)
     return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {
@@ -231,6 +254,11 @@ export async function getGameVocabHandler(input) {
     return { ok: true, ...gameworldSamples(samples, { ...(n !== undefined ? { n } : {}), ...(seed !== undefined ? { seed } : {}) }), _telemetrySignal: { id_requested: true, found: true } };
   }
   if (id && rail.has(id)) return { ok: true, card: rail.get(id), _telemetrySignal: { id_requested: true, found: true } };
+  // the board games' card (create_game's `tabletop`): served by id, named on its routing card
+  if (id === 'tabletop') {
+    const { tabletopCard } = await import('@/lib/graph/tabletop/tabletop-card');
+    return { ok: true, card: tabletopCard(), _telemetrySignal: { id_requested: true, found: true } };
+  }
   // a quick goal's card and a genre's card: served by id, named on their index cards, not listed
   const sub = id ? quickGoalCardById(id) ?? genreCardById(id) : null;
   if (sub) return { ok: true, card: sub, _telemetrySignal: { id_requested: true, found: true } };
@@ -244,7 +272,7 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'tabletop', 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
@@ -319,6 +347,10 @@ export function registerGameTools() {
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Title for the game.' },
+        tabletop: {
+          type: 'object',
+          description: "A board game against the computer instead of levels (no store): { game: 'chess'|'checkers' | a game written out from systems (board, pieces and their moves, rules; resources, dice, building, cards, trading), human?, level?: easy|fair|hard, view?: plan|table, seed?, clock?: { base, inc? } s }. A published game by name: ask its rules first. get_game_vocab({ id: 'tabletop' }).",
+        },
         store: {
           type: 'object',
           description: "The typed store: { slices: [{ name, kind, init? }] }. kind ∈ character|inventory|party|progression|flags. Manuals: get_game_vocab({ id: 'slice-<kind>' }).",
@@ -360,6 +392,7 @@ export function registerGameTools() {
         shell: { type: 'string', enum: ['play'], description: 'The light shell: no menu, music, setup, difficulty.' },
         run: { type: 'object', description: 'Runs (light shell): { length }: each run draws that many levels in a rolled order; a death ends it.' },
         front: { type: 'object', description: "The light shell's title and credits: { cover?: <cover ref> | { art }, layout?, tagline?, press?, menu?: [continue|play|levels|options|credits], credits?: { roll: [{ role, names }], thanks? }, end? }. get_game_vocab({ id: 'front' })." },
+        final: { type: 'string', description: 'The level whose first win completes the game.' },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
         project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
@@ -370,7 +403,8 @@ export function registerGameTools() {
         auto_audit: { type: 'boolean', description: "AUTO-RUN each level's mechanic-derived completability audit (reach-exit → walk to the exit; survive → idle past the timer) instead of requiring a hand-authored traversal. Levels built from auto-auditable mechanics pass the gate with no motion_ref. Runs a headless traversal per such level (slower). Levels with no auto-auditable mechanic still need a motion_ref or allow_unaudited." },
         allow_unaudited: { type: 'boolean', description: "Promote levels that lack a completability audit. The contract dry-run still runs (always). Recorded per level in the result (audited:false). Default false — a game is beatable-by-construction unless you opt out." },
       },
-      required: ['title', 'store', 'levels'],
+      // store and levels are a level game's; a board game (tabletop) has neither, and the handler refuses a mix
+      required: ['title'],
     },
     handler: createGameHandler,
   });

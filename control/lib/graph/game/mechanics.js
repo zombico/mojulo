@@ -818,6 +818,30 @@ const MECHANICS = {
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
   // numbers only). The level's rpg channel loads the roster as it starts, and puts each changed number back as a
   // setStat after every fight, class switch, skill bought and rest
+  // a BOARD battle (a terminal): the level is a tactics battle on its own ground (its `board.battle`, board/), won and
+  // lost where the board page says so on the bus (board-won; board-lost, or a draw at the turn cap)
+  // `exit`: the way the level is left when won (a map game's: back to its epoch's map)
+  board: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p) {
+      const won = { end: 'success', ...(typeof p.exit === 'string' && p.exit ? { exit: p.exit } : {}) };
+      return { on: { 'board-won': won, 'board-lost': { end: 'fail' }, 'board-draw': { end: 'fail' } } };
+    },
+  },
+
+  // an epoch's MAP (a terminal): the level is the map a tactics game is travelled from (board/board-map.js); choosing a
+  // dot leaves it by that dot's exit (map-go:<dot> on the bus), the game travelling to the dot's level. It reads which
+  // levels are cleared from the progression slice (`slice`), so the roads open as the story moves.
+  map: {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const dots = Array.isArray(p.dots) ? p.dots.filter((d) => typeof d === 'string' && d) : [];
+      if (!dots.length) throw new Error(`map[${ctx.i}]: dots are the ids of the map's dots, each a way out`);
+      const slice = ctx.resolve('progression', p.slice, `map[${ctx.i}]`);
+      return { on: Object.fromEntries(dots.map((d) => [`map-go:${d}`, { end: 'success', exit: d }])), consumes: [{ slice }], world: { vars: { 'map-ready': 1 } } };
+    },
+  },
+
   party: {
     role: 'emitter', requires: ['party'],
     lower(p, ctx) {

@@ -26,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleCityScene } from '@/lib/graph/city/plan/scene';
@@ -494,6 +495,18 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+  },
+  // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
+  // them, played with the tactical camera. Not walked: the board owns the camera and the keys
+  board: {
+    title: 'mojulo board',
+    // a battle's units stood as figures (board/board-figures.js): each look a hero, resolved as the figures map resolves one
+    resolve: async (m, ctx) => {
+      const P = assembleBoardScene(m, { title: ctx.title === 'mojulo board' ? undefined : ctx.title });
+      if (!P.board.battle || m.battle?.figures === false) return P;
+      const [{ boardFigures }, { heroFigure }] = await Promise.all([import('@/lib/graph/board/board-figures'), import('@/lib/graph/worlds/world-scene')]);
+      return boardFigures(P, { heroFigure });
+    },
   },
   // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
   // its thread, side by side; characters are made from it by ref (create_character { egocube }). A cast's cube shows its

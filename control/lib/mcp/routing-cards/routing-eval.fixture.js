@@ -57,6 +57,9 @@ export const FIXTURE = [
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
+  // a board game against the computer: create_game's tabletop, not its levels
+  ['I want to play chess against the computer', 'create_game', 'tabletop'],
+  ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
@@ -180,6 +183,10 @@ export const COLLISION_FIXTURE = [
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
+  // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
+  ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
+  ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
+  ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],

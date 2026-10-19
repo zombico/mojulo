@@ -4,6 +4,8 @@
 import { CAMERA_RULE } from '../../scene/engines/marks.js';
 import { marksAcross } from '../../scene/engines/registry.js';
 
+// the strategy board is the page's (board/*); no engine kernel plays it yet
+const WEB = { godot: 'absent' };
 const NO_MODE = 'no gameplay camera of this kind was found in controllable, game or playscape (10-10)';
 // a camera's mark in each engine is its rule's (the engine's RULE_MARKS through CAMERA_RULE)
 const cam = (id) => marksAcross((M, e) => M.RULE_MARKS[CAMERA_RULE[id]][e]);
@@ -25,6 +27,9 @@ export const SPACE = Object.freeze({
         // the trail). A climb has no spine, so a side game is trails only. Godot carries no camera mode yet.
         side: { status: 'built', ...cam('side'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)' },
         'first-person': { status: 'built', ...cam('first-person'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
+        // built 10-19 (strategy board): the board channel owns a battle level's camera (board/board-camera.js); a book's
+        // board battles play through it (gameworld/board-levels.js), no camera word needed
+        tactical: { status: 'built', ...WEB, lowers: 'lib/graph/board/board-camera.js', note: 'a locked pitch (two stops), quarter-turn rotation, zoom stops (the widest holds the board, the closer follow the cursor) and the focus held to the board, the cursor stepping the way the screen shows; an RTS form pans and edge-scrolls instead. A battle level on a board is played through it' },
       },
     },
     topology: {
@@ -59,6 +64,14 @@ export const SPACE = Object.freeze({
         none: { status: 'built', godot: 'built', roblox: 'built' },
         buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', roblox: 'approximated', note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
         street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', roblox: 'approximated', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
+      },
+    },
+    // a layer of spots over a level's ground, indoors or out (priced 10-19): one unit a spot, the moves listed
+    board: {
+      values: {
+        none: { status: 'built', godot: 'built', roblox: 'built' },
+        spots: { status: 'built', ...WEB, lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over a level\'s own ground (its rooms or its land) or a diorama, each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; a book\'s battles on boards are laid over their stages' },
+        lattice: { status: 'built', ...WEB, lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess and checkers in its book, any other game written out on it from systems and meeples (tabletop/), played against the computer as their own page' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', marks: 'linkMarks' } },

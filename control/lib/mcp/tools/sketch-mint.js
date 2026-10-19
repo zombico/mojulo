@@ -1007,6 +1007,11 @@ export async function updateSketchHandler(input) {
     if (laws.length) versusLaws = laws;
     // each fighter's character, and what its sheet chose for the fight and why
     if (fighters?.length) versusFighters = fighters;
+  } else if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'tabletop') {
+    // A board game (lib/graph/tabletop): no store, no levels. Its gate is that the game compiles and its page is made.
+    const { emitTabletopGame } = await import('../../graph/tabletop/tabletop-manifest.js');
+    try { emitTabletopGame(manifest); } catch (err) { throw new Error(`Invalid board game: ${err.message}`); }
+    nextManifest = manifest;
   } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so

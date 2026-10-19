@@ -28,7 +28,7 @@ export const HIT_MECHANICS = ['hp-pool', 'defeat-all', 'frags', 'regen', 'abilit
 
 // ── a mechanic's mark, found by lowering it ──────────────────────────────────────────────────────────────────────────
 // One small sample per kind (the smallest params its lowering takes); MECHANIC_KINDS without one fails the ratchet.
-const SAMPLE_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'flags', kind: 'flags' }, { name: 'party', kind: 'party' }] };
+const SAMPLE_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'flags', kind: 'flags' }, { name: 'party', kind: 'party' }, { name: 'campaign', kind: 'progression' }] };
 export const MECHANIC_SAMPLES = Object.freeze({
   'reach-exit': { at: [10, 0, 0] },
   door: { id: 'd', at: [5, 0, 0] },
@@ -56,13 +56,18 @@ export const MECHANIC_SAMPLES = Object.freeze({
   regen: {},
   abilities: { heal: true },
   party: {},
+  board: { exit: 'map' },
+  map: { dots: ['a', 'b'] },
 });
+// a mechanic only a page plays: its events come from the strategy board's page (board/*), which no engine kernel runs
+const PAGE_ONLY = Object.freeze({ board: 'the board page\'s board-won and board-lost (board/*); no engine kernel plays a board', map: 'the board map page\'s map-go (board/board-map.js); no engine kernel plays a board' });
 
 const lowered = new Map();
 const lowerSample = (kind) => lowered.get(kind) || lowered.set(kind, lowerMechanic(kind, MECHANIC_SAMPLES[kind], { storeSchema: SAMPLE_STORE, player: 'player' })).get(kind);
 
 /** A mechanic's mark in an engine: the worst of the bus rows its lowering uses and the shell extras it hands over. */
 export function mechanicMark(kind, engine = DEFAULT_ENGINE) {
+  if (PAGE_ONLY[kind]) return Object.freeze({ [engine]: 'absent', rows: [], how: PAGE_ONLY[kind] });
   const low = lowerSample(kind);
   const { [engine]: cov } = busCoverage(low.world || {}, engine);
   const rows = [...cov.partial, ...cov.absent];

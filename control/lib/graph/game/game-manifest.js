@@ -25,8 +25,10 @@
  *     shell?: 'play',                      // the light shell (play-shell.js); absent: the arena shell
  *     front?: { cover?, layout?, tagline?, press?, menu?, credits?, end? }   // the light shell's title over a cover,
  *                                          // its start menu, options, credits and end (play-front.js)
- *     run?: { length } }                   // RUNS (the play shell): each run draws `length` of the levels in a seeded
+ *     run?: { length },                    // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
+ *     final?: <level ref> }                // THE END (the play shell): that level's first win completes the game (the
+ *                                          // front's end plays; a map game does not travel on from it), cleared alone
  *
  * `setup` is the optional PRE-LEVEL presentation, per party slice — how the setup screen renders
  * that slice's pick (the default is the plain radio/checkbox picker). Two styles:
@@ -166,6 +168,13 @@ export function validateGameManifest(manifest) {
     if (!r || typeof r !== 'object' || !Number.isInteger(r.length) || r.length < 1 || r.length > n) errors.push(`run must be { length: 1 to ${n} } (how many of the levels a run draws)`);
     if (manifest.shell !== 'play') errors.push("run plays in the light shell: add shell: 'play'");
     if (manifest.links !== undefined) errors.push('run and links: a run draws its levels, it does not walk between them');
+  }
+
+  if (manifest.final !== undefined) {
+    const refs = Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref) : [];
+    if (typeof manifest.final !== 'string' || !refs.includes(manifest.final)) errors.push(`final is the level whose first win completes the game: one of ${refs.join(', ') || 'the levels'}`);
+    if (manifest.shell !== 'play') errors.push("final plays in the light shell: add shell: 'play'");
+    if (manifest.run !== undefined) errors.push('run and final: a run ends at its own last level');
   }
 
   // DOOR LINKS: each pairs a door end in one level with one in another, both ways (walk out of A by its door into B at

@@ -162,6 +162,7 @@ export const PAGE_MARKS = Object.freeze({
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
   versus: m(A, 'the side-on fighter (versus/versus-core.js, scene/channels/versus.js) is the page\'s own frame simulation: nothing in the kernel fights it'),
+  board: m(A, 'the strategy board (board/*: tactics, a maze defence, a skirmish) is the page\'s own: nothing in the kernel plays it'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
 });
 

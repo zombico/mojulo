@@ -13,6 +13,7 @@ import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
+import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
@@ -397,6 +398,54 @@ describe('design_game quick', () => {
     const log = sim.bus.log.map((r) => r.type);
     expect(log.filter((t) => t === 'down').length + log.filter((t) => t === 'leak').length).toBe(3);
     expect(log).toContain('down');
+  }, 240_000);
+
+  it('defend on a board: a tower defence over the stage\'s spots, nobody minted, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'defend', board: { gold: 60 }, waves: 2, lives: 7, world: { id: 'keep', style: { kit: 'trail-valley' } } }, ref: 'tdq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('tdq-level-run-0');
+    expect(L.board).toEqual({ td: { waves: 2, lives: 7, gold: 60 } });
+    expect(mechanicsOf('tdq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tdq-level-run-0'));
+    expect(payload.board.td).toMatchObject({ gold: 60, lives: 7 });
+    expect(payload.board.td.waves).toHaveLength(2);
+    expect(payload.board.camera).toMatchObject({ edge: true });
+    expect(payload.walk).toBe(false);
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    // what only a trail's defence takes, refused beside a board
+    await expect(designGameHandler({ quick: { goal: 'defend', board: true, pads: 2, world: { id: 'keep2' } }, ref: 'tdx' })).rejects.toThrow(/pads is the trail's defence/);
+    await expect(designGameHandler({ quick: { goal: 'reach', board: true, world: { id: 'keep3' } }, ref: 'tdy' })).rejects.toThrow(/board belongs to the defend goal/);
+  }, 240_000);
+
+  it('conquer: a real-time skirmish over the stage\'s spots, two bases and a purse, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'conquer', board: { gold: 200 }, world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'rtq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rtq-level-run-0').board).toEqual({ rts: { gold: 200 } });
+    expect(mechanicsOf('rtq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rtq-level-run-0'));
+    expect(payload.board.rts).toMatchObject({ gold: 200 });
+    expect(payload.board.rts.bases.player).not.toBe(payload.board.rts.bases.enemy);
+    expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', hero: false, world: { id: 'field2' } }, ref: 'rtx' })).rejects.toThrow(/conquer is a skirmish/);
+  }, 240_000);
+
+  it('conquer between two civilizations: the world\'s own by its id, another in words, each fielding what its technology crafts', async () => {
+    const corps = HALDEN_REACH.civilizations['survey-corps'];
+    await designGameHandler({ quick: { goal: 'conquer', doctrine: 'science', sides: ['survey-corps', 'armed attack helicopters, a bronze cannon, swords and crossbows, tracked ore haulers'], world: { id: 'reach', style: { kit: 'isekai-meadow' }, civilizations: { 'survey-corps': corps } } }, ref: 'civq' });
+    expect(stored('civq-level-run-0').board.rts.doctrine).toEqual({ player: 'science' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', doctrine: 'chaos', world: { id: 'reach4' } }, ref: 'civz' })).rejects.toThrow(/doctrine 'chaos' is not a doctrine/);
+    // the level keeps each side in its own words, not its roster
+    const sides = stored('civq-level-run-0').board.rts.sides;
+    expect(sides.player).toMatchObject({ civ: corps, kit: 'isekai-meadow', team: expect.stringMatching(/^#/) });
+    expect(sides.enemy.civ.technology.vehicles).toEqual({ helicopter: 'armed attack helicopters' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('civq-level-run-0'));
+    const R = payload.board.rts.sides;
+    expect([R.player.worker, R.player.research.tier2.at, R.enemy.units.helicopter.fly, R.enemy.units.cannon.siege]).toEqual(['hauler', 'mast', true, 3]);
+    expect(Object.keys(R.player.looks)).toContain('walker');
+    // what it cannot field, said
+    await expect(designGameHandler({ quick: { goal: 'conquer', sides: ['grumpy neighbours'], world: { id: 'reach2' } }, ref: 'civx' })).rejects.toThrow(/neither a civilization of the world \(it keeps none\) nor words naming what one crafts/);
+    await expect(designGameHandler({ quick: { goal: 'reach', sides: ['survey-corps'], world: { id: 'reach3' } }, ref: 'civy' })).rejects.toThrow(/sides belongs to the conquer goal/);
   }, 240_000);
 
   it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {

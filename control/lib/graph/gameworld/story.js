@@ -12,6 +12,12 @@
  *     when, if?, sets?, once?, beats             a scene's (playscape/ui/scenes.js): what starts it, its conditions,
  *                                                the flags it sets, its beats. `when: { reach: m? }` starts it as the hero
  *                                                comes within m (4) of its place, or of its first person's stand;
+ *                                                `when: { slot }` plays it in one of a tactics book's STORY SLOTS: on a
+ *                                                level, 'before' (ahead of its battle; a walked stage's start) or 'after'
+ *                                                (its battle won, before the level ends; a walked stage's exit as the
+ *                                                hero comes to it); on an epoch (`where: { epoch: <n or name> }`),
+ *                                                'begin' (its map opening, once a game) or 'end' (after its last stage's
+ *                                                own after)
  *   }]
  *
  * A place is one of the stage's places by name (start, exit, pocket, pocket-2…, landmark…) or a kind, which takes the
@@ -28,7 +34,9 @@
  *   questGates(quests)           → { <moment id>: [condition] } the waits the quests put on their moments
  *   levelQuests(quests)          → the quests as a level reads them (play.quests: no moments)
  *   storyScene(moment, cast)     → the scene a moment plays (scenes.js shape)
- *   bindStory(G, stages, { castRefs, layout }) → { byStage: { '<level>/<node>': { scenes, cast: [{ id, ref, at, heading }] } },
+ *   bindStory(G, stages, { castRefs, layout, epochs? }) → { byStage: { '<level>/<node>': { scenes, cast: [{ id, ref, at, heading }] } },
+ *                                  byEpoch: { <epoch index>: { begin: [scene], end: [scene] } } (epochs: board-levels.js
+ *                                  bookEpochs, a tactics book's; none, an epoch's moment is unplaced),
  *                                  bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
  *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may) }
  *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane } (handed in: levels.js reads
@@ -44,9 +52,18 @@ const MOMENT_KEYS = ['id', 'who', 'where', 'stand', 'when', 'if', 'sets', 'once'
 const SCENE_KEYS = ['id', 'when', 'if', 'sets', 'once', 'beats'];
 
 /** A moment's scene: the scene keys, with the cast's names for the box. */
+// the story slots: a level's (its battle's, its walk's) and an epoch's; an epoch's end plays in its last level's after
+export const LEVEL_SLOTS = Object.freeze(['before', 'after']);
+export const EPOCH_SLOTS = Object.freeze(['begin', 'end']);
+export const seenFlag = (id) => `seen-${id}`;
 export function storyScene(m, cast = {}) {
   const names = Object.fromEntries((m.who ?? []).filter((w) => cast[w]?.name).map((w) => [w, cast[w].name]));
-  return { ...Object.fromEntries(SCENE_KEYS.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])), ...(Object.keys(names).length ? { names } : {}) };
+  const scene = { ...Object.fromEntries(SCENE_KEYS.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])), ...(Object.keys(names).length ? { names } : {}) };
+  const slot = m.when?.slot;
+  if (slot === undefined) return scene;
+  // a slot's scene is heard on the bus as the page raises it; an epoch's begin plays once a game, its seen flag carried
+  const on = { when: { on: `slot:${slot === 'end' ? 'after' : slot}` } };
+  return slot === 'begin' ? { ...scene, ...on, if: [...[].concat(scene.if ?? []), { not: seenFlag(m.id) }], sets: [...(scene.sets ?? []), seenFlag(m.id)] } : { ...scene, ...on };
 }
 
 /** The moments, their shape read. Binding (does the level, the place, the cast member exist?) is bindStory's, and never throws. */
@@ -62,8 +79,18 @@ export function readStory(S) {
     if (seen.has(m.id)) throw err(`${at}.id '${m.id}' appears twice`);
     seen.add(m.id);
     if (m.who !== undefined && !(Array.isArray(m.who) && m.who.every((w) => typeof w === 'string' && ID.test(w)))) throw err(`${at}.who is a list of cast ids (['mayor'])`);
-    if (!isObj(m.where) || typeof m.where.level !== 'string') throw err(`${at}.where is { level, stage?, place? }: the level it happens in`);
-    for (const k of Object.keys(m.where)) if (!['level', 'stage', 'place'].includes(k)) throw err(`${at}.where.${k} is not part of where (level, stage, place)`);
+    const slot = m.when?.slot, epoch = m.where?.epoch;
+    if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
+    if (isObj(m.where) && epoch !== undefined) {
+      for (const k of Object.keys(m.where)) if (k !== 'epoch') throw err(`${at}.where is { epoch } alone for an epoch's moment (its ${k} is a level's)`);
+      if (!((typeof epoch === 'string' && epoch.trim()) || (Number.isInteger(epoch) && epoch >= 1))) throw err(`${at}.where.epoch is the epoch's name or its number, from 1`);
+      if (!EPOCH_SLOTS.includes(slot)) throw err(`${at}: an epoch's moment plays in its slot, when: { slot: 'begin' } or { slot: 'end' }`);
+      if (m.stand !== undefined) throw err(`${at}.stand is a level's: an epoch's moment stands nobody`);
+    } else {
+      if (!isObj(m.where) || typeof m.where.level !== 'string') throw err(`${at}.where is { level, stage?, place? }: the level it happens in (or { epoch }, a tactics book's)`);
+      if (EPOCH_SLOTS.includes(slot)) throw err(`${at}.when.slot '${slot}' is an epoch's: where: { epoch }`);
+    }
+    for (const k of Object.keys(m.where)) if (!['level', 'stage', 'place', 'epoch'].includes(k)) throw err(`${at}.where.${k} is not part of where (level, stage, place; or epoch)`);
     for (const k of ['stage', 'place']) if (m.where[k] !== undefined && !(typeof m.where[k] === 'string' && m.where[k])) throw err(`${at}.where.${k} is a name`);
     if (m.stand !== undefined && !(isObj(m.stand) && Object.values(m.stand).every((p) => typeof p === 'string' && p))) throw err(`${at}.stand is { <who>: '<place>' }`);
     const reach = m.when?.reach;
@@ -113,11 +140,22 @@ function placeIn(spots, name) {
 }
 
 /** Bind the moments to the stages as laid. `castRefs`: { <cast id>: the ref of its made figure }. */
-export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
+export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = {}) {
   const { stageEnds, stageSpots, stageLane } = layout;
   const moments = G.story ?? [], cast = G.characters?.cast ?? {}, gates = questGates(G.quests);
-  const byStage = {}, bound = [], unplaced = [];
+  const byStage = {}, byEpoch = {}, bound = [], unplaced = [];
   for (const m of moments) {
+    // an epoch's moment: its map's begin, or its last level's end
+    if (m.where.epoch !== undefined) {
+      if (!epochs?.length) { unplaced.push({ id: m.id, why: 'an epoch\'s moment is a tactics book\'s (battles: { on: \'board\' }): this book has no epochs' }); continue; }
+      const e = m.where.epoch, k = Number.isInteger(e) ? e - 1 : epochs.findIndex((x) => x.name.toLowerCase() === String(e).trim().toLowerCase());
+      if (!epochs[k]) { unplaced.push({ id: m.id, why: `no epoch ${Number.isInteger(e) ? e : `'${e}'`} (epochs: ${epochs.map((x, j) => `${j + 1} ${x.name}`).join(', ')})` }); continue; }
+      let scene = storyScene(m, cast);
+      if (gates[m.id]) scene = { ...scene, if: [...[].concat(scene.if ?? []), ...gates[m.id]] };
+      ((byEpoch[k] ||= { begin: [], end: [] })[m.when.slot]).push(scene);
+      bound.push({ id: m.id, epoch: epochs[k].name, slot: m.when.slot });
+      continue;
+    }
     const lv = stages.filter((s) => s.level === m.where.level);
     if (!lv.length) { unplaced.push({ id: m.id, why: `no level '${m.where.level}' (levels: ${[...new Set(stages.map((s) => s.level))].join(', ')})` }); continue; }
     const stage = m.where.stage ? lv.find((s) => s.node === m.where.stage) : lv[0];
@@ -159,13 +197,13 @@ export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
     }
     slot.scenes.push(scene);
     for (const s of stands) if (!slot.cast.some((c) => c.id === s.id)) slot.cast.push({ ...s, ref: castRefs[s.id] ?? null });
-    bound.push({ id: m.id, level: stage.level, node: stage.node, ...(place ? { place: place.id } : {}) });
+    bound.push({ id: m.id, level: stage.level, node: stage.node, ...(place ? { place: place.id } : {}), ...(m.when?.slot ? { slot: m.when.slot } : {}) });
   }
   // a step's flag that nothing in the story sets (a moment's sets, an answer's): a cue may set it; said, not refused
   const sets = new Set(readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]));
   const unset = [];
   for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done)) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
-  return { byStage, bound, unplaced, ...(G.quests ? { unset } : {}) };
+  return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}) };
 }
 const answers = (beats) => beats.flatMap((b) => (b.kind === 'choose' ? b.choose.options.flatMap((o) => [...o.sets, ...answers(o.beats)]) : []));
 

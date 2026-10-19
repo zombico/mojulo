@@ -117,8 +117,8 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('level-')) {
-    // a stage as a level: create_sketch at mint, its manifest whole in place
+  if (key.startsWith('level-') || /^map-\d+$/.test(key)) {
+    // a stage as a level (or an epoch's map, a level of its own): create_sketch at mint, its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
@@ -157,14 +157,14 @@ async function realize(step, action) {
   if (key === 'game') {
     // the game over the levels: create_game (each level audited where the runner asked, else unaudited, recorded), its
     // manifest whole in place
-    const { title, store, levels, links, theme, shell } = order;
+    const { title, store, levels, links, theme, shell, final } = order;
     if (action === 'make') {
       const minted = await createGameHandler({ ...order, ref });
       return order.auto_audit ? { audits: (minted.audits ?? []).map((a) => ({ ref: a.ref, audited: a.audited, note: a.note })) } : {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}) } });
     }
     return {};
   }

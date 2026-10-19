@@ -57,6 +57,8 @@ const WORDS = Object.freeze({
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
   'tower-defense': ['tower defence', 'tower defense', 'towers', 'waves', 'defend', 'base'],
   'block-puzzle': ['boulder', 'boulders', 'push', 'sokoban', 'block puzzle', 'plates'],
+  tactics: ['tactics', 'tactical', 'final fantasy tactics', 'fire emblem', 'srpg', 'strategy rpg', 'grid', 'squares', 'high ground', 'positioning'],
+  rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
@@ -66,7 +68,7 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter',
+  fight: 'versus-fighter', conquer: 'rts',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
