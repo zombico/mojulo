@@ -702,6 +702,43 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = supercarFigure(rawSpec.supercar);
           continue;
         }
+        // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
+        // (`transformer`: { robot?, vehicle?, scheme?, height? }): the robot a stored suit (`robot.unitRef`, baked as
+        // a unitRef is, its `targetH`/`aim`/`aimArms`/`swings`/`dodges` with it) or the inner frame made to the vehicle;
+        // the vehicle a stored build (`vehicle.vehicleRef`), a ride, a racer, a supercar or a craft off the shelf, or
+        // none (the suit's own flight form). Delivered as one rig figure carrying `forms`: the robot's clips, the
+        // vehicle's, and the transformation between them. Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.transformer && typeof rawSpec.transformer === 'object') {
+          const T = rawSpec.transformer;
+          const { bakeTransformer } = await import('@/lib/graph/transformation/index.js');
+          let robot = { frame: (T.robot && T.robot.frame) || {} };
+          if (T.robot && typeof T.robot.unitRef === 'string') {
+            const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+            const src = SketchRepository.getByRef(T.robot.unitRef);
+            if (!src || src.manifest?.kind !== 'assembler') throw new Error(`figures.${name}: transformer robot unitRef '${T.robot.unitRef}' is not a stored assembler unit`);
+            const { bakeUnitRig } = await import('@/lib/graph/worlds/unit-rig.js');
+            const R = T.robot;
+            robot = { figure: bakeUnitRig(src.manifest, {
+              keys: 12,
+              targetH: Number.isFinite(R.targetH) ? R.targetH : null,
+              aim: R.aim && typeof R.aim === 'object' ? R.aim : null,
+              aimArms: (R.aimArms && typeof R.aimArms === 'object') || typeof R.aimArms === 'string' ? R.aimArms : null,
+              swings: Array.isArray(R.swings) ? R.swings : null,
+              dodges: Array.isArray(R.dodges) ? R.dodges : null,
+            }) };
+          }
+          let vehicle = T.vehicle && typeof T.vehicle === 'object' ? T.vehicle : null;
+          if (vehicle && typeof vehicle.vehicleRef === 'string') {
+            const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+            const src = SketchRepository.getByRef(vehicle.vehicleRef);
+            if (!src || src.manifest?.kind !== 'assembler') throw new Error(`figures.${name}: transformer vehicleRef '${vehicle.vehicleRef}' is not a stored assembler build`);
+            const { bakeVehicleRig } = await import('@/lib/graph/vehicle-designer/vehicle-rig.js');
+            vehicle = { figure: bakeVehicleRig(src.manifest, { keys: 12, targetH: 1.5 }) };
+          }
+          const { figure } = await bakeTransformer({ robot, vehicle, scheme: T.scheme, height: T.height });
+          payload.figures[name] = figure;
+          continue;
+        }
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
         // kind:'figure' sketch instead of re-declaring the body — the entry inherits the
         // recipe's pose/proto/garment/motion and its own fields override. This is how a

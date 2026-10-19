@@ -1126,11 +1126,14 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // and breakable terrain: the 'break' pass (this tick's shots, bursts and swings take hp off the blocks they reach).
     // Skyscape added 'missiles' after 'weapon' (a craft's lock, launch and flares: combat-ranged.js stepMissiles; a no-op
     // without rule.missiles).
+    // More-than-meets added the forms: 'transform' after the pilot swap (the B press, a body's own ask) and the
+    // 'transform' body owner after the tackle cine (the beat; it measures a walker's motion and owns nothing
+    // without `forms`).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
-      preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
+      preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'transform', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'transform', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'missiles', 'melee', 'tackle'],

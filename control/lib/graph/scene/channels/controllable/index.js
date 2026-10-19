@@ -73,6 +73,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
+  // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
+  // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
+  const hasForms = (entities || []).some((e) => e && e.forms);
+  const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
   const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
@@ -202,7 +206,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // FLIGHT HUD (skyscape): a body on the fly rule gets the instruments a pilot reads (airspeed in knots, height over the
   // ground and over the datum, climb, heading, the throttle) and the warnings (STALL, the map's bound). Read off the
   // piloted body's facts each frame. No flying body ⇒ '' (byte-identical).
-  const flyHudBlock = (entities || []).some((e) => e && e.rule && e.rule.type === 'fly') ? `(function () {
+  const flyHudBlock = (entities || []).some((e) => e && ((e.rule && e.rule.type === 'fly') || (e.forms && Object.values(e.forms).some((f) => f && f.rule && f.rule.type === 'fly')))) ? `(function () {
   var el = document.createElement('div');
   el.style.cssText = 'position:absolute;left:16px;bottom:16px;min-width:210px;padding:8px 12px;border-radius:8px;background:rgba(8,14,22,0.5);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.22);pointer-events:none;z-index:9;font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe3ff;white-space:pre';
   document.body.appendChild(el);
@@ -1038,6 +1042,16 @@ function __rigLive(e, rig, dt) {
   if (L.spin) { __lvQ.setFromAxisAngle(__LV_Z, S.spin); __lvQM.multiply(__lvQ); }
   return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver };
 }
+` : ''}${figHasForms ? `// A BODY IN TWO FORMS (transformation/compose.js): the base form plays the plain clips; another form plays its own
+// (\`vehicle:drive\`), holding its rest (\`vehicle:idle\`) for any it has none of; the transformation's clips
+// (\`transform:vehicle\`) play as named.
+function __formMode(fig, e, mode) {
+  if (mode.indexOf(':') >= 0 && fig.clips[mode]) return mode;
+  const f = e.form || fig.forms.base;
+  if (f === fig.forms.base) return mode;
+  const k = f + ':' + mode;
+  return fig.clips[k] ? k : f + ':idle';
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -1056,10 +1070,12 @@ function __rigLive(e, rig, dt) {
     __rigPivot.set(0, 0, c).applyQuaternion(__rigQT);
     m.position.set(e.transform.pos[0] - __rigPivot.x, e.transform.pos[1] - __rigPivot.y, e.transform.pos[2] + c - __rigPivot.z);
   } else {
-    m.rotation.set(0, 0, yawA);
+    ${figHasForms ? `if (e.tilt && rig.fig.forms) m.rotation.set(e.tilt.pitch || 0, e.tilt.roll || 0, yawA, 'ZYX');   // a flying form's attitude
+    else ` : ''}m.rotation.set(0, 0, yawA);
   }
   const fig = rig.fig;
-  const mode = e.moving ? e.locomotion : 'idle';
+  ${figHasForms ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}
   const mix = __CW.advanceGaitMix(rig.mix, mode, e.gaitPhase, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
@@ -1587,7 +1603,8 @@ function __pollPad() {
     jump: pb('jump', rb),                      // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
-    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)
+    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${hasForms ? `
+    transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)
   };
 }
@@ -1602,7 +1619,8 @@ function __ctlLegend(pil) {
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
 }
@@ -1612,7 +1630,8 @@ let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
 let __prevAi = false;                      // AI-attack toggle press edge (G / HUD button)
-let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js
+let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${hasForms ? `
+let __prevTransform = false;               // transform press edge (B / L3) — forms.js` : ''}
 let __aiBtnPress = false;                  // HUD button click injects one toggle edge
 // shell AI switch (practice mode): the pause menu posts a DESIRED state over the game-ai sidecar;
 // the world converges through the same input edge the G key uses (one deterministic path — the
@@ -1662,7 +1681,11 @@ function __readInput() {
   // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
   const lk = ${lock ? "__k('lock') || __midDown || !!(__pad && __pad.lock)" : 'false'};
   const lock = lk && !__prevLock ? 1 : 0;
-  __prevLock = lk;
+  __prevLock = lk;${hasForms ? `
+  // TRANSFORM press edge (forms.js): B / pad L3 turns the pilot into its next form
+  const tf = __k('transform') || !!(__pad && __pad.transform);
+  const transform = tf && !__prevTransform ? 1 : 0;
+  __prevTransform = tf;` : ''}
   // pad right stick → the SAME look accumulators the mouse feeds, per-frame at lookScale px
   // equivalents; signs follow each mouse branch's convention (mouselook negates so stick-right
   // looks right, drag worlds keep the drag sign). Stick look never needs pointer capture — a
@@ -1706,7 +1729,8 @@ function __readInput() {
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
-    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge
+    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${hasForms ? `
+    transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)
     lookDX: __lookDX, lookDY: __lookDY,

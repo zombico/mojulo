@@ -14,6 +14,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### More than meets: one body in two forms
+
+A hero can now transform: the robot you walk and fight in folds into the vehicle you drive or fly, and back, on one
+button, the way a Transformers or a transforming mobile suit does. The transformation keeps the parts that exist and
+reorients them; it aims at visual plausibility, not mechanical fidelity.
+
+- **One skeleton, two poses** (`lib/graph/transformation/`). The robot is a skeleton: an operator's suit (`unitRef`)
+  or an inner frame made to the vehicle's size. The vehicle form is a pose of the same skeleton (the stow), and the
+  vehicle's shell is cut into panels along its length, width and height, each panel riding the bone it lies over.
+  The sequence between the forms is the skeleton moving joint by joint, staggered, its panels carried. It all bakes
+  into one rig figure: the robot's clips, the vehicle form's clips and the two once-clips of the transformation.
+
 ### Engine legs: the engines as translations, declared
 
 Every engine pack is a translation of the web game. Which engines exist, what each one carries, and how each is

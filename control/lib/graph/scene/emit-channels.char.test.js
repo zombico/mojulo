@@ -164,6 +164,12 @@ import { emitThreeWorld } from './scene-three.js';
 // direction, fov, aspect), which the first-frame check reads (lib/graph/game/first-frame-check.js). Emitted only when
 // `capture` is set: the five capture fixtures (capture-bare, capture-controllable, kitchen-sink-capture, fog-effects,
 // shoot-set-capture) gain 6 lines and change none; every live page stays byte-identical.
+// Re-pinned 2026-10-19 (more than meets: forms): the engine gains controllable/forms.js (a body with `forms` and the
+// transform beat, after the maneuvers), the input's zero its `transform`, and the pilot scheme its `transform` action
+// (B, the pad's L3) and two legend rows. Everything else the page does with forms (the press edge, the clip of each
+// form, a flying form's attitude, the fly HUD for a jet form) is gated on an entity or figure that carries `forms`,
+// which no fixture holds. Proof: the 14 fixtures that embed the runtime, emitted before and after with the engine
+// source and the pilot scheme cut out, are byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
