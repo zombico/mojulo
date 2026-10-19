@@ -6,6 +6,7 @@ export const ooze = {
   about: 'rotting and undead: wasted, grey-green, open wounds and bare ribs, drooping ears, a slack jaw and a sick glow',
   form: { bulk: 0.88, tailBush: 0.6 },
   push: {
+    motif: 'bone',
     wedge: { fore: 0.95, hind: 0.82 },
     ears: { drop: 45, height: 0.9 },
     desaturate: 0.6,

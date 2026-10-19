@@ -97,6 +97,7 @@ spec: {
   crop?:      'head',          // a face study close-up instead of the whole animal
   statue?:    true | { type: 'statue', material?, base?, dials?: { wear } },   // carved as sculpture (below)
   ooze?:      <word> | { id, strength? } | [<either>],   // species only: a game creature made of it (Oozes, below)
+  stylism?:   { register?, detail?, focal?, motif? },    // species only: design notes that style it up (below)
   seed?:      <integer ≥ 0>,   // with ooze: places its spots (default from the species and the oozes)
   background?: <boolean>
 }
@@ -175,7 +176,28 @@ and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph
 | `techno` | gunmetal (a real metal surface), dark seams, glowing rings at the limbs' joints, fins, sensor ears, cyan eyes |
 | `crystal` | a slate coat, a ridge of glowing crystal shards, shards in the skin, violet eyes |
 
-They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war machine.
+| `mythical` | a boss: twice the size, front-heavy, great horns, a gold crest, three runes burning on each flank, a burning tail, white-gold eyes; mythic and rich by its own stylism |
+| `fire` | an element: a charred coat cracked with glowing lava, flame-tongues down the back, a burning tail, eyes of fire |
+| `storm` | an element: a slate coat, lightning chevrons, tall sparking prongs, eyes of white light |
+| `venom` | an element: a dark green coat, glowing acid spots and belly, barbs, long fangs, acid eyes |
+| `shadow` | an element: a near-black coat, a violet line down the spine, a wisping crest, pale violet eyes |
+
+They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war
+machine, `['mythical', 'fire']` a boss of the flame.
+
+### stylism: design notes that style a creature up
+
+`stylism: { register?, detail?, focal?, motif? }` (with or without `ooze`) is the hero door's stylism tuner compressed
+for a beast. `register` (grounded · storybook · heroic · mythic, or 0 … 1) heightens: storybook is the design itself;
+above it every push is exaggerated together and the creature grows. `detail` (plain · considered · rich · ornate) is a
+budget of ornaments, never their size, spent from the `focal` (head by default; shoulders, back, forelegs, tail) out:
+the focal's richest ornaments first until it outweighs every other zone, the motif echoed once elsewhere smaller,
+quiet bands with what is left, and from heroic up the ornaments burning as the one accent. The ornaments (horns,
+cheek spurs, a hackle crest, shoulder spikes, a ruff, elbow spurs, tail spikes, leg bands, a burning tail tip) are made
+in one `motif` (horn, bone, ice, crystal, metal, flame, spark, toxin, shade, gold; the oozes choose one), moved a clear
+value step from the coat. The result's `ooze.notes` are the design notes: what each stage chose and why. A worn head
+mesh takes no horns: the focal moves and the notes say so; an ooze's own hook heavier than the budget can outrank is
+noted as `stalled`.
 
 - A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
   multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to

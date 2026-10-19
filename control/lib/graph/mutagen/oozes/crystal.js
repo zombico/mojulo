@@ -5,6 +5,7 @@ export const ooze = {
   id: 'crystal',
   about: 'grown through with crystal: a slate coat, a ridge of glowing shards down the back, shards in the skin, violet eyes',
   push: {
+    motif: 'crystal',
     desaturate: 0.4,
     tint: { color: '#4d5163', amount: 0.4, light: 0.4 },
     hackles: { count: 9, height: 0.75, lean: 0.12, color: '#b98cff', glow: true },

@@ -5,6 +5,7 @@ export const ooze = {
   about: 'of the ice: a pale blue coat, rime down the spine, a crest of glowing ice spikes and eyes of cold light',
   element: 'ice',
   push: {
+    motif: 'ice',
     desaturate: 0.35,
     tint: { color: '#cfe7f7', amount: 0.55, light: 0.45 },
     hackles: { count: 7, height: 0.5, lean: 0.35, color: '#bfefff', glow: true },

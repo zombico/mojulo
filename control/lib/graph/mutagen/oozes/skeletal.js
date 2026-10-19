@@ -6,6 +6,7 @@ export const ooze = {
   about: 'down to the bones: thin as bone, bone-white, ribs and spine showing, an earless skull with burning sockets',
   form: { bulk: 0.5, legBulk: 0.5, tailBush: 0.35 },
   push: {
+    motif: 'bone',
     neck: 0.55,
     limbs: { paws: 0.8 },
     head: { skull: { height: 0.92 }, muzzle: { width: 0.85, height: 0.85 } },

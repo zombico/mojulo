@@ -5,6 +5,7 @@ export const ooze = {
   id: 'techno',
   about: 'a machine in the animal\'s shape: gunmetal plates and seams, glowing rings at the limbs, fins, sensor ears, cyan eyes',
   push: {
+    motif: 'metal',
     limbs: { paws: 1.2 },
     ears: { height: 1.2, sweep: 0.8 },
     hackles: { count: 4, height: 0.35, lean: 0.25, color: '#2b3036' },

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { stylismErrors } from './stylism.js';
 import { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, resolveMutagen, oozeParams, oozeFauna, mutagenErrors, FORM_KEYS } from './index.js';
 import { SPECIES, speciesParams, speciesPlan } from '../fauna/species.js';
 import { buildFauna } from '../fauna/build.js';
@@ -65,6 +66,7 @@ describe('mutagen: the composition law', () => {
       expect(o.id, id).toBe(id);
       for (const k of Object.keys(o.form || {})) expect(FORM_KEYS, `${id}.${k}`).toContain(k);
       expect(pushErrors(o.push, id)).toEqual([]);
+      expect(stylismErrors(o.stylism, id)).toEqual([]);
     }
     expect(pushErrors({ wedge: { fore: 1.2 }, horns: 2 })[0]).toMatch(/horns: not a push/);
   });

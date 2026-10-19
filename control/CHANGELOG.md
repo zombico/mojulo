@@ -684,6 +684,11 @@ renders byte-identically without them.
   (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
   uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
   live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
+- **Design notes style a creature up.** `stylism: { register, detail, focal, motif }` on an animal, with or without
+  oozes, is the hero door's stylism tuner compressed for a beast: the register heightens every push together, the
+  detail budget spends ornaments (horns, spurs, spikes, a ruff, bands, a burning tail) from the focal out by the
+  tuner's laws (hierarchy, one echo, rest, an accent from heroic up), all in one motif a clear value step from the coat,
+  and the mint returns its design notes. `mythical` (a boss) carries its own mythic, rich stylism.
 - **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
   material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
   the exports. Absent, nothing changes.

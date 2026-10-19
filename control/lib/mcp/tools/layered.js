@@ -923,7 +923,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   // provenance and the read-time layers, and only on an animal
   if (ooze !== undefined) {
     if (typeof species !== 'string' || !species || !ooze || typeof ooze !== 'object') throw new Error("`ooze` is an animal's: create_character({ as: 'animal', spec: { species, ooze } })");
-    const errs = mutagenErrors(ooze.oozes, ooze.seed);
+    const errs = mutagenErrors(ooze.oozes, ooze.seed, ooze.stylism);
     if (errs.length) throw new Error(`layered: ${errs.join('; ')}`);
   }
   const fieldErrs = validateFieldPaint(fieldPaint);

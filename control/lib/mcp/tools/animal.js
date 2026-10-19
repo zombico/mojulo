@@ -162,11 +162,11 @@ export async function createAnimalHandler(input) {
   }
   // OOZES (opt-in, graph/mutagen): a ring-plan species made into a game creature, its limbs and rig its own. Checked
   // here; every door but a fauna species refuses it below, once the species is resolved.
-  const { ooze, seed } = input;
-  const oozeErrs = mutagenErrors(ooze, seed);
+  const { ooze, seed, stylism } = input;
+  const oozeErrs = mutagenErrors(ooze, seed, stylism);
   if (oozeErrs.length) throw new Error(`animal: ${oozeErrs.join('; ')} — read get_solid_vocab({ id: 'animal' }) (Oozes)`);
-  const oozed = ooze !== undefined && ooze !== null;
-  if (oozed && (maker || archetype || bug)) throw new Error('`ooze` mutates a `species` (a ring plan from its family\'s tables); a maker body, an archetype or a bug takes none yet');
+  const oozed = (ooze !== undefined && ooze !== null) || (stylism !== undefined && stylism !== null);
+  if (oozed && (maker || archetype || bug)) throw new Error('`ooze` and `stylism` mutate a `species` (a ring plan from its family\'s tables); a maker body, an archetype or a bug takes none yet');
   if (maker !== undefined && maker !== null) {
     if (species || archetype || bug) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype` OR `bug`, not several');
     if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
@@ -212,7 +212,7 @@ export async function createAnimalHandler(input) {
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
-  if (oozed && !FAUNA[species]) throw new Error(`\`ooze\` mutates a ring-plan species; '${species}' is ${BUG_SPECIES[species] ? 'a bug' : 'a figure-body recipe'} and takes none yet`);
+  if (oozed && !FAUNA[species]) throw new Error(`\`ooze\` and \`stylism\` mutate a ring-plan species; '${species}' is ${BUG_SPECIES[species] ? 'a bug' : 'a figure-body recipe'} and takes none yet`);
 
   // An ARTHROPOD (lib/graph/bugs): a worked bug by `species` (or the name people say, resolved above), or one nobody
   // has built by `bug` (the closest worked bug with the asked part forms worn over it). Ring plans through the layered
@@ -250,15 +250,15 @@ export async function createAnimalHandler(input) {
     const motion = motionSpec(species, input.motion);
     // OOZES: the form laid over the species' params before its body is built; absent (or every strength 0) ⇒ the
     // species' own plan, byte-identical, and nothing stored
-    const M = oozed ? resolveMutagen(ooze, { seed, key: species }) : null;
+    const M = oozed ? resolveMutagen(ooze, { seed, key: species, stylism }) : null;
     if (M && motion) throw new Error('`motion` on an oozed animal is not built yet: its rig does not follow its size. Pass `ooze` or `motion`, not both');
     const seat = {}, plan = M ? oozeFauna(speciesParams(species), M, seat) : speciesPlan(species);
     const res = await createLayeredPlanHandler({
       title, plan: motion ? withMotion(plan, species, motion.gaits, motion.keys, motion) : plan, plan_audit: { source: 'agent' }, ...carved, species,
-      ...(M ? { ooze: { oozes: M.oozes, seed: M.seed } } : {}),
+      ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is
