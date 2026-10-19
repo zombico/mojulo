@@ -33,9 +33,9 @@ const { formSlice, BODY_BUILDS } = args.form ? await import('@/lib/graph/polygon
 if (args.form && !BODY_BUILDS[args.form]) throw new Error(`hero-stretch: unknown form '${args.form}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
 const worn = args.form ? { hair: 'none', ...(BODY_BUILDS[args.form].tune ? { tune: BODY_BUILDS[args.form].tune } : {}) } : {};
 const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...worn }) });
-const R = validateRig(m.recipe.rig);
-if (args.form) m.recipe = formSlice(m.recipe, R, args.form).recipe;
-const mesh = compileLayered(m.recipe, m.dials), skin = bindLayered(mesh, m.recipe, R);
+// (the slice's own rig: it adds the hinges' crease bones)
+if (args.form) m.recipe = formSlice(m.recipe, validateRig(m.recipe.rig), args.form).recipe;
+const R = validateRig(m.recipe.rig), mesh = compileLayered(m.recipe, m.dials), skin = bindLayered(mesh, m.recipe, R);
 // the frames: the planted stand, each gait over its cycle, and each stand gesture as the door mints it on this cast
 const frames = [{ label: 'stand', pose: {} }, ...gaitFrames(R, { samples: Number(args.samples) })];
 for (const g of GESTURE_WORDS.filter((w) => w !== 'rest')) {

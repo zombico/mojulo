@@ -699,14 +699,30 @@ export function formSlice(recipe, R, build, opts = {}) {
   // and the lower bone by where they lie, so the two shells handed over at the joint's plane move together. Each had
   // been its own bone's nearly to the plane: bent deep (the sprint's knee), the thigh's end swung out from under the
   // shank's top behind the knee, a lobe with an edge
+  // THE CREASE'S HELPER (the deep knee's corrective): beside each hinge's fold, which pushes its head to the bend's
+  // outside to keep the kneecap's and the elbow's point, a CREASE bone turned the same half the bend and pushed not at
+  // all, for the bend's inside: there the fold's push had drawn the skin in toward the bone, the back of a deep knee to
+  // 0.6 of its ring and the thigh's end a lobe over it. A point's middle share goes to the fold on the outside and the
+  // crease on the inside, by its side of the limb (the fold's rest `front` the outside)
+  const creaseOf = {};
+  for (const [fold, crease] of [['kneeFold', 'kneeCrease'], ['elbowFold', 'elbowCrease']]) for (const S of ['R', 'L']) {
+    const F = r.rig.folds?.[`${fold}${S}`]; if (!F) continue;
+    const id = `${crease}${S}`, tip = `${crease}Tip${S}`, aim = `${crease}Aim${S}`;
+    r.rig.folds[id] = { ...F, push: 0, head: id, tail: tip, aim };
+    r.rig.bones.push({ id, head: id, tail: tip, aux: [id, aim] });
+    creaseOf[`${fold}${S}`] = { id, front: unit(F.front) };
+  }
   const hingeBand = (P, joint, toward, upper, fold, lower, hb) => {
     const J0 = R.joints[`${joint}R`], dirL = unit(sub(R.joints[`${toward}R`], J0)), b = P.bind, blend = { ...(b.blend || {}) };
     const mine = new RegExp(`^(${upper}|${fold}|${lower})[RL]$`), own = { [b.bone]: 1 };
     const ride = (key, fallback, p) => {
-      const t = dot(sub([Math.abs(p[0]), p[1], p[2]], J0), dirL); if (Math.abs(t) >= hb) return;
+      const q = [Math.abs(p[0]), p[1], p[2]], t = dot(sub(q, J0), dirL); if (Math.abs(t) >= hb) return;
       const w0 = blend[key] || fallback || own; if (!Object.keys(w0).every((k) => mine.test(k))) return;
-      const S = p[0] < 0 ? 'L' : 'R', f = sm((t + hb) / (2 * hb)), F = R.joints[`${fold}R`] ? `${fold}${S}` : null;
-      blend[key] = !F ? mixW({ [`${upper}${S}`]: 1 }, { [`${lower}${S}`]: 1 }, f) : f < 0.5 ? mixW({ [`${upper}${S}`]: 1 }, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, { [`${lower}${S}`]: 1 }, 2 * f - 1);
+      const S = p[0] < 0 ? 'L' : 'R', f = sm((t + hb) / (2 * hb)), F = R.joints[`${fold}R`] ? `${fold}${S}` : null, C = F && creaseOf[F];
+      // (the middle: the fold on the bend's outside, the crease on its inside, eased round the limb)
+      let mid = F ? { [F]: 1 } : null;
+      if (C) { const rad = sub(sub(q, J0), scl(dirL, t)), side = len(rad) > 1e-9 ? dot(unit(rad), C.front) : 0, c = r6(sm(0.5 + side)); mid = c >= 1 ? { [F]: 1 } : c <= 0 ? { [C.id]: 1 } : { [F]: c, [C.id]: r6(1 - c) }; }
+      blend[key] = !mid ? mixW({ [`${upper}${S}`]: 1 }, { [`${lower}${S}`]: 1 }, f) : f < 0.5 ? mixW({ [`${upper}${S}`]: 1 }, mid, 2 * f) : mixW(mid, { [`${lower}${S}`]: 1 }, 2 * f - 1);
     };
     for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
     for (const [k, q] of Object.entries(P.caps || {})) ride(k, null, q);

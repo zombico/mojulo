@@ -187,7 +187,12 @@ Opt-in and versioned: a default hero keeps its bytes.
   further off the neck (a swinging arm opened a notch at the neck's root). Read by the stretch audit (hero-stretch.mjs
   `--form`) against the authored hero over the stand, the gaits and the gestures: the elbow's seam opens 11 to 15 mm at
   worst (the authored 20 to 41), the groin's not at all; the knee's back pinches to 0.6 of its ring in the sprint, where
-  the authored hero's seam opened 36 mm. Only the feet are still the authored cage.
+  the authored hero's seam opened 36 mm. THE DEEP HINGE'S CORRECTIVE: beside each knee's and elbow's fold, which pushes
+  its head to the bend's outside to keep the kneecap's and the elbow's point, a crease bone turned the same half the
+  bend and pushed not at all takes the bend's inside (a point's middle share split between the two by its side of the
+  limb, eased round it), where the fold's push had drawn the skin in toward the bone: the sprint's knee pinches to 0.82
+  of its ring at worst, and the bent elbow's inside stays full. The rig carries the two helpers (`kneeCrease<S>`,
+  `elbowCrease<S>`) as bones an engine skins with. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

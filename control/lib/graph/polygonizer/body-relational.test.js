@@ -49,7 +49,9 @@ describe('the form field slice', () => {
   }, 120_000);
 
   it('the rig poses it: the bind is the rest, a bent elbow moves that forearm and leaves the torso where it was', () => {
-    const { m, R, recipe } = slice('norrin');
+    // (on the slice's own rig: it adds the hinges' crease bones)
+    const { m, recipe } = slice('norrin'), R = validateRig(recipe.rig);
+    expect(R.bones.some((b) => b.id === 'kneeCreaseR')).toBe(true);
     const mesh = compileLayered(recipe, m.dials), skin = bindLayered(mesh, recipe, R);
     const rest = skinLayered(mesh, skin, boneFrames(R, R.joints, R.joints));
     rest.forEach((v, i) => expect(Math.hypot(v[0] - mesh.vertices[i][0], v[1] - mesh.vertices[i][1], v[2] - mesh.vertices[i][2])).toBeLessThan(1e-9));
