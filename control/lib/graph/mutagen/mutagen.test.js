@@ -3,6 +3,7 @@ import { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors
 import { SPECIES, speciesParams, speciesPlan } from '../fauna/species.js';
 import { buildFauna } from '../fauna/build.js';
 import { PER_RIG } from '../fauna/test-cases.js';
+import { expandPlan } from '../polygonizer/station-loft-plan.js';
 
 // The law, read on rows the test makes (the shelf's numbers are the oozes', not the law's), and the form read on one
 // species per rig: the concept, not the catalog.
@@ -53,8 +54,8 @@ describe('mutagen: the composition law', () => {
     expect(resolveMutagen(undefined)).toBeNull();
     expect(resolveMutagen([])).toBeNull();
     expect(resolveMutagen({ id: formOn, strength: 0 })).toBeNull();
-    const a = resolveMutagen(formOn, { key: 'wolf' }), b = resolveMutagen(formOn, { key: 'wolf' }), c = resolveMutagen(formOn, { key: 'houseCat' });
-    expect(a.seed).toBe(b.seed);
+    const a = resolveMutagen(formOn, { key: 'wolf' }), b = resolveMutagen([formOn, { id: formOn === 'dire' ? Object.keys(OOZES).find((o) => o !== formOn) : 'dire' }], { key: 'wolf' }), c = resolveMutagen(formOn, { key: 'houseCat' });
+    expect(a.seed).toBe(b.seed);   // the base's seed: adding an ooze does not reroll it
     expect(a.seed).not.toBe(c.seed);
     expect(resolveMutagen(formOn, { key: 'wolf', seed: 9 }).seed).toBe(9);
   });
@@ -81,6 +82,27 @@ describe('mutagen: the composition law', () => {
     expect(half.eyes.glow).toBe(false);   // a glow is lit from half strength
     expect(composePush([{ id: 'x', strength: 1 }], { x: { form: { scale: 2 } } })).toBeNull();
   });
+
+  it('tints and marks stack in list order; a spike is the tallest asked; marks wait for strength 0.35', () => {
+    const mark = { on: 'torso', kind: 'spots', group: 'G' };
+    const S = { a: { push: { tint: { color: '#ff0000', amount: 1 }, marks: [mark], hackles: { height: 0.6 } } },
+      b: { push: { tint: { color: '#0000ff', amount: 0.5, light: 1 }, marks: [mark], hackles: { height: 0.4 } } } };
+    const p = composePush([{ id: 'a', strength: 1 }, { id: 'b', strength: 1 }], S, 7);
+    expect(p.tints.map((t) => t.color)).toEqual(['#ff0000', '#0000ff']);
+    expect(p.tints[1]).toEqual({ color: '#0000ff', amount: 0.5, light: 1 });
+    expect(p.marks).toHaveLength(2);
+    expect(p.hackles.height).toBe(0.6);
+    expect(composePush([{ id: 'a', strength: 0.3 }], S, 7).marks).toBeUndefined();
+    // each mark's dice are its own ooze's: adding another ooze leaves them where they were
+    expect(composePush([{ id: 'a', strength: 1 }], S, 7).marks[0].seed).toBe(p.marks[0].seed);
+    expect(composePush([{ id: 'a', strength: 1 }], S, 8).marks[0].seed).not.toBe(p.marks[0].seed);
+  });
+
+  it('refuses a push it cannot read: a stray tint, a mark without its kind, a material that is not a name', () => {
+    expect(pushErrors({ tint: { color: 'red', amount: 1 } })[0]).toMatch(/tint/);
+    expect(pushErrors({ marks: [{ on: 'torso', group: 'G' }] })[0]).toMatch(/marks\[0\]/);
+    expect(pushErrors({ surfaces: { '*': { metal: 'steel' } } })[0]).toMatch(/material name/);
+  });
 });
 
 describe('mutagen: the form on a species', () => {
@@ -104,6 +126,41 @@ describe('mutagen: the form on a species', () => {
         v.forEach((x, a) => expect(Math.abs(B[j][a] - s * x), `${id}.${j}`).toBeLessThan(1e-5));
       }
     }
+  });
+
+  it('marks paint the parts they name, on finer rings there only, placed by the seed', () => {
+    const id = PER_RIG[0], P = speciesParams(id), spots = { on: 'torso', kind: 'spots', count: 6, group: 'Mark', color: '#ff00ff', glow: true };
+    const at = (seed) => oozeFauna(P, { form: {}, push: composePush([{ id: 'm', strength: 1 }], { m: { push: { marks: [spots] } } }, seed) });
+    const A = at(1), B = at(2), paint = (p) => p.paint.filter((x) => x.group === 'Mark');
+    expect(paint(A)).toHaveLength(6);
+    expect(A.palette.Mark).toBe('#ff00ff');
+    expect(A.emissive).toContain('Mark');
+    expect(JSON.stringify(paint(A))).not.toBe(JSON.stringify(paint(B)));   // the seed moves the spots
+    expect(A.joints).toEqual(buildFauna(P).joints);                       // and moves no joint
+    const legs = (p) => p.segments.filter((g) => /R$/.test(g.name)).map((g) => JSON.stringify(g));
+    expect(legs(A)).toEqual(legs(buildFauna(P)));                         // a leg nobody marked keeps its rings
+  });
+
+  it('a mark aimed at legs on a legless body paints nothing there, and the body still builds', () => {
+    const id = Object.keys(SPECIES).find((s) => !(speciesParams(s).legs || []).length), P = speciesParams(id);
+    const M = { form: {}, push: { marks: [{ on: 'legs', kind: 'band', group: 'Ring' }, { on: ['legs', 'neck'], kind: 'band', group: 'Ring2' }] } };
+    expect(oozeParams(P, M).markings.map((m) => m.on)).toEqual(['neck']);
+    expect(() => expandPlan(oozeFauna(P, M))).not.toThrow();
+  });
+
+  it('surfaces reach the recipe as a statue\'s do; a material off the shelf is refused', () => {
+    const P = speciesParams(PER_RIG[0]), M = { form: {}, push: { surfaces: { '*': 'gunmetal' } } };
+    expect(expandPlan(oozeFauna(P, M)).surfaces).toEqual({ '*': 'gunmetal' });
+    expect(expandPlan(buildFauna(P)).surfaces).toBeUndefined();
+    expect(() => expandPlan({ ...buildFauna(P), surfaces: { '*': 'unobtainium' } })).toThrow(/surfaces\.\*: unknown material/);
+  });
+
+  it('a worn head mesh grows with the animal and keeps pace with the chest', () => {
+    const id = Object.keys(SPECIES).find((s) => speciesParams(s).headMesh), P = speciesParams(id);
+    const big = { form: composeForm([{ id: 'big', strength: 1 }], SHELF) };
+    expect(oozeParams(P, big).headMesh.length).toBeCloseTo(P.headMesh.length * 2, 9);
+    const paced = oozeParams(P, { form: {}, push: { wedge: { fore: 1.44 }, head: { pace: 0.5 } } });
+    expect(paced.headMesh.length).toBeCloseTo(P.headMesh.length * 1.2, 9);
   });
 
   it('the face seats or steps back, and says how much of it was drawn', () => {

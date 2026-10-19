@@ -8,12 +8,12 @@
 // head's rows, fangs, hackles, the rest face, glowing eyes).
 import { OOZES } from './oozes/index.js';
 import { oozeErrors, normalizeOozes, composeForm, FORM_KEYS } from './compose.js';
-import { composePush, pushParams, pushPlan, pushErrors } from './push.js';
+import { composePush, pushParams, pushPlan, pushErrors, growMesh } from './push.js';
 import { buildFauna } from '../fauna/build.js';
 
 export { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, FORM_KEYS };
 
-// FNV-1a: the default seed, from what the creature is made of
+// FNV-1a: the default seed, from the base the creature is made from (so adding an ooze moves no other ooze's spots)
 const strHash = (s) => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; };
 
 /** Error strings for an ooze spec and its seed (empty = valid). */
@@ -35,8 +35,8 @@ export function resolveMutagen(ooze, { seed, key = '' } = {}) {
   if (errs.length) throw new Error(errs.join('; '));
   const oozes = normalizeOozes(ooze);
   if (!oozes.length) return null;
-  const push = composePush(oozes, OOZES);
-  return { oozes, seed: seed ?? strHash(`${key}|${oozes.map((o) => `${o.id}:${o.strength}`).join(',')}`), form: composeForm(oozes), ...(push ? { push } : {}) };
+  const s = seed ?? strHash(key) % 1000003, push = composePush(oozes, OOZES, s);
+  return { oozes, seed: s, form: composeForm(oozes), ...(push ? { push } : {}) };
 }
 
 /**
@@ -50,6 +50,8 @@ export function oozeParams(P, mutagen) {
   const out = { ...P };
   for (const k of FORM_KEYS) if (form[k] !== undefined) out[k] = (P[k] ?? 1) * form[k];
   if ((form.scale || form.headScale) && !P.headRelative && P.headScale) Object.assign(out, { headRelative: P.headScale * (P.scale ?? 1), relBrow: true });
+  // a worn head mesh (build.js `wearHeadMesh`) is sized in metres, nape to nose: it grows with the animal and its head
+  if ((form.scale || form.headScale) && P.headMesh) out.headMesh = growMesh(P.headMesh, (form.scale ?? 1) * (form.headScale ?? 1));
   return pushParams(out, mutagen?.push);
 }
 

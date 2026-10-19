@@ -684,6 +684,9 @@ renders byte-identically without them.
   (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
   uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
   live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
+- **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
+  material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
+  the exports. Absent, nothing changes.
 - **Same limbs, same rig.** An ooze never changes a skeleton. A scaled creature's rig is the species' own at its
   size, so every gait and behavior the species has, its mutated forms play, on the World page and in the skinned
   GLB and Godot exports. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.

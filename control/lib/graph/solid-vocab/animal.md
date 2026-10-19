@@ -164,16 +164,27 @@ body) is already a closed solid and carries the statue on its layered manifest; 
 `ooze` turns a ring-plan species into an enemy or a beast for a game, keeping its limbs and its rig: `{ species: 'wolf',
 ooze: 'dire' }`. Reach for it when a world needs creatures that belong to it; nobody voices the word. An ooze draws
 the animal for a game, not a field guide: one dominant mass, one hook that breaks the outline, contrast at the eyes
-and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph/mutagen/oozes/`): `dire` (grown
-whole ×1.45 and pushed front-heavy: chest, shoulders, forelegs and paws up, haunch lean, a crest of hackle spikes,
-a low wide skull under a heavy brow, fangs, a rest snarl, a darkened coat and glowing eyes).
+and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph/mutagen/oozes/`, one row each):
+
+| ooze | reads as |
+|---|---|
+| `dire` | grown ×1.45 and front-heavy: chest, shoulders, forelegs and paws up, haunch lean, a hackle crest, a low wide skull under a heavy brow, fangs, a rest snarl, a dark coat, glowing eyes |
+| `skeletal` | bone-thin and bone-white, the ribs as dark gaps, a row of spine processes, an earless skull, burning sockets |
+| `zombie` | wasted, greyed toward rot, seeded wounds and bare ribs, drooping ears, a slack jaw, a sick glow |
+| `frost` | an element: a pale blue coat, rime down the spine, a crest of glowing ice spikes, eyes of cold light |
+| `techno` | gunmetal (a real metal surface), dark seams, glowing rings at the limbs' joints, fins, sensor ears, cyan eyes |
+| `crystal` | a slate coat, a ridge of glowing crystal shards, shards in the skin, violet eyes |
+
+They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war machine.
 
 - A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
   multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to
   ×2.5). An ooze is named once; its strength says how much.
 - A form moves no joint but by uniform size, so the creature is the species' skeleton grown; girth is ring radius.
-  The pushes (`lib/graph/mutagen/push.js`) move rings, the head's own rows, the palette and ornaments on joints of
-  their own (`ooze…`). A beaked or billed head takes no fangs.
+  The pushes (`lib/graph/mutagen/push.js`) move rings, the head's own rows, the palette and paint, a material per
+  group, and ornaments on joints of their own (`ooze…`). Colours stack in list order (darken, grey, then each tint);
+  marks are placed by the seed, each ooze's by its own dice. A beaked or billed head takes no fangs; a worn head mesh
+  (a house cat's) grows with the body and takes the colours, not the face's reshaping.
 - A head too small or tight for the whole face steps it back until it seats: the result's `ooze.face` (with a
   `note`) says the share drawn when it is under 1.
 - The stored plan is the mutated body (`/plan/...` patches retune it); the manifest keeps `ooze: { oozes, seed }`.
