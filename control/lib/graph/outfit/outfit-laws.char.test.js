@@ -18,14 +18,16 @@ import { expandOutfit } from './expand.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 // (rings re-pinned for the hero laws 2, a body change: the hero minted now lifts its neck's root, hero-form.js
-// SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged)
+// SHOULDER_LINE, and the garments that reach the shoulders follow it; the expansions, the laws hashes, unchanged; and
+// again for the hero laws 3, hero-form.js LEG_SET, the leg turned back about the ankle: every garment on the legs or
+// the seat follows the hip's joint)
 const PINS = {
   1: {
-    'out': { laws: '265ded3657d405cc', rings: '3c678a82448ca4d5' },
-    'tucked': { laws: 'b76e277c3f91d9e7', rings: 'c382ef0ed8e0e20b' },
-    'dress': { laws: 'ab5993a5be6a4df7', rings: 'ad0cf139cc7099a0' },
-    'outer': { laws: '5ca7c23fe61ab573', rings: '608e07d283535dff' },
-    'panels': { laws: '08e10bad4e472308', rings: '076133fe32434bd9' },
+    'out': { laws: '265ded3657d405cc', rings: 'b0b17af3f724b51d' },
+    'tucked': { laws: 'b76e277c3f91d9e7', rings: '93b7fe6a8f127edd' },
+    'dress': { laws: 'ab5993a5be6a4df7', rings: '2653063e545832d6' },
+    'outer': { laws: '5ca7c23fe61ab573', rings: 'b1531c36edba8029' },
+    'panels': { laws: '08e10bad4e472308', rings: 'a66206304b231551' },
   },
 };
 

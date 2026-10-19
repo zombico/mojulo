@@ -285,10 +285,12 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * Laws 2 adds the structured core's SHOULDER LINE (SHOULDER_LINE): the trapezius running straight from the neck's root
  * down to the shoulder, where laws 1 sagged it into a level shelf with the neck rising out of it like a post (the
  * shrug). Every structured-core hero reads it, so every one minted now is stamped.
+ * Laws 3 adds the structured core's LEG SET (LEG_SET): the leg turned back about the ankle, the hip's joint set into the
+ * pelvis, where laws 1 and 2 hung it from a socket under the groin's skin, the thighs standing forward of the trunk.
  */
-export const HERO_LAWS_VERSION = 2;
-/** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2: every hero on the
- * default core) */
+export const HERO_LAWS_VERSION = 3;
+/** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, and leg set, laws 3:
+ * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
 /** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
 export const isBuiltCast = (cast) => !!cast && typeof cast === 'object' && !Array.isArray(cast) && ('pole' in cast || 'build' in cast);
@@ -339,6 +341,14 @@ export const castOf = (cast, proportions = 'hero') => {
  * from the neck's side. Laws 1 met the neck's side with the line 8 cm over the shoulder joint, the neck rising out of
  * it as a post: the shoulders read shrugged, most from behind. */
 export const SHOULDER_LINE = Object.freeze({ male: Object.freeze({ rootRise: 0.03 }), female: Object.freeze({ rootRise: 0.025 }) });
+/** THE LEG SET (hero laws 3, structured core): the leg turned back about the ankle, the hip's joint set back (−y) into
+ * the pelvis by `hipBack` of its own height (so it rides any cast) and the knee by its share of that, so the knee keeps
+ * its bend off the line from the hip to the ankle. Laws 1 and 2 put the socket 2 cm under the groin's skin (the femur's
+ * head sits 5 to 6 cm deep, a little forward of the pelvis's middle): in profile the thighs stood forward of the trunk
+ * and the seat out behind. The bend stays: the motion reads it as the leg's slack (the knee 4 cm off that line leaves
+ * the leg 5 mm short of straight; set back to the line's share of a plumb thigh, 1 mm, the feet's IK clamped, planted
+ * feet slid, a stop overran) */
+export const LEG_SET = Object.freeze({ hipBack: 0.035 });
 const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.95, mid: 0.28, top: 0.8 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
@@ -446,7 +456,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              multiply `scale` and `headScale`; lengths and `shoulders` multiply the cast's dials; the widths and
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
- *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE
+ *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
@@ -503,6 +513,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const femaleLeg = preset?.silhouette === 'female', drop = (J.hip[2] - J.knee[2]) / TN.legs;
     const kneeX = r6(Math.max(J.hip[0] - drop * dmath.tan(FEMUR_IN[femaleLeg ? 'female' : 'male'] * Math.PI / 180), b.calf / TN.calf + KNEE_CLEAR));   // the untuned calf: `calf` thickens, it moves no joint
     if (kneeX < J.knee[0]) { J.knee = [kneeX, J.knee[1], J.knee[2]]; J.ankle = [kneeX, J.ankle[1], J.ankle[2]]; }
+    // laws 3: the leg set (LEG_SET), the hip's joint and the knee back by their shares of the hip's height
+    if (laws >= 3) {
+      const zh = J.hip[2], back = LEG_SET.hipBack * zh, k = (J.knee[2] - J.ankle[2]) / (zh - J.ankle[2]);
+      J.hip = [J.hip[0], r6(J.hip[1] - back), J.hip[2]]; J.knee = [J.knee[0], r6(J.knee[1] - back * k), J.knee[2]];
+    }
   }
   // hands and feet: a cast may carry an `extremities` scale (the anime casts' smaller hands and feet; 1 is exact)
   const X = preset?.extremities ?? 1;

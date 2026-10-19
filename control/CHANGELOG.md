@@ -61,6 +61,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   byte, pinned. Garments that reach the shoulders follow the new line on a hero minted now (the outfit laws' ring pins
   re-pinned as a body change; their expansions unchanged). The legacy vajra figure's girdle (figure-vajra.js `CLAVICLE_DECLINE`) and its body chart are left as
   they are: the hero reads neither. `body-study` takes `--laws` to render a hero as minted under an earlier version.
+- **The leg set, hero laws 3.** In profile the hero's thighs stood forward of the trunk and its seat out behind: the hip's
+  joint sat 2 cm under the groin's skin (the femur's head sits 5 to 6 cm deep, a little forward of the pelvis's middle).
+  Hero laws 3 (`HERO_LAWS_VERSION` 3, hero-form.js `LEG_SET`) turns the leg back about the ankle: the hip's joint set back
+  into the pelvis by 3.5 % of its height (3 cm on the male) and the knee by its share of that, so the knee keeps its bend
+  off the line from the hip to the ankle. The bend stays because the motion reads it as the leg's slack: set straighter
+  (the knee to the line's share of a plumb thigh), the leg came within 1 mm of its full reach and the feet's IK clamped,
+  planted feet slid in the jumps and rolls, a stop overran, a cloak met an arm. Every hero on the structured core is now
+  stamped `laws: 3`; a row stamped 2 or 1 builds byte for byte, pinned (the gesture, the shading and the anime pins each
+  keep their laws-2 values beside the new ones); the outfit laws' rings and the statues re-pinned as a body change.
 - **The body lane** (the `body-study` skill). The hero's body as an engine gets it, the skinned cage shaded smooth,
   from the front, the front ¾, the lateral, the back and below; rows posed at the bind, a gait at a phase, a stand
   gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the

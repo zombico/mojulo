@@ -4,7 +4,7 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET } from './hero-form.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
@@ -141,15 +141,15 @@ describe('the child-coded guard reads the resolved cast', () => {
 });
 
 describe('the hero laws: a hero reading the newer tables is stamped at mint; laws 1 builds as an unstamped row', () => {
-  it('stamps every structured-core hero (the shoulder line, laws 2) and the newer tables; leaves the inline hero alone', () => {
+  it('stamps every structured-core hero (the shoulder line, laws 2; the leg set, laws 3) and the newer tables; leaves the inline hero alone', () => {
     for (const spec of [{ cast: 'male' }, { cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(2);
+    expect(HERO_LAWS_VERSION).toBe(3);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 2/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 3/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -162,6 +162,19 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     const st = (r) => Object.fromEntries((r.parts.torso.stations ?? []).map((s, i) => [s.id ?? i, JSON.stringify(s)]));
     const a = st(one.recipe), b = st(two.recipe);
     expect(Object.keys(a).filter((k) => a[k] !== b[k]).sort()).toEqual(['st3_st4_50', 'st4']);
+  });
+  it('laws 3 turns the leg back about the ankle: the hip\'s joint into the pelvis, the knee by its share, its bend kept', () => {
+    const spec = { cast: { pole: 'female', build: 'brute' } };
+    const J = (laws) => { const m = expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }); return Object.fromEntries(Object.entries(m.recipe.rig.joints).map(([k, j]) => [k, j.at])); };
+    const two = J(2), three = J(3);
+    for (const S of ['R', 'L']) {
+      const h2 = two[`hip${S}`], h3 = three[`hip${S}`], k2 = two[`knee${S}`], k3 = three[`knee${S}`], a = three[`ankle${S}`];
+      expect(a).toEqual(two[`ankle${S}`]);
+      expect(h3[1]).toBeCloseTo(h2[1] - LEG_SET.hipBack * h2[2], 5); expect(h3[0]).toBe(h2[0]); expect(h3[2]).toBe(h2[2]);
+      // the knee off the line from the hip to the ankle as far as it was: the bend, the leg's slack, kept
+      const off = (h, k) => { const t = (k[2] - a[2]) / (h[2] - a[2]); return k[1] - (a[1] + t * (h[1] - a[1])); };
+      expect(off(h3, k3)).toBeCloseTo(off(h2, k2), 5);
+    }
   });
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

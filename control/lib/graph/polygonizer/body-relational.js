@@ -86,9 +86,10 @@ const NORRIN = {
     // (behind, the glutes, the dip between them the cleft; in front, the thighs' tops, the dip the crotch), and a TAPER
     // up the middle from above them to the heart's point under the navel in front and on the sacrum behind, its sides
     // the heart's flanks, squashed front to back to the belly's depth (begun between the lobes, its round end filled
-    // the cleft). Widest at the hip's joints, as the body is (a basin, a flank and separate glutes made a shelf at
+    // the cleft). The lobes are centred a little behind the hip's joint as hero laws 3 sets it (LEG_SET), the groin in
+    // front of it and the glute behind. Widest at the hip's joints, as the body is (a basin, a flank and separate glutes made a shelf at
     // the iliac crest, wider than the waist above and the thighs below)
-    { id: 'seatLobe', egg: [0.48, -0.1, -1.02], r: [0.27, 0.48, 0.44] },
+    { id: 'seatLobe', egg: [0.48, -0.09, -1.02], r: [0.27, 0.48, 0.44] },
     { id: 'seatTaper', cone: [[0, -0.08, -0.72], [0, -0.04, -0.3]], r: [0.66, 0.58], squash: 0.65 },
     { id: 'pubis', egg: [0, 0.22, -1.2], r: [0.3, 0.3, 0.28] },
   ],
@@ -182,7 +183,7 @@ const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
   kBase: 0.12, kMuscle: 0.04,
   // (the half biacromial already carries her narrower shoulders: on it her waist and seat stand wider than his)
-  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.14, -1.05], r: [0.33, 0.52, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
+  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.12, -1.05], r: [0.33, 0.52, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
   muscles: [
     ...byId(scaled(NORRIN.muscles.filter((m) => !/^pectoral(Sternal|Clavicular)$/.test(m.id)), 1, 0.6), {
       rectus1: { proud: 0.025 }, rectus2: { proud: 0.028 }, rectus3: { proud: 0.028 }, rectus4: { proud: 0.03 },
