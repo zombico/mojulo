@@ -25,9 +25,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   for the board, the tactical camera, tactics combat and RTS orders, all unbuilt so far. On
   `docs/tool-surface/hillclimb.md` the board ranks first by worlds lifted per unit of work.
 
-- **The board kernel** (`lib/graph/board/`): reach by move and jump, aim and area shapes, facing, occupancy, legal
-  moves, and a charge-time clock on the party battles' timeline rule. Pure and seeded, emitted only when a world
-  declares a board, so a world without one keeps every byte.
+- **The board kernel** (`lib/graph/board/board-kernel.js`), built: square spots with heights and terrain types, one
+  unit a spot; reach by move and jump (through allies, never foes); aim (a diamond or a line, between a reach's
+  bounds, within a height) and area; facing (a blow from the side or behind hits harder) and height; every legal
+  move listed, ending always among them. The turn is FFT's: move once and act once, in either order, then face; a
+  charge-time clock on the party battles' timeline rule, a turn costing less for not moving or not acting. Blows
+  follow the party battles' formula. Pure and seeded, a self-contained closure a page can carry.
 - **The tactical camera**: a locked pitch, quarter-turn rotation, zoom stops and pan held to the board, with an RTS
   form that pans and edge-scrolls instead of rotating.
 - **A `tactics` quick goal**, and **tower defence on a board** (`defend` with `board`): towers fill spots, and foes
