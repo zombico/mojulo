@@ -1259,10 +1259,10 @@ export function buildTabletop() {
   //     use, turn (moves made), r }
   function roundCompile(K) {
     const R = K.G.round, res = {};
-    if (!Array.isArray(R.phases) || !R.phases.length) throw new Error('tabletop: round.phases is a list of phases');
+    if (!(Array.isArray(R.phases) && R.phases.length) && !(Array.isArray(R.turn) && R.turn.length)) throw new Error('tabletop: round.phases (or round.turn) is a list of phases');
     if (!(R.rounds >= 1)) throw new Error('tabletop: round.rounds is how many rounds the game lasts');
     const WHO = { turns: 1, together: 1, auto: 1 }, MOVES = { place: 1, bid: 1, pick: 1 };
-    R.phases.forEach((P, i) => {
+    (R.phases || []).forEach((P, i) => {
       if (!WHO[P.who]) throw new Error('tabletop: round phase ' + (P.id || i) + ': who is turns, together or auto');
       if (P.who !== 'auto' && !MOVES[P.move]) throw new Error('tabletop: round phase ' + (P.id || i) + ': move is place, bid or pick');
     });
@@ -1272,8 +1272,9 @@ export function buildTabletop() {
     note(R.pools);
     for (const id of Object.keys(R.spaces || {})) { const P = R.spaces[id]; note(P.cost); for (const e of P.gives || []) note(e.get); }
     for (const e of R.each || []) note(e.get);
-    for (const P of R.phases) for (const st of P.steps || []) if (st.upkeep) note(st.upkeep.pay);
+    for (const P of R.phases || []) for (const st of P.steps || []) if (st.upkeep) note(st.upkeep.pay);
     K.round = { R, res: Object.keys(res), bid: R.bid || 'coin' };
+    if (R.turn) turnCompile(K);
   }
 
   function roundStart(K) {
@@ -1289,6 +1290,7 @@ export function buildTabletop() {
       for (let i = 0; i < ((R.workers && R.workers.n) || 0); i++) make(S, { kind: R.workers.kind, side: s, at: -1, moved: 0, zone: 'home' });
     }
     S.deck = shuffle(S, expand(R.deck));
+    if (R.turn) turnStart(K, S);
     roundBegin(K, S);
     return S;
   }
@@ -1330,7 +1332,7 @@ export function buildTabletop() {
 
   // whether `side` has a move in the phase now (a pass aside)
   function canAct(K, S, side) {
-    const P = K.G.round.phases[S.phase];
+    const P = phaseNow(K, S);
     if (P.move === 'place') {
       if (readyWorker(K, S, side) < 0) return false;
       const sp = K.G.round.spaces || {};
@@ -1357,6 +1359,7 @@ export function buildTabletop() {
 
   function roundBegin(K, S) {
     S.phase = 0;
+    if (K.G.round.turn) S.part = 'round';
     for (const s of seatsFrom(K, S)) roundEffects(K, S, s, K.G.round.each);
     enterPhase(K, S);
   }
@@ -1364,11 +1367,26 @@ export function buildTabletop() {
   function enterPhase(K, S) {
     const R = K.G.round;
     while (!S.over) {
-      if (S.phase >= R.phases.length) { roundEnd(K, S); return; }
-      const P = R.phases[S.phase];
+      const list = S.part === 'turn' ? R.turn : R.phases || [];
+      if (S.phase >= list.length) {
+        // the round's phases done, each seat's turn in order; the last turn done, the round ends
+        if (R.turn && S.part !== 'turn') { S.part = 'turn'; S.seat = 0; beginTurn(K, S); continue; }
+        if (S.part === 'turn' && ++S.seat < K.players.length) { beginTurn(K, S); continue; }
+        roundEnd(K, S);
+        return;
+      }
+      const P = list[S.phase];
       S.done = K.players.map(() => false);
       S.sealed = K.players.map(() => null);
-      if (P.who === 'auto') { for (const st of P.steps || []) roundStep(K, S, st); S.phase += 1; continue; }
+      if (P.who === 'auto') {
+        if (!S.ran) { for (const st of P.steps || []) (S.part === 'turn' ? turnStep : roundStep)(K, S, st); S.ran = true; }
+        // a trigger on the chain with a player holding a stop: the phase waits for the chain to empty
+        if (R.turn && !settleChain(K, S)) return;
+        S.ran = false;
+        S.phase += 1;
+        continue;
+      }
+      if (P.who === 'active') { S.side = S.active; if (settleChain(K, S)) S.side = S.active; return; }
       const s = nextActor(K, S, -1, P.who === 'together');
       if (s >= 0) { S.side = s; return; }
       S.phase += 1;
@@ -1395,7 +1413,8 @@ export function buildTabletop() {
 
   function roundLegal(K, S) {
     if (S.over) return [];
-    const R = K.G.round, P = R.phases[S.phase], side = S.side, out = [];
+    if (K.G.round.turn && (S.links.length || phaseNow(K, S).who !== 'turns' && phaseNow(K, S).who !== 'together')) return turnLegal(K, S);
+    const R = K.G.round, P = phaseNow(K, S), side = S.side, out = [];
     if (P.move === 'place') {
       if (readyWorker(K, S, side) >= 0) {
         const sp = R.spaces || {};
@@ -1413,7 +1432,7 @@ export function buildTabletop() {
 
   // a sealed phase revealed: the bids or the picks resolved together
   function reveal(K, N) {
-    const R = K.G.round, P = R.phases[N.phase], seq = seatsFrom(K, N);
+    const P = phaseNow(K, N), seq = seatsFrom(K, N);
     if (P.move === 'bid') {
       const lot = N.lots.shift();
       let win = -1, top = 0;
@@ -1445,8 +1464,9 @@ export function buildTabletop() {
   }
 
   function roundApply(K, S, m) {
-    const N = clone(S), R = K.G.round, P = R.phases[S.phase], side = S.side;
+    const N = clone(S), R = K.G.round, P = phaseNow(K, S), side = S.side;
     N.turn = S.turn + 1;
+    if (R.turn && (S.links.length || P.who === 'active')) return turnApply(K, S, m, N);
     if (m.type === 'place') {
       const w = readyWorker(K, N, side), sp = R.spaces[m.space];
       if (w < 0 || heldAt(N, m.space) >= (sp.holds || 1) || !affords(N.pools[side], sp.cost)) throw new Error('tabletop: no worker can go to ' + m.space + ' now');
@@ -1484,11 +1504,295 @@ export function buildTabletop() {
     const N = clone(S);
     N.r = mixSeed(seed || 1, S.turn, side);
     N.sealed = N.sealed.map((c, s) => (s === side || c === null ? c : { sealed: true }));
+    if (K.G.round.turn) return turnView(K, N, side);
     const pool = N.deck.slice(), sizes = [];
     N.zones.forEach((Z, s) => { if (s === side) return; for (const id of Z.hand) pool.push(N.pieces[id].kind); sizes.push([s, Z.hand]); });
     shuffle(N, pool);
     for (const [, hand] of sizes) for (const id of hand) N.pieces[id].kind = pool.pop();
     N.deck = pool;
+    return N;
+  }
+
+  // ── a player's turn: cards cast, abilities used, the chain, triggers ───────────────────────────────────────────
+  // `round.turn` gives each seat a turn of its own, every round, in order from the first seat: a list of phases like
+  // the round's (which, if any, come first), an auto phase's steps acting for the player whose turn it is (S.active),
+  // and an `active` phase where that player casts cards and uses abilities until it ends the phase. Each player has a
+  // deck, a hand, a discard and a field (its objects in play).
+  //
+  // Everything cast or used goes on the chain (S.links), resolved last in, first out. After a link goes on, the
+  // initiative passes round from the next seat, but only to a player with a stop (a fast card it can pay for, a fast
+  // ability it can use), and never to the player whose own link is on top (nobody answers itself); when all have
+  // passed, the top link resolves and the initiative goes round again from the active player. With nobody holding a stop the links resolve at once. Triggers wait (S.wait) and go on the chain
+  // after each action, the active player's first (so they resolve last). Checks after each resolution: an object
+  // whose damage reaches its guard dies; a player whose `lose` pool falls to its floor loses. Past `cap` actions in a
+  // turn, or a hundred links, the game is a draw (a loop).
+  //
+  //   round.turn: [{ id, who: 'auto' | 'active', steps? }]   round.decks: { <card>: n } (each player's)
+  //   round.hand: n drawn to start   round.lose: { pool, at? } (0)   round.cap: actions a turn (200)
+  //   a card (piles.types): { cost?: { <res>: n }, summon?: true (it enters the field, exhausted), stats?: { power,
+  //     guard }, fast?: true (cast in any window it holds the initiative in), do?: [effect] (a spell's),
+  //     abilities?: [{ when: 'enters' | 'dies' | 'turn' (its controller's, at the start) | 'foe-casts', do: [effect] }
+  //       | { act: { exhaust?: true, cost?: { <res>: n } }, do: [effect], fast?: true }] }
+  //   effect: { damage: n | 'power' (the source's, as it was when used), to: 'target' | 'foe' | 'self' | 'foe-summons',
+  //     of?: 'any' | 'summon' | 'foe-summon' | 'player' } | { destroy: true, to: 'target', of } | { exhaust: true,
+  //     to: 'target', of } | { draw: n } | { get: { <res>: n } } | { counter: true } (the spell beneath it, cancelled)
+  //     A cast's or an ability's one target is chosen when it goes on; a trigger's 'target' is the first foe; a target
+  //     gone by resolution is skipped.
+  //   step: { ready: 'mine' } (the active player's objects) | { draw: n } | { refill: { pool, grow?: 1, max? } } (the
+  //     pool's turn allowance grows, and the pool is set to it: what was left is gone) | { mend: true } (damage healed)
+  //   moves: { type: 'cast', card, id, target? } | { type: 'use', id, ab, target? } | { type: 'end' } (the active phase)
+  //     | { type: 'pass' } (a window)
+  //   link: { side, src, card: bool, ab, target, power }
+  const phaseNow = (K, S) => (S.part === 'turn' ? K.G.round.turn : K.G.round.phases || [])[S.phase];
+  const label = (K, S, t) => (t.p !== undefined ? K.players[t.p].id : S.pieces[t.o].kind + '#' + t.o);
+  const onField = (S, id) => S.pieces[id] && S.pieces[id].zone === 'field';
+  const needsTarget = (list) => (list || []).some((e) => e.to === 'target');
+
+  function turnCompile(K) {
+    const R = K.G.round;
+    R.turn.forEach((P, i) => { if (P.who !== 'auto' && P.who !== 'active') throw new Error('tabletop: round.turn phase ' + (P.id || i) + ': who is auto or active'); });
+    for (const id of Object.keys(R.decks || {})) if (!(K.defs[id] && K.defs[id].family === 'card')) throw new Error('tabletop: round.decks holds a card ' + id + ' the game does not describe (piles.types)');
+    K.round.refills = [];
+    for (const P of R.turn) for (const st of P.steps || []) if (st.refill) { K.round.refills.push(st.refill.pool); if (K.round.res.indexOf(st.refill.pool) < 0) K.round.res.push(st.refill.pool); }
+    if (R.lose && K.round.res.indexOf(R.lose.pool) < 0) K.round.res.push(R.lose.pool);
+  }
+  function turnStart(K, S) {
+    const R = K.G.round;
+    Object.assign(S, { part: 'round', seat: 0, active: -1, links: [], passed: K.players.map(() => false), wait: [], cap: K.players.map(() => ({})), acts: 0, ran: false });
+    S.zones.forEach((Z, s) => {
+      Object.assign(Z, { deck: shuffle(S, expand(R.decks)).map((kind) => make(S, { kind, side: s, at: -1, moved: 0, zone: 'deck' })), discard: [], field: [] });
+      drawFor(S, s, R.hand || 0);
+    });
+  }
+  function drawFor(S, side, n) {
+    const Z = S.zones[side];
+    for (let i = 0; i < n && Z.deck.length; i++) { const id = Z.deck.pop(); S.pieces[id].zone = 'hand'; Z.hand.push(id); }
+  }
+  function beginTurn(K, S) {
+    S.phase = 0;
+    S.ran = false;
+    S.acts = 0;
+    S.active = seatsFrom(K, S)[S.seat];
+    S.side = S.active;
+    fire(K, S, 'turn', { side: S.active });
+  }
+  function turnStep(K, S, st) {
+    const a = S.active, Z = S.zones[a];
+    if (st.ready === 'mine') for (const id of Z.field) delete S.pieces[id].ready;
+    if (st.draw) drawFor(S, a, st.draw);
+    if (st.refill) {
+      const F = st.refill, cap = Math.min(F.max === undefined ? Infinity : F.max, (S.cap[a][F.pool] || 0) + (F.grow === undefined ? 1 : F.grow));
+      S.cap[a][F.pool] = cap;
+      S.pools[a][F.pool] = cap;
+    }
+    if (st.mend) for (const o of S.pieces) if (o.zone === 'field') delete o.damage;
+  }
+
+  // the triggers an event raises, waiting to go on the chain
+  function fire(K, S, event, ctx) {
+    const add = (id, side) => (derive(K, S, id).abilities || []).forEach((ab, i) => { if (ab.when === event) S.wait.push({ side, src: id, ab: i }); });
+    if (event === 'enters' || event === 'dies') add(ctx.id, S.pieces[ctx.id].side);
+    if (event === 'turn') for (const id of S.zones[ctx.side].field) add(id, ctx.side);
+    if (event === 'foe-casts') S.zones.forEach((Z, s) => { if (s !== ctx.side) for (const id of Z.field) add(id, s); });
+  }
+  function queueTriggers(K, S) {
+    if (!S.wait.length) return;
+    const n = K.players.length, rank = (s) => (s - S.active + n) % n;
+    const w = S.wait.slice().sort((a, b) => rank(a.side) - rank(b.side));
+    S.wait = [];
+    for (const t of w) S.links.push({ side: t.side, src: t.src, card: false, ab: t.ab, target: null, power: (derive(K, S, t.src).stats || {}).power || 0, trigger: true });
+  }
+
+  // what `side` may cast or use now; `fast` only what may answer a link
+  function turnMoves(K, S, side, fast) {
+    const out = [], Z = S.zones[side], sorcery = !fast && side === S.active && !S.links.length;
+    const targets = (list) => {
+      if (!needsTarget(list)) return [null];
+      const e = list.find((x) => x.to === 'target'), of = e.of || 'any', ts = [];
+      if (of === 'any' || of === 'player') K.players.forEach((_, p) => ts.push({ p }));
+      if (of === 'foe') K.players.forEach((_, p) => { if (p !== side) ts.push({ p }); });
+      if (of === 'any' || of === 'summon' || of === 'foe-summon') S.zones.forEach((Y, s) => { if (of !== 'foe-summon' || s !== side) for (const id of Y.field) ts.push({ o: id }); });
+      return ts;
+    };
+    const counterable = S.links.length && S.links[S.links.length - 1].card;
+    for (const id of firsts(S, Z.hand)) {
+      const c = derive(K, S, id);
+      if (!(c.fast || sorcery) || !affords(S.pools[side], c.cost)) continue;
+      if ((c.do || []).some((e) => e.counter) && !counterable) continue;
+      for (const t of c.summon ? [null] : targets(c.do)) out.push({ type: 'cast', card: c.kind, id, target: t });
+    }
+    for (const id of Z.field) {
+      const c = derive(K, S, id);
+      (c.abilities || []).forEach((ab, i) => {
+        if (!ab.act || !(ab.fast || sorcery)) return;
+        if (ab.act.exhaust && S.pieces[id].ready === false) return;
+        if (!affords(S.pools[side], ab.act.cost)) return;
+        for (const t of targets(ab.do)) out.push({ type: 'use', id, ab: i, target: t });
+      });
+    }
+    return out.filter((m) => m.type === 'cast' || !m.target || m.target.o === undefined || onField(S, m.target.o));
+  }
+  const hasStop = (K, S, side) => turnMoves(K, S, side, true).length > 0;
+  // the first seat, going round from after `after` (from the active player itself when -1), that has not passed, holds
+  // a stop, and is not the one whose link is on top
+  function nextStop(K, S, after) {
+    const n = K.players.length, top = S.links.length ? S.links[S.links.length - 1].side : -1;
+    for (let k = after < 0 ? 0 : 1; k <= n; k++) {
+      const s = ((after < 0 ? S.active : after) + k) % n;
+      if (s !== top && !S.passed[s] && hasStop(K, S, s)) return s;
+    }
+    return -1;
+  }
+  // the waiting triggers on, then links resolved while nobody holds a stop: true when the chain is empty (the turn
+  // goes on), false when a player holds the initiative (S.side)
+  function settleChain(K, S, after) {
+    let from = after === undefined ? -1 : after;
+    for (let guard = 0; !S.over; guard++) {
+      queueTriggers(K, S);
+      if (guard > 400 || S.links.length > 100) { S.over = { winner: null, reason: 'loop' }; return true; }
+      if (!S.links.length) return true;
+      const h = nextStop(K, S, from);
+      if (h >= 0) { S.side = h; return false; }
+      resolveTop(K, S);
+      S.passed = K.players.map(() => false);
+      from = -1;
+    }
+    return true;
+  }
+  // the chain empty again: an auto phase that was waiting goes on; an active phase is the active player's again
+  function resume(K, S) {
+    if (S.over) return;
+    const P = phaseNow(K, S);
+    if (P && P.who === 'active') S.side = S.active;
+    else enterPhase(K, S);
+  }
+
+  function hurt(K, S, t, n) {
+    if (t.p !== undefined) { const L = K.G.round.lose; if (L) S.pools[t.p][L.pool] -= n; }
+    else if (onField(S, t.o)) S.pieces[t.o].damage = (S.pieces[t.o].damage || 0) + n;
+  }
+  function leaveField(K, S, id, zone) {
+    const o = S.pieces[id], Z = S.zones[o.side];
+    Z.field.splice(Z.field.indexOf(id), 1);
+    delete o.ready; delete o.counters; delete o.mods; delete o.damage;
+    o.zone = zone;
+    Z[zone].push(id);
+  }
+  function die(K, S, id) {
+    if (!onField(S, id)) return;
+    leaveField(K, S, id, 'discard');
+    fire(K, S, 'dies', { id });
+  }
+  function targetsOf(K, S, link, e) {
+    if (e.to === 'target') {
+      const t = link.target || (link.trigger ? { p: (link.side + 1) % K.players.length } : null);
+      return t && (t.p !== undefined || onField(S, t.o)) ? [t] : [];
+    }
+    if (e.to === 'foe') return K.players.map((_, p) => ({ p })).filter((t) => t.p !== link.side);
+    if (e.to === 'self') return [{ p: link.side }];
+    if (e.to === 'foe-summons') { const out = []; S.zones.forEach((Z, s) => { if (s !== link.side) for (const id of Z.field) out.push({ o: id }); }); return out; }
+    return [];
+  }
+  function resolveTop(K, S) {
+    const link = S.links.pop(), side = link.side;
+    const def = derive(K, S, link.src);
+    if (link.card && def.summon) {
+      const o = S.pieces[link.src];
+      o.zone = 'field';
+      o.ready = false;
+      S.zones[side].field.push(link.src);
+      fire(K, S, 'enters', { id: link.src });
+    } else {
+      const list = link.card ? def.do : (def.abilities[link.ab] || {}).do;
+      for (const e of list || []) {
+        if (e.damage !== undefined) { const n = e.damage === 'power' ? link.power : e.damage; for (const t of targetsOf(K, S, link, e)) hurt(K, S, t, n); }
+        if (e.destroy) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) die(K, S, t.o);
+        if (e.exhaust) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) S.pieces[t.o].ready = false;
+        if (e.draw) drawFor(S, side, e.draw);
+        for (const r in e.get || {}) S.pools[side][r] = (S.pools[side][r] || 0) + e.get[r];
+        if (e.points) S.score[side] += e.points;
+        if (e.counter) {
+          const below = S.links[S.links.length - 1];
+          if (below && below.card) { S.links.pop(); const c = S.pieces[below.src]; c.zone = 'discard'; S.zones[c.side].discard.push(below.src); }
+        }
+      }
+      if (link.card) { S.pieces[link.src].zone = 'discard'; S.zones[side].discard.push(link.src); }
+    }
+    checks(K, S);
+  }
+  function checks(K, S) {
+    for (let again = true; again;) {
+      again = false;
+      for (const Z of S.zones) for (const id of Z.field.slice()) {
+        const g = (derive(K, S, id).stats || {}).guard;
+        if (g !== undefined && (S.pieces[id].damage || 0) >= g) { die(K, S, id); again = true; }
+      }
+    }
+    const L = K.G.round.lose;
+    if (!L || S.over) return;
+    const out = K.players.map((_, s) => S.pools[s][L.pool] <= (L.at || 0));
+    if (!out.some(Boolean)) return;
+    const left = K.players.map((_, s) => s).filter((s) => !out[s]);
+    S.over = { winner: left.length === 1 ? left[0] : null, reason: 'lose', scores: roundScores(K, S, true) };
+  }
+
+  function turnLegal(K, S) {
+    const side = S.side;
+    let out;
+    if (S.links.length) { out = turnMoves(K, S, side, true); out.push({ type: 'pass' }); }
+    else { out = turnMoves(K, S, side, false); out.push({ type: 'end' }); }
+    for (const m of out) {
+      const t = m.target ? ' @' + label(K, S, m.target) : '';
+      m.name = m.type === 'cast' ? 'cast ' + m.card + t : m.type === 'use' ? 'use ' + S.pieces[m.id].kind + '#' + m.id + (m.ab ? '/' + m.ab : '') + t : m.type;
+    }
+    return out;
+  }
+  function turnApply(K, S, m, N) {
+    const side = S.side, Z = N.zones[side];
+    N.acts = (S.acts || 0) + 1;
+    if (N.acts > (K.G.round.cap || 200)) { N.over = { winner: null, reason: 'loop' }; return N; }
+    const pay = (cost) => { for (const r in cost || {}) { N.pools[side][r] -= cost[r]; if (K.round.refills.indexOf(r) >= 0) spend(N, side, r, cost[r]); } };
+    if (m.type === 'cast') {
+      const c = derive(K, N, m.id);
+      pay(c.cost);
+      Z.hand.splice(Z.hand.indexOf(m.id), 1);
+      N.pieces[m.id].zone = 'chain';
+      N.links.push({ side, src: m.id, card: true, ab: -1, target: m.target || null, power: 0 });
+      fire(K, N, 'foe-casts', { side });
+    } else if (m.type === 'use') {
+      const ab = derive(K, N, m.id).abilities[m.ab];
+      if (ab.act.exhaust) N.pieces[m.id].ready = false;
+      pay(ab.act.cost);
+      N.links.push({ side, src: m.id, card: false, ab: m.ab, target: m.target || null, power: (derive(K, N, m.id).stats || {}).power || 0 });
+    } else if (m.type === 'pass') {
+      N.passed[side] = true;
+      const h = nextStop(K, N, side);
+      if (h >= 0) { N.side = h; return N; }
+      resolveTop(K, N);
+      N.passed = K.players.map(() => false);
+      if (settleChain(K, N, -1)) resume(K, N);
+      return N;
+    } else if (m.type === 'end') {
+      // a refilled pool left while something could still be paid from it is idle
+      const could = turnMoves(K, S, side, false);
+      for (const r of K.round.refills) if ((S.pools[side][r] || 0) > 0 && could.some((x) => { const c = x.type === 'cast' ? derive(K, S, x.id).cost : derive(K, S, x.id).abilities[x.ab].act.cost; return c && c[r] > 0; })) spend(N, side, r, S.pools[side][r], true);
+      N.phase += 1;
+      N.ran = false;
+      enterPhase(K, N);
+      return N;
+    }
+    N.passed = K.players.map(() => false);
+    if (settleChain(K, N, side)) resume(K, N);
+    return N;
+  }
+
+  // a turn game's view: each other player's hand dealt again from its hand and its deck; the viewer's deck reordered
+  function turnView(K, N, side) {
+    N.zones.forEach((Z, s) => {
+      if (s === side) { shuffle(N, Z.deck); return; }
+      const ids = Z.hand.concat(Z.deck), kinds = shuffle(N, ids.map((id) => N.pieces[id].kind));
+      ids.forEach((id, i) => { N.pieces[id].kind = kinds[i]; });
+    });
     return N;
   }
 
@@ -2045,7 +2349,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores, derive, kindsOf, held, utilization, roundScores };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores, derive, kindsOf, held, utilization, roundScores, phaseNow };
 }
 
 const _tabletop = buildTabletop();

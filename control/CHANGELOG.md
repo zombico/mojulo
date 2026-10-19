@@ -253,6 +253,33 @@ in CSS 3D. In progress:
   and hard beats easy 9 of 10 worker games; the computer beats random play in every round paradigm; chess,
   enclosure, tiles, drafting and the island games replay move for move as before; perft unchanged; the kernel grew
   to 103,295 bytes (from 85,992) and the mind to 31,575 (from 24,059).
+- **The engine, stage 3: a player's own turn, the chain, the initiative and triggers**, built. A round game may give
+  each seat a turn of its own (`round.turn`): auto phases acting for the player whose turn it is (ready its objects,
+  a pool that grows by one each turn and is refilled, what was left gone; a draw; damage mended) and an active phase
+  where it casts cards and uses abilities. Players have a deck, a hand, a discard and a field. A summon enters the
+  field exhausted; a spell resolves and goes to the discard; an ability may exhaust its object and cost from a pool.
+  Everything cast or used goes on the chain, resolved last in, first out. After a link goes on, the initiative passes
+  round, but only to a player who can answer (a fast card it can pay for, a fast ability), never to the one whose own
+  link is on top; when all have passed the top link resolves, and with nobody able to answer, links resolve at once,
+  so neither a person nor the computer is asked to pass for nothing. Triggers (enters, dies, at its controller's turn
+  start, when a foe casts) go on after each action, the active player's first. Checks between actions: damage
+  reaching guard kills, a player at the floor of its `lose` pool loses. One target chosen at casting, skipped if gone
+  by resolution; a counter cancels the spell beneath it; an ability's power is the source's as it was when used. A
+  loop guard: past `cap` actions in a turn or a hundred links, a draw. Energy left at a turn's end while a card could
+  have been paid for is idle (utilization). The overlooking dial now holds for the whole turn, decided by a hash of
+  the game, the turn, the seat and the option (a forgotten card stays forgotten), so in the deck game hard beats easy
+  10 of 10 (95 per cent used against 70). The computer: a duel planner that plays each move and settles the chain
+  before weighing the seat (life, the field's power and guard, the hand), and Monte Carlo tree search for any game,
+  seeded and bounded by playouts, each from a fresh determinization of its own view, opt in by `search: 'mcts'`. A
+  fixture by principle, a response duel (summons, spells, fast answers, a fast ability, four kinds of trigger, a
+  counter, strikes), and the round page grown for it (fields, the chain top first, targets, answer or pass). Machine
+  gates: forty random duels keep every invariant (each card in one zone, its zone its list, the chain's cards nowhere
+  else, no negative pool, no stall); the duel planner beats random play 11 of 12 and hard beats easy 9 of 12; search
+  wins 4 of 10 against the planner at about 67 ms a move (it stays opt in); every other mode replays move for move
+  except where the dial plays (deck building, worker placement); perft unchanged; the kernel grew to 120,163 bytes
+  and the mind to 38,442. A test now refuses two top-level declarations of one name in either closure (a second
+  `settle` had silently replaced the first). Re-expressing the existing modes' turn loops as phases was dropped: none
+  needs a response window.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

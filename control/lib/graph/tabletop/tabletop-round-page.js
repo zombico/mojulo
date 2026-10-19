@@ -2,7 +2,10 @@
  * THE ROUND PAGE — a round game (the tabletop kernel's rounds) against the computers, on a flat table: the spaces with
  * the workers on them, lit where one may go; the lot up for bids and the bids to make; the hand to pick from; each
  * seat's pools, workers and tableau; every seat's points as the game scores them now and its utilization (the share of
- * what it could spend that it spent); a log. A sealed choice shows only that it was made, until all are revealed.
+ * what it could spend that it spent); a log. A sealed choice shows only that it was made, until all are revealed. A
+ * game of turns (a duel) adds each seat's field (summons with their power and guard, damage taken, exhausted ones
+ * turned), the chain top first, the cards it can cast and the abilities it can use lit (a choice of targets as
+ * buttons), and a window's question: answer, or pass.
  *
  *   roundPageHtml(G, L, K, { human, level, seed, title }) → html   (tabletopPageHtml sends a round game here)
  */
@@ -65,6 +68,15 @@ export function roundPageHtml(G, L, K, opts = {}) {
   .c.small .tg,.c.small .fx{display:none}
   .c.go{cursor:pointer;box-shadow:0 0 0 3px #6fcf8f,0 2px 0 rgba(0,0,0,.35)}
   .c.go:hover{transform:translateY(-3px)}
+  .c.spent{opacity:.6;transform:rotate(-7deg)}
+  .c.picked{box-shadow:0 0 0 3px #e0b84a,0 2px 0 rgba(0,0,0,.35)}
+  .c .cc{position:absolute;right:5px;top:13px;min-width:18px;height:18px;border-radius:9px;background:#5a7ac4;color:#fff;font-weight:700;text-align:center;line-height:18px;font-size:11px;padding:0 4px}
+  .c .st{position:absolute;right:5px;bottom:5px;font-weight:700;background:#2b2622;color:#fbf7ee;border-radius:8px;padding:0 6px;font-size:12px}
+  .c .st.hurt{background:#c4362a}
+  .c .fx{font-size:11px;line-height:1.25;max-height:62px;overflow:hidden}
+  #chain{display:flex;flex-direction:column;gap:4px}
+  .link{background:rgba(255,255,255,.12);border-radius:6px;padding:3px 8px;font-size:13px}
+  .link:first-child{background:rgba(224,184,74,.3)}
   .chip{display:inline-block;background:rgba(255,255,255,.14);border-radius:10px;padding:0 8px;margin:0 4px 2px 0;font-size:12px}
   .seatrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px}
   .seatrow .who{display:flex;align-items:center;gap:6px;font-weight:600;min-width:90px}
@@ -93,13 +105,15 @@ export function roundPageHtml(G, L, K, opts = {}) {
     <div class="zone" id="others"></div>
     <div class="zone" id="spaces-zone"><h2>Spaces</h2><div class="row" id="spaces"></div></div>
     <div class="zone" id="lot-zone"><h2>Up for bids</h2><div class="row" id="lot"></div></div>
+    <div class="zone" id="chain-zone"><h2>The chain (top first)</h2><div id="chain"></div></div>
+    <div class="zone" id="field-zone"><h2>Your field</h2><div class="row" id="field"></div></div>
     <div class="zone" id="hand-zone"><h2>Your hand</h2><div class="row" id="hand"></div></div>
     <div class="zone" id="tableau-zone"><h2>Your tableau</h2><div class="row" id="tableau"></div></div>
     <div class="zone" id="mine"></div>
   </div>
   <aside>
     <div class="card"><div id="prompt"></div><div id="acts"></div></div>
-    <div class="card"><h2>Points</h2><div id="seats"></div></div>
+    <div class="card"><h2 id="seats-h">Points</h2><div id="seats"></div></div>
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
   </aside>
 </main>
@@ -120,7 +134,8 @@ export function tabletopRoundClient(D, T, M) {
   const colour = (s) => D.G.players[s].colour || '#888';
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const name = (s) => K.players[s].id;
-  let S, legal, busy = false, level = D.level, log = [], turns = 0;
+  let S, legal, busy = false, level = D.level, log = [], turns = 0, choosing = null;
+  const duel = !!R.turn, L0 = R.lose && R.lose.pool;
 
   const pool = (o) => Object.keys(o || {}).filter((r) => o[r]).map((r) => o[r] + ' ' + r).join(', ');
   function gives(list) {
@@ -137,23 +152,53 @@ export function tabletopRoundClient(D, T, M) {
   const meeple = (s) => D.icon
     ? '<svg viewBox="0 0 24 24" width="20" height="20"><path d="' + D.icon + '" fill="' + colour(s) + '" stroke="#1a1512" stroke-width="1"/></svg>'
     : '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="' + colour(s) + '" stroke="#1a1512"/></svg>';
+  // what a duel card does, in words, from its effects and abilities
+  function effectText(list) {
+    return (list || []).map((e) => {
+      const to = e.to === 'target' ? (e.of === 'summon' ? 'a summon' : e.of === 'foe-summon' ? 'a foe summon' : e.of === 'player' ? 'a player' : 'any') : e.to === 'foe' ? 'foe' : e.to === 'self' ? 'you' : e.to === 'foe-summons' ? 'foe summons' : '';
+      if (e.damage !== undefined) return (e.damage === 'power' ? 'power' : e.damage) + ' dmg → ' + to;
+      if (e.destroy) return 'destroy ' + to;
+      if (e.exhaust) return 'exhaust ' + to;
+      if (e.draw) return 'draw ' + e.draw;
+      if (e.get) return 'gain ' + pool(e.get);
+      if (e.counter) return 'cancel a spell';
+      return '';
+    }).filter(Boolean).join(', ');
+  }
+  function duelText(t) {
+    const out = [];
+    if (t.fast) out.push('fast');
+    if (t.do) out.push(effectText(t.do));
+    for (const ab of t.abilities || []) {
+      if (ab.act) out.push((ab.act.exhaust ? '⟳' : 'use') + (ab.fast ? ' fast' : '') + ': ' + effectText(ab.do));
+      else out.push({ enters: 'enters', dies: 'dies', turn: 'turn start', 'foe-casts': 'foe casts' }[ab.when] + ': ' + effectText(ab.do));
+    }
+    return out.join('; ');
+  }
   function cardHtml(id, o) {
     o = o || {};
-    const t = T.derive(K, S, id), tags = t.tags || {};
-    const fx = [t.points ? t.points + ' point' + (t.points > 1 ? 's' : '') : ''].filter(Boolean).join(', ');
-    return '<div class="c' + (o.small ? ' small' : '') + (o.go ? ' go' : '') + '"' + (o.data ? ' ' + o.data : '') + '>'
-      + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div><div class="nm">' + esc(t.name || t.kind) + '</div>'
+    const t = T.derive(K, S, id), tags = t.tags || {}, ob = S.pieces[id];
+    const fx = duel ? duelText(t) : [t.points ? t.points + ' point' + (t.points > 1 ? 's' : '') : ''].filter(Boolean).join(', ');
+    const st = t.stats && t.stats.guard !== undefined ? '<div class="st' + (ob.damage ? ' hurt' : '') + '">' + (t.stats.power || 0) + '/' + (t.stats.guard - (ob.zone === 'field' ? ob.damage || 0 : 0)) + '</div>' : '';
+    const cost = duel && t.cost ? '<div class="cc">' + Object.values(t.cost).reduce((a, b) => a + b, 0) + '</div>' : '';
+    return '<div class="c' + (o.small ? ' small' : '') + (o.go ? ' go' : '') + (ob.zone === 'field' && ob.ready === false ? ' spent' : '') + (o.picked ? ' picked' : '') + '"' + (o.data ? ' ' + o.data : '') + ' title="' + esc((t.name || t.kind) + (fx ? ': ' + fx : '')) + '">'
+      + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div><div class="nm">' + esc(t.name || t.kind) + '</div>' + cost
       + (fx ? '<div class="fx">' + esc(fx) + '</div>' : '')
       + (Object.keys(tags).length ? '<div class="tg">' + esc(Object.keys(tags).map((k) => k + ' ' + tags[k]).join(' · ')) + '</div>' : '')
-      + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
+      + st + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
+  }
+  const targetName = (t) => (t.p !== undefined ? name(t.p) : (S.pieces[t.o] ? (K.defs[S.pieces[t.o].kind].name || S.pieces[t.o].kind) : '?'));
+  function linkText(l) {
+    const src = S.pieces[l.src], what = K.defs[src.kind].name || src.kind;
+    return name(l.side) + ': ' + what + (l.card ? '' : l.trigger ? ' (trigger)' : ' (ability)') + (l.target ? ' → ' + targetName(l.target) : '');
   }
   // a tableau shown once a kind, counted
   const stack = (ids) => { const by = {}, first = {}; for (const id of ids) { const k = S.pieces[id].kind; by[k] = (by[k] || 0) + 1; if (first[k] === undefined) first[k] = id; } return Object.keys(by).sort().map((k) => [first[k], by[k]]); };
   const crew = (s) => S.pieces.filter((o) => o.side === s && o.kind === wkind && (o.zone === 'home' || o.zone === 'space'));
   // past the last phase once the game is over: the last one stands
-  const phase = () => R.phases[Math.min(S.phase, R.phases.length - 1)];
+  const phase = () => T.phaseNow(K, S) || (R.phases || R.turn)[(R.phases || R.turn).length - 1];
 
-  function reset() { S = T.start(K); busy = false; log = []; turns = 0; step(); }
+  function reset() { S = T.start(K); busy = false; log = []; turns = 0; choosing = null; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -171,7 +216,14 @@ export function tabletopRoundClient(D, T, M) {
     S = T.apply(K, S, m);
     turns++;
     if (m.type === 'place') note(who, 'sends a worker to ' + (R.spaces[m.space].name || m.space));
-    if (m.type === 'pass') note(who, 'keeps its workers home');
+    if (m.type === 'pass' && !duel) note(who, 'keeps its workers home');
+    if (duel) {
+      if (m.type === 'cast') note(who, 'casts ' + (K.defs[m.card].name || m.card) + (m.target ? ' → ' + targetName(m.target) : ''));
+      if (m.type === 'use') note(who, 'uses ' + (K.defs[before.pieces[m.id].kind].name || before.pieces[m.id].kind) + (m.target ? ' → ' + targetName(m.target) : ''));
+      if (m.type === 'pass') note(who, 'lets it resolve');
+      before.zones.forEach((Z, s) => { for (const id of Z.field) if (S.pieces[id].zone !== 'field') note(-1, name(s) + '\'s ' + (K.defs[S.pieces[id].kind].name || S.pieces[id].kind) + ' dies'); });
+      if (L0) S.pools.forEach((p, s) => { const d = p[L0] - before.pools[s][L0]; if (d) note(-1, name(s) + ' ' + (d > 0 ? '+' : '') + d + ' ' + L0); });
+    }
     if ((m.type === 'bid' || m.type === 'pick') && before.sealed.filter((c) => c === null).length === 1) {
       // the last sealed choice: all revealed
       const chose = before.sealed.map((c, s) => (s === who ? (m.type === 'bid' ? { n: m.n } : { card: m.card }) : c));
@@ -198,8 +250,14 @@ export function tabletopRoundClient(D, T, M) {
         + (Y.hand.length ? '<span class="chip">hand ' + Y.hand.length + '</span>' : '')
         + (S.sealed[s] !== null && S.sealed[s] !== undefined ? '<span class="sealed">has chosen</span>' : '')
         + (Y.tableau.length ? '<span class="row">' + stack(Y.tableau).map(([id, n]) => cardHtml(id, { small: true, n })).join('') + '</span>' : '')
+        + (duel && Y.field.length ? '<span class="row">' + Y.field.map((id) => cardHtml(id, { small: true })).join('') + '</span>' : '')
         + '</div>';
     }).join('');
+    // a duel's chain, the person's field and what it can do there
+    $('chain-zone').style.display = duel && S.links.length ? '' : 'none';
+    if (duel) $('chain').innerHTML = S.links.slice().reverse().map((l) => '<div class="link">' + esc(linkText(l)) + '</div>').join('');
+    $('field-zone').style.display = duel ? '' : 'none';
+    if (duel) $('field').innerHTML = Z.field.map((id) => cardHtml(id, { go: go && legal.some((m) => m.type === 'use' && m.id === id), picked: choosing && choosing[0].id === id, data: 'data-obj="' + id + '"' })).join('');
     // the spaces: their workers, lit where one of the person's may go
     const sp = R.spaces || {};
     $('spaces-zone').style.display = Object.keys(sp).length ? '' : 'none';
@@ -214,7 +272,8 @@ export function tabletopRoundClient(D, T, M) {
     $('lot-zone').style.display = P.move === 'bid' && S.lots.length ? '' : 'none';
     $('lot').innerHTML = S.lots.map((id) => cardHtml(id)).join('');
     $('hand-zone').style.display = Z.hand.length ? '' : 'none';
-    $('hand').innerHTML = Z.hand.map((id) => cardHtml(id, { go: go && P.move === 'pick', data: 'data-card="' + id + '"' })).join('');
+    const castable = (id) => legal.some((m) => m.type === 'cast' && m.card === S.pieces[id].kind);
+    $('hand').innerHTML = Z.hand.map((id) => cardHtml(id, { go: go && (duel ? castable(id) : P.move === 'pick'), picked: choosing && choosing[0].type === 'cast' && choosing[0].card === S.pieces[id].kind, data: 'data-card="' + id + '"' })).join('');
     $('tableau-zone').style.display = Z.tableau.length ? '' : 'none';
     $('tableau').innerHTML = stack(Z.tableau).map(([id, n]) => cardHtml(id, { n })).join('');
     const w = crew(me);
@@ -231,7 +290,17 @@ export function tabletopRoundClient(D, T, M) {
     let prompt;
     if (S.over) prompt = S.over.winner === me ? 'You win!' : S.over.winner === null ? 'A draw' : name(S.over.winner) + ' wins';
     else if (S.side !== me) prompt = name(S.side) + (P.who === 'together' ? ' is choosing…' : ' is playing…');
-    else if (P.move === 'place') {
+    else if (duel && choosing) {
+      prompt = 'Choose a target';
+      for (const m of choosing) acts.appendChild(button('→ ' + targetName(m.target), () => { choosing = null; play(m); }, go));
+      acts.appendChild(button('Cancel', () => { choosing = null; render(); }, true));
+    } else if (duel && S.links.length) {
+      prompt = 'Answer ' + linkText(S.links[S.links.length - 1]) + '?';
+      acts.appendChild(button('Pass', () => play(legal.find((m) => m.type === 'pass')), go));
+    } else if (duel) {
+      prompt = 'Your turn: cast, use your summons, or end it';
+      acts.appendChild(button('End turn', () => play(legal.find((m) => m.type === 'end')), go));
+    } else if (P.move === 'place') {
       prompt = legal.some((m) => m.type === 'place') ? 'Send a worker to a space' : 'Nowhere left to go';
       const pass = legal.find((m) => m.type === 'pass');
       if (pass) acts.appendChild(button(legal.length > 1 ? 'Keep the rest home' : 'Pass', () => play(pass), go));
@@ -244,7 +313,7 @@ export function tabletopRoundClient(D, T, M) {
     $('status').textContent = S.over ? prompt : 'Round ' + (S.round + 1) + ' of ' + R.rounds + ' · ' + (P.id || P.move);
     $('seats').innerHTML = K.players.map((p, s) => {
       const u = T.utilization(K, S, s);
-      return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + sc[s] + ' pts' + (u ? ' <small>· used ' + Math.round(u.share * 100) + '%</small>' : '') + '</span></div>';
+      return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><i class="sw" style="background:' + colour(s) + '"></i> ' + esc(p.id) + (s === me ? ' (you)' : '') + '</span><span>' + (duel && L0 && !S.over ? S.pools[s][L0] + ' ' + L0 : sc[s] + ' pts') + (u ? ' <small>· used ' + Math.round(u.share * 100) + '%</small>' : '') + '</span></div>';
     }).join('');
     $('log').innerHTML = log.join('');
     $('log').scrollTop = 1e6;
@@ -254,8 +323,14 @@ export function tabletopRoundClient(D, T, M) {
     if (!mine()) return;
     const sp = e.target.closest('.sp'), c = e.target.closest('.c');
     if (sp) play(legal.find((m) => m.type === 'place' && m.space === sp.dataset.space));
-    else if (c && c.dataset.card !== undefined) { const id = +c.dataset.card; play(legal.find((m) => m.type === 'pick' && m.id === id) || legal.find((m) => m.type === 'pick' && m.card === S.pieces[id].kind)); }
+    else if (duel && c) {
+      // a card cast, or a summon's ability used: one way, played; several (targets), chosen in the panel
+      const list = c.dataset.card !== undefined ? legal.filter((m) => m.type === 'cast' && m.card === S.pieces[+c.dataset.card].kind)
+        : c.dataset.obj !== undefined ? legal.filter((m) => m.type === 'use' && m.id === +c.dataset.obj) : [];
+      if (list.length === 1) { choosing = null; play(list[0]); } else if (list.length) { choosing = list; render(); }
+    } else if (c && c.dataset.card !== undefined) { const id = +c.dataset.card; play(legal.find((m) => m.type === 'pick' && m.id === id) || legal.find((m) => m.type === 'pick' && m.card === S.pieces[id].kind)); }
   });
+  if (duel && L0) $('seats-h').textContent = L0.charAt(0).toUpperCase() + L0.slice(1);
   $('level').onchange = (e) => { level = e.target.value; };
   $('again').onclick = () => reset();
   reset();

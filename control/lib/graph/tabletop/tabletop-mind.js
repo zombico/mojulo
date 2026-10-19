@@ -423,7 +423,7 @@ export function buildTabletopMind(T) {
       scored = moves.map((m) => { const N = T.apply(K, V, m); return { m, v: cardWorth(K, N, side) - (N.over ? 0 : 0.5 * next(N)) }; });
     } else {
       // a weaker computer overlooks some of what it could spend this turn (a card to play, a buy)
-      const seen = V.pending.length ? moves : overlook(moves, (m) => m.type === 'play' || m.type === 'buy', o.use, roll);
+      const seen = V.pending.length ? moves : overlook(K, S, moves, (m) => m.type === 'play' || m.type === 'buy', o.use);
       const plays = V.pending.length ? [] : seen.filter((m) => m.type === 'play');
       if (plays.length) {
         scored = plays.map((m) => {
@@ -444,13 +444,27 @@ export function buildTabletopMind(T) {
 
   // ── utilization ───────────────────────────────────────────────────────────────────────────────────────────────
   // A level's `use` (0 to 1) is how often an option that spends the turn's capacity is seen at all: each is overlooked
-  // with probability 1 − use, from the mind's own dice. With every spender overlooked the mind keeps what is left: it
-  // idles where idling is allowed (ends the turn, passes) and, where spending is forced, chooses among all of them as
-  // though blind to their worth (a misplacement). At 1 nothing is overlooked and no dice are spent.
+  // with probability 1 − use, and stays overlooked for the rest of that turn (the way a player forgets the card in
+  // hand, not for a moment but until the turn is gone). Whether an option is seen is a hash of the game's seed, the
+  // turn, the seat and the option's name, so it holds across the turn's decisions whatever seed each is given. With
+  // every spender overlooked the mind keeps what is left: it idles where idling is allowed (ends the turn, passes)
+  // and, where spending is forced, chooses among all of them as though blind to their worth (a misplacement). At 1
+  // nothing is overlooked.
+  function turnKey(K, S) {
+    if (K.round) return S.round * 64 + (S.part === 'turn' ? 32 + (S.seat || 0) : 0);
+    return S.turn;
+  }
+  function seen01(text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    h ^= h >>> 15; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 13;
+    return (h >>> 0) / 4294967296;
+  }
   // the moves seen: may be none, when every move spends and every one was overlooked
-  function overlook(moves, spends, use, roll) {
+  function overlook(K, S, moves, spends, use) {
     if (!(use < 1)) return moves;
-    return moves.filter((m) => !spends(m) || roll() < use);
+    const key = (K.G.seed || 1) + '|' + turnKey(K, S) + '|' + S.side + '|';
+    return moves.filter((m) => !spends(m) || seen01(key + m.name) < use);
   }
 
   // ── rounds ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -508,14 +522,14 @@ export function buildTabletopMind(T) {
   function planRounds(K, S, o) {
     const real = T.legal(K, S);
     if (!real.length) return null;
-    const R = K.G.round, P = R.phases[S.phase], side = S.side, V = T.view(K, S, side, o.seed);
+    const R = K.G.round, P = T.phaseNow(K, S), side = S.side, V = T.view(K, S, side, o.seed);
     const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
     const moves = T.legal(K, V);
     const holding = (N, s, id) => Object.assign({}, N, { zones: N.zones.map((Z, i) => (i === s ? Object.assign({}, Z, { tableau: Z.tableau.concat([id]) }) : Z)) });
     const gain = (N, s, id) => { const a = T.roundScores(K, holding(N, s, id), false)[s], b = T.roundScores(K, N, false)[s]; return a - b; };
     let scored;
     if (P.move === 'place') {
-      const seen = overlook(moves, (m) => m.type === 'place', o.use, roll), blind = !seen.length;
+      const seen = overlook(K, S, moves, (m) => m.type === 'place', o.use), blind = !seen.length;
       scored = (blind ? moves : seen).map((m) => ({ m, v: blind ? 0 : roundWorth(K, T.apply(K, V, m), side) + (m.type === 'place' ? TEMPO : 0) }));
     } else if (P.move === 'bid') {
       const lot = V.lots[0], p = V.round / R.rounds, coin = (1 - p) * 0.8 + p * (1 / ((R.score || []).reduce((a, sc) => (sc.pools && sc.pools[K.round.bid]) || a, 3)));
@@ -544,9 +558,117 @@ export function buildTabletopMind(T) {
     return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
   }
 
+  // ── a player's turn: casts, abilities, the chain ─────────────────────────────────────────────────────────────
+  // A seat's worth in a duel: its life, what its field brings (power counts most: it strikes every turn; guard, its
+  // damage taken off; a little for each ability), the cards in its hand; less the best other seat's.
+  function duelWorth(K, S, side) {
+    if (S.over) return S.over.winner === side ? WIN : S.over.winner === null ? 0 : -WIN;
+    const L = K.G.round.lose;
+    const seat = K.players.map((_, s) => {
+      let v = L ? S.pools[s][L.pool] : 0;
+      for (const id of S.zones[s].field) {
+        const c = T.derive(K, S, id), st = c.stats || {};
+        v += 1 + 1.5 * (st.power || 0) + 0.5 * Math.max(0, (st.guard || 0) - (S.pieces[id].damage || 0)) + 0.5 * (c.abilities || []).length;
+      }
+      return v + 0.8 * S.zones[s].hand.length;
+    });
+    let other = -Infinity;
+    for (let s = 0; s < seat.length; s++) if (s !== side) other = Math.max(other, seat[s]);
+    return seat[side] - other;
+  }
+  // the chain run out with nobody answering again: what a move comes to if the table lets it resolve
+  function settled(K, N) {
+    for (let guard = 0; !N.over && N.links.length && guard < 200; guard++) N = T.apply(K, N, T.legal(K, N).find((m) => m.type === 'pass'));
+    return N;
+  }
+  // a duel's choice from the mind's own view: each move played, the chain settled, the seat's worth weighed
+  function planDuel(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    const side = S.side, V = T.view(K, S, side, o.seed);
+    const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
+    const moves = T.legal(K, V);
+    const spends = (m) => m.type === 'cast' || m.type === 'use';
+    const cost = (m) => { const c = m.type === 'cast' ? T.derive(K, V, m.id).cost : T.derive(K, V, m.id).abilities[m.ab].act.cost; return Object.values(c || {}).reduce((a, b) => a + b, 0); };
+    const scored = overlook(K, S, moves, spends, o.use).map((m) => ({ m, v: duelWorth(K, settled(K, T.apply(K, V, m)), side) + (spends(m) ? TEMPO * (1 + cost(m)) : 0) }));
+    const top = Math.max.apply(null, scored.map((x) => x.v));
+    const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
+    const pick = near[Math.floor(roll() * near.length)];
+    return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
+  }
+
+  // ── Monte Carlo tree search ───────────────────────────────────────────────────────────────────────────────────
+  // The third mind, for any game the kernel plays: `playouts` times, a fresh determinization of the mind's own view
+  // (the kernel's `view`, so it never sees a hidden card or the dice ahead), a walk down the tree by UCB (children
+  // keyed by move name, each counted as available whenever its move was legal, so a move legal only in some deals is
+  // not starved), one new node, then a playout of `horizon` moves (one that acts is preferred to one that ends a turn
+  // or passes) scored by the game's own worth for every seat, squashed to 0..1 (a win 1, a loss 0). The move most
+  // visited is played. Seeded and bounded by a count, never a clock.
+  const MCTS = { playouts: 160, horizon: 6, explore: 0.9, scale: 6 };
+  function worthOf(K, S, side) {
+    if (K.round) return K.G.round.turn ? duelWorth(K, S, side) : roundWorth(K, S, side);
+    if (K.card) return cardWorth(K, S, side);
+    if (K.tile) return tileWorth(K, S, side);
+    if (K.euro) return seat(K, S, side);
+    return evaluate(K, S, side);
+  }
+  function rewards(K, N, scale) {
+    if (N.over) return K.players.map((_, s) => (N.over.winner === s ? 1 : N.over.winner === null ? 0.5 : 0));
+    return K.players.map((_, s) => 1 / (1 + Math.exp(-worthOf(K, N, s) / scale)));
+  }
+  function mcts(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    if (real.length === 1) return { move: real[0], score: 0, depth: 0, nodes: 0 };
+    const side = S.side, roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side ^ 0x5bd1);
+    const P = Object.assign({}, MCTS, o.mcts || {});
+    const root = { visits: 0, kids: {} };
+    const quiet = (m) => m.type === 'end' || m.type === 'pass' || m.type === 'skip';
+    for (let i = 0; i < P.playouts; i++) {
+      let N = T.view(K, S, side, (o.seed * 7919 + i * 104729) | 0), node = root;
+      const path = [];
+      while (!N.over) {
+        const moves = T.legal(K, N);
+        if (!moves.length) break;
+        for (const x of moves) if (node.kids[x.name]) node.kids[x.name].avail += 1;
+        const fresh = moves.filter((x) => !node.kids[x.name]);
+        let m;
+        if (fresh.length) {
+          m = fresh[Math.floor(roll() * fresh.length)];
+          node.kids[m.name] = { visits: 0, value: 0, avail: 1, kids: {} };
+        } else {
+          let best = -Infinity;
+          for (const x of moves) {
+            const c = node.kids[x.name], u = c.value / c.visits + P.explore * Math.sqrt(Math.log(c.avail) / c.visits);
+            if (u > best) { best = u; m = x; }
+          }
+        }
+        const mover = N.side;
+        N = T.apply(K, N, m);
+        node = node.kids[m.name];
+        path.push({ node, mover });
+        if (node.visits === 0) break;
+      }
+      for (let d = 0; !N.over && d < P.horizon; d++) {
+        const L = T.legal(K, N);
+        if (!L.length) break;
+        const act = L.filter((x) => !quiet(x)), pool = act.length && roll() < 0.75 ? act : L;
+        N = T.apply(K, N, pool[Math.floor(roll() * pool.length)]);
+      }
+      const r = rewards(K, N, P.scale);
+      for (const p of path) { p.node.visits += 1; p.node.value += r[p.mover]; }
+      root.visits += 1;
+    }
+    let best = null;
+    for (const m of real) { const c = root.kids[m.name]; if (c && (!best || c.visits > best.c.visits)) best = { m, c }; }
+    if (!best) return { move: real[0], score: 0, depth: 0, nodes: root.visits };
+    return { move: best.m, score: best.c.value / best.c.visits, depth: 1, nodes: root.visits };
+  }
+
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4, use: 1 }, opts || {});
-    if (K.round) return planRounds(K, S, o);
+    if (o.search === 'mcts') return mcts(K, S, o);
+    if (K.round) return K.G.round.turn ? planDuel(K, S, o) : planRounds(K, S, o);
     if (K.card) return planCards(K, S, o);
     if (K.tile) return planTiles(K, S, o);
     if (K.euro) return planTurn(K, S, o);
