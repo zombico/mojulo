@@ -21,9 +21,12 @@ and at most one unit. From any state the board lists every legal move, so a play
 tactics (in the manner of Final Fantasy Tactics) and tower defence share it. A board lies over a geocube's level,
 indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only. In progress:
 
-- **The genre sweep asks for it.** Probes for a tactics game and a real-time strategy game, and registry values
-  for the board, the tactical camera, tactics combat and RTS orders, all unbuilt so far. On
-  `docs/tool-surface/hillclimb.md` the board ranks first by worlds lifted per unit of work.
+- **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
+  registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
+  (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
+  defence's placement (`systems: maze`) and the summons. The tactics probe asks for FFT's whole shape and is
+  makeable; the real-time strategy probe waits only on unit orders (`systems: orders`). Re-swept on
+  `docs/tool-surface/hillclimb.md`: more rolled worlds makeable, the board no longer the top gap.
 
 - **The board kernel** (`lib/graph/board/board-kernel.js`), built: square spots with heights and terrain types, one
   unit a spot; reach by move and jump (through allies, never foes); aim (a diamond or a line, between a reach's

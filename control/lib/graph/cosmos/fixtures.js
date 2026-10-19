@@ -300,14 +300,14 @@ export const FIXTURES = Object.freeze([
     id: 'tactics',
     name: 'Tactics role-playing game',
     anchor: false,
-    why: 'a party of classed units on a board of spots, a turn each on a charge-time clock: move, act, face; height and facing count',
+    why: 'a party of classed units on a board of spots, a turn each on a charge-time clock: move, act, face; height and facing count; chapters travelled from a map, scenes told on the board, summons',
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'tactical', board: 'spots', levelForm: 'trail' },
-      power: { combat: ['tactics'], stats: ['xp', 'level'], systems: ['equip'] },
+      power: { combat: ['tactics'], stats: ['xp', 'level'], systems: ['equip'], summons: ['inferno'] },
       soul: { party: 'party' },
       mind: { squad: 'team-aware' },
-      time: { progression: 'linear' },
+      time: { progression: 'map', chapters: 'epochs', shots: ['board', 'banter'] },
     },
   },
   {

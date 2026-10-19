@@ -13,6 +13,7 @@ export const GENERATED = Object.freeze({
   "power.rules": Object.freeze({"lowers":"lib/graph/worlds/controllable/compose.js#engineRules","values":["glide","walk","follow","fixed","clock","mover","launcher","platform","drive","racer","fly","patrol","ai"],"godot":["walk","follow","platform"]}),
   "power.beams": Object.freeze({"lowers":"lib/graph/playscape/elements/beams.js#BEAMS","values":["orb","serpent","ray","nova","barrage","braid","laser"]}),
   "power.explosions": Object.freeze({"lowers":"lib/graph/playscape/elements/explosions.js#EXPLOSIONS","values":["pop","blast","mushroom","comic","chain","implode"]}),
+  "power.summons": Object.freeze({"lowers":"lib/graph/board/board-battle.js#BOARD_SUMMONS","values":["inferno","glacier","tempest","colossus","wyrm"]}),
   "power.systems": Object.freeze({"lowers":"lib/graph/gameworld/actions.js#SYSTEM_KINDS","values":["resource","stamina","unlock","transform","equip"]}),
   "power.stats": Object.freeze({"lowers":"lib/graph/playscape/stats/stats.js#STAT_THEN","values":["raise","grant","xp","level","buy","buff","unbuff"],"godot":["raise","grant","xp","level","buy","buff","unbuff"]}),
   "power.idiom": Object.freeze({"lowers":"lib/graph/gameworld/actions.js#IDIOMS","values":["metroidvania-like","soulslike","shonen-like","action-adventure-like"]}),

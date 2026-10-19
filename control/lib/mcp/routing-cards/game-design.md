@@ -3,7 +3,7 @@
   "id": "game-design",
   "name": "Design a game — a hero, powers, gear and systems, made by the rail",
   "summary": "A game designed top down, page by page, then made: the hero, its gear, the numbers and the HUD.",
-  "when": "\"make a game where my hero gets stronger\", \"design a character with special abilities\", \"a game with a hero, a skill tree and a HUD\", \"give my hero powers that open new areas\", \"a metroidvania with my own heroine\", \"a soulslike with a stamina bar\", \"weapons and a level-up system for my game\", \"make me a game from this sentence\", \"a full game with several levels\", \"a playable dungeon crawler I walk around in\", \"a dungeon crawler where loot carries between levels\"",
+  "when": "\"make a game where my hero gets stronger\", \"design a character with special abilities\", \"a game with a hero, a skill tree and a HUD\", \"give my hero powers that open new areas\", \"a metroidvania with my own heroine\", \"a soulslike with a stamina bar\", \"weapons and a level-up system for my game\", \"make me a game from this sentence\", \"a full game with several levels\", \"a playable dungeon crawler I walk around in\", \"a dungeon crawler where loot carries between levels\", \"a tactics RPG on a grid like Final Fantasy Tactics\", \"a tower defence where my towers bend the path\"",
   "entry": "design_game",
   "form": "game"
 }

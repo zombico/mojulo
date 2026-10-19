@@ -177,6 +177,9 @@ export const COLLISION_FIXTURE = [
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
+  // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence the quick path's
+  ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
+  ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],

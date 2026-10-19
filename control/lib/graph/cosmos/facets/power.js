@@ -43,14 +43,18 @@ export const POWER = Object.freeze({
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
     explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS' } },
+    // built 10-19 (the strategy board): summoned beings, 3D and animated on the map, called by a summoner's skills
+    summons: { multi: true, source: { module: 'lib/graph/board/board-battle.js', table: 'BOARD_SUMMONS', godot: false } },
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
     systems: {
       multi: true,
       source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' },
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
-      // defence's towers. Free placement anywhere on a grid is not built.
+      // defence's towers. Free placement on a board's spots: maze (10-19).
       planned: {
-        place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+        place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); on any free spot of a board: maze' },
+        // built 10-19 (the strategy board): the maze defence's placement
+        maze: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-td.js', note: 'a tower on any free spot of a board, paid from the purse, where every gate and every walking foe keeps a way to the base: the road bends round the towers (board td; quick defend with board)' },
         // priced 10-19: the real-time strategist's verbs
         orders: { status: 'absent', effort: 'L', requires: ['space.camera=tactical'], ...WEB, note: 'select a unit or a box of them and order it: move, attack-move, hold, a rally point; nothing selects or orders a body the player does not pilot' },
       },
