@@ -56,10 +56,19 @@ export function buildTabletopMind(T) {
   function evaluate(K, S, side) {
     const W = Object.assign({ advance: 0.1, centre: 0.4 }, K.G.mind || {}), mid = centreOf(K);
     let score = 0;
+    // a game that ends by points counts its points, not its pieces' values
+    const scored = !!(K.G.end && K.G.end.score && K.G.end.score.length);
+    if (scored) {
+      const sc = T.scores(K, S);
+      let other = -Infinity;
+      for (let s = 0; s < sc.length; s++) if (s !== side) other = Math.max(other, sc[s]);
+      score += sc[side] - other;
+    }
+    if (K.drops && K.drops.length) score += placementTerms(K, S, side);
     for (const P of S.pieces) {
       if (P.at < 0) continue;
       const kind = K.kinds[P.kind], sign = P.side === side ? 1 : -1;
-      let v = kind.value + (kind.royal ? 0 : W.centre * mid[P.at]);
+      let v = (scored ? 0 : kind.value) + (kind.royal ? 0 : W.centre * mid[P.at]);
       if (kind.promote) {
         const row = K.rows[P.side].of[P.at], last = K.rows[P.side].last;
         v += W.advance * (row - 1) / Math.max(1, last - 1);
@@ -67,6 +76,54 @@ export function buildTabletopMind(T) {
       score += sign * v;
     }
     return score;
+  }
+
+  // what a placement game's own win asks for: open lines toward k, the shortest way left to join two sides, groups with
+  // one empty neighbour left (to be taken next) on either side
+  function placementTerms(K, S, side) {
+    const W = K.G.win || {};
+    let v = 0;
+    const others = K.players.map((_, s) => s).filter((s) => s !== side);
+    if (W.line) {
+      const weigh = (counts) => { let t = 0; for (let c = 1; c < W.line; c++) t += counts[c] * Math.pow(4, c); return t; };
+      v += 0.01 * weigh(T.lineWindows(K, S, side, W.line));
+      for (const o of others) v -= 0.012 * weigh(T.lineWindows(K, S, o, W.line));
+    }
+    if (W.connect) {
+      const mine = T.connectDistance(K, S, side);
+      let theirs = Infinity;
+      for (const o of others) theirs = Math.min(theirs, T.connectDistance(K, S, o));
+      v += 0.6 * (Math.min(theirs, 40) - Math.min(mine, 40));
+    }
+    if (K.G.enclose) {
+      const sides = T.sidesOf(S), seen = {};
+      for (let c = 0; c < sides.length; c++) {
+        if (sides[c] < 0 || seen[c]) continue;
+        const g = T.groupAt(K, sides, c);
+        for (const x of g.cells) seen[x] = 1;
+        if (g.libs === 1) v += (g.side === side ? -0.6 : 0.5) * g.cells.length;
+      }
+    }
+    return v;
+  }
+
+  // a drop game's many cells narrowed to where the play is: drops within two steps of a piece (the middle, on an empty
+  // board), and every move that is not a drop
+  function narrowed(K, S, moves) {
+    if (!K.drops || !K.drops.length || moves.length <= 24) return moves;
+    const near = {};
+    let any = false;
+    for (let c = 0; c < S.board.length; c++) {
+      if (S.board[c] < 0) continue;
+      any = true;
+      for (const j of K.near[c]) { near[j] = 1; for (const x of K.near[j]) near[x] = 1; }
+    }
+    if (!any) {
+      const mid = centreOf(K);
+      return moves.slice().sort((a, b) => (a.drop && b.drop ? mid[b.to] - mid[a.to] : 0)).slice(0, 8);
+    }
+    const kept = moves.filter((m) => !m.drop || near[m.to]);
+    return kept.length ? kept : moves;
   }
 
   // captures first, the dearest taken by the cheapest, then promotions
@@ -249,8 +306,9 @@ export function buildTabletopMind(T) {
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4 }, opts || {});
     if (K.euro) return planTurn(K, S, o);
-    const root = T.legal(K, S);
-    if (!root.length) return null;
+    const all = T.legal(K, S);
+    if (!all.length) return null;
+    const root = narrowed(K, S, all);
     const side = S.side;
     let nodes = 0;
     const STOP = {};
@@ -262,7 +320,7 @@ export function buildTabletopMind(T) {
       const moves = T.legal(K, N);
       const end = T.outcome(K, N, moves);
       if (end) return overScore(end, N.side, ply);
-      let list = moves;
+      let list = narrowed(K, N, moves);
       if (depth <= 0) {
         const stand = evaluate(K, N, N.side);
         if (q <= 0) return stand;

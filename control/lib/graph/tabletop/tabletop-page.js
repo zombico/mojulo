@@ -50,7 +50,11 @@ export function tabletopPageHtml(G, opts = {}) {
 
   // the plan: the board's SVG, its frame for placing pieces
   const frame = latticeSvgFrame(L);
-  const plan = latticeSvg(L, { names: false, ids: true });
+  // named regions tinted, each its own colour, so where a majority counts can be seen
+  const REGION_TINTS = ['#d9c79a', '#a9c7a0', '#c9a7a0', '#a7b6cf', '#cfc0a0', '#b0a7c9', '#a0c9c4', '#cfb1c3'];
+  const fills = {};
+  Object.keys(G.regions || {}).forEach((name, k) => { for (const c of G.regions[name]) fills[c] = REGION_TINTS[k % REGION_TINTS.length]; });
+  const plan = latticeSvg(L, { names: false, ids: true, fills });
 
   // the table: each cell's top and side as a placed div, a token's place on every cell, the cameras turned to the seat
   const turnPt = ([x, y, z]) => [x * Math.cos(turnRad) - y * Math.sin(turnRad), x * Math.sin(turnRad) + y * Math.cos(turnRad), z];
@@ -60,7 +64,7 @@ export function tabletopPageHtml(G, opts = {}) {
     return { name: c.name, matrix, perspective: r2(perspective), center };
   });
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const faces = latticeFaces(L).map((f) => {
+  const faces = latticeFaces(L, { fills }).map((f) => {
     const c = f.corners, u = sub(c[1], c[0]), v = sub(c[3], c[0]);
     const cell = f.group.startsWith('cell:') ? K.T.byName.get(f.group.slice(5)) : -1;
     return { cell, w: r2(Math.hypot(...u) * UNIT), h: r2(Math.hypot(...v) * UNIT), fill: f.fill, clip: f.clip ?? null, t: planeMatrix(c[0], u, v, UNIT) };
@@ -130,7 +134,7 @@ export function tabletopPageHtml(G, opts = {}) {
   <h1>${escapeHtml(title)}</h1>
   <button id="v-plan">Plan</button><button id="v-table">Table</button>
   <select id="level" aria-label="Level">${LEVELS.map((l) => `<option value="${l}"${l === level ? ' selected' : ''}>${l}</option>`).join('')}</select>
-  <button id="undo">Undo</button><button id="again">New game</button>
+  <button id="pass" style="display:none">Pass</button><button id="undo">Undo</button><button id="again">New game</button>
   <span id="status"></span>
 </header>
 <main>
@@ -205,6 +209,10 @@ export function tabletopClient(D, T, M) {
       if (to.length > 1) return pick(to);
     }
     if (S.chain >= 0) return;
+    // a drop: an empty cell the player may place on (a picker when more than one kind may go there)
+    const drops = legal.filter((m) => m.drop && m.to === cell);
+    if (drops.length === 1) return play(drops[0]);
+    if (drops.length > 1) return pick(drops);
     const p = S.board[cell];
     sel = p >= 0 && S.pieces[p].side === me && legal.some((m) => m.from === cell) ? cell : -1;
     render();
@@ -214,7 +222,7 @@ export function tabletopClient(D, T, M) {
     row.innerHTML = '';
     moves.forEach((m) => {
       const b = document.createElement('button');
-      b.textContent = glyph(m.promote || S.pieces[m.p].kind);
+      b.textContent = glyph(m.promote || m.drop || S.pieces[m.p].kind) || m.drop || m.promote;
       b.title = m.name;
       b.onclick = () => { box.style.display = 'none'; play(m); };
       row.appendChild(b);
@@ -224,18 +232,22 @@ export function tabletopClient(D, T, M) {
 
   function status() {
     const end = S.over || T.outcome(K, S, legal);
+    const tally = end && end.scores ? ' ' + end.scores.map((x, s) => K.players[s].id + ' ' + x).join(' · ') : '';
     if (end) {
-      if (end.winner === null) return 'Draw (' + end.reason + ')';
-      return (end.winner === me ? 'You win' : 'The computer wins') + ' (' + end.reason + ')';
+      if (end.winner === null) return 'Draw (' + end.reason + ')' + tally;
+      return (end.winner === me ? 'You win' : 'The computer wins') + ' (' + end.reason + ')' + tally;
     }
     if (S.side !== me) return 'Thinking…';
     const royalHit = K.royal && S.pieces.some((P) => P.at >= 0 && P.side === me && K.kinds[P.kind].royal && K.players.some((_, s) => s !== me && T.attacked(K, S, P.at, s)));
-    return (S.chain >= 0 ? 'Jump again' : 'Your move') + (royalHit ? ', check' : '');
+    const now = K.G.end && K.G.end.score ? ' · ' + T.scores(K, S).map((x, s) => K.players[s].id + ' ' + x).join(' · ') : '';
+    return (S.chain >= 0 ? 'Jump again' : 'Your move') + (royalHit ? ', check' : '') + now;
   }
 
   function render() {
     // where the selected piece may go
-    const targets = sel >= 0 ? legal.filter((m) => m.from === sel) : [];
+    // where the selected piece may go; or, in a drop game with few choices, where a drop may go
+    const dropTo = S.side === me && !busy ? legal.filter((m) => m.drop) : [];
+    const targets = sel >= 0 ? legal.filter((m) => m.from === sel) : dropTo.length && dropTo.length <= 24 ? dropTo : [];
     // the plan
     const P = D.plan, hl = [];
     const ring = (cell, stroke, w) => '<circle cx="' + P.cells[cell][0] + '" cy="' + P.cells[cell][1] + '" r="' + (P.r * 1.12) + '" fill="none" stroke="' + stroke + '" stroke-width="' + w + '"/>';
@@ -289,6 +301,7 @@ export function tabletopClient(D, T, M) {
     $('moves').innerHTML = line.map((x) => '<li>' + (x.side ? x.side + ' ' : '') + x.name + '</li>').join('');
     $('moves').scrollTop = 1e6;
     $('undo').disabled = busy || !line.length;
+    $('pass').style.display = !S.over && S.side === me && !busy && legal.some((m) => m.p < 0 && !m.drop) ? '' : 'none';
     clocks();
   }
   function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -312,6 +325,7 @@ export function tabletopClient(D, T, M) {
   vw.addEventListener('click', (e) => { const c = e.target.closest('[data-cell]'); if (c) click(Number(c.dataset.cell)); });
   $('level').onchange = (e) => { level = e.target.value; };
   $('again').onclick = () => reset();
+  $('pass').onclick = () => { const m = legal.find((x) => x.p < 0 && !x.drop); if (m && !busy && S.side === me) play(m); };
   $('undo').onclick = () => {
     if (busy || !line.length) return;
     // replay all but the person's last turn (and the computer's answer to it)

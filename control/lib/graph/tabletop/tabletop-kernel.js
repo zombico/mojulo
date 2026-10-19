@@ -134,6 +134,7 @@ export function buildTabletop() {
       kinds[id] = { id, rules, value: P.value || 0, royal: !!P.royal, promote: P.promote || null, chainRules: rules.filter((r) => r.chain) };
     }
     const K = { T, L, G, players, sideOf, rows, kinds, memo, royal: !!G.royal, quiet: G.quiet || null, moves: (G.turn && G.turn.moves) || 1 };
+    placementCompile(K);
     if (G.build || G.dice || G.opening) euroCompile(K);
     return K;
   }
@@ -172,6 +173,9 @@ export function buildTabletop() {
     for (const name of from.moved || []) { const p = board[cellOf(name)]; if (p >= 0) pieces[p].moved = 1; }
     for (const mk of from.marks || []) S.marks.push({ kind: mk.kind, cell: cellOf(mk.cell), side: K.sideOf[mk.side], by: board[cellOf(mk.by)] });
     if (K.G.clock) S.clock = K.players.map(() => K.G.clock.base);
+    if (K.G.stock) S.stock = K.players.map(() => Object.assign({}, K.G.stock));
+    S.passes = 0;
+    S.back = null;
     S.trail = { k: key(K, S), prev: null };
     return S;
   }
@@ -311,6 +315,7 @@ export function buildTabletop() {
       const P = S.pieces[p];
       if (P.at >= 0 && P.side === S.side) pieceMoves(K, S, p, K.kinds[P.kind].rules, out);
     }
+    if (K.drops.length) dropMoves(K, S, out);
     return out;
   }
 
@@ -328,12 +333,14 @@ export function buildTabletop() {
     let moves = pseudo(K, S);
     if (K.royal) moves = moves.filter((m) => royalsSafe(K, place(K, S, m), S.side));
     if (K.G.mustCapture && moves.some((m) => m.cap.length)) moves = moves.filter((m) => m.cap.length);
-    if (K.G.turn && K.G.turn.pass && S.chain < 0) moves.push({ p: -1, from: -1, to: -1, r: -1, cap: [], pass: null });
+    const pass = K.G.turn && K.G.turn.pass;
+    if (pass && S.chain < 0 && (pass !== 'stuck' || !moves.length)) moves.push({ p: -1, from: -1, to: -1, r: -1, cap: [], pass: null });
     for (const m of moves) m.name = moveName(K, m);
     return moves;
   }
 
   function moveName(K, m) {
+    if (m.drop) return m.drop + '@' + K.L.cells[m.to].name;
     if (m.p < 0) return 'pass';
     const n = (c) => K.L.cells[c].name;
     return n(m.from) + (m.cap.length ? 'x' : '-') + n(m.to) + (m.promote ? '=' + m.promote : '');
@@ -343,6 +350,11 @@ export function buildTabletop() {
   function place(K, S, m) {
     const board = S.board.slice(), pieces = S.pieces.slice();
     for (const q of m.cap) { board[pieces[q].at] = -1; pieces[q] = Object.assign({}, pieces[q], { at: -1 }); }
+    if (m.drop) {
+      board[m.to] = pieces.length;
+      pieces.push({ kind: m.drop, side: S.side, at: m.to, moved: 0 });
+      for (const c of m.flip || []) pieces[board[c]] = Object.assign({}, pieces[board[c]], { side: S.side });
+    }
     if (m.p >= 0) {
       const P = pieces[m.p];
       board[m.from] = -1;
@@ -371,6 +383,13 @@ export function buildTabletop() {
       const more = pieceMoves(K, Object.assign({}, N, { chain: m.p }), m.p, K.kinds[N.pieces[m.p].kind].chainRules, []);
       if (more.length) N.chain = m.p;
     }
+    if (m.drop && S.stock) {
+      N.stock = S.stock.slice();
+      N.stock[S.side] = Object.assign({}, S.stock[S.side]);
+      N.stock[S.side][m.drop] -= 1;
+    }
+    N.passes = m.p < 0 && !m.drop ? (S.passes || 0) + 1 : 0;
+    if (K.G.enclose) N.back = sidesKey(S);
     const resets = K.quiet && K.quiet.reset ? K.quiet.reset : [];
     const loud = m.cap.length > 0 || (m.p >= 0 && resets.indexOf(S.pieces[m.p].kind) >= 0);
     N.quiet = loud ? 0 : S.quiet;
@@ -410,6 +429,7 @@ export function buildTabletop() {
       else if (K.quiet && N.quiet >= K.quiet.plies) N.over = { winner: null, reason: 'quiet' };
       else if (K.G.cap && N.turn >= K.G.cap) N.over = { winner: null, reason: 'cap' };
     }
+    if (!N.over && (K.G.win || K.G.end)) { const done = placementEnd(K, N, m, S.side); if (done) N.over = done; }
     return N;
   }
 
@@ -418,6 +438,7 @@ export function buildTabletop() {
     if (K.euro) return null;
     const list = moves || legal(K, S);
     if (list.length) return null;
+    if (K.G.end) return scoredEnd(K, S);
     const two = K.players.length === 2, other = two ? 1 - S.side : null;
     if (K.royal) return royalsSafe(K, S, S.side) ? { winner: null, reason: 'stalemate' } : { winner: other, reason: 'mate' };
     return K.G.noMoves === 'draw' ? { winner: null, reason: 'no-moves' } : { winner: other, reason: 'no-moves' };
@@ -433,6 +454,248 @@ export function buildTabletop() {
       n += N.side === S.side && N.chain >= 0 ? perft(K, N, depth) : perft(K, N, depth - 1);
     }
     return n;
+  }
+
+  // ── placement: pieces dropped from stock, groups, enclosure, lines, connection, scores ─────────────────────────────
+  //   G.pieces[kind].drop: true | { fall?: way, flip?: true | 'must' }  the kind is placed from the player's stock onto an
+  //     empty cell; `fall` the way it drops until something stops it (the cell beyond must be filled or off the board);
+  //     `flip` turns every line of foes it closes between itself and one of the player's own ('must': only where it does)
+  //   G.stock { <kind>: n } each player's supply (unlimited when absent)
+  //   G.enclose { suicide?: false, ko?: true }  a group (one side's pieces joined across edges) with no empty neighbour is
+  //     taken; a drop that leaves its own group so (taking nothing) is refused; ko: no drop may bring the board back to
+  //     how it stood before the other player's last move
+  //   G.win { line?: k, connect?: true }  k of the mover's in a row along any way; a group joining the mover's first row
+  //     and its last (rows counted from its own facing)
+  //   G.end { passes?: n, full?: true, score: [scorer] }  n passes in a row, or a full board, ends the game; the most
+  //     points wins, a tie draws; a player with no move and no pass also ends it
+  //     scorer: { count: true | [kind] } pieces on the board | { territory: true } empty areas bordered by one side only |
+  //     { majority: { regions?: [name], points: [first, second…] } } per region, by pieces in it, ties sharing the places'
+  //     points (rounded down) | { largest: true } the biggest group | { add: [n per player] }
+  //   G.regions { <name>: [cells] } named areas of the board
+  //   G.turn.pass true (any turn) | 'stuck' (only with no other move)
+  function placementCompile(K) {
+    const G = K.G, T = K.T, L = K.L;
+    K.drops = Object.keys(G.pieces || {}).filter((id) => G.pieces[id].drop).map((id) => {
+      const d = G.pieces[id].drop === true ? {} : G.pieces[id].drop;
+      return { id, fall: d.fall ? vecOf(T, d.fall) : null, flip: d.flip || null };
+    });
+    K.near = L.cells.map((c) => c.n.filter((j) => j >= 0));
+    const ways = L.dirs.concat(L.diags).map((w) => w.v), axes = [];
+    for (const v of ways) if (!axes.some((a) => a[0] === -v[0] && a[1] === -v[1])) axes.push(v);
+    K.ways = ways;
+    K.axes = axes;
+    K.regions = {};
+    for (const name of Object.keys(G.regions || {})) {
+      K.regions[name] = G.regions[name].map((n) => {
+        const i = T.byName.get(n);
+        if (i === undefined) throw new Error('tabletop: region ' + name + ' names no cell ' + n);
+        return i;
+      });
+    }
+    if (G.win && G.win.line !== undefined && !(G.win.line >= 2)) throw new Error('tabletop: win.line is a length, 2 or more');
+  }
+
+  const sidesOf = (S) => S.board.map((p) => (p < 0 ? -1 : S.pieces[p].side));
+  function sidesKey(S) { let k = ''; for (const p of S.board) k += p < 0 ? '.' : S.pieces[p].side; return k; }
+
+  // a group: the cells of one side joined to `from` across edges, and the empty cells beside them
+  function groupAt(K, sides, from) {
+    const side = sides[from], cells = [from], libs = {}, seen = {};
+    seen[from] = 1;
+    for (let i = 0; i < cells.length; i++) {
+      for (const j of K.near[cells[i]]) {
+        if (sides[j] === side) { if (!seen[j]) { seen[j] = 1; cells.push(j); } }
+        else if (sides[j] < 0) libs[j] = 1;
+      }
+    }
+    return { side, cells, libs: Object.keys(libs).length };
+  }
+
+  function flipsAt(K, sides, c, side) {
+    const out = [];
+    for (const v of K.ways) {
+      const run = [];
+      let j = cellAt(K.T, c, v);
+      while (j >= 0 && sides[j] >= 0 && sides[j] !== side) { run.push(j); j = cellAt(K.T, j, v); }
+      if (run.length && j >= 0 && sides[j] === side) for (const x of run) out.push(x);
+    }
+    return out;
+  }
+
+  function dropMoves(K, S, out) {
+    if (S.chain >= 0) return;
+    const side = S.side, sides = sidesOf(S), E = K.G.enclose;
+    for (const D of K.drops) {
+      if (S.stock && !((S.stock[side][D.id] || 0) > 0)) continue;
+      for (let c = 0; c < S.board.length; c++) {
+        if (S.board[c] >= 0) continue;
+        if (D.fall) { const below = cellAt(K.T, c, D.fall); if (below >= 0 && S.board[below] < 0) continue; }
+        const m = { p: -1, drop: D.id, from: -1, to: c, r: -1, cap: [] };
+        if (D.flip) {
+          m.flip = flipsAt(K, sides, c, side);
+          if (!m.flip.length && D.flip === 'must') continue;
+        }
+        if (E) {
+          // the drop's enclosures: foe groups left with no empty neighbour are taken, its own may not be left so
+          const after = sides.slice();
+          after[c] = side;
+          const taken = {};
+          for (const j of K.near[c]) {
+            if (after[j] < 0 || after[j] === side || taken[j]) continue;
+            const g = groupAt(K, after, j);
+            if (!g.libs) for (const x of g.cells) taken[x] = 1;
+          }
+          for (const x in taken) { m.cap.push(S.board[x]); after[x] = -1; }
+          if (!m.cap.length && !E.suicide && !groupAt(K, after, c).libs) continue;
+          if (E.ko !== false && m.cap.length && S.back !== null) {
+            let k = '';
+            for (const x of after) k += x < 0 ? '.' : x;
+            if (k === S.back) continue;
+          }
+        }
+        out.push(m);
+      }
+    }
+  }
+
+  // the most of one side in a row through cell c, along any axis
+  function lineThrough(K, sides, c) {
+    const side = sides[c];
+    let best = 1;
+    for (const v of K.axes) {
+      let n = 1;
+      for (const d of [1, -1]) {
+        let j = cellAt(K.T, c, [v[0] * d, v[1] * d]);
+        while (j >= 0 && sides[j] === side) { n++; j = cellAt(K.T, j, [v[0] * d, v[1] * d]); }
+      }
+      if (n > best) best = n;
+    }
+    return best;
+  }
+
+  function connects(K, sides, c, side) {
+    const g = groupAt(K, sides, c), R = K.rows[side];
+    let lo = false, hi = false;
+    for (const x of g.cells) { if (R.of[x] === 1) lo = true; if (R.of[x] === R.last) hi = true; }
+    return lo && hi;
+  }
+
+  // each player's points by the game's scorers
+  function scores(K, S) {
+    const n = K.players.length, out = K.players.map(() => 0), sides = sidesOf(S);
+    for (const sc of (K.G.end && K.G.end.score) || []) {
+      if (sc.count) {
+        for (const P of S.pieces) if (P.at >= 0 && P.side >= 0 && (sc.count === true || sc.count.indexOf(P.kind) >= 0)) out[P.side] += 1;
+      }
+      if (sc.territory) {
+        const seen = {};
+        for (let c = 0; c < sides.length; c++) {
+          if (sides[c] >= 0 || seen[c]) continue;
+          const area = [c], by = {};
+          seen[c] = 1;
+          for (let i = 0; i < area.length; i++) {
+            for (const j of K.near[area[i]]) {
+              if (sides[j] < 0) { if (!seen[j]) { seen[j] = 1; area.push(j); } } else by[sides[j]] = 1;
+            }
+          }
+          const owners = Object.keys(by);
+          if (owners.length === 1) out[+owners[0]] += area.length;
+        }
+      }
+      if (sc.majority) {
+        const names = sc.majority.regions || Object.keys(K.regions), pts = sc.majority.points || [1];
+        for (const name of names) {
+          const tally = K.players.map(() => 0);
+          for (const c of K.regions[name] || []) if (sides[c] >= 0) tally[sides[c]] += 1;
+          const order = tally.map((t, s) => [s, t]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+          let place = 0;
+          while (place < order.length && place < pts.length) {
+            const tied = order.filter((x) => x[1] === order[place][1]);
+            let pool = 0;
+            for (let k = place; k < place + tied.length; k++) pool += pts[k] || 0;
+            for (const [s] of tied) out[s] += Math.floor(pool / tied.length);
+            place += tied.length;
+          }
+        }
+      }
+      if (sc.largest) {
+        const seen = {};
+        const big = K.players.map(() => 0);
+        for (let c = 0; c < sides.length; c++) {
+          if (sides[c] < 0 || seen[c]) continue;
+          const g = groupAt(K, sides, c);
+          for (const x of g.cells) seen[x] = 1;
+          if (g.cells.length > big[g.side]) big[g.side] = g.cells.length;
+        }
+        for (let s = 0; s < n; s++) out[s] += big[s];
+      }
+      if (sc.add) for (let s = 0; s < n; s++) out[s] += sc.add[s] || 0;
+    }
+    return out;
+  }
+
+  function scoredEnd(K, S) {
+    const sc = scores(K, S), top = Math.max.apply(null, sc), lead = sc.map((x, s) => (x === top ? s : -1)).filter((s) => s >= 0);
+    return { winner: lead.length === 1 ? lead[0] : null, reason: 'score', scores: sc };
+  }
+
+  // what ends a placement game when a move is made: a line or a connection for the mover, passes, a full board
+  function placementEnd(K, N, m, side) {
+    const W = K.G.win || {}, E = K.G.end;
+    if (m.to >= 0 && (W.line || W.connect)) {
+      const sides = sidesOf(N);
+      if (W.line && lineThrough(K, sides, m.to) >= W.line) return { winner: side, reason: 'line' };
+      if (W.connect && connects(K, sides, m.to, side)) return { winner: side, reason: 'connect' };
+    }
+    if (E) {
+      if (E.passes && N.passes >= E.passes) return scoredEnd(K, N);
+      if (E.full && N.board.every((p) => p >= 0)) return scoredEnd(K, N);
+    }
+    return null;
+  }
+
+  // the fewest empty cells `side` must still fill to join its first row to its last (own cells free, foes walls)
+  function connectDistance(K, S, side) {
+    const sides = sidesOf(S), R = K.rows[side], INF = 1e9, dist = sides.map(() => INF), dq = [];
+    for (let c = 0; c < sides.length; c++) {
+      if (R.of[c] !== 1 || (sides[c] >= 0 && sides[c] !== side)) continue;
+      dist[c] = sides[c] === side ? 0 : 1;
+      dq.push(c);
+    }
+    // a 0-1 search kept small: relax until nothing moves
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let c = 0; c < sides.length; c++) {
+        if (dist[c] >= INF) continue;
+        for (const j of K.near[c]) {
+          if (sides[j] >= 0 && sides[j] !== side) continue;
+          const d = dist[c] + (sides[j] === side ? 0 : 1);
+          if (d < dist[j]) { dist[j] = d; changed = true; }
+        }
+      }
+    }
+    let best = INF;
+    for (let c = 0; c < sides.length; c++) if (R.of[c] === R.last && dist[c] < best) best = dist[c];
+    return best;
+  }
+
+  // the windows of k cells along any axis that hold only `side`'s pieces and empties, by how many of its own
+  function lineWindows(K, S, side, k) {
+    const sides = sidesOf(S), count = [];
+    for (let i = 0; i <= k; i++) count.push(0);
+    for (let c = 0; c < sides.length; c++) {
+      for (const v of K.axes) {
+        let own = 0, ok = true, j = c;
+        for (let i = 0; i < k; i++) {
+          if (j < 0 || (sides[j] >= 0 && sides[j] !== side)) { ok = false; break; }
+          if (sides[j] === side) own++;
+          if (i < k - 1) j = cellAt(K.T, j, v);
+        }
+        if (ok) count[own]++;
+      }
+    }
+    return count;
   }
 
   // ── the economy: euro games ─────────────────────────────────────────────────────────────────────────────────────
@@ -968,7 +1231,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf };
 }
 
 const _tabletop = buildTabletop();

@@ -33,6 +33,15 @@ describe('lattice: the relations hold', () => {
     expect(Math.min(...island.corners.map((c) => c.cells.length))).toBe(1);
   });
 
+  it('a rhombus of hexes, either way up: n × n cells, sound relations', () => {
+    for (const orient of ['pointy', 'flat']) {
+      const L = lattice({ shape: 'hex', orient, rhombus: 5 });
+      expect(L.cells).toHaveLength(25);
+      expect(latticeLaws(L)).toEqual([]);
+      expect(euler(L)).toBe(1);
+    }
+  });
+
   it('Euler: corners - edges + cells is 1 for a board in one piece, one less for each hole', () => {
     for (const spec of Object.values(BOARDS)) expect(euler(lattice(spec))).toBe(1);
     expect(euler(lattice({ shape: 'square', cols: 3, rows: 3, omit: ['B2'] }))).toBe(0);

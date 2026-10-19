@@ -56,7 +56,8 @@ export function latticeFaces(L, opts = {}) {
 }
 
 export function latticeCameras(L) {
-  const reach = Math.hypot(L.size[0], L.size[1]) / 2;
+  // far enough back for the board's diagonal, and for its width when it is much wider than deep (a rhombus of hexes)
+  const reach = Math.max(Math.hypot(L.size[0], L.size[1]) / 2, L.size[0] * 0.68);
   return [
     { name: 'table', worldFraming: { cameraPosition: [0, r6(-reach * 1.55), r6(reach * 1.35)], lookAt: [0, r6(-reach * 0.08), 0], horizontalFov: 52 } },
     { name: 'over', worldFraming: { cameraPosition: [0, r6(-reach * 0.3), r6(reach * 2.3)], lookAt: [0, 0, 0], horizontalFov: 52 } },

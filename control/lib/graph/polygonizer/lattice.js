@@ -10,7 +10,7 @@
  *   lattice({ shape, orient?, cols?, rows?, radius?, heights?, types?, omit?, cell?, step? }) → L
  *     shape 'square' | 'hex'; orient 'pointy' (rows run east, the default) | 'flat' (columns run north), hex only
  *     cols × rows the rectangle (hex in offset coordinates, odd rows east for pointy, odd columns north for flat), or
- *     radius n (hex) a hexagon of hexes (radius 2 is nineteen); heights[r][c] whole steps, null for no cell (rows from
+ *     radius n (hex) a hexagon of hexes (radius 2 is nineteen), or rhombus n (hex) a rhombus n cells a side; heights[r][c] whole steps, null for no cell (rows from
  *     the south, so heights[0] is row 1), or { <name>: steps }; types the same shape (a string a cell carries);
  *     omit: [names] cells left out; cell the centre-to-centre distance in metres (1); step a height step (cell / 4)
  *   L: { shape, orient?, cols, rows, cell, step, size: [w, d], dirs, diags, cells, corners, edges }
@@ -92,6 +92,20 @@ export function columnName(c) {
 function layout(spec, shape, orient) {
   const hexV = orient === 'pointy' ? (c, r) => [c - Math.floor(r / 2), r] : (c, r) => [c, r - Math.floor(c / 2)];
   const vOf = shape === 'square' ? (c, r) => [c, r] : hexV;
+  if (spec.rhombus !== undefined) {
+    if (shape !== 'hex') throw new Error('lattice: rhombus makes a rhombus of hexes; a square board takes cols and rows');
+    const n = spec.rhombus;
+    if (!Number.isInteger(n) || n < 1) throw new Error('lattice: rhombus is a whole number of cells a side, 1 or more');
+    // axial q and r each 0 … n - 1, laid into offset coordinates and slid so the least column (pointy) or row (flat) is 0
+    const off = [];
+    for (let r = 0; r < n; r += 1) for (let q = 0; q < n; q += 1) off.push(orient === 'pointy' ? [q + Math.floor(r / 2), r] : [q, r + Math.floor(q / 2)]);
+    const minC = Math.min(...off.map((o) => o[0])), minR = Math.min(...off.map((o) => o[1]));
+    const set = new Set(off.map(([c, r]) => `${c - minC},${r - minR}`));
+    const cols = Math.max(...off.map((o) => o[0])) - minC + 1, rows = Math.max(...off.map((o) => o[1])) - minR + 1;
+    const at = [];
+    for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) if (set.has(`${c},${r}`)) at.push({ c, r, v: vOf(c, r) });
+    return { cols, rows, at };
+  }
   if (spec.radius !== undefined) {
     if (shape !== 'hex') throw new Error('lattice: radius makes a hexagon of hexes; a square board takes cols and rows');
     const R = spec.radius;

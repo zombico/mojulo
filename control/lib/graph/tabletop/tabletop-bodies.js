@@ -27,7 +27,9 @@ export function pieceBodies(G, { cell, unit }) {
       ...(f.clip ? { clip: f.clip } : {}),
       k: r3(litFactor(f.normal, LIGHT)),
     }));
-    icons[kind] = shapeIcon(P.shape);
+    // a flat piece (a stone, a coin) reads from above as a disc: the plan keeps its round token
+    const icon = shapeIcon(P.shape), xs = icon.flat().map((q) => q[0]), zs = icon.flat().map((q) => q[1]);
+    if (Math.max(...zs) - Math.min(...zs) >= 0.5 * (Math.max(...xs) - Math.min(...xs))) icons[kind] = icon;
   }
   return { bodies, icons };
 }

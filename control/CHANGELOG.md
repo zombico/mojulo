@@ -175,6 +175,18 @@ in CSS 3D. In progress:
   silhouette, as a diagram does. A turned piece's tapering bands are unmasked rectangles, so a full chess set of 32
   bodies draws in a few seconds where masked bands took minutes. Chess, checkers and the island economy wear them; a
   shape is checked when the game is made.
+- **Placement and groups**, built: pieces put down rather than moved. A kind may be dropped from the player's stock onto
+  an empty cell, falling a way until something stops it, or turning the lines of foes it closes. One groups engine
+  (a side's pieces joined across edges, and the empty cells beside them) serves enclosure (a group with no empty
+  neighbour is taken; no suicide; no ko: the board may not return to how it stood before the other player's move),
+  connection (a group joining a player's own two sides wins) and the scorers. A line of k along any axis wins.
+  Passes in a row or a full board end a game by its points: pieces counted, territory (empty areas one side alone
+  borders), majorities in named regions (first and second, ties sharing the places' points), the largest group, an
+  added half point. A rhombus of hexes joins the lattice. The computer reads each game by what wins it: open lines
+  toward k, the shortest way left to join two sides, groups down to their last empty neighbour, and the game's own
+  points; it narrows a wide board to the cells near the play. Five fixtures, each named by its principle (enclosure,
+  lines with and without falling, connection, sandwiching, majorities), are played by clicking on the plan or the
+  table, with a pass, the score in the status and the regions tinted.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person
