@@ -120,11 +120,75 @@ describe('a board battle read from the party battles\' book', () => {
     expect(boardItems(cfg, drank.S, 'c')).toEqual([]);
   });
 
+  it('fields a guest on the party\'s team: never struck by its friends, never a foe to their minds', () => {
+    const { cfg, units } = readBoardBattle({ party: [{ id: 'm', class: 'mage', at: 'B2', skills: ['firestorm'], level: 6 }], guests: [{ id: 'npc', class: 'knight', at: 'C3' }], foes: [{ id: 'g', foe: 'goblin', at: 'D3' }] });
+    expect(units.find((u) => u.id === 'npc').side).toBe('guest');
+    const B = flat(5, 5), S = boardStart(B, cfg, units);
+    // the storm round C3 takes in the goblin at D3, never the guest standing in it
+    const storm = boardLegal(B, cfg, turnOf(S, 'm')).find((a) => a.skill === 'firestorm' && a.at === boardParse(B, 'C3'));
+    expect(storm).toBeTruthy();
+    const out = boardApply(B, cfg, turnOf(S, 'm'), storm);
+    expect(out.beats.filter((b) => b.kind === 'hurt' || b.kind === 'miss').map((b) => b.target)).toEqual(['g']);
+  });
+
+  it('ends by its rules: a leader down, the hero down, a battle survived; the team that wins takes the spoils', () => {
+    const base = { party: [{ id: 'hero', class: 'fighter', at: 'A1', level: 9 }, { id: 'b', class: 'mage', at: 'B1' }], foes: [{ id: 'boss', foe: 'bandit', at: 'A2' }, { id: 'g', foe: 'goblin', at: 'E5' }] };
+    const B = flat(5, 5);
+    const strike = (rules, who, at, hp) => {
+      const { cfg, units } = readBoardBattle({ ...base, rules });
+      const S = boardStart(B, cfg, units);
+      S.u[at === 'A2' ? 'boss' : 'hero'].hp = 1;
+      for (let r = 1; r < 40; r++) {
+        const out = boardApply(B, cfg, turnOf(S, who, r), { kind: 'act', skill: 'attack', at: boardParse(B, at) });
+        if (out.beats.some((x) => x.kind === 'ko')) return out;
+      }
+      throw new Error('no blow landed');
+    };
+    const won = strike({ win: { leader: 'boss' } }, 'hero', 'A2');
+    expect(won.S.over).toEqual({ winner: 'party', reason: 'leader' });
+    expect(won.S.spoils).toMatchObject({ xp: 10, gold: 18, cp: 1 });
+    const lost = strike({ lose: { leader: 'hero' } }, 'boss', 'A1');
+    expect(lost.S.over).toEqual({ winner: 'foe', reason: 'leader' });
+    expect(lost.S.spoils).toBeUndefined();
+    const { cfg, units } = readBoardBattle({ ...base, rules: { win: { survive: 2 } } });
+    let S = boardStart(B, cfg, units);
+    while (!S.over) S = boardApply(B, cfg, S, { kind: 'end', face: 'n' }).S;
+    expect([S.over, S.n]).toEqual([{ winner: 'party', reason: 'survived' }, 2]);
+  });
+
+  it('counts a fallen unit down under permadeath, lost for good at the count\'s end; without it, waits forever', () => {
+    const spec = (rules) => readBoardBattle({ party: [{ id: 'c', class: 'cleric', at: 'A1', skills: ['raise'], level: 4 }, { id: 'f', class: 'fighter', at: 'A3' }], foes: [{ id: 'g', foe: 'golem', at: 'E5' }], rules });
+    const B = flat(5, 5), raise = { kind: 'act', skill: 'raise', at: boardParse(B, 'A3') };
+    const after = (rules, turns) => {
+      const { cfg, units } = spec(rules);
+      let S = boardStart(B, cfg, units), beats = [];
+      S.u.f.hp = 0;
+      if (rules.permadeath) S.u.f.down = rules.permadeath;
+      for (let k = 0; k < turns; k++) { const out = boardApply(B, cfg, S, { kind: 'end', face: 'n' }); S = out.S; beats.push(...out.beats); }
+      return { S, beats, cfg };
+    };
+    const kept = after({}, 30);
+    expect(kept.S.u.f.lost).toBeUndefined();
+    const lost = after({ permadeath: 3 }, 30);
+    expect(lost.beats.filter((b) => b.target === 'f').map((b) => b.kind)).toEqual(['count', 'count', 'count', 'lost']);
+    expect(lost.S.u.f.lost).toBe(true);
+    const T = { ...lost.S, turn: { who: 'c', moved: false, acted: false } };
+    expect(boardLegal(B, lost.cfg, T)).not.toContainEqual(raise);
+  });
+
+  it('deploys the party when the battle names its spots, no more of it than its cap', () => {
+    const r = readBoardBattle({ party: [{ id: 'a', class: 'fighter' }, { id: 'b', class: 'mage' }, { id: 'c', class: 'cleric' }], cap: 2, deploy: ['A1:B1'], foes: [{ id: 'g', foe: 'goblin', at: 'D4' }] });
+    expect(r.units.filter((u) => u.side === 'party').map((u) => [u.id, u.at])).toEqual([['a', undefined], ['b', undefined]]);
+    expect([r.deploy, r.cap]).toEqual([['A1:B1'], 2]);
+  });
+
   it('refuses what it cannot field, saying why', () => {
     expect(() => readBoardBattle({ party: [], foes: [] })).toThrow(/party is \[/);
     expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter' }], foes: [{ id: 'g', foe: 'goblin', at: 'A2' }] })).toThrow(/needs a spot to stand on/);
     expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'a', foe: 'goblin', at: 'A2' }] })).toThrow(/two units are 'a'/);
     expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'A2' }], board: { skills: { fire: { reach: 3 } } } })).toThrow(/board.skills.fire.reach is not a shape setting/);
     expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'A2' }], bag: { elixir: 1 } })).toThrow(/bag: 'elixir' is no item/);
+    expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'A2' }], rules: { win: { leader: 'z' } } })).toThrow(/names 'z', who is not in this battle/);
+    expect(() => readBoardBattle({ party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'A2' }], rules: { permadeath: 20 } })).toThrow(/permadeath is the turns/);
   });
 });

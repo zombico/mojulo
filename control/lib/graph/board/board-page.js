@@ -172,6 +172,7 @@ export function boardPage(D, K, CAM, MIND) {
     move: 'arrows: cursor · Enter: move here · Esc: back',
     aim: 'arrows: cursor · Enter: act here · Esc: back',
     face: 'arrows: face that way · Enter: end the turn · Esc: back',
+    deploy: 'arrows: cursor · Enter: place here · Esc: take the last one back',
     cpu: 'the other side is moving · Q E: turn · Z X: zoom',
     over: 'the battle is over',
   };
@@ -213,6 +214,7 @@ export function boardPage(D, K, CAM, MIND) {
     const spot = s ? `${K.nameOf(B, cursor)}  h ${s.h} (${(s.h * B.step).toFixed(1)} m)  ${s.type}${s.walk ? '' : ', shut'}` : K.nameOf(B, cursor);
     let more = '';
     if (mode === 'aim' && aiming && aiming.spots.has(cursor)) more = '\n' + forecastLines(aiming.what, cursor);
+    else if (mode === 'deploy' && placing) more = `\nplace ${S.u[placing.ids[placing.k]].name} (${placing.k + 1} of ${placing.ids.length})`;
     else if (U) more = `\n${U.name} (${U.side})  hp ${U.hp}/${U.hpMax}`;
     hud.textContent = `${spot}${more}${sel ? `\nselected: ${S.u[sel].name}` : ''}\n${LEGEND[mode]}`;
   }
@@ -256,7 +258,7 @@ export function boardPage(D, K, CAM, MIND) {
 
   // ── the battle: the player's turns by the menu, the other side's by the mind ──────────────────────────────────
   const HUMAN = new Set(battle ? battle.players || ['party'] : []);
-  let menu = null, aiming = null, face = 0, cpu = null, busy = 0, result = null;
+  let menu = null, aiming = null, face = 0, cpu = null, busy = 0, result = null, placing = null;
   const legalNow = () => K.legal(B, cfg, S);
   const sameAct = (a, b) => a.kind === b.kind && a.to === b.to && a.skill === b.skill && a.item === b.item && a.at === b.at && a.face === b.face;
   function forecastLines(what, at) {
@@ -274,7 +276,7 @@ export function boardPage(D, K, CAM, MIND) {
     if (!battle) return;
     const P = S.turn ? K.preview(B, S, 8) : [];
     orderEl.textContent = 'turn order\n' + P.map((x, k) => `${k ? '  ' : '▶ '}${S.u[x.who].name}${HUMAN.has(x.side) ? '' : ' ·'}`).join('\n');
-    cardEl.textContent = S.turn ? unitLines(S.u[S.turn.who]) : '';
+    cardEl.textContent = mode === 'deploy' && placing ? unitLines(S.u[placing.ids[placing.k]]) : S.turn ? unitLines(S.u[S.turn.who]) : '';
   }
   function drawMenu() {
     menuEl.style.display = 'block';
@@ -342,11 +344,25 @@ export function boardPage(D, K, CAM, MIND) {
     readout();
   }
   function back() {
+    if (mode === 'deploy') { if (placing.k > 0) { placing.k--; moveCursor(S.u[placing.ids[placing.k]].at); drawSide(); } return; }
     if (mode === 'aim') { aiming = null; highlight('aim', null); highlight('area', null); openAct(); return; }
     if (mode === 'move' || mode === 'face') { if (mode === 'face') tokens[S.turn.who].g.rotation.z = FACE[S.u[S.turn.who].face]; openMenu(); return; }
     if (mode === 'menu' && menu.back) menu.back();
   }
+  // before the first turn: the player puts each member it may place on a deploy spot, in turn (swapping with one there)
+  function deploySpot() {
+    const id = placing.ids[placing.k], there = occupant(cursor);
+    if (!battle.deploy.includes(cursor) || (there && S.u[there].side !== 'party')) return;
+    if (there && there !== id) S.u[there].at = S.u[id].at;
+    S.u[id].at = cursor;
+    settleTokens();
+    placing.k++;
+    if (placing.k >= placing.ids.length) { placing = null; mode = 'cpu'; highlight('reach', null); next(); return; }
+    moveCursor(S.u[placing.ids[placing.k]].at);
+    drawSide();
+  }
   function confirm() {
+    if (mode === 'deploy') { deploySpot(); return; }
     if (mode === 'menu') { const it = menu.items[menu.i]; if (it && it.ok) it.go(); return; }
     if (mode === 'move' && lit.reach && lit.reach.has(cursor)) play({ kind: 'move', to: cursor });
     else if (mode === 'aim' && aiming && aiming.spots.has(cursor)) play(Object.assign({ kind: 'act', at: cursor }, aiming.what));
@@ -363,6 +379,8 @@ export function boardPage(D, K, CAM, MIND) {
     else if (b.kind === 'status') float(b.target, b.on ? ST[b.status] || b.status : b.status === 'cured' ? 'cured' : 'awake', '#c9a6ff');
     else if (b.kind === 'buff') float(b.target, b.stat + (b.pct > 0 ? ' up' : ' down'), '#ffd23d');
     else if (b.kind === 'mp') float(b.target, 'MP ' + b.mp, '#7fc4ff');
+    else if (b.kind === 'count') float(b.target, String(b.left), '#ffb36b');
+    else if (b.kind === 'lost') float(b.target, 'lost', '#ffb36b');
     else return;
     busy = Math.max(busy, 0.7);
   }
@@ -407,7 +425,9 @@ export function boardPage(D, K, CAM, MIND) {
     const W = S.over.winner, won = HUMAN.has(W);
     result = { winner: W, reason: S.over.reason, turns: S.n };
     bannerEl.style.display = 'block';
-    bannerEl.textContent = HUMAN.size ? (W == null ? 'Draw' : won ? 'Victory' : 'Defeat') : (W == null ? 'Draw' : `${W} wins`);
+    const sp = S.spoils, got = sp ? [sp.xp ? `${sp.xp} xp` : '', sp.cp ? `${sp.cp} class points` : '', sp.gold ? `${sp.gold} gold` : '', ...sp.drops].filter(Boolean).join(' · ') : '';
+    bannerEl.textContent = (HUMAN.size ? (W == null ? 'Draw' : won ? 'Victory' : 'Defeat') : (W == null ? 'Draw' : `${W} wins`)) + (got ? `\n${got}` : '');
+    bannerEl.style.textAlign = 'center';
     // the level hears it on its bus, as it hears the party battles' end
     const ev = HUMAN.size ? (W == null ? 'board-draw' : won ? 'board-won' : 'board-lost') : 'board-over';
     if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: ev });   // eslint-disable-line no-undef
@@ -471,12 +491,18 @@ export function boardPage(D, K, CAM, MIND) {
     if (i < 0) return;
     cursor = i; onCursor();
     if (mode === 'free') select();
-    else if (mode === 'move' || mode === 'aim') confirm();
+    else if (mode === 'move' || mode === 'aim' || mode === 'deploy') confirm();
   });
 
   readout();
   moveCursor(cursor);
-  if (battle) next();
+  if (battle && battle.deploy && battle.placed && battle.placed.length && [...HUMAN].some((x) => x === 'party')) {
+    mode = 'deploy';
+    placing = { ids: battle.placed.slice(), k: 0 };
+    highlight('reach', battle.deploy);
+    moveCursor(S.u[placing.ids[0]].at);
+    drawSide();
+  } else if (battle) next();
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
     state: () => S, highlight, moveCursor, stepCursor, select,
@@ -485,6 +511,13 @@ export function boardPage(D, K, CAM, MIND) {
     get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
     // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
     act(a) { if (!battle || !S.turn || !HUMAN.has(S.u[S.turn.who].side) || !legalNow().some((x) => sameAct(x, a))) return false; play(a); return true; },
+    // the player's turn played by the mind, as a probe's "auto" (the same mind the other side plays by)
+    auto() {
+      if (!battle || !S.turn || !HUMAN.has(S.u[S.turn.who].side)) return false;
+      const who = S.turn.who;
+      for (let k = 0; k < 6 && S.turn && S.turn.who === who && !S.over; k++) { const a = MIND.plan(K, B, cfg, S)[0]; if (!a) break; play(a); }
+      return true;
+    },
   };
 
   // the battle's own time: animations wait it out, then the other side takes its next step

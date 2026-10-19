@@ -13,8 +13,8 @@
  *     its ceiling, its walls cut at the waist, no haze), `board` (the page's data: board-page.js boardChannelData), and a camera
  *     at the tactical view's rest, for a picture of it
  */
-import { layBoard } from './board-lay.js';
-import { boardStart } from './board-kernel.js';
+import { layBoard, spotsNamed } from './board-lay.js';
+import { boardStart, boardParse, boardSpotName } from './board-kernel.js';
 import { boardCameraInit, boardCameraPose } from './board-camera.js';
 import { boardChannelData } from './board-page.js';
 import { readBoardBattle } from './board-battle.js';
@@ -48,9 +48,23 @@ export function assembleBoardScene(manifest = {}, ctx = {}) {
   if (manifest.battle !== undefined) {
     const { players = ['party'], figures: _figures, ...spec } = manifest.battle ?? {};   // figures: the kind's resolver stands them (board-figures.js)
     if (!Array.isArray(players) || !players.every((x) => typeof x === 'string')) no('battle.players are the sides the player moves: [\'party\'] (or [] to watch)');
-    const { cfg, units: fielded } = readBoardBattle(spec);
+    const { cfg, units: read, deploy: names } = readBoardBattle(spec);
+    // the deploy spots, and each member without a spot put on the next free one (the player may place them again)
+    let deploy, fielded = read, placed = [];
+    if (names) {
+      const B = L.board, taken = new Set(read.filter((u) => u.at !== undefined).map((u) => boardParse(B, u.at)));
+      deploy = [...new Set(names.flatMap((n) => spotsNamed(n, B.cols, B.rows).map(([c, r]) => r * B.cols + c)))];
+      for (const i of deploy) if (!B.spots[i] || !B.spots[i].walk) no(`battle.deploy: ${boardSpotName(B, i)} is not a spot anyone can stand on`);
+      const free = deploy.filter((i) => !taken.has(i));
+      fielded = read.map((u) => {
+        if (u.at !== undefined) return u;
+        if (!free.length) no(`battle.deploy: ${deploy.length} spots for more of the party than fit (a cap, or more spots)`);
+        placed.push(u.id);
+        return { ...u, at: boardSpotName(B, free.shift()) };
+      });
+    }
     boardStart(L.board, cfg, fielded);
-    battle = { cfg, units: fielded, players };
+    battle = { cfg, units: fielded, players, ...(deploy ? { deploy, placed } : {}) };
   }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;

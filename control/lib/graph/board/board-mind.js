@@ -45,7 +45,7 @@ export function buildBoardMind() {
     const S = standing(S0, id, at), A = S.u[id], sk = act.item ? K.itemOf(cfg, act.item) : K.skillOf(cfg, act.skill);
     let v = -(sk.mp || 0) * MP_COST;
     for (const t of K.hits(B, cfg, S, id, sk, act.at)) {
-      const T = S.u[t], foe = T.side !== A.side;
+      const T = S.u[t], foe = !K.allied(S, t, id);
       if (sk.harm) {
         const n = blow(K, B, cfg, S, A, T, sk);
         if (n < 0) v += n * (foe ? 1 : -1);   // it heals what absorbs it
@@ -70,17 +70,17 @@ export function buildBoardMind() {
     let r = 0;
     for (const f of K.living(S)) {
       const F = S.u[f];
-      if (F.side === U.side || F.st.sleep) continue;
+      if (K.allied(S, f, id) || F.st.sleep) continue;
       if (dist(B, F.at, at) <= F.move + 1) r += K.statOf(F, 'atk') * RISK;
     }
     return r;
   }
-  function faceOf(B, S, id, at) {
+  function faceOf(K, B, S, id, at) {
     const U = S.u[id];
     let best = null, d = Infinity;
     for (const f of S.order) {
       const F = S.u[f];
-      if (F.hp <= 0 || F.side === U.side) continue;
+      if (F.hp <= 0 || K.allied(S, f, id)) continue;
       const e = dist(B, at, F.at);
       if (e < d) { d = e; best = F.at; }
     }
@@ -92,7 +92,7 @@ export function buildBoardMind() {
   function plan(K, B, cfg, S) {
     if (S.over || !S.turn) return [];
     const T = S.turn, id = T.who, U = S.u[id], L = K.legal(B, cfg, S);
-    const end = (at) => ({ kind: 'end', face: faceOf(B, S, id, at) });
+    const end = (at) => ({ kind: 'end', face: faceOf(K, B, S, id, at) });
     if (!L.some((a) => a.kind !== 'end')) return [end(U.at)];
     const spots = [U.at].concat(T.moved ? [] : L.filter((a) => a.kind === 'move').map((a) => a.to));
     let best = null;
@@ -112,7 +112,7 @@ export function buildBoardMind() {
     }
     // nothing worth doing anywhere: walk toward the nearest foe instead of standing still
     if (best.steps.every((s) => s.kind !== 'act') && !T.moved) {
-      const foes = K.living(S).filter((f) => S.u[f].side !== U.side).map((f) => S.u[f].at);
+      const foes = K.living(S).filter((f) => !K.allied(S, f, id)).map((f) => S.u[f].at);
       const near = (p) => Math.min.apply(null, foes.map((f) => dist(B, p, f)));
       let go = U.at;
       for (const p of spots) if (near(p) < near(go)) go = p;

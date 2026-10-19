@@ -28,9 +28,15 @@
  *     it, and each of its turns may); a silenced unit casts nothing that costs MP; buffs raise or lower atk, def, mag
  *     and spd for some of the unit's own turns. Each wears off as its turn ends.
  *     rules: { facing: { front, side, back }, height (the share a step of height above the target adds), heightCap,
- *              cap (the turns before a draw) }
- *   S (the battle): { r, n, u: { <id>: unit }, order: [ids], turn: { who, moved, acted } | null, over: null |
- *     { winner: side | null, reason } }
+ *              cap (the turns before a draw), win, lose, permadeath }
+ *       win: 'all' (every foe down, the default) | { leader: id | [ids] } (those foes down) | { survive: n } (the player's
+ *            team standing after n turns); lose: { leader: id | [ids] } (any of those down: the hero, a guest to
+ *            protect) as well as the whole team down; the player's team is `rules.player` ('party')
+ *       permadeath: n (off, 0, by default): a fallen unit unraised for n of its own turns is lost for good
+ *     teams: { <side>: <team> } sides that fight together (a guest's side on the party's team); a side alone is its team
+ *     a unit's `loot` ({ xp, gold, cp, drops: [{ item, chance }] }) is the spoils its fall gives the player's team
+ *   S (the battle): { r, n, u: { <id>: unit }, order: [ids], teams, turn: { who, moved, acted } | null, over: null |
+ *     { winner: team | null, reason: 'fallen' | 'leader' | 'survived' | 'cap' }, spoils?: { xp, gold, cp, drops } }
  *     unit: { id, name, side, at, face (0 n, 1 e, 2 s, 3 w), move, jump, spd, ct, hp, hpMax, mp, mpMax, atk, def,
  *             mag, skills, weak, resist, immune, absorb, st: { poison, sleep, silence }, buffs: [{ stat, pct, rounds }] }
  *     bag: { <side>: { <item>: count } } what each side may still use
@@ -57,12 +63,13 @@
  *   facing(B, S, attacker, target) → 'front' | 'side' | 'back'   (a blow from the side or behind hits harder; a spell
  *                                  lands the same from anywhere)
  *   preview(B, S, n) → [{ who, side }]   the next n turns (the turn-order bar)
- *   occupant(S, i) → id | null; living(S, side?) → [ids]
+ *   occupant(S, i) → id | null; living(S, side?) → [ids]; allied(S, a, b) → whether two units fight together
  *
  *   beat: { kind: 'move', who, path } | { kind: 'act', who, skill, at } | { kind: 'hurt' | 'heal', target, amount,
  *         hp, by, crit?, rel?, mul?, absorb?, poison? } | { kind: 'miss', target, by, why? } | { kind: 'ko', target }
  *         | { kind: 'revive', target, hp } | { kind: 'status', target, status, on } | { kind: 'buff', target, stat, pct }
- *         | { kind: 'mp', target, mp } | { kind: 'turn', who } | { kind: 'end', winner, reason }
+ *         | { kind: 'mp', target, mp } | { kind: 'count', target, left } | { kind: 'lost', target } | { kind: 'turn', who }
+ *         | { kind: 'spoils', xp, gold, cp, drops } | { kind: 'end', winner, reason }
  */
 
 export function buildBoard() {
@@ -96,7 +103,8 @@ export function buildBoard() {
   const clone = (S) => JSON.parse(JSON.stringify(S));
   const rulesOf = (cfg) => {
     const R = (cfg && cfg.rules) || {};
-    return { facing: Object.assign({}, RULES.facing, R.facing || {}), height: R.height != null ? R.height : RULES.height, heightCap: R.heightCap != null ? R.heightCap : RULES.heightCap, cap: R.cap != null ? R.cap : RULES.cap };
+    return { facing: Object.assign({}, RULES.facing, R.facing || {}), height: R.height != null ? R.height : RULES.height, heightCap: R.heightCap != null ? R.heightCap : RULES.heightCap, cap: R.cap != null ? R.cap : RULES.cap,
+      win: R.win || 'all', lose: R.lose || null, permadeath: R.permadeath || 0, player: R.player || 'party' };
   };
   // a skill with its shape (a self skill reaches only its own spot), what it does filled in as the party battles read it
   const fill = (d) => {
@@ -174,6 +182,8 @@ export function buildBoard() {
   const dist = (B, a, b) => Math.abs(cOf(B, a) - cOf(B, b)) + Math.abs(rOf(B, a) - rOf(B, b));
 
   // ── units and occupancy ──────────────────────────────────────────────────────────────────────────────────────────
+  const teamOf = (S, side) => (S.teams && S.teams[side] != null ? S.teams[side] : side);
+  function allied(S, a, b) { return teamOf(S, S.u[a].side) === teamOf(S, S.u[b].side); }
   function living(S, side) {
     const out = [];
     for (const id of S.order) { const U = S.u[id]; if (U.hp > 0 && (side === undefined || U.side === side)) out.push(id); }
@@ -188,7 +198,7 @@ export function buildBoard() {
 
   function start(B, cfg, units) {
     if (!Array.isArray(units) || !units.length) throw new Error('board: a battle needs units');
-    const S = { r: hash(String(cfg && cfg.seed != null ? cfg.seed : 'board')), n: 0, u: {}, order: [], turn: null, over: null };
+    const S = { r: hash(String(cfg && cfg.seed != null ? cfg.seed : 'board')), n: 0, u: {}, order: [], teams: Object.assign({}, (cfg && cfg.teams) || {}), turn: null, over: null };
     const taken = {};
     for (const x of units) {
       if (!x || typeof x.id !== 'string' || !x.id) throw new Error('board: every unit has an id');
@@ -206,6 +216,7 @@ export function buildBoard() {
         atk: x.atk != null ? x.atk : 8, def: x.def != null ? x.def : 4, mag: x.mag != null ? x.mag : 4, skills: (x.skills || []).slice(),
         weak: (x.weak || []).slice(), resist: (x.resist || []).slice(), immune: (x.immune || []).slice(), absorb: (x.absorb || []).slice(),
         st: { poison: 0, sleep: 0, silence: 0 }, buffs: [] };
+      if (x.loot) S.u[x.id].loot = { xp: x.loot.xp || 0, gold: x.loot.gold || 0, cp: x.loot.cp || 0, drops: (x.loot.drops || []).slice() };
       S.order.push(x.id);
     }
     if (cfg && cfg.bag) { S.bag = {}; for (const side in cfg.bag) S.bag[side] = Object.assign({}, cfg.bag[side]); }
@@ -227,7 +238,7 @@ export function buildBoard() {
         const s = B.spots[b];
         if (!s || !s.walk || Math.abs(s.h - ha) > U.jump || cutAt(B, a, b)) continue;
         const o = occ[b];
-        if (o !== undefined && S.u[o].side !== U.side) continue;
+        if (o !== undefined && !allied(S, o, id)) continue;
         d[b] = d[a] + 1; from[b] = a; q.push(b);
       }
     }
@@ -281,12 +292,12 @@ export function buildBoard() {
     for (const i of spots) {
       if (sk.revive) {
         if (occ[i] !== undefined) continue;
-        for (const k of S.order) { const F = S.u[k]; if (F.hp <= 0 && F.at === i && F.side === U.side) { out.push(k); break; } }
+        for (const k of S.order) { const F = S.u[k]; if (F.hp <= 0 && !F.lost && F.at === i && allied(S, k, id)) { out.push(k); break; } }
         continue;
       }
       const o = occ[i];
       if (o === undefined) continue;
-      if ((S.u[o].side !== U.side) === foe) out.push(o);
+      if (!allied(S, o, id) === foe) out.push(o);
     }
     return out;
   }
@@ -358,13 +369,13 @@ export function buildBoard() {
       T.acted = true;
       beats.push(Object.assign({ kind: 'act', who: U.id, at: action.at }, action.item ? { item: action.item } : { skill: action.skill }));
       for (const t of who) effect(B, cfg, S, U, S.u[t], sk, beats);
-      settle(S, beats);
+      settle(cfg, S, beats);
     } else {
       U.face = FACES.indexOf(action.face);
       U.ct -= GAUGE - (T.moved ? 0 : REFUND) - (T.acted ? 0 : REFUND);
       S.n++;
       tick(cfg, S, U, beats);
-      if (!settle(S, beats)) advance(cfg, S, beats);
+      if (!settle(cfg, S, beats)) advance(cfg, S, beats);
     }
     return { S, beats };
   }
@@ -412,11 +423,13 @@ export function buildBoard() {
     T.hp = Math.max(0, T.hp - n);
     if (T.st.sleep && phys && n > 0) T.st.sleep = 0;
     beats.push(Object.assign({ kind: 'hurt', target: T.id, amount: n, hp: T.hp, by: A.id, rel }, crit ? { crit: true } : {}, em !== 1 ? { mul: em } : {}));
-    if (T.hp <= 0) fall(T, beats);
+    if (T.hp <= 0) fall(cfg, T, beats);
   }
-  function fall(T, beats) {
+  function fall(cfg, T, beats) {
     T.st = { poison: 0, sleep: 0, silence: 0 };
     T.buffs = [];
+    const pd = rulesOf(cfg).permadeath;
+    if (pd) T.down = pd;
     beats.push({ kind: 'ko', target: T.id });
   }
   // the battle kernel's mending: a revive raises a fallen one (its blow's worth, or a quarter of its HP), a heal mends
@@ -427,6 +440,7 @@ export function buildBoard() {
       const n = sk.heal ? Math.round((sk.power + statOf(A, 'mag') * sk.scale) * (0.875 + 0.25 * rnd(S))) : Math.ceil(T.hpMax / 4);
       T.hp = clamp(n, 1, T.hpMax);
       T.ct = 0;
+      delete T.down;
       beats.push({ kind: 'revive', target: T.id, hp: T.hp, by: A.id });
       return;
     }
@@ -463,53 +477,86 @@ export function buildBoard() {
       const n = Math.max(1, Math.floor(U.hpMax / 10));
       U.hp = Math.max(0, U.hp - n);
       beats.push({ kind: 'hurt', target: U.id, amount: n, hp: U.hp, poison: true });
-      if (U.hp <= 0) { fall(U, beats); return; }
+      if (U.hp <= 0) { fall(cfg, U, beats); return; }
     }
     if (U.st.sleep && (--U.st.sleep <= 0 || rnd(S) < WAKE)) { U.st.sleep = 0; beats.push({ kind: 'status', target: U.id, status: 'sleep', on: false }); }
     if (U.st.silence && --U.st.silence <= 0) U.st.silence = 0;
     for (let i = U.buffs.length - 1; i >= 0; i--) if (--U.buffs[i].rounds <= 0) U.buffs.splice(i, 1);
   }
 
-  // one side left standing: the battle is over
-  function settle(S, beats) {
+  // the battle over? by its rules: a team left alone standing; a leader down (theirs: won; ours: lost); survived.
+  // The player's team winning takes the spoils of every foe that fell
+  function settle(cfg, S, beats) {
     if (S.over) return true;
-    const sides = [];
-    for (const id of living(S)) if (sides.indexOf(S.u[id].side) < 0) sides.push(S.u[id].side);
-    if (sides.length > 1) return false;
-    S.over = { winner: sides.length ? sides[0] : null, reason: 'fallen' };
+    const R = rulesOf(cfg), P = R.player, alive = [];
+    for (const id of living(S)) { const t = teamOf(S, S.u[id].side); if (alive.indexOf(t) < 0) alive.push(t); }
+    const ids = (x) => (Array.isArray(x) ? x : [x]);
+    const down = (id) => S.u[id] && S.u[id].hp <= 0;
+    let winner, reason = 'fallen';
+    if (R.lose && R.lose.leader && ids(R.lose.leader).some(down)) { winner = alive.find((t) => t !== P) || null; reason = 'leader'; }
+    else if (alive.length <= 1) winner = alive.length ? alive[0] : null;
+    else if (R.win && R.win.leader && ids(R.win.leader).every(down)) { winner = P; reason = 'leader'; }
+    else if (R.win && R.win.survive && S.n >= R.win.survive && alive.indexOf(P) >= 0) { winner = P; reason = 'survived'; }
+    else return false;
+    S.over = { winner, reason };
     S.turn = null;
-    beats.push({ kind: 'end', winner: S.over.winner, reason: 'fallen' });
+    if (winner === P) {
+      const sp = { xp: 0, gold: 0, cp: 0, drops: [] };
+      for (const id of S.order) {
+        const U = S.u[id];
+        if (U.hp > 0 || !U.loot || teamOf(S, U.side) === P) continue;
+        sp.xp += U.loot.xp; sp.gold += U.loot.gold; sp.cp += U.loot.cp;
+        for (const d of U.loot.drops) if (rnd(S) < d.chance) sp.drops.push(d.item);
+      }
+      S.spoils = sp;
+      beats.push(Object.assign({ kind: 'spoils' }, sp));
+    }
+    beats.push({ kind: 'end', winner, reason });
     return true;
+  }
+  // whose gauges run: the standing, and (under permadeath) the fallen not yet lost, whose turns are their countdown
+  function clocked(cfg, S) {
+    const pd = rulesOf(cfg).permadeath, out = [];
+    for (const id of S.order) { const U = S.u[id]; if (U.hp > 0 || (pd && !U.lost && U.down > 0)) out.push(id); }
+    return out;
   }
   // who fills their gauge first (the order units were given on a tie), the gauges moved on to that moment
   function nextOn(S, ct) {
     let who = null, wait = Infinity;
-    for (const id of living(S)) { const t = (GAUGE - ct[id]) / statOf(S.u[id], 'spd'); if (t < wait - 1e-9) { wait = t; who = id; } }
+    for (const id in ct) { const t = (GAUGE - ct[id]) / statOf(S.u[id], 'spd'); if (t < wait - 1e-9) { wait = t; who = id; } }
     if (who == null) return null;
-    for (const id of living(S)) ct[id] += statOf(S.u[id], 'spd') * Math.max(0, wait);
+    for (const id in ct) ct[id] += statOf(S.u[id], 'spd') * Math.max(0, wait);
     return who;
   }
-  function gauges(S) { const ct = {}; for (const id of living(S)) ct[id] = S.u[id].ct; return ct; }
+  function gauges(cfg, S) { const ct = {}; for (const id of clocked(cfg, S)) ct[id] = S.u[id].ct; return ct; }
   function advance(cfg, S, beats) {
     S.turn = null;
-    if (settle(S, beats)) return;
-    if (S.n >= rulesOf(cfg).cap) { S.over = { winner: null, reason: 'cap' }; beats.push({ kind: 'end', winner: null, reason: 'cap' }); return; }
-    const ct = gauges(S), who = nextOn(S, ct);
-    for (const id in ct) S.u[id].ct = Math.round(ct[id] * 1e6) / 1e6;
-    S.turn = { who, moved: false, acted: false };
-    beats.push({ kind: 'turn', who });
+    for (let guard = 0; guard < 1000; guard++) {
+      if (settle(cfg, S, beats)) return;
+      if (S.n >= rulesOf(cfg).cap) { S.over = { winner: null, reason: 'cap' }; beats.push({ kind: 'end', winner: null, reason: 'cap' }); return; }
+      const ct = gauges(cfg, S), who = nextOn(S, ct);
+      for (const id in ct) S.u[id].ct = Math.round(ct[id] * 1e6) / 1e6;
+      const U = S.u[who];
+      if (U.hp > 0) { S.turn = { who, moved: false, acted: false }; beats.push({ kind: 'turn', who }); return; }
+      // a fallen unit's turn is a count toward its loss
+      U.ct -= GAUGE;
+      U.down -= 1;
+      beats.push({ kind: 'count', target: who, left: U.down });
+      if (U.down <= 0) { U.lost = true; delete U.down; beats.push({ kind: 'lost', target: who }); }
+    }
   }
   function preview(B, S, n) {
     const out = [];
     if (!S.turn) return out;
-    const ct = gauges(S), first = S.turn.who;
+    const ct = {}, first = S.turn.who;
+    for (const id of living(S)) ct[id] = S.u[id].ct;
     out.push({ who: first, side: S.u[first].side });
     ct[first] -= GAUGE;
     while (out.length < n) { const w = nextOn(S, ct); if (w == null) break; out.push({ who: w, side: S.u[w].side }); ct[w] -= GAUGE; }
     return out;
   }
 
-  return { GAUGE, REFUND, FACES, RULES, ATTACK, board, nameOf, parse, centre, neighbours, start, reach, path, aim, area, hits, usable, items, legal, apply, facing, preview, occupant, living, statOf, skillOf, itemOf, roll: rnd };
+  return { GAUGE, REFUND, FACES, RULES, ATTACK, board, nameOf, parse, centre, neighbours, start, reach, path, aim, area, hits, usable, items, legal, apply, facing, preview, occupant, living, allied, statOf, skillOf, itemOf, roll: rnd };
 }
 
 const _board = buildBoard();
@@ -536,3 +583,4 @@ export const boardFacing = _board.facing;
 export const boardPreview = _board.preview;
 export const boardOccupant = _board.occupant;
 export const boardLiving = _board.living;
+export const boardAllied = _board.allied;

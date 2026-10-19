@@ -96,7 +96,7 @@ export function readBoardSpec(spec = {}) {
 }
 
 // the spots a name covers ('C4', or a block 'C4:E6'), on a board of cols × rows → [[c, r]]
-function spotsNamed(name, cols, rows) {
+export function spotsNamed(name, cols, rows) {
   const one = (s) => { const m = /^([A-Z])([1-9][0-9]?)$/.exec(s.trim().toUpperCase()); return m ? [COLS.indexOf(m[1]), Number(m[2]) - 1] : null; };
   const [a, b = a] = name.split(':').map(one);
   if (!a || !b) no(`'${name}' is not a spot ('C4') or a block of them ('C4:E6')`);

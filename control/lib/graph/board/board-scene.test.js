@@ -55,6 +55,15 @@ describe('the board world kind', () => {
     expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, players: 'party' } })).toThrow(/battle.players are the sides the player moves/);
   });
 
+  it('puts a party with no spots on its deploy spots, in order, and says which the player may place', () => {
+    const battle = { party: [{ id: 'a', class: 'fighter' }, { id: 'b', class: 'mage', at: 'B1' }, { id: 'c', class: 'cleric' }], deploy: ['A1:C1'], foes: [{ id: 'g', foe: 'goblin', at: 'D4' }] };
+    const P = assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle });
+    expect(P.board.battle.units.filter((u) => u.side === 'party').map((u) => [u.id, u.at])).toEqual([['a', 'A1'], ['b', 'B1'], ['c', 'C1']]);
+    expect(P.board.battle.placed).toEqual(['a', 'c']);
+    expect(P.board.battle.deploy).toEqual([0, 1, 2]);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, deploy: ['A1'] } })).toThrow(/spots for more of the party than fit/);
+  });
+
   it('refuses what it cannot make, saying why', () => {
     expect(() => assembleBoardScene({ size: 3 })).toThrow(/'size' is not a setting of the board kind/);
     expect(() => assembleBoardScene({ camera: { spin: true } })).toThrow(/camera.spin is not a camera setting/);

@@ -46,6 +46,31 @@ describe('the board on the World page', () => {
     await page.close();
   }, 120000);
 
+  it('deploys the party where the player puts it before the first turn, and shows the spoils of a win', async () => {
+    if (!browser) return;
+    const page = await open({ board: { seed: 'flat', relief: 0, cols: 6, rows: 6 }, battle: { deploy: ['A1:C1'],
+      party: [{ id: 'ayla', class: 'fighter', level: 9 }, { id: 'bram', class: 'mage', level: 9 }], foes: [{ id: 'g', foe: 'goblin', at: 'B3' }] } });
+    expect(await page.evaluate(() => window.__mojBoard.mode)).toBe('deploy');
+    // Ayla to C1 (the cursor starts on her own spot, A1; two steps east), then Bram stays where he stands
+    await page.evaluate(() => { const b = window.__mojBoard; b.moveCursor(2); });
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    const placed = await page.evaluate(() => { const S = window.__mojBoard.state(); return [S.u.ayla.at, S.u.bram.at, window.__mojBoard.mode]; });
+    expect(placed.slice(0, 2)).toEqual([2, 1]);
+    expect(placed[2]).not.toBe('deploy');
+    // the party fights it out by the mind's choices on its turns (the page's own auto)
+    const end = await page.evaluate(() => {
+      const b = window.__mojBoard;
+      for (let k = 0; k < 4000 && !b.result; k++) {
+        b.run(0.1);
+        if (b.mode === 'menu') b.auto();
+      }
+      return { result: b.result, text: document.body.innerText };
+    });
+    expect(end.result.winner).toBeTruthy();
+    if (end.result.winner === 'party') expect(end.text).toMatch(/Victory\n7 xp · 1 class points · 8 gold/);
+  }, 120000);
+
   it('plays the player\'s turn by the menu: move, act with a forecast, wait and face, and the turn passes on', async () => {
     if (!browser) return;
     const page = await open(fight(['party'], ['C4', 'D4', 'E4'], ['C6', 'D7', 'F7']));
