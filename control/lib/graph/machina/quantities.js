@@ -73,6 +73,9 @@ export const UNITS = {
   // fluid and spring constants, charge and fields, temperature and amount.
   'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
   AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
+  // the relativistic scale's: the Sun's mass (IAU 2015 nominal GM☉ over CODATA 2018 G), light-years, parsecs, and c
+  'M☉': U(DIM.mass, 1.98840987e30), Msun: U(DIM.mass, 1.98840987e30), ly: U(DIM.length, 9.4607304725808e15), pc: U(DIM.length, 3.0856775814913673e16),
+  c: U(DIM.velocity, 299792458),
   ms: U(DIM.time, 1e-3), ns: U(DIM.time, 1e-9), ps: U(DIM.time, 1e-12), fs: U(DIM.time, 1e-15), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
   rad: U(DIM.scalar, 1), deg: U(DIM.scalar, Math.PI / 180), '°': U(DIM.scalar, Math.PI / 180),
   'm/s²': U(DIM.accel, 1), 'm/s2': U(DIM.accel, 1),

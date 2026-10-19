@@ -117,6 +117,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   --selftest` run it, and the self-test holds that a faithful shader agrees and a shader with a hand-typed factor
   in its GLSL disagrees. Shader pages ride the normal World page, so the readout, the honesty panel and film
   capture come with them.
+- **`create_view({ kind: 'relativistic' })`**: a fourth scale, the spacetime round one non-rotating mass
+  (Schwarzschild), composed from a table of laws with their sources and review dates. One system per world:
+  - `light`: what an observer held still sees, drawn by a shader that traces each pixel's light back with the JS
+    scheme step for step. You get the shadow (seen at Synge's angle), the photon ring, the sky bent round the mass
+    (a grid every 15° or stars), and a thin disk's direct and lensed images, shifted by g (Doppler and gravitational
+    together) and brightened by g⁴. Its film swings the eye toward the disk's plane.
+  - `orbit`: test bodies on geodesics (RK4 in their own time, played on the far clock's).
+  - `clocks`: clocks held at radii or let fall.
+
+  It is checked against the closed forms: the shadow's edge at 3√3/2 Rs by bisection, the bending of light against
+  the exact orbit integral, the drawn step against both, the perihelion advance against its elliptic integral each
+  lap, each body's fate against its effective potential, the innermost stable orbit at 3 Rs, and a falling clock's
+  own time against the cycloid. Mercury comes out at 43″ a century, and the GPS clocks 45.7 µs a day apart. The
+  light shader agrees with JS at every probe in Chrome, and one that bends light 3% too little does not.
+  `measure_view` reads orbits and clocks back in SI. Lengths may be given in Schwarzschild radii (`'20 Rs'`);
+  `machina/quantities` gains `M☉`, `ly`, `pc` and `c`. Relativity, lensing, time dilation and precession now name
+  this scale as gaps elsewhere. A spinning hole, gravitational waves and special relativity are gaps saying they
+  are not in the table yet. The curated `black-hole` kind keeps its picture, and its card points at this one.
 
 ### Epidermis cube: skin and hair as a recipe
 

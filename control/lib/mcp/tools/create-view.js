@@ -79,6 +79,7 @@ import { createWindmillViewHandler } from '@/lib/mcp/tools/windmill-view';
 import { createClassicalViewHandler } from '@/lib/mcp/tools/classical-view';
 import { createMicroscopicViewHandler } from '@/lib/mcp/tools/microscopic-view';
 import { createQuantumViewHandler } from '@/lib/mcp/tools/quantum-view';
+import { createRelativisticViewHandler } from '@/lib/mcp/tools/relativistic-view';
 // Animated bio PROCESS explainers — folded in from the standalone create_dna_process /
 // create_energy_cycle tools (mint-solid-consolidation.plan.md Tier 2 sibling).
 import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
@@ -126,6 +127,7 @@ export const VIEW_KINDS = {
   'quadratic': { family: 'math', retired: 'create_quadratic_view', handler: createQuadraticViewHandler },
   'quantum': { family: 'science', handler: createQuantumViewHandler },   // a science world: composed from laws — no retired alias
   'reactor': { family: 'science', retired: 'create_reactor_view', handler: createReactorViewHandler },
+  'relativistic': { family: 'science', handler: createRelativisticViewHandler },   // a science world: composed from laws — no retired alias
   'river': { family: 'science', handler: createRiverViewHandler },   // born inside create_view — no retired alias
   'waterfall': { family: 'science', handler: createWaterfallViewHandler },   // born inside create_view — no retired alias
   'rocket': { family: 'science', handler: createRocketViewHandler },   // born inside create_view — no retired alias

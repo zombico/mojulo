@@ -131,7 +131,7 @@ function stepScience(t) {
   }
   if (!_sciRo) return;
   let h = '<b>' + SCI.titleHtml + '</b>' + (SCI.noClock ? '' : '<span>t = ' + _sciTime(SCI.t[i]) + '</span>'), bars = '';
-  const val = (r) => (r.int ? String(Math.round(r.values[i])) + (r.unit ? ' ' + r.unit : '') : _sciFmt(r.values[i], r.unit));
+  const val = (r) => (r.int ? String(Math.round(r.values[i])) + (r.unit ? ' ' + r.unit : '') : r.plain ? (+r.values[i]).toPrecision(3) + (r.unit ? ' ' + r.unit : '') : _sciFmt(r.values[i], r.unit));
   const flush = () => { if (bars) { h += '<div style="width:' + SCI.barWidth + 'px;margin-top:4px">' + bars + '</div>'; bars = ''; } };
   for (const r of SCI.rows) {
     if (r.bar) {

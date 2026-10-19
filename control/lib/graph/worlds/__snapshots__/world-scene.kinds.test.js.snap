@@ -191,6 +191,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "f6a5e570",
     "title": "mojulo reactor",
   },
+  "relativistic-view": {
+    "hash": "4df549bf",
+    "title": "mojulo relativistic world",
+  },
   "restaurant": {
     "hash": "6168d86c",
     "tier": "T0",

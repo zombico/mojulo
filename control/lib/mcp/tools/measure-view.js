@@ -33,17 +33,18 @@ import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/serie
 import { solveClassical, classicalStats } from '@/lib/graph/science-worlds/classical/solve';
 import { solveMicroscopic, microscopicStats } from '@/lib/graph/science-worlds/microscopic/solve';
 import { solveQuantum, quantumStats } from '@/lib/graph/science-worlds/quantum/solve';
+import { solveRelativistic, relativisticStats } from '@/lib/graph/science-worlds/relativistic/solve';
 
 // kinds with an honest sampler, in two tiers: 'si' (real physical units — mechanics
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -88,6 +89,7 @@ export function recomputeViewStats(manifest) {
   }
   if (kind === 'microscopic-view') return microscopicStats(solveMicroscopic({ model: manifest.model }));
   if (kind === 'quantum-view') return quantumStats(solveQuantum({ model: manifest.model }));
+  if (kind === 'relativistic-view') return relativisticStats(solveRelativistic({ model: manifest.model }));
   throw new Error(
     `recomputeViewStats: kind '${kind}' is not reviewable. Reviewable kinds: ${[...REVIEWABLE_VIEW_KINDS].join(', ')}.`,
   );
@@ -142,6 +144,7 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
   if (kind === 'classical-view') return sampleClassical(manifest, every);
   if (kind === 'microscopic-view') return sampleMicroscopic(manifest, every);
   if (kind === 'quantum-view') return sampleQuantum(manifest, every);
+  if (kind === 'relativistic-view') return sampleRelativistic(manifest, every);
   throw new Error(
     `measure_view: kind '${kind}' has no honest read-back channel — its numbers are render units `
     + `or presets, so samples would lie. Measurable kinds: ${[...MEASURABLE_VIEW_KINDS].join(', ')}.`,
@@ -241,6 +244,35 @@ function sampleQuantum(manifest, every) {
   return {
     ...head, units: { t: 's', left: 'nuclei', decayed: 'nuclei' }, T: m.duration, half_life: m.halfLife,
     series: [{ name: 'nuclei', label: 'the nuclei', count: keep.length, samples: keep.map((k) => ({ t: r.run.t[k], left: r.run.left[k], decayed: m.nuclei - r.run.left[k] })) }],
+  };
+}
+
+// a relativistic world's samples, in SI: each body's far-clock time, position, radius and own time (orbit); each
+// clock's own time against the far clock's (clocks); a light world's quantities (it has no motion to sample)
+function sampleRelativistic(manifest, every) {
+  const r = solveRelativistic({ model: manifest.model });
+  const m = r.model, step = Math.max(1, Math.floor(+every) || 1);
+  const thin = (n) => Array.from({ length: n }, (_, k) => k).filter((k) => k % step === 0 || k === n - 1);
+  const head = {
+    kind: 'relativistic-view', tier: 'si', scenario: 'composed', system: r.system, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed, sources: r.sources, reviewed: r.reviewed, rs: m.rs,
+  };
+  if (r.system === 'light') return { ...head, units: {}, series: [] };
+  if (r.system === 'orbit') {
+    return {
+      ...head, units: { t: 's', pos: 'm', r: 'm', tau: 's' }, T: m.duration,
+      series: r.run.runs.map((q) => {
+        const keep = thin(q.run.t.length);
+        return { name: q.id, label: q.id, fate: q.run.fate, count: keep.length, samples: keep.map((k) => ({ t: q.run.t[k] * m.tUnit, pos: q.run.x[k].map((c) => c * m.rs), r: q.run.r[k] * m.rs, tau: q.run.tau[k] * m.tUnit })) };
+      }),
+    };
+  }
+  const keep = thin(r.run.t.length);
+  return {
+    ...head, units: { t: 's', tau: 's', r: 'm' }, T: m.duration,
+    series: r.run.clocks.map((c) => ({ name: c.id, label: c.falls ? `falls from ${c.at * m.rs} m` : `at ${c.at * m.rs} m`, falls: c.falls, ...(c.falls ? {} : { rate: c.rate }), count: keep.length,
+      samples: keep.map((k) => ({ t: r.run.t[k] * m.tUnit, tau: c.tau[k] * m.tUnit, r: c.r[k] * m.rs })) })),
   };
 }
 

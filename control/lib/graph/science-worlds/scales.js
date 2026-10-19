@@ -24,6 +24,11 @@ export const OWNER = {
     'bond', 'bonding', 'covalent', 'photon', 'photoelectric', 'decay', 'radioactive-decay', 'uncertainty',
     'interference', 'double-slit', 'quantization', 'energy-levels', 'schrodinger', 'schrödinger', 'hydrogen',
   ],
+  relativistic: [
+    'relativity', 'general-relativity', 'special-relativity', 'black-hole', 'lensing', 'gravitational-lensing',
+    'time-dilation', 'event-horizon', 'schwarzschild', 'perihelion-precession', 'precession', 'geodesic',
+    'gravitational-redshift', 'kerr', 'gravitational-waves', 'wormhole',
+  ],
 };
 
 // laws that are classical in spirit but not (yet) rows of the table, with what would close the gap
@@ -34,8 +39,16 @@ const NOT_YET = {
   'rigid-body': 'rigid-body rotation is not in the table; bodies are point masses or smooth spheres',
   turbulence: 'turbulent flow is not modelled; quadratic drag is the closest row',
   fluid: 'fluid flow fields are not in the table; the curated `fluid` and `hydro` kinds show flow',
-  relativity: 'relativity is outside the classical scale; the curated `black-hole` and `gravity-wave` kinds show it',
-  'special-relativity': 'relativity is outside the classical scale',
+  relativity: 'the relativistic scale\'s rows are general relativity round one mass (schwarzschild); special relativity is not in the table yet',
+  'special-relativity': 'light clocks, length contraction and moving frames are not in the table yet',
+  'black-hole': 'the schwarzschild row is a black hole: light bent round it in a light world, orbits in an orbit world',
+  lensing: 'a light world: the observer and the schwarzschild rows', 'gravitational-lensing': 'a light world: the observer and the schwarzschild rows',
+  'time-dilation': 'the clock row (a clocks world)', 'event-horizon': 'the schwarzschild row: its horizon is at Rs',
+  'perihelion-precession': 'the body row (an orbit world): its advance per orbit is a gate', precession: 'the body row (an orbit world)',
+  geodesic: 'every body and every ray here follows one', 'gravitational-redshift': 'the clock row, and the disk row\'s light',
+  kerr: 'a spinning hole (Kerr) is not in the table yet; the curated `black-hole` kind draws one picture of the non-spinning hole',
+  'gravitational-waves': 'gravitational waves are not in the table yet; the curated `gravity-wave` kind shows them',
+  wormhole: 'wormholes are not in the table: no known matter holds one open',
   thermal: 'heat flow is not in the table yet',
   heat: 'heat flow is not in the table yet',
   // microscopic laws not yet rows (each species already evens out its own concentration across a membrane it crosses)

@@ -38,7 +38,7 @@ ask for what the explanation needs to resolve:
 | bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst) |
 | molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_view_vocab({ id: 'microscopic' })` |
 | energy levels, tunnelling, orbitals, spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
-| relativity, black holes, gravitational waves | outside the scales | the curated `black-hole` / `gravity-wave` kinds |
+| a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_view_vocab({ id: 'relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the curated `black-hole` / `gravity-wave` kinds) |
 
 A ready-made kind is quicker when it already *is* the demo (the mechanics kind's simple machines and engines, the
 orbit kind's solar system, the rocket and airplane missions). Compose when the setup is the teacher's own, or
