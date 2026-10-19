@@ -1119,6 +1119,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
   }
+  // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
+  // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
+  if (payload && kind !== 'board' && sketch.manifest.board && typeof sketch.manifest.board === 'object') {
+    const [{ boardOverWorld }, { boardFigures }] = await Promise.all([import('@/lib/graph/board/board-scene.js'), import('@/lib/graph/board/board-figures.js')]);
+    Object.assign(payload, boardOverWorld(payload, sketch.manifest.board));
+    Object.assign(payload, await boardFigures(payload, { heroFigure, figures: sketch.manifest.board.battle?.figures }));
+  }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade
   // through the ctx.light seam onto the vexar Lambert solve (workbench / assembler / manji-tree,

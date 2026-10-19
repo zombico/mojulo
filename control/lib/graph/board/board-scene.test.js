@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleBoardScene } from './board-scene.js';
+import { assembleBoardScene, boardOverWorld } from './board-scene.js';
 import { boardCentre } from './board-kernel.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -61,7 +61,7 @@ describe('the board world kind', () => {
     expect(P.board.battle.units.filter((u) => u.side === 'party').map((u) => [u.id, u.at])).toEqual([['a', 'A1'], ['b', 'B1'], ['c', 'C1']]);
     expect(P.board.battle.placed).toEqual(['a', 'c']);
     expect(P.board.battle.deploy).toEqual([0, 1, 2]);
-    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, deploy: ['A1'] } })).toThrow(/spots for more of the party than fit/);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, deploy: ['A1'] } })).toThrow(/for more of the party than fit/);
   });
 
   it('refuses what it cannot make, saying why', () => {
@@ -69,5 +69,35 @@ describe('the board world kind', () => {
     expect(() => assembleBoardScene({ camera: { spin: true } })).toThrow(/camera.spin is not a camera setting/);
     expect(() => assembleBoardScene({ camera: { yaw: 5 } })).toThrow(/camera.yaw is 0 to 3/);
     expect(() => assembleBoardScene({ board: { seed: 'fft', holes: ['B2'] }, units })).toThrow(/stands at B2, which is not a spot/);
+  });
+});
+
+describe('a board over a level\'s own ground', () => {
+  const battle = { figures: false, deploy: ['A1:D2'], party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }], foes: [{ id: 'g', foe: 'goblin', at: 'F6' }] };
+  const lay = async (manifest) => (await resolveWorldScene({ manifest, title: null })).payload;
+
+  it('lies over a geocube\'s trail and a nature kit\'s alike, the level\'s own keys standing, no walking and no camera body', async () => {
+    for (const stage of [{ kind: 'stage', geocube: 'island-noon', trail: {} }, { kind: 'stage', kit: 'trail-valley', trail: {} }]) {
+      const P = await lay({ ...stage, board: { cols: 8, rows: 8, battle } });
+      expect(P.board.B.cols, stage.kit ?? stage.geocube).toBe(8);
+      expect(P.board.battle.units.map((u) => u.id)).toEqual(['ayla', 'bram', 'g']);
+      expect(P.board.drape.filter(Boolean).length).toBeGreaterThan(40);
+      expect([P.walk, P.camera]).toEqual([false, null]);
+      expect(P.cameras.map((c) => c.name)).toEqual(['board']);
+      const html = emitThreeWorld({ ...P, walk: true });
+      expect(html).toContain('stepBoard = (');
+      expect(html).not.toContain('walkOn = true');
+    }
+  }, 120000);
+
+  it('makes a level of rooms a dollhouse for it', async () => {
+    const P = await lay({ kind: 'stage', geocube: 'gothic-night', rooms: [{ id: 'a', x: 0, y: 0, w: 12, d: 8, h: 6 }], board: { battle: { ...battle, foes: [{ id: 'g', foe: 'goblin', at: 'B4' }] } } });
+    expect(P.board.clip).toEqual([[0.25, 0.25, 11.75, 7.75]]);
+    expect(P.faces.some((f) => /:ceiling$/.test(f.group))).toBe(false);
+    expect(P.haze).toBeUndefined();
+  }, 120000);
+
+  it('refuses what is the level\'s own to say', () => {
+    expect(() => boardOverWorld({ faces: [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0]], group: 'isekai:ground' }] }, { geocube: 'island-noon' })).toThrow(/board.geocube is not a setting of a board over a level/);
   });
 });

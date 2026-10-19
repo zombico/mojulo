@@ -46,7 +46,8 @@ const SIZE = { lo: 4, hi: 24 };
 const MAX_STEPS = 8;                  // the diorama's tallest column at relief 1
 const BODY = [0.3, 1.6];              // what stands in a spot stands this high over its ground (m)
 const K = 3;                          // samples a side of a spot, over land
-const GROUND = { outside: /^isekai:(ground|sand|trail|rock|cliff|water)$/, inside: /^stage:(floor|gutter|focus-dais)$/ };
+// the land's groups by their last word, whatever drew it (an isekai kit's `isekai:ground`, a nature kit's `trail:ground`)
+const GROUND = { outside: /:(ground|sand|trail|rock|cliff|water)$/, inside: /^stage:(floor|gutter|focus-dais)$/ };
 const TYPE_OF = { ground: 'ground', sand: 'sand', trail: 'trail', rock: 'rock', cliff: 'cliff', water: 'water', floor: 'ground', gutter: 'ground', 'focus-dais': 'ground' };
 const COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -241,7 +242,7 @@ const STAND = { ground: 1, sand: 1, trail: 1, rock: 1 };
 // where on the land a board of cols × rows stands best: the window, on the cell's grid over the ground's extent, with
 // the most spots a unit can stand on (the one nearest the land's middle on a tie)
 function bestWindow(at, faces, cols, rows, cell, site) {
-  const g = faces.filter((f) => /^isekai:ground$/.test(f.group || '')).flatMap((f) => f.corners);
+  const g = faces.filter((f) => /:ground$/.test(f.group || '')).flatMap((f) => f.corners);
   if (!g.length) no('an outside board lies on land, and the stage has no ground');
   const x0 = Math.floor(Math.min(...g.map((p) => p[0])) / cell) * cell, y0 = Math.floor(Math.min(...g.map((p) => p[1])) / cell) * cell;
   const W = Math.max(cols, Math.ceil((Math.max(...g.map((p) => p[0])) - x0) / cell)), H = Math.max(rows, Math.ceil((Math.max(...g.map((p) => p[1])) - y0) / cell));
