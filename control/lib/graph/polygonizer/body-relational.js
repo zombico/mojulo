@@ -20,6 +20,7 @@
  * pectoral and bust parts leave: the field carries their form. A dev path for the body lane (`body-study --form`), not
  * the door: no minted hero changes. Pure and deterministic (dmath). */
 import * as dmath from '../../util/dmath.js';
+import { BREAST_FIELD, breastHeight } from './breast-field.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -61,6 +62,8 @@ const NORRIN = {
   note: 'lean, sculpted, the anatomy legible under one smooth skin: the male slice (a Silver Surfer-like body)',
   // the hero's own tune under the build: the shoulders 10 % closer (every mass rides W, so the frame narrows with them)
   tune: { shoulders: 0.9 },
+  // the pectoral's lower border is an overhang: the torso's rays there come down from above (as under the bust)
+  lift: { t: 0.4, w: 0.18, h: 0.5 },
   kBase: 0.12, kMuscle: 0.03,
   base: [
     { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 1.0]], r: [0.3, 0.27] },
@@ -72,8 +75,13 @@ const NORRIN = {
     { id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
   ],
   muscles: [
-    { id: 'pectoralSternal', on: { x: 0.35, t: 0.62, face: 'front' }, along: [1, 0, 0.32], r: [0.44, 0.32, 0.11], proud: 0.1 },
-    { id: 'pectoralClavicular', on: { x: 0.33, t: 0.86, face: 'front' }, along: [1, 0, -0.25], r: [0.3, 0.14, 0.06], proud: 0.05 },
+    // the pectoral: the sternal head thickest at its lower border (the line the eye reads, its own tight blend `k`), its
+    // fibres gathering up and out to the arm; the clavicular head a thinner sheet along the collarbone
+    { id: 'pectoralSternal', on: { x: 0.36, t: 0.56, face: 'front' }, along: [1, 0, 0.5], r: [0.44, 0.27, 0.12], proud: 0.12, k: 0.012 },
+    { id: 'pectoralClavicular', on: { x: 0.32, t: 0.84, face: 'front' }, along: [1, 0, -0.15], r: [0.3, 0.15, 0.07], proud: 0.07, k: 0.02 },
+    // the sternum between the pectorals' heads: a low ridge, so they meet over it in a shallow groove (their tight blend
+    // alone cut a V down the midline)
+    { id: 'sternum', on: { x: 0, t: 0.62, face: 'front' }, along: [0, 0, 1], r: [0.5, 0.12, 0.08], proud: 0.08, mid: true },
     { id: 'rectus1', on: { x: 0.15, t: 0.36, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.05 },
     { id: 'rectus2', on: { x: 0.15, t: 0.15, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
     { id: 'rectus3', on: { x: 0.15, t: -0.05, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
@@ -137,14 +145,21 @@ const SHALLA = {
       rectus1: { proud: 0.025 }, rectus2: { proud: 0.028 }, rectus3: { proud: 0.028 }, rectus4: { proud: 0.03 },
       trapeziusUpper: { r: [0.13, 0.08] }, sternocleidomastoid: { r: [0.07, 0.055] },
     }),
-    { id: 'pectoralSternal', on: { x: 0.33, t: 0.64, face: 'front' }, along: [1, 0, 0.3], r: [0.36, 0.26, 0.08], proud: 0.05 },
-    // the bust, seated on the chest: its apex a little under half way up the torso bone, out and down along its fibre
-    { id: 'bust', on: { x: 0.4, t: 0.47, face: 'front' }, along: [1, 0, -0.3], r: [0.42, 0.37, 0.3], proud: 0.3 },
+    { id: 'pectoralSternal', on: { x: 0.34, t: 0.6, face: 'front' }, along: [1, 0, 0.45], r: [0.38, 0.24, 0.09], proud: 0.07, k: 0.016 },
   ],
+  // the bust as the Female Titan reads (Attack on Titan): firm and high, part of the pectoral's sheet (its upper pole the
+  // pec's slope, no shelf), a little apart, the lower pole full over a clean fold: the breast field on the chest, its
+  // cleft a little wider than the hero's
+  // (firmer than the hero's own breast field: the apex rounder and less proud, the upper pole fuller off the pec, the
+  // pair set apart over the sternum (a shallow valley, not the deep cleft that boxed its floor's rings), the
+  // lower reach shorter; its pole ratios are the build's, past the field's own gates on purpose)
+  cage: { around: 64, rings: 49 },
+  bust: { t: 0.5, rb: 0.3, front: 0.15, field: { cleft: -1.5, proj: 0.85, round: 0.6, reach: { up: 1.3, down: 0.95, out: 1.25, in: 1.35 }, profile: { up: 1.8, down: 0.6, out: 2.4, in: 1.3 } } },
   // the fold under the bust: the torso's rays there come down from above (t the fold's height on the torso bone, w the
   // window's half width in t, h the raise in W)
-  lift: { t: 0.25, w: 0.22, h: 0.7 },
-  dimples: NORRIN.dimples,
+  lift: { t: 0.31, w: 0.2, h: 0.8 },
+  // (her navel shallower: on her finer cage the man's dimple read as a pit)
+  dimples: [{ ...NORRIN.dimples[0], r: 0.016, k: 0.04 }],
   kLimb: 0.035,
   limbs: {
     upperArm: { ...NORRIN.limbs.upperArm, masses: scaled(NORRIN.limbs.upperArm.masses, 0.98) },
@@ -194,16 +209,33 @@ export function bodyField(R, build, { extra = [] } = {}) {
     return { s, n: grad(base, s) };
   };
   const muscles = B.muscles.flatMap((m) => {
-    if (m.cone || m.egg) return sides(m, { ...prim(m), id: m.id });
+    const k = m.k ? { k: m.k * W } : {};
+    if (m.cone || m.egg) return sides(m, { ...prim(m), id: m.id, ...k });
     const { s, n } = seat(m.on), r = m.r.map((x) => x * W);
     const ax = frameOf(unit(m.along), n);
-    return sides(m, { egg: true, c: add(s, scl(n, m.proud * W - r[2])), ax, r });
+    return sides(m, { egg: true, c: add(s, scl(n, m.proud * W - r[2])), ax, r, id: m.id, ...k });
   });
   // masses another field owns and this one shares (the arm's deltoid heads: the shoulder's cap, so both shells agree)
   muscles.push(...extra.flatMap((p) => [p, mirror(p)]));
   const dimples = (B.dimples || []).flatMap((d) => { const { s } = seat(d.on); return [{ c: s, r: d.r * W, k: d.k * W }]; });
+  // a mass with its own blend `k` (tighter: a border the eye reads, the pectoral's lower edge) joins after the rest
+  const soft = muscles.filter((p) => !p.k), sharp = muscles.filter((p) => p.k);
+  // THE BUST (`bust`): the summed skin pushed out by the breast's FIELD (breast-field.js: the footprint, the poles'
+  // profiles, the cleft; gated on the field itself), the apex `t` up the torso bone and the field's cleft off the
+  // midline, `rb` its radius (W). It rides on what is under it, the pectoral's slope its upper pole; the pair is the
+  // greater of the two heights, so they meet in the field's own valley; on the front only
+  const bustH = B.bust ? (() => {
+    const Fb = { ...BREAST_FIELD, ...(B.bust.field || {}) }, rb = B.bust.rb * W, za = F.z0 + B.bust.t * F.T, cx = -Fb.cleft * rb, y0 = B.bust.front * W;
+    return (q) => {
+      const v = (q[2] - za) / rb, f = Math.max(0, Math.min(1, (q[1] - y0) / (0.2 * W))), fr = f * f * (3 - 2 * f); if (!fr) return 0;
+      // (the pair's crossing a smooth max: the hard one creased the cleft's floor, and its rings boxed there)
+      return fr * rb * smaxp(breastHeight((q[0] - cx) / rb, v, Fb), breastHeight((-q[0] - cx) / rb, v, Fb), 0.15);
+    };
+  })() : null;
   const sd = (q) => {
-    let d = lse([base(q), ...muscles.map((p) => sdOf(p, q))], kM);
+    let d = lse([base(q), ...soft.map((p) => sdOf(p, q))], kM);
+    for (const p of sharp) d = lse([d, sdOf(p, q)], p.k);
+    if (bustH) d -= bustH(q);
     for (const h of dimples) d = smaxp(d, -(len(sub(q, h.c)) - h.r), h.k);
     return d;
   };
@@ -349,9 +381,11 @@ export function limbField(R, build, limb, extra = []) {
 /** the slice: the torso and the arms re-sampled onto the build's field (the torso `around` × `rings`, each limb
  * `limbAround` × its build's rings), the pectoral and bust parts gone (the field carries their form), the dials' station
  * blends extended by u. Returns { recipe, field, removed } */
-export function formSlice(recipe, R, build, { around = 48, rings = 37, limbAround = 24 } = {}) {
+export function formSlice(recipe, R, build, opts = {}) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build;
   if (!B) throw new Error(`body-relational: unknown build '${build}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
+  // the torso's density: the build's own (`cage`: a bust's fold wants finer rings), else 48 round by 37 rings
+  const { around = 48, rings = 37, limbAround = 24 } = { ...B.cage, ...opts };
   // the limbs' fields first: the arm's deltoid heads are the shoulder's cap on the torso too, so the two shells agree
   const limbs = Object.fromEntries(Object.keys(B.limbs || {}).map((k) => [k, limbField(R, B, k)]));
   // THE DELTOID SHARED between the two shells and handed over along one cone round the trunk's axis (`clip`, rising
@@ -360,12 +394,13 @@ export function formSlice(recipe, R, build, { around = 48, rings = 37, limbAroun
   // all, set `tuck` inside above the cone (eased in over `band`), so its top ring and its cap sit under the torso's. Both
   // from the same masses, so the skins meet along the cone: the arm standing out of a smaller cap left a ledge on the
   // shoulder, the two on one surface z-fought in a sawtooth, and an arm cut away where the torso's field lay left it
-  // hanging from a stalk
-  const W0 = bodyFrame(R).W, clip = { rho: 0.9 * W0, z: R.joints.shoulderR[2] - 0.6 * W0, slope: 1, k: 0.08 * W0 }, tuck = 0.003, band = 0.01;
+  // hanging from a stalk. The torso's cut is sharp (`k`) and the arm's inset begins `gap` above it, so across the
+  // handover only the arm's skin shows: two fades over one band crossed back and forth a few millimetres apart, a sawtooth
+  const W0 = bodyFrame(R).W, clip = { rho: 0.9 * W0, z: R.joints.shoulderR[2] - 0.6 * W0, slope: 1, k: 0.02 * W0 }, tuck = 0.003, band = 0.01, gap = 0.004;
   const shared = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)).map((p) => ({ ...p, clip }));
   const field = bodyField(R, B, { extra: shared }), r = structuredClone(recipe), P = r.parts.torso;
   const under = (q) => (clip.slope * (Math.hypot(q[0], q[1]) - clip.rho) - (q[2] - clip.z)) / Math.hypot(1, clip.slope);
-  if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => { const x = Math.max(0, Math.min(1, -under(q) / band)); return arm(q) + tuck * x * x * (3 - 2 * x); }; }
+  if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => { const x = Math.max(0, Math.min(1, (-under(q) - gap) / band)); return arm(q) + tuck * x * x * (3 - 2 * x); }; }
   // the torso: above the chest the rays fan from one point on the trunk's axis (a ring's own radial line grazes the
   // shoulder's slope and the neck's root, where the authored rings tilt; rays from one origin never cross), and under
   // the navel it lands on the authored pelvis's top, the field easing in from the waist's first station

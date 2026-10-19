@@ -82,8 +82,11 @@ Opt-in and versioned: a default hero keeps its bytes.
   the deltoid is shared by the torso and the arm and handed over along one cone above the armpit (the torso's skin the
   shoulder's cap, the arm's below it, set a few millimetres under the cap where it reaches in), so the arm grows out of
   the shoulder with no ledge; under the bust the rays come down from above to meet the fold. Two builds, a Silver Surfer-like body: `norrin` (male, lean and sculpted, the
-  shoulders 10 % closer by the hero's own tune, the neck thin and flaring into the trapezius) and `shalla` (female, the
-  definition softer, the bust in the field). Every re-sampled part closes on both builds; deterministic. The lane wears
+  shoulders 10 % closer by the hero's own tune, the neck thin and flaring into the trapezius, the pectorals defined: the
+  sternal head thickest at its lower border under its own tight blend, meeting its partner over the sternum) and `shalla`
+  (female, the definition softer; the bust the hero's own breast field laid over the summed skin as a displacement, so
+  its upper pole is the pectoral's slope, read as the Female Titan's in Attack on Titan: firm and high, set apart over
+  the sternum, the apex rounded, the lower pole full over a clean fold; her torso on a finer cage, 64 by 49, for it). Every re-sampled part closes on both builds; deterministic. The lane wears
   the RELATIONAL head on it (head-relational.js, meshed and fitted vertex to menton, carried by the head bone), bald, in
   a matte silver-grey. The legs and the pelvis are still the authored cage.
 
