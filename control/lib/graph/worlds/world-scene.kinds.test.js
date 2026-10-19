@@ -20,6 +20,8 @@ import { withPngPixels } from '../../util/png-pixels.fixture.js';
  * (snapshot update = explicit acknowledgment).
  *
  * Re-pin log:
+ *   - 2026-10-19 science worlds (CHANGELOG "Science worlds"): the classical-view arm (added the same day) re-based when
+ *     its payload began carrying the film it proposes (`defaultShoot`) and the science block's film config.
  *   - 2026-09-26 furniture audit (CHANGELOG-2.x.md "Furniture audit"): the floorplan arm's rows re-based —
  *     sealed rooms are doored, interior leaves park against the wall with panels and a handle,
  *     share-mode chairs / wall pieces / entry / storage / tabletop meshes changed on purpose.

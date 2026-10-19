@@ -28,12 +28,13 @@ A shoot plan lives on a world's recipe (`manifest.shoot`). `forge_motion { subje
 | Spatial auto-bezier / linear | `path: 'smooth'` (default; curve through the keys at constant speed) / `'linear'` |
 | Parent camera to a null / link POI to a layer | `pos` / `poi: { follow: 'car:2', offset: [x,y,z], frame: 'subject' }` |
 | Cut between camera layers | `shots: [{ name, camera, span: [t0, t1] }]` |
+| Time-stretch a layer (slow motion) | a shot's `speed`: `0.25` plays its span four times slower, `2` twice as fast |
 
 A key missing `poi`, `lens` or `roll` keeps the previous key's. Coordinates are the world's own units, z up (the readout gives metres).
 
 ## Time
 
-Key times and shot spans are the WORLD's clock. A shot shows the world over its span: shots in sequence cut a continuous action, and two shots over the same span are coverage of one action from two cameras. On the World page the plan drives the clock, so a cut replays the action, as in an edit.
+Key times and shot spans are the WORLD's clock. A shot shows the world over its span: shots in sequence cut a continuous action, and two shots over the same span are coverage of one action from two cameras. On the World page the plan drives the clock, so a cut replays the action, as in an edit. A shot's `speed` (0.05 to 4, default 1) stretches it on the program clock: `{ span: [2, 3], speed: 0.25 }` is a four-second slow-motion replay of one second of the world. A science world says so on screen while it plays.
 
 ## Following what moves
 
@@ -63,7 +64,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 ## Edits (`shoot: { ops }`)
 
-`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
+`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in?, speed? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
 ## Exports
 

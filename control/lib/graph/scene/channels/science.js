@@ -13,6 +13,10 @@ import { safeJson } from '../emit-util.js';
 //     Built with textContent, never innerHTML, from strings the recipe supplied.
 //   LABELS — a name over each moving body, projected every frame (a signage anchor is fixed at first sight;
 //     these bodies move).
+//   THE FILM (capture runs only — a film's viewer cannot open a panel): CALLOUTS, captions on the page clock, one
+//     pinned beside a body when it names one; the SLOW-MOTION TAG while a stretched shot plays (the capture frame
+//     says which shot, `__sciShot`); and the END CARD, the honesty panel as the film's last shot, with the film's
+//     own liberties added. On a capture run the panel itself is not drawn: the card says it instead.
 //
 // The numbers are the solver's, recorded per sample; the page computes nothing physical.
 export function scienceChannelScript(cfg) {
@@ -42,11 +46,13 @@ function _sciU(sec) {
   return ph < SCI.period ? ph / SCI.period : 1;
 }
 const _sciEl = (tag, css, text) => { const e = document.createElement(tag); if (css) e.style.cssText = css; if (text != null) e.textContent = text; return e; };
-let _sciRo = null;
+let _sciRo = null, __sciShot = -1;
+const _sciFilm = SCI.capture && SCI.film ? SCI.film : null;
 if (SCI.hud) {
   _sciRo = (typeof _readout !== 'undefined' && _readout) || null;
   if (!_sciRo) { _sciRo = _sciEl('div'); _sciRo.className = 'moj-readout'; wrap.appendChild(_sciRo); }
-  // the honesty panel: closed by default, opened by its summary; captures see the summary line only
+  // the honesty panel: closed by default, opened by its summary; a capture run tells it on the end card instead
+  if (!_sciFilm) {
   const box = _sciEl('details', 'position:absolute;right:8px;bottom:8px;max-width:340px;max-height:70%;overflow:auto;background:rgba(11,18,32,.88);border:1px solid #24324a;border-radius:6px;padding:6px 10px;font-size:12px;color:#cfe3ff;z-index:5');
   box.className = 'moj-honesty';
   const sum = _sciEl('summary', 'cursor:pointer;font-weight:600', SCI.honesty.title);
@@ -63,7 +69,34 @@ if (SCI.hud) {
     }
   }
   wrap.appendChild(box);
+  }
 }
+// the film's overlays: callout captions, the slow-motion tag, the end card (built once, shown by the clock)
+const _sciCaps = _sciFilm ? _sciFilm.callouts.map((c) => {
+  const e = _sciEl('div', c.group
+    ? 'position:absolute;transform:translate(-50%,-180%);font-size:15px;font-weight:600;color:#fff;background:rgba(20,30,52,.86);border:1px solid #4f6fa8;padding:4px 9px;border-radius:5px;pointer-events:none;max-width:46%;z-index:6;display:none'
+    : 'position:absolute;left:50%;top:7%;transform:translateX(-50%);font-size:17px;font-weight:600;color:#fff;background:rgba(20,30,52,.86);border:1px solid #4f6fa8;padding:6px 12px;border-radius:6px;pointer-events:none;max-width:80%;text-align:center;z-index:6;display:none', c.text);
+  wrap.appendChild(e); return { c, e };
+}) : [];
+const _sciSlow = _sciFilm ? _sciEl('div', 'position:absolute;right:10px;top:10px;font-size:13px;font-weight:600;color:#ffd36b;background:rgba(11,18,32,.8);border:1px solid #6b5a2a;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:6;display:none') : null;
+if (_sciSlow) wrap.appendChild(_sciSlow);
+const _sciEnd = _sciFilm && _sciFilm.end ? (() => {
+  const card = _sciEl('div', 'position:absolute;inset:0;background:rgba(8,12,22,.94);color:#e6eefc;font-size:12px;padding:16px 22px;overflow:hidden;z-index:7;display:none');
+  card.appendChild(_sciEl('div', 'font-size:18px;font-weight:700;margin-bottom:2px', SCI.honesty.title.split(' · ⚠')[0]));
+  card.appendChild(_sciEl('div', 'opacity:.75;margin-bottom:6px', SCI.titleText + ' · ' + SCI.honesty.checks.held + ' of ' + SCI.honesty.checks.of + ' checks held'));
+  const secs = SCI.honesty.sections.map((sec) => sec.head === 'Drawn, not real' ? { ...sec, items: [...sec.items, ..._sciFilm.liberties.map((l) => ({ text: l.what, note: l.why ? '(' + l.why + ')' : '' }))] } : sec);
+  for (const sec of secs) {
+    if (!sec.items.length) continue;
+    card.appendChild(_sciEl('div', 'margin-top:7px;font-weight:600;color:' + sec.color, sec.head));
+    for (const it of sec.items) {
+      const row = _sciEl('div', 'margin:1px 0 0 8px;line-height:1.3');
+      if (it.mark) row.appendChild(_sciEl('span', 'color:' + (it.ok ? '#55e08a' : '#ffb347') + ';margin-right:4px', it.ok ? '✓' : '⚠'));
+      row.appendChild(_sciEl('span', '', it.text));
+      card.appendChild(row);
+    }
+  }
+  wrap.appendChild(card); return card;
+})() : null;
 const _sciLabels = SCI.hud ? SCI.labels.map((l) => {
   const e = _sciEl('div', 'position:absolute;transform:translate(-50%,-140%);font-size:11px;color:#e9eefa;background:rgba(11,18,32,.6);padding:1px 5px;border-radius:3px;pointer-events:none;white-space:nowrap;z-index:4', l.text);
   wrap.appendChild(e); return { l, e };
@@ -71,6 +104,20 @@ const _sciLabels = SCI.hud ? SCI.labels.map((l) => {
 const _sciV = new THREE.Vector3();
 function stepScience(t) {
   const sec = t / 1000, u = _sciU(sec), N = SCI.t.length, i = Math.max(0, Math.min(N - 1, Math.round(u * (N - 1))));
+  if (_sciFilm) {
+    const ph = sec % (SCI.period + SCI.hold);
+    for (const { c, e } of _sciCaps) {
+      const on = ph >= c.from && ph <= c.to;
+      e.style.display = on ? '' : 'none';
+      if (on && c.group) {
+        const m = meshes[c.group];
+        if (m) { m.getWorldPosition(_sciV); _sciV.project(camera); e.style.left = ((_sciV.x + 1) / 2 * 100) + '%'; e.style.top = ((1 - _sciV.y) / 2 * 100) + '%'; }
+      }
+    }
+    const sp = __sciShot >= 0 ? _sciFilm.speeds[__sciShot] : 1;
+    if (_sciSlow) { _sciSlow.style.display = sp && sp < 1 ? '' : 'none'; if (sp && sp < 1) _sciSlow.textContent = 'slow motion · ' + (Math.round(10 / sp) / 10) + '× slower'; }
+    if (_sciEnd) _sciEnd.style.display = ph >= _sciFilm.end.from && ph <= _sciFilm.end.to ? '' : 'none';
+  }
   for (const { l, e } of _sciLabels) {
     const m = meshes[l.group];
     if (!m) { e.style.display = 'none'; continue; }

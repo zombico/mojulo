@@ -638,7 +638,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   })() : null;
   const streamBlock = streamCfg ? streamChannelScript(streamCfg) : '';
   // a science world's readout, honesty panel and body labels (channels/science.js). Absent ⇒ '' ⇒ byte-identical.
-  const scienceBlock = science && Array.isArray(science.t) && science.t.length ? scienceChannelScript({ ...science, hud: hud !== false }) : '';
+  const scienceBlock = science && Array.isArray(science.t) && science.t.length ? scienceChannelScript({ ...science, hud: hud !== false, capture: !!capture }) : '';
   // Terrain world (opt-in): the recipe's ground meshed in the page around the camera.
   // Absent `terrain` ⇒ '' ⇒ every World byte-identical.
   const terrainBlock = terrain && typeof terrain.kernel === 'string' && terrain.K ? terrainChannelScript(terrain) : '';
@@ -1406,7 +1406,7 @@ if (_capture) {
       if (Array.isArray(spec.target)) controls.target.set(spec.target[0], spec.target[1], spec.target[2]);
       if (Number.isFinite(spec.vfov)) { camera.fov = spec.vfov; camera.updateProjectionMatrix(); }
       controls.update();
-      ${shootPlan && capture ? "if (Number.isFinite(spec.roll) && spec.roll) camera.rotateZ(-spec.roll * Math.PI / 180);   // a shoot plan's roll\n      " : ''}${shootSetBlock && capture ? "if (Number.isInteger(spec.shot)) __shSetShot = spec.shot;   // the shot this frame plays: its set pieces show\n      " : ''}${(capture && hasOverlay) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
+      ${shootPlan && capture ? "if (Number.isFinite(spec.roll) && spec.roll) camera.rotateZ(-spec.roll * Math.PI / 180);   // a shoot plan's roll\n      " : ''}${shootSetBlock && capture ? "if (Number.isInteger(spec.shot)) __shSetShot = spec.shot;   // the shot this frame plays: its set pieces show\n      " : ''}${scienceBlock && capture ? "if (Number.isInteger(spec.shot)) __sciShot = spec.shot;   // the shot this frame plays: a science film tags its slow motion\n      " : ''}${(capture && hasOverlay) ? 'window.__mojClock = Number.isFinite(spec.t) ? spec.t : 0;   // U3: pin the overlay clock so raymarch effects (fog/glow/wisps) bake deterministically under camera frames\n      ' : ''}__mojStep(Number.isFinite(spec.t) ? spec.t : 0);
       updateCutaway();
       ${prePass}renderer.render(scene, camera);
     },

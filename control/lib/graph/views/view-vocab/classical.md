@@ -81,6 +81,26 @@ body too small to see drawn larger (a body that touches things keeps its true si
 The measuring tool reads a classical world at tier `si`: every body's `{ t, pos, vel, speed }` and the system's
 `{ t, ke, pe, e, p, L }`, from the same recorded run the page plays, with the gates beside them.
 
+## The film
+
+A classical world films through its shoot plan (`shot: { motion: 'plan' }`, exported to MP4 or GIF). A recipe with no
+`shoot` of its own films the plan the world proposes: a wide shot of the whole run, a close **replay** of the key
+moment slowed down (the sharpest change in motion, such as a bounce or a collision, else the fastest moment, such as
+the bottom of a swing or the closest pass of an orbit), and an **end card** that is the honesty panel held on the last
+frame. A recipe's own `shoot` replaces the proposal; a shot's `speed` slows or speeds it, and the film says so on
+screen while it plays.
+
+The film dress (`dress.film`) is what a viewer who cannot ask needs, on the model's own clock:
+
+- `callouts` — `[{ at, text, on? }]`: a caption at a model time (`at: 1.2`) or over a span (`at: [1.2, 2]`);
+  `on: '<body>'` pins it beside that body. The page's readout keeps running under them.
+- `replay` — `false` for none, or `{ at?, speed? }`: the moment to replay (a model time) and how slow (0.1 to 1,
+  default 0.25).
+- `end_card` — `false` to end on the run.
+
+Slow motion is a liberty: the film tags it while it plays and lists it on the end card. The interactive page never
+shows the film dress; the film never shows the panel (the end card says it instead).
+
 ## Worked examples
 
 A wide pendulum (its period is checked against the exact elliptic-integral answer, not the small-angle one):
@@ -106,7 +126,8 @@ A ball bouncing on a lossy floor until it rests:
 { "model": { "bodies": [{ "id": "ball", "mass": 0.06, "radius": 0.033, "at": [0, 0, 1.5], "v": [0.6, 0, 0] }],
   "laws": [{ "law": "gravity-uniform" }, { "law": "plane", "e": 0.75, "mu": 0.2 }],
   "duration": 5, "observe": ["energy", { "quantity": "height", "of": "ball" }] },
-  "dress": { "vectors": true } }
+  "dress": { "vectors": true, "film": { "callouts": [{ "at": [0, 0.5], "text": "Dropped from 1.5 m" },
+    { "at": [0.5, 1.5], "text": "Each bounce keeps 75% of the speed", "on": "ball" }] } } }
 ```
 
 <!-- laws:begin (generated from the classical tables: node scripts/science-cards.mjs) -->

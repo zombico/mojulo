@@ -47,6 +47,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tables from the code (`node scripts/science-cards.mjs`; a test fails when they drift), and its worked examples are
   tested to hold. The same setups composed from the table agree with the mechanics kind (a projectile, a wide
   pendulum, a spring, a rough ramp) and the orbit kind (an ellipse's period and apsides) to a thousandth.
+- **The film.** A classical world proposes its own film when its recipe has no shoot plan: a wide shot of the run,
+  a close replay of the key moment slowed down (the sharpest change in motion, such as a bounce or a collision, else
+  the fastest moment), and an end card that is the honesty panel held on the last frame; `forge_motion` with
+  `shot: { motion: 'plan' }` renders it to MP4 or GIF. The film dress (`dress.film`) adds callouts on the model's own
+  clock (a caption, or one pinned beside a body), picks the replay's moment and speed, or drops the replay and the
+  card. Slow motion is tagged on screen while it plays and listed on the end card; the interactive page never shows
+  the film dress, and the film never shows the panel. Any world kind may now propose a film (`defaultShoot` on its
+  payload); a recipe's own shoot plan always wins.
+- **A shot's `speed`.** Shoot plans gain a time stretch per shot (`speed`, 0.05 to 4): `{ span: [2, 3], speed: 0.25 }`
+  is a four-second slow-motion replay of one second of the world, on the World page and in renders alike;
+  `set_shot { speed }` edits it. A plan without one is unchanged, byte for byte.
+- **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
+  the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
+  measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
 
 ### Epidermis cube: skin and hair as a recipe
 

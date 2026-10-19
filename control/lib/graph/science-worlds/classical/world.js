@@ -27,12 +27,13 @@
 
 import { solveClassical } from './solve.js';
 import { CLASSICAL_LAWS, planeNormal } from './laws.js';
+import { normalizeFilm, keyMoment, defaultShoot, filmConfig } from './film.js';
 
 const PALETTE = ['#e0b15f', '#7fa8d6', '#e57cd8', '#7bd88f', '#ff7a59', '#b39ddb', '#ffd54f', '#80cbc4'];
 const LINK_TINT = { rod: '#9aa3b5', rope: '#c8a46a', spring: '#cf8a4a' };
 const PLANE_FILL = '#222a3b', ANCHOR_TINT = '#8e9bb6';
 const HOLD = 1.2;
-const DRESS_KEYS = ['bodies', 'trails', 'vectors', 'hud', 'camera', 'background', 'playback'];
+const DRESS_KEYS = ['bodies', 'trails', 'vectors', 'hud', 'camera', 'background', 'playback', 'film'];
 
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -51,7 +52,7 @@ const sig = (v, n = 3) => +(+v).toPrecision(n);
 
 /** The world dress, checked: unknown keys are errors (a typo would otherwise vanish silently). */
 export function normalizeWorldDress(dress, bodies) {
-  if (dress == null) return { bodies: {}, trails: true, vectors: false, hud: true, camera: null, background: '#0b1020', playback: null };
+  if (dress == null) return { bodies: {}, trails: true, vectors: false, hud: true, camera: null, background: '#0b1020', playback: null, film: normalizeFilm(undefined, bodies) };
   if (!isObj(dress)) fail('dress', 'wants an object');
   const extra = Object.keys(dress).filter((k) => !DRESS_KEYS.includes(k));
   if (extra.length) fail('dress', `unknown field '${extra[0]}' (the world dress takes ${DRESS_KEYS.join(', ')})`);
@@ -73,6 +74,7 @@ export function normalizeWorldDress(dress, bodies) {
   return {
     bodies: out, trails: dress.trails ?? true, vectors: dress.vectors ?? false, hud: dress.hud ?? true,
     camera: dress.camera ?? null, background: dress.background ?? '#0b1020', playback: dress.playback ?? null,
+    film: normalizeFilm(dress.film, bodies),
   };
 }
 
@@ -215,7 +217,13 @@ export function planClassicalWorld(manifest) {
   const lead = dress.camera ?? (flat && !model.laws.some((l) => l.law === 'gravity-uniform') ? 'top' : 'side');
   const cameras = [cams[lead], ...['side', 'angle', 'top'].filter((k) => k !== lead).map((k) => cams[k])];
 
-  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, scale: s };
+  // where a body is on the page's clock (scene units), for the film's cameras
+  const pagePos = (id, sec) => {
+    const k = Math.max(0, Math.min(N - 1, Math.round((sec * rate) / (duration / Math.max(1, N - 1)))));
+    return scl(tracks.bodies[id].x[k], s);
+  };
+  const radiusOf = (id) => rDraw[bodies.findIndex((b) => b.id === id)];
+  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, pagePos, radiusOf };
 }
 
 /** The science channel's config: the readout's series, the honesty panel, the labels. */
@@ -233,7 +241,7 @@ function scienceConfig(plan, title) {
     return Object.entries(v).map(([k, x]) => `${k} ${x}`).join(', ');
   };
   return {
-    t: tracks.t, period: playback, hold: HOLD, titleHtml: esc(title),
+    t: tracks.t, period: playback, hold: HOLD, titleHtml: esc(title), titleText: title,
     series: {
       ...(observe.has('energy') ? { ke: series.ke, pe: series.pe, e: series.e, peMin, emax } : {}),
       ...(pShown ? { p: series.p.map((p) => len(p)) } : {}),
@@ -243,6 +251,7 @@ function scienceConfig(plan, title) {
     labels,
     honesty: {
       title: `What's real · what's drawn${solved.held ? '' : ' · ⚠ the checks advise'}`,
+      checks: { held: gates.filter((g) => g.ok).length, of: gates.length },
       sections: [
         { head: 'The model (real)', color: '#55e08a', items: [...new Set(model.laws.map((l) => l.law))].map((id) => ({ text: SUMMARY[id] })) },
         { head: 'Checked by the solver', color: '#9ad0ff', items: gates.map((g) => ({ mark: true, ok: g.ok, text: g.want, note: ln(g) })) },
@@ -256,15 +265,35 @@ function scienceConfig(plan, title) {
 
 const SUMMARY = Object.fromEntries(CLASSICAL_LAWS.map((r) => [r.id, r.summary]));
 
+/** The film this world proposes, and what the page needs to tell it: the key moment, the shoot plan, the film config. */
+export function planClassicalFilm(manifest, plan) {
+  const film = plan.dress.film, solved = plan.solved;
+  const found = keyMoment(solved);
+  const firstFree = solved.model.bodies.find((b) => !b.fixed)?.id;
+  const key = film.replay && film.replay.at !== undefined
+    ? { t: film.replay.at, body: found?.body ?? firstFree, why: 'the moment the recipe chose' }
+    : found;
+  const keyed = key ? { ...key, page: key.t / plan.rate } : null;
+  const proposed = defaultShoot(plan, film, keyed);
+  const shoot = manifest.shoot ?? proposed;
+  return {
+    key: keyed, shoot, proposed: manifest.shoot ? null : proposed,
+    config: filmConfig({ film, shoot, rate: plan.rate, playback: plan.playback, hold: plan.hold, labels: plan.labels }),
+  };
+}
+
 /** The World payload (emitThreeWorld) for a classical-view manifest. */
 export function assembleClassicalScene(manifest = {}, { title } = {}) {
   const plan = planClassicalWorld(manifest);
   const name = title || manifest.title || 'mojulo classical world';
+  const film = planClassicalFilm(manifest, plan);
   return {
     faces: plan.faces, picks: plan.picks, movers: plan.movers, planets: plan.planets,
     cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
     title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false,
-    ...(plan.dress.hud ? { science: scienceConfig(plan, name) } : {}),
+    ...(plan.dress.hud ? { science: { ...scienceConfig(plan, name), film: film.config } } : {}),
+    // the film this world proposes when its recipe has no shoot plan of its own (forge_motion's shot.motion 'plan')
+    ...(film.proposed ? { defaultShoot: film.proposed } : {}),
   };
 }

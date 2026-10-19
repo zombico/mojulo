@@ -141,7 +141,8 @@ export function programOf(plan) {
   let at = 0;
   // a cued shot (`cue`: it plays when an event fires, in a live world) has no place in the running order
   const shots = plan.shots.filter((s) => !s.cue).map((s) => {
-    const row = { ...s, start: at, length: s.span[1] - s.span[0] };
+    // a shot's length on the program clock: its span of the world, stretched by its speed
+    const row = { ...s, start: at, length: (s.span[1] - s.span[0]) / (s.speed || 1) };
     at += row.length;
     return row;
   });
@@ -155,7 +156,7 @@ export function shotAt(program, tau) {
   let i = 0;
   while (i + 1 < shots.length && shots[i + 1].start <= x) i++;
   const s = shots[i];
-  return { shot: s, index: i, t: s.span[0] + Math.min(s.length, x - s.start) };
+  return { shot: s, index: i, t: s.span[0] + Math.min(s.span[1] - s.span[0], (x - s.start) * (s.speed || 1)) };
 }
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
