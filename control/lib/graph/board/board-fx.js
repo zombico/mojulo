@@ -2,14 +2,17 @@
  * EFFECTS IN THE WORLD — the board's special animations: a spell, a blow, a summon, played on the map itself, not cut
  * away to. An effect is a timeline of TRACKS; each track starts at its time, runs its seconds and is gone: the camera
  * (shake, orbit, a shot), the light (the world dimmed, a flash, a tint) and 3D pieces drawn into the world (a ring, a
- * rune circle, a pillar, an orb, sparks, shards, spikes, a bolt, a beam, a fall from the sky, a rising mist). Pieces are
+ * rune circle (rings, ticks and arcs), a pillar, an orb, sparks, shards, spikes, a bolt, a beam, a fall from the sky, a rising mist). Pieces are
  * additive, so they glow in a dimmed world, and every scatter in them is seeded: the same act, the same pieces.
  *
  *   PRESETS            { <id>: { land, tracks } }   land: when the effect's hit lands (the numbers wait for it)
  *   ELEMENT_FX         an element's effect (fire → flare, ice → frost, thunder → bolt, …)
  *   fxOf(skill)        → the effect a skill (or item) plays: its own `fx`, its element's, a mending's, a blow's
- *   create(env) → { play(id, ctx) → { land, dur } | null, step(dt), busy() → effects playing, pieces() → pieces standing, clear() }
- *     env: { THREE, root (the group pieces go in), scene (its lights dim), CAM, C (the board camera and its state) }
+ *   create(env) → { play(id, ctx) → { land, dur } | null, step(dt), busy() → effects playing, pieces() → pieces standing,
+ *     dim() → the world's light (1: as it is), clear() }
+ *     env: { THREE, root (the group pieces go in), camera (the view a dim veils), CAM, C (the board camera and its state) }
+ *   the world dimmed: a dark veil just in front of the camera, drawn after the world and before the pieces, so a dimmed
+ *   world (lit or not) still shows every piece at full glow
  *     ctx: { from: [x, y, z] (the actor's feet), at: [x, y, z] (where it is aimed), targets: [[x, y, z]], seed }
  *
  *   a track: { kind, t?: start s, dur, at?: 'targets' | 'at' | 'from' (where its pieces stand; each target its own),
@@ -133,7 +136,7 @@ export function buildBoardFx() {
       { kind: 'dim', dur: 4.4, k: 0.8 }, { kind: 'orbit', t: 0.2, dur: 3.8, rate: 0.4 }, { kind: 'shot', at: 'at', dur: 4.2, share: 0.6, },
       { kind: 'rune', at: 'at', dur: 4.2, color: '#9fc2ff', r: 2.6 },
       { kind: 'being', at: 'at', t: 0.2, dur: 4.0, being: 'tempest', back: 0 },
-      { kind: 'bolt', t: 2.0, dur: 0.35, color: '#dfe9ff', h: 8 }, { kind: 'bolt', t: 2.3, dur: 0.4, color: '#ffffff', h: 8 }, { kind: 'bolt', t: 2.7, dur: 0.4, color: '#dfe9ff', h: 8 },
+      { kind: 'bolt', t: 2.0, dur: 0.35, color: '#dfe9ff', h: 5.4 }, { kind: 'bolt', t: 2.3, dur: 0.4, color: '#ffffff', h: 5.4 }, { kind: 'bolt', t: 2.7, dur: 0.4, color: '#dfe9ff', h: 5.4 },
       { kind: 'flash', t: 2.3, dur: 0.15, color: '#dfe9ff' }, { kind: 'flash', t: 2.7, dur: 0.15, color: '#ffffff' },
       { kind: 'ring', t: 2.3, dur: 0.5, color: '#9fc2ff', r0: 0.2, r1: 2.2 }, { kind: 'shake', t: 2.3, dur: 0.8, k: 0.8 },
     ] },
@@ -181,7 +184,7 @@ export function buildBoardFx() {
   }
 
   function create(env) {
-    const THREE = env.THREE, root = env.root, CAM = env.CAM, C = env.C, scene = env.scene;
+    const THREE = env.THREE, root = env.root, CAM = env.CAM, C = env.C, camera = env.camera;
     const live = [];
     let n = 0;
     const add = (c) => ({ color: new THREE.Color(c || '#ffffff'), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -205,18 +208,18 @@ export function buildBoardFx() {
         const g = new THREE.Group(), r = tr.r || 1, mat = new THREE.MeshBasicMaterial(add(tr.color));
         g.add(new THREE.Mesh(new THREE.RingGeometry(r * 0.94, r, 64), mat));
         g.add(new THREE.Mesh(new THREE.RingGeometry(r * 0.7, r * 0.74, 64), mat));
-        // a six-pointed star inside, its strokes thin quads
-        const pts = [];
-        for (let k = 0; k < 6; k++) { const a = (k / 6) * TAU; pts.push([Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7]); }
-        for (const [i, j] of [[0, 2], [2, 4], [4, 0], [1, 3], [3, 5], [5, 1]]) {
-          const a = pts[i], b = pts[j], q = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.035), mat);
-          q.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0);
-          q.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
-          q.scale.x = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        // inside: ticks round the ring, and three arcs turning the other way (plain geometry, no symbol)
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * TAU, q = new THREE.Mesh(new THREE.PlaneGeometry(r * 0.18, 0.04), mat);
+          q.position.set(Math.cos(a) * r * 0.83, Math.sin(a) * r * 0.83, 0);
+          q.rotation.z = a;
           g.add(q);
         }
+        const arcs = new THREE.Group();
+        for (let k = 0; k < 3; k++) arcs.add(new THREE.Mesh(new THREE.RingGeometry(r * 0.42, r * 0.47, 32, 1, (k / 3) * TAU, TAU / 5), mat));
+        g.add(arcs);
         g.position.set(p[0], p[1], p[2] + 0.07);
-        return { obj: g, step(u, dt) { g.rotation.z += dt * 1.6; mat.opacity = envelope(u, 0.2, 0.3) * 0.85; const s = 0.6 + 0.4 * easeOut(clamp01(u * 3)); g.scale.set(s, s, 1); } };
+        return { obj: g, step(u, dt) { g.rotation.z += dt * 1.6; arcs.rotation.z -= dt * 4; mat.opacity = envelope(u, 0.2, 0.3) * 0.85; const s = 0.6 + 0.4 * easeOut(clamp01(u * 3)); g.scale.set(s, s, 1); } };
       },
       pillar(tr, p) {
         const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28, 1, true), new THREE.MeshBasicMaterial(add(tr.color)));
@@ -314,14 +317,14 @@ export function buildBoardFx() {
       },
       tempest(mat) {
         const g = new THREE.Group(), cloud = mat('#5b6b8f', 0.35), glow = mat('#dfe9ff', 0.8), ring = new THREE.Group();
-        for (let k = 0; k < 7; k++) { const c = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), cloud), a = (k / 7) * TAU; c.position.set(Math.cos(a) * 1.6, Math.sin(a) * 1.6, 8); c.scale.set(1.4, 1.4, 0.55); g.add(c); }
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), glow); eye.position.z = 7.6; g.add(eye);
-        for (let k = 0; k < 8; k++) { const o = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glow), a = (k / 8) * TAU; o.position.set(Math.cos(a) * 3, Math.sin(a) * 3, 7.4); ring.add(o); }
+        for (let k = 0; k < 7; k++) { const c = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), cloud), a = (k / 7) * TAU; c.position.set(Math.cos(a) * 1.6, Math.sin(a) * 1.6, 5.8); c.scale.set(1.4, 1.4, 0.55); g.add(c); }
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), glow); eye.position.z = 5.4; g.add(eye);
+        for (let k = 0; k < 8; k++) { const o = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glow), a = (k / 8) * TAU; o.position.set(Math.cos(a) * 3, Math.sin(a) * 3, 5.2); ring.add(o); }
         g.add(ring);
         return { g, step(u, t) { ring.rotation.z = t * 2.2; eye.scale.setScalar(1 + 0.3 * Math.sin(t * 17)); } };
       },
       colossus(mat) {
-        const g = new THREE.Group(), stone = mat('#c9a27a', 0.5), vein = mat('#ffcf8a', 0.75), arm = new THREE.Group();
+        const g = new THREE.Group(), stone = mat('#6f6252', 0.6), vein = mat('#ff9a3d', 0.85), arm = new THREE.Group();
         const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.2, 4.5, 8), stone); fore.rotation.x = Math.PI / 2; fore.position.z = 2.25;
         const fist = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.0, 1.9), stone); fist.position.z = 5.2;
         for (let k = 0; k < 4; k++) { const n = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.6), vein); n.position.set(-0.9 + k * 0.6, -1.05, 5.6); arm.add(n); }
@@ -349,18 +352,20 @@ export function buildBoardFx() {
     MAKE.being = function (tr, p) {
       const mats = [];
       const mat = (c, o) => { const m = new THREE.MeshBasicMaterial(add(c)); m.userData.o = o; mats.push(m); return m; };
-      const B = BEINGS[tr.being](mat), yaw = C ? C.yaw : 0, back = tr.back != null ? tr.back : 3.2;
-      // behind the place as the camera sees it, facing back at it
-      B.g.position.set(p[0] + Math.cos(yaw) * back, p[1] + Math.sin(yaw) * back, p[2]);
-      B.g.rotation.z = yaw + Math.PI / 2;
+      const B = BEINGS[tr.being](mat), yaw = C ? C.yaw : 0, back = tr.back != null ? tr.back : 3.2, hold = new THREE.Group();
+      // held behind the place as the camera first sees it, turning to face the camera as it orbits (its own motion inside)
+      hold.add(B.g);
+      hold.position.set(p[0] + Math.cos(yaw) * back, p[1] + Math.sin(yaw) * back, p[2]);
+      hold.rotation.z = yaw + Math.PI / 2;
       let t = 0;
-      return { obj: B.g, step(u, dt) {
+      return { obj: hold, step(u, dt) {
         t += dt;
         // out of the ground and into being, its act, then dissolving upward
         const rise = easeOut(clamp01(u / 0.22)), fade = clamp01((u - 0.82) / 0.18);
-        B.g.scale.setScalar(Math.max(0.01, 0.4 + 0.6 * rise));
-        B.g.position.z = p[2] - 3 * (1 - rise) + 2 * fade;
+        hold.scale.setScalar(Math.max(0.01, 0.4 + 0.6 * rise));
+        hold.position.z = p[2] - 3 * (1 - rise) + 2 * fade;
         for (const m of mats) m.opacity = m.userData.o * rise * (1 - fade);
+        if (C) hold.rotation.z = C.yaw + Math.PI / 2;
         B.step(u, t);
       } };
     };
@@ -384,14 +389,22 @@ export function buildBoardFx() {
       } };
     }
 
-    // ── the light: dims gather (the darkest wins), the world's lights and sky eased to it and back ──────────────────
-    const base = new Map();
-    let sky = null;
+    // ── the light: dims gather (the darkest wins) into a veil before the camera, drawn before the pieces ─────────────
+    const PIECES = 12;
+    const veil = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+    veil.renderOrder = PIECES - 1;
+    veil.visible = false;
+    root.add(veil);
+    let lit = 1;
     function light(f) {
-      if (!scene) return;
-      scene.traverse((o) => { if (o.isLight) { if (!base.has(o)) base.set(o, o.intensity); o.intensity = base.get(o) * f; } });
-      if (scene.background && scene.background.isColor) { if (!sky) sky = scene.background.clone(); scene.background.copy(sky).multiplyScalar(f); }
-      if (f >= 1) { base.clear(); sky = null; }
+      lit = f;
+      veil.visible = f < 1 && !!camera;
+      if (!veil.visible) return;
+      const d = new THREE.Vector3();
+      camera.getWorldDirection(d);
+      veil.position.copy(camera.position).addScaledVector(d, Math.max(0.2, (camera.near || 0.1) * 2));
+      veil.quaternion.copy(camera.quaternion);
+      veil.material.opacity = 1 - f;
     }
     let flashEl = null;
     function flash(color, k) {
@@ -418,7 +431,7 @@ export function buildBoardFx() {
       if (tr.kind === 'dim' || tr.kind === 'flash') return;
       const make = MAKE[tr.kind];
       if (!make) return;
-      for (const p of pts) { const piece = make(tr, p, E.rnd, E.c); root.add(piece.obj); T.pieces.push(piece); }
+      for (const p of pts) { const piece = make(tr, p, E.rnd, E.c); piece.obj.traverse((o) => { o.renderOrder = PIECES; }); root.add(piece.obj); T.pieces.push(piece); }
     }
     function stop(T) {
       if (T.tr.kind === 'orbit' && CAM) CAM.orbit(C, 0);
@@ -445,16 +458,16 @@ export function buildBoardFx() {
         }
       }
       for (let i = live.length - 1; i >= 0; i--) if (live[i].tracks.every((T) => T.off)) live.splice(i, 1);
-      if (dim < 1 || base.size) light(dim);
+      if (dim < 1 || lit < 1) light(dim);
       if (fl) flash(fl[0], fl[1]); else if (flashEl && flashEl.style.opacity !== '0') flashEl.style.opacity = '0';
     }
     function clear() {
       for (const E of live) for (const T of E.tracks) if (T.on && !T.off) { T.off = true; stop(T); }
       live.length = 0;
-      if (base.size) light(1);
+      light(1);
       if (flashEl) flashEl.style.opacity = '0';
     }
-    return { play, step, clear, busy: () => live.length, pieces: () => live.reduce((m, E) => m + E.tracks.reduce((q, T) => q + T.pieces.length, 0), 0) };
+    return { play, step, clear, dim: () => lit, busy: () => live.length, pieces: () => live.reduce((m, E) => m + E.tracks.reduce((q, T) => q + T.pieces.length, 0), 0) };
   }
 
   return { PRESETS, ELEMENT_FX, fxOf, create, hash, dice };

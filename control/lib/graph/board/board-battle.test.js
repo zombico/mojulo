@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBoardBattle, skillShape, BOARD_CLASSES } from './board-battle.js';
+import { readBoardBattle, skillShape, BOARD_CLASSES, BOARD_SUMMONS, SUMMONER, withBoardBook } from './board-battle.js';
 import { boardOf, boardStart, boardApply, boardLegal, boardParse, boardUsable, boardItems } from './board-kernel.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgStatsOf } from '../playscape/rpg/kernel.js';
@@ -15,8 +15,8 @@ function rpgBlow(rpgSpec, who, pick, r) {
   rpgStart(cfg, R, 'board', vars);
   for (let k = 0; k < 40 && R.b.turn !== who; k++) rpgRound(cfg, R, { [R.b.turn]: { act: 'guard' } }, vars);
   R.b.r = r;
-  const target = rpgTargets(cfg, R, pick)[0].id;
-  return rpgRound(cfg, R, { [who]: { ...pick, target } }, vars).find((b) => b.by === who && (b.kind === 'hurt' || b.kind === 'miss'));
+  const T = rpgTargets(cfg, R, pick), target = T.length ? T[0].id : undefined;   // a skill on every foe names none
+  return rpgRound(cfg, R, { [who]: { ...pick, ...(target ? { target } : {}) } }, vars).find((b) => b.by === who && (b.kind === 'hurt' || b.kind === 'miss'));
 }
 
 describe('a board battle read from the party battles\' book', () => {
@@ -62,6 +62,28 @@ describe('a board battle read from the party battles\' book', () => {
       const d = spell(r * 104729);
       expect([d.kind, d.amount, d.mul], `fire on a wisp, dice ${r}`).toEqual([c.kind, c.amount, c.mul]);
     }
+  });
+
+  it('calls a summon as the party battles would cast it: the summoner\'s rank teaches it, the same dice land the same', () => {
+    // a summoner at rank 1 knows the inferno, its shape wide and its effect the being's
+    const { cfg, units } = readBoardBattle({ party: [{ id: 'sela', class: 'summoner', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'A4', face: 's' }] });
+    expect(units[0].skills).toContain('inferno');
+    expect(cfg.skills.inferno).toMatchObject({ target: 'foes', area: 2, max: 5, fx: 'inferno', element: 'fire' });
+    const summon = (r) => {
+      const B = flat(3, 5), S = turnOf(boardStart(B, cfg, units), 'sela', r);
+      return boardApply(B, cfg, S, { kind: 'act', skill: 'inferno', at: boardParse(B, 'A4') }).beats.find((b) => b.by === 'sela');
+    };
+    const spec = withBoardBook({ party: [{ id: 'sela', class: 'summoner' }], encounters: [{ id: 'board', foes: ['goblin'] }] });
+    for (let r = 1; r <= 30; r++) {
+      const a = rpgBlow(spec, 'sela', { act: 'skill', skill: 'inferno' }, r * 7919), b = summon(r * 7919);
+      expect([b.kind, b.amount, b.mul], `inferno, dice ${r}`).toEqual([a.kind, a.amount, a.mul]);
+    }
+    // any member may know one; the book is only there when someone uses it
+    expect(readBoardBattle({ party: [{ id: 'ayla', class: 'fighter', at: 'A1', skills: ['wyrm'] }], foes: [{ id: 'g', foe: 'goblin', at: 'A4' }] }).units[0].skills).toContain('wyrm');
+    const plain = { party: [{ id: 'ayla', class: 'fighter' }] };
+    expect(withBoardBook(plain)).toBe(plain);
+    expect(Object.keys(withBoardBook({ party: [{ id: 'x', class: 'summoner' }] }).classes)).toContain('mage');
+    expect(SUMMONER.skills.map((e) => e.skill).sort()).toEqual(Object.keys(BOARD_SUMMONS).sort());
   });
 
   it('puts a sleeper\'s turn to an ending only, and a blow wakes it', () => {

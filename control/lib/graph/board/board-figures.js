@@ -20,6 +20,7 @@ export const CLASS_LOOKS = Object.freeze({
   cleric: { cast: 'female', palette: { Top: '#e8e2d0' } },
   rogue: { cast: 'male', palette: { Top: '#3e5e3a' } },
   monk: { cast: 'male', palette: { Top: '#c47a2c' } },
+  summoner: { cast: 'female', palette: { Top: '#2f6d6a' } },
 });
 export const FOE_LOOKS = Object.freeze({
   goblin: { cast: 'male', palette: { Top: '#4f7a2e' } },

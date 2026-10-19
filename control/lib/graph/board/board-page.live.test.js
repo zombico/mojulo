@@ -3,7 +3,7 @@
 // (the attack, the skills, the bag), Wait, an aimed act's forecast, the turn passing on.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { assembleBoardScene } from './board-scene.js';
-import { buildBoard, boardStart, boardApply, boardLegal } from './board-kernel.js';
+import { buildBoard, boardStart, boardApply, boardLegal, boardParse } from './board-kernel.js';
 import { boardMindPlan } from './board-mind.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
@@ -126,12 +126,14 @@ describe('the board on the World page', () => {
     const line = (say) => [{ line: { who: 'ayla', say } }];
     const { payload } = await resolveWorldScene({ ref: 'told', title: null, manifest: { kind: 'board', board: { seed: 'flat', relief: 0, cols: 6, rows: 6 },
       battle: { figures: false, party: [{ id: 'ayla', class: 'fighter', at: 'C2', bonus: { atk: 99, hp: 99, spd: 50 } }], foes: [{ id: 's', foe: 'slime', at: 'C4' }] },
-      play: { scenes: [{ id: 'intro', when: { on: 'slot:before' }, beats: line('Hold the line.') }, { id: 'outro', when: { on: 'slot:after' }, beats: line('It is done.') }] },
+      play: { scenes: [{ id: 'intro', when: { on: 'slot:before' }, beats: [{ do: { emit: 'fx:quake:ayla' } }, ...line('Hold the line.')] }, { id: 'outro', when: { on: 'slot:after' }, beats: line('It is done.') }] },
       game: { levelRef: 'told', mechanics: [{ kind: 'board' }] } } });
     expect(payload.board.slots).toEqual(['before', 'after']);
     const page = await browser.newPage();
     await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__mojBoard && window.__mojScenes && window.__mojScenes.on(), { timeout: 20000 });
+    // the scene's own effect, by the bus: a quake on the speaker, the map shaking
+    expect(await page.evaluate(() => window.__mojBoard.fx.playing + window.__mojBoard.camera.shakes.length)).toBeGreaterThan(0);
     expect(await page.evaluate(() => ({ mode: window.__mojBoard.mode, slot: window.__mojBoard.slot, who: window.__mojScenes.view().line && window.__mojScenes.view().line.who }))).toEqual({ mode: 'scene', slot: 'before', who: 'ayla' });
     // the line read (a click types it out, the next goes on), the scene over: the battle begins
     await page.waitForFunction(() => { if (window.__mojScenes.on()) window.__mojScenes.next(); return window.__mojBoard.mode !== 'scene'; }, { polling: 200, timeout: 10000 });
@@ -197,6 +199,51 @@ describe('the board on the World page', () => {
     expect(after).toEqual({ shot: null, bubble: false });
     await page.close();
   }, 180000);
+
+  it('plays each act\'s effect on the map, its numbers waiting on the hit, every piece gone and the world as it was after', async () => {
+    if (!browser) return;
+    const page = await open(fight([]));
+    // the minds fight on the page's own clock: an act's effect stands in the world while it plays
+    await page.waitForFunction(() => { const f = window.__mojBoard.fx; return f && f.playing > 0 && f.pieces > 0; }, { timeout: 30000, polling: 20 });
+    expect(await page.evaluate(() => window.__mojBoard.fx.waiting)).toBe(true);
+    await page.waitForFunction(() => window.__mojBoard.result, { timeout: 120000 });
+    await page.waitForFunction(() => window.__mojBoard.fx.playing === 0, { timeout: 10000 });
+    expect(await page.evaluate(() => window.__mojBoard.fx)).toEqual({ playing: 0, pieces: 0, waiting: false, dim: 1 });
+    await page.close();
+  }, 180000);
+
+  it('summons on the map: the being risen, the world dimmed, the camera orbiting; then the world as it was, the view on its quarter', async () => {
+    if (!browser) return;
+    const page = await open(fight(['party']));
+    for (const being of ['inferno', 'glacier', 'tempest', 'colossus', 'wyrm']) {
+      const out = await page.evaluate((b) => window.__mojBoard.playFx(b, 'g1'), being);
+      expect(out.land).toBeLessThan(out.dur);
+      await page.waitForFunction(() => window.__mojBoard.fx.pieces > 1 && window.__mojBoard.camera.spin !== 0 && window.__mojBoard.fx.dim < 0.6, { timeout: 5000 });
+      expect(await page.evaluate(() => !!window.__mojBoard.camera.shot), being).toBe(true);
+      if (process.env.MOJULO_BOARD_SHOTS) { await new Promise((r) => setTimeout(r, (out.land - 0.6) * 1000)); await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/summon-${being}.png` }); }
+      await page.waitForFunction(() => window.__mojBoard.fx.playing === 0, { timeout: 15000 });
+      await page.waitForFunction(() => window.__mojBoard.camera.yaw === window.__mojBoard.camera.yawTo, { timeout: 5000 });
+      const after = await page.evaluate(() => { const C = window.__mojBoard.camera, q = (C.yaw - Math.PI / 4) / (Math.PI / 2); return { fx: window.__mojBoard.fx, shot: C.shot, spin: C.spin, onQuarter: Math.abs(q - Math.round(q)) < 1e-6 }; });
+      expect(after, being).toEqual({ fx: { playing: 0, pieces: 0, waiting: false, dim: 1 }, shot: null, spin: 0, onQuarter: true });
+    }
+    await page.close();
+  }, 240000);
+
+  it('a summoner\'s turn: the summon played on the map, its numbers landing with its strike, the battle as the kernel says', async () => {
+    if (!browser) return;
+    const M = { board: { seed: 'flat', relief: 0, cols: 8, rows: 8 }, battle: { seed: 'sum', players: ['party'], party: [{ id: 'sela', class: 'summoner', at: 'C2', bonus: { spd: 60 } }], foes: [{ id: 'g', foe: 'goblin', at: 'C5' }, { id: 'h', foe: 'goblin', at: 'D5' }] } };
+    const P = assembleBoardScene(M), at = boardParse(P.board.B, 'C5');
+    const page = await open(M);
+    await page.waitForFunction(() => window.__mojBoard.mode === 'menu', { timeout: 20000 });
+    const hp0 = await page.evaluate(() => window.__mojBoard.state().u.g.hp);
+    expect(await page.evaluate((a) => window.__mojBoard.act({ kind: 'act', skill: 'inferno', at: a }), at)).toBe(true);
+    // the being stands before the numbers do: the state has moved on, the floats wait for the strike
+    const mid = await page.evaluate(() => ({ fx: window.__mojBoard.fx, hp: window.__mojBoard.state().u.g.hp }));
+    expect(mid.fx.waiting).toBe(true);
+    expect(mid.hp).toBeLessThan(hp0);
+    await page.waitForFunction(() => !window.__mojBoard.fx.waiting && window.__mojBoard.fx.playing === 0, { timeout: 15000 });
+    await page.close();
+  }, 120000);
 
   it('opens an epoch\'s map on its begin slot: the party waits on the scene before it may set out', async () => {
     if (!browser) return;

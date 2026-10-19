@@ -84,6 +84,17 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   words float over whoever speaks, a speaking figure gestures, and `talk: { portrait: true }` (on a board, or the
   book's `battles.board.talk`) adds a close portrait of the speaker, their own figure drawn live beside the words. The
   camera also shakes (the same way every time) and orbits, for what comes next.
+- **Special animations on the board**, built: every act plays on the map itself (a spell its element's effect: fire
+  rises in a pillar, ice spikes from the ground, a bolt falls; a mending glows, a blow sparks), and its numbers land
+  with its strike. Effects are timelines of camera moves (shake, orbit, a shot), light (the world dimmed, a flash) and
+  3D pieces (rings, rune circles, pillars, orbs, shards, spikes, bolts), seeded, so the same act plays the same way. A
+  scene plays one by the bus (`fx:quake:<who>`, `fx:meteor`).
+- **Summons**, built: a summoner class (the board's own book beside the party battles' presets) calls five beings,
+  each built in 3D and animated on the map: an inferno giant raining fire, a glacier colossus raising ice, a tempest
+  crown calling bolts, a stone colossus whose fist quakes the ground, a wyrm of light that circles and breathes. The
+  world dims, the camera circles the place, the map shakes; then the view settles back on its quarter. A summon hurts
+  exactly as the party battles' formula says. Any member may know one (`skills`); a book gives the class with
+  `battles.party.<id>.class: 'summoner'`.
 - **A game's final level** (`final` on `create_game`, the light shell): its first win completes the game. The front's
   end plays (or the result says the game is complete) instead of travelling on, and the game counts as cleared by
   that level alone, not every level. A game without one is unchanged.

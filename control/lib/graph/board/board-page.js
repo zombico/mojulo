@@ -42,7 +42,7 @@ export function boardChannelData(laid, { units = [], camera = {}, cursor, drape,
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
-export function boardPage(D, K, CAM, MIND, RK, CARRY) {
+export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
   __ctrlOwnsCamera = true;   // eslint-disable-line no-global-assign
@@ -384,6 +384,19 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     else if (mode === 'aim' && aiming && aiming.spots.has(cursor)) play(Object.assign({ kind: 'act', at: cursor }, aiming.what));
     else if (mode === 'face') play({ kind: 'end', face: K.FACES[face] });
   }
+  // ── effects in the world (board-fx.js): an act plays its effect on the map, and what it does shows as it lands ──
+  const fxRoot = new THREE.Group();
+  scene.add(fxRoot);
+  const FX = FXB ? FXB.create({ THREE, root: fxRoot, camera, CAM, C }) : null;
+  let pend = null, fxN = 0;
+  const posOf = (id) => (tokens[id] ? tokens[id].g.position.toArray() : centre(S.u[id].at));
+  function effectOf(act, beats) {
+    const sk = act.item ? K.itemOf(cfg, act.item) : K.skillOf(cfg, act.skill), id = FXB.fxOf(sk);
+    if (!id) return null;
+    const hit = [];
+    for (const b of beats) if (b.target && hit.indexOf(b.target) < 0) hit.push(b.target);
+    return FX.play(id, { from: posOf(act.who), at: centre(act.at), targets: hit.map(posOf), seed: (cfg.seed || 'board') + ':' + (fxN++) });
+  }
   const HOP = 0.16;
   function beat(b) {
     if (b.kind === 'move') { tokens[b.who].hops.push(...b.path.slice(1)); busy = Math.max(busy, (b.path.length - 1) * HOP + 0.15); return; }
@@ -403,12 +416,15 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   function play(a) {
     const who = S.turn.who, out = K.apply(B, cfg, S, a);
     S = out.S;
-    for (const b of out.beats) beat(b);
+    const act = out.beats.find((b) => b.kind === 'act'), fx = act && FX ? effectOf(act, out.beats) : null;
+    // an effect first: the numbers, the falls and the end wait for its hit to land
+    if (fx) { pend = { t: fx.land, beats: out.beats.filter((b) => b !== act), then: null }; busy = Math.max(busy, fx.dur + 0.2); }
+    else for (const b of out.beats) beat(b);
     highlight('reach', null); highlight('aim', null); highlight('area', null);
     aiming = null;
-    settleTokens();
+    if (!pend) settleTokens();
     drawSide();
-    if (S.over) { finish(); return; }
+    if (S.over) { if (pend) pend.then = finish; else finish(); return; }
     if (S.turn.who !== who) { busy = Math.max(busy, 0.35); next(); return; }
     if (HUMAN.has(S.u[who].side)) openMenu();
   }
@@ -790,6 +806,20 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     }
   }
 
+  // a scene's effect: fx:<id> (where the cursor is) or fx:<id>:<who> (a unit, a dot, a spot) on the bus
+  let busSeen = typeof __busState !== 'undefined' ? __busState.log.length : 0;   // eslint-disable-line no-undef
+  function stepBusFx() {
+    if (!FX || typeof __busState === 'undefined') return;   // eslint-disable-line no-undef
+    const log = __busState.log;   // eslint-disable-line no-undef
+    for (let i = busSeen; i < log.length; i++) {
+      const ty = log[i] && log[i].type;
+      if (typeof ty !== 'string' || ty.indexOf('fx:') !== 0) continue;
+      const [id, who] = ty.slice(3).split(':'), at = (who && whereIs(who)) || tops[cursor];
+      if (at) FX.play(id, { from: at, at, targets: [at], seed: 'bus:' + (fxN++) });
+    }
+    busSeen = log.length;
+  }
+
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
     state: () => S, highlight, moveCursor, stepCursor, select, get drawn() { return own ? drawn : null; },
@@ -800,6 +830,9 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     get slot() { return slotWait ? slotWait.name : null; },
     // the story on the map: who speaks, where the camera's shot is, the portrait's frames drawn
     get talk() { return { talking, shot: C.shot ? C.shot.focus.slice() : null, portrait: portrait ? portrait.drawn : null }; },
+    // the effects: how many play, how many pieces stand in the world, an act's numbers still waiting on its hit
+    get fx() { return FX ? { playing: FX.busy(), pieces: FX.pieces(), waiting: !!pend, dim: Math.round(FX.dim() * 1000) / 1000 } : null; },
+    playFx(id, who) { if (!FX) return null; const at = (who && whereIs(who)) || tops[cursor]; return FX.play(id, { from: at, at, targets: [at], seed: 'probe:' + (fxN++) }); },
     get map() { return MAP && { at: mapAt, cursor: MAP.dots[mapCur].id, gone: mapGone, dots: MAP.dots.map((d) => ({ id: d.id, state: stateOf(d) })) }; },
     goTo(id) { if (!MAP || mode !== 'map') return false; const k = dotIdx(id); if (k < 0) return false; mapCur = k; mapGo(); return true; },
     // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
@@ -815,6 +848,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
 
   // the battle's own time: animations wait it out, then the other side takes its next step
   function run(dt) {
+    if (pend && (pend.t -= dt) <= 0) { const p = pend; pend = null; for (const b of p.beats) beat(b); settleTokens(); if (p.then) p.then(); }
     if (busy > 0) busy = Math.max(0, busy - dt);
     else if (mode === 'cpu' && cpu && S.turn) cpuStep(dt);
   }
@@ -863,6 +897,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     }
     stepSlot(dt);
     stepTalk();
+    stepBusFx();
+    if (FX) FX.step(dt);
     if (battle) { drawFloats(dt); run(dt); }
     if (MAP && walker && walker.from) {
       if (walker.hops.length) {

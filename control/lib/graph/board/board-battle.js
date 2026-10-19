@@ -31,13 +31,46 @@
  *                               four, a mending three; on every foe or ally, an area round the spot aimed at
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
+import { CLASS_PRESETS } from '../playscape/rpg/presets.js';
+import { BOARD_FX } from './board-fx.js';
 import { rpgInit, rpgStatsOf, rpgUsable } from '../playscape/rpg/kernel.js';
 
 // a class's legs: the front line steps far and climbs, the caster and the healer less, the quick one furthest
 export const BOARD_CLASSES = Object.freeze({
   fighter: { move: 4, jump: 3 }, knight: { move: 3, jump: 2 }, mage: { move: 3, jump: 2 },
-  cleric: { move: 3, jump: 2 }, rogue: { move: 5, jump: 3 }, monk: { move: 4, jump: 4 },
+  cleric: { move: 3, jump: 2 }, rogue: { move: 5, jump: 3 }, monk: { move: 4, jump: 4 }, summoner: { move: 3, jump: 2 },
 });
+// THE BOARD'S OWN BOOK, beside the party battles' presets: the summoner and the summons it calls (each a spell on every
+// foe in a wide area, played as its being: board-fx.js). In a battle only when someone in it is a summoner or knows a
+// summon (withBoardBook), so every other battle's book is as it was.
+export const BOARD_SUMMONS = Object.freeze({
+  inferno: { name: 'Inferno', about: 'a fire giant rises and rains fire on every foe in reach', mp: 14, target: 'foes', power: 12, stat: 'mag', scale: 1.0, element: 'fire' },
+  glacier: { name: 'Glacier', about: 'an ice colossus raises spikes under every foe in reach', mp: 14, target: 'foes', power: 12, stat: 'mag', scale: 1.0, element: 'ice' },
+  tempest: { name: 'Tempest', about: 'a storm crown calls bolts down on every foe in reach', mp: 16, target: 'foes', power: 14, stat: 'mag', scale: 1.0, element: 'thunder' },
+  colossus: { name: 'Colossus', about: 'a stone fist out of the ground quakes every foe in reach', mp: 18, target: 'foes', power: 16, stat: 'mag', scale: 1.1 },
+  wyrm: { name: 'Wyrm', about: 'a serpent of light circles, then breathes on every foe in reach', mp: 24, target: 'foes', power: 20, stat: 'mag', scale: 1.3, element: 'light' },
+});
+export const SUMMONER = Object.freeze({
+  name: 'Summoner', about: 'calls beings out of the ground to strike every foe in reach; frail, slow to act',
+  base: { hp: 22, mp: 26, atk: 4, def: 4, mag: 11, spd: 5 }, growth: { hp: 4.2, mp: 4.5, atk: 0.6, def: 0.9, mag: 2.6, spd: 0.7 },
+  skills: [{ skill: 'inferno', at: 1 }, { skill: 'glacier', at: 2 }, { skill: 'tempest', at: 3 }, { skill: 'colossus', cost: 2 }, { skill: 'wyrm', cost: 3, requires: ['colossus'] }],
+  start: { weapon: 'oak-staff', armor: 'robe' },
+});
+// a play.rpg (the party battles' shape) with the board's book in it when it is used: the summoner beside the classes
+// it had (every preset, when it named none), the summons beside its skills
+export function withBoardBook(rpg) {
+  const names = (v) => (v === undefined ? [] : Array.isArray(v) ? v : Object.keys(v));
+  const party = rpg.party ?? [], summon = (k) => !!BOARD_SUMMONS[k];
+  const uses = party.some((p) => p.class === 'summoner' || (p.classes ?? []).includes('summoner') || (p.skills ?? []).some(summon))
+    || names(rpg.classes).includes('summoner') || names(rpg.skills).some(summon);
+  if (!uses) return rpg;
+  const had = rpg.classes === undefined ? Object.keys(CLASS_PRESETS) : null;
+  const classes = had ? Object.fromEntries(had.map((k) => [k, true])) : Array.isArray(rpg.classes) ? Object.fromEntries(rpg.classes.map((k) => [k, true])) : rpg.classes;
+  const skills = Array.isArray(rpg.skills) ? Object.fromEntries(rpg.skills.map((k) => [k, true])) : rpg.skills ?? {};
+  const own = (t, k) => t[k] !== undefined && t[k] !== true;
+  return { ...rpg, classes: { ...classes, summoner: own(classes, 'summoner') ? classes.summoner : SUMMONER },
+    skills: { ...skills, ...Object.fromEntries(Object.keys(BOARD_SUMMONS).filter((k) => !own(skills, k)).map((k) => [k, BOARD_SUMMONS[k]])) } };
+}
 const CLASS_LEGS = { move: 4, jump: 2 };
 // a foe's: the flyers climb anything, the heavy ones barely
 export const BOARD_FOES = Object.freeze({
@@ -46,7 +79,9 @@ export const BOARD_FOES = Object.freeze({
 });
 const FOE_LEGS = { move: 4, jump: 2 };
 // the skills whose shape is not what they are: a sweep round the one struck, a storm wider, a cloud round the caster
+const SUMMON_SHAPE = { min: 1, max: 5, area: 2, v: 4 };
 const SKILL_SHAPES = Object.freeze({
+  ...Object.fromEntries(Object.keys(BOARD_SUMMONS).map((k) => [k, { ...SUMMON_SHAPE, fx: k }])),
   cleave: { min: 1, max: 1, area: 1, v: 2 },
   firestorm: { min: 1, max: 4, area: 2, v: 3 },
   'fire-breath': { min: 1, max: 3, area: 1, v: 3 },
@@ -74,7 +109,7 @@ function readRules(r, ids) {
   if (r.permadeath !== undefined && !(Number.isInteger(r.permadeath) && r.permadeath >= 0 && r.permadeath <= 9)) no('rules.permadeath is the turns a fallen unit waits to be raised before it is lost, 0 (off) to 9');
 }
 const no = (m) => { throw new Error(`board battle: ${m}`); };
-const SHAPE_KEYS = ['min', 'max', 'kind', 'area', 'v'];
+const SHAPE_KEYS = ['min', 'max', 'kind', 'area', 'v', 'fx'];
 
 /** A skill's shape on the board, from what it is (the party battles' read of it). */
 export function skillShape(sk) {
@@ -90,6 +125,7 @@ function readShape(v, at) {
   for (const k of Object.keys(v)) if (!SHAPE_KEYS.includes(k)) no(`${at}.${k} is not a shape setting (settings: ${SHAPE_KEYS.join(', ')})`);
   for (const k of ['min', 'max', 'area', 'v']) if (v[k] !== undefined && !(Number.isInteger(v[k]) && v[k] >= 0 && v[k] <= 12)) no(`${at}.${k} is a whole number of spots (or height steps), 0 to 12`);
   if (v.kind !== undefined && !['diamond', 'line'].includes(v.kind)) no(`${at}.kind is 'diamond' or 'line'`);
+  if (v.fx !== undefined && !(typeof v.fx === 'string' && BOARD_FX[v.fx])) no(`${at}.fx is the effect it plays on the map (${Object.keys(BOARD_FX).join(', ')})`);
   return v;
 }
 function readLegs(v, at) {
@@ -140,8 +176,9 @@ export function readBoardBattle(spec = {}) {
   const own = (p) => Object.fromEntries(['level', 'name', 'bonus', 'classes', 'gear'].filter((k) => p[k] !== undefined).map((k) => [k, p[k]]));
   // every kind of foe, in encounters of six (as many as one holds)
   const kinds = [...new Set(foes.map((f) => f.foe))];
-  const rpg = readRpg({ rpg: { ...W, party: members.map((p) => ({ id: p.id, class: p.class, ...own(p) })),
-    encounters: kinds.map((_, k) => k).filter((k) => k % 6 === 0).map((k) => ({ id: k ? `board-${k / 6 + 1}` : 'board', foes: kinds.slice(k, k + 6) })), ...(extra.length ? { skills: { ...Object.fromEntries(extra.map((k) => [k, true])), ...(W.skills ?? {}) } } : {}) } });
+  // (the board's own book in it when a summoner or a summon is)
+  const rpg = readRpg({ rpg: withBoardBook({ ...W, party: members.map((p) => ({ id: p.id, class: p.class, ...own(p) })),
+    encounters: kinds.map((_, k) => k).filter((k) => k % 6 === 0).map((k) => ({ id: k ? `board-${k / 6 + 1}` : 'board', foes: kinds.slice(k, k + 6) })), ...(extra.length ? { skills: { ...Object.fromEntries(extra.map((k) => [k, true])), ...(W.skills ?? {}) } } : {}) }) });
   const R = rpgInit(rpg);
 
   const legs = (table, own, key, base, at) => ({ ...base, ...(table[key] ?? {}), ...(own?.[key] ? readLegs(own[key], at) : {}) });

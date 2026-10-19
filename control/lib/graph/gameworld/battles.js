@@ -26,6 +26,7 @@
  * roster as the game starts.
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
+import { withBoardBook } from '../board/board-battle.js';
 import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { playerStates } from '../playscape/player.js';
@@ -139,7 +140,9 @@ export function battleBase(G) {
   const B = G.battles ?? {};
   const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
-  return { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  // a book fighting on boards has the board's own book besides (the summoner and its summons), when it uses it
+  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  return B.on === 'board' ? withBoardBook(base) : base;
 }
 
 // the beats a pack may stand on: along the way, the exit and the trailhead left free

@@ -38,5 +38,8 @@ describe('a tactics book\'s epochs', () => {
     expect(on([])).toThrow(/cut into chapters/);
     expect(() => readBattles({ on: 'board', board: { talk: { portrait: 1 } } })).toThrow(/board.talk is \{ bubble\?, portrait\? \}/);
     expect(() => readBattles({ on: 'board', board: { talk: { portrait: true } } })).not.toThrow();
+    // the board's own book: a summoner in a book that fights on boards, none in one that does not
+    expect(() => readBattles({ on: 'board', party: { hero: { class: 'summoner' } } })).not.toThrow();
+    expect(() => readBattles({ party: { hero: { class: 'summoner' } } })).toThrow(/summoner/);
   });
 });
