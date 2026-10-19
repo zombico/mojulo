@@ -97,6 +97,21 @@ in CSS 3D. In progress:
 - **The board drawn** (`lattice-svg.js`, `lattice-css3d.js`), built: the plan as SVG (cells in the board's own
   colouring, corners, edges and names, highlights over them), and the board in CSS 3D, a top a cell, sides where a
   cell stands above its neighbour or the rim, a seat at the table and a view from above.
+- **The tabletop kernel** (`lib/graph/tabletop/tabletop-kernel.js`), built: a game as a pure function of its moves,
+  composed from data. A piece is what it can do: a vector (or a way) under the board's symmetry, stepped, slid or
+  leapt, landing on an empty cell, a foe or either, the cells it crosses empty, held by a foe or anything, taking what
+  it lands on, what it jumps or what left a mark. Exceptions are conditions (unmoved, a row counted from the player's
+  own side, a mark the last move left), marks, a partner piece that moves with it and a path that must not be
+  attacked; promotion offers each piece a pawn may become; a chain lets the same piece go again (a multi-jump). A
+  rule is written once for the first player and turned to face each other one. The game's rules: a royal piece that
+  may not be left attacked (mate and stalemate follow), compulsory capture, no move loses or draws, repetition, a
+  quiet count, a turn cap, moves a turn and passing, and a clock (base, increment, delay) that spends the time the
+  page measured, the kernel never reading one. One self-contained closure, as the strategy board's, so a page can
+  carry it.
+- **Chess and checkers as data** (`lib/graph/tabletop/games/`), built: written in those words alone, chess with
+  castling, en passant, promotion, check, the fifty-move rule and threefold repetition, and English draughts with
+  compulsory and chained jumps and crowning. A chess position loads from FEN. Their move counts match the published
+  perft tables (chess from the start, Kiwipete and the standard test positions; checkers from the start).
 
 ## [3.1.1] - 2026-10-16
 
