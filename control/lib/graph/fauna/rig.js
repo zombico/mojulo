@@ -21,12 +21,11 @@
  */
 import { faunaSkeleton } from './skeleton.js';
 import { gaitFrames, prepare } from './gait.js';
-import { locomotionFor } from './locomotion/index.js';
-import { SPECIES, speciesPlan } from './species.js';
 import { BEHAVIORS, resolveBehavior, repertoire } from './behavior/index.js';
 import { posable, behaviorFrames, prepare as preparePose } from './behavior/pose.js';
 import { reactsOf, reactionFrames, REACTION_SECONDS } from './behavior/react.js';
 import { packLayeredRig } from '../polygonizer/station-loft-rig.js';
+import { bodyPlan, bodyLocomotion } from './body.js';
 
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -66,7 +65,7 @@ export function faunaBinds(id) {
     const w = r6(u < 0.5 ? 0.5 - u : u - 0.5);
     return w > 0 ? { [bid]: r6(1 - w), [nb]: w } : { [bid]: 1 };
   };
-  const P = speciesPlan(id), J = P.joints, segments = {};   // the plan the skeleton was derived from
+  const P = bodyPlan(id), J = P.joints, segments = {};   // the plan the skeleton was derived from
   for (const p of P.segments) {
     const b = S.bind[p.name];
     if (typeof b === 'string') {
@@ -91,7 +90,7 @@ export function faunaBinds(id) {
 }
 
 /** The gaits a species can be minted with, and the default (all of them). */
-export const motionGaits = (id) => Object.keys(locomotionFor(SPECIES[id].family, id).gaits);
+export const motionGaits = (id) => Object.keys(bodyLocomotion(id).gaits);
 
 /** The behaviors a species can be minted with: those whose strategy is posed (behavior/pose.js `posable`). */
 export const motionBehaviors = (id) => Object.keys(BEHAVIORS).filter((b) => posable(id, b).ok);

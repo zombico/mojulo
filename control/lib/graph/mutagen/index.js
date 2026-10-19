@@ -75,6 +75,7 @@ export function oozeFauna(P, mutagen, report = {}) {
     if (S.c > 0) {
       const G = graftParams(Q, { c: S.c, motif, seed: mutagen.seed });
       Q = G.Q; notes.push(...G.notes);
+      Object.assign(report, { grafts: G.grafts, tail: G.tail, wings: G.wings });
       const g = graftPush(push, G.grafts, canWear(Q)); push = g.push; notes.push(...g.notes);
       if (Q.wings && Q.wings !== P.wings && MOTIFS[motif]?.glow) push = { ...push, extraGlow: [...(push.extraGlow || []), 'Vein', 'Claw', 'CovertTip', 'LesserTip'] };
       notes.splice(1, 0, { stage: 'chimera', technique: `chimera ${S.c}`, where: 'the whole creature', principle: 'pure → chimera: grafts in the order they break the silhouette', why: G.grafts.length ? `grafts reached: ${G.grafts.join(', ')}` : 'none reached yet (horns from 0.15)' });
@@ -84,6 +85,7 @@ export function oozeFauna(P, mutagen, report = {}) {
     push = D.push;
     report.notes = [...notes, ...D.notes];
   }
+  report.params = Q;   // the params the plan was built from (the rig reads its legs and wings: body.js)
   return pushPlan(buildFauna(Q), push, Q, report);
 }
 

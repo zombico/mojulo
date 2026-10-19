@@ -33,7 +33,10 @@ export const graftsAt = (c) => GRAFTS.filter(([, at]) => c >= at).map(([g]) => g
 
 // the trunk in the species' own units: its back cap (the rump), its length, its top over the shoulders, its side there
 function trunk(Q) {
-  const T = Q.torso, ys = T.map((st) => st.at[1]), y0 = Math.min(...ys), y1 = Math.max(...ys), L = y1 - y0, b = Q.bulk ?? 1;
+  // its length along its stations (an upright trunk, a bird's, stands its stations one over another), never zero
+  const T = Q.torso, ys = T.map((st) => st.at[1]), y0 = Math.min(...ys), y1 = Math.max(...ys), b = Q.bulk ?? 1;
+  const path = T.slice(1).reduce((t, st, i) => t + Math.hypot(...st.at.map((x, k) => x - T[i].at[k])), 0);
+  const L = Math.max(y1 - y0, path, 0.1);
   const fr = (r) => (Array.isArray(r) ? r[1] : r) * b, sd = (r) => (Array.isArray(r) ? r[0] : r) * b;
   const sh = Q.joints?.shoulder?.[1] ?? y1 - 0.2 * L, near = T.reduce((p, st) => (Math.abs(st.at[1] - sh) < Math.abs(p.at[1] - sh) ? st : p), T[0]);
   const rump = Q.torsoCaps?.back ?? [0, y0 - 0.1 * L, T[0].at[2]];
@@ -80,12 +83,14 @@ export function graftTail(kind, root, L, r0) {
  */
 export function graftParams(Q, { c, motif = 'horn', seed = 0, color }) {
   const grafts = graftsAt(c), notes = [], out = { ...Q };
-  if (!grafts.length || !Array.isArray(Q.torso) || !Q.torso.length) return { Q, notes, grafts: [] };
+  if (!grafts.length || !Array.isArray(Q.torso) || !Q.torso.length) return { Q, notes, grafts: [], tail: null, wings: false };
+  let tailKind = null, winged = false;
   const M = MOTIFS[motif] ?? MOTIFS.horn, B = trunk(Q), pick = (list, key) => list[fnv(`${seed}|${key}`) % list.length];
   const coat = Q.colors?.coat ?? '#6b5f52';
   if (grafts.includes('tail')) {
     const kind = pick(LEAN[motif] ?? TAILS, 'tail'), root = Q.tail?.[0] ?? [0, B.rump[1], B.rump[2]];
-    const r0 = Math.max(Q.tail?.[0]?.[3] ?? 0, 0.06 * B.L);
+    tailKind = kind;
+    const r00 = Q.tail?.[0]?.[3], r0 = Math.max(Array.isArray(r00) ? Math.max(...r00) : r00 ?? 0, 0.06 * B.L);   // a radius, or [side, front]
     Object.assign(out, graftTail(kind, root, B.L, r0), { tailBush: 1, tailGroup: undefined });
     // a tail authored as an extra segment (a monkey's) is the old tail too: the graft replaces it
     if ((Q.extraSegments || []).some((g) => g.name === 'tail' || g.name === 'tailTip')) out.extraSegments = Q.extraSegments.filter((g) => g.name !== 'tail' && g.name !== 'tailTip');
@@ -95,7 +100,9 @@ export function graftParams(Q, { c, motif = 'horn', seed = 0, color }) {
   }
   if (grafts.includes('wings') && !Q.wings) {
     const feathered = FEATHERED.has(motif), wide = grafts.includes('crown') ? 1.25 : 1;
-    const wing = feathered ? featherWing() : membraneWing(1);
+    // a grafted wing's arm bones are the wing's own (`wingHumerus`…): never a leg's name (a primate's `hand`)
+    const made = feathered ? featherWing() : membraneWing(1);
+    const wing = { ...made, arm: made.arm.map((b) => (/^wing/.test(b.id) ? b : { ...b, id: `wing${b.id[0].toUpperCase()}${b.id.slice(1)}` })) };
     const arm = wing.arm.reduce((s, b) => s + b.len, 0), target = (feathered ? 1.05 : 0.8) * B.L * wide * (Q.scale ?? 1);
     // carried half raised: the spread plane lifted up and back off the shoulders, the fold a quarter in
     const W = { ...wing, frame: { ...wing.frame, spread: { S: [0.62, -0.18, 0.76], C: [0, 1, 0.12] } } };
@@ -105,11 +112,27 @@ export function graftParams(Q, { c, motif = 'horn', seed = 0, color }) {
       ? { WingBone: dark, FlightA: dark, FlightB: shade(coat, -0.25), FlightC: shade(coat, -0.15), FlightUnder: light, CovertA: coat, CovertB: shade(coat, 0.1), CovertC: shade(coat, -0.05),
         CovertTip: accent, CovertUnder: light, LesserA: shade(coat, 0.15), LesserB: shade(coat, 0.2), LesserC: shade(coat, 0.1), LesserTip: accent }
       : { MembraneBack: dark, MembraneUnder: shade(coat, -0.15), MembraneRim: shade(coat, -0.55), Vein: accent, WingBone: shade(coat, -0.45), Claw: accent };
-    out.wings = { wing: W, at: 'wingRoot', fold: 0.25, scale: r4(target / arm), core: 0.03, coreFit: true, palette };
+    out.wings = { wing: W, at: 'wingRoot', fold: 0.25, scale: r4(target / arm), core: 0.03, coreFit: true, palette, articulated: true };
+    winged = true;
     notes.push({ stage: 'chimera', technique: `${feathered ? 'feathered' : 'membrane'} wings`, where: 'the shoulders', principle: 'the biggest shape a creature can be given',
       why: `${feathered ? 'a griffin\'s feathered wings' : 'a dragon\'s membrane wings'}, carried half raised, ${Math.round(target * 100) / 100} m to the wrist, edged in ${M.reads}` });
   } else if (grafts.includes('wings')) notes.push({ stage: 'chimera', technique: 'wings (its own)', where: 'the shoulders', principle: 'what the animal has stands', why: 'a winged animal keeps its own wings' });
-  return { Q: out, notes, grafts };
+  return { Q: out, notes, grafts, tail: tailKind, wings: winged };
+}
+
+// THE GRAFTS' MOTION: a locomotion overlay (fauna/locomotion mergeLocomotion's grammar) so the skeleton grows bones for
+// what was grafted and the clips move them: a grafted tail is carved into bones of its own and swings (a family whose
+// tail hung still, or had none, now trails it), and grafted wings fly (wingbeat) and glide (held spread); on the ground
+// they ride the shoulders, carried as they were drawn.
+const TAIL_BONES = { serpent: 7, scorpion: 6, lion: 5, dragon: 6 };
+export function graftLocomotion({ tail, wings }, L) {
+  const over = {};
+  if (tail) {
+    over.spine = { tail: Math.max(L?.spine?.tail ?? 0, TAIL_BONES[tail] ?? 5) };
+    over.axial = { ...(['none', 'still', 'flag', undefined].includes(L?.axial?.tail) ? { tail: 'trail' } : {}), tailBuild: 'flesh' };
+  }
+  if (wings) over.gaits = { fly: { pattern: 'wingbeat' }, glide: { pattern: 'soar' } };
+  return Object.keys(over).length ? over : null;
 }
 
 /** The plan-level grafts as pushes over the composed one (horns, plates, the crown) → `{ push, notes }`. */

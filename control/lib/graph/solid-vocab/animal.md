@@ -206,7 +206,9 @@ tail (serpent, scorpion, lion or dragon, rooted where the old one was) and wings
 membrane otherwise, carried half raised); chimera a second crown of horns and wider wings. The seed and the motif
 choose among the kinds, so two chimeras of one species differ. Absent, a mythic register is hybrid and below it pure;
 `mythical` is hybrid. A winged animal keeps its own wings. The grafts stand on joints of their own: no species joint
-moves (when the rig follows the creature, they ride its nearest bones).
+moves; under `motion` a grafted tail is carved into bones of its own and swings, grafted wings get wing bones,
+beat in `fly` and hold spread in `glide` (both added to the creature's gaits), and every ornament rides the bone at its
+root.
 
 - A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
   multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to
@@ -221,7 +223,11 @@ moves (when the rig follows the creature, they ride its nearest bones).
 - The stored plan is the mutated body (`/plan/...` patches retune it); the manifest keeps `ooze: { oozes, seed }`.
   The result says the form it composed to.
 - Strength 0 or an empty list is the plain species, byte-identical, with nothing stored.
-- Not yet: `motion` beside `ooze` (refused until the rig follows the size), the `maker`, `archetype` and `bug` doors.
+- `motion` beside `ooze` animates the creature on its OWN body: its skeleton is derived from the mutated plan (a grown
+  creature's bones are its species' at its size, its clips the same turns), its gaits and behaviors its species' plus
+  what its grafts bring. The stored motion keeps the species and the ooze, so the World and every export rebuild the
+  same body. Grafted wings are articulated (each point weighed to the wing bones it hangs from).
+- Not yet: the `maker`, `archetype` and `bug` doors.
 
 ## Honest limits
 

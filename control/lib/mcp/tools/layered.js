@@ -55,6 +55,7 @@ import { isArmorBuild, armorReadout, armorFamily, armorMaterials, ARMOR_LAWS_VER
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { mutagenErrors } from '@/lib/graph/mutagen/index';
+import { rigSpecies } from '@/lib/graph/mutagen/rig';
 import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
 import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
@@ -140,7 +141,8 @@ export function planLayered(manifest) {
   // from the gait and behavior solvers at read time)
   if (manifest.recipe.motion && !manifest.recipe.rig) {
     try {
-      const M = manifest.recipe.motion, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
+      // an oozed animal's motion names its species and the ooze it was made with: its own body (mutagen/rig.js)
+      const M0 = manifest.recipe.motion, M = M0.ooze ? { ...M0, species: rigSpecies(M0) } : M0, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
       if (!B) throw new Error(`unknown species '${M.species}'`);
       // a bug's motion carries its bauplan (bugs/rig.js): its gaits are the ones its parts move by, every behavior word
       const have = bug ? bugMotionGaits(M.bug, M.species || null) : motionGaits(M.species), who = bug ? 'this bug' : `'${M.species}'`;
@@ -151,7 +153,7 @@ export function planLayered(manifest) {
       const skin = bindLayered(mesh, manifest.recipe, B);
       let bad = 0; skin.weights.forEach((w) => { if (Math.abs(w.reduce((a, b) => a + b, 0) - 1) > 1e-9 || w.some((x) => !(x >= 0))) bad++; });
       if (bad) throw new Error(`${bad} vertices with bad weights`);
-      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M.species ?? null, ...(bug ? { bug: true } : {}) };
+      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M0.species ?? null, ...(bug ? { bug: true } : {}) };
     } catch (err) { throw new Error(`animal motion: ${err.message} — the species' gaits and behaviors: get_solid_vocab({ id: 'animals' }).`); }
   }
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };

@@ -155,7 +155,15 @@ describe("mint_solid kind 'animal' — oozes", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { archetype: 'canine', stylism: { detail: 'rich' } } })).rejects.toThrow(/mutate a `species`/);
   });
 
-  it('refuses an ooze off a fauna species, beside motion, or that it cannot read', async () => {
+  it('an oozed animal moves on its own body: its motion stored with its species and ooze, its grafts\' gaits its own', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_moving', spec: { species: 'wolf', ooze: 'dire', stylism: { register: 'mythic', chimera: 'chimera' }, motion: ['walk', 'fly'] } });
+    expect(res.motion.gaits).toEqual(['walk', 'fly']);
+    const M = SketchRepository.getByRef('an_moving').manifest.recipe.motion;
+    expect(M).toMatchObject({ species: 'wolf', gaits: ['walk', 'fly'], ooze: { oozes: [{ id: 'dire', strength: 1 }], stylism: { register: 'mythic', chimera: 'chimera' } } });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'dire', motion: 'fly' } })).rejects.toThrow(/no gait 'fly'/);
+  });
+
+  it('refuses an ooze off a fauna species, or that it cannot read', async () => {
     const { OOZES } = await import('@/lib/graph/mutagen/index');
     const { BUG_SPECIES } = await import('@/lib/graph/bugs/species');
     const id = Object.keys(OOZES)[0], bug = Object.keys(BUG_SPECIES)[0];
@@ -163,7 +171,6 @@ describe("mint_solid kind 'animal' — oozes", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { archetype: 'canine', ooze: id } })).rejects.toThrow(/mutate a `species`/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', ooze: id } })).rejects.toThrow(/mutate a `species`/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: bug, ooze: id } })).rejects.toThrow(/is a bug/);
-    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: id, motion: 'walk' } })).rejects.toThrow(/`ooze` or `motion`/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', seed: 3 } })).rejects.toThrow(/pass it with `ooze`/);
   });
 });

@@ -31,7 +31,7 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
-import { SPECIES as FAUNA, speciesPlan, speciesParams, stanceOf } from '@/lib/graph/fauna/species';
+import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
 import { withMotion, motionGaits, motionBehaviors, motionReactions, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
@@ -43,7 +43,8 @@ import { BUG_SPECIES, bugParams, resolveBug, assembleBug } from '@/lib/graph/bug
 import { withBugMotion, bugMotionGaits, bugMotionBehaviors, bugBehaviorLines } from '@/lib/graph/bugs/rig';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
-import { mutagenErrors, resolveMutagen, oozeFauna } from '@/lib/graph/mutagen/index';
+import { mutagenErrors } from '@/lib/graph/mutagen/index';
+import { oozeBody, oozeMotion } from '@/lib/graph/mutagen/rig';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
 // The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
@@ -247,18 +248,20 @@ export async function createAnimalHandler(input) {
     }
     // MOTION (opt-in, fauna/rig.js): the plan bound to the species' skeleton, carrying its gaits as clips the World
     // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
-    const motion = motionSpec(species, input.motion);
     // OOZES: the form laid over the species' params before its body is built; absent (or every strength 0) ⇒ the
-    // species' own plan, byte-identical, and nothing stored
-    const M = oozed ? resolveMutagen(ooze, { seed, key: species, stylism }) : null;
-    if (M && motion) throw new Error('`motion` on an oozed animal is not built yet: its rig does not follow its size. Pass `ooze` or `motion`, not both');
-    const seat = {}, plan = M ? oozeFauna(speciesParams(species), M, seat) : speciesPlan(species);
+    // species' own plan, byte-identical, and nothing stored. An oozed creature is a body of its own (mutagen/rig.js):
+    // its skeleton follows its size and grows bones for its grafts, and its gaits are its own (grafted wings fly)
+    const B = oozed ? oozeBody(species, { ooze, seed, stylism }) : null, M = B?.mutagen ?? null, rid = B?.rid ?? species;
+    const motion = motionSpec(rid, input.motion);
+    const seat = B?.report ?? {}, plan = M ? B.plan : speciesPlan(species);
+    const moved = motion ? withMotion(plan, rid, motion.gaits, motion.keys, motion) : plan;
+    if (motion && M) moved.motion = oozeMotion(moved.motion, species, { oozes: M.oozes, seed: M.seed, stylism });
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withMotion(plan, species, motion.gaits, motion.keys, motion) : plan, plan_audit: { source: 'agent' }, ...carved, species,
+      title, plan: moved, plan_audit: { source: 'agent' }, ...carved, species,
       ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

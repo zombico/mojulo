@@ -7,8 +7,8 @@
  * Pure and deterministic.
  */
 import { faunaSkeleton } from '../skeleton.js';
-import { speciesParams, stanceOf, SPECIES } from '../species.js';
-import { locomotionFor } from '../locomotion/index.js';
+import { stanceOf, SPECIES } from '../species.js';
+import { bodySpecies, bodyParams, bodyLocomotion } from '../body.js';
 
 /** The capability words a strategy's `needs` may name, each with what it measures. */
 export const CAPABILITIES = Object.freeze({
@@ -38,17 +38,17 @@ const CACHE = new Map();   // species data is frozen and this is pure: one skele
 
 /** The capabilities of species `id`, with the measurements that decided them (`measured`). Frozen; computed once. */
 export function capabilitiesOf(id) {
-  if (!CACHE.has(id)) CACHE.set(id, SPECIES[id] ? Object.freeze(measure(id)) : null);
+  if (!CACHE.has(id)) CACHE.set(id, bodySpecies(id) ? Object.freeze(measure(id)) : null);
   return CACHE.get(id);
 }
 
 function measure(id) {
-  const s = SPECIES[id];
-  const S = faunaSkeleton(id), p = speciesParams(id), L = locomotionFor(s.family, id);
+  const s = SPECIES[bodySpecies(id)];
+  const S = faunaSkeleton(id), p = bodyParams(id), L = bodyLocomotion(id);
   const role = (re) => S.bones.filter((b) => b.role && re.test(b.role));
   const of = (re) => S.bones.filter((b) => re.test(b.id));
   const fore = role(/^fore\./), hind = role(/^hind\./), wing = role(/^wing\./), fins = of(/^(pectoral|pelvic|flipper)[RL]$/);
-  const stance = stanceOf(id);
+  const stance = stanceOf(bodySpecies(id));
 
   const swimmer = p.pose === 'swim' || (!fore.length && !hind.length && fins.length > 0);
   const legless = !swimmer && !fore.length && !hind.length && !wing.length && !fins.length;

@@ -696,9 +696,16 @@ renders byte-identically without them.
 - **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
   material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
   the exports. Absent, nothing changes.
-- **Same limbs, same rig.** An ooze never changes a skeleton. A scaled creature's rig is the species' own at its
-  size, so every gait and behavior the species has, its mutated forms play, on the World page and in the skinned
-  GLB and Godot exports. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.
+- **The creature's own rig.** An oozed animal with `motion` moves on its own body: the fauna rig reads a body
+  registry (`lib/graph/fauna/body.js`), so its skeleton is derived from the mutated plan (a grown creature's bones are
+  its species' at its size, its clips the same turns), a grafted tail is carved into bones of its own and swings, and
+  grafted wings get wing bones and the `fly` and `glide` gaits. Ornaments ride the bone at their root. The stored motion
+  keeps the species and the ooze, so the World page and the GLB, Godot and other exports rebuild the same body. Every
+  species is byte-identical. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.
+- **Articulated wings.** `wearWings(…, { articulated: true })` weighs every wing point to the wing bones it hangs from
+  (an arm or digit its bone, a feather its ray's, the membrane each sub-ray's blend), honoured by `bindLayered` as a
+  pinned part's `boneWeights`, so a wing folds and beats along its bones. Grafted wings take it; birds and bats keep
+  their rigid wings until they opt in.
 
 ## [3.1.1] - 2026-10-16
 

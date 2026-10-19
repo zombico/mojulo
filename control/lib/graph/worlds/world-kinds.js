@@ -161,6 +161,7 @@ import { latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
+import { rigSpecies } from '@/lib/graph/mutagen/rig';
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
@@ -804,9 +805,10 @@ export const WORLD_KINDS = {
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
         // rigged recipe's so the preview, the GLB and Godot play it
         // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
-        const bugMotion = !!m.recipe.motion.bug;
-        const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
+        // (an oozed animal's motion names its species and its ooze: the body it was made with, mutagen/rig.js)
+        const bugMotion = !!m.recipe.motion.bug, motion = m.recipe.motion.ooze ? { ...m.recipe.motion, species: rigSpecies(m.recipe.motion) } : m.recipe.motion;
+        const B = bugMotion ? bugBones(motion) : faunaBones(motion.species), skin = bindLayered(mesh, m.recipe, B);
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
