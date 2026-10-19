@@ -13,6 +13,11 @@ import { buildFauna } from '../fauna/build.js';
 import { stylismErrors, resolveStylism, heighten, spendDetail, registerNote } from './stylism.js';
 import { graftParams, graftPush } from './chimera.js';
 import { MOTIFS } from './motif.js';
+import { mascotFor } from './mascot.js';
+
+// a row with a `base` is read against the base it is laid on (the species id): its reader's form and push stand in for
+// the row's own (which stand for any other base)
+const BASE_READERS = { mascot: mascotFor };
 
 export { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, FORM_KEYS };
 
@@ -40,10 +45,14 @@ export function resolveMutagen(ooze, { seed, key = '', stylism } = {}) {
   if (errs.length) throw new Error(errs.join('; '));
   const oozes = normalizeOozes(ooze), S = resolveStylism(oozes.map((o) => OOZES[o.id].stylism), stylism);
   if (!oozes.length && !S) return null;
-  const s = seed ?? strHash(key) % 1000003;
-  let form = composeForm(oozes), push = composePush(oozes, OOZES, s);
+  const s = seed ?? strHash(key) % 1000003, reads = [], shelf = { ...OOZES };
+  for (const { id } of oozes) {
+    const r = OOZES[id].base && BASE_READERS[OOZES[id].base](key, OOZES[id]);
+    if (r) { shelf[id] = { ...OOZES[id], form: r.form, push: r.push }; reads.push(r.note); }
+  }
+  let form = composeForm(oozes, shelf), push = composePush(oozes, shelf, s);
   if (S?.a) ({ form, push } = heighten(form, push, S.a));
-  return { oozes, seed: s, form, ...(push && Object.keys(push).length ? { push } : {}), ...(S ? { stylism: S } : {}) };
+  return { oozes, seed: s, form, ...(push && Object.keys(push).length ? { push } : {}), ...(S ? { stylism: S } : {}), ...(reads.length ? { reads } : {}) };
 }
 
 /**
@@ -87,6 +96,8 @@ export function oozeFauna(P, mutagen, report = {}) {
     push = D.push;
     report.notes = [...notes, ...D.notes];
   }
+  // what a base-read row made of this animal (the mascot's folk reading) leads the design notes
+  if (mutagen?.reads) report.notes = [...mutagen.reads.map((why) => ({ stage: 'base', technique: why.split(':')[0], where: 'the whole creature', why })), ...(report.notes || [])];
   report.params = Q;   // the params the plan was built from (the rig reads its legs and wings: body.js)
   return pushPlan(buildFauna(Q), push, Q, report);
 }

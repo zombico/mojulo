@@ -682,7 +682,9 @@ renders byte-identically without them.
   hackles, a snarling face and glowing eyes, still the animal), `skeletal`, `zombie`, `techno`, `crystal`,
   `mythical` (boss size), `herobot` (a toy hero robot in the animal's own colours: a helmeted big head, antennae, ball
   joints and pauldrons, panel seams and vents, flared boots, plastic), `transmetal` (the animal's outline and fur, its details machined: chrome faceplate, plates, pistons), and
-  the elements `fire`, `frost`, `storm`, `venom`, `shadow`. Oozes compose
+  the elements `fire`, `frost`, `storm`, `venom`, `shadow`, and `mascot` (the animal as its own mascot on its own legs,
+  by the mascot laws and its family's mascot card: a big round head, toon eyes, a short face, stumpy limbs, owned
+  colours and one signature piece its folk promise says). Oozes compose
   (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
   uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
   live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.

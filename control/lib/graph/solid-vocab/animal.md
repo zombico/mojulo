@@ -183,12 +183,15 @@ and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph
 | `shadow` | an element: a near-black coat, a violet line down the spine, a wisping crest, pale violet eyes |
 | `herobot` | a toy hero robot in the herobot language, its face its own, in its own colours: a big round head under a helmet, ear domes, a brow gem, twin antennae, ball pauldrons, ball joints at every elbow, knee and hock, a chest plate, panel seams and vent grilles, a segmented tail, flared boots, LED eyes, glossy plastic |
 | `transmetal` | beast mode: the animal's outline and fur kept, its details machined: a chrome faceplate (cheeks left fur), chrome lower legs, teeth and back plate, joint rings, pistons along the upper limbs, a segmented chrome tail, red visor eyes |
+| `mascot` | its own mascot on its own legs, read from its family's mascot card: a big round head, big toon eyes in a happy face, the face shortened (a muzzle that is the name kept), its identifiers drawn big, thick limbs on big paws, its coat saturated, no fur cards, satin, and one signature piece its folk promise says (a bell, scarf, bow, bandana, medal, studded collar or pack) in the colour across the wheel from its coat |
 
 The machine oozes paint in the animal's own colours, never one fixed hue: a light suit, the coat darkened into armour,
 darker seams, and one warm accent from the coat's hue (amber on a brown, red on a grey or an orange).
 
 They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war
-machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a machined brute.
+machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a machined brute, `['mascot', 'frost']` a
+winter mascot. `mascot` keeps the animal's stance (a plush, a game's critter); `create_character({ as: 'mascot' })` stands
+it up as a biped. Its result's `ooze.notes` say what the card read: the promise, the piece, what was drawn big and let go.
 
 ### stylism: design notes that style a creature up
 

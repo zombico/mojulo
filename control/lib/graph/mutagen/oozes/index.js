@@ -13,8 +13,9 @@ import { ooze as venom } from './venom.js';
 import { ooze as shadow } from './shadow.js';
 import { ooze as herobot } from './herobot.js';
 import { ooze as transmetal } from './transmetal.js';
+import { ooze as mascot } from './mascot.js';
 
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 const row = (o) => deepFreeze(structuredClone(o));
 
-export const OOZES = Object.freeze(Object.fromEntries([dire, skeletal, zombie, frost, techno, crystal, mythical, fire, storm, venom, shadow, herobot, transmetal].map((o) => [o.id, row(o)])));
+export const OOZES = Object.freeze(Object.fromEntries([dire, skeletal, zombie, frost, techno, crystal, mythical, fire, storm, venom, shadow, herobot, transmetal, mascot].map((o) => [o.id, row(o)])));
