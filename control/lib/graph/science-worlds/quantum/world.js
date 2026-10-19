@@ -73,7 +73,7 @@ function layLine(solved, dress, drawn) {
     { html: 'spread', values: s0.sigma.map((x) => x * 1e-9), unit: 'm' },
     ...(run.cut !== null ? [{ html: model.laws.some((l) => l.law === 'step') ? 'beyond the step' : 'beyond the barrier', values: s0.right.map((v) => v * 100), unit: '%' }] : []),
   ];
-  return { faces, planets, movers, pts, rows, t: s0.t.map((t) => t * 1e-15), durationS: model.duration * 1e-15, lead: 'side', hold: HOLD, labels: [] };
+  return { faces, planets, movers, pts, rows, t: s0.t.map((t) => t * 1e-15), durationS: model.duration * 1e-15, lead: 'side', hold: HOLD, labels: [], scale: s * 1e9, scaleNote: scaled };
 }
 
 function layAtom(solved, dress, drawn) {
@@ -99,7 +99,7 @@ function layAtom(solved, dress, drawn) {
     { html: esc(`${c.name}: E`), values: constant(c.energy, N), unit: 'eV' },
     { html: esc(`${c.name}: ⟨r⟩`), values: constant(c.meanR * BOHR, N), unit: 'm' },
   ]);
-  return { faces, planets, movers: [], pts, rows, t: constant(0, N), noClock: true, durationS: null, lead: 'angle', hold: HOLD, labels };
+  return { faces, planets, movers: [], pts, rows, t: constant(0, N), noClock: true, durationS: null, lead: 'angle', hold: HOLD, labels, scale: s / BOHR, scaleNote: scaled };
 }
 
 function laySpin(solved, dress, drawn, playback) {
@@ -229,8 +229,8 @@ export function planQuantumFilm(manifest, plan) {
 }
 
 /** The World payload (emitThreeWorld) for a quantum-view manifest. */
-export function assembleQuantumScene(manifest = {}, { title } = {}) {
-  const plan = planQuantumWorld(manifest);
+export function assembleQuantumScene(manifest = {}, { title, plan: given } = {}) {
+  const plan = given ?? planQuantumWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
   const name = title || manifest.title || 'mojulo quantum world';
   const film = planQuantumFilm(manifest, plan);
   return {

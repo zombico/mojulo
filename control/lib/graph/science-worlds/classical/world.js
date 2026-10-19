@@ -176,7 +176,7 @@ export function planClassicalWorld(manifest) {
     return scl(tracks.bodies[id].x[k], s);
   };
   const radiusOf = (id) => rDraw[bodies.findIndex((b) => b.id === id)];
-  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, pagePos, radiusOf };
+  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, scaleNote: scaled, pagePos, radiusOf };
 }
 
 /** The science channel's config: the readout's series, the honesty panel, the labels. */
@@ -228,8 +228,8 @@ export function planClassicalFilm(manifest, plan) {
 }
 
 /** The World payload (emitThreeWorld) for a classical-view manifest. */
-export function assembleClassicalScene(manifest = {}, { title } = {}) {
-  const plan = planClassicalWorld(manifest);
+export function assembleClassicalScene(manifest = {}, { title, plan: given } = {}) {
+  const plan = given ?? planClassicalWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
   const name = title || manifest.title || 'mojulo classical world';
   const film = planClassicalFilm(manifest, plan);
   return {

@@ -104,6 +104,10 @@ The measuring tool reads a quantum world at tier `si`, per system, from the same
 energy and mean radius beside what its cloud measures, and the sampled points; each magnet's counts beside their
 odds; the nuclei left over time. The rows' sources and review date come with them.
 
+## In a world
+
+A quantum demo stands in any world as a bench prop, drawn in a glass case at its true magnification: `compose_world({ …, overrides: { science: { kind: 'quantum', model, at } } })`. Manual: `get_view_vocab({ id: 'science-setting' })`.
+
 ## Worked examples
 
 Tunnelling: an electron at 0.2 eV meets a barrier 0.3 eV high and 1 nm wide, and about 15% gets through:

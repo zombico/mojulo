@@ -135,6 +135,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `machina/quantities` gains `M☉`, `ly`, `pc` and `c`. Relativity, lensing, time dilation and precession now name
   this scale as gaps elsewhere. A spinning hole, gravitational waves and special relativity are gaps saying they
   are not in the table yet. The curated `black-hole` kind keeps its picture, and its card points at this one.
+- **A science world in any world**: the `science` world channel (`compose_world` `overrides.science`, or `science`
+  on a stored world's recipe; manual: the `science-setting` card) stands a composed demo in any world kind. How it
+  stands:
+  - A classical demo drawn at one metre per unit stands 1:1 at `at`, turned by `yaw`. Its readout and its "what's
+    real · what's drawn" panel ride the world page, the page opens on its camera, and its film is moved into the
+    world.
+  - Anything else (a microscopic box, an orbital, an orbit or clocks world round a black hole, a solar system drawn
+    shrunk) is a bench prop in a glass case, its true magnification on the panel in place of its own scale. A
+    light world cannot stand in a world: its shader fills the frame.
+
+  The setting is dress, and what a body touches is a law:
+  - `ground: 'from-world'` makes the world's own surface under `at` a plane law at its height, and the panel says
+    so.
+  - `scenery-clear` checks every body's recorded path against the world's faces near the demo and names any surface
+    one passes through that no law covers.
+  - `setting-agrees` holds the model's g to the setting's (Earth, Moon, Mars, from the same table as the classical
+    frame's presets), and `setting-air` advises on drag where there is no air.
+
+  `compose_world` solves the demo at mint (a bad model refuses the mint) and stamps the setting from the theme
+  (`mars-colony` is Mars). The world's surfaces are checked when it renders. Each scale's card gains "In a world",
+  and the classical, microscopic, quantum and relativistic assemblers take a plan they were handed. Absent, every
+  world is byte-identical.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -97,7 +97,8 @@ function layOrbit(solved, dress, drawn, playback) {
     movers.push({ group, path, basePos: [0, 0, 0], period: playback, loop: false, hold: HOLD, ...(dress.trails ? { track: true, trackColor: hexInt(tint) } : {}) });
     if (runs.length > 1) labels.push({ group, text: q.id, lift: rDot * 2 });
   });
-  drawn.push({ what: 'one unit of the scene is one Schwarzschild radius; each body is drawn as a dot', why: 'a test body has no size' });
+  const scaleNote = { what: `one unit of the scene is one Schwarzschild radius (${km(m.rs)})`, why: 'the geodesics are worked in those units' };
+  drawn.push(scaleNote, { what: 'each body is drawn as a dot', why: 'a test body has no size' });
   drawn.push({ what: 'the rings mark the photon sphere (1.5 Rs, gold) and the innermost stable orbit (3 Rs, blue)', why: 'they are radii, not things' });
   drawn.push({ what: 'the motion plays on the far clock\'s time, without the delay light takes to reach a far eye', why: 'one clock for the whole page' });
   const N = solved.run.runs[0].run.t.length;
@@ -107,7 +108,7 @@ function layOrbit(solved, dress, drawn, playback) {
     { html: esc(`${q.id}: own time`), values: pad(q.run.tau.map((x) => x * m.tUnit)), unit: 's' },
   ]);
   const pts = [[-far, -far, -0.2 * far], [far, far, 0.2 * far]];
-  return { faces, planets, movers, pts, rows, t: runs[0].run.t.map((x) => x * m.tUnit), durationS: m.duration, hold: HOLD, labels };
+  return { faces, planets, movers, pts, rows, t: runs[0].run.t.map((x) => x * m.tUnit), durationS: m.duration, hold: HOLD, labels, scale: 1 / m.rs, scaleNote };
 }
 
 function layClocks(solved, dress, drawn, playback) {
@@ -157,7 +158,7 @@ function layClocks(solved, dress, drawn, playback) {
     ];
   });
   const pts = [[-1, -1, -1], [farX + 1.5, 1, 3.2]];
-  return { faces, planets, movers, pts, rows, t: t.map((x) => x * m.tUnit), durationS: m.duration, hold: HOLD, labels, lead: 'side' };
+  return { faces, planets, movers, pts, rows, t: t.map((x) => x * m.tUnit), durationS: m.duration, hold: HOLD, labels, lead: 'side', scale: s / m.rs, scaleNote: null };
 }
 
 /** Solve and lay out a relativistic world. */
@@ -209,8 +210,8 @@ export function planRelativisticFilm(manifest, plan) {
 }
 
 /** The World payload (emitThreeWorld) for a relativistic-view manifest. */
-export function assembleRelativisticScene(manifest = {}, { title } = {}) {
-  const plan = planRelativisticWorld(manifest);
+export function assembleRelativisticScene(manifest = {}, { title, plan: given } = {}) {
+  const plan = given ?? planRelativisticWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
   const name = title || manifest.title || 'mojulo relativistic world';
   const film = planRelativisticFilm(manifest, plan);
   const bg = manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background;

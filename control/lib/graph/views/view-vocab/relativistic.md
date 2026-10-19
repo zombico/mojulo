@@ -86,6 +86,10 @@ The measuring tool reads a relativistic world at tier `si`: each body's position
 far clock (orbit), each clock's own time against the far clock's (clocks), a light world's quantities (the shadow's
 angle, the photon sphere, the innermost stable orbit, the disk's g range), with the rows' sources.
 
+## In a world
+
+An orbit or clocks world stands in any world as a bench prop in a glass case: `compose_world({ …, overrides: { science: { kind: 'relativistic', model, at } } })`. A light world fills the frame with its shader and cannot. Manual: `get_view_vocab({ id: 'science-setting' })`.
+
 ## Worked examples
 
 A black hole the mass of the one at the centre of the Milky Way, seen almost edge-on, with a thin disk:

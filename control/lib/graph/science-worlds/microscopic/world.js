@@ -133,7 +133,7 @@ export function planMicroscopicWorld(manifest) {
     const p = tracks.particles.find((q) => q.id === id);
     return p ? rDraw[sIndex[p.segs[0].species]] : minR;
   };
-  return { solved, dress, drawn, faces, planets, movers, picks: [], labels: [], cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, pagePos, radiusOf, color };
+  return { solved, dress, drawn, faces, planets, movers, picks: [], labels: [], cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, scaleNote: scaled, pagePos, radiusOf, color };
 }
 
 function scienceConfig(plan, title) {
@@ -173,8 +173,8 @@ export function planMicroscopicFilm(manifest, plan) {
 }
 
 /** The World payload (emitThreeWorld) for a microscopic-view manifest. */
-export function assembleMicroscopicScene(manifest = {}, { title } = {}) {
-  const plan = planMicroscopicWorld(manifest);
+export function assembleMicroscopicScene(manifest = {}, { title, plan: given } = {}) {
+  const plan = given ?? planMicroscopicWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
   const name = title || manifest.title || 'mojulo microscopic world';
   const film = planMicroscopicFilm(manifest, plan);
   return {

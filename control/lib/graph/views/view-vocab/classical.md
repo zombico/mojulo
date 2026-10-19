@@ -101,6 +101,10 @@ The film dress (`dress.film`) is what a viewer who cannot ask needs, on the mode
 Slow motion is a liberty: the film tags it while it plays and lists it on the end card. The interactive page never
 shows the film dress; the film never shows the panel (the end card says it instead).
 
+## In a world
+
+A classical demo stands in any world at true size: `compose_world({ …, overrides: { science: { kind: 'classical', model, at, ground: 'from-world' } } })`. The world's ground becomes a plane law, every body's path is checked against the world's surfaces, and the model's g against the setting's. Manual: `get_view_vocab({ id: 'science-setting' })`.
+
 ## Worked examples
 
 A wide pendulum (its period is checked against the exact elliptic-integral answer, not the small-angle one):

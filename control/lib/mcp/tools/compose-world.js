@@ -19,6 +19,7 @@
 
 import { registerTool } from '@/lib/mcp/server';
 import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
+import { checkScienceSetting, SETTING_OF_THEME } from '@/lib/graph/science-worlds/setting';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { parseFieldSpec, mintFieldSpec } from '@/lib/graph/beats/field-cue';
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
@@ -148,6 +149,17 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     if (errs.length) throw new Error(`compose_world: overrides.structures is invalid:\n - ${errs.join('\n - ')}\nManual: get_view_vocab({ id: 'structures' }).`);
     structures = slots.structures;
   }
+  // `science` is kind-generic too (world-scene.js stands it in every kind): a science world placed in this one, a
+  // classical demo 1:1 or any other as a bench prop. Read and solved here (a bad model refuses the mint, teaching);
+  // the theme names where the world is, so the demo's setting (its gravity check) is stamped from it when not given.
+  // Manual: get_view_vocab({ id: 'science-setting' }).
+  let science, scienceCheck;
+  if (slots.science !== undefined && slots.science !== false) {
+    const withSetting = slots.science && typeof slots.science === 'object' && slots.science.setting === undefined && SETTING_OF_THEME[theme]
+      ? { ...slots.science, setting: SETTING_OF_THEME[theme] } : slots.science;
+    try { scienceCheck = checkScienceSetting(withSetting, 'overrides.science'); } catch (err) { throw new Error(`compose_world: ${err.message}. Manual: get_view_vocab({ id: 'science-setting' }).`); }
+    science = withSetting;
+  }
   // `weather` is kind-generic as well (world-scene.js resolves manifest.weather for every kind): a climate's name or
   // { climate, dwell?, blend?, start?, surface?, air? }, read here (an unknown state or climate refuses the mint, teaching) and
   // stamped like audio when the base's whitelist drops it. Manual: get_view_vocab({ id: 'weather' }).
@@ -186,6 +198,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
       if (result.recipe && typeof result.recipe === 'object') result.recipe.fire = fire;
     }
   }
+  if (science && result && result.ref && !(result.recipe && result.recipe.science)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, science } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.science = science;
+    }
+  }
   if (structures && result && result.ref && !(result.recipe && result.recipe.structures)) {
     const stored = SketchRepository.getByRef(result.ref);
     if (stored) {
@@ -200,7 +219,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'structures', 'plan']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'structures', 'science', 'plan']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed
@@ -234,6 +253,12 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   const suggestion = audio ? null : suggestScore(levelScoreContext({ base, theme, title: title ?? (recipe && recipe.title), time: slots.time, weather: slots.weather, kit: slots.kit, game: slots.game }));
   return {
     ...result, base, theme,
+    ...(scienceCheck ? {
+      science: {
+        held: scienceCheck.held, standsAs: scienceCheck.standsAs, gates: scienceCheck.gates,
+        note: 'The demo\'s solver ran (machine gate only). The world\'s surfaces under and around it (its ground, scenery-clear) are checked when the world renders: open the worldUrl, its panel lists them.',
+      },
+    } : {}),
     ...(suggestion ? {
       music: {
         suggest: suggestion.audio,

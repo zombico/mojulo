@@ -91,6 +91,10 @@ molecules drawn when there are many, and the time rate.
 The measuring tool reads a microscopic world at tier `si`: every species' count, its count on the near side of each
 membrane and its spread, from the same seeded run the page plays, with the gates beside them.
 
+## In a world
+
+A microscopic demo stands in any world as a bench prop, drawn in a glass case at its true magnification: `compose_world({ …, overrides: { science: { kind: 'microscopic', model, at } } })`. Manual: `get_view_vocab({ id: 'science-setting' })`.
+
 ## Worked examples
 
 A bead jiggling under a microscope (the spread grows as 6·D·t, D from Stokes–Einstein):

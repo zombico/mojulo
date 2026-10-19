@@ -12,7 +12,7 @@
     { "name": "audience", "prompt": "Who is it for (age or course)? It sets the callouts' words, never the physics.", "default": "secondary school" },
     { "name": "output", "prompt": "page (the interactive demo) | film (an MP4 for a slide or a video) | both", "default": "both" }
   ],
-  "mcpTools": { "mojulo": ["semantic_search", "get_view_vocab", "create_view", "measure_view", "update_sketch", "forge_motion"] },
+  "mcpTools": { "mojulo": ["semantic_search", "get_view_vocab", "create_view", "measure_view", "update_sketch", "forge_motion", "compose_world"] },
   "outputContract": { "summary": "One classical-view sketch (the interactive demo) and, when output includes film, one forge_motion MP4 of its film; plus a report naming the gates that ran and what they saw, the liberties the demo takes, and the numbers it cites.", "fields": ["worldRef", "worldUrl", "motionRef", "gates", "liberties"] }
 }
 ---
@@ -91,7 +91,9 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
    `forge_motion({ subject: { world_ref: <ref> }, shot: { motion: 'plan' }, export: 'mp4' })`: a wide shot of
    the run, the slowed replay, and the end card (what is real, what was checked, what is drawn).
 
-9. **Report honestly.** Name the gates that ran and what they saw (with the numbers), every liberty (the page's
+9. **Stand it somewhere** (optional). A demo can stand in a world the class knows: `compose_world({ base, overrides: { science: { kind: 'classical', model, at, ground: 'from-world' } } })` (`get_view_vocab({ id: 'science-setting' })`). The world's ground becomes a law, and the panel says when a body would pass through a wall no law covers; move the demo or add the law, never hide it.
+
+10. **Report honestly.** Name the gates that ran and what they saw (with the numbers), every liberty (the page's
    and the film's), any gap, and say plainly that **nobody has looked at it yet**: the eyes gate is the teacher's
    (does it read as the phenomenon to their class?). Hand them the `worldUrl` and the MP4.
 
