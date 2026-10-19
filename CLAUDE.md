@@ -177,6 +177,8 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+- Fractal structures: [fractal-structure/](control/lib/graph/fractal-structure/) (towers from a plan, a rise, a crown and
+  an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image

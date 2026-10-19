@@ -23,6 +23,7 @@ import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { parseFieldSpec, mintFieldSpec } from '@/lib/graph/beats/field-cue';
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { validateFire } from '@/lib/graph/fire/fire';
+import { validateStructures } from '@/lib/graph/fractal-structure';
 import { readWeather } from '@/lib/graph/weather/weather';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -138,6 +139,15 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     if (errs.length) throw new Error(`compose_world: overrides.fire is invalid:\n - ${errs.join('\n - ')}`);
     fire = slots.fire;
   }
+  // `structures` is kind-generic too (world-scene.js grows them in every kind): a list of towers, each a preset and
+  // where it stands, read here (a word that does not read refuses the mint, teaching) and stamped like fire.
+  // Manual: get_view_vocab({ id: 'structures' }).
+  let structures;
+  if (slots.structures !== undefined && slots.structures !== false) {
+    const errs = validateStructures(slots.structures);
+    if (errs.length) throw new Error(`compose_world: overrides.structures is invalid:\n - ${errs.join('\n - ')}\nManual: get_view_vocab({ id: 'structures' }).`);
+    structures = slots.structures;
+  }
   // `weather` is kind-generic as well (world-scene.js resolves manifest.weather for every kind): a climate's name or
   // { climate, dwell?, blend?, start?, surface?, air? }, read here (an unknown state or climate refuses the mint, teaching) and
   // stamped like audio when the base's whitelist drops it. Manual: get_view_vocab({ id: 'weather' }).
@@ -176,6 +186,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
       if (result.recipe && typeof result.recipe === 'object') result.recipe.fire = fire;
     }
   }
+  if (structures && result && result.ref && !(result.recipe && result.recipe.structures)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, structures } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.structures = structures;
+    }
+  }
   // Silent-swallow guard (0813 first-contact reports): every mint destructures a
   // parameter whitelist, so an override key the base doesn't know — or a value that
   // fails its validation — used to vanish without a trace. Surface a soft note for
@@ -183,7 +200,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'plan']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'structures', 'plan']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed

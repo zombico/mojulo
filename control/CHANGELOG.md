@@ -655,6 +655,26 @@ renders byte-identically without them.
   `check-plugin-version.mjs` now holds the plugin to the launcher: `node` on `launch.mjs`, the distribution flag, a
   `package.json` on exactly the version, and a lockfile that locks it, every entry hashed and from npm.
 
+### Fractal structures
+
+- **Towers for any world, from a few words.** A new kind-generic `structures` channel grows landmark towers from
+  four words: a plan (square, turned squares, a star, a stepped circle, offset faces cut again to a depth), a rise
+  (how the plan narrows, turns and is banded as it climbs, r(f) = top + (1 − top)(1 − f^p)), a crown (a ribbed disc,
+  a dome or a finial) and an echo (smaller copies of the whole against its own flanks, each echoing again: a tower of
+  towers). The principles are the Indian temple builders', lifted off the temple. Presets (`PRESETS` in
+  `fractal-structure/presets.js`) and a seeded `auto` that rolls a varied skyline.
+- Pass them to `compose_world` as `overrides.structures` on any base, or set `structures` on a stored world and
+  patch it in place. The faces join before the material, texture and shadow passes; an entity world also gets a box
+  collider for each tier and plinth step, so a stepped rise's terraces stand a walker. A face budget trims the
+  deepest copies first, never the tower. Absent, every world is byte-identical. Manual: the `structures` view-vocab
+  card; kernel: `lib/graph/fractal-structure/`.
+- **A structure made of structures.** A `colonnade` stands any structure's words (a fluted `column` by default)
+  round the plan, spaced evenly along its perimeter, or on a grid, under an entablature that can roof a walk to the
+  wall, or carrying the body on top; a `hollow` body is a wall round open ground whose edge can step out as it rises
+  (a seating bowl); `stretch` makes a plan oval; a `top` echo stands a lantern on the crown. New presets come of
+  it: `column`, `rotunda` (a tholos with its lantern), `cloister`, `hall` (a pillared hall under a stepped roof) and
+  `arena` (an oval bowl behind a storeyed, columned wall). The stepped-circle spire is now `beehive`.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
