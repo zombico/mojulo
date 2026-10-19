@@ -210,7 +210,7 @@ describe('the board kernel: spots, one unit a spot, and the turns played on them
     expect(boardAim(B, {}, S, 'a', sk({ min: 2, v: 3 })).length).toBe(8);
     expect(boardArea(B, boardParse(B, 'D3'), sk({ area: 1 })).length).toBe(5);
     expect(boardArea(B, boardParse(B, 'D4'), sk({ area: 1 })).length).toBe(4);   // the raised spot is out of its height
-    const cfg = { skills: { blast: { mp: 0, stat: 'mag', power: 10, min: 0, max: 4, area: 1, v: 2 } } };
+    const cfg = { skills: { blast: { mp: 0, target: 'foes', stat: 'mag', power: 10, min: 0, max: 4, area: 1, v: 2 } } };
     const T = boardStart(B, cfg, [{ id: 'a', side: 'p', at: 'D2', skills: ['blast'] }, { id: 'b', side: 'q', at: 'C1' }, { id: 'c', side: 'q', at: 'B1' }, { id: 'd', side: 'p', at: 'D1' }]);
     expect(boardHits(B, cfg, T, 'a', 'blast', boardParse(B, 'C1'))).toEqual(['c', 'b']);   // foes only, in spot order (B1, C1)
   });

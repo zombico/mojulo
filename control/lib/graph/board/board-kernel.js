@@ -15,17 +15,25 @@
  *     i = r * cols + c; column c runs east (+x, letters A, B, C…), row r north (+y, 1, 2, 3…), so 'C4' is c 2, r 3.
  *     spot: { h (whole steps), type: 'ground' | 'sand' | 'trail' | 'rock' | 'cliff' | 'water', walk }
  *     cut: { 'a,b': 1 } (a < b) the steps a wall stands across: no walk crosses one, and no reach-1 aim
- *   cfg: { seed, skills: { <id>: skill }, rules }
- *     skill: { name, mp, target: 'foe' | 'ally', power, stat: 'atk' | 'mag', scale, element, heal,
- *              min, max (the aim's reach, in steps along the board), kind: 'diamond' | 'line', area (the hit's
- *              radius round the spot aimed at), v (the vertical tolerance, in height steps) }
+ *   cfg: { seed, skills: { <id>: skill }, items: { <id>: item }, bag: { <side>: { <item>: count } }, rules }
+ *     skill: the party battles' (playscape/rpg/rpg.js readSkill: name, mp, target 'foe' | 'foes' | 'ally' | 'allies' |
+ *              'self', power, stat 'atk' | 'mag', scale, harm, element, heal, revive, cure, status, buff) and its shape on
+ *              the board: min, max (the aim's reach, in steps along the board), kind 'diamond' | 'line', area (the
+ *              hit's radius round the spot aimed at), v (the vertical tolerance, in height steps). A single target
+ *              ('foe', 'ally') is whoever stands on the spot aimed at; 'foes' and 'allies' every one in the area; 'self'
+ *              the unit itself. A revive aims at a fallen ally's spot, when nobody stands on it.
+ *     item: the party battles' (heal, mp, revive, cure, hurt, element, target) and a shape (reach 1 by default)
  *     `attack` is every unit's own (power 0, atk × 1, reach 1, v 2) unless cfg.skills names one.
+ *     Statuses: poison bites a tenth of the unit's HP as its turn ends; a sleeper's turn is only an ending (a blow wakes
+ *     it, and each of its turns may); a silenced unit casts nothing that costs MP; buffs raise or lower atk, def, mag
+ *     and spd for some of the unit's own turns. Each wears off as its turn ends.
  *     rules: { facing: { front, side, back }, height (the share a step of height above the target adds), heightCap,
  *              cap (the turns before a draw) }
  *   S (the battle): { r, n, u: { <id>: unit }, order: [ids], turn: { who, moved, acted } | null, over: null |
  *     { winner: side | null, reason } }
  *     unit: { id, name, side, at, face (0 n, 1 e, 2 s, 3 w), move, jump, spd, ct, hp, hpMax, mp, mpMax, atk, def,
- *             mag, skills, weak, resist, immune, absorb }
+ *             mag, skills, weak, resist, immune, absorb, st: { poison, sleep, silence }, buffs: [{ stat, pct, rounds }] }
+ *     bag: { <side>: { <item>: count } } what each side may still use
  *
  * The turn is FFT's: the unit whose gauge fills first moves once and acts once, in either order, then ends facing
  * one of four ways. Its gauge pays 100 for the turn, less 20 for not moving and 20 for not acting, so waiting brings
@@ -43,15 +51,17 @@
  *   area(B, at, skill) → [i]       the spots a skill aimed at `at` hits
  *   hits(B, cfg, S, id, skill, at) → [ids]   the units it would touch (foes, or allies, by the skill's target)
  *   usable(cfg, S, id) → [skill ids]
- *   legal(B, cfg, S) → [action]    action: { kind: 'move', to } | { kind: 'act', skill, at } | { kind: 'end', face }
+ *   items(cfg, S, id) → [item ids]   what its side's bag still holds
+ *   legal(B, cfg, S) → [action]    action: { kind: 'move', to } | { kind: 'act', skill | item, at } | { kind: 'end', face }
  *   apply(B, cfg, S, action) → { S, beats }   throws on an action `legal` does not list
  *   facing(B, S, attacker, target) → 'front' | 'side' | 'back'
  *   preview(B, S, n) → [{ who, side }]   the next n turns (the turn-order bar)
  *   occupant(S, i) → id | null; living(S, side?) → [ids]
  *
  *   beat: { kind: 'move', who, path } | { kind: 'act', who, skill, at } | { kind: 'hurt' | 'heal', target, amount,
- *         hp, by, crit?, rel?, mul? } | { kind: 'miss', target, by } | { kind: 'ko', target } | { kind: 'turn', who }
- *         | { kind: 'end', winner, reason }
+ *         hp, by, crit?, rel?, mul?, absorb?, poison? } | { kind: 'miss', target, by, why? } | { kind: 'ko', target }
+ *         | { kind: 'revive', target, hp } | { kind: 'status', target, status, on } | { kind: 'buff', target, stat, pct }
+ *         | { kind: 'mp', target, mp } | { kind: 'turn', who } | { kind: 'end', winner, reason }
  */
 
 export function buildBoard() {
@@ -61,9 +71,11 @@ export function buildBoard() {
   const COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const WALK = { ground: 1, sand: 1, trail: 1, rock: 1, cliff: 0, water: 0 };
   const MAX = 24;
-  const CRIT = 1 / 16, MISS = 1 / 24;
+  const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5;
+  const BUFFABLE = { atk: 1, def: 1, mag: 1, spd: 1 };
   const RULES = { facing: { front: 1, side: 1.25, back: 1.5 }, height: 0.05, heightCap: 0.25, cap: 400 };
-  const ATTACK = { name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, element: null, heal: false, min: 1, max: 1, kind: 'diamond', area: 0, v: 2 };
+  const SHAPE = { min: 1, max: 1, kind: 'diamond', area: 0, v: 2 };
+  const ATTACK = Object.assign({ name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, harm: true, element: null, heal: false, revive: false, cure: [], status: null, buff: null }, SHAPE);
 
   // mulberry32, its state on the battle (S.r)
   function rnd(S) {
@@ -85,11 +97,28 @@ export function buildBoard() {
     const R = (cfg && cfg.rules) || {};
     return { facing: Object.assign({}, RULES.facing, R.facing || {}), height: R.height != null ? R.height : RULES.height, heightCap: R.heightCap != null ? R.heightCap : RULES.heightCap, cap: R.cap != null ? R.cap : RULES.cap };
   };
+  // a skill with its shape (a self skill reaches only its own spot), what it does filled in as the party battles read it
+  const fill = (d) => {
+    const o = Object.assign({ mp: 0, target: 'foe', power: 0, stat: 'mag', scale: 0, element: null, heal: false, revive: false, cure: [], status: null, buff: null }, d);
+    if (o.harm == null) o.harm = !o.heal && !o.revive && (o.power > 0 || o.scale > 0);
+    const self = o.target === 'self';
+    return Object.assign({}, SHAPE, self ? { min: 0, max: 0 } : {}, o);
+  };
   const skillOf = (cfg, id) => {
     const S = cfg && cfg.skills && cfg.skills[id];
-    if (S) return Object.assign({}, ATTACK, S);
+    if (S) return fill(id === 'attack' ? Object.assign({}, ATTACK, S) : S);   // a world's attack is the attack, changed
     return id === 'attack' ? ATTACK : null;
   };
+  // an item as a skill: its own number, no stat behind it (as the party battles use one)
+  const itemOf = (cfg, id) => {
+    const I = cfg && cfg.items && cfg.items[id];
+    if (!I) return null;
+    return Object.assign(fill({ name: I.name, target: I.target || 'ally', stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null }),
+      { min: 0, max: 1 }, I.min != null ? { min: I.min } : {}, I.max != null ? { max: I.max } : {}, I.area != null ? { area: I.area } : {}, I.v != null ? { v: I.v } : {}, { mpGive: I.mp || 0, item: true });
+  };
+  const buffMul = (buffs, k) => { let p = 0; for (const b of buffs) if (b.stat === k) p += b.pct; return Math.max(0.25, 1 + p); };
+  // a unit's stat now: its own, under its buffs
+  const statOf = (U, k) => (BUFFABLE[k] ? Math.max(k === 'spd' ? 1 : 0, Math.round(U[k] * buffMul(U.buffs, k))) : U[k]);
 
   // ── the board ────────────────────────────────────────────────────────────────────────────────────────────────────
   function board(heights, opts) {
@@ -174,9 +203,11 @@ export function buildBoard() {
       S.u[x.id] = { id: x.id, name: x.name || x.id, side: x.side, at, face: face < 0 ? 0 : face, move: x.move != null ? x.move : 4, jump: x.jump != null ? x.jump : 2,
         spd: Math.max(1, x.spd != null ? x.spd : 6), ct: 0, hp, hpMax: x.hpMax != null ? x.hpMax : hp, mp, mpMax: x.mpMax != null ? x.mpMax : mp,
         atk: x.atk != null ? x.atk : 8, def: x.def != null ? x.def : 4, mag: x.mag != null ? x.mag : 4, skills: (x.skills || []).slice(),
-        weak: (x.weak || []).slice(), resist: (x.resist || []).slice(), immune: (x.immune || []).slice(), absorb: (x.absorb || []).slice() };
+        weak: (x.weak || []).slice(), resist: (x.resist || []).slice(), immune: (x.immune || []).slice(), absorb: (x.absorb || []).slice(),
+        st: { poison: 0, sleep: 0, silence: 0 }, buffs: [] };
       S.order.push(x.id);
     }
+    if (cfg && cfg.bag) { S.bag = {}; for (const side in cfg.bag) S.bag[side] = Object.assign({}, cfg.bag[side]); }
     advance(cfg, S, []);
     return S;
   }
@@ -237,13 +268,24 @@ export function buildBoard() {
     }
     return out;
   }
+  // who a skill (or item) aimed at `at` touches: the other side's units for 'foe' / 'foes', its own for 'ally' /
+  // 'allies', itself for 'self'; a single target only on the spot aimed at; a revive, a fallen ally's body on a spot
+  // nobody stands on
   function hits(B, cfg, S, id, skill, at) {
     const sk = typeof skill === 'string' ? skillOf(cfg, skill) : skill, U = S.u[id], occ = occMap(S), out = [];
-    for (const i of area(B, at, sk)) {
+    if (!sk) return out;
+    if (sk.target === 'self') return at === U.at ? [id] : [];
+    const foe = sk.target === 'foe' || sk.target === 'foes', single = sk.target === 'foe' || sk.target === 'ally';
+    const spots = single ? [at] : area(B, at, sk);
+    for (const i of spots) {
+      if (sk.revive) {
+        if (occ[i] !== undefined) continue;
+        for (const k of S.order) { const F = S.u[k]; if (F.hp <= 0 && F.at === i && F.side === U.side) { out.push(k); break; } }
+        continue;
+      }
       const o = occ[i];
       if (o === undefined) continue;
-      const foe = S.u[o].side !== U.side;
-      if (sk.target === 'ally' ? !foe : foe) out.push(o);
+      if ((S.u[o].side !== U.side) === foe) out.push(o);
     }
     return out;
   }
@@ -251,24 +293,36 @@ export function buildBoard() {
     const U = S.u[id], out = [];
     for (const k of ['attack'].concat(U.skills)) {
       const sk = skillOf(cfg, k);
-      if (sk && U.mp >= (sk.mp || 0) && out.indexOf(k) < 0) out.push(k);
+      if (sk && U.mp >= (sk.mp || 0) && !(U.st.silence && sk.mp > 0) && out.indexOf(k) < 0) out.push(k);
     }
     return out;
+  }
+  function items(cfg, S, id) {
+    const bag = S.bag && S.bag[S.u[id].side], out = [];
+    if (bag) for (const k in bag) if (bag[k] > 0 && itemOf(cfg, k)) out.push(k);
+    return out.sort();
   }
 
   // ── the turn ─────────────────────────────────────────────────────────────────────────────────────────────────────
   function legal(B, cfg, S) {
     if (S.over || !S.turn) return [];
-    const T = S.turn, id = T.who, out = [];
-    if (!T.moved) for (const to of reach(B, S, id)) out.push({ kind: 'move', to });
-    if (!T.acted) for (const k of usable(cfg, S, id)) {
-      const sk = skillOf(cfg, k);
-      for (const at of aimFrom(B, S.u[id].at, sk)) if (hits(B, cfg, S, id, sk, at).length) out.push({ kind: 'act', skill: k, at });
+    const T = S.turn, id = T.who, U = S.u[id], out = [];
+    const asleep = U.st.sleep > 0;
+    if (!T.moved && !asleep) for (const to of reach(B, S, id)) out.push({ kind: 'move', to });
+    if (!T.acted && !asleep) {
+      for (const k of usable(cfg, S, id)) {
+        const sk = skillOf(cfg, k);
+        for (const at of aimFrom(B, U.at, sk)) if (hits(B, cfg, S, id, sk, at).length) out.push({ kind: 'act', skill: k, at });
+      }
+      for (const k of items(cfg, S, id)) {
+        const it = itemOf(cfg, k);
+        for (const at of aimFrom(B, U.at, it)) if (hits(B, cfg, S, id, it, at).length) out.push({ kind: 'act', item: k, at });
+      }
     }
     for (const f of FACES) out.push({ kind: 'end', face: f });
     return out;
   }
-  const same = (a, b) => a.kind === b.kind && a.to === b.to && a.skill === b.skill && a.at === b.at && a.face === b.face;
+  const same = (a, b) => a.kind === b.kind && a.to === b.to && a.skill === b.skill && a.item === b.item && a.at === b.at && a.face === b.face;
   // the way from one spot to another, on the axis it is furthest along (east or west on a tie)
   function faceTo(B, from, to, was) {
     const dc = cOf(B, to) - cOf(B, from), dr = rOf(B, to) - rOf(B, from);
@@ -296,18 +350,20 @@ export function buildBoard() {
       T.moved = true;
       beats.push({ kind: 'move', who: U.id, path: p });
     } else if (action.kind === 'act') {
-      const sk = skillOf(cfg, action.skill), who = hits(B, cfg, S, U.id, sk, action.at);
-      U.mp -= sk.mp || 0;
+      const sk = action.item ? itemOf(cfg, action.item) : skillOf(cfg, action.skill), who = hits(B, cfg, S, U.id, sk, action.at);
+      if (action.item) S.bag[U.side][action.item] -= 1;
+      else U.mp -= sk.mp || 0;
       U.face = faceTo(B, U.at, action.at, U.face);
       T.acted = true;
-      beats.push({ kind: 'act', who: U.id, skill: action.skill, at: action.at });
-      for (const t of who) resolve(B, cfg, S, U, S.u[t], sk, beats);
+      beats.push(Object.assign({ kind: 'act', who: U.id, at: action.at }, action.item ? { item: action.item } : { skill: action.skill }));
+      for (const t of who) effect(B, cfg, S, U, S.u[t], sk, beats);
       settle(S, beats);
     } else {
       U.face = FACES.indexOf(action.face);
       U.ct -= GAUGE - (T.moved ? 0 : REFUND) - (T.acted ? 0 : REFUND);
       S.n++;
-      advance(cfg, S, beats);
+      tick(cfg, S, U, beats);
+      if (!settle(S, beats)) advance(cfg, S, beats);
     }
     return { S, beats };
   }
@@ -320,25 +376,27 @@ export function buildBoard() {
     if (has(T.resist, el)) return 0.5;
     return 1;
   }
-  // the battle kernel's blow (playscape/rpg/kernel.js hurt: miss, spread, crit, element, in that order of dice), times
-  // where it lands from: the target's facing, and the height between them
-  function resolve(B, cfg, S, A, T, sk, beats) {
-    const R = rulesOf(cfg);
-    if (sk.heal) {
-      if (T.hp <= 0) return;
-      const n = Math.max(1, Math.round((sk.power + A.mag * sk.scale) * (0.875 + 0.25 * rnd(S))));
-      const was = T.hp;
-      T.hp = Math.min(T.hpMax, T.hp + n);
-      beats.push({ kind: 'heal', target: T.id, amount: T.hp - was, hp: T.hp, by: A.id });
-      return;
-    }
-    const phys = sk.stat === 'atk';
-    if (phys && rnd(S) < MISS) { beats.push({ kind: 'miss', target: T.id, by: A.id }); return; }
-    let raw = sk.power + A[sk.stat] * sk.scale - (phys ? T.def / 2 : T.mag / 4);
+  // one effect on one target, in the party battles' order: the blow, the mending, the cure, the status, the buff
+  function effect(B, cfg, S, A, T, sk, beats) {
+    if (sk.harm) hurt(B, cfg, S, A, T, sk, beats);
+    if (sk.heal || sk.revive) heal(cfg, S, A, T, sk, beats);
+    if (sk.mpGive && T.hp > 0) { T.mp = Math.min(T.mpMax, T.mp + sk.mpGive); beats.push({ kind: 'mp', target: T.id, mp: T.mp }); }
+    cure(T, sk, beats);
+    afflict(S, T, sk, beats);
+    buffOn(T, sk, beats);
+  }
+  // the battle kernel's blow (playscape/rpg/kernel.js hurt: miss, spread, crit, element, in that order of dice; a
+  // sleeper is never missed and a blow wakes it), times where it lands from: the target's facing, and the height
+  // between them. No guard on a board: the facing is the defence
+  function hurt(B, cfg, S, A, T, sk, beats) {
+    if (T.hp <= 0) return;
+    const R = rulesOf(cfg), phys = sk.stat === 'atk';
+    if (phys && !T.st.sleep && rnd(S) < MISS) { beats.push({ kind: 'miss', target: T.id, by: A.id }); return; }
+    let raw = sk.power + statOf(A, sk.stat) * sk.scale - (phys ? statOf(T, 'def') / 2 : statOf(T, 'mag') / 4);
     raw *= 0.875 + 0.25 * rnd(S);
     let crit = false;
     if (phys && rnd(S) < CRIT) { crit = true; raw *= 1.5; }
-    const rel = relOn(B, A, T);
+    const rel = A === T ? 'front' : relOn(B, A, T);
     raw *= R.facing[rel];
     raw *= 1 + clamp((B.spots[A.at].h - B.spots[T.at].h) * R.height, -R.heightCap, R.heightCap);
     const em = elementMul(T, sk.element);
@@ -350,8 +408,64 @@ export function buildBoard() {
       return;
     }
     T.hp = Math.max(0, T.hp - n);
-    beats.push({ kind: 'hurt', target: T.id, amount: n, hp: T.hp, by: A.id, rel, ...(crit ? { crit: true } : {}), ...(em !== 1 ? { mul: em } : {}) });
-    if (T.hp <= 0) beats.push({ kind: 'ko', target: T.id });
+    if (T.st.sleep && phys && n > 0) T.st.sleep = 0;
+    beats.push(Object.assign({ kind: 'hurt', target: T.id, amount: n, hp: T.hp, by: A.id, rel }, crit ? { crit: true } : {}, em !== 1 ? { mul: em } : {}));
+    if (T.hp <= 0) fall(T, beats);
+  }
+  function fall(T, beats) {
+    T.st = { poison: 0, sleep: 0, silence: 0 };
+    T.buffs = [];
+    beats.push({ kind: 'ko', target: T.id });
+  }
+  // the battle kernel's mending: a revive raises a fallen one (its blow's worth, or a quarter of its HP), a heal mends
+  // one standing; a revived unit stands on its spot again and waits for its gauge from empty
+  function heal(cfg, S, A, T, sk, beats) {
+    if (sk.revive) {
+      if (T.hp > 0) return;
+      const n = sk.heal ? Math.round((sk.power + statOf(A, 'mag') * sk.scale) * (0.875 + 0.25 * rnd(S))) : Math.ceil(T.hpMax / 4);
+      T.hp = clamp(n, 1, T.hpMax);
+      T.ct = 0;
+      beats.push({ kind: 'revive', target: T.id, hp: T.hp, by: A.id });
+      return;
+    }
+    if (T.hp <= 0) return;
+    const n = Math.max(1, Math.round((sk.power + statOf(A, 'mag') * sk.scale) * (0.875 + 0.25 * rnd(S)))), was = T.hp;
+    T.hp = Math.min(T.hpMax, T.hp + n);
+    beats.push({ kind: 'heal', target: T.id, amount: T.hp - was, hp: T.hp, by: A.id });
+  }
+  function cure(T, sk, beats) {
+    if (!sk.cure || !sk.cure.length || T.hp <= 0) return;
+    let any = false;
+    for (const k of sk.cure) if (T.st[k]) { T.st[k] = 0; any = true; }
+    if (any) beats.push({ kind: 'status', target: T.id, status: 'cured', on: false });
+  }
+  function afflict(S, T, sk, beats) {
+    const s = sk.status;
+    if (!s || T.hp <= 0) return;
+    if (has(T.immune, s.is)) { beats.push({ kind: 'miss', target: T.id, why: 'immune' }); return; }
+    if (rnd(S) >= s.chance) { beats.push({ kind: 'miss', target: T.id, why: 'resisted' }); return; }
+    T.st[s.is] = s.is === 'poison' ? 1 : s.rounds;
+    beats.push({ kind: 'status', target: T.id, status: s.is, on: true });
+  }
+  function buffOn(T, sk, beats) {
+    const b = sk.buff;
+    if (!b || T.hp <= 0) return;
+    for (let i = T.buffs.length - 1; i >= 0; i--) if (T.buffs[i].stat === b.stat && (T.buffs[i].pct > 0) === (b.pct > 0)) T.buffs.splice(i, 1);
+    T.buffs.push({ stat: b.stat, pct: b.pct, rounds: b.rounds });
+    beats.push({ kind: 'buff', target: T.id, stat: b.stat, pct: b.pct });
+  }
+  // a unit's own turn ending: poison bites, a sleeper may wake, silences and buffs wear off
+  function tick(cfg, S, U, beats) {
+    if (U.hp <= 0) return;
+    if (U.st.poison) {
+      const n = Math.max(1, Math.floor(U.hpMax / 10));
+      U.hp = Math.max(0, U.hp - n);
+      beats.push({ kind: 'hurt', target: U.id, amount: n, hp: U.hp, poison: true });
+      if (U.hp <= 0) { fall(U, beats); return; }
+    }
+    if (U.st.sleep && (--U.st.sleep <= 0 || rnd(S) < WAKE)) { U.st.sleep = 0; beats.push({ kind: 'status', target: U.id, status: 'sleep', on: false }); }
+    if (U.st.silence && --U.st.silence <= 0) U.st.silence = 0;
+    for (let i = U.buffs.length - 1; i >= 0; i--) if (--U.buffs[i].rounds <= 0) U.buffs.splice(i, 1);
   }
 
   // one side left standing: the battle is over
@@ -368,9 +482,9 @@ export function buildBoard() {
   // who fills their gauge first (the order units were given on a tie), the gauges moved on to that moment
   function nextOn(S, ct) {
     let who = null, wait = Infinity;
-    for (const id of living(S)) { const t = (GAUGE - ct[id]) / S.u[id].spd; if (t < wait - 1e-9) { wait = t; who = id; } }
+    for (const id of living(S)) { const t = (GAUGE - ct[id]) / statOf(S.u[id], 'spd'); if (t < wait - 1e-9) { wait = t; who = id; } }
     if (who == null) return null;
-    for (const id of living(S)) ct[id] += S.u[id].spd * Math.max(0, wait);
+    for (const id of living(S)) ct[id] += statOf(S.u[id], 'spd') * Math.max(0, wait);
     return who;
   }
   function gauges(S) { const ct = {}; for (const id of living(S)) ct[id] = S.u[id].ct; return ct; }
@@ -393,7 +507,7 @@ export function buildBoard() {
     return out;
   }
 
-  return { GAUGE, REFUND, FACES, RULES, ATTACK, board, nameOf, parse, centre, neighbours, start, reach, path, aim, area, hits, usable, legal, apply, facing, preview, occupant, living, roll: rnd };
+  return { GAUGE, REFUND, FACES, RULES, ATTACK, board, nameOf, parse, centre, neighbours, start, reach, path, aim, area, hits, usable, items, legal, apply, facing, preview, occupant, living, statOf, skillOf, itemOf, roll: rnd };
 }
 
 const _board = buildBoard();
@@ -411,6 +525,9 @@ export const boardAim = _board.aim;
 export const boardArea = _board.area;
 export const boardHits = _board.hits;
 export const boardUsable = _board.usable;
+export const boardItems = _board.items;
+export const boardStatOf = _board.statOf;
+export const boardSkillOf = _board.skillOf;
 export const boardLegal = _board.legal;
 export const boardApply = _board.apply;
 export const boardFacing = _board.facing;
