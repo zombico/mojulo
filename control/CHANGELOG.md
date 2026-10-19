@@ -14,6 +14,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### City hunter: the swinger in a district
+
+- **In progress, nothing built yet.** The city-stalker open world as a primitive: a third-person hero in a city
+  district (one `city` segment played as a level). The hero:
+  - sticks to any building's wall and launches from it;
+  - swings on a gear whose directions its profile constrains (the swinger first: a line to a face above and ahead);
+  - fights with the controllable engine's combat.
+
+  Other parts of the theme:
+  - **Progression:** gear upgrades open districts, and the reach of the gear is measured against the city's roofs.
+  - **Distance:** a planned air (height-aware haze, street smog, a cloud deck, a skyline past the plan) carries the
+    city past the district's edge.
+  - **Characters** plug into the hero's slot; each new movement state falls back to one every model already has.
+
+  Every key is opt-in; absent, every city level and game renders as before.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
