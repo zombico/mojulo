@@ -14,18 +14,18 @@ const FILES = 'ABCDEFGH';
 
 export const CHESS_PIECES = {
   K: {
-    name: 'king', glyph: '♚', royal: true, value: 0,
+    name: 'king', shape: 'king', glyph: '♚', royal: true, value: 0,
     rules: [
       { vec: ['N', 'NE'] },
       { vec: [2, 0], sym: 'mirror', to: 'empty', pass: 'empty', when: ['unmoved'], partner: { kind: 'R', to: 'pass' }, safe: true },
     ],
   },
-  Q: { name: 'queen', glyph: '♛', value: 9, rules: [{ vec: ['N', 'NE'], range: 'any' }] },
-  R: { name: 'rook', glyph: '♜', value: 5, rules: [{ vec: 'N', range: 'any' }] },
-  B: { name: 'bishop', glyph: '♝', value: 3.25, rules: [{ vec: 'NE', range: 'any' }] },
-  N: { name: 'knight', glyph: '♞', value: 3, rules: [{ vec: [1, 2] }] },
+  Q: { name: 'queen', shape: 'queen', glyph: '♛', value: 9, rules: [{ vec: ['N', 'NE'], range: 'any' }] },
+  R: { name: 'rook', shape: 'rook', glyph: '♜', value: 5, rules: [{ vec: 'N', range: 'any' }] },
+  B: { name: 'bishop', shape: 'bishop', glyph: '♝', value: 3.25, rules: [{ vec: 'NE', range: 'any' }] },
+  N: { name: 'knight', shape: 'knight', glyph: '♞', value: 3, rules: [{ vec: [1, 2] }] },
   P: {
-    name: 'pawn', glyph: '♟', value: 1,
+    name: 'pawn', shape: 'pawn', glyph: '♟', value: 1,
     promote: { row: 'last', to: ['Q', 'R', 'B', 'N'] },
     rules: [
       { vec: 'N', sym: 'none', to: 'empty' },
@@ -38,7 +38,7 @@ export const CHESS_PIECES = {
 
 const RULES = {
   board: { shape: 'square', cols: 8, rows: 8 },
-  players: [{ id: 'white', facing: 'N', colour: '#f3ede2' }, { id: 'black', facing: 'S', colour: '#2a2420' }],
+  players: [{ id: 'white', facing: 'N', colour: '#f3ede2' }, { id: 'black', facing: 'S', colour: '#4a3e36' }],
   royal: true,
   repetition: 3,
   quiet: { plies: 100, reset: ['P'] },

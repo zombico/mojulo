@@ -21,6 +21,7 @@ import { buildTabletop } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { euroPageHtml } from './tabletop-euro-page.js';
+import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 560 };
 const UNIT = 60;
@@ -71,10 +72,14 @@ export function tabletopPageHtml(G, opts = {}) {
     return planeMatrix(o, ux, vy, UNIT);
   });
 
+  // a shaped piece stands on its cell as a body, turned to face its player's way
+  const { bodies, icons } = pieceBodies(G, { cell: L.cell, unit: UNIT });
+  const at = L.cells.map((c) => c.at.map((x) => r2(x * UNIT)));
+  const turns = K.players.map((p) => r2(K.T.ways.get(p.facing).angle - 90));
   const data = {
     L, G, human, level, seed: opts.seed ?? 1, view,
-    plan: { W: r2(frame.W), H: r2(frame.H), cells: L.cells.map((c) => [r2((c.at[0] - frame.x0) * frame.px + frame.pad), r2((frame.y1 - c.at[1]) * frame.px + frame.pad)]), r: r2(frame.px * L.cell * 0.36), turn: r2(-(facing.angle - 90)) },
-    table: { cams, faces, tokens, size: r2(side * UNIT) },
+    plan: { W: r2(frame.W), H: r2(frame.H), cells: L.cells.map((c) => [r2((c.at[0] - frame.x0) * frame.px + frame.pad), r2((frame.y1 - c.at[1]) * frame.px + frame.pad)]), r: r2(frame.px * L.cell * 0.36), cellPx: r2(frame.px * L.cell), turn: r2(-(facing.angle - 90)), icons },
+    table: { cams, faces, tokens, size: r2(side * UNIT), bodies, at, turns },
   };
   const title = opts.title ?? G.title ?? 'mojulo board game';
   return `<!doctype html>
@@ -106,6 +111,9 @@ export function tabletopPageHtml(G, opts = {}) {
   .f.cell.to::after{content:"";position:absolute;inset:34%;border-radius:50%;background:var(--go);opacity:.8}
   .f.cell.cap::after{content:"";position:absolute;inset:8%;border-radius:50%;border:4px solid var(--mark)}
   .f.cell.last{filter:brightness(1.18)}
+  .pc{position:absolute;left:0;top:0;transform-style:preserve-3d;transform-origin:0 0;transition:transform .25s ease;pointer-events:none}
+  .pc .f{backface-visibility:visible}
+  #plan .icon path{stroke:#1a1512;stroke-width:1.4;stroke-linejoin:round}
   .t{position:absolute;left:0;top:0;transform-origin:0 0;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .25s ease;pointer-events:none;box-shadow:0 0 0 2px #1a1512 inset}
   aside{flex:0 1 240px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
   aside h2{font-size:13px;margin:0 0 6px;color:var(--mute);font-weight:600}
@@ -149,6 +157,7 @@ export function tabletopClient(D, T, M) {
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human];
   const glyph = (kind) => { const g = D.G.pieces[kind] && D.G.pieces[kind].glyph; return g === undefined ? kind : g; };
   const colour = (s) => D.G.players[s].colour || ['#f3ede2', '#2a2420', '#c4362a', '#2f6db3'][s % 4];
+  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const inkOn = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) > 140 ? '#1a1512' : '#f3ede2'; };
   let S, line, legal, sel, last, busy, level = D.level, view = D.view, turnStart = 0, tick = 0;
 
@@ -238,7 +247,13 @@ export function tabletopClient(D, T, M) {
     const place = (cell) => { const x = P.cells[cell][0] - cx, y = P.cells[cell][1] - cy; return [cx + x * Math.cos(rad) - y * Math.sin(rad), cy + x * Math.sin(rad) + y * Math.cos(rad)]; };
     $('toks').innerHTML = S.pieces.map((Pc, i) => {
       if (Pc.at < 0) return '';
-      const at = place(Pc.at), c = colour(Pc.side);
+      const at = place(Pc.at), c = colour(Pc.side), icon = P.icons[Pc.kind];
+      if (icon) {
+        // its side silhouette, as a diagram draws a piece, standing in the middle of its cell
+        const sc = P.cellPx * 0.95, top = Math.max.apply(null, icon.flat().map((q) => q[1]));
+        const d = icon.map((poly) => 'M' + poly.map(([x, z]) => (x * sc).toFixed(1) + ' ' + ((top / 2 - z) * sc).toFixed(1)).join('L') + 'Z').join('');
+        return '<g class="tok icon" data-p="' + i + '" transform="translate(' + at[0].toFixed(1) + ' ' + at[1].toFixed(1) + ')"><path d="' + d + '" fill="' + c + '"/></g>';
+      }
       return '<g class="tok" data-p="' + i + '" style="--g:' + (P.r * 1.25) + 'px" transform="translate(' + at[0].toFixed(1) + ' ' + at[1].toFixed(1) + ')"><circle r="' + P.r + '" fill="' + c + '"/><text fill="' + inkOn(c) + '">' + glyph(Pc.kind) + '</text></g>';
     }).join('');
     // the table
@@ -248,6 +263,20 @@ export function tabletopClient(D, T, M) {
     for (const m of targets) cellDivs[m.to].classList.add(m.cap.length ? 'cap' : 'to');
     const size = D.table.size;
     S.pieces.forEach((Pc, i) => {
+      const body = D.table.bodies[Pc.kind];
+      if (body) {
+        let b = vw.querySelector('.pc[data-p="' + i + '"]');
+        if (Pc.at < 0) { if (b) b.remove(); return; }
+        const c = colour(Pc.side), look = Pc.kind + ':' + c;
+        if (!b) { b = document.createElement('div'); b.className = 'pc'; b.dataset.p = i; vw.appendChild(b); }
+        if (b.dataset.look !== look) {
+          b.dataset.look = look;
+          b.innerHTML = body.map((f) => '<div class="f" style="width:' + f.w + 'px;height:' + f.h + 'px;background:' + shade(c, f.k) + ';' + (f.clip ? 'clip-path:' + f.clip + ';' : '') + 'transform:' + f.t + '"></div>').join('');
+        }
+        const a = D.table.at[Pc.at];
+        b.style.transform = 'translate3d(' + a[0] + 'px,' + a[1] + 'px,' + a[2] + 'px) rotateZ(' + D.table.turns[Pc.side] + 'deg)';
+        return;
+      }
       let t = vw.querySelector('.t[data-p="' + i + '"]');
       if (Pc.at < 0) { if (t) t.remove(); return; }
       if (!t) { t = document.createElement('div'); t.className = 't'; t.dataset.p = i; vw.appendChild(t); }

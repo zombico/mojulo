@@ -26,6 +26,7 @@ import { CHESS } from './games/chess.js';
 import { CHECKERS } from './games/checkers.js';
 import { tabletopGame } from './tabletop.js';
 import { tabletopPageHtml } from './tabletop-page.js';
+import { shapeOf } from './tabletop-shapes.js';
 
 export const TABLETOP_GAMES = {
   chess: { title: 'Chess', make: () => ({ ...CHESS, title: 'Chess' }) },
@@ -56,6 +57,10 @@ export function resolveTabletop(m = {}) {
     G.clock = { base: base * 1000, inc: inc * 1000, delay: delay * 1000 };
   }
   if (m.title !== undefined) G.title = String(m.title);
+  // a piece's body, checked here too (a name on the shelf, or a shape written out)
+  for (const [kind, P] of Object.entries(G.pieces || {})) {
+    if (P && P.shape !== undefined) { try { shapeOf(P.shape); } catch (err) { no(`piece ${kind}: ${err.message}`); } }
+  }
   // compiled here, so a game that cannot be played is refused at minting, not on the page; its deal done
   G = tabletopGame(G).G;
   return { G, opts: { human: m.human, level: m.level, view: m.view, seed, title: G.title } };

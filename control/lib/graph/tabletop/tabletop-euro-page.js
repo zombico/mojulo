@@ -13,6 +13,7 @@ import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
 import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 600 };
 const UNIT = 70;
@@ -60,10 +61,16 @@ export function euroPageHtml(G, L, K, opts = {}) {
     tablePlaces.push(planeMatrix(o, u, v, UNIT));
   });
 
+  // shaped pieces stand as bodies: on a hex or a corner square to the seat, along its edge on an edge
+  const { bodies, icons } = pieceBodies(G, { cell: L.cell, unit: UNIT });
+  const stand = [];
+  L.cells.forEach((c) => stand.push([...c.at.map((x) => r2(x * UNIT)), 0]));
+  L.corners.forEach((c) => stand.push([...c.at.map((x) => r2(x * UNIT)), 0]));
+  L.edges.forEach((e) => { const [a, b] = e.ends.map((k) => L.corners[k].at); stand.push([...e.at.map((x) => r2(x * UNIT)), r2(Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI)]); });
   const data = {
     L: { ...L }, G, human, level, seed, view,
-    plan: { W: r2(frame.W), H: r2(frame.H), places: planPlaces, r: r2(frame.px * L.cell * 0.17) },
-    table: { cams, faces, places: tablePlaces, size: { cell: r2(sizes.cell * UNIT), corner: r2(sizes.corner * UNIT), edge: sizes.edge.map((x) => r2(x * UNIT)) } },
+    plan: { W: r2(frame.W), H: r2(frame.H), places: planPlaces, r: r2(frame.px * L.cell * 0.17), cellPx: r2(frame.px * L.cell), icons },
+    table: { cams, faces, places: tablePlaces, size: { cell: r2(sizes.cell * UNIT), corner: r2(sizes.corner * UNIT), edge: sizes.edge.map((x) => r2(x * UNIT)) }, bodies, stand },
   };
   const title = opts.title ?? G.title ?? 'mojulo board game';
   return `<!doctype html>
@@ -90,6 +97,9 @@ export function euroPageHtml(G, L, K, opts = {}) {
   .view{position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;transform-origin:0 0}
   .f,.p,.g{position:absolute;left:0;top:0;transform-origin:0 0}
   .f.cell{cursor:pointer}
+  #tpieces,#ttargets{position:absolute;left:0;top:0;transform-style:preserve-3d;transform-origin:0 0}
+  .pc{position:absolute;left:0;top:0;transform-style:preserve-3d;transform-origin:0 0;pointer-events:none}
+  .pc .f{backface-visibility:visible}
   .p{display:flex;align-items:center;justify-content:center;pointer-events:none;font-weight:700}
   .p.num{border-radius:50%;background:#f3ead2;color:#2b2622;box-shadow:0 0 0 1.5px #5b4632 inset}
   .p.num.hot{color:#c4362a}
@@ -152,6 +162,7 @@ const M = (${buildTabletopMind.toString()})(T);
 export function tabletopEuroClient(D, T, M) {
   const $ = (id) => document.getElementById(id);
   const K = T.compile(D.L, D.G), me = K.sideOf[D.human], P = K.P, look = D.G.look || {};
+  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), c = (v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0'); return '#' + c(n >> 16) + c((n >> 8) & 255) + c(n & 255); };
   const resColour = (r) => (look.resources && look.resources[r]) || '#999';
   const colour = (s) => D.G.players[s].colour || '#888';
   const sortOf = (p) => (p < P.nC ? 'cell' : p < P.nC + P.nK ? 'corner' : 'edge');
@@ -245,8 +256,13 @@ export function tabletopEuroClient(D, T, M) {
     const pcs = [];
     for (const x of S.pieces) {
       if (x.at < 0) continue;
-      const q = PL.places[x.at], c = x.side >= 0 ? colour(x.side) : '#2a2420';
-      if (sortOf(x.at) === 'edge') pcs.push('<line x1="' + q[0] + '" y1="' + q[1] + '" x2="' + q[2] + '" y2="' + q[3] + '" stroke="#1a1512" stroke-width="' + (PL.r * 0.75) + '" stroke-linecap="round"/><line x1="' + q[0] + '" y1="' + q[1] + '" x2="' + q[2] + '" y2="' + q[3] + '" stroke="' + c + '" stroke-width="' + (PL.r * 0.5) + '" stroke-linecap="round"/>');
+      const q = PL.places[x.at], c = x.side >= 0 ? colour(x.side) : '#2a2420', icon = PL.icons[x.kind];
+      if (icon && sortOf(x.at) !== 'edge') {
+        // its side silhouette, standing on its place
+        const sc = PL.cellPx * 0.9, top = Math.max.apply(null, icon.flat().map((p) => p[1]));
+        const d = icon.map((poly) => 'M' + poly.map(([px, pz]) => (q[0] + px * sc).toFixed(1) + ' ' + (q[1] + (top / 2 - pz) * sc).toFixed(1)).join('L') + 'Z').join('');
+        pcs.push('<path d="' + d + '" fill="' + c + '" stroke="' + (x.side >= 0 ? '#1a1512' : '#efe9dc') + '" stroke-width="1.6" stroke-linejoin="round"/>');
+      } else if (sortOf(x.at) === 'edge') pcs.push('<line x1="' + q[0] + '" y1="' + q[1] + '" x2="' + q[2] + '" y2="' + q[3] + '" stroke="#1a1512" stroke-width="' + (PL.r * 0.75) + '" stroke-linecap="round"/><line x1="' + q[0] + '" y1="' + q[1] + '" x2="' + q[2] + '" y2="' + q[3] + '" stroke="' + c + '" stroke-width="' + (PL.r * 0.5) + '" stroke-linecap="round"/>');
       else if (x.kind === 'robber' || sortOf(x.at) === 'cell') pcs.push('<circle cx="' + q[0] + '" cy="' + q[1] + '" r="' + (PL.r * 1.1) + '" fill="#2a2420" stroke="#efe9dc" stroke-width="2"/><text x="' + q[0] + '" y="' + q[1] + '" text-anchor="middle" dominant-baseline="central" fill="#efe9dc" font-size="' + PL.r + '">♟</text>');
       else {
         const big = x.kind === 'city', s = PL.r * (big ? 0.95 : 0.7);
@@ -266,8 +282,12 @@ export function tabletopEuroClient(D, T, M) {
     for (let c = 0; c < P.nC; c++) if (P.num[c] !== null) tp.push(tdiv(c, 'p num' + (P.num[c] === 6 || P.num[c] === 8 ? ' hot' : ''), String(P.num[c])));
     for (const x of S.pieces) {
       if (x.at < 0) continue;
-      const s = sortOf(x.at);
-      if (s === 'cell') tp.push(tdiv(x.at, 'p rob', '♟'));
+      const s = sortOf(x.at), body = D.table.bodies[x.kind];
+      if (body) {
+        const c = x.side >= 0 ? colour(x.side) : '#3a332d', a = D.table.stand[x.at];
+        tp.push('<div class="pc" style="transform:translate3d(' + a[0] + 'px,' + a[1] + 'px,' + a[2] + 'px) rotateZ(' + a[3] + 'deg)">'
+          + body.map((f) => '<div class="f" style="width:' + f.w + 'px;height:' + f.h + 'px;background:' + shade(c, f.k) + ';' + (f.clip ? 'clip-path:' + f.clip + ';' : '') + 'transform:' + f.t + '"></div>').join('') + '</div>');
+      } else if (s === 'cell') tp.push(tdiv(x.at, 'p rob', '♟'));
       else if (s === 'edge') tp.push(tdiv(x.at, 'p road', '', colour(x.side)));
       else tp.push(tdiv(x.at, 'p bld', x.kind === 'city' ? '♜' : '', colour(x.side)));
     }

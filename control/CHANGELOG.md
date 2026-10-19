@@ -167,6 +167,14 @@ in CSS 3D. In progress:
   cards and awards; a log; with trading, an offer drafted card by card (checked by the kernel's own rule), the
   computers' offers to accept or decline, and the partner chosen from those who accepted. The computers play their
   turns a beat apart, so their moves can be followed.
+- **Meeple shapes** (`lib/graph/tabletop/tabletop-shapes.js`, `tabletop-bodies.js`), built: a piece given a body, not
+  only a cube or a flat token. A shape is a cut-out with thickness (a meeple, a house, a city, a tower, a barn, a ship,
+  a horse's head), a turned profile (a checker, a stack, the chess set, a robber), a box (a cube, a road) or a group
+  of those, named from a shelf or written out in cell units. The table view stands each piece as a body of panels lit
+  in its owner's colour and turned to face its player, a road lying along its edge; the plan draws each piece's side
+  silhouette, as a diagram does. A turned piece's tapering bands are unmasked rectangles, so a full chess set of 32
+  bodies draws in a few seconds where masked bands took minutes. Chess, checkers and the island economy wear them; a
+  shape is checked when the game is made.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

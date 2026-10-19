@@ -6,6 +6,7 @@
 
 import { TABLETOP_GAMES } from './tabletop-manifest.js';
 import { CHESS_PIECES } from './games/chess.js';
+import { SHAPES } from './tabletop-shapes.js';
 
 const show = (x) => JSON.stringify(x);
 
@@ -20,6 +21,7 @@ export function tabletopCard() {
     `  players: [{ id, facing, colour? }] facing a way (N, S…): a rule written for the first player turns to face each.`,
     `  pieces: { <kind>: { rules, value?, royal?, promote?: { row, to: [kind], stop? }, glyph? } }; a rule: { vec, sym?: all|rotate|mirror|none, range?: 1|n|'any', to?: free|empty|enemy, pass?: any|empty|enemy, capture?: land|pass|mark|none, when?: ['unmoved' | { row } | { mark }], mark?, chain?, partner?: { kind, to: 'pass' }, safe? }. A vector under the board's symmetry is a piece's moves: a knight is the orbit of [1, 2].`,
     `  The book's chess pieces, as written: ${show(Object.fromEntries(['N', 'R', 'P'].map((k) => [k, CHESS_PIECES[k].rules])))}`,
+    `  A piece's body (the table view stands it in 3D, the plan draws its silhouette): shape: ${Object.keys(SHAPES).join(' | ')}, or one written out in cell units: { form: 'extrude', profile: [[x, z]…], depth } (a cut-out: a meeple, a house) | { form: 'lathe', profile: [[r, z]…], sides? } (turned: a pawn, a checker) | { form: 'box', size: [w, d, h] } | { form: 'group', parts: [{ shape, at? }] }. No shape: a flat token with its glyph.`,
     `  setup: { <player>: { <kind>: [cells] } }. royal: a move may not leave a royal piece attacked (mate, stalemate). mustCapture, noMoves: lose|draw, repetition: n, quiet: { plies, reset: [kind] }, cap: turns, turn: { moves?, pass? }.`,
     `- The economy's systems, each a key, used as the person's rules need them: pieces on: cell|corner|edge (a meeple on a hex, a building on a corner, a road on an edge); stock: { <kind>: n }; resources: { <res>: bank count }; build: { <kind>: { cost, need: [{ apart } | { touch } | { reach, block } | { any }], upgrade? } }; opening: [{ order: forward|reverse, steps: [{ place, need?, yield? }] }]; dice: { n, sides }; deal: { types, numbers?, numberless?, apart?, place? } (cells dealt from the seed); numbers; produce: { yields, amount, block }; rolls: { <n>: [effect] }; decks: { <deck>: { cards, cost } }; cards: { <card>: { play: [effect] } }; effects: discard | robber | free | gain | claim; exchange: { rate } (the bank); trade: { offers?, shapes? } (players offer cards for cards after the roll, the others accept or decline, the offerer deals with one); score: { pieces, cards, awards: { trail | played }, win }.`,
     `- The computer answers a trade by expected value and the table: what it does for its own position (its points, income, hand, turns to its next build) less what it does for the offerer's, that weighed more when the offerer is ahead, and never a trade with a player two points from winning.`,
