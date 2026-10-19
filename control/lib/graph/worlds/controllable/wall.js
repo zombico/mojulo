@@ -166,7 +166,15 @@ export function buildWall(E) {
         still(); e.locomotion = 'mantle'; e.moving = true;
         return true;
       }
-      feet = top - H * 0.5;
+    }
+    // a LID over the body (a ceiling, a tower's setback; not a box that carries this face on up): the head stays under it
+    if (du > 0) {
+      let lid = Infinity;
+      for (const c of cs) {
+        if (Math.abs(planeOf(c, w.ax, w.s) - w.at) <= EPS || c.min[2] < feet0 + EPS) continue;
+        if (p[0] > c.min[0] - R && p[0] < c.max[0] + R && p[1] > c.min[1] - R && p[1] < c.max[1] + R) lid = Math.min(lid, c.min[2]);
+      }
+      if (feet + H > lid) feet = Math.min(feet, Math.max(feet0, lid - H));
     }
     // down to the ground, or past the face's foot: let go, and the platform rule lands it on what is under it
     if (du < 0) {

@@ -5,7 +5,8 @@
  * A gear is a set of DIRECTION CONSTRAINTS on where its line may land and what it does there; a preset names one. The
  * SWINGER (the only preset built) casts to a face ABOVE and AHEAD and swings under it:
  *
- *   the anchor   found for the hero, never aimed: of every box face the hero stands outside of, the point nearest the
+ *   the anchor   found for the hero, never aimed: of every box face the hero stands outside of (and every box's
+ *                underside over it: a ceiling, a beam, a catwalk), the point nearest the
  *                ideal one (`elev` above the heading, `ideal` × `reach` out), within `reach`, at least `minElev` up, inside
  *                the `cone` either side of the heading, with a clear line to it. None found, no line: an open plaza or a
  *                park is where a swinger runs. A box marked `hold: false` (a level's edge) takes no line.
@@ -14,7 +15,8 @@
  *                stretch, steered by A / D (turning) and pumped by forward. It swings about a PIVOT, the anchor drawn
  *                `center` of the way in toward the hero's line across the ground (the genre's cheat: the line lands on
  *                the side wall, the arc runs down the street). The line's length is chosen so the arc's bottom clears
- *                the ground under the hero by `clear` (shorter than the cast, it reels the hero in). It lets go when
+ *                the ground under the hero by `clear`, or a quarter of the room under the pivot where that is less (a
+ *                warehouse's beams, a hall's ceiling); shorter than the cast, it reels the hero in. It lets go when
  *                the key is let go, a jump is pressed (with a lift), a box crosses the line, the body meets a box (the
  *                wall then takes it, wall.js), or the ground; the body flies on with the swing's velocity (the platform
  *                rule's `dashVel`, to touchdown)
@@ -50,7 +52,7 @@ export function buildSwing(E) {
   const handOf = (e) => { const r = e.rule, H = r.collideHeight ?? 1.7 * (r.metre ?? 1), feet = e.transform.pos[2] - (r.eye ?? 0); return [e.transform.pos[0], e.transform.pos[1], feet + H * 0.9]; };
 
   // the anchor: the face point nearest the ideal, inside the gear's constraints, with a clear line
-  function anchorFor(e, G, cs) {
+  function anchorFor(e, G, cs, { walls = false } = {}) {
     const hand = handOf(e), f = fwdXY(e.transform.heading), el = G.elev * DEG;
     const ideal = [hand[0] + f[0] * Math.cos(el) * G.reach * G.ideal, hand[1] + f[1] * Math.cos(el) * G.reach * G.ideal, hand[2] + Math.sin(el) * G.reach * G.ideal];
     const sinMin = Math.sin(G.minElev * DEG), cosCone = Math.cos(G.cone * DEG);
@@ -73,6 +75,22 @@ export function buildSwing(E) {
         if (wt != null && wt < 1 - 1e-6) continue;
         best = { miss, q, face: { ax, s, at } };
       }
+      // the box's UNDERSIDE, over the hero (a ceiling's slab, a beam, a catwalk: indoors the line goes up); not for a zip,
+      // which lands on a face the wall holds
+      if (walls || hand[2] >= c.min[2] - EPS) continue;
+      // aimed where the ideal ray meets the underside's plane (a ceiling is near, not `ideal` × `reach` out), and scored by
+      // how far the point misses it
+      const up = c.min[2] - hand[2], run = up / Math.tan(el), hit = [hand[0] + f[0] * run, hand[1] + f[1] * run, c.min[2]];
+      const q = [clamp(hit[0], c.min[0], c.max[0]), clamp(hit[1], c.min[1], c.max[1]), c.min[2]];
+      const d = sub(q, hand), D = len(d);
+      if (D > G.reach || D < EPS || d[2] / D < sinMin) continue;
+      const h = Math.hypot(d[0], d[1]);
+      if (h > EPS && (d[0] * f[0] + d[1] * f[1]) / h < cosCone) continue;
+      const miss = len(sub(q, hit));
+      if (best && miss >= best.miss) continue;
+      const toward = sub(q, scl(d, EPS / D)), wt = E.nearestWallT(hand, toward, cs);
+      if (wt != null && wt < 1 - 1e-6) continue;
+      best = { miss, q, face: { ax: 2, s: -1, at: c.min[2] } };
     }
     return best;
   }
@@ -121,7 +139,7 @@ export function buildSwing(E) {
     if (!e.swinging) {
       // in the air the key held casts (again after `cool`, a line cut or met); on the ground a press zips
       if (e._gearCool > 0 || (e.grounded ? !pressed : !key)) return false;
-      const A = anchorFor(e, G, cs);
+      const A = anchorFor(e, G, cs, { walls: e.grounded });
       if (!A) return false;
       if (e.grounded) {
         // on the ground the key zips: to the face, a body's radius off it
@@ -137,8 +155,11 @@ export function buildSwing(E) {
       const pivot = [A.q[0] + f0[1] * side * G.center, A.q[1] - f0[0] * side * G.center, A.q[2]];
       // the line's length: the cast, or shorter so the arc's bottom clears the ground (the hero reeled in)
       const D = len(sub(pivot, hand)), gz = ground(t.pos) ?? 0;
-      const L = Math.min(D, pivot[2] - (gz + G.clear + H * 0.9));
-      if (L < D * 0.5) { e.swung = { end: 'low' }; return false; }
+      // (the clearance shrinks with the room under the pivot: a warehouse's beams are not a street's towers)
+      const room = pivot[2] - gz - H * 0.9, clear = Math.min(G.clear, Math.max(0.1 * (r.metre ?? 1), room * 0.25));
+      const L = Math.min(D, room - clear);
+      // a line reeled to less than half its cast, or shorter than the hero is tall (a low room), is no swing
+      if (L < D * 0.5 || L < H) { e.swung = { end: 'low' }; return false; }
       // the body's own velocity as the swing starts: its last step's travel
       const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
       e.swinging = { anchor: A.q, pivot, L, face: A.face, v: [v0[0], v0[1], e.vel[2]] };

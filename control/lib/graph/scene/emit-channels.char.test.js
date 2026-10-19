@@ -173,6 +173,10 @@ import { emitThreeWorld } from './scene-three.js';
 // a platform body with `rule.gear` casts the swinger's line to a face above and ahead, swings under it, zips to it; the
 // `gear-pose` pass). On the `controllable` fixture 158 lines are added and none changed; the page's line drawer is
 // emitted only where a body has a gear, so no fixture carries it. The same 14 re-pinned.
+// Re-pinned 2026-10-19 (city hunter: indoors): the swinger also casts to a box's underside over the hero (a ceiling, a
+// beam), aimed where its ideal ray meets that plane, its clearance shrinking with the room and no line shorter than the
+// hero; the wall holds the head under a lid (a ceiling) as it climbs. On the `controllable` fixture 5 lines replaced
+// (each reads the same with no gear or wall) and 32 added. The same 14 re-pinned.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
