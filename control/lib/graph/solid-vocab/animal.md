@@ -193,6 +193,17 @@ machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a 
 winter mascot. `mascot` keeps the animal's stance (a plush, a game's critter); `create_character({ as: 'mascot' })` stands
 it up as a biped. Its result's `ooze.notes` say what the card read: the promise, the piece, what was drawn big and let go.
 
+### In a game's look: `setting`
+
+`spec.setting` stands an oozed creature in its game's light and colours, as the game's people stand: the same shape the
+game rail hands every character it rolls (`{ tradition?, ramps?, era?, genre? }`; a game book's own comes from its world,
+`settingOfGame`). `tradition: 'anime'` gives it the character light (a two-tone step, the silhouette ink, its metals drawn
+in bands), lit as the book's creatures are; `'western'` keeps the studio light and real materials. `ramps` dress what the
+oozes make (a piece, armour, panels, marks, ornaments) in the world's colours: each takes the stop of a ramp of its own
+hue and value, so the creature keeps its three values. The animal's own coat, a glow, a colour drawn in a metal (chrome
+stays chrome) and a signal colour the world has no ramp for stay their own. The result's `ooze.setting` lists every
+colour it moved, from what, to which ramp's stop, and the light it took. Absent: as before.
+
 ### stylism: design notes that style a creature up
 
 `stylism: { register?, detail?, focal?, motif? }` (with or without `ooze`) is the hero door's stylism tuner compressed

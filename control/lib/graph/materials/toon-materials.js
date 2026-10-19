@@ -21,7 +21,7 @@
  * the step's third tone takes (the light otherwise derives one from the base).
  */
 import { resolveMaterial } from '../polygonizer/materials.js';
-import { resolveMetalSurface, isMetalSurface } from './metal-surface.js';
+import { resolveMetalSurface, isMetalSurface, METAL_NAMES } from './metal-surface.js';
 import { hexToRgb, rgbToHex, lchOf, oklch, mixHue } from '../color-theorist/oklab.js';
 
 // the numbers: the eyes gate's to move
@@ -63,6 +63,14 @@ function classOf(spec) {
   return row?.metal ? 'metal' : 'cloth';
 }
 
+// a SHELF material that is a metal (a name: 'gold', 'chrome', 'gunmetal', polygonizer/materials.js) drawn as the metal of
+// that name, or as steel when the optics table holds none (gunmetal is a dark steel)
+const metalSpec = (spec) => {
+  if (spec && typeof spec === 'object' && isMetalSurface(spec)) return spec;
+  const name = typeof spec === 'string' ? spec : spec?.preset;
+  return { metal: METAL_NAMES.includes(name) ? name : 'steel' };
+};
+
 /** A hero's surfaces lowered for the character light → { thresholds, shade, highlight }, or null when none applies. */
 export function toonMaterials(surfaces, palette = {}) {
   if (!surfaces || typeof surfaces !== 'object') return null;
@@ -72,7 +80,7 @@ export function toonMaterials(surfaces, palette = {}) {
     if (typeof tone !== 'string' || !/^#[0-9a-f]{6}$/i.test(tone)) continue;
     const kind = classOf(spec), [L, C, h] = lchHex(tone);
     if (kind === 'metal') {
-      const M = TOON_MATERIAL.metal, s = resolveMetalSurface(spec), warm = s.metal !== 'steel' && s.metal !== 'stainless' && s.metal !== 'aluminium' && s.metal !== 'titanium' && s.metal !== 'chrome' && s.metal !== 'nickel' && s.metal !== 'silver';
+      const M = TOON_MATERIAL.metal, s = resolveMetalSurface(metalSpec(spec)), warm = s.metal !== 'steel' && s.metal !== 'stainless' && s.metal !== 'aluminium' && s.metal !== 'titanium' && s.metal !== 'chrome' && s.metal !== 'nickel' && s.metal !== 'silver';
       const [, mC, mh] = lchHex(s.hex);
       thresholds[g] = M.threshold;
       // the shade leans the way a painter leans the metal: warm metals toward red-orange, the greys toward blue (a grey

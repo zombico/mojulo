@@ -17,7 +17,8 @@ const fnv = (s) => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++
 const specOf = ({ ooze, seed, stylism } = {}) => ({ ...(ooze !== undefined ? { ooze } : {}), ...(seed !== undefined ? { seed } : {}), ...(stylism !== undefined ? { stylism } : {}) });
 
 export function oozeBody(species, spec = {}) {
-  const M = resolveMutagen(spec.ooze, { seed: spec.seed, key: species, stylism: spec.stylism });
+  // (a game's setting dresses the colours only: the body, and so its rig id, are the oozes')
+  const M = resolveMutagen(spec.ooze, { seed: spec.seed, key: species, stylism: spec.stylism, setting: spec.setting });
   if (!M) return { rid: species, plan: null, report: {}, mutagen: null };
   const report = {}, plan = oozeFauna(speciesParams(species), M, report);
   const rid = `${species}~${fnv(JSON.stringify({ oozes: M.oozes, seed: M.seed, stylism: spec.stylism ?? null })).toString(36)}`;

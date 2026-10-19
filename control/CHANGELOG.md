@@ -697,6 +697,11 @@ renders byte-identically without them.
   have, in the order it breaks the silhouette: horns, a ridge of plates down the back and tail, another creature's tail
   (serpent, scorpion, lion, dragon), wings (feathered or membrane by the motif, carried half raised), a second crown.
   The seed and the motif choose the kinds; a mythic register is hybrid unless told.
+- **An oozed creature takes its game's look.** `spec.setting` (the setting the game rail hands its people: tradition and
+  ramps) gives an anime world's creature the character light, lit as a creature is, and dresses what the oozes make
+  (pieces, armour, panels, marks, ornaments) from the world's ramps, keeping its values; the coat, glows, metals and
+  signal colours stay their own, and the result ledgers every move. A shelf metal named by its word (`'gold'`,
+  `'chrome'`, `'gunmetal'`) now draws under the character light instead of throwing.
 - **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
   material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
   the exports. Absent, nothing changes.

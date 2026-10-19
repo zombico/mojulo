@@ -14,6 +14,7 @@ import { stylismErrors, resolveStylism, heighten, spendDetail, registerNote } fr
 import { graftParams, graftPush } from './chimera.js';
 import { MOTIFS } from './motif.js';
 import { mascotFor } from './mascot.js';
+import { oozeSetting, dressPush } from './setting.js';
 
 // a row with a `base` is read against the base it is laid on (the species id): its reader's form and push stand in for
 // the row's own (which stand for any other base)
@@ -40,9 +41,10 @@ export function mutagenErrors(ooze, seed, stylism) {
  * the base (a species id) for the default seed. A stylism's register is laid on here (the warp); its detail budget is
  * spent on the body it is built on (`oozeFauna`).
  */
-export function resolveMutagen(ooze, { seed, key = '', stylism } = {}) {
+export function resolveMutagen(ooze, { seed, key = '', stylism, setting } = {}) {
   const errs = mutagenErrors(ooze, seed, stylism);
   if (errs.length) throw new Error(errs.join('; '));
+  const W = oozeSetting(setting);
   const oozes = normalizeOozes(ooze), S = resolveStylism(oozes.map((o) => OOZES[o.id].stylism), stylism);
   if (!oozes.length && !S) return null;
   const s = seed ?? strHash(key) % 1000003, reads = [], shelf = { ...OOZES };
@@ -52,7 +54,7 @@ export function resolveMutagen(ooze, { seed, key = '', stylism } = {}) {
   }
   let form = composeForm(oozes, shelf), push = composePush(oozes, shelf, s);
   if (S?.a) ({ form, push } = heighten(form, push, S.a));
-  return { oozes, seed: s, form, ...(push && Object.keys(push).length ? { push } : {}), ...(S ? { stylism: S } : {}), ...(reads.length ? { reads } : {}) };
+  return { oozes, seed: s, form, ...(push && Object.keys(push).length ? { push } : {}), ...(S ? { stylism: S } : {}), ...(reads.length ? { reads } : {}), ...(W ? { setting: W } : {}) };
 }
 
 /**
@@ -78,6 +80,9 @@ export function oozeParams(P, mutagen) {
 export function oozeFauna(P, mutagen, report = {}) {
   // the colour words (suit, armor, seam, accent) resolved against the animal's own coat, once, for both halves
   if (mutagen?.push) mutagen = { ...mutagen, push: resolveColorWords(mutagen.push, P.colors) };
+  // the game's look (setting.js): what the oozes make dressed from its ramps; the motif's colour last, once it is decided
+  const W = mutagen?.setting, dressed = [];
+  if (W && mutagen.push) mutagen = { ...mutagen, push: dressPush(mutagen.push, W, dressed) };
   let Q = oozeParams(P, mutagen), push = mutagen?.push;
   const S = mutagen?.stylism;
   if (S) {
@@ -98,6 +103,8 @@ export function oozeFauna(P, mutagen, report = {}) {
   }
   // what a base-read row made of this animal (the mascot's folk reading) leads the design notes
   if (mutagen?.reads) report.notes = [...mutagen.reads.map((why) => ({ stage: 'base', technique: why.split(':')[0], where: 'the whole creature', why })), ...(report.notes || [])];
+  if (W && push) push = dressPush(push, W, dressed, { motif: 'only', coat: P.colors?.coat });
+  if (W) report.setting = { ...(W.tradition ? { tradition: W.tradition } : {}), dressed };
   report.params = Q;   // the params the plan was built from (the rig reads its legs and wings: body.js)
   return pushPlan(buildFauna(Q), push, Q, report);
 }

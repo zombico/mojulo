@@ -111,3 +111,15 @@ describe('toon materials: a creature on its level', () => {
     expect(() => creature({ ...PLAN, materials: { Torso: 'golden' } })).toThrow(/plan refused: plan.materials.Torso/);
   });
 });
+
+describe('toon materials: a shelf metal named by its word', () => {
+  it('draws as the metal of that name, or steel when the optics hold none (gunmetal), and never throws', () => {
+    const T = toonMaterials({ Shine: 'gold', Plate: 'chrome', Armor: 'gunmetal' }, { Shine: '#f0c24a', Plate: '#c3cad3', Armor: '#8b94a0' });
+    for (const g of ['Shine', 'Plate', 'Armor']) {
+      expect(T.thresholds[g], g).toBe(TOON_MATERIAL.metal.threshold);
+      expect(T.highlight[g].kind, g).toBe('gloss');
+    }
+    // gold leans warm in shade, chrome cool: the metal's own optics, told apart in bands
+    expect(T.shade.Shine).not.toBe(T.shade.Plate);
+  });
+});

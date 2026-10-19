@@ -578,7 +578,7 @@ function wearPiece(plan, piece, out) {
 // a colour's lightness (L*, 0 … 100) and the motif's colour moved a clear step (28 L*) from the coat's: lighter on a
 // dark coat, darker on a light one (a glowing one only lighter), its hue kept
 const lum = (h) => { const c = rgb(h).map((x) => { const v = x / 255; return v <= 0.04045 ? v / 12.92 : dmath.pow((v + 0.055) / 1.055, 2.4); }); const y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; return y > 0.008856 ? 116 * dmath.cbrt(y) - 16 : 903.3 * y; };
-function valueStep(m, coat, glow = false) {
+export function valueStep(m, coat, glow = false) {
   if (typeof coat !== 'string' || !HEX.test(coat) || !HEX.test(m)) return m;
   const Lc = lum(coat), Lm = lum(m);
   if (Math.abs(Lm - Lc) >= 28 || (glow && Lm >= Lc)) return m;   // a glowing ornament carries its own contrast: only ever lighter
