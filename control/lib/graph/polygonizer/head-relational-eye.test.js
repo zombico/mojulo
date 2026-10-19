@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { lookAngles, resolveEye, eyeSpecErrors, eyeRig, browBridge, EYE_CHANNELS } from './head-relational-eye.js';
+import { lookAngles, resolveEye, eyeSpecErrors, eyeRig, browBridge, EYE_CHANNELS, GLOBE } from './head-relational-eye.js';
 
 describe('the gaze target', () => {
   const L = { x: -0.13, y: 0, z: 0 }, R = { x: 0.13, y: 0, z: 0 };   // two globes' centres
@@ -43,6 +43,17 @@ describe('the rig', () => {
     expect(open.opening).not.toBeNull();
     expect(open.paint({ x: 0.125, y: 0.36, z: 0.5 })).toBe('pupil');
     expect(eyeRig(P, 'R', resolveEye('closed', 'R'), 0.045).opening).toBeNull();
+  });
+  it('patterns the iris: fibres round it, a dark limbal ring at its edge, plain off it', () => {
+    const rig = eyeRig(P, 'R', resolveEye('neutral', 'R'), 0.045);
+    // a point on the cornea's front at radius r (V) from the gaze axis, angle a
+    const on = (r, a) => { const x = 0.125 + r * Math.cos(a), z = 0.5 + r * Math.sin(a); return { x, y: 0.36 - GLOBE.cornea + Math.sqrt(GLOBE.cornea ** 2 - r * r), z }; };
+    const mid = Array.from({ length: 48 }, (_, i) => rig.irisTone(on(0.016, (i / 48) * 2 * Math.PI)));
+    expect(Math.max(...mid) - Math.min(...mid)).toBeGreaterThan(0.15);   // the fibres vary round it
+    const edge = Array.from({ length: 48 }, (_, i) => rig.irisTone(on(0.0248, (i / 48) * 2 * Math.PI)));
+    expect(edge.reduce((a, b) => a + b) / 48).toBeLessThan(mid.reduce((a, b) => a + b) / 48);   // the limbal ring
+    expect(rig.irisTone({ x: 0.125, y: 0.5, z: 0.5 })).toBe(1);
+    expect(rig.irisTone(on(0.016, 1))).toBe(eyeRig(P, 'R', resolveEye('neutral', 'R'), 0.045).irisTone(on(0.016, 1)));
   });
 });
 

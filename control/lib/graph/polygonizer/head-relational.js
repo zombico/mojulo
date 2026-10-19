@@ -766,7 +766,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
       lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
-      crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)) };
+      crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
   const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
@@ -776,7 +776,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       if (!e.near(p)) continue;
       // the lid space cut back out of the skin, the lids' mass on it, the opening carved through it to the globe, the
       // margins and the roll laid on, the crease cut, the globe set in
-      d = smax(d, -e.lidSpace(p), 0.003 * sc);
+      d = smax(d, -e.lidSpace(p), 0.005 * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
@@ -787,6 +787,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   } : skinField;
   // what a surface point is painted: the globe's parts, or the skin (null)
   const paint = (p) => { for (const e of eyeRigs) if (e.near(p)) { const t = e.paint(p); if (t) return t; } return null; };
+  // the paint's tone there (×, about 1): the iris's pattern; 1 elsewhere
+  const paintTone = (p) => { for (const e of eyeRigs) if (e.near(p)) { const t = e.irisTone(p); if (t !== 1) return t; } return 1; };
   // the names head-field-view's calipers read (figure-head.js's landmark names), from the core points
   const s = 0.9 * (sc / 0.1265);
   const W = Object.fromEntries(Object.entries(P).map(([k, p]) => [k, S(p)]));
@@ -818,5 +820,5 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     bridge,
     eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV })),
   };
-  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
+  return { field, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
 }

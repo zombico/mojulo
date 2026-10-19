@@ -126,6 +126,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Measured** in mm ahead of the cornea, male / female: radix 11 / 11, brow over the pupil 11.6 / 9.3, skin
     over the lateral rim −9.6 / −9.5, the skull's rim −16.1 / −16.1 (Hertel's 12–20). The wave still meets every
     relation within 0.4 mm, with no through-holes.
+- **The outer canthus, closed cleanly.** With the outer wall gone, a slab showed at the outer eye corner. The lid
+  space's floor ran level past the canthus to the arc's foot, and both it and the opening's sliver end cut back to
+  the globe's centre, where the globe no longer reaches, leaving a shelf and a slot.
+  - **The lid space:** its floor now rises to the arc's foot, and its cut has a depth floor, shallowing toward the
+    feet and past the canthi.
+  - **The opening:** it keeps its deep corner pockets where it is open, and grows shallow only where it thins to a
+    sliver.
+  - **The cut's blend** is softer, so its fold edge is smoother.
+- **The iris, patterned.** The iris carries a light pattern: radial fibres, a wavy collarette ring parting a lighter
+  pupillary zone from the ciliary, darker crypts, a dark limbal ring and a thin pupillary ruff. It is a tone over its
+  colour (`irisTone`, the head's `paintTone`), periodic round the iris, seeded per eye and paint only, with no
+  relief. The field lane shades it per pixel.
 - **The brow's bridge, and the lid space hung from it.** An invisible bridge runs across the forehead (`browBridge`)
   with four strings hanging from it: two medial strings down beside the nose's root, and two lateral strings down the
   temples. Each eye's arc, the edge of its fold under the brow, hangs between its two strings' feet just past the

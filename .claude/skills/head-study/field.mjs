@@ -123,7 +123,7 @@ function camera(az, elev, bounds) {
 function cropBounds(head, crop) {
   const L = head.landmarks, P = head.points || {}, B = head.bounds;
   if (crop === 'macro' && P.exR) return { min: { x: P.enR.x - 0.004, y: P.eyeR.y - 0.04, z: P.exR.z - 0.014 }, max: { x: P.exR.x + 0.016, y: P.eyeR.y + 0.012, z: P.exR.z + 0.014 } };
-  if (crop === 'eye' && P.enR) return { min: { x: P.enR.x - 0.008, y: P.eyeR.y - 0.03, z: P.eyeR.z - 0.016 }, max: { x: P.exR.x + 0.008, y: P.eyeR.y + 0.012, z: P.eyeR.z + 0.018 } };
+  if (crop === 'eye' && P.enR) return { min: { x: P.enR.x - 0.008, y: P.eyeR.y - 0.045, z: P.eyeR.z - 0.016 }, max: { x: P.exR.x + 0.03, y: P.eyeR.y + 0.012, z: P.eyeR.z + 0.018 } };
   if (crop === 'eyes' && P.exL) return { min: { x: P.exL.x - 0.01, y: B.min.y * 0.2 + L.tragionR.y * 0.8, z: P.eyeR.z - 0.03 }, max: { x: P.exR.x + 0.01, y: B.max.y, z: P.eyeR.z + 0.04 } };
   if (crop === 'ear') { const T = L.tragionR, E = L.earTopR, eh = E.z - T.z; return { min: { x: T.x - 0.9 * eh, y: T.y - 1.5 * eh, z: T.z - 1.4 * eh }, max: { x: B.max.x, y: T.y + 0.6 * eh, z: E.z + 0.3 * eh } }; }
   if (crop === 'face') return { min: { x: B.min.x, y: L.tragionR.y, z: B.min.z }, max: { x: B.max.x, y: B.max.y, z: L.glabella.z + 0.02 } };
@@ -152,7 +152,7 @@ function drawStrands(img, zbuf, cam, strands, hex, w = 1) {
 }
 // the painted parts (the eyes' globes); everything else is clay
 const PAINT = { sclera: [232, 228, 220], iris: [64, 104, 140], pupil: [18, 18, 20] };
-function rasterize(faces, cam, skin = null) {
+function rasterize(faces, cam, skin = null, tone = null) {
   const zbuf = new Float32Array(CW * CH).fill(-Infinity), img = Buffer.alloc(CW * CH * 4, 0);
   // (with a skin layer, the winning point and normal of each pixel are kept and shaded after, once: its relief costs)
   const G = skin ? { pos: new Float64Array(CW * CH * 3), nrm: new Float64Array(CW * CH * 3), face: new Array(CW * CH) } : null;
@@ -182,9 +182,11 @@ function rasterize(faces, cam, skin = null) {
           G.face[o] = f;
           continue;
         }
-        const s = cam.shade(n.map((v) => v / l));
+        let s = cam.shade(n.map((v) => v / l));
         const col = f.paint ? PAINT[f.paint] : CLAY;
-        img[o * 4] = col[0] * s; img[o * 4 + 1] = col[1] * s; img[o * 4 + 2] = col[2] * s; img[o * 4 + 3] = 255;
+        // (the iris's pattern, per pixel: its tone at the point)
+        if (f.paint === 'iris' && tone) { const Q = f.corners, at = (key) => w0 * Q[i][key] + w1 * Q[j][key] + w2 * Q[k][key]; s *= tone({ x: at('x'), y: at('y'), z: at('z') }); }
+        img[o * 4] = Math.min(255, col[0] * s); img[o * 4 + 1] = Math.min(255, col[1] * s); img[o * 4 + 2] = Math.min(255, col[2] * s); img[o * 4 + 3] = 255;
       }
     }
   }
@@ -193,8 +195,10 @@ function rasterize(faces, cam, skin = null) {
     if (!f) continue;
     let n = [G.nrm[o * 3], G.nrm[o * 3 + 1], G.nrm[o * 3 + 2]], cav = 0;
     if (!f.paint) ({ normal: n, cavity: cav } = skin.shade({ x: G.pos[o * 3], y: G.pos[o * 3 + 1], z: G.pos[o * 3 + 2] }, n, cam.mmPerPixel));
-    const s = cam.shade(n) * (1 - cav), col = f.paint ? PAINT[f.paint] : CLAY;
-    img[o * 4] = col[0] * s; img[o * 4 + 1] = col[1] * s; img[o * 4 + 2] = col[2] * s; img[o * 4 + 3] = 255;
+    let s = cam.shade(n) * (1 - cav);
+    const col = f.paint ? PAINT[f.paint] : CLAY;
+    if (f.paint === 'iris' && tone) s *= tone({ x: G.pos[o * 3], y: G.pos[o * 3 + 1], z: G.pos[o * 3 + 2] });
+    img[o * 4] = Math.min(255, col[0] * s); img[o * 4 + 1] = Math.min(255, col[1] * s); img[o * 4 + 2] = Math.min(255, col[2] * s); img[o * 4 + 3] = 255;
   }
   return { img, zbuf };
 }
@@ -263,7 +267,7 @@ for (const { sex, actions: row } of ROWS) {
 
   for (const [col, v] of VIEWS.entries()) {
     const cam = camera(v.az, v.elev, frame);
-    const { img, zbuf } = rasterize(faces, cam, skin);
+    const { img, zbuf } = rasterize(faces, cam, skin, head.paintTone);
     if (epi) drawStrands(img, zbuf, cam, epi.strands, epi.colour);
     if (rigLines) drawStrands(img, zbuf, cam, rigLines, '#c41e1e', 2);
     const png = await sharp(img, { raw: { width: CW, height: CH, channels: 4 } }).png().toBuffer();

@@ -22,6 +22,7 @@
  */
 import { smin, sdRoundCone } from './vajra.js';
 import { SM } from '../../util/math-scope.js';
+import { hash3 } from '../era/dirt.js';
 
 /** the globe (V): 24 mm across, its sclera's front `back` behind the eye point, the cornea proud of it to the point */
 export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris: 0.0255, pupil: 0.0085 });
@@ -58,6 +59,7 @@ export const EYE_EXPRESSIONS = Object.freeze({
 export const EYE_EXPRESSION_NAMES = Object.freeze(Object.keys(EYE_EXPRESSIONS));
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const smooth01 = (v) => { const x = clamp(v, 0, 1); return x * x * (3 - 2 * x); };
 const rest = Object.fromEntries(EYE_CHANNEL_NAMES.map((k) => [k, EYE_CHANNELS[k][0]]));
 
 /**
@@ -159,7 +161,8 @@ export function browBridge(P, pull = {}) {
  * `arc` (`browBridge`'s, for this side; at rest when absent). Returns
  * { opening, lidSpace, lids, rims, crease, globe, paint, margins } — signed fields in V (negative inside): the lid space
  * to cut back out of the skin, the lids' mass to add to it, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
- * at a surface point ('pupil' | 'iris' | 'sclera') or null; `margins` are the lash lines (upper, lower) as functions of t.
+ * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
+ * `margins` are the lash lines (upper, lower) as functions of t.
  */
 export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
@@ -193,7 +196,10 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     const t = (p.x - en.x) / span, tc = clamp(t, 0, 1);
     // between the canthi: negative inside (the nearer canthus's distance), positive past them
     const across = t === tc ? -Math.min(t, 1 - t) * Math.abs(span) : Math.abs(t - tc) * Math.abs(span);
-    return Math.max(p.z - upZ(tc), loZ(tc) - p.z, across, gc.y - p.y);
+    // back to the globe's centre where it is open (its corners' dark pockets), but shallow where it thins to a sliver
+    // at the canthi: a sliver cut that deep left a slot beside the eye
+    const w = smooth01((upZ(tc) - loZ(tc)) / 0.01), back = gc.y * w + (Math.min(en.y, ex.y) - 0.004) * (1 - w);
+    return Math.max(p.z - upZ(tc), loZ(tc) - p.z, across, back - p.y);
   };
   // the curves as bead chains (ONE min each, so they do not bead): the margins on the ride, the upper thickest at
   // the lash line's middle; the pretarsal roll under the lower
@@ -215,25 +221,34 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
   // so the lid shows between the margin and the crease. Where the arc's feet meet the margin at the canthi the space
   // closes. The HOOD lowers the knee and draws the fold down toward the knee, toward a monolid's overhang.
   const LID_T = 0.012, lidR = GLOBE.r + LID_T, LIDC = GLOBE.cornea + LID_T;
+  // (never deeper than just behind the canthi: past the shell's own reach its depth would fall to the globe's centre,
+  // a pocket that left a plate of skin under it beside the eye)
+  const yFloor = Math.min(en.y, ex.y) - 0.008;
   const shellY = (x, z) => {
     const sy = gc.y + Math.sqrt(Math.max(0, lidR ** 2 - (x - gc.x) ** 2 - (z - gc.z) ** 2));
     const r2 = LIDC ** 2 - (x - cc.x) ** 2 - (z - cc.z) ** 2;
-    return r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy;
+    return Math.max(yFloor, r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy);
   };
   const upMax = Math.max(...ts.map(upZ)), room = clamp(gc.z + 0.75 * lidR - upMax, 0.004, gap);
   const kneeZ = (t) => upZ(t) + Math.max(0, room - 0.012 * c.hood) * (0.35 + 0.65 * taper(t));
   const yArc = e.y + 0.12;   // the fold reaches the brow's front by the arc: ahead of any skin, so the cut ends unseen
+  // (past a canthus the floor rises to the arc's foot, so the space pinches shut there: a floor held level at the
+  // canthus's height out to the foot left a flat shelf beside the eye)
   const foldAt = (x, t) => {
     const za0 = arc.z(x);
     if (za0 === null) return null;
-    const zm = upZ(t), zk = Math.min(kneeZ(t), zm + 0.5 * Math.max(0, za0 - zm));
-    const za = zk + Math.max(0, za0 - zk) * (1 - 0.5 * c.hood), yk = shellY(x, zk);
-    return { zm, zk, za, yk, h: Math.max(za - zk, 0.002) };
+    const tc = clamp(t, 0, 1), out = Math.abs(t - tc) * Math.abs(span), reach = Math.abs(tc ? arc.Fl.x - ex.x : arc.Fm.x - en.x) || 1e-6;
+    const zm0 = upZ(tc), zm = zm0 + (za0 - zm0) * smooth01(out / reach), zk = Math.min(kneeZ(tc), zm + 0.5 * Math.max(0, za0 - zm));
+    // (and shallower as the space thins toward its feet and past the canthi, to nothing where it closes: a thin wedge
+    // cut to full depth left the skin above it overhanging, a ledge beside the eye)
+    const shallow = 0.04 * Math.max(1 - smooth01((za0 - zm) / 0.02), smooth01(out / reach));
+    const za = zk + Math.max(0, za0 - zk) * (1 - 0.5 * c.hood), yk = shellY(x, zk) + shallow;
+    return { zm, zk, za, yk, h: Math.max(za - zk, 0.002), shallow };
   };
   const lidSpace = (p) => {
-    const t = (p.x - en.x) / span, F = foldAt(p.x, clamp(t, 0, 1));
+    const t = (p.x - en.x) / span, F = foldAt(p.x, t);
     if (!F) return Infinity;
-    if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) - p.y);
+    if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) + F.shallow - p.y);
     // the fold rolls out of the knee and rises into the arc (a square's ease: gentle at the crease, steep at the brow)
     const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;
     return Math.max(p.z - F.za, (F.yk + rise * u * u - p.y) / Math.hypot(1, slope));
@@ -286,6 +301,35 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     return { c: q, r, n, T, away: w };
   };
   const margins = { upper: lashLine(true), lower: lashLine(false), shut };
+  // THE IRIS'S PATTERN: a tone (×, about 1) over the iris's colour, in polar terms about the gaze — u from the pupil's
+  // edge (0) to the limbus (1), θ round it. Radial FIBRES (streaks: many round, few across), a wavy COLLARETTE ring
+  // a third of the way out parting the lighter pupillary zone from the ciliary, darker CRYPTS among the fibres, the
+  // dark LIMBAL ring at the edge and a thin ruff at the pupil. Seeded per side; paint only, no relief.
+  const e1 = (() => { const v = { x: d.y, y: -d.x, z: 0 }, l = Math.hypot(v.x, v.y) || 1; return { x: v.x / l, y: v.y / l, z: 0 }; })();
+  const e2 = { x: d.y * e1.z - d.z * e1.y, y: d.z * e1.x - d.x * e1.z, z: d.x * e1.y - d.y * e1.x };
+  const seed = s === 'L' ? 11 : 23;
+  // value noise periodic round the iris (N cells to a turn), so no seam at θ = ±π
+  const ring = (a, v, N, k) => {
+    const x = (a / (2 * Math.PI) + 0.5) * N, ix = Math.floor(x), iy = Math.floor(v), fx = x - ix, fy = v - iy;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy), w = (i) => ((i % N) + N) % N;
+    const h = (i, j) => hash3(w(i), j, seed + k);
+    const lo = h(ix, iy) + (h(ix + 1, iy) - h(ix, iy)) * ux, hi = h(ix, iy + 1) + (h(ix + 1, iy + 1) - h(ix, iy + 1)) * ux;
+    return lo + (hi - lo) * uy;
+  };
+  const irisTone = (p) => {
+    if (Math.abs(globe(p)) > 0.004) return 1;
+    const q = { x: p.x - gc.x, y: p.y - gc.y, z: p.z - gc.z }, along = q.x * d.x + q.y * d.y + q.z * d.z;
+    if (along <= 0) return 1;
+    const px = q.x - d.x * along, py = q.y - d.y * along, pz = q.z - d.z * along, rad = Math.hypot(px, py, pz);
+    if (rad < pupilR || rad >= irisR) return 1;
+    const u = (rad - pupilR) / (irisR - pupilR), a = Math.atan2(px * e2.x + py * e2.y + pz * e2.z, px * e1.x + py * e1.y + pz * e1.z);
+    const fibres = 0.75 * ring(a, u * 3, 56, 1) + 0.25 * ring(a, u * 9, 140, 2);
+    const uc = 0.34 + 0.05 * Math.sin(7 * a + seed) + 0.06 * (ring(a, 0, 12, 3) - 0.5);
+    const collarette = Math.exp(-(((u - uc) / 0.045) ** 2));
+    const crypt = u > uc + 0.06 && u < 0.86 ? Math.max(0, (ring(a, u * 4, 22, 4) - 0.72) / 0.28) : 0;
+    const limbal = u > 0.84 ? (u - 0.84) / 0.16 : 0, ruff = u < 0.05 ? 1 - u / 0.05 : 0;
+    return (u < uc ? 1.14 : 1) * (0.72 + 0.5 * fibres) * (1 + 0.22 * collarette) * (1 - 0.45 * crypt) * (1 - 0.5 * limbal * limbal) * (1 - 0.35 * ruff);
+  };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  return { opening, lidSpace, lids, rims, crease, globe, paint, bound, gaze: d, margins };
+  return { opening, lidSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins };
 }
