@@ -14,6 +14,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Strategy board: spots on the map for tactics and tower defence
+
+A game can carry a board: square spots laid over its terrain as their own layer, each with a height, a terrain type
+and at most one unit. From any state the board lists every legal move, so a player can run out of options. Turn-based
+tactics (in the manner of Final Fantasy Tactics) and tower defence share it. In progress:
+
+- **The board kernel** (`lib/graph/board/`): reach by move and jump, aim and area shapes, facing, occupancy, legal
+  moves, and a charge-time clock on the party battles' timeline rule. Pure and seeded, emitted only when a world
+  declares a board, so a world without one keeps every byte.
+- **The tactical camera**: a locked pitch, quarter-turn rotation, zoom stops and pan held to the board, with an RTS
+  form that pans and edge-scrolls instead of rotating.
+- **A `tactics` quick goal**, and **tower defence on a board** (`defend` with `board`): towers fill spots, and foes
+  path over the free ones.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
