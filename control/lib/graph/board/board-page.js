@@ -10,6 +10,10 @@
  * turn-order bar and the active unit's card stand at the top, a forecast shows what an aimed act would do. At the end a
  * banner says who won and the level's bus hears `board-won`, `board-lost` or `board-draw` (`board-over` with no player).
  *
+ * STORY SLOTS (`D.slots`: the slots the level's own scenes listen for, `slot:<name>` on the bus): a battle raises
+ * `before` ahead of its deploy and first turn and `after` once won, before the level hears it; a map raises `begin` as
+ * it opens. While the scene plays the board holds; an empty slot is not raised at all.
+ *
  * `boardPage` is emitted by its source inside the board channel's block (scene/channels/board.js) and never runs in
  * Node. From the page it uses only what a channel may: `THREE`, `scene`, `camera`, `controls`, `renderer`, `wrap` and
  * `__ctrlOwnsCamera` (it owns the camera from the start). It returns the frame step the page calls.
@@ -29,12 +33,12 @@ import { boardParse } from './board-kernel.js';
 const SIDE_COLOURS = ['#4aa3ff', '#ff5a4a', '#5ad17a', '#f2c14e'];
 
 /** What the page takes, from a laid board (board-lay.js layBoard). */
-export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle } = {}) {
+export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots } = {}) {
   const B = laid.board, at = cursor !== undefined ? boardParse(B, cursor) : -1;
   const first = at >= 0 && B.spots[at] ? at : B.spots.findIndex((s) => s && s.walk);
   const sides = [...new Set((battle ? battle.units : units).map((u) => u.side))];
   return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])),
-    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}) };
+    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}) };
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
@@ -185,6 +189,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     map: 'arrows: choose a place · Enter: go there · Q E: turn · Z X: zoom · V: tilt',
     travel: 'on the road…',
     wait: 'the level is starting',
+    scene: '',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
@@ -442,8 +447,29 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     // the level hears it on its bus, as it hears the party battles' end
     keep(won);   // the store hears the spoils before the level hears it is over
     const ev = HUMAN.size ? (W == null ? 'board-draw' : won ? 'board-won' : 'board-lost') : 'board-over';
-    if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: ev });   // eslint-disable-line no-undef
+    const over = () => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: ev }); mode = 'over'; readout(); };   // eslint-disable-line no-undef
     readout();
+    // a win's after slot plays before the level hears it is over
+    if (won) hold('after', over); else over();
+  }
+
+  // ── the story's slots: a slot a scene listens for is raised on the bus and the board holds while the scene plays
+  //    (the scene runner holds the keys); one nobody listens for goes straight on ────────────────────────────────
+  const SLOTS = D.slots || [];
+  let slotWait = null;
+  function hold(name, then) {
+    if (SLOTS.indexOf(name) < 0 || typeof __inputQueue === 'undefined') { then(); return; }   // eslint-disable-line no-undef
+    slotWait = { name, then, was: mode, t: 0, seen: false };
+    mode = 'scene';
+    __inputQueue.push({ type: 'slot:' + name });   // eslint-disable-line no-undef
+  }
+  function stepSlot(dt) {
+    if (!slotWait) return;
+    const on = !!(window.__mojScenes && window.__mojScenes.on());
+    slotWait.t += dt;
+    if (on) slotWait.seen = true;
+    // its scene ended (or never began: its own conditions did not hold)
+    if ((slotWait.seen && !on) || (!slotWait.seen && slotWait.t > 1.5)) { const w = slotWait; slotWait = null; mode = w.was; w.then(); }
   }
 
   // ── the epoch's map: its dots, its roads, the party's marker; a dot chosen, the marker walks there and the map is left
@@ -556,6 +582,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
       place(from ? from.id : MAP.start);
       drawDots();
       mapReadout();
+      hold('begin', mapReadout);
     };
     const GM = typeof window !== 'undefined' ? window.__mojGame : null;
     if (GM && GM.onStart) GM.onStart(beginMap); else beginMap({});
@@ -566,6 +593,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   const DIRS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
   const FACE_OF = { '0,1': 0, '1,0': 1, '0,-1': 2, '-1,0': 3 };
   window.addEventListener('keydown', (e) => {
+    if (mode === 'scene') return;   // a story slot plays: the scene has the keys
     if (e.code in DIRS) {
       e.preventDefault();
       if (rts) held[DIRS[e.code]] = true;
@@ -625,7 +653,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
 
   readout();
   moveCursor(cursor);
-  function begin() {
+  function begin() { hold('before', start); }
+  function start() {
     if (battle.deploy && battle.placed && battle.placed.length && HUMAN.has('party')) {
       mode = 'deploy';
       placing = { ids: battle.placed.slice(), k: 0 };
@@ -679,6 +708,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     run,
     get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
     // the map's: where the party stands, the dot chosen, each dot's state; go there, as Enter would
+    get slot() { return slotWait ? slotWait.name : null; },
     get map() { return MAP && { at: mapAt, cursor: MAP.dots[mapCur].id, gone: mapGone, dots: MAP.dots.map((d) => ({ id: d.id, state: stateOf(d) })) }; },
     goTo(id) { if (!MAP || mode !== 'map') return false; const k = dotIdx(id); if (k < 0) return false; mapCur = k; mapGo(); return true; },
     // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
@@ -738,6 +768,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
         F.e.gone = U.hp <= 0;   // the runtime hides a body that is gone; a raised one stands again
       }
     }
+    stepSlot(dt);
     if (battle) { drawFloats(dt); run(dt); }
     if (MAP && walker && walker.from) {
       if (walker.hops.length) {

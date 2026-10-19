@@ -261,7 +261,15 @@ describe('design_game: tactics battles on boards (battles.on: board)', () => {
   beforeEach(() => { closeDb(); });
 
   it('a run makes each stage that meets packs a battle on its own ground: the book\'s party deployed, the packs its foes, the level won on the board', async () => {
-    const out = await designGameHandler({ world: { ...AUTO, battles: { on: 'board', per: 1 } }, ref: 'gt', run: true });
+    // the story's slots: a battle's before and after, the first epoch's begin and end
+    const line = (say) => [{ line: { who: 'hero', say } }];
+    const story = [
+      { id: 'muster', where: { level: 'meadow-ascent' }, when: { slot: 'before' }, beats: line('Form up.') },
+      { id: 'rout', where: { level: 'meadow-ascent' }, when: { slot: 'after' }, beats: line('They run.') },
+      { id: 'dawn', where: { epoch: 1 }, when: { slot: 'begin' }, beats: line('The first age.') },
+      { id: 'dusk', where: { epoch: 'Meadow Ascent' }, when: { slot: 'end' }, beats: line('The meadow is ours.') },
+    ];
+    const out = await designGameHandler({ world: { ...AUTO, battles: { on: 'board', per: 1 }, story }, ref: 'gt', run: true });
     const levels = out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.ref);
     expect(levels.length).toBeGreaterThan(0);
     const game = stored('gt-game');
@@ -320,7 +328,21 @@ describe('design_game: tactics battles on boards (battles.on: board)', () => {
     const [m0, w0] = wilds[0], after = m0.map.dots[m0.map.dots.findIndex((d) => d.id === w0.id) + 1];
     if (after) expect(after.gate).toBe(w0.gate);
     for (const d of Ms.flatMap((m) => m.map.dots).filter((x) => x.kind === 'story')) expect(stored(d.ref).game.mechanics.filter((m) => m.kind === 'reach-exit').every((m) => m.exit === 'map')).toBe(true);
+    // the story in its slots: the battle's own before and after, the epoch's begin on its map (once a game), its end at
+    // its last stage's exit (a walked stage), every moment bound
+    expect(out.story).toMatchObject({ bound: 4, unplaced: 0 });
+    const slotOf = (sc) => sc.when.on;
+    expect(stored(levels[0]).play.scenes.map(slotOf)).toEqual(['slot:before', 'slot:after']);
+    expect(stored(levels[0]).play.carry).toBe('story');
+    expect(M.play.scenes).toEqual([expect.objectContaining({ when: { on: 'slot:begin' }, if: [{ not: 'seen-dawn' }], sets: ['seen-dawn'] })]);
+    const lastWalk = M.map.dots.filter((d) => d.kind !== 'skirmish').slice(-1)[0];
+    expect(stored(lastWalk.ref).play.scenes.find((sc) => sc.beats[0].line.say === 'The meadow is ours.').when.enter.r).toBe(4);
+    expect(game.store.slices).toContainEqual(expect.objectContaining({ name: 'story', kind: 'flags' }));
+    expect((await resolveWorldScene(SketchRepository.getByRef(levels[0]))).payload.board.slots).toEqual(['before', 'after']);
     const map = await resolveWorldScene(SketchRepository.getByRef(maps[0]));
+    expect(map.payload.board.slots).toEqual(['begin']);
+    // the begin's seen flag rides the story slice: it plays once a game, not each time the map opens
+    expect(map.payload.game.on['flag:seen-dawn']).toBeTruthy();
     expect(map.payload.board.map.dots.map((d) => d.id)).toEqual(M.map.dots.map((d) => d.id));
     expect(map.payload.game.on[`map-go:${M.map.dots[0].id}`]).toEqual({ end: 'success', exit: M.map.dots[0].id });
     // travel: from the map to the first dot at once, the second only once the first is won; the next epoch's map found

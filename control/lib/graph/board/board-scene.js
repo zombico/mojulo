@@ -44,8 +44,15 @@ function readCamera(c) {
   return c;
 }
 
+// the story's slots a level's own scenes fill (`when: { on: 'slot:<name>' }`): the ones the page raises
+export const SLOTS = Object.freeze({ battle: ['before', 'after'], map: ['begin'] });
+export function slotsOf(play) {
+  const names = new Set((play?.scenes ?? []).map((sc) => sc?.when?.on).filter((on) => typeof on === 'string' && on.startsWith('slot:')).map((on) => on.slice(5)));
+  return [...SLOTS.battle, ...SLOTS.map].filter((n) => names.has(n));
+}
+
 // the board's part of a page, from a laid board and what stands on it: the page's data and a camera at its rest
-function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
+function boardParts(L, { units = [], battle: b, camera: c, cursor, play } = {}) {
   const camera = readCamera(c);
   if (!Array.isArray(units)) no('units are [{ id, side, at: \'C4\', move?, jump?, spd?, hp?, … }]');
   if (units.length && b !== undefined) no('units or battle: tokens to look at, or a battle to play; not both');
@@ -91,7 +98,7 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
   }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;
-  const data = boardChannelData(L, { units, camera, cursor, drape: L.drape, clip, battle });
+  const data = boardChannelData(L, { units, camera, cursor, drape: L.drape, clip, battle, slots: slotsOf(play) });
   const B = L.board, O = L.frame.origin, zs = B.spots.filter(Boolean).map((s) => O[2] + s.h * B.step);
   const P = boardCameraPose(boardCameraInit({ bounds: [O[0], O[1], O[0] + B.cols * B.cell, O[1] + B.rows * B.cell], z: (Math.min(...zs) + Math.max(...zs)) / 2, ...camera }));
   const hfov = (2 * Math.atan(Math.tan((P.fov * Math.PI) / 360) * ASPECT) * 180) / Math.PI;
@@ -128,14 +135,14 @@ const OVER_KEYS = ['cols', 'rows', 'cell', 'step', 'origin', 'holes', 'battle', 
  * its entities) stand.
  *   board: { cols?, rows?, cell?, step?, origin?, holes?, battle?, units?, camera?, cursor? }
  */
-export function boardOverWorld(P, spec = {}) {
+export function boardOverWorld(P, spec = {}, { play } = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) no(`a level's board is { ${OVER_KEYS.join(', ')} } (every one optional)`);
   for (const k of Object.keys(spec)) if (!OVER_KEYS.includes(k)) no(`board.${k} is not a setting of a board over a level (settings: ${OVER_KEYS.join(', ')}); its ground is the level's own`);
   if (!Array.isArray(P.faces) || !P.faces.length) no('a board lies over a level\'s ground, and this world has none');
   const side = Array.isArray(P.rooms) && P.rooms.length ? 'inside' : 'outside';
   const { battle, units, camera, cursor, ...lay } = spec;
   const L = layBoard({ ...lay, from: 'stage', side }, { scene: P });
-  const { data, cameras } = boardParts(L, { battle, units, camera, cursor });
+  const { data, cameras } = boardParts(L, { battle, units, camera, cursor, play });
   const D = dressed(P, L);
   return { ...D, cameras, walk: false, camera: null, board: data };
 }

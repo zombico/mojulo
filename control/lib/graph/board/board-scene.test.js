@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleBoardScene, boardOverWorld } from './board-scene.js';
+import { assembleBoardScene, boardOverWorld, slotsOf } from './board-scene.js';
 import { boardCentre } from './board-kernel.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -74,6 +74,15 @@ describe('the board world kind', () => {
     expect(b.draw[1].map((u) => u.foe)).toEqual(['wolf', 'bat', 'goblin']);
     expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 6, rows: 6 }, battle: { ...battle, foes: [{ id: 'g', foe: 'goblin' }] } })).toThrow(/foes or draw/);
     expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 6, rows: 6 }, battle: { party: battle.party.map((p) => ({ ...p, at: 'A1' })), draw: battle.draw } })).toThrow(/draw needs deploy/);
+  });
+
+  it('names the story slots the level\'s own scenes fill, and nothing when none does', () => {
+    const scene = (on) => ({ id: on.replace(/\W/g, ''), when: { on }, beats: [{ wait: 1 }] });
+    expect(slotsOf({ scenes: [scene('slot:after'), scene('slot:before'), scene('door-open'), scene('slot:soon')] })).toEqual(['before', 'after']);
+    expect(slotsOf(undefined)).toEqual([]);
+    const battle = { party: [{ id: 'a', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'D4' }] };
+    expect(assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle }).board.slots).toBeUndefined();
+    expect(assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle, play: { scenes: [scene('slot:before')] } }).board.slots).toEqual(['before']);
   });
 
   it('refuses what it cannot make, saying why', () => {

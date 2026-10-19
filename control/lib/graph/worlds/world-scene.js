@@ -1123,7 +1123,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   if (payload && kind !== 'board' && sketch.manifest.board && typeof sketch.manifest.board === 'object') {
     const [{ boardOverWorld }, { boardFigures }] = await Promise.all([import('@/lib/graph/board/board-scene.js'), import('@/lib/graph/board/board-figures.js')]);
-    Object.assign(payload, boardOverWorld(payload, sketch.manifest.board));
+    Object.assign(payload, boardOverWorld(payload, sketch.manifest.board, { play: sketch.manifest.play }));
     Object.assign(payload, await boardFigures(payload, { heroFigure, figures: sketch.manifest.board.battle?.figures }));
   }
 

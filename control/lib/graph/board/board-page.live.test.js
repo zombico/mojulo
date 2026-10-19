@@ -121,6 +121,29 @@ describe('the board on the World page', () => {
     await page.close();
   }, 120000);
 
+  it('holds the battle for its story slots: a scene before the first turn, one after the win before the level ends', async () => {
+    if (!browser) return;
+    const line = (say) => [{ line: { who: 'ayla', say } }];
+    const { payload } = await resolveWorldScene({ ref: 'told', title: null, manifest: { kind: 'board', board: { seed: 'flat', relief: 0, cols: 6, rows: 6 },
+      battle: { figures: false, party: [{ id: 'ayla', class: 'fighter', at: 'C2', bonus: { atk: 99, hp: 99, spd: 50 } }], foes: [{ id: 's', foe: 'slime', at: 'C4' }] },
+      play: { scenes: [{ id: 'intro', when: { on: 'slot:before' }, beats: line('Hold the line.') }, { id: 'outro', when: { on: 'slot:after' }, beats: line('It is done.') }] },
+      game: { levelRef: 'told', mechanics: [{ kind: 'board' }] } } });
+    expect(payload.board.slots).toEqual(['before', 'after']);
+    const page = await browser.newPage();
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojScenes && window.__mojScenes.on(), { timeout: 20000 });
+    expect(await page.evaluate(() => ({ mode: window.__mojBoard.mode, slot: window.__mojBoard.slot, who: window.__mojScenes.view().line && window.__mojScenes.view().line.who }))).toEqual({ mode: 'scene', slot: 'before', who: 'ayla' });
+    // the line read (a click types it out, the next goes on), the scene over: the battle begins
+    await page.waitForFunction(() => { if (window.__mojScenes.on()) window.__mojScenes.next(); return window.__mojBoard.mode !== 'scene'; }, { polling: 200, timeout: 10000 });
+    await page.evaluate(() => { const b = window.__mojBoard; for (let k = 0; k < 400 && !b.result; k++) { if (b.mode === 'menu') b.auto(); b.run(0.1); } });
+    await page.waitForFunction(() => window.__mojBoard.slot === 'after' && window.__mojScenes.on(), { timeout: 10000 });
+    // the level has not heard the win while the after scene plays
+    expect(await page.evaluate(() => window.__mojGame.envelope || null)).toBeNull();
+    await page.waitForFunction(() => { if (window.__mojScenes.on()) window.__mojScenes.next(); return window.__mojGame.envelope; }, { polling: 200, timeout: 10000 });
+    expect(await page.evaluate(() => window.__mojGame.envelope.result)).toBe('success');
+    await page.close();
+  }, 120000);
+
   it('travels an epoch\'s map: the roads the cleared dots open, the party walked there, the map left by the dot\'s exit', async () => {
     if (!browser) return;
     const dots = [{ id: 'gate', name: 'Old Gate', ref: 'lv-gate' }, { id: 'fields', kind: 'skirmish', ref: 'lv-fields', gate: 'gate' }, { id: 'mill', ref: 'lv-mill', gate: 'gate' }, { id: 'keep', ref: 'lv-keep', gate: 'mill' }];
@@ -140,6 +163,22 @@ describe('the board on the World page', () => {
     const end = await page.evaluate(() => ({ map: window.__mojBoard.map, envelope: window.__mojGame.envelope }));
     expect(end.map).toMatchObject({ at: 'mill', gone: 'mill' });
     expect(end.envelope).toMatchObject({ result: 'success', exit: 'mill' });
+    await page.close();
+  }, 120000);
+
+  it('opens an epoch\'s map on its begin slot: the party waits on the scene before it may set out', async () => {
+    if (!browser) return;
+    const dots = [{ id: 'gate', ref: 'lv-gate' }, { id: 'keep', ref: 'lv-keep', gate: 'gate' }];
+    const { payload } = await resolveWorldScene({ ref: 'map', title: null, manifest: { kind: 'board', board: { seed: 'epoch-1', relief: 0.3, cols: 10, rows: 8 }, map: { dots },
+      play: { scenes: [{ id: 'dawn', when: { on: 'slot:begin' }, beats: [{ line: { who: 'narrator', say: 'The first age.' } }] }] },
+      game: { levelRef: 'map', mechanics: [{ kind: 'map', slice: 'campaign', dots: dots.map((d) => d.id) }] } } });
+    expect(payload.board.slots).toEqual(['begin']);
+    const page = await browser.newPage();
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.slot === 'begin' && window.__mojScenes.on(), { timeout: 20000 });
+    expect(await page.evaluate(() => window.__mojBoard.goTo('gate'))).toBe(false);
+    await page.waitForFunction(() => { if (window.__mojScenes.on()) window.__mojScenes.next(); return window.__mojBoard.mode === 'map'; }, { polling: 200, timeout: 10000 });
+    expect(await page.evaluate(() => window.__mojBoard.goTo('gate'))).toBe(true);
     await page.close();
   }, 120000);
 

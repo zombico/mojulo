@@ -73,6 +73,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   book's levels is an epoch; `battles.board.epochs` cuts them into chapters of its own. Winning an epoch's last stage
   goes on to the next epoch's map, the party and bag carried; a later epoch's skirmishes draw from the harder packs
   met by then. The final epoch's last stage completes the game, and its map stays open for what is left.
+- **Story slots**, built: places in a tactics game where a scene or dialogue goes, empty until the story fills them.
+  A battle holds for a scene before its first turn and after its win (the level ends once it has played); a walked
+  stage plays its before at its start and its after at its exit; an epoch's map plays its begin as it opens, once a
+  game, and an epoch's end follows its last stage's own after. The book fills one with a story moment
+  (`when: { slot }`, `where: { level }` or `where: { epoch }`), bound and reported as other moments are. A slot
+  nobody fills adds nothing to the page.
 - **A game's final level** (`final` on `create_game`, the light shell): its first win completes the game. The front's
   end plays (or the result says the game is complete) instead of travelling on, and the game counts as cleared by
   that level alone, not every level. A game without one is unchanged.

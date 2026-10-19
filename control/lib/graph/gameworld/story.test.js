@@ -277,3 +277,43 @@ describe('the story in a building level (structure rails merged in)', () => {
     expect(r.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/is a building: a moment binds to a walk's stages for now/) }]);
   }, 240_000);
 });
+
+describe('the story\'s slots (a tactics book\'s)', () => {
+  const line = [{ line: { who: 'hero', say: 'On.' } }];
+  const at = (m) => ({ id: 'm', beats: line, ...m });
+  it('reads a level\'s before and after and an epoch\'s begin and end, an epoch\'s begin once a game', async () => {
+    const { readStory, storyScene } = await import('./story.js');
+    expect(readStory([at({ where: { level: 'vale' }, when: { slot: 'before' } }), at({ id: 'n', where: { epoch: 2 }, when: { slot: 'end' } }), at({ id: 'o', where: { epoch: 'The Rising' }, when: { slot: 'begin' } })])).toHaveLength(3);
+    expect(storyScene(at({ where: { level: 'vale' }, when: { slot: 'after' } })).when).toEqual({ on: 'slot:after' });
+    expect(storyScene(at({ where: { epoch: 1 }, when: { slot: 'end' } })).when).toEqual({ on: 'slot:after' });
+    expect(storyScene(at({ where: { epoch: 1 }, when: { slot: 'begin' }, sets: ['woke'] }))).toMatchObject({ when: { on: 'slot:begin' }, if: [{ not: 'seen-m' }], sets: ['woke', 'seen-m'] });
+  });
+  it('refuses a slot it does not have, an epoch\'s slot on a level, a level\'s on an epoch, saying why', async () => {
+    const { readStory } = await import('./story.js');
+    expect(() => readStory([at({ where: { level: 'vale' }, when: { slot: 'during' } })])).toThrow(/when.slot is 'before', 'after', 'begin', 'end', alone in when/);
+    expect(() => readStory([at({ where: { level: 'vale' }, when: { slot: 'begin' } })])).toThrow(/'begin' is an epoch's: where: \{ epoch \}/);
+    expect(() => readStory([at({ where: { epoch: 1 }, when: { slot: 'before' } })])).toThrow(/an epoch's moment plays in its slot/);
+    expect(() => readStory([at({ where: { epoch: 1, level: 'vale' }, when: { slot: 'end' } })])).toThrow(/where is \{ epoch \} alone/);
+    expect(() => readStory([at({ where: { epoch: 0 }, when: { slot: 'end' } })])).toThrow(/epoch's name or its number, from 1/);
+  });
+  it('binds an epoch\'s moment to the book\'s epochs, unplaced (saying why) in a book that has none or not that one', () => {
+    const G = readGameworld(MEADOWMARK_HERO), stages = gameStages(MEADOWMARK_HERO), layout = { stageEnds, stageSpots, stageLane };
+    const told = (epochs, epoch) => bindStory({ ...G, story: [at({ where: { epoch }, when: { slot: 'begin' } })] }, stages, { layout, epochs });
+    expect(told([{ name: 'Vale' }], 'vale')).toMatchObject({ bound: [{ id: 'm', epoch: 'Vale', slot: 'begin' }], byEpoch: { 0: { begin: [expect.objectContaining({ when: { on: 'slot:begin' } })], end: [] } } });
+    expect(told(null, 1).unplaced[0].why).toMatch(/a tactics book's/);
+    expect(told([{ name: 'Vale' }], 3).unplaced[0].why).toMatch(/no epoch 3 \(epochs: 1 Vale\)/);
+  });
+});
+
+describe('a walked stage\'s slots', () => {
+  it('play its before as it starts and its after as the hero comes to its exit; a stage with none is passed as it was', async () => {
+    const { walkedSlots } = await import('./runner.js');
+    const stage = gameStages(W())[0], exit = stageEnds(stage.manifest).exit;
+    const sc = (on) => ({ id: on.slice(5), when: { on }, beats: [{ wait: 1 }] });
+    const st = { scenes: [sc('slot:before'), sc('slot:after'), { id: 'x', when: { start: true }, beats: [{ wait: 1 }] }], cast: [] };
+    expect(walkedSlots(st, [sc('slot:after')], stage).scenes.map((s) => s.when)).toEqual([{ start: true }, { enter: { at: [exit[0], exit[1]], r: 4 } }, { start: true }, { enter: { at: [exit[0], exit[1]], r: 4 } }]);
+    const plain = { scenes: [{ id: 'x', when: { start: true }, beats: [] }], cast: [] };
+    expect(walkedSlots(plain, undefined, stage)).toBe(plain);
+    expect(walkedSlots(undefined, undefined, stage)).toBeUndefined();
+  });
+});
