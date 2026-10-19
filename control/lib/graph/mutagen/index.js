@@ -11,6 +11,8 @@ import { oozeErrors, normalizeOozes, composeForm, FORM_KEYS } from './compose.js
 import { composePush, pushParams, pushPlan, pushErrors, growMesh } from './push.js';
 import { buildFauna } from '../fauna/build.js';
 import { stylismErrors, resolveStylism, heighten, spendDetail, registerNote } from './stylism.js';
+import { graftParams, graftPush } from './chimera.js';
+import { MOTIFS } from './motif.js';
 
 export { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, FORM_KEYS };
 
@@ -65,12 +67,22 @@ export function oozeParams(P, mutagen) {
  * is the share of the face's pushes the head could seat (push.js `pushPlan`).
  */
 export function oozeFauna(P, mutagen, report = {}) {
-  const Q = oozeParams(P, mutagen);
-  let push = mutagen?.push;
-  if (mutagen?.stylism) {
-    const D = spendDetail(mutagen.stylism, push, canWear(Q));
+  let Q = oozeParams(P, mutagen), push = mutagen?.push;
+  const S = mutagen?.stylism;
+  if (S) {
+    // the chimera's grafts first (the big shapes), then the detail budget over them (they weigh in its hierarchy)
+    const motif = S.motif ?? push?.motif ?? 'horn', notes = [registerNote(S)];
+    if (S.c > 0) {
+      const G = graftParams(Q, { c: S.c, motif, seed: mutagen.seed });
+      Q = G.Q; notes.push(...G.notes);
+      const g = graftPush(push, G.grafts, canWear(Q)); push = g.push; notes.push(...g.notes);
+      if (Q.wings && Q.wings !== P.wings && MOTIFS[motif]?.glow) push = { ...push, extraGlow: [...(push.extraGlow || []), 'Vein', 'Claw', 'CovertTip', 'LesserTip'] };
+      notes.splice(1, 0, { stage: 'chimera', technique: `chimera ${S.c}`, where: 'the whole creature', principle: 'pure → chimera: grafts in the order they break the silhouette', why: G.grafts.length ? `grafts reached: ${G.grafts.join(', ')}` : 'none reached yet (horns from 0.15)' });
+    }
+    // horns on a hornless head are a graft: the detail budget spends them only once the chimera dial reaches them
+    const D = spendDetail(S, push, { ...canWear(Q), ...(S.c < 0.15 ? { horns: false } : {}) });
     push = D.push;
-    report.notes = [registerNote(mutagen.stylism), ...D.notes];
+    report.notes = [...notes, ...D.notes];
   }
   return pushPlan(buildFauna(Q), push, Q, report);
 }

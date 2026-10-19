@@ -97,7 +97,7 @@ spec: {
   crop?:      'head',          // a face study close-up instead of the whole animal
   statue?:    true | { type: 'statue', material?, base?, dials?: { wear } },   // carved as sculpture (below)
   ooze?:      <word> | { id, strength? } | [<either>],   // species only: a game creature made of it (Oozes, below)
-  stylism?:   { register?, detail?, focal?, motif? },    // species only: design notes that style it up (below)
+  stylism?:   { register?, detail?, focal?, motif?, chimera? },   // species only: design notes that style it up (below)
   seed?:      <integer ≥ 0>,   // with ooze: places its spots (default from the species and the oozes)
   background?: <boolean>
 }
@@ -198,6 +198,15 @@ in one `motif` (horn, bone, ice, crystal, metal, flame, spark, toxin, shade, gol
 value step from the coat. The result's `ooze.notes` are the design notes: what each stage chose and why. A worn head
 mesh takes no horns: the focal moves and the notes say so; an ooze's own hook heavier than the budget can outrank is
 noted as `stalled`.
+
+`chimera` (pure · touched · hybrid · chimera, or 0 … 1) is the griffinizing dial: grafts the animal should not have,
+in the order they break the silhouette. Touched brings horns (horns on a hornless head are a graft: the detail budget
+spends them only from here); hybrid a ridge of plates nape to tail tip (standing in for a crest), another creature's
+tail (serpent, scorpion, lion or dragon, rooted where the old one was) and wings (feathered for gold, ice and spark,
+membrane otherwise, carried half raised); chimera a second crown of horns and wider wings. The seed and the motif
+choose among the kinds, so two chimeras of one species differ. Absent, a mythic register is hybrid and below it pure;
+`mythical` is hybrid. A winged animal keeps its own wings. The grafts stand on joints of their own: no species joint
+moves (when the rig follows the creature, they ride its nearest bones).
 
 - A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
   multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to

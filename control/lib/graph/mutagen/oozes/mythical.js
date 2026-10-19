@@ -1,12 +1,12 @@
 // MYTHICAL: the animal as a legend, a boss. Twice its size and front-heavy, crowned with great curling horns, a crest
 // of gold down the back, three runes burning on each flank and a burning tail, eyes of white gold. Its own stylism is
-// mythic and rich (the spec's words stand over them): the register heightens all of it, and the detail budget spends
+// mythic, rich and hybrid (the spec's words stand over them; `chimera: 'chimera'` grafts it all, 'pure' none): the register heightens all of it, and the detail budget spends
 // its ornaments in gold from the head out. Extra heads (a cerberus) are a later step.
 export const ooze = {
   id: 'mythical',
   about: 'a legend, a boss: twice the size, great horns, a gold crest, runes burning down its flanks, eyes of white gold',
   form: { scale: 2, bulk: 1.1, headScale: 1.1 },
-  stylism: { register: 'mythic', detail: 'rich' },
+  stylism: { register: 'mythic', detail: 'rich', chimera: 'hybrid' },
   push: {
     wedge: { fore: 1.3, hind: 0.9, broad: 1.15 },
     neck: 1.2,

@@ -10,6 +10,9 @@
 //     focal     where the detail gathers: head (default: the eyes and the mouth carry a creature) | shoulders | back |
 //               forelegs | tail
 //     motif     the shape family every ornament is made in (motif.js), over the oozes' own
+//     chimera   the griffinizing dial (chimera.js): pure 0 · touched 0.33 · hybrid 0.66 · chimera 1, or 0 … 1: grafts the
+//               animal should not have (horns, plates, another tail, wings, a crown); absent, a mythic register is
+//               hybrid, heroic and below pure
 //
 // The budget is spent in a designer's order (the tuner's detail.js):
 //   1 HIERARCHY   the focal first, its richest ornament then its next, until it outweighs every other zone; no other
@@ -19,12 +22,13 @@
 //   4 MATERIAL    from heroic up, the motif's ornaments drawn full-bright near the focal: the accent
 // Rows may carry their own stylism (a boss ooze is mythic); the spec's words stand over theirs, key by key.
 import { MOTIFS, MOTIF_NAMES } from './motif.js';
+import { CHIMERA_WORDS } from './chimera.js';
 import * as dmath from '../../util/dmath.js';
 
 export const REGISTER_WORDS = Object.freeze({ grounded: 0, storybook: 0.35, heroic: 0.7, mythic: 1 });
 export const DETAIL_WORDS = Object.freeze({ plain: 0, considered: 0.35, rich: 0.7, ornate: 1 });
 export const ZONES = Object.freeze(['head', 'shoulders', 'back', 'forelegs', 'tail']);
-const FIELDS = ['register', 'detail', 'focal', 'motif'];
+const FIELDS = ['register', 'detail', 'focal', 'motif', 'chimera'];
 // each ornament: its zone, its cost in units (the richest single ornament 3), and its baseline push
 const ORNAMENTS = {
   horns: { zone: 'head', cost: 3, push: { horns: { size: 1 } }, reads: 'a pair of horns' },
@@ -48,7 +52,7 @@ export function stylismErrors(s, label = 'stylism') {
   if (s === undefined || s === null) return [];
   if (typeof s !== 'object' || Array.isArray(s)) return [`${label}: { register?: ${Object.keys(REGISTER_WORDS).join(' | ')}, detail?: ${Object.keys(DETAIL_WORDS).join(' | ')}, focal?: ${ZONES.join(' | ')}, motif?: ${MOTIF_NAMES.join(' | ')} }`];
   const errs = [];
-  for (const [k, W] of [['register', REGISTER_WORDS], ['detail', DETAIL_WORDS]]) if (s[k] !== undefined && !(W[s[k]] !== undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= 1))) errs.push(`${label}.${k}: ${Object.keys(W).join(' | ')}, or a number 0 … 1`);
+  for (const [k, W] of [['register', REGISTER_WORDS], ['detail', DETAIL_WORDS], ['chimera', CHIMERA_WORDS]]) if (s[k] !== undefined && !(W[s[k]] !== undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= 1))) errs.push(`${label}.${k}: ${Object.keys(W).join(' | ')}, or a number 0 … 1`);
   if (s.focal !== undefined && !ZONES.includes(s.focal)) errs.push(`${label}.focal: one of ${ZONES.join(', ')}`);
   if (s.motif !== undefined && !MOTIFS[s.motif]) errs.push(`${label}.motif: one of ${MOTIF_NAMES.join(', ')}`);
   for (const k of Object.keys(s)) if (!FIELDS.includes(k)) errs.push(`${label}.${k}: not a stylism word (${FIELDS.join(', ')})`);
@@ -60,10 +64,11 @@ export function resolveStylism(rows, own) {
   const merged = Object.assign({}, ...rows.filter(Boolean), own || {});
   if (!Object.keys(merged).length) return null;
   const r = level(merged.register ?? 'storybook', REGISTER_WORDS), d = level(merged.detail ?? 'considered', DETAIL_WORDS);
-  return { r, d, a: r3(Math.max(0, (r - REGISTER_WORDS.storybook) / (1 - REGISTER_WORDS.storybook))), focal: merged.focal ?? 'head', ...(merged.motif ? { motif: merged.motif } : {}), said: merged };
+  const c = merged.chimera !== undefined ? level(merged.chimera, CHIMERA_WORDS) : r3(Math.max(0, (r - 0.7) / 0.3) * CHIMERA_WORDS.hybrid);
+  return { r, d, a: r3(Math.max(0, (r - REGISTER_WORDS.storybook) / (1 - REGISTER_WORDS.storybook))), c, focal: merged.focal ?? 'head', ...(merged.motif ? { motif: merged.motif } : {}), said: merged };
 }
 
-const SIZE_LEAVES = { horns: 'size', cheeks: 'size', shoulders: 'size', spurs: 'size', tailSpikes: 'size', ruff: 'size', hackles: 'height' };
+const SIZE_LEAVES = { horns: 'size', cheeks: 'size', shoulders: 'size', spurs: 'size', tailSpikes: 'size', ruff: 'size', hackles: 'height', plates: 'height' };
 const MUL_ROOTS = ['wedge', 'neck', 'limbs', 'head', 'fangs', 'ears'];
 const clampMul = (v) => Math.min(3, Math.max(0.3, v));
 const bend = (v, e) => (typeof v === 'number' && v > 0 ? clampMul(dmath.pow(v, e)) : v);
@@ -96,13 +101,14 @@ export function spendDetail(S, push, can) {
   const budget = Math.round(S.d * 10), notes = [], out = structuredClone(push || {});
   const motif = S.motif ?? out.motif ?? 'horn';
   out.motif = motif;
-  const has = (k) => (k === 'bands' || k === 'tipGlow' ? !!out[k] : k === 'tailSpikes' ? !!out[k]?.count : k === 'hackles' ? !!out[k]?.count : !!out[k]?.[SIZE_LEAVES[k]]);
+  const has = (k) => (k === 'bands' || k === 'tipGlow' ? !!out[k] : k === 'tailSpikes' ? !!out[k]?.count : k === 'hackles' ? !!(out.hackles?.count || out.plates?.count) : !!out[k]?.[SIZE_LEAVES[k]]);
   const weight = Object.fromEntries(ZONES.map((z) => [z, 0]));
   for (const [k, O] of Object.entries(ORNAMENTS)) if (has(k)) weight[O.zone] += O.cost;
   // the focal: the asked zone if this body can wear something there, else the first that can
   const wears = (z) => OFFER[z].some((k) => can[k]);
   const F = wears(S.focal) ? S.focal : ZONES.find(wears) ?? S.focal;
   if (F !== S.focal) notes.push({ stage: 'detail', technique: `focal ${F}`, where: S.focal, principle: 'hierarchy: the focal richest', why: `this body wears nothing at the ${S.focal} (${S.focal === 'head' ? 'a worn head mesh takes no ornament' : 'no part there'}): the detail gathers at the ${F}` });
+  else if (F === 'head' && !can.horns && can.cheeks) notes.push({ stage: 'detail', technique: 'no horns', where: 'the head', principle: 'what the animal has stands', why: 'horns on a hornless head are a graft: the chimera dial brings them (from touched)' });
   let left = budget;
   const grow = 1 + 0.5 * S.a;
   const wear = (k, technique, scale = 1) => {

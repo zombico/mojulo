@@ -26,7 +26,10 @@ describe('the creature stylist', () => {
     expect(resolveStylism([undefined], undefined)).toBeNull();
     const S = resolveStylism([{ register: 'mythic', detail: 'rich' }], { detail: 'plain' });
     expect([S.r, S.d, S.a, S.focal]).toEqual([1, 0, 1, 'head']);
-    expect(resolveStylism([], { focal: 'tail' })).toMatchObject({ r: 0.35, d: 0.35, a: 0, focal: 'tail' });
+    expect(resolveStylism([], { focal: 'tail' })).toMatchObject({ r: 0.35, d: 0.35, a: 0, c: 0, focal: 'tail' });
+    expect(resolveStylism([], { register: 'mythic' }).c).toBe(0.66);   // a mythic register is hybrid unless told
+    expect(resolveStylism([], { register: 'mythic', chimera: 'pure' }).c).toBe(0);
+    expect(stylismErrors({ chimera: 'griffin' })[0]).toMatch(/pure \| touched \| hybrid \| chimera/);
   });
 
   it('the warp: storybook is the design itself; above it departures grow, ornaments and the creature grow, counts stay', () => {
@@ -78,7 +81,8 @@ describe('the creature stylist on a body', () => {
   it('a stylism alone styles a plain species: ornaments on joints of their own, in the motif, a clear step from the coat', () => {
     const r = {}, plan = oozeFauna(P, resolveMutagen(undefined, { key: id, stylism: { register: 'heroic', detail: 'rich' } }), r);
     expect(r.notes[0].stage).toBe('register');
-    expect(plan.heads[0].plan.ornaments.some((o) => o.name === 'oozeHorn')).toBe(true);
+    expect(plan.heads[0].plan.ornaments.some((o) => o.name === 'oozeCheek')).toBe(true);
+    expect(plan.heads[0].plan.ornaments.some((o) => o.name === 'oozeHorn')).toBe(false);   // horns are the chimera's (pure here)
     const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
     expect(Math.abs(lum(plan.palette.Motif) - lum(P.colors.coat))).toBeGreaterThan(0.08);
   });

@@ -24,8 +24,11 @@
 //   hackles  { count, height, lean, color, glow }   spikes along the dorsal line, nape to mid-back (height in back
 //            depths): fur, ice, crystal, vertebrae or fins by their colour and glow
 // ORNAMENT (in the creature's MOTIF: its colour, its glow and its material, motif.js; spikes in a frost creature are ice)
-//   horns    { size, curl }     a pair of horns rooted behind the brow, sweeping back (size in the skull's lengths;
-//            curl 0 straight … 1 swept down at the tip); a worn head mesh takes none
+//   horns    { size, curl, pairs }   a pair of horns rooted behind the brow, sweeping back (size in the skull's
+//            lengths; curl 0 straight … 1 swept down at the tip); `pairs: 2` a second, smaller pair at the brow,
+//            forward (a crown); a worn head mesh takes none
+//   plates   { count, height }  a ridge of plates from the nape down the back to the tail's tip, tallest over the hips
+//            (height in back depths): the chimera's spines
 //   cheeks   { size }          a spur at each cheek, swept back
 //   shoulders { size }         a spike standing off each shoulder
 //   spurs    { size }          a spur behind each elbow
@@ -63,7 +66,7 @@ const LEAVES = {
   'head.eye': 'mul', 'head.pace': 'max', 'ears.height': 'mul', 'ears.sweep': 'add', 'ears.drop': 'add', 'ears.none': 'last', fangs: 'mul',
   'hackles.count': 'last', 'hackles.height': 'max', 'hackles.lean': 'last', 'hackles.color': 'last', 'hackles.glow': 'glow',
   coat: 'compound', desaturate: 'compound', 'eyes.color': 'last', 'eyes.glow': 'glow', 'eyes.open': 'mul', 'eyes.socket': 'last',
-  'horns.size': 'max', 'horns.curl': 'last', 'cheeks.size': 'max', 'shoulders.size': 'max', 'spurs.size': 'max',
+  'horns.size': 'max', 'horns.curl': 'last', 'horns.pairs': 'max', 'plates.count': 'last', 'plates.height': 'max', 'cheeks.size': 'max', 'shoulders.size': 'max', 'spurs.size': 'max',
   'tailSpikes.count': 'last', 'tailSpikes.size': 'max', 'ruff.size': 'max', bands: 'glow', tipGlow: 'glow', motif: 'last', motifGlow: 'glow',
 };
 const LISTS = ['tint', 'marks'];   // stacked in list order, not merged
@@ -255,6 +258,7 @@ function pushOnce(plan, push, P) {
     ...(push.eyes?.glow && P.headMesh?.palette?.Eyes ? ['Eyes'] : []),
     ...(push.hackles?.glow && push.hackles.count ? ['Hackle'] : []),
     ...(push.marks || []).filter((m) => m.glow).map((m) => m.group),
+    ...(push.extraGlow || []),
   ];
   if (glow.length) out.emissive = [...new Set([...(out.emissive || []), ...glow])];
   if (push.surfaces || orn.material) out.surfaces = { ...(out.surfaces || {}), ...(orn.material ? { Motif: orn.material } : {}), ...(push.surfaces || {}) };
@@ -279,7 +283,7 @@ function cone(plan, name, A, B, rA, mirror) {
 
 function ornaments(plan, push, P) {
   const M = MOTIFS[push.motif ?? 'horn'], out = { glow: [], material: null };
-  const any = push.horns?.size || push.cheeks?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
+  const any = push.horns?.size || push.plates?.count || push.cheeks?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
   // the tail's tip burns in the motif's colour (a dark tip glowing is still dark)
   if (push.tipGlow) { out.glow.push('Tip'); plan.palette = { ...plan.palette, Tip: M.glow ? M.color : (push.eyes?.color ?? M.color) }; }
   if (!any) return out;
@@ -298,6 +302,10 @@ function ornaments(plan, push, P) {
       const [, y, S] = row(1), [cx, cz] = xz(S, 'crown'), L = 0.6 * Lh * push.horns.size, c = push.horns.curl ?? M.curl;
       const root = [cx * 0.85, y, cz * 0.9], tpl = [[0, 0, 0], [0.08, -0.15, 0.2], [0.15, -0.4, 0.35], [0.2, -0.68, 0.38 - 0.25 * c], [0.22, -0.9, 0.3 - 0.55 * c]];
       orn.push({ kind: 'sweep', name: 'oozeHorn', at: [1, 1], space: 'head', spine: tpl.map((q) => v3(q.map((x, i) => root[i] + x * L))), radii: [0.18, 0.15, 0.11, 0.07, 0.015].map((r) => r6(r * L)), m: 8, group: 'Motif' });
+      if (push.horns.pairs >= 2) {   // the crown: a second pair at the brow, smaller, rising forward
+        const [, y2, S2] = row(2), [bx, bz] = xz(S2, 'brow'), L2 = 0.55 * L, root2 = [bx * 0.8, y2, bz * 0.95];
+        orn.push({ kind: 'sweep', name: 'oozeCrown', at: [2, 2], space: 'head', spine: [[0, 0, 0], [0.06, 0.1, 0.25], [0.1, 0.22, 0.45], [0.12, 0.3, 0.6]].map((q) => v3(q.map((x, i) => root2[i] + x * L2))), radii: [0.2, 0.15, 0.08, 0.015].map((r) => r6(r * L2)), m: 8, group: 'Motif' });
+      }
     }
     if (push.cheeks?.size) {
       const [, y, S] = row(2), [cx, cz] = xz(S, 'cheek'), L = 0.35 * Lh * push.cheeks.size, root = [cx * 0.9, y, cz];
@@ -305,6 +313,27 @@ function ornaments(plan, push, P) {
     }
     H.ornaments = [...(H.ornaments || []), ...orn];
     H.palette = { ...H.palette, Motif: color };
+  }
+  // PLATES: a ridge from the nape over the back and down the tail to its tip, tallest over the hips, each a thin kite
+  // standing on the dorsal line (thin across, long fore and aft)
+  if (push.plates?.count) {
+    const torso = plan.segments.find((g) => g.name === 'torso'), tail = plan.segments.find((g) => g.name === 'tail'), tip = plan.segments.find((g) => g.name === 'tailTip'), neck = plan.segments.find((g) => g.name === 'neck');
+    const line = [];
+    if (neck && J.neckTop && J.neckBase) line.push([J.neckTop[1], J.neckTop[2] + 0.8 * frontR(neck.rB)], [J.neckBase[1], J.neckBase[2] + frontR(neck.rA)]);
+    if (torso) line.push(...[...torso.stations].map((st) => stationTop(st).top).sort((a, b) => b[1] - a[1]).map((p) => [p[1], p[2]]));
+    for (const g of [tail, tip]) if (g?.stations) line.push(...g.stations.map((st) => stationTop(st).top).map((p) => [p[1], p[2]]));
+    if (line.length >= 2) {
+      const segL = line.slice(1).map((p, i) => Math.hypot(p[0] - line[i][0], p[1] - line[i][1])), total = segL.reduce((a, b) => a + b, 0);
+      const at = (u) => { let d = u * total; for (let i = 0; i < segL.length; i++) { if (d <= segL[i] || i === segL.length - 1) { const f = segL[i] ? Math.min(1, d / segL[i]) : 0; return [line[i].map((x, c) => x + (line[i + 1][c] - x) * f), [line[i + 1][0] - line[i][0], line[i + 1][1] - line[i][1]]]; } d -= segL[i]; } return [line.at(-1), [-1, 0]]; };
+      const n = Math.max(2, Math.round(push.plates.count)), H = push.plates.height * depth;
+      for (let i = 0; i < n; i++) {
+        const u = 0.06 + (0.9 * i) / (n - 1), [[y, z], [dy, dz]] = at(u), dl = Math.hypot(dy, dz) || 1;
+        const h = H * (0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, u * 1.15))) * (i % 2 ? 0.8 : 1), nx = [-dz / dl, dy / dl];   // the line's normal, up off the back
+        const up = nx[1] < 0 ? [-nx[0], -nx[1]] : nx, name = `oozePlate${i}`;
+        J[`${name}A`] = v3([0, y - 0.25 * h * up[0], z - 0.25 * h * up[1]]); J[`${name}B`] = v3([0, y + h * up[0] - 0.15 * h * (dy / dl), z + h * up[1] - 0.15 * h * (dz / dl)]);
+        plan.segments.push({ name, kind: 'segment', from: `${name}A`, to: `${name}B`, rA: [r6(0.06 * h), r6(0.42 * h)], rB: [r6(0.01 * h), r6(0.04 * h)], slots: 'ring12', group: 'Motif', mirror: 'plane', over: [0.3, 0.2] });
+      }
+    }
   }
   // SHOULDER SPIKES: one off each shoulder, standing up and out of the body's side above the joint
   if (push.shoulders?.size && J.shoulder) {

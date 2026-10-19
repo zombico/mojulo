@@ -689,6 +689,10 @@ renders byte-identically without them.
   detail budget spends ornaments (horns, spurs, spikes, a ruff, bands, a burning tail) from the focal out by the
   tuner's laws (hierarchy, one echo, rest, an accent from heroic up), all in one motif a clear value step from the coat,
   and the mint returns its design notes. `mythical` (a boss) carries its own mythic, rich stylism.
+- **From pure to chimera.** `stylism.chimera` (pure · touched · hybrid · chimera) grafts what the animal should not
+  have, in the order it breaks the silhouette: horns, a ridge of plates down the back and tail, another creature's tail
+  (serpent, scorpion, lion, dragon), wings (feathered or membrane by the motif, carried half raised), a second crown.
+  The seed and the motif choose the kinds; a mythic register is hybrid unless told.
 - **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
   material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
   the exports. Absent, nothing changes.
