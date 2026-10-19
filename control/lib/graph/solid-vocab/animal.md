@@ -181,9 +181,11 @@ and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph
 | `storm` | an element: a slate coat, lightning chevrons, tall sparking prongs, eyes of white light |
 | `venom` | an element: a dark green coat, glowing acid spots and belly, barbs, long fangs, acid eyes |
 | `shadow` | an element: a near-black coat, a violet line down the spine, a wisping crest, pale violet eyes |
+| `herobot` | a toy hero robot in the herobot language, its face its own: a big round head under a dark helmet, a light face, ear domes, a red brow gem, ball pauldrons, a chest plate, flared boots, two-tone glossy plastic |
+| `transmetal` | beast mode: the animal's outline and fur kept, its details machined: a chrome faceplate (cheeks left fur), chrome lower legs, teeth and back plate, joint rings, pistons along the upper limbs, a segmented chrome tail, red visor eyes |
 
 They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war
-machine, `['mythical', 'fire']` a boss of the flame.
+machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a machined brute.
 
 ### stylism: design notes that style a creature up
 

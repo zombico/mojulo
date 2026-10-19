@@ -13,5 +13,7 @@ export const MOTIFS = Object.freeze({
   toxin: { color: '#9cff3a', glow: true, curl: 0.4, reads: 'acid green' },
   shade: { color: '#1a1424', glow: false, curl: 0.6, reads: 'shadow' },
   gold: { color: '#d8b25a', glow: true, curl: 0.5, material: 'gold', reads: 'burning gold' },
+  toy: { color: '#e0263a', glow: false, curl: 0, material: 'plastic', reads: 'moulded red plastic' },
+  chrome: { color: '#c3cad3', glow: false, curl: 0.2, material: 'chrome', reads: 'chrome' },
 });
 export const MOTIF_NAMES = Object.freeze(Object.keys(MOTIFS));

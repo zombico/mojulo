@@ -165,6 +165,35 @@ describe('mutagen: the form on a species', () => {
     expect(paced.headMesh.length).toBeCloseTo(P.headMesh.length * 1.2, 9);
   });
 
+  it('the machine pieces: boots flare the lower leg, pauldrons and pistons stand in the armour, groups recolour and take a material', () => {
+    const id = PER_RIG[0], P = speciesParams(id);
+    const M = { form: {}, push: { boots: { flare: 1.6 }, pauldrons: { size: 1 }, pistons: { size: 1 }, earDomes: { size: 1 }, gem: true,
+      armor: { color: '#1f5fc8', material: 'plastic' }, groups: { Skull: { color: '#c3cad3', material: 'chrome' } }, motif: 'toy' } };
+    const plan = oozeFauna(P, M), base = buildFauna(P);
+    const froms = new Set(P.legs.map((r) => r[1])), foot = P.legs.find((r) => !froms.has(r[2])), ankle = P.legs.find((r) => r[2] === foot[1]);
+    const rB = (p) => Math.max(...[p.segments.find((g) => g.name === ankle[0]).rB].flat());
+    expect(rB(plan)).toBeGreaterThan(1.5 * rB(base));
+    expect(plan.segments.some((g) => g.name === 'oozePauldronR' && g.group === 'Armor')).toBe(true);
+    expect(plan.segments.filter((g) => /^oozePiston/.test(g.name)).length).toBeGreaterThan(0);
+    expect(plan.heads[0].plan.ornaments.map((o) => o.name)).toEqual(expect.arrayContaining(['oozeEarDome', 'oozeGem']));
+    expect([plan.palette.Armor, plan.palette.Skull, plan.heads[0].plan.palette.Skull]).toEqual(['#1f5fc8', '#c3cad3', '#c3cad3']);
+    expect(expandPlan(plan).surfaces).toMatchObject({ Armor: 'plastic', Skull: 'chrome' });
+  });
+
+  it('a two-tone tint takes the light values toward their own colour', () => {
+    const P = speciesParams(PER_RIG[0]), M = { form: {}, push: { tints: [{ color: '#0000ff', amount: 1, light: 1, lightColor: '#ffffff' }] } };
+    const C = oozeParams(P, M).colors;
+    expect(C.coat).toBe('#0000ff');
+    expect(C.ash).toBe('#ffffff');
+  });
+
+  it('a mark aimed at a part the body lacks paints nothing there (a tail of hair is no tail loft)', () => {
+    const id = Object.keys(SPECIES).find((s) => speciesParams(s).torso && (speciesParams(s).legs || []).length && !speciesParams(s).tail), P = speciesParams(id);
+    const M = { form: {}, push: { marks: [{ on: 'tail', kind: 'band', group: 'T' }, { on: ['tail', 'torso'], kind: 'band', group: 'U' }] } };
+    expect(oozeParams(P, M).markings.map((m) => m.on)).toEqual(['torso']);
+    expect(() => expandPlan(oozeFauna(P, M))).not.toThrow();
+  });
+
   it('the face seats or steps back, and says how much of it was drawn', () => {
     const id = PER_RIG[0], r = {};
     oozeFauna(speciesParams(id), resolveMutagen(formOn, { key: id }), r);

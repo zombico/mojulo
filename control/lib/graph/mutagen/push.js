@@ -35,14 +35,23 @@
 //   tailSpikes { count, size }  spikes along the top of the tail, smaller toward the tip
 //   ruff     { size }          a ruff of tiles round the neck
 //   bands    true              a band of the motif round each lower leg
+//   pauldrons { size }         a ball over each shoulder, in the armour (the toy hero's girth contrast)
+//   earDomes { size }          a round dome on each side of the head where the ears were (a worn head mesh: none)
+//   gem      true              a gem on the brow, in the motif
+//   pistons  { size }          a hydraulic rod along the outside of each upper limb, in the armour (the machine's joint)
 //   tipGlow  true              the tail's tip drawn full-bright
 //   motif    <word>            the shape family the ornaments are made in (the last ooze's, else `horn`)
 //   motifGlow true             the ornaments drawn full-bright whatever their motif (the stylist's accent)
+// ARMOUR AND GROUPS
+//   armor    { color, material, glow }   what the pauldrons, the ear domes and the pistons are made of
+//   groups   { <Group>: { color, material?, glow? } }   a palette group recoloured and given a material on the body,
+//            the head and a worn head mesh alike (a chrome faceplate: Skull and Snout)
+//   boots    { flare }         each lower leg widened toward the foot, a cone (the toy hero's flared boots)
 // SURFACE
 //   coat     darken            the coat's colours toward black
 //   desaturate d               the coat's colours toward their own grey
-//   tint     { color, amount, light }   the coat mixed toward a colour (the light values by `light` × amount, default
-//            half); several oozes' tints apply in list order
+//   tint     { color, amount, light, lightColor }   the coat mixed toward a colour (the light values by `light` ×
+//            amount, default half, and toward `lightColor` when named: a two-tone); several oozes' tints apply in order
 //   marks    [ marking, … ]    painted regions (the fauna builder's `markings`: band, stripes, patch, spots), each with
 //            `group` and `color`, `glow: true` to draw it full-bright; spots are placed by the creature's seed
 //   surfaces { <group> | '*': material }   a shelf material per palette group (gunmetal, steel, glass, stone, …)
@@ -68,9 +77,11 @@ const LEAVES = {
   coat: 'compound', desaturate: 'compound', 'eyes.color': 'last', 'eyes.glow': 'glow', 'eyes.open': 'mul', 'eyes.socket': 'last',
   'horns.size': 'max', 'horns.curl': 'last', 'horns.pairs': 'max', 'plates.count': 'last', 'plates.height': 'max', 'cheeks.size': 'max', 'shoulders.size': 'max', 'spurs.size': 'max',
   'tailSpikes.count': 'last', 'tailSpikes.size': 'max', 'ruff.size': 'max', bands: 'glow', tipGlow: 'glow', motif: 'last', motifGlow: 'glow',
+  'pauldrons.size': 'max', 'earDomes.size': 'max', gem: 'glow', 'pistons.size': 'max', 'boots.flare': 'mul',
+  'armor.color': 'last', 'armor.material': 'last', 'armor.glow': 'glow',
 };
 const LISTS = ['tint', 'marks'];   // stacked in list order, not merged
-const leafOf = (path) => LEAVES[path] ?? (path.startsWith('expression.') ? 'add' : path.startsWith('surfaces.') ? 'last' : null);
+const leafOf = (path) => LEAVES[path] ?? (path.startsWith('expression.') ? 'add' : path.startsWith('surfaces.') || /^groups\.[A-Za-z]\w*\.(color|material)$/.test(path) ? 'last' : /^groups\.[A-Za-z]\w*\.glow$/.test(path) ? 'glow' : null);
 const MUL_CLAMP = [0.3, 3];
 const HEX = /^#[0-9a-f]{6}$/i;
 const MARK_KINDS = ['band', 'belly', 'stripes', 'patch', 'spots'];
@@ -89,7 +100,8 @@ export function pushErrors(push, label = 'push') {
   if (push === undefined) return [];
   if (!push || typeof push !== 'object') return [`${label}: an object of pushes`];
   const errs = flatten(push).filter(([p]) => !leafOf(p)).map(([p]) => `${label}.${p}: not a push (have ${Object.keys(LEAVES).join(', ')}, tint, marks, surfaces.<group>, expression.<control>)`);
-  if (push.tint !== undefined && !(push.tint && HEX.test(push.tint.color) && Number.isFinite(push.tint.amount))) errs.push(`${label}.tint: { color: '#rrggbb', amount, light? }`);
+  if (push.tint !== undefined && !(push.tint && HEX.test(push.tint.color) && Number.isFinite(push.tint.amount) && (push.tint.lightColor === undefined || HEX.test(push.tint.lightColor)))) errs.push(`${label}.tint: { color: '#rrggbb', amount, light?, lightColor?: '#rrggbb' }`);
+  for (const [g, v] of Object.entries(push.groups ?? {})) if (!v || !HEX.test(v.color ?? '') || (v.material !== undefined && typeof v.material !== 'string')) errs.push(`${label}.groups.${g}: { color: '#rrggbb', material?, glow? }`);
   for (const [i, m] of (push.marks ?? []).entries()) if (!m || !MARK_KINDS.includes(m.kind) || !m.on || !m.group) errs.push(`${label}.marks[${i}]: { on, kind: ${MARK_KINDS.join(' | ')}, group, color?, glow?, … }`);
   for (const [g, m] of Object.entries(push.surfaces ?? {})) if (typeof m !== 'string') errs.push(`${label}.surfaces.${g}: a material name`);
   if (push.motif !== undefined && !MOTIFS[push.motif]) errs.push(`${label}.motif: one of ${MOTIF_NAMES.join(', ')}`);
@@ -110,7 +122,7 @@ export function composePush(list, shelf, seed = 0) {
       else if (kind === 'glow') acc.set(path, (a ?? false) || (v === true && s >= 0.5));
       else { acc.set(path, v); if (path === 'eyes.color') mix.v = s; }
     }
-    if (push.tint) tints.push({ color: push.tint.color, amount: push.tint.amount * s, light: push.tint.light ?? 0.5 });
+    if (push.tint) tints.push({ color: push.tint.color, amount: push.tint.amount * s, light: push.tint.light ?? 0.5, ...(push.tint.lightColor ? { lightColor: push.tint.lightColor } : {}) });
     // each mark's dice keyed by the creature's seed, its ooze and its place in that ooze's row: another ooze moves none
     if (push.marks && s >= 0.35) marks.push(...push.marks.map((m, i) => ({ ...m, seed: (m.seed ?? 0) + (fnv(`${seed}|${id}|${i}`) % 10007) })));
   }
@@ -152,7 +164,7 @@ export function pushParams(P, push) {
     if (gain !== 1 && P.headMesh) out.headMesh = growMesh(P.headMesh, gain);
   }
   if (push.neck) for (const k of ['neckRA', 'neckRB', 'neckRMid']) if (P[k] !== undefined) out[k] = mul(P[k], push.neck);
-  if (push.limbs && Array.isArray(P.legs) && P.joints) out.legs = pushLimbs(P, push.limbs);
+  if ((push.limbs || push.boots) && Array.isArray(P.legs) && P.joints) out.legs = pushLimbs(P, { ...(push.limbs || {}), flare: push.boots?.flare ?? 1 });
   if (push.ears?.none) out.ears = false;
   else if (push.ears && Array.isArray(P.earSpine) && P.ears !== false) {
     const { height = 1, sweep = 0, drop = 0 } = push.ears, z0 = P.earSpine[1]?.[2] ?? 0;
@@ -162,9 +174,11 @@ export function pushParams(P, push) {
   }
   if (P.colors) out.colors = pushColors(P.colors, push);
   if (out.headMesh?.palette) out.headMesh = { ...out.headMesh, palette: pushMeshColors(out.headMesh.palette, push) };
-  // a mark aimed at legs on a body without them (a snake, a fish) paints nothing there
+  // a mark aimed at a part the body does not have (legs on a snake, a tail loft on a horse whose tail is hair)
+  // paints nothing there
   const LEGS = ['legs', 'foreLegs', 'hindLegs'], legged = (P.legs || []).length > 0;
-  const marks = (push.marks || []).map((m) => ({ ...m, on: legged ? m.on : [m.on].flat().filter((o) => !LEGS.includes(o)) }))
+  const has = (o) => (LEGS.includes(o) ? legged : o === 'tail' ? !!P.tail : o === 'tailTip' ? !!(P.tail && P.tip) : o === 'torso' ? Array.isArray(P.torso) : o === 'neck' ? P.neckRA !== undefined : true);
+  const marks = (push.marks || []).map((m) => ({ ...m, on: [m.on].flat().filter(has) }))
     .filter((m) => [m.on].flat().length).map((m) => (Array.isArray(m.on) && m.on.length === 1 ? { ...m, on: m.on[0] } : m));
   if (marks.length) {
     out.markings = [...(P.markings || []), ...marks.map(({ glow, ...m }) => m)];
@@ -183,7 +197,7 @@ function pushColors(C0, push) {
   const C = { ...C0 }, body = Object.keys(C).filter((k) => !FACE.includes(k));
   if (push.coat) for (const k of body) C[k] = darken(C[k], LIGHT.includes(k) ? push.coat / 2 : push.coat);
   if (push.desaturate) for (const k of body) C[k] = grey(C[k], push.desaturate);
-  for (const t of push.tints || []) for (const k of body) C[k] = mixHex(C[k], t.color, LIGHT.includes(k) ? t.amount * t.light : t.amount);
+  for (const t of push.tints || []) for (const k of body) C[k] = LIGHT.includes(k) ? mixHex(C[k], t.lightColor ?? t.color, t.amount * t.light) : mixHex(C[k], t.color, t.amount);
   const E = push.eyes || {};
   if (E.color) C.iris = mixHex(C0.iris, E.color, E.mix ?? 1);
   if (E.socket) C.sclera = '#0b0907';
@@ -198,7 +212,7 @@ function pushMeshColors(C0, push) {
   const C = { ...C0 }, body = Object.keys(C).filter((k) => !MESH_FACE.includes(k)), lit = (k) => MESH_LIGHT.includes(k);
   if (push.coat) for (const k of body) C[k] = darken(C[k], lit(k) ? push.coat / 2 : push.coat);
   if (push.desaturate) for (const k of body) C[k] = grey(C[k], push.desaturate);
-  for (const t of push.tints || []) for (const k of body) C[k] = mixHex(C[k], t.color, lit(k) ? t.amount * t.light : t.amount);
+  for (const t of push.tints || []) for (const k of body) C[k] = lit(k) ? mixHex(C[k], t.lightColor ?? t.color, t.amount * t.light) : mixHex(C[k], t.color, t.amount);
   const E = push.eyes || {};
   if (E.color && C.Eyes) C.Eyes = mixHex(C0.Eyes, E.color, E.mix ?? 1);
   if (E.socket && C.Socket) C.Socket = '#0b0907';
@@ -206,7 +220,8 @@ function pushMeshColors(C0, push) {
 }
 
 // each leg chain by the girdle it hangs from (its root joint ahead of the trunk's middle is fore), its foot the last row
-function pushLimbs(P, { fore = 1, hind = 1, paws = 1 }) {
+// `flare` (boots): the last joint above each foot widened toward the foot, the foot's own ring with it: a cone
+function pushLimbs(P, { fore = 1, hind = 1, paws = 1, flare = 1 }) {
   const ys = (P.torso || []).map((st) => st.at[1]), mid = ys.length ? (Math.min(...ys) + Math.max(...ys)) / 2 : 0;
   const byTo = new Map(P.legs.map((r) => [r[2], r])), froms = new Set(P.legs.map((r) => r[1]));
   const rootOf = (r) => { let j = r[1]; for (let i = 0; i < 16 && byTo.has(j); i++) j = byTo.get(j)[1]; return j; };
@@ -214,7 +229,7 @@ function pushLimbs(P, { fore = 1, hind = 1, paws = 1 }) {
     const [name, from, to, rA, rB, group, over, rMid, ...rest] = row;
     const root = P.joints[rootOf(row)], k = root && root[1] > mid ? fore : hind;
     const foot = !froms.has(to), ankle = !foot && P.legs.some((r) => r[1] === to && !froms.has(r[2]));
-    const ka = foot ? k * paws : k, kb = foot ? k * paws : ankle ? k * dmath.pow(paws, 0.5) : k;
+    const ka = foot ? k * paws * flare : k, kb = foot ? k * paws * dmath.pow(flare, 0.5) : ankle ? k * dmath.pow(paws, 0.5) * flare : k;
     return [name, from, to, mul(rA, ka), mul(rB, kb), group, over, rMid === undefined ? rMid : mul(rMid, (ka + kb) / 2), ...rest].slice(0, row.length);
   });
 }
@@ -227,7 +242,7 @@ function pushLimbs(P, { fore = 1, hind = 1, paws = 1 }) {
  */
 export function pushPlan(plan, push, P, report = {}) {
   if (!push) return plan;
-  const faced = push.head || push.expression || push.horns || push.cheeks;
+  const faced = push.head || push.expression || push.horns || push.cheeks || push.earDomes || push.gem;
   for (const f of faced ? [1, 0.75, 0.5, 0.25, 0] : [1]) {
     const out = pushOnce(plan, f === 1 ? push : faceAt(push, f), P);
     if (!faced) return out;
@@ -238,9 +253,11 @@ export function pushPlan(plan, push, P, report = {}) {
 
 // the face's pushes at a share f: its multipliers raised to f, its controls × f (`pace` is the body's: it stays)
 function faceAt(push, f) {
-  const { head, expression, horns, cheeks, ...rest } = push;
+  const { head, expression, horns, cheeks, earDomes, gem, ...rest } = push;
   if (f > 0 && horns) rest.horns = { ...horns, size: horns.size * f };
   if (f > 0 && cheeks) rest.cheeks = { ...cheeks, size: cheeks.size * f };
+  if (f > 0 && earDomes) rest.earDomes = { ...earDomes, size: earDomes.size * f };
+  if (f >= 0.5 && gem) rest.gem = gem;
   const H = head && unflatten(flatten(head).map(([k, v]) => [k, k === 'pace' ? v : dmath.pow(v, f)]));
   const E = expression && Object.fromEntries(Object.entries(expression).map(([k, v]) => [k, v * f]));
   return { ...rest, ...(f > 0 && H ? { head: H } : {}), ...(f > 0 && E ? { expression: E } : {}) };
@@ -261,7 +278,7 @@ function pushOnce(plan, push, P) {
     ...(push.extraGlow || []),
   ];
   if (glow.length) out.emissive = [...new Set([...(out.emissive || []), ...glow])];
-  if (push.surfaces || orn.material) out.surfaces = { ...(out.surfaces || {}), ...(orn.material ? { Motif: orn.material } : {}), ...(push.surfaces || {}) };
+  if (push.surfaces || orn.material || orn.surfaces) out.surfaces = { ...(out.surfaces || {}), ...(orn.surfaces || {}), ...(orn.material ? { Motif: orn.material } : {}), ...(push.surfaces || {}) };
   return out;
 }
 
@@ -283,7 +300,8 @@ function cone(plan, name, A, B, rA, mirror) {
 
 function ornaments(plan, push, P) {
   const M = MOTIFS[push.motif ?? 'horn'], out = { glow: [], material: null };
-  const any = push.horns?.size || push.plates?.count || push.cheeks?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
+  armorAndGroups(plan, push, out);
+  const any = push.horns?.size || push.plates?.count || push.cheeks?.size || push.pauldrons?.size || push.earDomes?.size || push.gem || push.pistons?.size || push.shoulders?.size || push.spurs?.size || push.tailSpikes?.count || push.ruff?.size || push.bands;
   // the tail's tip burns in the motif's colour (a dark tip glowing is still dark)
   if (push.tipGlow) { out.glow.push('Tip'); plan.palette = { ...plan.palette, Tip: M.glow ? M.color : (push.eyes?.color ?? M.color) }; }
   if (!any) return out;
@@ -292,10 +310,12 @@ function ornaments(plan, push, P) {
   plan.palette = { ...plan.palette, Motif: color };
   if (M.glow || push.motifGlow) out.glow.push('Motif');
   if (M.material) out.material = M.material;
+  // armour no ooze coloured is the motif's
+  if (!push.armor?.color && (push.pauldrons?.size || push.earDomes?.size || push.pistons?.size)) armorAndGroups(plan, { armor: { color, ...(M.material ? { material: M.material } : {}) } }, out);
   const J = plan.joints, depth = depthOf(plan), H = plan.heads?.[0]?.plan;
   // HORNS and CHEEK SPURS: sweeps in the head's own units, rooted inside the skull on its own rows (behind the brow;
   // at the cheek), sized in the skull's length, so every head takes them at its own scale
-  if (H && (push.horns?.size || push.cheeks?.size)) {
+  if (H && (push.horns?.size || push.cheeks?.size || push.earDomes?.size || push.gem)) {
     const C = H.parts.cranium, Lh = C.caps.tip[1] - C.caps.back[1], row = (i) => C.rows[Math.min(i, C.rows.length - 1)];
     const xz = (S, k) => (Array.isArray(S[k]) ? S[k] : [0, S[k]]), orn = [];
     if (push.horns?.size) {
@@ -311,8 +331,16 @@ function ornaments(plan, push, P) {
       const [, y, S] = row(2), [cx, cz] = xz(S, 'cheek'), L = 0.35 * Lh * push.cheeks.size, root = [cx * 0.9, y, cz];
       orn.push({ kind: 'sweep', name: 'oozeCheek', at: [2, 3], space: 'head', spine: [[0, 0, 0], [0.25, -0.2, 0.05], [0.4, -0.55, 0.1], [0.45, -0.85, 0.12]].map((q) => v3(q.map((x, i) => root[i] + x * L))), radii: [0.13, 0.1, 0.06, 0.012].map((r) => r6(r * L)), m: 8, group: 'Motif' });
     }
+    if (push.earDomes?.size) {   // a round dome on each side of the skull, over where the ear stood
+      const [, y, S] = row(Math.max(1, Math.round(P.earAt?.[0] ?? 1))), [cx, cz] = xz(S, 'crown'), L = 0.22 * Lh * push.earDomes.size, root = [cx * 0.9, y, cz * 0.55];
+      orn.push({ kind: 'sweep', name: 'oozeEarDome', at: [1, 2], space: 'head', spine: [[0, 0, 0], [0.3, 0, 0], [0.5, 0, 0]].map((q) => v3(q.map((x, i) => root[i] + x * L))), radii: [0.55, 0.5, 0.2].map((r) => r6(r * L)), m: 10, group: 'Armor' });
+    }
+    if (push.gem) {   // a gem on the brow's midline, standing a little proud
+      const [, y, S] = row(2), top = typeof S.top === 'number' ? S.top : xz(S, 'top')[1], L = 0.12 * Lh, root = [0.01 * Lh, y, top];
+      orn.push({ kind: 'sweep', name: 'oozeGem', at: [2, 0], space: 'head', spine: [[0, 0, -0.2], [0, 0.15, 0.25], [0, 0.3, 0.3]].map((q) => v3(q.map((x, i) => root[i] + x * L))), radii: [0.45, 0.4, 0.05].map((r) => r6(r * L)), m: 6, group: 'Motif' });
+    }
     H.ornaments = [...(H.ornaments || []), ...orn];
-    H.palette = { ...H.palette, Motif: color };
+    H.palette = { ...H.palette, Motif: color, ...(push.armor?.color ? { Armor: push.armor.color } : {}) };
   }
   // PLATES: a ridge from the nape over the back and down the tail to its tip, tallest over the hips, each a thin kite
   // standing on the dorsal line (thin across, long fore and aft)
@@ -333,6 +361,27 @@ function ornaments(plan, push, P) {
         J[`${name}A`] = v3([0, y - 0.25 * h * up[0], z - 0.25 * h * up[1]]); J[`${name}B`] = v3([0, y + h * up[0] - 0.15 * h * (dy / dl), z + h * up[1] - 0.15 * h * (dz / dl)]);
         plan.segments.push({ name, kind: 'segment', from: `${name}A`, to: `${name}B`, rA: [r6(0.06 * h), r6(0.42 * h)], rB: [r6(0.01 * h), r6(0.04 * h)], slots: 'ring12', group: 'Motif', mirror: 'plane', over: [0.3, 0.2] });
       }
+    }
+  }
+  // PAULDRONS: a ball over each shoulder, long fore and aft, in the armour (rides the shoulder's bone)
+  if (push.pauldrons?.size && J.shoulder) {
+    // a round ball: a loft of rings on a circle's profile, fore to aft, capped at its poles
+    const h = 0.55 * depth * push.pauldrons.size, c = [J.shoulder[0] + 0.3 * h, J.shoulder[1], J.shoulder[2] + 0.35 * h], n = 7;
+    const stations = Array.from({ length: n }, (_, i) => { const u = (i + 0.5) / n, y = c[1] + h * (2 * u - 1), rr = h * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2)); return { at: v3([c[0], y, c[2]]), r: r6(rr) }; });
+    plan.segments.push({ name: 'oozePauldronR', kind: 'loft', slots: 'ring12', group: 'Armor', mirror: 'name', stations, caps: { back: v3([c[0], c[1] - h, c[2]]), tip: v3([c[0], c[1] + h, c[2]]) } });
+  }
+  // PISTONS: a rod along the outside of each upper limb, half sunk in it, from its top joint most of the way down
+  if (push.pistons?.size && Array.isArray(P.legs)) {
+    const tos = new Set(P.legs.map((r) => r[2]));
+    for (const row of P.legs.filter((r) => !tos.has(r[1]))) {
+      const seg = plan.segments.find((g) => g.name === row[0]), A = J[row[1]], Bj = J[row[2]];
+      if (!seg || !A || !Bj) continue;
+      // the limb's radius: its own, else (a stable-ring leg, its rings as points) a share of its length
+      const rad = (v) => (v === undefined ? NaN : Math.max(...[v].flat())), len = Math.hypot(...Bj.map((x, i) => x - A[i]));
+      const r0 = rad(seg.rA), r = Number.isFinite(r0) && r0 > 0 ? r0 : 0.18 * len, off = [0.85 * r, -0.35 * r, 0], name = `oozePiston${row[0].replace(/R$/, '')}`;
+      const a = A.map((x, i) => x + off[i]), b = A.map((x, i) => x + 0.8 * (Bj[i] - x) + off[i]), rr = 0.16 * r * push.pistons.size;
+      J[`${name}A`] = v3(a); J[`${name}B`] = v3(b);
+      plan.segments.push({ name: `${name}R`, kind: 'segment', from: `${name}A`, to: `${name}B`, rA: [r6(rr), r6(rr)], rB: [r6(0.7 * rr), r6(0.7 * rr)], slots: 'ring12', group: 'Armor', mirror: 'name', over: [0.2, 0.2] });
     }
   }
   // SHOULDER SPIKES: one off each shoulder, standing up and out of the body's side above the joint
@@ -379,6 +428,19 @@ function valueStep(m, coat, glow = false) {
   const target = glow || Lc < 50 ? Math.min(92, Lc + 34) : Math.max(10, Lc - 34);
   for (let t = 0; t <= 1.0001; t += 0.05) { const h = target > Lm ? mixHex(m, '#ffffff', t) : mixHex(m, '#000000', t); if (Math.abs(lum(h) - target) < 3 || (target > Lm ? lum(h) >= target : lum(h) <= target)) return h; }
   return m;
+}
+
+// ARMOUR (the pauldrons', the domes', the pistons' colour and material) and GROUPS (a palette group recoloured and given
+// a material everywhere it is drawn: the body's palette, the head's, a worn head mesh's)
+function armorAndGroups(plan, push, out) {
+  const H = plan.heads?.[0]?.plan;
+  const paint = (g, color) => { plan.palette = { ...plan.palette, [g]: color }; if (H) H.palette = { ...H.palette, [g]: color }; };
+  if (push.armor?.color) { paint('Armor', push.armor.color); if (push.armor.material) out.surfaces = { ...(out.surfaces || {}), Armor: push.armor.material }; if (push.armor.glow) out.glow.push('Armor'); }
+  for (const [g, v] of Object.entries(push.groups || {})) {
+    if (v.color) paint(g, v.color);
+    if (v.material) out.surfaces = { ...(out.surfaces || {}), [g]: v.material };
+    if (v.glow) out.glow.push(g);
+  }
 }
 
 // the foreleg's first row (from the girdle ahead of the trunk's middle)

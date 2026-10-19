@@ -680,7 +680,9 @@ renders byte-identically without them.
 - **An animal takes oozes.** `create_character({ as: 'animal', spec: { species, ooze } })` turns a real species
   into a game creature, drawn to read in a game rather than a field guide: `dire` (bigger and front-heavy, a crest of
   hackles, a snarling face and glowing eyes, still the animal), `skeletal`, `zombie`, `techno`, `crystal`,
-  `mythical` (boss size), and the elements `fire`, `frost`, `storm`, `venom`, `shadow`. Oozes compose
+  `mythical` (boss size), `herobot` (a toy hero robot: a helmeted big head, ball pauldrons, flared boots, two-tone
+  plastic), `transmetal` (the animal's outline and fur, its details machined: chrome faceplate, plates, pistons), and
+  the elements `fire`, `frost`, `storm`, `venom`, `shadow`. Oozes compose
   (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
   uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
   live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
