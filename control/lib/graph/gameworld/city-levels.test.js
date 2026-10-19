@@ -141,3 +141,29 @@ describe('a stalker\'s city is played by the world\'s hero', () => {
     expect(() => readGameworld(withCity(MEADOWMARK, { ...CITY, stalker: 'yes' }))).toThrow(/city.stalker is true or false/);
   });
 });
+
+// KEYS IN A CITY (the city stalker's progression): a map world lays a key in a city level, on its segment's tallest roof
+// the hero reaches (game/reach.js), taken only up there; a power found there gives its move (the swinger's line, in the
+// city's units) in every level after.
+describe('a key laid in a city: on the tallest roof the hero reaches', () => {
+  const { review: _r, ...base } = MEADOWMARK_HERO, hero = base.characters.hero;
+  const characters = { ...base.characters, hero: { ...hero, actions: { ...hero.actions, powers: hero.actions.powers.map((p) => (p.id === 'gust-step' ? { ...p, move: 'swinger' } : p)) } } };
+  const W = { ...base, characters, topology: 'interconnected', levels: { hub: { name: 'The hub', seed: 8, walk: { nodes: { gate: { trail: true } } } }, downtown: { name: 'Downtown', city: { ...CITY, stalker: true } }, keep: { name: 'The keep', seed: 9, walk: { nodes: { door: { trail: true } } } } },
+    links: [{ from: 'hub', to: 'downtown' }, { from: 'hub', to: 'keep', kind: 'gate', key: 'gust-step', keyAt: 'downtown' }] };
+  const G = readGameworld(W), stages = gameStages(W), refs = stages.map((s) => `k-${s.level}-${s.node}`), plan = mapPlan(G, stages, refs);
+  const i = plan.findIndex((p) => p.powers.includes('gust-step')), cityRefs = Object.fromEntries(stages.map((s, j) => [s, j]).filter(([s]) => s.level === 'downtown').map(([s, j]) => [s.node, refs[j]]));
+  const o = stageLevelOrder(G, stages[i], { ref: refs[i], heroRef: 'sk_hero', map: plan[i], cityRefs }), L = withBuildingLevel(o.args.manifest, refs[i]);
+  it('is found in a segment of the city, its move riding as a grant', () => {
+    expect(stages[i].level).toBe('downtown');
+    expect(o.args.manifest.level.found).toEqual([{ item: 'gust-step', into: 'powers' }]);
+    expect(o.args.manifest.level.powers).toEqual({ 'gust-step': { gear: 'swinger' } });
+  });
+  it('lies on a roof, taken only up there, the level hearing what is held and giving the line when it is', () => {
+    const pick = L.game.mechanics.find((m) => m.kind === 'collect' && m.into === 'powers').pickups[0];
+    expect(pick).toMatchObject({ item: 'gust-step', planar: false });
+    expect(pick.at[2]).toBeGreaterThan(3);
+    expect(L.colliders.some((c) => /^lot:/.test(c.of) && Math.abs(c.max[2] - pick.at[2]) < 0.01)).toBe(true);
+    expect(L.game.consumes).toEqual([{ slice: 'powers' }]);
+    expect(L.game.powers).toEqual({ slice: 'powers', target: 'hero', grants: { 'gust-step': { gear: 'swinger' } } });
+  });
+});

@@ -36,6 +36,7 @@ export function buildWall(E) {
       mantleT: w.mantleT ?? 0.3, chargeT: w.chargeT ?? 0.25, chargeMax: w.chargeMax ?? 0.8, launch: w.launch ?? 2, ground: w.ground !== false,
     };
   };
+  E.wallDials = dials;   // the wall's dials off a rule, for the reach (game/reach.js): what the solver reaches, the wall holds
   const holds = (e) => !!(e.rule && e.rule.type === 'platform' && e.rule.wall && !e.rule.space && e.vel && !e.isCamera);
   const planeOf = (c, ax, s) => (s > 0 ? c.max[ax] : c.min[ax]);
   // the box on plane (ax, s, at) whose face holds a body at p (feet z, height H), or null

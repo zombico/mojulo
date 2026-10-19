@@ -63,11 +63,6 @@ export const POWER = Object.freeze({
         swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
       },
     },
-    idiom: {
-      source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' },
-      planned: {
-        'city-stalker-like': { status: 'absent', effort: 'M', godot: 'absent', roblox: 'absent', requires: ['power.gear=swinger', 'space.traversal=wall'], note: 'traversal is the verb and the gear\'s reach gates the city: which roofs a gear reaches, measured on the district, opens the next; a city level refuses a key laid in it today' },
-      },
-    },
+    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
   },
 });

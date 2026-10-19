@@ -176,7 +176,7 @@ export function readCityPlan(rec) {
   const segments = readSegments(rec.segments, play);
   let level = null;
   if (rec.level !== undefined) {
-    keys(rec.level, 'level', ['segment', 'refs', 'route', 'ways', 'hero']);
+    keys(rec.level, 'level', ['segment', 'refs', 'route', 'ways', 'hero', 'found', 'powers']);
     if (!segments) no('level: a city is played by its segments: give it segments: true (or { across })');
     if (typeof rec.level.segment !== 'string') no("level.segment is the segment this level plays ('r1c2': the book's Segments sheet names them)");
     if (rec.level.refs !== undefined && !(isObj(rec.level.refs) && Object.values(rec.level.refs).every((v) => typeof v === 'string'))) no("level.refs is { <segment id>: <its level's ref> }, for neighbours whose levels are not '<city ref>-<segment id>'");
@@ -195,6 +195,9 @@ export function readCityPlan(rec) {
       const h = rec.level.hero;
       if (!isObj(h) || Object.keys(h).some((k) => !['ref', 'gaits', 'wall', 'gear'].includes(k)) || (h.ref !== undefined && typeof h.ref !== 'string') || (h.wall !== undefined && typeof h.wall !== 'boolean') || (h.gear !== undefined && h.gear !== false) || (h.gaits !== undefined && !(Array.isArray(h.gaits) && h.gaits.every((g) => typeof g === 'string')))) no("level.hero is { ref?, gaits?, wall?, gear? }: the made character who plays the segment third person (its sketch ref; none plays a stand-in), its own door gaits, wall: false to hold no wall and gear: false to cast no line");
     }
+    // a map world's keys laid in the segment and the moves its powers give (gameworld levels.js cityLevelOrder)
+    if (rec.level.found !== undefined && !(Array.isArray(rec.level.found) && rec.level.found.every((f) => isObj(f) && typeof f.item === 'string' && ['bag', 'powers'].includes(f.into)))) no("level.found is [{ item, into: 'bag' | 'powers' }]: the keys a map world lays in the segment");
+    if (rec.level.powers !== undefined && !(isObj(rec.level.powers) && Object.values(rec.level.powers).every(isObj))) no('level.powers is { <power>: <its change to the hero\'s rule> }');
     level = rec.level;
   }
   const waive = list(rec.waive, 'waive');

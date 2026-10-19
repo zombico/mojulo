@@ -49,7 +49,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, gearGranted = false } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -68,7 +68,8 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
   // the gear's line (worlds/controllable/swing.js): drawn from the hand to the anchor while a body swings or zips. No
   // entity carries a gear → the emitted channel is byte-identical
-  const gearUsed = (entities || []).some((e) => e && e.rule && e.rule.gear);
+  // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
+  const gearUsed = gearGranted || (entities || []).some((e) => e && e.rule && e.rule.gear);
   const gearBlock = gearUsed ? `
 // ---- the gear's line (swing.js): hand to anchor while a body swings or zips ----
 const __gearLines = {};

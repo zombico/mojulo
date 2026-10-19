@@ -16,7 +16,7 @@
  *                `center` of the way in toward the hero's line across the ground (the genre's cheat: the line lands on
  *                the side wall, the arc runs down the street). The line's length is chosen so the arc's bottom clears
  *                the ground under the hero by `clear`, or a quarter of the room under the pivot where that is less (a
- *                warehouse's beams, a hall's ceiling); shorter than the cast, it reels the hero in. It lets go when
+ *                warehouse's beams, a hall's ceiling); shorter than the cast, it reels the hero in at `reel`. It lets go when
  *                the key is let go, a jump is pressed (with a lift), a box crosses the line, the body meets a box (the
  *                wall then takes it, wall.js), or the ground; the body flies on with the swing's velocity (the platform
  *                rule's `dashVel`, to touchdown)
@@ -29,16 +29,16 @@
  * Lengths in the world's units; the defaults are metres × the rule's `metre`, as the wall's.
  *
  *   swinger: { reach 60 m, ideal 0.7, elev 55°, minElev 25°, cone 75°, center 0.75, clear 3 m, pump 6 m/s², steer 1.6 rad/s,
- *              maxSpeed 45 m/s, zipSpeed 28 m/s, lift 0.6, cool 0.25 s, key 'boost' }
+ *              maxSpeed 45 m/s, zipSpeed 28 m/s, reel 20 m/s, lift 0.6, cool 0.25 s, key 'boost' }
  */
 export function buildSwing(E) {
   const { add, sub, scl, clamp, fwdXY } = E;
   const EPS = 0.05, DEG = Math.PI / 180;
   // the presets: the direction constraints a gear's line keeps (lengths in metres, × metre)
   const GEAR_PRESETS = {
-    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, lift: 0.6, cool: 0.25, key: 'boost' },
+    swinger: { reach: 60, ideal: 0.7, elev: 55, minElev: 25, cone: 75, center: 0.75, clear: 3, pump: 6, steer: 1.6, maxSpeed: 45, zipSpeed: 28, reel: 20, lift: 0.6, cool: 0.25, key: 'boost' },
   };
-  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed'];
+  const LENGTHS = ['reach', 'clear', 'pump', 'maxSpeed', 'zipSpeed', 'reel'];
   const gearOf = (r) => {
     const g = typeof r.gear === 'string' ? { preset: r.gear } : r.gear, P = GEAR_PRESETS[g.preset || 'swinger'];
     if (!P) return null;
@@ -46,6 +46,7 @@ export function buildSwing(E) {
     for (const k of Object.keys(P)) out[k] = g[k] ?? (LENGTHS.includes(k) ? P[k] * m : P[k]);
     return out;
   };
+  E.gearOf = gearOf;   // the gear's dials off a rule, for the reach (game/reach.js)
   const geared = (e) => !!(e.rule && e.rule.type === 'platform' && e.rule.gear && !e.rule.space && e.vel && !e.isCamera);
   const len = (v) => Math.hypot(v[0], v[1], v[2]);
   // the hand the line leaves from: high on the body
@@ -162,7 +163,8 @@ export function buildSwing(E) {
       if (L < D * 0.5 || L < H) { e.swung = { end: 'low' }; return false; }
       // the body's own velocity as the swing starts: its last step's travel
       const v0 = scl(sub(t.pos, prev), 1 / Math.max(dt, 1e-6));
-      e.swinging = { anchor: A.q, pivot, L, face: A.face, v: [v0[0], v0[1], e.vel[2]] };
+      // the line starts at the cast's length and is REELED to its own at `reel` (never a snap across the gap)
+      e.swinging = { anchor: A.q, pivot, L: D, to: L, face: A.face, v: [v0[0], v0[1], e.vel[2]] };
       e.launchedBy = null; e.launchLock = false;
     }
 
@@ -181,6 +183,7 @@ export function buildSwing(E) {
     if (hs > EPS && turn !== 0) { const k = Math.min(1, G.steer * dt * 2); const nx = v[0] / hs * (1 - k) + f[0] * k, ny = v[1] / hs * (1 - k) + f[1] * k, nl = Math.hypot(nx, ny) || 1; v = [nx / nl * hs, ny / nl * hs, v[2]]; }
     const sp = len(v);
     if (sp > G.maxSpeed) v = scl(v, G.maxSpeed / sp);
+    if (S.to !== undefined && S.L > S.to) S.L = Math.max(S.to, S.L - G.reel * dt);
     // move, then hold the hand to the line: never further than L from the anchor, the stretch taken off the velocity
     let p = add(t.pos, scl(v, dt));
     const hOff = handOf(e)[2] - t.pos[2], hand = [p[0], p[1], p[2] + hOff], d = sub(hand, S.pivot), D = len(d);

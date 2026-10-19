@@ -177,6 +177,10 @@ import { emitThreeWorld } from './scene-three.js';
 // beam), aimed where its ideal ray meets that plane, its clearance shrinking with the room and no line shorter than the
 // hero; the wall holds the head under a lid (a ceiling) as it climbs. On the `controllable` fixture 5 lines replaced
 // (each reads the same with no gear or wall) and 32 added. The same 14 re-pinned.
+// Re-pinned 2026-10-19 (city hunter: the reach): the wall and the gear hand their dials to the reach solver
+// (E.wallDials, E.gearOf: game/reach.js), and the swinger's line is reeled in at `reel` from the cast's length instead of
+// snapping to its own across the gap. On the `controllable` fixture 3 lines replaced (each the same with no gear) and
+// 7 added. The same 14 re-pinned.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

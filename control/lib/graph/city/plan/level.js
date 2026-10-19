@@ -37,6 +37,7 @@ import { cityGreen, PLANTER } from './green.js';
 import { playerWorld, traversalStates } from '../../playscape/player.js';
 import { readCityLook, readPaint } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
+import { reachOf } from '../../game/reach.js';
 // a tree's trunk as a walker meets it (m, half its side)
 const TRUNK = 0.35;
 
@@ -57,6 +58,11 @@ export const CITY_HERO = Object.freeze({
 });
 // the lengths a platform rule reads (and its speeds and accelerations, in lengths per second): the ones a unit divides
 const RULE_LENGTHS = ['speed', 'jumpSpeed', 'gravity', 'fallGravity', 'maxFall', 'step', 'snap', 'stride', 'collideRadius', 'collideHeight', 'eye', 'glideFall'];
+/** A power's grant in metres (gameworld actions.js TRAVERSAL_MOVES), in the city's units: its lengths divided. */
+export function grantInUnits(g) {
+  const { metre: _m, ...rest } = ruleInUnits(g);
+  return rest;
+}
 /** A rule in metres, in the city's units: its lengths divided, and `metre` (world units per metre) stamped for what
  *  keeps its defaults in metres (the wall's, wall.js). */
 export function ruleInUnits(rule) {
@@ -201,7 +207,14 @@ export function withCityLevel(m, d, ref) {
   // each door-scene building's door: a zone on the walk before it, a walker coming back out standing on the walk
   const eyeAt = (p) => [p[0], p[1], 0];
   const doorMechs = L.doors.map((x) => ({ kind: 'door', id: x.id, at: eyeAt(x.at), radius: x.radius, spawn: eyeAt(x.spawn), heading: x.heading }));
-  const game = { levelRef: ref, mechanics: [...doorMechs, ...mechanics], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
+  const found = cityFound(m.level.found ?? [], L, pilot, eye);
+  const grants = pilot && m.level.powers ? Object.fromEntries(Object.entries(m.level.powers).map(([id, g]) => [id, grantInUnits(g)])) : {};
+  const held = m.level.powers || (m.level.found ?? []).some((f) => f.into === 'powers');
+  const game = {
+    levelRef: ref, mechanics: [...doorMechs, ...mechanics, ...found], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}),
+    ...(held ? { consumes: [{ slice: 'powers' }] } : {}),
+    ...(Object.keys(grants).length ? { powers: { slice: 'powers', target: pilot.id, grants } } : {}),
+  };
   const reactions = arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: pilot ? pilot.id : 'player', to: [x.arrive[0], x.arrive[1], eye] }));
   if (pilot) {
     return {
@@ -225,6 +238,28 @@ export function withCityLevel(m, d, ref) {
     colliders: L.colliders,
     walk: false,
   };
+}
+
+/** The keys a map world lays in a segment (`level.found`: [{ item, into: 'bag' | 'powers' }], gameworld levels.js): one row
+ *  of pickups on the TALLEST ROOF of the segment the hero's own moves reach (game/reach.js: a key the climb, or the line,
+ *  wins), taken only up there (planar: false); with no hero, or no roof it reaches, on the walk halfway along its way. */
+function cityFound(found, L, pilot, eye) {
+  if (!found.length) return [];
+  let at = null, planar = true;
+  if (pilot) {
+    const R = reachOf({ colliders: L.colliders, start: [pilot.entity.transform.pos[0], pilot.entity.transform.pos[1], 0] }, pilot.entity.rule);
+    const [x0, y0, x1, y1] = [L.rect.x0, L.rect.y0, L.rect.x1, L.rect.y1].map(u);
+    const roofs = R.surfaces.filter((s) => !s.ground && R.reached.has(s.id) && s.rect.x0 >= x0 && s.rect.x1 <= x1 && s.rect.y0 >= y0 && s.rect.y1 <= y1);
+    const top = roofs.reduce((b, s) => (!b || s.z > b.z ? s : b), null);
+    if (top) { at = [r3((top.rect.x0 + top.rect.x1) / 2), r3((top.rect.y0 + top.rect.y1) / 2), r3(top.z + eye)]; planar = false; }
+  }
+  if (!at) { const v = L.via[Math.floor(L.via.length / 2)] ?? L.spawn; at = [v[0], v[1], eye]; }
+  const out = [];
+  for (const into of ['bag', 'powers']) {
+    const row = found.map((f, j) => ({ ...f, j })).filter((f) => f.into === into);
+    if (row.length) out.push({ kind: 'collect', into, pickups: row.map((f) => ({ item: f.item, at: [r3(at[0] + u(1.5) * f.j), at[1], at[2]], radius: u(1.6), ...(planar ? {} : { planar: false }) })) });
+  }
+  return out;
 }
 
 /** Whether the city's look (its own, or its paint's cube's) has no sun: its night (look.js lookLight's reading). */

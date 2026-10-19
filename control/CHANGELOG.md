@@ -123,6 +123,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **A dungeon:** a crypt's chain of rooms plays with the moves, and so does a tower up its storeys, its stair rooms
     left open overhead.
 
+- **The reach: progression the map measures.** `game/reach.js` works out which surfaces a hero's moves carry it to: the
+  grounds, and every box top with room to stand. It reads the engine's own dials (the platform rule's run and jump,
+  the wall's, the gear's).
+  - **Its moves:** walk, jump (air jumps added), drop, the wall (a holdable face up to its top, stacked boxes as one)
+    and the swing (across a gap under an anchor the line can take, rising a jump and the gear's clearance).
+  - **Each law is held to the engine's own runs:** the hero climbs the tower the wall reaches; it swings across the
+    gap the line crosses and lands on the far roof; a street swing rises past the law's bound.
+  - **What it answers:** `reachUpgrades` says what each move opens; on a district the wall opens every roof. The
+    solver is analytic, a law per move: a move it allows the engine makes, and one it refuses a player's skill may
+    still find.
+  - **The moves as powers:** `wall` and `swinger` are moves a power gives (`TRAVERSAL_MOVES`), so a map world can hide
+    them and gate by them. The level contract takes a grant of `true` or a preset's name. The page draws a granted line
+    (the drawer is emitted where a grant carries a gear), and the pilot's figure plays the moves' fallback clips.
+  - **Keys in a city:** a map world may lay a key in a city level. It lies on the segment's tallest roof the hero's
+    own moves reach, by the solver, and is taken only up there. A power found there gives its move in the city's
+    units. City levels refused keys before.
+  - **The idiom** `city-stalker-like` ("the gear's reach gates the city", an unlock system) is built. **The City
+    stalker probe is makeable.**
+  - **The swinger's line** is now reeled in at `reel` (20 m/s) from the cast's length. Before, it snapped to its own
+    length across the gap, a 12 m jump on the first step.
+
   The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
   swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
   draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.

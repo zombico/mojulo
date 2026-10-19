@@ -45,6 +45,7 @@ import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
+import { CITY_HERO } from '../city/plan/level.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
@@ -161,11 +162,15 @@ const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air)
  *  lowered (city/plan/level.js); with no hero, a stand-in. */
 function cityLevelOrder(G, stage, { title, map = null, cityRefs = {}, heroRef = null, heroGaits = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
-  if (map && ((map.keys ?? []).length || (map.powers ?? []).length)) throw new Error(`levels: a key is laid in '${stage.level}', a city: lay it in a walk's level (links[].keyAt)`);
+  // a map world's keys laid here go on the segment's tallest roof the hero reaches (city/plan/level.js cityFound); its
+  // power keys' moves ride as grants in metres, turned into the city's units where it is lowered
+  const found = map ? [...(map.keys ?? []).map((item) => ({ item, into: 'bag' })), ...(map.powers ?? []).map((item) => ({ item, into: 'powers' }))] : [];
+  const pk = map ? powerKeys(G) : [];
+  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed })])) : null;
   const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
   const hero = stage.city.stalker ? { hero: { ...(heroRef ? { ref: heroRef } : {}), ...(heroRef && heroGaits ? { gaits: heroGaits } : {}) } } : {};
-  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}), ...hero } };
+  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}), ...hero, ...(found.length ? { found } : {}), ...(powers ? { powers } : {}) } };
   return { tool: 'create_sketch', args: { title: name, manifest } };
 }
 
@@ -494,6 +499,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const base = heroRef ? pilotPart.entities[0].rule : null;
     const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
+    // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
+    if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
