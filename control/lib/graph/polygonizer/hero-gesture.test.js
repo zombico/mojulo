@@ -277,13 +277,16 @@ describe('the anime wave', () => {
 // recipe); the streamlined pair as it was, and each hero at laws 1 (a row minted before) builds the plan and recipe it
 // did, byte for byte (LAWS_1 below); then for the hero laws 3 (hero-form.js LEG_SET: the leg turned back about the
 // ankle, the hip's joint set into the pelvis): every structured-core hero again, stamped `laws: 3`, and each at laws 2
-// builds the record, plan and recipe pinned before it (LAWS_2 below)
+// builds the record, plan and recipe pinned before it (LAWS_2 below); then for the hero laws 4 (hero-form.js
+// LEG_LENGTH: the adult leg lengthened by the lumbar's run): every structured-core hero stamped `laws: 4`, the adult ones
+// built anew, the chibi's plan and recipe as they were (a child's proportions are its own), and each at laws 3 builds the
+// record, plan and recipe pinned before it (LAWS_3 below)
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['4ebbe08438faab74', 'ffafb9ecaab4c451', '627dfdfdccfe9107'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['14c6b75497cc1666', '20d9248739f32f81', '67c975b6e5dbc5fa'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['01fc673134e6b6f2', '87feb33ad9015e92', '5031b535c6bc4adb'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['ec2f6b3fe13d0315', '744e70fbdf6c9733', 'eca6418dfa7e93b7'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['3378615a2366db0e', '37e5e2f421d7cf79', 'ba1b546d97b8f573'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['a8925b37b2368f10', '0cd87957f1f8b265', 'ce13555b2f3f9dcc'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c8df34c66468bd4e', 'f461a9ef1f5a7010', '4a772f431b24529d'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['99445a734cc9a5ab', '47ee165f3473eaca', '8630ddd46fbb0d2e'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['dbfcdbd606890fac', '614cfdf46293b64e', 'e21cd5c5c0bfc229'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['d7b9d264c21a0643', '37e5e2f421d7cf79', 'ba1b546d97b8f573'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 /** the structured heroes as minted before the hero laws 2: their record without the stamp, and the plan and recipe a
  * row stamped laws 1 (or unstamped) still builds */
@@ -294,6 +297,13 @@ const LAWS_2 = {
   landmarkMale: ['c5e4ec3953f739bc', 'ee766e8f6ac5e1e4', 'cd62c872f04e37ee'], landmarkFemaleLowpoly: ['0afcf1e51c0b5c8b', '2bc8920b922c7c19', 'f4481051247f7a6d'],
   headNone: ['ec2185303256dc25', 'd2010ee4b78fe501', '8904c9ac08f92576'], ranger: ['e04253927f74ff3b', '500c5039eeaa7e5e', '342b0a1b93f84208'],
   chibiFaced: ['ce19085af719126a', 'c97540a4c7c2aa63', 'f6c16f24ee4f1612'],
+};
+/** the structured heroes as minted under the hero laws 3 (the leg set, before the leg length): their record stamped
+ * laws 3, and the plan and recipe it still builds */
+const LAWS_3 = {
+  landmarkMale: ['4ebbe08438faab74', 'ffafb9ecaab4c451', '627dfdfdccfe9107'], landmarkFemaleLowpoly: ['14c6b75497cc1666', '20d9248739f32f81', '67c975b6e5dbc5fa'],
+  headNone: ['01fc673134e6b6f2', '87feb33ad9015e92', '5031b535c6bc4adb'], ranger: ['ec2f6b3fe13d0315', '744e70fbdf6c9733', 'eca6418dfa7e93b7'],
+  chibiFaced: ['3378615a2366db0e', '37e5e2f421d7cf79', 'ba1b546d97b8f573'],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
   // (the structured core's plans and recipes re-pinned when its pelvis bone took the hip hinge's tilt, `pelvisTilt`: the
@@ -310,14 +320,14 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a row minted before the hero laws 2 builds as it did, byte for byte', () => {
     for (const [name, [record, plan, recipe]] of Object.entries(LAWS_1)) {
       const { laws, ...bare } = heroRecord(PINS[name][0]);
-      expect(laws).toBe(3); expect(h(bare)).toBe(record);
+      expect(laws).toBe(4); expect(h(bare)).toBe(record);
       for (const hr of [bare, { ...bare, laws: 1 }]) { const p = heroPlanOf(hr); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe); }
     }
   });
-  it('a row minted under the hero laws 2 builds as it did, byte for byte', () => {
-    for (const [name, [record, plan, recipe]] of Object.entries(LAWS_2)) {
-      const hr = { ...heroRecord(PINS[name][0]), laws: 2 }, p = heroPlanOf(hr);
-      expect(h(hr)).toBe(record); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe);
+  it('a row minted under the hero laws 2 or 3 builds as it did, byte for byte', () => {
+    for (const [L, pins] of [[2, LAWS_2], [3, LAWS_3]]) for (const [name, [record, plan, recipe]] of Object.entries(pins)) {
+      const hr = { ...heroRecord(PINS[name][0]), laws: L }, p = heroPlanOf(hr);
+      expect(h(hr), `${name} laws ${L}`).toBe(record); expect(h(p), `${name} laws ${L}`).toBe(plan); expect(h(expandPlan(p)), `${name} laws ${L}`).toBe(recipe);
     }
   });
   // a tune control added after these pins (hero-form.js SPARSE_TUNE_KEYS) stores nothing at 1, as a word or a list too:

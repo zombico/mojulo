@@ -70,6 +70,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   planted feet slid in the jumps and rolls, a stop overran, a cloak met an arm. Every hero on the structured core is now
   stamped `laws: 3`; a row stamped 2 or 1 builds byte for byte, pinned (the gesture, the shading and the anime pins each
   keep their laws-2 values beside the new ones); the outfit laws' rings and the statues re-pinned as a body change.
+- **The leg length, hero laws 4.** Measured against the body's own ratios (ANSUR II), the hero's hip's joint stood at
+  0.49 of its stature (the body's 0.52), the femur at 0.23 (0.245) and the trunk from the shoulder's joint to the hip's
+  at 0.30 (0.28): short legs under a long lower trunk. Hero laws 4 (`HERO_LAWS_VERSION` 4, hero-form.js `LEG_LENGTH`)
+  lengthens the leg by 5.5 % of the hip's height over the ankle (55 % of it in the femur, the rest in the shank) and
+  shortens the lumbar by the same run, so the hip's joint comes up 4 to 5 cm while the navel joint, the shoulders, the
+  neck, the head and the stature stay. On the hero proportions' adult casts only: a child's and the anime and herobot
+  casts' proportions are their own. Every structured-core hero is now stamped `laws: 4`; a row stamped 3, 2 or 1 builds
+  byte for byte.
 - **A boot under a skirt.** A garment piece is lifted over every garment already worn on its part, and a skirt (a hull
   round the hips and both legs) counts as worn on the shank: a boot's shaft worn after it was lifted round the skirt's
   whole hem, a ring 21 cm across round both legs (the operative's card read as a bell for it). A piece on a shank, a foot,

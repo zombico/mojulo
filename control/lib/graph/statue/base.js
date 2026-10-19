@@ -101,7 +101,9 @@ export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag
     const y0 = Math.min(at.c[1] - at.fd / 2, lap.c[1] - lap.r[1]), y1 = Math.max(at.c[1] + at.fd / 2, lap.c[1] + lap.r[1]);
     at = { ...at, fw: x1 - x0, fd: y1 - y0, c: [(x0 + x1) / 2, (y0 + y1) / 2] };
   }
-  const { h, solids } = kind && kind !== 'none' ? profile(kind, at) : { h: 0, solids: [] }, lift = h - at.lo, parts = solids.map((s) => ({ c: at.c, ...s }));
+  // (the lift to the base's top as its faces are written, r6(h): the lift rounded on its own as well put the figure's
+  // lowest point up to a micrometre off the base)
+  const { h, solids } = kind && kind !== 'none' ? profile(kind, at) : { h: 0, solids: [] }, lift = r6(h) - at.lo, parts = solids.map((s) => ({ c: at.c, ...s }));
   if (lap) parts.push({ c: lap.c, n: 4, sections: [{ z: h, r: lap.r }, { z: lap.top + lift, r: lap.r }], group: THRONE_GROUP });
   const faces = [];
   for (const s of parts) for (const t of solid(s.c, s.sections, s.n)) {
@@ -111,5 +113,5 @@ export function statueBaseFaces(figure, { kind, tone, light, group = 'base', tag
     faces.push({ corners, fill: shadeHex(tone, outNormal, light), group: s.group ?? group, outNormal });
   }
   if (tag) tag(faces);
-  return { faces, lift: r6(lift) };
+  return { faces, lift: Math.round(lift * 1e9) / 1e9 };
 }
