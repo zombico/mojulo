@@ -43,6 +43,18 @@ describe('the board world kind', () => {
     }
   });
 
+  it('carries a battle to the page: its rules and fielded units, the player\'s sides (the party, unless told)', () => {
+    const battle = { party: [{ id: 'ayla', class: 'fighter', at: 'A1' }], foes: [{ id: 'g', foe: 'goblin', at: 'D4' }] };
+    const P = assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle });
+    expect(P.board.battle.players).toEqual(['party']);
+    expect(P.board.battle.units.map((u) => [u.id, u.side])).toEqual([['ayla', 'party'], ['g', 'foe']]);
+    expect(Object.keys(P.board.battle.cfg.skills)).toContain('power-strike');
+    expect(P.board.colours).toEqual({ party: expect.any(String), foe: expect.any(String) });
+    expect(assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, players: [] } }).board.battle.players).toEqual([]);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle, units })).toThrow(/units or battle/);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, players: 'party' } })).toThrow(/battle.players are the sides the player moves/);
+  });
+
   it('refuses what it cannot make, saying why', () => {
     expect(() => assembleBoardScene({ size: 3 })).toThrow(/'size' is not a setting of the board kind/);
     expect(() => assembleBoardScene({ camera: { spin: true } })).toThrow(/camera.spin is not a camera setting/);

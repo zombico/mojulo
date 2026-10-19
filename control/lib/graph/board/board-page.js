@@ -4,14 +4,21 @@
  * readout of the spot under the cursor. The page runs the board kernel and the camera from their own source
  * (board-kernel.js, board-camera.js), so what the page shows is what Node tests.
  *
+ * With a battle (`D.battle`: board-battle.js readBoardBattle's cfg and units, and the sides the player moves) it plays
+ * it: the player's units by a menu (Move, Act: attack, skills, items, and Wait, then a facing), the others by the board
+ * mind (board-mind.js), each of their steps shown before it is taken; numbers rise off the units as blows land, a
+ * turn-order bar and the active unit's card stand at the top, a forecast shows what an aimed act would do. At the end a
+ * banner says who won and the level's bus hears `board-won`, `board-lost` or `board-draw` (`board-over` with no player).
+ *
  * `boardPage` is emitted by its source inside the board channel's block (scene/channels/board.js) and never runs in
  * Node. From the page it uses only what a channel may: `THREE`, `scene`, `camera`, `controls`, `renderer`, `wrap` and
  * `__ctrlOwnsCamera` (it owns the camera from the start). It returns the frame step the page calls.
  *
- *   boardChannelData(laid, { units?, camera?, cursor?, drape?, clip? }) → D   what the page takes: the kernel's board,
+ *   boardChannelData(laid, { units?, camera?, cursor?, drape?, clip?, battle? }) → D   what the page takes: the kernel's board,
  *     where it lies, the units (the kernel's start shape), the camera's options, the cursor's first spot, over land the
  *     ground's drape (board-lay.js), which the grid, the highlights, the pointer and the units lie on, and in rooms
- *     their floors' boxes ([[x0, y0, x1, y1]]), which hold what is drawn on a spot off the walls
+ *     their floors' boxes ([[x0, y0, x1, y1]]), which hold what is drawn on a spot off the walls; a battle:
+ *     { cfg, units, players } (players: the sides the player moves, ['party'] by default; [] lets the minds fight)
  *
  * Keys (the `board` input scheme, controls/schemes.js): arrows or W A S D move the cursor (the RTS form pans instead);
  * Q / E turn the view a quarter; Z / X (or the wheel) zoom; V tilts; Enter or Space (or a click) selects a unit and
@@ -22,15 +29,16 @@ import { boardParse } from './board-kernel.js';
 const SIDE_COLOURS = ['#4aa3ff', '#ff5a4a', '#5ad17a', '#f2c14e'];
 
 /** What the page takes, from a laid board (board-lay.js layBoard). */
-export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip } = {}) {
+export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle } = {}) {
   const B = laid.board, at = cursor !== undefined ? boardParse(B, cursor) : -1;
   const first = at >= 0 && B.spots[at] ? at : B.spots.findIndex((s) => s && s.walk);
-  const sides = [...new Set(units.map((u) => u.side))];
-  return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])), ...(drape ? { drape } : {}), ...(clip ? { clip } : {}) };
+  const sides = [...new Set((battle ? battle.units : units).map((u) => u.side))];
+  return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])),
+    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}) };
 }
 
-/* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera */
-export function boardPage(D, K, CAM) {
+/* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue */
+export function boardPage(D, K, CAM, MIND) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
   __ctrlOwnsCamera = true;   // eslint-disable-line no-global-assign
@@ -106,7 +114,9 @@ export function boardPage(D, K, CAM) {
   }
 
   // ── the units, as tokens ──────────────────────────────────────────────────────────────────────────────────────
-  let S = D.units && D.units.length ? K.start(B, D.cfg || {}, D.units) : null;
+  const battle = D.battle || null, cfg = battle ? battle.cfg : {};
+  const units0 = battle ? battle.units : D.units;
+  let S = units0 && units0.length ? K.start(B, cfg, units0) : null;
   const tokens = {};
   const FACE = [Math.PI / 2, 0, -Math.PI / 2, Math.PI];   // n e s w as a heading from +x
   if (S) for (const id of S.order) {
@@ -125,26 +135,86 @@ export function boardPage(D, K, CAM) {
     g.position.set(...centre(U.at));
     g.rotation.z = FACE[U.face];
   }
+  // a token stands where its unit stands (unless it is still hopping there), and only while it stands
+  function settleTokens() {
+    for (const id in tokens) {
+      const T = tokens[id], U = S.u[id];
+      if (!T.hops.length) { T.from = centre(U.at); T.g.position.set(...T.from); T.g.rotation.z = FACE[U.face]; }
+      T.g.visible = U.hp > 0;
+    }
+  }
 
-  // ── the readout ───────────────────────────────────────────────────────────────────────────────────────────────
-  const hud = document.createElement('div');
-  hud.style.cssText = 'position:absolute;left:12px;bottom:12px;z-index:7;font:12px/1.45 ui-monospace,Menlo,monospace;color:#e8ecf2;background:rgba(10,12,16,0.62);padding:8px 10px;border-radius:6px;pointer-events:none;white-space:pre';
-  wrap.appendChild(hud);
-  const legend = rts ? 'arrows / WASD / edge: pan · Z X: zoom · V: tilt' : 'arrows / WASD: cursor · Q E: turn · Z X: zoom · V: tilt · Enter: select / move · Esc: back';
+  // ── the panels: the readout, the turn order, the unit's card, the menu, the banner, the numbers ────────────────
+  const CSS = 'position:absolute;z-index:7;font:12px/1.45 ui-monospace,Menlo,monospace;color:#e8ecf2;background:rgba(10,12,16,0.72);padding:8px 10px;border-radius:6px;white-space:pre';
+  const panel = (style) => { const el = document.createElement('div'); el.style.cssText = CSS + ';' + style; wrap.appendChild(el); return el; };
+  const hud = panel('left:12px;bottom:12px;pointer-events:none');
+  const orderEl = battle ? panel('left:12px;top:12px;pointer-events:none') : null;
+  const cardEl = battle ? panel('right:12px;top:12px;pointer-events:none;min-width:190px') : null;
+  const menuEl = battle ? panel('right:12px;bottom:12px;min-width:210px;display:none;cursor:pointer') : null;
+  const bannerEl = battle ? panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none') : null;
+  const floats = [];
+  const LEGEND = {
+    free: rts ? 'arrows / WASD / edge: pan · Z X: zoom · V: tilt' : 'arrows / WASD: cursor · Q E: turn · Z X: zoom · V: tilt · Enter: select / move · Esc: back',
+    menu: 'up / down: choose · Enter: pick · Q E: turn · Z X: zoom · V: tilt',
+    move: 'arrows: cursor · Enter: move here · Esc: back',
+    aim: 'arrows: cursor · Enter: act here · Esc: back',
+    face: 'arrows: face that way · Enter: end the turn · Esc: back',
+    cpu: 'the other side is moving · Q E: turn · Z X: zoom',
+    over: 'the battle is over',
+  };
+  const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
+  const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
+  function unitLines(U) {
+    const st = Object.keys(ST).filter((k) => U.st && U.st[k]).map((k) => ST[k]);
+    const bf = (U.buffs || []).map((b) => b.stat + (b.pct > 0 ? '↑' : '↓'));
+    return `${U.name} (${U.side})\nHP ${bar(U.hp, U.hpMax, 10)} ${U.hp}/${U.hpMax}${U.mpMax ? `\nMP ${bar(U.mp, U.mpMax, 10)} ${U.mp}/${U.mpMax}` : ''}\nmove ${U.move}  jump ${U.jump}  spd ${K.statOf(U, 'spd')}${st.length || bf.length ? `\n${st.concat(bf).join('  ')}` : ''}`;
+  }
+  function float(id, text, colour) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;z-index:8;font:bold 16px ui-monospace,Menlo,monospace;text-shadow:0 1px 3px #000;pointer-events:none;transform:translate(-50%,-50%)';
+    el.style.color = colour;
+    el.textContent = text;
+    wrap.appendChild(el);
+    const p = tokens[id] ? tokens[id].g.position : null, U = S.u[id];
+    floats.push({ el, at: p ? [p.x, p.y, p.z + 2.2] : [...centre(U.at)], t: 0 });
+  }
+  const V = new THREE.Vector3();
+  function drawFloats(dt) {
+    const r = renderer.domElement.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    for (let k = floats.length - 1; k >= 0; k--) {
+      const F = floats[k];
+      F.t += dt;
+      V.set(F.at[0], F.at[1], F.at[2] + F.t * 0.8).project(camera);
+      F.el.style.left = (r.left - w.left + ((V.x + 1) / 2) * r.width) + 'px';
+      F.el.style.top = (r.top - w.top + ((1 - V.y) / 2) * r.height) + 'px';
+      F.el.style.opacity = String(Math.max(0, 1 - Math.max(0, F.t - 0.7) / 0.6));
+      if (F.t > 1.3) { F.el.remove(); floats.splice(k, 1); }
+    }
+  }
 
-  // ── the cursor and the selection ──────────────────────────────────────────────────────────────────────────────
-  let cursor = D.cursor >= 0 ? D.cursor : 0, sel = null;
+  // ── the cursor ────────────────────────────────────────────────────────────────────────────────────────────────
+  let cursor = D.cursor >= 0 ? D.cursor : 0, sel = null, mode = battle ? 'cpu' : 'free';
   const occupant = (i) => (S ? K.occupant(S, i) : null);
   function readout() {
     const s = B.spots[cursor], who = occupant(cursor), U = who && S.u[who];
     const spot = s ? `${K.nameOf(B, cursor)}  h ${s.h} (${(s.h * B.step).toFixed(1)} m)  ${s.type}${s.walk ? '' : ', shut'}` : K.nameOf(B, cursor);
-    hud.textContent = `${spot}${U ? `\n${U.name} (${U.side})  hp ${U.hp}/${U.hpMax}  move ${U.move}  jump ${U.jump}` : ''}${sel ? `\nselected: ${S.u[sel].name}` : ''}\n${legend}`;
+    let more = '';
+    if (mode === 'aim' && aiming && aiming.spots.has(cursor)) more = '\n' + forecastLines(aiming.what, cursor);
+    else if (U) more = `\n${U.name} (${U.side})  hp ${U.hp}/${U.hpMax}`;
+    hud.textContent = `${spot}${more}${sel ? `\nselected: ${S.u[sel].name}` : ''}\n${LEGEND[mode]}`;
+  }
+  function onCursor() {
+    if (mode === 'aim' && aiming) {
+      const sk = aiming.what.item ? K.itemOf(cfg, aiming.what.item) : K.skillOf(cfg, aiming.what.skill);
+      highlight('area', aiming.spots.has(cursor) ? (sk.target === 'self' || sk.target === 'foe' || sk.target === 'ally' ? [cursor] : K.area(B, cursor, sk)) : null);
+    }
+    readout();
   }
   function moveCursor(i) {
     if (i < 0 || !B.spots[i]) return;
     cursor = i;
     if (!rts) CAM.focusOn(C, tops[i]);
-    readout();
+    onCursor();
   }
   function stepCursor(dir) {
     const d = CAM.screenStep(C, dir), c0 = cursor % B.cols, r0 = (cursor - c0) / B.cols;
@@ -154,6 +224,8 @@ export function boardPage(D, K, CAM) {
       if (B.spots[r * B.cols + c]) { moveCursor(r * B.cols + c); return; }
     }
   }
+
+  // ── free mode (a board with units and no battle): select a unit, see its reach, move it there ───────────────────
   function select() {
     if (!S) return;
     if (sel && sel !== occupant(cursor) && lit.reach && lit.reach.has(cursor)) {
@@ -169,18 +241,186 @@ export function boardPage(D, K, CAM) {
     readout();
   }
 
+  // ── the battle: the player's turns by the menu, the other side's by the mind ──────────────────────────────────
+  const HUMAN = new Set(battle ? battle.players || ['party'] : []);
+  let menu = null, aiming = null, face = 0, cpu = null, busy = 0, result = null;
+  const legalNow = () => K.legal(B, cfg, S);
+  const sameAct = (a, b) => a.kind === b.kind && a.to === b.to && a.skill === b.skill && a.item === b.item && a.at === b.at && a.face === b.face;
+  function forecastLines(what, at) {
+    return MIND.forecast(K, B, cfg, S, Object.assign({ kind: 'act', at }, what)).map((f) => {
+      const parts = [f.name];
+      if (f.hurt != null) parts.push(`${f.hp} → ~${Math.max(0, f.hp - f.hurt)}  ${f.chance}%${f.rel && f.rel !== 'front' ? '  ' + f.rel : ''}`);
+      if (f.heal != null) parts.push(`+${f.heal}`);
+      if (f.revive) parts.push('raise');
+      if (f.status) parts.push(`${f.status.is} ${f.status.chance}%`);
+      if (f.buff) parts.push(`${f.buff.stat} ${f.buff.pct > 0 ? '↑' : '↓'}`);
+      return parts.join('  ');
+    }).join('\n');
+  }
+  function drawSide() {
+    if (!battle) return;
+    const P = S.turn ? K.preview(B, S, 8) : [];
+    orderEl.textContent = 'turn order\n' + P.map((x, k) => `${k ? '  ' : '▶ '}${S.u[x.who].name}${HUMAN.has(x.side) ? '' : ' ·'}`).join('\n');
+    cardEl.textContent = S.turn ? unitLines(S.u[S.turn.who]) : '';
+  }
+  function drawMenu() {
+    menuEl.style.display = 'block';
+    menuEl.innerHTML = '';
+    menu.items.forEach((it, k) => {
+      const row = document.createElement('div');
+      row.textContent = (k === menu.i ? '▶ ' : '  ') + it.label;
+      row.style.opacity = it.ok ? '1' : '0.4';
+      row.onclick = () => { if (it.ok) { menu.i = k; it.go(); } };
+      menuEl.appendChild(row);
+    });
+  }
+  const firstOk = (items) => Math.max(0, items.findIndex((x) => x.ok));
+  function openMenu() {
+    mode = 'menu'; aiming = null;
+    highlight('reach', null); highlight('aim', null); highlight('area', null);
+    const L = legalNow();
+    const items = [
+      { label: 'Move', ok: L.some((a) => a.kind === 'move'), go: startMove },
+      { label: 'Act', ok: L.some((a) => a.kind === 'act'), go: openAct },
+      { label: 'Wait', ok: true, go: startFace },
+    ];
+    menu = { items, i: firstOk(items), back: null };
+    drawMenu(); drawSide(); readout();
+  }
+  function openAct() {
+    const L = legalNow().filter((a) => a.kind === 'act'), id = S.turn.who, U = S.u[id], items = [];
+    for (const k of ['attack'].concat(U.skills)) {
+      const sk = K.skillOf(cfg, k);
+      if (!sk) continue;
+      const acts = L.filter((a) => a.skill === k);
+      items.push({ label: sk.name + (sk.mp ? `  ${sk.mp} MP` : ''), ok: acts.length > 0, go: () => startAim({ skill: k }, acts) });
+    }
+    for (const k of K.items(cfg, S, id)) {
+      const acts = L.filter((a) => a.item === k);
+      items.push({ label: `${K.itemOf(cfg, k).name}  ×${S.bag[U.side][k]}`, ok: acts.length > 0, go: () => startAim({ item: k }, acts) });
+    }
+    menu = { items, i: firstOk(items), back: openMenu };
+    drawMenu(); readout();
+  }
+  function menuStep(d) {
+    const n = menu.items.length;
+    for (let k = 1; k <= n; k++) { const j = (menu.i + d * k + n * 4) % n; if (menu.items[j].ok) { menu.i = j; break; } }
+    drawMenu();
+  }
+  function startMove() {
+    mode = 'move'; menuEl.style.display = 'none';
+    highlight('reach', legalNow().filter((a) => a.kind === 'move').map((a) => a.to));
+    readout();
+  }
+  function startAim(what, acts) {
+    mode = 'aim'; menuEl.style.display = 'none';
+    aiming = { what, spots: new Set(acts.map((a) => a.at)) };
+    // the whole reach of it, red; the spots worth aiming at are the ones with someone on them
+    highlight('aim', K.aim(B, cfg, S, S.turn.who, what.item ? K.itemOf(cfg, what.item) : K.skillOf(cfg, what.skill)));
+    const U = S.u[S.turn.who];
+    let best = acts[0].at, d = Infinity;
+    for (const a of acts) { const e = Math.abs((a.at % B.cols) - (U.at % B.cols)) + Math.abs(Math.floor(a.at / B.cols) - Math.floor(U.at / B.cols)); if (a.at !== U.at && e < d) { d = e; best = a.at; } }
+    moveCursor(acts.length === 1 ? acts[0].at : best);
+  }
+  function startFace() {
+    mode = 'face'; menuEl.style.display = 'none';
+    face = S.u[S.turn.who].face;
+    highlight('reach', null);
+    readout();
+  }
+  function back() {
+    if (mode === 'aim') { aiming = null; highlight('aim', null); highlight('area', null); openAct(); return; }
+    if (mode === 'move' || mode === 'face') { if (mode === 'face') tokens[S.turn.who].g.rotation.z = FACE[S.u[S.turn.who].face]; openMenu(); return; }
+    if (mode === 'menu' && menu.back) menu.back();
+  }
+  function confirm() {
+    if (mode === 'menu') { const it = menu.items[menu.i]; if (it && it.ok) it.go(); return; }
+    if (mode === 'move' && lit.reach && lit.reach.has(cursor)) play({ kind: 'move', to: cursor });
+    else if (mode === 'aim' && aiming && aiming.spots.has(cursor)) play(Object.assign({ kind: 'act', at: cursor }, aiming.what));
+    else if (mode === 'face') play({ kind: 'end', face: K.FACES[face] });
+  }
+  const HOP = 0.16;
+  function beat(b) {
+    if (b.kind === 'move') { tokens[b.who].hops.push(...b.path.slice(1)); busy = Math.max(busy, (b.path.length - 1) * HOP + 0.15); return; }
+    if (b.kind === 'hurt') float(b.target, (b.poison ? 'poison ' : '') + b.amount + (b.crit ? '!' : ''), '#ff6b5a');
+    else if (b.kind === 'heal') float(b.target, '+' + b.amount, '#6bff8a');
+    else if (b.kind === 'miss') float(b.target, b.why === 'immune' ? 'immune' : b.why === 'resisted' ? 'resisted' : 'miss', '#d0d4da');
+    else if (b.kind === 'ko') float(b.target, 'down', '#ffffff');
+    else if (b.kind === 'revive') float(b.target, 'up', '#6bff8a');
+    else if (b.kind === 'status') float(b.target, b.on ? ST[b.status] || b.status : b.status === 'cured' ? 'cured' : 'awake', '#c9a6ff');
+    else if (b.kind === 'buff') float(b.target, b.stat + (b.pct > 0 ? ' up' : ' down'), '#ffd23d');
+    else if (b.kind === 'mp') float(b.target, 'MP ' + b.mp, '#7fc4ff');
+    else return;
+    busy = Math.max(busy, 0.7);
+  }
+  function play(a) {
+    const who = S.turn.who, out = K.apply(B, cfg, S, a);
+    S = out.S;
+    for (const b of out.beats) beat(b);
+    highlight('reach', null); highlight('aim', null); highlight('area', null);
+    aiming = null;
+    settleTokens();
+    drawSide();
+    if (S.over) { finish(); return; }
+    if (S.turn.who !== who) { busy = Math.max(busy, 0.35); next(); return; }
+    if (HUMAN.has(S.u[who].side)) openMenu();
+  }
+  function next() {
+    const U = S.u[S.turn.who];
+    moveCursor(U.at);
+    drawSide();
+    if (HUMAN.has(U.side)) { openMenu(); return; }
+    mode = 'cpu'; menuEl.style.display = 'none';
+    cpu = { plan: MIND.plan(K, B, cfg, S), wait: 0.45, shown: false };
+    readout();
+  }
+  function cpuStep(dt) {
+    cpu.wait -= dt;
+    if (cpu.wait > 0) return;
+    let a = cpu.plan[0];
+    if (!a || !legalNow().some((x) => sameAct(x, a))) { cpu.plan = MIND.plan(K, B, cfg, S); a = cpu.plan[0]; cpu.shown = false; }
+    if (!cpu.shown && a.kind !== 'end') {
+      // show what it is about to do: where it may go, or what it strikes
+      if (a.kind === 'move') { highlight('reach', K.reach(B, S, S.turn.who)); moveCursor(a.to); }
+      else { const sk = a.item ? K.itemOf(cfg, a.item) : K.skillOf(cfg, a.skill); highlight('area', sk.target === 'foe' || sk.target === 'ally' || sk.target === 'self' ? [a.at] : K.area(B, a.at, sk)); moveCursor(a.at); }
+      cpu.shown = true; cpu.wait = 0.55;
+      return;
+    }
+    cpu.plan.shift(); cpu.shown = false; cpu.wait = 0.3;
+    play(a);
+  }
+  function finish() {
+    mode = 'over'; menuEl.style.display = 'none'; orderEl.style.display = 'none'; cardEl.style.display = 'none';
+    const W = S.over.winner, won = HUMAN.has(W);
+    result = { winner: W, reason: S.over.reason, turns: S.n };
+    bannerEl.style.display = 'block';
+    bannerEl.textContent = HUMAN.size ? (W == null ? 'Draw' : won ? 'Victory' : 'Defeat') : (W == null ? 'Draw' : `${W} wins`);
+    // the level hears it on its bus, as it hears the party battles' end
+    const ev = HUMAN.size ? (W == null ? 'board-draw' : won ? 'board-won' : 'board-lost') : 'board-over';
+    if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: ev });   // eslint-disable-line no-undef
+    readout();
+  }
+
   // ── input ─────────────────────────────────────────────────────────────────────────────────────────────────────
   const held = {};
   const DIRS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  const FACE_OF = { '0,1': 0, '1,0': 1, '0,-1': 2, '-1,0': 3 };
   window.addEventListener('keydown', (e) => {
-    if (e.code in DIRS) { e.preventDefault(); if (rts) held[DIRS[e.code]] = true; else stepCursor(DIRS[e.code]); return; }
+    if (e.code in DIRS) {
+      e.preventDefault();
+      if (rts) held[DIRS[e.code]] = true;
+      else if (mode === 'menu') { if (DIRS[e.code] === 'up') menuStep(-1); else if (DIRS[e.code] === 'down') menuStep(1); }
+      else if (mode === 'face') { face = FACE_OF[CAM.screenStep(C, DIRS[e.code]).join(',')]; tokens[S.turn.who].g.rotation.z = FACE[face]; }
+      else if (mode !== 'over') stepCursor(DIRS[e.code]);
+      return;
+    }
     if (e.code === 'KeyQ') CAM.rotate(C, 1);
     else if (e.code === 'KeyE') CAM.rotate(C, -1);
     else if (e.code === 'KeyZ' || e.code === 'Equal') CAM.zoom(C, 1);
     else if (e.code === 'KeyX' || e.code === 'Minus') CAM.zoom(C, -1);
     else if (e.code === 'KeyV') CAM.tilt(C);
-    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); select(); }
-    else if (e.code === 'Escape') { sel = null; highlight('reach', null); readout(); }
+    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else confirm(); }
+    else if (e.code === 'Escape' || e.code === 'Backspace') { if (mode === 'free') { sel = null; highlight('reach', null); readout(); } else back(); }
   });
   window.addEventListener('keyup', (e) => { if (e.code in DIRS) held[DIRS[e.code]] = false; });
   const el = renderer.domElement;
@@ -208,19 +448,40 @@ export function boardPage(D, K, CAM) {
   el.addEventListener('pointermove', (e) => {
     const r = el.getBoundingClientRect();
     mouse = [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+    if (mode === 'menu' || mode === 'cpu' || mode === 'over') return;
     const i = spotAt(e);
-    if (i >= 0 && i !== cursor) { cursor = i; readout(); }
+    if (i >= 0 && i !== cursor) { cursor = i; onCursor(); }
   });
   el.addEventListener('pointerleave', () => { mouse = null; });
-  el.addEventListener('click', (e) => { const i = spotAt(e); if (i >= 0) { cursor = i; select(); } });
+  el.addEventListener('click', (e) => {
+    const i = spotAt(e);
+    if (i < 0) return;
+    cursor = i; onCursor();
+    if (mode === 'free') select();
+    else if (mode === 'move' || mode === 'aim') confirm();
+  });
 
   readout();
   moveCursor(cursor);
-  window.__mojBoard = { board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, state: () => S, highlight, moveCursor, stepCursor, select };
+  if (battle) next();
+  window.__mojBoard = {
+    board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
+    state: () => S, highlight, moveCursor, stepCursor, select,
+    // the battle stepped by hand, `dt` seconds a call, apart from the frame (probes and tests: no waiting on the clock)
+    run,
+    get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
+    // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
+    act(a) { if (!battle || !S.turn || !HUMAN.has(S.u[S.turn.who].side) || !legalNow().some((x) => sameAct(x, a))) return false; play(a); return true; },
+  };
+
+  // the battle's own time: animations wait it out, then the other side takes its next step
+  function run(dt) {
+    if (busy > 0) busy = Math.max(0, busy - dt);
+    else if (mode === 'cpu' && cpu && S.turn) cpuStep(dt);
+  }
 
   // ── the frame ─────────────────────────────────────────────────────────────────────────────────────────────────
   let last = null;
-  const HOP = 0.16;
   return function step(t) {
     const dt = last == null ? 0 : Math.min(0.05, Math.max(0, (t - last) / 1000));
     last = t;
@@ -249,5 +510,6 @@ export function boardPage(D, K, CAM) {
       }
       T.g.visible = U.hp > 0;
     }
+    if (battle) { drawFloats(dt); run(dt); }
   };
 }

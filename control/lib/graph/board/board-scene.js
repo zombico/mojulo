@@ -4,7 +4,9 @@
  * (board-camera.js) that plays it. Not walked: the board owns the camera.
  *
  *   { kind: 'board', board?: <board-lay.js spec>, units?: [<board-kernel.js start unit>], camera?: { rotate, edge,
- *     fov, pitches, zooms, yaw }, cursor?: 'C4' }
+ *     fov, pitches, zooms, yaw }, cursor?: 'C4', battle?: <board-battle.js spec> & { players?: [sides] } }
+ *   units: tokens to look at and move freely; battle: a battle the page plays (the player moves `players`, ['party'] by
+ *   default; [] lets the minds fight it out)
  *
  *   assembleBoardScene(manifest, ctx) → payload: the ground's faces (and a stage's own light and sky; a room's without
  *     its ceiling, its walls cut at the waist, no haze), `board` (the page's data: board-page.js boardChannelData), and a camera
@@ -14,8 +16,9 @@ import { layBoard } from './board-lay.js';
 import { boardStart } from './board-kernel.js';
 import { boardCameraInit, boardCameraPose } from './board-camera.js';
 import { boardChannelData } from './board-page.js';
+import { readBoardBattle } from './board-battle.js';
 
-const KEYS = ['kind', 'board', 'units', 'camera', 'cursor', 'title'];
+const KEYS = ['kind', 'board', 'units', 'battle', 'camera', 'cursor', 'title'];
 const CAMERA_KEYS = ['rotate', 'edge', 'fov', 'pitches', 'zooms', 'yaw'];
 const ASPECT = 1120 / 780;
 const CUTAWAY = 1.5;   // metres over the floor a room's walls are cut at, seen from above (the stage's walls are banded every half metre)
@@ -38,10 +41,19 @@ export function assembleBoardScene(manifest = {}, ctx = {}) {
   for (const k of Object.keys(manifest)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of the board kind (settings: ${KEYS.filter((x) => x !== 'kind').join(', ')})`);
   const L = layBoard(manifest.board ?? {}), camera = readCamera(manifest.camera), units = manifest.units ?? [];
   if (!Array.isArray(units)) no('units are [{ id, side, at: \'C4\', move?, jump?, spd?, hp?, … }]');
+  if (units.length && manifest.battle !== undefined) no('units or battle: tokens to look at, or a battle to play; not both');
   if (units.length) boardStart(L.board, {}, units);   // the kernel says what cannot stand, before a page is made
+  let battle;
+  if (manifest.battle !== undefined) {
+    const { players = ['party'], ...spec } = manifest.battle ?? {};
+    if (!Array.isArray(players) || !players.every((x) => typeof x === 'string')) no('battle.players are the sides the player moves: [\'party\'] (or [] to watch)');
+    const { cfg, units: fielded } = readBoardBattle(spec);
+    boardStart(L.board, cfg, fielded);
+    battle = { cfg, units: fielded, players };
+  }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;
-  const data = boardChannelData(L, { units, camera, cursor: manifest.cursor, drape: L.drape, clip });
+  const data = boardChannelData(L, { units, camera, cursor: manifest.cursor, drape: L.drape, clip, battle });
   const B = L.board, O = L.frame.origin, zs = B.spots.filter(Boolean).map((s) => O[2] + s.h * B.step);
   const P = boardCameraPose(boardCameraInit({ bounds: [O[0], O[1], O[0] + B.cols * B.cell, O[1] + B.rows * B.cell], z: (Math.min(...zs) + Math.max(...zs)) / 2, ...camera }));
   const hfov = (2 * Math.atan(Math.tan((P.fov * Math.PI) / 360) * ASPECT) * 180) / Math.PI;

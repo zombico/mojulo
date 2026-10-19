@@ -15,7 +15,9 @@
  * to the first in the kernel's own order, so the same state is the same plan.
  *
  *   plan(K, B, cfg, S) → [action]   the whole turn, its last action an ending ([] when it is nobody's turn)
- *   score(K, B, cfg, S, id, at, act) → number   what an act from `at` is worth (for a forecast, and for tests)
+ *   score(K, B, cfg, S, id, at, act) → number   what an act from `at` is worth
+ *   forecast(K, B, cfg, S, action) → [{ target, name, hp, hpMax, hurt?, chance?, rel?, heal?, revive?, status?, buff? }]
+ *                  what an act of the unit whose turn it is would do, before it is done (the page's hit forecast)
  */
 
 export function buildBoardMind() {
@@ -34,7 +36,7 @@ export function buildBoardMind() {
   function blow(K, B, cfg, S, A, T, sk) {
     const R = rulesOf(K, cfg), phys = sk.stat === 'atk';
     let raw = sk.power + K.statOf(A, sk.stat) * sk.scale - (phys ? K.statOf(T, 'def') / 2 : K.statOf(T, 'mag') / 4);
-    raw = Math.max(0, raw) * R.facing[A === T ? 'front' : K.facing(B, S, A.id, T.id)];
+    raw = Math.max(0, raw) * (phys ? R.facing[A === T ? 'front' : K.facing(B, S, A.id, T.id)] : 1);
     raw *= 1 + clamp((B.spots[A.at].h - B.spots[T.at].h) * R.height, -R.heightCap, R.heightCap);
     const n = Math.max(0, raw * elementMul(T, sk.element));
     return phys && !T.st.sleep ? n * (1 - MISS) : n;
@@ -119,9 +121,30 @@ export function buildBoardMind() {
     return best.steps;
   }
 
-  return { plan, score };
+  // what an act would do, before it is done: each one it touches, the blow's likely damage (or the mending), the chance it
+  // lands, the side it lands on, a status's chance
+  function forecast(K, B, cfg, S, action) {
+    const id = S.turn.who, A = S.u[id], sk = action.item ? K.itemOf(cfg, action.item) : K.skillOf(cfg, action.skill), out = [];
+    for (const t of K.hits(B, cfg, S, id, sk, action.at)) {
+      const T = S.u[t], f = { target: t, name: T.name, hp: T.hp, hpMax: T.hpMax };
+      if (sk.harm) {
+        const n = blow(K, B, cfg, S, A, T, sk), phys = sk.stat === 'atk';
+        Object.assign(f, n < 0 ? { heal: Math.round(-n) } : { hurt: Math.round(phys && !T.st.sleep ? n / (1 - MISS) : n), chance: phys && !T.st.sleep ? Math.round((1 - MISS) * 100) : 100 },
+          { rel: A === T ? 'front' : K.facing(B, S, id, t) });
+      }
+      if (sk.revive && T.hp <= 0) f.revive = true;
+      else if (sk.heal && T.hp > 0) f.heal = Math.round(Math.min(sk.power + K.statOf(A, 'mag') * sk.scale, T.hpMax - T.hp));
+      if (sk.status) f.status = { is: sk.status.is, chance: has(T.immune, sk.status.is) ? 0 : Math.round(sk.status.chance * 100) };
+      if (sk.buff) f.buff = sk.buff;
+      out.push(f);
+    }
+    return out;
+  }
+
+  return { plan, score, forecast };
 }
 
 const _mind = buildBoardMind();
 export const boardMindPlan = (B, cfg, S, K) => _mind.plan(K, B, cfg, S);
 export const boardMindScore = _mind.score;
+export const boardMindForecast = (B, cfg, S, action, K) => _mind.forecast(K, B, cfg, S, action);

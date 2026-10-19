@@ -54,7 +54,8 @@
  *   items(cfg, S, id) → [item ids]   what its side's bag still holds
  *   legal(B, cfg, S) → [action]    action: { kind: 'move', to } | { kind: 'act', skill | item, at } | { kind: 'end', face }
  *   apply(B, cfg, S, action) → { S, beats }   throws on an action `legal` does not list
- *   facing(B, S, attacker, target) → 'front' | 'side' | 'back'
+ *   facing(B, S, attacker, target) → 'front' | 'side' | 'back'   (a blow from the side or behind hits harder; a spell
+ *                                  lands the same from anywhere)
  *   preview(B, S, n) → [{ who, side }]   the next n turns (the turn-order bar)
  *   occupant(S, i) → id | null; living(S, side?) → [ids]
  *
@@ -386,8 +387,8 @@ export function buildBoard() {
     buffOn(T, sk, beats);
   }
   // the battle kernel's blow (playscape/rpg/kernel.js hurt: miss, spread, crit, element, in that order of dice; a
-  // sleeper is never missed and a blow wakes it), times where it lands from: the target's facing, and the height
-  // between them. No guard on a board: the facing is the defence
+  // sleeper is never missed and a blow wakes it), times where it lands from: the target's facing (a blow's only), and the
+  // height between them. No guard on a board: the facing is the defence
   function hurt(B, cfg, S, A, T, sk, beats) {
     if (T.hp <= 0) return;
     const R = rulesOf(cfg), phys = sk.stat === 'atk';
@@ -396,8 +397,9 @@ export function buildBoard() {
     raw *= 0.875 + 0.25 * rnd(S);
     let crit = false;
     if (phys && rnd(S) < CRIT) { crit = true; raw *= 1.5; }
+    // where it lands from counts for a blow (a spell finds its mark from any side)
     const rel = A === T ? 'front' : relOn(B, A, T);
-    raw *= R.facing[rel];
+    if (phys) raw *= R.facing[rel];
     raw *= 1 + clamp((B.spots[A.at].h - B.spots[T.at].h) * R.height, -R.heightCap, R.heightCap);
     const em = elementMul(T, sk.element);
     const n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
