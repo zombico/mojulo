@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { CAPTURE_GLOBAL, CAPTURE_FRAME } from '../capture-contract.js';
 
 // In-page script: the SCIENCE channel (opt-in via emitThreeWorld({ science }) — a science world's page: the
 // classical kind today). Bespoke, not a registry row, so a page without it is byte-identical. Three parts:
@@ -18,9 +19,12 @@ import { safeJson } from '../emit-util.js';
 //     says which shot, `__sciShot`); and the END CARD, the honesty panel as the film's last shot, with the film's
 //     own liberties added. On a capture run the panel itself is not drawn: the card says it instead.
 //
-// The numbers are the solver's, recorded per sample; the page computes nothing physical.
-export function scienceChannelScript(cfg) {
-  return `
+// The numbers are the solver's, recorded per sample; the page computes nothing physical, except a shader-drawn page's
+// picture (science-worlds/shader.js), which the conformance gate holds to the solver: on a capture run with a `probe`,
+// THE PROBE BRIDGE evaluates the page's own model function at given inputs into a float target (`__sciProbe`) and
+// reads a rendered frame back (`__sciPixels`). An ordinary page carries none of it.
+export function scienceChannelScript(cfg, probe = null) {
+  return `${probe ? probeBridge(probe) : ''}
 // ---- science channel: the system readout, the honesty panel, body labels ----
 const SCI = ${safeJson(cfg)};
 function _sciFmt(v, unit) {
@@ -139,5 +143,36 @@ function stepScience(t) {
   flush();
   _sciRo.innerHTML = h;
 }
+`;
+}
+
+function probeBridge(probe) {
+  return `
+// ---- science probe bridge (capture runs only): the shader's model function, read back for the conformance gate ----
+const SCI_PROBE = ${safeJson(probe)};
+window.__sciProbe = (pairs) => {
+  const N = pairs.length, data = new Float32Array(N * 8);
+  pairs.forEach((p, i) => { data.set(p[0], i * 8); data.set(p[1] || [0, 0, 0, 0], i * 8 + 4); });
+  const tex = new THREE.DataTexture(data, 2 * N, 1, THREE.RGBAFormat, THREE.FloatType);
+  tex.minFilter = THREE.NearestFilter; tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true;
+  const uniforms = { uTime: { value: 0 }, uPts: { value: tex }, uN: { value: N } };
+  for (const [k, v] of Object.entries(SCI_PROBE.uniforms)) uniforms[k] = { value: Array.isArray(v) ? new THREE.Vector3(v[0], v[1], v[2]) : v };
+  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: SCI_PROBE.frag });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false;
+  const sc = new THREE.Scene(); sc.add(quad);
+  const rt = new THREE.WebGLRenderTarget(N, 1, { type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+  const prev = renderer.getRenderTarget();
+  renderer.setRenderTarget(rt); renderer.render(sc, new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1));
+  const out = new Float32Array(N * 4); renderer.readRenderTargetPixels(rt, 0, 0, N, 1, out);
+  renderer.setRenderTarget(prev); rt.dispose(); mat.dispose(); tex.dispose();
+  return Array.from(out);
+};
+window.__sciPixels = (spec) => {
+  window.${CAPTURE_GLOBAL}.${CAPTURE_FRAME}(spec);   // renders; the drawing buffer is read before it is presented
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, buf = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return { width: w, height: h, rgba: btoa(s) };
+};
 `;
 }

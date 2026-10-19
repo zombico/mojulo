@@ -106,6 +106,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   never changes the physics silently. In order: a fourth scale, `relativistic` (Schwarzschild spacetime: light
   bent round one mass, orbits on geodesics, clocks), a `science` world channel that stands a science world in any
   world, quantum orbitals as volumes and the two-slit plane, and classical field lines and field volumes.
+- **The shader conformance gate** (`science-worlds/shader.js`, `conformance.js`). A shader-drawn science page is
+  written once as GLSL that defines the picture (`sciImage`, the colour along a ray) and the model quantity it
+  computes (`sciValue`); one source makes both the page's full-frame `effects[]` layer and a probe shader, with the
+  model's numbers declared once as uniforms. On a capture run the science channel adds a probe bridge that evaluates
+  `sciValue` at given inputs into a float target and reads a rendered frame back; an ordinary page carries none of
+  it, byte for byte. The gate (`shader-conformance`) compares both with JS: values at probe points, and features
+  measured on frames (a dark disk's radius) against their projection. It advises; without a browser it is "not
+  run", never a pass. The mint never launches a browser: the e2e tier and `node scripts/science-conformance.mjs
+  --selftest` run it, and the self-test holds that a faithful shader agrees and a shader with a hand-typed factor
+  in its GLSL disagrees. Shader pages ride the normal World page, so the readout, the honesty panel and film
+  capture come with them.
 
 ### Epidermis cube: skin and hair as a recipe
 

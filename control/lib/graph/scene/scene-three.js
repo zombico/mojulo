@@ -638,7 +638,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   })() : null;
   const streamBlock = streamCfg ? streamChannelScript(streamCfg) : '';
   // a science world's readout, honesty panel and body labels (channels/science.js). Absent ⇒ '' ⇒ byte-identical.
-  const scienceBlock = science && Array.isArray(science.t) && science.t.length ? scienceChannelScript({ ...science, hud: hud !== false, capture: !!capture }) : '';
+  // A shader-drawn page's `probe` (science-worlds/shader.js) rides only a capture run, for the conformance gate.
+  const { probe: sciProbe = null, ...sciCfg } = science || {};
+  const scienceBlock = science && Array.isArray(science.t) && science.t.length ? scienceChannelScript({ ...sciCfg, hud: hud !== false, capture: !!capture }, capture ? sciProbe : null) : '';
   // Terrain world (opt-in): the recipe's ground meshed in the page around the camera.
   // Absent `terrain` ⇒ '' ⇒ every World byte-identical.
   const terrainBlock = terrain && typeof terrain.kernel === 'string' && terrain.K ? terrainChannelScript(terrain) : '';
