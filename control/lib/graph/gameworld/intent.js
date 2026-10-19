@@ -52,6 +52,8 @@ const WORDS = Object.freeze({
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
   'tower-defense': ['tower defence', 'tower defense', 'towers', 'waves', 'defend', 'base'],
   'block-puzzle': ['boulder', 'boulders', 'push', 'sokoban', 'block puzzle', 'plates'],
+  tactics: ['tactics', 'tactical', 'final fantasy tactics', 'fire emblem', 'srpg', 'strategy rpg', 'grid', 'squares', 'high ground', 'positioning'],
+  rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));

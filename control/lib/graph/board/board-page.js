@@ -127,8 +127,13 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     const e = CTRL.world.entities.find((x) => x.id === eid);
     return e ? { e, eid } : null;
   }
-  if (S) for (const id of S.order) {
-    const U = S.u[id], g = new THREE.Group(), colour = new THREE.Color(D.colours[U.side] || '#cccccc');
+  // a drawn battle (board-battle.js draw): a token for every pack's foes, only the drawn pack's standing
+  const own = battle && battle.draw ? battle.units.filter((u) => !battle.draw.some((p) => p.some((f) => f.id === u.id))) : null;
+  const packUnits = (t) => own.concat(battle.draw[t]);
+  const startU = {};
+  if (S) for (const s of [S].concat(own ? battle.draw.map((_, t) => K.start(B, cfg, packUnits(t))) : [])) for (const id of s.order) if (!startU[id]) startU[id] = s.u[id];
+  if (S) for (const id in startU) {
+    const U = startU[id], g = new THREE.Group(), colour = new THREE.Color(D.colours[U.side] || '#cccccc');
     const body = new THREE.Mesh(new THREE.CylinderGeometry(cell * 0.24, cell * 0.28, 1.3, 14), new THREE.MeshBasicMaterial({ color: colour }));
     body.rotation.x = Math.PI / 2;
     body.position.z = 0.65;
@@ -152,10 +157,12 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   function settleTokens() {
     for (const id in tokens) {
       const T = tokens[id], U = S.u[id];
+      if (!U) { T.g.visible = false; continue; }   // a pack not drawn
       if (!T.hops.length) { T.from = centre(U.at); T.g.position.set(...T.from); T.g.rotation.z = FACE[U.face]; }
       T.g.visible = U.hp > 0;
     }
   }
+  if (own && S) settleTokens();
 
   // ── the panels: the readout, the turn order, the unit's card, the menu, the banner, the numbers ────────────────
   const CSS = 'position:absolute;z-index:7;font:12px/1.45 ui-monospace,Menlo,monospace;color:#e8ecf2;background:rgba(10,12,16,0.72);padding:8px 10px;border-radius:6px;white-space:pre';
@@ -632,11 +639,15 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   const G = typeof window !== 'undefined' ? window.__mojGame : null;
   const carry = battle && RK && CARRY && G && G.contract && G.contract.party && typeof G.contract.party.slice === 'string'
     ? { slice: G.contract.party.slice, saved: null, bag0: null } : null;
+  let drawn = 0;
   if (carry) {
     mode = 'wait';
     G.onStart(function (params) {
       const sl = params && params[carry.slice], roster = sl && sl.roster;
-      if (roster) { S = K.start(B, cfg, CARRY.units(RK, battle.rpg, battle.units, roster, battle.legs)); settleTokens(); }
+      // a drawn battle meets the pack the party's numbers draw
+      if (own) drawn = CARRY.draw(battle.rpg, roster, battle.draw.length, cfg.seed);
+      const list = own ? packUnits(drawn) : battle.units;
+      if (roster || own) { S = K.start(B, cfg, roster ? CARRY.units(RK, battle.rpg, list, roster, battle.legs) : list); settleTokens(); }
       carry.saved = roster ? Object.fromEntries(Object.keys(roster).map((k) => [k, Object.assign({}, roster[k].stats)])) : RK.save(battle.rpg, RK.init(battle.rpg));
       const bagSlice = G.contract.bag && params[G.contract.bag.slice];
       if (bagSlice && bagSlice.items && S.bag) S.bag.party = Object.assign({}, bagSlice.items);
@@ -663,7 +674,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   }
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
-    state: () => S, highlight, moveCursor, stepCursor, select,
+    state: () => S, highlight, moveCursor, stepCursor, select, get drawn() { return own ? drawn : null; },
     // the battle stepped by hand, `dt` seconds a call, apart from the frame (probes and tests: no waiting on the clock)
     run,
     get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
@@ -708,6 +719,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     cursorMesh.children[1].position.z = 2.2 + Math.sin(t / 260) * 0.12;
     if (S) for (const id in tokens) {
       const T = tokens[id], U = S.u[id];
+      if (!U) { T.g.visible = false; const F = figureOf(id); if (F) F.e.gone = true; continue; }   // a pack not drawn
       if (T.hops.length) {
         T.t += dt / HOP;
         const to = centre(T.hops[0]), f = Math.min(1, T.t), lift = Math.max(0, to[2] - T.from[2]) + 0.35;

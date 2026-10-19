@@ -87,8 +87,8 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('level-')) {
-    // a stage as a level: create_sketch at mint, its manifest whole in place
+  if (key.startsWith('level-') || key === 'map') {
+    // a stage as a level (or an epoch's map, a level of its own): create_sketch at mint, its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};

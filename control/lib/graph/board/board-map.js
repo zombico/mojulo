@@ -7,7 +7,8 @@
  *
  *   map: {
  *     dots: [{ id, name?, kind?: 'battle' | 'skirmish' | 'town' | 'story', ref?, gate?: <dot id>, at? }]   in story order
- *     roads?: [[dot id, dot id]]   (default: each dot to the next; a skirmish beside the story dot it follows)
+ *     roads?: [[dot id, dot id]]   (default: each dot to the one before it, skirmishes passed over: a skirmish a spur
+ *                                  off the dot it follows)
  *     start?: <dot id>             where the party stands the first time (the first dot)
  *   }
  *   gate: the dot whose level must be won before this one opens (a road opening as the story moves); none, open at once
@@ -75,7 +76,9 @@ export function layMap(B, spec) {
     taken.add(at);
     dots.push({ id: d.id, name: d.name ?? words(d.id), kind: d.kind ?? 'battle', ...(d.ref ? { ref: d.ref } : {}), ...(d.gate ? { gate: d.gate } : {}), at });
   });
-  const pairs = spec.roads ?? dots.slice(1).map((d, k) => [dots[k].id, d.id]);
+  // each dot joined to the last story dot before it (a skirmish a spur off the dot it follows, the story going on past it)
+  const before = (k) => { for (let j = k - 1; j >= 0; j--) if (dots[j].kind !== 'skirmish') return dots[j]; return dots[k - 1]; };
+  const pairs = spec.roads ?? dots.slice(1).map((d, k) => [before(k + 1).id, d.id]);
   const byId = Object.fromEntries(dots.map((d) => [d.id, d]));
   const roads = pairs.map(([a, b]) => {
     // a walker that climbs any height, the other dots no obstacle: the road's spots

@@ -54,7 +54,10 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
   if (b !== undefined) {
     const { players = ['party'], figures: _figures, ...spec } = b ?? {};   // figures: stood by board-figures.js
     if (!Array.isArray(players) || !players.every((x) => typeof x === 'string')) no('battle.players are the sides the player moves: [\'party\'] (or [] to watch)');
-    const { cfg, units: read, deploy: names, rpg, legs } = readBoardBattle(spec);
+    const { cfg, units: read, deploy: names, rpg, legs, draw } = readBoardBattle(spec);
+    // a drawn battle's packs: each stands in the far rows on its own (only the one drawn is fought)
+    const packOf = {};
+    (draw ?? []).forEach((ids, t) => { for (const id of ids) packOf[id] = t; });
     // the deploy spots, and each member without a spot put on the next free one (the player may place them again)
     let deploy, fielded = read, placed = [];
     if (names) {
@@ -66,20 +69,25 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
       // a foe with no spot stands in the far rows, from the middle out, on what nobody else stands on
       const mid = (B.cols - 1) / 2, far = B.spots.map((sp, i) => i).filter((i) => B.spots[i] && B.spots[i].walk && !taken.has(i) && deploy.indexOf(i) < 0)
         .sort((a, b) => Math.floor(b / B.cols) - Math.floor(a / B.cols) || Math.abs((a % B.cols) - mid) - Math.abs((b % B.cols) - mid) || a - b);
+      const next = {};
       fielded = read.map((u) => {
         if (u.at !== undefined) return u;
         if (u.side === 'foe') {
-          if (!far.length) no('battle: no spot left for the foes to stand on');
-          return { ...u, at: boardSpotName(B, far.shift()) };
+          const t = packOf[u.id] ?? 0, k = next[t] = (next[t] ?? -1) + 1;
+          if (k >= far.length) no('battle: no spot left for the foes to stand on');
+          return { ...u, at: boardSpotName(B, far[k]) };
         }
         if (!free.length) no(`battle.deploy: ${deploy.length} spots to stand on for more of the party than fit (a cap, or more spots)`);
         placed.push(u.id);
         return { ...u, at: boardSpotName(B, free.shift()) };
       });
     }
-    boardStart(L.board, cfg, fielded);
+    // a drawn battle: its units the first pack's until the battle starts, each pack able to stand
+    const packs = draw ? draw.map((ids) => fielded.filter((u) => ids.includes(u.id))) : null;
+    const standing = draw ? fielded.filter((u) => packOf[u.id] === undefined).concat(packs[0]) : fielded;
+    for (const list of packs ? packs.map((p) => fielded.filter((u) => packOf[u.id] === undefined).concat(p)) : [fielded]) boardStart(L.board, cfg, list);
     // the party battles' book and each class's legs ride along, so a game's party can be stood as the store has it
-    battle = { cfg, units: fielded, players, rpg: { party: rpg.party, classes: rpg.classes, skills: rpg.skills, gear: rpg.gear, rules: rpg.rules }, legs, ...(deploy ? { deploy, placed } : {}) };
+    battle = { cfg, units: standing, ...(packs ? { draw: packs } : {}), players, rpg: { party: rpg.party, classes: rpg.classes, skills: rpg.skills, gear: rpg.gear, rules: rpg.rules }, legs, ...(deploy ? { deploy, placed } : {}) };
   }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;

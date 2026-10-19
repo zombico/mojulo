@@ -9,6 +9,7 @@ import { emitThreeWorld } from '../scene/scene-three.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { rpgInit, rpgSave, rpgLoad, rpgStatsOf } from '../playscape/rpg/kernel.js';
+import { boardCarryDraw } from './board-carry.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
 const K = buildBoard();
@@ -101,6 +102,24 @@ describe('the board on the World page', () => {
     expect(end.envelope && end.envelope.result).toBe('success');
     await page.close();
   }, 180000);
+
+  it('meets the pack a drawn battle draws for the party as the store has it, the others never standing', async () => {
+    if (!browser) return;
+    const rcfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }] } }), saved = rpgSave(rcfg, rpgInit(rcfg));
+    saved.ayla.lv = 3; saved.ayla.xp = 40;
+    const roster = { ayla: { name: 'Ayla', level: 3, stats: saved.ayla } };
+    const draw = [['slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf']];
+    const { payload } = await resolveWorldScene({ ref: 'wilds', title: null, manifest: { kind: 'board', board: { seed: 'wilds', cols: 8, rows: 8, relief: 0.3 },
+      battle: { figures: false, seed: 'wilds', deploy: 'near', party: [{ id: 'ayla', class: 'fighter' }], draw },
+      game: { levelRef: 'wilds', mechanics: [{ kind: 'board' }, { kind: 'party', slice: 'party' }], presets: { default: { party: { roster } } } } } });
+    const t = boardCarryDraw(payload.board.battle.rpg, { ayla: { stats: saved.ayla } }, draw.length, 'wilds');
+    const page = await browser.newPage();
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.mode !== 'wait', { timeout: 20000 });
+    const got = await page.evaluate(() => { const b = window.__mojBoard, S = b.state(); return { drawn: b.drawn, foes: S.order.filter((id) => S.u[id].side === 'foe').filter((id) => S.u[id].hp > 0) }; });
+    expect(got).toEqual({ drawn: t, foes: draw[t].map((_, k) => `foe-${t + 1}-${k + 1}`) });
+    await page.close();
+  }, 120000);
 
   it('travels an epoch\'s map: the roads the cleared dots open, the party walked there, the map left by the dot\'s exit', async () => {
     if (!browser) return;

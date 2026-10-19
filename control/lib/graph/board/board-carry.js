@@ -15,6 +15,9 @@
  *                                                    { <class>: { move, jump } }, for a member that changed class)
  *   gain(RK, rcfg, saved, ids, xp, cp) → saved      the saved numbers after a win's spoils (saved: RK.save's shape)
  *   changes(before, after) → [{ id, stat, value }]  the numbers that moved, for the store
+ *   draw(rcfg, roster, n, seed) → pack index       a drawn battle's pack (board-battle.js draw: n packs, weakest first),
+ *     scaled to the party: the fielded members' mean level, less one, give or take one by the dice; the dice seeded by the
+ *     battle and the party's xp, so a battle fought again after a win meets another pack, and after a loss the same one
  */
 
 export function buildBoardCarry() {
@@ -63,10 +66,28 @@ export function buildBoardCarry() {
     }
     return out;
   }
-  return { units, gain, changes };
+  function draw(rcfg, roster, n, seed) {
+    let lv = 0, xp = 0, k = 0;
+    for (const p of rcfg.party) {
+      const s = roster && roster[p.id] && roster[p.id].stats;
+      lv += (s && s.lv) || p.level || 1; xp += (s && s.xp) || 0; k++;
+    }
+    const mean = k ? lv / k : 1;
+    // the battle's seed and the party's xp, hashed (FNV-1a), then one mulberry32 roll
+    let h = 2166136261;
+    const key = String(seed) + ':' + xp;
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    let t = (h + 0x6d2b79f5) >>> 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    const r = ((t ^ (t >>> 14)) >>> 0) / 4294967296, bump = r < 0.25 ? -1 : r < 0.75 ? 0 : 1;
+    return Math.max(0, Math.min(n - 1, Math.round(mean) - 1 + bump));
+  }
+  return { units, gain, changes, draw };
 }
 
 const _carry = buildBoardCarry();
 export const boardCarryUnits = _carry.units;
 export const boardCarryGain = _carry.gain;
 export const boardCarryChanges = _carry.changes;
+export const boardCarryDraw = _carry.draw;

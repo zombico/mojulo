@@ -12,6 +12,7 @@ import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/gr
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
+import { buildGameStoreKernel } from '@/lib/graph/game/store-kernel.js';
 import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } from '@/lib/graph/playscape/rpg/kernel.js';
 
 // The rail's door: write the gameworld, take the verdicts, run what is ready through the real handlers, and say what
@@ -274,8 +275,49 @@ describe('design_game: tactics battles on boards (battles.on: board)', () => {
     expect(payload.board.battle.placed).toEqual(['hero']);
     expect(payload.board.figures.hero).toBe('board-hero');
     expect(payload.figures['hero-gt-hero-equipped']).toBeTruthy();
-    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    expect(payload.game.on['board-won']).toEqual({ end: 'success', exit: 'map' });
     expect(payload.game.party).toEqual({ slice: 'party' });
     expect(payload.walk).toBe(false);
+
+    // the epoch's map: the game's first level, a dot each stage in story order, a dot's road opening when the one
+    // before it is won; every dot's level goes back to the map
+    const mapRef = out.ran.find((r) => r.key === 'map').ref;
+    const M = stored(mapRef);
+    expect(M.kind).toBe('board');
+    expect(M.map.dots.map((d) => d.ref)).toEqual(levels);
+    expect(M.map.dots.find((d) => d.ref === levels[0]).kind).toBe('battle');
+    expect(M.game.mechanics).toEqual([{ kind: 'map', slice: 'campaign', dots: M.map.dots.map((d) => d.id) }]);
+    expect(game.levels[0].ref).toBe(mapRef);
+    expect(game.levels.slice(1).every((l) => l.exits.length === 1 && l.exits[0].to === mapRef)).toBe(true);
+    expect(game.links).toBeUndefined();
+    // each area's skirmish: after its first battle, open once that is won, a pack drawn from the book's as the party stands
+    const wilds = M.map.dots.filter((d) => d.kind === 'skirmish');
+    expect(wilds.length).toBeGreaterThan(0);
+    for (const w of wilds) {
+      const at = M.map.dots.findIndex((d) => d.id === w.id), before = M.map.dots[at - 1];
+      expect(w.gate).toBe(before.id);
+      expect(before.kind).toBe('battle');
+      const W = stored(w.ref);
+      expect(W.board.battle.foes).toBeUndefined();
+      expect(W.board.battle.draw.length).toBeGreaterThan(1);
+      expect(W.game.mechanics[0]).toEqual({ kind: 'board', exit: 'map' });
+    }
+    // the story goes on past a skirmish: the dot after it waits on the battle, not the skirmish
+    const after = M.map.dots[M.map.dots.findIndex((d) => d.id === wilds[0].id) + 1];
+    if (after) expect(after.gate).toBe(wilds[0].gate);
+    for (const d of M.map.dots.filter((x) => x.kind === 'story')) expect(stored(d.ref).game.mechanics.filter((m) => m.kind === 'reach-exit').every((m) => m.exit === 'map')).toBe(true);
+    const map = await resolveWorldScene(SketchRepository.getByRef(mapRef));
+    expect(map.payload.board.map.dots.map((d) => d.id)).toEqual(M.map.dots.map((d) => d.id));
+    expect(map.payload.game.on[`map-go:${M.map.dots[0].id}`]).toEqual({ end: 'success', exit: M.map.dots[0].id });
+    // travel: from the map to the first dot at once, the second only once the first is won
+    const K = buildGameStoreKernel(), state = K.createStore(game.store);
+    const [d1, d2] = M.map.dots;
+    expect(K.travel(game.store, state, game.levels, mapRef, d1.id)).toBe(d1.ref);
+    if (d2) {
+      expect(K.travel(game.store, state, game.levels, mapRef, d2.id)).toBeNull();
+      state.campaign.completed[d1.ref] = 'success';
+      expect(K.travel(game.store, state, game.levels, mapRef, d2.id)).toBe(d2.ref);
+    }
+    expect(K.travel(game.store, state, game.levels, d1.ref, 'map')).toBe(mapRef);
   }, 600_000);
 });

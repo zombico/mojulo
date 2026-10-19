@@ -32,7 +32,7 @@ import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
-import { boardLevelOrder } from './board-levels.js';
+import { boardLevelOrder, mapLevelOrder, epochDots, skirmishStages, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
@@ -156,7 +156,10 @@ export function runSteps(world, { ref, lookup } = {}) {
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
-  const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  // a book fighting on boards is travelled from its epoch's map (board-levels.js): its stages the map's dots, in place of
+  // an interconnected world's ways
+  const onBoard = G.battles?.on === 'board' && stages.length > 0 && stages.length <= MAP_DOTS;
+  const map = !onBoard && G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // the story bound to the stages as laid: each stage its moments and people (none: nothing passed, nothing changes)
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
   const told = G.story ? bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane } }) : null;
@@ -170,27 +173,52 @@ export function runSteps(world, { ref, lookup } = {}) {
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
   stages.reduce((n, _, i) => { packFrom[i] = n; return n + (plan?.[i]?.length ?? 0); }, 0);
+  // each area's skirmish (a battle on its first battle's ground, fought again as often as the party likes), unless the
+  // book's board says none
+  const skirmish = onBoard && G.battles.board?.skirmish !== false ? Object.fromEntries(skirmishStages(stages, plan ?? []).slice(0, MAP_DOTS - stages.length).map((i) => [i, childRef(ref, `level-${stages[i].level}-skirmish`)])) : {};
+  const mapRef = onBoard ? childRef(ref, 'map') : null, dots = onBoard ? epochDots(stages, levelRefs, plan ?? [], skirmish) : null;
+  if (onBoard) {
+    const M = mapLevelOrder(G, { ref: mapRef, dots, geocube: stages[0].manifest?.geocube });
+    steps.push({ key: 'map', ref: mapRef, ready: ready.systems.ready, ...waits(ready.systems), order: M.args, print: fingerprint(M.args) });
+  }
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
     // a book fighting on boards: a stage that meets packs is a tactics battle on its own ground, the whole level
     // (board-levels.js), its party standing as the hero and the cast themselves
     if (G.battles?.on === 'board' && plan?.[i]?.length) {
-      const L = boardLevelOrder(G, s, { ref: levelRefs[i], packs: plan[i], seed: i + 1, figures: { hero: pilot, ...Object.fromEntries(party.map((m) => [m.id, m.ref])) } });
+      const L = boardLevelOrder(G, s, { ref: levelRefs[i], packs: plan[i], seed: i + 1, ...(onBoard ? { exit: 'map' } : {}), figures: { hero: pilot, ...Object.fromEntries(party.map((m) => [m.id, m.ref])) } });
       steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
+      if (skirmish[i]) {
+        const W = boardLevelOrder(G, s, { ref: skirmish[i], title: `${G.name ?? G.id} · ${s.level} · wilds`, draw: true, seed: `${s.level}-skirmish`, exit: 'map', figures: { hero: pilot, ...Object.fromEntries(party.map((m) => [m.id, m.ref])) } });
+        steps.push({ key: `level-${s.level}-skirmish`, ref: skirmish[i], ready: ready.systems.ready, ...waits(ready.systems), order: W.args, print: fingerprint(W.args) });
+      }
       return;
     }
     const fights = plan?.[i] ? { extra: (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }), legend: 'P  party' } : {};
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...goalArgs(G, s, lastOf, ref), ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
+    // on an epoch's map, a level won goes back to the map
+    if (onBoard) L.args = toMap(L.args);
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
-    const links = gameLinks(stages, levelRefs);
+    const links = onBoard ? [] : gameLinks(stages, levelRefs);
     const theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, dots, mapRef, G) : gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
+}
+
+// a level on an epoch's map is left, when its way out is reached, back to the map
+const toMap = (args) => ({ ...args, manifest: { ...args.manifest, game: { ...args.manifest.game, mechanics: args.manifest.game.mechanics.map((m) => (m.kind === 'reach-exit' && !m.exit ? { ...m, exit: 'map' } : m)) } } });
+// an epoch's levels: its map first (where the game starts), its ways out each dot, a dot's opening when the dot before it
+// is won; each dot's level its one way back to the map
+function epochLevels(stages, refs, dots, mapRef, G) {
+  const refOf = Object.fromEntries(dots.map((d) => [d.id, d.ref]));
+  const exits = dots.map((d) => ({ id: d.id, to: d.ref, ...(d.gate ? { gate: { completed: refOf[d.gate] } } : {}) }));
+  const titleOf = (d) => { const i = refs.indexOf(d.ref); return i >= 0 ? `${stages[i].level} · ${stages[i].node}` : d.name; };
+  return [{ ref: mapRef, title: `${G.name ?? G.id} · map`, exits }, ...dots.map((d) => ({ ref: d.ref, title: titleOf(d), exits: [{ id: 'map', to: mapRef }] }))];
 }
 
 // a city segment's neighbours' levels by segment id, so its portals lead to the levels made beside it

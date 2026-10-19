@@ -39,13 +39,15 @@ const askOf = (look) => (look.startsWith('hero-') ? { heroRef: look.slice(5) } :
 export async function boardFigures(payload, { heroFigure, figures = true } = {}) {
   const battle = payload?.board?.battle;
   if (!battle || figures === false) return payload;
-  const looks = [...new Set(battle.units.map(lookOf).filter(Boolean))];
+  // a drawn battle's every pack stands as figures too (the page hides the packs not drawn)
+  const all = [...battle.units, ...(battle.draw ?? []).flat().filter((u) => !battle.units.some((x) => x.id === u.id))];
+  const looks = [...new Set(all.map(lookOf).filter(Boolean))];
   if (!looks.length) return payload;
   const figs = {};
   for (const look of looks) figs[look] = await heroFigure(look, { ...askOf(look), clips: CLIPS });
   const B = payload.board.B, O = payload.board.origin, of = {};
   const entities = [];
-  for (const u of battle.units) {
+  for (const u of all) {
     const look = lookOf(u);
     if (!look) continue;
     const i = boardParse(B, u.at), s = i >= 0 ? B.spots[i] : null;

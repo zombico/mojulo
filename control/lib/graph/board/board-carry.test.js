@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardCarry, boardCarryUnits, boardCarryGain, boardCarryChanges } from './board-carry.js';
+import { buildBoardCarry, boardCarryUnits, boardCarryGain, boardCarryChanges, boardCarryDraw } from './board-carry.js';
 import { BOARD_CLASSES } from './board-battle.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { buildRpg, rpgInit, rpgSave, rpgStart, rpgRound, rpgTargets, rpgStatsOf, rpgLoad } from '../playscape/rpg/kernel.js';
@@ -50,5 +50,18 @@ describe('the party carried through a board battle', () => {
     const page = new Function(`return (${buildBoardCarry.toString()})();`)();
     const cfg = readRpg({ rpg: { party: [{ id: 'a', class: 'monk' }] } }), saved = rpgSave(cfg, rpgInit(cfg));
     expect(page.gain(RK, cfg, saved, ['a'], 40, 3)).toEqual(boardCarryGain(RK, cfg, saved, ['a'], 40, 3));
+  });
+
+  it('draws a pack scaled to the party: its mean level less one, give or take one; the same numbers the same pack', () => {
+    const cfg = readRpg({ rpg: { party: [{ id: 'a', class: 'fighter' }, { id: 'b', class: 'mage' }] } });
+    const at = (lv, xp) => roster({ a: { lv, xp }, b: { lv, xp } });
+    const picks = (lv) => new Set(Array.from({ length: 24 }, (_, xp) => boardCarryDraw(cfg, at(lv, xp * 7), 8, 'seed')));
+    for (const lv of [1, 4, 8]) for (const t of picks(lv)) expect(Math.abs(t - Math.min(7, lv - 1))).toBeLessThanOrEqual(1);
+    expect(picks(4).size).toBeGreaterThan(1);
+    expect([...picks(1)].every((t) => t <= 1)).toBe(true);
+    expect([...picks(20)].every((t) => t === 7)).toBe(true);
+    expect(boardCarryDraw(cfg, at(4, 30), 8, 's')).toBe(boardCarryDraw(cfg, at(4, 30), 8, 's'));
+    // no roster: the levels the book gives
+    expect(boardCarryDraw(cfg, null, 8, 's')).toBeLessThanOrEqual(1);
   });
 });

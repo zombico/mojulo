@@ -64,6 +64,18 @@ describe('the board world kind', () => {
     expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 5, rows: 5 }, battle: { ...battle, deploy: ['A1'] } })).toThrow(/for more of the party than fit/);
   });
 
+  it('stands a drawn battle\'s every pack in the far rows on its own, the first standing until the battle starts', () => {
+    const battle = { party: [{ id: 'a', class: 'fighter' }], deploy: 'near', draw: [['slime', 'slime'], ['wolf', 'bat', 'goblin']] };
+    const P = assembleBoardScene({ board: { seed: 'fft', cols: 6, rows: 6 }, battle }), b = P.board.battle;
+    expect(b.units.map((u) => u.id)).toEqual(['a', 'foe-1-1', 'foe-1-2']);
+    expect(b.draw.map((p) => p.map((u) => u.id))).toEqual([['foe-1-1', 'foe-1-2'], ['foe-2-1', 'foe-2-2', 'foe-2-3']]);
+    // each pack from the same far spots, the middle out
+    expect(b.draw[1][0].at).toBe(b.draw[0][0].at);
+    expect(b.draw[1].map((u) => u.foe)).toEqual(['wolf', 'bat', 'goblin']);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 6, rows: 6 }, battle: { ...battle, foes: [{ id: 'g', foe: 'goblin' }] } })).toThrow(/foes or draw/);
+    expect(() => assembleBoardScene({ board: { seed: 'fft', cols: 6, rows: 6 }, battle: { party: battle.party.map((p) => ({ ...p, at: 'A1' })), draw: battle.draw } })).toThrow(/draw needs deploy/);
+  });
+
   it('refuses what it cannot make, saying why', () => {
     expect(() => assembleBoardScene({ size: 3 })).toThrow(/'size' is not a setting of the board kind/);
     expect(() => assembleBoardScene({ camera: { spin: true } })).toThrow(/camera.spin is not a camera setting/);

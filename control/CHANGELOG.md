@@ -64,6 +64,16 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   and puts its spoils back (xp, class points and the skills they teach, gold, drops), counted exactly as party battles
   count them. FFT's permadeath countdown is a rule, off by default. A world whose intent fights tactics gets board
   battles without writing them.
+- **The epoch map**, built: a tactics book is travelled from a map, its first level: a diorama in the first stage's
+  geocube, each stage a dot on it in story order (a battle or a story stop), joined by roads laid spot by spot. A dot
+  opens when the one before it is won; the party's marker walks the open roads to the dot chosen, and the map is left
+  by that dot (the `map` mechanic). Every dot's level, when won, goes back to the map, where the party stands at the
+  dot it came from.
+- **Skirmishes to fight again**, built: each area of the map gets a skirmish dot after its first battle, open once
+  that battle is won and fought as often as the party likes. A skirmish draws its foes from the book's packs when it
+  starts, scaled to the party (its mean level, give or take one); win and the next visit meets another pack, lose and
+  the same one waits. Any board battle can draw (`draw`: packs, weakest first, in place of `foes`);
+  `battles.board.skirmish: false` leaves them off.
 - **Tower defence on a board** on the quick path (`defend` with `board`): towers fill spots, and foes path over the
   free ones.
 
