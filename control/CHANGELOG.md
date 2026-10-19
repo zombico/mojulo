@@ -31,6 +31,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the screen, clear of the thumbs, with the way ahead above; the top-down and side cameras pull back; the view across
   the width narrows so the screen's height does not stretch. A frame on its side plays every camera as authored.
   `screen: { pole: 'phone', fov }` names the view across the short side yourself.
+- **Touch controls.** A game made for a screen draws a touch pad on a touch device: a stick that rises where the left
+  thumb lands, a look zone the right thumb drags (a first-person camera, a craft), and the buttons the hero answers
+  to (jump; up and down in flight; fire when armed; use while standing where something is used). The layout follows
+  the hero's kind of movement and the camera, never the genre: a side-scroller's stick runs left and right only. The
+  pad is a gamepad drawn on the screen, so a remapped gamepad control moves with it, and a real gamepad, once
+  connected, takes over. `?touch=1` shows it on any device, `?touch=0` hides it.
 - **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
   (a tablet or a screen frames them better); it is never refused.
 

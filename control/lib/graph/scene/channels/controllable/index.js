@@ -9,6 +9,7 @@ import { suitShadowBlock } from './suit-shadows.js';
 import { buildControlsKernel } from '../../../controls/controls-kernel.js';
 import { SCHEMES } from '../../../controls/schemes.js';
 import { DEVICES } from '../../../controls/devices.js';
+import { touchLayout, touchScript } from './touch.js';
 import { followPullIn } from './follow-pull-in.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -49,11 +50,13 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
   // matching how specularChannelScript itself is gated in scene-three.js.
+  // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
+  const touchLayer = touch ? touchLayout(entities, camera) : null;
   const figHasSpec = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && (p.spec || p.spec8)));
   // first person (an `eye` camera with `hideTarget`): the body it rides is never drawn, or the view would sit inside
@@ -1531,22 +1534,34 @@ function __wcRender() {
 }
 function __wcHide() { __wcOpen = false; __wcCur = -1; if (__wcEl) __wcEl.style.display = 'none'; }
 window.__mojWcHide = __wcHide;   // the pause sidecar closes the selector when the shell freezes the sim
-function __pollPad() {
-  if (!__padOn || !navigator.getGamepads) return null;
+${touchLayer ? `${touchScript(touchLayer)}` : ''}function __pollPad() {
+${touchLayer ? `  // the screen's virtual pad (touch.js) when no real one is connected: read through the same bindings, never counted
+  // as a pad the player plugged in (the legend, the prompts and the printed layout stay the keyboard's)
+  const __tp = __touchPad();
+  if ((!__padOn || !navigator.getGamepads) && !__tp) return null;
+  const pads = __padOn && navigator.getGamepads ? navigator.getGamepads() : [];
+  let g = (__padIdx >= 0 && pads[__padIdx] && pads[__padIdx].connected) ? pads[__padIdx] : null;
+  if (!g) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { g = pads[i]; __padIdx = i; break; } }
+  if (!g && __tp) g = __tp;
+  if (!g) { __wcHide(); __wcPrevRB = false; return null; }
+  const __virt = g === __tp;
+  if (!__virt) __padSeen = true;
+  // the pad's printed layout (Xbox, PlayStation, Nintendo): the glyphs it shows, and where confirm / cancel sit
+  const __lay = __virt ? __padLayout : __CTL.padLayout(g.id);` : `  if (!__padOn || !navigator.getGamepads) return null;
   const pads = navigator.getGamepads();
   let g = (__padIdx >= 0 && pads[__padIdx] && pads[__padIdx].connected) ? pads[__padIdx] : null;
   if (!g) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { g = pads[i]; __padIdx = i; break; } }
   if (!g) { __wcHide(); __wcPrevRB = false; return null; }
   __padSeen = true;
   // the pad's printed layout (Xbox, PlayStation, Nintendo): the glyphs it shows, and where confirm / cancel sit
-  const __lay = __CTL.padLayout(g.id);
+  const __lay = __CTL.padLayout(g.id);`}
   if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, null, { layout: __lay }); }
   const b = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
   const __gr = __CTL.gamepadRead(g, __DEV), __ga = __CTL.gamepadRead(g, __DEV, true);
   const pb = (id, quiet) => __CTL.held(__BIND, id, 'gamepad', __gr, quiet ? __DEV.gamepad.faces : null);   // quiet: a held RB silences the face buttons (they chord)
   const [mx, my] = __padStick(g.axes[0] || 0, g.axes[1] || 0);
   const [lx, ly] = __padStick(g.axes[2] || 0, g.axes[3] || 0);
-  if (mx || my || lx || ly || g.buttons.some((x) => x && x.pressed)) __usePad = true;
+  if (${touchLayer ? '!__virt && (' : ''}mx || my || lx || ly || g.buttons.some((x) => x && x.pressed)${touchLayer ? ')' : ''}) __usePad = true;
   // RB state machine: press starts the tap/hold clock; the hold raises the selector; face-button
   // press EDGES while RB is down chord a slot (and mark the press so release doesn't also cycle);
   // a chordless release inside the tap window is the cycle.
