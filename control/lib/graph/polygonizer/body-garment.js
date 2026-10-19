@@ -53,6 +53,8 @@ import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
 
+/** a hull piece's part name (body-garment's own: `<id>_skirt`, `_panel`, `_cape`, `_hood`) */
+const HULL_FIT = /_(skirt|panel|cape|hood)$/;
 const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth', 'head', 'open'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
@@ -185,7 +187,11 @@ export function garmentParts(parts, garments, dials = {}) {
       const { part, src: denseSrc } = P.dense ? densePart(parts[src]) : { part: parts[src], src: null }, rings = windowRings(part, P);
       if (rings.length < 2) throw new Error(`garments[${i}] (${P.id}): its window covers none of '${src}'`);
       const overs = (P.over || []).flatMap((n) => partsNamed(parts, n)).filter((n) => n !== src);
-      const beneath = [...overs, ...(worn[src] || [])].flatMap((n) => parts[n].stations.flatMap((s) => Object.values(s.points)));
+      // (a piece on a shank, a foot, a forearm or a hand goes UNDER a hull hung round several parts, a skirt, a panel, a
+      // cape, a hood, never over it: a boot's shaft worn after a skirt was lifted round the skirt's whole hem, a ring
+      // round both legs; a piece on the trunk still clears it, a coat's hem over the skirt)
+      const underHulls = /^(shank|foot|toes|foreArm|hand)[RL]?$/.test(src);
+      const beneath = [...overs, ...(worn[src] || []).filter((n) => !(underHulls && HULL_FIT.test(n)))].flatMap((n) => parts[n].stations.flatMap((s) => Object.values(s.points)));
       const n = rings.length, ua = rings[0].u, span = rings[n - 1].u - ua || 1;
       const C = rings.map((r) => mean(part.slots.map((sl) => r.points[sl])));
       const N = rings.map((r, j) => part.slots.map((sl) => unit(sub(r.points[sl], C[j]))));

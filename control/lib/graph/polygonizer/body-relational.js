@@ -71,6 +71,8 @@ const NORRIN = {
   note: 'lean, sculpted, the anatomy legible under one smooth skin: the male slice (a Silver Surfer-like body)',
   // the hero's own tune under the build: the shoulders 10 % closer (every mass rides W, so the frame narrows with them)
   tune: { shoulders: 0.9 },
+  // the spine's S: the lumbar curve carrying the lower back in above the seat, the thoracic rounding it out behind
+  spine: [{ t: -0.05, depth: 0.16, w: 0.4 }, { t: 0.62, depth: -0.08, w: 0.38 }],
   // the pectoral's lower border is an overhang: the torso's rays there come down from above (as under the bust)
   lift: { t: 0.4, w: 0.18, h: 0.5 },
   kBase: 0.12, kMuscle: 0.03,
@@ -89,7 +91,7 @@ const NORRIN = {
     // the cleft). The lobes are centred a little behind the hip's joint as hero laws 3 sets it (LEG_SET), the groin in
     // front of it and the glute behind. Widest at the hip's joints, as the body is (a basin, a flank and separate glutes made a shelf at
     // the iliac crest, wider than the waist above and the thighs below)
-    { id: 'seatLobe', egg: [0.48, -0.09, -1.02], r: [0.27, 0.48, 0.44] },
+    { id: 'seatLobe', egg: [0.48, -0.07, -1.02], r: [0.27, 0.46, 0.44] },
     { id: 'seatTaper', cone: [[0, -0.08, -0.72], [0, -0.04, -0.3]], r: [0.66, 0.58], squash: 0.65 },
     { id: 'pubis', egg: [0, 0.22, -1.2], r: [0.3, 0.3, 0.28] },
   ],
@@ -159,8 +161,12 @@ const NORRIN = {
       { id: 'rectusFemoris', s: 0.42, az: 5, off: 0.2, r: [0.65, 0.22, 0.2] },
       { id: 'vastusLateralis', s: 0.48, az: 80, off: 0.2, r: [0.7, 0.27, 0.22] },
       { id: 'vastusMedialis', s: 0.8, az: -45, off: 0.17, r: [0.3, 0.22, 0.18] },
-      { id: 'adductors', s: 0.25, az: -100, off: 0.18, r: [0.5, 0.28, 0.24] },
-      { id: 'hamstrings', s: 0.5, az: 175, off: 0.2, r: [0.6, 0.27, 0.22] },
+      { id: 'adductors', s: 0.25, az: -100, off: 0.16, r: [0.45, 0.24, 0.2] },
+      { id: 'hamstrings', s: 0.5, az: 175, off: 0.16, r: [0.55, 0.22, 0.17] },
+      // THE SWEEP (the operator's): one mass spiralling round the femur from the hip's side under the glute, down behind
+      // the thigh (the hamstrings) and in to the knee's inside (the adductor magnus, the tendons' insertion), so the
+      // thigh's back and inside read as one form from the side and from the front, and its volume rises into the seat
+      { id: 'sweep', chain: [[-0.05, 120, 0.16, 0.22], [0.16, 178, 0.32, 0.3], [0.4, 196, 0.22, 0.25], [0.66, 235, 0.14, 0.18], [0.9, 268, 0.1, 0.11]] },
       { id: 'knee', s: 1, r: [0.22, 0.27, 0.25] },
       { id: 'patella', s: 0.96, az: 0, off: 0.17, r: [0.13, 0.13, 0.07] },
     ] },
@@ -177,13 +183,15 @@ const NORRIN = {
   },
 };
 /** a build's masses with their radii (and a belly's proud) scaled: one hand on a whole group's mass */
-const scaled = (masses, f, proud = f) => masses.map((m) => ({ ...m, r: m.r.map((x) => x * f), ...(m.proud !== undefined ? { proud: m.proud * proud } : {}) }));
+const scaled = (masses, f, proud = f) => masses.map((m) => (m.chain ? { ...m, chain: m.chain.map(([a, b, c, r]) => [a, b, c, r * f]) } : { ...m, r: m.r.map((x) => x * f), ...(m.proud !== undefined ? { proud: m.proud * proud } : {}) }));
 const byId = (masses, edits) => masses.map((m) => (edits[m.id] ? { ...m, ...edits[m.id] } : m));
 const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
   kBase: 0.12, kMuscle: 0.04,
   // (the half biacromial already carries her narrower shoulders: on it her waist and seat stand wider than his)
-  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.12, -1.05], r: [0.33, 0.52, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
+  // (her lumbar curve a little deeper, her thoracic a little softer)
+  spine: [{ t: -0.08, depth: 0.15, w: 0.42 }, { t: 0.6, depth: -0.07, w: 0.38 }],
+  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.1, -1.05], r: [0.33, 0.5, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
   muscles: [
     ...byId(scaled(NORRIN.muscles.filter((m) => !/^pectoral(Sternal|Clavicular)$/.test(m.id)), 1, 0.6), {
       rectus1: { proud: 0.025 }, rectus2: { proud: 0.028 }, rectus3: { proud: 0.028 }, rectus4: { proud: 0.03 },
@@ -279,7 +287,17 @@ export function bodyField(R, build, { extra = [] } = {}) {
       return fr * rb * smaxp(breastHeight((q[0] - cx) / rb, v, Fb), breastHeight((-q[0] - cx) / rb, v, Fb), 0.15);
     };
   })() : null;
-  const sd = (q) => {
+  // THE SPINE'S CURVE (`spine`): the back's surface carried forward at the lumbar curve and back at the thoracic, by a
+  // warp of the field over the back half only (the front, the belly and the chest, as built): each curve a bump at `t`
+  // up the torso bone, `depth` in W (+ forward), `w` its half reach in t. The trunk stood as a straight column in profile
+  const curve = (B.spine || []).map((c) => ({ z: F.z0 + c.t * F.T, h: c.w * F.T, d: c.depth * W }));
+  const warp = curve.length ? (q) => {
+    const back = Math.max(0, Math.min(1, -q[1] / (0.3 * W))); if (!back) return q;
+    let dy = 0; for (const c of curve) { const x = (q[2] - c.z) / c.h; if (Math.abs(x) < 1) dy += c.d * (1 - x * x) * (1 - x * x); }
+    return [q[0], q[1] - dy * back * back * (3 - 2 * back), q[2]];
+  } : (q) => q;
+  const sd = (q0) => {
+    const q = warp(q0);
     let d = lse([base(q), ...soft.map((p) => sdOf(p, q))], kM);
     for (const p of sharp) d = lse([d, sdOf(p, q)], p.k);
     if (bustH) d -= bustH(q);
@@ -425,7 +443,9 @@ export function limbField(R, build, limb, extra = []) {
   const fr = unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
   const dirAt = (az) => add(scl(fr, dmath.cos((az * Math.PI) / 180)), scl(out, dmath.sin((az * Math.PI) / 180)));
   const at = (s, az = 0, off = 0) => add(add(h, scl(ax, s * L)), scl(dirAt(az), off * W));
-  const prims = Lb.masses.map((m) => {
+  const prims = Lb.masses.flatMap((m) => {
+    // a CHAIN: round cones bead to bead, each bead [s, az, off, r] (a mass that spirals round the bone)
+    if (m.chain) return m.chain.slice(1).map((b, i) => { const a = m.chain[i]; return { id: `${m.id}${i}`, cone: [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])], r: [a[3] * W, b[3] * W] }; });
     if (m.cone) return { id: m.id, cone: [at(m.cone[0], m.az, m.off?.[0] ?? 0), at(m.cone[1], m.az, m.off?.[1] ?? 0)], r: m.r.map((x) => x * W) };
     const rad = dirAt(m.az ?? 0), tan = unit(cross(ax, rad));
     return { id: m.id, egg: true, c: at(m.s, m.az, m.off ?? 0), ax: [ax, tan, rad], r: m.r.map((x) => x * W) };

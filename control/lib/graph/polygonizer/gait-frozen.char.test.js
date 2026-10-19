@@ -46,11 +46,15 @@ describe('frozen gaits — a bare gait renders as it did before the mint tables'
     const plan = motionPlan({ walk: true, jog: true, sprint: true });
     expect(hash(Object.entries(plan).map(([g, P]) => [g, P.seconds, P.tilt, dofs(P.spec, 12)]))).toBe('612558927f6f982e');
   });
+  // (re-pinned for the hero laws 3, hero-form.js LEG_SET: the leg turned back about the ankle moves the rig the gaits
+  // ride; a hero at laws 2 gives the value pinned before it, still)
   it("a hero's studied walk and jog on its rig (heroLocomotion: travel and the grounded pose; hashes from 713ef32e)", () => {
-    const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime' }) }).recipe.rig);
     const r6 = (x) => (typeof x === 'number' ? Math.round(x * 1e6) / 1e6 : x);
     const deep = (v) => (Array.isArray(v) ? v.map(deep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : r6(v));
-    const out = Object.entries(motionPlan({ walk: true, jog: true })).map(([g, P]) => { const lo = heroLocomotion(P.spec, R, { tilt: P.tilt }); return [g, r6(lo.travel), Array.from({ length: 12 }, (_, i) => deep(lo.fn(i / 12)))]; });
-    expect(hash(out)).toBe('7833f58a379d4311');
+    for (const [laws, pin] of [[undefined, 'a5f8b543f83e3263'], [2, '7833f58a379d4311']]) {
+      const hr = heroRecord({ cast: 'female', head: 'anime' }), R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: laws ? { ...hr, laws } : hr }).recipe.rig);
+      const out = Object.entries(motionPlan({ walk: true, jog: true })).map(([g, P]) => { const lo = heroLocomotion(P.spec, R, { tilt: P.tilt }); return [g, r6(lo.travel), Array.from({ length: 12 }, (_, i) => deep(lo.fn(i / 12)))]; });
+      expect(hash(out), `laws ${laws ?? 'current'}`).toBe(pin);
+    }
   }, 120_000);
 });

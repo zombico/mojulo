@@ -70,6 +70,11 @@ Opt-in and versioned: a default hero keeps its bytes.
   planted feet slid in the jumps and rolls, a stop overran, a cloak met an arm. Every hero on the structured core is now
   stamped `laws: 3`; a row stamped 2 or 1 builds byte for byte, pinned (the gesture, the shading and the anime pins each
   keep their laws-2 values beside the new ones); the outfit laws' rings and the statues re-pinned as a body change.
+- **A boot under a skirt.** A garment piece is lifted over every garment already worn on its part, and a skirt (a hull
+  round the hips and both legs) counts as worn on the shank: a boot's shaft worn after it was lifted round the skirt's
+  whole hem, a ring 21 cm across round both legs (the operative's card read as a bell for it). A piece on a shank, a foot,
+  a forearm or a hand now goes under a hull hung round several parts (body-garment.js); a piece on the trunk still
+  clears it.
 - **The body lane** (the `body-study` skill). The hero's body as an engine gets it, the skinned cage shaded smooth,
   from the front, the front ¾, the lateral, the back and below; rows posed at the bind, a gait at a phase, a stand
   gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the
@@ -102,8 +107,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   wrapping the hip from the front round to the glutes, the cleft and the crotch the dip between them, and a taper up
   the middle to the heart's point under the navel and on the sacrum, squashed front to back to the belly's depth, so
   the trunk is widest at the hip's joints and narrows steadily to the waist (a basin, a flank and separate glutes had
-  made a shelf at the iliac crest); and the pubis; the thigh (rectus femoris, vastus lateralis and the medialis's teardrop, the adductors, the hamstrings, the
-  patella) and the shank (both heads of the gastrocnemius, the soleus, the tibialis anterior, the Achilles, the ankle).
+  made a shelf at the iliac crest); and the pubis. The SPINE'S CURVE (a build's `spine`): the back's surface carried
+  forward at the lumbar curve and back at the thoracic, a warp of the field over the back half only, so in profile the
+  lower back sinks in above the seat and the upper back rounds out (the trunk had stood as a straight column). The
+  thigh (rectus femoris, vastus lateralis and the medialis's teardrop, the adductors, the hamstrings, the
+  patella, and the SWEEP, the operator's: one mass spiralling round the femur from the hip's side under the glute, down
+  behind the thigh and in to the knee's inside, the hamstrings and the adductor magnus as one form, so the thigh's back
+  rises into the seat in profile and its inside reads full and tapering from the front; a limb's mass may be a `chain`
+  of round cones bead to bead) and the shank (both heads of the gastrocnemius, the soleus, the tibialis anterior, the Achilles, the ankle).
   A limb's two segments share one field and hand over by the plane through the joint (each segment's own knee had met
   the other's in a step); the torso and the pelvis hand over by height; the pelvis's field carries the thighs' masses,
   so its skin goes round the thigh's root, the thigh tucked under it above the hip. Only the feet are still the
