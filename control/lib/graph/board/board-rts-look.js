@@ -12,13 +12,19 @@
  *
  * Only what the civilization crafted has a look: a fallback (a plain worker, soldier, archer, base, barracks, works,
  * lab) has none and adds nothing; the page draws it as before. Pure: the same gameworld, the same looks.
+ *
+ *   rtsSides(sides) → { player?, enemy? }   a manifest's `rts.sides` resolved: each side { civ: { name?, builds?,
+ *     technology }, kit?, seed?, team? } (a civilization in its own words, as a world keeps it) read and tunnelled on
+ *     its own, met through the top-down camera, its roster and looks; `team` its colour ('#rrggbb'; else the
+ *     civilizations' first colour for the player, the second for the enemy)
  */
 import { buildBlock, blockPaint } from '../era/blocks.js';
 import { paintFill } from '../era/out-structures-draw.js';
 import { buildAdorned } from '../gameworld/tech-adornment.js';
 import { hasChassis } from '../gameworld/tech-chassis.js';
-import { resolveTechDirection } from '../gameworld/tech-direction.js';
-import { civLibrary, CRAFTED } from '../gameworld/world.js';
+import { resolveTechDirection, TEAM_COLOURS } from '../gameworld/tech-direction.js';
+import { civLibrary, CRAFTED, readCivilizations } from '../gameworld/world.js';
+import { rtsRoster } from './board-rts-tech.js';
 
 // how many triangles each reads in from above, and how wide it stands (metres; a spot is the board's cell, 2 m)
 export const RTS_LOOK_CEILING = Object.freeze({ unit: 120, building: 200, hand: 40 });
@@ -71,11 +77,16 @@ export function lookOf(faces, paint, { ceiling, foot, hand = false }) {
   return { pal, team, t, p, h: Math.round(height * s * 100) / 100, ...(hand ? { hand: true } : {}) };
 }
 
+// a kit the outdoor structures are not painted for (a trail's, a jungle's) paints its technology as the meadow does
+function paintOf(kit, finish) {
+  try { return blockPaint(kit, finish); } catch { return blockPaint('isekai-meadow', finish); }
+}
+
 /** The looks of what a civilization fields, by roster id. */
 export function rtsLooks(G, cid, roster, { kit, seed = 1 } = {}) {
   const C = G.civilizations[cid];
   if (!C) throw new Error(`board rts: '${cid}' is not one of the world's civilizations`);
-  const paint = blockPaint(kit, C.technology?.finish ?? 'alloy'), looks = {};
+  const paint = paintOf(kit, C.technology?.finish ?? 'alloy'), looks = {};
   for (const l of roster.ledger) {
     if (!l.of || !l.as) continue;
     const [list, id] = l.of.split('/'), U = roster.units[l.as], hand = !!U && ['melee', 'ranged', 'guard'].includes(U.role);
@@ -84,4 +95,32 @@ export function rtsLooks(G, cid, roster, { kit, seed = 1 } = {}) {
     if (look) looks[l.as] = look;
   }
   return looks;
+}
+
+const SIDE_KEYS = ['civ', 'kit', 'seed', 'team'];
+const MEMO = new Map();
+const no = (m) => { throw new Error(`board rts: ${m}`); };
+/** A manifest's sides, each a civilization's own words, resolved to the rosters (and looks) the skirmish plays. */
+export function rtsSides(sides) {
+  if (!sides || typeof sides !== 'object' || Array.isArray(sides)) no('sides is { player?, enemy? }: each { civ, kit?, seed?, team? }');
+  const out = {};
+  for (const side of Object.keys(sides)) {
+    if (side !== 'player' && side !== 'enemy') no(`sides.${side}: the sides are player and enemy`);
+    const S = sides[side], at = `sides.${side}`;
+    if (!S || typeof S !== 'object' || Array.isArray(S)) no(`${at} is { civ, kit?, seed?, team? }`);
+    for (const k of Object.keys(S)) if (!SIDE_KEYS.includes(k)) no(`${at}.${k} is not part of a side (${SIDE_KEYS.join(', ')})`);
+    if (S.team !== undefined && !/^#[0-9a-f]{6}$/i.test(String(S.team))) no(`${at}.team is a colour, '#rrggbb'`);
+    if (S.seed !== undefined && !Number.isFinite(S.seed)) no(`${at}.seed is a number`);
+    const key = JSON.stringify([side, S]);
+    if (!MEMO.has(key)) {
+      if (MEMO.size > 16) MEMO.clear();
+      const kit = S.kit ?? 'isekai-meadow', read = readCivilizations({ [side]: S.civ }, { kit, seed: S.seed ?? 1 });
+      // met through the RTS camera: technology's LOD
+      const G = { ...read, camera: 'top-down' }, roster = rtsRoster(G, side);
+      // its colour: said, else the first or the second of the civilizations' colours, by side
+      MEMO.set(key, { ...roster, team: S.team ?? TEAM_COLOURS[side === 'player' ? 0 : 1], looks: rtsLooks(G, side, roster, { kit, seed: S.seed ?? 1 }) });
+    }
+    out[side] = MEMO.get(key);
+  }
+  return out;
 }

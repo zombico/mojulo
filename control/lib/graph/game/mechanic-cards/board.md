@@ -15,7 +15,8 @@
 - `exit`: the way the level is left when won (a map game's: back to its epoch's map). The battle is the level's own `board` (its spots, its `battle`: party, foes, deploy, rules), laid over the level's
 stage by the world (board/board-scene.js boardOverWorld). A defence is the board's `td` instead (spawns, base, waves, gold,
 lives, towers: board/board-td.js), won when every wave is turned back. A skirmish is its `rts` (bases, nodes, gold,
-workers, army, the enemy's start, the mind: board/board-rts.js), won when the enemy's base falls.
+workers, army, the enemy's start, the mind: board/board-rts.js), won when the enemy's base falls; its `sides` are
+civilizations in their own words (board/board-rts-look.js), each fielding and drawn as what its technology crafts.
 
 ## Lowers to
 

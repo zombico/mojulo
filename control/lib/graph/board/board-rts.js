@@ -460,6 +460,7 @@ const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
  * readBoardRts(B, spec) → cfg   a manifest's `rts`, read against its board:
  *   rts: { bases?: { player?: 'C2' | 'near', enemy?: 'C9' | 'far' }, nodes?: ['A3', …] | n (beside each base, 2),
+ *          (a manifest's `sides` are read beside it: board-scene.js, board-rts-look.js rtsSides)
  *          gold?, workers?, army?, enemy?: { gold?, workers?, army? } (the other side's start, else the same), ai?:
  *          { workers?, wave?, grow? }, jump? }
  *   near / far: the near (far) row's walkable spot nearest its middle, a row in from the edge; nodes 1500 each

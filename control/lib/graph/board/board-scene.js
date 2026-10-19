@@ -22,6 +22,7 @@ import { boardCameraInit, boardCameraPose } from './board-camera.js';
 import { boardChannelData } from './board-page.js';
 import { readBoardTd } from './board-td.js';
 import { readBoardRts } from './board-rts.js';
+import { rtsSides } from './board-rts-look.js';
 import { readBoardBattle } from './board-battle.js';
 import { layMap } from './board-map.js';
 
@@ -63,12 +64,18 @@ function readTalk(t) {
   return Object.keys(t).length ? { ...t } : null;
 }
 
+// a skirmish: the board's, and its sides (each a civilization's own words: board-rts-look.js) when it names them
+function readRts(B, x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x) || x.sides === undefined) return readBoardRts(B, x);
+  const { sides, ...rest } = x;
+  return { ...readBoardRts(B, rest), sides: rtsSides(sides) };
+}
 function boardParts(L, { units = [], battle: b, td: d, rts: x, camera: c, cursor, play, talk: t } = {}) {
   if ([d !== undefined, x !== undefined, b !== undefined, Array.isArray(units) && units.length > 0].filter(Boolean).length > 1) no('td, rts, battle or units: a defence, a skirmish, a battle, or tokens to look at; one of them');
   // a defence or a skirmish is watched from above as a commander would: the RTS form (panning, the edge scrolling; a
   // skirmish's keys are its orders, so it does not turn), unless it says
   const camera = readCamera(c ?? (x !== undefined ? { edge: true, rotate: false } : d !== undefined ? { edge: true } : undefined)), talk = readTalk(t);
-  const td = d !== undefined ? readBoardTd(L.board, d) : null, rts = x !== undefined ? readBoardRts(L.board, x) : null;
+  const td = d !== undefined ? readBoardTd(L.board, d) : null, rts = x !== undefined ? readRts(L.board, x) : null;
   if (!Array.isArray(units)) no('units are [{ id, side, at: \'C4\', move?, jump?, spd?, hp?, … }]');
   if (units.length && b !== undefined) no('units or battle: tokens to look at, or a battle to play; not both');
   if (units.length) boardStart(L.board, {}, units);   // the kernel says what cannot stand, before a page is made

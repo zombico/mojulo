@@ -376,6 +376,21 @@ function differences(base, top, scope, at) {
 
 /** Read a gameworld and say what is wrong. → { id, name, seed, style, civilizations, civIds, levels, ids, links, start }. */
 const READ = Symbol('read gameworld');
+/**
+ * Civilizations read and tunnelled on their own, outside a world (a skirmish's sides, board/board-rts-tech.js): each as
+ * readGameworld reads it, on the kit and seed given. → { civilizations, civIds }, the shape tech-direction.js reads.
+ */
+export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}) {
+  if (!isObj(civs) || !Object.keys(civs).length) throw new Error('gameworld: civilizations is { <id>: { name?, builds?, technology? } }, at least one');
+  const civilizations = {}, civIds = Object.keys(civs);
+  for (const id of civIds) {
+    if (!ID.test(id)) throw new Error(`gameworld: civilization '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
+    civilizations[id] = { name: id, ...readCivilization(civs[id], `civilizations.${id}`) };
+    if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, kit, seed);
+  }
+  return { civilizations, civIds };
+}
+
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');

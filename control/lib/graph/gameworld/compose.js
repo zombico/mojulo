@@ -110,6 +110,43 @@ export function readPrompt(prompt) {
 }
 
 /** A whole gameworld from a few prompts, decided by the agent, checked by its machine gate. */
+/**
+ * A civilization's technology in words: each clause that names a machine's function is a thing ("tracked haulers",
+ * "solar arrays"), one that names a vehicle, a tech-structure or a weapon the crafter's ("war galleys", "a stargate"),
+ * and what the crafted things share (a motif, the elements named) its direction. → { technology?, tunnels }, technology
+ * absent when the words name nothing it makes.
+ */
+export function technologyOfWords(prompt) {
+  const things = {}, crafted = {}, tunnels = {};
+  for (const clause of String(prompt).split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
+    // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
+    if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
+    const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    if (fn.length) {
+      const id = slug(fn.at(-1).word.replace(/s$/, ''));
+      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+      continue;
+    }
+    // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
+    const kind = craftKindOf(clause);
+    if (!kind) continue;
+    const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
+    const id = slug(form.at(-1).word.replace(/s$/, ''));
+    crafted[list] ??= {};
+    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
+  }
+  let technology = null;
+  if (Object.keys(things).length) { technology = { things }; tunnels.things = Object.keys(things); }
+  for (const [list, made] of Object.entries(crafted)) { technology = { ...(technology ?? {}), [list]: made }; tunnels[list] = Object.keys(made); }
+  // what the crafted things share: a motif and the elements the prompt names, when it crafts anything
+  if (Object.keys(crafted).length) {
+    const motif = motifOf(prompt), els = String(prompt).toLowerCase().split(/[^a-z0-9-]+/).filter((w) => ELEMENT_WORDS[w]).filter((w, i, a) => a.indexOf(w) === i);
+    const direction = { ...(motif ? { motif } : {}), ...(els.length ? { elements: { primary: els[0], ...(els[1] ? { secondary: els[1] } : {}) } } : {}) };
+    if (Object.keys(direction).length) { technology.direction = direction; tunnels.direction = Object.keys(direction); }
+  }
+  return { ...(technology ? { technology } : {}), tunnels };
+}
+
 export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('gameworld: compose needs a prompt: a few words about the world');
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
@@ -152,32 +189,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const tunnels = { look: readIntent(landDomain(), prompt).traits.map((t) => t.id), builds: readIntent(buildingDomain(), prompt).traits.map((t) => t.id), things: [] };
   if (tunnels.look.length) style.look = prompt;
   if (tunnels.builds.length) civilizations[civIds[0]].builds = prompt;
-  // a machine is a clause of its own ("tracked haulers", "solar arrays") that names a function and no building
-  const techRead = readIntent(techDomain(), prompt).traits, things = {}, crafted = {};
-  for (const clause of prompt.split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
-    // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
-    if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
-    const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
-    if (fn.length) {
-      const id = slug(fn.at(-1).word.replace(/s$/, ''));
-      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
-      continue;
-    }
-    // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
-    const kind = craftKindOf(clause);
-    if (!kind) continue;
-    const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
-    const id = slug(form.at(-1).word.replace(/s$/, ''));
-    crafted[list] ??= {};
-    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
-  }
-  if (Object.keys(things).length) { civilizations[civIds[0]].technology = { things }; tunnels.things = Object.keys(things); }
-  for (const [list, made] of Object.entries(crafted)) { civilizations[civIds[0]].technology = { ...(civilizations[civIds[0]].technology ?? {}), [list]: made }; tunnels[list] = Object.keys(made); }
-  // what the crafted things share: a motif and the elements the prompt names, when it crafts anything
-  if (Object.keys(crafted).length) {
-    const motif = motifOf(prompt), els = prompt.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => ELEMENT_WORDS[w]).filter((w, i, a) => a.indexOf(w) === i);
-    const direction = { ...(motif ? { motif } : {}), ...(els.length ? { elements: { primary: els[0], ...(els[1] ? { secondary: els[1] } : {}) } } : {}) };
-    if (Object.keys(direction).length) { civilizations[civIds[0]].technology.direction = direction; tunnels.direction = Object.keys(direction); }
+  const T = technologyOfWords(prompt);
+  if (T.technology) {
+    civilizations[civIds[0]].technology = T.technology;
+    Object.assign(tunnels, T.tunnels);
   }
   // a civilization whose buildings are tunnelled from the prompt is named for what it builds
   if (tunnels.builds.length && !P.read.some((r) => r.decides.includes('anchor'))) {

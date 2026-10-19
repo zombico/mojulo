@@ -13,6 +13,7 @@ import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
+import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
@@ -382,6 +383,22 @@ describe('design_game quick', () => {
     expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
     expect(payload.game.on['board-won']).toEqual({ end: 'success' });
     await expect(designGameHandler({ quick: { goal: 'conquer', hero: false, world: { id: 'field2' } }, ref: 'rtx' })).rejects.toThrow(/conquer is a skirmish/);
+  }, 240_000);
+
+  it('conquer between two civilizations: the world\'s own by its id, another in words, each fielding what its technology crafts', async () => {
+    const corps = HALDEN_REACH.civilizations['survey-corps'];
+    await designGameHandler({ quick: { goal: 'conquer', sides: ['survey-corps', 'armed attack helicopters, a bronze cannon, swords and crossbows, tracked ore haulers'], world: { id: 'reach', style: { kit: 'isekai-meadow' }, civilizations: { 'survey-corps': corps } } }, ref: 'civq' });
+    // the level keeps each side in its own words, not its roster
+    const sides = stored('civq-level-run-0').board.rts.sides;
+    expect(sides.player).toMatchObject({ civ: corps, kit: 'isekai-meadow', team: expect.stringMatching(/^#/) });
+    expect(sides.enemy.civ.technology.vehicles).toEqual({ helicopter: 'armed attack helicopters' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('civq-level-run-0'));
+    const R = payload.board.rts.sides;
+    expect([R.player.worker, R.player.research.tier2.at, R.enemy.units.helicopter.fly, R.enemy.units.cannon.siege]).toEqual(['hauler', 'mast', true, 3]);
+    expect(Object.keys(R.player.looks)).toContain('walker');
+    // what it cannot field, said
+    await expect(designGameHandler({ quick: { goal: 'conquer', sides: ['grumpy neighbours'], world: { id: 'reach2' } }, ref: 'civx' })).rejects.toThrow(/neither a civilization of the world \(it keeps none\) nor words naming what one crafts/);
+    await expect(designGameHandler({ quick: { goal: 'reach', sides: ['survey-corps'], world: { id: 'reach3' } }, ref: 'civy' })).rejects.toThrow(/sides belongs to the conquer goal/);
   }, 240_000);
 
   it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {

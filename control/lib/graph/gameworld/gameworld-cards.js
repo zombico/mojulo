@@ -317,9 +317,13 @@ const QUICK_LEVERS = {
   ],
   conquer: () => [
     '  board: true | { cols?, rows?, gold? }   the skirmish\'s board (the stage\'s spots) and the purse each side starts with',
-    '  you: a base, three workers; them: the same and a plain mind that mines, builds and attacks in growing waves',
+    '  sides: [player, enemy?]   each a civilization of the world (its id) or one in words (\'armoured walkers, laser',
+    '    carbines, a sentry turret\'): it fields what its technology crafts (hand weapons arm infantry, what carries mines,',
+    '    armour is heavy, machine weapons are siege, a turret shoots), climbs a ladder (machines, then its showpieces)',
+    '    researched where it signals, and is drawn as crafted; a side not named plays a plain worker, soldier, archer',
+    '  you: a base, three workers; them: the same and a mind that mines, builds, climbs and attacks in growing waves',
     '  orders: click / drag to select, right-click to move, attack, gather or rally; A attack-move, S stop, H hold,',
-    '  B a barracks, Q / W train. No hero, climb, building, ride or run',
+    '  B build (again: the next), Q W E R train, T research. No hero, climb, building, ride or run',
   ],
   fly: () => [
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,

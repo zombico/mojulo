@@ -41,6 +41,10 @@
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
  *     board?: true | { cols?, rows?, gold? }   // conquer: the skirmish's board and its purse (board/board-rts.js)
+ *     sides?: [player, enemy?]              // conquer: each side a civilization of the world (its id) or one in
+ *                                           // words ('armoured walkers, laser carbines, a sentry turret'), fielding
+ *                                           // what its technology crafts (board/board-rts-tech.js); a side not
+ *                                           // named plays the plain worker, soldier and archer
  *     board?: true | { cols?, rows?, gold? }   // defend: a TOWER DEFENCE on the stage's spots (board/board-td.js):
  *                                           // towers on any free spot that keeps the road open, the waves the
  *                                           // ladder's (waves: 1 to 5), no hero; without it, the trail's defence
@@ -155,7 +159,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -283,6 +287,10 @@ export function readQuick(Q) {
   for (const k of ['foe', 'tower']) if (Q[k] !== undefined && !isObj(Q[k])) throw fail(`.${k} is a hero-door spec, as .hero is`);
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
   if (Q.goal === 'conquer' && (Q.building !== undefined || Q.climb || Q.ride || Q.hero !== undefined || Q.run !== undefined)) throw fail('.conquer is a skirmish on the stage\'s spots, commanded from above: no hero, climb, building, ride or run');
+  if (Q.sides !== undefined) {
+    if (Q.goal !== 'conquer') throw fail('.sides belongs to the conquer goal: the skirmish\'s two sides');
+    if (!Array.isArray(Q.sides) || !Q.sides.length || Q.sides.length > 2 || !Q.sides.every((v) => typeof v === 'string' && v.trim())) throw fail('.sides is [player, enemy?]: each a civilization of the world (its id) or one in words (\'armoured walkers, laser carbines\')');
+  }
   if (Q.board !== undefined) {
     if (Q.goal !== 'defend' && Q.goal !== 'conquer') throw fail('.board belongs to the defend goal (a tower defence on the stage\'s spots) and the conquer goal (the skirmish\'s board)');
     if (Q.board !== true && !isObj(Q.board)) throw fail('.board is true, or { cols?, rows?, gold? }');

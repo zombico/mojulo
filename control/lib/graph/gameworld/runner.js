@@ -431,7 +431,7 @@ function quickSteps(world, G, ref, lookup) {
     if (s.building?.ref) return;
     // a tower defence or a skirmish on the stage's spots (board-levels.js): no hero, the level the board's
     if ((Q.goal === 'defend' && Q.board !== undefined) || Q.goal === 'conquer') {
-      const L = Q.goal === 'conquer' ? rtsLevelOrder(G, s, { ref: levelRefs[i], quick: Q }) : tdLevelOrder(G, s, { ref: levelRefs[i], quick: Q });
+      const L = Q.goal === 'conquer' ? rtsLevelOrder(G, s, { ref: levelRefs[i], quick: Q, world }) : tdLevelOrder(G, s, { ref: levelRefs[i], quick: Q });
       steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
       return;
     }

@@ -37,6 +37,8 @@
  */
 import { battleParty, PARTY_SLICE, BAG_SLICE, PACKS } from './battles.js';
 import { storyCarried, STORY_SLICE } from './levels.js';
+import { resolveTechDirection } from './tech-direction.js';
+import { technologyOfWords } from './compose.js';
 
 export const BOARD_CAP = 4;
 export const MAP_DOTS = 24;
@@ -60,9 +62,24 @@ export function boardLevelOrder(G, stage, { ref, title, packs = [], figures = {}
 // a level's story slots, as its play: its scenes, and the story slice they ride
 const slotPlay = (G, scenes) => (scenes.length ? { play: { scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}) } } : {});
 
-export function rtsLevelOrder(G, stage, { ref, title, quick: Q } = {}) {
+// a skirmish's side, as its level keeps it: a civilization in its own words (the world's, by its id, or one composed from
+// words), the kit and seed it is tunnelled on, its colour (board/board-rts-look.js rtsSides)
+function rtsSide(G, W, v, at) {
+  const kit = W?.style?.kit ?? 'isekai-meadow', seed = W?.seed ?? 1, civ = W?.civilizations?.[v];
+  if (civ) {
+    const D = resolveTechDirection(G, v);
+    return { civ, kit, seed, ...(D ? { team: D.team } : {}) };
+  }
+  const T = technologyOfWords(v);
+  if (!T.technology) throw new Error(`gameworld: quick.sides[${at}] '${v}' is neither a civilization of the world (${Object.keys(W?.civilizations ?? {}).join(', ') || 'it keeps none'}) nor words naming what one crafts ('armoured walkers, laser carbines, a sentry turret')`);
+  const first = String(v).split(/[,;:]/)[0].trim();
+  return { civ: { name: first.charAt(0).toUpperCase() + first.slice(1), technology: T.technology }, kit, seed };
+}
+
+export function rtsLevelOrder(G, stage, { ref, title, quick: Q, world: W } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`, own = Q.board === undefined || Q.board === true ? {} : Q.board;
-  const rts = { ...(own.gold !== undefined ? { gold: own.gold } : {}) };
+  const sides = Q.sides ? Object.fromEntries(Q.sides.map((v, i) => [i ? 'enemy' : 'player', rtsSide(G, W, v, i)])) : null;
+  const rts = { ...(own.gold !== undefined ? { gold: own.gold } : {}), ...(sides ? { sides } : {}) };
   const board = { ...(own.cols !== undefined ? { cols: own.cols } : {}), ...(own.rows !== undefined ? { rows: own.rows } : {}), rts };
   return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, game: { levelRef: ref, mechanics: [{ kind: 'board' }] } } } };
 }

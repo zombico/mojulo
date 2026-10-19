@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { readGameworld } from '../gameworld/world.js';
 import { HALDEN_REACH } from '../gameworld/examples.js';
 import { rtsRoster } from './board-rts-tech.js';
-import { rtsLooks, lookOf, RTS_LOOK_CEILING } from './board-rts-look.js';
+import { rtsLooks, lookOf, rtsSides, RTS_LOOK_CEILING } from './board-rts-look.js';
+import { TEAM_COLOURS } from '../gameworld/tech-direction.js';
 import { blockPaint } from '../era/blocks.js';
 
 // one civilization (its machines have body plans: walkers, tracks, hover, a tower, a turret), its looks made once
@@ -43,5 +44,16 @@ describe('a civilization\'s skirmish drawn as its technology crafted it', () => 
     expect(L.t).toHaveLength(4);
     expect(lookOf(faces, paint, { ceiling: 4, foot: 1 })).toEqual(L);
     expect(rtsLooks(G, 'survey-corps', roster, { kit }).skimmer).toEqual(looks.skimmer);
+  }, 60000);
+});
+
+describe('a manifest\'s sides: civilizations in their own words', () => {
+  it('reads each side on its own, a roster and its looks, in its colour; refuses what is not a side', () => {
+    const S = rtsSides({ enemy: { civ: { name: 'Raiders', technology: { vehicles: { gunship: 'an armed attack helicopter' }, weapons: { sword: 'a sword' } } }, kit: 'trail-valley' } });
+    expect(Object.keys(S)).toEqual(['enemy']);
+    expect([S.enemy.units.gunship.fly, S.enemy.team, Object.keys(S.enemy.looks).sort()]).toEqual([true, TEAM_COLOURS[1], ['gunship', 'sword']]);
+    expect(() => rtsSides({ neutral: {} })).toThrow(/sides.neutral: the sides are player and enemy/);
+    expect(() => rtsSides({ player: { civ: {}, flag: 1 } })).toThrow(/sides.player.flag is not part of a side/);
+    expect(() => rtsSides({ player: { civ: {}, team: 'red' } })).toThrow(/sides.player.team is a colour/);
   }, 60000);
 });

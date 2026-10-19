@@ -58,6 +58,8 @@ export const POWER = Object.freeze({
         // priced 10-19: the real-time strategist's verbs
         // built 10-19 (the strategy board): the skirmish's orders
         orders: { status: 'built', requires: ['space.camera=tactical'], ...WEB, lowers: 'lib/graph/board/board-rts.js', note: 'select a unit or a box of them and order it: move, attack-move, attack, hold, stop, gather; buildings train for gold and send out to a rally point; an enemy mind plays the other side (board rts; quick conquer)' },
+        // built 10-19 (the strategy board): a side's ladder, its technology what it fields
+        research: { status: 'built', requires: ['power.systems=orders'], ...WEB, lowers: 'lib/graph/board/board-rts-tech.js', note: 'each side a civilization whose technology is its roster (hand weapons arm infantry, armour is heavy, machine weapons are siege, a turret shoots), climbing a ladder researched one step at a time: its machines, then its showpieces, and income steps; drawn as crafted (quick conquer sides)' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)

@@ -31,7 +31,7 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   stop, Q / W train, Ctrl+A the army. The board kind and a board over a stage take `rts` (one of `td`, `rts`, a
   battle or units), with `enemy` for a handicap. The quick goal `conquer` is a skirmish on the stage's spots
   (`board: { cols, rows, gold }`), the level the board's to end. Web only.
-- **Civilizations as skirmish sides** (in progress; `lib/graph/board/board-rts-tech.js`): a gameworld civilization's
+- **Civilizations as skirmish sides** (`lib/graph/board/board-rts-tech.js`), built: a gameworld civilization's
   technology read into the roster it fields, as StarCraft's sides are unalike. Its hand weapons arm its infantry
   (melee, ranged, a shield's guard); what moves and carries is its worker; armoured vehicles are heavy, small ones
   scout, armed ones fight, armed flyers cross any spot out of melee's reach; machine weapons are siege, three times
@@ -55,6 +55,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   a civilization did not craft (a plain base, barracks, lab) is drawn as before. The panel names the roster's
   units, marks what its tier still locks, and shows the next research; B builds (again for the next building),
   Q W E R train, T researches. Defences, siege and flyers shoot their own effects.
+  In the flow: quick `conquer` takes `sides: [player, enemy?]`, each a civilization of the world by its id or one in
+  words ("armed attack helicopters, a bronze cannon, swords and crossbows"). The level keeps each side as its
+  civilization's own words with the kit, seed and team colour it is tunnelled on (`rts.sides`), and the board reads
+  them into rosters and looks as it renders, met through the top-down camera (technology's LOD). A world's bible
+  shows, on each civilization's technology page, what it fields in a skirmish: its units, buildings, ladder and the
+  ledger of why. The registry holds `power.systems=research`, and the real-time strategy probe asks for it.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

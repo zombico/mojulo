@@ -314,11 +314,11 @@ export const FIXTURES = Object.freeze([
     id: 'rts',
     name: 'Real-time strategy',
     anchor: false,
-    why: 'armies ordered from above in real time: select, move, attack, gather and build',
+    why: 'armies ordered from above in real time: select, move, attack, gather and build; unalike sides, each climbing its own technology',
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'tactical', levelForm: 'arena' },
-      power: { combat: ['ranged', 'melee'], systems: ['orders', 'resource', 'place'], stats: ['buy'] },
+      power: { combat: ['ranged', 'melee'], systems: ['orders', 'research', 'resource', 'place'], stats: ['buy'] },
       mind: { pathing: 'navmesh', squad: 'team-aware' },
       time: { progression: 'linear' },
     },
