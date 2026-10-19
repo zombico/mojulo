@@ -146,6 +146,11 @@ in CSS 3D. In progress:
   best line. A seat's worth is its points, what its pieces earn a roll (a spread of resources over a pile), its hand,
   the builds it can pay for, the corners it can settle next, its cards, its army and its road, less most of the
   leader's. Four computers play a dealt island to a winner.
+- **Settlers to play** (`lib/graph/tabletop/tabletop-euro-page.js`), built: the same page for a euro game. The island
+  on the plan and the table, its numbers, the pieces in the players' colours; the corners, edges and hexes that can
+  be taken now marked and clicked; the person's hand and cards, the roll, the builds, buying and playing cards, and
+  the forced choices as prompts (what to give up, where the robber goes, whom to rob); every seat's open points,
+  cards and awards; a log. The computers play their turns a beat apart, so their moves can be followed.
 
 ## [3.1.1] - 2026-10-16
 

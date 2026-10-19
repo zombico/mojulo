@@ -61,6 +61,10 @@ export function settlersGame({ seed = 1, players = 4 } = {}) {
   return {
     title: 'Settlers',
     seed,
+    look: {
+      types: { forest: '#2f6b3a', pasture: '#8cc26b', fields: '#e2bf4f', hills: '#c0623b', mountains: '#8b919a', desert: '#d9c9a0' },
+      resources: { lumber: '#2f6b3a', brick: '#c0623b', wool: '#8cc26b', grain: '#e2bf4f', ore: '#8b919a' },
+    },
     board: { shape: 'hex', radius: 2, types: island.types },
     numbers: island.numbers,
     players: ids.map((id) => ({ id, facing: 'N', colour: COLOURS[id] })),

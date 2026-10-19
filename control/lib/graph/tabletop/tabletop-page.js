@@ -4,7 +4,7 @@
  * the same board: the plan (SVG, from above) and the table (CSS 3D, a seat at the board; every cell's top is a div, so
  * it is played by clicking there too, and a piece is a token that slides from cell to cell).
  *
- *   tabletopPageHtml(G, { human?, level?, view?, seed?, title? }) → html
+ *   tabletopPageHtml(G, { human?, level?, view?, seed?, title? }) → html   (a euro game: tabletop-euro-page.js)
  *     human the player id the person plays (the first player); level 'easy' | 'fair' | 'hard' ('fair'); view 'plan' |
  *     'table' (the first shown, 'plan'); seed the computer's dice (1)
  *     G as tabletop-kernel.js reads it, with `board` a lattice spec, and for the page: players[i].colour, and each
@@ -20,6 +20,7 @@ import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
 import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
+import { euroPageHtml } from './tabletop-euro-page.js';
 
 const VIEWPORT = { width: 760, height: 560 };
 const UNIT = 60;
@@ -40,6 +41,7 @@ export function tabletopPageHtml(G, opts = {}) {
   const level = opts.level ?? 'fair';
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
+  if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
   const facing = K.T.ways.get(K.players[K.sideOf[human]].facing);
   // the person sits at their own side of the board: the plan and the table both turn to face their forward
   const turnRad = ((facing.angle - 90) * Math.PI) / 180;
