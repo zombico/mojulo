@@ -98,6 +98,10 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   opens of what it crafts, what it follows: a step, by name or as machines / showpieces, or a building it raises; a
   buff across its side), every name it uses read against what it fields and refused with what it could name. The
   mind passes over a step that opens only what it never fields, and saves for one that opens what it does.
+  Doctrines, chosen before a skirmish (`rts.doctrine`, quick conquer's `doctrine`): economy (two more workers, a
+  tenth more a trip), aggression (fighters a tenth harder and faster), fortress (buildings a quarter sturdier,
+  defences a quarter cheaper), science (research a quarter quicker, 15% cheaper); a civilization may name the ones
+  it allows (`technology.doctrines`), refused otherwise.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

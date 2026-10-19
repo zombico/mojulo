@@ -395,6 +395,29 @@ describe('a side\'s own roster', () => {
     expect(jammed.y - 7.5).toBeLessThan((free.y - 7.5) * 0.7);
   });
 
+  it('plays as each side chose: economy, aggression, fortress, science, each said, refused when not a doctrine', () => {
+    const B = flat(7, 18), base = quiet(B, { workers: 2, nodes: ['B5'] });
+    const as = (d) => ({ ...base, doctrine: { player: d } });
+    // economy: two more workers, a trip pays a tenth more
+    let R = rtsStart(B, as('economy'));
+    expect(R.units.filter((u) => u.side === 'player')).toHaveLength(4);
+    const w = R.units.find((u) => u.side === 'player').id;
+    const trip = run(B, as('economy'), rtsOrder(B, as('economy'), R, [w], { kind: 'gather', node: at(B, 'B5') }), 20).ev.find((e) => e.kind === 'gathered');
+    expect(trip).toMatchObject({ amount: 5, paid: 5 + Math.floor(5 * 0.1 + 1e-9) });
+    // fortress: its buildings a quarter sturdier; science: research cheaper
+    const F = rtsBuild(B, as('fortress'), { ...rtsStart(B, as('fortress')), gold: { player: 999, enemy: 0 } }, 'player', 'barracks', at(B, 'E5'));
+    expect(F.buildings.find((b) => b.kind === 'barracks').hpMax).toBe(Math.round(RTS_BUILDINGS.barracks.hp * 1.25));
+    expect(rtsStart(B, as('fortress')).buildings.find((b) => b.side === 'player').hpMax).toBe(Math.round(RTS_BUILDINGS.base.hp * 1.25));
+    // aggression: its soldiers strike a tenth harder
+    const A = { ...rtsStart(B, as('aggression')), units: [] };
+    const put = (side, n) => { const i = at(B, n); A.units.push({ id: 'x' + n, side, kind: 'soldier', hp: 80, x: (i % 7) + 0.5, y: Math.floor(i / 7) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 }); };
+    put('player', 'C8'); put('enemy', 'C9');
+    const hit = run(B, as('aggression'), A, 0.1).R;
+    expect([hit.units.find((u) => u.id === 'xC9').hp, hit.units.find((u) => u.id === 'xC8').hp]).toEqual([80 - 8.8, 72]);
+    expect(() => readBoardRts(B, { doctrine: { player: 'chaos' } })).toThrow(/doctrine.player 'chaos' is not a doctrine \(economy: two more workers/);
+    expect(() => readBoardRts(B, { doctrine: { neutral: 'economy' } })).toThrow(/doctrine.neutral: the sides are player and enemy/);
+  });
+
   it('is a draw when the gold is gone and nobody stands on either side', () => {
     const B = flat(5, 10), cfg = readBoardRts(B, { nodes: 0, gold: 0, workers: 0, ai: { workers: 0, wave: 30 } });
     expect(rtsTick(B, cfg, rtsStart(B, cfg), 0.1).R.over).toEqual({ won: false, draw: true });

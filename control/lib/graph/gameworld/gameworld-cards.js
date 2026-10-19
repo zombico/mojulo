@@ -321,6 +321,8 @@ const QUICK_LEVERS = {
     '    carbines, a sentry turret\'): it fields what its technology crafts (hand weapons arm infantry, what carries mines,',
     '    armour is heavy, machine weapons are siege, a turret shoots), climbs a ladder (machines, then its showpieces)',
     '    researched where it signals, and is drawn as crafted; a side not named plays a plain worker, soldier, archer',
+    '  doctrine: economy | aggression | fortress | science   how you chose to play (more workers, harder fighters, sturdier',
+    '    buildings, quicker research); a civilization may name the ones it allows (technology.doctrines)',
     '  you: a base, three workers; them: the same and a mind that mines, builds, climbs and attacks in growing waves',
     '  orders: click / drag to select, right-click to move, attack, gather or rally; A attack-move, S stop, H hold,',
     '  B build (again: the next), Q W E R train, T research. No hero, climb, building, ride or run',

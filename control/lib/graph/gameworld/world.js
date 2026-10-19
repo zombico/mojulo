@@ -242,7 +242,8 @@ function readCivilization(c, at) {
   if (out.technology !== undefined) {
     const T = out.technology;
     if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, direction?, ${TECH_LISTS.join('?, ')}? }`);
-    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', 'research', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, research, ${TECH_LISTS.join(', ')})`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', 'research', 'doctrines', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, research, doctrines, ${TECH_LISTS.join(', ')})`);
+    if (T.doctrines !== undefined && !(Array.isArray(T.doctrines) && T.doctrines.length && T.doctrines.every((d) => typeof d === 'string' && ID.test(d)))) throw new Error(`gameworld: ${at}.technology.doctrines is a list of the doctrines it may choose before a skirmish (economy, aggression, fortress, science)`);
     if (T.research !== undefined) readResearch(T.research, `${at}.technology.research`);
     if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
     if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
@@ -264,7 +265,7 @@ function readCivilization(c, at) {
       return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
     }));
     for (const k of TECH_LISTS) if (T[k] !== undefined && !isObj(T[k])) throw new Error(`gameworld: ${at}.technology.${k} is { <id>: words | { intent, seed? } }`);
-    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}), ...(T.research !== undefined ? { research: T.research } : {}) };
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}), ...(T.research !== undefined ? { research: T.research } : {}), ...(T.doctrines !== undefined ? { doctrines: [...T.doctrines] } : {}) };
   }
   return out;
 }

@@ -24,7 +24,7 @@
  * ledger. Pure and deterministic: the same gameworld, the same roster.
  */
 import { resolveTechDirection } from '../gameworld/tech-direction.js';
-import { RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { RTS_UNITS, RTS_BUILDINGS, RTS_DOCTRINES } from './board-rts.js';
 
 const ROLE = {
   worker: { hp: 40, atk: 3, range: 1.1, rate: 1.0, speed: 2.2 },
@@ -315,5 +315,9 @@ export function rtsRoster(G, cid) {
   for (const e of weapons) if (!ledger.some((l) => l.of === `weapons/${e.id}`)) said(`weapons/${e.id}`, null, `${e.t.intent}: not fielded (a ${e.t.form})`);
 
   const army = [infantry.find((k) => units[k].role !== 'ranged'), infantry.find((k) => units[k].role === 'ranged')].filter(Boolean);
-  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ...(study.length ? { research, study } : {}), ledger };
+  // the doctrines it may choose before a skirmish: what its technology names, else every one
+  for (const d of T.doctrines ?? []) if (!RTS_DOCTRINES[d]) throw new Error(`board rts: ${cid}.technology.doctrines '${d}' is not a doctrine (${Object.keys(RTS_DOCTRINES).join(', ')})`);
+  const doctrines = T.doctrines ? [...T.doctrines] : Object.keys(RTS_DOCTRINES);
+  if (T.doctrines) said(null, null, `it chooses among ${doctrines.join(', ')} before a skirmish`);
+  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ...(study.length ? { research, study } : {}), doctrines, ledger };
 }

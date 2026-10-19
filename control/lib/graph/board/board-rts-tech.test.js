@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readGameworld } from '../gameworld/world.js';
 import { HALDEN_REACH } from '../gameworld/examples.js';
 import { rtsRoster, rtsWorth, RTS_ROLES } from './board-rts-tech.js';
-import { buildBoardRts, readBoardRts, rtsStart, rtsTick, rtsMind, rtsBuild, rtsTrain, rtsResearch, rtsTierOf, RTS_UNITS } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsTick, rtsMind, rtsBuild, rtsTrain, rtsResearch, rtsTierOf, RTS_UNITS, RTS_DOCTRINES } from './board-rts.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
 // the example's two civilizations, and two more: one crafting what they do not (a flyer, siege, a scout, a fighting
@@ -84,6 +84,18 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(() => rtsRoster(own({ wings: { opens: ['dragon'] } }), 'survey-corps')).toThrow(/research.wings.opens 'dragon' is not something it fields/);
     expect(() => rtsRoster(own({ wings: { after: ['nothing'] } }), 'survey-corps')).toThrow(/research.wings.after 'nothing' is neither a step/);
     expect(() => own({ wings: { power: 3 } })).toThrow(/research.wings.power is not part of a step/);
+  });
+
+  it('chooses among the doctrines its technology names, else every one; science makes its research quicker and cheaper', () => {
+    expect(rtsRoster(G, 'survey-corps').doctrines).toEqual(Object.keys(RTS_DOCTRINES));
+    const R = rtsRoster(readGameworld({ ...W, civilizations: { ...W.civilizations, 'survey-corps': { ...W.civilizations['survey-corps'], technology: { ...W.civilizations['survey-corps'].technology, doctrines: ['science', 'fortress'] } } } }), 'survey-corps');
+    expect(R.doctrines).toEqual(['science', 'fortress']);
+    expect(() => readGameworld({ ...W, civilizations: { ...W.civilizations, hermits: { name: 'H', technology: { doctrines: 'all' } } } })).toThrow(/technology.doctrines is a list/);
+    const B = boardOf(Array.from({ length: 18 }, () => Array(9).fill(0))), cfg = { ...readBoardRts(B, { workers: 0, doctrine: { player: 'science' } }), sides: { player: R } };
+    let S = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } };
+    S = { ...S, buildings: S.buildings.concat([{ id: 'bm', side: 'player', kind: 'mast', at: 40, hp: 300, hpMax: 300, raising: 0, queue: [], rally: null }]) };
+    S = rtsResearch(B, cfg, S, 'bm', 'tier2');
+    expect([S.gold.player, S.buildings.find((b) => b.id === 'bm').study.left]).toEqual([999 - Math.round(150 * 0.85), 30 * 0.75]);
   });
 
   it('prices every fight by one formula, so no side buys more of it for its gold', () => {

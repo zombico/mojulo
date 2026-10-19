@@ -79,7 +79,7 @@ function rtsSide(G, W, v, at) {
 export function rtsLevelOrder(G, stage, { ref, title, quick: Q, world: W } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`, own = Q.board === undefined || Q.board === true ? {} : Q.board;
   const sides = Q.sides ? Object.fromEntries(Q.sides.map((v, i) => [i ? 'enemy' : 'player', rtsSide(G, W, v, i)])) : null;
-  const rts = { ...(own.gold !== undefined ? { gold: own.gold } : {}), ...(sides ? { sides } : {}) };
+  const rts = { ...(own.gold !== undefined ? { gold: own.gold } : {}), ...(sides ? { sides } : {}), ...(Q.doctrine ? { doctrine: { player: Q.doctrine } } : {}) };
   const board = { ...(own.cols !== undefined ? { cols: own.cols } : {}), ...(own.rows !== undefined ? { rows: own.rows } : {}), rts };
   return { tool: 'create_sketch', args: { title: name, manifest: { ...stage.manifest, title: name, board, game: { levelRef: ref, mechanics: [{ kind: 'board' }] } } } };
 }

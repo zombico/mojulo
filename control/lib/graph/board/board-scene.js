@@ -67,8 +67,10 @@ function readTalk(t) {
 // a skirmish: the board's, and its sides (each a civilization's own words: board-rts-look.js) when it names them
 function readRts(B, x) {
   if (!x || typeof x !== 'object' || Array.isArray(x) || x.sides === undefined) return readBoardRts(B, x);
-  const { sides, ...rest } = x;
-  return { ...readBoardRts(B, rest), sides: rtsSides(sides) };
+  const { sides, ...rest } = x, cfg = readBoardRts(B, rest), S = rtsSides(sides);
+  // a side's doctrine is one its civilization may choose
+  for (const side of Object.keys(cfg.doctrine ?? {})) if (S[side] && S[side].doctrines && !S[side].doctrines.includes(cfg.doctrine[side])) throw new Error(`board rts: doctrine.${side} '${cfg.doctrine[side]}' is not one ${S[side].name} chooses (${S[side].doctrines.join(', ')})`);
+  return { ...cfg, sides: S };
 }
 function boardParts(L, { units = [], battle: b, td: d, rts: x, camera: c, cursor, play, talk: t } = {}) {
   if ([d !== undefined, x !== undefined, b !== undefined, Array.isArray(units) && units.length > 0].filter(Boolean).length > 1) no('td, rts, battle or units: a defence, a skirmish, a battle, or tokens to look at; one of them');

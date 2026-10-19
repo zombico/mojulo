@@ -387,7 +387,9 @@ describe('design_game quick', () => {
 
   it('conquer between two civilizations: the world\'s own by its id, another in words, each fielding what its technology crafts', async () => {
     const corps = HALDEN_REACH.civilizations['survey-corps'];
-    await designGameHandler({ quick: { goal: 'conquer', sides: ['survey-corps', 'armed attack helicopters, a bronze cannon, swords and crossbows, tracked ore haulers'], world: { id: 'reach', style: { kit: 'isekai-meadow' }, civilizations: { 'survey-corps': corps } } }, ref: 'civq' });
+    await designGameHandler({ quick: { goal: 'conquer', doctrine: 'science', sides: ['survey-corps', 'armed attack helicopters, a bronze cannon, swords and crossbows, tracked ore haulers'], world: { id: 'reach', style: { kit: 'isekai-meadow' }, civilizations: { 'survey-corps': corps } } }, ref: 'civq' });
+    expect(stored('civq-level-run-0').board.rts.doctrine).toEqual({ player: 'science' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', doctrine: 'chaos', world: { id: 'reach4' } }, ref: 'civz' })).rejects.toThrow(/doctrine 'chaos' is not a doctrine/);
     // the level keeps each side in its own words, not its roster
     const sides = stored('civq-level-run-0').board.rts.sides;
     expect(sides.player).toMatchObject({ civ: corps, kit: 'isekai-meadow', team: expect.stringMatching(/^#/) });
