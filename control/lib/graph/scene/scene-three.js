@@ -211,6 +211,28 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
+// THE SCREEN'S ZONES (game/screen.js): a game made for a screen lays its level UI out once, by the page's
+// data-screen / data-orientation, never per game: the HUD's corners clear of the notch and the home bar, its bottom
+// slots lifted over the touch pad (--thumb, --thumb-c: set by the touch layer while it shows, 0 otherwise), and on an
+// upright screen the banner sized to the width, the battle bar stacked, its line above it.
+const SCREEN_ZONES_CSS = [
+  '  #wrap{--thumb:0px;--thumb-c:0px}',
+  '  html[data-screen] .moj-hud-top-left{left:calc(12px + var(--safe-l));top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-top-right{right:calc(12px + var(--safe-r));top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-top{top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-bottom-left{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
+  '  html[data-screen] .moj-hud-bottom-right{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
+  '  html[data-screen] .moj-hud-bottom{bottom:calc(12px + var(--safe-b) + var(--thumb-c));max-width:calc(100% - 24px)}',
+  '  html[data-screen] .moj-quest-toast,html[data-screen] .moj-rpg-foes{top:calc(16px + var(--safe-t))}',
+  '  html[data-orientation=portrait] .moj-hud-top{max-width:calc(100% - 24px)}',
+  '  html[data-orientation=portrait] .moj-w-banner{font-size:clamp(18px,7vw,34px);letter-spacing:1px;padding:8px 16px;white-space:normal;text-align:center}',
+  '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
+  '  html[data-orientation=portrait] .moj-rpg-bottom{flex-direction:column;bottom:calc(12px + var(--safe-b));gap:8px}',
+  '  html[data-orientation=portrait] .moj-rpg-cmd{width:auto;min-height:0}',
+  '  html[data-orientation=portrait] .moj-rpg-msg{bottom:auto;top:calc(96px + var(--safe-t))}',
+  '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
+].join('\n');
+
 export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, screen = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -908,7 +930,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   };
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
+<html lang="en"${screen ? ` data-screen="${escapeHtml(String(screen.pole))}" data-orientation="${screen.portrait ? 'portrait' : 'landscape'}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
 <title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
@@ -926,6 +948,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
   html,body{height:100%;overflow:hidden}
   body{background:#000;justify-content:center;height:100dvh}
   #wrap{max-width:none;aspect-ratio:auto;flex:none}
+${SCREEN_ZONES_CSS}
 ` : ''}  canvas{display:block;width:100%;height:100%}
   .hud{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
   .hud button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:5px;padding:4px 10px;cursor:pointer;font:inherit}

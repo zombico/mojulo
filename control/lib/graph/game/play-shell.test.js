@@ -53,6 +53,9 @@ describe('emitPlayShell', () => {
     expect(html).toContain('viewport-fit=cover');
     expect(html).toContain('#pauseBtn{top:calc(12px + var(--safe-t))');
     expect(html).toContain('button{min-height:44px}');
+    // upright, the front's title and menu stand at the foot of the screen, the cover above them
+    expect(html).toContain('html[data-orientation=portrait] #front .fx-zone{position:fixed;');
+    expect(html).toContain('html[data-orientation=portrait] #front .fx-col:not(.fx-hide){left:50%;right:auto;top:auto;bottom:calc(8vh + var(--safe-b))');
     // absent: none of it
     const plain = emitPlayShell(GAME, LEVELS);
     expect(plain).not.toMatch(/data-screen|viewport-fit|--safe-t/);

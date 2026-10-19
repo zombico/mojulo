@@ -45,12 +45,17 @@ describe('the screen a game is made for, carried from the world to each level an
     expect(html).toContain('viewport-fit=cover');
     expect(html).toContain('function screenFit()');
     expect(html).toContain('safe-area-inset-bottom');
+    // the level's UI laid out once by the screen: its HUD clear of the notch and lifted over the touch pad
+    expect(html).toContain('<html lang="en" data-screen="phone" data-orientation="portrait">');
+    expect(html).toContain('html[data-screen] .moj-hud-bottom-left{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b) + var(--thumb))}');
+    expect(html).toContain('html[data-orientation=portrait] .moj-rpg-bottom{flex-direction:column');
     // absent: none of it
     const { payload: plain } = await resolveWorldScene({ ref: L.ref, manifest: { ...L.order.manifest, screen: undefined } });
     expect(plain.screen).toBeUndefined();
     const page = emitThreeWorld({ ...plain, inline: true });
     expect(page).not.toContain('screenFit');
     expect(page).not.toContain('viewport-fit');
+    expect(page).not.toMatch(/data-screen|--thumb/);
   }, 60000);
 });
 

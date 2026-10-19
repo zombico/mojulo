@@ -1605,7 +1605,8 @@ ${touchLayer ? `  // the screen's virtual pad (touch.js) when no real one is con
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
 // read off the live bindings and filtered by what this world has, so it teaches only the keys it answers to.
 function __ctlLegend(pil) {
-  const r = pil.rule || pil.pilotRule || {};
+${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (touch.js): its thumbs, not the keys
+` : ''}  const r = pil.rule || pil.pilotRule || {};
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',

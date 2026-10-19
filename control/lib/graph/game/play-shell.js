@@ -42,7 +42,8 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 // JSON inside <script>: a `</script>` in a title must not close the tag
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 // the shell made for a screen (screen.js): the safe area (the notch's, the home bar's) held clear by the menus and the
-// fixed chrome, buttons no smaller than a thumb, the level's frame standing on the black of its bars
+// fixed chrome, buttons no smaller than a thumb, the level's frame standing on the black of its bars; upright, the
+// front's title and menu stand in the thumbs' reach at the foot of the screen, its cover above them
 const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
   html,body{height:100dvh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
   body{touch-action:manipulation}
@@ -52,7 +53,12 @@ const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(saf
   #pauseBtn{top:calc(12px + var(--safe-t));right:calc(12px + var(--safe-r));min-width:44px}
   #playtag{top:calc(12px + var(--safe-t));left:calc(12px + var(--safe-l))}
   #toast{bottom:calc(22px + var(--safe-b))}
-  #debug{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}`;
+  #debug{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}
+  html[data-screen] #front .fx-skip{right:calc(16px + var(--safe-r));bottom:calc(14px + var(--safe-b))}
+  html[data-orientation=portrait] #front .fx-stage.cover{left:0;top:calc(6vh + var(--safe-t));transform:none;width:100vw}
+  html[data-orientation=portrait] #front .fx-zone{position:fixed;left:50%!important;top:auto!important;bottom:calc(8vh + var(--safe-b));width:min(320px,calc(100vw - 32px))!important;height:auto!important;transform:translateX(-50%)}
+  html[data-orientation=portrait] #front .fx-col:not(.fx-hide){left:50%;right:auto;top:auto;bottom:calc(8vh + var(--safe-b));transform:translateX(-50%);align-items:center;text-align:center;width:calc(100vw - 32px)}
+  html[data-orientation=portrait] #front .fx-menu{width:100%;min-width:0}`;
 
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 

@@ -26,7 +26,8 @@ export function touchLayout(entities, camera) {
 }
 
 /** The layer's script, for a layout (touchLayout's). Defines __touchPad() (the virtual pad, or null while the layer is
- * off) and __touchOn(). Reads the channel's __lookDX / __lookDY / __MOUSELOOK and the page's `wrap`. */
+ * off), __touchOn() and __touchRows() (the pause sheet's rows). Reads the channel's __lookDX / __lookDY / __MOUSELOOK and
+ * the page's `wrap`. */
 export function touchScript(L) {
   return `// ---- TOUCH (channels/controllable/touch.js): a virtual standard pad drawn on the screen ----
 const __TL = ${JSON.stringify(L)};
@@ -101,10 +102,36 @@ if (__TL.jump) __tButton('jump', 0, 76, 24, 28);
 if (__TL.lift) { __tButton('up', 0, 64, 24, 104); __tButton('down', 1, 64, 24, 28); }
 if (__TL.fire) __tButton('fire', 7, 68, __TL.jump || __TL.lift ? 112 : 24, __TL.jump || __TL.lift ? 52 : 28);
 const __tUse = __tButton('use', 2, 60, 24, __TL.jump || __TL.lift ? (__TL.lift ? 180 : 116) : 104);
+__tUse.style.display = 'none';
 (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
 const __touchOn = () => __tOn;
+// what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
+const __tRowsOf = () => [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
+  ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
+const __touchRows = () => __tRowsOf();
+const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
+let __tShown = null;
+// the layer's place on the screen: hidden while a menu, a battle or a journal holds the world (they take the taps),
+// the HUD's bottom slots lifted over it while it shows (--thumb: the corners; --thumb-c: the middle, upright only), and
+// the legend saying what the thumbs do; its keys come back when the layer goes
+function __tFrame() {
+  const show = __tOn && !window.__mojMenuOpen;
+  if (show !== __tShown) {
+    __tShown = show;
+    __tEl.style.display = show ? '' : 'none';
+    if (!show) { __tStick = null; __tLook = null; __tAxes[0] = 0; __tAxes[1] = 0; __tRest(); for (const b of __tBtn) { b.pressed = false; b.value = 0; } }
+    const host = typeof wrap !== 'undefined' ? wrap : document.documentElement;
+    host.style.setProperty('--thumb', __tOn ? '196px' : '0px');
+    host.style.setProperty('--thumb-c', __tOn && document.documentElement.dataset.orientation === 'portrait' ? '196px' : '0px');
+  }
+  for (const el of document.querySelectorAll('.moj-w-legend')) {
+    if (__tOn && el.dataset.keys === undefined) { el.dataset.keys = el.textContent; el.textContent = __tHint; }
+    else if (!__tOn && el.dataset.keys !== undefined) { el.textContent = el.dataset.keys; delete el.dataset.keys; }
+  }
+  requestAnimationFrame(__tFrame);
+}
+requestAnimationFrame(__tFrame);
 function __touchPad() {
-  __tEl.style.display = __tOn ? '' : 'none';
   if (!__tOn) return null;
   // use: shown while the figure stands where it is used (the events channel's reach), released when it leaves
   const reach = !!window.__mojReach;
@@ -112,6 +139,6 @@ function __touchPad() {
   if (!reach) { __tBtn[2].pressed = false; __tBtn[2].value = 0; }
   return __tPad;
 }
-window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL };
+window.__mojTouch = { on: () => __tOn, set: (v) => { __tOn = !!v; }, layout: __TL, hint: __tHint };
 `;
 }

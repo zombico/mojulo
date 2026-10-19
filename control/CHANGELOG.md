@@ -37,6 +37,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the hero's kind of movement and the camera, never the genre: a side-scroller's stick runs left and right only. The
   pad is a gamepad drawn on the screen, so a remapped gamepad control moves with it, and a real gamepad, once
   connected, takes over. `?touch=1` shows it on any device, `?touch=0` hides it.
+- **The screens laid out for it.** A game made for a screen lays out its UI once by that screen, never per game. The
+  HUD's corners stay clear of the notch and the home bar, and its bottom row rises over the touch pad while the pad
+  shows. Upright, a long banner wraps to the width, the battle menu stacks, and the title screen stands its title and
+  menu at the foot of the screen in reach of the thumbs, with the cover above. On touch, the level's control hint and
+  the pause sheet say what the thumbs do instead of naming keys, and the pad steps aside while a menu, a battle or the
+  journal is open.
 - **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
   (a tablet or a screen frames them better); it is never refused.
 

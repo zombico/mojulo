@@ -38,4 +38,15 @@ describe('touch: a virtual pad laid out for the pilot and its camera, never for 
     expect(touch).toContain('const __virt = g === __tp;');
     expect(controllableChannelScript(ents, cam, {}, { touch: false })).toBe(plain);
   });
+
+  it('says what the thumbs do: the legend\'s line while it shows, the pause sheet\'s rows; hidden while a menu holds the world', () => {
+    const s = touchScript({ look: true, lane: false, jump: true, fire: false, lift: false });
+    expect(s).toContain("const __tHint = __tRowsOf().filter((r) => r[0] !== 'use')");
+    expect(s).toContain("el.dataset.keys = el.textContent; el.textContent = __tHint;");
+    expect(s).toContain('const show = __tOn && !window.__mojMenuOpen;');
+    expect(s).toContain("host.style.setProperty('--thumb', __tOn ? '196px' : '0px');");
+    const ents = hero({ type: 'platform', jumpSpeed: 6 }), cam = { rule: 'follow', target: 'hero' };
+    expect(controllableChannelScript(ents, cam, {}, { touch: true })).toContain('if (__touchOn()) return __touchRows();');
+    expect(controllableChannelScript(ents, cam, {})).not.toContain('__touchRows');
+  });
 });
