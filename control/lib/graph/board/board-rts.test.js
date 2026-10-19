@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY, rtsView } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY, rtsView, rtsSetup, RTS_MATCH } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -620,6 +620,36 @@ describe('the match', () => {
       expect(S.army).toHaveLength(Math.floor(R.t / 10 + 1e-9) + 1);
     }
     expect(R.stats.enemy.built).toBeGreaterThan(0);
+  });
+
+  it('reads a match: the fog, the melee rule and a field a side unless said; none where the board has no room', () => {
+    const B = flat(11, 18), cfg = readBoardRts(B, { match: true });
+    expect([cfg.match, cfg.fog, cfg.victory, cfg.fields.length]).toEqual([{ expansions: 1 }, true, 'melee', 2]);
+    expect(readBoardRts(B, { match: true, fog: false, victory: 'base', expansions: 0 })).toMatchObject({ match: { expansions: 0 } });
+    expect(readBoardRts(B, { match: true, fog: false }).fog).toBeUndefined();
+    expect(readBoardRts(flat(6, 8), { match: true }).match).toEqual({ expansions: 0 });
+    expect(() => readBoardRts(B, { match: 'yes' })).toThrow(/match is true/);
+  });
+
+  it('sets a match up from the lobby\'s choices: the same choices, the same match; a rematch lays its fields anew', () => {
+    const B = flat(11, 18), cfg = { ...readBoardRts(B, { match: true }), sides: { player: OWN } };
+    const c = { player: 'player', enemy: 'plain', level: 'hard', gold: 300, workers: 6, victory: 'base', fog: false, seed: 1 };
+    const M = rtsSetup(B, cfg, c);
+    expect([M.gold, M.workers, M.ais.enemy, M.victory, M.fog, M.sides]).toEqual([300, 6, RTS_LEVELS.hard, undefined, undefined, { player: OWN }]);
+    expect(rtsSetup(B, cfg, c)).toEqual(M);
+    // a rematch: the fields laid again (the same count of nodes), the rest as chosen
+    const N = rtsSetup(B, M, { ...c, seed: 2 });
+    expect([N.nodes.length, N.fields.length, N.gold]).toEqual([cfg.nodes.length, 2, 300]);
+    // the other way round: the plain tables for the player, the minted side for the opponent; random by the seed
+    expect(rtsSetup(B, cfg, { player: 'plain', enemy: 'player' }).sides).toEqual({ enemy: OWN });
+    expect(rtsSetup(B, cfg, { player: 'random', seed: 'x' }).match.choice.player).toBe(rtsSetup(B, cfg, { player: 'random', seed: 'x' }).match.choice.player);
+    expect(() => rtsSetup(B, cfg, { gold: 250 })).toThrow(/gold is one of 100, 300, 600/);
+    expect(() => rtsSetup(B, cfg, { enemy: 'enemy' })).toThrow(/no side called enemy \(player, plain, random\)/);
+    expect(Object.keys(RTS_MATCH)).toEqual(['level', 'gold', 'workers', 'victory', 'fog']);
+    // and it plays
+    let R = rtsStart(B, M);
+    for (let k = 0; k < 600; k++) R = rtsTick(B, M, R, 0.1).R;
+    expect(R.units.length).toBeGreaterThan(0);
   });
 
   it('is a mind that claims a field with a hall once its own nodes run low', () => {

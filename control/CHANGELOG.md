@@ -1117,6 +1117,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   a unit strikes only what its side sees (a siege out of sight needs a spotter), and the mind plays under the same
   fog, its waves sent where it last saw the foe, else where the foe started, then the fields. On the page the
   unexplored ground is dark, the explored dim, the foe hidden out of sight and its buildings remembered as ghosts.
+  A match (`rts.match`, quick conquer's `match: true`) is the closed loop: a lobby before the clock (your side and
+  the opponent's: as minted, the other's, the plain tables or random; the opponent's level; the purse; the workers;
+  the victory rule; the fog), the match under the fog and the melee rule with a field a side unless said, End twice
+  to give up, then the results (the winner, the time, each side's count, its APM and its army over time) with
+  Rematch (the same setup, its fields laid anew by the next seed), New match (the lobby) and Leave (the level ends as
+  the last match went). The lobby's choices are the match's setup (`setup`), so a match replays from them and its log.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

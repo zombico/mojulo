@@ -428,6 +428,12 @@ describe('design_game quick', () => {
     expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
     expect(payload.game.on['board-won']).toEqual({ end: 'success' });
     await expect(designGameHandler({ quick: { goal: 'conquer', hero: false, world: { id: 'field2' } }, ref: 'rtx' })).rejects.toThrow(/conquer is a skirmish/);
+    // a whole match: the board's skirmish read as one (its lobby on the page), the fog and the melee rule by default
+    await designGameHandler({ quick: { goal: 'conquer', match: true, world: { id: 'field3', style: { kit: 'trail-valley' } } }, ref: 'rtm' });
+    expect(stored('rtm-level-run-0').board).toEqual({ rts: { match: true } });
+    const M = (await resolveWorldScene(SketchRepository.getByRef('rtm-level-run-0'))).payload.board.rts;
+    expect([M.match.expansions >= 0, M.fog, M.victory]).toEqual([true, true, 'melee']);
+    await expect(designGameHandler({ quick: { goal: 'reach', match: true, world: { id: 'field4' } }, ref: 'rty' })).rejects.toThrow(/match belongs to the conquer goal/);
   }, 240_000);
 
   it('conquer between two civilizations: the world\'s own by its id, another in words, each fielding what its technology crafts', async () => {

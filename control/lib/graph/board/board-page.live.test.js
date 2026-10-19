@@ -416,6 +416,41 @@ describe('the board on the World page', () => {
     await page.close();
   }, 180000);
 
+  it('plays a match end to end: the lobby, the match, giving up, the results, a rematch, and leaving', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'match', title: null, manifest: { kind: 'board', board: { seed: 'match', relief: 0.1, cols: 11, rows: 18 },
+      rts: { match: true }, game: { levelRef: 'match', mechanics: [{ kind: 'board' }] } } });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const R = (f) => page.evaluate(f);
+    // the lobby: the clock stands; the opponent's level chosen by its button, then Start
+    expect(await R(() => { const r = window.__mojBoard.rts, t = r.state().t; r.run(2); return [r.phase, r.state().t === t]; })).toEqual(['lobby', true]);
+    const click = (label) => page.evaluate((l) => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent === l); if (!b) return false; b.click(); return true; }, label);
+    expect(await click('hard')).toBe(true);
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-lobby.png` });
+    expect(await click('Start')).toBe(true);
+    const on = await R(() => { const r = window.__mojBoard.rts; for (let k = 0; k < 300; k++) r.run(0.1); return { phase: r.phase, level: r.cfg.match.choice.level, fog: r.cfg.fog, t: r.state().t > 25 }; });
+    expect(on).toEqual({ phase: 'play', level: 'hard', fog: true, t: true });
+    // End twice: the player gives up; the results
+    await page.keyboard.press('End'); await page.keyboard.press('End');
+    const res = await R(() => window.__mojBoard.rts.results());
+    expect(res).toMatchObject({ won: false, surrender: 'player', player: { name: 'you' }, enemy: { name: 'them' } });
+    expect(res.enemy.army.length).toBeGreaterThan(2);
+    expect(await R(() => window.__mojBoard.rts.phase)).toBe('results');
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-results.png` });
+    // Rematch: the same setup, the fields laid anew, the clock from naught
+    expect(await click('Rematch')).toBe(true);
+    expect(await R(() => { const r = window.__mojBoard.rts; return [r.phase, r.cfg.match.choice.seed, r.cfg.match.choice.level, r.state().t]; })).toEqual(['play', 2, 'hard', 0]);
+    // given up again, then Leave: the level ends as the last match went
+    await R(() => window.__mojBoard.rts.surrender());
+    expect(await click('Leave')).toBe(true);
+    await page.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
+    expect(await R(() => window.__mojGame.envelope.result)).toBe('fail');
+    await page.close();
+  }, 180000);
+
   it('plays a skirmish between two civilizations, each drawn as its technology crafted it, the player climbing its ladder', async () => {
     if (!browser) return;
     const G = readGameworld(HALDEN_REACH), side = (cid) => { const r = rtsRoster(G, cid); return { ...r, looks: rtsLooks(G, cid, r, { kit: HALDEN_REACH.style.kit }) }; };

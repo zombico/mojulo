@@ -25,6 +25,11 @@
  *   the fog (cfg.fog): ground no unit or building of the player's has seen dark, ground seen before dimmed, the foe's
  *   units only where the player sees them, its buildings remembered as last seen (a grey ghost, no health), the
  *   enemy's count what is in sight; an order on a remembered building attack-moves there
+ *   a match (cfg.match): a lobby before the clock (your side and the opponent's: as minted, the other's, the plain
+ *   tables, or random; the opponent's level; the purse; the workers; the victory rule; the fog), then the match; End
+ *   twice gives up; the results after (the winner, the time, each side's count, its APM and its army over time) with
+ *   Rematch (the same setup, the fields laid anew), New match (the lobby) and Leave (the level ends as the last
+ *   match went)
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
  * D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push }); emitted only when a board has `rts`. It returns
@@ -33,7 +38,9 @@
 
 /* global window, document */
 export function boardRtsPage(api) {
-  const { THREE, D, B, root, tops, FX, RTK } = api, cfg = D.rts, cell = B.cell;
+  const { THREE, D, B, root, tops, FX, RTK } = api, cfg0 = D.rts, cell = B.cell;
+  // a match plays as its lobby sets it up: the cfg each match is played under
+  let cfg = cfg0, phase = cfg0.match ? 'lobby' : 'play';
   let R = RTK.start(B, cfg), sel = [], selB = null, armed = null, result = null, said = '';
   // the clock's hand on it, and what the player did, by step (a replay's log)
   const SPEEDS = [0.5, 1, 1.4, 2], log = [], groups = {};
@@ -50,8 +57,13 @@ export function boardRtsPage(api) {
     if (!lit) { const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-0.4, -0.7, 1); root.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3328, 0.85), sun); }
   }
   // each side's colour: its civilization's team colour where the two differ, else blue and red
-  const S = { player: RTK.roster(cfg, 'player'), enemy: RTK.roster(cfg, 'enemy') }, hexOf = (h) => parseInt(String(h).slice(1), 16);
-  const SIDE = S.player.team && S.enemy.team && S.player.team !== S.enemy.team ? { player: hexOf(S.player.team), enemy: hexOf(S.enemy.team) } : { player: 0x3d8bff, enemy: 0xe5533d };
+  const hexOf = (h) => parseInt(String(h).slice(1), 16);
+  let S, SIDE;
+  function sidesOf() {
+    S = { player: RTK.roster(cfg, 'player'), enemy: RTK.roster(cfg, 'enemy') };
+    SIDE = S.player.team && S.enemy.team && S.player.team !== S.enemy.team ? { player: hexOf(S.player.team), enemy: hexOf(S.enemy.team) } : { player: 0x3d8bff, enemy: 0xe5533d };
+  }
+  sidesOf();
   const UN = (side, k) => S[side].units[k], BU = (side, k) => S[side].buildings[k], lookOf = (side, k) => (S[side].looks && S[side].looks[k]) || null;
   const role = (u) => UN(u.side, u.kind).role, isWorker = (u) => role(u) === 'worker';
   // a look as a mesh: its triangles in its palette, the main mass leaning to the side's colour
@@ -185,7 +197,8 @@ export function boardRtsPage(api) {
   }
   // ── the fog: a veil a spot, dark where the player never saw, dim where it saw before; ghosts where it remembers a
   // building that is gone ──
-  const fogged = !!cfg.fog, veils = [], ghosts = {};
+  let fogged = !!cfg.fog;
+  const veils = [], ghosts = {};
   let V = fogged ? RTK.view(B, cfg, R, 'player') : null;
   function ghostly(g, on) {
     if (g.userData.ghost === on) return;
@@ -274,7 +287,7 @@ export function boardRtsPage(api) {
   const boxEl = typeof document !== 'undefined' ? document.createElement('div') : null;
   if (boxEl) { boxEl.style.cssText = 'position:fixed;border:1px solid #7dffb0;background:rgba(125,255,176,0.12);pointer-events:none;display:none;z-index:9'; document.body.appendChild(boxEl); }
   // what the player's side can raise (B, B again for the next), and the step its building researches next (T)
-  const P = S.player, raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost);
+  let P = S.player, raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost);
   let buildK = 0;
   const tier = () => RTK.tierOf(cfg, R, 'player');
   const needsOf = (K) => RTK.lockOf(cfg, R, 'player', K);
@@ -473,7 +486,8 @@ export function boardRtsPage(api) {
       drawPanel();
     });
     window.addEventListener('keydown', (e) => {
-      if (result) return;
+      if (result || phase !== 'play') return;
+      if (e.code === 'End') { const now = Date.now(); if (now - quit < 2000) surrender(); else { quit = now; pan.textContent = said + '\nEnd again to give up'; said = ''; } return; }
       if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && !isWorker(u)).map((u) => u.id); selB = null; }
       else if (e.code === 'KeyA' && sel.length) armed = 'amove';
       else if (e.code === 'KeyB') { if (armed === 'build') buildK++; armed = 'build'; }
@@ -534,10 +548,95 @@ export function boardRtsPage(api) {
     }
   }
   function end(won, draw) {
-    result = { won, ...(draw ? { draw } : {}) };
+    result = { won, ...(draw ? { draw } : {}), ...(R.over && R.over.surrender ? { surrender: R.over.surrender } : {}) };
+    // a match: its results, and the player's choice of what next; a skirmish: the level ends
+    if (cfg0.match) { phase = 'results'; said = ''; drawPanel(); showResults(); return; }
     banner.style.display = 'block';
     banner.textContent = won ? 'Victory\ntheir base has fallen' : draw ? 'Stalemate\nthe gold is gone and nobody stands' : 'Defeat\nyour base has fallen';
     api.push(won ? 'board-won' : draw ? 'board-draw' : 'board-lost');
+  }
+
+  // ── the match: its lobby, its start, its results ─────────────────────────────────────────────────────────────────
+  const FROM = { player: (cfg0.sides && cfg0.sides.player) || null, enemy: (cfg0.sides && cfg0.sides.enemy) || null, plain: null };
+  const SIDE_KEYS = Object.keys(FROM).filter((k) => k === 'plain' || FROM[k]).concat(['random']);
+  const nameOf = (k) => (k === 'random' ? 'random' : k === 'plain' ? 'plain' : (FROM[k] && FROM[k].name) || k);
+  const choice = { player: 'player', enemy: FROM.enemy ? 'enemy' : 'plain', level: 'normal', gold: RTK.MATCH.gold.indexOf(cfg0.gold) >= 0 ? cfg0.gold : 100, workers: RTK.MATCH.workers.indexOf(cfg0.workers) >= 0 ? cfg0.workers : 3, victory: cfg0.victory || 'base', fog: !!cfg0.fog, seed: 1 };
+  if (!FROM.player) choice.player = 'plain';
+  const ROWS = [['player', 'you', SIDE_KEYS], ['enemy', 'opponent', SIDE_KEYS], ['level', 'their level', RTK.MATCH.level], ['gold', 'purse', RTK.MATCH.gold], ['workers', 'workers', RTK.MATCH.workers], ['victory', 'victory', RTK.MATCH.victory], ['fog', 'fog', RTK.MATCH.fog]];
+  const menu = cfg0.match ? api.panel('left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:auto;padding:16px 20px;min-width:360px;display:none') : null;
+  const btn = (label, on, go) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = `margin:2px 4px 2px 0;padding:3px 9px;font:inherit;cursor:pointer;border-radius:4px;border:1px solid ${on ? '#7dffb0' : '#556'};background:${on ? '#24543a' : '#1c2028'};color:#eef`; b.onclick = go; return b; };
+  function showLobby() {
+    phase = 'lobby';
+    if (!menu || typeof document === 'undefined') return;
+    menu.style.display = 'block'; menu.textContent = '';
+    const h = document.createElement('div'); h.textContent = 'Skirmish: set up the match'; h.style.cssText = 'font-size:18px;margin-bottom:8px'; menu.appendChild(h);
+    for (const [k, label, opts] of ROWS) {
+      const row = document.createElement('div'), l = document.createElement('span');
+      l.textContent = label; l.style.cssText = 'display:inline-block;width:90px;opacity:0.8'; row.appendChild(l);
+      for (const o of opts) row.appendChild(btn(k === 'player' || k === 'enemy' ? nameOf(o) : k === 'fog' ? (o ? 'on' : 'off') : String(o), choice[k] === o, () => { choice[k] = o; showLobby(); }));
+      menu.appendChild(row);
+    }
+    const go = btn('Start', true, () => start()); go.style.marginTop = '10px'; go.style.fontSize = '16px'; menu.appendChild(go);
+  }
+  function begin(c) {
+    cfg = c; sidesOf();
+    for (const k in geoms) delete geoms[k];
+    for (const id in meshes) { root.remove(meshes[id]); delete meshes[id]; }
+    for (const at in nodes) { root.remove(nodes[at]); delete nodes[at]; }
+    for (const m of veils) if (m) root.remove(m);
+    veils.length = 0;
+    for (const id in ghosts) { root.remove(ghosts[id]); delete ghosts[id]; }
+    if (rangeRing) { root.remove(rangeRing); rangeRing = null; }
+    fogged = !!cfg.fog; R = RTK.start(B, cfg); V = fogged ? RTK.view(B, cfg, R, 'player') : null;
+    P = S.player; raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost); buildK = 0;
+    log.length = 0; for (const k in groups) delete groups[k];
+    sel = []; selB = null; armed = null; result = null; paused = false; speedK = 1; quit = 0;
+    banner.style.display = 'none';
+    sync(); drawPanel();
+  }
+  // Start: the lobby's choices, a match
+  function start() {
+    begin(RTK.setup(B, cfg0, choice));
+    phase = 'play';
+    if (menu) menu.style.display = 'none';
+    return cfg.match.choice;
+  }
+  // End, then End again within two seconds: the player gives up
+  let quit = 0;
+  function surrender() {
+    if (phase !== 'play' || result) return false;
+    if (act({ k: 'surrender' }) !== true) return false;
+    end(false, false);
+    return true;
+  }
+  const bars = (xs) => { const top = Math.max(1, ...xs); return xs.map((x) => '▁▂▃▄▅▆▇█'[Math.min(7, Math.floor((x / top) * 7.999))]).join(''); };
+  function summary() {
+    const one = (side) => Object.assign({ name: side === 'player' ? 'you' : 'them', civ: S[side].name || 'plain', apm: RTK.apmOf(R, side) }, R.stats[side]);
+    return { won: !!(result && result.won), draw: !!(result && result.draw), surrender: (result && result.surrender) || null, time: clock(R.t), player: one('player'), enemy: one('enemy') };
+  }
+  function showResults() {
+    if (!menu || typeof document === 'undefined') return;
+    const r = summary();
+    menu.style.display = 'block'; menu.textContent = '';
+    const h = document.createElement('div');
+    h.textContent = `${r.won ? 'Victory' : r.draw ? 'Stalemate' : 'Defeat'}${r.surrender ? (r.surrender === 'player' ? ' (you gave up)' : ' (they gave up)') : ''} · ${r.time}`;
+    h.style.cssText = 'font-size:20px;margin-bottom:8px'; menu.appendChild(h);
+    const t = document.createElement('pre'); t.style.cssText = 'margin:0 0 10px;font:inherit;line-height:1.5';
+    const line = (label, k) => `${label.padEnd(16)}${String(r.player[k]).padStart(8)}${String(r.enemy[k]).padStart(8)}`;
+    t.textContent = [`${''.padEnd(16)}${'you'.padStart(8)}${'them'.padStart(8)}`, line('trained', 'trained'), line('units lost', 'lost'), line('raised', 'built'), line('buildings lost', 'fell'), line('mined', 'mined'), line('research', 'research'), line('apm', 'apm'),
+      `army  you  ${bars(r.player.army)}`, `      them ${bars(r.enemy.army)}`].join('\n');
+    menu.appendChild(t);
+    menu.appendChild(btn('Rematch', true, () => rematch()));
+    menu.appendChild(btn('New match', false, () => { menu.style.display = 'none'; showLobby(); }));
+    menu.appendChild(btn('Leave', false, () => leave()));
+  }
+  function rematch() { choice.seed = (Number(choice.seed) || 1) + 1; return start(); }
+  function leave() {
+    if (!result) return null;
+    if (menu) menu.style.display = 'none';
+    phase = 'over';
+    api.push(result.won ? 'board-won' : result.draw ? 'board-draw' : 'board-lost');
+    return result.won ? 'won' : 'lost';
   }
 
   function pause(on) {
@@ -547,13 +646,14 @@ export function boardRtsPage(api) {
     return paused;
   }
   function advance(dt) {
-    if (result || paused) return;
+    if (result || paused || phase !== 'play') return;
     const o = RTK.tick(B, cfg, R, Math.min(0.4, dt * SPEEDS[speedK]));
     R = o.R;
     show(o.events);
   }
   let panelT = 0;
   sync(); drawPanel();
+  if (phase === 'lobby') showLobby();
   return {
     step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },
     readout(i) {
@@ -578,6 +678,9 @@ export function boardRtsPage(api) {
       // what the player is shown: each enemy unit's and building's mesh, drawn or not (and a building as a ghost)
       shown() { const out = {}; for (const x of R.units.concat(R.buildings)) if (x.side === 'enemy' && meshes[x.id]) out[x.id] = meshes[x.id].visible ? (meshes[x.id].userData.ghost ? 'ghost' : 'seen') : 'hidden'; for (const id in ghosts) out[id] = 'ghost'; return out; },
       view: () => (fogged ? RTK.view(B, cfg, R, 'player') : null),
+      // the match: the lobby's choices (set one, start), what it is in, the results, and what follows
+      get phase() { return phase; }, get choice() { return Object.assign({}, choice); }, choose(k, v) { choice[k] = v; showLobby(); return Object.assign({}, choice); },
+      start, surrender, results: () => (result ? summary() : null), rematch, newMatch() { if (menu) menu.style.display = 'none'; showLobby(); return phase; }, leave, get cfg() { return cfg; },
       // the game again from the log: the same state as the one played (the clock's remainder aside)
       replays() { const a = RTK.replay(B, cfg, log, RTK.stepOf(R)), strip = (x) => JSON.stringify(Object.assign({}, x, { acc: 0 })); return strip(a) === strip(R); },
     },

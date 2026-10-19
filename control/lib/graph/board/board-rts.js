@@ -494,6 +494,70 @@ export function buildBoardRts() {
     return h && R.gold[u.side] >= 1 ? { kind: 'repair', target: h[0].id } : null;
   }
 
+  // the expansions' fields: a hall's spot nearer the player's base than the enemy's, four or more steps from it, its two
+  // nodes the open neighbours farthest from the board's middle; each mirrored through the middle for the enemy, so the
+  // two sides' are the same; the seed picks among the three nearest the distance each field is laid at
+  function layFields(B, player, enemy, n, seed, nodes) {
+    const walk = (i) => i >= 0 && !!B.spots[i] && !!B.spots[i].walk;
+    const col = (i) => i % B.cols, row = (i) => Math.floor(i / B.cols), mirror = (i) => (B.rows - 1 - row(i)) * B.cols + (B.cols - 1 - col(i));
+    const cheb = (a, b) => Math.max(Math.abs(col(a) - col(b)), Math.abs(row(a) - row(b)));
+    const cx = (B.cols - 1) / 2, cy = (B.rows - 1) / 2, out = [], used = new Set(nodes.map((x) => x.at).concat([player, enemy]));
+    let h = 2166136261;
+    for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+    const free = (i) => walk(i) && !used.has(i);
+    const nodesAt = (i) => {
+      const near = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const c = col(i) + dc, r = row(i) + dr, j = r * B.cols + c;
+        if ((dr || dc) && c >= 0 && r >= 0 && c < B.cols && r < B.rows && free(j) && free(mirror(j))) near.push([-Math.hypot(c - cx, r - cy), j]);
+      }
+      return near.sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, 2).map((x) => x[1]);
+    };
+    for (let k = 0; k < n; k++) {
+      const want = 4 + k * 2;
+      const ok = [];
+      for (let i = 0; i < B.spots.length; i++) {
+        if (!free(i) || !free(mirror(i)) || mirror(i) === i || cheb(i, player) < 4 || cheb(i, player) + 2 > cheb(i, enemy)) continue;
+        if (out.some((f) => cheb(f.at, i) < 4 || cheb(f.at, mirror(i)) < 4)) continue;
+        const ns = nodesAt(i);
+        if (ns.length === 2) ok.push([Math.abs(cheb(i, player) - want), i, ns]);
+      }
+      if (!ok.length) throw new Error(`rts: the board has room for ${out.length / 2} expansion${out.length === 2 ? '' : 's'} a side, not ${n}`);
+      ok.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      h = Math.imul(h ^ (k + 1), 16777619) >>> 0;
+      const [, at, ns] = ok[h % Math.min(3, ok.length)];
+      for (const x of [at, mirror(at), ...ns, ...ns.map(mirror)]) used.add(x);
+      out.push({ at, nodes: ns }, { at: mirror(at), nodes: ns.map(mirror) });
+    }
+    return out;
+  }
+
+  // ── a match's setup: the lobby's choices made a skirmish. c: { player?, enemy?: 'player' | 'enemy' | 'plain' |
+  // 'random' (the side as minted, the other's, the plain tables, one of them by the seed), level?, gold?, workers?,
+  // victory?, fog?, seed? }: the fields laid again by the seed (as many as the match was laid with)
+  const MATCH = { level: ['easy', 'normal', 'hard'], gold: [100, 300, 600], workers: [3, 6], victory: ['base', 'melee'], fog: [true, false] };
+  function setup(B, cfg, c) {
+    const m = cfg.match || {}, from = m.from || { player: (cfg.sides && cfg.sides.player) || null, enemy: (cfg.sides && cfg.sides.enemy) || null, plain: null };
+    const seed = c.seed != null ? c.seed : 1, keys = Object.keys(from).filter((k) => k === 'plain' || from[k]);
+    let h = 7;
+    for (const ch of String(seed)) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
+    for (const k of ['level', 'gold', 'workers', 'victory', 'fog']) if (c[k] != null && MATCH[k].indexOf(c[k]) < 0) throw new Error('rts: ' + k + ' is one of ' + MATCH[k].join(', '));
+    // (unsaid: each side as minted, else the plain tables)
+    const pick = (k, salt) => { const own = salt === 1 ? 'player' : 'enemy', x = k || (keys.indexOf(own) >= 0 ? own : 'plain'); if (x === 'random') return keys[(h + salt * 7919) % keys.length]; if (keys.indexOf(x) < 0) throw new Error('rts: no side called ' + x + ' (' + keys.concat(['random']).join(', ') + ')'); return x; };
+    const p = pick(c.player, 1), e = pick(c.enemy, 2), olds = {};
+    for (const f of cfg.fields || []) for (const at of f.nodes) olds[at] = 1;
+    const nodes = cfg.nodes.filter((n) => !olds[n.at]), fields = m.expansions ? layFields(B, cfg.bases.player, cfg.bases.enemy, m.expansions, seed, nodes) : null;
+    const out = Object.assign({}, cfg, { nodes: fields ? nodes.concat(...fields.map((f) => f.nodes.map((at) => ({ at, amount: 1500 })))) : nodes, gold: c.gold != null ? c.gold : cfg.gold, workers: c.workers != null ? c.workers : cfg.workers,
+      ais: Object.assign({}, cfg.ais, { enemy: LEVELS[c.level || 'normal'] }), match: Object.assign({}, m, { from, choice: Object.assign({}, c, { player: p, enemy: e, seed }) }) });
+    out.sides = Object.assign({}, from[p] ? { player: from[p] } : {}, from[e] ? { enemy: from[e] } : {});
+    if (!out.sides.player && !out.sides.enemy) delete out.sides;
+    if (fields) out.fields = fields; else delete out.fields;
+    const v = c.victory || cfg.victory || 'base';
+    if (v === 'base') delete out.victory; else out.victory = v;
+    if (c.fog != null) { if (c.fog) out.fog = true; else delete out.fog; }
+    return out;
+  }
+
   // ── every action of a hand, one way in: what the page does, what a replay does again ─────────────────────────────
   // a: { k: 'order', ids, o } | { k: 'train', id, kind } | { k: 'build', kind, at, ids?, side? } | { k: 'research', id, step }
   //    | { k: 'upgrade', id } | { k: 'rally', id, at } | { k: 'idle', kind, rule, side? } | { k: 'repeat', id, kind }
@@ -973,7 +1037,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, view, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, view, setup, layFields, MATCH, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -994,6 +1058,8 @@ export const rtsMind = _rts.mind;
 export const RTS_LEVELS = _rts.LEVELS;
 export const rtsAct = _rts.act;
 export const rtsView = _rts.view;
+export const rtsSetup = _rts.setup;
+export const RTS_MATCH = _rts.MATCH;
 export const rtsReplay = _rts.replay;
 export const rtsApm = _rts.apmOf;
 export const rtsStepOf = _rts.stepOf;
@@ -1002,7 +1068,7 @@ export const rtsPath = _rts.path;
 export const rtsOpen = _rts.open;
 
 const NODE = 1500, NODE2 = 800;
-const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'fog', 'seed', 'jump', 'doctrine'];
+const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'fog', 'seed', 'match', 'jump', 'doctrine'];
 export const RTS_VICTORY = Object.freeze({ base: 'its base falls', melee: 'every building it has falls' });
 const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
@@ -1017,46 +1083,11 @@ const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
  *          side: two nodes and a hall's spot each, the other side's mirrored through the board's middle, chosen by
  *          `seed`), victory?: 'base' | 'melee' (RTS_VICTORY: a side loses when its base falls, or every building),
  *          seed? (the layout's: the same seed, the same fields), fog?: true (each side sees what its units and
- *          buildings see, the ground it explored, the foe's buildings as it last saw them; its mind too) }
+ *          buildings see, the ground it explored, the foe's buildings as it last saw them; its mind too), match?: true
+ *          (a whole match on the page: a lobby first, then results, rematch and a new match; the fog, the melee rule
+ *          and a field a side unless said) }
  *   near / far: the near (far) row's walkable spot nearest its middle, a row in from the edge; nodes 1500 each
  */
-// the expansions' fields: a hall's spot nearer the player's base than the enemy's, four or more steps from it, its two
-// nodes the open neighbours farthest from the board's middle; each mirrored through the middle for the enemy, so the
-// two sides' are the same; the seed picks among the three nearest the distance each field is laid at
-function fieldsOf(B, player, enemy, n, seed, nodes, walk) {
-  const col = (i) => i % B.cols, row = (i) => Math.floor(i / B.cols), mirror = (i) => (B.rows - 1 - row(i)) * B.cols + (B.cols - 1 - col(i));
-  const cheb = (a, b) => Math.max(Math.abs(col(a) - col(b)), Math.abs(row(a) - row(b)));
-  const cx = (B.cols - 1) / 2, cy = (B.rows - 1) / 2, out = [], used = new Set(nodes.map((x) => x.at).concat([player, enemy]));
-  let h = 2166136261;
-  for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
-  const free = (i) => walk(i) && !used.has(i);
-  const nodesAt = (i) => {
-    const near = [];
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      const c = col(i) + dc, r = row(i) + dr, j = r * B.cols + c;
-      if ((dr || dc) && c >= 0 && r >= 0 && c < B.cols && r < B.rows && free(j) && free(mirror(j))) near.push([-Math.hypot(c - cx, r - cy), j]);
-    }
-    return near.sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, 2).map((x) => x[1]);
-  };
-  for (let k = 0; k < n; k++) {
-    const want = 4 + k * 2;
-    const ok = [];
-    for (let i = 0; i < B.spots.length; i++) {
-      if (!free(i) || !free(mirror(i)) || mirror(i) === i || cheb(i, player) < 4 || cheb(i, player) + 2 > cheb(i, enemy)) continue;
-      if (out.some((f) => cheb(f.at, i) < 4 || cheb(f.at, mirror(i)) < 4)) continue;
-      const ns = nodesAt(i);
-      if (ns.length === 2) ok.push([Math.abs(cheb(i, player) - want), i, ns]);
-    }
-    if (!ok.length) rtsNo(`the board has room for ${out.length / 2} expansion${out.length === 2 ? '' : 's'} a side, not ${n}`);
-    ok.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    h = Math.imul(h ^ (k + 1), 16777619) >>> 0;
-    const [, at, ns] = ok[h % Math.min(3, ok.length)];
-    for (const x of [at, mirror(at), ...ns, ...ns.map(mirror)]) used.add(x);
-    out.push({ at, nodes: ns }, { at: mirror(at), nodes: ns.map(mirror) });
-  }
-  return out;
-}
-
 export function readBoardRts(B, spec = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) rtsNo(`rts is { ${RTS_KEYS.join(', ')} } (every one optional)`);
   for (const k of Object.keys(spec)) if (!RTS_KEYS.includes(k)) rtsNo(`'${k}' is not part of a skirmish (${RTS_KEYS.join(', ')})`);
@@ -1123,13 +1154,16 @@ export function readBoardRts(B, spec = {}) {
     ...(Object.keys(foe).length ? { enemy: { ...(foe.gold !== undefined ? { gold: num(foe.gold, 0, 0, 9999, 'enemy.gold') } : {}), ...(foe.workers !== undefined ? { workers: num(foe.workers, 0, 0, 12, 'enemy.workers') } : {}), ...(foe.army !== undefined ? { army: num(foe.army, 0, 0, 12, 'enemy.army') } : {}) } } : {}),
     ai: { workers: num(ai.workers, RTS_AI.workers, 0, 20, 'ai.workers'), wave: num(ai.wave, RTS_AI.wave, 1, 30, 'ai.wave'), grow: num(ai.grow, RTS_AI.grow, 0, 10, 'ai.grow') }, jump };
   // the expansions: fields a side may claim with a hall, the same for both sides (mirrored), laid by the seed
-  const nx = num(spec.expansions, 0, 0, 3, 'expansions');
+  if (spec.match !== undefined && typeof spec.match !== 'boolean') rtsNo('match is true (a whole match: a lobby first, the fog, the melee rule and a field a side unless said, results after)');
+  // a match: the fog, the melee rule and an expansion a side (where the board has room) unless said otherwise
+  const nx = spec.expansions !== undefined || !spec.match ? num(spec.expansions, 0, 0, 3, 'expansions') : (() => { try { _rts.layFields(B, player, enemy, 1, spec.seed ?? 1, cfg.nodes); return 1; } catch (e) { return 0; } })();
   if (spec.seed !== undefined && !(typeof spec.seed === 'string' || Number.isInteger(spec.seed))) rtsNo('seed is a word or a whole number');
   if (nx) {
-    cfg.fields = fieldsOf(B, player, enemy, nx, spec.seed ?? 1, cfg.nodes, walk);
+    cfg.fields = _rts.layFields(B, player, enemy, nx, spec.seed ?? 1, cfg.nodes);
     for (const f of cfg.fields) for (const at of f.nodes) cfg.nodes.push({ at, amount: NODE });
   }
   // the fog: each side sees what its units and buildings see
+  if (spec.match) { cfg.match = { expansions: nx }; if (spec.fog === undefined) cfg.fog = true; if (spec.victory === undefined) cfg.victory = 'melee'; }
   if (spec.fog !== undefined) { if (typeof spec.fog !== 'boolean') rtsNo('fog is true (each side sees only what its units and buildings see) or false'); if (spec.fog) cfg.fog = true; }
   if (spec.victory !== undefined) {
     if (!RTS_VICTORY[spec.victory]) rtsNo(`victory '${spec.victory}' is not a rule (${Object.entries(RTS_VICTORY).map(([k, v]) => `${k}: ${v}`).join('; ')})`);

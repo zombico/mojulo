@@ -56,6 +56,8 @@
  *                                           // what its technology crafts (board/board-rts-tech.js); a side not
  *                                           // named plays the plain worker, soldier and archer
  *     doctrine?: 'economy' | 'aggression' | 'fortress' | 'science'   // conquer: how the player chose to play
+ *     match?: true                          // conquer: a whole match (board-rts.js rts.match): a lobby first, the
+ *                                           // fog, the melee rule, a field a side, results, rematch
  *     board?: true | { cols?, rows?, gold? }   // defend: a TOWER DEFENCE on the stage's spots (board/board-td.js):
  *                                           // towers on any free spot that keeps the road open, the waves the
  *                                           // ladder's (waves: 1 to 5), no hero; without it, the trail's defence
@@ -182,7 +184,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -402,6 +404,7 @@ export function readQuick(Q) {
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
   if (Q.goal === 'conquer' && (Q.building !== undefined || Q.climb || Q.ride || Q.hero !== undefined || Q.run !== undefined)) throw fail('.conquer is a skirmish on the stage\'s spots, commanded from above: no hero, climb, building, ride or run');
   if (Q.doctrine !== undefined && (Q.goal !== 'conquer' || !RTS_DOCTRINES[Q.doctrine])) throw fail(Q.goal !== 'conquer' ? '.doctrine belongs to the conquer goal: how the player chose to play' : `.doctrine '${Q.doctrine}' is not a doctrine (${Object.entries(RTS_DOCTRINES).map(([k, v]) => `${k}: ${v.read}`).join('; ')})`);
+  if (Q.match !== undefined && (Q.goal !== 'conquer' || typeof Q.match !== 'boolean')) throw fail(Q.goal !== 'conquer' ? '.match belongs to the conquer goal: a whole match, a lobby first and results after' : '.match is true (a whole match: a lobby first, results after) or false');
   if (Q.sides !== undefined) {
     if (Q.goal !== 'conquer') throw fail('.sides belongs to the conquer goal: the skirmish\'s two sides');
     if (!Array.isArray(Q.sides) || !Q.sides.length || Q.sides.length > 2 || !Q.sides.every((v) => typeof v === 'string' && v.trim())) throw fail('.sides is [player, enemy?]: each a civilization of the world (its id) or one in words (\'armoured walkers, laser carbines\')');

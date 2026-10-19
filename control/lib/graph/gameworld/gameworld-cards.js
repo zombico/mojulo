@@ -326,9 +326,12 @@ const QUICK_LEVERS = {
     '    researched where it signals, and is drawn as crafted; a side not named plays a plain worker, soldier, archer',
     '  doctrine: economy | aggression | fortress | science   how you chose to play (more workers, harder fighters, sturdier',
     '    buildings, quicker research); a civilization may name the ones it allows (technology.doctrines)',
+    '  match: true   a whole match: a lobby first (the sides, their level, the purse, the rule, the fog), the fog, the',
+    '    melee rule, a field a side for a hall, results after (each side\'s count, APM, army) with rematch or leave',
     '  you: a base, three workers; them: the same and a mind that mines, builds, climbs and attacks in growing waves',
     '  orders: click / drag to select, right-click to move, attack, gather or rally; A attack-move, S stop, H hold,',
-    '  B build (again: the next), Q W E R train, T research. No hero, climb, building, ride or run',
+    '  B build (again: the next), Q W E R train, T research; P pause, [ ] speed, Ctrl+1-9 groups, End twice: give up.',
+    '  No hero, climb, building, ride or run',
   ],
   fly: () => [
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
