@@ -3,10 +3,13 @@
  * kind with their health over them, buildings and resource nodes on their spots, the selection ringed, a panel with
  * the purse and what is selected. The level hears `board-won`, `board-lost` or `board-draw` (the `board` mechanic ends it).
  *
- *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every soldier and archer
+ *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every fighter
  *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), with a building
- *   selected its rally point; A then click: attack-move · S stop · H hold · B then click: build a barracks · Q / W: the
- *   selected building trains its first / second kind · Esc lets go
+ *   selected its rally point; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
+ *   building the side can raise) · Q / W / E / R: the selected building trains its first … fourth kind · T: it researches
+ *   its next step · Esc lets go
+ *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
+ *   looks, board-rts-look.js), in its team colour; what it has no look for is drawn as the plain kinds are
  *   the camera: the RTS form (the arrows and the screen's edge pan, Z X zoom; WASD is the orders' here)
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
@@ -25,7 +28,28 @@ export function boardRtsPage(api) {
     api.scene.traverse((o) => { if (o.isLight) lit = true; });
     if (!lit) { const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-0.4, -0.7, 1); root.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3328, 0.85), sun); }
   }
-  const SIDE = { player: 0x3d8bff, enemy: 0xe5533d };
+  // each side's colour: its civilization's team colour where the two differ, else blue and red
+  const S = { player: RTK.roster(cfg, 'player'), enemy: RTK.roster(cfg, 'enemy') }, hexOf = (h) => parseInt(String(h).slice(1), 16);
+  const SIDE = S.player.team && S.enemy.team && S.player.team !== S.enemy.team ? { player: hexOf(S.player.team), enemy: hexOf(S.enemy.team) } : { player: 0x3d8bff, enemy: 0xe5533d };
+  const UN = (side, k) => S[side].units[k], BU = (side, k) => S[side].buildings[k], lookOf = (side, k) => (S[side].looks && S[side].looks[k]) || null;
+  const role = (u) => UN(u.side, u.kind).role, isWorker = (u) => role(u) === 'worker';
+  // a look as a mesh: its triangles in its palette, the main mass leaning to the side's colour
+  const geoms = {};
+  function lookMesh(side, k, L) {
+    const key = side + ':' + k;
+    if (!geoms[key]) {
+      const n = L.t.length, pos = new Float32Array(n * 9), col = new Float32Array(n * 9), c = new THREE.Color(), team = new THREE.Color(SIDE[side]);
+      const pal = L.pal.map((h, i) => { c.set(h); if (L.team.indexOf(i) < 0) return [c.r, c.g, c.b]; return [c.r * 0.4 + team.r * 0.6, c.g * 0.4 + team.g * 0.6, c.b * 0.4 + team.b * 0.6]; });
+      for (let i = 0; i < n * 9; i++) pos[i] = L.p[i] / 100;
+      for (let i = 0; i < n; i++) for (let v = 0; v < 3; v++) { const q = pal[L.t[i]]; col[i * 9 + v * 3] = q[0]; col[i * 9 + v * 3 + 1] = q[1]; col[i * 9 + v * 3 + 2] = q[2]; }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.computeVertexNormals();
+      geoms[key] = g;
+    }
+    return new THREE.Mesh(geoms[key], new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  }
   const bar = (h) => {
     const mk = (c, o, ord) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ color: c, transparent: true, opacity: o, depthTest: false })); sp.center.set(0, 0.5); sp.scale.set(0.8, 0.08, 1); sp.position.set(-0.4, 0, h); sp.renderOrder = ord; return sp; };
     return [mk(0x222222, 0.8, 6), mk(0x6bff8a, 0.95, 7)];
@@ -33,13 +57,24 @@ export function boardRtsPage(api) {
   const fillBar = (fill, k, w) => { fill.scale.x = Math.max(0.001, w * k); fill.material.color.setHex(k > 0.5 ? 0x6bff8a : k > 0.25 ? 0xffd23d : 0xff6b5a); };
 
   // ── what stands: units by side and kind, buildings, the nodes ───────────────────────────────────────────────────
+  const INFANTRY = ['melee', 'ranged', 'guard'];
   function unitMesh(u) {
-    const g = new THREE.Group(), body = new THREE.Group(), c = SIDE[u.side];
-    if (u.kind === 'worker') {
+    const g = new THREE.Group(), body = new THREE.Group(), c = SIDE[u.side], L = lookOf(u.side, u.kind), r = role(u), U = UN(u.side, u.kind);
+    if (L && !L.hand) {
+      // a crafted machine: its look, standing on its spot (a flyer over it)
+      body.add(lookMesh(u.side, u.kind, L));
+      if (U.fly) { body.position.z = 1.6; const sh = new THREE.Mesh(new THREE.CircleGeometry(0.45, 16), basic(0x000000, 0.25)); sh.position.z = 0.04; g.add(sh); }
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 24), basic(0x7dffb0, 0.9)); ring.position.z = 0.06; ring.visible = false;
+      const [back, fill] = bar(L.h + (U.fly ? 1.6 : 0) + 0.45);
+      g.add(body, ring, back, fill);
+      g.userData = { body, ring, fill };
+      return g;
+    }
+    if (r === 'worker') {
       const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.6, 10), lambert(c)); t.rotation.x = Math.PI / 2; t.position.z = 0.3;
       const pack = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 0.26), lambert(0x8a6a44)); pack.position.set(-0.2, 0, 0.4);
       body.add(t, pack);
-    } else if (u.kind === 'soldier') {
+    } else if (r === 'melee' || r === 'guard') {
       const t = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.9, 10), lambert(c)); t.rotation.x = Math.PI / 2; t.position.z = 0.45;
       const shield = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 0.5), lambert(0xb8c4cc)); shield.position.set(0.3, 0, 0.5);
       body.add(t, shield);
@@ -49,16 +84,33 @@ export function boardRtsPage(api) {
       const bow = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.025, 6, 16, Math.PI), lambert(0x8a6a44)); bow.position.set(0.25, 0, 0.55); bow.rotation.y = Math.PI / 2;
       body.add(t, hat, bow);
     }
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), lambert(0xe8c8a0)); head.position.z = u.kind === 'worker' ? 0.72 : 1.02;
+    // infantry carries its civilization's weapon, crafted, in its hand
+    if (L && L.hand && INFANTRY.indexOf(r) >= 0) {
+      for (const o of body.children.slice(1)) body.remove(o);
+      const w = lookMesh(u.side, u.kind, L); w.position.set(0.3, 0.12, 0.35); body.add(w);
+    }
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), lambert(0xe8c8a0)); head.position.z = r === 'worker' ? 0.72 : 1.02;
     body.add(head);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 24), basic(0x7dffb0, 0.9)); ring.position.z = 0.06; ring.visible = false;
-    const [back, fill] = bar(u.kind === 'worker' ? 1.05 : 1.35);
+    const [back, fill] = bar(r === 'worker' ? 1.05 : 1.35);
     g.add(body, ring, back, fill);
     g.userData = { body, ring, fill };
     return g;
   }
   function buildingMesh(b) {
-    const g = new THREE.Group(), c = SIDE[b.side], big = b.kind === 'base';
+    const L = lookOf(b.side, b.kind);
+    if (L) {
+      // a crafted building: its look, raised as it goes up, a pad in the side's colour under it
+      const g = new THREE.Group(), box = new THREE.Group(), pad = new THREE.Mesh(new THREE.BoxGeometry(cell * 0.92, cell * 0.92, 0.08), lambert(SIDE[b.side]));
+      pad.position.z = 0.04; box.add(lookMesh(b.side, b.kind, L));
+      const [back, fill] = bar(L.h + 0.7);
+      back.scale.x = 1.2; back.position.x = -0.6; fill.position.x = -0.6;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(cell * 0.62, cell * 0.7, 32), basic(0x7dffb0, 0.9)); ring.position.z = 0.06; ring.visible = false;
+      g.add(pad, box, back, fill, ring);
+      g.userData = { fill, box, ring, look: true };
+      return g;
+    }
+    const g = new THREE.Group(), c = SIDE[b.side], big = BU(b.side, b.kind).role === 'base';
     const w = cell * (big ? 0.86 : 0.7), h = big ? 1.6 : 1.1;
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, w, h), lambert(big ? 0xd9d2c0 : 0x9a8a72)); box.position.z = h / 2;
     const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.72, 0.7, 4), lambert(c)); roof.rotation.x = Math.PI / 2; roof.rotation.y = Math.PI / 4; roof.position.z = h + 0.35;
@@ -83,22 +135,22 @@ export function boardRtsPage(api) {
       const g = meshes[u.id], w = api.worldAt([u.x, u.y]);
       g.position.set(w[0], w[1], w[2]);
       if (u.path.length) { const to = tops[u.path[0]]; g.userData.body.rotation.z = Math.atan2(to[1] - w[1], to[0] - w[0]); }
-      fillBar(g.userData.fill, u.hp / RTK.UNITS[u.kind].hp, 0.8);
+      fillBar(g.userData.fill, u.hp / UN(u.side, u.kind).hp, 0.8);
       g.userData.ring.visible = sel.indexOf(u.id) >= 0;
     }
     for (const b of R.buildings) {
       live[b.id] = 1;
       if (!meshes[b.id]) { meshes[b.id] = buildingMesh(b); const p = tops[b.at]; meshes[b.id].position.set(p[0], p[1], p[2]); root.add(meshes[b.id]); }
-      const g = meshes[b.id], up = b.raising > 0 ? 1 - b.raising / RTK.BUILDINGS[b.kind].time : 1;
-      g.userData.box.scale.z = Math.max(0.05, up); g.userData.box.position.z = (g.userData.box.geometry.parameters.depth * up) / 2;
-      g.userData.roof.visible = up >= 1;
+      const g = meshes[b.id], up = b.raising > 0 ? 1 - b.raising / BU(b.side, b.kind).time : 1;
+      g.userData.box.scale.z = Math.max(0.05, up);
+      if (!g.userData.look) { g.userData.box.position.z = (g.userData.box.geometry.parameters.depth * up) / 2; g.userData.roof.visible = up >= 1; }
       fillBar(g.userData.fill, b.hp / b.hpMax, 1.2);
       g.userData.ring.visible = selB === b.id;
     }
     for (const id in meshes) if (!live[id]) { root.remove(meshes[id]); delete meshes[id]; }
     for (const n of R.nodes) {
       if (!nodes[n.at]) { nodes[n.at] = nodeMesh(); const p = tops[n.at]; nodes[n.at].position.set(p[0], p[1], p[2]); root.add(nodes[n.at]); }
-      const k = Math.max(0.15, n.left / 400);
+      const full = (cfg.nodes.find((x) => x.at === n.at) || { amount: 400 }).amount, k = Math.max(0.15, n.left / full);
       nodes[n.at].scale.set(k, k, k);
       nodes[n.at].visible = n.left > 0;
     }
@@ -111,12 +163,29 @@ export function boardRtsPage(api) {
   const banner = api.panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none;text-align:center');
   const boxEl = typeof document !== 'undefined' ? document.createElement('div') : null;
   if (boxEl) { boxEl.style.cssText = 'position:fixed;border:1px solid #7dffb0;background:rgba(125,255,176,0.12);pointer-events:none;display:none;z-index:9'; document.body.appendChild(boxEl); }
+  // what the player's side can raise (B, B again for the next), and the step its building researches next (T)
+  const P = S.player, raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost);
+  let buildK = 0;
+  const tier = () => RTK.tierOf(cfg, R, 'player');
+  const needsOf = (K) => (K.needs && !R.buildings.some((x) => x.side === 'player' && x.kind === K.needs && x.raising <= 0) ? 'a ' + P.buildings[K.needs].name : (K.tier || 1) > tier() ? Object.values(P.research || {}).filter((r) => r.gives.tier === K.tier).map((r) => r.name)[0] : null);
+  function nextStep(b) {
+    const L = P.research || {}, known = (R.known && R.known.player) || {};
+    const order = (P.study || []).concat(Object.keys(L)).filter((id, i, a) => a.indexOf(id) === i);
+    return order.find((id) => L[id].at === b.kind && !known[id] && !R.buildings.some((x) => x.side === 'player' && x.study && x.study.id === id) && (!L[id].needs || known[L[id].needs])) || null;
+  }
   function drawPanel() {
-    const mine = R.units.filter((u) => u.side === 'player'), count = (k) => mine.filter((u) => u.kind === k).length;
+    const mine = R.units.filter((u) => u.side === 'player'), workers = mine.filter(isWorker).length;
     const b = selB && R.buildings.find((x) => x.id === selB);
-    let what = sel.length ? `selected: ${sel.length} (${['worker', 'soldier', 'archer'].map((k) => [k, R.units.filter((u) => sel.indexOf(u.id) >= 0 && u.kind === k).length]).filter((x) => x[1]).map((x) => x[1] + ' ' + x[0] + (x[1] > 1 ? 's' : '')).join(', ')})` : '';
-    if (b) what = `${RTK.BUILDINGS[b.kind].name}${b.raising > 0 ? ` (going up, ${Math.ceil(b.raising)} s)` : ''}  ${RTK.BUILDINGS[b.kind].trains.map((k, n) => `${'QW'[n]}: ${RTK.UNITS[k].name} ${RTK.UNITS[k].cost}`).join('  ')}${b.queue.length ? `  queue ${b.queue.map((q) => q.kind).join(', ')}` : ''}`;
-    const text = `gold ${R.gold.player}   workers ${count('worker')}   army ${count('soldier') + count('archer')}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : 'build a barracks (150): click a spot'}` : ''}`;
+    const kinds = {};
+    for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
+    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})` : '';
+    if (b) {
+      const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
+      what = `${K.name}${b.raising > 0 ? ` (going up, ${Math.ceil(b.raising)} s)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${(UN('player', k).tier || 1) > tier() ? ' (locked)' : ''}`).join('  ')}`
+        + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
+    }
+    const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
+    const text = `gold ${R.gold.player}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
   }
 
@@ -139,7 +208,7 @@ export function boardRtsPage(api) {
     const node = R.nodes.find((n) => n.at === i && n.left > 0);
     if (foe) { R = RTK.order(B, cfg, R, sel, { kind: 'attack', target: foe.id }); return 'attack'; }
     if (node) {
-      const workers = R.units.filter((u) => sel.indexOf(u.id) >= 0 && u.kind === 'worker').map((u) => u.id);
+      const workers = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
       R = RTK.order(B, cfg, R, workers, { kind: 'gather', node: i });
       const rest = sel.filter((id) => workers.indexOf(id) < 0);
       if (rest.length) R = RTK.order(B, cfg, R, rest, { kind: 'move', to: i });
@@ -152,13 +221,18 @@ export function boardRtsPage(api) {
     const was = armed;
     armed = null;
     if (was === 'amove' && sel.length) { R = RTK.order(B, cfg, R, sel, { kind: 'amove', to: i }); return 'amove'; }
-    if (was === 'build') { try { R = RTK.build(B, cfg, R, 'player', 'barracks', i); return 'built'; } catch (e) { return String(e.message).replace(/^rts: /, ''); } }
+    if (was === 'build') { try { R = RTK.build(B, cfg, R, 'player', raisable[buildK % raisable.length], i); return 'built'; } catch (e) { return String(e.message).replace(/^rts: /, ''); } }
     return null;
   }
   function trainAt(n) {
-    const b = selB && R.buildings.find((x) => x.id === selB), kind = b && RTK.BUILDINGS[b.kind].trains[n];
+    const b = selB && R.buildings.find((x) => x.id === selB), kind = b && (BU('player', b.kind).trains || [])[n];
     if (!kind) return null;
     try { R = RTK.train(B, cfg, R, selB, kind); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+  }
+  function researchNext() {
+    const b = selB && R.buildings.find((x) => x.id === selB), id = b && nextStep(b);
+    if (!id) return null;
+    try { R = RTK.research(B, cfg, R, selB, id); return id; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
   }
 
   // the pointer: a click selects (or carries out what is armed), a drag boxes, the right button orders
@@ -186,13 +260,16 @@ export function boardRtsPage(api) {
     });
     window.addEventListener('keydown', (e) => {
       if (result) return;
-      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && u.kind !== 'worker').map((u) => u.id); selB = null; }
+      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && !isWorker(u)).map((u) => u.id); selB = null; }
       else if (e.code === 'KeyA' && sel.length) armed = 'amove';
-      else if (e.code === 'KeyB') armed = 'build';
+      else if (e.code === 'KeyB') { if (armed === 'build') buildK++; armed = 'build'; }
       else if (e.code === 'KeyS' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'stop' });
       else if (e.code === 'KeyH' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'hold' });
       else if (e.code === 'KeyQ') trainAt(0);
       else if (e.code === 'KeyW') trainAt(1);
+      else if (e.code === 'KeyE') trainAt(2);
+      else if (e.code === 'KeyR') trainAt(3);
+      else if (e.code === 'KeyT') researchNext();
       else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
       drawPanel();
     });
@@ -216,11 +293,13 @@ export function boardRtsPage(api) {
   function show(events) {
     for (const e of events) {
       if (e.kind === 'shot' && FX) {
-        const a = R.units.find((u) => u.id === e.from), t = R.units.find((u) => u.id === e.to) || R.buildings.find((b) => b.id === e.to);
+        // a shot by what shoots it: an arrow from range or a defence, a shell from siege, a bolt from the air
+        const a = R.units.find((u) => u.id === e.from) || R.buildings.find((b) => b.id === e.from), t = R.units.find((u) => u.id === e.to) || R.buildings.find((b) => b.id === e.to);
         if (!a || !t) continue;
-        const from = api.worldAt([a.x, a.y]), to = t.x != null ? api.worldAt([t.x, t.y]) : tops[t.at];
-        FX.play(e.uk === 'archer' ? 'arrow' : 'hit', { from: [from[0], from[1], from[2] + 0.6], at: to, targets: [to], seed: 'rts:' + R.t.toFixed(1) + ':' + e.from });
-      } else if (e.kind === 'down' && FX) { const w = api.worldAt(e.at); FX.play(e.kind2 === 'base' || e.kind2 === 'barracks' ? 'strike' : 'hit', { at: w, targets: [w], seed: 'down:' + e.id }); }
+        const from = a.x != null ? api.worldAt([a.x, a.y]) : tops[a.at], to = t.x != null ? api.worldAt([t.x, t.y]) : tops[t.at];
+        const r = a.x != null ? UN(a.side, a.kind).role : 'defence', fx = r === 'ranged' || r === 'defence' ? 'arrow' : r === 'siege' ? 'shell' : r === 'flyer' ? 'bolt' : 'hit';
+        FX.play(fx, { from: [from[0], from[1], from[2] + (r === 'flyer' ? 1.8 : r === 'defence' ? 1.4 : 0.6)], at: to, targets: [to], seed: 'rts:' + R.t.toFixed(1) + ':' + e.from });
+      } else if (e.kind === 'down' && FX) { const w = api.worldAt(e.at); FX.play(!UN(e.side, e.kind2) ? 'strike' : 'hit', { at: w, targets: [w], seed: 'down:' + e.id }); }
       else if (e.kind === 'won' || e.kind === 'lost' || e.kind === 'draw') end(e.kind === 'won', e.kind === 'draw');
     }
   }
@@ -244,14 +323,15 @@ export function boardRtsPage(api) {
     readout(i) {
       if (result) return result.won ? 'victory' : 'defeat';
       const b = R.buildings.find((x) => x.at === i), n = R.nodes.find((x) => x.at === i && x.left > 0);
-      if (b) return `${b.side === 'player' ? 'your' : 'their'} ${RTK.BUILDINGS[b.kind].name.toLowerCase()} (${Math.max(0, Math.round(b.hp))} / ${b.hpMax})`;
+      if (b) return `${b.side === 'player' ? 'your' : 'their'} ${BU(b.side, b.kind).name.toLowerCase()} (${Math.max(0, Math.round(b.hp))} / ${b.hpMax})`;
       if (n) return `gold to mine: ${n.left}`;
       return armed === 'build' ? (RTK.open(B, R, i) ? 'build here' : 'nothing can stand here') : '';
     },
     probe: {
       state: () => R, get selected() { return { units: sel.slice(), building: selB }; }, get result() { return result; },
       select(ids) { sel = ids.slice(); selB = null; drawPanel(); }, selectBuilding(id) { sel = []; selB = id; drawPanel(); },
-      selectAt, command, armedClick, arm(what) { armed = what; }, trainAt, boxSelect,
+      selectAt, command, armedClick, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
+      looks() { const out = {}; for (const id in meshes) { let n = 0; meshes[id].traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.color) n++; }); out[id] = n; } return out; },
       order(o) { R = RTK.order(B, cfg, R, sel, o); }, run(dt) { advance(dt); sync(); },
     },
   };

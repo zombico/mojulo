@@ -11,6 +11,10 @@ import { readRpg } from '../playscape/rpg/rpg.js';
 import { rpgInit, rpgSave, rpgLoad, rpgStatsOf } from '../playscape/rpg/kernel.js';
 import { boardCarryDraw } from './board-carry.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
+import { readGameworld } from '../gameworld/world.js';
+import { HALDEN_REACH } from '../gameworld/examples.js';
+import { rtsRoster } from './board-rts-tech.js';
+import { rtsLooks } from './board-rts-look.js';
 
 const K = buildBoard();
 const fight = (players, party = ['B1', 'C1', 'D1'], foes = ['B8', 'D8', 'F8']) => ({ board: { seed: 'fft-1', relief: 0.4, cols: 8, rows: 8 }, battle: { seed: 'fft-1', players,
@@ -330,6 +334,47 @@ describe('the board on the World page', () => {
     if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts.png` });
     await page.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
     expect(await page.evaluate(() => ({ result: window.__mojBoard.rts.result, end: window.__mojGame.envelope.result }))).toEqual({ result: { won: true }, end: 'success' });
+    await page.close();
+  }, 180000);
+
+  it('plays a skirmish between two civilizations, each drawn as its technology crafted it, the player climbing its ladder', async () => {
+    if (!browser) return;
+    const G = readGameworld(HALDEN_REACH), side = (cid) => { const r = rtsRoster(G, cid); return { ...r, looks: rtsLooks(G, cid, r, { kit: HALDEN_REACH.style.kit }) }; };
+    const { payload } = await resolveWorldScene({ ref: 'civ', title: null, manifest: { kind: 'board', board: { seed: 'civ', relief: 0.1, cols: 9, rows: 14 },
+      rts: { gold: 2000, army: 2, enemy: { gold: 0, workers: 0, army: 2 }, ai: { workers: 0, wave: 30 } }, game: { levelRef: 'civ', mechanics: [{ kind: 'board' }] } } });
+    payload.board.rts = { ...payload.board.rts, sides: { player: side('survey-corps'), enemy: side('dome-growers') } };
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const out = await page.evaluate(() => {
+      const r = window.__mojBoard.rts, B = window.__mojBoard.board, S0 = r.state(), base = S0.buildings.find((b) => b.side === 'player').at;
+      const go = (s) => { for (let k = 0; k * 0.1 < s; k++) r.run(0.1); };
+      // raise what it raises: a spot a few steps off the base that will take it
+      const raise = (kind) => { r.arm('build', kind); for (const d of [2 * B.cols + 2, 2 * B.cols - 2, 3 * B.cols, 3 * B.cols + 3, 3 * B.cols - 3, 4 * B.cols + 1]) { if (!B.spots[base + d]) continue; const m = r.armedClick(base + d); if (m === 'built') return m; r.arm('build', kind); } return 'nowhere'; };
+      const built = [raise('barracks')]; go(21);
+      built.push(raise('mast')); go(21);
+      const tooSoon = (() => { r.arm('build', 'works'); return r.armedClick(base + 4 * B.cols - 2); })();
+      r.selectBuilding(r.state().buildings.find((b) => b.kind === 'mast' && b.side === 'player').id);
+      const step = r.researchNext(); go(31);
+      built.push(raise('works')); go(26);
+      r.selectBuilding(r.state().buildings.find((b) => b.kind === 'works' && b.side === 'player').id);
+      const trained = r.trainAt(2); go(20);
+      const S = r.state(), looks = r.looks(), drawn = (kind, side = 'player') => S.units.concat(S.buildings).filter((x) => x.side === side && x.kind === kind).map((x) => looks[x.id]);
+      return { built, tooSoon, step, trained, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
+    });
+    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true });
+    expect(out.tooSoon).toMatch(/needs Machines researched first/);
+    // what it crafted is drawn as crafted (coloured meshes); what it did not (the plain base) as before
+    expect(out.skimmer.length).toBe(1);
+    for (const k of ['skimmer', 'hauler', 'mast', 'carbine', 'lance']) expect(out[k].every((n) => n >= 1)).toBe(true);
+    expect(out.base).toEqual([0]);
+    if (process.env.MOJULO_BOARD_SHOTS) {
+      await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-civ.png` });
+      for (let k = 0; k < 3; k++) await page.keyboard.press('KeyZ');
+      await page.evaluate(() => { for (let k = 0; k < 10; k++) window.__mojBoard.rts.run(0.1); });
+      await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-civ-near.png` });
+    }
     await page.close();
   }, 180000);
 

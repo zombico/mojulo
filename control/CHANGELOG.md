@@ -48,6 +48,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   things are income steps, each making a trip pay a fifth more. The mind climbs the ladder after its first wave,
   keeping back what the next step costs. A base now defends itself (it shoots at units in range), stands longer, and
   the gold nodes hold more, so a first wave seldom ends a skirmish and the machines come out.
+  On the page (`lib/graph/board/board-rts-look.js`), each side is drawn as its technology crafted it: its walkers,
+  crawlers, haulers, masts and turrets as their chassis and adornment (or their block), painted in the
+  civilization's finish, cut to the largest faces that read from the RTS camera and fitted to a spot, the main mass
+  leaning to the side's team colour; its infantry carries its crafted weapon; a flyer flies over its shadow. What
+  a civilization did not craft (a plain base, barracks, lab) is drawn as before. The panel names the roster's
+  units, marks what its tier still locks, and shows the next research; B builds (again for the next building),
+  Q W E R train, T researches. Defences, siege and flyers shoot their own effects.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
