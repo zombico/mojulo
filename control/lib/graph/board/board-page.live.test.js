@@ -354,11 +354,11 @@ describe('the board on the World page', () => {
     expect(await R(() => window.__mojBoard.rts.selected.units.length)).toBe(0);
     await page.keyboard.press('Digit1');
     expect(await R(() => window.__mojBoard.rts.selected.units.length)).toBe(3);
-    // P: the clock stands still; P again, it runs; ] twice: double speed
-    await page.keyboard.press('KeyP');
+    // Pause: the clock stands still; Pause again, it runs; ] twice: double speed
+    await page.keyboard.press('Pause');
     const still = await R(() => { const r = window.__mojBoard.rts, t = r.state().t; r.run(1); return [r.paused, r.state().t === t]; });
     expect(still).toEqual([true, true]);
-    await page.keyboard.press('KeyP');
+    await page.keyboard.press('Pause');
     await page.keyboard.press('BracketRight'); await page.keyboard.press('BracketRight');
     expect(await R(() => [window.__mojBoard.rts.paused, window.__mojBoard.rts.speed()])).toEqual([false, 2]);
     await page.keyboard.press('BracketLeft'); await page.keyboard.press('BracketLeft');
@@ -448,6 +448,55 @@ describe('the board on the World page', () => {
     expect(await click('Leave')).toBe(true);
     await page.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
     expect(await R(() => window.__mojGame.envelope.result)).toBe('fail');
+    await page.close();
+  }, 180000);
+
+  it('commands by its card: a building shown with what it trains, a box of units with their commands, patrol by button and click, keys rebound', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'card', title: null, manifest: { kind: 'board', board: { seed: 'card', relief: 0.1, cols: 9, rows: 12 },
+      rts: { army: 3, gold: 200, enemy: { gold: 0, workers: 0 }, ai: { workers: 0, wave: 30 }, keys: { idleRule: 'KeyO' } }, game: { levelRef: 'card', mechanics: [{ kind: 'board' }] } } });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const R = (f, a) => page.evaluate(f, a);
+    const press = (sel) => R((q) => { const b = document.querySelector(q); if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true; }, sel);
+    // a click on the base: the building shown, its card training workers by button
+    const base = await R(() => { const r = window.__mojBoard.rts, b = r.state().buildings.find((x) => x.side === 'player'); r.selectAt(b.at); return { info: r.info(), card: r.card().map((c) => c.a) }; });
+    expect(base.info).toMatchObject({ kind: 'building', title: 'Base' });
+    expect(base.card).toEqual(expect.arrayContaining(['train1', 'rally']));
+    expect(await press('[data-action="train1"]')).toBe(true);
+    expect(await R(() => window.__mojBoard.rts.state().buildings.find((x) => x.side === 'player').queue.length)).toBe(1);
+    // a foe clicked: shown, not commanded
+    expect(await R(() => { const r = window.__mojBoard.rts; r.selectAt(r.state().buildings.find((x) => x.side === 'enemy').at); return [r.info().kind, r.card().length, r.selected.building]; })).toEqual(['theirs', 0, null]);
+    // a box over the whole view: the player's units, never a building; a tile each, and the unit commands
+    await page.mouse.move(4, 4); await page.mouse.down(); await page.mouse.move(600, 400, { steps: 4 }); await page.mouse.move(1116, 600, { steps: 4 }); await page.mouse.up();
+    const box = await R(() => { const r = window.__mojBoard.rts; return { sel: r.selected, mine: r.state().units.filter((u) => u.side === 'player').length, info: r.info(), card: r.card().map((c) => c.a) }; });
+    expect(box.sel.building).toBe(null);
+    expect(box.info.tiles).toHaveLength(box.sel.units.length);
+    expect(box.card).toEqual(expect.arrayContaining(['move', 'stop', 'hold', 'attack', 'amove', 'patrol', 'build', 'gather', 'repair', 'idleRule']));
+    // Patrol by its button, then a click on the board: the selection patrols there and back
+    const soldiers = await R(() => { const r = window.__mojBoard.rts; const ids = r.state().units.filter((u) => u.side === 'player' && u.kind !== 'worker').map((u) => u.id); r.select(ids); return ids; });
+    expect(await press('[data-action="patrol"]')).toBe(true);
+    expect(await R(() => window.__mojBoard.rts.armed)).toBe('patrol');
+    await page.mouse.click(560, 400);
+    expect(await R((ids) => [...new Set(window.__mojBoard.rts.state().units.filter((u) => ids.includes(u.id)).map((u) => u.order.kind))], soldiers)).toEqual(['patrol']);
+    // a tile picks one unit: its own panel
+    expect(await press(`[data-id="${soldiers[0]}"]`)).toBe(true);
+    expect(await R(() => [window.__mojBoard.rts.selected.units.length, window.__mojBoard.rts.info().kind])).toEqual([1, 'unit']);
+    // the game's own key (idle rule on O); then rebound in the Keys panel: stop to K, and hold to K (stop takes H)
+    expect(await R(() => window.__mojBoard.rts.keys().idleRule)).toBe('KeyO');
+    await press('[data-action="keys"]'); await press('[data-bind="stop"]');
+    await page.keyboard.press('KeyK');
+    expect(await R(() => window.__mojBoard.rts.keys().stop)).toBe('KeyK');
+    await R((ids) => window.__mojBoard.rts.select(ids), soldiers);
+    await page.keyboard.press('KeyK');
+    expect(await R((ids) => [...new Set(window.__mojBoard.rts.state().units.filter((u) => ids.includes(u.id)).map((u) => u.order.kind))], soldiers)).toEqual(['stop']);
+    expect(await R(() => { const r = window.__mojBoard.rts; r.rebind('hold', 'KeyK'); return [r.keys().hold, r.keys().stop]; })).toEqual(['KeyK', 'KeyH']);
+    // a button that cannot act says why: an empty purse
+    const why = await R(() => { const r = window.__mojBoard.rts, S = r.state(); S.gold.player = 0; r.selectBuilding(S.buildings.find((x) => x.side === 'player').id); return r.card().find((c) => c.a === 'train1').why; });
+    expect(why).toMatch(/in the purse/);
+    if (process.env.MOJULO_BOARD_SHOTS) { await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-keys.png` }); await press('[data-keys="done"]'); await R(() => window.__mojBoard.rts.select(window.__mojBoard.rts.state().units.filter((u) => u.side === 'player').map((u) => u.id))); await new Promise((r) => setTimeout(r, 400)); await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-card.png` }); }
     await page.close();
   }, 180000);
 

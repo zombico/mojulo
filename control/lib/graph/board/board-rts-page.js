@@ -15,6 +15,13 @@
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
  *   looks, board-rts-look.js), in its team colour; what it has no look for is drawn as the plain kinds are
  *   the camera: the RTS form (the arrows and the screen's edge pan, Z X zoom; WASD is the orders' here)
+ *   the command card: clicking a building shows it (its health, queue, research, upgrade, rally, repeat), a unit
+ *   shows it (health, attack, range, speed, armour, statuses, cooldowns, idle rule), a box of units a tile each, a
+ *   foe it sees shown and not commanded; beside it the commands the selection can take, each a button with its key
+ *   (units: Move, Stop, Hold, Attack, Attack-move, Patrol, then its abilities, Unload, Deploy, Build, Gather, Repair,
+ *   its idle rule, auto-cast; a building: train, research, upgrade, repeat, rally), a targeted one armed for the next
+ *   click; a button that cannot act says why. Every key is the kernel's HOTKEYS', the game's rts.keys over them, and
+ *   the player's own over those (the card's Keys panel, kept in the browser)
  *   the clock: the game's time in the panel; P pauses, [ ] slow it and speed it (half, normal, faster, double); every
  *   action the player takes goes through the kernel's one way in (act) and is logged by its step, so the game replays
  *   from its log; each side's actions a minute (APM, the human measure) beside the clock
@@ -296,47 +303,232 @@ export function boardRtsPage(api) {
     const order = (P.study || []).concat(Object.keys(L)).filter((id, i, a) => a.indexOf(id) === i);
     return order.find((id) => (BU('player', b.kind).studies || []).indexOf(id) >= 0 && !known[id] && !R.buildings.some((x) => x.side === 'player' && x.study && x.study.id === id) && !needsOf(L[id])) || null;
   }
-  // the selection's abilities (F) and, for one unit, what is on it
-  function abilityLine() {
-    const us = R.units.filter((u) => sel.indexOf(u.id) >= 0), names = {};
-    for (const u of us) for (const k in UN('player', u.kind).abilities || {}) names[k] = Math.max(names[k] || 0, (u.cool && u.cool[k]) || 0);
-    const ab = Object.keys(names).map((k) => (names[k] > 0 ? `${k} ${Math.ceil(names[k])} s` : k)).join(', ');
-    const on = us.length === 1 ? Object.keys(us[0].st || {}).concat(us[0].shield > 0 ? [`shield ${Math.round(us[0].shield)}`] : []).filter((k) => k !== 'shield' || us[0].shield > 0) : [];
-    return `${ab ? `  F: ${ab}` : ''}${on.length ? `  [${on.join(', ')}]` : ''}`;
-  }
+  // the armed command's hint: what the next click on the board does
+  const HINT = { move: 'move: click where', attack: 'attack: click a foe (or the ground: attack-move)', amove: 'attack-move: click where', patrol: 'patrol: click the far end',
+    gather: 'gather: click a node', repair: 'repair: click a hurt building or machine of yours', rally: 'rally: click where its units go' };
   function drawPanel() {
     const mine = R.units.filter((u) => u.side === 'player'), workers = mine.filter(isWorker).length;
-    const b = selB && R.buildings.find((x) => x.id === selB);
-    const kinds = {};
-    for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
-    const carrying = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).carries).map((u) => `${(u.cargo || []).length} / ${UN('player', u.kind).carries} aboard`).join(', ');
-    const standing = Object.keys(kinds).map((k) => `${ruleOf(k) !== 'stop' ? ` idle: ${ruleOf(k)}` : ''}${R.auto && R.auto.player && R.auto.player[k] ? ' auto-cast' : ''}`).join('');
-    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${standing ? ` ·${standing}` : ''}${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}${abilityLine()}` : '';
-    if (b) {
-      const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
-      const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
-      what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${UN('player', k).cost2 ? '+' + UN('player', k).cost2 : ''}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
-        + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}`
-        + `${b.up ? `  becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : K.upgrades ? `  G: grow into a ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}${needsOf(Object.assign({}, BU('player', K.upgrades.to), { needs: K.upgrades.needs, tier: K.upgrades.tier })) ? ' (locked)' : ''}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}${b.repeat ? `  repeating ${UN('player', b.repeat).name}` : ''}`;
-    }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
     const sup = RTK.supplyOf(cfg, R, 'player'), ore = P.res2 ? `   ${RTK.res2Name(cfg, 'player')} ${(R.ore && R.ore.player) || 0}` : '';
     const top = `${clock(R.t)}${paused ? '  paused' : ''}${SPEEDS[speedK] !== 1 ? `  ×${SPEEDS[speedK]}` : ''}   apm ${RTK.apmOf(R, 'player')} · them ${RTK.apmOf(R, 'enemy')}\n`;
-    const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${fogged ? `${V.units.filter((u) => u.side === 'enemy').length} in sight` : R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
+    const hint = armed === 'build' ? `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · ${keyName(keys.build)} again: the next` : armed ? HINT[armed] : sel.length || selB || look ? '' : 'click or drag to select';
+    const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${fogged ? `${V.units.filter((u) => u.side === 'enemy').length} in sight` : R.units.filter((u) => u.side === 'enemy').length}${hint ? `\n${hint}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
+    drawInfo(); drawCard();
+  }
+
+  // ── the keys: each action's KeyboardEvent.code (the kernel's HOTKEYS, the game's rts.keys, the player's own kept
+  // in the browser), one action a key in each place it acts ─────────────────────────────────────────────────────────
+  const HK = RTK.HOTKEYS, KEYS_AT = 'mojulo.rts.keys';
+  const keys = {};
+  function loadKeys(own) {
+    for (const a in HK) keys[a] = HK[a][1];
+    Object.assign(keys, cfg0.keys || {});
+    if (!own) return;
+    try { const saved = JSON.parse(window.localStorage.getItem(KEYS_AT) || 'null'); if (saved && typeof saved === 'object') for (const a in saved) if (HK[a] && typeof saved[a] === 'string') keys[a] = saved[a]; } catch (e) { /* no storage here */ }
+  }
+  loadKeys(true);
+  const saveKeys = () => { try { window.localStorage.setItem(KEYS_AT, JSON.stringify(keys)); } catch (e) { /* no storage here */ } };
+  const keyName = (c) => String(c || '').replace(/^Key/, '').replace('BracketLeft', '[').replace('BracketRight', ']').replace('Period', '.').replace('Comma', ',').replace('Semicolon', ';').replace('Quote', "'").replace('Slash', '/').replace('Backslash', '\\').replace('Backquote', '`');
+  const where = () => (selB ? 'building' : sel.length ? 'unit' : null);
+  const clash = (a, b) => HK[a][0] === HK[b][0] || HK[a][0] === 'global' || HK[b][0] === 'global';
+  function actionFor(code) { const w = where(); return Object.keys(keys).find((a) => keys[a] === code && (HK[a][0] === 'global' || HK[a][0] === w)) || null; }
+  // a key given to an action: one that held it where they meet takes the action's old key
+  function rebind(a, code) {
+    if (!HK[a]) return null;
+    const twin = Object.keys(keys).find((b) => b !== a && keys[b] === code && clash(a, b));
+    if (twin) keys[twin] = keys[a];
+    keys[a] = code;
+    saveKeys(); drawPanel();
+    return twin || true;
+  }
+  function resetKeys() { try { window.localStorage.removeItem(KEYS_AT); } catch (e) { /* no storage here */ } loadKeys(false); drawPanel(); return Object.assign({}, keys); }
+
+  // ── the commands: what the selection can be told, each with its key and, when it cannot, why ─────────────────────
+  const arm = (what) => { armed = what; drawPanel(); return what; };
+  const tryOn = (f) => { try { f(); return null; } catch (e) { return String(e.message).replace(/^rts: /, ''); } };
+  const GLOBAL = {
+    pause: () => pause(!paused), slower: () => { speedK = Math.max(0, speedK - 1); return SPEEDS[speedK]; }, faster: () => { speedK = Math.min(SPEEDS.length - 1, speedK + 1); return SPEEDS[speedK]; },
+    idleWorker: () => idleWorker(),
+    surrender: () => { const now = Date.now(); if (now - quit < 2000) return surrender(); quit = now; pan.textContent = said + `\n${keyName(keys.surrender)} again to give up`; said = ''; return 'again' },
+  };
+  function commands() {
+    const out = [], add = (a, label, go, why) => out.push({ a, label, key: keys[a], why: why || null, go });
+    const us = R.units.filter((u) => sel.indexOf(u.id) >= 0), b = selB && R.buildings.find((x) => x.id === selB);
+    if (us.length) {
+      const has = (f) => us.some((u) => f(UN('player', u.kind), u));
+      add('move', 'Move', () => arm('move'));
+      add('stop', 'Stop', () => act({ k: 'order', ids: sel, o: { kind: 'stop' } }));
+      add('hold', 'Hold', () => act({ k: 'order', ids: sel, o: { kind: 'hold' } }));
+      if (has((U) => U.atk)) { add('attack', 'Attack', () => arm('attack')); add('amove', 'Attack-move', () => arm('amove')); }
+      add('patrol', 'Patrol', () => arm('patrol'));
+      const abil = [];
+      for (const u of us) for (const k in UN('player', u.kind).abilities || {}) if (abil.indexOf(k) < 0) abil.push(k);
+      abil.slice(0, 2).forEach((k, n) => {
+        const ready = us.some((u) => (UN('player', u.kind).abilities || {})[k] && !(u.cool && u.cool[k] > 0)), wait = Math.min(...us.filter((u) => u.cool && u.cool[k] > 0).map((u) => u.cool[k]));
+        add('ability' + (n + 1), k[0].toUpperCase() + k.slice(1), () => castSel(k), ready ? null : `ready in ${Math.ceil(wait)} s`);
+      });
+      if (has((U) => U.carries)) add('unload', 'Unload', () => act({ k: 'order', ids: sel, o: { kind: 'unload' } }), has((U, u) => U.carries && u.cargo && u.cargo.length) ? null : 'nobody aboard');
+      if (has((U) => U.modes || U.deploys)) add('deploy', 'Deploy', () => deploy());
+      if (has((U) => U.role === 'worker')) {
+        const k = raisable[buildK % raisable.length];
+        add('build', `Build ${P.buildings[k].name}`, () => { if (armed === 'build') buildK++; return arm('build'); }, needsOf(P.buildings[k]) ? `needs ${needsOf(P.buildings[k])}` : null);
+        add('gather', 'Gather', () => arm('gather'));
+        add('repair', 'Repair', () => arm('repair'));
+      }
+      add('idleRule', `Idle: ${ruleOf(us[0].kind)}`, () => idleRule());
+      if (abil.length) add('autocast', `Auto-cast ${R.auto && R.auto.player && us.some((u) => R.auto.player[u.kind]) ? 'on' : 'off'}`, () => autoSel());
+    } else if (b) {
+      const K = BU('player', b.kind), L = P.research || {};
+      (K.trains || []).slice(0, 4).forEach((k, n) => { const U = UN('player', k); add('train' + (n + 1), `${U.name} ${U.cost}${U.cost2 ? '+' + U.cost2 : ''}`, () => trainAt(n), tryOn(() => RTK.train(B, cfg, R, selB, k))); });
+      if (K.studies && K.studies.length) {
+        const step = b.raising <= 0 && !b.study ? nextStep(b) : null;
+        add('research', step ? `Research ${L[step].name} ${L[step].cost}` : 'Research', () => researchNext(), b.study ? `researching ${L[b.study.id].name}` : step ? tryOn(() => RTK.research(B, cfg, R, selB, step)) : 'nothing to research now');
+      }
+      if (K.upgrades) add('upgrade', `Grow into ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}`, () => upgradeSel(), tryOn(() => RTK.upgrade(B, cfg, R, selB)));
+      if (K.trains && K.trains.length) add('repeat', `Repeat: ${b.repeat ? UN('player', b.repeat).name : 'off'}`, () => repeatSel());
+      add('rally', 'Rally', () => arm('rally'));
+    }
+    return out;
+  }
+  // an action by its id, as its key or its button does it
+  function run(a) {
+    if (GLOBAL[a]) return GLOBAL[a]();
+    const c = commands().find((x) => x.a === a);
+    if (!c) return null;
+    if (c.why) return c.why;
+    const r = c.go();
+    drawPanel();
+    return r;
+  }
+
+  // ── the selection panel (bottom middle) and the command card (bottom right) ───────────────────────────────────────
+  const hasDom = typeof document !== 'undefined';
+  const infoEl = hasDom ? api.panel('left:50%;bottom:44px;transform:translateX(-50%);pointer-events:auto;min-width:300px;max-width:520px;display:none') : null;
+  const cardEl = hasDom ? api.panel('right:12px;bottom:44px;pointer-events:auto;width:300px;display:none') : null;
+  let infoSig = '', cardSig = '', binding = null, keysOpen = false, look = null;
+  const div = (css, text) => { const d = document.createElement('div'); if (css) d.style.cssText = css; if (text != null) d.textContent = text; return d; };
+  const hpLine = (hp, max) => `${Math.max(0, Math.round(hp))} / ${max}`;
+  function infoData() {
+    const b = selB && R.buildings.find((x) => x.id === selB);
+    if (b) {
+      const K = BU('player', b.kind), L = P.research || {};
+      const q = b.queue.map((x, n) => `${UN('player', x.kind).name}${n === 0 ? ` ${Math.round((1 - x.left / UN('player', x.kind).time) * 100)}%` : ''}`);
+      return { kind: 'building', title: K.name, hp: hpLine(b.hp, b.hpMax), lines: [
+        b.raising > 0 ? `going up: ${Math.ceil(b.raising)} s` : null, q.length ? `queue: ${q.join(', ')}` : null,
+        b.study ? `researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : null, b.up ? `becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : null,
+        b.repeat ? `repeating ${UN('player', b.repeat).name}` : null, b.rally != null ? 'rally point set' : null, K.atk ? `attack ${K.atk} · range ${K.range}` : null].filter(Boolean) };
+    }
+    const us = R.units.filter((u) => sel.indexOf(u.id) >= 0);
+    if (us.length === 1) {
+      const u = us[0], U = UN('player', u.kind), St = RTK.statsOf(cfg, u), A = U.abilities || {};
+      return { kind: 'unit', title: U.name, hp: hpLine(u.hp, U.hp), lines: [
+        St.atk ? `attack ${St.atk} · range ${St.range} · every ${St.rate} s` : 'no weapon', `speed ${St.speed}${St.armour ? ` · armour ${St.armour}` : ''}${U.fly ? ' · flies' : ''}`,
+        Object.keys(u.st || {}).length || u.shield > 0 ? `on it: ${Object.keys(u.st || {}).filter((k) => k !== 'shield').concat(u.shield > 0 ? [`shield ${Math.round(u.shield)}`] : []).join(', ')}` : null,
+        Object.keys(A).length ? `abilities: ${Object.keys(A).map((k) => (u.cool && u.cool[k] > 0 ? `${k} ${Math.ceil(u.cool[k])} s` : k)).join(', ')}` : null,
+        U.carries ? `aboard ${(u.cargo || []).length} / ${U.carries}` : null, `order: ${u.order.kind} · idle: ${ruleOf(u.kind)}${R.auto && R.auto.player && R.auto.player[u.kind] ? ' · auto-cast' : ''}`].filter(Boolean) };
+    }
+    if (us.length) return { kind: 'units', title: `${us.length} selected`, tiles: us.map((u) => ({ id: u.id, name: UN('player', u.kind).name, k: Math.max(0, u.hp) / UN('player', u.kind).hp })) };
+    const x = look && (R.units.find((y) => y.id === look) || R.buildings.find((y) => y.id === look));
+    if (x && !(fogged && RTK.hidden(B, cfg, R, x, 'player'))) {
+      const X = x.x != null ? UN(x.side, x.kind) : BU(x.side, x.kind);
+      return { kind: 'theirs', title: `${X.name} (theirs)`, hp: hpLine(x.hp, x.hpMax || X.hp), lines: X.atk ? [`attack ${X.atk} · range ${X.range}`] : [] };
+    }
+    return null;
+  }
+  function drawInfo() {
+    if (!infoEl) return;
+    const d = infoData(), sig = JSON.stringify(d);
+    if (sig === infoSig) return;
+    infoSig = sig;
+    infoEl.textContent = '';
+    infoEl.style.display = d ? 'block' : 'none';
+    if (!d) return;
+    infoEl.appendChild(div('font-size:15px;margin-bottom:2px', `${d.title}${d.hp ? `   ${d.hp}` : ''}`));
+    if (d.tiles) {
+      const grid = div('display:flex;flex-wrap:wrap;gap:3px');
+      for (const t of d.tiles) {
+        const tile = div(`width:44px;padding:2px;border:1px solid #556;border-radius:3px;cursor:pointer;font-size:10px;text-align:center;overflow:hidden;white-space:nowrap`, t.name.slice(0, 7));
+        const barEl = div(`height:3px;margin-top:2px;background:${t.k > 0.5 ? '#6bff8a' : t.k > 0.25 ? '#ffd23d' : '#ff6b5a'};width:${Math.round(t.k * 100)}%`);
+        tile.appendChild(barEl);
+        tile.dataset.id = t.id;
+        // a tile: picks that unit alone; Shift: lets it go
+        tile.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sel = e.shiftKey ? sel.filter((id) => id !== t.id) : [t.id]; drawPanel(); });
+        grid.appendChild(tile);
+      }
+      infoEl.appendChild(grid);
+    }
+    for (const l of d.lines || []) infoEl.appendChild(div('opacity:0.85', l));
+  }
+  function drawCard() {
+    if (!cardEl) return;
+    const cs = commands(), sig = JSON.stringify([cs.map((c) => [c.a, c.label, c.key, c.why]), armed, keysOpen, binding, keysOpen ? keys : null]);
+    if (sig === cardSig) return;
+    cardSig = sig;
+    cardEl.textContent = '';
+    cardEl.style.display = cs.length || keysOpen ? 'block' : 'none';
+    if (keysOpen) { drawKeys(); return; }
+    const grid = div('display:grid;grid-template-columns:repeat(3,1fr);gap:4px');
+    for (const c of cs) {
+      const b = document.createElement('button');
+      b.dataset.action = c.a;
+      b.title = c.why || `${c.label} (${keyName(c.key)})`;
+      b.style.cssText = `position:relative;padding:6px 4px 4px;font:inherit;font-size:11px;line-height:1.2;cursor:${c.why ? 'not-allowed' : 'pointer'};border-radius:4px;border:1px solid ${armed === c.a ? '#7dffb0' : '#556'};background:${armed === c.a ? '#24543a' : '#1c2028'};color:#eef;opacity:${c.why ? 0.45 : 1}`;
+      b.appendChild(div('', c.label));
+      b.appendChild(div('position:absolute;top:1px;right:3px;font-size:9px;color:#ffd23d', keyName(c.key)));
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); run(c.a); });
+      grid.appendChild(b);
+    }
+    cardEl.appendChild(grid);
+    const k = document.createElement('button');
+    k.textContent = 'Keys'; k.dataset.action = 'keys';
+    k.style.cssText = 'margin-top:6px;padding:2px 8px;font:inherit;font-size:11px;cursor:pointer;border-radius:4px;border:1px solid #556;background:#1c2028;color:#eef';
+    k.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); keysOpen = true; drawPanel(); });
+    cardEl.appendChild(k);
+  }
+  // the Keys panel: every action by where it acts, its key a button; click one, press the key it should be
+  function drawKeys() {
+    cardEl.style.width = '440px';
+    cardEl.appendChild(div('font-size:14px;margin-bottom:4px', binding ? `press the key for ${HK[binding][2]} (Esc: keep it)` : 'Keys: click one to bind it'));
+    for (const w of ['global', 'unit', 'building']) {
+      cardEl.appendChild(div('opacity:0.6;margin-top:4px', w === 'global' ? 'always' : w === 'unit' ? 'units' : 'a building'));
+      const grid = div('display:grid;grid-template-columns:1fr 48px 1fr 48px;gap:2px 6px');
+      for (const a of Object.keys(HK).filter((x) => HK[x][0] === w)) {
+        grid.appendChild(div('font-size:11px', HK[a][2]));
+        const b = document.createElement('button');
+        b.textContent = binding === a ? '…' : keyName(keys[a]); b.dataset.bind = a;
+        b.style.cssText = `padding:0 4px;font:inherit;font-size:11px;cursor:pointer;border-radius:3px;border:1px solid ${binding === a ? '#7dffb0' : '#556'};background:#1c2028;color:#ffd23d`;
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); binding = a; drawPanel(); });
+        grid.appendChild(b);
+      }
+      cardEl.appendChild(grid);
+    }
+    const row = div('margin-top:6px');
+    for (const [label, go] of [['Done', () => { keysOpen = false; binding = null; cardEl.style.width = '300px'; drawPanel(); }], ['Reset', () => { binding = null; resetKeys(); }]]) {
+      const b = document.createElement('button'); b.textContent = label; b.dataset.keys = label.toLowerCase();
+      b.style.cssText = 'margin-right:6px;padding:2px 8px;font:inherit;font-size:11px;cursor:pointer;border-radius:4px;border:1px solid #556;background:#1c2028;color:#eef';
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); go(); });
+      row.appendChild(b);
+    }
+    cardEl.appendChild(row);
   }
 
   // ── the player's hand ───────────────────────────────────────────────────────────────────────────────────────────
   const place = (x) => (x.x != null ? [x.x, x.y] : [(x.at % B.cols) + 0.5, Math.floor(x.at / B.cols) + 0.5]);
   const near = (list, p, r) => list.filter((x) => Math.hypot(place(x)[0] - p[0], place(x)[1] - p[1]) <= r).sort((a, b) => Math.hypot(place(a)[0] - p[0], place(a)[1] - p[1]) - Math.hypot(place(b)[0] - p[0], place(b)[1] - p[1]))[0] || null;
   const spotP = (i) => [(i % B.cols) + 0.5, Math.floor(i / B.cols) + 0.5];
+  // a click: one of the player's units (Shift: added or let go), else its building, else a foe it sees (shown, not
+  // commanded), else nothing
   function selectAt(i, add) {
     const p = spotP(i), u = near(R.units.filter((x) => x.side === 'player' && !x.inside), p, 0.8), b = !u && R.buildings.find((x) => x.side === 'player' && x.at === i);
+    look = null;
     if (u) { selB = null; sel = add ? (sel.indexOf(u.id) >= 0 ? sel.filter((x) => x !== u.id) : sel.concat([u.id])) : [u.id]; }
     else if (b) { sel = []; selB = b.id; }
-    else if (!add) { sel = []; selB = null; }
+    else if (!add) { sel = []; selB = null; const f = foeAt(i); if (f) look = f.id; }
     drawPanel();
   }
+  // a foe the player sees at a spot: a unit near it, else a building on it
+  const foeAt = (i) => near(R.units.filter((x) => x.side === 'enemy' && !(fogged && RTK.hidden(B, cfg, R, x, 'player'))), spotP(i), 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i && !(fogged && RTK.hidden(B, cfg, R, x, 'player'))) || null;
   function command(i) {
     const p = spotP(i);
     if (selB) { act({ k: 'rally', id: selB, at: i }); return 'rally'; }
@@ -349,7 +541,7 @@ export function boardRtsPage(api) {
     if (ride) { act({ k: 'order', ids: sel.filter((id) => id !== ride.id), o: { kind: 'board', target: ride.id } }); return 'board'; }
     if (workersSel.length && mineB && mineB.raising > 0) { act({ k: 'order', ids: workersSel, o: { kind: 'build', target: mineB.id } }); return 'build'; }
     if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { act({ k: 'order', ids: workersSel, o: { kind: 'repair', target: (mineB || mineU).id } }); return 'repair'; }
-    const foe = near(R.units.filter((x) => x.side === 'enemy' && !(fogged && RTK.hidden(B, cfg, R, x, 'player'))), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i && !(fogged && RTK.hidden(B, cfg, R, x, 'player')));
+    const foe = foeAt(i);
     // (in the fog, a building it remembers there: attack-moved on)
     if (!foe && fogged && Object.keys(R.mem.player).some((id) => R.mem.player[id].at === i)) { act({ k: 'order', ids: sel, o: { kind: 'amove', to: i } }); return 'amove'; }
     const node = R.nodes.find((n) => n.at === i && n.left > 0);
@@ -367,9 +559,21 @@ export function boardRtsPage(api) {
   function armedClick(i) {
     const was = armed;
     armed = null;
-    if (was === 'amove' && sel.length) { act({ k: 'order', ids: sel, o: { kind: 'amove', to: i } }); return 'amove'; }
-    // laid where clicked, built by the selected workers (else the nearest)
     const ws = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
+    if (was === 'amove' && sel.length) { act({ k: 'order', ids: sel, o: { kind: 'amove', to: i } }); return 'amove'; }
+    if ((was === 'move' || was === 'patrol') && sel.length) { act({ k: 'order', ids: sel, o: { kind: was, to: i } }); return was; }
+    // attack: the foe clicked, else the ground attack-moved on
+    if (was === 'attack' && sel.length) { const f = foeAt(i); act({ k: 'order', ids: sel, o: f ? { kind: 'attack', target: f.id } : { kind: 'amove', to: i } }); return f ? 'attack' : 'amove'; }
+    if (was === 'gather') { if (!R.nodes.some((n) => n.at === i && n.left > 0)) return 'not a node with something left'; if (!ws.length) return 'no worker selected'; act({ k: 'order', ids: ws, o: { kind: 'gather', node: i } }); return 'gather'; }
+    if (was === 'repair') {
+      const mineB = R.buildings.find((x) => x.side === 'player' && x.at === i), mineU = !mineB && near(R.units.filter((x) => x.side === 'player' && UN('player', x.kind).machine), spotP(i), 0.8);
+      const t = mineB || mineU;
+      if (!t || !ws.length) return t ? 'no worker selected' : 'nothing of yours to repair there';
+      act({ k: 'order', ids: ws, o: mineB && mineB.raising > 0 ? { kind: 'build', target: t.id } : { kind: 'repair', target: t.id } });
+      return 'repair';
+    }
+    if (was === 'rally' && selB) { act({ k: 'rally', id: selB, at: i }); return 'rally'; }
+    // laid where clicked, built by the selected workers (else the nearest)
     if (was === 'build') { const r = act({ k: 'build', kind: raisable[buildK % raisable.length], at: i, ...(ws.length ? { ids: ws } : {}) }); return r === true ? 'built' : r; }
     return null;
   }
@@ -387,12 +591,13 @@ export function boardRtsPage(api) {
     return modal.length + folded.length;
   }
   // F: each selected unit casts the first of its abilities that is ready
-  function castSel() {
+  // each selected unit casts an ability that is ready: the one named, else its first
+  function castSel(which) {
     let n = 0;
     for (const u of R.units.filter((x) => sel.indexOf(x.id) >= 0)) {
       const A = UN('player', u.kind).abilities;
       if (!A) continue;
-      const id = Object.keys(A).find((k) => !(u.cool && u.cool[k] > 0));
+      const id = Object.keys(A).find((k) => (!which || k === which) && !(u.cool && u.cool[k] > 0));
       if (!id) continue;
       act({ k: 'order', ids: [u.id], o: { kind: 'cast', ability: id } });
       if (FX) { const w = api.worldAt([u.x, u.y]); FX.play(A[id].shield ? 'radiance' : 'aura', { at: w, targets: [w], seed: 'cast:' + R.t.toFixed(1) + ':' + u.id }); }
@@ -486,31 +691,13 @@ export function boardRtsPage(api) {
       drawPanel();
     });
     window.addEventListener('keydown', (e) => {
+      // the Keys panel waits for a key: it is the action's (Esc keeps the old one)
+      if (binding) { e.preventDefault(); if (e.code !== 'Escape') rebind(binding, e.code); binding = null; drawPanel(); return; }
       if (result || phase !== 'play') return;
-      if (e.code === 'End') { const now = Date.now(); if (now - quit < 2000) surrender(); else { quit = now; pan.textContent = said + '\nEnd again to give up'; said = ''; } return; }
-      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && !isWorker(u)).map((u) => u.id); selB = null; }
-      else if (e.code === 'KeyA' && sel.length) armed = 'amove';
-      else if (e.code === 'KeyB') { if (armed === 'build') buildK++; armed = 'build'; }
-      else if (e.code === 'KeyS' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'stop' } });
-      else if (e.code === 'KeyH' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'hold' } });
-      else if (e.code === 'KeyQ') trainAt(0);
-      else if (e.code === 'KeyW') trainAt(1);
-      else if (e.code === 'KeyE') trainAt(2);
-      else if (e.code === 'KeyR') trainAt(3);
-      else if (e.code === 'KeyT') researchNext();
-      else if (e.code === 'KeyU' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'unload' } });
-      else if (e.code === 'KeyD' && sel.length) deploy();
-      else if (e.code === 'KeyG') upgradeSel();
-      else if (e.code === 'KeyF' && sel.length) castSel();
-      else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
+      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && !isWorker(u)).map((u) => u.id); selB = null; look = null; }
+      else if (e.code === 'Escape') { armed = null; sel = []; selB = null; look = null; }
       else if (/^Digit[1-9]$/.test(e.code)) { e.preventDefault(); group(Number(e.code.slice(5)), e.ctrlKey || e.metaKey ? 'set' : e.shiftKey ? 'add' : 'take'); }
-      else if (e.code === 'Period') idleWorker();
-      else if (e.code === 'KeyI') idleRule();
-      else if (e.code === 'KeyY') repeatSel();
-      else if (e.code === 'KeyC' && !(e.ctrlKey || e.metaKey)) autoSel();
-      else if (e.code === 'KeyP' || e.code === 'Pause') pause(!paused);
-      else if (e.code === 'BracketLeft') speedK = Math.max(0, speedK - 1);
-      else if (e.code === 'BracketRight') speedK = Math.min(SPEEDS.length - 1, speedK + 1);
+      else if (!(e.ctrlKey || e.metaKey || e.altKey)) { const a = actionFor(e.code); if (a) { e.preventDefault(); run(a); } }
       if (!/^Digit/.test(e.code)) lastGroup = null;
       drawPanel();
     });
@@ -590,7 +777,7 @@ export function boardRtsPage(api) {
     fogged = !!cfg.fog; R = RTK.start(B, cfg); V = fogged ? RTK.view(B, cfg, R, 'player') : null;
     P = S.player; raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost); buildK = 0;
     log.length = 0; for (const k in groups) delete groups[k];
-    sel = []; selB = null; armed = null; result = null; paused = false; speedK = 1; quit = 0;
+    sel = []; selB = null; armed = null; result = null; paused = false; speedK = 1; quit = 0; look = null; binding = null;
     banner.style.display = 'none';
     sync(); drawPanel();
   }
@@ -655,6 +842,8 @@ export function boardRtsPage(api) {
   sync(); drawPanel();
   if (phase === 'lobby') showLobby();
   return {
+    // the keys the skirmish takes before the board's camera does
+    claims(e) { return !!binding || (phase === 'play' && !result && (/^Digit[1-9]$/.test(e.code) || e.code === 'Escape' || !!actionFor(e.code))); },
     step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },
     readout(i) {
       if (result) return result.won ? 'victory' : 'defeat';
@@ -678,6 +867,9 @@ export function boardRtsPage(api) {
       // what the player is shown: each enemy unit's and building's mesh, drawn or not (and a building as a ghost)
       shown() { const out = {}; for (const x of R.units.concat(R.buildings)) if (x.side === 'enemy' && meshes[x.id]) out[x.id] = meshes[x.id].visible ? (meshes[x.id].userData.ghost ? 'ghost' : 'seen') : 'hidden'; for (const id in ghosts) out[id] = 'ghost'; return out; },
       view: () => (fogged ? RTK.view(B, cfg, R, 'player') : null),
+      // the command card: what it offers now, an action done as its key or button does it, the selection panel, the keys
+      card: () => commands().map((c) => ({ a: c.a, label: c.label, key: c.key, why: c.why })), press: (a) => run(a), info: () => infoData(), get armed() { return armed; },
+      keys: () => Object.assign({}, keys), rebind, resetKeys, get look() { return look; },
       // the match: the lobby's choices (set one, start), what it is in, the results, and what follows
       get phase() { return phase; }, get choice() { return Object.assign({}, choice); }, choose(k, v) { choice[k] = v; showLobby(); return Object.assign({}, choice); },
       start, surrender, results: () => (result ? summary() : null), rematch, newMatch() { if (menu) menu.style.display = 'none'; showLobby(); return phase; }, leave, get cfg() { return cfg; },
