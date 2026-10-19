@@ -103,8 +103,15 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   starts, scaled to the party (its mean level, give or take one); win and the next visit meets another pack, lose and
   the same one waits. Any board battle can draw (`draw`: packs, weakest first, in place of `foes`);
   `battles.board.skirmish: false` leaves them off.
-- **Tower defence on a board** on the quick path (`defend` with `board`): towers fill spots, and foes path over the
-  free ones.
+- **Tower defence on the board**, built: a board's `td` (or the quick path's `defend` with `board: true`) is a tower
+  defence on its spots. Foes come in waves from gates in the far row and walk to the base in the near row; towers
+  (arrow: long range; cannon: a blast on everyone near; frost: slows) stand on any free spot, paid from the purse,
+  and the road bends round them. A tower may only stand where every gate, and every foe already walking, still has a
+  way to the base, so the player runs out of spots as well as gold. Bounties pay for kills, a tower sells for half,
+  and the next wave can be called early for gold. Foes reaching the base cost lives; holding every wave wins the
+  level. Its own kernel (`board-td.js`), the same game in Node and on the page: no dice, a fixed step. Seen from
+  above as a commander would (the camera pans and scrolls at the edge). Without `board`, `defend` is the trail's as
+  before.
 
 ## [3.1.1] - 2026-10-16
 

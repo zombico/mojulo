@@ -33,16 +33,16 @@ import { boardParse } from './board-kernel.js';
 const SIDE_COLOURS = ['#4aa3ff', '#ff5a4a', '#5ad17a', '#f2c14e'];
 
 /** What the page takes, from a laid board (board-lay.js layBoard). */
-export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots, talk } = {}) {
+export function boardChannelData(laid, { units = [], camera = {}, cursor, drape, clip, battle, slots, talk, td } = {}) {
   const B = laid.board, at = cursor !== undefined ? boardParse(B, cursor) : -1;
   const first = at >= 0 && B.spots[at] ? at : B.spots.findIndex((s) => s && s.walk);
   const sides = [...new Set((battle ? battle.units : units).map((u) => u.side))];
   return { B, origin: laid.frame.origin, units, camera, cursor: first, colours: Object.fromEntries(sides.map((s, k) => [s, SIDE_COLOURS[k % SIDE_COLOURS.length]])),
-    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}), ...(talk ? { talk } : {}) };
+    ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}), ...(slots && slots.length ? { slots } : {}), ...(talk ? { talk } : {}), ...(td ? { td } : {}) };
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
-export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
+export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
   __ctrlOwnsCamera = true;   // eslint-disable-line no-global-assign
@@ -190,6 +190,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     travel: 'on the road…',
     wait: 'the level is starting',
     scene: '',
+    td: 'arrows / WASD / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
@@ -229,7 +230,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     const s = B.spots[cursor], who = occupant(cursor), U = who && S.u[who];
     const spot = s ? `${K.nameOf(B, cursor)}  h ${s.h} (${(s.h * B.step).toFixed(1)} m)  ${s.type}${s.walk ? '' : ', shut'}` : K.nameOf(B, cursor);
     let more = '';
-    if (mode === 'aim' && aiming && aiming.spots.has(cursor)) more = '\n' + forecastLines(aiming.what, cursor);
+    if (mode === 'td' && tdp) more = '\n' + tdp.readout(cursor);
+    else if (mode === 'aim' && aiming && aiming.spots.has(cursor)) more = '\n' + forecastLines(aiming.what, cursor);
     else if (mode === 'deploy' && placing) more = `\nplace ${S.u[placing.ids[placing.k]].name} (${placing.k + 1} of ${placing.ids.length})`;
     else if (U) more = `\n${U.name} (${U.side})  hp ${U.hp}/${U.hpMax}`;
     hud.textContent = `${spot}${more}${sel ? `\nselected: ${S.u[sel].name}` : ''}\n${LEGEND[mode]}`;
@@ -275,6 +277,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
   // ── the battle: the player's turns by the menu, the other side's by the mind ──────────────────────────────────
   const HUMAN = new Set(battle ? battle.players || ['party'] : []);
   let menu = null, aiming = null, face = 0, cpu = null, busy = 0, result = null, placing = null;
+  let tdp = null;   // a tower defence's page (board-td-page.js), when the board has one
   const legalNow = () => K.legal(B, cfg, S);
   const sameAct = (a, b) => a.kind === b.kind && a.to === b.to && a.skill === b.skill && a.item === b.item && a.at === b.at && a.face === b.face;
   function forecastLines(what, at) {
@@ -624,7 +627,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     else if (e.code === 'KeyZ' || e.code === 'Equal') CAM.zoom(C, 1);
     else if (e.code === 'KeyX' || e.code === 'Minus') CAM.zoom(C, -1);
     else if (e.code === 'KeyV') CAM.tilt(C);
-    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else if (mode === 'map') mapGo(); else confirm(); }
+    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else if (mode === 'map') mapGo(); else if (mode === 'td' && tdp) { tdp.pick(cursor); readout(); } else confirm(); }
     else if (e.code === 'Escape' || e.code === 'Backspace') { if (mode === 'free') { sel = null; highlight('reach', null); readout(); } else back(); }
   });
   window.addEventListener('keyup', (e) => { if (e.code in DIRS) held[DIRS[e.code]] = false; });
@@ -664,6 +667,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     cursor = i; onCursor();
     if (mode === 'free') select();
     else if (mode === 'map') { const k = MAP.dots.findIndex((d) => d.at === i); if (k >= 0) { mapCur = k; mapReadout(); mapGo(); } }
+    else if (mode === 'td' && tdp) { tdp.pick(i); readout(); }
     else if (mode === 'move' || mode === 'aim' || mode === 'deploy') confirm();
   });
 
@@ -820,6 +824,18 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     busSeen = log.length;
   }
 
+  // ── a tower defence (board-td.js, played by board-td-page.js): the board hands it what it has made ──────────────
+  if (TDP && D.td) {
+    const worldAt = (q) => {
+      const c = Math.max(0, Math.min(B.cols - 1, Math.floor(q[0]))), r = Math.max(0, Math.min(B.rows - 1, Math.floor(q[1]))), t = tops[r * B.cols + c];
+      return [O[0] + q[0] * cell, O[1] + q[1] * cell, t ? t[2] : O[2]];
+    };
+    const push = (type) => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type }); };   // eslint-disable-line no-undef
+    tdp = TDP({ THREE, scene, D, B, root, tops, highlight, panel, FX, TDK, cursorAt: () => cursor, worldAt, push });
+    mode = 'td';
+    readout();
+  }
+
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
     state: () => S, highlight, moveCursor, stepCursor, select, get drawn() { return own ? drawn : null; },
@@ -831,6 +847,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     // the story on the map: who speaks, where the camera's shot is, the portrait's frames drawn
     get talk() { return { talking, shot: C.shot ? C.shot.focus.slice() : null, portrait: portrait ? portrait.drawn : null }; },
     // the effects: how many play, how many pieces stand in the world, an act's numbers still waiting on its hit
+    get td() { return tdp ? tdp.probe : null; },
     get fx() { return FX ? { playing: FX.busy(), pieces: FX.pieces(), waiting: !!pend, dim: Math.round(FX.dim() * 1000) / 1000 } : null; },
     playFx(id, who) { if (!FX) return null; const at = (who && whereIs(who)) || tops[cursor]; return FX.play(id, { from: at, at, targets: [at], seed: 'probe:' + (fxN++) }); },
     get map() { return MAP && { at: mapAt, cursor: MAP.dots[mapCur].id, gone: mapGone, dots: MAP.dots.map((d) => ({ id: d.id, state: stateOf(d) })) }; },
@@ -897,6 +914,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB) {
     }
     stepSlot(dt);
     stepTalk();
+    if (tdp) tdp.step(dt);
     stepBusFx();
     if (FX) FX.step(dt);
     if (battle) { drawFloats(dt); run(dt); }

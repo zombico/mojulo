@@ -32,7 +32,7 @@ import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
-import { boardLevelOrder, mapLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
+import { boardLevelOrder, mapLevelOrder, tdLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
@@ -404,7 +404,8 @@ function quickSteps(world, G, ref, lookup) {
   // a defence's foes and tower archers, a battle's foes, a shooter's gunners and a deathmatch's bots
   const figRefs = {};
   // (a dogfight's foes are fighters, not figures: skyscape/dogfight.js)
-  if (Q.goal === 'defend') {
+  // (a defence on a board: its foes and towers are the board's own, nobody minted)
+  if (Q.goal === 'defend' && Q.board === undefined) {
     figRefs.foe = castOf('foe', Q.foe, { n: CAST_POOL, rank: true });
     figRefs.tower = castOf('tower', Q.tower, { n: Q.pads ?? 4, rank: true });
   } else if (Q.goal === 'battle') figRefs.foe = castOf('foe', Q.foe, { n: Q.foes ?? 3, rank: true });
@@ -428,6 +429,12 @@ function quickSteps(world, G, ref, lookup) {
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
+    // a tower defence on the stage's spots (board-levels.js tdLevelOrder): no hero, the level the board's
+    if (Q.goal === 'defend' && Q.board !== undefined) {
+      const L = tdLevelOrder(G, s, { ref: levelRefs[i], quick: Q });
+      steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
+      return;
+    }
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });

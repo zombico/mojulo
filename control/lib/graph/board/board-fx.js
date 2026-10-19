@@ -158,6 +158,20 @@ export function buildBoardFx() {
       { kind: 'sparks', t: 2.9, dur: 1.0, color: '#fff7d6', n: 40, speed: 5 },
       { kind: 'flash', t: 2.9, dur: 0.3, color: '#ffffff' }, { kind: 'shake', t: 2.9, dur: 0.9, k: 0.8 },
     ] },
+    // a tower's shot (board-td-page.js): a streak from the tower to its foe, and what it does there
+    arrow: { land: 0.08, tracks: [
+      { kind: 'beam', dur: 0.12, color: '#fff2c0', r: 0.04 },
+      { kind: 'sparks', t: 0.06, dur: 0.3, color: '#fff2c0', n: 6, speed: 2 },
+    ] },
+    shell: { land: 0.15, tracks: [
+      { kind: 'beam', dur: 0.15, color: '#ffb04d', r: 0.08 },
+      { kind: 'ring', t: 0.12, dur: 0.35, color: '#ffb04d', r0: 0.2, r1: 1.4 },
+      { kind: 'shards', t: 0.12, dur: 0.5, color: '#8a6a4a', n: 8, speed: 3, solid: true },
+    ] },
+    chill: { land: 0.1, tracks: [
+      { kind: 'beam', dur: 0.18, color: '#9fe4ff', r: 0.06 },
+      { kind: 'ring', t: 0.08, dur: 0.4, color: '#bfefff', r0: 0.2, r1: 0.9 },
+    ] },
     // for a scene to call on the bus (fx:quake, fx:meteor)
     quake: { land: 0.2, tracks: [
       { kind: 'shake', dur: 1.2, k: 0.9 },

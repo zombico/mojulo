@@ -354,6 +354,23 @@ describe('design_game quick', () => {
     expect(log).toContain('down');
   }, 240_000);
 
+  it('defend on a board: a tower defence over the stage\'s spots, nobody minted, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'defend', board: { gold: 60 }, waves: 2, lives: 7, world: { id: 'keep', style: { kit: 'trail-valley' } } }, ref: 'tdq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('tdq-level-run-0');
+    expect(L.board).toEqual({ td: { waves: 2, lives: 7, gold: 60 } });
+    expect(mechanicsOf('tdq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tdq-level-run-0'));
+    expect(payload.board.td).toMatchObject({ gold: 60, lives: 7 });
+    expect(payload.board.td.waves).toHaveLength(2);
+    expect(payload.board.camera).toMatchObject({ edge: true });
+    expect(payload.walk).toBe(false);
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    // what only a trail's defence takes, refused beside a board
+    await expect(designGameHandler({ quick: { goal: 'defend', board: true, pads: 2, world: { id: 'keep2' } }, ref: 'tdx' })).rejects.toThrow(/pads is the trail's defence/);
+    await expect(designGameHandler({ quick: { goal: 'reach', board: true, world: { id: 'keep3' } }, ref: 'tdy' })).rejects.toThrow(/board belongs to the defend goal/);
+  }, 240_000);
+
   it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {
     await designGameHandler({ quick: { goal: 'puzzle', boulders: 2, world: { id: 'rocks', style: { kit: 'trail-valley', pixel: true } } }, ref: 'z' });
     const L = stored('z-level-run-0'), P = L.game.mechanics[0];

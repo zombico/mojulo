@@ -245,6 +245,41 @@ describe('the board on the World page', () => {
     await page.close();
   }, 120000);
 
+  it('defends on the board: towers built where the road allows, the waves walked and shot, the level won (or lost)', async () => {
+    if (!browser) return;
+    const M = (td) => ({ kind: 'board', board: { seed: 'td', relief: 0.2, cols: 8, rows: 10 }, td, game: { levelRef: 'td', mechanics: [{ kind: 'board' }] } });
+    const { payload } = await resolveWorldScene({ ref: 'td', title: null, manifest: M({ waves: 2, first: 2 }) });
+    expect(payload.board.td.waves.length).toBe(2);
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.td, { timeout: 20000 });
+    // a tower where the road stays open; none where it would shut
+    const built = await page.evaluate(() => {
+      const td = window.__mojBoard.td, legal = td.legal(), B = window.__mojBoard.board;
+      const mid = legal.filter((i) => Math.floor(i / B.cols) === 4 || Math.floor(i / B.cols) === 6).slice(0, 3);
+      return mid.map((i, k) => td.place(i, ['arrow', 'frost', 'arrow'][k]));
+    });
+    expect(built).toEqual([true, true, true]);
+    expect(await page.evaluate(() => window.__mojBoard.td.place(window.__mojBoard.td.state().towers ? Number(Object.keys(window.__mojBoard.td.state().towers)[0]) : 0))).toMatch(/cannot stand there/);
+    // the waves on the page's own clock: foes walking, towers shooting
+    await page.waitForFunction(() => window.__mojBoard.td.state().foes.length > 0 && window.__mojBoard.fx.playing > 0, { timeout: 20000 });
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/td.png` });
+    await page.evaluate(() => { const td = window.__mojBoard.td; for (let k = 0; k < 4000 && !td.result; k++) td.run(0.1); });
+    await page.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
+    expect(await page.evaluate(() => ({ result: window.__mojBoard.td.result, end: window.__mojGame.envelope.result }))).toEqual({ result: { won: true }, end: 'success' });
+    await page.close();
+    // standing by: overrun, the level failed
+    const lost = await resolveWorldScene({ ref: 'td', title: null, manifest: M({ waves: [{ foes: { runner: 4 } }], lives: 2, first: 0 }) });
+    const p2 = await browser.newPage();
+    await p2.setContent(emitThreeWorld({ ...lost.payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await p2.waitForFunction(() => window.__mojBoard && window.__mojBoard.td, { timeout: 20000 });
+    await p2.evaluate(() => { const td = window.__mojBoard.td; for (let k = 0; k < 4000 && !td.result; k++) td.run(0.1); });
+    await p2.waitForFunction(() => window.__mojGame && window.__mojGame.envelope, { timeout: 10000 });
+    expect(await p2.evaluate(() => window.__mojGame.envelope.result)).toBe('fail');
+    await p2.close();
+  }, 180000);
+
   it('opens an epoch\'s map on its begin slot: the party waits on the scene before it may set out', async () => {
     if (!browser) return;
     const dots = [{ id: 'gate', ref: 'lv-gate' }, { id: 'keep', ref: 'lv-keep', gate: 'gate' }];

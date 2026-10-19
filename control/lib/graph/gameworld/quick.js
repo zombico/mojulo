@@ -40,6 +40,9 @@
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
+ *     board?: true | { cols?, rows?, gold? }   // defend: a TOWER DEFENCE on the stage's spots (board/board-td.js):
+ *                                           // towers on any free spot that keeps the road open, the waves the
+ *                                           // ladder's (waves: 1 to 5), no hero; without it, the trail's defence
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
  *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
@@ -71,6 +74,7 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
+import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
@@ -149,7 +153,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -276,6 +280,17 @@ export function readQuick(Q) {
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
   for (const k of ['foe', 'tower']) if (Q[k] !== undefined && !isObj(Q[k])) throw fail(`.${k} is a hero-door spec, as .hero is`);
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
+  if (Q.board !== undefined) {
+    if (Q.goal !== 'defend') throw fail('.board belongs to the defend goal (a tower defence on the stage\'s spots)');
+    if (Q.board !== true && !isObj(Q.board)) throw fail('.board is true, or { cols?, rows?, gold? }');
+    if (isObj(Q.board)) {
+      for (const k of Object.keys(Q.board)) if (!['cols', 'rows', 'gold'].includes(k)) throw fail(`.board.${k} is not part of it (cols, rows, gold)`);
+      for (const k of ['cols', 'rows']) if (Q.board[k] !== undefined && !(Number.isInteger(Q.board[k]) && Q.board[k] >= 6 && Q.board[k] <= 20)) throw fail(`.board.${k} is 6 to 20 spots`);
+      if (Q.board.gold !== undefined && !(Number.isInteger(Q.board.gold) && Q.board.gold >= 0 && Q.board.gold <= 999)) throw fail('.board.gold is 0 to 999');
+    }
+    for (const k of ['pads', 'tower']) if (Q[k] !== undefined) throw fail(`.${k} is the trail's defence; on a board a tower stands on any free spot that keeps the road open`);
+    if (Q.waves !== undefined && Q.waves > TD_WAVES.length) throw fail(`.waves is 1 to ${TD_WAVES.length} on a board (its ladder)`);
+  }
   if (Q.goal !== 'puzzle' && Q.boulders !== undefined) throw fail('.boulders belongs to the puzzle goal');
   if (Q.boulders !== undefined && !(Number.isInteger(Q.boulders) && Q.boulders >= 1 && Q.boulders <= 4)) throw fail('.boulders is 1 to 4');
   if (Q.goal === 'puzzle' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.puzzle lays its grid by a trail\'s start: no climb, building or ride');
