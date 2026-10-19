@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+/**
+ * hero-stretch — the STRETCH AUDIT over a hero (lib/graph/polygonizer/hero-stretch.js): its shell ring by ring through
+ * the studied gaits (walk, jog, sprint) and the stand's gestures, against its bind. Prints, per joint region and for
+ * the whole shell, the worst ring area and pinch, the twist away from the bone, and the band between rings (compression,
+ * stretch, folds), each naming the ring and the frame. The realistic register's baseline and its phase-4 "after".
+ *
+ *   node scripts/hero-stretch.mjs [--cast male|female|<a figure cast>] [--samples 12] [--rings] [--json]
+ *
+ * --rings prints every ring's own worst; --json the whole report.
+ */
+import { parseArgs } from 'node:util';
+import { register } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
+process.chdir(path.resolve(here, '..'));
+
+const { values: args } = parseArgs({ options: { cast: { type: 'string', default: 'male' }, samples: { type: 'string', default: '12' }, rings: { type: 'boolean' }, json: { type: 'boolean' } } });
+const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
+const { validateRig, bindLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
+const { GESTURE_WORDS, standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
+const { stretchAudit, gaitFrames } = await import('@/lib/graph/polygonizer/hero-stretch.js');
+
+const cast = args.cast;
+const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast }) });
+const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
+// the frames: the planted stand, each gait over its cycle, and each stand gesture as the door mints it on this cast
+const frames = [{ label: 'stand', pose: {} }, ...gaitFrames(R, { samples: Number(args.samples) })];
+for (const g of GESTURE_WORDS.filter((w) => w !== 'rest')) {
+  const mg = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, gesture: g }) });
+  const pose = standPose(mg.recipe, validateRig(mg.recipe.rig));
+  if (pose) frames.push({ label: `gesture ${g}`, pose });
+}
+const A = stretchAudit(mesh, skin, R, m.recipe, frames);
+if (args.json) { console.log(JSON.stringify({ cast, ...A }, null, 2)); process.exit(0); }
+
+const f = (x, d = 2) => (typeof x === 'number' ? x.toFixed(d) : String(x));
+const at = (w) => `${w.ring} @ ${w.at}`;
+console.log(`${cast}: ${A.rings.length} rings over ${A.frames} frames (the stand, ${args.samples} phases of each gait, the gestures)`);
+const show = (name, w) => {
+  console.log(`${name.padEnd(9)} ring area ${f(w.areaMin.value)} (${at(w.areaMin)}) … ${f(w.areaMax.value)} (${at(w.areaMax)});  pinch ${f(w.pinch.value)} (${at(w.pinch)});  twist ${f(w.twist.value, 1)}° (${at(w.twist)})`);
+  console.log(`${''.padEnd(9)} band ${f(w.bandMin.value)} (${at(w.bandMin)}) … ${f(w.bandMax.value)} (${at(w.bandMax)});  folds ${w.folds.value}${w.folds.value ? ` (${at(w.folds)})` : ''}`);
+};
+for (const [k, w] of Object.entries(A.regions)) show(k, w);
+show('shell', A.worst);
+if (args.rings) for (const r of A.rings) console.log(`  ${`${r.part}/${r.station}`.padEnd(22)} area ${f(r.area.min)}…${f(r.area.max)}  pinch ${f(r.pinch.min)}  twist ${f(r.twist.max, 1)}°  band ${f(r.band.min)}…${f(r.band.max)}${r.band.folds ? `  folds ${r.band.folds}` : ''}`);

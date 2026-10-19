@@ -21,6 +21,19 @@ shape generated relationally (the relational head's method carried to the body),
 every reader of its stations, slots and body chart keeps working, with the relational head joined on at the neck.
 Opt-in and versioned: a default hero keeps its bytes.
 
+- **The stretch audit** (`hero-stretch.js`, `scripts/hero-stretch.mjs`). The hero's shell read ring by ring through
+  the studied gaits (walk, jog and sprint over their cycles) and the stand's gestures, against its bind: each closed
+  part's station is a ring of its slots, measured for its area and its narrowest slot (a joint's collapse), its twist
+  away from its heaviest bone (the blend lagging the bone), and the BAND of skin from it to the next ring, slot by slot
+  (a crease's compression, the far side's stretch, folds through itself). Each ring keeps its worst frame, and the knee,
+  elbow, hip and shoulder are gathered as regions. The bands carry the read: the hero binds its knee and elbow rings
+  rigidly to fold bones, so a ring keeps its area however far the joint bends, and the joint gives in the skin between
+  rings. The baseline, male (female alike within a few hundredths): the hip's band stretches to 2.5× its rest length
+  in the sprint and compresses to 0.55, the knee's to 2.1× and 0.61, the elbow's to 1.6× and 0.75 in the guard; the
+  shoulder's top ring loses a quarter of its area in the sprint and twists 9° off its bone in the relaxed stand; the
+  foot's heel ring keeps 40% of its area at the sprint's push. The groin and the armpit are seams between parts, not yet
+  read.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
