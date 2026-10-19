@@ -179,7 +179,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   opened leg stretches one skin (the thigh's top had been its bone's from the first rings: opened, its root swung away
   from the pelvis in a notch at the crotch, the seat's edge left a shelf); and the adductors' origin, a mass high on
   the thigh's inside, gives the stretch its stuff (the inner thigh's top had pulled across the crotch in a thin web).
-  Only the feet are still the authored cage.
+  THE KNEE AND THE ELBOW BEND AS ONE SKIN: across a band either side of the joint, the upper segment's and the lower's
+  points alike take the upper bone, the rig's fold (turned half the bend) and the lower bone by where they lie, so the
+  two shells handed over at the joint's plane move together (the sprint's deep knee had swung the thigh's end out from
+  under the shank behind the knee, a lobe with an edge); the shoulder's share of the arm's bone eases over a wider
+  band (one narrower folded a ring at the joint's height in the arm's fore-and-aft swing) and the collarbone's fades in
+  further off the neck (a swinging arm opened a notch at the neck's root). Read by the stretch audit (hero-stretch.mjs
+  `--form`) against the authored hero over the stand, the gaits and the gestures: the elbow's seam opens 11 to 15 mm at
+  worst (the authored 20 to 41), the groin's not at all; the knee's back pinches to 0.6 of its ring in the sprint, where
+  the authored hero's seam opened 36 mm. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

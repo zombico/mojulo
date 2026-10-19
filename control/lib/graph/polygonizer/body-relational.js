@@ -618,7 +618,9 @@ export function formSlice(recipe, R, build, opts = {}) {
   // top in and down about the joint and its side up, a trough over the collarbone and a hump over the arm)
   const sj = R.joints.shoulderR, armDir = unit(sub(R.joints.elbowR, sj)), zAx = sj[2];
   const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
-  const down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + 0.1 * W0) / (0.6 * W0));
+  // (over a band from a little above the joint to a hand's breadth down: one narrower folded the skin in a ring at the
+  // joint's height when the arm swung fore and aft, the sprint's)
+  const down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + 0.3 * W0) / (1.1 * W0));
   const deltoidShare = (q) => {
     const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
     return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * down(q);
@@ -651,7 +653,9 @@ export function formSlice(recipe, R, build, opts = {}) {
     const p = [Math.abs(q[0]), q[1], q[2]], ab = sub(c1, c0), t = Math.max(0, Math.min(1, dot(sub(p, c0), ab) / dot(ab, ab))), d = len(sub(p, add(c0, scl(ab, t))));
     // (none inside the collarbone's pivot, its sternal end: rising, the bone turns that side down, and the skin at the
     // neck's root split at the midline)
-    const x = Math.max(0, Math.min(1, (gOut - d) / (gOut - gIn))), m = Math.max(0, Math.min(1, (p[0] - c0[0]) / (0.3 * W0)));
+    // (and faded in over a wider run off the neck: the trapezius at the neck's root, carried by a swinging arm's
+    // collarbone while the neck stood, opened a notch there)
+    const x = Math.max(0, Math.min(1, (gOut - d) / (gOut - gIn))), m = Math.max(0, Math.min(1, (p[0] - c0[0] - 0.1 * W0) / (0.5 * W0)));
     return x * x * (3 - 2 * x) * m * m * (3 - 2 * m);
   };
   const rideGirdle = (P) => {
@@ -690,6 +694,26 @@ export function formSlice(recipe, R, build, opts = {}) {
     return { ...P, bind: { ...b, blend } };
   };
   if (pelvic && limbs.thigh) r.parts.pelvis = rideHip(r.parts.pelvis, false);
+  // THE KNEE AND THE ELBOW BEND AS ONE SKIN: across a band either side of the joint (`hb`, along the lower bone), the
+  // upper segment's and the lower's points alike take the upper bone, the fold's (the rig's helper turned half the bend)
+  // and the lower bone by where they lie, so the two shells handed over at the joint's plane move together. Each had
+  // been its own bone's nearly to the plane: bent deep (the sprint's knee), the thigh's end swung out from under the
+  // shank's top behind the knee, a lobe with an edge
+  const hingeBand = (P, joint, toward, upper, fold, lower, hb) => {
+    const J0 = R.joints[`${joint}R`], dirL = unit(sub(R.joints[`${toward}R`], J0)), b = P.bind, blend = { ...(b.blend || {}) };
+    const mine = new RegExp(`^(${upper}|${fold}|${lower})[RL]$`), own = { [b.bone]: 1 };
+    const ride = (key, fallback, p) => {
+      const t = dot(sub([Math.abs(p[0]), p[1], p[2]], J0), dirL); if (Math.abs(t) >= hb) return;
+      const w0 = blend[key] || fallback || own; if (!Object.keys(w0).every((k) => mine.test(k))) return;
+      const S = p[0] < 0 ? 'L' : 'R', f = sm((t + hb) / (2 * hb)), F = R.joints[`${fold}R`] ? `${fold}${S}` : null;
+      blend[key] = !F ? mixW({ [`${upper}${S}`]: 1 }, { [`${lower}${S}`]: 1 }, f) : f < 0.5 ? mixW({ [`${upper}${S}`]: 1 }, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, { [`${lower}${S}`]: 1 }, 2 * f - 1);
+    };
+    for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
+    for (const [k, q] of Object.entries(P.caps || {})) ride(k, null, q);
+    // (a hard limb's zone eases its station shares by the joint ring: the band's own shares stand per slot over it)
+    return { ...P, bind: { ...b, blend } };
+  };
+  const HINGES = { thigh: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], shank: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], upperArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'], foreArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'] };
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
     // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
@@ -706,6 +730,7 @@ export function formSlice(recipe, R, build, opts = {}) {
     r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
     if (limb === 'upperArm') r.parts[pr] = rideDeltoid(r.parts[pr], true);
     if (limb === 'thigh' && pelvic) r.parts[pr] = rideHip(r.parts[pr], true);
+    if (HINGES[limb]) r.parts[pr] = hingeBand(r.parts[pr], ...HINGES[limb], 0.35 * W0);
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }
