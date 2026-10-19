@@ -24,6 +24,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `measure_view`, and a `dress` that only sells the picture, light and explorable on the interactive page,
   choreographed with timed callouts on film. Every exaggeration is a declared liberty the page shows. A law the
   table lacks is named as a gap, never approximated silently.
+- **The classical solver** (`lib/graph/science-worlds/`), not yet reachable from `create_view`. A table of
+  laws (uniform and universal gravity, springs, rods and ropes, linear and quadratic drag, buoyancy, Coulomb, the
+  Lorentz force, planes with restitution and friction, sphere collisions) composes a model; the solver picks velocity
+  Verlet or RK4 and a step from the fastest motion, runs it, and checks it: energy conserved (or never gained when
+  something loses it), momentum and angular momentum where nothing outside acts, rods held, no tunnelling, and the
+  textbook answer wherever one exists (a projectile's apex and range, a spring's and a pendulum's period at any
+  amplitude, a Kepler orbit, a cyclotron turn, terminal speed, a slide down a ramp, a head-on collision). Two regime
+  checks say when a model has left Newton's ground: near light speed, or a wavelength as large as the path. Units are
+  read with their dimension, so a mass in m/s is an error. `machina/quantities` gains charge, temperature and amount,
+  and the units the sciences use.
 
 ### Epidermis cube: skin and hair as a recipe
 

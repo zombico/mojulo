@@ -15,8 +15,10 @@
 import { clampNum } from '../worlds/motion-vocabulary.js';
 
 // ── dimension signatures: exponents of the SI base [M(ass), L(ength), T(ime)]. Derived quantities are
-// products of these — force = M·L·T⁻², work = M·L²·T⁻², power = M·L²·T⁻³. Count is dimensionless. ──
-const dim = (M = 0, L = 0, T = 0) => ({ M, L, T });
+// products of these — force = M·L·T⁻², work = M·L²·T⁻², power = M·L²·T⁻³. Count is dimensionless.
+// The science worlds add charge (Q), temperature (K) and amount (N), defaulted to zero so every signature
+// above them keeps its meaning and its name. ──
+const dim = (M = 0, L = 0, T = 0, Q = 0, K = 0, N = 0) => ({ M, L, T, Q, K, N });
 export const DIM = {
   scalar: dim(), mass: dim(1, 0, 0), length: dim(0, 1, 0), time: dim(0, 0, 1),
   velocity: dim(0, 1, -1), accel: dim(0, 1, -2),
@@ -24,11 +26,18 @@ export const DIM = {
   // the strength sensor's quantities: stress (force per area), area, and the second moment of area (L⁴).
   // Torque has the dimension of work (N·m); its units below are aliases, so the guard cannot tell them apart.
   stress: dim(1, -1, -2), area: dim(0, 2, 0), moment2: dim(0, 4, 0),
+  // the science worlds' quantities: a fluid's density and viscosity, a spring's stiffness and a damper's
+  // coefficient, a volume; charge and the fields that push on it (E in V/m = N/C, B in tesla); temperature and amount.
+  density: dim(1, -3, 0), viscosity: dim(1, -1, -1), stiffness: dim(1, 0, -2), damping: dim(1, 0, -1), volume: dim(0, 3, 0),
+  charge: dim(0, 0, 0, 1), efield: dim(1, 1, -2, -1), bfield: dim(1, 0, -1, -1),
+  temperature: dim(0, 0, 0, 0, 1), amount: dim(0, 0, 0, 0, 0, 1),
 };
-const dimEq = (a, b) => a.M === b.M && a.L === b.L && a.T === b.T;
-const dimMul = (a, b) => dim(a.M + b.M, a.L + b.L, a.T + b.T);
-const dimDiv = (a, b) => dim(a.M - b.M, a.L - b.L, a.T - b.T);
-const dimName = (d) => Object.keys(DIM).find((k) => dimEq(DIM[k], d)) || `M${d.M}L${d.L}T${d.T}`;
+const AXES = ['M', 'L', 'T', 'Q', 'K', 'N'];
+const dimEq = (a, b) => AXES.every((k) => (a[k] || 0) === (b[k] || 0));
+const dimMul = (a, b) => dim(...AXES.map((k) => (a[k] || 0) + (b[k] || 0)));
+const dimDiv = (a, b) => dim(...AXES.map((k) => (a[k] || 0) - (b[k] || 0)));
+const dimName = (d) => Object.keys(DIM).find((k) => dimEq(DIM[k], d))
+  || `M${d.M}L${d.L}T${d.T}` + ['Q', 'K', 'N'].map((k) => (d[k] ? `${k}${d[k]}` : '')).join('');
 
 // ── unit table: `unit → [dimension, factor-to-canonical]`. Multiply an operator value by the factor to
 // reach canonical SI; divide to present. Add domain units (pallets, cases) as scalar aliases. ──
@@ -58,6 +67,20 @@ export const UNITS = {
   // count / dimensionless (the demand multiplicity — "units", "pallets", "cases" are all scalar)
   '': U(DIM.scalar, 1), unit: U(DIM.scalar, 1), units: U(DIM.scalar, 1),
   pallet: U(DIM.scalar, 1), pallets: U(DIM.scalar, 1), case: U(DIM.scalar, 1), cases: U(DIM.scalar, 1), item: U(DIM.scalar, 1), items: U(DIM.scalar, 1),
+  // the science worlds' units. Small lengths and masses, short times, angles (dimensionless), acceleration, the
+  // fluid and spring constants, charge and fields, temperature and amount.
+  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), mg: U(DIM.mass, 1e-6),
+  ms: U(DIM.time, 1e-3), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
+  rad: U(DIM.scalar, 1), deg: U(DIM.scalar, Math.PI / 180), '°': U(DIM.scalar, Math.PI / 180),
+  'm/s²': U(DIM.accel, 1), 'm/s2': U(DIM.accel, 1),
+  'kg/m³': U(DIM.density, 1), 'kg/m3': U(DIM.density, 1), 'g/cm³': U(DIM.density, 1000), 'g/cm3': U(DIM.density, 1000),
+  'Pa·s': U(DIM.viscosity, 1), 'Pa*s': U(DIM.viscosity, 1), 'mPa·s': U(DIM.viscosity, 1e-3),
+  'N/m': U(DIM.stiffness, 1), 'kN/m': U(DIM.stiffness, 1000), 'N·s/m': U(DIM.damping, 1), 'N*s/m': U(DIM.damping, 1), 'kg/s': U(DIM.damping, 1),
+  'm³': U(DIM.volume, 1), 'm3': U(DIM.volume, 1), L: U(DIM.volume, 1e-3), mL: U(DIM.volume, 1e-6),
+  C: U(DIM.charge, 1), mC: U(DIM.charge, 1e-3), 'µC': U(DIM.charge, 1e-6), uC: U(DIM.charge, 1e-6), nC: U(DIM.charge, 1e-9), e: U(DIM.charge, 1.602176634e-19),
+  'V/m': U(DIM.efield, 1), 'N/C': U(DIM.efield, 1), 'kV/m': U(DIM.efield, 1000),
+  T: U(DIM.bfield, 1), mT: U(DIM.bfield, 1e-3), 'µT': U(DIM.bfield, 1e-6), uT: U(DIM.bfield, 1e-6), gauss: U(DIM.bfield, 1e-4),
+  K: U(DIM.temperature, 1), mol: U(DIM.amount, 1),
 };
 
 // ── standard gravity (m/s²) as named worlds, matching mechanics-view's MOON_G convention. ──
