@@ -130,7 +130,7 @@ A ball bouncing on a lossy floor until it rests:
     { "at": [0.5, 1.5], "text": "Each bounce keeps 75% of the speed", "on": "ball" }] } } }
 ```
 
-<!-- laws:begin (generated from the classical tables: node scripts/science-cards.mjs) -->
+<!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->
 
 ## The laws
 

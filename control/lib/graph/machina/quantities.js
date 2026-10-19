@@ -31,6 +31,8 @@ export const DIM = {
   density: dim(1, -3, 0), viscosity: dim(1, -1, -1), stiffness: dim(1, 0, -2), damping: dim(1, 0, -1), volume: dim(0, 3, 0),
   charge: dim(0, 0, 0, 1), efield: dim(1, 1, -2, -1), bfield: dim(1, 0, -1, -1),
   temperature: dim(0, 0, 0, 0, 1), amount: dim(0, 0, 0, 0, 0, 1),
+  // the microscopic scale's: how fast things diffuse and leak, how much is dissolved, how fast it reacts
+  diffusivity: dim(0, 2, -1), frequency: dim(0, 0, -1), concentration: dim(0, -3, 0, 0, 0, 1), rate2: dim(0, 3, -1, 0, 0, -1),
 };
 const AXES = ['M', 'L', 'T', 'Q', 'K', 'N'];
 const dimEq = (a, b) => AXES.every((k) => (a[k] || 0) === (b[k] || 0));
@@ -53,7 +55,7 @@ export const UNITS = {
   // velocity
   'm/s': U(DIM.velocity, 1), 'km/h': U(DIM.velocity, 1 / 3.6), mph: U(DIM.velocity, 0.44704),
   // force
-  N: U(DIM.force, 1), kN: U(DIM.force, 1000), kgf: U(DIM.force, 9.80665), lbf: U(DIM.force, 4.4482216152605),
+  N: U(DIM.force, 1), kN: U(DIM.force, 1000), pN: U(DIM.force, 1e-12), fN: U(DIM.force, 1e-15), kgf: U(DIM.force, 9.80665), lbf: U(DIM.force, 4.4482216152605),
   // work / energy
   J: U(DIM.work, 1), kJ: U(DIM.work, 1000), Wh: U(DIM.work, 3600), kWh: U(DIM.work, 3.6e6),
   // power
@@ -71,7 +73,7 @@ export const UNITS = {
   // fluid and spring constants, charge and fields, temperature and amount.
   'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), mg: U(DIM.mass, 1e-6),
   AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
-  ms: U(DIM.time, 1e-3), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
+  ms: U(DIM.time, 1e-3), ns: U(DIM.time, 1e-9), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
   rad: U(DIM.scalar, 1), deg: U(DIM.scalar, Math.PI / 180), '°': U(DIM.scalar, Math.PI / 180),
   'm/s²': U(DIM.accel, 1), 'm/s2': U(DIM.accel, 1),
   'kg/m³': U(DIM.density, 1), 'kg/m3': U(DIM.density, 1), 'g/cm³': U(DIM.density, 1000), 'g/cm3': U(DIM.density, 1000),
@@ -82,6 +84,14 @@ export const UNITS = {
   'V/m': U(DIM.efield, 1), 'N/C': U(DIM.efield, 1), 'kV/m': U(DIM.efield, 1000),
   T: U(DIM.bfield, 1), mT: U(DIM.bfield, 1e-3), 'µT': U(DIM.bfield, 1e-6), uT: U(DIM.bfield, 1e-6), gauss: U(DIM.bfield, 1e-4),
   K: U(DIM.temperature, 1), mol: U(DIM.amount, 1),
+  // small speeds (a permeability is a speed), diffusion coefficients, concentrations (molar = mol per litre), rate
+  // constants (first order per second; second order per molar per second)
+  'mm/s': U(DIM.velocity, 1e-3), 'µm/s': U(DIM.velocity, 1e-6), 'um/s': U(DIM.velocity, 1e-6), 'nm/s': U(DIM.velocity, 1e-9), 'cm/s': U(DIM.velocity, 0.01),
+  'm²/s': U(DIM.diffusivity, 1), 'm2/s': U(DIM.diffusivity, 1), 'cm²/s': U(DIM.diffusivity, 1e-4), 'cm2/s': U(DIM.diffusivity, 1e-4),
+  'µm²/s': U(DIM.diffusivity, 1e-12), 'um2/s': U(DIM.diffusivity, 1e-12), 'µm2/s': U(DIM.diffusivity, 1e-12),
+  '/s': U(DIM.frequency, 1), 's⁻¹': U(DIM.frequency, 1), 's^-1': U(DIM.frequency, 1), Hz: U(DIM.frequency, 1), '/min': U(DIM.frequency, 1 / 60),
+  M: U(DIM.concentration, 1000), mM: U(DIM.concentration, 1), 'µM': U(DIM.concentration, 1e-3), uM: U(DIM.concentration, 1e-3), nM: U(DIM.concentration, 1e-6), 'mol/m³': U(DIM.concentration, 1),
+  '/M/s': U(DIM.rate2, 1e-3), 'M⁻¹s⁻¹': U(DIM.rate2, 1e-3), 'M^-1s^-1': U(DIM.rate2, 1e-3), '/µM/s': U(DIM.rate2, 1e3), '/uM/s': U(DIM.rate2, 1e3),
 };
 
 // ── standard gravity (m/s²) as named worlds, matching mechanics-view's MOON_G convention. ──

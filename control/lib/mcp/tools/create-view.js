@@ -77,6 +77,7 @@ import { createWavepacketViewHandler } from '@/lib/mcp/tools/wavepacket-view';
 import { createWindmillViewHandler } from '@/lib/mcp/tools/windmill-view';
 // Science worlds: a demo composed from a scale's law table, not one authored experiment (lib/graph/science-worlds/).
 import { createClassicalViewHandler } from '@/lib/mcp/tools/classical-view';
+import { createMicroscopicViewHandler } from '@/lib/mcp/tools/microscopic-view';
 // Animated bio PROCESS explainers — folded in from the standalone create_dna_process /
 // create_energy_cycle tools (mint-solid-consolidation.plan.md Tier 2 sibling).
 import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
@@ -112,6 +113,7 @@ export const VIEW_KINDS = {
   'gravity-wave': { family: 'science', retired: 'create_gravity_wave_view', handler: createGravityWaveViewHandler },
   'lightning-storm': { family: 'science', retired: 'create_lightning_storm_view', handler: createLightningStormViewHandler },
   'mechanics': { family: 'science', retired: 'create_mechanics_view', handler: createMechanicsViewHandler },
+  'microscopic': { family: 'science', handler: createMicroscopicViewHandler },   // a science world: composed from laws — no retired alias
   'molecule': { family: 'bio', retired: 'create_molecule_view', handler: createMoleculeViewHandler },
   'ocean': { family: 'science', retired: 'create_ocean_view', handler: createOceanViewHandler },
   'orbit': { family: 'science', retired: 'create_orbit_view', handler: createOrbitViewHandler },

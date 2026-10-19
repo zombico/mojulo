@@ -7,7 +7,7 @@
 import { CLASSICAL_LAWS } from './laws.js';
 import { CLASSICAL_CLOSED_FORMS } from './analytic.js';
 
-export const CARD_BEGIN = '<!-- laws:begin (generated from the classical tables: node scripts/science-cards.mjs) -->';
+export const CARD_BEGIN = '<!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->';
 export const CARD_END = '<!-- laws:end -->';
 
 const UNIT = {

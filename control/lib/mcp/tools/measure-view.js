@@ -31,17 +31,18 @@ import { planOrbitScene, sampleOrbitPhysics } from '@/lib/graph/views/science/or
 import { planDerivativeScene, sampleDerivativeExact } from '@/lib/graph/views/math/derivative-view';
 import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/series-view';
 import { solveClassical, classicalStats } from '@/lib/graph/science-worlds/classical/solve';
+import { solveMicroscopic, microscopicStats } from '@/lib/graph/science-worlds/microscopic/solve';
 
 // kinds with an honest sampler, in two tiers: 'si' (real physical units — mechanics
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -84,6 +85,7 @@ export function recomputeViewStats(manifest) {
   if (kind === 'classical-view') {
     return classicalStats(solveClassical({ model: manifest.model }));
   }
+  if (kind === 'microscopic-view') return microscopicStats(solveMicroscopic({ model: manifest.model }));
   throw new Error(
     `recomputeViewStats: kind '${kind}' is not reviewable. Reviewable kinds: ${[...REVIEWABLE_VIEW_KINDS].join(', ')}.`,
   );
@@ -136,6 +138,7 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
     return { kind, tier: 'exact', scenario: s.scenario, units: s.units, domain: s.domain, family: s.family, series: s.series };
   }
   if (kind === 'classical-view') return sampleClassical(manifest, every);
+  if (kind === 'microscopic-view') return sampleMicroscopic(manifest, every);
   throw new Error(
     `measure_view: kind '${kind}' has no honest read-back channel — its numbers are render units `
     + `or presets, so samples would lie. Measurable kinds: ${[...MEASURABLE_VIEW_KINDS].join(', ')}.`,
@@ -162,6 +165,28 @@ function sampleClassical(manifest, every) {
       }),
       { name: 'system', label: 'the whole system', samples: keep.map((k) => ({ t: t[k], ke: r.series.ke[k], pe: r.series.pe[k], e: r.series.e[k], p: r.series.p[k], L: r.series.L[k] })), count: keep.length },
     ],
+  };
+}
+
+// a microscopic world's samples: every species' count, its share on the near side of each membrane, and the variance
+// of its displacement (6·D·t while it diffuses freely), in SI, from the same seeded run the page plays
+function sampleMicroscopic(manifest, every) {
+  const r = solveMicroscopic({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), t = r.tracks.t;
+  const keep = t.map((x, k) => k).filter((k) => k % step === 0 || k === t.length - 1);
+  return {
+    kind: 'microscopic-view', tier: 'si', scenario: 'composed',
+    units: { t: 's', count: 'molecules', near: 'molecules', spread: 'm²', D: 'm²/s' },
+    T: r.model.duration, dt: r.dt, seed: r.model.seed, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed,
+    series: r.model.species.map((sp, s) => {
+      const samples = keep.map((k) => ({
+        t: t[k], count: r.series.counts[sp.id][k], spread: r.series.msd[sp.id][k],
+        ...(r.series.sides.length ? { near: r.series.sides.map((m) => m[sp.id][k]) } : {}),
+      }));
+      return { name: sp.id, label: sp.id, D: r.D[s], samples, count: samples.length };
+    }),
   };
 }
 

@@ -21,7 +21,8 @@ import { withPngPixels } from '../../util/png-pixels.fixture.js';
  *
  * Re-pin log:
  *   - 2026-10-19 science worlds (CHANGELOG "Science worlds"): the classical-view arm (added the same day) re-based when
- *     its payload began carrying the film it proposes (`defaultShoot`) and the science block's film config.
+ *     its payload began carrying the film it proposes (`defaultShoot`) and the science block's film config, and again
+ *     when the science readout became rows; the microscopic-view arm added.
  *   - 2026-09-26 furniture audit (CHANGELOG-2.x.md "Furniture audit"): the floorplan arm's rows re-based —
  *     sealed rooms are doored, interior leaves park against the wall with panels and a handle,
  *     share-mode chairs / wall pieces / entry / storage / tabletop meshes changed on purpose.
@@ -45,6 +46,7 @@ const FIXTURES = {
   'mechanics-view': { kind: 'mechanics-view' },
   // a science world needs a model: one body under gravity is its smallest
   'classical-view': { kind: 'classical-view', model: { bodies: [{ id: 'ball', mass: 1, radius: 0.1, at: [0, 0, 1], v: [3, 0, 4] }], laws: [{ law: 'gravity-uniform' }], duration: 1 } },
+  'microscopic-view': { kind: 'microscopic-view', model: { box: { size: ['5 µm', '5 µm', '5 µm'] }, species: [{ id: 'bead', radius: '0.2 µm', count: 10 }], laws: [{ law: 'brownian' }], duration: '1 s' } },
   'orbit-view': { kind: 'orbit-view' },
   'comet-view': { kind: 'comet-view' },
   'field-view': { kind: 'field-view' },

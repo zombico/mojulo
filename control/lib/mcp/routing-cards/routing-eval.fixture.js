@@ -45,6 +45,7 @@ export const FIXTURE = [
   // science worlds: a demo composed from laws, the kind carried as the mode
   ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_view', 'classical'],
   ['simulate two moons going around a planet so my students can watch the orbits', 'create_view', 'classical'],
+  ['show my biology class how a drop of dye spreads out through water, molecule by molecule', 'create_view', 'microscopic'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],

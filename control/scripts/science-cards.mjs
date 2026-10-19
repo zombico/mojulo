@@ -3,9 +3,11 @@
 // Run from control/: node scripts/science-cards.mjs. A stale card fails lib/graph/science-worlds/classical/card.test.js.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { withClassicalBlock } from '../lib/graph/science-worlds/classical/card.js';
+import { withMicroscopicBlock } from '../lib/graph/science-worlds/microscopic/card.js';
 
-const path = 'lib/graph/views/view-vocab/classical.md';
-const before = readFileSync(path, 'utf8');
-const after = withClassicalBlock(before);
-if (after === before) console.log(`${path}: up to date`);
-else { writeFileSync(path, after); console.log(`${path}: rewritten`); }
+for (const [path, write] of [['lib/graph/views/view-vocab/classical.md', withClassicalBlock], ['lib/graph/views/view-vocab/microscopic.md', withMicroscopicBlock]]) {
+  const before = readFileSync(path, 'utf8');
+  const after = write(before);
+  if (after === before) console.log(`${path}: up to date`);
+  else { writeFileSync(path, after); console.log(`${path}: rewritten`); }
+}

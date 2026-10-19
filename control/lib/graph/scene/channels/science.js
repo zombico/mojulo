@@ -3,11 +3,11 @@ import { safeJson } from '../emit-util.js';
 // In-page script: the SCIENCE channel (opt-in via emitThreeWorld({ science }) — a science world's page: the
 // classical kind today). Bespoke, not a registry row, so a page without it is byte-identical. Three parts:
 //
-//   the READOUT — the system, not one body: the clock in the model's own time, the energy (kinetic, potential
-//     above its lowest, and the total), the momentum when nothing outside acts, and a speed line per body the
-//     model observes. It plays on the movers' clock (the same play → hold → replay cycle, the same sample
-//     index), so a number never disagrees with the picture. When the movers made a readout (their arrows are
-//     on) this takes it over, since it runs after them in __mojStep.
+//   the READOUT — the system, not one body: the clock in the model's own time, then the scale's ROWS, each a
+//     per-sample series with a label and a unit, drawn as a bar (against the row's `max`) or as a line of text
+//     (a classical world's energy and momentum, a microscopic world's counts). It plays on the movers' clock (the
+//     same play → hold → replay cycle, the same sample index), so a number never disagrees with the picture. When
+//     the movers made a readout (their arrows are on) this takes it over, since it runs after them in __mojStep.
 //   the HONESTY PANEL — "What's real · what's drawn": the laws the model runs, the checks the solver ran on it
 //     (the machine gate, with its numbers), what the model leaves out, and every liberty the drawing takes.
 //     Built with textContent, never innerHTML, from strings the recipe supplied.
@@ -126,17 +126,17 @@ function stepScience(t) {
     e.style.display = ''; e.style.left = ((_sciV.x + 1) / 2 * 100) + '%'; e.style.top = ((1 - _sciV.y) / 2 * 100) + '%';
   }
   if (!_sciRo) return;
-  const s = SCI.series;
-  let h = '<b>' + SCI.titleHtml + '</b><span>t = ' + _sciTime(SCI.t[i]) + '</span>';
-  if (s.ke) {
-    const bar = (lab, val, col) => '<div style="display:flex;align-items:center;gap:5px;margin-top:2px"><span style="width:18px;color:' + col + '">' + lab + '</span>'
-      + '<span style="flex:1;height:6px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden"><span style="display:block;height:100%;width:' + (100 * Math.max(0, Math.min(1, val / s.emax))) + '%;background:' + col + '"></span></span>'
-      + '<span style="width:64px;text-align:right;opacity:.78">' + _sciFmt(val, 'J') + '</span></div>';
-    h += '<div style="width:200px;margin-top:4px">' + bar('KE', s.ke[i], '#55e08a') + bar('PE', s.pe[i] - s.peMin, '#5fa9e0') + '</div>'
-      + '<span>E = ' + _sciFmt(s.e[i], 'J') + (SCI.conserves ? ' · holds' : ' · leaving') + '</span>';
+  let h = '<b>' + SCI.titleHtml + '</b><span>t = ' + _sciTime(SCI.t[i]) + '</span>', bars = '';
+  const val = (r) => (r.int ? String(Math.round(r.values[i])) + (r.unit ? ' ' + r.unit : '') : _sciFmt(r.values[i], r.unit));
+  const flush = () => { if (bars) { h += '<div style="width:' + SCI.barWidth + 'px;margin-top:4px">' + bars + '</div>'; bars = ''; } };
+  for (const r of SCI.rows) {
+    if (r.bar) {
+      bars += '<div style="display:flex;align-items:center;gap:5px;margin-top:2px"><span style="width:' + SCI.labelWidth + 'px;color:' + r.color + '">' + r.html + '</span>'
+        + '<span style="flex:1;height:6px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden"><span style="display:block;height:100%;width:' + (100 * Math.max(0, Math.min(1, r.values[i] / r.max))) + '%;background:' + r.color + '"></span></span>'
+        + '<span style="width:64px;text-align:right;opacity:.78">' + val(r) + '</span></div>';
+    } else { flush(); h += '<span' + (r.cls ? ' class="' + r.cls + '"' : '') + '>' + r.html + ' = ' + val(r) + (r.suffix || '') + '</span>'; }
   }
-  if (s.p) h += '<span>|p| = ' + _sciFmt(s.p[i], 'kg·m/s') + ' · conserved</span>';
-  for (const b of SCI.speeds) h += '<span class="v">' + b.html + ' = ' + _sciFmt(b.v[i], 'm/s') + '</span>';
+  flush();
   _sciRo.innerHTML = h;
 }
 `;

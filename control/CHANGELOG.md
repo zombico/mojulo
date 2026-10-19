@@ -58,6 +58,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **A shot's `speed`.** Shoot plans gain a time stretch per shot (`speed`, 0.05 to 4): `{ span: [2, 3], speed: 0.25 }`
   is a four-second slow-motion replay of one second of the world, on the World page and in renders alike;
   `set_shot { speed }` edits it. A plan without one is unchanged, byte for byte.
+- **`create_view({ kind: 'microscopic' })`**: cells down to molecules, composed from a table of laws (Brownian
+  motion with Stokes–Einstein diffusion, drift from a flow or a force, partially permeable membranes, reactions by
+  mass action drawn exactly by Gillespie's algorithm in a well-mixed volume). A model is a box, its species (by count
+  or concentration; each sphere may stand for many molecules, and the page says what that does to the noise) and
+  their laws, run with seeded dice. It is checked: the spread grows as 6·D·t, a drift carries the cloud at v·t, a
+  reversible reaction settles at its equilibrium constant, what no reaction can change stays exactly as it began, a
+  species that crosses a membrane evens out in proportion to the volumes while one that cannot never crosses; and it
+  says when counting stops standing for the volume (reactions outpace mixing) and when a model leaves the scale
+  (inertia that lasts, a radius smaller than an atom, flow fast enough for wakes). Statistical checks allow four to
+  five standard errors, so a sound run passes for any seed. An enzyme is two reaction rows (E + S ⇌ ES → E + P); an
+  unknown law names its scale or what to compose instead. The page draws every shown molecule (up to 300) walking
+  its recorded path, changing colour when it reacts, inside a see-through box with each membrane a lattice, counts
+  in the readout; its film replays the first reaction slowed. `measure_view` reads every species' count, its count
+  on each side of a membrane and its spread at tier `si`. The science readout became rows, shared by both scales,
+  and the page helpers moved to `science-worlds/page.js`. `machina/quantities` gains concentration, rate constants,
+  diffusivity and the small units.
 - **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
   the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
   measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.

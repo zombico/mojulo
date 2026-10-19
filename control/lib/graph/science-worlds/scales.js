@@ -10,6 +10,10 @@
  */
 
 export const OWNER = {
+  classical: [
+    'gravity-uniform', 'gravity-newton', 'gravity', 'spring', 'rod', 'rope', 'pendulum', 'drag-linear', 'drag-quadratic',
+    'air-resistance', 'buoyancy', 'coulomb', 'lorentz', 'plane', 'ground', 'incline', 'collision', 'projectile', 'orbit',
+  ],
   microscopic: [
     'diffusion', 'brownian', 'brownian-motion', 'osmosis', 'reaction', 'mass-action', 'binding', 'enzyme',
     'michaelis-menten', 'membrane', 'transport', 'transcription', 'translation', 'mitosis', 'meiosis',
@@ -34,6 +38,20 @@ const NOT_YET = {
   'special-relativity': 'relativity is outside the classical scale',
   thermal: 'heat flow is not in the table yet',
   heat: 'heat flow is not in the table yet',
+  // microscopic laws not yet rows (each species already evens out its own concentration across a membrane it crosses)
+  osmosis: 'osmotic flow needs the solvent\'s pressure, which is not modelled; the membrane row shows each species evening out its own concentration',
+  transcription: 'a process line (transcription, translation, mitosis) with sourced rates is not in the table yet',
+  translation: 'a process line (transcription, translation, mitosis) with sourced rates is not in the table yet',
+  mitosis: 'a process line (transcription, translation, mitosis) with sourced rates is not in the table yet',
+  meiosis: 'a process line with sourced rates is not in the table yet; the curated `dna-process` kind shows meiosis',
+  'cell-cycle': 'a process line with sourced rates is not in the table yet',
+  chemotaxis: 'drift toward a source is not in the table yet; the drift row is a uniform push',
+  enzyme: 'compose it from reaction rows: E + S ⇌ ES (rate, reverse), then ES → E + P',
+  'michaelis-menten': 'compose it from reaction rows: E + S ⇌ ES (rate, reverse), then ES → E + P',
+  binding: 'a reaction row with a reverse rate: A + B ⇌ AB',
+  diffusion: 'the brownian row is diffusion',
+  'brownian-motion': 'the brownian row',
+  'random-walk': 'the brownian row',
 };
 
 /** The gap for a law id `scale` lacks: which scale owns it, or why the table has no row for it. */

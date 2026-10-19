@@ -31,7 +31,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Cherenkov glow",
   },
   "classical-view": {
-    "hash": "380947d6",
+    "hash": "c731e597",
     "title": "mojulo classical world",
   },
   "comet-view": {
@@ -133,6 +133,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
   "mechanics-view": {
     "hash": "d6ec378d",
     "title": "mojulo mechanics",
+  },
+  "microscopic-view": {
+    "hash": "0fad5b8f",
+    "title": "mojulo microscopic world",
   },
   "molecule-view": {
     "hash": "68be51be",
