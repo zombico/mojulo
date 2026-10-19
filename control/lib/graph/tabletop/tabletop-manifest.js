@@ -12,6 +12,12 @@
  *   TABLETOP_GAMES                 the book's games
  *   resolveTabletop(manifest) → { G, opts }   G the kernel's game, opts the page's; refuses what it cannot play
  *   tabletopManifestHtml(manifest) → html
+ *
+ * Stored as a game (create_game's `tabletop`): { kind: 'game', engine: 'tabletop', title, tabletop: <the keys above,
+ * less kind> }, played at /api/sketches/<ref>/game and exported as one page, as a pixelizer or versus game is.
+ *
+ *   buildTabletopGameManifest({ title?, tabletop }) → manifest   refuses a game it cannot play
+ *   emitTabletopGame(manifest, { title? }) → html
  */
 
 import { CHESS } from './games/chess.js';
@@ -62,4 +68,18 @@ export function resolveTabletop(m = {}) {
 export function tabletopManifestHtml(m) {
   const { G, opts } = resolveTabletop(m);
   return tabletopPageHtml(G, opts);
+}
+
+export function buildTabletopGameManifest({ title, tabletop } = {}) {
+  if (!tabletop || typeof tabletop !== 'object' || Array.isArray(tabletop)) {
+    throw new Error(`tabletop is { game: ${Object.keys(TABLETOP_GAMES).join(' | ')} | <a game written out>, human?, level?, view?, seed?, players?, clock?, exchange? }`);
+  }
+  const { kind, ...keys } = tabletop;
+  const { G } = resolveTabletop({ kind: 'tabletop', ...keys });
+  return { kind: 'game', engine: 'tabletop', title: String(title ?? G.title ?? 'Board game'), tabletop: keys };
+}
+
+export function emitTabletopGame(manifest, { title } = {}) {
+  if (manifest?.engine !== 'tabletop' || !manifest.tabletop) throw new Error('not a tabletop game (engine \'tabletop\' with its `tabletop` keys)');
+  return tabletopManifestHtml({ kind: 'tabletop', ...manifest.tabletop, title: manifest.tabletop.title ?? title ?? manifest.title });
 }

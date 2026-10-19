@@ -64,6 +64,7 @@ export const SPACE = Object.freeze({
       values: {
         none: { status: 'built' },
         spots: { status: 'built', ...WEB, lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over a level\'s own ground (its rooms or its land) or a diorama, each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; a book\'s battles on boards are laid over their stages' },
+        lattice: { status: 'built', ...WEB, lowers: 'lib/graph/polygonizer/lattice.js', note: 'a board game\'s own board, no map: square or hex cells, corners and edges with their relations, pieces whose moves are vectors under its symmetry; chess, checkers and settlers composed on it (tabletop/), played against the computer as their own page' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS' } },

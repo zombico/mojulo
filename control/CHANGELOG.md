@@ -151,6 +151,14 @@ in CSS 3D. In progress:
   be taken now marked and clicked; the person's hand and cards, the roll, the builds, buying and playing cards, and
   the forced choices as prompts (what to give up, where the robber goes, whom to rob); every seat's open points,
   cards and awards; a log. The computers play their turns a beat apart, so their moves can be followed.
+- **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
+  against the computer, chess, checkers or settlers from the book or a game written out, with the person's side, the
+  level, the view, a seed, the players (settlers), a clock and a bank rate. It is a recipe: a game row (`engine:
+  'tabletop'`) whose page is made again on every read, played at `/api/sketches/<ref>/game`, edited with
+  `update_sketch` (the kernel checks the edit) and exported by `export_game` as one page and its recipe. A game the
+  kernel cannot play is refused when it is made. A routing card, two routing rows, and a vocab card
+  (`get_game_vocab({ id: 'tabletop' })`) with the grammar and the book's own chess pieces; the cosmos registry's board
+  learns `lattice`. The `tools/list` payload pin is raised for the one schema property.
 
 ## [3.1.1] - 2026-10-16
 

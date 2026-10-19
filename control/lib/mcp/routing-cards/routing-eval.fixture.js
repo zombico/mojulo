@@ -57,6 +57,9 @@ export const FIXTURE = [
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
+  // a board game against the computer: create_game's tabletop, not its levels
+  ['I want to play chess against the computer', 'create_game', 'tabletop'],
+  ['a settlers style board game with dice and resources I can play against bots', 'create_game', 'tabletop'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
