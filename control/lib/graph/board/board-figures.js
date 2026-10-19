@@ -1,6 +1,6 @@
 /**
- * FIGURES ON THE BOARD — a battle's units stood on their spots as people, not tokens: each class and each humanoid foe
- * a hero in its own palette (the hero door: lib/mcp/tools/layered.js), played as a `figure-rig` body by the World
+ * FIGURES ON THE BOARD — a battle's units stood on their spots as people, not tokens: a member with its own stored hero
+ * (`figure`: the game's hero, a cast member) as that hero; each other class and each humanoid foe a hero in its own palette (the hero door: lib/mcp/tools/layered.js), played as a `figure-rig` body by the World
  * page's controllable runtime, its own idle and walk clips; the board page moves them spot to spot. One figure a look,
  * shared by every unit that wears it, since a rig is the page's heaviest thing.
  *
@@ -31,8 +31,10 @@ export const FOE_LOOKS = Object.freeze({
 const CLIPS = { idle: 'idle', forward: 'walk' };
 const BODY = { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
 
-const lookOf = (u) => (u.class ? CLASS_LOOKS[u.class] && `class-${u.class}` : u.foe ? FOE_LOOKS[u.foe] && `foe-${u.foe}` : null) || null;
-const specOf = (look) => (look.startsWith('class-') ? CLASS_LOOKS[look.slice(6)] : FOE_LOOKS[look.slice(4)]);
+// a member's own stored hero (the game's hero, a cast member who joined) first; else its class's or its kind's look
+const lookOf = (u) => (u.figure ? `hero-${u.figure}` : u.class ? CLASS_LOOKS[u.class] && `class-${u.class}` : u.foe ? FOE_LOOKS[u.foe] && `foe-${u.foe}` : null) || null;
+const specOf = (look) => (look.startsWith('class-') ? { hero: CLASS_LOOKS[look.slice(6)] } : { hero: FOE_LOOKS[look.slice(4)] });
+const askOf = (look) => (look.startsWith('hero-') ? { heroRef: look.slice(5) } : specOf(look));
 
 export async function boardFigures(payload, { heroFigure, figures = true } = {}) {
   const battle = payload?.board?.battle;
@@ -40,7 +42,7 @@ export async function boardFigures(payload, { heroFigure, figures = true } = {})
   const looks = [...new Set(battle.units.map(lookOf).filter(Boolean))];
   if (!looks.length) return payload;
   const figs = {};
-  for (const look of looks) figs[look] = await heroFigure(look, { hero: specOf(look), clips: CLIPS });
+  for (const look of looks) figs[look] = await heroFigure(look, { ...askOf(look), clips: CLIPS });
   const B = payload.board.B, O = payload.board.origin, of = {};
   const entities = [];
   for (const u of battle.units) {

@@ -344,7 +344,7 @@ const quickShared = () => [
 
 function battlesCard() {
   return lines(
-    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { party?, packs?, per?, boss?, foe?, rest?,',
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, rest?,',
     '  random?, classes?, skills?, foes?, items?, rules? }. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
@@ -366,6 +366,11 @@ function battlesCard() {
     '        steps puff, beam, shake (on the map), flash, jolt, pop (the window), hold, emit (a bus event any cue answers).',
     '        Happenings: hit, crit, weak, element:<el>, skill:<id>, cast:<skill>, ko:<foe>, start:boss, victory … ; each',
     '        beat also says rpg-on:<happening> on the bus, for the world\'s own systems. A skill\'s own: juice: { cast, land }.',
+    'on      \'board\': each stage that meets packs is a TACTICS battle on its own ground, the whole level: spots laid over',
+    '        the stage (inside or out), the party (cap 4) deployed on the near rows, the packs in the far rows, turns by',
+    '        speed (move, act, face); a blow from the side or behind hits harder. Won on the board; the hero falling loses.',
+    '        board: { cols?, rows?, cap?, rules?: { win?: { leader | survive }, lose?, permadeath? } }. Absent: the',
+    '        fights are met on the trail. A world whose intent fights tactics is laid with board battles.',
     'A world whose intent fights turn by turn is laid with battles, written or not.',
     'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
     '  worn, gold) in its bag slice, two potions to start.',

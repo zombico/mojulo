@@ -5,11 +5,14 @@
  * their kernel or their presets.
  *
  *   battle: {
- *     party: [{ id, class, at, level?, name?, face?, skills?: [extra skill ids] }]   the party's members, in classes
+ *     party: [{ id, class, at, level?, name?, face?, skills?: [extra skill ids], bonus?, classes?, gear?, figure? }]
+ *            the party's members, in classes (figure: a stored hero's ref to stand it as; board-figures.js)
  *     foes:  [{ id, foe, at, name?, face? }]                                           foes by their preset (or rpg.foes) id
  *     guests?: [{ id, class, at, level?, name? }]    allies the mind plays, on the party's team (a guest to protect)
- *     deploy?: ['A1', 'B1:C2']   the spots the party is placed on before the first turn (then a member's `at` may be
- *              left out: the player places it, or it takes the next free deploy spot); cap?: how many may fight
+ *     deploy?: ['A1', 'B1:C2'] | 'near'   the spots the party is placed on before the first turn (then a member's `at`
+ *              may be left out: the player places it, or it takes the next free deploy spot); 'near': the board's two
+ *              nearest rows. With deploy, a foe's `at` may be left out too: it stands in the far rows. cap?: how many
+ *              may fight
  *     bag?:  { <item>: count }       what the party may use (two potions by default, as the book's bag starts)
  *     rpg?:  { classes?, skills?, foes?, items?, gear? }   the world's own definitions, as play.rpg takes them
  *     board?: { classes?: { <class>: { move, jump } }, foes?: { <foe>: { move, jump } },
@@ -100,17 +103,17 @@ export function readBoardBattle(spec = {}) {
   const foes = spec.foes ?? [], guests = spec.guests ?? [];
   if (!Array.isArray(guests)) no('guests are [{ id, class, at }]: allies the mind plays');
   const deploy = spec.deploy;
-  if (deploy !== undefined && !(Array.isArray(deploy) && deploy.length && deploy.every((x) => typeof x === 'string'))) no('deploy is the spots the party starts on: [\'A1\', \'B1:C2\']');
+  if (deploy !== undefined && deploy !== 'near' && !(Array.isArray(deploy) && deploy.length && deploy.every((x) => typeof x === 'string'))) no('deploy is the spots the party starts on: [\'A1\', \'B1:C2\'], or \'near\' (the board\'s two nearest rows)');
   if (spec.cap !== undefined && !(Number.isInteger(spec.cap) && spec.cap >= 1 && spec.cap <= 12)) no('cap is how many of the party may fight, 1 to 12');
   const party = (spec.party ?? []).slice(0, spec.cap ?? Infinity);
   if (!Array.isArray(party) || !party.length) no('party is [{ id, class, at, level? }]: who fights for the player');
   if (!Array.isArray(foes) || !foes.length) no('foes are [{ id, foe, at }]: who stands against them');
   const ids = new Set();
-  for (const [k, x, placed] of [...party.map((p, i) => [`party[${i}]`, p, !!deploy]), ...guests.map((g, i) => [`guests[${i}]`, g, false]), ...foes.map((f, i) => [`foes[${i}]`, f, false])]) {
+  for (const [k, x, placed] of [...party.map((p, i) => [`party[${i}]`, p, !!deploy]), ...guests.map((g, i) => [`guests[${i}]`, g, false]), ...foes.map((f, i) => [`foes[${i}]`, f, !!deploy])]) {
     if (!isObj(x) || typeof x.id !== 'string' || !x.id) no(`${k} needs an id`);
     if (ids.has(x.id)) no(`two units are '${x.id}'`);
     ids.add(x.id);
-    if (x.at === undefined && !placed) no(`${k} ('${x.id}') needs a spot to stand on: at: 'C4'${k.startsWith('party') ? ' (or the battle\'s deploy spots)' : ''}`);
+    if (x.at === undefined && !placed) no(`${k} ('${x.id}') needs a spot to stand on: at: 'C4'${k.startsWith('guests') ? '' : ' (or the battle\'s deploy spots, which place the party near and the foes far)'}`);
   }
   if (spec.rules !== undefined) readRules(spec.rules, ids);
   const B = spec.board ?? {};
@@ -125,7 +128,8 @@ export function readBoardBattle(spec = {}) {
   // the party battles' read: the party in its classes, every foe in one encounter, the extra skills wanted
   const extra = [...new Set([...(spec.party ?? []), ...guests].flatMap((p) => p.skills ?? []))];
   const members = [...party, ...guests];
-  const rpg = readRpg({ rpg: { ...W, party: members.map((p) => ({ id: p.id, class: p.class, ...(p.level !== undefined ? { level: p.level } : {}), ...(p.name !== undefined ? { name: p.name } : {}) })),
+  const own = (p) => Object.fromEntries(['level', 'name', 'bonus', 'classes', 'gear'].filter((k) => p[k] !== undefined).map((k) => [k, p[k]]));
+  const rpg = readRpg({ rpg: { ...W, party: members.map((p) => ({ id: p.id, class: p.class, ...own(p) })),
     encounters: [{ id: 'board', foes: [...new Set(foes.map((f) => f.foe))] }], ...(extra.length ? { skills: { ...Object.fromEntries(extra.map((k) => [k, true])), ...(W.skills ?? {}) } } : {}) } });
   const R = rpgInit(rpg);
 
@@ -136,11 +140,11 @@ export function readBoardBattle(spec = {}) {
     for (const k of p.skills ?? []) if (!rpg.skills[k]) no(`party '${p.id}' has the skill '${k}', which no book defines`);
     units.push({ id: p.id, name: rpg.party.find((x) => x.id === p.id).name, side: guest ? 'guest' : 'party', ...(p.at !== undefined ? { at: p.at } : {}), ...(p.face !== undefined ? { face: p.face } : {}),
       move: L.move, jump: L.jump, hp: M.hp, hpMax: S.hp, mp: M.mp, mpMax: S.mp, atk: S.atk, def: S.def, mag: S.mag, spd: S.spd,
-      skills: [...new Set([...rpgUsable(rpg, R, p.id), ...(p.skills ?? [])])], class: rpg.party.find((x) => x.id === p.id).cls });
+      skills: [...new Set([...rpgUsable(rpg, R, p.id), ...(p.skills ?? [])])], class: rpg.party.find((x) => x.id === p.id).cls, ...(typeof p.figure === 'string' ? { figure: p.figure } : {}) });
   }
   for (const f of foes) {
     const F = rpg.foes[f.foe], L = legs(BOARD_FOES, B.foes, f.foe, FOE_LEGS, `board.foes.${f.foe}`);
-    units.push({ id: f.id, name: f.name ?? F.name, side: 'foe', at: f.at, ...(f.face !== undefined ? { face: f.face } : {}),
+    units.push({ id: f.id, name: f.name ?? F.name, side: 'foe', ...(f.at !== undefined ? { at: f.at } : {}), ...(f.face !== undefined ? { face: f.face } : {}),
       move: L.move, jump: L.jump, hp: F.base.hp, hpMax: F.base.hp, mp: F.base.mp, mpMax: F.base.mp, atk: F.base.atk, def: F.base.def, mag: F.base.mag, spd: F.base.spd,
       skills: [...F.skills], weak: [...F.weak], resist: [...F.resist], absorb: [...F.absorb], immune: [...F.immune], foe: f.foe, ...(F.boss ? { boss: true } : {}),
       loot: { xp: F.xp, gold: F.gold, cp: F.cp, drops: F.drops.map((d) => ({ ...d })) } });
@@ -169,5 +173,5 @@ export function readBoardBattle(spec = {}) {
   const cfg = { seed: spec.seed ?? 'board', skills, items, bag: { party: { ...bag } }, ...(guests.length ? { teams: { guest: 'party' } } : {}), ...(spec.rules ? { rules: spec.rules } : {}) };
   // each class's legs as this battle has them, for a member carried in under another class
   const classLegs = Object.fromEntries(Object.keys(rpg.classes).map((c) => [c, legs(BOARD_CLASSES, B.classes, c, CLASS_LEGS, `board.classes.${c}`)]));
-  return { cfg, units, rpg, legs: classLegs, ...(deploy ? { deploy: [...deploy] } : {}), ...(spec.cap !== undefined ? { cap: spec.cap } : {}) };
+  return { cfg, units, rpg, legs: classLegs, ...(deploy ? { deploy: deploy === 'near' ? 'near' : [...deploy] } : {}), ...(spec.cap !== undefined ? { cap: spec.cap } : {}) };
 }

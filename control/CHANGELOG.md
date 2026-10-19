@@ -55,9 +55,17 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   then a facing) with the reach and aim shown and a forecast of each act; the other side is a plain mind that weighs
   every spot and act. A turn-order bar, the active unit's card, numbers off the units, and the level hears
   `board-won` or `board-lost`. Classes and humanoid foes stand as figures that walk spot to spot; beasts stay tokens.
-- **Tactics games through the game book** (`design_game`): battles fought on boards laid over each level's own
-  ground, the party carried from battle to battle; and **tower defence on a board** on the quick path (`defend` with
-  `board`): towers fill spots, and foes path over the free ones.
+- **Tactics games through the game book**, built: `battles: { on: 'board' }` makes each stage that meets packs a
+  battle level, fought on spots laid over the stage's own ground, indoors or out (any level can carry a `board`). The
+  book's party (the hero and the cast who join, standing as themselves) deploys on the near rows, up to four, before
+  the first turn; the stage's packs stand in the far rows. A battle is won when every foe is down (or by its rules: a
+  leader down, turns survived, a guest to protect) and lost when the hero falls; the level ends there (the `board`
+  mechanic). The party is carried as party battles carry it: each battle stands it as the store has it, at full HP,
+  and puts its spoils back (xp, class points and the skills they teach, gold, drops), counted exactly as party battles
+  count them. FFT's permadeath countdown is a rule, off by default. A world whose intent fights tactics gets board
+  battles without writing them.
+- **Tower defence on a board** on the quick path (`defend` with `board`): towers fill spots, and foes path over the
+  free ones.
 
 ## [3.1.1] - 2026-10-16
 

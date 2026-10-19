@@ -253,3 +253,29 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 });
+
+describe('design_game: tactics battles on boards (battles.on: board)', () => {
+  beforeEach(() => { closeDb(); });
+
+  it('a run makes each stage that meets packs a battle on its own ground: the book\'s party deployed, the packs its foes, the level won on the board', async () => {
+    const out = await designGameHandler({ world: { ...AUTO, battles: { on: 'board', per: 1 } }, ref: 'gt', run: true });
+    const levels = out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.ref);
+    expect(levels.length).toBeGreaterThan(0);
+    const game = stored('gt-game');
+    expect(game.store.slices).toContainEqual(expect.objectContaining({ name: 'party', kind: 'party' }));
+    const L = stored(levels[0]);
+    expect(L.entities).toBeUndefined();
+    expect(L.game.mechanics.map((m) => m.kind)).toEqual(['board', 'party', 'bag']);
+    expect(L.board.battle).toMatchObject({ deploy: 'near', cap: 4, rules: { lose: { leader: 'hero' } } });
+    expect(L.board.battle.party[0]).toMatchObject({ id: 'hero', class: 'fighter', figure: 'gt-hero-equipped' });
+    expect(L.board.battle.foes.length).toBeGreaterThan(0);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(levels[0]));
+    expect(payload.board.battle.units.map((u) => u.id)).toEqual(['hero', ...L.board.battle.foes.map((f) => f.id)]);
+    expect(payload.board.battle.placed).toEqual(['hero']);
+    expect(payload.board.figures.hero).toBe('board-hero');
+    expect(payload.figures['hero-gt-hero-equipped']).toBeTruthy();
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    expect(payload.game.party).toEqual({ slice: 'party' });
+    expect(payload.walk).toBe(false);
+  }, 600_000);
+});

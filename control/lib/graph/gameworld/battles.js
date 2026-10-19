@@ -43,7 +43,8 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: battles${m}`);
@@ -58,7 +59,7 @@ const packOf = (v, where) => {
 /** The concern as written, read; `characters` (the world's, read) say who can be in the party. */
 export function readBattles(v, characters = null) {
   if (v === undefined) return null;
-  if (!isObj(v)) throw err(' is { party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
+  if (!isObj(v)) throw err(' is { on?, board?, party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
   const cast = characters?.cast ?? {};
   if (v.party !== undefined) {
@@ -78,6 +79,14 @@ export function readBattles(v, characters = null) {
     if (!isObj(v.random)) throw err('.random is { every?, chance?, after? }: random encounters on the trails, drawn from each stage\'s packs');
     for (const k of Object.keys(v.random)) if (!['every', 'chance', 'after'].includes(k)) throw err(`.random.${k} is not part of it (every, chance, after)`);
   }
+  // on: 'board' fights each stage's packs as a tactics battle on spots over the stage's own ground (board/), the stage
+  // the battle's level (gameworld/board-levels.js); absent, the party battles' fights on the trail
+  if (v.on !== undefined && v.on !== 'board') throw err(".on is 'board' (each stage a tactics battle on its own ground), or absent (fights met on the trail)");
+  if (v.board !== undefined) {
+    if (v.on !== 'board') throw err(".board is the board's own settings, for on: 'board'");
+    if (!isObj(v.board)) throw err(`.board is { ${BOARD_KEYS.join(', ')} } (every one optional)`);
+    for (const k of Object.keys(v.board)) if (!BOARD_KEYS.includes(k)) throw err(`.board.${k} is not part of it (${BOARD_KEYS.join(', ')})`);
+  }
   const out = { ...v, ...(packs ? { packs } : {}), ...(boss ? { boss } : {}) };
   // the play.rpg it makes, read now, so a wrong class, skill, foe or rule is said where it was written
   readRpg({ rpg: battleBase({ battles: out, characters }) });
@@ -86,12 +95,14 @@ export function readBattles(v, characters = null) {
 }
 
 /** The world as the run lays it: a world whose cube fights turn by turn (power.combat turn-based: the jrpg genre, or
- * its own cube) and writes no battles is laid with the defaults, the encounters concern laid as the cover concern is.
+ * its own cube) and writes no battles is laid with the defaults, the encounters concern laid as the cover concern is;
+ * one whose cube fights tactics (power.combat tactics) with its battles on boards.
  * A quick world is its own (its goal says what it fights). */
 export function laidBattles(G) {
   if (G.battles !== undefined || G.quick) return G;
-  const c = cubeOfWorld(G).cube.power?.combat;
-  return (Array.isArray(c) ? c.includes('turn-based') : c === 'turn-based') ? { ...G, battles: {} } : G;
+  const c = cubeOfWorld(G).cube.power?.combat, has = (x) => (Array.isArray(c) ? c.includes(x) : c === x);
+  // tactics: the battles on boards (board-levels.js); turn-based: met on the trail
+  return has('tactics') ? { ...G, battles: { on: 'board' } } : has('turn-based') ? { ...G, battles: {} } : G;
 }
 
 /** The party: the hero first, then each cast member who joins, in the cast's order. */

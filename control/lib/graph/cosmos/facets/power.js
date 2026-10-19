@@ -36,8 +36,8 @@ export const POWER = Object.freeze({
         // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
         // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.
-        // priced 10-19 (strategy board): fought on the board's spots, not in a window over a frozen field
-        tactics: { status: 'absent', effort: 'L', requires: ['space.board=spots'], ...WEB, note: 'a party of classed units on a board: charge-time turns, move then act, reach by move and jump, aim and area shapes, facing and height; the battle kernel\'s fights hold no positions' },
+        // built 10-19 (strategy board): fought on the board's spots, not in a window over a frozen field
+        tactics: { status: 'built', requires: ['space.board=spots'], ...WEB, lowers: 'lib/graph/gameworld/board-levels.js', note: 'battles.on: board: each stage that meets packs a tactics battle on its own ground, the book\'s party deployed (classes, ranks, skills, gear carried), speed turns of move, act and face, facing and height, a plain foe mind, spoils into the party' },
         versus: { status: 'built', godot: false, lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
       },
     },

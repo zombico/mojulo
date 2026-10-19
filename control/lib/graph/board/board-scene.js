@@ -55,10 +55,18 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
     if (names) {
       const B = L.board, taken = new Set(read.filter((u) => u.at !== undefined).map((u) => boardParse(B, u.at)));
       // a block of them keeps the spots someone can stand on (a prop, a hole or a cliff in it is passed over)
-      deploy = [...new Set(names.flatMap((n) => spotsNamed(n, B.cols, B.rows).map(([cc, r]) => r * B.cols + cc)))].filter((i) => B.spots[i] && B.spots[i].walk);
+      const blocks = names === 'near' ? [`A1:${boardSpotName(B, B.cols * 2 - 1)}`] : names;
+      deploy = [...new Set(blocks.flatMap((n) => spotsNamed(n, B.cols, B.rows).map(([cc, r]) => r * B.cols + cc)))].filter((i) => B.spots[i] && B.spots[i].walk);
       const free = deploy.filter((i) => !taken.has(i));
+      // a foe with no spot stands in the far rows, from the middle out, on what nobody else stands on
+      const mid = (B.cols - 1) / 2, far = B.spots.map((sp, i) => i).filter((i) => B.spots[i] && B.spots[i].walk && !taken.has(i) && deploy.indexOf(i) < 0)
+        .sort((a, b) => Math.floor(b / B.cols) - Math.floor(a / B.cols) || Math.abs((a % B.cols) - mid) - Math.abs((b % B.cols) - mid) || a - b);
       fielded = read.map((u) => {
         if (u.at !== undefined) return u;
+        if (u.side === 'foe') {
+          if (!far.length) no('battle: no spot left for the foes to stand on');
+          return { ...u, at: boardSpotName(B, far.shift()) };
+        }
         if (!free.length) no(`battle.deploy: ${deploy.length} spots to stand on for more of the party than fit (a cap, or more spots)`);
         placed.push(u.id);
         return { ...u, at: boardSpotName(B, free.shift()) };
