@@ -67,7 +67,8 @@ function readTalk(t) {
 // a skirmish: the board's, and its sides (each a civilization's own words: board-rts-look.js) when it names them
 function readRts(B, x) {
   if (!x || typeof x !== 'object' || Array.isArray(x) || x.sides === undefined) return readBoardRts(B, x);
-  const { sides, ...rest } = x, cfg = readBoardRts(B, rest), S = rtsSides(sides);
+  // (a side whose things cost a second resource has its nodes, one beside each base, unless the board says)
+  const S = rtsSides(x.sides), { sides: _s, ...rest } = x, cfg = readBoardRts(B, Object.values(S).some((r) => r.res2) && x.nodes2 === undefined ? { ...rest, nodes2: 1 } : rest);
   // a side's doctrine is one its civilization may choose
   for (const side of Object.keys(cfg.doctrine ?? {})) if (S[side] && S[side].doctrines && !S[side].doctrines.includes(cfg.doctrine[side])) throw new Error(`board rts: doctrine.${side} '${cfg.doctrine[side]}' is not one ${S[side].name} chooses (${S[side].doctrines.join(', ')})`);
   return { ...cfg, sides: S };

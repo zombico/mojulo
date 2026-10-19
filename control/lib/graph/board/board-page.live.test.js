@@ -343,7 +343,7 @@ describe('the board on the World page', () => {
     const G = readGameworld(HALDEN_REACH), side = (cid) => { const r = rtsRoster(G, cid); return { ...r, looks: rtsLooks(G, cid, r, { kit: HALDEN_REACH.style.kit }) }; };
     const { payload } = await resolveWorldScene({ ref: 'civ', title: null, manifest: { kind: 'board', board: { seed: 'civ', relief: 0.1, cols: 9, rows: 14 },
       rts: { gold: 2000, army: 2, enemy: { gold: 0, workers: 0, army: 2 }, ai: { workers: 0, wave: 30 } }, game: { levelRef: 'civ', mechanics: [{ kind: 'board' }] } } });
-    payload.board.rts = { ...payload.board.rts, sides: { player: side('survey-corps'), enemy: side('dome-growers') } };
+    payload.board.rts = { ...payload.board.rts, ore: 2000, sides: { player: side('survey-corps'), enemy: side('dome-growers') } };
     const page = await browser.newPage();
     await page.setViewport({ width: 1120, height: 780 });
     await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });

@@ -47,6 +47,7 @@ const HOUSE = {
   defence: { role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
   depot: { role: 'depot', hp: 250, cost: 100, time: 15, depot: true },
   wall: { role: 'wall', hp: 500, cost: 30, time: 6 },
+  supply: { role: 'supply', hp: 300, cost: 100, time: 15, supplies: 8 },
   sensor: { role: 'sensor', hp: 200, cost: 75, time: 10 },
   research: { role: 'research', hp: 300, cost: 150, time: 20, needs: 'barracks' },
 };
@@ -304,6 +305,10 @@ export function rtsRoster(G, cid) {
   if (folded.length && buildings.works) { buildings.works.trains.push(...folded); if (research.tier2) research.tier2.opens.splice(-1, 0, ...folded); }
   else if (folded.length) { for (const id of folded) delete units[id].tier; buildings.barracks.trains.push(...folded); }
   for (const e of structures) if (e.t.form === 'barrier' || e.t.form === 'gate') house(e, 'wall', 'a wall, cheap and hard to break');
+  // what shelters (a hab, a pod) holds its people: a supply building, else plain quarters
+  const shelter = [...structures, ...things].find((e) => e.fns.includes('keep') && !e.fns.includes('move') && !ledger.some((l) => l.of === `${e.list}/${e.id}`));
+  if (shelter) house(shelter, 'supply', 'its quarters: it holds 8 more of its people');
+  else { buildings.quarters = { name: 'Quarters', ...HOUSE.supply }; said(null, 'quarters', `nothing it crafts shelters: plain quarters hold 8 more of its people, ${HOUSE.supply.cost} gold`); }
   // what senses and does not research (a dish beside the lab) watches: it sees what hides
   for (const e of structures) if (e.fns.includes('sense') && !buildings[e.id] && !ledger.some((l) => l.of === `structures/${e.id}`)) house(e, 'sensor', 'a sensor station, it sees what hides');
   const depot = things.find((e) => e.fns.includes('store') && !e.fns.includes('move'));
@@ -315,9 +320,22 @@ export function rtsRoster(G, cid) {
   for (const e of weapons) if (!ledger.some((l) => l.of === `weapons/${e.id}`)) said(`weapons/${e.id}`, null, `${e.t.intent}: not fielded (a ${e.t.form})`);
 
   const army = [infantry.find((k) => units[k].role !== 'ranged'), infantry.find((k) => units[k].role === 'ranged')].filter(Boolean);
+  // supply: what each unit takes (the bigger, the more; a showpiece one more), what its base and fort hold
+  const SUPPLY = { worker: 1, melee: 1, ranged: 1, guard: 1, medic: 1, scout: 2, fighting: 2, transport: 2, flyer: 2, deploy: 2, siege: 3, heavy: 3 };
+  for (const U of Object.values(units)) U.supply = (SUPPLY[U.role] || 1) + ((U.tier || 1) === 3 ? 1 : 0);
+  buildings.base.supplies = 10;
+  if (buildings.fort) buildings.fort.supplies = 15;
+  // the second resource: named for what it powers itself with, else what it grows, else crystal; its machines and its
+  // research cost some of it
+  const power = things.find((e) => e.fns.includes('power')) || structures.find((e) => e.fns.includes('power')), grows = things.find((e) => e.fns.includes('grow'));
+  const res2 = power ? 'Power' : grows ? 'Biomass' : 'Crystal';
+  let costs2 = false;
+  for (const U of Object.values(units)) if ((U.tier || 1) >= 2) { U.cost2 = five(U.cost * (U.tier === 3 ? 0.5 : 0.3)); costs2 = true; }
+  for (const L of Object.values(research)) if (L.gives.tier || L.gives.buff || (L.opens && L.opens.length)) { L.cost2 = five(L.cost * 0.4); costs2 = true; }
+  if (costs2) said(null, null, `its second resource is ${res2.toLowerCase()}${power ? ` (it powers itself: ${power.t.intent})` : grows ? ` (it grows it: ${grows.t.intent})` : ''}: its machines and research cost some, mined from its own nodes`);
   // the doctrines it may choose before a skirmish: what its technology names, else every one
   for (const d of T.doctrines ?? []) if (!RTS_DOCTRINES[d]) throw new Error(`board rts: ${cid}.technology.doctrines '${d}' is not a doctrine (${Object.keys(RTS_DOCTRINES).join(', ')})`);
   const doctrines = T.doctrines ? [...T.doctrines] : Object.keys(RTS_DOCTRINES);
   if (T.doctrines) said(null, null, `it chooses among ${doctrines.join(', ')} before a skirmish`);
-  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ...(study.length ? { research, study } : {}), doctrines, ledger };
+  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ...(study.length ? { research, study } : {}), ...(costs2 ? { res2 } : {}), doctrines, ledger };
 }

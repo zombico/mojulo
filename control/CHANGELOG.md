@@ -92,7 +92,7 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   aura its ring on the ground, a selected unit its reach; a struck unit flashes; a cloaked foe shows only once seen.
   The mind casts when a foe is in sight, trains its latest factory's best first and saves for what a tier opened,
   spends what it has when it can earn no more; a worker stopped between spots by its depot steps back to drop off.
-- **The skirmish's tree** (in progress): past its machines a civilization's research branches (flight opens what
+- **The skirmish's tree and economy**, built: past its machines a civilization's research branches (flight opens what
   flies, siege works its siege; the showpieces their own step), and its upgrades run in lines (weapons II, plating II
   after the first and its top tier). A civilization may write its own steps in `technology.research` (what each
   opens of what it crafts, what it follows: a step, by name or as machines / showpieces, or a building it raises; a
@@ -102,6 +102,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   tenth more a trip), aggression (fighters a tenth harder and faster), fortress (buildings a quarter sturdier,
   defences a quarter cheaper), science (research a quarter quicker, 15% cheaper); a civilization may name the ones
   it allows (`technology.doctrines`), refused otherwise.
+  A second resource, named for what a civilization powers itself with (power, else biomass, else crystal), mined
+  from its own nodes a step beyond the gold (`nodes2`, laid by default when a side's things cost it): its machines
+  and its research cost some, said with the gold when either is short. A supply cap: each unit takes some (the
+  bigger, the more), the base and fort hold some, and quarters (what it crafts that shelters, else plain) hold more;
+  a unit past the cap is refused, naming what to raise. The mind keeps a third of its workers on the second
+  resource, raises quarters as it nears its cap, and is spent when nothing more can come (a board with no nodes at
+  all has nothing to run out of; an idle worker's odd load, or a worker with nothing to mine, is nothing more).
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

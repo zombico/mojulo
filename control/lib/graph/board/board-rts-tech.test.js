@@ -92,10 +92,20 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(R.doctrines).toEqual(['science', 'fortress']);
     expect(() => readGameworld({ ...W, civilizations: { ...W.civilizations, hermits: { name: 'H', technology: { doctrines: 'all' } } } })).toThrow(/technology.doctrines is a list/);
     const B = boardOf(Array.from({ length: 18 }, () => Array(9).fill(0))), cfg = { ...readBoardRts(B, { workers: 0, doctrine: { player: 'science' } }), sides: { player: R } };
-    let S = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } };
+    let S = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 }, ore: { player: 999, enemy: 0 } };
     S = { ...S, buildings: S.buildings.concat([{ id: 'bm', side: 'player', kind: 'mast', at: 40, hp: 300, hpMax: 300, raising: 0, queue: [], rally: null }]) };
     S = rtsResearch(B, cfg, S, 'bm', 'tier2');
     expect([S.gold.player, S.buildings.find((b) => b.id === 'bm').study.left]).toEqual([999 - Math.round(150 * 0.85), 30 * 0.75]);
+  });
+
+  it('reads its economy: a second resource named for what powers it, machines and research costing some; supply taken and held', () => {
+    const corps = rtsRoster(G, 'survey-corps'), hermits = rtsRoster(G, 'hermits');
+    expect([corps.res2, hermits.res2]).toEqual(['Power', undefined]);
+    expect([corps.units.skimmer.cost2, corps.units.walker.cost2, corps.units.carbine.cost2]).toEqual([25, 80, undefined]);
+    expect(corps.research.tier2.cost2).toBe(60);
+    expect(corps.research.relay.cost2).toBeUndefined();
+    // a hauler takes one, a walker (heavy, a showpiece) four; the base holds 10, the fort 15, quarters 8
+    expect([corps.units.hauler.supply, corps.units.walker.supply, corps.buildings.base.supplies, corps.buildings.fort.supplies, corps.buildings.quarters.supplies]).toEqual([1, 4, 10, 15, 8]);
   });
 
   it('prices every fight by one formula, so no side buys more of it for its gold', () => {
@@ -114,11 +124,12 @@ describe('a civilization\'s technology read as a skirmish side', () => {
 
   it('fills what a civilization lacks from the plain tables, saying so; one that crafts nothing plays them', () => {
     const raiders = rtsRoster(G, 'raiders');
-    expect(raiders.units.archer).toEqual(RTS_UNITS.archer);
+    expect(raiders.units.archer).toMatchObject(RTS_UNITS.archer);
     expect(raiders.ledger.find((l) => l.as === 'archer').line).toMatch(/no bow, gun or staff/);
     const hermits = rtsRoster(G, 'hermits');
-    expect(hermits.units).toEqual(RTS_UNITS);
-    expect([hermits.army, hermits.builds, Object.keys(hermits.buildings)]).toEqual([['soldier', 'archer'], ['barracks'], ['base', 'barracks']]);
+    // (the plain tables, each unit taking its supply; plain quarters to hold more)
+    expect(Object.fromEntries(Object.entries(hermits.units).map(([k, u]) => { const { supply, ...rest } = u; return [k, rest]; }))).toEqual(RTS_UNITS);
+    expect([hermits.army, hermits.builds, Object.keys(hermits.buildings), hermits.res2]).toEqual([['soldier', 'archer'], ['barracks'], ['base', 'barracks', 'quarters'], undefined]);
     expect(roleOf(hermits, 'flyer')).toBeUndefined();
     expect(hermits.research).toBeUndefined();
     expect(() => rtsRoster(G, 'nobody')).toThrow(/'nobody' is not one of the world's civilizations/);
@@ -152,7 +163,7 @@ describe('the ladder', () => {
     const cfg = { ...readBoardRts(B, { ai: { workers: 0, wave: 30 }, workers: 2, enemy: { workers: 0 } }), sides: { player: corps } };
     const go = (R, s) => { for (let k = 0; k * 0.1 < s; k++) R = rtsTick(B, cfg, R, 0.1).R; return R; };
     const up = (R) => { for (let k = 0; k < 1500 && R.buildings.some((b) => b.raising > 0); k++) R = rtsTick(B, cfg, R, 0.1).R; return R; };
-    let R = { ...rtsStart(B, cfg), gold: { player: 9999, enemy: 0 } };
+    let R = { ...rtsStart(B, cfg), gold: { player: 9999, enemy: 0 }, ore: { player: 9999, enemy: 0 } };
     expect(() => rtsBuild(B, cfg, R, 'player', 'mast', at('B5'))).toThrow(/a Mast needs a Barracks standing first/);
     R = up(rtsBuild(B, cfg, R, 'player', 'barracks', at('B5')));
     R = up(rtsBuild(B, cfg, R, 'player', 'mast', at('H5')));
@@ -198,7 +209,7 @@ describe('the ladder', () => {
 describe('two civilizations\' skirmish', () => {
   const B = boardOf(Array.from({ length: 16 }, () => Array(11).fill(0)));
   const duel = (p, e) => {
-    const cfg = { ...readBoardRts(B, { ai: { wave: 4 } }), sides: { player: rtsRoster(G, p), enemy: rtsRoster(G, e) } }, made = [];
+    const cfg = { ...readBoardRts(B, { ai: { wave: 4 }, nodes2: 1 }), sides: { player: rtsRoster(G, p), enemy: rtsRoster(G, e) } }, made = [];
     let R = rtsStart(B, cfg);
     for (let k = 0; k < 15000 && !R.over; k++) {
       if (k % 10 === 0) R = rtsMind(B, cfg, R, 'player');

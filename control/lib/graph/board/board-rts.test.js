@@ -96,7 +96,7 @@ describe('orders', () => {
     R = rtsRally(B, cfg, rtsTrain(B, cfg, R, base.id, 'worker'), base.id, at(B, 'D6'));
     expect(R.gold.player).toBe(100 - RTS_UNITS.worker.cost);
     expect(() => rtsTrain(B, cfg, R, base.id, 'soldier')).toThrow(/a Base does not train a soldier/);
-    expect(() => rtsTrain(B, cfg, { ...R, gold: { player: 3, enemy: 0 } }, base.id, 'worker')).toThrow(/50 gold for a Worker, 3 in the purse/);
+    expect(() => rtsTrain(B, cfg, { ...R, gold: { player: 3, enemy: 0 } }, base.id, 'worker')).toThrow(/50 gold for a Worker, 3 gold in the purse/);
     const { R: E, ev } = run(B, cfg, R, RTS_UNITS.worker.time + 6);
     const id = ev.find((e) => e.kind === 'trained').id;
     expect(E.units.find((u) => u.id === id).at).toBe(at(B, 'D6'));
@@ -416,6 +416,41 @@ describe('a side\'s own roster', () => {
     expect([hit.units.find((u) => u.id === 'xC9').hp, hit.units.find((u) => u.id === 'xC8').hp]).toEqual([80 - 8.8, 72]);
     expect(() => readBoardRts(B, { doctrine: { player: 'chaos' } })).toThrow(/doctrine.player 'chaos' is not a doctrine \(economy: two more workers/);
     expect(() => readBoardRts(B, { doctrine: { neutral: 'economy' } })).toThrow(/doctrine.neutral: the sides are player and enemy/);
+  });
+
+  it('runs an economy of two resources and a supply cap: ore mined and spent, refusals saying which, quarters to hold more', () => {
+    const ECO = { ...OWN, res2: 'Power',
+      units: { ...OWN.units, worker: { ...OWN.units.worker, supply: 1 }, soldier: { ...OWN.units.soldier, supply: 1 }, archer: { ...OWN.units.archer, supply: 1 }, crew: { ...OWN.units.crew, supply: 3, cost2: 60, tier: undefined } },
+      buildings: { ...OWN.buildings, base: { ...OWN.buildings.base, supplies: 4, trains: ['worker'] }, barracks: { ...OWN.buildings.barracks, trains: ['soldier', 'archer', 'crew'] }, quarters: { name: 'Quarters', role: 'supply', hp: 300, cost: 100, time: 15, supplies: 8 } } };
+    const B = flat(7, 18), cfg = own(B, { workers: 2, nodes: ['B5'], nodes2: ['F5'] }, { player: ECO, enemy: ECO });
+    let R = rtsStart(B, cfg);
+    expect(R.nodes.map((n) => n.res || 1)).toEqual([1, 2]);
+    // a worker on the power node: what it carries home is power
+    const w = R.units.find((u) => u.side === 'player').id;
+    const E = run(B, cfg, rtsOrder(B, cfg, R, [w], { kind: 'gather', node: at(B, 'F5') }), 25);
+    expect(E.ev.find((e) => e.kind === 'gathered')).toMatchObject({ res: 2, amount: 5 });
+    expect(E.R.ore.player).toBeGreaterThan(0);
+    // a crew costs gold and power, said when either is short
+    R = raise(B, cfg, { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } }, 'barracks', 'E5');
+    const bar = R.buildings.find((b) => b.kind === 'barracks').id;
+    expect(() => rtsTrain(B, cfg, { ...R, ore: { player: 10, enemy: 0 } }, bar, 'crew')).toThrow(/180 gold and 60 power for a Cannon crew, \d+ gold and 10 power in the purse/);
+    // the base holds 4: two workers and a soldier, a fourth fits, a fifth does not; quarters hold 8 more
+    R = rtsTrain(B, cfg, { ...R, gold: { player: 999, enemy: 0 } }, bar, 'soldier');
+    R = rtsTrain(B, cfg, R, bar, 'soldier');
+    expect(() => rtsTrain(B, cfg, R, bar, 'archer')).toThrow(/needs more supply \(4 \/ 4\): raise a Quarters/);
+    R = raise(B, cfg, { ...R, gold: { player: 999, enemy: 0 } }, 'quarters', 'B9');
+    expect(() => rtsTrain(B, cfg, R, bar, 'archer')).not.toThrow();
+  });
+
+  it('is a mind that holds its supply and mines its second resource when its things cost it', () => {
+    const ECO = { ...OWN, res2: 'Power',
+      units: { ...OWN.units, worker: { ...OWN.units.worker, supply: 1 }, soldier: { ...OWN.units.soldier, supply: 1 }, archer: { ...OWN.units.archer, supply: 1 } },
+      buildings: { ...OWN.buildings, base: { ...OWN.buildings.base, supplies: 6 }, quarters: { name: 'Quarters', role: 'supply', hp: 300, cost: 100, time: 15, supplies: 8 } } };
+    const B = flat(9, 16), cfg = { ...readBoardRts(B, { workers: 3, nodes2: 1, ai: { workers: 6, wave: 30 } }), sides: { player: ECO, enemy: ECO } };
+    let R = rtsStart(B, cfg);
+    for (let k = 0; k < 2400; k++) { if (k % 10 === 0) R = rtsMind(B, cfg, R, 'player'); R = rtsTick(B, cfg, R, 0.1).R; }
+    expect(R.buildings.some((b) => b.side === 'player' && b.kind === 'quarters')).toBe(true);
+    expect(R.ore.player).toBeGreaterThan(0);
   });
 
   it('is a draw when the gold is gone and nobody stands on either side', () => {

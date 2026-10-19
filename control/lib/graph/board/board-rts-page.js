@@ -127,8 +127,9 @@ export function boardRtsPage(api) {
     g.userData = { fill, box, roof, ring };
     return g;
   }
-  function nodeMesh() {
-    const g = new THREE.Group(), m = basic(0xf2c14e), geo = new THREE.OctahedronGeometry(0.3, 0);
+  // a node: gold, or (the second resource's) a blue crystal
+  function nodeMesh(res) {
+    const g = new THREE.Group(), m = basic(res === 2 ? 0x5ad1ff : 0xf2c14e), geo = new THREE.OctahedronGeometry(0.3, 0);
     for (const [x, y, s] of [[0, 0, 1.3], [0.3, 0.2, 0.9], [-0.28, 0.15, 0.8], [0.1, -0.3, 0.85]]) { const k = new THREE.Mesh(geo, m); k.position.set(x, y, 0.3 * s); k.scale.set(s, s, s * 1.5); g.add(k); }
     return g;
   }
@@ -200,7 +201,7 @@ export function boardRtsPage(api) {
     if (one && reach > 1.5 && !rangeRing) { rangeRing = new THREE.Mesh(new THREE.RingGeometry(reach * cell * 0.5 - 0.05, reach * cell * 0.5, 64), basic(0xffffff, 0.35)); rangeRing.userData.r = reach; root.add(rangeRing); }
     if (rangeRing) { const w = api.worldAt([one.x, one.y]); rangeRing.position.set(w[0], w[1], w[2] + 0.07); }
     for (const n of R.nodes) {
-      if (!nodes[n.at]) { nodes[n.at] = nodeMesh(); const p = tops[n.at]; nodes[n.at].position.set(p[0], p[1], p[2]); root.add(nodes[n.at]); }
+      if (!nodes[n.at]) { nodes[n.at] = nodeMesh(n.res); const p = tops[n.at]; nodes[n.at].position.set(p[0], p[1], p[2]); root.add(nodes[n.at]); }
       const full = (cfg.nodes.find((x) => x.at === n.at) || { amount: 400 }).amount, k = Math.max(0.15, n.left / full);
       nodes[n.at].scale.set(k, k, k);
       nodes[n.at].visible = n.left > 0;
@@ -242,12 +243,13 @@ export function boardRtsPage(api) {
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
       const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
-      what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
+      what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${UN('player', k).cost2 ? '+' + UN('player', k).cost2 : ''}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
         + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}`
         + `${b.up ? `  becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : K.upgrades ? `  G: grow into a ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}${needsOf(Object.assign({}, BU('player', K.upgrades.to), { needs: K.upgrades.needs, tier: K.upgrades.tier })) ? ' (locked)' : ''}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
     }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
-    const text = `gold ${R.gold.player}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
+    const sup = RTK.supplyOf(cfg, R, 'player'), ore = P.res2 ? `   ${RTK.res2Name(cfg, 'player')} ${(R.ore && R.ore.player) || 0}` : '';
+    const text = `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
   }
 

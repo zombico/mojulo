@@ -122,6 +122,19 @@ export function buildBoardRts() {
   const doc = (cfg, side) => DOCTRINES[cfg.doctrine && cfg.doctrine[side]] || {};
   const bhp = (cfg, side, K) => Math.round(K.hp * (doc(cfg, side).bhp || 1));
   const costOf = (cfg, side, K) => Math.round(K.cost * (K.atk && doc(cfg, side).defence ? doc(cfg, side).defence : 1));
+  // the purse: gold, and a second resource (ore: what a roster names its own, `res2`) where its things cost it too
+  const res2Name = (cfg, side) => (roster(cfg, side).res2 || 'ore').toLowerCase();
+  const price = (cfg, side, gold, ore) => gold + ' gold' + (ore ? ' and ' + ore + ' ' + res2Name(cfg, side) : '');
+  const can2 = (R, side, gold, ore) => R.gold[side] >= gold && ((R.ore && R.ore[side]) || 0) >= (ore || 0);
+  const pay = (R, side, gold, ore) => { R.gold[side] -= gold; if (ore) R.ore = Object.assign({}, R.ore, { [side]: R.ore[side] - ore }); };
+  // supply: what a side's units take of what its buildings hold (a roster without supply has no cap)
+  function supplyOf(cfg, R, side) {
+    let used = 0, cap = 0;
+    for (const u of R.units) if (u.side === side) used += UN(cfg, side, u.kind).supply || 0;
+    for (const b of R.buildings) if (b.side === side) { for (const q of b.queue) used += UN(cfg, side, q.kind).supply || 0; if (b.raising <= 0) cap += BU(cfg, side, b.kind).supplies || 0; }
+    return { used, cap: Math.min(100, cap) };
+  }
+  const room = (cfg, R, side, U) => { if (!U.supply) return true; const s = supplyOf(cfg, R, side); return s.used + U.supply <= s.cap; };
   const stepCost = (cfg, side, L) => Math.round(L.cost * (doc(cfg, side).rcost || 1)), stepTime = (cfg, side, L) => L.time * (doc(cfg, side).rtime || 1);
   const tierName = (cfg, side, t) => { const L = roster(cfg, side).research || {}; for (const id in L) if (L[id].gives.tier === t) return L[id].name; return 'tier ' + t; };
   const roleOf = (cfg, b) => BU(cfg, b.side, b.kind).role;
@@ -214,7 +227,7 @@ export function buildBoardRts() {
   function start(B, cfg) {
     // the enemy's start may be its own (cfg.enemy: a handicap either way)
     const of = (side, k) => (side === 'enemy' && cfg.enemy && cfg.enemy[k] != null ? cfg.enemy[k] : cfg[k]);
-    const R = { t: 0, acc: 0, gold: { player: cfg.gold, enemy: of('enemy', 'gold') }, units: [], buildings: [], nodes: cfg.nodes.map((n) => ({ at: n.at, left: n.amount })), n: 0, mindT: 0, wave: (cfg.ai || AI).wave, over: null, known: { player: {}, enemy: {} } };
+    const R = { t: 0, acc: 0, gold: { player: cfg.gold, enemy: of('enemy', 'gold') }, units: [], buildings: [], nodes: cfg.nodes.map((n) => Object.assign({ at: n.at, left: n.amount }, n.res ? { res: n.res } : {})), n: 0, mindT: 0, wave: (cfg.ai || AI).wave, over: null, known: { player: {}, enemy: {} }, ore: { player: cfg.ore || 0, enemy: of('enemy', 'ore') || 0 } };
     for (const side of ['player', 'enemy']) {
       const base = roster(cfg, side).base, hp = bhp(cfg, side, BU(cfg, side, base));
       R.buildings.push({ id: 'b' + (++R.n), side, kind: base, at: cfg.bases[side], hp, hpMax: hp, raising: 0, queue: [], rally: null });
@@ -264,9 +277,13 @@ export function buildBoardRts() {
     const lock = lockOf(cfg, R0, b.side, U);
     if (lock) throw new Error('rts: a ' + U.name + ' needs ' + lock + ' first');
     if (b.queue.length >= 5) throw new Error('rts: five in the queue already');
-    if (R0.gold[b.side] < U.cost) throw new Error('rts: ' + U.cost + ' gold for a ' + U.name + ', ' + R0.gold[b.side] + ' in the purse');
+    if (!can2(R0, b.side, U.cost, U.cost2)) throw new Error('rts: ' + price(cfg, b.side, U.cost, U.cost2) + ' for a ' + U.name + ', ' + price(cfg, b.side, R0.gold[b.side], U.cost2 ? R0.ore[b.side] : 0) + ' in the purse');
+    if (U.supply) {
+      const s = supplyOf(cfg, R0, b.side);
+      if (s.used + U.supply > s.cap) { const k = Object.keys(roster(cfg, b.side).buildings).find((x) => BU(cfg, b.side, x).role === 'supply'); throw new Error('rts: needs more supply (' + s.used + ' / ' + s.cap + ')' + (s.cap >= 100 ? ': the most a side may field' : k ? ': raise a ' + BU(cfg, b.side, k).name : '')); }
+    }
     const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
-    R.gold[c.side] -= U.cost;
+    pay(R, c.side, U.cost, U.cost2);
     c.queue.push({ kind, left: U.time });
     return R;
   }
@@ -284,12 +301,12 @@ export function buildBoardRts() {
     if (lock) throw new Error('rts: a ' + K.name + ' needs ' + lock + ' first');
     if (!open(B, R0, at)) throw new Error('rts: a ' + K.name + ' cannot stand there');
     if (R0.units.some((u) => spotAt(B, u.x, u.y) === at)) throw new Error('rts: someone stands there');
-    if (R0.gold[side] < costOf(cfg, side, K)) throw new Error('rts: ' + costOf(cfg, side, K) + ' gold for a ' + K.name + ', ' + R0.gold[side] + ' in the purse');
+    if (!can2(R0, side, costOf(cfg, side, K), K.cost2)) throw new Error('rts: ' + price(cfg, side, costOf(cfg, side, K), K.cost2) + ' for a ' + K.name + ', ' + price(cfg, side, R0.gold[side], K.cost2 ? R0.ore[side] : 0) + ' in the purse');
     const R = copy(R0);
     R.buildings.push({ id: 'b' + (++R.n), side, kind, at, hp: Math.round(bhp(cfg, side, K) * 0.2), hpMax: bhp(cfg, side, K), raising: K.time, queue: [], rally: null });
     // never a building that shuts one base off from the other
     if (path(B, cfg, R, cfg.bases.player, cfg.bases.enemy) === null) throw new Error('rts: a ' + K.name + ' there would shut the way between the bases');
-    R.gold[side] -= costOf(cfg, side, K);
+    pay(R, side, costOf(cfg, side, K), K.cost2);
     const b = R.buildings[R.buildings.length - 1], w = ids && ids.length ? ids : [builderFor(B, cfg, R, side, at)].filter(Boolean).map((u) => u.id);
     return w.length ? order(B, cfg, R, w, { kind: 'build', target: b.id }) : R;
   }
@@ -306,9 +323,9 @@ export function buildBoardRts() {
     if (b.study) throw new Error('rts: the ' + K.name + ' is researching ' + roster(cfg, b.side).research[b.study.id].name + ' already');
     const lock = lockOf(cfg, R0, b.side, L);
     if (lock) throw new Error('rts: ' + L.name + ' needs ' + lock + ' first');
-    if (R0.gold[b.side] < stepCost(cfg, b.side, L)) throw new Error('rts: ' + stepCost(cfg, b.side, L) + ' gold for ' + L.name + ', ' + R0.gold[b.side] + ' in the purse');
+    if (!can2(R0, b.side, stepCost(cfg, b.side, L), L.cost2)) throw new Error('rts: ' + price(cfg, b.side, stepCost(cfg, b.side, L), L.cost2) + ' for ' + L.name + ', ' + price(cfg, b.side, R0.gold[b.side], L.cost2 ? R0.ore[b.side] : 0) + ' in the purse');
     const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
-    R.gold[c.side] -= stepCost(cfg, c.side, L);
+    pay(R, c.side, stepCost(cfg, c.side, L), L.cost2);
     c.study = { id, left: stepTime(cfg, c.side, L) };
     return R;
   }
@@ -332,9 +349,9 @@ export function buildBoardRts() {
     if (b.up) throw new Error('rts: the ' + K.name + ' is becoming a ' + T.name + ' already');
     const lock = lockOf(cfg, R0, b.side, Object.assign({}, T, { needs: Up.needs, tier: Up.tier || T.tier }));
     if (lock) throw new Error('rts: a ' + T.name + ' needs ' + lock + ' first');
-    if (R0.gold[b.side] < Up.cost) throw new Error('rts: ' + Up.cost + ' gold for a ' + T.name + ', ' + R0.gold[b.side] + ' in the purse');
+    if (!can2(R0, b.side, Up.cost, Up.cost2)) throw new Error('rts: ' + price(cfg, b.side, Up.cost, Up.cost2) + ' for a ' + T.name + ', ' + price(cfg, b.side, R0.gold[b.side], Up.cost2 ? R0.ore[b.side] : 0) + ' in the purse');
     const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
-    R.gold[c.side] -= Up.cost;
+    pay(R, c.side, Up.cost, Up.cost2);
     c.up = { to: Up.to, left: Up.time };
     return R;
   }
@@ -362,8 +379,10 @@ export function buildBoardRts() {
   function stuck(cfg, R, side) {
     const ws = R.units.filter((u) => u.side === side && isWorker(cfg, u));
     if (ws.length && R.nodes.some((n) => n.left > 0)) return false;
-    if (ws.some((u) => u.carry > 0) || R.buildings.some((b) => b.side === side && (b.queue.length || b.raising > 0))) return false;
-    return !R.buildings.some((b) => b.side === side && b.raising <= 0 && (BU(cfg, side, b.kind).trains || []).some((k) => R.gold[side] >= UN(cfg, side, k).cost && !lockOf(cfg, R, side, UN(cfg, side, k))));
+    // (a load counts while it is on its way home: an idle worker's odd ounce is coming nowhere)
+    if (ws.some((u) => u.carry > 0 && u.order.kind === 'gather') || R.buildings.some((b) => b.side === side && (b.queue.length || b.raising > 0 || b.up || b.study))) return false;
+    // (nothing left to mine, a worker is nothing more to come)
+    return !R.buildings.some((b) => b.side === side && b.raising <= 0 && (BU(cfg, side, b.kind).trains || []).some((k) => !isWorker(cfg, { side, kind: k }) && can2(R, side, UN(cfg, side, k).cost, UN(cfg, side, k).cost2) && !lockOf(cfg, R, side, UN(cfg, side, k))));
   }
   // ── the plain mind: mine, a barracks, an army, a wave on the other base; after a wave, its ladder ───────────────
   function mind(B, cfg, R0, side) {
@@ -374,13 +393,24 @@ export function buildBoardRts() {
     const base = R.buildings.find((b) => b.side === side && roleOf(cfg, b) === 'base');
     if (!base) return R;
     const workers = mine(S.worker), queued = (b, k) => b.queue.filter((q) => q.kind === k).length;
-    if (workers.length + queued(base, S.worker) < ai.workers && !base.queue.length && R.gold[side] >= UN(cfg, side, S.worker).cost) R = train(B, cfg, R, base.id, S.worker);
-    // every idle worker to the nearest node with something left
-    const idle = mine(S.worker).filter((u) => u.order.kind === 'stop').map((u) => u.id);
+    if (workers.length + queued(base, S.worker) < ai.workers && !base.queue.length && can2(R, side, UN(cfg, side, S.worker).cost, UN(cfg, side, S.worker).cost2) && room(cfg, R, side, UN(cfg, side, S.worker))) R = train(B, cfg, R, base.id, S.worker);
+    // every idle worker to the nearest node with something left: a third of them to the second resource, where it
+    // has things that cost it
+    const idle = mine(S.worker).filter((u) => u.order.kind === 'stop').map((u) => u.id), wants2 = !!S.res2;
     for (const id of idle) {
       const u = R.units.find((x) => x.id === id), p = [u.x, u.y];
-      const node = R.nodes.filter((n) => n.left > 0).sort((a, b) => dist(mid(B, a.at), p) - dist(mid(B, b.at), p) || a.at - b.at)[0];
+      const on2 = R.units.filter((x) => x.side === side && x.order.kind === 'gather' && (R.nodes.find((n) => n.at === x.order.node) || {}).res === 2).length;
+      const res = wants2 && on2 < Math.floor(mine(S.worker).length / 3) && R.nodes.some((n) => n.res === 2 && n.left > 0) ? 2 : 1;
+      const node = R.nodes.filter((n) => n.left > 0 && (n.res || 1) === res).sort((a, b) => dist(mid(B, a.at), p) - dist(mid(B, b.at), p) || a.at - b.at)[0]
+        || R.nodes.filter((n) => n.left > 0).sort((a, b) => dist(mid(B, a.at), p) - dist(mid(B, b.at), p) || a.at - b.at)[0];
       if (node) R = order(B, cfg, R, [id], { kind: 'gather', node: node.at });
+    }
+    // near its supply's cap, a building that holds more (one at a time)
+    const sup = supplyOf(cfg, R, side), holds = Object.keys(S.buildings).find((k) => S.buildings[k].role === 'supply');
+    if (holds && sup.cap < 100 && sup.used + 4 >= sup.cap && !R.buildings.some((b) => b.side === side && b.kind === holds && b.raising > 0) && can2(R, side, costOf(cfg, side, BU(cfg, side, holds)), BU(cfg, side, holds).cost2)) {
+      for (const at of around(B, cfg, R, base.at, 4).filter((i) => Math.max(Math.abs(colOf(B, i) - colOf(B, base.at)), Math.abs(rowOf(B, i) - rowOf(B, base.at))) >= 2)) {
+        try { R = build(B, cfg, R, side, holds, at); break; } catch (e) { /* the next spot */ }
+      }
     }
     // what it builds, in order: the first it lacks, once it can be paid for (it saves for it, never skipping ahead);
     // past its first, only once it has sent a wave; then the ladder, a step at a time, in its order
@@ -391,10 +421,10 @@ export function buildBoardRts() {
     const dull = (id) => L[id].opens && L[id].opens.length && L[id].opens.every((k) => { const X = UN(cfg, side, k); return X && (X.carries || X.deploys); });
     const L = S.research || {}, step = sent ? (S.study || []).find((id) => !known(R, side)[id] && !dull(id) && !R.buildings.some((b) => b.side === side && b.study && b.study.id === id)) : null;
     const lab = step && R.buildings.find((b) => b.side === side && studiesAt(BU(cfg, side, b.kind), step) && b.raising <= 0 && !b.study);
-    if (step && lab && !lockOf(cfg, R, side, L[step]) && R.gold[side] >= stepCost(cfg, side, L[step])) R = research(B, cfg, R, lab.id, step);
+    if (step && lab && !lockOf(cfg, R, side, L[step]) && can2(R, side, stepCost(cfg, side, L[step]), L[step].cost2)) R = research(B, cfg, R, lab.id, step);
     // its base grown into what it upgrades to, once it can: last, its buildings raised and its ladder climbed
     const home = !base.up && base, Up = home && BU(cfg, side, home.kind).upgrades;
-    if (sent && Up && !want && !step && R.gold[side] >= Up.cost && !lockOf(cfg, R, side, Object.assign({}, BU(cfg, side, Up.to), { needs: Up.needs, tier: Up.tier }))) R = upgrade(B, cfg, R, home.id);
+    if (sent && Up && !want && !step && can2(R, side, Up.cost, Up.cost2) && !lockOf(cfg, R, side, Object.assign({}, BU(cfg, side, Up.to), { needs: Up.needs, tier: Up.tier }))) R = upgrade(B, cfg, R, home.id);
     // its abilities, cast when a foe is in sight and they are ready (stim only while it has the hp to spare)
     for (const u of R.units) {
       const U = UN(cfg, side, u.kind);
@@ -418,7 +448,7 @@ export function buildBoardRts() {
     let keep = sent && earns ? Math.max(nextBuild, nextStep) : 0;
     if (want && (want === S.builds[0] || sent)) {
       const K = BU(cfg, side, want);
-      if (R.gold[side] >= costOf(cfg, side, K) && can(K)) {
+      if (can2(R, side, costOf(cfg, side, K), K.cost2) && can(K)) {
         for (const at of around(B, cfg, R, base.at, 4).filter((i) => Math.max(Math.abs(colOf(B, i) - colOf(B, base.at)), Math.abs(rowOf(B, i) - rowOf(B, base.at))) >= 2)) {
           try { R = build(B, cfg, R, side, want, at); break; } catch (e) { /* the next spot */ }
         }
@@ -441,12 +471,15 @@ export function buildBoardRts() {
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
       // what a later tier opened is saved for: the factories before it wait while it cannot be paid for
-      if (R.gold[side] - keep >= UN(cfg, side, kind).cost) R = train(B, cfg, R, b.id, kind);
+      const T = UN(cfg, side, kind);
+      if (!room(cfg, R, side, T)) continue;
+      if (R.gold[side] - keep >= T.cost && ((R.ore && R.ore[side]) || 0) >= (T.cost2 || 0)) R = train(B, cfg, R, b.id, kind);
       else if (top >= 2 && earns) keep += UN(cfg, side, kind).cost;
     }
     // a wave: every idle fighter, attack-moving on the other base once there are enough of them
     // (once nothing more is coming, whatever it has goes, its workers too)
-    const spent = stuck(cfg, R, side);
+    // (a board with no nodes at all has no economy to run out of: nothing is ever spent there)
+    const spent = R.nodes.length > 0 && stuck(cfg, R, side);
     const ready = mine().filter((u) => (spent || !isWorker(cfg, u)) && u.order.kind === 'stop');
     const target = R.buildings.find((b) => b.side === foe && roleOf(cfg, b) === 'base');
     if (target && ready.length && (ready.length >= R.wave || spent)) {
@@ -551,7 +584,11 @@ export function buildBoardRts() {
       .sort((a, b) => dist(mid(B, a.at), p) - dist(mid(B, b.at), p) || (a.id < b.id ? -1 : 1))[0];
     if (u.carry >= cap || ((!node || node.left <= 0) && u.carry > 0)) {
       if (!home) { u.order = { kind: 'stop' }; return; }
-      if (dist([u.x, u.y], mid(B, home.at)) <= 1.1) { const paid = u.carry + Math.floor(u.carry * incomeOf(cfg, R, u.side) + 1e-9); R.gold[u.side] += paid; events.push({ kind: 'gathered', side: u.side, amount: u.carry, paid }); u.carry = 0; u.path = []; return; }
+      if (dist([u.x, u.y], mid(B, home.at)) <= 1.1) {
+        const paid = u.carry + Math.floor(u.carry * incomeOf(cfg, R, u.side) + 1e-9);
+        if (u.cr === 2) R.ore = Object.assign({}, R.ore, { [u.side]: R.ore[u.side] + paid }); else R.gold[u.side] += paid;
+        events.push(Object.assign({ kind: 'gathered', side: u.side, amount: u.carry, paid }, u.cr === 2 ? { res: 2 } : {})); u.carry = 0; u.cr = 0; u.path = []; return;
+      }
       if (!u.path.length) u.path = toward(B, cfg, R, u, home.at);
       walk(B, cfg, u, STEP);
       return;
@@ -565,7 +602,9 @@ export function buildBoardRts() {
     if (dist([u.x, u.y], mid(B, node.at)) <= 1.1) {
       u.path = [];
       u.mine += STEP;
-      if (u.mine >= MINE) { const take = Math.min(CARRY, node.left); node.left -= take; u.carry += take; u.mine = 0; }
+      // (what it carries is one resource: mining another, it starts again)
+      if (u.cr && u.cr !== (node.res || 1)) { u.carry = 0; }
+      if (u.mine >= MINE) { const take = Math.min(cap - u.carry, node.left); node.left -= take; u.carry += take; u.cr = node.res || 1; u.mine = 0; }
       return;
     }
     if (!u.path.length) u.path = toward(B, cfg, R, u, node.at);
@@ -742,7 +781,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, STATUS, DOCTRINES, costOf, stepCost, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -764,12 +803,13 @@ export const rtsTick = _rts.tick;
 export const rtsPath = _rts.path;
 export const rtsOpen = _rts.open;
 
-const NODE = 1500;
-const RTS_KEYS = ['bases', 'nodes', 'gold', 'workers', 'army', 'enemy', 'ai', 'jump', 'doctrine'];
+const NODE = 1500, NODE2 = 800;
+const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'jump', 'doctrine'];
 const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
  * readBoardRts(B, spec) → cfg   a manifest's `rts`, read against its board:
  *   rts: { bases?: { player?: 'C2' | 'near', enemy?: 'C9' | 'far' }, nodes?: ['A3', …] | n (beside each base, 2),
+ *          nodes2?: [..] | n (the second resource's, a step farther; none unless asked), ore? (its start),
  *          (a manifest's `sides` are read beside it: board-scene.js, board-rts-look.js rtsSides)
  *          gold?, workers?, army?, enemy?: { gold?, workers?, army? } (the other side's start, else the same), ai?:
  *          { workers?, wave?, grow? }, jump?, doctrine?: { player?, enemy? } (RTS_DOCTRINES: how each side chose to play) }
@@ -817,13 +857,27 @@ export function readBoardRts(B, spec = {}) {
     }
     nodes = out;
   }
+  // the second resource's nodes: listed, or n beside each base a step farther than the gold (none unless asked)
+  if (Array.isArray(spec.nodes2)) nodes = nodes.concat(spec.nodes2.map((n, k) => ({ at: parse(n, `nodes2[${k}]`), amount: NODE2, res: 2 })));
+  else if (spec.nodes2 !== undefined) {
+    const n = num(spec.nodes2, 0, 0, 4, 'nodes2');
+    for (const base of [player, enemy]) {
+      const c0 = base % B.cols, r0 = (base - c0) / B.cols, near = [];
+      for (let i = 0; i < B.spots.length; i++) {
+        const d = Math.max(Math.abs((i % B.cols) - c0), Math.abs(Math.floor(i / B.cols) - r0));
+        if (walk(i) && d >= 3 && d <= 4 && i !== player && i !== enemy && !nodes.some((x) => x.at === i)) near.push([Math.abs((i % B.cols) - c0), Math.abs(Math.floor(i / B.cols) - r0), i]);
+      }
+      near.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+      for (const [, , i] of near.slice(0, n)) nodes.push({ at: i, amount: NODE2, res: 2 });
+    }
+  }
   const foe = spec.enemy ?? {};
   if (typeof foe !== 'object' || Array.isArray(foe)) rtsNo('enemy is { gold?, workers?, army? }: the other side\'s start');
   for (const k of Object.keys(foe)) if (!['gold', 'workers', 'army'].includes(k)) rtsNo(`enemy.${k} is not part of it (gold, workers, army)`);
   const ai = spec.ai ?? {};
   if (typeof ai !== 'object' || Array.isArray(ai)) rtsNo('ai is { workers?, wave?, grow? }');
   for (const k of Object.keys(ai)) if (!['workers', 'wave', 'grow'].includes(k)) rtsNo(`ai.${k} is not part of it (workers, wave, grow)`);
-  const cfg = { bases: { player, enemy }, nodes, gold: num(spec.gold, 100, 0, 9999, 'gold'), workers: num(spec.workers, 3, 0, 12, 'workers'), army: num(spec.army, 0, 0, 12, 'army'),
+  const cfg = { bases: { player, enemy }, nodes, gold: num(spec.gold, 100, 0, 9999, 'gold'), ...(spec.ore !== undefined ? { ore: num(spec.ore, 0, 0, 9999, 'ore') } : {}), workers: num(spec.workers, 3, 0, 12, 'workers'), army: num(spec.army, 0, 0, 12, 'army'),
     ...(Object.keys(foe).length ? { enemy: { ...(foe.gold !== undefined ? { gold: num(foe.gold, 0, 0, 9999, 'enemy.gold') } : {}), ...(foe.workers !== undefined ? { workers: num(foe.workers, 0, 0, 12, 'enemy.workers') } : {}), ...(foe.army !== undefined ? { army: num(foe.army, 0, 0, 12, 'enemy.army') } : {}) } } : {}),
     ai: { workers: num(ai.workers, RTS_AI.workers, 0, 20, 'ai.workers'), wave: num(ai.wave, RTS_AI.wave, 1, 30, 'ai.wave'), grow: num(ai.grow, RTS_AI.grow, 0, 10, 'ai.grow') }, jump };
   // how each side chose to play: a doctrine each, from RTS_DOCTRINES
