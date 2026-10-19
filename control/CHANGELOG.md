@@ -156,7 +156,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   rose under a shoulder that stayed down. The skin over the girdle (the collarbone, the acromion, the trapezius's fall,
   the scapula's top) is now bound to it by its nearness to the bone, none inside the bone's sternal pivot (rising, it
   turns that side down, and the neck's root split): a raised arm levels the shoulder's top from the neck to the arm.
-  Only the feet are still the authored cage.
+  The deltoid's share of the arm's bone runs by how far down the humerus a point lies too, none above the joint (the
+  deltoid's origin on the acromion and the collarbone stays with the girdle): the whole cap on the arm's bone had swung
+  its top in and down about the joint and its side up, a trough over the collarbone and a hump over the arm, against
+  the level line of Leonardo's figure. THE ARM IN: the body's breadth is the build's own (`frame`), so the hero's
+  `shoulders` tune brings the arm in over a body that stays, the masses it hangs from (the girdle, the collarbone, the
+  trapezius's fall, the armpit, the pectoral's tendon: `joint`) drawn in with it. Norrin's arms 20 % in over a body 10 %
+  narrower than the hero's, shalla's 8 % over her own: the shoulder's joints 0.205 and 0.194 of the stature apart
+  (0.231 and 0.211 before; the body's about 0.20), the deltoids 0.283 and 0.269 across, the pectoral running into the
+  shoulder with no ledge between. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

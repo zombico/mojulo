@@ -70,7 +70,9 @@ const smaxp = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; ret
 const NORRIN = {
   note: 'lean, sculpted, the anatomy legible under one smooth skin: the male slice (a Silver Surfer-like body)',
   // the hero's own tune under the build: the shoulders 10 % closer (every mass rides W, so the frame narrows with them)
-  tune: { shoulders: 0.9 },
+  // (the arms 20 % in by the hero's own tune, over a body 10 % narrower than the hero's, `frame`: in Leonardo's figure
+  // the pectoral runs into the shoulder; the arm 10 % in with the body 10 % narrower had left a ledge between them)
+  tune: { shoulders: 0.8 }, frame: 0.9,
   // the spine's S: the lumbar curve carrying the lower back in above the seat, the thoracic rounding it out behind
   spine: [{ t: -0.05, depth: 0.16, w: 0.4 }, { t: 0.62, depth: -0.08, w: 0.38 }],
   // the pectoral's lower border is an overhang: the torso's rays there come down from above (as under the bust)
@@ -88,7 +90,7 @@ const NORRIN = {
     { id: 'abdomen', egg: [0, -0.02, 0.15], r: [0.58, 0.4, 0.5] },
     // (the neck thin at the top and flaring out to its root, into the trapezius: a column read pinched at the base)
     { id: 'neck', cone: [[0, -0.05, 0.86], [0, -0.06, 1.8]], r: [0.31, 0.2] },
-    { id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
+    { joint: true, id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
     // THE SEAT, one mass round the pelvis (the operator's: an upside-down heart seen from the front and from behind, a
     // teardrop from the side): two LOBES low on the hip's joints, each wrapping the hip from the front round to the back
     // (behind, the glutes, the dip between them the cleft; in front, the thighs' tops, the dip the crotch), and a TAPER
@@ -126,16 +128,16 @@ const NORRIN = {
     { id: 'erector', on: { x: 0.14, t: -0.2, face: 'back' }, along: [0, 0, 1], r: [0.5, 0.13, 0.08], proud: 0.07 },
     // the sternocleidomastoid: from behind the ear down and in to the sternum's head, the neck's V from the front
     { id: 'sternocleidomastoid', cone: [[0.22, -0.06, 1.58], [0.06, 0.2, 0.98]], r: [0.07, 0.06] },
-    { id: 'trapeziusUpper', cone: [[0.12, -0.15, 1.3], [0.7, -0.06, 0.98]], r: [0.14, 0.1] },
+    { joint: true, id: 'trapeziusUpper', cone: [[0.12, -0.15, 1.3], [0.7, -0.06, 0.98]], r: [0.14, 0.1] },
     // the armpit FILLED (the hanging arm covers it): the pectoral's and the latissimus's tendons into the arm and the
     // hollow between them, a cone from a point low on the chest's wall up to the shoulder, its side only ever moving
     // out as it rises. Without it the torso's rays at the shoulder's height crossed a gap between the chest's wall and
     // the deltoid's cap, by turns, in fins; a round mass only moved the gap under its own overhang
-    { id: 'axilla', cone: [[0.5, -0.03, 0.0], [0.76, -0.03, 0.68]], r: [0.05, 0.17] },
+    { joint: true, id: 'axilla', cone: [[0.5, -0.03, 0.0], [0.76, -0.03, 0.68]], r: [0.05, 0.17] },
     // the pectoral's tendon running under the anterior deltoid into the arm (the pocket between them, by turns the
     // pec's wall and the deltoid's, read as fins)
-    { id: 'pectoralTendon', egg: [0.8, 0.14, 0.74], r: [0.22, 0.18, 0.18] },
-    { id: 'clavicle', cone: [[0.1, 0.24, 0.94], [0.7, 0.06, 0.98]], r: [0.06, 0.07] },
+    { joint: true, id: 'pectoralTendon', egg: [0.8, 0.14, 0.74], r: [0.22, 0.18, 0.18] },
+    { joint: true, id: 'clavicle', cone: [[0.1, 0.24, 0.94], [0.7, 0.06, 0.98]], r: [0.06, 0.07] },
   ],
   dimples: [{ id: 'navel', on: { x: 0, t: -0.02, face: 'front' }, r: 0.025, k: 0.03 }],
   // the arms (the right; the left its mirror): s along the bone, az round it (0 the front, 90 the outside)
@@ -200,6 +202,7 @@ const scaled = (masses, f, proud = f) => masses.map((m) => (m.chain ? { ...m, ch
  * the axis (the knee, the elbow) as they are, where a limb is narrowest (a limb read thin between its bellies, the
  * bellies ballooned off a slim bone; the joints thickened with the bone stood out as knobs) */
 const thick = (masses, { bone, belly }) => masses.map((m) => {
+  if (/^deltoid/.test(m.id)) return m;   // (the shoulder's breadth is the deltoid's: thickened, it stood 0.31 of the stature)
   if (m.chain) return { ...m, chain: m.chain.map(([a, b, c, r]) => [a, b, c, r * belly]) };
   const f = m.az !== undefined ? belly : m.cone ? bone : 1;
   return { ...m, r: m.cone ? m.r.map((x) => x * f) : [m.r[0], m.r[1] * f, m.r[2] * f] };
@@ -207,6 +210,8 @@ const thick = (masses, { bone, belly }) => masses.map((m) => {
 const byId = (masses, edits) => masses.map((m) => (edits[m.id] ? { ...m, ...edits[m.id] } : m));
 const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
+  // (her arms 8 % in by the hero's own tune over her body as it was: the pectoral into the shoulder, as his)
+  tune: { shoulders: 0.92 },
   kBase: 0.12, kMuscle: 0.04,
   // (the half biacromial already carries her narrower shoulders: on it her waist and seat stand wider than his)
   // (her lumbar curve a little deeper, her thoracic a little softer)
@@ -253,7 +258,10 @@ export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
  * hip's knot the build's own spacing. So the lower trunk rides the hip's joint wherever the leg puts it. `slope(t)` is
  * how much a height is stretched there (a mass's height scales with it), `tOf` the inverse */
 export function bodyFrame(R, build = null) {
-  const J = R.joints, W = J.shoulderR[0], z0 = J.navel[2], T = J.neckHub[2] - J.navel[2], lin = (t) => z0 + t * T;
+  // (W the body's own breadth: the half biacromial the build's tune left, by its `frame`, so a tune that brings the
+  // arms in, `shoulders`, moves them over a body that stays; `Sx` where the shoulder's joint now stands, of W, which the
+  // masses the arm hangs from (`joint`: the girdle, the collarbone, the trapezius's fall, the armpit) are drawn in by)
+  const J = R.joints, W = (J.shoulderR[0] / (build?.tune?.shoulders ?? 1)) * (build?.frame ?? 1), Sx = J.shoulderR[0] / W, z0 = J.navel[2], T = J.neckHub[2] - J.navel[2], lin = (t) => z0 + t * T;
   const Lw = build?.lower;
   let zOf = lin, tOf = (z) => (z - z0) / T;
   if (Lw) {
@@ -264,7 +272,7 @@ export function bodyFrame(R, build = null) {
     tOf = (z) => (z >= kz[2] ? (z - z0) / T : z <= kz[0] ? Lw.hip + (z - kz[0]) / T : seg(z, kz, kt));
   }
   const slope = (t) => (zOf(t + 0.01) - zOf(t - 0.01)) / (0.02 * T);
-  return { W, z0, T, zOf, tOf, slope, at: ([x, y, t]) => [x * W, y * W, zOf(t)] };
+  return { W, Sx, z0, T, zOf, tOf, slope, at: ([x, y, t]) => [x * W, y * W, zOf(t)] };
 }
 
 /** the field: { sd(p), base(p), masses } for a build on a rig's rest */
@@ -276,11 +284,12 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // (a radius `i` stretched by the frame's `slope`, as far as it runs up the body, `up` of it)
   const tall = (r, i, up, sl) => r.map((x, j) => (j === i ? x * (1 + (sl - 1) * up) : x));
   const prim = (m) => {
-    if (m.cone) return { cone: [F.at(m.cone[0]), F.at(m.cone[1])], r: m.r.map((x) => x * W), ...(m.squash ? { squash: m.squash } : {}) };
+    const at = m.joint ? ([x, y, t]) => F.at([x * F.Sx, y, t]) : F.at;
+    if (m.cone) return { cone: [at(m.cone[0]), at(m.cone[1])], r: m.r.map((x) => x * W), ...(m.squash ? { squash: m.squash } : {}) };
     // an egg without a fibre lies on the world's axes (r: x, y, z); with one, r is along, across, depth (depth forward);
     // its height stretched as the frame stretches it there
     const ax = m.along ? frameOf(unit(m.along), [0, 1, 0]) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-    return { egg: true, c: F.at(m.egg), ax, r: tall(m.r, m.along ? 0 : 2, m.along ? Math.abs(unit(m.along)[2]) : 1, F.slope(m.egg[2])).map((x) => x * W) };
+    return { egg: true, c: at(m.egg), ax, r: tall(m.r, m.along ? 0 : 2, m.along ? Math.abs(unit(m.along)[2]) : 1, F.slope(m.egg[2])).map((x) => x * W) };
   };
   const mirror = (p) => (p.cone ? { ...p, cone: p.cone.map(([x, y, z]) => [-x, y, z]) } : { ...p, c: [-p.c[0], p.c[1], p.c[2]], ax: p.ax.map(([x, y, z]) => [-x, y, z]) });
   const sides = (m, p) => (m.mid || (p.cone ? p.cone.every((q) => q[0] === 0) : p.c[0] === 0) ? [p] : [p, mirror(p)]);
@@ -479,7 +488,7 @@ function mirrorPart(P, L) {
 /** a limb's field for a build: its masses in the bone's frame (s along it from its head joint, az round it from the
  * front toward the outside, off from its axis; r along, round, out; all in W), summed with the build's `kLimb` */
 export function limbField(R, build, limb, extra = []) {
-  const B = typeof build === 'string' ? BODY_BUILDS[build] : build, Lb = B.limbs[limb], F = bodyFrame(R), W = F.W, J = R.joints;
+  const B = typeof build === 'string' ? BODY_BUILDS[build] : build, Lb = B.limbs[limb], F = bodyFrame(R, B), W = F.W, J = R.joints;
   const h = J[Lb.from], tl = J[Lb.to], ax = unit(sub(tl, h)), L = len(sub(tl, h));
   const fr = unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
   const dirAt = (az) => add(scl(fr, dmath.cos((az * Math.PI) / 180)), scl(out, dmath.sin((az * Math.PI) / 180)));
@@ -516,7 +525,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   // shoulder, the two on one surface z-fought in a sawtooth, and an arm cut away where the torso's field lay left it
   // hanging from a stalk. The torso's cut is sharp (`k`) and the arm's inset begins `gap` above it, so across the
   // handover only the arm's skin shows: two fades over one band crossed back and forth a few millimetres apart, a sawtooth
-  const W0 = bodyFrame(R).W, clip = { rho: 0.9 * W0, z: R.joints.shoulderR[2] - 0.6 * W0, slope: 1, k: 0.02 * W0 }, tuck = 0.003, band = 0.01, gap = 0.004;
+  const F0 = bodyFrame(R, B), W0 = F0.W, clip = { rho: 0.9 * W0 * F0.Sx, z: R.joints.shoulderR[2] - 0.6 * W0, slope: 1, k: 0.02 * W0 }, tuck = 0.003, band = 0.01, gap = 0.004;
   const ease = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
   // A LIMB'S TWO SEGMENTS share one field (both segments' masses, the knee's and the elbow's from each side) and hand over
   // by the plane through the joint square to the upper bone, the deltoid's pattern: past it the lower segment's skin
@@ -601,21 +610,27 @@ export function formSlice(recipe, R, build, opts = {}) {
   const delt = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)), dBand = 0.5 * W0;
   // (and none under the armpit: its folds, the pectoral's and the latissimus's, follow the arm, the flank under them
   // does not; a share by nearness alone carried the flank up in a web under a raised arm)
-  const zAx = R.joints.shoulderR[2], deltoidShare = (q) => {
-    const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]]))), x = Math.max(0, Math.min(1, 1 - Math.max(0, d) / dBand));
-    const y = Math.max(0, Math.min(1, (q[2] - zAx + 1.1 * W0) / (0.6 * W0)));
-    return x * x * (3 - 2 * x) * y * y * (3 - 2 * y);
+  // (and by how far down the humerus it lies, `down`: none above the joint, the deltoid's origin on the acromion and
+  // the collarbone, which stays with the girdle; wholly from its belly down. The whole cap on the arm's bone swung its
+  // top in and down about the joint and its side up, a trough over the collarbone and a hump over the arm)
+  const sj = R.joints.shoulderR, armDir = unit(sub(R.joints.elbowR, sj)), zAx = sj[2];
+  const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
+  const down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + 0.1 * W0) / (0.6 * W0));
+  const deltoidShare = (q) => {
+    const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
+    return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * down(q);
   };
-  // (`least`: the arm's share raised to the deltoid's where it was less, the arm's own rings; else mixed in by it)
-  const rideDeltoid = (P, least) => {
+  // (`ownArm`: the arm's own top, between the collarbone and the arm's bone by `down` alone, as the cap over it reads
+  // it; the torso mixed toward the arm's bone by the deltoid's share)
+  const rideDeltoid = (P, ownArm) => {
     if (!delt.length) return P;
     const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
     const ride = (key, fallback, p) => {
       if (p[0] === 0) return;
-      const f = deltoidShare(p), arm = `upperArm${p[0] < 0 ? 'L' : 'R'}`, w0 = blend[key] || fallback || own, cur = w0[arm] ?? 0;
-      const t = least ? (f > cur ? (f - cur) / (1 - cur) : 0) : f;
-      if (t < 1e-3) return;
-      const w = mixW(w0, { [arm]: 1 }, t);
+      const S = p[0] < 0 ? 'L' : 'R', arm = `upperArm${S}`;
+      if (ownArm) { const f = down(p); if (f < 0.999) blend[key] = mixW({ [`clavicle${S}`]: 1 }, { [arm]: 1 }, f); return; }
+      const f = deltoidShare(p); if (f < 1e-3) return;
+      const w = mixW(blend[key] || fallback || own, { [arm]: 1 }, f);
       if (Object.keys(w).length <= 4) blend[key] = w;
     };
     for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
