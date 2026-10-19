@@ -44,6 +44,8 @@ export const TIME = Object.freeze({
         // built 10-12: a game's `run` (the light shell): each run draws its levels from the pool in an order rolled from its
         // number, a death ends it, the store carries over, the deepest is kept; a quick game's run lays a pool of trails
         runs: { status: 'built', ...WEB, lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
+        // local 10-19 (mobile genres): the match-3 saga's map (a level a time, each a move budget for a goal, three stars)
+        saga: { status: 'local', ...WEB, effort: 'M', lowers: 'lib/graph/pixelizer/philosophers-stone-saga.js', note: 'Stone Saga\'s map: levels generated from its seed, opened one at a time, three stars each kept in the browser; a world game\'s levels do not take stars or a map yet' },
       },
     },
     chapters: {

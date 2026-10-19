@@ -48,6 +48,8 @@ const WORDS = Object.freeze({
   'space-shooter': ['space', 'spaceship', 'starfighter', 'star fighter', 'space shooter', 'space combat', 'asteroid', 'asteroids', 'trench run', 'trench', 'x-wing', 'battle station', 'exhaust port'],
   'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat', 'ace combat', 'fighter jet', 'jet fighter', 'fighter jets', 'shoot down', 'enemy planes', 'top gun'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
+  'endless-runner': ['runner', 'endless', 'lanes', 'swipe', 'dash'],
+  'match-3-saga': ['match-3', 'saga', 'candy', 'swap', 'stars'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
   'tower-defense': ['tower defence', 'tower defense', 'towers', 'waves', 'defend', 'base'],
@@ -61,7 +63,7 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter',
+  fight: 'versus-fighter', runner: 'endless-runner',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

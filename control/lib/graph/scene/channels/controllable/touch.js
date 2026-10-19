@@ -11,8 +11,12 @@
 // `lift` the buttons the pilot answers to; use shows only while the figure stands in reach. On by default on a coarse
 // pointer; `?touch=1` forces it on, `?touch=0` off. A real pad, once connected, wins.
 
-/** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift }. Pure. */
-export function touchLayout(entities, camera) {
+import { swipeOf } from '../../../controls/swipe.js';
+
+/** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift } (and `swipe` for a runner: the
+ * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide). Pure. */
+export function touchLayout(entities, camera, { runner = false } = {}) {
+  if (runner) return { look: false, lane: false, jump: false, fire: false, lift: false, swipe: true };
   const pilot = (entities || []).find((e) => e && e.pilotable) || null;
   const r = (pilot && pilot.rule) || {};
   const fly = r.type === 'fly';
@@ -49,15 +53,35 @@ document.head.appendChild(__tCss);
 // the stick: the left of the screen's lower half; it rises where the thumb lands, at rest a ring at its place
 const __tZone = document.createElement('div');
 __tZone.className = 'z';
-__tZone.style.cssText = 'left:0;width:50%;height:55%';
+__tZone.style.cssText = __TL.swipe ? 'left:0;right:0;top:0;bottom:0' : 'left:0;width:50%;height:55%';
 const __tRing = document.createElement('div'), __tNub = document.createElement('div');
 __tRing.className = 'ring' + (__TL.lane ? ' lane' : ''); __tNub.className = 'nub';
 __tRing.appendChild(__tNub); __tZone.appendChild(__tRing); __tEl.appendChild(__tZone);
 const __tRest = () => { __tRing.style.left = 'calc(96px + var(--safe-l, 0px))'; __tRing.style.top = 'calc(100% - 104px - var(--safe-b, 0px))'; __tNub.style.transform = ''; };
 __tRest();
+if (__TL.swipe) __tRing.style.display = 'none';
 const __T_R = 56;   // the stick's travel, px: full deflection at its edge
 let __tStick = null, __tLook = null;
-__tZone.addEventListener('pointerdown', (e) => {
+${L.swipe ? `// a RUNNER's swipe (controls/swipe.js): it fires as the finger passes the travel, not on release; each a short
+// pulse on the pad (the stick to a side, down, or the jump button), read by the runner as one press
+${swipeOf.toString()}
+let __tSw = null;
+const __tPulse = (fn, off) => { fn(); setTimeout(off, 110); };
+const __tFire = (g) => {
+  if (g === 'left' || g === 'right') __tPulse(() => { __tAxes[0] = g === 'left' ? -1 : 1; }, () => { __tAxes[0] = 0; });
+  else if (g === 'down') __tPulse(() => { __tAxes[1] = 1; }, () => { __tAxes[1] = 0; });
+  else if (g === 'up') __tPulse(() => { __tBtn[0].pressed = true; __tBtn[0].value = 1; }, () => { __tBtn[0].pressed = false; __tBtn[0].value = 0; });
+};
+__tZone.addEventListener('pointerdown', (e) => { e.preventDefault(); __tZone.setPointerCapture(e.pointerId); __tSw = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; });
+__tZone.addEventListener('pointermove', (e) => {
+  if (!__tSw || e.pointerId !== __tSw.id || __tSw.fired) return;
+  const g = swipeOf(e.clientX - __tSw.x, e.clientY - __tSw.y, performance.now() - __tSw.t, { travel: 28, ms: 450 });
+  if (g && g !== 'tap') { __tSw.fired = true; __tFire(g); }
+});
+const __tSwEnd = (e) => { if (__tSw && e.pointerId === __tSw.id) __tSw = null; };
+__tZone.addEventListener('pointerup', __tSwEnd); __tZone.addEventListener('pointercancel', __tSwEnd);
+` : ''}__tZone.addEventListener('pointerdown', (e) => {
+  if (__TL.swipe) return;
   if (__tStick) return;
   e.preventDefault(); __tZone.setPointerCapture(e.pointerId);
   const b = __tZone.getBoundingClientRect();
@@ -106,7 +130,7 @@ __tUse.style.display = 'none';
 (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
 const __touchOn = () => __tOn;
 // what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
-const __tRowsOf = () => [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
+const __tRowsOf = () => __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
   ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
 const __touchRows = () => __tRowsOf();
 const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
@@ -121,8 +145,10 @@ function __tFrame() {
     __tEl.style.display = show ? '' : 'none';
     if (!show) { __tStick = null; __tLook = null; __tAxes[0] = 0; __tAxes[1] = 0; __tRest(); for (const b of __tBtn) { b.pressed = false; b.value = 0; } }
     const host = typeof wrap !== 'undefined' ? wrap : document.documentElement;
-    host.style.setProperty('--thumb', __tOn ? '196px' : '0px');
-    host.style.setProperty('--thumb-c', __tOn && document.documentElement.dataset.orientation === 'portrait' ? '196px' : '0px');
+    // (a swipe layout draws nothing at the foot of the screen: nothing to lift over)
+    const pad = __tOn && !__TL.swipe;
+    host.style.setProperty('--thumb', pad ? '196px' : '0px');
+    host.style.setProperty('--thumb-c', pad && document.documentElement.dataset.orientation === 'portrait' ? '196px' : '0px');
   }
   for (const el of document.querySelectorAll('.moj-w-legend')) {
     if (__tOn && el.dataset.keys === undefined) { el.dataset.keys = el.textContent; el.textContent = __tHint; }

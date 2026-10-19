@@ -180,6 +180,7 @@ export const COLLISION_FIXTURE = [
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
+  ['an endless runner for my phone where you swipe to dodge', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

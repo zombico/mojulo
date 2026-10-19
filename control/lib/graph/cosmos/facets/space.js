@@ -35,6 +35,8 @@ export const SPACE = Object.freeze({
     levelForm: {
       values: {
         rooms: { status: 'built', lowers: 'lib/graph/era/stage.js' },
+        // built 10-19 (mobile genres): a runner level, the run alone on its floor, its rows laid ahead as it is played
+        run: { status: 'built', godot: false, lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
         floormap: { status: 'built', lowers: 'lib/graph/era/floormap.js' },
         trail: { status: 'built', lowers: 'lib/graph/era/out-trail.js' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },

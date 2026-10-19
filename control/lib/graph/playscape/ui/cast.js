@@ -46,7 +46,8 @@ export const CAST_WHEN = Object.freeze({
 // cast's facts, where a hit is counted, even when no cue reaches the cast
 // (or on `seen`: a sighting is counted there too; or `broke`: a block's break; or `down`: a fall, what defeat-all's
 // `who` counts)
-export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'down'));
+// (or on the runner's `runner:` facts: worlds/controllable/runner.js wraps the cast's facts with them)
+export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'down' || String(r.on).startsWith('runner:')));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,

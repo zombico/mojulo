@@ -10,6 +10,7 @@ import { buildControlsKernel } from '../../../controls/controls-kernel.js';
 import { SCHEMES } from '../../../controls/schemes.js';
 import { DEVICES } from '../../../controls/devices.js';
 import { touchLayout, touchScript } from './touch.js';
+import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -50,13 +51,13 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
   // matching how specularChannelScript itself is gated in scene-three.js.
   // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
-  const touchLayer = touch ? touchLayout(entities, camera) : null;
+  const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
   const figHasSpec = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && (p.spec || p.spec8)));
   // first person (an `eye` camera with `hideTarget`): the body it rides is never drawn, or the view would sit inside
@@ -375,8 +376,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource()};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
+const __CW = ${emissionSource(runner ? { runner: true } : {})};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -3119,7 +3120,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-` : ''}stepControllable = (dt, inputOverride) => {
+` : ''}${runner ? runnerViewScript(runner) : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
@@ -3130,7 +3131,8 @@ ${hangarHook}  __msHookParams();
     __updateClashes();
     __updateThrusters(dt);${figHasJuice ? `
     __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${breakables ? `
-    __updateBreaks(dt);` : ''}
+    __updateBreaks(dt);` : ''}${runner ? `
+    __updateRunner(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame

@@ -272,6 +272,11 @@ const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
   survive: () => ['  seconds: n (5..600)   how long to last'],
+  runner: () => [
+    '  distance: n (10+)   metres a run is won at (absent: endless, a crash ends it, the best kept)',
+    '  runner: { lanes?, speed?, accel?, max?, seed?, palette? }   the run itself; a hero runs it (made when none is named)',
+    '  played by swipe on a phone (left and right a lane, up a jump, down a slide), A / D, Space and S on a keyboard',
+  ],
   avoid: () => [],
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,

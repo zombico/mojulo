@@ -59,6 +59,21 @@ describe('design_game quick', () => {
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
   }, 240_000);
 
+  it('a runner: a hero made and run down lanes, its page carrying the run, the game made', async () => {
+    const out = await designGameHandler({ quick: { goal: 'runner', world: { id: 'dash' } }, ref: 'rn' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
+    const L = stored('rn-level-run-0');
+    expect(L.runner).toMatchObject({ seed: expect.any(Number) });
+    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
+    expect(payload.runner).toEqual(L.runner);
+    const html = emitThreeWorld({ ...payload, inline: true });
+    expect(html).toContain('function buildRunner(E)');
+    expect(html).toContain('function __updateRunner(dt)');
+    expect(html).toContain('swipe ← →');
+    expect(stored('rn-game').levels.map((l) => l.ref)).toEqual(['rn-level-run-0']);
+  }, 240_000);
+
   it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
     const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, screen: 'screen', world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);

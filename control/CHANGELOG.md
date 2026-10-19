@@ -24,6 +24,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   recipe's seed (the title's, unless you name one), so the same game is the same map everywhere, and its curve was
   measured against a steady player: the first levels are generous, the last leave little to spare. A gem is swiped
   toward its neighbour, or tapped twice. Philosopher's Stone without a saga is unchanged.
+- **An endless runner.** `design_game({ quick: { goal: 'runner' } })` makes a game where your hero runs on its own down
+  three lanes, faster and faster: swipe left or right to change lane, up to jump a hurdle, down to slide under a bar
+  (A / D, Space and S on a keyboard), and take the coins. The rows come from the level's seed as you run, each with a
+  way through; a crash ends the run and the best score and distance are kept. `distance: n` makes reaching it the win;
+  `runner: { lanes, speed, max, palette, … }` tunes the run. A level of a world can be a run too (`levels.<id>.runner`).
+  It plays in the browser (not in an engine export). Worlds without a runner are unchanged.
+- **What can be made, measured.** The capability page gains the two genres: the endless runner is makeable; the
+  match-3 saga is made by Stone Saga, and a world game's levels taking stars and a map is the next step it names.
 
 ### Resolution lock
 

@@ -78,6 +78,7 @@ import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
 import { readScreen } from '../game/screen.js';
+import { readRunner } from '../worlds/controllable/runner.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -121,6 +122,7 @@ export const QUICK_GOALS = Object.freeze({
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
+  runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -151,7 +153,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -221,6 +223,15 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
+  // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
+  if (Q.goal !== 'runner' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal');
+  if (Q.goal === 'runner') {
+    if (Q.runner !== undefined) { try { readRunner(Q.runner, 'quick.runner'); } catch (e) { throw fail(`: ${e.message}`); } }
+    if (Q.distance !== undefined && !(Number.isInteger(Q.distance) && Q.distance >= 10)) throw fail('.distance is the metres a run is won at, a whole number of 10 or more (leave it out: endless)');
+    if (Q.hero === false) throw fail('.runner runs a hero: leave hero out (a hero is made) or give one');
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.runner is followed from behind (camera third-person)');
+    for (const k of ['climb', 'building', 'run', 'ride', 'racers', 'supercars', 'roadway', 'airspace', 'craft']) if (Q[k] !== undefined) throw fail(`.${k}: a runner is the run alone`);
+  }
   for (const k of ['bots', 'frags', 'arena', 'pole', 'weapons', 'mode']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
   if (Q.mode !== undefined && !DEATHMATCH_MODES.includes(Q.mode)) throw fail(`.mode is ${DEATHMATCH_MODES.join(', ')} (two sides: team deathmatch, or a point held for time)`);
   if (Q.mode && Q.mode !== 'free-for-all' && (Q.bots ?? DEATHMATCH.bots) < 1) throw fail('.mode: two sides need a bot on the other side');
@@ -400,6 +411,15 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
   // (the race's mood: the roadway lit in it, roads/race-mood.js)
   const mood = quick.mood ? { mood: quick.mood } : {};
+  // a runner: the run is the level (its seed the world's), and a hero runs it (made when none is named)
+  if (quick.goal === 'runner') {
+    return {
+      id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(screen !== undefined ? { screen } : {}),
+      style: { ...(style ?? {}), kit },
+      levels: { run: { name: name ?? id, runner: quick.runner ?? true } },
+      quick: { ...quick, hero: quick.hero ?? {} },
+    };
+  }
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
@@ -427,6 +447,8 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    case 'runner':
+      return [{ kind: 'runner', ...(quick.distance !== undefined ? { distance: quick.distance } : {}) }];
     case 'fly': {
       // the course's gates in three dimensions, then a landing on the runway (skyscape/course.js), round `laps` times; a
       // crash comes back at the last gate passed

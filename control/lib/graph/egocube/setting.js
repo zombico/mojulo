@@ -62,6 +62,8 @@ export const GENRES = Object.freeze({
   // never a bystander or a child; the rushdown and the grappler first, the archetypes a fighting game casts
   fight:      { weight: 0, mascot: {}, person: { role: { frontline: 3, flanker: 3, ranged: 1.5, caster: 1.5, 'non-combatant': 0 }, archetype: { hero: 2, outlaw: 2, ruler: 1.5, jester: 1.5, magician: 1.5 }, build: { heroic: 1.5, brute: 1.5, lithe: 1.5 }, age: combat } },
   fly:        { weight: 0.4, mascot: { promise: { speed: 3, wonder: 2 } }, person: { archetype: { explorer: 3, hero: 2 }, role: { ranged: 2 } } },
+  // an endless runner (worlds/controllable/runner.js): the genre's heroes are quick and cheeky, mascots first
+  runner:     { weight: 0.85, mascot: { promise: { speed: 4, cheer: 2, mischief: 1.5 }, energy: { zippy: 2 } }, person: { archetype: { explorer: 2, jester: 2, outlaw: 1.5, hero: 1.5 }, age: { youth: 2, elder: 0.5 } } },
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

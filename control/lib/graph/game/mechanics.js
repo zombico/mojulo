@@ -826,6 +826,33 @@ const MECHANICS = {
     },
   },
 
+  // the RUN (a terminal): an endless runner's (worlds/controllable/runner.js), scored off its bus: ten metres a `run`,
+  // a coin a `coin`; the distance, the coins and the score shown, the best kept. With `distance` (metres) reaching it
+  // wins and a crash fails; without, the run is endless and its crash ends it, the score its result.
+  runner: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const goal = p.distance === undefined ? null : p.distance;
+      if (goal !== null && !(Number.isInteger(goal) && goal >= 10)) throw new Error(`runner[${ctx.i}]: distance is the metres a run is won at, a whole number of 10 or more (or leave it out: endless)`);
+      const coin = Number.isFinite(p.coin) ? p.coin : 25, metres = Number.isFinite(p.metres) ? p.metres : 10;
+      return {
+        world: {
+          vars: { distance: 0, coins: 0, score: 0 },
+          reactions: [
+            { on: 'runner:run', do: 'inc', var: 'distance', by: 10 },
+            { on: 'runner:run', do: 'inc', var: 'score', by: metres },
+            { on: 'runner:coin', do: 'inc', var: 'coins', by: 1 },
+            { on: 'runner:coin', do: 'inc', var: 'score', by: coin },
+          ],
+          ...(goal !== null ? { watches: [{ type: 'run-won', when: { var: 'distance', gte: goal } }] } : {}),
+          hud: [{ var: 'score', label: 'Score', as: 'counter' }, { var: 'distance', label: 'Metres' }, { var: 'coins', label: 'Coins' }],
+        },
+        on: goal !== null ? { 'run-won': { end: 'success' }, 'runner:crash': { end: 'fail' } } : { 'runner:crash': { end: 'success' } },
+        keep: [{ var: 'score', label: 'Score', best: 'high' }, { var: 'distance', label: 'Distance', best: 'high' }],
+      };
+    },
+  },
+
   // a SCORE (an emitter): a var the level counts up, shown, and kept: the shell remembers the best (`best: 'high'`, or
   // 'low' for a count to keep down). `points` scores bus events: [{ on: '<event>', by?: 1 }].
   score: {

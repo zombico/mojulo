@@ -48,6 +48,9 @@
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
        airspace?: { map?: { form?, field?, craft?, ceiling? }, ground?: { land?, heartbeat?, scale?, pads?, geocube? }, course?: true | { gates?, laps?, land? } },
+       runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
+                                         // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
+                                         // runner.js): the hero runs on its own, its rows laid ahead as it is played
                                          // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
                                          // rings, its ground laid by scapeshift, a runway (one by default) and a gate
                                          // course (by default); a flight on it flies the course and lands
@@ -93,6 +96,7 @@ import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
 import { readScreen } from '../game/screen.js';
+import { readRunner } from '../worlds/controllable/runner.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
@@ -167,7 +171,7 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'goal'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -435,7 +439,11 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.airspace !== undefined) {
+    if (L.runner !== undefined) {
+      // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
+      try { readRunner(L.runner, 'runner'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+    } else if (L.airspace !== undefined) {
       // an airspace level: a flight map on its own ground (skyscape/), checked as the kind checks it
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined || L.roadway !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city, a roadway or an airspace, one of them`);
       if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: an airspace lays its own ground and holds no town`);
@@ -595,6 +603,8 @@ export function resolveLevel(world, id) {
     const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
   }
+  // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
+  if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {
     const { course = 'kart-oval', dress, form, kit, scape, mood } = L.roadway;
