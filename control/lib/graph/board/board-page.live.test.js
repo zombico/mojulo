@@ -350,14 +350,16 @@ describe('the board on the World page', () => {
     const out = await page.evaluate(() => {
       const r = window.__mojBoard.rts, B = window.__mojBoard.board, S0 = r.state(), base = S0.buildings.find((b) => b.side === 'player').at;
       const go = (s) => { for (let k = 0; k * 0.1 < s; k++) r.run(0.1); };
+      // built by the workers sent to it: until nothing of the player's is still going up
+      const up = () => { for (let k = 0; k < 2000 && r.state().buildings.some((b) => b.side === 'player' && b.raising > 0); k++) r.run(0.1); };
       // raise what it raises: a spot a few steps off the base that will take it
       const raise = (kind) => { r.arm('build', kind); for (const d of [2 * B.cols + 2, 2 * B.cols - 2, 3 * B.cols, 3 * B.cols + 3, 3 * B.cols - 3, 4 * B.cols + 1]) { if (!B.spots[base + d]) continue; const m = r.armedClick(base + d); if (m === 'built') return m; r.arm('build', kind); } return 'nowhere'; };
-      const built = [raise('barracks')]; go(21);
-      built.push(raise('mast')); go(21);
+      const built = [raise('barracks')]; up();
+      built.push(raise('mast')); up();
       const tooSoon = (() => { r.arm('build', 'works'); return r.armedClick(base + 4 * B.cols - 2); })();
       r.selectBuilding(r.state().buildings.find((b) => b.kind === 'mast' && b.side === 'player').id);
       const step = r.researchNext(); go(31);
-      built.push(raise('works')); go(26);
+      built.push(raise('works')); up();
       r.selectBuilding(r.state().buildings.find((b) => b.kind === 'works' && b.side === 'player').id);
       const trained = r.trainAt(2); go(20);
       const S = r.state(), looks = r.looks(), drawn = (kind, side = 'player') => S.units.concat(S.buildings).filter((x) => x.side === side && x.kind === kind).map((x) => looks[x.id]);

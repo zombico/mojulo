@@ -61,6 +61,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   them into rosters and looks as it renders, met through the top-down camera (technology's LOD). A world's bible
   shows, on each civilization's technology page, what it fields in a skirmish: its units, buildings, ladder and the
   ledger of why. The registry holds `power.systems=research`, and the real-time strategy probe asks for it.
+- **The skirmish's principles: jobs and capabilities** (in progress): a building is its capabilities, any of them
+  together (a factory training over time, research over time, a stationary unit that shoots, a depot), and one lock
+  serves buildings, units and research steps alike (a building standing or a step known, then a tier). Workers
+  build at the site: a building laid is a foundation, raised only while workers build it (faster with more); the
+  nearest worker goes when none is named, and goes back to mining after. Workers repair buildings and machines,
+  paying a gold for every ten hp mended. An idle worker keeps to its work instead of picking fights; the mind trains
+  the best its factories have opened and sends a worker to any foundation left unbuilt.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

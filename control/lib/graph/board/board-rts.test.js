@@ -102,15 +102,21 @@ describe('orders', () => {
     expect(E.units.find((u) => u.id === id).at).toBe(at(B, 'D6'));
   });
 
-  it('raises a barracks over time before it trains, and never one that shuts the bases apart', () => {
-    const B = flat(3, 8), cfg = quiet(B, { bases: { player: 'B1', enemy: 'B8' } });
+  it('raises a barracks only while a worker builds it, and never one that shuts the bases apart', () => {
+    // with no worker to build it, a foundation stands as it was laid
+    const B0 = flat(5, 10), c0 = quiet(B0);
+    const F = run(B0, c0, rtsBuild(B0, c0, { ...rtsStart(B0, c0), gold: { player: 999, enemy: 0 } }, 'player', 'barracks', at(B0, 'C4')), 30).R;
+    expect(F.buildings.find((b) => b.kind === 'barracks').raising).toBe(RTS_BUILDINGS.barracks.time);
+    const B = flat(3, 8), cfg = quiet(B, { bases: { player: 'B1', enemy: 'B8' }, workers: 2, enemy: { workers: 0 } });
     let R = { ...rtsStart(B, cfg), gold: { player: 999, enemy: 0 } };
     R = rtsBuild(B, cfg, R, 'player', 'barracks', at(B, 'A4'));
     R = rtsBuild(B, cfg, R, 'player', 'barracks', at(B, 'C4'));
     expect(() => rtsBuild(B, cfg, R, 'player', 'barracks', at(B, 'B4'))).toThrow(/would shut the way between the bases/);
     const bar = R.buildings.find((b) => b.kind === 'barracks');
     expect(() => rtsTrain(B, cfg, R, bar.id, 'soldier')).toThrow(/still going up/);
-    const { R: E } = run(B, cfg, R, RTS_BUILDINGS.barracks.time + 0.5);
+    // the nearest free worker builds each, and goes back to what it did
+    expect(R.units.filter((u) => u.side === 'player').map((u) => u.order.kind)).toEqual(['build', 'build']);
+    const { R: E } = run(B, cfg, R, RTS_BUILDINGS.barracks.time + 6);
     expect(E.buildings.find((b) => b.id === bar.id)).toMatchObject({ raising: expect.any(Number), hp: RTS_BUILDINGS.barracks.hp });
     expect(() => rtsTrain(B, cfg, E, bar.id, 'soldier')).not.toThrow();
   });
@@ -121,15 +127,21 @@ describe('orders', () => {
 const OWN = {
   units: { ...RTS_UNITS,
     gunship: { name: 'Gunship', role: 'flyer', hp: 110, atk: 9, range: 3, rate: 1.2, speed: 2.4, fly: true, cost: 200, time: 30 },
-    crew: { name: 'Cannon crew', role: 'siege', hp: 90, atk: 24, range: 6, rate: 3, speed: 1.2, siege: 3, cost: 180, time: 30 } },
+    crew: { name: 'Cannon crew', role: 'siege', hp: 90, atk: 24, range: 6, rate: 3, speed: 1.2, siege: 3, cost: 180, time: 30, machine: true } },
   buildings: { ...RTS_BUILDINGS,
     works: { name: 'Works', role: 'works', hp: 400, cost: 200, time: 25, needs: 'barracks', trains: ['gunship', 'crew'] },
     tower: { name: 'Tower', role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
     depot: { name: 'Depot', role: 'depot', hp: 250, cost: 100, time: 15, depot: true } },
   worker: 'worker', base: 'base', army: ['soldier', 'archer'], builds: ['barracks', 'works'],
 };
-const own = (B, extra = {}, sides = { player: OWN }) => ({ ...quiet(B, extra), sides });
-const raise = (B, cfg, R, kind, n) => { R = rtsBuild(B, cfg, { ...R, gold: { ...R.gold, player: 999 } }, 'player', kind, at(B, n)); return run(B, cfg, R, cfg.sides.player.buildings[kind].time + 0.5).R; };
+const own = (B, extra = {}, sides = { player: OWN }) => ({ ...quiet(B, { workers: 2, ...extra }), sides });
+// raised: laid, then built by the nearest worker until it stands
+const raise = (B, cfg, R, kind, n) => {
+  R = rtsBuild(B, cfg, { ...R, gold: { ...R.gold, player: 999 } }, 'player', kind, at(B, n));
+  const id = R.buildings[R.buildings.length - 1].id;
+  for (let k = 0; k < 1500 && R.buildings.find((b) => b.id === id).raising > 0; k++) R = rtsTick(B, cfg, R, 0.1).R;
+  return R;
+};
 
 describe('a side\'s own roster', () => {
   it('flies a flyer straight over what walkers go round, out of reach of what strikes from close in', () => {
@@ -170,7 +182,8 @@ describe('a side\'s own roster', () => {
   it('shoots from a defence at what comes in range; drops what is mined at the nearer depot', () => {
     const B = flat(7, 18), cfg = own(B, { nodes: ['B10'], workers: 1 });
     let R = raise(B, cfg, rtsStart(B, cfg), 'tower', 'D5');
-    R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 7.5, at: at(B, 'D8'), path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    // (it holds: idle, its mind would send it off to mine)
+    R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 7.5, at: at(B, 'D8'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
     const T = run(B, cfg, R, 20);
     expect(T.ev.some((e) => e.kind === 'shot' && e.to === 'xe')).toBe(true);
     expect(T.R.units.find((u) => u.id === 'xe')).toBeUndefined();
@@ -205,6 +218,30 @@ describe('a side\'s own roster', () => {
     // and it shoots what comes in its range
     R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 8.5, at: at(B, 'D9'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
     expect(run(B, cfg, R, 3).ev.some((e) => e.kind === 'shot' && e.from === keep && e.to === 'xe')).toBe(true);
+  });
+
+  it('builds faster with more workers at it; repairs a building or a machine for gold, then back to mining', () => {
+    const B = flat(7, 18), cfg = own(B, { workers: 3, nodes: ['B5'] });
+    const lay = (n) => { let R = rtsStart(B, cfg); R = { ...R, gold: { ...R.gold, player: 999 } }; const ws = R.units.filter((u) => u.side === 'player').slice(0, n).map((u) => u.id); R = rtsBuild(B, cfg, R, 'player', 'barracks', at(B, 'E5'), ws); let t = 0; while (R.buildings.find((b) => b.kind === 'barracks').raising > 0 && t < 120) { R = rtsTick(B, cfg, R, 0.1).R; t += 0.1; } return t; };
+    const one = lay(1), three = lay(3);
+    expect(three).toBeLessThan(one * 0.6);
+    // a worker mining, sent to mend the base: it pays a gold each ten hp, and goes back to the node
+    let R = rtsStart(B, cfg);
+    const w = R.units.find((u) => u.side === 'player').id, base = R.buildings.find((b) => b.side === 'player');
+    R = rtsOrder(B, cfg, R, [w], { kind: 'gather', node: at(B, 'B5') });
+    R = { ...R, buildings: R.buildings.map((b) => (b.id === base.id ? { ...b, hp: b.hp - 100 } : b)), gold: { ...R.gold, player: 50 } };
+    R = rtsOrder(B, cfg, R, [w], { kind: 'repair', target: base.id });
+    const E = run(B, cfg, R, 60);
+    expect(E.R.buildings.find((b) => b.id === base.id).hp).toBe(base.hpMax);
+    expect(E.ev.some((e) => e.kind === 'repaired' && e.id === base.id)).toBe(true);
+    expect(E.R.units.find((u) => u.id === w).order.kind).toBe('gather');
+    // a machine is mended too; a soldier is not
+    R = rtsStart(B, cfg);
+    R.units.push({ id: 'xc', side: 'player', kind: 'crew', hp: 40, x: 3.5, y: 4.5, at: at(B, 'D5'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    R.units.push({ id: 'xs', side: 'player', kind: 'soldier', hp: 40, x: 4.5, y: 4.5, at: at(B, 'E5'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    const ws = R.units.filter((u) => u.side === 'player' && u.kind === 'worker').map((u) => u.id);
+    const C = run(B, cfg, rtsOrder(B, cfg, rtsOrder(B, cfg, R, ws.slice(0, 1), { kind: 'repair', target: 'xc' }), ws.slice(1, 2), { kind: 'repair', target: 'xs' }), 40).R;
+    expect([C.units.find((u) => u.id === 'xc').hp, C.units.find((u) => u.id === 'xs').hp]).toEqual([90, 40]);
   });
 
   it('is a draw when the gold is gone and nobody stands on either side', () => {

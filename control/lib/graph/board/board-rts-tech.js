@@ -94,7 +94,7 @@ export function rtsRoster(G, cid) {
   const field = (e, role, noun, machine) => {
     const rank = rankOf(e.list, e.id), id = idFor(e.id), { U, why } = statsOf(role, { ...e.t, kind: e.kind }, rank);
     const cost = five(K * rtsWorth(U)), tier = machine ? (rank === 'focus' ? 3 : 2) : 1;
-    units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)), ...(tier > 1 ? { tier } : {}) };
+    units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)), ...(tier > 1 ? { tier } : {}), ...(machine ? { machine: true } : {}) };
     said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${role}${why.length ? ` (${why.join('; ')})` : ''}, ${cost} gold${tier > 1 ? `, tier ${tier}` : ''}`);
     return id;
   };
@@ -106,7 +106,8 @@ export function rtsRoster(G, cid) {
   let worker;
   if (cands.length) {
     const e = cands[0], id = idFor(e.id), U = statsOf('worker', { ...e.t, kind: e.kind }, null).U;
-    if (e.kind === 'vehicle' || e.t.block?.tier === 'machine') U.hp = Math.round(U.hp * 1.5);
+    // a machine that mines: sturdier, and mended rather than healed
+    if (e.kind === 'vehicle' || e.t.block?.tier === 'machine') { U.hp = Math.round(U.hp * 1.5); U.machine = true; }
     if (flies(e)) { U.fly = true; U.speed = r2(U.speed * 1.15); }
     U.carry = e.fns.includes('store') ? 8 : 5;
     const cost = five(50 * (U.carry / 5) * Math.sqrt(U.speed / 2.2) * (U.fly ? 1.25 : 1));

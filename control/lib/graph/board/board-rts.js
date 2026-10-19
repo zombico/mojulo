@@ -189,8 +189,10 @@ export function buildBoardRts() {
     if (R.over) return R;
     for (const u of R.units) {
       if (ids.indexOf(u.id) < 0) continue;
-      if (o.kind === 'gather' && !isWorker(cfg, u)) continue;
-      u.order = Object.assign({}, o);
+      if ((o.kind === 'gather' || o.kind === 'build' || o.kind === 'repair') && !isWorker(cfg, u)) continue;
+      // a worker sent to build or repair goes back to its mining after
+      const back = (o.kind === 'build' || o.kind === 'repair') && u.order.kind === 'gather' ? { after: Object.assign({}, u.order) } : {};
+      u.order = Object.assign({}, o, back);
       u.path = [];
       u.again = 0;
       if (o.kind === 'move' || o.kind === 'amove') u.path = route(B, cfg, R, u, o.to) || [];
@@ -213,7 +215,14 @@ export function buildBoardRts() {
     c.queue.push({ kind, left: U.time });
     return R;
   }
-  function build(B, cfg, R0, side, kind, at) {
+  // the worker who builds when none is named: the nearest of the side's, idle or mining first, ties to the lowest id
+  function builderFor(B, cfg, R, side, at) {
+    const p = mid(B, at), free = (u) => u.order.kind === 'stop' || u.order.kind === 'gather';
+    const ws = R.units.filter((u) => u.side === side && isWorker(cfg, u));
+    return (ws.some(free) ? ws.filter(free) : ws).sort((a, b) => dist([a.x, a.y], p) - dist([b.x, b.y], p) || (a.id < b.id ? -1 : 1))[0] || null;
+  }
+  // a foundation, raised only while workers build it (faster with more of them): `ids` the workers sent, else the nearest
+  function build(B, cfg, R0, side, kind, at, ids) {
     const K = BU(cfg, side, kind);
     if (!K || !K.cost) throw new Error('rts: nothing to build called ' + kind);
     const lock = lockOf(cfg, R0, side, K);
@@ -226,7 +235,8 @@ export function buildBoardRts() {
     // never a building that shuts one base off from the other
     if (path(B, cfg, R, cfg.bases.player, cfg.bases.enemy) === null) throw new Error('rts: a ' + K.name + ' there would shut the way between the bases');
     R.gold[side] -= K.cost;
-    return R;
+    const b = R.buildings[R.buildings.length - 1], w = ids && ids.length ? ids : [builderFor(B, cfg, R, side, at)].filter(Boolean).map((u) => u.id);
+    return w.length ? order(B, cfg, R, w, { kind: 'build', target: b.id }) : R;
   }
   // a step of the ladder, researched at its building: paid now, known when its time is up
   function research(B, cfg, R0, bid, id) {
@@ -290,10 +300,18 @@ export function buildBoardRts() {
         }
       }
     }
+    // a foundation with nobody building it (its builder fell, or was sent off) gets the nearest worker
+    for (const b of R.buildings) {
+      if (b.side !== side || !(b.raising > 0) || R.units.some((u) => u.order.kind === 'build' && u.order.target === b.id)) continue;
+      const w = builderFor(B, cfg, R, side, b.at);
+      if (w) R = order(B, cfg, R, [w.id], { kind: 'build', target: b.id });
+    }
     // each standing building that trains an army trains in turn, by the army's count
     for (const k of S.builds) {
       const b = R.buildings.find((x) => x.side === side && x.kind === k);
-      const trains = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
+      // (the best it has opened: the highest tier unlocked there)
+      const open = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
+      const top = Math.max(1, ...open.map((t) => UN(cfg, side, t).tier || 1)), trains = open.filter((t) => (UN(cfg, side, t).tier || 1) === top);
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
       if (R.gold[side] - keep >= UN(cfg, side, kind).cost) R = train(B, cfg, R, b.id, kind);
@@ -373,6 +391,32 @@ export function buildBoardRts() {
     walk(B, cfg, u, STEP);
   }
 
+  // a worker at its site: beside the building, or (repairing a machine) beside it
+  const atSite = (B, u, x) => dist([u.x, u.y], placeOf(B, x)) - reachOf(x) <= 1.2;
+  // the price of mending: a gold a tenth of a fighter's worth of hp mended
+  const MEND = 10;
+  function tend(B, cfg, R, u, events) {
+    const o = u.order, x = find(R, o.target);
+    const done = !x || x.hp <= 0 || x.side !== u.side || (o.kind === 'build' ? !(x.raising > 0) : x.hp >= (x.hpMax || UN(cfg, x.side, x.kind).hp) || (x.x != null && !UN(cfg, x.side, x.kind).machine));
+    if (done) { u.order = o.after || { kind: 'stop' }; u.path = []; return; }
+    if (!atSite(B, u, x)) {
+      u.again -= STEP;
+      if (!u.path.length || u.again <= 0) { u.path = route(B, cfg, R, u, x.x != null ? spotAt(B, x.x, x.y) : x.at) || []; u.again = REPATH; }
+      walk(B, cfg, u, STEP);
+      return;
+    }
+    u.path = [];
+    if (o.kind === 'repair') {
+      // mended at half the pace it was raised (a machine: its hp a twentieth a second), paid a gold every MEND hp
+      const max = x.hpMax || UN(cfg, x.side, x.kind).hp, K = x.x == null ? BU(cfg, x.side, x.kind) : null;
+      const per = K ? (max * 0.4) / (K.time || 20) : max / 20;
+      if ((u.mend || 0) <= 0) { if (R.gold[u.side] < 1) { u.order = o.after || { kind: 'stop' }; return; } R.gold[u.side] -= 1; u.mend = MEND; }
+      const add = Math.min(per * STEP, max - x.hp, u.mend);
+      x.hp += add; u.mend -= add;
+      if (x.hp >= max - 1e-9) { x.hp = max; events.push({ kind: 'repaired', id: x.id }); }
+    }
+  }
+
   function tick(B, cfg, R0, dt) {
     const R = copy(R0), events = [];
     if (R.over) return { R, events };
@@ -394,7 +438,13 @@ export function buildBoardRts() {
           b.study.left -= STEP;
           if (b.study.left <= 1e-9) { R.known = Object.assign({}, R.known, { [b.side]: Object.assign({}, known(R, b.side), { [b.study.id]: true }) }); events.push({ kind: 'researched', side: b.side, id: b.study.id }); b.study = null; }
         }
-        if (b.raising > 0) { b.raising -= STEP; b.hp = Math.min(b.hpMax, b.hp + (b.hpMax * 0.8 * STEP) / K.time); if (b.raising <= 0) { b.hp = Math.min(b.hpMax, Math.round(b.hp)); events.push({ kind: 'built', id: b.id }); } continue; }
+        if (b.raising > 0) {
+          // raised by the workers at it, each after the first adding half again
+          const n = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id && u.side === b.side && atSite(B, u, b)).length, k = n ? 1 + 0.5 * (n - 1) : 0;
+          b.raising -= STEP * k; b.hp = Math.min(b.hpMax, b.hp + (b.hpMax * 0.8 * STEP * k) / K.time);
+          if (b.raising <= 1e-9) { b.raising = 0; b.hp = Math.min(b.hpMax, Math.round(b.hp)); events.push({ kind: 'built', id: b.id }); }
+          continue;
+        }
         // a defence shoots what comes in its range
         if (K.atk) {
           b.cd = Math.max(0, (b.cd || 0) - STEP);
@@ -424,13 +474,15 @@ export function buildBoardRts() {
         const range = UN(cfg, u.side, u.kind).range;
         if (o.kind === 'move') { walk(B, cfg, u, STEP); if (!u.path.length) u.order = { kind: 'stop' }; }
         else if (o.kind === 'gather') gather(B, cfg, R, u, events);
+        else if (o.kind === 'build' || o.kind === 'repair') tend(B, cfg, R, u, events);
         else if (o.kind === 'attack') {
           const x = find(R, o.target);
           if (!x || x.hp <= 0 || !canHit(cfg, range, x)) { u.order = { kind: 'stop' }; u.path = []; } else engage(B, cfg, R, u, x, events, true);
         } else if (o.kind === 'hold') { const x = nearestFoe(B, cfg, R, u, range, range); if (x) engage(B, cfg, R, u, x, events, false); }
         else {
-          // stop and attack-move: what comes in sight is fought; an attack-move then goes on where it was going
-          const x = nearestFoe(B, cfg, R, u, SIGHT, range);
+          // stop and attack-move: what comes in sight is fought (an idle worker keeps to its work: it fights when told);
+          // an attack-move then goes on where it was going
+          const x = o.kind === 'stop' && isWorker(cfg, u) ? null : nearestFoe(B, cfg, R, u, SIGHT, range);
           if (x) engage(B, cfg, R, u, x, events, true);
           else if (o.kind === 'amove') {
             if (!u.path.length) u.path = route(B, cfg, R, u, o.to) || [];

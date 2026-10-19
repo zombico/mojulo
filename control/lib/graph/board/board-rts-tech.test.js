@@ -93,12 +93,13 @@ describe('the ladder', () => {
 
   it('opens nothing of a tier before it is researched, a step at a time, at its building', () => {
     const B = flat(9, 18), at = (n) => boardParse(B, n), corps = rtsRoster(G, 'survey-corps');
-    const cfg = { ...readBoardRts(B, { ai: { workers: 0, wave: 30 }, workers: 0, enemy: { workers: 0 } }), sides: { player: corps } };
+    const cfg = { ...readBoardRts(B, { ai: { workers: 0, wave: 30 }, workers: 2, enemy: { workers: 0 } }), sides: { player: corps } };
     const go = (R, s) => { for (let k = 0; k * 0.1 < s; k++) R = rtsTick(B, cfg, R, 0.1).R; return R; };
+    const up = (R) => { for (let k = 0; k < 1500 && R.buildings.some((b) => b.raising > 0); k++) R = rtsTick(B, cfg, R, 0.1).R; return R; };
     let R = { ...rtsStart(B, cfg), gold: { player: 9999, enemy: 0 } };
     expect(() => rtsBuild(B, cfg, R, 'player', 'mast', at('B5'))).toThrow(/a Mast needs a Barracks standing first/);
-    R = go(rtsBuild(B, cfg, R, 'player', 'barracks', at('B5')), 21);
-    R = go(rtsBuild(B, cfg, R, 'player', 'mast', at('H5')), 21);
+    R = up(rtsBuild(B, cfg, R, 'player', 'barracks', at('B5')));
+    R = up(rtsBuild(B, cfg, R, 'player', 'mast', at('H5')));
     const bar = R.buildings.find((b) => b.kind === 'barracks').id, mast = R.buildings.find((b) => b.kind === 'mast').id;
     expect(() => rtsBuild(B, cfg, R, 'player', 'works', at('E5'))).toThrow(/a Fabricator needs Machines researched first/);
     expect(() => rtsResearch(B, cfg, R, mast, 'tier3')).toThrow(/Showpieces needs Machines researched first/);
@@ -108,7 +109,7 @@ describe('the ladder', () => {
     expect(R.gold.player).toBe(9999 - 150 - 150 - corps.research.tier2.cost);
     R = go(R, corps.research.tier2.time + 0.2);
     expect(rtsTierOf(cfg, R, 'player')).toBe(2);
-    R = go(rtsBuild(B, cfg, R, 'player', 'works', at('E5')), 26);
+    R = up(rtsBuild(B, cfg, R, 'player', 'works', at('E5')));
     const works = R.buildings.find((b) => b.kind === 'works').id;
     expect(() => rtsTrain(B, cfg, R, works, 'skimmer')).not.toThrow();
     expect(() => rtsTrain(B, cfg, R, works, 'walker')).toThrow(/a Walker needs Showpieces researched first/);

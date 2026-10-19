@@ -4,8 +4,8 @@
  * the purse and what is selected. The level hears `board-won`, `board-lost` or `board-draw` (the `board` mechanic ends it).
  *
  *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every fighter
- *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), with a building
- *   selected its rally point; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
+ *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), your foundation
+ *   (workers build it), your damaged building or machine (workers repair it), with a building selected its rally point; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
  *   building the side can raise) · Q / W / E / R: the selected building trains its first … fourth kind · T: it researches
  *   its next step · Esc lets go
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
@@ -181,7 +181,8 @@ export function boardRtsPage(api) {
     let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
-      what = `${K.name}${b.raising > 0 ? ` (going up, ${Math.ceil(b.raising)} s)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
+      const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
+      what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
         + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
     }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
@@ -204,6 +205,11 @@ export function boardRtsPage(api) {
     const p = spotP(i);
     if (selB) { R = RTK.rally(B, cfg, R, selB, i); return 'rally'; }
     if (!sel.length) return null;
+    // the side's own: a foundation its workers build, a damaged building or machine they repair
+    const workersSel = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
+    const mineB = R.buildings.find((x) => x.side === 'player' && x.at === i), mineU = !mineB && near(R.units.filter((x) => x.side === 'player' && sel.indexOf(x.id) < 0 && UN('player', x.kind).machine), p, 0.8);
+    if (workersSel.length && mineB && mineB.raising > 0) { R = RTK.order(B, cfg, R, workersSel, { kind: 'build', target: mineB.id }); return 'build'; }
+    if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { R = RTK.order(B, cfg, R, workersSel, { kind: 'repair', target: (mineB || mineU).id }); return 'repair'; }
     const foe = near(R.units.filter((x) => x.side === 'enemy'), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i);
     const node = R.nodes.find((n) => n.at === i && n.left > 0);
     if (foe) { R = RTK.order(B, cfg, R, sel, { kind: 'attack', target: foe.id }); return 'attack'; }
@@ -221,7 +227,9 @@ export function boardRtsPage(api) {
     const was = armed;
     armed = null;
     if (was === 'amove' && sel.length) { R = RTK.order(B, cfg, R, sel, { kind: 'amove', to: i }); return 'amove'; }
-    if (was === 'build') { try { R = RTK.build(B, cfg, R, 'player', raisable[buildK % raisable.length], i); return 'built'; } catch (e) { return String(e.message).replace(/^rts: /, ''); } }
+    // laid where clicked, built by the selected workers (else the nearest)
+    const ws = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
+    if (was === 'build') { try { R = RTK.build(B, cfg, R, 'player', raisable[buildK % raisable.length], i, ws.length ? ws : undefined); return 'built'; } catch (e) { return String(e.message).replace(/^rts: /, ''); } }
     return null;
   }
   function trainAt(n) {
