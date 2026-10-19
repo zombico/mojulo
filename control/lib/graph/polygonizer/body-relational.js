@@ -6,7 +6,7 @@
  *   positions  x and y in W (the half biacromial: the shoulder joint's x), z as t along the torso bone (0 the navel,
  *              1 the neck hub); every length in W
  *   the base   the core (the spine's column, so every ring's centre sits inside), the ribcage's egg, the abdomen, the
- *              flank above the pelvis, the neck's column: summed with a wide blend (`kBase`)
+ *              seat round the pelvis, the neck's column: summed with a wide blend (`kBase`)
  *   muscles    each a belly (an ellipsoid) SEATED on the base: cast from the trunk's axis toward the front, the back or an
  *              azimuth, its centre on the base's surface pushed out by `proud` less its depth, its fibre laid in the
  *              surface's tangent plane; or a cone between two points (the clavicle, the upper trapezius). A mass off the
@@ -48,7 +48,14 @@ function sdCone(p, a, b, r1, r2) {
   return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
 }
 /** a mass's signed distance, unclipped (an egg or a round cone, as the fields build them) */
-const sdPrim = (p, q) => (p.cone ? sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]) : sdEgg(q, p));
+const sdPrim = (p, q) => (p.cone ? sdConeOf(p, q) : sdEgg(q, p));
+/** a round cone's distance, `squash`ed front to back (its section an ellipse, depth `squash` of its width: the seat's
+ * taper, as wide as the waist and no deeper than the belly; the stretched distance scaled back, a bound) */
+function sdConeOf(p, q) {
+  if (!p.squash) return sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]);
+  const cy = (p.cone[0][1] + p.cone[1][1]) / 2;
+  return sdCone([q[0], cy + (q[1] - cy) / p.squash, q[2]], p.cone[0], p.cone[1], p.r[0], p.r[1]) * p.squash;
+}
 /** the skin wave: −k · ln Σ e^(−dᵢ/k) (the union's surface, each mass a bump in it; shifted by the least for range) */
 function lse(ds, k) {
   let m = Infinity; for (const d of ds) if (d < m) m = d;
@@ -71,12 +78,18 @@ const NORRIN = {
     { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 1.0]], r: [0.3, 0.27] },
     { id: 'ribcage', egg: [0, -0.06, 0.5], r: [0.62, 0.44, 0.8] },
     { id: 'abdomen', egg: [0, -0.02, -0.05], r: [0.58, 0.4, 0.5] },
-    { id: 'flank', egg: [0, -0.02, -0.45], r: [0.6, 0.38, 0.3] },
     // (the neck thin at the top and flaring out to its root, into the trapezius: a column read pinched at the base)
     { id: 'neck', cone: [[0, -0.05, 0.86], [0, -0.06, 1.8]], r: [0.31, 0.2] },
     { id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
-    // the pelvis: the basin (the iliac bowl, the sacrum behind) and the pubic mound between the thighs
-    { id: 'basin', egg: [0, -0.06, -0.72], r: [0.72, 0.36, 0.45] },
+    // THE SEAT, one mass round the pelvis (the operator's: an upside-down heart seen from the front and from behind, a
+    // teardrop from the side): two LOBES low on the hip's joints, each wrapping the hip from the front round to the back
+    // (behind, the glutes, the dip between them the cleft; in front, the thighs' tops, the dip the crotch), and a TAPER
+    // up the middle from above them to the heart's point under the navel in front and on the sacrum behind, its sides
+    // the heart's flanks, squashed front to back to the belly's depth (begun between the lobes, its round end filled
+    // the cleft). Widest at the hip's joints, as the body is (a basin, a flank and separate glutes made a shelf at
+    // the iliac crest, wider than the waist above and the thighs below)
+    { id: 'seatLobe', egg: [0.48, -0.1, -1.02], r: [0.27, 0.48, 0.44] },
+    { id: 'seatTaper', cone: [[0, -0.08, -0.72], [0, -0.04, -0.3]], r: [0.66, 0.58], squash: 0.65 },
     { id: 'pubis', egg: [0, 0.22, -1.2], r: [0.3, 0.3, 0.28] },
   ],
   muscles: [
@@ -99,9 +112,6 @@ const NORRIN = {
     { id: 'infraspinatus', on: { x: 0.42, t: 0.68, face: 'back' }, along: [1, 0, -0.35], r: [0.26, 0.18, 0.11], proud: 0.05 },
     { id: 'trapeziusLower', on: { x: 0, t: 0.62, face: 'back' }, along: [0, 0, 1], r: [0.6, 0.36, 0.12], proud: 0.035, mid: true },
     { id: 'erector', on: { x: 0.14, t: -0.2, face: 'back' }, along: [0, 0, 1], r: [0.5, 0.13, 0.08], proud: 0.07 },
-    // the seat: the gluteus maximus round and low behind, the medius high on the hip's side under the iliac crest
-    { id: 'gluteusMaximus', on: { x: 0.48, t: -1.05, face: 'back' }, along: [0.25, 0, -1], r: [0.5, 0.36, 0.2], proud: 0.11 },
-    { id: 'gluteusMedius', on: { az: 110, t: -0.8 }, along: [0, 0, 1], r: [0.3, 0.26, 0.1], proud: 0.06 },
     // the sternocleidomastoid: from behind the ear down and in to the sternum's head, the neck's V from the front
     { id: 'sternocleidomastoid', cone: [[0.22, -0.06, 1.58], [0.06, 0.2, 0.98]], r: [0.07, 0.06] },
     { id: 'trapeziusUpper', cone: [[0.12, -0.15, 1.3], [0.7, -0.06, 0.98]], r: [0.14, 0.1] },
@@ -143,6 +153,8 @@ const NORRIN = {
       // (the bone slim, begun below the joint: a 6 cm ball at the hip's socket, forward of the trunk, read through the
       // pelvis's skin as an action figure's ball joint; the thigh's breadth up top is its muscles')
       { id: 'femur', cone: [0.12, 1], r: [0.17, 0.17] },
+      // (the thigh's outside up top, over the greater trochanter: the hip flows down into it, not over it)
+      { id: 'tensorFasciae', s: 0.12, az: 80, off: 0.16, r: [0.32, 0.2, 0.14] },
       { id: 'rectusFemoris', s: 0.42, az: 5, off: 0.2, r: [0.65, 0.22, 0.2] },
       { id: 'vastusLateralis', s: 0.48, az: 80, off: 0.2, r: [0.7, 0.27, 0.22] },
       { id: 'vastusMedialis', s: 0.8, az: -45, off: 0.17, r: [0.3, 0.22, 0.18] },
@@ -169,13 +181,12 @@ const byId = (masses, edits) => masses.map((m) => (edits[m.id] ? { ...m, ...edit
 const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
   kBase: 0.12, kMuscle: 0.04,
-  // (the half biacromial already carries her narrower shoulders: on it her waist and flank stand wider than his)
-  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, flank: { r: [0.7, 0.44, 0.32] }, basin: { r: [0.86, 0.4, 0.48] } }),
+  // (the half biacromial already carries her narrower shoulders: on it her waist and seat stand wider than his)
+  base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.14, -1.05], r: [0.33, 0.52, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
   muscles: [
     ...byId(scaled(NORRIN.muscles.filter((m) => !/^pectoral(Sternal|Clavicular)$/.test(m.id)), 1, 0.6), {
       rectus1: { proud: 0.025 }, rectus2: { proud: 0.028 }, rectus3: { proud: 0.028 }, rectus4: { proud: 0.03 },
       trapeziusUpper: { r: [0.13, 0.08] }, sternocleidomastoid: { r: [0.07, 0.055] },
-      gluteusMaximus: { r: [0.56, 0.42, 0.24], proud: 0.15 }, gluteusMedius: { proud: 0.07 },
     }),
     { id: 'pectoralSternal', on: { x: 0.34, t: 0.6, face: 'front' }, along: [1, 0, 0.45], r: [0.38, 0.24, 0.09], proud: 0.07, k: 0.016 },
   ],
@@ -216,7 +227,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   const F = bodyFrame(R), W = F.W;
   const frameOf = (along, n) => { const u = unit(sub(along, scl(n, dot(along, n)))), v = cross(n, u); return [u, v, n]; };
   const prim = (m) => {
-    if (m.cone) return { cone: [F.at(m.cone[0]), F.at(m.cone[1])], r: m.r.map((x) => x * W) };
+    if (m.cone) return { cone: [F.at(m.cone[0]), F.at(m.cone[1])], r: m.r.map((x) => x * W), ...(m.squash ? { squash: m.squash } : {}) };
     // an egg without a fibre lies on the world's axes (r: x, y, z); with one, r is along, across, depth (depth forward)
     const ax = m.along ? frameOf(unit(m.along), [0, 1, 0]) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     return { egg: true, c: F.at(m.egg), ax, r: m.r.map((x) => x * W) };
@@ -227,7 +238,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // what a neighbour's field owns under it stays out of this one, and the cut faces outward, so a ray from the axis
   // leaves through it once; a level cut left a flat underside the rays grazed)
   const sdOf = (p, q) => {
-    const d = p.cone ? sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]) : sdEgg(q, p); if (!p.clip) return d;
+    const d = p.cone ? sdConeOf(p, q) : sdEgg(q, p); if (!p.clip) return d;
     // (or cut under a level, `below`: the thigh's root, owned by the pelvis above the hip's handover)
     const c = p.clip, cut = c.below !== undefined ? c.below - q[2] : (c.slope * (Math.hypot(q[0], q[1]) - c.rho) - (q[2] - c.z)) / Math.hypot(1, c.slope);
     return smaxp(d, cut, c.k);
@@ -462,7 +473,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   // pelvis's front in a shelf); below it the pelvis is set inside where it lies along the thigh's skin only (`near`), so
   // the thigh shows there and the seat and the pubis keep their size (the thighs' masses cut at `zHip` left the pelvis's
   // low rings nothing to land on behind, and they fell back to the authored cage in flat panels)
-  const pelvicB = B.base.some((m) => m.id === 'basin'), zHip = R.joints.hipR[2] - 0.3 * W0;
+  const pelvicB = B.base.some((m) => m.id === 'seatLobe'), zHip = R.joints.hipR[2] - 0.3 * W0;
   let pelvisSd = null;
   if (pelvicB && limbs.thigh) {
     const th = limbs.thigh.sd, thighs = (q) => Math.min(th(q), th([-q[0], q[1], q[2]]));
@@ -475,18 +486,18 @@ export function formSlice(recipe, R, build, opts = {}) {
   if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => arm(q) + tuck * ease((-under(q) - gap) / band); }
   // the torso: above the chest the rays fan from one point on the trunk's axis (a ring's own radial line grazes the
   // shoulder's slope and the neck's root, where the authored rings tilt; rays from one origin never cross), and under
-  // the navel, on a build without a basin, it lands on the authored pelvis's top, the field easing in from the waist's
+  // the navel, on a build without a seat, it lands on the authored pelvis's top, the field easing in from the waist's
   // first station
   const bottom = P.stations.find((s) => s.id === 'st1')?.u ?? 1, zFan = R.joints.shoulderR[2] - 0.35 * field.frame.W;
   // and round an undercut (`lift`: the fold under the bust) they come down from a point raised above the ring, so they
   // meet the underside face on (level rays left one ring on the bust's underside and the next on the chest's wall, and
   // the band between them shaded in a sawtooth)
   const Fr = field.frame, L = B.lift, raise = (z) => { if (!L) return 0; const x = Math.min(1, Math.abs((z - Fr.z0) / Fr.T - L.t) / L.w); return L.h * Fr.W * (1 - x * x * (3 - 2 * x)); };
-  // THE PELVIS on the field too (a build with a `basin`): the torso no longer eases onto the authored pelvis, and the two
+  // THE PELVIS on the field too (a build with a seat): the torso no longer eases onto the authored pelvis, and the two
   // hand over by height at the middle of their overlap (`zH`), as the deltoid does: below it the pelvis's skin shows
   // (the torso's set `tuck` inside), above it the torso's (the pelvis's inside)
   const cz = (st, Pt) => Pt.slots.reduce((a, sl) => a + st.points[sl][2], 0) / Pt.slots.length;
-  const pelvic = !!r.parts.pelvis && B.base.some((m) => m.id === 'basin');
+  const pelvic = !!r.parts.pelvis && B.base.some((m) => m.id === 'seatLobe');
   const zH = pelvic ? (cz(P.stations[0], P) + cz(r.parts.pelvis.stations.at(-1), r.parts.pelvis)) / 2 : null;
   const handed = (sd, sign) => (q) => sd(q) + tuck * ease((sign * (zH - q[2]) - gap) / band);
   r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 });

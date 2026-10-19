@@ -88,8 +88,12 @@ Opt-in and versioned: a default hero keeps its bytes.
   its upper pole is the pectoral's slope, read as the Female Titan's in Attack on Titan: firm and high, set apart over
   the sternum, the apex rounded, the lower pole full over a clean fold; her torso on a finer cage, 64 by 49, for it). Every re-sampled part closes on both builds; deterministic. The lane wears
   the RELATIONAL head on it (head-relational.js, meshed and fitted vertex to menton, carried by the head bone), bald, in
-  a matte silver-grey. The pelvis and the legs are on the field too: the basin, the pubis and the gluteus maximus and
-  medius; the thigh (rectus femoris, vastus lateralis and the medialis's teardrop, the adductors, the hamstrings, the
+  a matte silver-grey. The pelvis and the legs are on the field too: the SEAT, one mass round the pelvis (the operator's
+  upside-down heart, seen from the front and from behind; a teardrop from the side): two lobes low on the hip's joints
+  wrapping the hip from the front round to the glutes, the cleft and the crotch the dip between them, and a taper up
+  the middle to the heart's point under the navel and on the sacrum, squashed front to back to the belly's depth, so
+  the trunk is widest at the hip's joints and narrows steadily to the waist (a basin, a flank and separate glutes had
+  made a shelf at the iliac crest); and the pubis; the thigh (rectus femoris, vastus lateralis and the medialis's teardrop, the adductors, the hamstrings, the
   patella) and the shank (both heads of the gastrocnemius, the soleus, the tibialis anterior, the Achilles, the ankle).
   A limb's two segments share one field and hand over by the plane through the joint (each segment's own knee had met
   the other's in a step); the torso and the pelvis hand over by height; the pelvis's field carries the thighs' masses,
