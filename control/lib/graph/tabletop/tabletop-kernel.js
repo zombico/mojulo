@@ -139,11 +139,13 @@ export function buildTabletop() {
     if (G.build || G.dice || G.opening) euroCompile(K);
     if (G.tiles) tileCompile(K);
     if (G.piles) cardCompile(K);
+    if (G.round) roundCompile(K);
     return K;
   }
 
   // ── the state ───────────────────────────────────────────────────────────────────────────────────────────────────
   function start(K) {
+    if (K.round) return roundStart(K);
     if (K.card) return cardStart(K);
     if (K.tile) return tileStart(K);
     if (K.euro) return euroStart(K);
@@ -333,6 +335,7 @@ export function buildTabletop() {
   }
 
   function legal(K, S) {
+    if (K.round) return roundLegal(K, S);
     if (K.card) return cardLegal(K, S);
     if (K.tile) return tileLegal(K, S);
     if (K.euro) return euroLegal(K, S);
@@ -378,6 +381,7 @@ export function buildTabletop() {
   }
 
   function apply(K, S, m, opts) {
+    if (K.round) return roundApply(K, S, m);
     if (K.card) return cardApply(K, S, m);
     if (K.tile) return tileApply(K, S, m);
     if (K.euro) return euroApply(K, S, m);
@@ -444,7 +448,7 @@ export function buildTabletop() {
 
   function outcome(K, S, moves) {
     if (S.over) return S.over;
-    if (K.euro || K.tile || K.card) return null;
+    if (K.euro || K.tile || K.card || K.round) return null;
     const list = moves || legal(K, S);
     if (list.length) return null;
     if (K.G.end) return scoredEnd(K, S);
@@ -1008,7 +1012,7 @@ export function buildTabletop() {
     const C = K.G.piles, n = K.players.length;
     const S = { board: [], pieces: [], pending: [], side: 0, turn: 0, over: null, r: mixSeed(K.G.seed || 1, 0, 0),
       zones: [], supply: Object.assign({}, C.supply || {}), market: null, trash: [], score: K.players.map(() => 0),
-      act: { actions: K.card.actions, buys: K.card.buys, coins: 0 } };
+      act: { actions: K.card.actions, buys: K.card.buys, coins: 0 }, use: K.players.map(() => ({})) };
     for (let s = 0; s < n; s++) {
       const deck = shuffle(S, expand(C.start && C.start.deck)).map((kind) => make(S, { kind, side: s, at: -1, moved: 0, zone: 'deck' }));
       S.zones.push({ deck, hand: [], discard: [], play: [], tableau: [] });
@@ -1067,9 +1071,12 @@ export function buildTabletop() {
   }
 
   function cardScores(K, S) {
-    const scorers = K.G.piles.score || [{ points: true }];
-    const owned = S.zones.map((Z) => Z.deck.concat(Z.hand, Z.discard, Z.play, Z.tableau).map((id) => derive(K, S, id)));
-    const out = S.score.slice();
+    return scoreCards(K, S, S.zones.map((Z) => Z.deck.concat(Z.hand, Z.discard, Z.play, Z.tableau)), K.G.piles.score || [{ points: true }], S.score);
+  }
+  // the card scorers over each seat's cards (lists of object ids), added to `base`
+  function scoreCards(K, S, ids, scorers, base) {
+    const owned = ids.map((list) => list.map((id) => derive(K, S, id)));
+    const out = base.slice();
     const tag = (c, t) => (c.tags || {})[t];
     for (const sc of scorers) {
       owned.forEach((cards, s) => {
@@ -1123,6 +1130,18 @@ export function buildTabletop() {
     }
   }
 
+  // the turn ends with capacity a move could still have spent: idle. Actions, when an action card could be played;
+  // buys and coins (the treasures still in hand counted as coins), when something could be bought with them.
+  function cardIdle(K, S, N, side) {
+    const Z = S.zones[side];
+    if (S.act.actions > 0 && cardLegal(K, S).some((x) => x.type === 'play' && !derive(K, S, x.id).treasure)) spend(N, side, 'actions', S.act.actions, true);
+    let coins = S.act.coins, cheapest = Infinity;
+    for (const id of Z.hand) { const t = derive(K, S, id); if (t.treasure) coins += t.coin || 0; }
+    for (const id of Object.keys(S.supply)) if (S.supply[id] > 0) cheapest = Math.min(cheapest, costOf(K, id));
+    if (S.market) for (const id of S.market.row) if (id !== null) cheapest = Math.min(cheapest, derive(K, S, id).cost || 0);
+    if (S.act.buys > 0 && coins >= cheapest) { spend(N, side, 'buys', S.act.buys, true); spend(N, side, 'coins', coins, true); }
+  }
+
   function cardApply(K, S, m) {
     const N = clone(S), side = S.side, Z = N.zones[side];
     const d = N.pending.length ? N.pending.shift() : null;
@@ -1143,7 +1162,7 @@ export function buildTabletop() {
       const id = inHand();
       Z.play.push(zoneTo(N, id, 'play'));
       const t = derive(K, N, id);
-      if (!t.treasure) N.act.actions -= 1;
+      if (!t.treasure) { N.act.actions -= 1; spend(N, side, 'actions', 1); }
       if (t.coin) N.act.coins += t.coin;
       cardEffects(K, N, side, t.play);
     } else if (m.type === 'buy') {
@@ -1151,6 +1170,8 @@ export function buildTabletop() {
       if (cost > N.act.coins || N.act.buys <= 0) throw new Error('tabletop: that cannot be bought now');
       N.act.coins -= cost;
       N.act.buys -= 1;
+      spend(N, side, 'buys', 1);
+      spend(N, side, 'coins', cost);
       if (m.slot !== undefined) Z.discard.push(zoneTo(N, take(m.slot), 'discard'));
       else { N.supply[m.card] -= 1; Z.discard.push(fresh(m.card)); }
     } else if (m.type === 'take') {
@@ -1163,6 +1184,7 @@ export function buildTabletop() {
       N.trash.push(zoneTo(N, inHand(), 'trash'));
       if (d.left > 1 && Z.hand.length) N.pending.unshift(Object.assign({}, d, { left: d.left - 1 }));
     } else if (m.type === 'end') {
+      if (!K.card.draft) cardIdle(K, S, N, side);
       cardTurnEnds(K, N, side);
     }
     while (N.pending.length && !cardLegal(K, N).length) N.pending.shift();
@@ -1182,6 +1204,291 @@ export function buildTabletop() {
       for (const id of Z.deck) N.pieces[id].zone = 'deck';
     });
     if (N.market) shuffle(N, N.market.deck);
+    return N;
+  }
+
+  // ── utilization: what a player had and did not use ───────────────────────────────────────────────────────────────
+  // Capacity that expires (a turn's actions, buys and coins; workers ready in a round) is kept in a ledger per player
+  // and pool: spent, and idle (left when it expired while a move could still have spent it; an action with no card to
+  // play it on is not idle). S.use: [{ <pool>: [spent, idle] }].
+  //   utilization(K, S, side) → { pools: { <pool>: share }, share } | null   share spent of spent and idle, the
+  //     player's overall the mean of its pools' (null: nothing to use yet)
+  function spend(S, side, pool, n, idle) {
+    if (!S.use || !(n > 0)) return;
+    const u = S.use[side];
+    if (!u[pool]) u[pool] = [0, 0];
+    u[pool][idle ? 1 : 0] += n;
+  }
+  function utilization(K, S, side) {
+    const u = (S.use && S.use[side]) || {}, pools = {};
+    let sum = 0, n = 0;
+    for (const p of Object.keys(u)) {
+      const t = u[p][0] + u[p][1];
+      if (!t) continue;
+      pools[p] = u[p][0] / t;
+      sum += pools[p];
+      n += 1;
+    }
+    return n ? { pools, share: sum / n } : null;
+  }
+
+  // ── rounds: phases as data ───────────────────────────────────────────────────────────────────────────────────────
+  // A game with `round` is played in rounds, each a list of phases. A phase is taken in turns (from the first player,
+  // each in order while anyone can still act), together (each player's choice held sealed and hidden from every other
+  // player's view, all revealed and resolved at once, the phase repeating while what it acts on lasts), or by itself.
+  // Workers are objects (a piece kind), ready at a round's start; resources are pools per player and carry over; cards
+  // are objects in each player's hand and tableau, scored by the card scorers.
+  //
+  //   G.round { rounds, pools?: { <res>: n } (each player's to start), workers?: { kind, n, max? },
+  //     spaces?: { <id>: { holds?: 1, cost?: { <res>: n }, gives: [effect], name? } }, deck?: { <card>: n },
+  //     each?: [effect] (every player, each round's start), bid?: <res> (what bids are paid in, 'coin'),
+  //     first?: 'rotate' (the first seat passes on each round, unless an effect took it),
+  //     phases: [{ id, who: 'turns' | 'together' | 'auto', move?: 'place' | 'bid' | 'pick', pass?: true,
+  //       steps?: [step] (an auto phase's), give?: 'next' | 'previous' (a pick phase: where each hand goes after) }],
+  //     score?: [scorer] (the card scorers over the tableau, and { pools: { <res>: per } } a point per so many at the
+  //       end) }
+  //   effect: { get: { <res>: n } } | { points: n } | { worker: 1 } (one more, ready next round) | { first: true } (the
+  //     first player next round) | { card: n } (n from the deck to the tableau)
+  //   step: { ready: true } (every worker home and ready) | { deal: n } (n cards to each hand) | { reveal: n } (n lots
+  //     face up) | { upkeep: { per: 'worker', pay: { <res>: n }, short: points } } (each worker paid for, or the
+  //     points lost) | { clear: 'lots' } (lots nobody took, gone)
+  //   moves: { type: 'place', space } | { type: 'pass' } | { type: 'bid', n } (0 never wins; the highest wins, a tie to
+  //     the first in order from the first player, and pays; the lot to the tableau) | { type: 'pick', card, id }
+  //   state: { round, phase, first, nextFirst, pools: [{ <res>: n }], score, zones: [{ hand, tableau }] (ids),
+  //     deck: [kind], lots: [id], sealed: [choice | null] (another's: { sealed: true } in a view), done: [bool],
+  //     use, turn (moves made), r }
+  function roundCompile(K) {
+    const R = K.G.round, res = {};
+    if (!Array.isArray(R.phases) || !R.phases.length) throw new Error('tabletop: round.phases is a list of phases');
+    if (!(R.rounds >= 1)) throw new Error('tabletop: round.rounds is how many rounds the game lasts');
+    const WHO = { turns: 1, together: 1, auto: 1 }, MOVES = { place: 1, bid: 1, pick: 1 };
+    R.phases.forEach((P, i) => {
+      if (!WHO[P.who]) throw new Error('tabletop: round phase ' + (P.id || i) + ': who is turns, together or auto');
+      if (P.who !== 'auto' && !MOVES[P.move]) throw new Error('tabletop: round phase ' + (P.id || i) + ': move is place, bid or pick');
+    });
+    if (R.workers && !(K.defs[R.workers.kind] && K.defs[R.workers.kind].family === 'piece')) throw new Error('tabletop: round.workers.kind names a piece the game describes');
+    for (const id of Object.keys(R.deck || {})) if (!(K.defs[id] && K.defs[id].family === 'card')) throw new Error('tabletop: round.deck holds a card ' + id + ' the game does not describe (piles.types)');
+    const note = (o) => { for (const r of Object.keys(o || {})) res[r] = 1; };
+    note(R.pools);
+    for (const id of Object.keys(R.spaces || {})) { const P = R.spaces[id]; note(P.cost); for (const e of P.gives || []) note(e.get); }
+    for (const e of R.each || []) note(e.get);
+    for (const P of R.phases) for (const st of P.steps || []) if (st.upkeep) note(st.upkeep.pay);
+    K.round = { R, res: Object.keys(res), bid: R.bid || 'coin' };
+  }
+
+  function roundStart(K) {
+    const R = K.G.round, n = K.players.length;
+    const S = { board: [], pieces: [], pending: [], side: 0, turn: 0, over: null, r: mixSeed(K.G.seed || 1, 0, 0),
+      round: 0, phase: 0, first: 0, nextFirst: null, pools: [], score: K.players.map(() => 0), zones: [], deck: [], lots: [],
+      sealed: K.players.map(() => null), done: K.players.map(() => false), use: K.players.map(() => ({})) };
+    for (let s = 0; s < n; s++) {
+      const pool = {};
+      for (const r of K.round.res) pool[r] = (R.pools && R.pools[r]) || 0;
+      S.pools.push(pool);
+      S.zones.push({ hand: [], tableau: [] });
+      for (let i = 0; i < ((R.workers && R.workers.n) || 0); i++) make(S, { kind: R.workers.kind, side: s, at: -1, moved: 0, zone: 'home' });
+    }
+    S.deck = shuffle(S, expand(R.deck));
+    roundBegin(K, S);
+    return S;
+  }
+
+  const workersOf = (S, side, kind) => { const out = []; S.pieces.forEach((o, i) => { if (o.side === side && o.kind === kind && (o.zone === 'home' || o.zone === 'space')) out.push(i); }); return out; };
+  const readyWorker = (K, S, side) => { for (const i of workersOf(S, side, K.G.round.workers.kind)) if (S.pieces[i].zone === 'home' && S.pieces[i].ready !== false) return i; return -1; };
+  const heldAt = (S, space) => S.pieces.filter((o) => o.zone === 'space' && o.space === space).length;
+  const affords = (pool, cost) => { for (const r in cost || {}) if ((pool[r] || 0) < cost[r]) return false; return true; };
+  const seatsFrom = (K, S) => K.players.map((_, i) => (S.first + i) % K.players.length);
+
+  function roundEffects(K, S, side, list) {
+    const R = K.G.round;
+    for (const e of list || []) {
+      for (const r in e.get || {}) S.pools[side][r] = (S.pools[side][r] || 0) + e.get[r];
+      if (e.points) S.score[side] += e.points;
+      if (e.first) S.nextFirst = side;
+      if (e.worker && R.workers && workersOf(S, side, R.workers.kind).length < (R.workers.max || Infinity)) make(S, { kind: R.workers.kind, side, at: -1, moved: 0, zone: 'home', ready: false });
+      for (let i = 0; i < (e.card || 0) && S.deck.length; i++) S.zones[side].tableau.push(make(S, { kind: S.deck.pop(), side, at: -1, moved: 0, zone: 'tableau' }));
+    }
+  }
+
+  function roundStep(K, S, st) {
+    const R = K.G.round;
+    if (st.ready) for (const o of S.pieces) if (R.workers && o.kind === R.workers.kind && (o.zone === 'home' || o.zone === 'space')) { o.zone = 'home'; delete o.space; delete o.ready; }
+    if (st.deal) for (const s of seatsFrom(K, S)) for (let i = 0; i < st.deal && S.deck.length; i++) S.zones[s].hand.push(make(S, { kind: S.deck.pop(), side: s, at: -1, moved: 0, zone: 'hand' }));
+    if (st.reveal) for (let i = 0; i < st.reveal && S.deck.length; i++) S.lots.push(make(S, { kind: S.deck.pop(), side: -1, at: -1, moved: 0, zone: 'lot' }));
+    if (st.clear === 'lots') { for (const id of S.lots) S.pieces[id].zone = 'gone'; S.lots = []; }
+    if (st.upkeep) {
+      const U = st.upkeep;
+      for (const s of seatsFrom(K, S)) {
+        const n = U.per === 'worker' && R.workers ? workersOf(S, s, R.workers.kind).length : 1;
+        for (let i = 0; i < n; i++) {
+          if (affords(S.pools[s], U.pay)) for (const r in U.pay) S.pools[s][r] -= U.pay[r];
+          else S.score[s] += U.short || 0;
+        }
+      }
+    }
+  }
+
+  // whether `side` has a move in the phase now (a pass aside)
+  function canAct(K, S, side) {
+    const P = K.G.round.phases[S.phase];
+    if (P.move === 'place') {
+      if (readyWorker(K, S, side) < 0) return false;
+      const sp = K.G.round.spaces || {};
+      for (const id of Object.keys(sp)) if (heldAt(S, id) < (sp[id].holds || 1) && affords(S.pools[side], sp[id].cost)) return true;
+      return false;
+    }
+    if (P.move === 'bid') return S.lots.length > 0;
+    if (P.move === 'pick') return S.zones[side].hand.length > 0;
+    return false;
+  }
+  // the next player in order after `from` (the first itself when `from` is -1) who has yet to act and can
+  function nextActor(K, S, from, together) {
+    const n = K.players.length, seq = seatsFrom(K, S), at = from < 0 ? -1 : seq.indexOf(from);
+    for (let k = 1; k <= n; k++) {
+      const i = at + k;
+      if (i >= n) break;
+      const s = seq[i];
+      if (together ? S.sealed[s] === null && canAct(K, S, s) : !S.done[s] && canAct(K, S, s)) return s;
+    }
+    // in turns, the order goes round again while anyone can act
+    if (!together) for (const s of seq) if (!S.done[s] && canAct(K, S, s)) return s;
+    return -1;
+  }
+
+  function roundBegin(K, S) {
+    S.phase = 0;
+    for (const s of seatsFrom(K, S)) roundEffects(K, S, s, K.G.round.each);
+    enterPhase(K, S);
+  }
+  // runs auto phases, and settles who acts first in the phase it stops at; past the last phase the round ends
+  function enterPhase(K, S) {
+    const R = K.G.round;
+    while (!S.over) {
+      if (S.phase >= R.phases.length) { roundEnd(K, S); return; }
+      const P = R.phases[S.phase];
+      S.done = K.players.map(() => false);
+      S.sealed = K.players.map(() => null);
+      if (P.who === 'auto') { for (const st of P.steps || []) roundStep(K, S, st); S.phase += 1; continue; }
+      const s = nextActor(K, S, -1, P.who === 'together');
+      if (s >= 0) { S.side = s; return; }
+      S.phase += 1;
+    }
+  }
+  function roundEnd(K, S) {
+    S.round += 1;
+    if (S.nextFirst !== null) { S.first = S.nextFirst; S.nextFirst = null; }
+    else if (K.G.round.first === 'rotate') S.first = (S.first + 1) % K.players.length;
+    if (S.round >= K.G.round.rounds) {
+      const sc = roundScores(K, S, true), top = Math.max.apply(null, sc), lead = sc.map((x, s) => (x === top ? s : -1)).filter((s) => s >= 0);
+      S.over = { winner: lead.length === 1 ? lead[0] : null, reason: 'score', scores: sc };
+      return;
+    }
+    roundBegin(K, S);
+  }
+
+  function roundScores(K, S, final) {
+    const R = K.G.round, scorers = (R.score || [{ points: true }]).filter((sc) => !sc.pools);
+    const out = scoreCards(K, S, S.zones.map((Z) => Z.tableau), scorers, S.score);
+    if (final !== false) for (const sc of R.score || []) if (sc.pools) S.pools.forEach((pool, s) => { for (const r in sc.pools) out[s] += Math.floor((pool[r] || 0) / sc.pools[r]); });
+    return out;
+  }
+
+  function roundLegal(K, S) {
+    if (S.over) return [];
+    const R = K.G.round, P = R.phases[S.phase], side = S.side, out = [];
+    if (P.move === 'place') {
+      if (readyWorker(K, S, side) >= 0) {
+        const sp = R.spaces || {};
+        for (const id of Object.keys(sp)) if (heldAt(S, id) < (sp[id].holds || 1) && affords(S.pools[side], sp[id].cost)) out.push({ type: 'place', space: id });
+      }
+      if (P.pass || !out.length) out.push({ type: 'pass' });
+    } else if (P.move === 'bid') {
+      for (let n = 0; n <= (S.pools[side][K.round.bid] || 0); n++) out.push({ type: 'bid', n });
+    } else if (P.move === 'pick') {
+      for (const id of firsts(S, S.zones[side].hand)) out.push({ type: 'pick', card: S.pieces[id].kind, id });
+    }
+    for (const m of out) m.name = m.type + (m.space ? ' ' + m.space : m.card ? ' ' + m.card : m.n !== undefined ? ' ' + m.n : '');
+    return out;
+  }
+
+  // a sealed phase revealed: the bids or the picks resolved together
+  function reveal(K, N) {
+    const R = K.G.round, P = R.phases[N.phase], seq = seatsFrom(K, N);
+    if (P.move === 'bid') {
+      const lot = N.lots.shift();
+      let win = -1, top = 0;
+      for (const s of seq) if (N.sealed[s].n > top) { top = N.sealed[s].n; win = s; }
+      if (win >= 0) {
+        N.pools[win][K.round.bid] -= top;
+        N.pieces[lot].side = win;
+        N.pieces[lot].zone = 'tableau';
+        N.zones[win].tableau.push(lot);
+      } else N.pieces[lot].zone = 'gone';
+    } else if (P.move === 'pick') {
+      for (const s of seq) {
+        const c = N.sealed[s];
+        if (!c) continue;
+        const Z = N.zones[s], i = Z.hand.indexOf(c.id) >= 0 ? Z.hand.indexOf(c.id) : Z.hand.findIndex((id) => N.pieces[id].kind === c.card);
+        const id = Z.hand.splice(i, 1)[0];
+        N.pieces[id].zone = 'tableau';
+        Z.tableau.push(id);
+      }
+      // the hands go on, round the table
+      const n = K.players.length, step = P.give === 'previous' ? n - 1 : 1, hands = N.zones.map((Z) => Z.hand);
+      for (let s = 0; s < n; s++) {
+        const to = (s + step) % n;
+        N.zones[to].hand = hands[s];
+        for (const id of hands[s]) N.pieces[id].side = to;
+      }
+    }
+    N.sealed = K.players.map(() => null);
+  }
+
+  function roundApply(K, S, m) {
+    const N = clone(S), R = K.G.round, P = R.phases[S.phase], side = S.side;
+    N.turn = S.turn + 1;
+    if (m.type === 'place') {
+      const w = readyWorker(K, N, side), sp = R.spaces[m.space];
+      if (w < 0 || heldAt(N, m.space) >= (sp.holds || 1) || !affords(N.pools[side], sp.cost)) throw new Error('tabletop: no worker can go to ' + m.space + ' now');
+      Object.assign(N.pieces[w], { zone: 'space', space: m.space, ready: false });
+      for (const r in sp.cost || {}) N.pools[side][r] -= sp.cost[r];
+      spend(N, side, 'workers', 1);
+      roundEffects(K, N, side, sp.gives);
+    } else if (m.type === 'pass') {
+      // workers left home while a space was open for them are idle
+      if (canAct(K, S, side)) spend(N, side, 'workers', workersOf(S, side, R.workers.kind).filter((i) => S.pieces[i].zone === 'home' && S.pieces[i].ready !== false).length, true);
+      N.done[side] = true;
+    } else if (m.type === 'bid') {
+      N.sealed[side] = { n: m.n };
+    } else if (m.type === 'pick') {
+      N.sealed[side] = { card: m.card, id: m.id };
+    }
+    if (P.who === 'together') {
+      const s = nextActor(K, N, side, true);
+      if (s >= 0) { N.side = s; return N; }
+      reveal(K, N);
+      const again = nextActor(K, N, -1, true);
+      if (again >= 0) { N.side = again; return N; }
+    } else {
+      const s = nextActor(K, N, side, false);
+      if (s >= 0) { N.side = s; return N; }
+    }
+    N.phase += 1;
+    enterPhase(K, N);
+    return N;
+  }
+
+  // what a player may know: others' sealed choices (that they chose, not what), the deck's order, others' hands (dealt
+  // again from them and the deck)
+  function roundView(K, S, side, seed) {
+    const N = clone(S);
+    N.r = mixSeed(seed || 1, S.turn, side);
+    N.sealed = N.sealed.map((c, s) => (s === side || c === null ? c : { sealed: true }));
+    const pool = N.deck.slice(), sizes = [];
+    N.zones.forEach((Z, s) => { if (s === side) return; for (const id of Z.hand) pool.push(N.pieces[id].kind); sizes.push([s, Z.hand]); });
+    shuffle(N, pool);
+    for (const [, hand] of sizes) for (const id of hand) N.pieces[id].kind = pool.pop();
+    N.deck = pool;
     return N;
   }
 
@@ -1704,6 +2011,7 @@ export function buildTabletop() {
   // what `side` may know: the cards it cannot see dealt again at random from those unseen (the deck, the others'
   // hands), the dice ahead unknowable; seeded, so a mind's guess is its own and the same each time
   function view(K, S, side, seed) {
+    if (K.round) return roundView(K, S, side, seed);
     if (K.card) return cardView(K, S, side, seed);
     if (K.tile) {
       // the bag's order is what nobody knows: dealt again for the viewer
@@ -1737,7 +2045,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores, derive, kindsOf, held };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores, derive, kindsOf, held, utilization, roundScores };
 }
 
 const _tabletop = buildTabletop();

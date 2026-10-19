@@ -66,7 +66,7 @@ export function dealt(G) {
 }
 
 export function tabletopGame(G) {
-  if (!G || (!G.board && !G.piles)) throw new Error('tabletop: a game needs a board (a lattice spec: { shape, cols, rows } or { shape: \'hex\', radius })');
+  if (!G || (!G.board && !G.piles && !G.round)) throw new Error('tabletop: a game needs a board (a lattice spec: { shape, cols, rows } or { shape: \'hex\', radius }), piles of cards or rounds');
   // a game of cards alone keeps a single cell, so the one kernel serves it too
   const P = dealt(G.board ? G : { ...G, board: { shape: 'square', cols: 1, rows: 1 } });
   const L = lattice(P.board);

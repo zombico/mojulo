@@ -229,6 +229,30 @@ in CSS 3D. In progress:
   uses neither pays nothing, and an object leaving play keeps none of them. Machine gates: the seeded mind-against-mind
   games of every mode (chess, enclosure, tiles, deck building, drafting, three island games, one with trading) replay
   move for move as before the change; perft's counts and time are unchanged; the kernel grew by 8.7 per cent.
+- **The engine, stage 2: rounds of phases, sealed choices and utilization**, built. A game with `round` is played in
+  rounds, each a list of phases written as data: taken in turns from the first seat while anyone can act, together
+  (each player's choice sealed and hidden from every other player's view, all revealed and resolved at once, the
+  phase repeating while what it acts on lasts), or by itself (workers made ready, cards dealt, a lot revealed, upkeep
+  paid, lots nobody took cleared). Its moves: a worker placed on a space (exhausted; a space holds so many; its
+  effects at once: resources, points, another worker, the first seat), a sealed bid (the highest pays and takes the
+  lot, a tie to the first in order, nothing on all zeros), a sealed pick (kept, the hands passed on), a pass. Workers
+  are objects; resources are pools that carry over; cards and their scorers are the card mode's; the first seat may
+  pass on each round. **Utilization**: capacity that expires (a deck turn's actions, buys and coins; workers in a
+  round) is kept in a ledger per player, spent and idle (left when it expired while a move could still have spent
+  it), and `utilization` reports the share used. The computer optimizes it (a small term preferring capacity used
+  over idle when worths are close) and is tuned by it: a level's `use` is how often an option that spends capacity is
+  seen at all, so a weaker computer leaves capacity idle where idling is allowed and misplaces where spending is
+  forced, the way a weaker player forgets the card in hand (easy 0.7, fair 0.92, hard 1). The computer in a round
+  game places a worker where its seat's worth gains most (resources valued by the game's own conversions, upkeep and
+  end rates; workers by the spaces' yield for the rounds left), bids by expected value (the lot's worth to it, the
+  coins, whether it beats what each rival would pay by the same reckoning, half a rival's gain), and picks what is
+  worth most to it less half what the next seat could take from the hand it passes. Three fixtures named by
+  principle (worker placement, sealed bids, drafting by passing) and a round page (spaces and their workers, the lot
+  and the bids, the hand, pools, every seat's points and utilization, sealed choices shown only as made until
+  revealed). Machine gates: hard beats easy 12 of 12 deck games, easy using 72 per cent of its capacity to hard's 96,
+  and hard beats easy 9 of 10 worker games; the computer beats random play in every round paradigm; chess,
+  enclosure, tiles, drafting and the island games replay move for move as before; perft unchanged; the kernel grew
+  to 103,295 bytes (from 85,992) and the mind to 31,575 (from 24,059).
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

@@ -29,7 +29,9 @@
 
 export function buildTabletopMind(T) {
   const WIN = 10000;
-  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2 }, fair: { depth: 2, slack: 0.05 }, hard: { depth: 3 } };
+  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2, use: 0.7 }, fair: { depth: 2, slack: 0.05, use: 0.92 }, hard: { depth: 3, use: 1 } };
+  // capacity used over capacity idle, when worths are close: so much a unit spent (a coin, a buy, a worker placed)
+  const TEMPO = 0.02;
 
   function dice(seed) {
     let a = seed >>> 0;
@@ -420,7 +422,9 @@ export function buildTabletopMind(T) {
       };
       scored = moves.map((m) => { const N = T.apply(K, V, m); return { m, v: cardWorth(K, N, side) - (N.over ? 0 : 0.5 * next(N)) }; });
     } else {
-      const plays = V.pending.length ? [] : moves.filter((m) => m.type === 'play');
+      // a weaker computer overlooks some of what it could spend this turn (a card to play, a buy)
+      const seen = V.pending.length ? moves : overlook(moves, (m) => m.type === 'play' || m.type === 'buy', o.use, roll);
+      const plays = V.pending.length ? [] : seen.filter((m) => m.type === 'play');
       if (plays.length) {
         scored = plays.map((m) => {
           const t = T.derive(K, V, m.id), N = T.apply(K, V, m);
@@ -428,7 +432,8 @@ export function buildTabletopMind(T) {
           return { m, v: turnReach(K, N, side) + keeps };
         });
       } else {
-        scored = moves.map((m) => ({ m, v: cardWorth(K, T.apply(K, V, m), side) + (m.type === 'end' ? 0 : 1e-3) }));
+        const cost = (m) => (m.slot !== undefined ? T.derive(K, V, V.market.row[m.slot]).cost || 0 : (K.defs[m.card].cost || 0));
+        scored = seen.map((m) => ({ m, v: cardWorth(K, T.apply(K, V, m), side) + (m.type === 'buy' ? TEMPO * (1 + cost(m)) : m.type === 'end' ? 0 : 1e-3) }));
       }
     }
     const top = Math.max.apply(null, scored.map((x) => x.v));
@@ -437,8 +442,111 @@ export function buildTabletopMind(T) {
     return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
   }
 
+  // ── utilization ───────────────────────────────────────────────────────────────────────────────────────────────
+  // A level's `use` (0 to 1) is how often an option that spends the turn's capacity is seen at all: each is overlooked
+  // with probability 1 − use, from the mind's own dice. With every spender overlooked the mind keeps what is left: it
+  // idles where idling is allowed (ends the turn, passes) and, where spending is forced, chooses among all of them as
+  // though blind to their worth (a misplacement). At 1 nothing is overlooked and no dice are spent.
+  // the moves seen: may be none, when every move spends and every one was overlooked
+  function overlook(moves, spends, use, roll) {
+    if (!(use < 1)) return moves;
+    return moves.filter((m) => !spends(m) || roll() < use);
+  }
+
+  // ── rounds ────────────────────────────────────────────────────────────────────────────────────────────────────
+  // What a resource is worth, from the game's own data: its best rate into points through a space that costs it (to
+  // a little less, while rounds are left), what the end pays for it, and, for one paid in upkeep, the points its
+  // shortfall would cost, up to what the workers will eat.
+  function roundRates(K) {
+    if (K.round.rates) return K.round.rates;
+    const R = K.G.round, conv = {}, end = {}, upkeep = {};
+    for (const id of Object.keys(R.spaces || {})) {
+      const sp = R.spaces[id], units = Object.values(sp.cost || {}).reduce((a, b) => a + b, 0);
+      const pts = (sp.gives || []).reduce((a, e) => a + (e.points || 0), 0);
+      if (units && pts) for (const r in sp.cost) conv[r] = Math.max(conv[r] || 0, pts / units);
+    }
+    for (const sc of R.score || []) if (sc.pools) for (const r in sc.pools) end[r] = 1 / sc.pools[r];
+    for (const P of R.phases) for (const st of P.steps || []) if (st.upkeep) for (const r in st.upkeep.pay) upkeep[r] = { pay: st.upkeep.pay[r], short: -(st.upkeep.short || 0) };
+    K.round.rates = { conv, end, upkeep };
+    return K.round.rates;
+  }
+  function roundWorth(K, S, side) {
+    if (S.over) return S.over.winner === side ? WIN : S.over.winner === null ? 0 : -WIN;
+    const R = K.G.round, rates = roundRates(K), left = Math.max(0, R.rounds - S.round - 1), p = S.round / R.rounds;
+    const sc = T.roundScores(K, S, false);
+    const kind = R.workers && R.workers.kind;
+    const crew = (s) => (kind ? S.pieces.filter((o) => o.side === s && o.kind === kind && (o.zone === 'home' || o.zone === 'space')).length : 0);
+    const value = (r, have, s) => {
+      let v = 0;
+      const U = rates.upkeep[r], need = U ? crew(s) * U.pay * (left + 1) : 0;
+      for (let i = 0; i < have; i++) {
+        if (i < need) v += U.short / U.pay;
+        else v += (1 - p) * 0.8 * (rates.conv[r] || 0) + p * (rates.end[r] || 0) + 0.05;
+      }
+      return v;
+    };
+    // a worker: the spaces' typical yield a round for the rounds left, less what it eats
+    const yieldOf = (gives, s) => (gives || []).reduce((a, e) => a + (e.points || 0) + Object.keys(e.get || {}).reduce((b, r) => b + e.get[r] * ((rates.conv[r] || 0) * 0.8 + 0.3), 0), 0);
+    const yields = Object.values(R.spaces || {}).map((sp) => yieldOf(sp.gives)).sort((a, b) => a - b);
+    const typical = yields.length ? yields[Math.floor(yields.length / 2)] : 0;
+    const feed = Object.values(rates.upkeep).reduce((a, U) => a + U.pay, 0);
+    const seat = sc.map((x, s) => {
+      let v = x;
+      for (const r of K.round.res) v += value(r, S.pools[s][r] || 0, s);
+      v += crew(s) * left * Math.max(0, typical - feed);
+      if ((S.nextFirst === null ? S.first : S.nextFirst) === s) v += 0.4 * (left + 1) / R.rounds;
+      return v;
+    });
+    let other = -Infinity;
+    for (let s = 0; s < seat.length; s++) if (s !== side) other = Math.max(other, seat[s]);
+    return seat[side] - 0.5 * other;
+  }
+  // a round game's choice from the mind's own view: a worker where its seat's worth gains most; a bid by expected value
+  // (what the lot is worth to it, the coins it costs, whether its bid would beat what each other seat would pay for the
+  // lot by the same reckoning, and half what a rival's win would gain them); a pick by what the card is worth to it less
+  // half what the next seat could take from the hand it passes on
+  function planRounds(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    const R = K.G.round, P = R.phases[S.phase], side = S.side, V = T.view(K, S, side, o.seed);
+    const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
+    const moves = T.legal(K, V);
+    const holding = (N, s, id) => Object.assign({}, N, { zones: N.zones.map((Z, i) => (i === s ? Object.assign({}, Z, { tableau: Z.tableau.concat([id]) }) : Z)) });
+    const gain = (N, s, id) => { const a = T.roundScores(K, holding(N, s, id), false)[s], b = T.roundScores(K, N, false)[s]; return a - b; };
+    let scored;
+    if (P.move === 'place') {
+      const seen = overlook(moves, (m) => m.type === 'place', o.use, roll), blind = !seen.length;
+      scored = (blind ? moves : seen).map((m) => ({ m, v: blind ? 0 : roundWorth(K, T.apply(K, V, m), side) + (m.type === 'place' ? TEMPO : 0) }));
+    } else if (P.move === 'bid') {
+      const lot = V.lots[0], p = V.round / R.rounds, coin = (1 - p) * 0.8 + p * (1 / ((R.score || []).reduce((a, sc) => (sc.pools && sc.pools[K.round.bid]) || a, 3)));
+      const want = (s) => Math.min(V.pools[s][K.round.bid] || 0, Math.floor(Math.max(0, gain(V, s, lot)) / Math.max(coin, 0.1)));
+      const seq = K.players.map((_, i) => (V.first + i) % K.players.length);
+      const rivals = seq.filter((s) => s !== side).map((s) => ({ s, w: want(s), before: seq.indexOf(s) < seq.indexOf(side) }));
+      const mine = gain(V, side, lot);
+      scored = moves.map((m) => {
+        const beaten = rivals.filter((x) => (x.before ? m.n > x.w : m.n >= x.w));
+        const wins = m.n > 0 && beaten.length === rivals.length;
+        const top = rivals.reduce((a, x) => (x.w > (a ? a.w : 0) ? x : a), null);
+        const lose = top && top.w > 0 ? -0.5 * Math.max(0, gain(V, top.s, lot) - top.w * coin) : 0;
+        return { m, v: wins ? mine - m.n * coin : lose };
+      });
+    } else {
+      const next = (side + (P.give === 'previous' ? K.players.length - 1 : 1)) % K.players.length;
+      scored = moves.map((m) => {
+        const rest = V.zones[side].hand.filter((id) => id !== m.id);
+        const theirs = rest.length ? Math.max.apply(null, rest.map((id) => gain(V, next, id))) : 0;
+        return { m, v: gain(V, side, m.id) - (next === side ? 0 : 0.5 * theirs) };
+      });
+    }
+    const top = Math.max.apply(null, scored.map((x) => x.v));
+    const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
+    const pick = near[Math.floor(roll() * near.length)];
+    return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
+  }
+
   function think(K, S, opts) {
-    const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4 }, opts || {});
+    const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4, use: 1 }, opts || {});
+    if (K.round) return planRounds(K, S, o);
     if (K.card) return planCards(K, S, o);
     if (K.tile) return planTiles(K, S, o);
     if (K.euro) return planTurn(K, S, o);

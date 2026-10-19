@@ -5,7 +5,8 @@
  * it is played by clicking there too, and a piece is a token that slides from cell to cell).
  *
  *   tabletopPageHtml(G, { human?, level?, view?, seed?, title? }) → html   (a euro game: tabletop-euro-page.js; a tile
- *     game: tabletop-tile-page.js; a card game, which needs no board: tabletop-card-page.js)
+ *     game: tabletop-tile-page.js; a card game, which needs no board: tabletop-card-page.js; a round game:
+ *     tabletop-round-page.js)
  *     human the player id the person plays (the first player); level 'easy' | 'fair' | 'hard' ('fair'); view 'plan' |
  *     'table' (the first shown, 'plan'); seed the computer's dice (1)
  *     G as tabletop-kernel.js reads it, with `board` a lattice spec, and for the page: players[i].colour, and each
@@ -24,6 +25,7 @@ import { buildTabletopMind } from './tabletop-mind.js';
 import { euroPageHtml } from './tabletop-euro-page.js';
 import { tilePageHtml } from './tabletop-tile-page.js';
 import { cardPageHtml } from './tabletop-card-page.js';
+import { roundPageHtml } from './tabletop-round-page.js';
 import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 560 };
@@ -37,7 +39,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function tabletopPageHtml(G, opts = {}) {
-  if (!G?.board && !G?.piles) throw new Error('tabletop page: the game needs a board, or piles of cards');
+  if (!G?.board && !G?.piles && !G?.round) throw new Error('tabletop page: the game needs a board, piles of cards or rounds');
   // refuses a game the kernel cannot play, here rather than on the page; a game's `deal` is done here, the page plays it
   const { L, K, G: dealtG } = tabletopGame(G);
   G = dealtG;
@@ -46,6 +48,7 @@ export function tabletopPageHtml(G, opts = {}) {
   const level = opts.level ?? 'fair';
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
+  if (K.round) return roundPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title });
   if (K.card) return cardPageHtml(G, L, K, { human, level, seed: opts.seed ?? 1, title: opts.title });
   if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
   if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
