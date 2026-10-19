@@ -84,6 +84,14 @@ Examples:
 - `… study.mjs male --pose '{"face":{"jaw":25}}' --no-wire` — the open jaw, from all around.
 - `… study.mjs female --hair longWave` — hair seating on the female skull.
 
+**Tests while sculpting the relational head.** Each round, run the head's own tests (seconds, not the polygonizer
+folder's minutes: almost none of that folder imports the head) and the critical tier; leave the whole folder, or the
+whole suite, for the merge into the release candidate:
+
+```bash
+cd control && npx vitest run lib/graph/polygonizer/head lib/graph/polygonizer/vajra lib/graph/epidermis && npm run test:critical
+```
+
 ## The skin lane (`--skin`)
 
 The epidermis cube's skin (`control/lib/graph/epidermis/skin-relief.js`) is studied on SWATCHES, small blocks of
