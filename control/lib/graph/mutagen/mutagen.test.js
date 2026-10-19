@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { OOZES, oozeErrors, normalizeOozes, composeForm, resolveMutagen, oozeParams, mutagenErrors, FORM_KEYS } from './index.js';
-import { speciesParams, speciesPlan } from '../fauna/species.js';
+import { OOZES, oozeErrors, normalizeOozes, composeForm, composePush, pushErrors, resolveMutagen, oozeParams, oozeFauna, mutagenErrors, FORM_KEYS } from './index.js';
+import { SPECIES, speciesParams, speciesPlan } from '../fauna/species.js';
 import { buildFauna } from '../fauna/build.js';
 import { PER_RIG } from '../fauna/test-cases.js';
 
@@ -59,11 +59,27 @@ describe('mutagen: the composition law', () => {
     expect(resolveMutagen(formOn, { key: 'wolf', seed: 9 }).seed).toBe(9);
   });
 
-  it('every row on the shelf is filed under its id and names only form keys', () => {
+  it('every row on the shelf is filed under its id and names only form keys and pushes', () => {
     for (const [id, o] of Object.entries(OOZES)) {
       expect(o.id, id).toBe(id);
       for (const k of Object.keys(o.form || {})) expect(FORM_KEYS, `${id}.${k}`).toContain(k);
+      expect(pushErrors(o.push, id)).toEqual([]);
     }
+    expect(pushErrors({ wedge: { fore: 1.2 }, horns: 2 })[0]).toMatch(/horns: not a push/);
+  });
+
+  it('pushes compose: multipliers multiply raised to strength, additions scale, darkening compounds, words are the last ooze\'s', () => {
+    const S = { a: { push: { neck: 2, ears: { sweep: 0.4 }, coat: 0.5, hackles: { count: 5, height: 0.6 }, eyes: { color: '#ff0000', glow: true } } },
+      b: { push: { neck: 1.5, coat: 0.5, hackles: { count: 3 }, eyes: { color: '#00ff00' } } } };
+    const p = composePush([{ id: 'a', strength: 1 }, { id: 'b', strength: 1 }], S);
+    expect(p.neck).toBe(3);
+    expect(p.coat).toBe(0.75);
+    expect(p.hackles).toEqual({ count: 3, height: 0.6 });
+    expect(p.eyes).toEqual({ color: '#00ff00', glow: true, mix: 1 });
+    const half = composePush([{ id: 'a', strength: 0.25 }], S);
+    expect(half.ears.sweep).toBeCloseTo(0.1, 12);
+    expect(half.eyes.glow).toBe(false);   // a glow is lit from half strength
+    expect(composePush([{ id: 'x', strength: 1 }], { x: { form: { scale: 2 } } })).toBeNull();
   });
 });
 
@@ -72,21 +88,42 @@ describe('mutagen: the form on a species', () => {
     const P = speciesParams(PER_RIG[0]);
     expect(oozeParams(P, null)).toBe(P);
     expect(oozeParams(P, resolveMutagen([]))).toBe(P);
-    expect(JSON.stringify(buildFauna(oozeParams(P, null)))).toBe(JSON.stringify(speciesPlan(PER_RIG[0])));
+    expect(JSON.stringify(oozeFauna(P, null))).toBe(JSON.stringify(speciesPlan(PER_RIG[0])));
   });
 
-  // the joint law: a form moves a joint only by its uniform scale. The throat's two joints are the head's underside
-  // and follow the head, which `headScale` grows about its nape.
-  it('the joint law: every joint of the oozed plan is the species joint grown by the form scale, the same joints', () => {
+  // the joint law: an ooze moves a species joint only by its uniform scale. The throat's two joints are the head's
+  // underside and follow the head; the ornaments an ooze adds stand on joints of their own (`ooze…`).
+  it('the joint law: every species joint of the oozed plan is grown by the form scale, the ornaments on their own joints', () => {
     for (const id of PER_RIG) {
       const P = speciesParams(id), M = resolveMutagen(formOn, { key: id }), s = M.form.scale;
-      const A = buildFauna(P).joints, B = buildFauna(oozeParams(P, M)).joints;
-      expect(Object.keys(B), id).toEqual(Object.keys(A));
+      const A = buildFauna(P).joints, B = oozeFauna(P, M).joints;
+      expect(Object.keys(B).filter((j) => !(j in A)).every((j) => j.startsWith('ooze')), id).toBe(true);
       for (const [j, v] of Object.entries(A)) {
+        expect(B[j], `${id}.${j}`).toBeDefined();
         if (j.startsWith('throat')) continue;
         v.forEach((x, a) => expect(Math.abs(B[j][a] - s * x), `${id}.${j}`).toBeLessThan(1e-5));
       }
     }
+  });
+
+  it('the face seats or steps back, and says how much of it was drawn', () => {
+    const id = PER_RIG[0], r = {};
+    oozeFauna(speciesParams(id), resolveMutagen(formOn, { key: id }), r);
+    expect([1, 0.75, 0.5, 0.25, 0]).toContain(r.face);
+  });
+
+  it('fangs only on a toothed head: a beak takes none', () => {
+    const teeth = (p) => (p.heads[0].plan.ornaments || []).filter((o) => o.kind === 'teeth' && /^fang/.test(o.tag || '')).length;
+    const bird = Object.keys(SPECIES).find((id) => SPECIES[id].family === 'avian');
+    const M = { form: {}, push: { fangs: 2 } };
+    expect(teeth(oozeFauna(speciesParams(PER_RIG[0]), M))).toBe(2);
+    expect(teeth(oozeFauna(speciesParams(bird), M))).toBe(0);
+  });
+
+  it('a grown head carries its eyes and ears: head detail scales with the growth', () => {
+    const id = PER_RIG[0], P = speciesParams(id), M = { form: composeForm([{ id: 'big', strength: 1 }], SHELF) };
+    const eye = (p) => p.heads[0].plan.regions.eye.R;
+    expect(eye(oozeFauna(P, M)) / eye(buildFauna(P))).toBeCloseTo(P.headRelative ? 1 : 2, 6);
   });
 
   it('girth is ring radius alone: a girth-only form leaves every joint where it was', () => {
@@ -100,7 +137,7 @@ describe('mutagen: the form on a species', () => {
 
   it('is deterministic', () => {
     const id = PER_RIG[0], P = speciesParams(id);
-    expect(JSON.stringify(buildFauna(oozeParams(P, resolveMutagen(formOn, { key: id })))))
-      .toBe(JSON.stringify(buildFauna(oozeParams(speciesParams(id), resolveMutagen(formOn, { key: id })))));
+    expect(JSON.stringify(oozeFauna(P, resolveMutagen(formOn, { key: id }))))
+      .toBe(JSON.stringify(oozeFauna(speciesParams(id), resolveMutagen(formOn, { key: id }))));
   });
 });

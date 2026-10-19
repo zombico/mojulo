@@ -123,16 +123,15 @@ describe("mint_solid kind 'animal'", () => {
 // the stored plan is the mutated body, the manifest keeps the list, and every other door refuses it.
 describe("mint_solid kind 'animal' — oozes", () => {
   it('mints an oozed species: the stored plan is the mutated body and the manifest keeps the oozes', async () => {
-    const { OOZES, resolveMutagen, oozeParams } = await import('@/lib/graph/mutagen/index');
+    const { OOZES, resolveMutagen, oozeFauna } = await import('@/lib/graph/mutagen/index');
     const { speciesParams } = await import('@/lib/graph/fauna/species');
-    const { buildFauna } = await import('@/lib/graph/fauna/build');
     const id = Object.keys(OOZES).find((o) => OOZES[o].form?.scale);
     const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_oozed', spec: { species: 'wolf', ooze: [id] } });
     expect(res.ooze.oozes).toEqual([{ id, strength: 1 }]);
     expect(res.ooze.form.scale).toBe(OOZES[id].form.scale);
     const m = SketchRepository.getByRef('an_oozed').manifest;
     expect(m.ooze).toEqual({ oozes: [{ id, strength: 1 }], seed: res.ooze.seed });
-    expect(m.plan).toEqual(buildFauna(oozeParams(speciesParams('wolf'), resolveMutagen([id], { key: 'wolf' }))));
+    expect(m.plan).toEqual(oozeFauna(speciesParams('wolf'), resolveMutagen([id], { key: 'wolf' })));
     expect(m.species).toBe('wolf');
   });
 
