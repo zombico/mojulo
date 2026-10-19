@@ -49,7 +49,7 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
   if (b !== undefined) {
     const { players = ['party'], figures: _figures, ...spec } = b ?? {};   // figures: stood by board-figures.js
     if (!Array.isArray(players) || !players.every((x) => typeof x === 'string')) no('battle.players are the sides the player moves: [\'party\'] (or [] to watch)');
-    const { cfg, units: read, deploy: names } = readBoardBattle(spec);
+    const { cfg, units: read, deploy: names, rpg, legs } = readBoardBattle(spec);
     // the deploy spots, and each member without a spot put on the next free one (the player may place them again)
     let deploy, fielded = read, placed = [];
     if (names) {
@@ -65,7 +65,8 @@ function boardParts(L, { units = [], battle: b, camera: c, cursor } = {}) {
       });
     }
     boardStart(L.board, cfg, fielded);
-    battle = { cfg, units: fielded, players, ...(deploy ? { deploy, placed } : {}) };
+    // the party battles' book and each class's legs ride along, so a game's party can be stood as the store has it
+    battle = { cfg, units: fielded, players, rpg: { party: rpg.party, classes: rpg.classes, skills: rpg.skills, gear: rpg.gear, rules: rpg.rules }, legs, ...(deploy ? { deploy, placed } : {}) };
   }
   // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
   const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;

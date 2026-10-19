@@ -38,7 +38,7 @@ export function boardChannelData(laid, { units = [], camera = {}, cursor, drape,
 }
 
 /* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
-export function boardPage(D, K, CAM, MIND) {
+export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
   __ctrlOwnsCamera = true;   // eslint-disable-line no-global-assign
@@ -175,6 +175,7 @@ export function boardPage(D, K, CAM, MIND) {
     deploy: 'arrows: cursor · Enter: place here · Esc: take the last one back',
     cpu: 'the other side is moving · Q E: turn · Z X: zoom',
     over: 'the battle is over',
+    wait: 'the level is starting',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
@@ -429,6 +430,7 @@ export function boardPage(D, K, CAM, MIND) {
     bannerEl.textContent = (HUMAN.size ? (W == null ? 'Draw' : won ? 'Victory' : 'Defeat') : (W == null ? 'Draw' : `${W} wins`)) + (got ? `\n${got}` : '');
     bannerEl.style.textAlign = 'center';
     // the level hears it on its bus, as it hears the party battles' end
+    keep(won);   // the store hears the spoils before the level hears it is over
     const ev = HUMAN.size ? (W == null ? 'board-draw' : won ? 'board-won' : 'board-lost') : 'board-over';
     if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: ev });   // eslint-disable-line no-undef
     readout();
@@ -496,13 +498,49 @@ export function boardPage(D, K, CAM, MIND) {
 
   readout();
   moveCursor(cursor);
-  if (battle && battle.deploy && battle.placed && battle.placed.length && [...HUMAN].some((x) => x === 'party')) {
-    mode = 'deploy';
-    placing = { ids: battle.placed.slice(), k: 0 };
-    highlight('reach', battle.deploy);
-    moveCursor(S.u[placing.ids[0]].at);
-    drawSide();
-  } else if (battle) next();
+  function begin() {
+    if (battle.deploy && battle.placed && battle.placed.length && HUMAN.has('party')) {
+      mode = 'deploy';
+      placing = { ids: battle.placed.slice(), k: 0 };
+      highlight('reach', battle.deploy);
+      moveCursor(S.u[placing.ids[0]].at);
+      drawSide();
+    } else next();
+  }
+  // a game's party (the level contract's party: the store's slice): the battle waits for the level to start, stands the
+  // party as the store has it, and takes the bag as it is
+  const G = typeof window !== 'undefined' ? window.__mojGame : null;
+  const carry = battle && RK && CARRY && G && G.contract && G.contract.party && typeof G.contract.party.slice === 'string'
+    ? { slice: G.contract.party.slice, saved: null, bag0: null } : null;
+  if (carry) {
+    mode = 'wait';
+    G.onStart(function (params) {
+      const sl = params && params[carry.slice], roster = sl && sl.roster;
+      if (roster) { S = K.start(B, cfg, CARRY.units(RK, battle.rpg, battle.units, roster, battle.legs)); settleTokens(); }
+      carry.saved = roster ? Object.fromEntries(Object.keys(roster).map((k) => [k, Object.assign({}, roster[k].stats)])) : RK.save(battle.rpg, RK.init(battle.rpg));
+      const bagSlice = G.contract.bag && params[G.contract.bag.slice];
+      if (bagSlice && bagSlice.items && S.bag) S.bag.party = Object.assign({}, bagSlice.items);
+      carry.bag0 = S.bag ? Object.assign({}, S.bag.party) : {};
+      begin();
+    });
+  } else if (battle) begin();
+  // a win's spoils into the store (each member's number that moved) and the bag (gold, drops, and what the battle used)
+  function keep(won) {
+    if (!carry || !carry.saved) return;
+    if (won && S.spoils) {
+      const ids = S.order.filter((id) => S.u[id].side === 'party' && S.u[id].hp > 0);
+      const after = CARRY.gain(RK, battle.rpg, carry.saved, ids, S.spoils.xp, S.spoils.cp);
+      for (const c of CARRY.changes(carry.saved, after)) G.emit({ type: 'setStat', slice: carry.slice, id: c.id, stat: c.stat, value: c.value });
+      carry.saved = after;
+    }
+    if (typeof __inputQueue === 'undefined') return;   // eslint-disable-line no-undef
+    const now = (S.bag && S.bag.party) || {};
+    for (const k of Object.keys(Object.assign({}, carry.bag0, now))) { const d = (now[k] || 0) - (carry.bag0[k] || 0); if (d) __inputQueue.push({ type: (d > 0 ? 'in' : 'out') + ':bag:' + k + ':' + Math.abs(d) }); }   // eslint-disable-line no-undef
+    if (won && S.spoils) {
+      if (S.spoils.gold) __inputQueue.push({ type: 'in:bag:gold:' + S.spoils.gold });   // eslint-disable-line no-undef
+      for (const d of S.spoils.drops) __inputQueue.push({ type: 'in:bag:' + d + ':1' });   // eslint-disable-line no-undef
+    }
+  }
   window.__mojBoard = {
     board: B, camera: C, get cursor() { return cursor; }, get selected() { return sel; }, get mode() { return mode; }, get result() { return result; },
     state: () => S, highlight, moveCursor, stepCursor, select,

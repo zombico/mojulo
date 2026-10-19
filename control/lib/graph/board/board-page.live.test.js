@@ -6,6 +6,9 @@ import { assembleBoardScene } from './board-scene.js';
 import { buildBoard, boardStart, boardApply, boardLegal } from './board-kernel.js';
 import { boardMindPlan } from './board-mind.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
+import { readRpg } from '../playscape/rpg/rpg.js';
+import { rpgInit, rpgSave, rpgLoad, rpgStatsOf } from '../playscape/rpg/kernel.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
 const K = buildBoard();
@@ -70,6 +73,34 @@ describe('the board on the World page', () => {
     expect(end.result.winner).toBeTruthy();
     if (end.result.winner === 'party') expect(end.text).toMatch(/Victory\n7 xp · 1 class points · 8 gold/);
   }, 120000);
+
+  it('fights a game\'s level: the party as the store has it, the spoils back to the store, the level won on the board', async () => {
+    if (!browser) return;
+    const rcfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }] } }), R = rpgInit(rcfg), saved = rpgSave(rcfg, R);
+    saved.ayla.lv = 7; saved.ayla.xp = 300;
+    const roster = { ayla: { name: 'Ayla', level: 7, stats: saved.ayla } };
+    const L7 = rpgInit(rcfg); rpgLoad(rcfg, L7, roster, {});
+    const { payload } = await resolveWorldScene({ ref: 'lvl', title: null, manifest: { kind: 'stage', geocube: 'island-noon', trail: {},
+      board: { cols: 8, rows: 8, battle: { figures: false, deploy: ['A1:D2'], party: [{ id: 'ayla', class: 'fighter' }], foes: [{ id: 'g', foe: 'goblin', at: 'C5' }] } },
+      game: { levelRef: 'lvl', mechanics: [{ kind: 'board' }, { kind: 'party', slice: 'party' }, { kind: 'bag', slice: 'bag' }], presets: { default: { party: { roster }, bag: { items: { potion: 3 } } } } } } });
+    const page = await browser.newPage();
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.mode !== 'wait', { timeout: 20000 });
+    const start = await page.evaluate(() => { const S = window.__mojBoard.state(); return { hp: S.u.ayla.hpMax, atk: S.u.ayla.atk, bag: S.bag.party }; });
+    const S7 = rpgStatsOf(rcfg, L7, 'ayla');
+    expect(start).toEqual({ hp: S7.hp, atk: S7.atk, bag: { potion: 3 } });
+    const end = await page.evaluate(() => {
+      const b = window.__mojBoard;
+      for (let k = 0; k < 6000 && !b.result; k++) { if (b.mode === 'deploy') window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' })); else if (b.mode === 'menu') b.auto(); b.run(0.1); }
+      // the bus drains on the page's frame: give it a few
+      return new Promise((done) => setTimeout(() => done({ result: b.result, events: window.__mojGame.events, envelope: window.__mojGame.envelope }), 600));
+    });
+    expect(end.result.winner).toBe('party');
+    const xp = end.events.find((e) => e.type === 'setStat' && e.id === 'ayla' && e.stat === 'xp');
+    expect(xp).toEqual({ type: 'setStat', slice: 'party', id: 'ayla', stat: 'xp', value: 300 + 7 });
+    expect(end.envelope && end.envelope.result).toBe('success');
+    await page.close();
+  }, 180000);
 
   it('plays the player\'s turn by the menu: move, act with a forecast, wait and face, and the turn passes on', async () => {
     if (!browser) return;

@@ -18,7 +18,7 @@
  *   }
  *   shape: { min, max, kind, area, v } (board-kernel.js)
  *
- *   readBoardBattle(spec) → { cfg, units, rpg, deploy?, cap? }   the kernel's cfg and start units (each foe's loot: its
+ *   readBoardBattle(spec) → { cfg, units, rpg, legs, deploy?, cap? }   (legs: each class's { move, jump })   the kernel's cfg and start units (each foe's loot: its
  *     xp, gold, class points and drops); rpg, the party battles' cfg read; deploy, the deploy spots by name
  *   BOARD_CLASSES, BOARD_FOES   how far each moves (spots) and climbs (height steps)
  *   skillShape(skill)          a skill's shape on the board, from what it is: a blow reaches the next spot, a spell
@@ -148,7 +148,8 @@ export function readBoardBattle(spec = {}) {
 
   // every skill a unit may use, with its shape; every item, with its own
   const skills = {};
-  for (const k of new Set(units.flatMap((u) => u.skills))) {
+  // every skill the book knows (a member carried in from an earlier level may know one this battle did not grant)
+  for (const k of new Set([...units.flatMap((u) => u.skills), ...Object.keys(rpg.skills)])) {
     const S = rpg.skills[k];
     if (!S) no(`'${k}' is a skill no book defines`);
     const { id: _id, about: _a, carry: _c, juice: _j, ...fx } = S;
@@ -166,5 +167,7 @@ export function readBoardBattle(spec = {}) {
     if (!(Number.isInteger(n) && n >= 0 && n <= 99)) no(`bag.${k} is a count, 0 to 99`);
   }
   const cfg = { seed: spec.seed ?? 'board', skills, items, bag: { party: { ...bag } }, ...(guests.length ? { teams: { guest: 'party' } } : {}), ...(spec.rules ? { rules: spec.rules } : {}) };
-  return { cfg, units, rpg, ...(deploy ? { deploy: [...deploy] } : {}), ...(spec.cap !== undefined ? { cap: spec.cap } : {}) };
+  // each class's legs as this battle has them, for a member carried in under another class
+  const classLegs = Object.fromEntries(Object.keys(rpg.classes).map((c) => [c, legs(BOARD_CLASSES, B.classes, c, CLASS_LEGS, `board.classes.${c}`)]));
+  return { cfg, units, rpg, legs: classLegs, ...(deploy ? { deploy: [...deploy] } : {}), ...(spec.cap !== undefined ? { cap: spec.cap } : {}) };
 }
