@@ -13,7 +13,8 @@ thinking is Claude's, in your session. It needs no account, no API key and no GP
 to the maintainer or to any analytics service; mojulo's only log is a local record of its own tool
 calls, which you can turn off.
 
-This plugin starts the open-source mojulo MCP server (`npx -y mojulo@3.1.1`) and adds one skill
+This plugin starts the open-source mojulo MCP server (mojulo 3.1.1, installed from the lockfile the plugin
+ships, `server/package-lock.json`) and adds one skill
 that tells Claude to start from mojulo's routing index. It also adds two subagents that make your
 usage limits go further: `mojulo-runner` runs light, decided calls (exports, measures, lists) on
 Haiku, and `mojulo-maker` writes or revises one recipe on Sonnet, while design (games, plans,
@@ -58,7 +59,7 @@ claude mcp remove mojulo -s user
 
 ## Requirements
 
-- **Node.js 22.14 or newer**, with `npx` on the `PATH` Claude sees.
+- **Node.js 22.14 or newer**, with `node` and `npm` on the `PATH` Claude sees.
 - **About 370 MB of disk**: about 227 MB installed (the package, 21.3 MB unpacked, and its
   dependencies) and about 140 MB of npm cache. The first start downloads about 79 MB, the 6.7 MB
   package included. Measured for 3.0.0 on an Apple M1 Max with an empty cache, through a local
@@ -96,7 +97,7 @@ below happens only on the action named.
 
 | Kind | What | When |
 |---|---|---|
-| Installs | `mojulo@3.1.1` and its dependencies, from registry.npmjs.org, into the npm cache (`_npx`) | The first start, through `npx` |
+| Installs | `mojulo@3.1.1` and its dependencies, exactly as `server/package-lock.json` names them (versions and integrity hashes, which npm checks), from registry.npmjs.org, into `~/.mojulo/plugin/` | The first start, through `npm ci` (`server/launch.mjs`) |
 | Fetches | A version lookup on registry.npmjs.org, anonymous | Only when Claude calls `check_for_updates` |
 | Fetches | The dashboard, `mojulo-ui@3.1.1`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.1.1 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
 | Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.1.1 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
@@ -169,17 +170,18 @@ your content.
 ## Updating and removing
 
 The plugin pins one mojulo version. To update, update the plugin (`/plugin`, then mojulo), then
-restart the session; don't run a newer `npx mojulo` beside it. To remove everything: uninstall the
-plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder for
-`mojulo@3.1.1`.
+restart the session; don't run a newer `npx mojulo` beside it. Each version installs into its own folder
+under `~/.mojulo/plugin/`; once you have updated, you can delete the older ones. To remove everything:
+uninstall the plugin and delete `~/.mojulo/`.
 
 ## If the first start times out
 
 Claude Code gives a local server 30 seconds to start, and the first start downloads about 79 MB.
-On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
-cache once from a terminal with `npx -y mojulo@3.1.1 --help` and reconnect in `/mcp`. If a desktop
-or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system
-install of Node from nodejs.org fixes it.
+On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm npm's
+cache once from a terminal with `npx -y mojulo@3.1.1 --help` and reconnect in `/mcp`. A start cut
+short leaves nothing half-installed: the next one installs again, from what npm already downloaded.
+If a desktop or Cowork session reports `spawn node ENOENT`, the Node on that session's `PATH` is
+missing; a system install of Node from nodejs.org fixes it.
 
 ## Links
 

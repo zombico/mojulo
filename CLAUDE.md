@@ -129,7 +129,10 @@ On merge the plan moves to `plan-archive/`. Nothing tracked may cite a plan path
 
 Control plane: add `## [X.Y.Z] - YYYY-MM-DD` to the changelog, run `npm run smoke:tarball` (packs, installs
 the tarball into an empty temp dir, boots the dashboard; the npx cache reuses old trees and hides
-fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section.
+fresh-install breakage), commit, tag `vX.Y.Z`, push the tag; the workflow slices that section. The Claude plugin
+installs only what its lockfile names, and the lockfile needs the published tarball's hash: `npm publish` before the
+tag, then `node control/scripts/plugin-lock.mjs` and commit its two files, since the tag's version check refuses a
+lockfile for another version.
 
 ## Data and native landmines
 

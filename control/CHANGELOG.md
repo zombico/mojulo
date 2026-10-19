@@ -640,6 +640,21 @@ renders byte-identically without them.
 - `lib/mcp/test-tiers.test.js` holds the new shape: the e2e suites run in `test:e2e` and in neither `npm test` nor
   `test:critical`. CLAUDE.md and CONTRIBUTING.md say when to run the tier.
 
+### Claude plugin: the server installs from a lockfile the plugin ships
+
+- The plugin no longer runs `npx -y mojulo@<version>`. Its server is `node ${CLAUDE_PLUGIN_ROOT}/server/launch.mjs`,
+  which runs `npm ci` against `plugins/mojulo/server/package-lock.json` once per version, into
+  `~/.mojulo/plugin/<version>-<lock hash>/`, then starts the installed server. The lockfile names mojulo and every
+  package under it by exact version, registry.npmjs.org source and integrity hash, which npm checks on install; the
+  Claude plugin directory held a plugin that ran an npm package without one. A later start runs at once.
+- The install is built in a temporary folder and renamed into place when `npm ci` finishes, so two sessions starting
+  together share one install, and a start Claude Code cuts short leaves nothing half-built (the next clears it). npm
+  writes to stderr: stdout stays the MCP channel.
+- `control/scripts/plugin-lock.mjs` writes the launcher's `package.json` and lockfile for the version
+  `control/package.json` carries, once it is on npm (`--check` resolves again and compares).
+  `check-plugin-version.mjs` now holds the plugin to the launcher: `node` on `launch.mjs`, the distribution flag, a
+  `package.json` on exactly the version, and a lockfile that locks it, every entry hashed and from npm.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

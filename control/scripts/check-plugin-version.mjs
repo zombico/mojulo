@@ -3,8 +3,10 @@
  * Checks that the manifests published outside control/ run the version control/package.json carries.
  *
  * Three files outside the npm package start or advertise it, and each names a version by hand:
- *   - plugins/mojulo/.claude-plugin/plugin.json — the Claude plugin runs `npx -y mojulo@<version>`
- *     (the plugin directory blocks an unpinned launcher);
+ *   - plugins/mojulo/.claude-plugin/plugin.json — the Claude plugin runs `node ${CLAUDE_PLUGIN_ROOT}/server/launch.mjs`,
+ *     which installs mojulo from the lockfile beside it (the plugin directory holds a plugin that runs an npm package
+ *     without one): server/package.json must depend on exactly the version, and server/package-lock.json must lock
+ *     it, every package hashed and from registry.npmjs.org (control/scripts/plugin-lock.mjs writes both);
  *   - glama.json — the same launcher, for the Glama listing;
  *   - server.json — the MCP registry entry, `version` and the npm package's `version`.
  * Each must name exactly control/package.json's version. The marketplace entry carries no version of
@@ -34,6 +36,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LAUNCHER_DIR, lockProblems } from './plugin-lock.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -59,6 +62,29 @@ function launcherProblems(file, servers, version) {
       problems.push(`${file}: mcpServers.${name} runs ${specs[0]}, expected mojulo@${version} (control/package.json)`);
     }
   }
+  return problems;
+}
+
+// The plugin's one server: node on the launcher, the distribution flag, and a launcher package that locks the version
+const LAUNCH_ARG = '${CLAUDE_PLUGIN_ROOT}/server/launch.mjs';
+function pluginLauncherProblems(root, plugin, version) {
+  const problems = [];
+  const entries = Object.entries(plugin.mcpServers || {});
+  if (entries.length !== 1) problems.push(`${PLUGIN_MANIFEST}: expected one mcpServers entry, found ${entries.length}`);
+  for (const [name, server] of entries) {
+    if (server.command !== 'node' || JSON.stringify(server.args) !== JSON.stringify([LAUNCH_ARG])) {
+      problems.push(`${PLUGIN_MANIFEST}: mcpServers.${name} should run node ${LAUNCH_ARG}, found ${server.command} ${JSON.stringify(server.args)}`);
+    }
+    if (server.env?.MOJULO_DISTRIBUTION !== 'claude-plugin') problems.push(`${PLUGIN_MANIFEST}: mcpServers.${name} should set MOJULO_DISTRIBUTION=claude-plugin`);
+  }
+  const read = (file) => {
+    try { return JSON.parse(readFileSync(path.join(root, LAUNCHER_DIR, file), 'utf8')); } catch { problems.push(`${LAUNCHER_DIR}/${file} is missing or not JSON`); return null; }
+  };
+  if (!existsSync(path.join(root, LAUNCHER_DIR, 'launch.mjs'))) problems.push(`${LAUNCHER_DIR}/launch.mjs is missing`);
+  const pkg = read('package.json');
+  if (pkg && pkg.dependencies?.mojulo !== version) problems.push(`${LAUNCHER_DIR}/package.json depends on mojulo ${pkg.dependencies?.mojulo}, expected ${version}`);
+  const lock = read('package-lock.json');
+  if (lock) problems.push(...lockProblems(lock, version).map((p) => `${LAUNCHER_DIR}/package-lock.json: ${p} (node control/scripts/plugin-lock.mjs, after npm publish)`));
   return problems;
 }
 
@@ -88,7 +114,7 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
   if (!SEMVER.test(String(plugin.version || ''))) {
     problems.push(`${PLUGIN_MANIFEST}: version ${JSON.stringify(plugin.version)} is not a semver string`);
   }
-  problems.push(...launcherProblems(PLUGIN_MANIFEST, plugin.mcpServers, version));
+  problems.push(...pluginLauncherProblems(root, plugin, version));
   problems.push(...launcherProblems('glama.json', read('glama.json').mcpServers, version));
 
   const server = read('server.json');
@@ -178,5 +204,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   }
   const { version } = JSON.parse(readFileSync(path.join(REPO_ROOT, 'control/package.json'), 'utf8'));
-  process.stdout.write(`check-plugin-version: plugin.json, glama.json and server.json all run mojulo@${version}\n`);
+  process.stdout.write(`check-plugin-version: the plugin's lockfile, glama.json and server.json all run mojulo@${version}\n`);
 }
