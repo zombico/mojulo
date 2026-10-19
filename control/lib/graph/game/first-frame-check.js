@@ -48,7 +48,9 @@ async function levelPage(ref) {
   if (!sketch) return { skip: `no sketch '${ref}'` };
   const { payload } = (await resolveWorldScene(sketch)) || {};
   if (!payload) return { skip: 'no World form to render' };
-  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }) };
+  // a game made for a screen (game/screen.js) is judged in its own frame, its long side the check's
+  const { payloadFrame } = await import('@/lib/graph/game/screen');
+  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }), ...(payload.screen ? { frame: payloadFrame(payload.screen, Math.max(FIRST_FRAME.width, FIRST_FRAME.height)) } : {}) };
 }
 
 /**
@@ -72,11 +74,11 @@ export async function firstFrameCheck(refs, { findBrowser = levelBrowser, page =
     const kept = MEMO.get(key);
     const row = { ref, ...(kept ?? {}) };
     levels.push(row);
-    if (!kept) todo.push({ row, key, html: P.html });
+    if (!kept) todo.push({ row, key, html: P.html, ...(P.frame ? { frame: P.frame } : {}) });
   }
   if (todo.length) {
     let shots;
-    try { shots = await capture(todo.map((x) => ({ ref: x.row.ref, html: x.html })), { executablePath: browser.path, width: T.width, height: T.height }); }
+    try { shots = await capture(todo.map((x) => ({ ref: x.row.ref, html: x.html, ...(x.frame ? { frame: x.frame } : {}) })), { executablePath: browser.path, width: T.width, height: T.height }); }
     catch (e) { shots = todo.map(() => ({ error: e.message })); }
     todo.forEach((x, i) => {
       const s = shots[i] ?? { error: 'no frame' };
@@ -130,13 +132,13 @@ export async function captureOpeningFrames(items, { executablePath, width = FIRS
   const browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
   const out = [];
   try {
-    for (const { html } of items) {
+    for (const { html, frame } of items) {
       let pg = null;
       try {
         // eslint-disable-next-line no-await-in-loop -- one level at a time, one browser
         pg = await browser.newPage();
         // eslint-disable-next-line no-await-in-loop
-        out.push(await openingFrame(pg, html, { B, width, height, timeoutMs, root: C.WORLD_ROOT_SELECTOR, hide: C.WORLD_HIDE_SELECTORS, settle }));
+        out.push(await openingFrame(pg, html, { B, width: frame?.width ?? width, height: frame?.height ?? height, timeoutMs, root: C.WORLD_ROOT_SELECTOR, hide: C.WORLD_HIDE_SELECTORS, settle }));
       } catch (e) {
         out.push({ error: e.message });
       } finally {

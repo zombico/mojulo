@@ -25,6 +25,7 @@
  *     shell?: 'play',                      // the light shell (play-shell.js); absent: the arena shell
  *     front?: { cover?, layout?, tagline?, press?, menu?, credits?, end? }   // the light shell's title over a cover,
  *                                          // its start menu, options, credits and end (play-front.js)
+ *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // the screen it is made for (screen.js)
  *     run?: { length } }                   // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
  *
@@ -78,6 +79,7 @@
  * (evalGate): { flag, equals?, slice? } | { completed: ref, slice? }.
  */
 
+import { readScreen } from './screen.js';
 import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
 import { readFront } from './play-front.js';
@@ -295,6 +297,12 @@ export function validateGameManifest(manifest) {
   if (manifest.front !== undefined) {
     if (manifest.shell !== 'play') errors.push("front is the light shell's title screen, start menu and credits: add shell: 'play' (the arena shell's is menu)");
     readFront(manifest.front, { levels: Array.isArray(manifest.levels) ? manifest.levels.length : 0, run: manifest.run !== undefined }).forEach((e) => errors.push(e));
+  }
+
+  // SCREEN (screen.js): the screen the game is made for; its levels hold the frame, the shell leaves room for the
+  // notch and the home bar. Presentation: it never gates play
+  if (manifest.screen !== undefined && manifest.screen !== null) {
+    try { readScreen(manifest.screen); } catch (e) { errors.push(e.message); }
   }
 
   if (manifest.theme !== undefined) {

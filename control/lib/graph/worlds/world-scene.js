@@ -18,6 +18,7 @@
  * with no traversable form (the caller then points the user back at /scene or /svg).
  */
 
+import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -1072,6 +1073,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const k = sketch.manifest.pixel === true ? 4 : sketch.manifest.pixel;
     if (!(Number.isInteger(k) && k >= 2 && k <= 8)) throw new Error(`pixel is true or 2 to 8 (screen pixels a drawn one covers), not ${JSON.stringify(sketch.manifest.pixel)}`);
     payload.pixel = { scale: k };
+  }
+
+  // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
+  // fov is derived at it. Absent: the page's own box, every byte as it was.
+  if (payload && sketch.manifest.screen != null) {
+    const S = readScreen(sketch.manifest.screen);
+    payload.screen = screenPayload(S);
+    payload.viewBox = screenFrame(S, 1120);
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

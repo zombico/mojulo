@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Resolution lock
+
+- **A game is made for a screen.** A gameworld's `screen` (beside `camera`; `quick.screen` too) names the screen it is
+  designed for: `'phone'` (upright, 9:16), `'tablet'` (an iPad on its side, 4:3; `{ pole: 'tablet', orientation:
+  'portrait' }` stands it up), `'screen'` (a monitor, 16:9), or `{ aspect: [w, h] }`. A new game `design_game` starts
+  is made for a phone unless another screen is named; `screen: null` asks for none. A stored game without one plays
+  exactly as it did.
+- **The frame is held.** Each level plays in the screen's frame, the least a player sees: a longer device shows more
+  world along the frame's long axis (up to a third more), and bars past that or on a shorter device. The camera's
+  field of view across the frame's short side never changes, so an upright phone keeps the view it was designed with.
+  The game's pages leave room for the notch and the home bar.
+- **The gates measure it.** The first-frame check and traversals render each level at its screen's frame.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

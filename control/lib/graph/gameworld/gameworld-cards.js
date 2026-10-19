@@ -34,6 +34,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
@@ -131,6 +132,7 @@ function worldCard() {
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
     '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
     '  a key that is a hero\'s power opens the door and gives the hero its move.',
     '',
@@ -329,6 +331,7 @@ const quickShared = () => [
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
+  `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation? }   the screen it is made for (absent: a ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
   `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,

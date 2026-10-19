@@ -61,6 +61,7 @@
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
+ *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // written to the world's own `screen` (game/screen.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
  *                                           // rolled order; a death ends the run (the play shell keeps the deepest)
  *   }
@@ -76,6 +77,7 @@ import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
+import { readScreen } from '../game/screen.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -149,7 +151,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -213,6 +215,7 @@ export function readQuick(Q) {
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
   if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
@@ -300,7 +303,7 @@ export function readQuick(Q) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera', 'screen'];
 function readFight(Q) {
   for (const k of Object.keys(Q)) {
     if (k === 'stages') throw fail('.stages: a fight is fought on its arenas (name them as arenas)');
@@ -373,7 +376,8 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
-  const { camera: named, ...quick } = given;
+  // (and the screen it is made for, beside it: game/screen.js)
+  const { camera: named, screen, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -403,7 +407,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(screen !== undefined ? { screen } : {}),
     style: { ...(style ?? {}), kit },
     levels,
     quick,

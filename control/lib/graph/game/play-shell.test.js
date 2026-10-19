@@ -45,6 +45,19 @@ describe('emitPlayShell', () => {
     expect(emitPlayShell(GAME, LEVELS)).toBe(emitPlayShell(GAME, LEVELS));
   });
 
+  it('made for a screen: the page fills the device, its chrome clear of the notch, its buttons a thumb\'s size', () => {
+    const phone = { ...GAME, screen: 'phone' };
+    expect(validateGameManifest(phone)).toEqual({ ok: true, errors: [] });
+    const html = emitPlayShell(phone, LEVELS);
+    expect(html).toContain('<html lang="en" data-screen="phone" data-orientation="portrait">');
+    expect(html).toContain('viewport-fit=cover');
+    expect(html).toContain('#pauseBtn{top:calc(12px + var(--safe-t))');
+    expect(html).toContain('button{min-height:44px}');
+    // absent: none of it
+    const plain = emitPlayShell(GAME, LEVELS);
+    expect(plain).not.toMatch(/data-screen|viewport-fit|--safe-t/);
+  });
+
   it('speaks none of the arena: no battle, pilot, suit or hangar words, no store dump on a screen', () => {
     // stats.pilot is the envelope's own field (the wire), read to highlight the player's row
     const html = emitPlayShell(GAME, LEVELS).replace(/stats\.pilot/g, '');
