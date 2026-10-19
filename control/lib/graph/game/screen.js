@@ -7,7 +7,11 @@
  * up to REACH, and bars past it; a device shorter along it gets bars. The field of view across the frame's short side
  * never moves: a phone frame grown taller keeps its horizontal view, a monitor frame grown wider keeps its vertical one.
  *
- *   screen: 'phone' | 'tablet' | 'screen' | { pole?, aspect?: [w, h], orientation?: 'portrait' | 'landscape' }
+ *   screen: 'phone' | 'tablet' | 'screen' | { pole?, aspect?: [w, h], orientation?: 'portrait' | 'landscape', fov? }
+ *
+ * `fov` is the field of view across the frame's short side, in degrees (its width upright, its height on its side).
+ * Absent, the camera table says it for an upright frame (gameworld/cameras.js), and a frame on its side keeps the
+ * level's own.
  *
  * Absent: no frame, the page exactly as it was. Pure.
  */
@@ -22,7 +26,7 @@ export const NEW_GAME_SCREEN = 'phone';
 /** How much longer than the frame a device's long axis may show before the page bars it. */
 export const REACH = 4 / 3;
 const ORIENTATIONS = ['portrait', 'landscape'];
-const KEYS = ['pole', 'aspect', 'orientation'];
+const KEYS = ['pole', 'aspect', 'orientation', 'fov'];
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const poles = () => Object.entries(SCREENS).map(([k, v]) => `${k} (${v.says})`).join('; ');
@@ -48,7 +52,9 @@ export function readScreen(v, where = 'screen') {
     if (!Array.isArray(a) || a.length !== 2 || !a.every((x) => Number.isFinite(x) && x > 0)) throw new Error(`${where}.aspect is [w, h], two positive numbers (9:16 is [9, 16])`);
     if (a[0] / a[1] > 4 || a[1] / a[0] > 4) throw new Error(`${where}.aspect is at most 4:1 either way`);
   }
-  return framed(v.pole ?? 'custom', v.aspect ?? SCREENS[v.pole].aspect, v.orientation ?? null);
+  if (v.fov !== undefined && !(Number.isFinite(v.fov) && v.fov >= 20 && v.fov <= 120)) throw new Error(`${where}.fov is the field of view across the frame's short side, 20 to 120 degrees`);
+  const S = framed(v.pole ?? 'custom', v.aspect ?? SCREENS[v.pole].aspect, v.orientation ?? null);
+  return v.fov !== undefined ? { ...S, fov: v.fov } : S;
 }
 
 // the aspect turned to the orientation asked for (a square is landscape)
@@ -64,9 +70,13 @@ export function screenFrame(S, long) {
   return { width: Math.round(w * k), height: Math.round(h * k) };
 }
 
-/** What the level page reads: the frame's aspect (w/h), whether its long axis is the height, and the reach. */
+/** What the level page reads: the frame's aspect (w/h), whether its long axis is the height, the reach, and the
+ * frame's vertical fov (`v0`) when a fov is named (absent: the level's camera's own). */
 export function screenPayload(S) {
-  return { pole: S.pole, aspect: r4(S.aspect[0] / S.aspect[1]), portrait: S.orientation === 'portrait', reach: r4(REACH) };
+  const aspect = S.aspect[0] / S.aspect[1], portrait = S.orientation === 'portrait';
+  // a fov named: the frame's vertical fov from it (across the width upright, the height itself on its side)
+  const v0 = S.fov === undefined ? null : portrait ? 2 * Math.atan(Math.tan(S.fov * Math.PI / 360) / aspect) * 180 / Math.PI : S.fov;
+  return { pole: S.pole, aspect: r4(aspect), portrait, reach: r4(REACH), ...(v0 !== null ? { v0: r4(v0) } : {}) };
 }
 
 /**

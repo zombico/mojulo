@@ -24,6 +24,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { readScreen } from '../game/screen.js';
 import { fingerprint, reviewState } from './review.js';
 import { readGameworld } from './world.js';
 import { resolveBook, characterReady } from './character-review.js';
@@ -274,7 +275,10 @@ function quickSteps(world, G, ref, lookup) {
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = quickVersus(Q, { title, theme: Q.theme ?? paletteTheme(G), arenas: arenas.map((a) => ({ ref: a.ref, name: a.name })), roster });
-    return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+    // (a side-view fight across an upright screen: advised, never refused)
+    const upright = G.screen ? readScreen(G.screen).orientation === 'portrait' : false;
+    const laws = upright ? [{ concern: 'screen', law: 'frame-fits', holds: false, says: 'a side-view fight across an upright screen leaves the two fighters a sliver of the stage: a fight reads better on a tablet or a screen' }] : null;
+    return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(laws ? { laws } : {}) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;

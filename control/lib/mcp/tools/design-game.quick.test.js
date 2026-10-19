@@ -21,6 +21,8 @@ beforeEach(() => { closeDb(); });
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
 const mechanicsOf = (ref) => stored(ref).game.mechanics.map((m) => m.kind);
 
+// (a test of a genre's camera plays it on a screen on its side, where every camera is as authored: an upright screen
+// reframes them by rule, gameworld/screen.test.js)
 describe('design_game quick', () => {
   it('collect, first person: the coins lie on the trail\'s beats, the exit at its end, the game in one call', async () => {
     const out = await designGameHandler({ quick: { goal: 'collect', pickup: 'coin', world: { id: 'coins', name: 'Coin Run', style: { kit: 'trail-valley' } } }, ref: 'q' });
@@ -58,7 +60,7 @@ describe('design_game quick', () => {
   }, 240_000);
 
   it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
-    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
+    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, screen: 'screen', world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
     const H = stored('m-hero');
     expect(H.plan.mascot).toMatchObject({ form: expect.any(String), height: expect.any(Number) });
@@ -290,7 +292,7 @@ describe('design_game quick', () => {
   }, 240_000);
   it('a field of racers: each in the machine its driver reads as, on its own physics, balanced; nothing to mint', async () => {
     const racers = ['hero', 'a grumpy old wizard', { archetype: 'innocent', build: 'brute' }];
-    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
+    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', screen: 'screen', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
     const L = stored('cr-level-run-0');
@@ -609,7 +611,7 @@ describe('design_game quick', () => {
   }, 300_000);
 
   it('deathmatch over the shoulder: a hero played third-person, the camera off its right shoulder, its rounds converged', async () => {
-    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', screen: 'screen', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
     const L = stored('ov-level-run-0');
     expect(L.camera).toMatchObject({ rule: 'follow', target: 'hero', dist: 2.8, shoulder: 0.75, lead: 10 });
     expect(L.entities[0].weapon.converge).toBe(true);

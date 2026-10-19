@@ -26,6 +26,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   field of view across the frame's short side never changes, so an upright phone keeps the view it was designed with.
   The game's pages leave room for the notch and the home bar.
 - **The gates measure it.** The first-frame check and traversals render each level at its screen's frame.
+- **Cameras framed for an upright screen.** On a phone (or any upright frame) each camera is framed by its kind, never
+  by genre: a chase camera is pulled back and looks a little higher, so the hero stands about a third of the way up
+  the screen, clear of the thumbs, with the way ahead above; the top-down and side cameras pull back; the view across
+  the width narrows so the screen's height does not stretch. A frame on its side plays every camera as authored.
+  `screen: { pole: 'phone', fov }` names the view across the short side yourself.
+- **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
+  (a tablet or a screen frames them better); it is never refused.
 
 ## [3.1.1] - 2026-10-16
 

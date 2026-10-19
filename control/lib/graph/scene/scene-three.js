@@ -1213,7 +1213,7 @@ function updateCutaway() {
 
 ${screen ? `// THE SCREEN (game/screen.js fitScreen): #wrap is the frame, longer along its long axis up to the reach, barred past
 // it; a portrait frame grown taller keeps its horizontal fov, so its vertical one opens by frame / shown
-const SCREEN = ${JSON.stringify({ aspect: screen.aspect, portrait: !!screen.portrait, reach: screen.reach })};
+const SCREEN = ${JSON.stringify({ aspect: screen.aspect, portrait: !!screen.portrait, reach: screen.reach, ...(Number.isFinite(screen.v0) ? { v0: screen.v0 } : {}) })};
 let __fovK = 1;
 function screenFit(){
   const W = window.innerWidth || 1, H = window.innerHeight || 1, a = W / H, A = SCREEN.aspect;
@@ -1221,7 +1221,8 @@ function screenFit(){
   wrap.style.width = (shown < a ? H * shown : W) + 'px'; wrap.style.height = (shown > a ? W / shown : H) + 'px';
   __fovK = SCREEN.portrait && shown < A ? A / shown : 1;
 }
-const screenFov = (v) => 2 * Math.atan(Math.tan(v * Math.PI / 360) * __fovK) * 180 / Math.PI;
+// (the frame's own vertical fov when the screen names one, the camera table's for an upright frame: in place of the level's)
+const screenFov = (v) => 2 * Math.atan(Math.tan((SCREEN.v0 ?? v) * Math.PI / 360) * __fovK) * 180 / Math.PI;
 ` : ''}function resize(){
 ${screen ? `  screenFit();
 ` : ''}  const w = wrap.clientWidth, h = wrap.clientHeight;

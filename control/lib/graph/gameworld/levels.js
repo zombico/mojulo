@@ -34,7 +34,8 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
-import { fixedStations } from './cameras.js';
+import { fixedStations, uprightCamera } from './cameras.js';
+import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
@@ -310,7 +311,20 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
 export function stageLevelOrder(G, stage, opts) {
   const L = layStageLevel(G, stage, opts);
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
-  return G.screen ? { ...L, args: { ...L.args, manifest: { ...L.args.manifest, screen: G.screen } } } : L;
+  return G.screen ? screenLevel(G.screen, L) : L;
+}
+
+/** A level order framed for its screen: the screen on its manifest; an UPRIGHT frame's camera from the table
+ * (cameras.js uprightCamera: its width fov, a chase pulled back with its look raised), the creator's own fov winning;
+ * a side camera across an upright frame advised (a law that does not hold: advice, never a refusal). */
+function screenLevel(written, L) {
+  const S = readScreen(written), m = L.args.manifest;
+  if (S.orientation !== 'portrait') return { ...L, args: { ...L.args, manifest: { ...m, screen: written } } };
+  const U = uprightCamera(m.camera ?? null);
+  const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov: S.fov ?? U.fov };
+  const manifest = { ...m, ...(U.camera ? { camera: U.camera } : {}), screen };
+  const advice = U.lane !== undefined ? [{ concern: 'screen', law: 'frame-fits', holds: false, says: `a side camera across an upright ${S.pole === 'custom' ? 'frame' : S.pole} sees about ${U.lane} m of its lane (about ${U.laneWide} m on a monitor): a side-scroller reads better on a tablet or a screen` }] : [];
+  return { ...L, args: { ...L.args, manifest }, ...(advice.length ? { laws: [...(L.laws ?? []), ...advice] } : {}) };
 }
 
 function layStageLevel(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
