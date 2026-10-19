@@ -46,8 +46,9 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   it hops the kernel's path. A room is seen as a dollhouse (no ceiling, its walls cut at the waist); over land the
   overlay drapes on the ground. An RTS form pans and scrolls at the edge instead of turning. A page without a board
   keeps every byte. The `board` input scheme names its keys.
-- **A `tactics` quick goal**, and **tower defence on a board** (`defend` with `board`): towers fill spots, and foes
-  path over the free ones.
+- **Tactics games through the game book** (`design_game`): battles fought on boards laid over each level's own
+  ground, the party carried from battle to battle; and **tower defence on a board** on the quick path (`defend` with
+  `board`): towers fill spots, and foes path over the free ones.
 
 ## [3.1.1] - 2026-10-16
 
