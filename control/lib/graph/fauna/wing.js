@@ -47,7 +47,7 @@ export function membrane(W, arm, rays, place) { const M = W.membrane; const K = 
   const mesh = { ...raw, group: G.top, faceGroups: loftLabels(raw, (j, k) => (k < n - 1 ? G.top : k === n - 1 ? G.rim : k < 2 * n - 1 ? G.under : G.rim), [G.rim, G.rim]) };
   // VEINS: on the underside only, along every `veins.every`-th sub-ray between the bone rays, from near the root toward the edge
   const veins = []; if (M.veins) subs.forEach(({ anc, d, L }, j) => { const u = j % K; if (!u || u % M.veins.every) return; const pts = [0.08, 0.3, 0.55, M.veins.to].map((s) => place([anc[0] + d[0] * L * s, anc[1] + d[1] * L * s, -thAt(j, s) / 2 - M.veins.r * 0.4]));
-    veins.push({ ...tube(pts, M.veins.r, M.veins.r * 0.35, 5), group: G.vein }); });
+    veins.push({ ...tube(pts, M.veins.r, M.veins.r * 0.35, 5), group: G.vein, ray: j }); });
   return { mesh, veins, weights, edge: subs.map(({ anc, d, L }) => [anc[0] + d[0] * L, anc[1] + d[1] * L]) }; }
 /** VANES: one thin flat loft per ray (a feather), layered by `layer` along the plane normal; its width
  * narrows past `emarg.from` (emargination), so the outer primaries separate into slots. */
@@ -76,7 +76,7 @@ export function buildWing(W, root, f, side = 'R') {
     if (W.surface === 'vanes' && !r.digit) { const id = `${r.kind}${r.i}`; const v = vane(r, place); parts[id] = { ...flip(v), group: r.group, faceGroups: v.faceGroups }; bind[id] = { [r.boneId]: 1 }; }
   }
   let edge = null;
-  if (W.surface === 'membrane') { const m = membrane(W, arm, rays, place); parts.membrane = { ...flip(m.mesh), faceGroups: m.mesh.faceGroups }; m.veins.forEach((v, i) => { parts[`vein${i}`] = { ...flip(v), group: v.group }; }); bind.membrane = m.weights; edge = m.edge; }
+  if (W.surface === 'membrane') { const m = membrane(W, arm, rays, place); parts.membrane = { ...flip(m.mesh), faceGroups: m.mesh.faceGroups }; m.veins.forEach((v, i) => { parts[`vein${i}`] = { ...flip(v), group: v.group, ray: v.ray }; }); bind.membrane = m.weights; edge = m.edge; }
   return { parts, bones, bind, arm, rays, edge }; }
 
 export { tube };
@@ -85,7 +85,22 @@ export { tube };
  * authored at the family's size and grown by `scale`) is ONE layer-2 part pinned to a small hidden core segment at
  * the root joint `at` (an x > 0 joint, mirrored by name), every vertex an offset in that pin's frame. Adds the
  * segment `wingCoreR` (+ its mirror), the include `wings` and the wing palette; returns the plan. */
-export function wearWings(plan, { wing, at = 'wingRoot', fold = 1, scale = 1, core = 0.04, coreFit = false, pitch, palette = {} }) {
+// a built wing's per-point bone weights: by part (an arm or digit tube its bone, a claw its digit, a feather its ray's
+// bone) and, on the membrane and its veins, by the sub-ray a point's station is (wing.js `membrane` weights)
+function wingWeights(W, w) {
+  const arm = new Set(W.arm.map((b) => b.id)), mem = w.bind.membrane || [], last = W.arm[W.arm.length - 1].id;
+  const station = (pk, n) => { if (pk === 'back') return 0; if (pk === 'tip') return n - 1; const m = /^st(\d+)\./.exec(pk); return m ? Math.min(n - 1, Number(m[1])) : 0; };
+  return (name, pk, d) => {
+    if (arm.has(name)) return { [name]: 1 };
+    const dg = /^(?:digit|claw)(\w+)$/.exec(name); if (dg) return { [`digit${dg[1]}`]: 1 };
+    if (w.bind[name] && !Array.isArray(w.bind[name])) return w.bind[name];
+    if (name === 'membrane' && mem.length) return mem[station(pk, mem.length)];
+    if (/^vein\d+$/.test(name) && mem.length && Number.isInteger(d.ray)) return mem[Math.min(mem.length - 1, d.ray)];
+    return { [last]: 1 };
+  };
+}
+
+export function wearWings(plan, { wing, at = 'wingRoot', fold = 1, scale = 1, core = 0.04, coreFit = false, pitch, palette = {}, articulated = false }) {
   const J = plan.joints[at]; if (!J) throw new Error(`wings: no joint '${at}'`);
   // `pitch` (opt-in, degrees about x, + raises the front): the FOLDED wing plane tilted with an upright trunk
   if (pitch !== undefined) { const c = Math.cos(rad(pitch)), s = Math.sin(rad(pitch)), rx = ([x, y, z]) => [x, y * c - z * s, y * s + z * c];
@@ -104,11 +119,16 @@ export function wearWings(plan, { wing, at = 'wingRoot', fold = 1, scale = 1, co
     const host = built[`wingCore${side}`]; const [faceId, face] = Object.entries(host.faces).sort(([a], [b]) => (a < b ? -1 : 1))[0];
     const pin = { parent: `wingCore${side}`, face: faceId, weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: [face[0], face[1]], handedness: 1 };
     const frame = pinFrame(host, pin); const root = side === 'L' ? [-J[0], J[1], J[2]] : J;
-    const w = buildWing(wing, [0, 0, 0], fold, side); const offsets = {}, faces = {}, groups = {}; let nv = 0, nf = 0;
+    const w = buildWing(wing, [0, 0, 0], fold, side); const offsets = {}, faces = {}, groups = {}, boneWeights = {}; let nv = 0, nf = 0;
+    const weighOf = articulated ? wingWeights(wing, w) : null;
     for (const name of Object.keys(w.parts).sort()) { const d = w.parts[name]; const idx = {};
-      for (const [pk, p] of Object.entries(d.points)) { const id = `v${String(nv++).padStart(5, '0')}`; idx[pk] = id; offsets[id] = surfaceLocalOffset(frame, p.map((x, i) => root[i] + x * k)).map(r6); }
+      for (const [pk, p] of Object.entries(d.points)) { const id = `v${String(nv++).padStart(5, '0')}`; idx[pk] = id; offsets[id] = surfaceLocalOffset(frame, p.map((x, i) => root[i] + x * k)).map(r6);
+        if (weighOf) boneWeights[id] = Object.entries(weighOf(name, pk, d)).map(([b, x]) => [`${b}${side}`, r6(x)]); }
       d.faces.forEach((f, i) => { const id = `f${String(nf++).padStart(5, '0')}`; faces[id] = f.map((q) => idx[q]); groups[id] = d.faceGroups ? d.faceGroups[i] : d.group; }); }
-    parts[`wing${side}`] = { layer: 2, pin, offsets, faces, groups };
+    // ARTICULATED (opt-in): every vertex weighed to the wing bones it hangs from (the arm and digit tubes their own, a
+    // feather its ray's bone, the membrane each sub-ray's blend between its rays), so the wing folds and beats along
+    // its bones instead of riding the root rigidly. Absent ⇒ the wing as before, one rigid piece on its pin
+    parts[`wing${side}`] = { layer: 2, pin, offsets, faces, groups, ...(weighOf ? { boneWeights } : {}) };
   }
   plan.include = [...(plan.include || []), { name: 'wings', parts, shift: [0, 0, 0] }];
   plan.palette = { ...(plan.palette || {}), ...palette };

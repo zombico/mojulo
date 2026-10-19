@@ -86,3 +86,15 @@ These hold beside the ten mascot laws.
   and why.
 - `node ../docs/examples/mascot/render-mascots.mjs 'fox|panda|owl'` draws them, and `--faces` draws their faces.
   `node scripts/fauna-lineup.mjs --one real fox giantPanda` draws the real animals to compare against.
+
+## On its own legs: the mascot ooze
+
+The same cards make a species a mascot without standing it up. `create_character({ as: 'animal', spec: { species,
+ooze: ['mascot'] } })` keeps the animal's skeleton, stance and gaits (the mutagen's joint law) and reads the rest onto
+its body from its card ([control/lib/graph/mutagen/mascot.js](../control/lib/graph/mutagen/mascot.js)). The head is grown
+by the card's form, the eye to law 4's share of the head, and the face shortened by the muzzle's kind (A4). The kept
+identifiers are drawn big and an ear past the budget smaller (A1). The limbs take the family's weight (A7) over big
+paws, and the coat its saturation (A6). One signature piece says the promise (Ad5, a champion's belt read as a studded
+collar on four legs). A3 (stand it up) and A9 (the idle) are what this reading leaves to `as: 'mascot'`. It composes
+with the other oozes: `['mascot', 'frost']`.
+

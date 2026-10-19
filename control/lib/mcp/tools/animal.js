@@ -43,6 +43,9 @@ import { BUG_SPECIES, bugParams, resolveBug, assembleBug } from '@/lib/graph/bug
 import { withBugMotion, bugMotionGaits, bugMotionBehaviors, bugBehaviorLines } from '@/lib/graph/bugs/rig';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
+import { mutagenErrors } from '@/lib/graph/mutagen/index';
+import { oozeBody, oozeMotion } from '@/lib/graph/mutagen/rig';
+import { oozeSetting, settingToon } from '@/lib/graph/mutagen/setting';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
 // The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
@@ -159,6 +162,18 @@ export async function createAnimalHandler(input) {
   if (input.motion !== undefined && input.motion !== null && input.motion !== false && (maker || archetype)) {
     throw new Error('`motion` animates a `species` (its skeleton and gaits); a maker body or an archetype has none yet');
   }
+  // OOZES (opt-in, graph/mutagen): a ring-plan species made into a game creature, its limbs and rig its own. Checked
+  // here; every door but a fauna species refuses it below, once the species is resolved.
+  const { ooze, seed, stylism } = input;
+  const oozeErrs = mutagenErrors(ooze, seed, stylism);
+  if (oozeErrs.length) throw new Error(`animal: ${oozeErrs.join('; ')} — read get_solid_vocab({ id: 'animal' }) (Oozes)`);
+  const oozed = (ooze !== undefined && ooze !== null) || (stylism !== undefined && stylism !== null);
+  if (oozed && (maker || archetype || bug)) throw new Error('`ooze` and `stylism` mutate a `species` (a ring plan from its family\'s tables); a maker body, an archetype or a bug takes none yet');
+  // A GAME'S SETTING (mutagen/setting.js; gameworld/cast-setting.js settingOfGame hands it over): the tradition's light,
+  // and what the oozes make dressed from the world's ramps. A ring-plan species only; absent ⇒ byte-identical
+  let setting = null;
+  try { setting = oozeSetting(input.setting); } catch (err) { throw new Error(`animal: ${err.message} — read get_solid_vocab({ id: 'animal' }) (In a game's look)`); }
+  if (setting && (maker || archetype || bug)) throw new Error('`setting` dresses a `species` (a ring plan) in its game\'s look; a maker body, an archetype or a bug takes none yet');
   if (maker !== undefined && maker !== null) {
     if (species || archetype || bug) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype` OR `bug`, not several');
     if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
@@ -204,6 +219,7 @@ export async function createAnimalHandler(input) {
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
+  if (oozed && !FAUNA[species]) throw new Error(`\`ooze\` and \`stylism\` mutate a ring-plan species; '${species}' is ${BUG_SPECIES[species] ? 'a bug' : 'a figure-body recipe'} and takes none yet`);
 
   // An ARTHROPOD (lib/graph/bugs): a worked bug by `species` (or the name people say, resolved above), or one nobody
   // has built by `bug` (the closest worked bug with the asked part forms worn over it). Ring plans through the layered
@@ -238,12 +254,21 @@ export async function createAnimalHandler(input) {
     }
     // MOTION (opt-in, fauna/rig.js): the plan bound to the species' skeleton, carrying its gaits as clips the World
     // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
-    const motion = motionSpec(species, input.motion);
+    // OOZES: the form laid over the species' params before its body is built; absent (or every strength 0) ⇒ the
+    // species' own plan, byte-identical, and nothing stored. An oozed creature is a body of its own (mutagen/rig.js):
+    // its skeleton follows its size and grows bones for its grafts, and its gaits are its own (grafted wings fly)
+    const B = oozed ? oozeBody(species, { ooze, seed, stylism, ...(setting ? { setting } : {}) }) : null, M = B?.mutagen ?? null, rid = B?.rid ?? species;
+    const toon = settingToon(setting);
+    const motion = motionSpec(rid, input.motion);
+    const seat = B?.report ?? {}, plan = M ? B.plan : speciesPlan(species);
+    const moved = motion ? withMotion(plan, rid, motion.gaits, motion.keys, motion) : plan;
+    if (motion && M) moved.motion = oozeMotion(moved.motion, species, { oozes: M.oozes, seed: M.seed, stylism });
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys, motion) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved, species,
+      title, plan: moved, plan_audit: { source: 'agent' }, ...carved, species, ...(toon && !carved.statue ? { toon } : {}),
+      ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, ...(stylism ? { stylism } : {}), ...(setting ? { setting } : {}) } } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(M ? { ooze: { oozes: M.oozes, seed: M.seed, form: M.form, ...(seat.notes ? { notes: seat.notes } : {}), ...(seat.face !== undefined && seat.face < 1 ? { face: seat.face, note: `the head seats ${seat.face * 100}% of the oozes' face (a fuller one cannot place its lids)` } : {}), ...(seat.eye !== undefined ? { eye: seat.eye, eye_note: `the head seats ${seat.eye * 100}% of the oozes' eye growth (a bigger eye cannot place its lids)` } : {}), ...(seat.expression !== undefined ? { expression: seat.expression } : {}), ...(seat.setting ? { setting: { ...seat.setting, light: toon ? 'character' : 'studio' } } : {}) } } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(rid, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is

@@ -28,9 +28,9 @@
  *
  * Pure and deterministic.
  */
-import { speciesParams, speciesPlan, SPECIES } from './species.js';
-import { locomotionFor } from './locomotion/index.js';
+import { SPECIES } from './species.js';
 import { buildWing } from './wing.js';
+import { bodySpecies, bodyParams, bodyPlan, bodyLocomotion } from './body.js';
 
 const TRUNK = /^(torso|coils|body\d*)$/;
 const NECK = /^(neck|neckDown|neckUp|longNeck)$/;
@@ -101,9 +101,9 @@ const segDist = (q, a, b) => { const d = sub(b, a), L2 = dot(d, d); const u = L2
 
 /** A species' skeleton: `{ species, rig, bones: [{ id, parent, head, tail, role? }], bind: { <part>: … } }`. */
 export function faunaSkeleton(id) {
-  if (!SPECIES[id]) return null;
-  const family = SPECIES[id].family;
-  const P = speciesParams(id), plan = speciesPlan(id), L = locomotionFor(family, id);
+  const species = bodySpecies(id); if (!species) return null;   // a species, or an oozed body (body.js)
+  const family = SPECIES[species].family;
+  const P = bodyParams(id), plan = bodyPlan(id), L = bodyLocomotion(id);
   const J = plan.joints, parts = plan.segments;
   const axisParts = (re) => parts.filter((p) => p.mirror !== 'name' && re.test(p.name));
 
@@ -206,7 +206,8 @@ export function faunaSkeleton(id) {
     : TAIL.test(name) ? (tail.length ? tail : [spine[0]])
     // any other axis part (a kangaroo's trunk, a hump, a crest) rides the body, not the tail, unless it is the tail's
     // (a horse's tailHair), so a swinging tail never drags the body with it
-    : /tail/i.test(name) || carved ? [...axial] : axial.filter((b) => !/^tail\d+$/.test(b.id)));
+    // an ooze's midline ornament (a ridge of plates nape to tail tip) rides whichever axis bone it stands on
+    : /tail/i.test(name) || carved || /^ooze/.test(name) ? [...axial] : axial.filter((b) => !/^tail\d+$/.test(b.id)));
   const nearestIn = (set) => (q) => set.reduce((b, c) => (segDist(q, c.head, c.tail) < segDist(q, b.head, b.tail) ? c : b)).id;
   const limbTube = rows.map((r) => {
     const part = parts.find((q) => q.name === r[0]), rad = (v) => (Array.isArray(v) ? Math.max(...v) : v || 0);
@@ -225,6 +226,8 @@ export function faunaSkeleton(id) {
       bind[p.name] = inside ? inside.id : nearestIn(axial)(mid); continue;
     }
     const pick = nearestIn(region(p.name));
+    // an ooze's ornament (a plate, a spike) is rigid: it rides the bone at its root, whole, never stretched between two
+    if (/^ooze/.test(p.name) && p.kind === 'segment') { const root = pick(J[p.from]); bind[p.name] = { from: root, to: root }; continue; }
     bind[p.name] = p.kind === 'segment' ? { from: pick(J[p.from]), to: pick(J[p.to]) } : { stations: c.map(pick) };
   }
 

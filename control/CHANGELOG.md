@@ -958,6 +958,47 @@ renders byte-identically without them.
   it: `column`, `rotunda` (a tholos with its lantern), `cloister`, `hall` (a pillared hall under a stepped roof) and
   `arena` (an oval bowl behind a storeyed, columned wall). The stepped-circle spire is now `beehive`.
 
+### Mutagenic oozes: base animals made into game creatures
+
+- **An animal takes oozes.** `create_character({ as: 'animal', spec: { species, ooze } })` turns a real species
+  into a game creature, drawn to read in a game rather than a field guide: `dire` (bigger and front-heavy, a crest of
+  hackles, a snarling face and glowing eyes, still the animal), `skeletal`, `zombie`, `techno`, `crystal`,
+  `mythical` (boss size), `herobot` (a toy hero robot in the animal's own colours: a helmeted big head, antennae, ball
+  joints and pauldrons, panel seams and vents, flared boots, plastic), `transmetal` (the animal's outline and fur, its details machined: chrome faceplate, plates, pistons), and
+  the elements `fire`, `frost`, `storm`, `venom`, `shadow`, and `mascot` (the animal as its own mascot on its own legs,
+  by the mascot laws and its family's mascot card: a big round head, toon eyes, a short face, stumpy limbs, owned
+  colours and one signature piece its folk promise says). Oozes compose
+  (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
+  uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
+  live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
+- **Design notes style a creature up.** `stylism: { register, detail, focal, motif }` on an animal, with or without
+  oozes, is the hero door's stylism tuner compressed for a beast: the register heightens every push together, the
+  detail budget spends ornaments (horns, spurs, spikes, a ruff, bands, a burning tail) from the focal out by the
+  tuner's laws (hierarchy, one echo, rest, an accent from heroic up), all in one motif a clear value step from the coat,
+  and the mint returns its design notes. `mythical` (a boss) carries its own mythic, rich stylism.
+- **From pure to chimera.** `stylism.chimera` (pure · touched · hybrid · chimera) grafts what the animal should not
+  have, in the order it breaks the silhouette: horns, a ridge of plates down the back and tail, another creature's tail
+  (serpent, scorpion, lion, dragon), wings (feathered or membrane by the motif, carried half raised), a second crown.
+  The seed and the motif choose the kinds; a mythic register is hybrid unless told.
+- **An oozed creature takes its game's look.** `spec.setting` (the setting the game rail hands its people: tradition and
+  ramps) gives an anime world's creature the character light, lit as a creature is, and dresses what the oozes make
+  (pieces, armour, panels, marks, ornaments) from the world's ramps, keeping its values; the coat, glows, metals and
+  signal colours stay their own, and the result ledgers every move. A shelf metal named by its word (`'gold'`,
+  `'chrome'`, `'gunmetal'`) now draws under the character light instead of throwing.
+- **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
+  material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
+  the exports. Absent, nothing changes.
+- **The creature's own rig.** An oozed animal with `motion` moves on its own body: the fauna rig reads a body
+  registry (`lib/graph/fauna/body.js`), so its skeleton is derived from the mutated plan (a grown creature's bones are
+  its species' at its size, its clips the same turns), a grafted tail is carved into bones of its own and swings, and
+  grafted wings get wing bones and the `fly` and `glide` gaits. Ornaments ride the bone at their root. The stored motion
+  keeps the species and the ooze, so the World page and the GLB, Godot and other exports rebuild the same body. Every
+  species is byte-identical. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.
+- **Articulated wings.** `wearWings(…, { articulated: true })` weighs every wing point to the wing bones it hangs from
+  (an arm or digit its bone, a feather its ray's, the membrane each sub-ray's blend), honoured by `bindLayered` as a
+  pinned part's `boneWeights`, so a wing folds and beats along its bones. Grafted wings take it; birds and bats keep
+  their rigid wings until they opt in.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
