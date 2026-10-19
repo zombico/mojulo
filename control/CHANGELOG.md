@@ -14,6 +14,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Science worlds: a demo composed from laws, not authored per experiment
+
+- **In progress.** `create_view` gains three kinds that compose a demo from a closed table of laws instead of
+  one hand-authored experiment per kind: `classical` (Newtonian laws, body scale to orbits), `microscopic` (cells
+  down to molecules; DNA is the floor) and `atomic` (states in concept space, faithful to the model and claiming
+  nothing about reality). A recipe has two halves: a `model` that is dimension-checked, machine-gated and
+  measurable through `measure_view`, and a `dress` that only sells the picture. Every exaggeration is a declared
+  liberty the page shows. A law the table lacks is named as a gap, never approximated silently.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
