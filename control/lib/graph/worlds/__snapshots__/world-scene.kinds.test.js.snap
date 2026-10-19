@@ -3,7 +3,7 @@
 exports[`world-scene kinds — per-arm characterization > every dispatch arm resolves its fixture to a stable { title, hash } snapshot 1`] = `
 {
   "assembler": {
-    "hash": "3d7beacd",
+    "hash": "5254b405",
     "title": "mojulo assembler",
   },
   "atmosphere-view": {
@@ -11,7 +11,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo atmosphere",
   },
   "atom-view": {
-    "hash": "32747682",
+    "hash": "e0bdcf0a",
     "title": "mojulo atom",
   },
   "black-hole-view": {
@@ -23,7 +23,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo chain reaction",
   },
   "cellular-view": {
-    "hash": "f90b9ab4",
+    "hash": "e3f05eaf",
     "title": "mojulo cell",
   },
   "cherenkov-view": {
@@ -31,7 +31,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Cherenkov glow",
   },
   "comet-view": {
-    "hash": "981ebaa9",
+    "hash": "492e0c7e",
     "title": "mojulo comet",
   },
   "complete-square-view": {
@@ -39,16 +39,16 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo completing the square",
   },
   "complex-view": {
-    "hash": "9cac5cbe",
+    "hash": "fb1abe42",
     "title": "mojulo complex function",
   },
   "condo-complex": {
-    "hash": "c20b5674",
+    "hash": "f49f14c0",
     "tier": "T0",
     "title": "mojulo condo complex",
   },
   "conics-view": {
-    "hash": "f5599164",
+    "hash": "983e1efc",
     "title": "mojulo conic sections",
   },
   "controllable": {
@@ -56,27 +56,27 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo controllable world",
   },
   "derivative-view": {
-    "hash": "5036ad8e",
+    "hash": "55cda536",
     "title": "mojulo derivative",
   },
   "dna-process": {
-    "hash": "72751915",
+    "hash": "454289b5",
     "title": "mojulo DNA process",
   },
   "dna-view": {
-    "hash": "291bcfa9",
+    "hash": "28ffc3db",
     "title": "mojulo DNA",
   },
   "double-slit-view": {
-    "hash": "0fc32740",
+    "hash": "8774e444",
     "title": "mojulo double-slit",
   },
   "energy-cycle": {
-    "hash": "176314da",
+    "hash": "377c3fbe",
     "title": "mojulo energy cycle",
   },
   "field-flow-view": {
-    "hash": "e6c92786",
+    "hash": "49acb3e5",
     "title": "mojulo vector field",
   },
   "field-view": {
@@ -93,11 +93,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo house",
   },
   "fluid-view": {
-    "hash": "a050c714",
+    "hash": "61dece51",
     "title": "mojulo fluid",
   },
   "fractal-city": {
-    "hash": "e831a26c",
+    "hash": "127daff0",
     "tier": null,
     "title": "mojulo city",
   },
@@ -110,7 +110,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fusion",
   },
   "galaxy-view": {
-    "hash": "ebe5dba7",
+    "hash": "f1725fc8",
     "title": "mojulo galaxy",
   },
   "gravity-wave-view": {
@@ -122,16 +122,16 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mall": {
-    "hash": "6cb6e93f",
+    "hash": "0543ebc6",
     "tier": "T0",
     "title": "mojulo mall",
   },
   "mechanics-view": {
-    "hash": "d6ec378d",
+    "hash": "107894ff",
     "title": "mojulo mechanics",
   },
   "molecule-view": {
-    "hash": "68be51be",
+    "hash": "bd61ce9b",
     "title": "mojulo molecule",
   },
   "ocean-view": {
@@ -148,11 +148,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo terrain",
   },
   "parallel-transport-view": {
-    "hash": "5ae1f4ee",
+    "hash": "791a776a",
     "title": "mojulo parallel transport",
   },
   "planetary": {
-    "hash": "8218bffa",
+    "hash": "e6e6c71f",
     "title": "mojulo planetary",
   },
   "plasma-globe-view": {
@@ -160,7 +160,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo plasma globe",
   },
   "probability-view": {
-    "hash": "8d3a11ea",
+    "hash": "fcc5e876",
     "title": "mojulo galton board",
   },
   "pulsar-view": {
@@ -176,11 +176,11 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo quadratic",
   },
   "reactor-view": {
-    "hash": "f6a5e570",
+    "hash": "dd649158",
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "6168d86c",
+    "hash": "6c2032e9",
     "tier": "T0",
     "title": "mojulo restaurant",
   },
@@ -194,7 +194,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo Saturn",
   },
   "school-complex": {
-    "hash": "faf06226",
+    "hash": "9c9fbe2a",
     "tier": "T0",
     "title": "mojulo school complex",
   },
@@ -207,22 +207,22 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo star birth",
   },
   "store": {
-    "hash": "d52ed318",
+    "hash": "f5c9dbe3",
     "tier": "T0",
     "title": "mojulo store",
   },
   "subway-building": {
-    "hash": "e61a8093",
+    "hash": "47a9fa6f",
     "tier": "T0",
     "title": "mojulo subway",
   },
   "subway-station": {
-    "hash": "176035ea",
+    "hash": "ad18e2f2",
     "tier": null,
     "title": "mojulo subway station",
   },
   "surface-view": {
-    "hash": "a95c4c18",
+    "hash": "647311b0",
     "title": "mojulo surface",
   },
   "transform-view": {
@@ -234,20 +234,20 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo transformer attention",
   },
   "transportation-hub": {
-    "hash": "020f985c",
+    "hash": "78a7f32c",
     "tier": null,
     "title": "mojulo transportation hub",
   },
   "trig-circle-view": {
-    "hash": "cc9d751e",
+    "hash": "eef1dbb6",
     "title": "mojulo unit circle",
   },
   "vector-match-view": {
-    "hash": "4d0cca1c",
+    "hash": "07d32e78",
     "title": "mojulo vector match",
   },
   "vehicle-instance": {
-    "hash": "48406292",
+    "hash": "5ef0921a",
     "title": "workbench · airliner",
   },
   "wavepacket-view": {
@@ -259,7 +259,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo windmill",
   },
   "workbench": {
-    "hash": "b751313c",
+    "hash": "4da76534",
     "title": "mojulo workbench",
   },
 }

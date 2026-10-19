@@ -123,7 +123,9 @@ const mix = (state, str) => {
 const hashWalk = (v, h) => {
   if (v === null || v === undefined) return mix(h, v === null ? 'null' : 'undef');
   const t = typeof v;
-  if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : 'float;');
+  // within 1e-9 of an integer reads as that integer: a cancellation residue (a normal's −9.98e-16) is exactly 0 on
+  // another libm build, and an int/float flip would move the hash (cellular-view did, 2026-10-19)
+  if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : Math.abs(v - Math.round(v)) < 1e-9 ? `int:${Math.round(v) + 0};` : 'float;');
   if (t === 'boolean') return mix(h, `${t}:${v};`);
   if (t === 'string') return mix(h, `${t}:${withPngPixels(v)};`);   // a texture by its pixels: Node builds compress it differently
   if (t === 'function') return mix(h, 'fn;'); // payloads should not carry functions; hash presence only
