@@ -71,6 +71,21 @@ export async function GET(request, { params }) {
       });
     }
 
+    // A board game (lib/graph/tabletop): its own page, the kernel and the computer carried in it.
+    if (sketch.manifest.engine === 'tabletop') {
+      const { emitTabletopGame } = await import('@/lib/graph/tabletop/tabletop-manifest');
+      let html;
+      try {
+        html = emitTabletopGame(sketch.manifest, { title: sketch.title });
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
+      return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': 'inline', 'Cache-Control': 'no-store' },
+      });
+    }
+
     let resolved;
     try {
       resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc, worldSrc);

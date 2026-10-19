@@ -204,6 +204,272 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   above as a commander would (the camera pans and scrolls at the edge). Without `board`, `defend` is the trail's as
   before.
 
+### Traditional board games: a board world of tiles, pieces and rules
+
+Board games composed, not coded: a board is a connection of tiles, and chess, checkers and euro games of resources,
+dice and trading are put together from the same systems and meeples (pieces, move rules, turns and exceptions; places,
+resources, building, cards, trading, scores), played against the computer. The book holds only games nobody owns: a
+published game asked for by name is written out from the rules the person explains, never guessed. The board is
+abstract (representational state, heights allowed, no map yet), drawn as an SVG plan and, where it is good enough,
+in CSS 3D. In progress:
+
+- **The lattice** (`lib/graph/polygonizer/lattice.js`), built: mandala-space tiled. Square and hex boards (pointy or
+  flat, a rectangle or a hexagon of hexes, carved by holes or a heights grid) as cells, corners and edges with shared
+  ids, so a piece can stand on a cell, a corner (a settlement) or an edge (a road). The relations are explicit: each
+  cell's neighbour by direction, in manji names (N E S W on a square; E NE NW W SW SE on a pointy hex), its corners
+  and edges in order round it, each corner's cells and edges, each edge's two corners and its cells. Heights stand on
+  the meru. Cells are named as on a chessboard (`C4`), a corner or an edge by any cell it touches and the way to it
+  (`C4.ne`), every alias the same record. Lattice vectors move on it (a step, a slide until the board or a hole
+  ends it, a jump) and turn and mirror with the board, so a piece's moves are one vector under the board's symmetry:
+  a knight is eight moves from one, and the same piece plays on a hex. The relations' invariants are checked
+  (`latticeLaws`), and Euler counts the holes.
+- **The board drawn** (`lattice-svg.js`, `lattice-css3d.js`), built: the plan as SVG (cells in the board's own
+  colouring, corners, edges and names, highlights over them), and the board in CSS 3D, a top a cell, sides where a
+  cell stands above its neighbour or the rim, a seat at the table and a view from above.
+- **The tabletop kernel** (`lib/graph/tabletop/tabletop-kernel.js`), built: a game as a pure function of its moves,
+  composed from data. A piece is what it can do: a vector (or a way) under the board's symmetry, stepped, slid or
+  leapt, landing on an empty cell, a foe or either, the cells it crosses empty, held by a foe or anything, taking what
+  it lands on, what it jumps or what left a mark. Exceptions are conditions (unmoved, a row counted from the player's
+  own side, a mark the last move left), marks, a partner piece that moves with it and a path that must not be
+  attacked; promotion offers each piece a pawn may become; a chain lets the same piece go again (a multi-jump). A
+  rule is written once for the first player and turned to face each other one. The game's rules: a royal piece that
+  may not be left attacked (mate and stalemate follow), compulsory capture, no move loses or draws, repetition, a
+  quiet count, a turn cap, moves a turn and passing, and a clock (base, increment, delay) that spends the time the
+  page measured, the kernel never reading one. One self-contained closure, as the strategy board's, so a page can
+  carry it.
+- **Chess and checkers as data** (`lib/graph/tabletop/games/`), built: written in those words alone, chess with
+  castling, en passant, promotion, check, the fifty-move rule and threefold repetition, and English draughts with
+  compulsory and chained jumps and crowning. A chess position loads from FEN. Their move counts match the published
+  perft tables (chess from the start, Kiwipete and the standard test positions; checkers from the start).
+- **The computer across the table** (`lib/graph/tabletop/tabletop-mind.js`), built: alpha-beta over the kernel's
+  moves, captures followed past the horizon, scored by what the game declares (its pieces' values, a promoting
+  piece's progress, the middle of the board), three levels (easy, fair, hard) by depth and by how far below the best
+  a pick may fall. Bounded by a count of positions, never a clock, with seeded dice between equal moves: the same
+  position and seed give the same move on any machine. A closure over the kernel, so a page carries both. The attack
+  test walks each capturing rule backwards from the square, which made the search about three times faster.
+- **The game to play** (`lib/graph/tabletop/tabletop-page.js`), built: one self-contained page against the computer,
+  carrying the board, the game, the kernel and the mind. Two views of one board: the plan (SVG) and the table (CSS 3D,
+  every cell's top a div played by clicking, a piece a token that slides from cell to cell). Select a piece to see
+  where it may go, a promotion picker, the last move marked, check and the outcome in the status, the move list, undo,
+  a new game, the level (easy, fair, hard), and the clocks when the game has one (the page measures a move's time and
+  hands the kernel the number). The person sits at their own side: playing black turns the plan and the table.
+- **The economy** (the tabletop kernel, grown), built: a game with building, dice or an opening is played on places,
+  a cell, a corner or an edge, so a settlement stands on a corner and a road on an edge. Stocks (a player's pieces
+  off the board), hands and a bank, costs; building as data, with conditions over the place graph (no building within
+  so many steps, beside the player's own kinds, a road reaching from the player's net and not through a foe's
+  settlement) and upgrades (a city on a settlement). Seeded dice at the turn's start; production (each hex showing
+  the roll pays the pieces on its corners, not under the robber, the bank's shortage rule); rolls that do something
+  else (a seven: half a hand over seven given up, the robber moved, a card stolen). Forced choices queue, even out of
+  turn, one move at a time. Decks shuffled from the seed, cards bought and held, played one a turn and never the turn
+  bought, their effects in a few verbs (the robber, free placements, gain from the bank, claim from every other
+  player). An opening in rounds (the snake), then roll and build. Scores from pieces, cards and awards (the longest
+  trail of a kind, broken by a foe's building; the most of a card played), a win on one's own turn. A view per player
+  deals what it cannot see again from what is unseen, so a computer never reads a hidden card or the dice ahead. A
+  bank exchange is an option. Chess and checkers keep their counts.
+- **The deal**, built: a system for a seeded setup. Cell types and numbers shuffled onto the board from the game's
+  seed, numberless types left bare, chosen numbers kept off neighbouring cells, neutral pieces set on a type; the same
+  seed, the same board.
+- **Trading between players**, built: a system (`trade: { offers, shapes }`). After the roll the player to move offers
+  any whole cards it holds for others; each other player answers in turn, accepting only what it can pay; the offerer
+  deals with one who accepted or calls it off; a few offers a turn, so a game always ends. The computer answers by
+  expected value and the table: what the trade does for its own position (points, income, hand, and how many rolls
+  it now stands from its next build) less what it does for the offerer's, weighed heavier when the offerer is ahead
+  of it and heavier again when the offerer leads, and never a trade with a player two points from winning. It offers
+  only what it foresees accepted and helpful, and deals with the partner its own position likes best. Four computers
+  with trading finish a dealt island in fewer turns than without (56, 128 and 66 turns against 96, 114 and 107 on
+  three seeds).
+- **An island economy, as a test fixture** (`lib/graph/tabletop/fixtures/island-economy.js`), built: nineteen hexes
+  dealt by the deal system, settlements, cities and roads, dice, production and the seven's robber, development cards,
+  the longest road and the largest army, an opening in rounds, and trading when asked: written in the systems alone,
+  the way a person's own rules would be once explained. Not in the book and not reachable from the tools.
+- **The computer at a euro game**, built: a turn planner. From its own view it weighs lines of its own actions this
+  turn, the best few at each step, each forced choice on the way taken greedily, and plays the first action of the
+  best line. A seat's worth is its points, what its pieces earn a roll (a spread of resources over a pile), its hand,
+  the builds it can pay for, the corners it can settle next, its cards, its army and its road, less a share of the
+  leader's. Four computers play a dealt island to a winner.
+- **A euro game to play** (`lib/graph/tabletop/tabletop-euro-page.js`), built: the same page for a euro game. The island
+  on the plan and the table, its numbers, the pieces in the players' colours; the corners, edges and hexes that can
+  be taken now marked and clicked; the person's hand and cards, the roll, the builds, buying and playing cards, and
+  the forced choices as prompts (what to give up, where the robber goes, whom to rob); every seat's open points,
+  cards and awards; a log; with trading, an offer drafted card by card (checked by the kernel's own rule), the
+  computers' offers to accept or decline, and the partner chosen from those who accepted. The computers play their
+  turns a beat apart, so their moves can be followed.
+- **Meeple shapes** (`lib/graph/tabletop/tabletop-shapes.js`, `tabletop-bodies.js`), built: a piece given a body, not
+  only a cube or a flat token. A shape is a cut-out with thickness (a meeple, a house, a city, a tower, a barn, a ship,
+  a horse's head), a turned profile (a checker, a stack, the chess set, a robber), a box (a cube, a road) or a group
+  of those, named from a shelf or written out in cell units. The table view stands each piece as a body of panels lit
+  in its owner's colour and turned to face its player, a road lying along its edge; the plan draws each piece's side
+  silhouette, as a diagram does. A turned piece's tapering bands are unmasked rectangles, so a full chess set of 32
+  bodies draws in a few seconds where masked bands took minutes. Chess, checkers and the island economy wear them; a
+  shape is checked when the game is made.
+- **Placement and groups**, built: pieces put down rather than moved. A kind may be dropped from the player's stock onto
+  an empty cell, falling a way until something stops it, or turning the lines of foes it closes. One groups engine
+  (a side's pieces joined across edges, and the empty cells beside them) serves enclosure (a group with no empty
+  neighbour is taken; no suicide; no ko: the board may not return to how it stood before the other player's move),
+  connection (a group joining a player's own two sides wins) and the scorers. A line of k along any axis wins.
+  Passes in a row or a full board end a game by its points: pieces counted, territory (empty areas one side alone
+  borders), majorities in named regions (first and second, ties sharing the places' points), the largest group, an
+  added half point. A rhombus of hexes joins the lattice. The computer reads each game by what wins it: open lines
+  toward k, the shortest way left to join two sides, groups down to their last empty neighbour, and the game's own
+  points; it narrows a wide board to the cells near the play. Five fixtures, each named by its principle (enclosure,
+  lines with and without falling, connection, sandwiching, majorities), are played by clicking on the plan or the
+  table, with a pass, the score in the status and the regions tinted.
+- **Tile placement**, built: a board grown a tile at a time. Tile types are segments of feature types over a tile's
+  edges (an area, a line) or its centre; tiles come from a seeded bag, one drawn a turn, laid beside the laid ones,
+  turned any of the board's turns, every shared edge's label matching (square or hex alike); a tile that fits nowhere
+  is set aside. A segment of the tile just laid may be claimed with a piece from stock if its feature has none. A
+  feature (segments joined across edges) with no open edge pays at once, its tiles times its rate, to the most claims
+  in it, a tie paying each, and its claims return; a centre feature is done when every cell round it is laid. An empty
+  bag ends the game, open features paying their lower rate. A player's view deals the bag again. The computer weighs
+  every placement and turn with the best claim it allows: points, each feature it leads at its chance of being done,
+  a claim in hand worth more the fuller the bag, less a share of the leader's. A tile-placement fixture named by its
+  principle (walls, paths, shrines). The page draws each tile from its segments on the plan (cropped to what is laid)
+  and on the table (the art on the cell's top, claims as standing bodies, the view following the play); the drawn tile
+  is turned by hand and laid where it fits, then a claim chosen or not.
+- **Piles, hands and markets**, built: card games, with no board (`piles`). Card types are data (a cost, coins, points, a
+  treasure, effects to play in a few verbs: draw, coins, actions, buys, points, gain a card up to a cost, trash from
+  the hand; tags). Each player has a deck, a hand, a discard, the cards played this turn and a tableau; a supply of
+  piles and a market, a row face up refilled from its own seeded deck. Deck building: a hand drawn, treasures played
+  freely and others for one of the turn's actions, buys into the discard, the turn's cards to the discard and a new
+  hand, the discard shuffled into a deck when it runs out; a gain or a trash owed is chosen one card at a time.
+  Drafting: a turn takes one card from the row to the tableau. Set collection scorers: the cards' points, different
+  values of a tag held, the same value held so many times, a tag's numbers summed, the most of a value (a tie sharing
+  the bonus). The game ends as a turn ends (a pile gone, so many piles gone, the market empty, a turn count). A
+  player's view keeps its own hand and deals deck order, the others' hands and the market's deck again. The computer
+  plays what leaves its turn the most to buy with (an action that keeps the actions going first), then buys what
+  leaves its seat worth most: its points weighed more as the end nears, the average hand its deck draws weighed less;
+  at a draft, the card worth most to it less half the next seat's best take. Against fixed strategies (a money-only
+  buyer, a buyer of the dearest card) it wins about half its games; it beats random play every time. Two fixtures
+  named by principle (deck building; drafting and set collection), played on a card page: the supply and the market
+  lit where a buy, a take or a gain may go, the hand lit where a play or a trash may, the others' piles as counts and
+  their tableaux face up, actions, buys and coins, every seat's points as the game scores them now, a log.
+- **The engine, stage 1: one object model**, built. The thesis behind the next stages: every board game is the same
+  duel of objects (things with characteristics in zones; a turn of phases; windows to act; a chain of responses;
+  triggers; world effects; rules checked between actions), so the kernel grows that engine rather than one feature per
+  paradigm. Stage 1 unifies what things are. Every piece, card and laid tile is now an object in one table: a board
+  piece as before, a card in its owner's zones (deck, hand, discard, played, tableau; zones hold object ids in order),
+  a laid tile and a claim at their cell, an economy card held or played. A shared supply of like things (a supply
+  pile, a bag of tiles, a bank, a stock of meeples) stays counted by kind until one comes out of it. Pieces, card types,
+  tile types and economy cards share one namespace (a name used twice is refused). One function derives an object's
+  characteristics: its definition, then its modifiers in a fixed order (set, add, counters, grant and remove
+  abilities, by timestamp within each); with no counters and no modifiers it is the definition itself, so a game that
+  uses neither pays nothing, and an object leaving play keeps none of them. Machine gates: the seeded mind-against-mind
+  games of every mode (chess, enclosure, tiles, deck building, drafting, three island games, one with trading) replay
+  move for move as before the change; perft's counts and time are unchanged; the kernel grew by 8.7 per cent.
+- **The engine, stage 2: rounds of phases, sealed choices and utilization**, built. A game with `round` is played in
+  rounds, each a list of phases written as data: taken in turns from the first seat while anyone can act, together
+  (each player's choice sealed and hidden from every other player's view, all revealed and resolved at once, the
+  phase repeating while what it acts on lasts), or by itself (workers made ready, cards dealt, a lot revealed, upkeep
+  paid, lots nobody took cleared). Its moves: a worker placed on a space (exhausted; a space holds so many; its
+  effects at once: resources, points, another worker, the first seat), a sealed bid (the highest pays and takes the
+  lot, a tie to the first in order, nothing on all zeros), a sealed pick (kept, the hands passed on), a pass. Workers
+  are objects; resources are pools that carry over; cards and their scorers are the card mode's; the first seat may
+  pass on each round. **Utilization**: capacity that expires (a deck turn's actions, buys and coins; workers in a
+  round) is kept in a ledger per player, spent and idle (left when it expired while a move could still have spent
+  it), and `utilization` reports the share used. The computer optimizes it (a small term preferring capacity used
+  over idle when worths are close) and is tuned by it: a level's `use` is how often an option that spends capacity is
+  seen at all, so a weaker computer leaves capacity idle where idling is allowed and misplaces where spending is
+  forced, the way a weaker player forgets the card in hand (easy 0.7, fair 0.92, hard 1). The computer in a round
+  game places a worker where its seat's worth gains most (resources valued by the game's own conversions, upkeep and
+  end rates; workers by the spaces' yield for the rounds left), bids by expected value (the lot's worth to it, the
+  coins, whether it beats what each rival would pay by the same reckoning, half a rival's gain), and picks what is
+  worth most to it less half what the next seat could take from the hand it passes. Three fixtures named by
+  principle (worker placement, sealed bids, drafting by passing) and a round page (spaces and their workers, the lot
+  and the bids, the hand, pools, every seat's points and utilization, sealed choices shown only as made until
+  revealed). Machine gates: hard beats easy 12 of 12 deck games, easy using 72 per cent of its capacity to hard's 96,
+  and hard beats easy 9 of 10 worker games; the computer beats random play in every round paradigm; chess,
+  enclosure, tiles, drafting and the island games replay move for move as before; perft unchanged; the kernel grew
+  to 103,295 bytes (from 85,992) and the mind to 31,575 (from 24,059).
+- **The engine, stage 3: a player's own turn, the chain, the initiative and triggers**, built. A round game may give
+  each seat a turn of its own (`round.turn`): auto phases acting for the player whose turn it is (ready its objects,
+  a pool that grows by one each turn and is refilled, what was left gone; a draw; damage mended) and an active phase
+  where it casts cards and uses abilities. Players have a deck, a hand, a discard and a field. A summon enters the
+  field exhausted; a spell resolves and goes to the discard; an ability may exhaust its object and cost from a pool.
+  Everything cast or used goes on the chain, resolved last in, first out. After a link goes on, the initiative passes
+  round, but only to a player who can answer (a fast card it can pay for, a fast ability), never to the one whose own
+  link is on top; when all have passed the top link resolves, and with nobody able to answer, links resolve at once,
+  so neither a person nor the computer is asked to pass for nothing. Triggers (enters, dies, at its controller's turn
+  start, when a foe casts) go on after each action, the active player's first. Checks between actions: damage
+  reaching guard kills, a player at the floor of its `lose` pool loses. One target chosen at casting, skipped if gone
+  by resolution; a counter cancels the spell beneath it; an ability's power is the source's as it was when used. A
+  loop guard: past `cap` actions in a turn or a hundred links, a draw. Energy left at a turn's end while a card could
+  have been paid for is idle (utilization). The overlooking dial now holds for the whole turn, decided by a hash of
+  the game, the turn, the seat and the option (a forgotten card stays forgotten), so in the deck game hard beats easy
+  10 of 10 (95 per cent used against 70). The computer: a duel planner that plays each move and settles the chain
+  before weighing the seat (life, the field's power and guard, the hand), and Monte Carlo tree search for any game,
+  seeded and bounded by playouts, each from a fresh determinization of its own view, opt in by `search: 'mcts'`. A
+  fixture by principle, a response duel (summons, spells, fast answers, a fast ability, four kinds of trigger, a
+  counter, strikes), and the round page grown for it (fields, the chain top first, targets, answer or pass). Machine
+  gates: forty random duels keep every invariant (each card in one zone, its zone its list, the chain's cards nowhere
+  else, no negative pool, no stall); the duel planner beats random play 11 of 12 and hard beats easy 9 of 12; search
+  wins 4 of 10 against the planner at about 67 ms a move (it stays opt in); every other mode replays move for move
+  except where the dial plays (deck building, worker placement); perft unchanged; the kernel grew to 120,163 bytes
+  and the mind to 38,442. A test now refuses two top-level declarations of one name in either closure (a second
+  `settle` had silently replaced the first). Re-expressing the existing modes' turn loops as phases was dropped: none
+  needs a response window.
+- **The engine, stage 4: world effects, counters, ready and exhausted**, built. An object's characteristics now
+  gather the world effects that cover it: static abilities of objects in play (an aura on one's own summons, a curse
+  on the foe's, a cost cut on the hand) and the game's own (`world`). They apply in one fixed order, written down and
+  not pretending to be layered: set, then add (numbers, or objects of numbers summed key by key, a cost never below
+  nothing), then counters, then grant and remove abilities, by timestamp within each (the time a source entered play,
+  or a modifier was made). A world effect's sources are read from their definitions and their own modifiers, never
+  from other world effects, so nothing depends on anything; copies and changes of control are left out. A game with
+  no static ability takes the shared definition as before. Effects gain a boost (lasting, or until the turn ends,
+  when it is taken off), counters placed or removed, and readying; an ability may cost counters from its own object,
+  and a card may enter play with counters (a wand with three charges); a step may empty a pool; damage never goes
+  below nothing. Utilization gains ready objects: a summon left ready at the turn's end while it could have struck is
+  idle, so the dial now reaches forgotten strikes (in the duel hard beats easy 11 of 12, easy using 84 per cent). The
+  duel grows eight cards that use each (an aura, a foe aura, a cost cut, a rally until the turn ends, growth
+  counters, a charged wand, a readying spell, a curse that sets power and strips abilities), and the page shows stats
+  as derived (raised green, lowered brown) and counters. Machine gates: forty random duels keep every invariant with
+  the new cards; every other mode replays move for move as before (the world-effect path costs nothing where there is
+  none); perft unchanged; the kernel grew to 125,634 bytes.
+- **The engine, stage 5: fixtures that join the systems**, built. *A summoning duel on a board*: a turn game given
+  a board puts its summons on the lattice. A summon card names a piece, whose rules (vectors under the board's
+  symmetry, as chess's) move it; it is cast onto an empty cell of its controller's home row; a ready summon goes (a
+  move onto an empty cell, which simply happens) or attacks (a move onto a foe, which goes on the chain so the foe can
+  answer before blows land), either exhausting it; blows are struck together, each its power, and an attacker takes
+  the cell of a defender that dies; an ability may need its object's row, so a summon strikes the foe only from the
+  far row; a summon leaving play leaves its cell. The fixture (footmen, outriders that leap as knights, lancers that
+  charge forward two, a captain's aura, bolts, a counter, a snare) on a five by five board. *Deck building on the turn
+  engine*: the card mode's deck game built from its own cards and played on turns, a treasure a card cast for
+  nothing that gives coins, an action costing one of the turn's actions, buying a move from a counted supply (a
+  card's price, one of the buy pool), cast cards waiting in play until cleanup, a step that discards the hand and
+  what was played, pools set each turn, the discard reshuffled into the deck when it runs out, the game ended by the
+  supply's piles, every owned card scored (the cards that trash or gain, a choice of several cards, are left out). A
+  scripted turn gives the same coins, the same purchase, the same discard and the same next hand in both engines.
+  *Worker placement as exhaust and ready* had already been built so in stage 2. The round page shows the board (the
+  summons standing on their cells; a summon picked lights where it may go, green, and whom it may attack, red; a
+  summon cast lights the cells it may enter), a supply to buy from, and card faces drawn from data (a summon's piece's
+  silhouette, a card's glyph); a cell's name no longer swallows the click meant for its cell. Machine gates: thirty
+  board duels, random and computer, keep every board invariant (a cell's object stands there, a summon in play stands
+  on its cell, nothing off the field holds one); on the board the computer beats random play 12 of 12 and hard beats
+  easy 8 of 12; on turns deck building the computer beats random 6 of 6 and hard beats easy 6 of 6; every other mode,
+  the response duel too, replays move for move; perft unchanged; the kernel grew to 132,580 bytes and the mind to
+  42,449.
+- **The engine, stage 6: Monte Carlo search as the third mind**, built, and placed where it measured stronger. The
+  search gains priors (the game's own judgement one move deep orders the untried moves and biases the choice, fading
+  with visits; a move legal only in some deals of what is hidden counts as even) and centred values (a worth counted
+  as its change since the root, so a game whose worths run large is not flattened). Measured against each game's
+  hard planner: tiles 9 of 12 (500 playouts, about a second a move), placement whose drops flip lines 8 of 8 (the
+  planner's terms do not read it), four in a row about even, the duels about even at fifty to three hundred times
+  the cost, deck building and connection and enclosure lost (long one-player turns it could not order; alpha-beta
+  with the game's own terms on small perfect-information boards). So hard (`search: 'auto'`) searches the tile game
+  (400 playouts) and games whose drops flip, and keeps the planners everywhere else; easier levels keep the
+  planners, which carry the difficulty dials; a written game may decide for itself (`mind: { search: 'mcts' | 'plan',
+  playouts }`). Seeded and bounded by playouts, never a clock: the same position and seed give the same move. On the
+  tile page the computer at hard takes about a second and a half a turn in the browser. Every game at fair replays
+  move for move as before.
+- **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
+  against the computer, chess or checkers from the book or a game written out from the systems, with the person's
+  side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person
+  for its rules first. It is a recipe: a game row (`engine:
+  'tabletop'`) whose page is made again on every read, played at `/api/sketches/<ref>/game`, edited with
+  `update_sketch` (the kernel checks the edit) and exported by `export_game` as one page and its recipe. A game the
+  kernel cannot play is refused when it is made. A routing card, two routing rows, and a vocab card
+  (`get_game_vocab({ id: 'tabletop' })`) with the systems' grammar and the book's own chess pieces; the cosmos registry's board
+  learns `lattice`. The `tools/list` payload pin is raised for the one schema property.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
