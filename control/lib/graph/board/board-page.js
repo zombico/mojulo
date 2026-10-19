@@ -191,7 +191,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     wait: 'the level is starting',
     scene: '',
     td: 'arrows / WASD / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
-    rts: 'arrows / edge: pan · Z X: zoom · click / drag: select · right-click: move, attack, gather, rally · A: attack-move · S: stop · H: hold · B: build (again: the next) · Q W E R: train · T: research · U: unload · D: deploy · G: upgrade · F: ability',
+    rts: 'arrows / edge: pan · Z X: zoom · click / drag: select · right-click: move, attack, gather, rally · A: attack-move · S: stop · H: hold · B: build (again: the next) · Q W E R: train · T: research · U: unload · D: deploy · G: upgrade · F: ability · Ctrl+1–9 / 1–9: groups · .: idle worker · I: idle rule · Y: repeat · C: auto-cast · P: pause · [ ]: speed',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
@@ -847,7 +847,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
       return [O[0] + q[0] * cell, O[1] + q[1] * cell, t ? t[2] : O[2]];
     };
     const push = (type) => { if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type }); };   // eslint-disable-line no-undef
-    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push });
+    rtsp = RTP({ THREE, scene, camera, renderer, D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push, focus: (p) => CAM.focusOn(C, p) });
     mode = 'rts';
     readout();
   }

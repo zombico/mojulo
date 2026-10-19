@@ -15,6 +15,13 @@
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
  *   looks, board-rts-look.js), in its team colour; what it has no look for is drawn as the plain kinds are
  *   the camera: the RTS form (the arrows and the screen's edge pan, Z X zoom; WASD is the orders' here)
+ *   the clock: the game's time in the panel; P pauses, [ ] slow it and speed it (half, normal, faster, double); every
+ *   action the player takes goes through the kernel's one way in (act) and is logged by its step, so the game replays
+ *   from its log; each side's actions a minute (APM, the human measure) beside the clock
+ *   control groups: Ctrl+1 … 9 keeps the selection (a building alone, too), Shift+n adds to it, n takes it again (twice
+ *   quickly: the camera goes to it); . the next idle worker, the camera to it
+ *   standing orders: I what the selected kind does when idle (a worker: wait, gather, repair; a fighter: wait, hold);
+ *   Y the selected building repeats what it trains (each in turn, then off); C the selected kind casts on its own
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
  * D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push }); emitted only when a board has `rts`. It returns
@@ -25,6 +32,13 @@
 export function boardRtsPage(api) {
   const { THREE, D, B, root, tops, FX, RTK } = api, cfg = D.rts, cell = B.cell;
   let R = RTK.start(B, cfg), sel = [], selB = null, armed = null, result = null, said = '';
+  // the clock's hand on it, and what the player did, by step (a replay's log)
+  const SPEEDS = [0.5, 1, 1.4, 2], log = [], groups = {};
+  let paused = false, speedK = 1, lastGroup = null, idleK = 0;
+  // every action of the player's: through the kernel's one way in, logged when it took
+  function act(a) {
+    try { const s = RTK.stepOf(R); R = RTK.act(B, cfg, R, a); log.push({ s, a }); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+  }
   const lambert = (c) => new THREE.MeshLambertMaterial({ color: c });
   const basic = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: o != null, opacity: o == null ? 1 : o, depthWrite: o == null });
   {
@@ -239,17 +253,19 @@ export function boardRtsPage(api) {
     const kinds = {};
     for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
     const carrying = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).carries).map((u) => `${(u.cargo || []).length} / ${UN('player', u.kind).carries} aboard`).join(', ');
-    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}${abilityLine()}` : '';
+    const standing = Object.keys(kinds).map((k) => `${ruleOf(k) !== 'stop' ? ` idle: ${ruleOf(k)}` : ''}${R.auto && R.auto.player && R.auto.player[k] ? ' auto-cast' : ''}`).join('');
+    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${standing ? ` ·${standing}` : ''}${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}${abilityLine()}` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
       const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
       what = `${K.name}${b.raising > 0 ? (builders ? ` (going up, ${Math.ceil(b.raising)} s, ${builders} building)` : ' (a foundation: right-click it with workers to build)') : b.hp < b.hpMax ? ` (${Math.round(b.hp)} / ${b.hpMax}: right-click it with workers to repair)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${UN('player', k).cost2 ? '+' + UN('player', k).cost2 : ''}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
         + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}`
-        + `${b.up ? `  becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : K.upgrades ? `  G: grow into a ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}${needsOf(Object.assign({}, BU('player', K.upgrades.to), { needs: K.upgrades.needs, tier: K.upgrades.tier })) ? ' (locked)' : ''}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
+        + `${b.up ? `  becoming a ${BU('player', b.up.to).name} (${Math.ceil(b.up.left)} s)` : K.upgrades ? `  G: grow into a ${BU('player', K.upgrades.to).name} ${K.upgrades.cost}${needsOf(Object.assign({}, BU('player', K.upgrades.to), { needs: K.upgrades.needs, tier: K.upgrades.tier })) ? ' (locked)' : ''}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}${b.repeat ? `  repeating ${UN('player', b.repeat).name}` : ''}`;
     }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
     const sup = RTK.supplyOf(cfg, R, 'player'), ore = P.res2 ? `   ${RTK.res2Name(cfg, 'player')} ${(R.ore && R.ore.player) || 0}` : '';
-    const text = `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
+    const top = `${clock(R.t)}${paused ? '  paused' : ''}${SPEEDS[speedK] !== 1 ? `  ×${SPEEDS[speedK]}` : ''}   apm ${RTK.apmOf(R, 'player')} · them ${RTK.apmOf(R, 'enemy')}\n`;
+    const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
   }
 
@@ -266,49 +282,49 @@ export function boardRtsPage(api) {
   }
   function command(i) {
     const p = spotP(i);
-    if (selB) { R = RTK.rally(B, cfg, R, selB, i); return 'rally'; }
+    if (selB) { act({ k: 'rally', id: selB, at: i }); return 'rally'; }
     if (!sel.length) return null;
     // the side's own: a foundation its workers build, a damaged building or machine they repair
     const workersSel = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
     const mineB = R.buildings.find((x) => x.side === 'player' && x.at === i), mineU = !mineB && near(R.units.filter((x) => x.side === 'player' && sel.indexOf(x.id) < 0 && UN('player', x.kind).machine), p, 0.8);
     // a transport of the side's: the rest of the selection boards it
     const ride = near(R.units.filter((x) => x.side === 'player' && !x.inside && UN('player', x.kind).carries && sel.indexOf(x.id) < 0), p, 0.8);
-    if (ride) { R = RTK.order(B, cfg, R, sel.filter((id) => id !== ride.id), { kind: 'board', target: ride.id }); return 'board'; }
-    if (workersSel.length && mineB && mineB.raising > 0) { R = RTK.order(B, cfg, R, workersSel, { kind: 'build', target: mineB.id }); return 'build'; }
-    if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { R = RTK.order(B, cfg, R, workersSel, { kind: 'repair', target: (mineB || mineU).id }); return 'repair'; }
+    if (ride) { act({ k: 'order', ids: sel.filter((id) => id !== ride.id), o: { kind: 'board', target: ride.id } }); return 'board'; }
+    if (workersSel.length && mineB && mineB.raising > 0) { act({ k: 'order', ids: workersSel, o: { kind: 'build', target: mineB.id } }); return 'build'; }
+    if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { act({ k: 'order', ids: workersSel, o: { kind: 'repair', target: (mineB || mineU).id } }); return 'repair'; }
     const foe = near(R.units.filter((x) => x.side === 'enemy'), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i);
     const node = R.nodes.find((n) => n.at === i && n.left > 0);
-    if (foe) { R = RTK.order(B, cfg, R, sel, { kind: 'attack', target: foe.id }); return 'attack'; }
+    if (foe) { act({ k: 'order', ids: sel, o: { kind: 'attack', target: foe.id } }); return 'attack'; }
     if (node) {
       const workers = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
-      R = RTK.order(B, cfg, R, workers, { kind: 'gather', node: i });
+      if (workers.length) act({ k: 'order', ids: workers, o: { kind: 'gather', node: i } });
       const rest = sel.filter((id) => workers.indexOf(id) < 0);
-      if (rest.length) R = RTK.order(B, cfg, R, rest, { kind: 'move', to: i });
+      if (rest.length) act({ k: 'order', ids: rest, o: { kind: 'move', to: i } });
       return 'gather';
     }
-    R = RTK.order(B, cfg, R, sel, { kind: 'move', to: i });
+    act({ k: 'order', ids: sel, o: { kind: 'move', to: i } });
     return 'move';
   }
   function armedClick(i) {
     const was = armed;
     armed = null;
-    if (was === 'amove' && sel.length) { R = RTK.order(B, cfg, R, sel, { kind: 'amove', to: i }); return 'amove'; }
+    if (was === 'amove' && sel.length) { act({ k: 'order', ids: sel, o: { kind: 'amove', to: i } }); return 'amove'; }
     // laid where clicked, built by the selected workers (else the nearest)
     const ws = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
-    if (was === 'build') { try { R = RTK.build(B, cfg, R, 'player', raisable[buildK % raisable.length], i, ws.length ? ws : undefined); return 'built'; } catch (e) { return String(e.message).replace(/^rts: /, ''); } }
+    if (was === 'build') { const r = act({ k: 'build', kind: raisable[buildK % raisable.length], at: i, ...(ws.length ? { ids: ws } : {}) }); return r === true ? 'built' : r; }
     return null;
   }
   function trainAt(n) {
     const b = selB && R.buildings.find((x) => x.id === selB), kind = b && (BU('player', b.kind).trains || [])[n];
     if (!kind) return null;
-    try { R = RTK.train(B, cfg, R, selB, kind); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+    return act({ k: 'train', id: selB, kind });
   }
   // D: what is selected deploys (a siege sets up to fire, or packs; what comes folded is set up where it stands)
   function deploy() {
     const us = R.units.filter((u) => sel.indexOf(u.id) >= 0);
     const modal = us.filter((u) => UN('player', u.kind).modes), folded = us.filter((u) => UN('player', u.kind).deploys);
-    for (const u of modal) R = RTK.order(B, cfg, R, [u.id], { kind: 'mode', to: u.mode ? null : Object.keys(UN('player', u.kind).modes)[0] });
-    if (folded.length) R = RTK.order(B, cfg, R, folded.map((u) => u.id), { kind: 'deploy' });
+    for (const u of modal) act({ k: 'order', ids: [u.id], o: { kind: 'mode', to: u.mode ? null : Object.keys(UN('player', u.kind).modes)[0] } });
+    if (folded.length) act({ k: 'order', ids: folded.map((u) => u.id), o: { kind: 'deploy' } });
     return modal.length + folded.length;
   }
   // F: each selected unit casts the first of its abilities that is ready
@@ -319,7 +335,7 @@ export function boardRtsPage(api) {
       if (!A) continue;
       const id = Object.keys(A).find((k) => !(u.cool && u.cool[k] > 0));
       if (!id) continue;
-      R = RTK.order(B, cfg, R, [u.id], { kind: 'cast', ability: id });
+      act({ k: 'order', ids: [u.id], o: { kind: 'cast', ability: id } });
       if (FX) { const w = api.worldAt([u.x, u.y]); FX.play(A[id].shield ? 'radiance' : 'aura', { at: w, targets: [w], seed: 'cast:' + R.t.toFixed(1) + ':' + u.id }); }
       n++;
     }
@@ -329,13 +345,63 @@ export function boardRtsPage(api) {
   // G: the selected building grows into what it upgrades to
   function upgradeSel() {
     if (!selB) return null;
-    try { R = RTK.upgrade(B, cfg, R, selB); return true; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+    return act({ k: 'upgrade', id: selB });
   }
   function researchNext() {
     const b = selB && R.buildings.find((x) => x.id === selB), id = b && nextStep(b);
     if (!id) return null;
-    try { R = RTK.research(B, cfg, R, selB, id); return id; } catch (e) { return String(e.message).replace(/^rts: /, ''); }
+    const r = act({ k: 'research', id: selB, step: id });
+    return r === true ? id : r;
   }
+
+  // I: what the selected kind does when idle, the next of what it may (a worker: wait, gather, repair; a fighter: wait,
+  // hold); Y: the selected building repeats the next of what it trains (then nothing); C: the selected kind casts on
+  // its own (again: it stops)
+  const ruleOf = (k) => (R.idle && R.idle.player && R.idle.player[k]) || 'stop';
+  function idleRule() {
+    const u = R.units.find((x) => sel.indexOf(x.id) >= 0);
+    if (!u) return null;
+    const U = UN('player', u.kind), ways = U.role === 'worker' ? RTK.IDLE.worker : U.atk ? RTK.IDLE.fighter : ['stop'];
+    const next = ways[(ways.indexOf(ruleOf(u.kind)) + 1) % ways.length];
+    return act({ k: 'idle', kind: u.kind, rule: next }) === true ? next : null;
+  }
+  function repeatSel() {
+    const b = selB && R.buildings.find((x) => x.id === selB), T = b && (BU('player', b.kind).trains || []);
+    if (!T || !T.length) return null;
+    const next = b.repeat ? T[T.indexOf(b.repeat) + 1] || null : T[0];
+    return act({ k: 'repeat', id: selB, kind: next }) === true ? next : null;
+  }
+  function autoSel() {
+    const kinds = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).abilities).map((u) => u.kind).filter((k, i, a) => a.indexOf(k) === i);
+    if (!kinds.length) return null;
+    const on = !(R.auto && R.auto.player && R.auto.player[kinds[0]]);
+    for (const k of kinds) act({ k: 'auto', kind: k, on });
+    return on;
+  }
+  // control groups: kept (Ctrl), added to (Shift), taken again; taken twice in a row, the camera goes to it
+  function group(n, how) {
+    if (how === 'set') { groups[n] = selB ? { building: selB } : { units: sel.slice() }; return true; }
+    if (how === 'add') { const g = groups[n] && groups[n].units ? groups[n].units : []; groups[n] = { units: g.concat(sel.filter((id) => g.indexOf(id) < 0)) }; return true; }
+    const g = groups[n];
+    if (!g) return false;
+    if (g.building) { if (!R.buildings.some((b) => b.id === g.building)) return false; sel = []; selB = g.building; }
+    else { sel = g.units.filter((id) => R.units.some((u) => u.id === id && !u.inside)); selB = null; g.units = sel.slice(); }
+    if (lastGroup === n && api.focus) { const x = selB ? R.buildings.find((b) => b.id === selB) : R.units.find((u) => u.id === sel[0]); if (x) api.focus(x.x != null ? api.worldAt([x.x, x.y]) : tops[x.at]); }
+    lastGroup = n;
+    drawPanel();
+    return selB ? 1 : sel.length;
+  }
+  // .: the next idle worker of the player's (waiting, nothing to do), selected, the camera to it
+  function idleWorker() {
+    const idle = R.units.filter((u) => u.side === 'player' && !u.inside && isWorker(u) && u.order.kind === 'stop');
+    if (!idle.length) return null;
+    const u = idle[idleK++ % idle.length];
+    sel = [u.id]; selB = null;
+    if (api.focus) api.focus(api.worldAt([u.x, u.y]));
+    drawPanel();
+    return u.id;
+  }
+  const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
   // the pointer: a click selects (or carries out what is armed), a drag boxes, the right button orders
   const el = api.renderer.domElement;
@@ -365,18 +431,27 @@ export function boardRtsPage(api) {
       if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sel = R.units.filter((u) => u.side === 'player' && !isWorker(u)).map((u) => u.id); selB = null; }
       else if (e.code === 'KeyA' && sel.length) armed = 'amove';
       else if (e.code === 'KeyB') { if (armed === 'build') buildK++; armed = 'build'; }
-      else if (e.code === 'KeyS' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'stop' });
-      else if (e.code === 'KeyH' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'hold' });
+      else if (e.code === 'KeyS' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'stop' } });
+      else if (e.code === 'KeyH' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'hold' } });
       else if (e.code === 'KeyQ') trainAt(0);
       else if (e.code === 'KeyW') trainAt(1);
       else if (e.code === 'KeyE') trainAt(2);
       else if (e.code === 'KeyR') trainAt(3);
       else if (e.code === 'KeyT') researchNext();
-      else if (e.code === 'KeyU' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'unload' });
+      else if (e.code === 'KeyU' && sel.length) act({ k: 'order', ids: sel, o: { kind: 'unload' } });
       else if (e.code === 'KeyD' && sel.length) deploy();
       else if (e.code === 'KeyG') upgradeSel();
       else if (e.code === 'KeyF' && sel.length) castSel();
       else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
+      else if (/^Digit[1-9]$/.test(e.code)) { e.preventDefault(); group(Number(e.code.slice(5)), e.ctrlKey || e.metaKey ? 'set' : e.shiftKey ? 'add' : 'take'); }
+      else if (e.code === 'Period') idleWorker();
+      else if (e.code === 'KeyI') idleRule();
+      else if (e.code === 'KeyY') repeatSel();
+      else if (e.code === 'KeyC' && !(e.ctrlKey || e.metaKey)) autoSel();
+      else if (e.code === 'KeyP' || e.code === 'Pause') pause(!paused);
+      else if (e.code === 'BracketLeft') speedK = Math.max(0, speedK - 1);
+      else if (e.code === 'BracketRight') speedK = Math.min(SPEEDS.length - 1, speedK + 1);
+      if (!/^Digit/.test(e.code)) lastGroup = null;
       drawPanel();
     });
   }
@@ -419,9 +494,15 @@ export function boardRtsPage(api) {
     api.push(won ? 'board-won' : draw ? 'board-draw' : 'board-lost');
   }
 
+  function pause(on) {
+    paused = !!on;
+    if (!result) { banner.style.display = paused ? 'block' : 'none'; banner.textContent = paused ? 'Paused\nP to play on' : ''; }
+    drawPanel();
+    return paused;
+  }
   function advance(dt) {
-    if (result) return;
-    const o = RTK.tick(B, cfg, R, Math.min(0.2, dt));
+    if (result || paused) return;
+    const o = RTK.tick(B, cfg, R, Math.min(0.4, dt * SPEEDS[speedK]));
     R = o.R;
     show(o.events);
   }
@@ -440,10 +521,15 @@ export function boardRtsPage(api) {
       state: () => R, get selected() { return { units: sel.slice(), building: selB }; }, get result() { return result; },
       select(ids) { sel = ids.slice(); selB = null; drawPanel(); }, selectBuilding(id) { sel = []; selB = id; drawPanel(); },
       selectAt, command, armedClick, deploy, upgradeSel, castSel,
-      researchStep(id) { try { R = RTK.research(B, cfg, R, selB, id); return id; } catch (e) { return String(e.message).replace(/^rts: /, ''); } },
       marks(id) { const g = meshes[id]; if (!g) return null; const m = g.userData.marks || {}; return { marks: Object.keys(m).filter((k) => m[k].visible), visible: g.visible, flash: g.userData.flash > 0 }; }, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
       looks() { const out = {}; for (const id in meshes) { let n = 0; meshes[id].traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.color) n++; }); out[id] = n; } return out; },
-      order(o) { R = RTK.order(B, cfg, R, sel, o); }, run(dt) { advance(dt); sync(); },
+      order(o) { act({ k: 'order', ids: sel, o }); }, run(dt) { advance(dt); sync(); },
+      researchStep(id) { const r = act({ k: 'research', id: selB, step: id }); return r === true ? id : r; },
+      pause, speed(k) { if (k != null) speedK = Math.max(0, Math.min(SPEEDS.length - 1, k)); return SPEEDS[speedK]; }, get paused() { return paused; },
+      get clock() { return clock(R.t); }, apm: () => ({ player: RTK.apmOf(R, 'player'), enemy: RTK.apmOf(R, 'enemy') }),
+      group, idleWorker, idleRule, repeatSel, autoSel, log: () => log.slice(),
+      // the game again from the log: the same state as the one played (the clock's remainder aside)
+      replays() { const a = RTK.replay(B, cfg, log, RTK.stepOf(R)), strip = (x) => JSON.stringify(Object.assign({}, x, { acc: 0 })); return strip(a) === strip(R); },
     },
   };
 }

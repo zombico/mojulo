@@ -338,6 +338,57 @@ describe('the board on the World page', () => {
     await page.close();
   }, 180000);
 
+  it('keeps a skirmish\'s clock and hand: pause, speed, control groups, the idle worker, standing orders; its log replays it', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'clock', title: null, manifest: { kind: 'board', board: { seed: 'clock', relief: 0.1, cols: 9, rows: 12 },
+      rts: { gold: 400, level: 'easy', enemy: { workers: 0 } }, game: { levelRef: 'clock', mechanics: [{ kind: 'board' }] } } });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const R = (f) => page.evaluate(f);
+    // the workers kept as group 1 (Ctrl+1), let go, taken again (1)
+    await R(() => { const r = window.__mojBoard.rts; r.select(r.state().units.filter((u) => u.side === 'player').map((u) => u.id)); });
+    await page.keyboard.down('Control'); await page.keyboard.press('Digit1'); await page.keyboard.up('Control');
+    await page.keyboard.press('Escape');
+    expect(await R(() => window.__mojBoard.rts.selected.units.length)).toBe(0);
+    await page.keyboard.press('Digit1');
+    expect(await R(() => window.__mojBoard.rts.selected.units.length)).toBe(3);
+    // P: the clock stands still; P again, it runs; ] twice: double speed
+    await page.keyboard.press('KeyP');
+    const still = await R(() => { const r = window.__mojBoard.rts, t = r.state().t; r.run(1); return [r.paused, r.state().t === t]; });
+    expect(still).toEqual([true, true]);
+    await page.keyboard.press('KeyP');
+    await page.keyboard.press('BracketRight'); await page.keyboard.press('BracketRight');
+    expect(await R(() => [window.__mojBoard.rts.paused, window.__mojBoard.rts.speed()])).toEqual([false, 2]);
+    await page.keyboard.press('BracketLeft'); await page.keyboard.press('BracketLeft');
+    // S: the workers stop; .: the next idle one, alone; I: its kind's idle rule, to gather: they all go mining
+    await page.keyboard.press('KeyS');
+    await page.keyboard.press('Period');
+    expect(await R(() => window.__mojBoard.rts.selected.units.length)).toBe(1);
+    await page.keyboard.press('KeyI');
+    const mining = await R(() => { const r = window.__mojBoard.rts; r.run(0.2); return [...new Set(r.state().units.filter((u) => u.side === 'player').map((u) => u.order.kind))]; });
+    expect(mining).toEqual(['gather']);
+    // a barracks raised, set to repeat (Y): soldiers one after another while the purse holds
+    const reps = await R(() => {
+      const r = window.__mojBoard.rts, S = r.state(), base = S.buildings.find((b) => b.side === 'player').at;
+      r.arm('build');
+      r.armedClick([base + 2 * 9 + 2, base + 2 * 9 - 2, base + 3 * 9].find((i) => window.__mojBoard.board.spots[i]));
+      for (let k = 0; k < 300; k++) r.run(0.1);
+      r.selectBuilding(r.state().buildings.find((b) => b.side === 'player' && b.kind === 'barracks').id);
+      return r.repeatSel();
+    });
+    expect(reps).toBe('soldier');
+    const after = await R(() => { const r = window.__mojBoard.rts; for (let k = 0; k < 400; k++) r.run(0.1); return { soldiers: r.state().units.filter((u) => u.side === 'player' && u.kind === 'soldier').length, apm: r.apm(), clock: r.clock, log: r.log().length }; });
+    expect(after.soldiers).toBeGreaterThanOrEqual(2);
+    expect(after.apm.player).toBeGreaterThan(0);
+    expect(after.clock).toMatch(/^\d+:\d\d$/);
+    // the game again from its log (stop, the idle rule, the barracks, its repeat: a selection is no action): the same game
+    expect(after.log).toBe(4);
+    expect(await R(() => window.__mojBoard.rts.replays())).toBe(true);
+    await page.close();
+  }, 180000);
+
   it('plays a skirmish between two civilizations, each drawn as its technology crafted it, the player climbing its ladder', async () => {
     if (!browser) return;
     const G = readGameworld(HALDEN_REACH), side = (cid) => { const r = rtsRoster(G, cid); return { ...r, looks: rtsLooks(G, cid, r, { kit: HALDEN_REACH.style.kit }) }; };

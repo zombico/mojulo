@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -490,5 +490,80 @@ describe('the skirmish\'s laws', () => {
     let a = rtsStart(B, cfg), b = page.start(B, cfg);
     for (let k = 0; k < 600; k++) { a = rtsTick(B, cfg, a, 0.1).R; b = page.tick(B, cfg, b, 0.1).R; }
     expect(b).toEqual(a);
+  });
+});
+
+describe('the clock and the hand', () => {
+  it('takes every action one way in, logged by its step: the log plays the same game again', () => {
+    const B = flat(9, 12), cfg = readBoardRts(B, { ai: { wave: 3 } });
+    let R = rtsStart(B, cfg);
+    const log = [], hand = (a) => { const s = rtsStepOf(R); R = rtsAct(B, cfg, R, a); log.push({ s, a }); };
+    const base = R.buildings.find((b) => b.side === 'player').id, ws = mine(R).map((u) => u.id);
+    for (let k = 0; k < 1800 && !R.over; k++) {
+      if (k === 0) hand({ k: 'order', ids: ws, o: { kind: 'gather', node: cfg.nodes[0].at } });
+      if (k === 37) hand({ k: 'train', id: base, kind: 'worker' });
+      if (k === 400) hand({ k: 'build', kind: 'barracks', at: at(B, 'B4') });
+      if (k === 401) hand({ k: 'idle', kind: 'worker', rule: 'gather' });
+      // the page's time is cut as its frames fall: the log keeps the steps, not the frames
+      R = rtsTick(B, cfg, R, k % 3 ? 0.1 : 0.2).R;
+    }
+    const again = rtsReplay(B, cfg, log, rtsStepOf(R));
+    expect({ ...again, acc: 0 }).toEqual({ ...R, acc: 0 });
+    // a side's actions a minute over the game: the player's four, the mind's as it played
+    expect(R.acts.player).toBe(4);
+    expect(rtsApm(R, 'player')).toBe(Math.round((4 * 60) / R.t));
+    expect(rtsApm(R, 'enemy')).toBeGreaterThan(0);
+  });
+
+  it('plays a mind at a level: an easy one held to its actions a minute and slower to think, a hard one sooner at the gate', () => {
+    const B = flat(9, 12), firstWave = (level) => {
+      const cfg = readBoardRts(B, { level });
+      let R = rtsStart(B, cfg), k = 0;
+      for (; k < 3000 && !(R.sent && R.sent.enemy); k++) R = rtsTick(B, cfg, R, 0.1).R;
+      return { t: k / 10, acts: R.acts.enemy };
+    };
+    const easy = firstWave('easy'), normal = firstWave('normal'), hard = firstWave('hard');
+    expect(hard.t).toBeLessThan(normal.t);
+    expect(normal.t).toBeLessThan(easy.t);
+    // (held to 40 a minute, five seconds' worth in hand at most)
+    expect(easy.acts).toBeLessThanOrEqual(Math.ceil((RTS_LEVELS.easy.apm * easy.t) / 60) + 1);
+    expect(() => readBoardRts(B, { level: 'brutal' })).toThrow(/level 'brutal' is not a level \(easy, normal, hard\)/);
+    expect(() => readBoardRts(B, { level: { neutral: 'easy' } })).toThrow(/level.neutral: the sides are player and enemy/);
+    expect(readBoardRts(B, { level: { player: 'hard', enemy: 'easy' } }).ais).toEqual({ player: RTS_LEVELS.hard, enemy: RTS_LEVELS.easy });
+  });
+
+  it('leaves standing orders: idle workers gather or repair, idle fighters hold; a factory repeats; a kind casts on its own', () => {
+    const B = flat(9, 14), cfg = own(B, { nodes: 1 });
+    let R = rtsStart(B, cfg);
+    const [w1, w2] = mine(R).map((u) => u.id);
+    // a worker set to gather goes to the nearest node with something left once it has nothing to do
+    R = rtsAct(B, cfg, R, { k: 'idle', kind: 'worker', rule: 'gather' });
+    R = rtsTick(B, cfg, R, 0.1).R;
+    expect(R.units.filter((u) => u.id === w1 || u.id === w2).map((u) => u.order.kind)).toEqual(['gather', 'gather']);
+    // set to repair: to its side's hurt base, the gold a mend
+    const hurt = { ...R, buildings: R.buildings.map((b) => (b.side === 'player' ? { ...b, hp: b.hpMax - 100 } : b)), units: R.units.map((u) => ({ ...u, order: { kind: 'stop' }, path: [] })) };
+    R = rtsTick(B, cfg, rtsAct(B, cfg, hurt, { k: 'idle', kind: 'worker', rule: 'repair' }), 0.1).R;
+    expect(R.units.find((u) => u.id === w1).order).toMatchObject({ kind: 'repair', target: R.buildings.find((b) => b.side === 'player').id });
+    // (mended whole, the workers waiting again: a mend costs gold)
+    R = rtsAct(B, cfg, { ...R, buildings: R.buildings.map((b) => ({ ...b, hp: b.hpMax })), units: R.units.map((u) => ({ ...u, order: { kind: 'stop' }, path: [] })) }, { k: 'idle', kind: 'worker', rule: 'stop' });
+    // a fighter idles by holding (never gathering)
+    expect(() => rtsAct(B, cfg, R, { k: 'idle', kind: 'soldier', rule: 'gather' })).toThrow(/a Soldier idles by stop, hold/);
+    R = raise(B, cfg, R, 'barracks', 'B5');
+    const bar = R.buildings.find((b) => b.kind === 'barracks').id;
+    R = rtsAct(B, cfg, { ...R, gold: { ...R.gold, player: 240 } }, { k: 'idle', kind: 'soldier', rule: 'hold' });
+    // a barracks set to repeat trains soldier after soldier while the purse holds (four at 60), then waits
+    R = rtsAct(B, cfg, R, { k: 'repeat', id: bar, kind: 'soldier' });
+    R = run(B, cfg, R, 80).R;
+    const soldiers = mine(R).filter((u) => u.kind === 'soldier');
+    expect(soldiers.length).toBe(4);
+    expect(soldiers.every((u) => u.order.kind === 'hold')).toBe(true);
+    // auto-cast: a kind that casts its abilities as soon as a foe is in sight
+    const FX = { ...OWN, units: { ...OWN.units, ranger: { name: 'Ranger', role: 'ranged', hp: 60, atk: 6, range: 4, rate: 1.2, speed: 1.8, cost: 70, time: 12, abilities: { shield: { shield: 40, time: 8, cooldown: 20 } } } } };
+    const C2 = own(B, { workers: 0 }, { player: FX, enemy: FX }), mk = (id, side, kind, n) => { const i = at(B, n); return { id, side, kind, hp: 60, x: (i % 9) + 0.5, y: Math.floor(i / 9) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 }; };
+    let F = { ...rtsStart(B, C2), units: [mk('r', 'player', 'ranger', 'C5'), mk('x', 'enemy', 'soldier', 'C9')] };
+    expect(run(B, C2, F, 0.2).R.units.find((u) => u.id === 'r').shield || 0).toBe(0);
+    F = rtsAct(B, C2, F, { k: 'auto', kind: 'ranger', on: true });
+    expect(run(B, C2, F, 0.2).R.units.find((u) => u.id === 'r').shield).toBe(40);
+    expect(() => rtsAct(B, C2, F, { k: 'auto', kind: 'soldier', on: true })).toThrow(/a Soldier has no ability to cast/);
   });
 });

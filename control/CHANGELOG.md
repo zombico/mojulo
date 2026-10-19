@@ -1094,6 +1094,18 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   a unit past the cap is refused, naming what to raise. The mind keeps a third of its workers on the second
   resource, raises quarters as it nears its cap, and is spent when nothing more can come (a board with no nodes at
   all has nothing to run out of; an idle worker's odd load, or a worker with nothing to mine, is nothing more).
+- **The skirmish's clock and hand**, built: every action the player takes goes through the kernel's one way in
+  (`act`: an order, a training, a building, a step, an upgrade, a rally, a standing order) and is logged by the
+  step it was taken before, so a game replays from its log (`replay`), however the page's frames cut the time. Each
+  side's actions a minute (APM, over game time) beside a game clock in the panel, the mind's counted as it plays.
+  P pauses; [ and ] slow and speed the clock (half, normal, faster, double). Control groups: Ctrl+1 to 9 keep the
+  selection (or a building), Shift adds, the digit takes it again, twice running the camera goes there; `.` selects
+  the next idle worker and goes to it. Standing orders: what a kind does when idle (I: a worker waits, gathers at
+  the nearest node or repairs, a foundation first; a fighter waits or holds), a factory that repeats what it trains
+  while it can pay (Y), a kind that casts its abilities on its own when a foe is in sight (C). A mind plays at a
+  level (`rts.level`: easy, normal, hard, or one each side): its workers, its first wave and how fast the next
+  grow, its actions a minute (easy is held to 40, a few seconds' worth in hand) and how often it thinks; each
+  side's waves now its own.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
