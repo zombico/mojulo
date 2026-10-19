@@ -13,15 +13,15 @@
  *   LEVELS { easy, fair, hard }: the dials for each
  *   evaluate(K, S, side) → score   from `side`'s seat; a pawn is 1
  *
- *   G.mind (optional, the game's own weights): { advance: w (a promoting piece's progress to its far row, 0.2),
- *     centre: w (a piece but a royal one standing near the middle, 0.1) }; values are the pieces' own `value`.
+ *   G.mind (optional, the game's own weights): { advance: w (a promoting piece's progress to its far row, 0.1),
+ *     centre: w (a piece but a royal one standing near the middle, 0.4) }; values are the pieces' own `value`.
  *
  * Two players; a game of more is played by each against the next (each seat maximises its own score).
  */
 
 export function buildTabletopMind(T) {
   const WIN = 10000;
-  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2 }, fair: { depth: 2, slack: 0.1 }, hard: { depth: 3 } };
+  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2 }, fair: { depth: 2, slack: 0.05 }, hard: { depth: 3 } };
 
   function dice(seed) {
     let a = seed >>> 0;
@@ -46,7 +46,7 @@ export function buildTabletopMind(T) {
   }
 
   function evaluate(K, S, side) {
-    const W = Object.assign({ advance: 0.2, centre: 0.1 }, K.G.mind || {}), mid = centreOf(K);
+    const W = Object.assign({ advance: 0.1, centre: 0.4 }, K.G.mind || {}), mid = centreOf(K);
     let score = 0;
     for (const P of S.pieces) {
       if (P.at < 0) continue;

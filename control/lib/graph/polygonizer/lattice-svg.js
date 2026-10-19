@@ -7,7 +7,8 @@
  *     px pixels a metre (48); names the cells' names (true); corners / edges dots and strokes (false)
  *     fills { <cell name>: colour } over types { <type>: colour } over the palette, in turn by the lattice's colouring
  *     (two on a square, the chessboard's; three on a hex, so no two neighbours match)
- *     highlight { cells, corners, edges: [names] } drawn over the rest
+ *     highlight { cells, corners, edges: [names] } drawn over the rest; ids: each cell's polygon carries data-cell (its
+ *     index), for a page that plays on it
  *     A raised cell is lighter by its height, so a height reads in plan.
  */
 
@@ -33,13 +34,18 @@ export function latticeColour(L, i) {
   return L.shape === 'square' ? (((a + b) % 2) + 2) % 2 : (((a - b) % 3) + 3) % 3;
 }
 
-export function latticeSvg(L, opts = {}) {
+/** The plan's frame: its size in pixels and where a world point lands on it, as latticeSvg draws. */
+export function latticeSvgFrame(L, opts = {}) {
   const px = opts.px ?? 48, pad = 0.35 * L.cell * px;
-  const palette = opts.palette ?? (L.shape === 'square' ? SQUARE_PALETTE : HEX_PALETTE);
-  const fills = opts.fills ?? {}, types = opts.types ?? {};
   const xs = L.corners.map((c) => c.at[0]), ys = L.corners.map((c) => c.at[1]);
   const x0 = Math.min(...xs), y1 = Math.max(...ys);
-  const W = L.size[0] * px + 2 * pad, H = L.size[1] * px + 2 * pad;
+  return { px, pad, x0, y1, W: L.size[0] * px + 2 * pad, H: L.size[1] * px + 2 * pad };
+}
+
+export function latticeSvg(L, opts = {}) {
+  const { px, pad, x0, y1, W, H } = latticeSvgFrame(L, opts);
+  const palette = opts.palette ?? (L.shape === 'square' ? SQUARE_PALETTE : HEX_PALETTE);
+  const fills = opts.fills ?? {}, types = opts.types ?? {};
   const sx = (x) => f2((x - x0) * px + pad), sy = (y) => f2((y1 - y) * px + pad);
   const hMax = Math.max(1, ...L.cells.map((c) => c.h));
   const pick = (kind, list) => new Set((list ?? []).map((n) => address(L, n)).filter((a) => a?.kind === kind).map((a) => a.i));
@@ -54,7 +60,7 @@ export function latticeSvg(L, opts = {}) {
     const base = fills[cl.name] ?? types[cl.type] ?? palette[latticeColour(L, i) % palette.length];
     const fill = cl.h > 0 ? shade(base, 0.35 * (cl.h / hMax)) : base;
     const pts = cl.k.map((k) => `${sx(L.corners[k].at[0])},${sy(L.corners[k].at[1])}`).join(' ');
-    out.push(`<polygon points="${pts}" fill="${fill}"${hlCells.has(i) ? ` stroke="${MARK}" stroke-width="${f2(px / 12)}"` : ''}><title>${cl.name}</title></polygon>`);
+    out.push(`<polygon points="${pts}" fill="${fill}"${opts.ids ? ` data-cell="${i}"` : ''}${hlCells.has(i) ? ` stroke="${MARK}" stroke-width="${f2(px / 12)}"` : ''}><title>${cl.name}</title></polygon>`);
   });
   out.push('</g>');
   if (opts.edges || hlEdges.size) {

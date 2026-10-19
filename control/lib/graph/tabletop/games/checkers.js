@@ -13,7 +13,7 @@ const dark = (rows) => rows.flatMap((r) => FILES.split('').filter((_, c) => (c +
 
 export const CHECKERS_PIECES = {
   M: {
-    name: 'man', value: 1,
+    name: 'man', glyph: '', value: 1,
     promote: { row: 'last', to: ['K'], stop: true },
     rules: [
       { vec: 'NE', sym: 'mirror', to: 'empty' },
@@ -21,7 +21,7 @@ export const CHECKERS_PIECES = {
     ],
   },
   K: {
-    name: 'king', value: 1.5,
+    name: 'king', glyph: '♛', value: 1.5,
     rules: [
       { vec: 'NE', sym: 'rotate', to: 'empty' },
       { vec: [2, 2], sym: 'rotate', to: 'empty', pass: 'enemy', capture: 'pass', chain: true },
@@ -31,7 +31,7 @@ export const CHECKERS_PIECES = {
 
 export const CHECKERS = {
   board: { shape: 'square', cols: 8, rows: 8 },
-  players: [{ id: 'black', facing: 'N' }, { id: 'white', facing: 'S' }],
+  players: [{ id: 'black', facing: 'N', colour: '#2a2420' }, { id: 'white', facing: 'S', colour: '#c4362a' }],
   mustCapture: true,
   noMoves: 'lose',
   repetition: 3,

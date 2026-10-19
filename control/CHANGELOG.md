@@ -118,6 +118,12 @@ in CSS 3D. In progress:
   a pick may fall. Bounded by a count of positions, never a clock, with seeded dice between equal moves: the same
   position and seed give the same move on any machine. A closure over the kernel, so a page carries both. The attack
   test walks each capturing rule backwards from the square, which made the search about three times faster.
+- **The game to play** (`lib/graph/tabletop/tabletop-page.js`), built: one self-contained page against the computer,
+  carrying the board, the game, the kernel and the mind. Two views of one board: the plan (SVG) and the table (CSS 3D,
+  every cell's top a div played by clicking, a piece a token that slides from cell to cell). Select a piece to see
+  where it may go, a promotion picker, the last move marked, check and the outcome in the status, the move list, undo,
+  a new game, the level (easy, fair, hard), and the clocks when the game has one (the page measures a move's time and
+  hands the kernel the number). The person sits at their own side: playing black turns the plan and the table.
 
 ## [3.1.1] - 2026-10-16
 
