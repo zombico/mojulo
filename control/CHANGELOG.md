@@ -113,6 +113,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **A gaze target.** `eyes: { look: { x, y, z } }` (metres from between the eyes: +x the figure's right, +y ahead,
   +z up) aims each eye from its own centre, so a near target converges them and a far one leaves them parallel; the
   lids follow, and a word or a side's own gaze composes with it. The head reports its `vergence`.
+- **The eye's depth.** The eye was set deep in a walled socket: it read from the front but sank from ¾. The skin
+  over the lateral orbital rim stood 6–8 mm ahead of the cornea, where it belongs about 10 mm behind, and the brow
+  stood 19–22 mm ahead. The cause was the orbit's frame: it was anchored to the glabella, not to the eye.
+  - **New relations:** the eye hangs off the nasion by `radix` (11 mm). The brow's outer end sits `orbitRim` behind
+    the cornea and the cheekbone's front sits `malarDepth` behind it. A `lateralOrbit` tissue marker gives that rim
+    forensic skin.
+  - **The brow** is an arch each side, the glabella over a supraorbital peak (`browProjection`, flatter on the
+    female pole) to the outer end. It replaces a straight bar, which ran in front of the eyes.
+  - **The skull** gains its lateral orbital rim, the zygoma's frontal process (skull only: the skin over it is
+    already the wave of its neighbours). Its orbit becomes a cone that holds the globe clear of bone.
+  - **Measured** in mm ahead of the cornea, male / female: radix 11 / 11, brow over the pupil 11.6 / 9.3, skin
+    over the lateral rim −9.6 / −9.5, the skull's rim −16.1 / −16.1 (Hertel's 12–20). The wave still meets every
+    relation within 0.4 mm, with no through-holes.
 - **The brow's bridge, and the lid space hung from it.** An invisible bridge runs across the forehead (`browBridge`)
   with four strings hanging from it: two medial strings down beside the nose's root, and two lateral strings down the
   temples. Each eye's arc, the edge of its fold under the brow, hangs between its two strings' feet just past the

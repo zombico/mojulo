@@ -60,6 +60,12 @@ export const RELATIONS = Object.freeze({
   noseProjection: 0.37, // sn-prn / n-sn
   lipProjection: 0.02,  // ls ahead of sn / v-me
   // ── the eye and the mouth
+  // the orbit's frame, in depth, against the cornea's apex: the eye hangs off the nasion, and the orbit's rims are
+  // set behind the eye, not ahead of it (the globe shows in a profile and from ¾; a rim ahead of the cornea walls it in)
+  radix: 0.048,         // the nasion ahead of the cornea / v-me (radix projection, ~11 mm; 9–14 by the clinic's canon)
+  orbitRim: 0.065,      // the frontozygomatic (the brow's outer end, the lateral rim's top) behind the cornea / v-me
+  malarDepth: 0.045,    // the cheekbone's front behind the cornea / v-me
+  browProjection: 0.035, // the supraorbital arch's peak ahead of the cornea / v-me (the summed skin lands ~3 mm further)
   fissure: 0.045,       // the palpebral fissure's height / v-me (the eye's opening, ~10 mm)
   canthalTilt: 0.008,   // the lateral canthus above the medial / v-me
   upperVermilion: 0.035, // the upper lip's red height / v-me
@@ -84,7 +90,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ browProjection: 0.028, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
@@ -120,16 +126,17 @@ export function corePoints(rel = RELATIONS) {
     porionR: { x: euX * 0.88, y: 0, z: zEye - 0.045 },
   };
   const side = (name, x, y, z) => { P[`${name}R`] = { x, y, z }; P[`${name}L`] = { x: -x, y, z }; };
+  const eyeY = n.y - R.radix;   // the cornea's apex (the eye point), hung off the nasion
   side('eu', euX, op.y + R.headLength * 0.42, 0.72);
   side('zy', zyX, 0.13, zEye - 0.06);                         // the arch's widest, ahead of the ear
-  side('malar', zyX * 0.78, g.y - 0.09, zEye - 0.09);        // the cheekbone's front (the zygomatic prominence)
-  side('fz', exX + 0.01, g.y - 0.07, zG - 0.01);             // frontozygomatic: the brow's outer end
+  side('malar', zyX * 0.78, eyeY - R.malarDepth, zEye - 0.09); // the cheekbone's front (the zygomatic prominence)
+  side('fz', exX + 0.01, eyeY - R.orbitRim, zG - 0.01);      // frontozygomatic: the brow's outer end
   side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
   side('go', goX, 0.07, zSto - 0.03);                        // the jaw's corner
   side('ment', goX * 0.42, pg.y - 0.035, 0.05);              // the mental tubercle: the chin's corners
-  side('en', enX, n.y - 0.045, zEye);
-  side('ex', exX, n.y - 0.09, zEye + R.canthalTilt);
-  side('eye', (enX + exX) / 2, n.y - 0.07, zEye);
+  side('en', enX, eyeY + 0.025, zEye);
+  side('ex', exX, eyeY - 0.02, zEye + R.canthalTilt);
+  side('eye', (enX + exX) / 2, eyeY, zEye);
   side('al', alX, sn.y + 0.035, zSn + 0.012);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
   // THE CHEEK CONTROL POINT: straight out from the rhinion (mid-bridge) to under the eye's centre — the cheek's apex,
@@ -150,7 +157,7 @@ export function corePoints(rel = RELATIONS) {
  * out by the depth interpolated between the markers — so the skin lands on the relations again.
  */
 export const TISSUE_MM = Object.freeze({
-  vertex: 5.5, trichion: 4.5, g: 5.5, n: 6.5, op: 6, eu: 5.5, supraorbital: 6, suborbital: 6.5, malar: 11, zy: 7,
+  vertex: 5.5, trichion: 4.5, g: 5.5, n: 6.5, op: 6, eu: 5.5, supraorbital: 6, suborbital: 6.5, lateralOrbit: 6, malar: 11, zy: 7,
   temporal: 10, condyle: 9, masseter: 18, go: 12, buccal: 15, philtrum: 12, mentolabial: 11, pg: 11, gn: 8, me: 7,
 });
 const MM_V = 1 / 230;   // a millimetre in head heights
@@ -168,6 +175,8 @@ function tissueMarkers(P) {
     m.push([P[`eu${s}`], 'eu'], [P[`zy${s}`], 'zy'], [P[`malar${s}`], 'malar'], [P[`go${s}`], 'go'],
       [{ ...P[`eye${s}`], z: P[`eye${s}`].z + 0.06, y: P[`eye${s}`].y - 0.005 }, 'supraorbital'],
       [{ ...P[`eye${s}`], z: P[`eye${s}`].z - 0.06, y: P[`eye${s}`].y - 0.01 }, 'suborbital'],
+      // (the lateral orbital rim, beside the outer canthus: thin skin over the rim, which sits behind the eye)
+      [{ x: P[`ex${s}`].x + Math.sign(P[`ex${s}`].x) * 0.03, y: P[`ex${s}`].y - 0.03, z: P[`ex${s}`].z }, 'lateralOrbit'],
       [mid(P[`fz${s}`], P[`eu${s}`], 0.4), 'temporal'], [P[`condyle${s}`], 'condyle'],
       [mid(P[`go${s}`], P[`malar${s}`], 0.45), 'masseter'], [mid(P[`ch${s}`], P[`go${s}`], 0.35), 'buccal']);
   }
@@ -290,9 +299,23 @@ export function coreVajras(P, rel = RELATIONS) {
   // sideways as a width bead's does — a sideways step left the tubercles proud and cleft the chin)
   w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.025, 0.05, 0.025], [J, J, J], { stepIn: true });
   w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
-  // THE BROW — frontozygomatic to frontozygomatic through the glabella, its radius the sex's ridge
-  const rb = 0.03 + 0.02 * R.brow;
-  w('brow', P.fzL, at(P.g, { y: -rb }), P.fzR, [0.035, rb, 0.035]);
+  // THE BROW — an arch each side, the glabella → the supraorbital peak over the iris's outer edge → the
+  // frontozygomatic: forward over the eye (`browProjection`), sweeping back to its outer end behind the eye
+  // (`orbitRim`), so it hoods the globe without walling it in; its radius the sex's ridge
+  // (the peak's radius outgrows the tissue over it, so its bone stays a ridge and never shrinks to a floating bead)
+  const rb = 0.03 + 0.02 * R.brow, rS = 0.036 + 0.008 * R.brow;
+  for (const s of ['L', 'R']) {
+    const e = P[`eye${s}`], sg = Math.sign(e.x);
+    const peak = { x: e.x + sg * 0.012, y: e.y + R.browProjection - rS, z: e.z + 0.065 };
+    w(`brow${s}`, at(P.g, { y: -rb }), peak, P[`fz${s}`], [rb, rS, 0.035]);
+    // THE LATERAL ORBITAL RIM — the zygoma's frontal process: the brow's outer end → beside the outer canthus, its
+    // deepest (Hertel's rim, ~16 mm behind the cornea) → the cheekbone; it closes the orbit's side behind the eye.
+    // Authored at its BONE size and in the SKULL only: the skin over it is already the wave of the brow, the cheek and
+    // their pads, landing its ~6 mm of tissue over this bar; summed into the skin's wave too, the bar would count
+    // twice and wall the eye in again
+    const ex = P[`ex${s}`];
+    V.push({ name: `orbitRim${s}`, a: at(P[`fz${s}`], { y: -0.02 }), c: { x: ex.x + sg * 0.024, y: e.y - R.orbitRim - 0.017, z: ex.z - 0.004 }, b: at(P[`malar${s}`], { y: -0.035 }), r: [0.014, 0.012, 0.016], group: 'bone', skullOnly: true });
+  }
   // THE SOFT MASSES — muscles at rest and fat pads, origin → belly → insertion, authored at their skin size (no bone
   // under them, no tissue over them). They fill what an offset of the bone cannot: the hollows between the bones.
   // A muscle here is its REST volume; its action (phase 2) drives the same vajra. Lateral beads are set inside the
@@ -666,9 +689,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const bonds = vajras.map((w) => {
     const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i], w.stepIn)) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
     const [a, c, b] = beads.map(([q]) => S(q)), [ra, rc, rb] = beads.map(([, r]) => r * sc);
-    return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)) };
+    return { group: w.group, skullOnly: !!w.skullOnly, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)) };
   });
-  const orbits = ['L', 'R'].map((s) => ({ c: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.01 }), r: 0.075 * sc }));
+  // the orbits: cones opening forward round each globe, deep enough to hold it with room for the fat behind it
+  const orbits = ['L', 'R'].map((s) => ({ a: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.005 }), b: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.15 }), ra: 0.068 * sc, rb: 0.04 * sc }));
   const carves = bonds.filter((b) => b.group === 'carve');
   // where the wavelength shortens: the mouth (about the stomion, the mouth's width) and each eye
   const featureFoci = [
@@ -683,7 +707,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     if (!skin) {
       let d = Infinity;
       for (const b of bonds) if (b.group === 'bone') { const e = b.f(p); d = d === Infinity ? e : smin(d, e, BLEND.bone * sc); }
-      for (const o of orbits) d = smax(d, -(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r), 0.02 * sc);
+      for (const o of orbits) d = smax(d, -sdRoundCone(p, o.a, o.b, o.ra, o.rb), 0.02 * sc);
       return d;
     }
     // THE SKIN WAVE: each bone vajra less the tissue at p, each soft mass as it is, summed as waves exp(−e/k)
@@ -691,7 +715,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const t = depth(p), es = [], g = {};
     let lo = Infinity;
     for (const b of bonds) {
-      if (b.group === 'carve') continue;
+      if (b.group === 'carve' || b.skullOnly) continue;
       const e = b.f(p);
       if (b.group === 'bone' || b.group === 'soft') { const v = b.group === 'bone' ? e - t : e; es.push(v); if (v < lo) lo = v; }
       else g[b.group] = g[b.group] === undefined ? e : smin(g[b.group], e, BLEND[b.group] * sc);
