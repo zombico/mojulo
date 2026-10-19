@@ -239,16 +239,23 @@ export function stretchAudit(mesh, skin, R, recipe, frames) {
   return { rings: acc, regions, seams: seamAcc, worst: acc.length ? worstOf(acc) : null, frames: frames.length };
 }
 
+/** a studied gait (the hero's walk, jog or sprint as the door stamps it) on rig `R`: its pose at a phase 0 … 1 of its
+ * cycle, `(phase) => pose` */
+export function gaitPose(R, gait) {
+  const plan = motionPlan(stampHeroMotion({ [gait]: true }));
+  if (!plan?.[gait]?.spec) throw new Error(`hero-stretch: '${gait}' is not a studied gait (walk, jog, sprint)`);
+  return heroLocomotion(plan[gait].spec, R, { tilt: plan[gait].tilt }).fn;
+}
+
 /**
- * The studied gaits as audit frames: each of `gaits` (the hero's walk, jog and sprint as the door stamps them) sampled at
- * `samples` phases over its cycle, labelled `<gait> <i>/<samples>`.
+ * The studied gaits as audit frames: each of `gaits` sampled at `samples` phases over its cycle, labelled
+ * `<gait> <i>/<samples>`.
  */
 export function gaitFrames(R, { gaits = ['walk', 'jog', 'sprint'], samples = 12 } = {}) {
-  const plan = motionPlan(stampHeroMotion(Object.fromEntries(gaits.map((g) => [g, true]))));
   const out = [];
   for (const g of gaits) {
-    const loco = heroLocomotion(plan[g].spec, R, { tilt: plan[g].tilt });
-    for (let i = 0; i < samples; i++) out.push({ label: `${g} ${i}/${samples}`, pose: loco.fn(i / samples) });
+    const at = gaitPose(R, g);
+    for (let i = 0; i < samples; i++) out.push({ label: `${g} ${i}/${samples}`, pose: at(i / samples) });
   }
   return out;
 }

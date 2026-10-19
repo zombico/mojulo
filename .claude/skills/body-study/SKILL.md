@@ -1,0 +1,56 @@
+---
+name: body-study
+description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>]`.
+---
+
+# body-study
+
+The hero's body is what the outfit, armour, stylism and equipment loops dress, and what an engine plays. This is its
+**eyes gate**: the cage itself, skinned by its rig, so a joint's pinch or a seam opening shows where the stretch audit
+says it is. Run it, then Read the sheet.
+
+## Use it
+
+```bash
+node .claude/skills/body-study/body.mjs [male] [female] [--out /tmp/body-study]
+```
+
+Without `--acts`: each cast at the bind, from the front, the front ¾, the lateral, the back and below. Any figure cast
+word works in place of `male` / `female` (heroic, brute, lithe, stout, child, chibi).
+
+**Rows** (`--acts`): one row per entry per cast, at the front, the front ¾, the lateral and the back.
+
+```bash
+node .claude/skills/body-study/body.mjs female \
+     --acts '[{}, {"gait":"sprint","phase":0.25}, {"gesture":"guard"}, {"gait":"sprint","phase":0.25,"crop":"knee"}]'
+```
+
+- `{}` the bind;
+- `{ "gait": "walk" | "jog" | "sprint", "phase": 0 … 1 }` a studied gait at a phase of its cycle (the hero's own, as
+  the door stamps it);
+- `{ "gesture": "relaxed" | "guard" | "hand-on-hip" … }` a stand as the door mints it on that cast;
+- `{ "pose": { … } }` a rig pose as `rigNodesAt` takes it (`{ "elbowR": 110 }`, `{ "support": "L", "kneeR": 90 }`).
+
+Any entry may carry its own `"crop"`.
+
+**Crops** (`--crop`, or per row): `torso`, `shoulder`, `hip`, `knee`, `hand`, `foot` (the right side's), `neck` (the
+seam where the head sits). Framed on the POSED joints, so a crop follows its joint through a gait.
+
+**The sections panel and the measures table** come at the bind, per cast:
+
+- the trunk cut level at the neck, the chest (six tenths of the way from the navel to the shoulder joints), the waist
+  (the navel) and the seat (the hip joints);
+- the right thigh (a fifth down the femur), knee, calf (three tenths down the shank), upper arm (mid) and forearm (a
+  quarter down), each cut square to its bone;
+- each outline drawn at one scale, the dashed loop its convex hull (what a tape measure reads), its girth below;
+- stature, heads tall, the head's height (vertex to menton), the biacromial (the shoulder joints' span) and the
+  shoulders' and hips' silhouette breadths.
+
+`report.json` carries the table. The register's targets join it when the register has relations (the realistic
+register's phase 3a); until then the table is the baseline.
+
+## Read it with the stretch audit
+
+`node control/scripts/hero-stretch.mjs --cast <cast>` names the worst ring, band and seam and the frame it happens
+at (`sprint 3/12` is the sprint at phase 0.25). Render that frame here with the joint's crop to see it: the knee's
+seam opening at the sprint, the elbow's at a hand-on-hip.

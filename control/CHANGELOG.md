@@ -36,6 +36,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   parent: the groin and the armpit hold through every frame (the hip's and the shoulder's give is all in their bands),
   while the elbow's and the knee's open: at the hand-on-hip's bent elbow the forearm's tucked slots come 41 mm out of
   the upper arm, and at the sprint's knee the shank's top comes 11 mm (male) to 32 mm (female) out of the thigh.
+- **The body lane** (the `body-study` skill). The hero's body as an engine gets it, the skinned cage shaded smooth,
+  from the front, the front ¾, the lateral, the back and below; rows posed at the bind, a gait at a phase, a stand
+  gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the
+  posed joints; and at the bind a sections panel (the trunk cut level at the neck, chest, waist and seat, the right
+  limbs square to their bones) with each girth as a tape reads it, and a measures table (stature, heads tall, the
+  shoulders' and hips' breadths, the girths). The eyes gate beside the stretch audit's numbers: the sprint's knee crop
+  shows the shank's top out of the thigh where the audit measures it. Baseline, male and female: stature 1753 and
+  1664 mm, 7.15 and 6.79 heads tall; chest 107 and 88 cm, waist 84 and 64, seat 86 and 90.
 
 ### Epidermis cube: skin and hair as a recipe
 
