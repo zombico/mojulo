@@ -199,6 +199,23 @@ in CSS 3D. In progress:
   principle (walls, paths, shrines). The page draws each tile from its segments on the plan (cropped to what is laid)
   and on the table (the art on the cell's top, claims as standing bodies, the view following the play); the drawn tile
   is turned by hand and laid where it fits, then a claim chosen or not.
+- **Piles, hands and markets**, built: card games, with no board (`piles`). Card types are data (a cost, coins, points, a
+  treasure, effects to play in a few verbs: draw, coins, actions, buys, points, gain a card up to a cost, trash from
+  the hand; tags). Each player has a deck, a hand, a discard, the cards played this turn and a tableau; a supply of
+  piles and a market, a row face up refilled from its own seeded deck. Deck building: a hand drawn, treasures played
+  freely and others for one of the turn's actions, buys into the discard, the turn's cards to the discard and a new
+  hand, the discard shuffled into a deck when it runs out; a gain or a trash owed is chosen one card at a time.
+  Drafting: a turn takes one card from the row to the tableau. Set collection scorers: the cards' points, different
+  values of a tag held, the same value held so many times, a tag's numbers summed, the most of a value (a tie sharing
+  the bonus). The game ends as a turn ends (a pile gone, so many piles gone, the market empty, a turn count). A
+  player's view keeps its own hand and deals deck order, the others' hands and the market's deck again. The computer
+  plays what leaves its turn the most to buy with (an action that keeps the actions going first), then buys what
+  leaves its seat worth most: its points weighed more as the end nears, the average hand its deck draws weighed less;
+  at a draft, the card worth most to it less half the next seat's best take. Against fixed strategies (a money-only
+  buyer, a buyer of the dearest card) it wins about half its games; it beats random play every time. Two fixtures
+  named by principle (deck building; drafting and set collection), played on a card page: the supply and the market
+  lit where a buy, a take or a gain may go, the hand lit where a play or a trash may, the others' piles as counts and
+  their tableaux face up, actions, buys and coins, every seat's points as the game scores them now, a log.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

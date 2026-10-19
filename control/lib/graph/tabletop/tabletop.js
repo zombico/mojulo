@@ -2,7 +2,8 @@
  * A game over its board, for Node: the lattice laid from the game's `board` spec and the kernel's game compiled over
  * it. The page carries the same two as data (the lattice record) and code (`buildTabletop.toString()`).
  *
- *   tabletopGame(G) → { L, K, G }   G as tabletop-kernel.js reads it, with board: a lattice spec (polygonizer/lattice.js);
+ *   tabletopGame(G) → { L, K, G }   G as tabletop-kernel.js reads it, with board: a lattice spec (polygonizer/lattice.js;
+ *                                   a game of cards alone may leave it out);
  *                                   the G returned is the one played, its `deal` done
  *   dealt(G) → G                    the `deal` system done: the cells' types and numbers, and the pieces it sets
  *
@@ -65,8 +66,9 @@ export function dealt(G) {
 }
 
 export function tabletopGame(G) {
-  if (!G || !G.board) throw new Error('tabletop: a game needs a board (a lattice spec: { shape, cols, rows } or { shape: \'hex\', radius })');
-  const P = dealt(G);
+  if (!G || (!G.board && !G.piles)) throw new Error('tabletop: a game needs a board (a lattice spec: { shape, cols, rows } or { shape: \'hex\', radius })');
+  // a game of cards alone keeps a single cell, so the one kernel serves it too
+  const P = dealt(G.board ? G : { ...G, board: { shape: 'square', cols: 1, rows: 1 } });
   const L = lattice(P.board);
   return { L, K: tabletopCompile(L, P), G: P };
 }

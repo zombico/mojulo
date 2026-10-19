@@ -137,11 +137,13 @@ export function buildTabletop() {
     placementCompile(K);
     if (G.build || G.dice || G.opening) euroCompile(K);
     if (G.tiles) tileCompile(K);
+    if (G.piles) cardCompile(K);
     return K;
   }
 
   // ── the state ───────────────────────────────────────────────────────────────────────────────────────────────────
   function start(K) {
+    if (K.card) return cardStart(K);
     if (K.tile) return tileStart(K);
     if (K.euro) return euroStart(K);
     const board = K.L.cells.map(() => -1), pieces = [];
@@ -330,6 +332,7 @@ export function buildTabletop() {
   }
 
   function legal(K, S) {
+    if (K.card) return cardLegal(K, S);
     if (K.tile) return tileLegal(K, S);
     if (K.euro) return euroLegal(K, S);
     if (S.over) return [];
@@ -374,6 +377,7 @@ export function buildTabletop() {
   }
 
   function apply(K, S, m, opts) {
+    if (K.card) return cardApply(K, S, m);
     if (K.tile) return tileApply(K, S, m);
     if (K.euro) return euroApply(K, S, m);
     const o = opts || {};
@@ -439,7 +443,7 @@ export function buildTabletop() {
 
   function outcome(K, S, moves) {
     if (S.over) return S.over;
-    if (K.euro || K.tile) return null;
+    if (K.euro || K.tile || K.card) return null;
     const list = moves || legal(K, S);
     if (list.length) return null;
     if (K.G.end) return scoredEnd(K, S);
@@ -889,6 +893,221 @@ export function buildTabletop() {
     N.phase = 'tile';
     N.drawn = N.bag.shift() || null;
     if (!N.drawn) tileEnd(K, N);
+    return N;
+  }
+
+  // ── cards: piles, hands and markets ─────────────────────────────────────────────────────────────────────────────────
+  // A game with `piles` is played with cards, not on a board. Each player has piles (deck, hand, discard, play, tableau);
+  // a supply of piles anyone may take from; a market, a row of cards face up refilled from its own deck.
+  //
+  //   G.piles { types: { <id>: { cost?, coin?, points?, treasure?, play?: [effect], tags?: { <tag>: value } } },
+  //     take: 'build' (the default) | 'draft', supply?: { <id>: n }, start?: { deck: { <id>: n } },
+  //     market?: { deck: { <id>: n }, row: n }, draw?: 5, actions?: 1, buys?: 1, score?: [scorer], end: { … } }
+  //   build: each player draws a hand from its deck; a turn plays cards (a treasure freely, any other for one of the
+  //     turn's actions), buys from the supply or the market with the coins they gave (one buy each), and ends: hand and
+  //     play to the discard, a new hand drawn, the discard shuffled into a deck from the dice when the deck runs out
+  //   draft: a turn takes one card from the market row to the player's tableau, and the row refills
+  //   effect: { draw: n } | { coin: n } | { actions: n } | { buys: n } | { points: n } | { gain: n } (a card from the
+  //     supply costing up to n, to the discard) | { trash: n } (up to n cards from the hand, gone)
+  //   end: { piles?: n (that many supply piles empty), pile?: id (that pile empty), market?: true (row and deck empty),
+  //     turns?: n }, checked as a turn ends
+  //   scorer: { points: true } the cards' points | { distinct: { tag, table } } table[number of different values held] |
+  //     { same: { tag, table } } table[number held] for each value | { most: { tag, value?, bonus } } the most cards
+  //     (of that value) earn the bonus, a tie sharing it | { sum: { tag } } the tag's numbers added
+  //   state: { zones: [{ deck, hand, discard, play, tableau }], supply, market: { row, deck } | null, trash, score,
+  //     act: { actions, buys, coins }, pending, r }
+  function cardCompile(K) {
+    const C = K.G.piles, types = C.types || {};
+    const known = (id, where) => { if (!types[id]) throw new Error('tabletop: ' + where + ' names a card ' + id + ' the game does not describe'); };
+    for (const id of Object.keys(C.supply || {})) known(id, 'the supply');
+    for (const id of Object.keys((C.start && C.start.deck) || {})) known(id, 'the starting deck');
+    for (const id of Object.keys((C.market && C.market.deck) || {})) known(id, 'the market');
+    K.card = { types, draft: C.take === 'draft', hand: C.draw === undefined ? 5 : C.draw, actions: C.actions === undefined ? 1 : C.actions, buys: C.buys === undefined ? 1 : C.buys };
+  }
+
+  function shuffle(S, list) {
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd(S) * (i + 1)); const t = list[i]; list[i] = list[j]; list[j] = t; }
+    return list;
+  }
+  const expand = (counts) => { const out = []; for (const id of Object.keys(counts || {})) for (let i = 0; i < counts[id]; i++) out.push(id); return out; };
+
+  function drawCards(S, side, n) {
+    const Z = S.zones[side];
+    for (let i = 0; i < n; i++) {
+      if (!Z.deck.length) { Z.deck = shuffle(S, Z.discard); Z.discard = []; }
+      if (!Z.deck.length) break;
+      Z.hand.push(Z.deck.pop());
+    }
+  }
+
+  function cardStart(K) {
+    const C = K.G.piles, n = K.players.length;
+    const S = { board: [], pieces: [], pending: [], side: 0, turn: 0, over: null, r: mixSeed(K.G.seed || 1, 0, 0),
+      zones: [], supply: Object.assign({}, C.supply || {}), market: null, trash: [], score: K.players.map(() => 0),
+      act: { actions: K.card.actions, buys: K.card.buys, coins: 0 } };
+    for (let s = 0; s < n; s++) {
+      S.zones.push({ deck: shuffle(S, expand(C.start && C.start.deck)), hand: [], discard: [], play: [], tableau: [] });
+      if (!K.card.draft) drawCards(S, s, K.card.hand);
+    }
+    if (C.market) {
+      const deck = shuffle(S, expand(C.market.deck)), row = [];
+      for (let i = 0; i < C.market.row; i++) row.push(deck.length ? deck.pop() : null);
+      S.market = { row, deck };
+    }
+    return S;
+  }
+
+  const costOf = (K, id) => K.card.types[id].cost || 0;
+
+  function cardLegal(K, S) {
+    if (S.over) return [];
+    const out = [], side = S.side, Z = S.zones[side], types = K.card.types;
+    if (S.pending.length) {
+      const d = S.pending[0];
+      if (d.do === 'gain') for (const id of Object.keys(S.supply)) { if (S.supply[id] > 0 && costOf(K, id) <= d.upTo) out.push({ type: 'gain', card: id }); }
+      if (d.do === 'trash') { for (const id of Array.from(new Set(Z.hand))) out.push({ type: 'trash', card: id }); out.push({ type: 'done' }); }
+    } else if (K.card.draft) {
+      S.market.row.forEach((id, slot) => { if (id) out.push({ type: 'take', slot }); });
+      if (!out.length) out.push({ type: 'end' });
+    } else {
+      for (const id of Array.from(new Set(Z.hand))) {
+        const t = types[id];
+        if (t.treasure || (t.play && t.play.length && S.act.actions > 0)) out.push({ type: 'play', card: id });
+      }
+      if (S.act.buys > 0) {
+        for (const id of Object.keys(S.supply)) if (S.supply[id] > 0 && costOf(K, id) <= S.act.coins) out.push({ type: 'buy', card: id });
+        if (S.market) S.market.row.forEach((id, slot) => { if (id && costOf(K, id) <= S.act.coins) out.push({ type: 'buy', slot }); });
+      }
+      out.push({ type: 'end' });
+    }
+    for (const m of out) {
+      const card = m.card || (m.slot !== undefined ? S.market.row[m.slot] : null);
+      m.name = m.type + (card ? ' ' + card : '') + (m.slot !== undefined ? '@' + m.slot : '');
+    }
+    return out;
+  }
+
+  function cardEffects(K, N, side, list) {
+    for (const e of list || []) {
+      if (e.draw) drawCards(N, side, e.draw);
+      if (e.coin) N.act.coins += e.coin;
+      if (e.actions) N.act.actions += e.actions;
+      if (e.buys) N.act.buys += e.buys;
+      if (e.points) N.score[side] += e.points;
+      if (e.gain) N.pending.push({ side, do: 'gain', upTo: e.gain });
+      if (e.trash) N.pending.push({ side, do: 'trash', left: e.trash });
+    }
+  }
+
+  function cardScores(K, S) {
+    const types = K.card.types, scorers = K.G.piles.score || [{ points: true }];
+    const owned = S.zones.map((Z) => Z.deck.concat(Z.hand, Z.discard, Z.play, Z.tableau));
+    const out = S.score.slice();
+    const tag = (id, t) => (types[id].tags || {})[t];
+    for (const sc of scorers) {
+      owned.forEach((cards, s) => {
+        if (sc.points) for (const id of cards) out[s] += types[id].points || 0;
+        if (sc.distinct) {
+          const vals = new Set(cards.map((id) => tag(id, sc.distinct.tag)).filter((v) => v !== undefined));
+          const tb = sc.distinct.table;
+          out[s] += tb[Math.min(vals.size, tb.length - 1)] || 0;
+        }
+        if (sc.same) {
+          const by = {};
+          for (const id of cards) { const v = tag(id, sc.same.tag); if (v !== undefined) by[v] = (by[v] || 0) + 1; }
+          const tb = sc.same.table;
+          for (const v in by) out[s] += tb[Math.min(by[v], tb.length - 1)] || 0;
+        }
+        if (sc.sum) for (const id of cards) out[s] += +(tag(id, sc.sum.tag) || 0);
+      });
+      if (sc.most) {
+        const m = sc.most, counts = owned.map((cards) => cards.filter((id) => (m.value === undefined ? tag(id, m.tag) !== undefined : tag(id, m.tag) === m.value)).length);
+        const top = Math.max.apply(null, counts);
+        if (top > 0) { const lead = counts.map((c, s) => (c === top ? s : -1)).filter((s) => s >= 0); for (const s of lead) out[s] += Math.floor(m.bonus / lead.length); }
+      }
+    }
+    return out;
+  }
+
+  function cardEnded(K, N) {
+    const E = (K.G.piles && K.G.piles.end) || {};
+    const empty = Object.keys(N.supply).filter((id) => N.supply[id] <= 0).length;
+    if (E.piles && empty >= E.piles) return true;
+    if (E.pile && (N.supply[E.pile] || 0) <= 0) return true;
+    if (E.market && N.market && !N.market.deck.length && N.market.row.every((x) => !x)) return true;
+    if (E.turns && N.turn >= E.turns) return true;
+    return false;
+  }
+
+  function cardTurnEnds(K, N, side) {
+    if (!K.card.draft) {
+      const Z = N.zones[side];
+      Z.discard = Z.discard.concat(Z.hand, Z.play);
+      Z.hand = [];
+      Z.play = [];
+      drawCards(N, side, K.card.hand);
+      N.act = { actions: K.card.actions, buys: K.card.buys, coins: 0 };
+    }
+    N.side = (side + 1) % K.players.length;
+    N.turn += 1;
+    if (cardEnded(K, N)) {
+      const sc = cardScores(K, N), top = Math.max.apply(null, sc), lead = sc.map((x, s) => (x === top ? s : -1)).filter((s) => s >= 0);
+      N.over = { winner: lead.length === 1 ? lead[0] : null, reason: 'score', scores: sc };
+    }
+  }
+
+  function cardApply(K, S, m) {
+    const N = clone(S), side = S.side, Z = N.zones[side], types = K.card.types;
+    const d = N.pending.length ? N.pending.shift() : null;
+    const take = (slot) => {
+      const id = N.market.row[slot];
+      N.market.row[slot] = N.market.deck.length ? N.market.deck.pop() : null;
+      return id;
+    };
+    if (m.type === 'play') {
+      const i = Z.hand.indexOf(m.card);
+      if (i < 0) throw new Error('tabletop: no ' + m.card + ' in the hand');
+      Z.hand.splice(i, 1);
+      Z.play.push(m.card);
+      const t = types[m.card];
+      if (!t.treasure) N.act.actions -= 1;
+      if (t.coin) N.act.coins += t.coin;
+      cardEffects(K, N, side, t.play);
+    } else if (m.type === 'buy') {
+      const id = m.slot !== undefined ? N.market.row[m.slot] : m.card;
+      if (!id || costOf(K, id) > N.act.coins || N.act.buys <= 0) throw new Error('tabletop: that cannot be bought now');
+      N.act.coins -= costOf(K, id);
+      N.act.buys -= 1;
+      if (m.slot !== undefined) take(m.slot); else N.supply[id] -= 1;
+      Z.discard.push(id);
+    } else if (m.type === 'take') {
+      Z.tableau.push(take(m.slot));
+      cardTurnEnds(K, N, side);
+    } else if (m.type === 'gain') {
+      N.supply[m.card] -= 1;
+      Z.discard.push(m.card);
+    } else if (m.type === 'trash') {
+      Z.hand.splice(Z.hand.indexOf(m.card), 1);
+      N.trash.push(m.card);
+      if (d.left > 1 && Z.hand.length) N.pending.unshift(Object.assign({}, d, { left: d.left - 1 }));
+    } else if (m.type === 'end') {
+      cardTurnEnds(K, N, side);
+    }
+    while (N.pending.length && !cardLegal(K, N).length) N.pending.shift();
+    return N;
+  }
+
+  // what a player may know: its own hand; every deck's order, the others' hands and the market's deck dealt again
+  function cardView(K, S, side, seed) {
+    const N = clone(S);
+    N.r = mixSeed(seed || 1, S.turn, side);
+    N.zones.forEach((Z, s) => {
+      if (s === side) { shuffle(N, Z.deck); return; }
+      const pool = shuffle(N, Z.deck.concat(Z.hand)), n = Z.hand.length;
+      Z.hand = pool.slice(0, n);
+      Z.deck = pool.slice(n);
+    });
+    if (N.market) shuffle(N, N.market.deck);
     return N;
   }
 
@@ -1401,6 +1620,7 @@ export function buildTabletop() {
   // what `side` may know: the cards it cannot see dealt again at random from those unseen (the deck, the others'
   // hands), the dice ahead unknowable; seeded, so a mind's guess is its own and the same each time
   function view(K, S, side, seed) {
+    if (K.card) return cardView(K, S, side, seed);
     if (K.tile) {
       // the bag's order is what nobody knows: dealt again for the viewer
       const N = clone(S);
@@ -1432,7 +1652,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores };
 }
 
 const _tabletop = buildTabletop();

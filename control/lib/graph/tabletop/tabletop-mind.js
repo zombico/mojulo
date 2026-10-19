@@ -344,8 +344,103 @@ export function buildTabletopMind(T) {
     return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
   }
 
+  // ── cards ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  // How far a card game has gone, 0 to 1: the nearest of its end conditions, and never less than its turns played
+  // over a usual length (players × 24), so a game nobody ends still turns to points.
+  function cardProgress(K, S) {
+    const E = K.G.piles.end || {}, C = K.G.piles;
+    let p = Math.min(1, S.turn / (K.players.length * 24));
+    if (E.turns) p = Math.max(p, S.turn / E.turns);
+    if (E.pile) { const n = (C.supply || {})[E.pile] || 1; p = Math.max(p, 1 - (S.supply[E.pile] || 0) / n); }
+    if (E.piles) {
+      // the end comes when the last of the emptiest piles it needs is gone: that pile's way to empty
+      const gone = Object.keys(C.supply || {}).map((id) => 1 - (S.supply[id] || 0) / (C.supply[id] || 1)).sort((a, b) => b - a);
+      p = Math.max(p, gone[Math.min(E.piles, gone.length) - 1] || 0);
+    }
+    if (E.market && S.market) {
+      const all = Object.values(C.market.deck || {}).reduce((a, b) => a + b, 0) || 1;
+      p = Math.max(p, 1 - (S.market.deck.length + S.market.row.filter(Boolean).length) / all);
+    }
+    return Math.min(1, p);
+  }
+  // what a card brings to a hand it is drawn in: its coins, the cards and coins it plays for, a little for the actions
+  // and buys it adds, and for the gaining and trashing it does early on
+  function cardEcon(K, id) {
+    const t = K.card.types[id];
+    let v = t.coin || 0;
+    for (const e of t.play || []) v += (e.coin || 0) + 0.8 * (e.draw || 0) + 0.25 * (e.actions || 0) + 0.4 * (e.buys || 0) + 0.25 * (e.gain || 0) + 0.12 * (e.trash || 0);
+    return v;
+  }
+  // A seat's worth in a card game: its points as the game scores them, weighed more the further it has gone; and, in
+  // a deck game, what an average hand of its cards brings, weighed less as the end nears; less half the leader's.
+  function cardWorth(K, S, side) {
+    if (S.over) return S.over.winner === side ? WIN : S.over.winner === null ? 0 : -WIN;
+    const p = cardProgress(K, S), sc = T.cardScores(K, S);
+    const seat = sc.map((x, s) => {
+      let v = x * (0.2 + p);
+      if (!K.card.draft) {
+        const Z = S.zones[s], owned = Z.deck.concat(Z.hand, Z.discard, Z.play);
+        const econ = owned.reduce((a, id) => a + cardEcon(K, id), 0) / (owned.length || 1);
+        v += 4 * econ * K.card.hand * (1 - p);
+      }
+      return v;
+    });
+    let other = -Infinity;
+    for (let s = 0; s < seat.length; s++) if (s !== side) other = Math.max(other, seat[s]);
+    return seat[side] - 0.5 * other;
+  }
+  // what this turn can still buy: the coins in hand, the treasures not yet played, a card's draw at the deck's average
+  function turnReach(K, S, side) {
+    if (S.side !== side) return 0;
+    const Z = S.zones[side], types = K.card.types;
+    let v = S.act.coins + 0.5 * (S.act.buys - 1);
+    for (const id of Z.hand) {
+      const t = types[id];
+      if (t.treasure) v += t.coin || 0;
+      else if (S.act.actions > 0) v += cardEcon(K, id) * 0.5;
+    }
+    return v;
+  }
+  // A card game's turn, one move at a time from its own view: a choice owed (what to gain, what to trash) by the worth
+  // it leaves; while anything can be played, the play that leaves the most this turn can buy (an action that keeps the
+  // actions going first); then the buy, or the end, that leaves the best worth. A draft takes the card worth most to
+  // it less half what the next seat would take after it.
+  function planCards(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    const side = S.side, V = T.view(K, S, side, o.seed);
+    const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
+    const moves = T.legal(K, V);
+    let scored;
+    if (K.card.draft) {
+      const next = (N) => {
+        if (N.over) return 0;
+        let best = -Infinity;
+        for (const m of T.legal(K, N)) best = Math.max(best, cardWorth(K, T.apply(K, N, m), N.side));
+        return best === -Infinity ? 0 : best;
+      };
+      scored = moves.map((m) => { const N = T.apply(K, V, m); return { m, v: cardWorth(K, N, side) - (N.over ? 0 : 0.5 * next(N)) }; });
+    } else {
+      const plays = V.pending.length ? [] : moves.filter((m) => m.type === 'play');
+      if (plays.length) {
+        scored = plays.map((m) => {
+          const t = K.card.types[m.card], N = T.apply(K, V, m);
+          const keeps = (t.play || []).some((e) => e.actions) ? 2 : t.treasure ? 0 : 1;
+          return { m, v: turnReach(K, N, side) + keeps };
+        });
+      } else {
+        scored = moves.map((m) => ({ m, v: cardWorth(K, T.apply(K, V, m), side) + (m.type === 'end' ? 0 : 1e-3) }));
+      }
+    }
+    const top = Math.max.apply(null, scored.map((x) => x.v));
+    const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
+    const pick = near[Math.floor(roll() * near.length)];
+    return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
+  }
+
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4 }, opts || {});
+    if (K.card) return planCards(K, S, o);
     if (K.tile) return planTiles(K, S, o);
     if (K.euro) return planTurn(K, S, o);
     const all = T.legal(K, S);
