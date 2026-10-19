@@ -124,6 +124,28 @@ in CSS 3D. In progress:
   where it may go, a promotion picker, the last move marked, check and the outcome in the status, the move list, undo,
   a new game, the level (easy, fair, hard), and the clocks when the game has one (the page measures a move's time and
   hands the kernel the number). The person sits at their own side: playing black turns the plan and the table.
+- **The economy** (the tabletop kernel, grown), built: a game with building, dice or an opening is played on places,
+  a cell, a corner or an edge, so a settlement stands on a corner and a road on an edge. Stocks (a player's pieces
+  off the board), hands and a bank, costs; building as data, with conditions over the place graph (no building within
+  so many steps, beside the player's own kinds, a road reaching from the player's net and not through a foe's
+  settlement) and upgrades (a city on a settlement). Seeded dice at the turn's start; production (each hex showing
+  the roll pays the pieces on its corners, not under the robber, the bank's shortage rule); rolls that do something
+  else (a seven: half a hand over seven given up, the robber moved, a card stolen). Forced choices queue, even out of
+  turn, one move at a time. Decks shuffled from the seed, cards bought and held, played one a turn and never the turn
+  bought, their effects in a few verbs (the robber, free placements, gain from the bank, claim from every other
+  player). An opening in rounds (the snake), then roll and build. Scores from pieces, cards and awards (the longest
+  trail of a kind, broken by a foe's building; the most of a card played), a win on one's own turn. A view per player
+  deals what it cannot see again from what is unseen, so a computer never reads a hidden card or the dice ahead. A
+  bank exchange is an option. Chess and checkers keep their counts.
+- **Settlers without trading** (`lib/graph/tabletop/games/settlers.js`), built: written in those words alone. Nineteen
+  hexes dealt from a seed (terrain and numbers shuffled, no 6 or 8 side by side), the robber on the desert, the snake
+  opening with the second settlement paying, development cards, the longest road and the largest army, ten points to
+  win; three or four players. No trading between players, and no bank exchange.
+- **The computer at a euro game**, built: a turn planner. From its own view it weighs lines of its own actions this
+  turn, the best few at each step, each forced choice on the way taken greedily, and plays the first action of the
+  best line. A seat's worth is its points, what its pieces earn a roll (a spread of resources over a pile), its hand,
+  the builds it can pay for, the corners it can settle next, its cards, its army and its road, less most of the
+  leader's. Four computers play a dealt island to a winner.
 
 ## [3.1.1] - 2026-10-16
 

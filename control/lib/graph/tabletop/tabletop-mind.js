@@ -17,6 +17,14 @@
  *     centre: w (a piece but a royal one standing near the middle, 0.4) }; values are the pieces' own `value`.
  *
  * Two players; a game of more is played by each against the next (each seat maximises its own score).
+ *
+ * A euro game (the kernel's economy: dice, hands, more than two players) is played by a turn planner instead: from its
+ * own view (the kernel's `view`, so it never sees a hidden card or the dice ahead) it weighs lines of its own actions
+ * this turn, `depth` long, the best few at each step, each forced choice on the way (where the robber goes, what to
+ * give up) taken greedily, and plays the first action of the best line. A seat's worth: its points, what its pieces
+ * earn a roll (the square root of each resource's share, so a spread beats a pile), its hand (a little, less past
+ * seven), the builds it can pay for, the corners it can settle next, its cards, its army and its road. It plays
+ * against the leader: its own worth less most of the best other seat's.
  */
 
 export function buildTabletopMind(T) {
@@ -78,8 +86,101 @@ export function buildTabletopMind(T) {
     return over.winner === side ? WIN - ply : -(WIN - ply);
   }
 
+  // ── the euro planner ────────────────────────────────────────────────────────────────────────────────────────────
+  function worth(K, S, side, own) {
+    const G = K.G, h = S.hand[side];
+    let v = 3 * T.score(K, S, side, !own);
+    const inc = T.income(K, S, side);
+    for (const r of K.res) v += 2.2 * Math.sqrt(inc[r] || 0);
+    let cards = 0;
+    for (const r of K.res) { cards += h[r]; v += 0.25 * Math.min(h[r], 3); }
+    if (cards > 7) v -= 0.4 * (cards - 7);
+    for (const kind of Object.keys(G.build || {})) {
+      const B = G.build[kind];
+      let ok = (S.stock[side][kind] || 0) > 0;
+      for (const r in B.cost || {}) if ((h[r] || 0) < B.cost[r]) ok = false;
+      if (ok) v += 0.35 + 0.15 * Object.keys(B.cost || {}).length;
+    }
+    // the corners it could settle next: kinds that score, needing what it has laid
+    for (const kind of Object.keys(G.build || {})) {
+      const B = G.build[kind];
+      if (B.upgrade || !(G.score && G.score.pieces && G.score.pieces[kind]) || (S.stock[side][kind] || 0) <= 0) continue;
+      let n = 0;
+      const lo = K.P.on[kind] === 'corner' ? K.P.nC : 0, hi = K.P.on[kind] === 'corner' ? K.P.nC + K.P.nK : K.P.nC;
+      for (let p = lo; p < hi && n < 2; p++) if (S.board[p] < 0 && T.legalPlace(K, S, side, kind, p)) n++;
+      v += 0.6 * n;
+    }
+    const held = S.cards[side];
+    for (const c in held) if (!(G.score && G.score.cards && G.score.cards[c])) v += 0.55 * held[c];
+    for (const id of Object.keys((G.score && G.score.awards) || {})) {
+      const A = G.score.awards[id];
+      if (A.played) v += 0.35 * Math.min(S.played[side][A.played] || 0, A.min + 1);
+      if (A.trail) v += 0.12 * Math.min(T.trail(K, S, side, A.trail, A.block), A.min + 1);
+    }
+    return v;
+  }
+  function seat(K, S, side) {
+    let other = -Infinity;
+    for (let s = 0; s < K.players.length; s++) if (s !== side) other = Math.max(other, worth(K, S, s, false));
+    return worth(K, S, side, true) - 0.6 * (other === -Infinity ? 0 : other);
+  }
+  // the actor's forced choices answered greedily, one ply each, until the decision is someone else's or none is left
+  function resolve(K, S, side, roll) {
+    let N = S, guard = 0;
+    while (!N.over && N.pending.length && N.pending[0].side === side && guard++ < 40) {
+      const moves = T.legal(K, N);
+      let best = null, bv = -Infinity;
+      for (const m of moves) {
+        const C = T.apply(K, N, m), v = seat(K, C, side) + roll() * 1e-6;
+        if (v > bv) { bv = v; best = C; }
+      }
+      if (!best) break;
+      N = best;
+    }
+    return N;
+  }
+  function planTurn(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    const side = T.actor(S);
+    const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ (S.pending.length * 97) ^ side);
+    const V = T.view(K, S, side, o.seed);
+    const width = 6, mine = (N) => !N.over && T.actor(N) === side;
+    // the line's worth: at its end, or when the turn has passed to another
+    function line(N, depth) {
+      if (!mine(N) || depth <= 0 || N.phase !== 'main' || N.pending.length) return seat(K, N, side);
+      const opts = T.legal(K, N).filter((m) => m.type !== 'end').map((m) => ({ m, C: resolve(K, T.apply(K, N, m), side, roll) }));
+      for (const x of opts) x.v = seat(K, x.C, side);
+      opts.sort((a, b) => b.v - a.v);
+      let best = seat(K, N, side);
+      for (const x of opts.slice(0, width)) best = Math.max(best, line(x.C, depth - 1));
+      return best;
+    }
+    let scored;
+    const moves = T.legal(K, V);
+    if (V.pending.length || V.phase === 'opening') {
+      // a forced choice: its worth once the actor's own follow-ups are answered
+      scored = moves.map((m) => ({ m, v: seat(K, resolve(K, T.apply(K, V, m), side, roll), side) }));
+    } else if (V.phase === 'roll') {
+      // roll, unless a card played first is worth more than the turn as it stands
+      const now = seat(K, V, side);
+      scored = moves.map((m) => ({ m, v: m.type === 'roll' ? now + 0.5 : seat(K, resolve(K, T.apply(K, V, m), side, roll), side) }));
+    } else {
+      scored = moves.map((m) => {
+        if (m.type === 'end') return { m, v: seat(K, V, side) + 0.05 };
+        return { m, v: line(resolve(K, T.apply(K, V, m), side, roll), o.depth - 1) };
+      });
+    }
+    const top = Math.max.apply(null, scored.map((x) => x.v));
+    const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
+    const pick = near[Math.floor(roll() * near.length)];
+    const move = real.find((m) => m.name === pick.m.name) || real[0];
+    return { move, score: pick.v, depth: o.depth, nodes: scored.length };
+  }
+
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4 }, opts || {});
+    if (K.euro) return planTurn(K, S, o);
     const root = T.legal(K, S);
     if (!root.length) return null;
     const side = S.side;

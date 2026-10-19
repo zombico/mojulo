@@ -133,11 +133,14 @@ export function buildTabletop() {
       });
       kinds[id] = { id, rules, value: P.value || 0, royal: !!P.royal, promote: P.promote || null, chainRules: rules.filter((r) => r.chain) };
     }
-    return { T, L, G, players, sideOf, rows, kinds, memo, royal: !!G.royal, quiet: G.quiet || null, moves: (G.turn && G.turn.moves) || 1 };
+    const K = { T, L, G, players, sideOf, rows, kinds, memo, royal: !!G.royal, quiet: G.quiet || null, moves: (G.turn && G.turn.moves) || 1 };
+    if (G.build || G.dice || G.opening) euroCompile(K);
+    return K;
   }
 
   // ── the state ───────────────────────────────────────────────────────────────────────────────────────────────────
   function start(K) {
+    if (K.euro) return euroStart(K);
     const board = K.L.cells.map(() => -1), pieces = [];
     const setup = K.G.setup || {};
     for (const pid of Object.keys(setup)) {
@@ -320,6 +323,7 @@ export function buildTabletop() {
   }
 
   function legal(K, S) {
+    if (K.euro) return euroLegal(K, S);
     if (S.over) return [];
     let moves = pseudo(K, S);
     if (K.royal) moves = moves.filter((m) => royalsSafe(K, place(K, S, m), S.side));
@@ -355,6 +359,7 @@ export function buildTabletop() {
   }
 
   function apply(K, S, m, opts) {
+    if (K.euro) return euroApply(K, S, m);
     const o = opts || {};
     const N = place(K, S, m);
     const R = m.p >= 0 ? K.kinds[S.pieces[m.p].kind].rules[m.r] : null;
@@ -410,6 +415,7 @@ export function buildTabletop() {
 
   function outcome(K, S, moves) {
     if (S.over) return S.over;
+    if (K.euro) return null;
     const list = moves || legal(K, S);
     if (list.length) return null;
     const two = K.players.length === 2, other = two ? 1 - S.side : null;
@@ -429,9 +435,469 @@ export function buildTabletop() {
     return n;
   }
 
-  function view(K, S) { return S; }
+  // ── the economy: euro games ─────────────────────────────────────────────────────────────────────────────────────
+  // A game with `build`, `dice` or `opening` is played on places, not only cells: one index over the cells, then the
+  // corners, then the edges (a settlement on a corner, a road on an edge, the robber on a cell). Its state carries,
+  // beside the board and the pieces: { phase: 'opening' | 'roll' | 'main', pending: [decision], hand: [{ <res>: n }],
+  // bank: { <res>: n }, stock: [{ <kind>: n }], deck: { <deck>: [card] }, cards / fresh (bought this turn) / played:
+  // [{ <card>: n }], playedTurn, awards: { <id>: side | -1 }, last: [place], roll, r (the dice, mulberry32) }.
+  //
+  //   G.pieces[kind].on 'cell' | 'corner' | 'edge';  G.setup.neutral: pieces nobody owns (the robber)
+  //   G.stock { <kind>: n } each player's pieces off the board;  G.resources { <res>: n } the bank
+  //   G.build { <kind>: { cost: { <res>: n }, need: [cond], upgrade?: kind } }
+  //     cond: { apart: n } no piece on a corner within n steps along the edges | { touch: [kind] | 'last' } a place
+  //           next to this one holds the player's own kind (or is the place it set last) | { reach: [kind], block:
+  //           [kind] } an edge whose end is not a foe's block kind and meets another edge holding the player's kind |
+  //           { any: [cond] } one of them
+  //   G.opening [{ order: 'forward' | 'reverse', steps: [{ place: kind, need?, yield? }] }] placements before the first
+  //     roll, free; `yield` pays one of each resource the corner's cells give
+  //   G.dice { n, sides };  G.numbers { <cell>: n };  G.produce { yields: { <cell type>: res }, amount: { <kind>: n },
+  //     block: kind }  a roll pays every cell showing it, not under the block piece, to each piece on its corners; the
+  //     bank's shortage: a resource it cannot pay everyone goes to nobody, unless only one player is owed it
+  //   G.rolls { <n>: [effect] } a roll that does something else (7)
+  //   G.decks { <deck>: { cards: { <card>: n }, cost } };  G.cards { <card>: { play?: [effect] } } a card is played one
+  //     a turn, never the turn it was bought
+  //   effect: { discard: { over: n } } each player holding more gives up half | { robber: kind } move the neutral kind,
+  //     then take one card at random from a player beside it | { free: kind, n } place without paying | { gain: n }
+  //     take from the bank | { claim: true } name a resource and take it from every other player
+  //   G.exchange { rate } the bank swaps rate of one resource for one of another (off unless given)
+  //   G.score { pieces: { <kind>: n }, cards: { <card>: n }, awards: { <id>: { vp, min, trail?: kind, block?: [kind],
+  //     played?: card } }, win: n }  an award goes to the one strictly ahead at its measure (the longest trail of a kind,
+  //     broken by a foe's block kind; the most of a card played), a holder keeping it on a tie; a player at `win` on
+  //     their own turn wins
+  //   G.cap n turns, then a draw
+  function rnd(S) {
+    S.r = (S.r + 0x6D2B79F5) >>> 0;
+    let t = S.r;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  const mixSeed = (a, b, c) => ((Math.imul((a >>> 0) ^ 0x9E3779B9, 2654435761) ^ Math.imul(b + 1, 40503) ^ Math.imul(c + 7, 2246822519)) >>> 0);
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const count = (h) => { let n = 0; for (const k in h) n += h[k]; return n; };
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir };
+  function euroCompile(K) {
+    const L = K.L, G = K.G, nC = L.cells.length, nK = L.corners.length, nE = L.edges.length;
+    const names = L.cells.map((c) => c.name).concat(L.corners.map((c) => c.name), L.edges.map((e) => e.name));
+    const byName = new Map(names.map((n, i) => [n, i]));
+    L.cells.forEach((c) => {
+      L.diags.forEach((d, k) => byName.set(c.name + '.' + d.name.toLowerCase(), nC + c.k[k]));
+      L.dirs.forEach((d, k) => byName.set(c.name + '.' + d.name.toLowerCase(), nC + nK + c.e[k]));
+    });
+    // the place graph: what each place touches
+    const near = names.map((_, p) => {
+      if (p < nC) return L.cells[p].k.map((k) => nC + k).concat(L.cells[p].e.map((e) => nC + nK + e));
+      if (p < nC + nK) { const c = L.corners[p - nC]; return c.edges.map((e) => nC + nK + e).concat(c.cells); }
+      const e = L.edges[p - nC - nK]; return e.ends.map((k) => nC + k).concat(e.cells);
+    });
+    const cornerNext = L.corners.map((c, k) => c.edges.map((e) => { const en = L.edges[e].ends; return en[0] === k ? en[1] : en[0]; }));
+    const on = {};
+    for (const id of Object.keys(G.pieces || {})) {
+      on[id] = G.pieces[id].on || 'cell';
+      if (['cell', 'corner', 'edge'].indexOf(on[id]) < 0) throw new Error('tabletop: ' + id + ' stands on a cell, a corner or an edge');
+    }
+    for (const id of Object.keys(G.build || {})) if (!K.kinds[id]) throw new Error('tabletop: build names a \'' + id + '\', a piece the game does not have');
+    const num = L.cells.map((c) => (G.numbers && G.numbers[c.name] !== undefined ? G.numbers[c.name] : null));
+    // the chance of each roll, from the dice
+    let dist = { 0: 1 };
+    const D = G.dice || null;
+    if (D) for (let i = 0; i < D.n; i++) { const nx = {}; for (const v in dist) for (let f = 1; f <= D.sides; f++) nx[+v + f] = (nx[+v + f] || 0) + dist[v] / D.sides; dist = nx; }
+    K.euro = true;
+    K.P = { nC, nK, nE, n: nC + nK + nE, names, byName, near, cornerNext, on, num, prob: dist };
+    K.res = Object.keys(G.resources || {});
+  }
+
+  const placeOf = (K, p) => (p < K.P.nC ? 'cell' : p < K.P.nC + K.P.nK ? 'corner' : 'edge');
+  const placeName = (K, p) => K.P.names[p];
+  const actorOf = (S) => (S.pending && S.pending.length ? S.pending[0].side : S.side);
+  const occupant = (S, p) => (S.board[p] >= 0 ? S.pieces[S.board[p]] : null);
+
+  function euroStart(K) {
+    const G = K.G, n = K.players.length;
+    const S = { board: new Array(K.P.n).fill(-1), pieces: [], side: 0, turn: 0, over: null, phase: G.opening ? 'opening' : 'roll',
+      pending: [], hand: [], bank: Object.assign({}, G.resources || {}), stock: [], deck: {}, cards: [], fresh: [], played: [],
+      playedTurn: false, awards: {}, last: [], roll: null, r: mixSeed(G.seed || 1, 0, 0) };
+    for (let s = 0; s < n; s++) {
+      S.hand.push(K.res.reduce((h, r) => { h[r] = 0; return h; }, {}));
+      S.stock.push(Object.assign({}, G.stock || {}));
+      S.cards.push({}); S.fresh.push({}); S.played.push({}); S.last.push(-1);
+    }
+    const setup = G.setup || {};
+    for (const pid of Object.keys(setup)) {
+      const side = pid === 'neutral' ? -1 : K.sideOf[pid];
+      if (side === undefined) throw new Error('tabletop: setup names a player \'' + pid + '\' the game does not have');
+      for (const kind of Object.keys(setup[pid])) {
+        if (!K.kinds[kind]) throw new Error('tabletop: setup places a \'' + kind + '\', a piece the game does not have');
+        for (const name of [].concat(setup[pid][kind])) {
+          const at = K.P.byName.get(name);
+          if (at === undefined || placeOf(K, at) !== K.P.on[kind]) throw new Error('tabletop: no ' + K.P.on[kind] + ' ' + name + ' to set a ' + kind + ' on');
+          S.board[at] = S.pieces.length;
+          S.pieces.push({ kind, side, at, moved: 0 });
+        }
+      }
+    }
+    for (const id of Object.keys(G.decks || {})) {
+      const list = [];
+      for (const c of Object.keys(G.decks[id].cards)) for (let i = 0; i < G.decks[id].cards[c]; i++) list.push(c);
+      for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rnd(S) * (i + 1)); const t = list[i]; list[i] = list[j]; list[j] = t; }
+      S.deck[id] = list;
+    }
+    for (const id of Object.keys((G.score && G.score.awards) || {})) S.awards[id] = -1;
+    for (const round of G.opening || []) {
+      const order = K.players.map((_, s) => s);
+      if (round.order === 'reverse') order.reverse();
+      for (const s of order) for (const st of round.steps) S.pending.push({ side: s, do: 'place', kind: st.place, need: st.need || null, yield: !!st.yield });
+    }
+    settle(K, S);
+    return S;
+  }
+
+  // a decision nobody can answer is dropped; the opening over, the first player rolls
+  function settle(K, S) {
+    while (S.pending.length && !pendingMoves(K, S, S.pending[0]).length) S.pending.shift();
+    if (S.phase === 'opening' && !S.pending.length) { S.phase = 'roll'; S.side = 0; }
+  }
+
+  function afford(h, cost) { for (const r in cost || {}) if ((h[r] || 0) < cost[r]) return false; return true; }
+
+  function needs(K, S, side, kind, at, need) {
+    for (const c of need || []) if (!holds(K, S, side, at, c)) return false;
+    return true;
+  }
+  function holds(K, S, side, at, c) {
+    const P = K.P;
+    if (c.any) return c.any.some((x) => holds(K, S, side, at, x));
+    if (c.apart !== undefined) {
+      if (placeOf(K, at) !== 'corner') return true;
+      let ring = [at - P.nC];
+      const seen = {};
+      seen[ring[0]] = 1;
+      for (let d = 0; d < c.apart; d++) {
+        const nx = [];
+        for (const k of ring) for (const j of P.cornerNext[k]) if (!seen[j]) { seen[j] = 1; nx.push(j); if (S.board[P.nC + j] >= 0) return false; }
+        ring = nx;
+      }
+      return true;
+    }
+    if (c.touch !== undefined) {
+      if (c.touch === 'last') return S.last[side] >= 0 && P.near[at].indexOf(S.last[side]) >= 0;
+      return P.near[at].some((q) => { const o = occupant(S, q); return o && o.side === side && c.touch.indexOf(o.kind) >= 0; });
+    }
+    if (c.reach) {
+      if (placeOf(K, at) !== 'edge') return false;
+      for (const kp of P.near[at]) {
+        if (placeOf(K, kp) !== 'corner') continue;
+        const o = occupant(S, kp);
+        if (o && o.side !== side && o.side >= 0 && (c.block || []).indexOf(o.kind) >= 0) continue;
+        for (const q of P.near[kp]) {
+          if (q === at || placeOf(K, q) !== 'edge') continue;
+          const r = occupant(S, q);
+          if (r && r.side === side && c.reach.indexOf(r.kind) >= 0) return true;
+        }
+      }
+      return false;
+    }
+    return true;
+  }
+
+  // the places a kind may go for `side`: empty places of its sort meeting the needs (an upgrade: the side's own
+  // pieces of the kind it replaces)
+  function spots(K, S, side, kind, need) {
+    const out = [], B = (K.G.build || {})[kind] || {};
+    if (B.upgrade) {
+      for (const P of S.pieces) if (P.at >= 0 && P.side === side && P.kind === B.upgrade) out.push(P.at);
+      return out;
+    }
+    const sort = K.P.on[kind], lo = sort === 'cell' ? 0 : sort === 'corner' ? K.P.nC : K.P.nC + K.P.nK;
+    const hi = sort === 'cell' ? K.P.nC : sort === 'corner' ? K.P.nC + K.P.nK : K.P.n;
+    for (let p = lo; p < hi; p++) if (S.board[p] < 0 && needs(K, S, side, kind, p, need)) out.push(p);
+    return out;
+  }
+
+  function victims(K, S, cell, side) {
+    const out = [];
+    for (const q of K.P.near[cell]) {
+      const o = occupant(S, q);
+      if (o && o.side >= 0 && o.side !== side && out.indexOf(o.side) < 0 && count(S.hand[o.side]) > 0) out.push(o.side);
+    }
+    return out.sort((a, b) => a - b);
+  }
+
+  function pendingMoves(K, S, d) {
+    const out = [], side = d.side;
+    if (d.do === 'place' || d.do === 'free') {
+      if ((S.stock[side][d.kind] || 0) <= 0) return out;
+      const need = d.need || ((K.G.build || {})[d.kind] || {}).need;
+      for (const at of spots(K, S, side, d.kind, need)) out.push({ type: 'build', kind: d.kind, at, free: true });
+    } else if (d.do === 'discard') {
+      for (const r of K.res) if (S.hand[side][r] > 0) out.push({ type: 'discard', res: r });
+    } else if (d.do === 'robber') {
+      const P = S.pieces.find((x) => x.kind === d.kind && x.side < 0);
+      for (let c = 0; c < K.P.nC; c++) if (!P || c !== P.at) out.push({ type: 'robber', at: c });
+    } else if (d.do === 'steal') {
+      for (const v of victims(K, S, d.cell, side)) out.push({ type: 'steal', from: v });
+    } else if (d.do === 'gain') {
+      for (const r of K.res) if (S.bank[r] > 0) out.push({ type: 'gain', res: r });
+    } else if (d.do === 'claim') {
+      for (const r of K.res) out.push({ type: 'claim', res: r });
+    }
+    return out;
+  }
+
+  function euroLegal(K, S) {
+    if (S.over) return [];
+    let out = [];
+    const side = S.side;
+    if (S.pending.length) out = pendingMoves(K, S, S.pending[0]);
+    else {
+      if (S.phase === 'roll') out.push({ type: 'roll' });
+      else {
+        const B = K.G.build || {};
+        for (const kind of Object.keys(B)) {
+          if (!afford(S.hand[side], B[kind].cost) || (S.stock[side][kind] || 0) <= 0) continue;
+          for (const at of spots(K, S, side, kind, B[kind].need)) out.push({ type: 'build', kind, at });
+        }
+        for (const id of Object.keys(K.G.decks || {})) if (S.deck[id].length && afford(S.hand[side], K.G.decks[id].cost)) out.push({ type: 'buy', deck: id });
+        if (K.G.exchange) {
+          const rate = K.G.exchange.rate;
+          for (const g of K.res) if (S.hand[side][g] >= rate) for (const t of K.res) if (t !== g && S.bank[t] > 0) out.push({ type: 'exchange', give: g, get: t });
+        }
+      }
+      if (!S.playedTurn) {
+        for (const c of Object.keys(S.cards[side])) {
+          const card = (K.G.cards || {})[c];
+          if (card && card.play && S.cards[side][c] - (S.fresh[side][c] || 0) > 0) out.push({ type: 'play', card: c });
+        }
+      }
+      if (S.phase === 'main') out.push({ type: 'end' });
+    }
+    for (const m of out) m.name = euroName(K, S, m);
+    return out;
+  }
+
+  function euroName(K, S, m) {
+    switch (m.type) {
+      case 'build': return m.kind + '@' + placeName(K, m.at);
+      case 'robber': return 'robber@' + placeName(K, m.at);
+      case 'steal': return 'steal ' + K.players[m.from].id;
+      case 'discard': case 'gain': case 'claim': return m.type + ' ' + m.res;
+      case 'buy': return 'buy ' + m.deck;
+      case 'play': return 'play ' + m.card;
+      case 'exchange': return 'exchange ' + m.give + '>' + m.get;
+      default: return m.type;
+    }
+  }
+
+  function effects(K, N, actor, list) {
+    for (const e of list || []) {
+      if (e.discard) {
+        for (let i = 0; i < K.players.length; i++) {
+          const s = (actor + i) % K.players.length, h = count(N.hand[s]);
+          if (h > e.discard.over) N.pending.push({ side: s, do: 'discard', n: Math.floor(h / 2) });
+        }
+      }
+      if (e.robber) N.pending.push({ side: actor, do: 'robber', kind: e.robber });
+      if (e.free) N.pending.push({ side: actor, do: 'free', kind: e.free, n: e.n || 1 });
+      if (e.gain) N.pending.push({ side: actor, do: 'gain', n: e.gain });
+      if (e.claim) N.pending.push({ side: actor, do: 'claim' });
+    }
+  }
+
+  function produce(K, N, v) {
+    const Pr = K.G.produce;
+    if (!Pr) return;
+    const block = N.pieces.filter((x) => x.kind === Pr.block && x.at >= 0).map((x) => x.at);
+    const owed = K.players.map(() => ({}));
+    for (let c = 0; c < K.P.nC; c++) {
+      if (K.P.num[c] !== v || block.indexOf(c) >= 0) continue;
+      const res = Pr.yields[K.L.cells[c].type];
+      if (!res) continue;
+      for (const q of K.P.near[c]) {
+        const o = occupant(N, q);
+        if (o && o.side >= 0 && Pr.amount[o.kind]) owed[o.side][res] = (owed[o.side][res] || 0) + Pr.amount[o.kind];
+      }
+    }
+    for (const r of K.res) {
+      const who = owed.map((h, s) => [s, h[r] || 0]).filter((x) => x[1] > 0);
+      const total = who.reduce((a, x) => a + x[1], 0);
+      if (!total) continue;
+      if (total <= N.bank[r]) for (const [s, n] of who) { N.hand[s][r] += n; N.bank[r] -= n; }
+      else if (who.length === 1) { N.hand[who[0][0]][r] += N.bank[r]; N.bank[r] = 0; }
+    }
+  }
+
+  function euroApply(K, S, m) {
+    const N = clone(S), G = K.G;
+    const actor = actorOf(S), d = N.pending.length ? N.pending.shift() : null;
+    const again = (n) => { if (d && n > 1) N.pending.unshift(Object.assign({}, d, { n: n - 1 })); };
+    if (m.type === 'build') {
+      const B = (G.build || {})[m.kind] || {};
+      if (!m.free) for (const r in B.cost || {}) { N.hand[actor][r] -= B.cost[r]; N.bank[r] += B.cost[r]; }
+      const was = N.board[m.at];
+      if (B.upgrade && was >= 0) {
+        N.stock[actor][N.pieces[was].kind] = (N.stock[actor][N.pieces[was].kind] || 0) + 1;
+        N.pieces[was] = { kind: m.kind, side: actor, at: m.at, moved: 0 };
+      } else {
+        N.board[m.at] = N.pieces.length;
+        N.pieces.push({ kind: m.kind, side: actor, at: m.at, moved: 0 });
+      }
+      N.stock[actor][m.kind] -= 1;
+      N.last[actor] = m.at;
+      if (d && d.yield && G.produce) {
+        for (const c of K.P.near[m.at]) {
+          if (placeOf(K, c) !== 'cell') continue;
+          const r = G.produce.yields[K.L.cells[c].type];
+          if (r && N.bank[r] > 0) { N.hand[actor][r] += 1; N.bank[r] -= 1; }
+        }
+      }
+      if (d && d.do === 'free') again(d.n);
+    } else if (m.type === 'roll') {
+      let v = 0;
+      for (let i = 0; i < G.dice.n; i++) v += 1 + Math.floor(rnd(N) * G.dice.sides);
+      N.roll = v;
+      N.phase = 'main';
+      if (G.rolls && G.rolls[v]) effects(K, N, actor, G.rolls[v]);
+      else produce(K, N, v);
+    } else if (m.type === 'discard') {
+      N.hand[actor][m.res] -= 1; N.bank[m.res] += 1;
+      again(d.n);
+    } else if (m.type === 'robber') {
+      const p = N.pieces.findIndex((x) => x.kind === d.kind && x.side < 0);
+      if (p >= 0) { N.board[N.pieces[p].at] = -1; N.pieces[p].at = m.at; N.board[m.at] = p; }
+      if (victims(K, N, m.at, actor).length) N.pending.unshift({ side: actor, do: 'steal', cell: m.at });
+    } else if (m.type === 'steal') {
+      const h = N.hand[m.from], total = count(h);
+      let pick = Math.floor(rnd(N) * total);
+      for (const r of K.res) { if (pick < h[r]) { h[r] -= 1; N.hand[actor][r] += 1; break; } pick -= h[r]; }
+    } else if (m.type === 'gain') {
+      N.hand[actor][m.res] += 1; N.bank[m.res] -= 1;
+      again(d.n);
+    } else if (m.type === 'claim') {
+      for (let s = 0; s < K.players.length; s++) if (s !== actor) { N.hand[actor][m.res] += N.hand[s][m.res]; N.hand[s][m.res] = 0; }
+    } else if (m.type === 'buy') {
+      const D = G.decks[m.deck];
+      for (const r in D.cost || {}) { N.hand[actor][r] -= D.cost[r]; N.bank[r] += D.cost[r]; }
+      const c = N.deck[m.deck].shift();
+      N.cards[actor][c] = (N.cards[actor][c] || 0) + 1;
+      N.fresh[actor][c] = (N.fresh[actor][c] || 0) + 1;
+    } else if (m.type === 'play') {
+      N.cards[actor][m.card] -= 1;
+      if (!N.cards[actor][m.card]) delete N.cards[actor][m.card];
+      N.played[actor][m.card] = (N.played[actor][m.card] || 0) + 1;
+      N.playedTurn = true;
+      effects(K, N, actor, G.cards[m.card].play);
+    } else if (m.type === 'exchange') {
+      const rate = G.exchange.rate;
+      N.hand[actor][m.give] -= rate; N.bank[m.give] += rate;
+      N.hand[actor][m.get] += 1; N.bank[m.get] -= 1;
+    } else if (m.type === 'end') {
+      N.side = (S.side + 1) % K.players.length;
+      N.phase = 'roll';
+      N.turn = S.turn + 1;
+      N.fresh = K.players.map(() => ({}));
+      N.playedTurn = false;
+      N.roll = null;
+    }
+    settle(K, N);
+    award(K, N);
+    if (N.phase !== 'opening' && G.score && G.score.win && score(K, N, N.side) >= G.score.win) N.over = { winner: N.side, reason: 'score' };
+    else if (G.cap && N.turn >= G.cap) N.over = { winner: null, reason: 'cap' };
+    return N;
+  }
+
+  // the longest trail of `kind` the side has on the edges, a foe's `block` piece on a corner breaking it
+  function trail(K, S, side, kind, block) {
+    const P = K.P, mine = {};
+    for (const x of S.pieces) if (x.at >= 0 && x.side === side && x.kind === kind && placeOf(K, x.at) === 'edge') mine[x.at] = 1;
+    const cut = (kp) => { const o = occupant(S, kp); return !!o && o.side >= 0 && o.side !== side && (block || []).indexOf(o.kind) >= 0; };
+    let best = 0;
+    const walk = (kp, used, len) => {
+      if (len > best) best = len;
+      if (len > 0 && cut(kp)) return;
+      for (const e of P.near[kp]) {
+        if (!mine[e] || used[e]) continue;
+        const other = P.near[e].find((q) => q !== kp && placeOf(K, q) === 'corner');
+        used[e] = 1;
+        walk(other, used, len + 1);
+        used[e] = 0;
+      }
+    };
+    for (const e in mine) for (const kp of P.near[+e]) if (placeOf(K, kp) === 'corner') walk(kp, {}, 0);
+    return best;
+  }
+
+  function measure(K, S, side, A) {
+    if (A.trail) return trail(K, S, side, A.trail, A.block);
+    if (A.played) return S.played[side][A.played] || 0;
+    return 0;
+  }
+
+  function award(K, S) {
+    const A = (K.G.score && K.G.score.awards) || {};
+    for (const id of Object.keys(A)) {
+      const m = K.players.map((_, s) => measure(K, S, s, A[id])), top = Math.max.apply(null, m), h = S.awards[id];
+      if (top < A[id].min) { S.awards[id] = -1; continue; }
+      if (h >= 0 && m[h] === top) continue;
+      const lead = m.map((x, s) => (x === top ? s : -1)).filter((s) => s >= 0);
+      S.awards[id] = lead.length === 1 ? lead[0] : -1;
+    }
+  }
+
+  // a player's points: `open` leaves out what only they can see (cards that score in the hand)
+  function score(K, S, side, open) {
+    const Sc = K.G.score || {};
+    let n = 0;
+    for (const x of S.pieces) if (x.at >= 0 && x.side === side) n += (Sc.pieces || {})[x.kind] || 0;
+    if (!open) for (const c in S.cards[side]) n += ((Sc.cards || {})[c] || 0) * S.cards[side][c];
+    for (const id in S.awards) if (S.awards[id] === side) n += Sc.awards[id].vp;
+    return n;
+  }
+
+  // what a player's pieces earn a roll, on average: { <res>: cards }
+  function income(K, S, side) {
+    const Pr = K.G.produce, out = {};
+    if (!Pr) return out;
+    const block = S.pieces.filter((x) => x.kind === Pr.block && x.at >= 0).map((x) => x.at);
+    for (let c = 0; c < K.P.nC; c++) {
+      const v = K.P.num[c], res = Pr.yields[K.L.cells[c].type];
+      if (v === null || !res || block.indexOf(c) >= 0) continue;
+      for (const q of K.P.near[c]) {
+        const o = occupant(S, q);
+        if (o && o.side === side && Pr.amount[o.kind]) out[res] = (out[res] || 0) + Pr.amount[o.kind] * (K.P.prob[v] || 0);
+      }
+    }
+    return out;
+  }
+
+  // what `side` may know: the cards it cannot see dealt again at random from those unseen (the deck, the others'
+  // hands), the dice ahead unknowable; seeded, so a mind's guess is its own and the same each time
+  function view(K, S, side, seed) {
+    if (!K.euro) return S;
+    const N = clone(S);
+    N.r = mixSeed(seed || 1, S.turn, side);
+    for (const id of Object.keys(K.G.decks || {})) {
+      const kinds = Object.keys(K.G.decks[id].cards), unseen = N.deck[id].slice(), held = [];
+      for (let s = 0; s < K.players.length; s++) {
+        if (s === side) continue;
+        let n = 0;
+        for (const c of kinds) { n += N.cards[s][c] || 0; for (let i = 0; i < (N.cards[s][c] || 0); i++) unseen.push(c); delete N.cards[s][c]; }
+        held.push([s, n]);
+        N.fresh[s] = {};
+      }
+      for (let i = unseen.length - 1; i > 0; i--) { const j = Math.floor(rnd(N) * (i + 1)); const t = unseen[i]; unseen[i] = unseen[j]; unseen[j] = t; }
+      for (const [s, n] of held) for (let i = 0; i < n; i++) { const c = unseen.shift(); N.cards[s][c] = (N.cards[s][c] || 0) + 1; }
+      N.deck[id] = unseen;
+    }
+    return N;
+  }
+
+  // whether `side` could build `kind` on place p now (its needs; not what it costs)
+  function legalPlace(K, S, side, kind, p) {
+    return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
+  }
+
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace };
 }
 
 const _tabletop = buildTabletop();
@@ -446,3 +912,7 @@ export const tabletopKey = _tabletop.key;
 export const tabletopView = _tabletop.view;
 export const tabletopTurn = _tabletop.turn;
 export const tabletopMirror = _tabletop.mirror;
+export const tabletopActor = _tabletop.actor;
+export const tabletopScore = _tabletop.score;
+export const tabletopIncome = _tabletop.income;
+export const tabletopTrail = _tabletop.trail;

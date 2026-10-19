@@ -3,6 +3,9 @@ import { tabletopStart, tabletopPerft } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { CHESS, chessFromFen } from './games/chess.js';
 import { CHECKERS } from './games/checkers.js';
+import { settlersGame } from './games/settlers.js';
+import { buildTabletop } from './tabletop-kernel.js';
+import { buildTabletopMind } from './tabletop-mind.js';
 
 // The move generator's counts one turn deeper than the critical tier goes, against the published tables.
 const count = (G, d) => { const { K } = tabletopGame(G); return tabletopPerft(K, tabletopStart(K), d); };
@@ -22,5 +25,16 @@ describe('tabletop perft, deep', () => {
   }, 120000);
   it('checkers from its start, six turns: 36768', () => {
     expect(count(CHECKERS, 6)).toBe(36768);
+  }, 120000);
+
+  it('settlers: four computers play a dealt island to a winner at ten', () => {
+    const T = buildTabletop(), M = buildTabletopMind(T);
+    const { K } = tabletopGame(settlersGame({ seed: 1 }));
+    let S = T.start(K), n = 0;
+    while (!S.over && n < 4000) { const a = T.actor(S); S = T.apply(K, S, M.think(K, S, { ...M.LEVELS.fair, seed: a }).move); n += 1; }
+    expect(S.over.reason).toBe('score');
+    expect(T.score(K, S, S.over.winner)).toBeGreaterThanOrEqual(10);
+    const held = K.res.map((r) => S.bank[r] + S.hand.reduce((a, h) => a + h[r], 0));
+    expect(held).toEqual(K.res.map(() => 19));
   }, 120000);
 });
