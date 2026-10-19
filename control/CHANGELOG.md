@@ -42,6 +42,12 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   fields as or why not (a vessel waits for water). The skirmish kernel takes a roster per side; a side without one
   plays as before. The mind raises what it builds in order, past the first only once it has sent a wave, and sends
   everything it has once the gold nodes are spent; a skirmish where the gold is gone and nobody stands is a draw.
+  Its ladder: infantry from the start, its machines once researched (tier 2: the works stands only then), its
+  showpieces after (tier 3: what its technology ranks its focus, the armoured walker), researched one step at a time
+  at what it crafts that signals, senses or lifts (a relay mast, a dish), else a plain lab; its power and growing
+  things are income steps, each making a trip pay a fifth more. The mind climbs the ladder after its first wave,
+  keeping back what the next step costs. A base now defends itself (it shoots at units in range), stands longer, and
+  the gold nodes hold more, so a first wave seldom ends a skirmish and the machines come out.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

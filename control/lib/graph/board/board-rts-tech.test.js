@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readGameworld } from '../gameworld/world.js';
 import { HALDEN_REACH } from '../gameworld/examples.js';
 import { rtsRoster, rtsWorth, RTS_ROLES } from './board-rts-tech.js';
-import { buildBoardRts, readBoardRts, rtsStart, rtsTick, rtsMind, RTS_UNITS } from './board-rts.js';
-import { boardOf } from './board-kernel.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsTick, rtsMind, rtsBuild, rtsTrain, rtsResearch, rtsTierOf, RTS_UNITS } from './board-rts.js';
+import { boardOf, boardParse } from './board-kernel.js';
 
 // the example's two civilizations, and two more: one crafting what they do not (a flyer, siege, a scout, a fighting
 // vehicle, a sword alone), one crafting nothing
@@ -68,6 +68,7 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(hermits.units).toEqual(RTS_UNITS);
     expect([hermits.army, hermits.builds, Object.keys(hermits.buildings)]).toEqual([['soldier', 'archer'], ['barracks'], ['base', 'barracks']]);
     expect(roleOf(hermits, 'flyer')).toBeUndefined();
+    expect(hermits.research).toBeUndefined();
     expect(() => rtsRoster(G, 'nobody')).toThrow(/'nobody' is not one of the world's civilizations/);
   });
 
@@ -76,20 +77,91 @@ describe('a civilization\'s technology read as a skirmish side', () => {
   });
 });
 
+describe('the ladder', () => {
+  const flat = (cols, rows) => boardOf(Array.from({ length: rows }, () => Array(cols).fill(0)));
+  it('reads tiers from technology: the machines, then the showpieces, researched where it signals; income steps from its power', () => {
+    const corps = rtsRoster(G, 'survey-corps');
+    expect([corps.units.skimmer.tier, corps.units.walker.tier, corps.units.carbine.tier]).toEqual([2, 3, undefined]);
+    expect(corps.builds).toEqual(['barracks', 'mast', 'works']);
+    expect(corps.research.tier2).toMatchObject({ at: 'mast', gives: { tier: 2 }, opens: ['skimmer', 'works'] });
+    expect(corps.research.tier3).toMatchObject({ needs: 'tier2', gives: { tier: 3 }, opens: ['walker', 'crawler'] });
+    expect(Object.values(corps.research).filter((r) => r.gives.income)).toHaveLength(2);
+    expect(corps.study[0]).toBe('tier2');
+    // nothing that signals, senses or lifts: a plain lab
+    expect(rtsRoster(G, 'dome-growers').research.tier2.at).toBe('lab');
+  });
+
+  it('opens nothing of a tier before it is researched, a step at a time, at its building', () => {
+    const B = flat(9, 18), at = (n) => boardParse(B, n), corps = rtsRoster(G, 'survey-corps');
+    const cfg = { ...readBoardRts(B, { ai: { workers: 0, wave: 30 }, workers: 0, enemy: { workers: 0 } }), sides: { player: corps } };
+    const go = (R, s) => { for (let k = 0; k * 0.1 < s; k++) R = rtsTick(B, cfg, R, 0.1).R; return R; };
+    let R = { ...rtsStart(B, cfg), gold: { player: 9999, enemy: 0 } };
+    expect(() => rtsBuild(B, cfg, R, 'player', 'mast', at('B5'))).toThrow(/a Mast needs a Barracks standing first/);
+    R = go(rtsBuild(B, cfg, R, 'player', 'barracks', at('B5')), 21);
+    R = go(rtsBuild(B, cfg, R, 'player', 'mast', at('H5')), 21);
+    const bar = R.buildings.find((b) => b.kind === 'barracks').id, mast = R.buildings.find((b) => b.kind === 'mast').id;
+    expect(() => rtsBuild(B, cfg, R, 'player', 'works', at('E5'))).toThrow(/a Fabricator needs Machines researched first/);
+    expect(() => rtsResearch(B, cfg, R, mast, 'tier3')).toThrow(/Showpieces needs Machines first/);
+    expect(() => rtsResearch(B, cfg, R, bar, 'tier2')).toThrow(/Machines is researched at the Mast, not the Barracks/);
+    R = rtsResearch(B, cfg, R, mast, 'tier2');
+    expect(() => rtsResearch(B, cfg, R, mast, 'relay')).toThrow(/is researching Machines already/);
+    expect(R.gold.player).toBe(9999 - 150 - 150 - corps.research.tier2.cost);
+    R = go(R, corps.research.tier2.time + 0.2);
+    expect(rtsTierOf(cfg, R, 'player')).toBe(2);
+    R = go(rtsBuild(B, cfg, R, 'player', 'works', at('E5')), 26);
+    const works = R.buildings.find((b) => b.kind === 'works').id;
+    expect(() => rtsTrain(B, cfg, R, works, 'skimmer')).not.toThrow();
+    expect(() => rtsTrain(B, cfg, R, works, 'walker')).toThrow(/a Walker needs Showpieces researched first/);
+  });
+
+  it('pays more a trip for each income step known', () => {
+    const B = flat(7, 16), corps = rtsRoster(G, 'survey-corps');
+    const cfg = { ...readBoardRts(B, { workers: 1, ai: { workers: 0, wave: 30 } }), sides: { player: corps } };
+    const trip = (known) => {
+      let R = { ...rtsStart(B, cfg), known: { player: known, enemy: {} } };
+      R = rtsMind(B, cfg, R, 'player');
+      for (let k = 0; k < 600; k++) { const o = rtsTick(B, cfg, R, 0.1); R = o.R; const e = o.events.find((x) => x.kind === 'gathered' && x.side === 'player'); if (e) return [e.amount, e.paid]; }
+      return null;
+    };
+    expect(trip({})).toEqual([5, 5]);
+    expect(trip({ relay: true, array: true })).toEqual([5, 7]);
+  });
+
+  it('is the same game for the same orders at the same times, however the time is cut', () => {
+    const B = flat(11, 16), cfg = { ...readBoardRts(B, {}), sides: { player: rtsRoster(G, 'dome-growers'), enemy: rtsRoster(G, 'survey-corps') } };
+    const play = (dt) => {
+      let R = rtsStart(B, cfg);
+      for (let k = 0; k * dt < 240 && !R.over; k++) { if (Math.abs(k * dt - Math.round(k * dt)) < 1e-9) R = rtsMind(B, cfg, R, 'player'); R = rtsTick(B, cfg, R, dt).R; }
+      return { over: R.over, gold: R.gold, n: R.n, known: R.known, units: R.units.map((u) => u.kind).sort() };
+    };
+    expect(play(0.2)).toEqual(play(0.1));
+  });
+});
+
 describe('two civilizations\' skirmish', () => {
-  const B = boardOf(Array.from({ length: 12 }, () => Array(9).fill(0)));
+  const B = boardOf(Array.from({ length: 16 }, () => Array(11).fill(0)));
   const duel = (p, e) => {
-    const cfg = { ...readBoardRts(B, { ai: { wave: 4 } }), sides: { player: rtsRoster(G, p), enemy: rtsRoster(G, e) } };
+    const cfg = { ...readBoardRts(B, { ai: { wave: 4 } }), sides: { player: rtsRoster(G, p), enemy: rtsRoster(G, e) } }, made = [];
     let R = rtsStart(B, cfg);
-    for (let k = 0; k < 15000 && !R.over; k++) { if (k % 10 === 0) R = rtsMind(B, cfg, R, 'player'); R = rtsTick(B, cfg, R, 0.1).R; }
-    return R;
+    for (let k = 0; k < 15000 && !R.over; k++) {
+      if (k % 10 === 0) R = rtsMind(B, cfg, R, 'player');
+      const o = rtsTick(B, cfg, R, 0.1); R = o.R;
+      for (const ev of o.events) if (ev.kind === 'trained') { const u = R.units.find((x) => x.id === ev.id); made.push([u.side === 'player' ? p : e, cfg.sides[u.side].units[u.kind].tier || 1]); }
+    }
+    return { R, made };
   };
 
-  it('ends, either way round, each side fielding its own', () => {
+  it('ends, either way round, each side climbing its ladder and fielding what it opens', () => {
+    const made = [];
     for (const [p, e] of [['survey-corps', 'dome-growers'], ['dome-growers', 'survey-corps']]) {
-      const R = duel(p, e);
-      expect(R.over).not.toBeNull();
+      const D = duel(p, e);
+      expect(D.R.over).not.toBeNull();
+      expect(D.R.known.player.tier2 || D.R.known.enemy.tier2).toBe(true);
+      made.push(...D.made);
     }
+    // each civilization fields its machines; the showpieces come out
+    for (const cid of ['survey-corps', 'dome-growers']) expect(made.some(([c, t]) => c === cid && t >= 2)).toBe(true);
+    expect(made.some(([, t]) => t === 3)).toBe(true);
   });
 
   it('runs from its own source with rosters, as the page runs it', () => {

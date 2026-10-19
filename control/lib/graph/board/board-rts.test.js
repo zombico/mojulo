@@ -41,7 +41,8 @@ describe('a skirmish read from a board', () => {
 
 describe('orders', () => {
   it('walks a move round buildings and nodes, never through, and stands idle at its end', () => {
-    const B = flat(7, 9), cfg = quiet(B, { workers: 1 });
+    // (boards long enough to keep out of reach of the enemy's base, which shoots)
+    const B = flat(7, 16), cfg = quiet(B, { workers: 1 });
     let R = rtsStart(B, cfg);
     R = { ...R, gold: { player: 999, enemy: 0 } };
     for (const n of ['B5', 'C5', 'D5', 'E5', 'F5']) R = rtsBuild(B, cfg, R, 'player', 'barracks', at(B, n));
@@ -54,7 +55,7 @@ describe('orders', () => {
   });
 
   it('fights on an attack-move and goes on; holds its ground on hold; chases what it is told to attack', () => {
-    const B = flat(5, 12), cfg = quiet(B, { workers: 0 });
+    const B = flat(5, 16), cfg = quiet(B, { workers: 0 });
     let R = rtsStart(B, cfg);
     R = { ...R, units: [], n: 50 };
     const put = (side, kind, n) => { const p = [ (at(B, n) % 5) + 0.5, Math.floor(at(B, n) / 5) + 0.5 ]; R.units.push({ id: 'x' + n, side, kind, hp: RTS_UNITS[kind].hp, x: p[0], y: p[1], at: at(B, n), path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 }); };
@@ -75,7 +76,7 @@ describe('orders', () => {
   });
 
   it('gathers: a worker mines a node and carries it home into the purse, again and again', () => {
-    const B = flat(7, 10), cfg = readBoardRts(B, { nodes: ['B4'], ai: { workers: 0, wave: 30 } });
+    const B = flat(7, 14), cfg = readBoardRts(B, { nodes: ['B4', 'F11'], ai: { workers: 0, wave: 30 } });
     let R = rtsStart(B, cfg);
     const w = mine(R)[0];
     R = rtsOrder(B, cfg, R, [w.id], { kind: 'gather', node: at(B, 'B4') });
@@ -83,9 +84,8 @@ describe('orders', () => {
     const got = ev.filter((e) => e.kind === 'gathered' && e.side === 'player');
     expect(got.length).toBeGreaterThan(2);
     expect(E.gold.player).toBe(100 + got.reduce((n, e) => n + e.amount, 0));
-    // (the enemy's workers mine the same node: what it gave is what both carried home, and what they carry now)
-    const all = ev.filter((e) => e.kind === 'gathered').reduce((n, e) => n + e.amount, 0);
-    expect(E.nodes[0].left).toBe(400 - all - E.units.reduce((n, u) => n + u.carry, 0));
+    // (the enemy's workers mine the node by their base: what the player's gave is what they carried home, and carry now)
+    expect(E.nodes[0].left).toBe(cfg.nodes[0].amount - got.reduce((n, e) => n + e.amount, 0) - mine(E).reduce((n, u) => n + u.carry, 0));
   });
 
   it('trains at a building for gold, out beside it, and on to its rally point', () => {
@@ -168,7 +168,7 @@ describe('a side\'s own roster', () => {
   });
 
   it('shoots from a defence at what comes in range; drops what is mined at the nearer depot', () => {
-    const B = flat(7, 14), cfg = own(B, { nodes: ['B10'], workers: 1 });
+    const B = flat(7, 18), cfg = own(B, { nodes: ['B10'], workers: 1 });
     let R = raise(B, cfg, rtsStart(B, cfg), 'tower', 'D5');
     R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 7.5, at: at(B, 'D8'), path: [], order: { kind: 'stop' }, cd: 0, carry: 0, mine: 0, again: 0 });
     const T = run(B, cfg, R, 20);

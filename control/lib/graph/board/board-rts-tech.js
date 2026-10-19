@@ -43,7 +43,12 @@ const HOUSE = {
   defence: { role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
   depot: { role: 'depot', hp: 250, cost: 100, time: 15 },
   wall: { role: 'wall', hp: 500, cost: 30, time: 6 },
+  research: { role: 'research', hp: 300, cost: 150, time: 20, needs: 'barracks' },
 };
+// the ladder: what each step costs and how long it takes
+const STEP = { tier2: { cost: 150, time: 30 }, tier3: { cost: 250, time: 45 }, income: { cost: 100, time: 25 } };
+const INCOME = 0.2, INCOMES = 2;
+const RESEARCH_FORMS = ['tower', 'dish', 'launch', 'portal'];
 const MELEE_FORMS = ['blade', 'polearm', 'axe'], RANGED_FORMS = ['bow', 'gun', 'staff'], SIEGE_FORMS = ['cannon', 'launcher', 'siege', 'ballista'];
 const FLY_FORMS = ['rotor', 'winged', 'airship'];
 // a vehicle's pace, by what it goes on
@@ -85,11 +90,12 @@ export function rtsRoster(G, cid) {
   const idFor = (id) => { let k = id, n = 2; while (taken.has(k) || units[k] || buildings[k]) k = `${id}-${n++}`; return k; };
   const entries = (list) => Object.entries(T[list] ?? {}).map(([id, t]) => ({ list, id, t, fns: t.block?.functions ?? [], kind: list === 'things' ? 'thing' : list.slice(0, -1) }));
   const vehicles = entries('vehicles'), weapons = entries('weapons'), structures = entries('structures'), things = entries('things');
-  const field = (e, role, noun) => {
-    const id = idFor(e.id), { U, why } = statsOf(role, { ...e.t, kind: e.kind }, rankOf(e.list, e.id));
-    const cost = five(K * rtsWorth(U));
-    units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)) };
-    said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${role}${why.length ? ` (${why.join('; ')})` : ''}, ${cost} gold`);
+  // a machine is tier 2, a showpiece (focus rank) tier 3; infantry and the worker tier 1
+  const field = (e, role, noun, machine) => {
+    const rank = rankOf(e.list, e.id), id = idFor(e.id), { U, why } = statsOf(role, { ...e.t, kind: e.kind }, rank);
+    const cost = five(K * rtsWorth(U)), tier = machine ? (rank === 'focus' ? 3 : 2) : 1;
+    units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)), ...(tier > 1 ? { tier } : {}) };
+    said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${role}${why.length ? ` (${why.join('; ')})` : ''}, ${cost} gold${tier > 1 ? `, tier ${tier}` : ''}`);
     return id;
   };
 
@@ -131,27 +137,50 @@ export function rtsRoster(G, cid) {
     if (e.t.form === 'rail') { said(`vehicles/${e.id}`, null, `${e.t.intent}: it runs on rails, and the board lays none`); continue; }
     const armed = e.fns.includes('strike'), armoured = e.fns.includes('guard');
     if (flies(e)) {
-      if (armed || armoured) machines.push(field(e, 'flyer'));
+      if (armed || armoured) machines.push(field(e, 'flyer', null, true));
       else said(`vehicles/${e.id}`, null, `${e.t.intent}: an unarmed flyer that carries, and the skirmish has nothing for it to carry`);
       continue;
     }
-    if (armoured) machines.push(field(e, 'heavy'));
-    else if ((typeof e.t.dials?.scale === 'number' && e.t.dials.scale < 1) || e.t.form === 'cycle') machines.push(field(e, 'scout'));
-    else if (armed) machines.push(field(e, 'fighting'));
+    if (armoured) machines.push(field(e, 'heavy', null, true));
+    else if ((typeof e.t.dials?.scale === 'number' && e.t.dials.scale < 1) || e.t.form === 'cycle') machines.push(field(e, 'scout', null, true));
+    else if (armed) machines.push(field(e, 'fighting', null, true));
     else if (e.fns.includes('store')) said(`vehicles/${e.id}`, null, `${e.t.intent}: a second carrier; one worker is enough`);
-    else machines.push(field(e, 'scout'));
+    else machines.push(field(e, 'scout', null, true));
   }
-  for (const e of weapons) if (e.t.block?.tier !== 'held' && SIEGE_FORMS.includes(e.t.form)) machines.push(field(e, 'siege', 'crew'));
+  for (const e of weapons) if (e.t.block?.tier !== 'held' && SIEGE_FORMS.includes(e.t.form)) machines.push(field(e, 'siege', 'crew', true));
 
   // buildings
   buildings.base = { name: 'Base', ...RTS_BUILDINGS.base, trains: [worker] };
   buildings.barracks = { name: 'Barracks', ...HOUSE.barracks, trains: infantry };
   const builds = ['barracks'];
+  // the ladder: the machines (tier 2), then the showpieces (tier 3), and income steps between, researched at what
+  // signals, senses or lifts (a mast, a dish, a launch gantry), else a plain lab
+  const incomes = [...structures, ...things].filter((e) => !e.fns.includes('make') && !e.fns.includes('move') && (e.fns.includes('power') || e.fns.includes('grow'))).slice(0, INCOMES);
+  const research = {}, study = [];
+  if (machines.length || incomes.length) {
+    const lab = structures.find((e) => RESEARCH_FORMS.includes(e.t.form)), at = lab ? idFor(lab.id) : 'lab';
+    buildings[at] = { name: lab ? named(lab.id) : 'Lab', ...HOUSE.research };
+    builds.push(at);
+    said(lab ? `structures/${lab.id}` : null, at, lab ? `${lab.t.intent}: where it researches (after a barracks), ${HOUSE.research.cost} gold` : `nothing it crafts signals, senses or lifts: a plain lab researches for it (after a barracks), ${HOUSE.research.cost} gold`);
+    const opens = (t) => machines.filter((k) => (units[k].tier ?? 1) === t);
+    if (opens(2).length || opens(3).length) research.tier2 = { name: 'Machines', ...STEP.tier2, at, gives: { tier: 2 }, opens: [...opens(2), 'works'] };
+    if (opens(3).length) research.tier3 = { name: 'Showpieces', ...STEP.tier3, at, needs: 'tier2', gives: { tier: 3 }, opens: opens(3) };
+    let prev = null;
+    incomes.forEach((e) => {
+      const id = research[e.id] ? `${e.id}-income` : e.id;
+      research[id] = { name: named(e.id), ...STEP.income, at, ...(prev ? { needs: prev } : {}), gives: { income: INCOME } };
+      prev = id;
+      said(`${e.list}/${e.id}`, null, `${e.t.intent}: an income step, researched (every trip pays ${Math.round(INCOME * 100)}% more), ${STEP.income.cost} gold`);
+    });
+    // the mind's order: the machines, an income step, the showpieces, the rest
+    const inc = Object.keys(research).filter((k) => research[k].gives.income);
+    study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1)].filter((k) => k && research[k]));
+  }
   if (machines.length) {
     const maker = things.find((e) => e.fns.includes('make'));
-    buildings.works = { name: maker ? named(maker.id) : 'Works', ...HOUSE.works, trains: machines };
+    buildings.works = { name: maker ? named(maker.id) : 'Works', ...HOUSE.works, tier: 2, trains: machines };
     builds.push('works');
-    said(maker ? `things/${maker.id}` : null, 'works', maker ? `${maker.t.intent}: the works, where its vehicles and siege are made (after a barracks)` : 'nothing it crafts makes: plain works make its vehicles and siege (after a barracks)');
+    said(maker ? `things/${maker.id}` : null, 'works', maker ? `${maker.t.intent}: the works, where its vehicles and siege are made (after a barracks, once the machines are researched)` : 'nothing it crafts makes: plain works make its vehicles and siege (after a barracks, once the machines are researched)');
   }
   const house = (e, role, why) => {
     const id = idFor(e.id), H = { name: named(e.id), ...HOUSE[role] }, d = e.t.dials ?? {}, more = [];
@@ -176,5 +205,5 @@ export function rtsRoster(G, cid) {
   for (const e of weapons) if (!ledger.some((l) => l.of === `weapons/${e.id}`)) said(`weapons/${e.id}`, null, `${e.t.intent}: not fielded (a ${e.t.form})`);
 
   const army = [infantry.find((k) => units[k].role !== 'ranged'), infantry.find((k) => units[k].role === 'ranged')].filter(Boolean);
-  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ledger };
+  return { cid, name: C.name, team: D?.team ?? null, units, buildings, worker, base: 'base', army, builds, ...(study.length ? { research, study } : {}), ledger };
 }
