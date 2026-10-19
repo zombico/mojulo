@@ -108,6 +108,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     The registry marks `reality.look=city-night` built.
   - **Godot and Roblox** name the height thinning lost.
 
+- **Indoors: a warehouse, a dungeon.** The wall and the swinger play under a roof, in any gameworld level.
+  - **A hero's starting moves:** `characters.hero.actions.moves: ['wall', 'swinger']` (`HERO_MOVES` in
+    `gameworld/actions.js`) puts them on its platform rule in every level it plays: a trail, a building, an inside
+    behind a door. Its clips fall back for their states, and F is named on its controls.
+  - **Ceilings as colliders:** a building level such a hero plays lays each room's ceiling as a collider
+    (`ceilings: true` on a stage; `stageColliders` in `era/anchors.js`). They are never laid over a room a stair rises
+    out of, nor under an open sky.
+  - **The swinger indoors** also casts to a box's underside over the hero (a ceiling, a beam), aimed where its ideal
+    ray meets that plane. Its arc's clearance shrinks with the room under the pivot, and no line shorter than the hero
+    casts (a low room swings nothing).
+  - **The wall indoors** keeps the head under a lid (a ceiling, a tower's setback) as it climbs.
+  - **A warehouse** is a barn with a great floor: `building: { use: 'barn', rooms: { floor: { w: 30, d: 20, h: 12 } } }`.
+  - **A dungeon:** a crypt's chain of rooms plays with the moves, and so does a tower up its storeys, its stair rooms
+    left open overhead.
+
   The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
   swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
   draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.

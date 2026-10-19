@@ -41,6 +41,16 @@ export const TRAVERSAL_MOVES = Object.freeze({
   'high-jump': { read: 'jumps half as high again', rule: (base) => ({ jumpSpeed: Math.round((base?.jumpSpeed ?? 8.5) * Math.sqrt(1.5) * 1000) / 1000 }) },
 });
 
+/** The moves a hero STARTS with (`actions.moves`, the city stalker's): each a patch to the platform rule, held from the
+ *  first level, in every level it plays (a trail, a building, an inside), outdoors and in: the wall (any wall held and
+ *  crawled, worlds/controllable/wall.js) and the swinger's line (to a face or a ceiling above, swing.js). A building
+ *  level a hero with one plays lays its rooms' ceilings as colliders (a climb ends under them, a line lands on them).
+ *  Moves found later are powers (`move`, TRAVERSAL_MOVES). */
+export const HERO_MOVES = Object.freeze({
+  wall: { read: 'any wall held and crawled, up onto its roof, jumped off', rule: Object.freeze({ wall: true }) },
+  swinger: { read: 'a line to a face or a ceiling above and ahead, swung on; on the ground a zip to the wall', rule: Object.freeze({ gear: 'swinger' }) },
+});
+
 /** Genre conventions, by the word they are known by. Each: a system, and a progression template of stage → gate. */
 export const IDIOMS = Object.freeze({
   'metroidvania-like': {
@@ -84,9 +94,13 @@ function readSystem(s, at) {
 
 /** Read the actions page and say what is wrong. Shape only; references are checked by resolveActions. */
 export function readActions(A) {
-  if (!isObj(A)) throw err(' is { idiom?, system?, powers?, progression? }');
-  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression)`);
+  if (!isObj(A)) throw err(' is { idiom?, system?, powers?, progression?, moves? }');
+  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression', 'moves'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression, moves)`);
   const out = {};
+  if (A.moves !== undefined) {
+    if (!Array.isArray(A.moves) || !A.moves.every((m) => HERO_MOVES[m]) || new Set(A.moves).size !== A.moves.length) throw err(`.moves is a list of the moves the hero starts with, each once: ${Object.keys(HERO_MOVES).map((m) => `'${m}'`).join(', ')}`);
+    out.moves = [...A.moves];
+  }
   if (A.idiom !== undefined) {
     if (!word(A.idiom) || !/like$/.test(A.idiom.trim().toLowerCase())) throw err(`.idiom is a convention read as "x-like" (${Object.keys(IDIOMS).join(', ')}); a pattern, never a title`);
     out.idiom = A.idiom.trim().toLowerCase();

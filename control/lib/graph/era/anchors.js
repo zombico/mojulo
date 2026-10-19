@@ -66,8 +66,12 @@ export function nodeBounds(faces) {
  * over each), the pilasters standing proud of them, and a hull round each solid anchor (the set piece and its parts,
  * the doodads, an item's plinth), from the floor up. The floor is the engines' own ground plane (engine-score.js
  * `ground`), never a collider.
+ *
+ * `ceilings` (opt-in, a hero with the wall or the swinger: worlds/controllable/wall.js, swing.js): each room's ceiling as
+ * a slab over its walls, so a climb ends under it and a line can be cast to it; never over a room a stair rises out of
+ * (its flight goes up through), and never under an open sky (the caller's to judge). Absent, not one collider more.
  */
-export function stageColliders(plan, geom, anchors) {
+export function stageColliders(plan, geom, anchors, { ceilings = false } = {}) {
   const t = plan.kit.wall / 2, out = [], seen = new Set();
   const push = (min, max, of) => {
     const c = { min: P(min), max: P(max), of }, k = `${c.min.join()}|${c.max.join()}`;
@@ -96,5 +100,15 @@ export function stageColliders(plan, geom, anchors) {
     push([Math.min(a[0], b[0]), Math.min(a[1], b[1]), 0], [Math.max(a[0], b[0]), Math.max(a[1], b[1]), p.top], `pilaster:${p.room}`);
   }
   for (const a of anchors) if (a.solid && a.box) push([a.box.min[0], a.box.min[1], 0], a.box.max, a.id);
+  if (ceilings) {
+    const up = new Set([...(plan.stairs || []), ...((plan.cuts && plan.cuts.flights) || [])].map((x) => x.lower));
+    for (const r of plan.rooms) {
+      if (up.has(r.id)) continue;
+      const [bx0, by0, bx1, by1] = r.box;
+      push([bx0 - t, by0 - t, r.h], [bx1 + t, by1 + t, r.h + CEILING], `ceiling:${r.id}`);
+    }
+  }
   return out;
 }
+/** A ceiling slab's thickness (m): enough for a line to land on and a climb to stop under. */
+const CEILING = 0.3;

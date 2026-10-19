@@ -972,7 +972,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
-  const colliders = stageColliders(plan, geom, anchors);
+  // `ceilings: true` (a gameworld hero with the wall or the swinger): each room's ceiling a collider, unless open to the sky
+  const colliders = stageColliders(plan, geom, anchors, { ceilings: manifest.ceilings === true && plan.kit.shell !== 'plaza' });
   // a set's audience (stands.js, opt-in): tiers and people facing the open side, stamped as instanced repeats
   const stands = manifest.stands !== undefined ? standsRepeats(manifest.stands, manifest.rooms) : null;
   return {
