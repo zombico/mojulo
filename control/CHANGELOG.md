@@ -31,8 +31,11 @@ Opt-in and versioned: a default hero keeps its bytes.
   rings. The baseline, male (female alike within a few hundredths): the hip's band stretches to 2.5× its rest length
   in the sprint and compresses to 0.55, the knee's to 2.1× and 0.61, the elbow's to 1.6× and 0.75 in the guard; the
   shoulder's top ring loses a quarter of its area in the sprint and twists 9° off its bone in the relaxed stand; the
-  foot's heel ring keeps 40% of its area at the sprint's push. The groin and the armpit are seams between parts, not yet
-  read.
+  foot's heel ring keeps 40% of its area at the sprint's push. The SEAMS, where one part's tube is tucked into the
+  next (the groin, the armpit, the elbow, the knee, the neck), read whether the child's end ring stays inside its
+  parent: the groin and the armpit hold through every frame (the hip's and the shoulder's give is all in their bands),
+  while the elbow's and the knee's open: at the hand-on-hip's bent elbow the forearm's tucked slots come 41 mm out of
+  the upper arm, and at the sprint's knee the shank's top comes 11 mm (male) to 32 mm (female) out of the thigh.
 
 ### Epidermis cube: skin and hair as a recipe
 

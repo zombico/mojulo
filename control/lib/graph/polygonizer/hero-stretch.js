@@ -14,8 +14,16 @@
  *           part's axis (`folds`: the shell folded through itself). A ring bound rigidly to one bone (the hero's knee and
  *           elbow fold rings) keeps its area whatever the joint does; the band between rings is where the joint gives.
  *
- * Each ring keeps its worst frame of each, so a report names WHERE (part, station) and WHEN (the frame's label) the
- * shell gives way. `STRETCH_REGIONS` gathers the joints the realistic register reads first (the knee, the elbow, the hip,
+ * And the SEAMS, where one part meets another (`STRETCH_SEAMS`: the groin, the armpit, the elbow's and the knee's two
+ * tubes, the ankle, the neck). The parts are separate closed tubes that overlap, the child's end tucked into the parent;
+ * a seam opens when that end comes OUT of the parent's volume (the tube its rings bound), showing the join. Each child
+ * end slot is tested against it: `share` the part of the end ring inside the parent (its rest and its worst), `emerged`
+ * how far a slot tucked in at rest has come out (metres). A limb swinging or bending moves its slots relative to the
+ * parent's surface without opening anything; only a tucked slot coming out reads. A child whose end sits wholly outside
+ * its parent at rest (the foot under the shank) is no tucked seam: its share reads 0 throughout.
+ *
+ * Each ring and seam keeps its worst frame of each, so a report names WHERE (part, station) and WHEN (the frame's
+ * label) the shell gives way. `STRETCH_REGIONS` gathers the joints the realistic register reads first (the knee, the elbow, the hip,
  * the shoulder). Pure and deterministic: frames in, numbers out; nothing about the hero changes.
  */
 import { rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
@@ -40,6 +48,18 @@ export const STRETCH_REGIONS = Object.freeze({
   elbow: [['upperArm', -2], ['foreArm', 2]],
   hip: [['thigh', 2]],
   shoulder: [['upperArm', 2]],
+});
+/**
+ * The seams: a child part family (its side appended) meeting its parent part (sided too when the parent is a limb).
+ * Which end of the child, and which of the parent's rings, are read off the rest: the pair of rings nearest each other.
+ */
+export const STRETCH_SEAMS = Object.freeze({
+  groin: ['thigh', 'pelvis'],
+  armpit: ['upperArm', 'torso'],
+  elbow: ['foreArm', 'upperArm'],
+  knee: ['shank', 'thigh'],
+  ankle: ['foot', 'shank'],
+  neck: ['neck', 'torso'],
 });
 /** a ring narrower than this (metres, its first slot from its centre at rest) reads no twist: its direction is noise */
 const TWIST_MIN_RADIUS = 0.01;
@@ -109,18 +129,72 @@ function bandAt(r, q, rest, posed) {
 }
 
 /**
+ * How far p stands outside the tube a part's rings bound (negative inside, metres): between each consecutive pair of
+ * rings, p's distance from their axis against the rings' reach toward p (each ring's support, its furthest slot along
+ * p's radial direction), interpolated between the two. Past the tube's first or last ring (or in the wedge outside a
+ * bend, which no segment spans), p is outside by its distance beyond the ring's disc (its overshoot along the axis, and
+ * its radial excess over the ring's reach).
+ */
+function outsideTube(p, V, rings, any = false) {
+  let best = Infinity;
+  const n = rings.length;
+  for (let k = 0; k + 1 < n; k++) {
+    const A = rings[k].idx, B = rings[k + 1].idx, ca = centre(V, A), cb = centre(V, B), ax = sub(cb, ca), l2 = dot(ax, ax);
+    if (l2 < 1e-18) continue;
+    const t0 = dot(sub(p, ca), ax) / l2;
+    // only the end segments extend past their rings
+    if (!any && ((t0 < 0 && k > 0) || (t0 > 1 && k + 2 < n))) continue;
+    const t = Math.max(0, Math.min(1, t0)), over = (t0 < 0 ? -t0 : t0 > 1 ? t0 - 1 : 0) * Math.sqrt(l2);
+    const c = [ca[0] + ax[0] * t0, ca[1] + ax[1] * t0, ca[2] + ax[2] * t0], rv = sub(p, c), r = len(rv);
+    if (r < 1e-12 && !over) return -Infinity;
+    const d = r < 1e-12 ? [0, 0, 0] : rv.map((x) => x / r);
+    const reach = (idx, cc) => { let h = -Infinity; for (const i of idx) { const q = dot(sub(V[i], cc), d); if (q > h) h = q; } return h; };
+    const radial = r - (reach(A, ca) * (1 - t) + reach(B, cb) * t);
+    const e = over ? dmath.hypot(over, Math.max(0, radial)) : radial;
+    if (e < best) best = e;
+  }
+  // (a point on the outside of a bend in the tube lies past one segment's end and short of the next's start: no
+  // segment claims it, so it reads against the nearest, its overshoot counted)
+  return best === Infinity && !any ? outsideTube(p, V, rings, true) : best;
+}
+
+/** the seams: for each of `STRETCH_SEAMS` and each side the parts carry, the child's end ring nearest the parent at rest
+ * and the parent's rings: [{ seam, side, child, parent: [rings], near: the parent's ring nearest the child's end }] */
+export function seamPairs(rings, rest) {
+  const out = [];
+  const byPart = new Map(); for (const r of rings) (byPart.get(r.part) ?? byPart.set(r.part, []).get(r.part)).push(r);
+  for (const [seam, [cf, pf]] of Object.entries(STRETCH_SEAMS)) {
+    for (const side of ['', 'L', 'R']) {
+      const child = byPart.get(`${cf}${side}`), parent = byPart.get(`${pf}${side}`) ?? byPart.get(pf);
+      if (!child || !parent || (side === '' && byPart.has(`${cf}R`))) continue;
+      const ends = [child[0], child[child.length - 1]];
+      let best = null;
+      for (const c of ends) { const cc = centre(rest, c.idx); for (const q of parent) { const d = len(sub(cc, centre(rest, q.idx))); if (!best || d < best.d) best = { d, child: c, parent: q }; } }
+      out.push({ seam, side, child: best.child, parent, near: best.parent });
+    }
+  }
+  return out;
+}
+
+/**
  * THE AUDIT: the hero's shell over `frames` ([{ label, pose }]: rig poses as `rigNodesAt` takes them, or { label, nodes }
  * posed joints given whole: the bind itself is { nodes: R.joints }, where every measure reads exactly its rest; an empty
  * pose is the rig's planted stand, a little off the bind). Returns
  * { rings: [{ part, station, k, n, area: { min, minAt, max, maxAt }, pinch: { min, at }, twist: { max, at }, band: { min,
  *   minAt, max, maxAt, folds, foldAt } }],
- *   regions: { <region>: the worst of its rings, each with its ring named }, worst: the shell's worst of each, frames }.
+ *   regions: { <region>: the worst of its rings, each with its ring named }, seams: [{ seam, side, child (the end ring),
+ *   parent (the part), share: { rest, min, at }, emerged: { max (metres), at } }], worst: the shell's worst
+ *   of each, frames }.
  */
 export function stretchAudit(mesh, skin, R, recipe, frames) {
   const rest = mesh.vertices, rings = shellRings(mesh, recipe);
   const acc = rings.map((r) => ({ part: r.part, station: r.station, k: r.k, n: r.n, area: { min: Infinity, minAt: null, max: -Infinity, maxAt: null }, pinch: { min: Infinity, at: null }, twist: { max: 0, at: null }, band: { min: Infinity, minAt: null, max: -Infinity, maxAt: null, folds: 0, foldAt: null } }));
   // the band from each ring to the next along its part (on the ring that starts it; the part's last ring has none)
   const next = rings.map((r, i) => (rings[i + 1] && rings[i + 1].part === r.part && rings[i + 1].k === r.k + 1 ? rings[i + 1] : null));
+  // the seams: which of each child end's slots sit inside the parent at rest, so a frame reads which came out, and how far
+  const pairs = seamPairs(rings, rest).map((s) => ({ ...s, in0: s.child.idx.map((i) => outsideTube(rest[i], rest, s.parent) < 0) }));
+  const share = (s, V) => s.child.idx.filter((i) => outsideTube(V[i], V, s.parent) < 0).length / s.child.idx.length;
+  const seamAcc = pairs.map((s) => ({ seam: s.seam, side: s.side, child: `${s.child.part}/${s.child.station}`, parent: s.near.part, share: { rest: share(s, rest), min: Infinity, at: null }, emerged: { max: 0, at: null } }));
   for (const { label, pose, nodes: given } of frames) {
     const nodes = given ?? rigNodesAt(R, pose).nodes;
     const F = boneFrames(R, R.joints, nodes), posed = skinLayered(mesh, skin, F);
@@ -136,6 +210,13 @@ export function stretchAudit(mesh, skin, R, recipe, frames) {
         if (b.max > a.band.max) { a.band.max = b.max; a.band.maxAt = label; }
         if (b.folds > a.band.folds) { a.band.folds = b.folds; a.band.foldAt = label; }
       }
+    });
+    pairs.forEach((s, i) => {
+      let inside = 0, out = 0;
+      s.child.idx.forEach((v, k) => { const e = outsideTube(posed[v], posed, s.parent); if (e < 0) inside++; else if (s.in0[k] && e > out) out = e; });
+      const a = seamAcc[i], sh = inside / s.child.idx.length;
+      if (sh < a.share.min) { a.share.min = sh; a.share.at = label; }
+      if (out > a.emerged.max) { a.emerged.max = out; a.emerged.at = label; }
     });
   }
   const worstOf = (list) => {
@@ -155,7 +236,7 @@ export function stretchAudit(mesh, skin, R, recipe, frames) {
     const list = acc.filter((r) => spec.some(([fam, cnt]) => (r.part === `${fam}R` || r.part === `${fam}L` || r.part === fam) && (cnt > 0 ? r.k < cnt : r.k >= r.n + cnt)));
     if (list.length) regions[name] = worstOf(list);
   }
-  return { rings: acc, regions, worst: acc.length ? worstOf(acc) : null, frames: frames.length };
+  return { rings: acc, regions, seams: seamAcc, worst: acc.length ? worstOf(acc) : null, frames: frames.length };
 }
 
 /**

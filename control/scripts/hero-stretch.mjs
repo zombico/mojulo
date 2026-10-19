@@ -3,7 +3,8 @@
  * hero-stretch — the STRETCH AUDIT over a hero (lib/graph/polygonizer/hero-stretch.js): its shell ring by ring through
  * the studied gaits (walk, jog, sprint) and the stand's gestures, against its bind. Prints, per joint region and for
  * the whole shell, the worst ring area and pinch, the twist away from the bone, and the band between rings (compression,
- * stretch, folds), each naming the ring and the frame. The realistic register's baseline and its phase-4 "after".
+ * stretch, folds), and the seams between parts (the groin, the armpit, the elbow, the knee, the ankle, the neck: how far
+ * each opens or presses in), each naming the ring and the frame. The realistic register's baseline and its phase-4 "after".
  *
  *   node scripts/hero-stretch.mjs [--cast male|female|<a figure cast>] [--samples 12] [--rings] [--json]
  *
@@ -47,4 +48,8 @@ const show = (name, w) => {
 };
 for (const [k, w] of Object.entries(A.regions)) show(k, w);
 show('shell', A.worst);
+const mm = (x) => (x * 1000).toFixed(1);
+console.log('seams (the child\'s end ring in the parent\'s tube: the share of its slots inside at rest and at worst; how far a tucked slot came out):');
+const pc = (x) => `${Math.round(x * 100)}%`.padStart(4);
+for (const s of A.seams) console.log(`  ${`${s.seam}${s.side ? ' ' + s.side : ''}`.padEnd(10)} ${`${s.child} in ${s.parent}`.padEnd(30)} inside ${pc(s.share.rest)} → ${pc(s.share.min)} @ ${String(s.share.at).padEnd(16)} emerged ${mm(s.emerged.max).padStart(5)} mm${s.emerged.max ? ` @ ${s.emerged.at}` : ''}`);
 if (args.rings) for (const r of A.rings) console.log(`  ${`${r.part}/${r.station}`.padEnd(22)} area ${f(r.area.min)}…${f(r.area.max)}  pinch ${f(r.pinch.min)}  twist ${f(r.twist.max, 1)}°  band ${f(r.band.min)}…${f(r.band.max)}${r.band.folds ? `  folds ${r.band.folds}` : ''}`);

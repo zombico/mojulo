@@ -1,11 +1,12 @@
 // hero-stretch.test.js — the stretch audit reads the hero's shell: the bind is its own rest exactly, a bent knee shows in
-// that knee's bands and nowhere on the other leg, the gaits come as labelled frames, and the audit is deterministic.
+// that knee's bands and nowhere on the other leg, a bent elbow opens that elbow's seam alone, the gaits come as labelled
+// frames, and the audit is deterministic.
 import { describe, it, expect } from 'vitest';
 
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
 import { validateRig, bindLayered } from './station-loft-rig.js';
-import { stretchAudit, shellRings, gaitFrames, STRETCH_REGIONS } from './hero-stretch.js';
+import { stretchAudit, shellRings, gaitFrames, STRETCH_REGIONS, STRETCH_SEAMS } from './hero-stretch.js';
 
 const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) });
 const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
@@ -42,6 +43,17 @@ describe('the stretch audit', () => {
     expect(bandLo(legRings(bent, 'L'))).toBeCloseTo(bandLo(legRings(stand, 'L')), 9);
     expect(bandHi(legRings(bent, 'L'))).toBeCloseTo(bandHi(legRings(stand, 'L')), 9);
     expect(bent.regions.knee.bandMin.at).toBe('bent');
+  }, 120_000);
+
+  it('the seams: each one found; at the bind each holds its rest; a bent elbow opens its own seam alone', () => {
+    const bind = stretchAudit(mesh, skin, R, m.recipe, [{ label: 'bind', nodes: R.joints }]);
+    for (const seam of Object.keys(STRETCH_SEAMS)) expect(bind.seams.some((s) => s.seam === seam), seam).toBe(true);
+    for (const s of bind.seams) { expect(s.share.min).toBe(s.share.rest); expect(s.emerged.max).toBe(0); }
+    const bent = stretchAudit(mesh, skin, R, m.recipe, [{ label: 'bent', pose: { elbowR: 110 } }]);
+    const elbow = (S) => bent.seams.find((s) => s.seam === 'elbow' && s.side === S);
+    expect(elbow('R').emerged.max).toBeGreaterThan(0.005);
+    expect(elbow('R').share.min).toBeLessThan(elbow('R').share.rest);
+    expect(elbow('L').emerged.max).toBeLessThan(1e-9);
   }, 120_000);
 
   it('the gaits come as labelled frames over their cycles, and the audit is deterministic', () => {
