@@ -78,7 +78,7 @@ export const TOOL_LINES = {
   pick_palette: L('orient', "Colours solved for what a world is by colour theory (key, chroma, scheme, ramps, checks); pass the spec to design_game, create_game, create_cover."),
   tune_ground: L('update', "A gameworld level's ground on a top-down grid: amplitude and depth dials, cliffs, gorges, raises by cell; a map and hotspots back."),
   create_game: L('compose', 'A playable game: a shell with a typed store and levels that are worlds. Store design: `get_game_vocab`; revise: `update_sketch`.'),
-  create_pixelizer_game: L('create', 'A self-contained 2D reducer game (brickster and kin) for the Arcade; no levels, unlike `create_game`.'),
+  create_pixelizer_game: L('create', 'A self-contained 2D reducer game for the Arcade: falling blocks, match-3, a match-3 saga with a map of levels.'),
   create_sprite_sheet: L('create', 'A 2D sprite sheet as a director recipe: frames on a grid, each painted through the image-render handoff.'),
   bake_sprite_sheet: L('update', 'Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.'),
   get_game_vocab: L('orient', 'The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.'),

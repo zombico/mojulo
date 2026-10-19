@@ -14,6 +14,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Mobile genres
+
+- **Swipe.** One reader turns a finger's flick into a tap or a direction, shared by every touch game.
+- **A match-3 saga.** `create_pixelizer_game({ reducer: 'stone-saga' })` makes Philosopher's Stone a saga: a map of
+  levels (thirty by default, `saga: { seed, levels }`), each a few moves to reach a score or to dissolve so many of one
+  reagent, with a bonus for every move left and up to three stars. The map opens a level at a time and remembers the
+  stars in the browser; there are no lives, a level is retried as often as you like. The map is made from the
+  recipe's seed (the title's, unless you name one), so the same game is the same map everywhere, and its curve was
+  measured against a steady player: the first levels are generous, the last leave little to spare. A gem is swiped
+  toward its neighbour, or tapped twice. Philosopher's Stone without a saga is unchanged.
+
 ### Resolution lock
 
 - **A game is made for a screen.** A gameworld's `screen` (beside `camera`; `quick.screen` too) names the screen it is

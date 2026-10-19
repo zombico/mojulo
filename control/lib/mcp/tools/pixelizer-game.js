@@ -35,7 +35,7 @@ export function pixelTheme(theme, palette) {
 }
 
 export async function createPixelizerGameHandler(input, context = {}) {
-  const { reducer, title, tagline, theme: themeIn, palette, music, register, ref, project_ref: projectRef } =
+  const { reducer, title, tagline, theme: themeIn, palette, music, register, saga, ref, project_ref: projectRef } =
     input && typeof input === 'object' ? input : {};
 
   if (!reducer || !PIXELIZER_REDUCER_IDS.includes(reducer)) {
@@ -53,7 +53,7 @@ export async function createPixelizerGameHandler(input, context = {}) {
   }
 
   const theme = pixelTheme(themeIn, palette);
-  const manifest = buildPixelizerGameManifest({ reducer, title, tagline, theme, music, register });
+  const manifest = buildPixelizerGameManifest({ reducer, title, tagline, theme, music, register, ...(saga !== undefined ? { saga } : {}) });
   const sketch = SketchRepository.create({ title: manifest.title, manifest, ref });
 
   let project = null;
@@ -94,6 +94,7 @@ export function registerPixelizerGameTools() {
         theme: { type: 'object', description: "Optional accents { accent?, accent2?, style?: 'hud'|'clean' }." },
         palette: { description: "Optional: the accents from a palette (pick_palette's spec, under `theme`'s own); pick_palette's `pixel` palettes fit the 8bit/16bit budgets." },
         music: { type: 'boolean', description: 'Beats soundtrack + SFX. Default true.' },
+        saga: { type: 'object', description: 'stone-saga: { seed?, levels? }.' },
         register: { type: 'string', enum: ['8bit', '16bit', '32bit'], description: "Optional era label; default the reducer's own." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },

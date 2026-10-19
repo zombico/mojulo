@@ -804,7 +804,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // GAME row's pick_palette (a world's colours, solved), the routing card's entry named in the body.
   // Grown 2026-10-15 (8_750 -> 8_830; measured 8,811 widest cell, studio+plain+pedagogical): 1015, the asset receipts named on the
   // export line (they had no route in) and the OBSERVE row's camera words for forge_motion's shoot.
-  const MODE_CEILINGS = { studio: 8_830 };
+  // Grown 2026-10-19 (8_830 -> 8_880; measured 8,836 widest cell, studio+plain+reflective): the GAME row names
+  // create_pixelizer_game (a match-3 saga), the arcade-board routing card's entry, which had no route in.
+  const MODE_CEILINGS = { studio: 8_880 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

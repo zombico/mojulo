@@ -56,4 +56,27 @@ describe('create_pixelizer_game', () => {
     expect(html).toContain('id="game"');
     expect(html).toContain('Alchemist'); // the timed-mode toggle is present
   });
+
+  it('mints stone-saga: its map on the recipe (seeded by its title unless named), served as the map and the levels', async () => {
+    const res = await createPixelizerGameHandler({ reducer: 'stone-saga', title: 'Mercury Run' });
+    const m = SketchRepository.getByRef(res.ref).manifest;
+    expect(m).toMatchObject({ engine: 'pixelizer', reducer: 'stone-saga', saga: { levels: 30 } });
+    expect(Number.isInteger(m.saga.seed)).toBe(true);
+    const other = SketchRepository.getByRef((await createPixelizerGameHandler({ reducer: 'stone-saga', title: 'Lead Road' })).ref).manifest;
+    expect(other.saga.seed).not.toBe(m.saga.seed);   // two names, two maps
+    const named = SketchRepository.getByRef((await createPixelizerGameHandler({ reducer: 'stone-saga', saga: { seed: 7, levels: 12 } })).ref).manifest;
+    expect(named.saga).toEqual({ seed: 7, levels: 12 });
+    const html = emitPixelizerGame(m);
+    expect(html).toContain('<div id="map">');
+    expect(html).toContain('function sagaStep(state, action)');
+    expect(html).toContain('function swipeOf(dx, dy, ms, opts)');
+    await expect(createPixelizerGameHandler({ reducer: 'brickster', saga: { levels: 3 } })).rejects.toThrow(/saga is the map of a saga reducer/);
+    await expect(createPixelizerGameHandler({ reducer: 'stone-saga', saga: { levels: 0 } })).rejects.toThrow(/levels is 1 to 99/);
+  });
+
+  it('philosophers-stone without a saga carries none of it', async () => {
+    const res = await createPixelizerGameHandler({ reducer: 'philosophers-stone' });
+    const html = emitPixelizerGame(SketchRepository.getByRef(res.ref).manifest);
+    expect(html).not.toMatch(/sagaStep|swipeOf|id="map"/);
+  });
 });
