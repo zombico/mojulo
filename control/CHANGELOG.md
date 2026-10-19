@@ -97,6 +97,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
   measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
 
+
+### Science worlds further: spacetime, volumes and settings
+
+- **Planned.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
+  The law always lives in JS where the gates run; a shader is generated from the same numbers and held to them by
+  a shader conformance gate in headless Chrome ("not run" without a browser). A setting is dress: anything a body
+  touches is a law in the model, a gate advises when a body passes through scenery no law covers, and the world
+  never changes the physics silently. In order: a fourth scale, `relativistic` (Schwarzschild spacetime: light
+  bent round one mass, orbits on geodesics, clocks), a `science` world channel that stands a science world in any
+  world, quantum orbitals as volumes and the two-slit plane, and classical field lines and field volumes.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
