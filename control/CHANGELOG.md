@@ -14,6 +14,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Realistic register: a stronger body for the hero
+
+The third point on the hero's style gradient (anime → cartoon → realistic), as western games draw a person: accurate
+shape generated relationally (the relational head's method carried to the body), depicted through the hero's cage so
+every reader of its stations, slots and body chart keeps working, with the relational head joined on at the neck.
+Opt-in and versioned: a default hero keeps its bytes.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
