@@ -142,6 +142,18 @@ describe('runs: the levels a pool each run draws from', () => {
   });
 });
 
+describe('the end: a final level', () => {
+  it('validates in the light shell, one of the game\'s levels, not a run; without one, not a byte of it', () => {
+    const fin = normalizeGameManifest({ ...GAME, final: 'run-2' });
+    expect(validateGameManifest(fin)).toEqual({ ok: true, errors: [] });
+    expect(validateGameManifest({ ...fin, final: 'run-9' }).errors.join(' ')).toMatch(/final is the level whose first win completes the game: one of run-1, run-2/);
+    expect(validateGameManifest({ ...fin, shell: undefined }).errors.join(' ')).toMatch(/final plays in the light shell/);
+    expect(validateGameManifest({ ...fin, run: { length: 1 } }).errors.join(' ')).toMatch(/run and final/);
+    expect(script(emitPlayShell(fin, LEVELS))).toContain('"final":"run-2"');
+    expect(script(emitPlayShell(GAME, LEVELS))).not.toContain('"final":');
+  });
+});
+
 describe('the result screen\'s gains', () => {
   // the shell's own function, out of its runtime source
   const src = playShellRuntime.toString(), at = src.indexOf('function gainsOf'), end = src.indexOf('function statsTable');

@@ -44,7 +44,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
 const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
-const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish'];
+const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: battles${m}`);
@@ -57,7 +57,20 @@ const packOf = (v, where) => {
 };
 
 /** The concern as written, read; `characters` (the world's, read) say who can be in the party. */
-export function readBattles(v, characters = null) {
+// the book's epochs (board-levels.js): its levels in order, cut into chapters, each a map of its own
+function readEpochs(E, ids) {
+  const shape = '.board.epochs is the book\'s levels in order, cut into chapters: [{ name?, levels: [level id, …] }, …]';
+  if (!Array.isArray(E) || !E.length) throw err(shape);
+  for (const [k, e] of E.entries()) {
+    if (!isObj(e) || !Array.isArray(e.levels) || !e.levels.length || !e.levels.every((l) => typeof l === 'string')) throw err(`${shape} (epochs[${k}])`);
+    for (const x of Object.keys(e)) if (!['name', 'levels'].includes(x)) throw err(`.board.epochs[${k}].${x} is not part of an epoch (name, levels)`);
+    if (e.name !== undefined && (typeof e.name !== 'string' || !e.name.trim())) throw err(`.board.epochs[${k}].name is the epoch's name, a few words`);
+  }
+  const flat = E.flatMap((e) => e.levels);
+  if (ids && flat.join('|') !== ids.join('|')) throw err(`.board.epochs: every level once, in the book's order (${ids.join(', ')}); they hold ${flat.join(', ')}`);
+}
+
+export function readBattles(v, characters = null, ids = null) {
   if (v === undefined) return null;
   if (!isObj(v)) throw err(' is { on?, board?, party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
@@ -87,6 +100,7 @@ export function readBattles(v, characters = null) {
     if (!isObj(v.board)) throw err(`.board is { ${BOARD_KEYS.join(', ')} } (every one optional)`);
     for (const k of Object.keys(v.board)) if (!BOARD_KEYS.includes(k)) throw err(`.board.${k} is not part of it (${BOARD_KEYS.join(', ')})`);
     if (v.board.skirmish !== undefined && typeof v.board.skirmish !== 'boolean') throw err('.board.skirmish is true or false: a battle on each area\'s map to fight again (true by default)');
+    if (v.board.epochs !== undefined) readEpochs(v.board.epochs, ids);
   }
   const out = { ...v, ...(packs ? { packs } : {}), ...(boss ? { boss } : {}) };
   // the play.rpg it makes, read now, so a wrong class, skill, foe or rule is said where it was written

@@ -69,6 +69,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   opens when the one before it is won; the party's marker walks the open roads to the dot chosen, and the map is left
   by that dot (the `map` mechanic). Every dot's level, when won, goes back to the map, where the party stands at the
   dot it came from.
+- **Epochs**, built: a tactics book is played in epochs (chapters), each with its own map. By default each of the
+  book's levels is an epoch; `battles.board.epochs` cuts them into chapters of its own. Winning an epoch's last stage
+  goes on to the next epoch's map, the party and bag carried; a later epoch's skirmishes draw from the harder packs
+  met by then. The final epoch's last stage completes the game, and its map stays open for what is left.
+- **A game's final level** (`final` on `create_game`, the light shell): its first win completes the game. The front's
+  end plays (or the result says the game is complete) instead of travelling on, and the game counts as cleared by
+  that level alone, not every level. A game without one is unchanged.
 - **Skirmishes to fight again**, built: each area of the map gets a skirmish dot after its first battle, open once
   that battle is won and fought as often as the party likes. A skirmish draws its foes from the book's packs when it
   starts, scaled to the party (its mean level, give or take one); win and the next visit meets another pack, lose and

@@ -19,6 +19,8 @@ import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } from '@/lib/graph/p
 // to do next. A run with nothing changed makes nothing; a hand edit is left unless forced.
 
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
+// the book's areas a run's levels stand in (level-<area>-<n>, level-<area>-skirmish)
+const L0levels = (out) => out.ran.filter((r) => /^level-/.test(r.key)).map((r) => r.key.replace(/^level-/, '').replace(/-(\d+|skirmish)$/, ''));
 const action = (out, key) => out.ran.find((r) => r.key === key)?.action;
 const step = (out, id) => out.next.find((n) => n.step === id);
 const revs = (ref) => SketchRevisionRepository.head(ref)?.rev ?? 0;
@@ -279,22 +281,32 @@ describe('design_game: tactics battles on boards (battles.on: board)', () => {
     expect(payload.game.party).toEqual({ slice: 'party' });
     expect(payload.walk).toBe(false);
 
-    // the epoch's map: the game's first level, a dot each stage in story order, a dot's road opening when the one
-    // before it is won; every dot's level goes back to the map
-    const mapRef = out.ran.find((r) => r.key === 'map').ref;
-    const M = stored(mapRef);
+    // the epochs (each of the book's levels its own, by default): a map each, the first the game's first level, a dot
+    // each stage in story order, a dot's road opening when the story dot before it is won
+    const maps = out.ran.filter((r) => /^map-\d+$/.test(r.key)).map((r) => r.ref);
+    expect(maps.length).toBe(new Set(L0levels(out)).size);
+    const M = stored(maps[0]), Ms = maps.map(stored);
     expect(M.kind).toBe('board');
-    expect(M.map.dots.map((d) => d.ref)).toEqual(levels);
+    expect(Ms.flatMap((m) => m.map.dots.map((d) => d.ref))).toEqual(levels);
     expect(M.map.dots.find((d) => d.ref === levels[0]).kind).toBe('battle');
     expect(M.game.mechanics).toEqual([{ kind: 'map', slice: 'campaign', dots: M.map.dots.map((d) => d.id) }]);
-    expect(game.levels[0].ref).toBe(mapRef);
-    expect(game.levels.slice(1).every((l) => l.exits.length === 1 && l.exits[0].to === mapRef)).toBe(true);
+    expect(game.levels[0].ref).toBe(maps[0]);
     expect(game.links).toBeUndefined();
-    // each area's skirmish: after its first battle, open once that is won, a pack drawn from the book's as the party stands
-    const wilds = M.map.dots.filter((d) => d.kind === 'skirmish');
+    // each dot's level back to its map, but an epoch's last stage's: on to the next epoch's map; the final epoch's last
+    // stage the game's final, back to its own map (the map before the end, open for what is left)
+    const exitOf = (r) => game.levels.find((l) => l.ref === r).exits;
+    Ms.forEach((m, k) => {
+      const stagesOf = m.map.dots.filter((d) => d.kind !== 'skirmish'), end = stagesOf[stagesOf.length - 1];
+      for (const d of m.map.dots) expect(exitOf(d.ref)).toEqual([{ id: 'map', to: d === end ? maps[k + 1] ?? maps[k] : maps[k] }]);
+      expect(m.map.dots[0].gate).toBeUndefined();
+    });
+    const lastMap = Ms[Ms.length - 1].map.dots.filter((d) => d.kind !== 'skirmish');
+    expect(game.final).toBe(lastMap[lastMap.length - 1].ref);
+    // each area's skirmish: after its first battle, open once that is won, a pack drawn from those its epoch has met
+    const wilds = Ms.flatMap((m) => m.map.dots.filter((d) => d.kind === 'skirmish').map((w) => [m, w]));
     expect(wilds.length).toBeGreaterThan(0);
-    for (const w of wilds) {
-      const at = M.map.dots.findIndex((d) => d.id === w.id), before = M.map.dots[at - 1];
+    for (const [m, w] of wilds) {
+      const at = m.map.dots.findIndex((d) => d.id === w.id), before = m.map.dots[at - 1];
       expect(w.gate).toBe(before.id);
       expect(before.kind).toBe('battle');
       const W = stored(w.ref);
@@ -302,22 +314,31 @@ describe('design_game: tactics battles on boards (battles.on: board)', () => {
       expect(W.board.battle.draw.length).toBeGreaterThan(1);
       expect(W.game.mechanics[0]).toEqual({ kind: 'board', exit: 'map' });
     }
+    // a later epoch's skirmish draws from more packs (the ones met so far)
+    if (wilds.length > 1) expect(stored(wilds[wilds.length - 1][1].ref).board.battle.draw.length).toBeGreaterThanOrEqual(stored(wilds[0][1].ref).board.battle.draw.length);
     // the story goes on past a skirmish: the dot after it waits on the battle, not the skirmish
-    const after = M.map.dots[M.map.dots.findIndex((d) => d.id === wilds[0].id) + 1];
-    if (after) expect(after.gate).toBe(wilds[0].gate);
-    for (const d of M.map.dots.filter((x) => x.kind === 'story')) expect(stored(d.ref).game.mechanics.filter((m) => m.kind === 'reach-exit').every((m) => m.exit === 'map')).toBe(true);
-    const map = await resolveWorldScene(SketchRepository.getByRef(mapRef));
+    const [m0, w0] = wilds[0], after = m0.map.dots[m0.map.dots.findIndex((d) => d.id === w0.id) + 1];
+    if (after) expect(after.gate).toBe(w0.gate);
+    for (const d of Ms.flatMap((m) => m.map.dots).filter((x) => x.kind === 'story')) expect(stored(d.ref).game.mechanics.filter((m) => m.kind === 'reach-exit').every((m) => m.exit === 'map')).toBe(true);
+    const map = await resolveWorldScene(SketchRepository.getByRef(maps[0]));
     expect(map.payload.board.map.dots.map((d) => d.id)).toEqual(M.map.dots.map((d) => d.id));
     expect(map.payload.game.on[`map-go:${M.map.dots[0].id}`]).toEqual({ end: 'success', exit: M.map.dots[0].id });
-    // travel: from the map to the first dot at once, the second only once the first is won
+    // travel: from the map to the first dot at once, the second only once the first is won; the next epoch's map found
+    // only once this epoch's last stage is won
     const K = buildGameStoreKernel(), state = K.createStore(game.store);
     const [d1, d2] = M.map.dots;
-    expect(K.travel(game.store, state, game.levels, mapRef, d1.id)).toBe(d1.ref);
+    expect(K.travel(game.store, state, game.levels, maps[0], d1.id)).toBe(d1.ref);
     if (d2) {
-      expect(K.travel(game.store, state, game.levels, mapRef, d2.id)).toBeNull();
+      expect(K.travel(game.store, state, game.levels, maps[0], d2.id)).toBeNull();
       state.campaign.completed[d1.ref] = 'success';
-      expect(K.travel(game.store, state, game.levels, mapRef, d2.id)).toBe(d2.ref);
+      expect(K.travel(game.store, state, game.levels, maps[0], d2.id)).toBe(d2.ref);
     }
-    expect(K.travel(game.store, state, game.levels, d1.ref, 'map')).toBe(mapRef);
+    expect(K.travel(game.store, state, game.levels, d1.ref, 'map')).toBe(maps[0]);
+    if (maps[1]) {
+      expect(K.reachable(game.store, state, game.levels)[maps[1]]).toBe(false);
+      state.campaign.completed[maps[0]] = 'success';
+      for (const d of M.map.dots) state.campaign.completed[d.ref] = 'success';
+      expect(K.reachable(game.store, state, game.levels)[maps[1]]).toBe(true);
+    }
   }, 600_000);
 });
