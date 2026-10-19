@@ -296,6 +296,33 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
+  {
+    id: 'tactics',
+    name: 'Tactics role-playing game',
+    anchor: false,
+    why: 'a party of classed units on a board of spots, a turn each on a charge-time clock: move, act, face; height and facing count',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'tactical', board: 'spots', levelForm: 'meru' },
+      power: { combat: ['tactics'], stats: ['xp', 'level'], systems: ['equip'] },
+      soul: { party: 'party' },
+      mind: { squad: 'team-aware' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'rts',
+    name: 'Real-time strategy',
+    anchor: false,
+    why: 'armies ordered from above in real time: select, move, attack, gather and build',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'tactical', levelForm: 'arena' },
+      power: { combat: ['ranged', 'melee'], systems: ['orders', 'resource', 'place'], stats: ['buy'] },
+      mind: { pathing: 'navmesh', squad: 'team-aware' },
+      time: { progression: 'linear' },
+    },
+  },
   // the fighter (10-15): a side-on one-on-one in rounds, its own simulation on a stage arena
   {
     id: 'versus-fighter',

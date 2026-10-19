@@ -18,7 +18,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 A game can carry a board: square spots laid over its terrain as their own layer, each with a height, a terrain type
 and at most one unit. From any state the board lists every legal move, so a player can run out of options. Turn-based
-tactics (in the manner of Final Fantasy Tactics) and tower defence share it. In progress:
+tactics (in the manner of Final Fantasy Tactics) and tower defence share it. A board lies over a geocube's level,
+indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only. In progress:
+
+- **The genre sweep asks for it.** Probes for a tactics game and a real-time strategy game, and registry values
+  for the board, the tactical camera, tactics combat and RTS orders, all unbuilt so far. On
+  `docs/tool-surface/hillclimb.md` the board ranks first by worlds lifted per unit of work.
 
 - **The board kernel** (`lib/graph/board/`): reach by move and jump, aim and area shapes, facing, occupancy, legal
   moves, and a charge-time clock on the party battles' timeline rule. Pure and seeded, emitted only when a world

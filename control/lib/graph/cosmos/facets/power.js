@@ -36,6 +36,8 @@ export const POWER = Object.freeze({
         // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
         // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.
+        // priced 10-19 (strategy board): fought on the board's spots, not in a window over a frozen field
+        tactics: { status: 'absent', effort: 'L', requires: ['space.board=spots'], ...WEB, note: 'a party of classed units on a board: charge-time turns, move then act, reach by move and jump, aim and area shapes, facing and height; the battle kernel\'s fights hold no positions' },
         versus: { status: 'built', godot: false, lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
       },
     },
@@ -49,6 +51,8 @@ export const POWER = Object.freeze({
       // defence's towers. Free placement anywhere on a grid is not built.
       planned: {
         place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+        // priced 10-19: the real-time strategist's verbs
+        orders: { status: 'absent', effort: 'L', requires: ['space.camera=tactical'], ...WEB, note: 'select a unit or a box of them and order it: move, attack-move, hold, a rally point; nothing selects or orders a body the player does not pilot' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)

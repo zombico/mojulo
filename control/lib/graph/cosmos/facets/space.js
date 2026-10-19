@@ -1,6 +1,7 @@
 /**
  * SPACE: where the levels are, how they join, and the camera that plays them. Shape as in reality.js.
  */
+const WEB = { godot: false };
 const NO_MODE = 'no gameplay camera of this kind was found in controllable, game or playscape (10-10)';
 
 export const SPACE = Object.freeze({
@@ -20,6 +21,8 @@ export const SPACE = Object.freeze({
         // the trail). A climb has no spine, so a side game is trails only. Godot carries no camera mode yet.
         side: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)', godot: false },
         'first-person': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
+        // priced 10-19 (strategy board): a commander's camera over a board, not a hero's
+        tactical: { status: 'absent', effort: 'L', pkg: 'strategy-board', ...WEB, note: 'a locked pitch, quarter-turn rotation, zoom stops and pan held to the board; an RTS form pans and edge-scrolls instead of rotating. No camera follows anything but a hero today' },
       },
     },
     topology: {
@@ -53,6 +56,13 @@ export const SPACE = Object.freeze({
         none: { status: 'built' },
         buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: false, note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
         street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: false, note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
+      },
+    },
+    // a layer of spots over a level's ground, indoors or out (priced 10-19): one unit a spot, the moves listed
+    board: {
+      values: {
+        none: { status: 'built' },
+        spots: { status: 'absent', effort: 'L', pkg: 'strategy-board', ...WEB, note: 'square spots over the ground (a geocube\'s rooms or its land, or a diorama of its own), each a height, a type and one occupant; reach by move and jump, aim and area shapes, legal moves. The push puzzle\'s grid is the only discrete layer, compiled away into zones' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS' } },
