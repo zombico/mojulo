@@ -102,6 +102,28 @@ describe('the board on the World page', () => {
     await page.close();
   }, 180000);
 
+  it('travels an epoch\'s map: the roads the cleared dots open, the party walked there, the map left by the dot\'s exit', async () => {
+    if (!browser) return;
+    const dots = [{ id: 'gate', name: 'Old Gate', ref: 'lv-gate' }, { id: 'fields', kind: 'skirmish', ref: 'lv-fields', gate: 'gate' }, { id: 'mill', ref: 'lv-mill', gate: 'gate' }, { id: 'keep', ref: 'lv-keep', gate: 'mill' }];
+    const { payload } = await resolveWorldScene({ ref: 'map', title: null, manifest: { kind: 'board', board: { seed: 'epoch-1', relief: 0.45, cols: 16, rows: 12 },
+      map: { dots, roads: [['gate', 'fields'], ['gate', 'mill'], ['mill', 'keep']] },
+      game: { levelRef: 'map', mechanics: [{ kind: 'map', slice: 'campaign', dots: dots.map((d) => d.id) }], presets: { default: { campaign: { completed: { 'lv-gate': 'success' } }, arrive: 'lv-gate' } } } } });
+    expect(payload.game.on['map-go:mill']).toEqual({ end: 'success', exit: 'mill' });
+    const page = await browser.newPage();
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.map && window.__mojBoard.map.at, { timeout: 20000 });
+    const before = await page.evaluate(() => window.__mojBoard.map);
+    expect(before.at).toBe('gate');
+    expect(before.dots).toEqual([{ id: 'gate', state: 'done' }, { id: 'fields', state: 'open' }, { id: 'mill', state: 'open' }, { id: 'keep', state: 'locked' }]);
+    expect(await page.evaluate(() => { window.__mojBoard.goTo('keep'); return window.__mojBoard.map.gone; })).toBe(null);
+    await page.evaluate(() => window.__mojBoard.goTo('mill'));
+    await page.waitForFunction(() => window.__mojGame.envelope, { timeout: 30000 });
+    const end = await page.evaluate(() => ({ map: window.__mojBoard.map, envelope: window.__mojGame.envelope }));
+    expect(end.map).toMatchObject({ at: 'mill', gone: 'mill' });
+    expect(end.envelope).toMatchObject({ result: 'success', exit: 'mill' });
+    await page.close();
+  }, 120000);
+
   it('plays the player\'s turn by the menu: move, act with a forecast, wait and face, and the turn passes on', async () => {
     if (!browser) return;
     const page = await open(fight(['party'], ['C4', 'D4', 'E4'], ['C6', 'D7', 'F7']));

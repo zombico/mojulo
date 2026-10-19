@@ -4,7 +4,9 @@
  * (board-camera.js) that plays it. Not walked: the board owns the camera.
  *
  *   { kind: 'board', board?: <board-lay.js spec>, units?: [<board-kernel.js start unit>], camera?: { rotate, edge,
- *     fov, pitches, zooms, yaw }, cursor?: 'C4', battle?: <board-battle.js spec> & { players?: [sides], figures?: false } }
+ *     fov, pitches, zooms, yaw }, cursor?: 'C4', battle?: <board-battle.js spec> & { players?: [sides], figures?: false },
+ *     map?: <board-map.js spec>, game?, events?, play?, audio? (a level's own, lowered by the world) }
+ *   map: an epoch's map (board-map.js: dots and roads), travelled from on the page (its map mode)
  *   units: tokens to look at and move freely; battle: a battle the page plays (the player moves `players`, ['party'] by
  *   default; [] lets the minds fight it out); a battle's units stand as figures (board-figures.js, by the kind's resolver)
  *   unless `figures: false`
@@ -19,8 +21,11 @@ import { boardStart, boardParse, boardSpotName } from './board-kernel.js';
 import { boardCameraInit, boardCameraPose } from './board-camera.js';
 import { boardChannelData } from './board-page.js';
 import { readBoardBattle } from './board-battle.js';
+import { layMap } from './board-map.js';
 
-const KEYS = ['kind', 'board', 'units', 'battle', 'camera', 'cursor', 'title'];
+const KEYS = ['kind', 'board', 'units', 'battle', 'map', 'camera', 'cursor', 'title'];
+// a level's own keys the world lowers beside the board (its contract, its bus, its play, its sound)
+const LEVEL_KEYS = ['game', 'events', 'play', 'audio'];
 const CAMERA_KEYS = ['rotate', 'edge', 'fov', 'pitches', 'zooms', 'yaw'];
 const ASPECT = 1120 / 780;
 const CUTAWAY = 1.5;   // metres over the floor a room's walls are cut at, seen from above (the stage's walls are banded every half metre)
@@ -94,9 +99,12 @@ function dressed(scene, L) {
 }
 
 export function assembleBoardScene(manifest = {}, ctx = {}) {
-  for (const k of Object.keys(manifest)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of the board kind (settings: ${KEYS.filter((x) => x !== 'kind').join(', ')})`);
+  for (const k of Object.keys(manifest)) if (!KEYS.includes(k) && !LEVEL_KEYS.includes(k)) no(`'${k}' is not a setting of the board kind (settings: ${KEYS.filter((x) => x !== 'kind').join(', ')}; a level's own: ${LEVEL_KEYS.join(', ')})`);
+  if (manifest.map !== undefined && (manifest.battle !== undefined || manifest.units !== undefined)) no('map, battle or units: an epoch\'s map is travelled, not fought on');
   const L = layBoard(manifest.board ?? {});
-  const { data, cameras } = boardParts(L, manifest);
+  const { data: d0, cameras } = boardParts(L, manifest);
+  // an epoch's map: its dots and roads over the diorama, the store's progression slice it reads its cleared dots from
+  const data = manifest.map !== undefined ? { ...d0, map: { ...layMap(L.board, manifest.map), slice: 'campaign' } } : d0;
   const title = ctx.title || `mojulo board · ${L.source.geocube} · ${L.source.side}`;
   if (L.faces) return { faces: L.faces, cameras, title, bg: '#141920', board: data };
   const { walk: _walk, cameras: _cams, haze, ...scene } = L.scene;

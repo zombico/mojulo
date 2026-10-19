@@ -76,7 +76,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
     root.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false })));
   }
-  const LAYERS = { reach: 0x3d8bff, aim: 0xff4a3d, area: 0xffd23d };
+  const LAYERS = { reach: 0x3d8bff, aim: 0xff4a3d, area: 0xffd23d, road: 0xd8c08a };
   // the lit spots, one mesh rebuilt when they change: each spot its 3 × 3 points, a little in from its edge
   const marks = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }));
   marks.renderOrder = 2;
@@ -87,7 +87,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   function paint() {
     const pos = [], cols = [];
     for (let i = 0; i < B.spots.length; i++) {
-      const layer = lit.area && lit.area.has(i) ? 'area' : lit.aim && lit.aim.has(i) ? 'aim' : lit.reach && lit.reach.has(i) ? 'reach' : null;
+      const layer = lit.area && lit.area.has(i) ? 'area' : lit.aim && lit.aim.has(i) ? 'aim' : lit.reach && lit.reach.has(i) ? 'reach' : lit.road && lit.road.has(i) ? 'road' : null;
       if (!layer || !pts[i]) continue;
       col.set(LAYERS[layer]);
       const q = pts[i].map((p) => inset(p, pts[i][4], 0.06));
@@ -164,7 +164,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   const orderEl = battle ? panel('left:12px;top:12px;pointer-events:none') : null;
   const cardEl = battle ? panel('right:12px;top:12px;pointer-events:none;min-width:190px') : null;
   const menuEl = battle ? panel('right:12px;bottom:12px;min-width:210px;display:none;cursor:pointer') : null;
-  const bannerEl = battle ? panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none') : null;
+  const bannerEl = battle || D.map ? panel('left:50%;top:38%;transform:translate(-50%,-50%);font-size:30px;padding:14px 26px;display:none;pointer-events:none') : null;
   const floats = [];
   const LEGEND = {
     free: rts ? 'arrows / WASD / edge: pan · Z X: zoom · V: tilt' : 'arrows / WASD: cursor · Q E: turn · Z X: zoom · V: tilt · Enter: select / move · Esc: back',
@@ -175,6 +175,8 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     deploy: 'arrows: cursor · Enter: place here · Esc: take the last one back',
     cpu: 'the other side is moving · Q E: turn · Z X: zoom',
     over: 'the battle is over',
+    map: 'arrows: choose a place · Enter: go there · Q E: turn · Z X: zoom · V: tilt',
+    travel: 'on the road…',
     wait: 'the level is starting',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
@@ -211,6 +213,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   let cursor = D.cursor >= 0 ? D.cursor : 0, sel = null, mode = battle ? 'cpu' : 'free';
   const occupant = (i) => (S ? K.occupant(S, i) : null);
   function readout() {
+    if (mode === 'map' || mode === 'travel') { mapReadout(); return; }
     const s = B.spots[cursor], who = occupant(cursor), U = who && S.u[who];
     const spot = s ? `${K.nameOf(B, cursor)}  h ${s.h} (${(s.h * B.step).toFixed(1)} m)  ${s.type}${s.walk ? '' : ', shut'}` : K.nameOf(B, cursor);
     let more = '';
@@ -436,6 +439,121 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     readout();
   }
 
+  // ── the epoch's map: its dots, its roads, the party's marker; a dot chosen, the marker walks there and the map is left
+  //    by that dot's exit (map-go:<dot> on the bus: the level contract's map mechanic ends the level through it) ──────
+  const MAP = D.map || null;
+  let mapAt = null, mapCur = 0, mapDone = {}, mapGone = null, walker = null;
+  const dotMesh = {}, dotLabel = {};
+  const dotIdx = (id) => MAP.dots.findIndex((d) => d.id === id);
+  const doneDot = (d) => !!(d && d.ref && mapDone[d.ref] === 'success');
+  const openDot = (d) => !d.gate || doneDot(MAP.dots[dotIdx(d.gate)]);
+  const STATE_COLOUR = { done: 0xf2c14e, open: 0xffffff, locked: 0x5a606b };
+  const stateOf = (d) => (doneDot(d) ? 'done' : openDot(d) ? 'open' : 'locked');
+  function drawDots() {
+    for (const d of MAP.dots) {
+      const g = dotMesh[d.id], st = stateOf(d);
+      g.children.forEach((m) => m.material.color.set(STATE_COLOUR[st]));
+      dotLabel[d.id].style.opacity = st === 'locked' ? '0.55' : '1';
+      dotLabel[d.id].textContent = d.name + (st === 'done' ? ' ✓' : st === 'locked' ? ' (locked)' : '');
+    }
+    // the roads the party may walk: between two dots it may stand at
+    const road = new Set();
+    for (const r of MAP.roads) if (openDot(MAP.dots[dotIdx(r.from)]) && openDot(MAP.dots[dotIdx(r.to)])) for (const i of r.path) road.add(i);
+    highlight('road', [...road]);
+  }
+  // the dots by road from one to another, over open dots only (breadth first, the roads' own order) → the spots walked
+  function route(from, to) {
+    const prev = { [from]: null }, q = [from];
+    for (let k = 0; k < q.length; k++) {
+      const a = q[k];
+      if (a === to) break;
+      for (const r of MAP.roads) {
+        const b = r.from === a ? r.to : r.to === a ? r.from : null;
+        if (b == null || b in prev || !openDot(MAP.dots[dotIdx(b)])) continue;
+        prev[b] = { a, r };
+        q.push(b);
+      }
+    }
+    if (!(to in prev)) return null;
+    const spots = [];
+    for (let x = to; prev[x]; x = prev[x].a) { const { a, r } = prev[x], p = r.from === a ? r.path.slice() : r.path.slice().reverse(); spots.unshift(...p.slice(1)); }
+    return spots;
+  }
+  function mapReadout() {
+    const d = MAP.dots[mapCur], st = stateOf(d), g = d.gate && MAP.dots[dotIdx(d.gate)];
+    hud.textContent = `${d.name}  (${d.kind})\n${st === 'done' ? 'cleared' + (d.kind === 'skirmish' ? ' (fight it again)' : '') : st === 'open' ? 'open' : `locked: clear ${g ? g.name : 'the way'} first`}${mapAt === d.id ? '\nthe party is here' : ''}\n${LEGEND[mode]}`;
+  }
+  // a key: the next dot that way on screen (the nearest along it, the least off to the side)
+  function mapPick(dir) {
+    const v = CAM.screenStep(C, dir), here = MAP.dots[mapCur].at;
+    let best = -1, score = Infinity;
+    MAP.dots.forEach((d, k) => {
+      if (k === mapCur) return;
+      const dc = (d.at % B.cols) - (here % B.cols), dr = Math.floor(d.at / B.cols) - Math.floor(here / B.cols), along = dc * v[0] + dr * v[1];
+      if (along <= 0) return;
+      const sc = along + Math.abs(dc * v[1] - dr * v[0]) * 2;
+      if (sc < score) { score = sc; best = k; }
+    });
+    if (best >= 0) { mapCur = best; moveCursor(MAP.dots[best].at); mapReadout(); }
+  }
+  function mapGo() {
+    const d = MAP.dots[mapCur];
+    if (stateOf(d) === 'locked' || mapGone) return;
+    if (mapAt === d.id) { mapLeave(d); return; }
+    const spots = route(mapAt, d.id);
+    if (!spots) return;
+    mode = 'travel';
+    walker.hops.push(...spots);
+    walker.dest = d;
+    mapReadout();
+  }
+  function mapLeave(d) {
+    mapGone = d.id;
+    bannerEl.style.display = 'block';
+    bannerEl.textContent = d.name;
+    if (typeof __inputQueue !== 'undefined') __inputQueue.push({ type: 'map-go:' + d.id });   // eslint-disable-line no-undef
+    result = { dot: d.id, ref: d.ref || null };
+  }
+  if (MAP) {
+    mode = 'map';
+    for (const d of MAP.dots) {
+      const g = new THREE.Group(), p = tops[d.at];
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(cell * 0.12, cell * 0.16, 1.4, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      post.rotation.x = Math.PI / 2; post.position.z = 0.7;
+      const flag = new THREE.Mesh(new THREE.ConeGeometry(cell * 0.3, cell * 0.5, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      flag.rotation.x = -Math.PI / 2; flag.position.z = 1.75;
+      g.add(post, flag);
+      g.position.set(p[0], p[1], p[2]);
+      root.add(g);
+      dotMesh[d.id] = g;
+      const lab = document.createElement('div');
+      lab.style.cssText = 'position:absolute;z-index:7;font:bold 12px ui-monospace,Menlo,monospace;color:#f4f1e8;text-shadow:0 1px 3px #000;pointer-events:none;transform:translate(-50%,-100%);white-space:nowrap';
+      wrap.appendChild(lab);
+      dotLabel[d.id] = lab;
+    }
+    // the party's marker: a token in the party's colour, beside the dot it stands at
+    const mg = new THREE.Group(), mc = new THREE.Color('#4aa3ff');
+    const mb = new THREE.Mesh(new THREE.CylinderGeometry(cell * 0.2, cell * 0.24, 1.0, 14), new THREE.MeshBasicMaterial({ color: mc }));
+    mb.rotation.x = Math.PI / 2; mb.position.z = 0.5;
+    const mh = new THREE.Mesh(new THREE.SphereGeometry(cell * 0.15, 14, 10), new THREE.MeshBasicMaterial({ color: mc.clone().offsetHSL(0, 0, 0.15) }));
+    mh.position.z = 1.2;
+    mg.add(mb, mh);
+    root.add(mg);
+    walker = { g: mg, hops: [], t: 0, from: null, dest: null };
+    const place = (id) => { mapAt = id; const d = MAP.dots[dotIdx(id)]; walker.from = tops[d.at]; mg.position.set(walker.from[0], walker.from[1], walker.from[2]); mapCur = dotIdx(id); moveCursor(d.at); };
+    const beginMap = (params) => {
+      const prog = params && params[MAP.slice];
+      mapDone = (prog && prog.completed) || {};
+      // where the party stands: the dot whose level it came back from, else where the map starts
+      const from = params && typeof params.arrive === 'string' ? MAP.dots.find((d) => d.ref === params.arrive) : null;
+      place(from ? from.id : MAP.start);
+      drawDots();
+      mapReadout();
+    };
+    const GM = typeof window !== 'undefined' ? window.__mojGame : null;
+    if (GM && GM.onStart) GM.onStart(beginMap); else beginMap({});
+  }
+
   // ── input ─────────────────────────────────────────────────────────────────────────────────────────────────────
   const held = {};
   const DIRS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
@@ -444,6 +562,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     if (e.code in DIRS) {
       e.preventDefault();
       if (rts) held[DIRS[e.code]] = true;
+      else if (mode === 'map') mapPick(DIRS[e.code]);
       else if (mode === 'menu') { if (DIRS[e.code] === 'up') menuStep(-1); else if (DIRS[e.code] === 'down') menuStep(1); }
       else if (mode === 'face') { face = FACE_OF[CAM.screenStep(C, DIRS[e.code]).join(',')]; tokens[S.turn.who].g.rotation.z = FACE[face]; }
       else if (mode !== 'over') stepCursor(DIRS[e.code]);
@@ -454,7 +573,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     else if (e.code === 'KeyZ' || e.code === 'Equal') CAM.zoom(C, 1);
     else if (e.code === 'KeyX' || e.code === 'Minus') CAM.zoom(C, -1);
     else if (e.code === 'KeyV') CAM.tilt(C);
-    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else confirm(); }
+    else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); if (mode === 'free') select(); else if (mode === 'map') mapGo(); else confirm(); }
     else if (e.code === 'Escape' || e.code === 'Backspace') { if (mode === 'free') { sel = null; highlight('reach', null); readout(); } else back(); }
   });
   window.addEventListener('keyup', (e) => { if (e.code in DIRS) held[DIRS[e.code]] = false; });
@@ -483,7 +602,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
   el.addEventListener('pointermove', (e) => {
     const r = el.getBoundingClientRect();
     mouse = [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
-    if (mode === 'menu' || mode === 'cpu' || mode === 'over') return;
+    if (mode === 'menu' || mode === 'cpu' || mode === 'over' || mode === 'map' || mode === 'travel') return;
     const i = spotAt(e);
     if (i >= 0 && i !== cursor) { cursor = i; onCursor(); }
   });
@@ -493,6 +612,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     if (i < 0) return;
     cursor = i; onCursor();
     if (mode === 'free') select();
+    else if (mode === 'map') { const k = MAP.dots.findIndex((d) => d.at === i); if (k >= 0) { mapCur = k; mapReadout(); mapGo(); } }
     else if (mode === 'move' || mode === 'aim' || mode === 'deploy') confirm();
   });
 
@@ -547,6 +667,9 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
     // the battle stepped by hand, `dt` seconds a call, apart from the frame (probes and tests: no waiting on the clock)
     run,
     get menu() { return menu && menu.items.map((x) => ({ label: x.label, ok: x.ok })); }, get hud() { return hud.textContent; },
+    // the map's: where the party stands, the dot chosen, each dot's state; go there, as Enter would
+    get map() { return MAP && { at: mapAt, cursor: MAP.dots[mapCur].id, gone: mapGone, dots: MAP.dots.map((d) => ({ id: d.id, state: stateOf(d) })) }; },
+    goTo(id) { if (!MAP || mode !== 'map') return false; const k = dotIdx(id); if (k < 0) return false; mapCur = k; mapGo(); return true; },
     // the player's action, as the menu would make it (probes and tests): only a legal one, only on the player's turn
     act(a) { if (!battle || !S.turn || !HUMAN.has(S.u[S.turn.who].side) || !legalNow().some((x) => sameAct(x, a))) return false; play(a); return true; },
     // the player's turn played by the mind, as a probe's "auto" (the same mind the other side plays by)
@@ -604,5 +727,24 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY) {
       }
     }
     if (battle) { drawFloats(dt); run(dt); }
+    if (MAP && walker && walker.from) {
+      if (walker.hops.length) {
+        walker.t += dt / HOP;
+        const to = tops[walker.hops[0]], f = Math.min(1, walker.t), lift = Math.max(0, to[2] - walker.from[2]) + 0.3;
+        walker.g.position.set(walker.from[0] + (to[0] - walker.from[0]) * f, walker.from[1] + (to[1] - walker.from[1]) * f, walker.from[2] + (to[2] - walker.from[2]) * f + Math.sin(f * Math.PI) * lift);
+        if (f >= 1) {
+          walker.from = to; walker.hops.shift(); walker.t = 0;
+          if (!walker.hops.length && walker.dest) { const d = walker.dest; walker.dest = null; mapAt = d.id; mode = 'map'; mapReadout(); mapLeave(d); }
+        }
+      }
+      const r = renderer.domElement.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+      for (const d of MAP.dots) {
+        const p = tops[d.at];
+        V.set(p[0], p[1], p[2] + 2.3).project(camera);
+        const lab = dotLabel[d.id];
+        lab.style.left = (r.left - w.left + ((V.x + 1) / 2) * r.width) + 'px';
+        lab.style.top = (r.top - w.top + ((1 - V.y) / 2) * r.height) + 'px';
+      }
+    }
   };
 }
