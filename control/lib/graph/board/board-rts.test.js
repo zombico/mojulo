@@ -317,6 +317,84 @@ describe('a side\'s own roster', () => {
     expect(S.R.buildings.find((b) => b.kind === 'tower')).toMatchObject({ at: at(B, 'C7'), raising: 0, hp: OWN.buildings.tower.hp });
   });
 
+  it('strikes by class and bursts: a lance pierces machines, a blade cuts the unarmoured, a shell splashes round what it hits', () => {
+    const FX = { ...OWN, units: { ...OWN.units,
+      lance: { name: 'Lance', role: 'melee', hp: 80, atk: 10, range: 1.2, rate: 1, speed: 1.8, cost: 60, time: 9, bonus: { armoured: 1.5 } },
+      shell: { name: 'Shell', role: 'siege', hp: 90, atk: 20, range: 6, rate: 3, speed: 1.2, cost: 180, time: 30, machine: true, splash: 1.2 } } };
+    const B = flat(5, 20), cfg = own(B, { workers: 0 }, { player: FX, enemy: FX });
+    const at3 = (n) => { const i = at(B, n); return { x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i }; };
+    const mk = (id, side, kind, n, hp) => ({ id, side, kind, hp, ...at3(n), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    // a lance on a machine (the crew), and on a soldier: 15 and 10
+    let R = { ...rtsStart(B, cfg), units: [mk('l', 'player', 'lance', 'C6', 80), mk('c', 'enemy', 'crew', 'C7', 90)] };
+    expect(run(B, cfg, R, 0.1).R.units.find((u) => u.id === 'c').hp).toBe(75);
+    R = { ...R, units: [mk('l', 'player', 'lance', 'C6', 80), mk('s', 'enemy', 'soldier', 'C7', 80)] };
+    expect(run(B, cfg, R, 0.1).R.units.find((u) => u.id === 's').hp).toBe(70);
+    // a shell on one of three soldiers in a knot: 20 on it, 10 on each beside it, none on one two spots off
+    R = { ...R, units: [mk('h', 'player', 'shell', 'C3', 90), mk('a', 'enemy', 'soldier', 'C8', 80), mk('b', 'enemy', 'soldier', 'D8', 80), mk('d', 'enemy', 'soldier', 'C9', 80), mk('e', 'enemy', 'soldier', 'A8', 80)] };
+    const S = run(B, cfg, R, 0.1).R;
+    expect(['a', 'b', 'd', 'e'].map((id) => S.units.find((u) => u.id === id).hp)).toEqual([60, 70, 70, 80]);
+  });
+
+  it('puts statuses on: every fourth energy hit stuns (it does nothing), poison bites on, frost slows; a stim and a shield cast', () => {
+    const FX = { ...OWN, units: { ...OWN.units,
+      zap: { name: 'Zap', role: 'ranged', hp: 50, atk: 1, range: 4, rate: 1, speed: 1.8, cost: 70, time: 12, onHit: { status: 'stun', time: 2.5, every: 4 } },
+      sting: { name: 'Sting', role: 'ranged', hp: 50, atk: 1, range: 4, rate: 1, speed: 1.8, cost: 70, time: 12, onHit: { status: 'poison', time: 4, every: 1 } },
+      ice: { name: 'Ice', role: 'ranged', hp: 50, atk: 1, range: 4, rate: 1, speed: 1.8, cost: 70, time: 12, onHit: { status: 'slow', time: 2, every: 1 } },
+      ranger: { name: 'Ranger', role: 'ranged', hp: 60, atk: 6, range: 4, rate: 1.2, speed: 1.8, cost: 70, time: 12, abilities: { stim: { status: 'stim', time: 6, hp: 10, cooldown: 15 }, shield: { shield: 40, time: 8, cooldown: 20 } } } } };
+    const B = flat(5, 20), cfg = own(B, { workers: 0 }, { player: FX, enemy: FX });
+    const mk = (id, side, kind, n, hp, order = { kind: 'hold' }) => { const i = at(B, n); return { id, side, kind, hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order, cd: 0, carry: 0, mine: 0, again: 0 }; };
+    // stunned on the fourth hit: an archer that was shooting stops
+    let R = { ...rtsStart(B, cfg), units: [mk('z', 'player', 'zap', 'C5', 50), mk('a', 'enemy', 'archer', 'C8', 50)] };
+    let E = run(B, cfg, R, 3.45);
+    expect(E.ev.some((e) => e.kind === 'status' && e.id === 'a' && e.status === 'stun')).toBe(true);
+    const shots = run(B, cfg, E.R, 2).ev.filter((e) => e.kind === 'shot' && e.from === 'a');
+    expect(shots).toEqual([]);
+    // poison bites on after the hit, about 4 hp a second for 4 s
+    R = { ...R, units: [mk('p', 'player', 'sting', 'C5', 50), mk('b', 'enemy', 'worker', 'C8', 40)] };
+    E = run(B, cfg, R, 0.1);
+    expect(E.R.units.find((u) => u.id === 'b').st.poison).toBeGreaterThan(3.8);
+    // frost: a walker slowed to half
+    R = { ...R, units: [mk('i', 'player', 'ice', 'C5', 50), mk('w', 'enemy', 'soldier', 'C8', 80, { kind: 'move', to: at(B, 'C16') })] };
+    R = rtsOrder(B, cfg, R, ['w'], { kind: 'move', to: at(B, 'C16') });
+    const slow = run(B, cfg, R, 1).R.units.find((u) => u.id === 'w'), free = run(B, cfg, { ...R, units: R.units.filter((u) => u.id !== 'i') }, 1).R.units.find((u) => u.id === 'w');
+    expect(slow.y - 7.5).toBeLessThan((free.y - 7.5) * 0.7);
+    // stim: paid in hp, faster; again only after its cooldown; a shield takes the blows first
+    R = { ...R, units: [mk('r', 'player', 'ranger', 'C5', 60)] };
+    R = rtsOrder(B, cfg, R, ['r'], { kind: 'cast', ability: 'stim' });
+    expect([R.units[0].hp, R.units[0].st.stim, R.units[0].cool.stim]).toEqual([50, 6, 15]);
+    expect(rtsOrder(B, cfg, R, ['r'], { kind: 'cast', ability: 'stim' }).units[0].hp).toBe(50);
+    R = rtsOrder(B, cfg, R, ['r'], { kind: 'cast', ability: 'shield' });
+    R = { ...R, units: R.units.concat([mk('x', 'enemy', 'soldier', 'C6', 80)]) };
+    expect(run(B, cfg, R, 0.1).R.units.find((u) => u.id === 'r')).toMatchObject({ hp: 50, shield: 32 });
+  });
+
+  it('hides the cloaked from all but a detector; lifts its own with upgrades and banners, and slows foes with a jammer', () => {
+    const FX = { ...OWN, units: { ...OWN.units,
+      ghost: { name: 'Ghost', role: 'ranged', hp: 50, atk: 6, range: 4, rate: 1.2, speed: 1.8, cost: 90, time: 12, cloak: true },
+      eye: { name: 'Eye', role: 'scout', hp: 70, atk: 0, range: 0, rate: 1, speed: 3, cost: 60, time: 10, detects: 6 },
+      flag: { name: 'Flag', role: 'melee', hp: 80, atk: 8, range: 1.2, rate: 1, speed: 1.8, cost: 70, time: 10, aura: { r: 3, who: 'own', atk: 1.5 } },
+      jam: { name: 'Jam', role: 'melee', hp: 80, atk: 0, range: 0, rate: 1, speed: 1.8, cost: 70, time: 10, aura: { r: 3, who: 'foe', speed: 0.5 } } },
+      research: { arms: { name: 'Arms', cost: 0, time: 1, gives: { buff: { who: 'fighters', atk: 2 } } }, plate: { name: 'Plate', cost: 0, time: 1, gives: { buff: { who: 'all', ward: 0.5 } } } } };
+    const B = flat(5, 20), cfg = own(B, { workers: 0 }, { player: FX, enemy: FX });
+    const mk = (id, side, kind, n, hp, order = { kind: 'hold' }) => { const i = at(B, n); return { id, side, kind, hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order, cd: 0, carry: 0, mine: 0, again: 0 }; };
+    // the ghost shoots, unseen; an archer beside it shoots back only once an eye comes near
+    let R = { ...rtsStart(B, cfg), units: [mk('g', 'enemy', 'ghost', 'C8', 50), mk('a', 'player', 'archer', 'C5', 50)] };
+    expect(run(B, cfg, R, 3).ev.some((e) => e.kind === 'shot' && e.from === 'a')).toBe(false);
+    R = { ...R, units: R.units.concat([mk('e', 'player', 'eye', 'C4', 70)]) };
+    expect(run(B, cfg, R, 3).ev.some((e) => e.kind === 'shot' && e.from === 'a' && e.to === 'g')).toBe(true);
+    // upgrades: twice the blow known; half the harm known
+    R = { ...rtsStart(B, cfg), units: [mk('s', 'player', 'soldier', 'C6', 80), mk('t', 'enemy', 'soldier', 'C7', 80)], known: { player: { arms: true, plate: true }, enemy: {} } };
+    const U = run(B, cfg, R, 0.1).R;
+    expect([U.units.find((u) => u.id === 't').hp, U.units.find((u) => u.id === 's').hp]).toEqual([64, 76]);
+    // a banner lifts its own within 3; a jammer halves a foe's pace
+    R = { ...rtsStart(B, cfg), units: [mk('f', 'player', 'flag', 'B6', 80), mk('s', 'player', 'soldier', 'C6', 80), mk('t', 'enemy', 'soldier', 'C7', 80)] };
+    expect(run(B, cfg, R, 0.1).R.units.find((u) => u.id === 't').hp).toBe(80 - 12 - 0);
+    R = { ...rtsStart(B, cfg), units: [mk('j', 'enemy', 'jam', 'D9', 80), mk('w', 'player', 'soldier', 'C8', 80)] };
+    R = rtsOrder(B, cfg, R, ['w'], { kind: 'move', to: at(B, 'C16') });
+    const jammed = run(B, cfg, R, 1).R.units.find((u) => u.id === 'w'), free = run(B, cfg, { ...R, units: R.units.filter((u) => u.id !== 'j') }, 1).R.units.find((u) => u.id === 'w');
+    expect(jammed.y - 7.5).toBeLessThan((free.y - 7.5) * 0.7);
+  });
+
   it('is a draw when the gold is gone and nobody stands on either side', () => {
     const B = flat(5, 10), cfg = readBoardRts(B, { nodes: 0, gold: 0, workers: 0, ai: { workers: 0, wave: 30 } });
     expect(rtsTick(B, cfg, rtsStart(B, cfg), 0.1).R.over).toEqual({ won: false, draw: true });

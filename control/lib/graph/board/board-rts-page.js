@@ -7,7 +7,9 @@
  *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), your foundation
  *   (workers build it), your damaged building or machine (workers repair it), your transport (the rest board it), with a
  *   building selected its rally point; U: a transport unloads where it stands; D: a siege deploys (or packs), what comes
- *   folded is set up where it stands; G: the selected building grows into what it upgrades to; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
+ *   folded is set up where it stands; G: the selected building grows into what it upgrades to; F: the selection
+ *   casts its abilities (stim, a shield); a status shows as a mark on whom it is on, an aura as a ring on the ground,
+ *   one selected unit's reach as a ring, a cloaked foe not at all until something of the player's detects it; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
  *   building the side can raise) · Q / W / E / R: the selected building trains its first … fourth kind · T: it researches
  *   its next step · Esc lets go
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
@@ -70,6 +72,7 @@ export function boardRtsPage(api) {
       const [back, fill] = bar(L.h + (U.fly ? 1.6 : 0) + 0.45);
       g.add(body, ring, back, fill);
       g.userData = { body, ring, fill };
+      if (U.aura) auraRing(g, U.aura);
       return g;
     }
     if (r === 'worker') {
@@ -97,6 +100,7 @@ export function boardRtsPage(api) {
     const [back, fill] = bar(r === 'worker' ? 1.05 : 1.35);
     g.add(body, ring, back, fill);
     g.userData = { body, ring, fill };
+    if (U.aura) auraRing(g, U.aura);
     return g;
   }
   function buildingMesh(b) {
@@ -128,7 +132,41 @@ export function boardRtsPage(api) {
     for (const [x, y, s] of [[0, 0, 1.3], [0.3, 0.2, 0.9], [-0.28, 0.15, 0.8], [0.1, -0.3, 0.85]]) { const k = new THREE.Mesh(geo, m); k.position.set(x, y, 0.3 * s); k.scale.set(s, s, s * 1.5); g.add(k); }
     return g;
   }
+  // ── what reads at a glance: a mark a status (stun a spinning ring over it, slow a ring at its feet, poison green,
+  // stim red, a shield a bubble), an aura's reach on the ground, a selected unit's range, a flash where a blow lands ──
+  const MARK = { stun: [0xffd23d, 'over'], slow: [0x6fb7ff, 'feet'], poison: [0x7dff5a, 'feet'], stim: [0xff5a3c, 'feet'] };
+  function dress(g, u, dt) {
+    const d = g.userData, m = (d.marks = d.marks || {}), top = (d.top = d.top || (lookOf(u.side, u.kind) ? lookOf(u.side, u.kind).h + 0.3 : 1.25));
+    for (const id in MARK) {
+      const on = !!(u.st && u.st[id] > 0);
+      if (on && !m[id]) {
+        const [c, where] = MARK[id], r = where === 'over' ? new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 6, 18), basic(c, 0.95)) : new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 24), basic(c, 0.8));
+        r.position.z = where === 'over' ? top + 0.25 : 0.08; m[id] = r; g.add(r);
+      }
+      if (m[id]) { m[id].visible = on; if (on && id === 'stun') m[id].rotation.z += 6 * dt; }
+    }
+    const shielded = u.shield > 0;
+    if (shielded && !m.shield) { m.shield = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 12), basic(0x8fe8ff, 0.22)); m.shield.position.z = top * 0.5; g.add(m.shield); }
+    if (m.shield) m.shield.visible = shielded;
+    // a blow landed: the body lit for a moment
+    if (d.flash > 0) d.flash -= dt;
+    const lit = d.flash > 0 ? 0x666666 : 0;
+    if (d.lit !== lit) { d.lit = lit; d.body.traverse((o) => { if (o.isMesh && o.material && o.material.emissive) o.material.emissive.setHex(lit); }); }
+    // cloaked: its own see it faintly; a foe that cannot see it, not at all
+    const U = UN(u.side, u.kind);
+    if (U.cloak) {
+      const unseen = u.side === 'enemy' && RTK.hidden(B, cfg, R, u, 'player'), faint = u.side === 'player' || !unseen ? (u.side === 'player' ? 0.45 : 1) : 0;
+      g.visible = g.visible && !unseen;
+      if (d.faint !== faint) { d.faint = faint; d.body.traverse((o) => { if (o.isMesh && o.material) { o.material.transparent = faint < 1; o.material.opacity = faint; } }); }
+    }
+  }
+  // an aura's reach, faint on the ground: its own side's green, a foe's against it violet
+  function auraRing(g, A) {
+    const r = new THREE.Mesh(new THREE.RingGeometry(A.r * cell * 0.5 - 0.06, A.r * cell * 0.5, 48), basic(A.who === 'foe' ? 0xb07dff : 0x7dffb0, 0.28));
+    r.position.z = 0.05; g.add(r);
+  }
   const meshes = {}, nodes = {};
+  let rangeRing = null, lastDt = 0;
   function sync() {
     const live = {};
     for (const u of R.units) {
@@ -142,6 +180,7 @@ export function boardRtsPage(api) {
       if (u.path.length) { const to = tops[u.path[0]]; g.userData.body.rotation.z = Math.atan2(to[1] - w[1], to[0] - w[0]); }
       fillBar(g.userData.fill, u.hp / UN(u.side, u.kind).hp, 0.8);
       g.userData.ring.visible = sel.indexOf(u.id) >= 0;
+      dress(g, u, lastDt);
     }
     for (const b of R.buildings) {
       live[b.id] = 1;
@@ -155,6 +194,11 @@ export function boardRtsPage(api) {
       g.userData.ring.visible = selB === b.id;
     }
     for (const id in meshes) if (!live[id]) { root.remove(meshes[id]); delete meshes[id]; }
+    // one fighter selected: its reach on the ground
+    const one = sel.length === 1 && R.units.find((u) => u.id === sel[0]), reach = one && RTK.statsOf(cfg, one).range;
+    if (rangeRing && (!one || rangeRing.userData.r !== reach)) { root.remove(rangeRing); rangeRing = null; }
+    if (one && reach > 1.5 && !rangeRing) { rangeRing = new THREE.Mesh(new THREE.RingGeometry(reach * cell * 0.5 - 0.05, reach * cell * 0.5, 64), basic(0xffffff, 0.35)); rangeRing.userData.r = reach; root.add(rangeRing); }
+    if (rangeRing) { const w = api.worldAt([one.x, one.y]); rangeRing.position.set(w[0], w[1], w[2] + 0.07); }
     for (const n of R.nodes) {
       if (!nodes[n.at]) { nodes[n.at] = nodeMesh(); const p = tops[n.at]; nodes[n.at].position.set(p[0], p[1], p[2]); root.add(nodes[n.at]); }
       const full = (cfg.nodes.find((x) => x.at === n.at) || { amount: 400 }).amount, k = Math.max(0.15, n.left / full);
@@ -180,13 +224,21 @@ export function boardRtsPage(api) {
     const order = (P.study || []).concat(Object.keys(L)).filter((id, i, a) => a.indexOf(id) === i);
     return order.find((id) => (BU('player', b.kind).studies || []).indexOf(id) >= 0 && !known[id] && !R.buildings.some((x) => x.side === 'player' && x.study && x.study.id === id) && !needsOf(L[id])) || null;
   }
+  // the selection's abilities (F) and, for one unit, what is on it
+  function abilityLine() {
+    const us = R.units.filter((u) => sel.indexOf(u.id) >= 0), names = {};
+    for (const u of us) for (const k in UN('player', u.kind).abilities || {}) names[k] = Math.max(names[k] || 0, (u.cool && u.cool[k]) || 0);
+    const ab = Object.keys(names).map((k) => (names[k] > 0 ? `${k} ${Math.ceil(names[k])} s` : k)).join(', ');
+    const on = us.length === 1 ? Object.keys(us[0].st || {}).concat(us[0].shield > 0 ? [`shield ${Math.round(us[0].shield)}`] : []).filter((k) => k !== 'shield' || us[0].shield > 0) : [];
+    return `${ab ? `  F: ${ab}` : ''}${on.length ? `  [${on.join(', ')}]` : ''}`;
+  }
   function drawPanel() {
     const mine = R.units.filter((u) => u.side === 'player'), workers = mine.filter(isWorker).length;
     const b = selB && R.buildings.find((x) => x.id === selB);
     const kinds = {};
     for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
     const carrying = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).carries).map((u) => `${(u.cargo || []).length} / ${UN('player', u.kind).carries} aboard`).join(', ');
-    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}` : '';
+    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}${R.units.some((u) => sel.indexOf(u.id) >= 0 && (UN('player', u.kind).modes || UN('player', u.kind).deploys)) ? '  D: deploy' : ''}${abilityLine()}` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
       const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
@@ -257,6 +309,21 @@ export function boardRtsPage(api) {
     if (folded.length) R = RTK.order(B, cfg, R, folded.map((u) => u.id), { kind: 'deploy' });
     return modal.length + folded.length;
   }
+  // F: each selected unit casts the first of its abilities that is ready
+  function castSel() {
+    let n = 0;
+    for (const u of R.units.filter((x) => sel.indexOf(x.id) >= 0)) {
+      const A = UN('player', u.kind).abilities;
+      if (!A) continue;
+      const id = Object.keys(A).find((k) => !(u.cool && u.cool[k] > 0));
+      if (!id) continue;
+      R = RTK.order(B, cfg, R, [u.id], { kind: 'cast', ability: id });
+      if (FX) { const w = api.worldAt([u.x, u.y]); FX.play(A[id].shield ? 'radiance' : 'aura', { at: w, targets: [w], seed: 'cast:' + R.t.toFixed(1) + ':' + u.id }); }
+      n++;
+    }
+    sync();
+    return n;
+  }
   // G: the selected building grows into what it upgrades to
   function upgradeSel() {
     if (!selB) return null;
@@ -306,6 +373,7 @@ export function boardRtsPage(api) {
       else if (e.code === 'KeyU' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'unload' });
       else if (e.code === 'KeyD' && sel.length) deploy();
       else if (e.code === 'KeyG') upgradeSel();
+      else if (e.code === 'KeyF' && sel.length) castSel();
       else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
       drawPanel();
     });
@@ -328,6 +396,7 @@ export function boardRtsPage(api) {
   // what the effects play: an archer's arrow, a blow's sparks, a fall
   function show(events) {
     for (const e of events) {
+      if (e.kind === 'shot' && meshes[e.to]) meshes[e.to].userData.flash = 0.12;
       if (e.kind === 'shot' && FX) {
         // a shot by what shoots it: an arrow from range or a defence, a shell from siege, a bolt from the air
         const a = R.units.find((u) => u.id === e.from) || R.buildings.find((b) => b.id === e.from), t = R.units.find((u) => u.id === e.to) || R.buildings.find((b) => b.id === e.to);
@@ -336,6 +405,7 @@ export function boardRtsPage(api) {
         const r = a.x != null ? UN(a.side, a.kind).role : 'defence', fx = r === 'ranged' || r === 'defence' ? 'arrow' : r === 'siege' ? 'shell' : r === 'flyer' ? 'bolt' : 'hit';
         FX.play(fx, { from: [from[0], from[1], from[2] + (r === 'flyer' ? 1.8 : r === 'defence' ? 1.4 : 0.6)], at: to, targets: [to], seed: 'rts:' + R.t.toFixed(1) + ':' + e.from });
       } else if (e.kind === 'down' && FX) { const w = api.worldAt(e.at); FX.play(!UN(e.side, e.kind2) ? 'strike' : 'hit', { at: w, targets: [w], seed: 'down:' + e.id }); }
+      else if (e.kind === 'status' && FX) { const t = R.units.find((u) => u.id === e.id); if (t) { const w = api.worldAt([t.x, t.y]); FX.play(e.status === 'stun' ? 'bolt' : e.status === 'poison' ? 'venom' : 'chill', { at: w, targets: [w], seed: 'st:' + R.t.toFixed(1) + ':' + e.id }); } }
       else if (e.kind === 'healed' && FX) { const t = R.units.find((u) => u.id === e.to); if (t) { const w = api.worldAt([t.x, t.y]); FX.play('mend', { at: w, targets: [w], seed: 'heal:' + R.t.toFixed(1) + ':' + e.to }); } }
       else if (e.kind === 'won' || e.kind === 'lost' || e.kind === 'draw') end(e.kind === 'won', e.kind === 'draw');
     }
@@ -356,7 +426,7 @@ export function boardRtsPage(api) {
   let panelT = 0;
   sync(); drawPanel();
   return {
-    step(dt) { advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },
+    step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },
     readout(i) {
       if (result) return result.won ? 'victory' : 'defeat';
       const b = R.buildings.find((x) => x.at === i), n = R.nodes.find((x) => x.at === i && x.left > 0);
@@ -367,7 +437,8 @@ export function boardRtsPage(api) {
     probe: {
       state: () => R, get selected() { return { units: sel.slice(), building: selB }; }, get result() { return result; },
       select(ids) { sel = ids.slice(); selB = null; drawPanel(); }, selectBuilding(id) { sel = []; selB = id; drawPanel(); },
-      selectAt, command, armedClick, deploy, upgradeSel, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
+      selectAt, command, armedClick, deploy, upgradeSel, castSel,
+      marks(id) { const g = meshes[id]; if (!g) return null; const m = g.userData.marks || {}; return { marks: Object.keys(m).filter((k) => m[k].visible), visible: g.visible, flash: g.userData.flash > 0 }; }, arm(what, k) { armed = what; if (k != null) buildK = Math.max(0, raisable.indexOf(k)); }, trainAt, researchNext, boxSelect,
       looks() { const out = {}; for (const id in meshes) { let n = 0; meshes[id].traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.color) n++; }); out[id] = n; } return out; },
       order(o) { R = RTK.order(B, cfg, R, sel, o); }, run(dt) { advance(dt); sync(); },
     },

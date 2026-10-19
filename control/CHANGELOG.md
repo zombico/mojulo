@@ -78,6 +78,20 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   it stops. The mind deploys its siege where a foe is in reach and packs it to walk on, and grows its fort last. A
   side counts as spent when nothing more can come (it cannot earn, nothing is queued and nothing is in its purse's
   reach), and a skirmish where neither side can is a draw.
+- **The skirmish's abilities and effects**, built: a unit or building is a light, armoured or structure class, and a
+  blow is multiplied by its striker's bonus against that class (a polearm or launcher pierces machines, a blade or
+  axe cuts the unarmoured, siege on structures); siege bursts, half its blow on those round what it hits. Statuses
+  run on a timer: a stun (it does nothing), poison (the tactics battles' too, biting on), a slow, a stim, a shield
+  that takes blows first; they come on hit (energy weapons stun every fourth hit, poisoned words poison, frost words
+  slow) or are cast (F: stim where its words say berserk or stim, paid in hp; a shield where it carries a field),
+  each with its cooldown. A cloaked unit (stealth words) is unseen and untouched but by a detector (a sensor, a dish
+  that now watches); auras lift a side's own (a banner) or slow its foes (a jammer); researched upgrades lift a side
+  at once (its charged or honed weapons, its plating in its finish). Every one is read from the technology's words
+  and dials, said in its ledger, and priced by the same worth formula. On the page each status has a mark on whom
+  it is on (a spinning ring for a stun, a ring at the feet for a slow, poison or stim, a bubble for a shield), an
+  aura its ring on the ground, a selected unit its reach; a struck unit flashes; a cloaked foe shows only once seen.
+  The mind casts when a foe is in sight, trains its latest factory's best first and saves for what a tier opened,
+  spends what it has when it can earn no more; a worker stopped between spots by its depot steps back to drop off.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

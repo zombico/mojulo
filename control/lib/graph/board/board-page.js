@@ -191,7 +191,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     wait: 'the level is starting',
     scene: '',
     td: 'arrows / WASD / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
-    rts: 'arrows / edge: pan · Z X: zoom · click / drag: select · right-click: move, attack, gather, rally · A: attack-move · S: stop · H: hold · B: build (again: the next) · Q W E R: train · T: research · U: unload · D: deploy · G: upgrade',
+    rts: 'arrows / edge: pan · Z X: zoom · click / drag: select · right-click: move, attack, gather, rally · A: attack-move · S: stop · H: hold · B: build (again: the next) · Q W E R: train · T: research · U: unload · D: deploy · G: upgrade · F: ability',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };

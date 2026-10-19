@@ -115,7 +115,7 @@ function armyHtml(G, cid) {
   const r = rtsRoster(G, cid), L = r.research ?? {};
   const units = Object.entries(r.units).map(([id, u]) => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.role)}${u.fly ? ', flies' : ''}</td><td>${u.tier ?? 1}</td><td>${u.hp}</td><td>${u.atk}${u.siege ? ` (× ${u.siege} on buildings)` : ''}</td><td>${u.range}</td><td>${u.speed}</td><td>${u.cost}</td></tr>`).join('');
   const houses = Object.values(r.buildings).map((b) => `${esc(b.name)} (${esc(b.role)}${b.cost ? `, ${b.cost} gold` : ''})`).join(' · ');
-  const ladder = (r.study ?? []).map((id) => `${esc(L[id].name)} (${L[id].cost} gold, ${L[id].time} s${L[id].gives.tier ? `: tier ${L[id].gives.tier}` : ': every trip pays more'})`).join(' → ');
+  const ladder = (r.study ?? []).map((id) => `${esc(L[id].name)} (${L[id].cost} gold, ${L[id].time} s${L[id].gives.tier ? `: tier ${L[id].gives.tier}` : L[id].gives.buff ? `: ${L[id].gives.buff.atk ? `its fighters strike × ${L[id].gives.buff.atk}` : `its units take × ${L[id].gives.buff.ward}`}` : ': every trip pays more'})`).join(' → ');
   return `<div class="tech tech-army"><h4>What it fields in a skirmish</h4><table class="vocab"><tr><th>unit</th><th>role</th><th>tier</th><th>hp</th><th>strike</th><th>reach</th><th>pace</th><th>gold</th></tr>${units}</table><p><b>Buildings</b> ${houses}</p>${ladder ? `<p><b>Its ladder</b> ${ladder}, at the ${esc(r.buildings[Object.values(L)[0].at].name)}</p>` : ''}<ul class="ledger">${r.ledger.map((l) => `<li>${esc(l.line)}</li>`).join('')}</ul></div>`;
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));

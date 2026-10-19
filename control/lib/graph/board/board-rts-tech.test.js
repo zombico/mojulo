@@ -9,7 +9,9 @@ import { boardOf, boardParse } from './board-kernel.js';
 // vehicle, a sword alone), one crafting nothing
 const W = { ...HALDEN_REACH, civilizations: { ...HALDEN_REACH.civilizations,
   raiders: { name: 'Raiders', builds: 'timber longhouses', technology: { weapons: { sword: 'a sword', cannon: 'a bronze cannon', sentry: 'a deployable sentry turret' }, vehicles: { gunship: 'an armed attack helicopter', bike: 'a motorcycle', jeep: 'an armed jeep' } } },
-  hermits: { name: 'Hermits', builds: 'stone huts' } } };
+  hermits: { name: 'Hermits', builds: 'stone huts' },
+  // what words give beyond a blow: stealth, a banner, berserk, poison, frost, a jammer
+  ghosts: { name: 'Ghosts', technology: { weapons: { rifle: 'a stealth rifle', banner: 'a command banner sword', axe: 'a berserker axe', bow: 'a poisoned bow', spear: 'a frost spear' }, vehicles: { jammer: 'an armed jammer truck' } } } } };
 const G = readGameworld(W);
 const CIVS = Object.keys(G.civilizations);
 const crafted = (cid) => ['things', 'vehicles', 'structures', 'weapons'].flatMap((l) => Object.keys(G.civilizations[cid].technology?.[l] ?? {}).map((id) => `${l}/${id}`));
@@ -52,6 +54,23 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     // dials move the stats: armour the hp, energy the strike, the showpiece more
     expect(corps.units.crawler.hp).toBeGreaterThan(Math.round(260 * 1.5) - 1);
     expect(corps.units.carbine.atk).toBe(RTS_UNITS.archer.atk * 1.25);
+  });
+
+  it('reads abilities and effects from its technology: classes, splash, statuses, sight and stealth, auras, casts, upgrades', () => {
+    const corps = rtsRoster(G, 'survey-corps'), growers = rtsRoster(G, 'dome-growers'), ghosts = rtsRoster(G, 'ghosts');
+    // energy stuns on every fourth hit; a polearm pierces armour; siege bursts; a sensor sees what hides
+    expect(corps.units.carbine.onHit).toEqual({ status: 'stun', time: 0.6, every: 4 });
+    expect(growers.units.lance.bonus).toEqual({ armoured: 1.5 });
+    expect(growers.units.launcher.splash).toBe(1.2);
+    expect(corps.buildings.sentry.detects).toBe(6);
+    // a dish beside the lab watches
+    expect(corps.buildings.dish).toMatchObject({ role: 'sensor', detects: 8 });
+    // words: stealth cloaks, a banner lifts its own, berserk stims, poison bites, frost slows, a jammer slows foes
+    expect([ghosts.units.rifle.cloak, ghosts.units.banner.aura, ghosts.units.axe.abilities.stim.status, ghosts.units.bow.onHit.status, ghosts.units.spear.onHit.status, ghosts.units.jammer.aura.who])
+      .toEqual([true, { r: 3, who: 'own', atk: 1.15 }, 'stim', 'poison', 'slow', 'foe']);
+    // its upgrades: charged where its weapons are energy, plating in its finish, after its machines
+    expect([corps.research.arms.name, corps.research.plating.name, growers.research.plating.name]).toEqual(['Charged weapons', 'Alloy plating', 'Composite plating']);
+    expect(corps.research.arms).toMatchObject({ needs: 'tier2', gives: { buff: { who: 'fighters', atk: 1.15 } } });
   });
 
   it('prices every fight by one formula, so no side buys more of it for its gold', () => {

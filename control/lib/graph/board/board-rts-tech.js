@@ -47,12 +47,37 @@ const HOUSE = {
   defence: { role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
   depot: { role: 'depot', hp: 250, cost: 100, time: 15, depot: true },
   wall: { role: 'wall', hp: 500, cost: 30, time: 6 },
+  sensor: { role: 'sensor', hp: 200, cost: 75, time: 10 },
   research: { role: 'research', hp: 300, cost: 150, time: 20, needs: 'barracks' },
 };
 // the ladder: what each step costs and how long it takes
 const STEP = { tier2: { cost: 150, time: 30 }, tier3: { cost: 250, time: 45 }, income: { cost: 100, time: 25 } };
 const INCOME = 0.2, INCOMES = 2;
 const RESEARCH_FORMS = ['tower', 'dish', 'launch', 'portal'];
+// what words give a unit beyond its blow (the functions do not say it: the words do)
+const POISON = /\b(poison|poisoned|venom|venomous|toxic|acid|chemical|gas)\b/i, FROST = /\b(frost|ice|cryo|freeze|freezing|chill)\b/i;
+const CLOAK = /\b(stealth|cloaked|cloaking|camouflaged|invisible|ghost|phantom)\b/i, STIM = /\b(stim|stims|adrenal|adrenaline|berserk|berserker|frenzy|rage)\b/i;
+const BANNER = /\b(banner|standard|war drum|drums|horn|command)\b/i, JAMMER = /\b(jammer|jamming|emp|disruptor)\b/i;
+const PIERCE = ['polearm', 'launcher'], CUT = ['blade', 'axe'];
+/** What a thing's form, dials and words give it beyond its blow, and why. */
+function traitsOf(e, role) {
+  const t = e.t, d = t.dials ?? {}, w = t.intent ?? '', out = {}, why = [];
+  if (role === 'siege' || ['cannon', 'launcher', 'siege'].includes(t.form)) { out.splash = 1.2; why.push('it bursts: half its blow on those round what it hits'); }
+  if (PIERCE.includes(t.form)) { out.bonus = { armoured: 1.5 }; why.push('it pierces armour (× 1.5 on machines)'); }
+  else if (CUT.includes(t.form)) { out.bonus = { light: 1.25 }; why.push('it cuts the unarmoured (× 1.25)'); }
+  if (out.splash === undefined && POISON.test(w)) { out.onHit = { status: 'poison', time: 4, every: 1 }; why.push('poison: each hit bites on for 4 s'); }
+  else if (FROST.test(w)) { out.onHit = { status: 'slow', time: 2, every: 1 }; why.push('frost: each hit slows for 2 s'); }
+  else if (d.energy && role !== 'worker') { out.onHit = { status: 'stun', time: 0.6, every: 4 }; why.push('energy: every fourth hit stuns'); }
+  if (d.sensor) { out.detects = 6; why.push('a sensor: it sees what hides within 6'); }
+  if (CLOAK.test(w)) { out.cloak = true; why.push('stealth: unseen but by a detector'); }
+  if (BANNER.test(w)) { out.aura = { r: 3, who: 'own', atk: 1.15 }; why.push('a banner: its own within 3 strike × 1.15'); }
+  else if (JAMMER.test(w)) { out.aura = { r: 3, who: 'foe', speed: 0.7 }; why.push('a jammer: foes within 3 slowed × 0.7'); }
+  const ab = {};
+  if (STIM.test(w)) { ab.stim = { status: 'stim', time: 6, hp: 10, cooldown: 15 }; why.push('stim (F): faster for 6 s, for 10 hp'); }
+  if (d.field) { ab.shield = { shield: 40, time: 8, cooldown: 20 }; why.push('a field (F): a 40-hp shield for 8 s'); }
+  if (Object.keys(ab).length) out.abilities = ab;
+  return { out, why };
+}
 const MELEE_FORMS = ['blade', 'polearm', 'axe'], RANGED_FORMS = ['bow', 'gun', 'staff'], SIEGE_FORMS = ['cannon', 'launcher', 'siege', 'ballista'];
 const FLY_FORMS = ['rotor', 'winged', 'airship'];
 // what its words call medical mends its own (no function says it: the words do)
@@ -69,6 +94,12 @@ const PACE = { hover: 1.3, wheeled: 1.15, cycle: 1.4, rotor: 1.15, winged: 1.3, 
 const K = 60 / Math.sqrt(80 * 8);
 export function rtsWorth(U) {
   // what fights no fight is worth what it carries or mends
+  // what it does beyond its blow: a share more for each (splash, a status on hit, a bonus, cloak, sight, an aura, an
+  // ability)
+  const more = (U.splash ? 1.3 : 1) * (U.onHit ? 1.15 : 1) * (U.bonus ? 1.1 : 1) * (U.cloak ? 1.3 : 1) * (U.detects ? 1.1 : 1) * (U.aura ? 1.2 : 1) * (U.abilities ? 1.1 : 1);
+  return more * worthOf(U);
+}
+function worthOf(U) {
   if (!U.atk) return (U.carries ? 10 + 4 * U.carries + U.hp / 30 : Math.sqrt(U.hp * (U.heals || 0) * 2)) * Math.sqrt(U.speed / 1.8) * (U.fly ? 1.25 : 1);
   const dps = (U.atk / U.rate) * (U.siege ? (1 + U.siege) / 2 : 1);
   return Math.sqrt(U.hp * dps) * (1 + 0.3 * Math.max(0, U.range - 1.2)) * Math.sqrt(U.speed / 1.8) * (U.fly ? 1.25 : 1);
@@ -107,6 +138,8 @@ export function rtsRoster(G, cid) {
   const field = (e, role, noun, machine, fly) => {
     const rank = rankOf(e.list, e.id), id = idFor(e.id), { U, why } = statsOf(role, { ...e.t, kind: e.kind }, rank);
     if (fly && !U.fly) { U.fly = true; why.push('it flies: over anything'); }
+    const T = traitsOf(e, role);
+    Object.assign(U, T.out); why.push(...T.why);
     const cost = five(K * rtsWorth(U)), tier = machine ? (rank === 'focus' ? 3 : 2) : 1;
     units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)), ...(tier > 1 ? { tier } : {}), ...(machine ? { machine: true } : {}) };
     said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${role}${why.length ? ` (${why.join('; ')})` : ''}, ${cost} gold${tier > 1 ? `, tier ${tier}` : ''}`);
@@ -194,9 +227,16 @@ export function rtsRoster(G, cid) {
       prev = id;
       said(`${e.list}/${e.id}`, null, `${e.t.intent}: an income step, researched (every trip pays ${Math.round(INCOME * 100)}% more), ${STEP.income.cost} gold`);
     });
+    // its upgrades across the side: its weapons (charged where they are energy weapons, else honed), its plating (in
+    // its finish), once its machines are known
+    if (research.tier2) {
+      const charged = weapons.some((e) => e.t.dials?.energy);
+      research.arms = { name: charged ? 'Charged weapons' : 'Honed weapons', cost: 125, time: 30, at, needs: 'tier2', gives: { buff: { who: 'fighters', atk: 1.15 } } };
+      research.plating = { name: `${named(T.finish ?? 'alloy')} plating`, cost: 125, time: 30, at, needs: 'tier2', gives: { buff: { who: 'all', ward: 0.85 } } };
+    }
     // the mind's order: the machines, an income step, the showpieces, the rest
     const inc = Object.keys(research).filter((k) => research[k].gives.income);
-    study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1)].filter((k) => k && research[k]));
+    study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1), 'arms', 'plating'].filter((k) => k && research[k]));
     // the lab's research capability: every step of the ladder is researched there
     buildings[at].studies = Object.keys(research);
     if (research.tier2) {
@@ -218,6 +258,7 @@ export function rtsRoster(G, cid) {
       if (d.sensor) { H.range = r1(H.range + 1); more.push('a sensor: reach + 1'); }
       if (d.barrels) { H.rate = r2(H.rate * 0.8); more.push('barrels: more often'); }
     }
+    if (d.sensor || role === 'sensor') { H.detects = role === 'sensor' ? 8 : 6; more.push(`it sees what hides within ${H.detects}`); }
     if (d.field) { H.hp = Math.round(H.hp * 1.3); more.push('a field: hp × 1.3'); }
     if (d.armour) { H.hp = Math.round(H.hp * 1.5); more.push('armour: hp × 1.5'); }
     buildings[id] = H;
@@ -240,6 +281,8 @@ export function rtsRoster(G, cid) {
   if (folded.length && buildings.works) { buildings.works.trains.push(...folded); if (research.tier2) research.tier2.opens.splice(-1, 0, ...folded); }
   else if (folded.length) { for (const id of folded) delete units[id].tier; buildings.barracks.trains.push(...folded); }
   for (const e of structures) if (e.t.form === 'barrier' || e.t.form === 'gate') house(e, 'wall', 'a wall, cheap and hard to break');
+  // what senses and does not research (a dish beside the lab) watches: it sees what hides
+  for (const e of structures) if (e.fns.includes('sense') && !buildings[e.id] && !ledger.some((l) => l.of === `structures/${e.id}`)) house(e, 'sensor', 'a sensor station, it sees what hides');
   const depot = things.find((e) => e.fns.includes('store') && !e.fns.includes('move'));
   if (depot) house(depot, 'depot', 'a depot, where workers drop what they mine');
   for (const e of [...structures, ...things]) {

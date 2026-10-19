@@ -15,6 +15,7 @@ import { readGameworld } from '../gameworld/world.js';
 import { HALDEN_REACH } from '../gameworld/examples.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { rtsLooks } from './board-rts-look.js';
+import { RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
 
 const K = buildBoard();
 const fight = (players, party = ['B1', 'C1', 'D1'], foes = ['B8', 'D8', 'F8']) => ({ board: { seed: 'fft-1', relief: 0.4, cols: 8, rows: 8 }, battle: { seed: 'fft-1', players,
@@ -389,6 +390,36 @@ describe('the board on the World page', () => {
       await page.evaluate(() => { for (let k = 0; k < 10; k++) window.__mojBoard.rts.run(0.1); });
       await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-civ-near.png` });
     }
+    await page.close();
+  }, 180000);
+
+  it('shows what is on whom: a stun\'s mark, a shield cast with F, a cloaked foe unseen until an eye comes near', async () => {
+    if (!browser) return;
+    const units = { ...RTS_UNITS,
+      zap: { name: 'Zapper', role: 'ranged', hp: 200, atk: 2, range: 4, rate: 0.5, speed: 1.8, cost: 70, time: 12, onHit: { status: 'stun', time: 1.5, every: 2 }, abilities: { shield: { shield: 40, time: 8, cooldown: 20 } } },
+      eye: { name: 'Eye', role: 'scout', hp: 300, atk: 0, range: 0, rate: 1, speed: 2, cost: 60, time: 10, detects: 5 },
+      ghost: { name: 'Ghost', role: 'ranged', hp: 300, atk: 1, range: 4, rate: 1.2, speed: 1.8, cost: 90, time: 12, cloak: true } };
+    const side = (army) => ({ units, buildings: RTS_BUILDINGS, worker: 'worker', base: 'base', army, builds: ['barracks'] });
+    const { payload } = await resolveWorldScene({ ref: 'fx', title: null, manifest: { kind: 'board', board: { seed: 'fx', relief: 0, cols: 6, rows: 12 },
+      rts: { workers: 0, army: 2, enemy: { workers: 0, army: 2 }, ai: { workers: 0, wave: 30 } }, game: { levelRef: 'fx', mechanics: [{ kind: 'board' }] } } });
+    payload.board.rts = { ...payload.board.rts, sides: { player: side(['zap', 'eye']), enemy: side(['soldier', 'ghost']) } };
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const out = await page.evaluate(() => {
+      const r = window.__mojBoard.rts, S = r.state(), ghost = S.units.find((u) => u.kind === 'ghost').id, soldier = S.units.find((u) => u.kind === 'soldier').id;
+      const zap = S.units.find((u) => u.kind === 'zap').id, eye = S.units.find((u) => u.kind === 'eye').id, foeBase = S.buildings.find((b) => b.side === 'enemy').at;
+      const unseen = !r.marks(ghost).visible;
+      // the zapper casts its shield, then the two walk on the enemy's base: the soldier stunned on the way, the ghost seen once the eye is near
+      r.select([zap]); const cast = r.castSel(); const shield = r.marks(zap).marks.includes('shield');
+      r.select([zap, eye]); r.order({ kind: 'amove', to: foeBase });
+      let stunned = false, seen = false;
+      for (let k = 0; k < 400 && !(stunned && seen); k++) { r.run(0.1); const m = r.marks(soldier); if (m && m.marks.includes('stun')) stunned = true; const g = r.marks(ghost); if (g && g.visible) seen = true; }
+      return { unseen, cast, shield, stunned, seen };
+    });
+    expect(out).toEqual({ unseen: true, cast: 1, shield: true, stunned: true, seen: true });
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-fx.png` });
     await page.close();
   }, 180000);
 

@@ -68,8 +68,36 @@ export function buildBoardRts() {
   const UN = (cfg, side, kind) => roster(cfg, side).units[kind];
   const BU = (cfg, side, kind) => roster(cfg, side).buildings[kind];
   const isWorker = (cfg, u) => UN(cfg, u.side, u.kind).role === 'worker';
-  // a unit's stats as it stands: its kind's, and the mode it is in over them (a siege deployed: farther, harder, still)
-  const ST = (cfg, u) => { const U = UN(cfg, u.side, u.kind); return u.mode && U.modes && U.modes[u.mode] ? Object.assign({}, U, U.modes[u.mode]) : U; };
+  // timed statuses: what each does to a unit while it lasts (poison is the tactics battles' too: a loss over time)
+  const STATUS = { slow: { speed: 0.5 }, stun: { stun: true }, poison: { dps: 4 }, stim: { rate: 0.67, speed: 1.4 }, shield: {} };
+  // a unit's stats as it stands: its kind's, the mode it is in (a siege deployed: farther, harder, still), its side's
+  // upgrades and the auras on it (u.fx, u.ax: worked out each step), and its statuses
+  function ST(cfg, u) {
+    let U = UN(cfg, u.side, u.kind);
+    if (u.mode && U.modes && U.modes[u.mode]) U = Object.assign({}, U, U.modes[u.mode]);
+    const f = u.fx, a = u.ax, t = u.st;
+    if (!f && !a && !t) return U;
+    U = Object.assign({}, U);
+    for (const m of [f, a]) if (m) { if (m.atk) U.atk *= m.atk; if (m.rate) U.rate *= m.rate; if (m.speed) U.speed *= m.speed; if (m.range) U.range += m.range; if (m.ward) U.ward = (U.ward || 1) * m.ward; }
+    if (t) {
+      if (t.slow > 0) U.speed *= STATUS.slow.speed;
+      if (t.stim > 0) { U.rate *= STATUS.stim.rate; U.speed *= STATUS.stim.speed; }
+      if (t.stun > 0) { U.still = true; U.stunned = true; }
+    }
+    return U;
+  }
+  // a status put on a unit (its time the longer of the two), never changing the state it came from
+  const addStatus = (u, id, time) => { u.st = Object.assign({}, u.st, { [id]: Math.max((u.st && u.st[id]) || 0, time) }); };
+  // what a unit is: light, armoured (a machine) or a building's structure; what strikes it is multiplied by its
+  // `bonus` against that class
+  const classOf = (cfg, x) => (x.x == null ? 'structure' : UN(cfg, x.side, x.kind).armour || (UN(cfg, x.side, x.kind).machine ? 'armoured' : 'light'));
+  // unseen: cloaked, and no detector of the looker's side (a unit or a standing building that `detects`) within reach
+  function hidden(B, cfg, R, x, looker) {
+    if (x.x == null || !UN(cfg, x.side, x.kind).cloak) return false;
+    for (const d of R.units) { const D = UN(cfg, d.side, d.kind); if (d.side === looker && D.detects && !d.inside && dist([d.x, d.y], [x.x, x.y]) <= D.detects) return false; }
+    for (const b of R.buildings) { const K = BU(cfg, b.side, b.kind); if (b.side === looker && K.detects && b.raising <= 0 && dist(mid(B, b.at), [x.x, x.y]) <= K.detects) return false; }
+    return true;
+  }
   // the ladder: the tier a side has researched to, and what its trips pay over what they carry
   const known = (R, side) => (R.known && R.known[side]) || {};
   function tierOf(cfg, R, side) {
@@ -201,6 +229,8 @@ export function buildBoardRts() {
       // a mode switch, and what becomes a building where it stands, are orders of their own
       if (o.kind === 'mode') { const U = UN(cfg, u.side, u.kind), to = o.to || null; if ((to && !(U.modes && U.modes[to])) || to === (u.mode || null) || u.shift > 0) continue; u.shift = ((U.modes || {})[to || u.mode] || {}).time || 2; u.toMode = to; u.path = []; continue; }
       if (o.kind === 'deploy' && !UN(cfg, u.side, u.kind).deploys) continue;
+      // an ability cast at once (its status on itself, a shield, paid in hp), the order it had kept
+      if (o.kind === 'cast') { cast(cfg, u, o.ability); continue; }
       // still (deployed, switching): it goes nowhere until it packs up
       if ((ST(cfg, u).still || u.shift > 0) && (o.kind === 'move' || o.kind === 'amove' || o.kind === 'gather' || o.kind === 'board')) continue;
       if (o.kind === 'board') { const t = R.units.find((x) => x.id === o.target); if (!t || t.side !== u.side || t.id === u.id || !UN(cfg, t.side, t.kind).carries || UN(cfg, u.side, u.kind).carries) continue; }
@@ -270,6 +300,16 @@ export function buildBoardRts() {
     R.gold[c.side] -= L.cost;
     c.study = { id, left: L.time };
     return R;
+  }
+  // an ability: { status?, time, shield?, hp?: what it costs in hp, cooldown }, cast when it is ready and the unit can pay
+  function cast(cfg, u, id) {
+    const A = (UN(cfg, u.side, u.kind).abilities || {})[id];
+    if (!A || (u.cool && u.cool[id] > 0) || (A.hp && u.hp <= A.hp + 1)) return false;
+    if (A.hp) u.hp -= A.hp;
+    if (A.status) addStatus(u, A.status, A.time);
+    if (A.shield) { u.shield = A.shield; addStatus(u, 'shield', A.time); }
+    u.cool = Object.assign({}, u.cool, { [id]: A.cooldown || 10 });
+    return true;
   }
   // a building upgraded in place into another (its `upgrades`: { to, cost, time }): paid now, the other when done
   function upgrade(B, cfg, R0, bid) {
@@ -342,6 +382,12 @@ export function buildBoardRts() {
     // its base grown into what it upgrades to, once it can: last, its buildings raised and its ladder climbed
     const home = !base.up && base, Up = home && BU(cfg, side, home.kind).upgrades;
     if (sent && Up && !want && !step && R.gold[side] >= Up.cost && !lockOf(cfg, R, side, Object.assign({}, BU(cfg, side, Up.to), { needs: Up.needs, tier: Up.tier }))) R = upgrade(B, cfg, R, home.id);
+    // its abilities, cast when a foe is in sight and they are ready (stim only while it has the hp to spare)
+    for (const u of R.units) {
+      const U = UN(cfg, side, u.kind);
+      if (u.side !== side || u.inside || !U.abilities || !nearestFoe(B, cfg, R, u, Math.max(SIGHT, U.range), U.range)) continue;
+      for (const id in U.abilities) if (!(u.cool && u.cool[id] > 0) && !(U.abilities[id].hp && u.hp < U.hp * 0.5)) R = order(B, cfg, R, [u.id], { kind: 'cast', ability: id });
+    }
     // its siege deploys where a foe is in its deployed reach, and packs up (to walk on) when none is
     for (const u of R.units) {
       const U = UN(cfg, side, u.kind);
@@ -352,8 +398,11 @@ export function buildBoardRts() {
     }
     // once it has sent a wave, it keeps back what the next thing it wants costs
     const nextBuild = want && want !== S.builds[0] && sent && can(BU(cfg, side, want)) ? BU(cfg, side, want).cost : 0;
-    const nextStep = step && lab && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
-    const keep = sent ? Math.max(nextBuild, nextStep) : 0;
+    // (what it researches beyond the tiers, income and upgrades, comes from what is spare: it saves for a tier only)
+    const nextStep = step && lab && L[step].gives.tier && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
+    // (nothing more to earn, no worker or the nodes spent: it saves for nothing and spends what it has)
+    const earns = R.units.some((u) => u.side === side && isWorker(cfg, u)) && R.nodes.some((n) => n.left > 0);
+    let keep = sent && earns ? Math.max(nextBuild, nextStep) : 0;
     if (want && (want === S.builds[0] || sent)) {
       const K = BU(cfg, side, want);
       if (R.gold[side] >= K.cost && can(K)) {
@@ -369,7 +418,8 @@ export function buildBoardRts() {
       if (w) R = order(B, cfg, R, [w.id], { kind: 'build', target: b.id });
     }
     // each standing building that trains an army trains in turn, by the army's count
-    for (const k of S.builds) {
+    // (the latest it raised first: its works before its barracks, so what its ladder opened is paid for first)
+    for (const k of S.builds.slice().reverse()) {
       const b = R.buildings.find((x) => x.side === side && x.kind === k);
       // (the best it has opened: the highest tier unlocked there)
       // (the mind fields no transports, it carries nobody, and nothing folded, it sets nothing up)
@@ -377,7 +427,9 @@ export function buildBoardRts() {
       const top = Math.max(1, ...open.map((t) => UN(cfg, side, t).tier || 1)), trains = open.filter((t) => (UN(cfg, side, t).tier || 1) === top);
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
+      // what a later tier opened is saved for: the factories before it wait while it cannot be paid for
       if (R.gold[side] - keep >= UN(cfg, side, kind).cost) R = train(B, cfg, R, b.id, kind);
+      else if (top >= 2 && earns) keep += UN(cfg, side, kind).cost;
     }
     // a wave: every idle fighter, attack-moving on the other base once there are enough of them
     // (once nothing more is coming, whatever it has goes, its workers too)
@@ -401,11 +453,57 @@ export function buildBoardRts() {
     const p = placeOf(B, u);
     // (a building that shoots shoots at units)
     for (const x of u.x == null ? R.units : R.units.concat(R.buildings)) {
-      if (x.side === u.side || x.hp <= 0 || !canHit(cfg, range, x)) continue;
+      if (x.side === u.side || x.hp <= 0 || !canHit(cfg, range, x) || hidden(B, cfg, R, x, u.side)) continue;
       const d = dist(p, placeOf(B, x)) - reachOf(x);
       if (d <= within && (d < bd - 1e-9 || (Math.abs(d - bd) <= 1e-9 && x.id < best.id))) { bd = d; best = x; }
     }
     return best;
+  }
+  // a blow: its strength against the class struck (bonus, siege on a structure), the side's ward over the struck, a
+  // shield taking it first; then what it puts on (every nth hit) and its splash on the struck's side round it
+  function strike(B, cfg, R, a, A, x, events) {
+    const cls = classOf(cfg, x), X = x.x != null ? ST(cfg, x) : null;
+    const dmg = A.atk * ((A.bonus && A.bonus[cls]) || 1) * (cls === 'structure' && A.siege ? A.siege : 1);
+    const hurt = (y, d) => {
+      let k = d * (y.x != null ? (y === x ? X : ST(cfg, y)).ward || 1 : 1);
+      if (y.shield > 0) { const take = Math.min(y.shield, k); y.shield -= take; k -= take; }
+      y.hp -= k;
+    };
+    hurt(x, dmg);
+    events.push({ kind: 'shot', from: a.id, to: x.id, uk: a.kind });
+    if (A.onHit && x.x != null) { a.hits = (a.hits || 0) + 1; if (a.hits % (A.onHit.every || 1) === 0) { addStatus(x, A.onHit.status, A.onHit.time); events.push({ kind: 'status', id: x.id, status: A.onHit.status }); } }
+    if (A.splash) {
+      const p = placeOf(B, x);
+      for (const y of R.units) if (y !== x && y.side === x.side && !y.inside && y.hp > 0 && dist([y.x, y.y], p) <= A.splash) hurt(y, dmg * 0.5);
+    }
+  }
+  // each step: the side's upgrades (known research that `gives` a buff) and the auras of units and buildings in reach
+  function effects(B, cfg, R) {
+    for (const side of ['player', 'enemy']) {
+      const L = roster(cfg, side).research || {}, buffs = [];
+      for (const id in known(R, side)) if (L[id] && L[id].gives.buff) buffs.push(L[id].gives.buff);
+      for (const u of R.units) {
+        if (u.side !== side) continue;
+        let f = null;
+        for (const g of buffs) {
+          const U = UN(cfg, side, u.kind), who = g.who || 'all';
+          if (who !== 'all' && !(who === 'fighters' ? U.atk > 0 && U.role !== 'worker' : U.role === who)) continue;
+          f = f || {};
+          for (const k of ['atk', 'rate', 'speed', 'ward']) if (g[k]) f[k] = (f[k] || 1) * g[k];
+          if (g.range) f.range = (f.range || 0) + g.range;
+        }
+        u.fx = f;
+      }
+    }
+    for (const u of R.units) u.ax = null;
+    const sources = R.units.filter((u) => !u.inside && UN(cfg, u.side, u.kind).aura).map((u) => [u, UN(cfg, u.side, u.kind).aura, [u.x, u.y]])
+      .concat(R.buildings.filter((b) => b.raising <= 0 && BU(cfg, b.side, b.kind).aura).map((b) => [b, BU(cfg, b.side, b.kind).aura, mid(B, b.at)]));
+    for (const [src, A, p] of sources) for (const u of R.units) {
+      if (u.inside || dist([u.x, u.y], p) > A.r || (A.who === 'foe') === (u.side === src.side)) continue;
+      // the strongest aura of a kind holds: the most an own one lifts, the most a foe's one lowers
+      const a = u.ax = u.ax || {}, up = A.who !== 'foe';
+      for (const k of ['atk', 'rate', 'speed', 'ward']) if (A[k]) a[k] = a[k] == null ? A[k] : up === (k !== 'rate' && k !== 'ward') ? Math.max(a[k], A[k]) : Math.min(a[k], A[k]);
+    }
   }
   function walk(B, cfg, u, dt) {
     if (!u.path.length) return;
@@ -420,13 +518,18 @@ export function buildBoardRts() {
     const U = ST(cfg, u), d = dist([u.x, u.y], placeOf(B, x)) - reachOf(x);
     if (d <= U.range) {
       u.path = [];
-      if (u.cd <= 0) { x.hp -= x.x == null && U.siege ? U.atk * U.siege : U.atk; u.cd = U.rate; events.push({ kind: 'shot', from: u.id, to: x.id, uk: u.kind }); }
+      if (u.cd <= 0) { strike(B, cfg, R, u, U, x, events); u.cd = U.rate; }
       return;
     }
     if (!canMove) return;
     u.again -= STEP;
     if (!u.path.length || u.again <= 0) { u.path = route(B, cfg, R, u, x.x != null ? spotAt(B, x.x, x.y) : x.at) || []; u.again = REPATH; }
     walk(B, cfg, u, STEP);
+  }
+  // the way to beside a spot; already beside it but stopped between spots, back to the middle of its own
+  function toward(B, cfg, R, u, goal) {
+    const p = route(B, cfg, R, u, goal) || [];
+    return p.length || dist([u.x, u.y], mid(B, u.at)) < 1e-6 ? p : [u.at];
   }
   function gather(B, cfg, R, u, events) {
     const o = u.order, node = R.nodes.find((n) => n.at === o.node), cap = UN(cfg, u.side, u.kind).carry || CARRY;
@@ -436,7 +539,7 @@ export function buildBoardRts() {
     if (u.carry >= cap || ((!node || node.left <= 0) && u.carry > 0)) {
       if (!home) { u.order = { kind: 'stop' }; return; }
       if (dist([u.x, u.y], mid(B, home.at)) <= 1.1) { const paid = u.carry + Math.floor(u.carry * incomeOf(cfg, R, u.side) + 1e-9); R.gold[u.side] += paid; events.push({ kind: 'gathered', side: u.side, amount: u.carry, paid }); u.carry = 0; u.path = []; return; }
-      if (!u.path.length) u.path = route(B, cfg, R, u, home.at) || [];
+      if (!u.path.length) u.path = toward(B, cfg, R, u, home.at);
       walk(B, cfg, u, STEP);
       return;
     }
@@ -452,7 +555,7 @@ export function buildBoardRts() {
       if (u.mine >= MINE) { const take = Math.min(CARRY, node.left); node.left -= take; u.carry += take; u.mine = 0; }
       return;
     }
-    if (!u.path.length) u.path = route(B, cfg, R, u, node.at) || [];
+    if (!u.path.length) u.path = toward(B, cfg, R, u, node.at);
     walk(B, cfg, u, STEP);
   }
 
@@ -515,6 +618,8 @@ export function buildBoardRts() {
     while (R.acc >= STEP - 1e-9 && !R.over) {
       R.acc -= STEP;
       R.t += STEP;
+      // the upgrades and auras on every unit, this step
+      effects(B, cfg, R);
       // the enemy's mind, once a second
       R.mindT -= STEP;
       if (R.mindT <= 0) {
@@ -544,7 +649,7 @@ export function buildBoardRts() {
         if (K.atk) {
           b.cd = Math.max(0, (b.cd || 0) - STEP);
           const x = b.cd <= 0 && nearestFoe(B, cfg, R, b, K.range + 0.5, K.range);
-          if (x) { x.hp -= K.atk; b.cd = K.rate; events.push({ kind: 'shot', from: b.id, to: x.id, uk: b.kind }); }
+          if (x) { strike(B, cfg, R, b, K, x, events); b.cd = K.rate; }
         }
         const q = b.queue[0];
         if (!q) continue;
@@ -567,6 +672,15 @@ export function buildBoardRts() {
         u.cd = Math.max(0, u.cd - STEP);
         // inside a transport: carried where it goes, and nothing else
         if (u.inside) { const t = R.units.find((x) => x.id === u.inside); if (t) { u.x = t.x; u.y = t.y; u.at = t.at; } continue; }
+        // its statuses run down (poison biting as it goes, a shield gone with its time); stunned, it does nothing
+        if (u.st) {
+          const t = {};
+          let any = false;
+          for (const id in u.st) { const left = u.st[id] - STEP; if (id === 'poison') u.hp -= STATUS.poison.dps * STEP; if (left > 1e-9) { t[id] = left; any = true; } else if (id === 'shield') u.shield = 0; }
+          u.st = any ? t : null;
+          if (t.stun > 0) continue;
+        }
+        if (u.cool) { const c = {}; let any = false; for (const k in u.cool) { const left = u.cool[k] - STEP; if (left > 1e-9) { c[k] = left; any = true; } } u.cool = any ? c : null; }
         // switching modes: nothing else until it is done
         if (u.shift > 0) { u.shift -= STEP; if (u.shift <= 1e-9) { u.shift = 0; u.mode = u.toMode || null; events.push({ kind: 'mode', id: u.id, mode: u.mode }); } continue; }
         const o = u.order, U = ST(cfg, u);
@@ -585,7 +699,7 @@ export function buildBoardRts() {
         else if (o.kind === 'build' || o.kind === 'repair') tend(B, cfg, R, u, events);
         else if (o.kind === 'attack') {
           const x = find(R, o.target);
-          if (!x || x.hp <= 0 || !canHit(cfg, range, x)) { u.order = { kind: 'stop' }; u.path = []; } else engage(B, cfg, R, u, x, events, true);
+          if (!x || x.hp <= 0 || !canHit(cfg, range, x) || hidden(B, cfg, R, x, u.side)) { u.order = { kind: 'stop' }; u.path = []; } else engage(B, cfg, R, u, x, events, true);
         } else if (o.kind === 'hold') { const x = U.atk ? nearestFoe(B, cfg, R, u, range, range) : null; if (x) engage(B, cfg, R, u, x, events, false); }
         else {
           // stop and attack-move: what comes in sight (never shorter than its reach) is fought (an idle worker keeps to its
@@ -615,7 +729,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, roster, tierOf, incomeOf, lockOf, statsOf: ST, start, order, train, build, research, upgrade, rally, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, STATUS, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
