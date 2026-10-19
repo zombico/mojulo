@@ -101,7 +101,7 @@ describe('the ladder', () => {
     R = go(rtsBuild(B, cfg, R, 'player', 'mast', at('H5')), 21);
     const bar = R.buildings.find((b) => b.kind === 'barracks').id, mast = R.buildings.find((b) => b.kind === 'mast').id;
     expect(() => rtsBuild(B, cfg, R, 'player', 'works', at('E5'))).toThrow(/a Fabricator needs Machines researched first/);
-    expect(() => rtsResearch(B, cfg, R, mast, 'tier3')).toThrow(/Showpieces needs Machines first/);
+    expect(() => rtsResearch(B, cfg, R, mast, 'tier3')).toThrow(/Showpieces needs Machines researched first/);
     expect(() => rtsResearch(B, cfg, R, bar, 'tier2')).toThrow(/Machines is researched at the Mast, not the Barracks/);
     R = rtsResearch(B, cfg, R, mast, 'tier2');
     expect(() => rtsResearch(B, cfg, R, mast, 'relay')).toThrow(/is researching Machines already/);

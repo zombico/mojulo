@@ -167,11 +167,11 @@ export function boardRtsPage(api) {
   const P = S.player, raisable = Object.keys(P.buildings).filter((k) => P.buildings[k].cost);
   let buildK = 0;
   const tier = () => RTK.tierOf(cfg, R, 'player');
-  const needsOf = (K) => (K.needs && !R.buildings.some((x) => x.side === 'player' && x.kind === K.needs && x.raising <= 0) ? 'a ' + P.buildings[K.needs].name : (K.tier || 1) > tier() ? Object.values(P.research || {}).filter((r) => r.gives.tier === K.tier).map((r) => r.name)[0] : null);
+  const needsOf = (K) => RTK.lockOf(cfg, R, 'player', K);
   function nextStep(b) {
     const L = P.research || {}, known = (R.known && R.known.player) || {};
     const order = (P.study || []).concat(Object.keys(L)).filter((id, i, a) => a.indexOf(id) === i);
-    return order.find((id) => L[id].at === b.kind && !known[id] && !R.buildings.some((x) => x.side === 'player' && x.study && x.study.id === id) && (!L[id].needs || known[L[id].needs])) || null;
+    return order.find((id) => (BU('player', b.kind).studies || []).indexOf(id) >= 0 && !known[id] && !R.buildings.some((x) => x.side === 'player' && x.study && x.study.id === id) && !needsOf(L[id])) || null;
   }
   function drawPanel() {
     const mine = R.units.filter((u) => u.side === 'player'), workers = mine.filter(isWorker).length;
@@ -181,7 +181,7 @@ export function boardRtsPage(api) {
     let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
-      what = `${K.name}${b.raising > 0 ? ` (going up, ${Math.ceil(b.raising)} s)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${(UN('player', k).tier || 1) > tier() ? ' (locked)' : ''}`).join('  ')}`
+      what = `${K.name}${b.raising > 0 ? ` (going up, ${Math.ceil(b.raising)} s)` : ''}  ${(K.trains || []).map((k, n) => `${'QWER'[n]}: ${UN('player', k).name} ${UN('player', k).cost}${needsOf(UN('player', k)) ? ' (locked)' : ''}`).join('  ')}`
         + `${b.study ? `  researching ${L[b.study.id].name} (${Math.ceil(b.study.left)} s)` : step ? `  T: research ${L[step].name} ${L[step].cost}` : ''}${b.queue.length ? `  queue ${b.queue.map((q) => UN('player', q.kind).name).join(', ')}` : ''}`;
     }
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);

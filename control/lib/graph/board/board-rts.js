@@ -13,13 +13,16 @@
  *        (readBoardRts builds it from a manifest's `rts`)
  *   a side's roster (cfg.sides[side], board-rts-tech.js reads one from a civilization's technology; a side without one
  *   plays PLAIN): { units: { <id>: { name, role, hp, atk, range, rate, speed, cost, time, carry?, fly?, siege? } },
- *   buildings: { <id>: { name, role, hp, cost?, time?, trains?, needs?, atk?, range?, rate? } }, worker, base, army:
+ *   buildings: { <id>: { name, role, hp, cost?, time?, trains?, studies?, depot?, needs?, tier?, atk?, range?, rate? } },
+ *   worker, base, army:
  *   [ids, in turn], builds: [ids the mind raises, in order] }. Roles that act: a worker gathers; a flyer goes straight
  *   over any spot and is out of reach of what strikes from closer than REACH_UP; siege strikes buildings `siege` times
  *   as hard; a building with `atk` shoots (at units: a base defends itself); a depot takes in what workers mine; a
- *   building with `needs` waits on it. Its ladder (optional): research: { <id>: { name, cost, time, at: building id,
- *   needs?: research id, gives: { tier } | { income } } }, study: [ids, the mind's order]; a unit or building with a
- *   `tier` waits on a step giving it, and every income step known pays that much more a trip
+ *   building is its capabilities, any of them together: a factory (`trains`, a queue over time), research (`studies`:
+ *   the steps researched there, over time), a stationary unit (`atk`), a depot. A building, a unit or a step with
+ *   `needs` (a building kind standing or a step known, one or a list) or a `tier` waits on it (lockOf). Its ladder
+ *   (optional): research: { <id>: { name, cost, time, needs?, tier?, gives: { tier } | { income } } }, study: [ids, the
+ *   mind's order]; every income step known pays that much more a trip
  *   start(B, cfg) → R
  *   order(B, cfg, R, ids, o) → R   o: { kind: 'move', to } | { kind: 'amove', to } | { kind: 'attack', target }
  *                                  | { kind: 'hold' } | { kind: 'stop' } | { kind: 'gather', node }   (the player's
@@ -76,6 +79,20 @@ export function buildBoardRts() {
   }
   const tierName = (cfg, side, t) => { const L = roster(cfg, side).research || {}; for (const id in L) if (L[id].gives.tier === t) return L[id].name; return 'tier ' + t; };
   const roleOf = (cfg, b) => BU(cfg, b.side, b.kind).role;
+  // what a building, a unit or a research step waits on: a building standing or a step known (its `needs`, one or a
+  // list), then its tier researched; said, or null when it is open
+  function lockOf(cfg, R, side, X) {
+    const L = roster(cfg, side).research || {};
+    for (const n of [].concat(X.needs || [])) {
+      if (L[n]) { if (!known(R, side)[n]) return L[n].name + ' researched'; }
+      else if (!R.buildings.some((b) => b.side === side && b.kind === n && b.raising <= 0)) return 'a ' + ((BU(cfg, side, n) || {}).name || n) + ' standing';
+    }
+    if ((X.tier || 1) > tierOf(cfg, R, side)) return tierName(cfg, side, X.tier) + ' researched';
+    return null;
+  }
+  // a building's capabilities: a factory (trains), research (studies), a stationary unit (atk), a depot (base or depot)
+  const studiesAt = (K, id) => (K.studies || []).indexOf(id) >= 0;
+  const isDepot = (K) => K.role === 'base' || !!K.depot;
   // a flyer crosses any spot of the board; what strikes from closer than this cannot reach it
   const REACH_UP = 2;
 
@@ -187,7 +204,8 @@ export function buildBoardRts() {
     const K = BU(cfg, b.side, b.kind), U = UN(cfg, b.side, kind);
     if (b.raising > 0) throw new Error('rts: the ' + K.name + ' is still going up');
     if ((K.trains || []).indexOf(kind) < 0 || !U) throw new Error('rts: a ' + K.name + ' does not train a ' + kind);
-    if ((U.tier || 1) > tierOf(cfg, R0, b.side)) throw new Error('rts: a ' + U.name + ' needs ' + tierName(cfg, b.side, U.tier) + ' researched first');
+    const lock = lockOf(cfg, R0, b.side, U);
+    if (lock) throw new Error('rts: a ' + U.name + ' needs ' + lock + ' first');
     if (b.queue.length >= 5) throw new Error('rts: five in the queue already');
     if (R0.gold[b.side] < U.cost) throw new Error('rts: ' + U.cost + ' gold for a ' + U.name + ', ' + R0.gold[b.side] + ' in the purse');
     const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
@@ -198,8 +216,8 @@ export function buildBoardRts() {
   function build(B, cfg, R0, side, kind, at) {
     const K = BU(cfg, side, kind);
     if (!K || !K.cost) throw new Error('rts: nothing to build called ' + kind);
-    if (K.needs && !R0.buildings.some((b) => b.side === side && b.kind === K.needs && b.raising <= 0)) throw new Error('rts: a ' + K.name + ' needs a ' + BU(cfg, side, K.needs).name + ' standing first');
-    if ((K.tier || 1) > tierOf(cfg, R0, side)) throw new Error('rts: a ' + K.name + ' needs ' + tierName(cfg, side, K.tier) + ' researched first');
+    const lock = lockOf(cfg, R0, side, K);
+    if (lock) throw new Error('rts: a ' + K.name + ' needs ' + lock + ' first');
     if (!open(B, R0, at)) throw new Error('rts: a ' + K.name + ' cannot stand there');
     if (R0.units.some((u) => spotAt(B, u.x, u.y) === at)) throw new Error('rts: someone stands there');
     if (R0.gold[side] < K.cost) throw new Error('rts: ' + K.cost + ' gold for a ' + K.name + ', ' + R0.gold[side] + ' in the purse');
@@ -216,12 +234,13 @@ export function buildBoardRts() {
     if (!b) throw new Error('rts: no such building');
     const L = (roster(cfg, b.side).research || {})[id], K = BU(cfg, b.side, b.kind);
     if (!L) throw new Error('rts: nothing to research called ' + id);
-    if (L.at !== b.kind) throw new Error('rts: ' + L.name + ' is researched at the ' + BU(cfg, b.side, L.at).name + ', not the ' + K.name);
+    if (!studiesAt(K, id)) { const at = Object.keys(roster(cfg, b.side).buildings).find((k) => studiesAt(BU(cfg, b.side, k), id)); throw new Error('rts: ' + L.name + ' is researched at the ' + (at ? BU(cfg, b.side, at).name : 'nothing') + ', not the ' + K.name); }
     if (b.raising > 0) throw new Error('rts: the ' + K.name + ' is still going up');
     if (known(R0, b.side)[id]) throw new Error('rts: ' + L.name + ' is known already');
     if (R0.buildings.some((x) => x.side === b.side && x.study && x.study.id === id)) throw new Error('rts: ' + L.name + ' is being researched already');
     if (b.study) throw new Error('rts: the ' + K.name + ' is researching ' + roster(cfg, b.side).research[b.study.id].name + ' already');
-    if (L.needs && !known(R0, b.side)[L.needs]) throw new Error('rts: ' + L.name + ' needs ' + roster(cfg, b.side).research[L.needs].name + ' first');
+    const lock = lockOf(cfg, R0, b.side, L);
+    if (lock) throw new Error('rts: ' + L.name + ' needs ' + lock + ' first');
     if (R0.gold[b.side] < L.cost) throw new Error('rts: ' + L.cost + ' gold for ' + L.name + ', ' + R0.gold[b.side] + ' in the purse');
     const R = copy(R0), c = R.buildings.find((x) => x.id === bid);
     R.gold[c.side] -= L.cost;
@@ -255,10 +274,10 @@ export function buildBoardRts() {
     // past its first, only once it has sent a wave; then the ladder, a step at a time, in its order
     const sent = R.sent && R.sent[side], standing = (k) => R.buildings.some((b) => b.side === side && b.kind === k && b.raising <= 0);
     const want = S.builds.find((k) => !R.buildings.some((b) => b.side === side && b.kind === k));
-    const can = (K) => (!K.needs || standing(K.needs)) && (K.tier || 1) <= tierOf(cfg, R, side);
+    const can = (K) => !lockOf(cfg, R, side, K);
     const L = S.research || {}, step = sent ? (S.study || []).find((id) => !known(R, side)[id] && !R.buildings.some((b) => b.side === side && b.study && b.study.id === id)) : null;
-    const lab = step && R.buildings.find((b) => b.side === side && b.kind === L[step].at && b.raising <= 0 && !b.study);
-    if (step && lab && (!L[step].needs || known(R, side)[L[step].needs]) && R.gold[side] >= L[step].cost) R = research(B, cfg, R, lab.id, step);
+    const lab = step && R.buildings.find((b) => b.side === side && studiesAt(BU(cfg, side, b.kind), step) && b.raising <= 0 && !b.study);
+    if (step && lab && !lockOf(cfg, R, side, L[step]) && R.gold[side] >= L[step].cost) R = research(B, cfg, R, lab.id, step);
     // once it has sent a wave, it keeps back what the next thing it wants costs
     const nextBuild = want && want !== S.builds[0] && sent && can(BU(cfg, side, want)) ? BU(cfg, side, want).cost : 0;
     const nextStep = step && lab && !R.buildings.some((b) => b.side === side && b.study && b.study.id === step) ? L[step].cost : 0;
@@ -274,7 +293,7 @@ export function buildBoardRts() {
     // each standing building that trains an army trains in turn, by the army's count
     for (const k of S.builds) {
       const b = R.buildings.find((x) => x.side === side && x.kind === k);
-      const trains = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && (UN(cfg, side, t).tier || 1) <= tierOf(cfg, R, side)) : [];
+      const trains = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
       if (R.gold[side] - keep >= UN(cfg, side, kind).cost) R = train(B, cfg, R, b.id, kind);
@@ -329,7 +348,7 @@ export function buildBoardRts() {
   function gather(B, cfg, R, u, events) {
     const o = u.order, node = R.nodes.find((n) => n.at === o.node), cap = UN(cfg, u.side, u.kind).carry || CARRY;
     // home: the nearest standing base or depot (a depot nearer the nodes shortens the walk)
-    const p = [u.x, u.y], home = R.buildings.filter((b) => b.side === u.side && b.raising <= 0 && (roleOf(cfg, b) === 'base' || roleOf(cfg, b) === 'depot'))
+    const p = [u.x, u.y], home = R.buildings.filter((b) => b.side === u.side && b.raising <= 0 && isDepot(BU(cfg, b.side, b.kind)))
       .sort((a, b) => dist(mid(B, a.at), p) - dist(mid(B, b.at), p) || (a.id < b.id ? -1 : 1))[0];
     if (u.carry >= cap || ((!node || node.left <= 0) && u.carry > 0)) {
       if (!home) { u.order = { kind: 'stop' }; return; }
@@ -435,7 +454,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, roster, tierOf, incomeOf, start, order, train, build, research, rally, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, PLAIN, roster, tierOf, incomeOf, lockOf, start, order, train, build, research, rally, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -449,6 +468,7 @@ export const rtsBuild = _rts.build;
 export const rtsRally = _rts.rally;
 export const rtsResearch = _rts.research;
 export const rtsTierOf = _rts.tierOf;
+export const rtsLockOf = _rts.lockOf;
 export const rtsMind = _rts.mind;
 export const rtsTick = _rts.tick;
 export const rtsPath = _rts.path;

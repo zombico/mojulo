@@ -41,7 +41,7 @@ const HOUSE = {
   barracks: { role: 'barracks', hp: 320, cost: 150, time: 20 },
   works: { role: 'works', hp: 400, cost: 200, time: 25, needs: 'barracks' },
   defence: { role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
-  depot: { role: 'depot', hp: 250, cost: 100, time: 15 },
+  depot: { role: 'depot', hp: 250, cost: 100, time: 15, depot: true },
   wall: { role: 'wall', hp: 500, cost: 30, time: 6 },
   research: { role: 'research', hp: 300, cost: 150, time: 20, needs: 'barracks' },
 };
@@ -175,6 +175,8 @@ export function rtsRoster(G, cid) {
     // the mind's order: the machines, an income step, the showpieces, the rest
     const inc = Object.keys(research).filter((k) => research[k].gives.income);
     study.push(...['tier2', inc[0], 'tier3', ...inc.slice(1)].filter((k) => k && research[k]));
+    // the lab's research capability: every step of the ladder is researched there
+    buildings[at].studies = Object.keys(research);
   }
   if (machines.length) {
     const maker = things.find((e) => e.fns.includes('make'));

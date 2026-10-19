@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsLockOf, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -125,7 +125,7 @@ const OWN = {
   buildings: { ...RTS_BUILDINGS,
     works: { name: 'Works', role: 'works', hp: 400, cost: 200, time: 25, needs: 'barracks', trains: ['gunship', 'crew'] },
     tower: { name: 'Tower', role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
-    depot: { name: 'Depot', role: 'depot', hp: 250, cost: 100, time: 15 } },
+    depot: { name: 'Depot', role: 'depot', hp: 250, cost: 100, time: 15, depot: true } },
   worker: 'worker', base: 'base', army: ['soldier', 'archer'], builds: ['barracks', 'works'],
 };
 const own = (B, extra = {}, sides = { player: OWN }) => ({ ...quiet(B, extra), sides });
@@ -182,6 +182,29 @@ describe('a side\'s own roster', () => {
     for (let k = 0; k < 400; k++) { const o = rtsTick(B, cfg, D, 0.1); D = o.R; got += o.events.filter((e) => e.kind === 'gathered' && e.side === 'player').length; const u = D.units.find((x) => x.id === w.id); if (got) near = Math.min(near, Math.abs(u.y - 1.5)); }
     expect(got).toBeGreaterThan(2);
     expect(near).toBeGreaterThan(5);
+  });
+
+  it('composes a building of capabilities: one keep trains, researches and shoots, each of them locked as it says', () => {
+    // a keep that is a factory (a guard it trains once Drill is known), a research site (Drill, which waits on a
+    // barracks standing) and a stationary unit; a depot besides
+    const KEEP = { ...OWN,
+      units: { ...OWN.units, guard: { name: 'Guard', role: 'guard', hp: 130, atk: 5, range: 1.2, rate: 1, speed: 1.6, cost: 55, time: 9, needs: 'drill' } },
+      buildings: { ...OWN.buildings, keep: { name: 'Keep', role: 'keep', hp: 500, cost: 200, time: 10, trains: ['guard'], studies: ['drill'], atk: 8, range: 4, rate: 1 } },
+      research: { drill: { name: 'Drill', cost: 50, time: 5, needs: 'barracks', gives: {} } } };
+    const B = flat(7, 18), cfg = own(B, {}, { player: KEEP });
+    let R = raise(B, cfg, rtsStart(B, cfg), 'keep', 'D6');
+    const keep = R.buildings.find((b) => b.kind === 'keep').id;
+    expect(() => rtsTrain(B, cfg, R, keep, 'guard')).toThrow(/a Guard needs Drill researched first/);
+    expect(() => rtsResearch(B, cfg, R, keep, 'drill')).toThrow(/Drill needs a Barracks standing first/);
+    expect(rtsLockOf(cfg, R, 'player', KEEP.research.drill)).toBe('a Barracks standing');
+    R = raise(B, cfg, R, 'barracks', 'A6');
+    R = rtsResearch(B, cfg, { ...R, gold: { ...R.gold, player: 999 } }, keep, 'drill');
+    expect(() => rtsResearch(B, cfg, R, R.buildings.find((b) => b.kind === 'barracks').id, 'drill')).toThrow(/Drill is researched at the Keep, not the Barracks/);
+    R = run(B, cfg, R, 5.2).R;
+    expect(() => rtsTrain(B, cfg, R, keep, 'guard')).not.toThrow();
+    // and it shoots what comes in its range
+    R.units.push({ id: 'xe', side: 'enemy', kind: 'worker', hp: 40, x: 3.5, y: 8.5, at: at(B, 'D9'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 });
+    expect(run(B, cfg, R, 3).ev.some((e) => e.kind === 'shot' && e.from === keep && e.to === 'xe')).toBe(true);
   });
 
   it('is a draw when the gold is gone and nobody stands on either side', () => {
