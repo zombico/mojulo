@@ -43,6 +43,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   menu at the foot of the screen in reach of the thumbs, with the cover above. On touch, the level's control hint and
   the pause sheet say what the thumbs do instead of naming keys, and the pad steps aside while a menu, a battle or the
   journal is open.
+- **The exports carry it.** The desktop app opens in the screen's shape (a phone game upright at 450×800, a monitor
+  game at 1280×720). The Godot project holds the frame (`[display]`: the base viewport, `canvas_items` + `expand`, the
+  handheld orientation), and its kernel (0.23.0) keeps an upright game's view across the width, as the browser does.
+  The level cameras every engine reads take the screen's view. The Unity and Unreal guides add the two steps that match
+  the editor's play view and a mobile build's orientation. The touch pad and the screen's UI layout stay in the browser.
 - **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
   (a tablet or a screen frames them better); it is never refused.
 

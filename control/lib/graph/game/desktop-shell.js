@@ -7,8 +7,9 @@
  * because the levels fetch their hoisted figure and geometry banks within the folder and Chromium refuses fetch on
  * `file:`; over the scheme, fetch, module scripts, iframes and audio behave as they do over HTTP.
  *
- * Pure functions of (title, ref): same game, same bytes. Plain Node, no `@/` imports.
+ * Pure functions of (title, ref, screen): same game, same bytes. Plain Node, no `@/` imports.
  */
+import { readScreen } from './screen.js';
 
 // The Electron major the exported folder installs. `protocol.handle` and `net.fetch` need 25 or newer; the pin is
 // the major the smoke gate last ran against. Raising it changes every desktop export's package.json.
@@ -47,7 +48,18 @@ export const DESKTOP_GITIGNORE = 'node_modules/\ndist/\n';
  * The Electron main process. `--mojulo-smoke <page>…` is the machine gate's mode: each page loads in a hidden window,
  * and one `MOJULO_SMOKE {json}` line reports pages that failed, console errors and files the folder lacks.
  */
-export function desktopMainJs({ title, ref }) {
+// the window a game opens in: 1280×800, or for a game made for a screen (screen.js) its frame fitted inside that, so
+// a phone game opens upright (450×800) and a monitor game 16:9 (1280×720); the levels hold the frame either way
+const WINDOW = { width: 1280, height: 800 };
+export function desktopWindow(screen) {
+  const S = screen == null ? null : readScreen(screen);
+  if (!S) return WINDOW;
+  const [w, h] = S.aspect, k = Math.min(WINDOW.width / w, WINDOW.height / h);
+  return { width: Math.round(w * k), height: Math.round(h * k) };
+}
+
+export function desktopMainJs({ title, ref, screen = null }) {
+  const size = desktopWindow(screen);
   return `// A desktop window over this folder, written by mojulo's export_game { target: 'desktop' }.
 // The folder is also the web build: game.html plays from any static server. Here the window serves the folder over
 // its own game:// scheme, so the levels' shared banks load as they would over HTTP, and nothing leaves the machine.
@@ -98,8 +110,8 @@ app.whenReady().then(() => {
   );
 
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: ${size.width},
+    height: ${size.height},
     title: TITLE,
     backgroundColor: '#000000',
     autoHideMenuBar: true,

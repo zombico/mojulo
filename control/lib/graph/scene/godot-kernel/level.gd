@@ -944,7 +944,14 @@ func _build_cameras() -> void:
 		node.position = to_yup(t)
 		var q: Array = cam.get("rotation", [0, 0, 0, 1])
 		node.quaternion = r * Quaternion(float(q[0]), float(q[1]), float(q[2]), float(q[3]))
-		node.fov = rad_to_deg(float(cam.get("yfov", 1.0)))
+		var yfov := float(cam.get("yfov", 1.0))
+		if _upright():
+			# a game made for an upright screen (project.godot's handheld orientation, written from its `screen`): the camera
+			# holds the frame's width as the web build does, so a taller phone sees more above and below, never less across
+			node.keep_aspect = Camera3D.KEEP_WIDTH
+			node.fov = rad_to_deg(2.0 * atan(tan(yfov / 2.0) * float(cam.get("aspectRatio", 1.0))))
+		else:
+			node.fov = rad_to_deg(yfov)
 		node.near = 0.1
 		node.far = 8000.0
 		add_child(node)
@@ -971,6 +978,16 @@ func _spawn_walker() -> void:
 	walker.kill_y = kill_y
 	add_child(walker)
 	walker.build_body(eye, eye_scale)
+	# upright, the walker's eye looks across the frame's width the level's first view does (_build_cameras)
+	var view0: Camera3D = get_node_or_null("View0")
+	if _upright() and view0 != null and walker.head != null:
+		walker.head.keep_aspect = Camera3D.KEEP_WIDTH
+		walker.head.fov = view0.fov
+
+
+# the game is made for an upright screen: project.godot's [display] says portrait (godot-project.js, from `screen`)
+func _upright() -> bool:
+	return int(ProjectSettings.get_setting("display/window/handheld/orientation", 0)) == 1
 
 
 func _build_mechanics() -> void:

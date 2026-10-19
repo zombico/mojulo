@@ -329,6 +329,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     music: { menuFile, menuDb: toDb(music.menuVolume), stingers },
     shellExtras: ['menu', 'setup', 'difficulty', 'theme', 'front'].filter((k) => manifest[k] != null),
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,
+    ...(manifest.screen != null ? { screen: manifest.screen } : {}),
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
