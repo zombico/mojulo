@@ -280,6 +280,23 @@ in CSS 3D. In progress:
   and the mind to 38,442. A test now refuses two top-level declarations of one name in either closure (a second
   `settle` had silently replaced the first). Re-expressing the existing modes' turn loops as phases was dropped: none
   needs a response window.
+- **The engine, stage 4: world effects, counters, ready and exhausted**, built. An object's characteristics now
+  gather the world effects that cover it: static abilities of objects in play (an aura on one's own summons, a curse
+  on the foe's, a cost cut on the hand) and the game's own (`world`). They apply in one fixed order, written down and
+  not pretending to be layered: set, then add (numbers, or objects of numbers summed key by key, a cost never below
+  nothing), then counters, then grant and remove abilities, by timestamp within each (the time a source entered play,
+  or a modifier was made). A world effect's sources are read from their definitions and their own modifiers, never
+  from other world effects, so nothing depends on anything; copies and changes of control are left out. A game with
+  no static ability takes the shared definition as before. Effects gain a boost (lasting, or until the turn ends,
+  when it is taken off), counters placed or removed, and readying; an ability may cost counters from its own object,
+  and a card may enter play with counters (a wand with three charges); a step may empty a pool; damage never goes
+  below nothing. Utilization gains ready objects: a summon left ready at the turn's end while it could have struck is
+  idle, so the dial now reaches forgotten strikes (in the duel hard beats easy 11 of 12, easy using 84 per cent). The
+  duel grows eight cards that use each (an aura, a foe aura, a cost cut, a rally until the turn ends, growth
+  counters, a charged wand, a readying spell, a curse that sets power and strips abilities), and the page shows stats
+  as derived (raised green, lowered brown) and counters. Machine gates: forty random duels keep every invariant with
+  the new cards; every other mode replays move for move as before (the world-effect path costs nothing where there is
+  none); perft unchanged; the kernel grew to 125,634 bytes.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

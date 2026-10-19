@@ -913,11 +913,21 @@ export function buildTabletop() {
   // them. A shared supply of like things (a supply pile, a bag of tiles, a bank, a stock of meeples) is counted or
   // listed by kind, and an object is made when one comes out of it.
   //   derive(K, S, id) → the object's characteristics: the definition of its kind (K.defs: the game's pieces, card
-  //     types, tile types and economy cards, one namespace), then its modifiers in a fixed order: set, add, counters (a
-  //     counter named after a stat adds to it), grant and remove abilities; by timestamp within each. With no counters
-  //     and no modifiers it is the definition itself, shared, so a game that uses neither pays nothing.
-  //   modifier: { t, set?: { <field>: v, stats?: {…} }, add?: { <field>: n, stats?: {…} }, grant?: [ability],
-  //     remove?: [ability] | 'all' }   (an ability is any value; removed by equality of its JSON)
+  //     types, tile types and economy cards, one namespace), then the modifiers that bear on it: its own, and the world
+  //     effects that cover it (below). One fixed order, not layers: set (a field replaced; an object of values merged
+  //     key by key), then add (numbers summed; an object of numbers summed key by key; a cost never below 0), then
+  //     counters (a counter named after a stat adds to it), then grant and remove abilities; by timestamp within each.
+  //     With no counters, no modifiers and no world effect it is the definition itself, shared, so a game that uses
+  //     none of them pays nothing.
+  //   modifier: { t, set?: { <field>: v }, add?: { <field>: n | { <key>: n } }, grant?: [ability], remove?: [ability] |
+  //     'all', until?: 'turn' (gone when the turn ends) }   (an ability is any value; removed by equality of its JSON)
+  //   A world effect: a static ability of an object in play, { static: { affects, mod } } (its timestamp the source's
+  //     entry into play), or the game's own, G.world: [{ affects, mod }] (timestamp 0). affects: { side?: 'mine' (the
+  //     default) | 'foe' | 'any' (from the source's controller; the game's own cover every side), zone?: 'field' (the
+  //     default: objects in play) | 'hand' | 'any', kind?: [kind], summon?: true, tag?: { <tag>: value }, self?: true
+  //     (the source itself too) }. A world effect's sources are read from their definitions and their own modifiers,
+  //     never from other world effects: nothing depends on anything, so nothing is circular. No copies, no changes of
+  //     control.
   function defsCompile(K) {
     const G = K.G, defs = {}, from = {};
     const add = (family, table) => {
@@ -933,23 +943,62 @@ export function buildTabletop() {
     add('tile', G.tiles && G.tiles.types);
     add('card', G.cards);
     K.defs = defs;
+    K.statics = !!(G.world && G.world.length) || Object.values(defs).some((d) => d.abilities.some((ab) => ab && ab.static));
   }
-  function derive(K, S, id) {
-    const o = S.pieces[id], base = K.defs[o.kind];
-    if (!o.counters && !(o.mods && o.mods.length)) return base;
+  function withMods(base, mods, counters) {
     const out = Object.assign({}, base, { stats: Object.assign({}, base.stats), abilities: base.abilities.slice() });
-    const mods = (o.mods || []).slice().sort((a, b) => (a.t || 0) - (b.t || 0));
-    const each = (field, fn) => { for (const m of mods) if (m[field]) fn(m[field]); };
-    each('set', (x) => { for (const f in x) { if (f === 'stats') Object.assign(out.stats, x.stats); else out[f] = x[f]; } });
-    each('add', (x) => { for (const f in x) { if (f === 'stats') { for (const st in x.stats) out.stats[st] = (out.stats[st] || 0) + x.stats[st]; } else out[f] = (out[f] || 0) + x[f]; } });
-    for (const c in o.counters || {}) if (c in out.stats) out.stats[c] += o.counters[c];
-    for (const m of mods) {
+    const list = mods.slice().sort((a, b) => (a.t || 0) - (b.t || 0));
+    const isMap = (x) => x && typeof x === 'object' && !Array.isArray(x);
+    for (const m of list) for (const f in m.set || {}) out[f] = isMap(m.set[f]) && isMap(out[f]) ? Object.assign({}, out[f], m.set[f]) : m.set[f];
+    for (const m of list) {
+      for (const f in m.add || {}) {
+        const x = m.add[f];
+        if (isMap(x)) { out[f] = Object.assign({}, out[f]); for (const k in x) out[f][k] = (out[f][k] || 0) + x[k]; }
+        else out[f] = (out[f] || 0) + x;
+      }
+    }
+    if (isMap(out.cost)) { out.cost = Object.assign({}, out.cost); for (const k in out.cost) out.cost[k] = Math.max(0, out.cost[k]); }
+    else if (typeof out.cost === 'number') out.cost = Math.max(0, out.cost);
+    for (const c in counters || {}) if (c in out.stats) out.stats[c] += counters[c];
+    for (const m of list) {
       if (m.remove === 'all') out.abilities = [];
       else if (m.remove) { const gone = m.remove.map((a) => JSON.stringify(a)); out.abilities = out.abilities.filter((a) => gone.indexOf(JSON.stringify(a)) < 0); }
       if (m.grant) out.abilities = out.abilities.concat(m.grant);
     }
     return out;
   }
+  // an object's characteristics from its own modifiers alone (a world effect's source is read so)
+  function own(K, S, id) {
+    const o = S.pieces[id], base = K.defs[o.kind];
+    return !o.counters && !(o.mods && o.mods.length) ? base : withMods(base, o.mods || [], o.counters);
+  }
+  const inPlay = (o) => o.zone === 'field' || (o.at >= 0 && o.zone === undefined);
+  function covers(K, S, A, srcSide, srcId, id) {
+    const a = A || {}, o = S.pieces[id], d = K.defs[o.kind], zone = a.zone || 'field';
+    if (zone !== 'any' && (zone === 'field' ? !inPlay(o) : o.zone !== zone)) return false;
+    if (srcId === id && !a.self) return false;
+    if (srcSide >= 0 && (a.side || 'mine') !== 'any' && ((a.side || 'mine') === 'mine') !== (o.side === srcSide)) return false;
+    if (a.kind && a.kind.indexOf(o.kind) < 0) return false;
+    if (a.summon && !d.summon) return false;
+    for (const t in a.tag || {}) if ((d.tags || {})[t] !== a.tag[t]) return false;
+    return true;
+  }
+  function worldOn(K, S, id) {
+    const out = [];
+    for (const w of K.G.world || []) if (covers(K, S, w.affects, -1, -1, id)) out.push(Object.assign({}, w.mod, { t: 0 }));
+    for (let src = 0; src < S.pieces.length; src++) {
+      const so = S.pieces[src];
+      if (!inPlay(so)) continue;
+      for (const ab of own(K, S, src).abilities) if (ab && ab.static && covers(K, S, ab.static.affects, so.side, src, id)) out.push(Object.assign({}, ab.static.mod, { t: so.t || 0 }));
+    }
+    return out;
+  }
+  function derive(K, S, id) {
+    const o = S.pieces[id], base = K.defs[o.kind], world = K.statics ? worldOn(K, S, id) : null;
+    if (!o.counters && !(o.mods && o.mods.length) && !(world && world.length)) return base;
+    return withMods(base, (o.mods || []).concat(world || []), o.counters);
+  }
+  const stamp = (S) => { S.clock = (S.clock || 0) + 1; return S.clock; };
   function make(S, o) { S.pieces.push(o); return S.pieces.length - 1; }
   const kindsOf = (S, ids) => ids.map((id) => (id === null || id === undefined ? null : S.pieces[id].kind));
 
@@ -1371,6 +1420,7 @@ export function buildTabletop() {
       if (S.phase >= list.length) {
         // the round's phases done, each seat's turn in order; the last turn done, the round ends
         if (R.turn && S.part !== 'turn') { S.part = 'turn'; S.seat = 0; beginTurn(K, S); continue; }
+        if (S.part === 'turn') endTurn(S);
         if (S.part === 'turn' && ++S.seat < K.players.length) { beginTurn(K, S); continue; }
         roundEnd(K, S);
         return;
@@ -1532,14 +1582,18 @@ export function buildTabletop() {
   //   a card (piles.types): { cost?: { <res>: n }, summon?: true (it enters the field, exhausted), stats?: { power,
   //     guard }, fast?: true (cast in any window it holds the initiative in), do?: [effect] (a spell's),
   //     abilities?: [{ when: 'enters' | 'dies' | 'turn' (its controller's, at the start) | 'foe-casts', do: [effect] }
-  //       | { act: { exhaust?: true, cost?: { <res>: n } }, do: [effect], fast?: true }] }
+  //       | { act: { exhaust?: true, cost?: { <res>: n }, spend?: { <counter>: n } }, do: [effect], fast?: true }
+  //       | { static: { affects, mod } }], counters?: { <name>: n } (on entering play) }
   //   effect: { damage: n | 'power' (the source's, as it was when used), to: 'target' | 'foe' | 'self' | 'foe-summons',
   //     of?: 'any' | 'summon' | 'foe-summon' | 'player' } | { destroy: true, to: 'target', of } | { exhaust: true,
-  //     to: 'target', of } | { draw: n } | { get: { <res>: n } } | { counter: true } (the spell beneath it, cancelled)
+  //     to: 'target', of } | { ready: true, to, of } | { boost: modifier, to, of, until?: 'turn' } | { counters:
+  //     { <name>: n }, to, of } (placed; negative, removed) | { draw: n } | { get: { <res>: n } } | { counter: true }
+  //     (the spell beneath it, cancelled); `to` also 'my-summons' and 'this' (the source)
   //     A cast's or an ability's one target is chosen when it goes on; a trigger's 'target' is the first foe; a target
   //     gone by resolution is skipped.
   //   step: { ready: 'mine' } (the active player's objects) | { draw: n } | { refill: { pool, grow?: 1, max? } } (the
   //     pool's turn allowance grows, and the pool is set to it: what was left is gone) | { mend: true } (damage healed)
+  //     | { empty: pool } (the active player's, to nothing). A turn's end takes off every modifier until: 'turn'.
   //   moves: { type: 'cast', card, id, target? } | { type: 'use', id, ab, target? } | { type: 'end' } (the active phase)
   //     | { type: 'pass' } (a window)
   //   link: { side, src, card: bool, ab, target, power }
@@ -1586,6 +1640,7 @@ export function buildTabletop() {
       S.pools[a][F.pool] = cap;
     }
     if (st.mend) for (const o of S.pieces) if (o.zone === 'field') delete o.damage;
+    if (st.empty) S.pools[a][st.empty] = 0;
   }
 
   // the triggers an event raises, waiting to go on the chain
@@ -1627,6 +1682,7 @@ export function buildTabletop() {
         if (!ab.act || !(ab.fast || sorcery)) return;
         if (ab.act.exhaust && S.pieces[id].ready === false) return;
         if (!affords(S.pools[side], ab.act.cost)) return;
+        if (!affords(S.pieces[id].counters || {}, ab.act.spend)) return;
         for (const t of targets(ab.do)) out.push({ type: 'use', id, ab: i, target: t });
       });
     }
@@ -1667,7 +1723,18 @@ export function buildTabletop() {
     else enterPhase(K, S);
   }
 
+  // counters added (negative: removed); a count at nothing is gone
+  function countOn(o, add) {
+    const c = Object.assign({}, o.counters);
+    for (const k in add) { c[k] = (c[k] || 0) + add[k]; if (c[k] <= 0) delete c[k]; }
+    if (Object.keys(c).length) o.counters = c; else delete o.counters;
+  }
+  // a turn ends: what lasted until then is gone
+  function endTurn(S) {
+    for (const o of S.pieces) if (o.mods) { o.mods = o.mods.filter((m) => m.until !== 'turn'); if (!o.mods.length) delete o.mods; }
+  }
   function hurt(K, S, t, n) {
+    n = Math.max(0, n);
     if (t.p !== undefined) { const L = K.G.round.lose; if (L) S.pools[t.p][L.pool] -= n; }
     else if (onField(S, t.o)) S.pieces[t.o].damage = (S.pieces[t.o].damage || 0) + n;
   }
@@ -1691,6 +1758,8 @@ export function buildTabletop() {
     if (e.to === 'foe') return K.players.map((_, p) => ({ p })).filter((t) => t.p !== link.side);
     if (e.to === 'self') return [{ p: link.side }];
     if (e.to === 'foe-summons') { const out = []; S.zones.forEach((Z, s) => { if (s !== link.side) for (const id of Z.field) out.push({ o: id }); }); return out; }
+    if (e.to === 'my-summons') return S.zones[link.side].field.map((id) => ({ o: id }));
+    if (e.to === 'this') return onField(S, link.src) ? [{ o: link.src }] : [];
     return [];
   }
   function resolveTop(K, S) {
@@ -1700,6 +1769,8 @@ export function buildTabletop() {
       const o = S.pieces[link.src];
       o.zone = 'field';
       o.ready = false;
+      o.t = stamp(S);
+      if (def.counters) o.counters = Object.assign({}, def.counters);
       S.zones[side].field.push(link.src);
       fire(K, S, 'enters', { id: link.src });
     } else {
@@ -1708,6 +1779,9 @@ export function buildTabletop() {
         if (e.damage !== undefined) { const n = e.damage === 'power' ? link.power : e.damage; for (const t of targetsOf(K, S, link, e)) hurt(K, S, t, n); }
         if (e.destroy) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) die(K, S, t.o);
         if (e.exhaust) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) S.pieces[t.o].ready = false;
+        if (e.ready) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) delete S.pieces[t.o].ready;
+        if (e.boost) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) { const ob = S.pieces[t.o]; (ob.mods = ob.mods || []).push(Object.assign({}, e.boost, { t: stamp(S) }, e.until ? { until: e.until } : {})); }
+        if (e.counters) for (const t of targetsOf(K, S, link, e)) if (t.o !== undefined) countOn(S.pieces[t.o], e.counters);
         if (e.draw) drawFor(S, side, e.draw);
         for (const r in e.get || {}) S.pools[side][r] = (S.pools[side][r] || 0) + e.get[r];
         if (e.points) S.score[side] += e.points;
@@ -1761,8 +1835,9 @@ export function buildTabletop() {
       fire(K, N, 'foe-casts', { side });
     } else if (m.type === 'use') {
       const ab = derive(K, N, m.id).abilities[m.ab];
-      if (ab.act.exhaust) N.pieces[m.id].ready = false;
+      if (ab.act.exhaust) { N.pieces[m.id].ready = false; spend(N, side, 'ready', 1); }
       pay(ab.act.cost);
+      if (ab.act.spend) countOn(N.pieces[m.id], Object.fromEntries(Object.entries(ab.act.spend).map(([c, n]) => [c, -n])));
       N.links.push({ side, src: m.id, card: false, ab: m.ab, target: m.target || null, power: (derive(K, N, m.id).stats || {}).power || 0 });
     } else if (m.type === 'pass') {
       N.passed[side] = true;
@@ -1775,6 +1850,8 @@ export function buildTabletop() {
     } else if (m.type === 'end') {
       // a refilled pool left while something could still be paid from it is idle
       const could = turnMoves(K, S, side, false);
+      // a ready object whose exhausting ability could have been used, left ready, is idle too
+      spend(N, side, 'ready', new Set(could.filter((x) => x.type === 'use' && derive(K, S, x.id).abilities[x.ab].act.exhaust).map((x) => x.id)).size, true);
       for (const r of K.round.refills) if ((S.pools[side][r] || 0) > 0 && could.some((x) => { const c = x.type === 'cast' ? derive(K, S, x.id).cost : derive(K, S, x.id).abilities[x.ab].act.cost; return c && c[r] > 0; })) spend(N, side, r, S.pools[side][r], true);
       N.phase += 1;
       N.ran = false;

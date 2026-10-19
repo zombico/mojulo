@@ -3,7 +3,8 @@
  * triggers, named by its principle. Two players at twenty life; each turn its player readies its summons, gains one
  * more energy (up to eight; what was left is gone) and draws; then casts summons and spells and strikes with ready
  * summons, while the other answers with fast cards and fast abilities on the chain. Summons enter exhausted. A player
- * at no life loses; after twenty-five rounds the most life wins.
+ * at no life loses; after twenty-five rounds the most life wins. Some cards change others while in play (an aura, a
+ * cost cut), for a turn (a rally) or for good (counters, a curse); a wand spends its charges.
  *
  *   responseDuel({ seed? })
  */
@@ -30,8 +31,19 @@ const CARDS = {
   mend: { name: 'mend', cost: e(1), fast: true, do: [{ get: { life: 3 } }], colour: '#e8c8c8' },
   deny: { name: 'deny', cost: e(2), fast: true, do: [{ counter: true }], colour: '#4a5a8a' },
   quake: { name: 'quake', cost: e(4), do: [{ damage: 2, to: 'foe-summons' }], colour: '#8a6a4a' },
+  captain: { name: 'captain', cost: e(3), summon: true, stats: { power: 2, guard: 2 }, abilities: [strike, { static: { affects: { side: 'mine', summon: true }, mod: { add: { stats: { power: 1 } } } } }], colour: '#b58a3a' },
+  fog: { name: 'fog', cost: e(2), summon: true, stats: { power: 0, guard: 3 }, abilities: [{ static: { affects: { side: 'foe', summon: true }, mod: { add: { stats: { power: -1 } } } } }], colour: '#9aa3a8' },
+  mentor: { name: 'mentor', cost: e(2), summon: true, stats: { power: 1, guard: 2 }, abilities: [strike, { static: { affects: { side: 'mine', zone: 'hand', summon: true }, mod: { add: { cost: { energy: -1 } } } } }], colour: '#6a9a8a' },
+  rally: { name: 'rally', cost: e(2), do: [{ boost: { add: { stats: { power: 2, guard: 1 } } }, to: 'my-summons', until: 'turn' }], colour: '#d98a3a' },
+  growth: { name: 'growth', cost: e(2), fast: true, do: [{ counters: { power: 1, guard: 1 }, to: 'target', of: 'summon' }], colour: '#5c9446' },
+  wand: { name: 'wand', cost: e(3), summon: true, stats: { power: 0, guard: 2 }, counters: { charge: 3 }, abilities: [{ act: { exhaust: true, spend: { charge: 1 } }, do: [{ damage: 2, to: 'target', of: 'any' }] }], colour: '#8a5ab5' },
+  rouse: { name: 'rouse', cost: e(1), fast: true, do: [{ ready: true, to: 'target', of: 'summon' }], colour: '#e8b84a' },
+  curse: { name: 'curse', cost: e(3), do: [{ boost: { set: { stats: { power: 0 } }, remove: 'all' }, to: 'target', of: 'foe-summon' }], colour: '#4a2a4a' },
 };
-const DECK = { scout: 3, warden: 2, brute: 3, giant: 2, healer: 1, sparker: 2, martyr: 2, watcher: 1, sniper: 2, bolt: 3, blast: 2, snare: 2, ruin: 1, insight: 2, mend: 1, deny: 2, quake: 1 };
+const DECK = {
+  scout: 3, warden: 2, brute: 3, giant: 2, healer: 1, sparker: 2, martyr: 2, watcher: 1, sniper: 2, bolt: 3, blast: 2, snare: 2,
+  ruin: 1, insight: 2, mend: 1, deny: 2, quake: 1, captain: 1, fog: 1, mentor: 1, rally: 1, growth: 1, wand: 1, rouse: 1, curse: 1,
+};
 
 export function responseDuel({ seed = 1 } = {}) {
   return {

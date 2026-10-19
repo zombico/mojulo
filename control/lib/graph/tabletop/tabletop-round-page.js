@@ -73,6 +73,9 @@ export function roundPageHtml(G, L, K, opts = {}) {
   .c .cc{position:absolute;right:5px;top:13px;min-width:18px;height:18px;border-radius:9px;background:#5a7ac4;color:#fff;font-weight:700;text-align:center;line-height:18px;font-size:11px;padding:0 4px}
   .c .st{position:absolute;right:5px;bottom:5px;font-weight:700;background:#2b2622;color:#fbf7ee;border-radius:8px;padding:0 6px;font-size:12px}
   .c .st.hurt{background:#c4362a}
+  .c .st.up{background:#2f8a4f}
+  .c .st.down{background:#8a5a2f}
+  .c .cnt{position:absolute;right:5px;bottom:26px;font-size:10px;background:#e8d79a;color:#2b2622;border-radius:8px;padding:0 5px}
   .c .fx{font-size:11px;line-height:1.25;max-height:62px;overflow:hidden}
   #chain{display:flex;flex-direction:column;gap:4px}
   .link{background:rgba(255,255,255,.12);border-radius:6px;padding:3px 8px;font-size:13px}
@@ -162,15 +165,29 @@ export function tabletopRoundClient(D, T, M) {
       if (e.draw) return 'draw ' + e.draw;
       if (e.get) return 'gain ' + pool(e.get);
       if (e.counter) return 'cancel a spell';
+      if (e.ready) return 'ready ' + to;
+      if (e.counters) return pool(e.counters) + ' counters on ' + to;
+      if (e.boost) return modText(e.boost) + ' ' + to + (e.until === 'turn' ? ' this turn' : '');
       return '';
     }).filter(Boolean).join(', ');
+  }
+  // a modifier in words: what it sets, adds, takes away
+  function modText(m) {
+    const out = [];
+    const st = (x) => Object.keys(x).map((k) => k + ' ' + x[k]).join(', ');
+    if (m.set) out.push((m.set.stats ? st(m.set.stats) : '') + (m.set.stats ? '' : st(m.set)));
+    if (m.add) for (const f in m.add) out.push(typeof m.add[f] === 'number' ? (m.add[f] > 0 ? '+' : '') + m.add[f] + ' ' + f : Object.keys(m.add[f]).map((k) => (m.add[f][k] > 0 ? '+' : '') + m.add[f][k] + ' ' + k).join(', '));
+    if (m.remove) out.push('no abilities');
+    if (m.grant) out.push('gains abilities');
+    return out.filter(Boolean).join(', ');
   }
   function duelText(t) {
     const out = [];
     if (t.fast) out.push('fast');
     if (t.do) out.push(effectText(t.do));
     for (const ab of t.abilities || []) {
-      if (ab.act) out.push((ab.act.exhaust ? '⟳' : 'use') + (ab.fast ? ' fast' : '') + ': ' + effectText(ab.do));
+      if (ab.static) out.push((ab.static.affects && ab.static.affects.zone === 'hand' ? 'your hand: ' : (ab.static.affects && ab.static.affects.side === 'foe' ? 'foe summons: ' : 'your summons: ')) + modText(ab.static.mod));
+      else if (ab.act) out.push((ab.act.exhaust ? '⟳' : 'use') + (ab.act.spend ? ' −' + pool(ab.act.spend) : '') + (ab.fast ? ' fast' : '') + ': ' + effectText(ab.do));
       else out.push({ enters: 'enters', dies: 'dies', turn: 'turn start', 'foe-casts': 'foe casts' }[ab.when] + ': ' + effectText(ab.do));
     }
     return out.join('; ');
@@ -179,13 +196,16 @@ export function tabletopRoundClient(D, T, M) {
     o = o || {};
     const t = T.derive(K, S, id), tags = t.tags || {}, ob = S.pieces[id];
     const fx = duel ? duelText(t) : [t.points ? t.points + ' point' + (t.points > 1 ? 's' : '') : ''].filter(Boolean).join(', ');
-    const st = t.stats && t.stats.guard !== undefined ? '<div class="st' + (ob.damage ? ' hurt' : '') + '">' + (t.stats.power || 0) + '/' + (t.stats.guard - (ob.zone === 'field' ? ob.damage || 0 : 0)) + '</div>' : '';
+    // stats as derived: raised by what bears on it, green; lowered, brown; damaged, red
+    const b0 = K.defs[t.kind].stats || {}, delta = t.stats ? (t.stats.power || 0) - (b0.power || 0) + (t.stats.guard || 0) - (b0.guard || 0) : 0;
+    const st = t.stats && t.stats.guard !== undefined ? '<div class="st' + (ob.damage ? ' hurt' : delta > 0 ? ' up' : delta < 0 ? ' down' : '') + '">' + (t.stats.power || 0) + '/' + (t.stats.guard - (ob.zone === 'field' ? ob.damage || 0 : 0)) + '</div>' : '';
+    const cnt = ob.counters ? '<div class="cnt">' + esc(Object.keys(ob.counters).map((c) => c + ' ' + ob.counters[c]).join(' · ')) + '</div>' : '';
     const cost = duel && t.cost ? '<div class="cc">' + Object.values(t.cost).reduce((a, b) => a + b, 0) + '</div>' : '';
     return '<div class="c' + (o.small ? ' small' : '') + (o.go ? ' go' : '') + (ob.zone === 'field' && ob.ready === false ? ' spent' : '') + (o.picked ? ' picked' : '') + '"' + (o.data ? ' ' + o.data : '') + ' title="' + esc((t.name || t.kind) + (fx ? ': ' + fx : '')) + '">'
       + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div><div class="nm">' + esc(t.name || t.kind) + '</div>' + cost
       + (fx ? '<div class="fx">' + esc(fx) + '</div>' : '')
       + (Object.keys(tags).length ? '<div class="tg">' + esc(Object.keys(tags).map((k) => k + ' ' + tags[k]).join(' · ')) + '</div>' : '')
-      + st + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
+      + st + cnt + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
   }
   const targetName = (t) => (t.p !== undefined ? name(t.p) : (S.pieces[t.o] ? (K.defs[S.pieces[t.o].kind].name || S.pieces[t.o].kind) : '?'));
   function linkText(l) {
