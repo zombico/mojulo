@@ -22,6 +22,9 @@
  *   quickly: the camera goes to it); . the next idle worker, the camera to it
  *   standing orders: I what the selected kind does when idle (a worker: wait, gather, repair; a fighter: wait, hold);
  *   Y the selected building repeats what it trains (each in turn, then off); C the selected kind casts on its own
+ *   the fog (cfg.fog): ground no unit or building of the player's has seen dark, ground seen before dimmed, the foe's
+ *   units only where the player sees them, its buildings remembered as last seen (a grey ghost, no health), the
+ *   enemy's count what is in sight; an order on a remembered building attack-moves there
  *
  * `boardRtsPage(api)` runs on the page only, inside the board channel's block (api: { THREE, scene, camera, renderer,
  * D, B, root, tops, panel, FX, RTK, spotAt, worldAt, push }); emitted only when a board has `rts`. It returns
@@ -180,16 +183,48 @@ export function boardRtsPage(api) {
     const r = new THREE.Mesh(new THREE.RingGeometry(A.r * cell * 0.5 - 0.06, A.r * cell * 0.5, 48), basic(A.who === 'foe' ? 0xb07dff : 0x7dffb0, 0.28));
     r.position.z = 0.05; g.add(r);
   }
+  // ── the fog: a veil a spot, dark where the player never saw, dim where it saw before; ghosts where it remembers a
+  // building that is gone ──
+  const fogged = !!cfg.fog, veils = [], ghosts = {};
+  let V = fogged ? RTK.view(B, cfg, R, 'player') : null;
+  function ghostly(g, on) {
+    if (g.userData.ghost === on) return;
+    g.userData.ghost = on;
+    g.traverse((o) => { if (o.isMesh && o.material && o.material.color && !o.material.map) { o.material.transparent = on || o.material.opacity < 1; if (on) { o.userData.was = o.userData.was == null ? o.material.opacity : o.userData.was; o.material.opacity = 0.35; } else if (o.userData.was != null) o.material.opacity = o.userData.was; } });
+  }
+  function drawFog() {
+    if (!veils.length) for (let i = 0; i < B.spots.length; i++) {
+      const t = tops[i];
+      if (!t) { veils.push(null); continue; }
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(cell, cell), basic(0x05070c, 0.8)); m.position.set(t[0], t[1], t[2] + 0.3); m.renderOrder = 5; root.add(m); veils.push(m);
+    }
+    for (let i = 0; i < veils.length; i++) {
+      const m = veils[i];
+      if (!m) continue;
+      const o = V.seen[i] ? 0 : V.explored[i] ? 0.45 : 0.82;
+      m.visible = o > 0;
+      if (m.material.opacity !== o && o > 0) m.material.opacity = o;
+    }
+    // what it remembers of a building that is no longer there (it has not seen it fall)
+    const live = {};
+    for (const gh of V.ghosts) {
+      if (R.buildings.some((b) => b.id === gh.id)) continue;
+      live[gh.id] = 1;
+      if (!ghosts[gh.id]) { const g = new THREE.Mesh(new THREE.BoxGeometry(cell * 0.7, cell * 0.7, 1.2), basic(0x9aa0a8, 0.35)); const t = tops[gh.at]; g.position.set(t[0], t[1], t[2] + 0.6); root.add(g); ghosts[gh.id] = g; }
+    }
+    for (const id in ghosts) if (!live[id]) { root.remove(ghosts[id]); delete ghosts[id]; }
+  }
   const meshes = {}, nodes = {};
   let rangeRing = null, lastDt = 0;
   function sync() {
     const live = {};
+    if (fogged) V = RTK.view(B, cfg, R, 'player');
     for (const u of R.units) {
       live[u.id] = 1;
       if (!meshes[u.id]) { meshes[u.id] = unitMesh(u); root.add(meshes[u.id]); }
       const g = meshes[u.id], w = api.worldAt([u.x, u.y]);
       g.position.set(w[0], w[1], w[2]);
-      g.visible = !u.inside;
+      g.visible = !u.inside && !(fogged && u.side === 'enemy' && RTK.hidden(B, cfg, R, u, 'player'));
       // deployed: squat and wide, as a siege set to fire
       const squat = u.mode ? 0.72 : 1; g.userData.body.scale.set(2 - squat, 2 - squat, squat);
       if (u.path.length) { const to = tops[u.path[0]]; g.userData.body.rotation.z = Math.atan2(to[1] - w[1], to[0] - w[0]); }
@@ -207,8 +242,17 @@ export function boardRtsPage(api) {
       if (!g.userData.look) { g.userData.box.position.z = (g.userData.box.geometry.parameters.depth * up) / 2; g.userData.roof.visible = up >= 1; }
       fillBar(g.userData.fill, b.hp / b.hpMax, 1.2);
       g.userData.ring.visible = selB === b.id;
+      // in the fog: the foe's building where the player sees it, else as last seen (grey, no health), else not at all
+      if (fogged && b.side === 'enemy') {
+        const seen = !!V.seen[b.at], mem = R.mem.player[b.id];
+        g.visible = seen || !!mem;
+        const back = g.children[g.children.indexOf(g.userData.fill) - 1];
+        g.userData.fill.visible = seen; if (back) back.visible = seen;
+        ghostly(g, !seen);
+      }
     }
     for (const id in meshes) if (!live[id]) { root.remove(meshes[id]); delete meshes[id]; }
+    if (fogged) drawFog();
     // one fighter selected: its reach on the ground
     const one = sel.length === 1 && R.units.find((u) => u.id === sel[0]), reach = one && RTK.statsOf(cfg, one).range;
     if (rangeRing && (!one || rangeRing.userData.r !== reach)) { root.remove(rangeRing); rangeRing = null; }
@@ -265,7 +309,7 @@ export function boardRtsPage(api) {
     const k = raisable[buildK % raisable.length], K = P.buildings[k], need = K && needsOf(K);
     const sup = RTK.supplyOf(cfg, R, 'player'), ore = P.res2 ? `   ${RTK.res2Name(cfg, 'player')} ${(R.ore && R.ore.player) || 0}` : '';
     const top = `${clock(R.t)}${paused ? '  paused' : ''}${SPEEDS[speedK] !== 1 ? `  ×${SPEEDS[speedK]}` : ''}   apm ${RTK.apmOf(R, 'player')} · them ${RTK.apmOf(R, 'enemy')}\n`;
-    const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
+    const text = top + `gold ${R.gold.player}${ore}${sup.cap ? `   supply ${sup.used} / ${sup.cap}` : ''}   workers ${workers}   army ${mine.length - workers}   tier ${tier()}${cfg.doctrine && cfg.doctrine.player ? `   ${RTK.DOCTRINES[cfg.doctrine.player].name.toLowerCase()}` : ''}   enemy ${fogged ? `${V.units.filter((u) => u.side === 'enemy').length} in sight` : R.units.filter((u) => u.side === 'enemy').length}\n${what || 'click or drag to select'}${armed ? `\n${armed === 'amove' ? 'attack-move: click where' : `build a ${K.name} (${K.cost})${need ? `, needs ${need}` : ''}: click a spot · B: the next`}` : ''}`;
     if (text !== said) { pan.textContent = text; said = text; }
   }
 
@@ -292,7 +336,9 @@ export function boardRtsPage(api) {
     if (ride) { act({ k: 'order', ids: sel.filter((id) => id !== ride.id), o: { kind: 'board', target: ride.id } }); return 'board'; }
     if (workersSel.length && mineB && mineB.raising > 0) { act({ k: 'order', ids: workersSel, o: { kind: 'build', target: mineB.id } }); return 'build'; }
     if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { act({ k: 'order', ids: workersSel, o: { kind: 'repair', target: (mineB || mineU).id } }); return 'repair'; }
-    const foe = near(R.units.filter((x) => x.side === 'enemy'), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i);
+    const foe = near(R.units.filter((x) => x.side === 'enemy' && !(fogged && RTK.hidden(B, cfg, R, x, 'player'))), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i && !(fogged && RTK.hidden(B, cfg, R, x, 'player')));
+    // (in the fog, a building it remembers there: attack-moved on)
+    if (!foe && fogged && Object.keys(R.mem.player).some((id) => R.mem.player[id].at === i)) { act({ k: 'order', ids: sel, o: { kind: 'amove', to: i } }); return 'amove'; }
     const node = R.nodes.find((n) => n.at === i && n.left > 0);
     if (foe) { act({ k: 'order', ids: sel, o: { kind: 'attack', target: foe.id } }); return 'attack'; }
     if (node) {
@@ -512,6 +558,7 @@ export function boardRtsPage(api) {
     step(dt) { lastDt = dt; advance(dt); sync(); if ((panelT += dt) > 0.25) { panelT = 0; drawPanel(); } },
     readout(i) {
       if (result) return result.won ? 'victory' : 'defeat';
+      if (fogged && !V.seen[i]) { const id = Object.keys(R.mem.player).find((k) => R.mem.player[k].at === i); return id ? `their ${BU('enemy', R.mem.player[id].kind).name.toLowerCase()} (last seen)` : V.explored[i] ? '' : 'unexplored'; }
       const b = R.buildings.find((x) => x.at === i), n = R.nodes.find((x) => x.at === i && x.left > 0);
       if (b) return `${b.side === 'player' ? 'your' : 'their'} ${BU(b.side, b.kind).name.toLowerCase()} (${Math.max(0, Math.round(b.hp))} / ${b.hpMax})`;
       if (n) return `gold to mine: ${n.left}`;
@@ -528,6 +575,9 @@ export function boardRtsPage(api) {
       pause, speed(k) { if (k != null) speedK = Math.max(0, Math.min(SPEEDS.length - 1, k)); return SPEEDS[speedK]; }, get paused() { return paused; },
       get clock() { return clock(R.t); }, apm: () => ({ player: RTK.apmOf(R, 'player'), enemy: RTK.apmOf(R, 'enemy') }),
       group, idleWorker, idleRule, repeatSel, autoSel, log: () => log.slice(),
+      // what the player is shown: each enemy unit's and building's mesh, drawn or not (and a building as a ghost)
+      shown() { const out = {}; for (const x of R.units.concat(R.buildings)) if (x.side === 'enemy' && meshes[x.id]) out[x.id] = meshes[x.id].visible ? (meshes[x.id].userData.ghost ? 'ghost' : 'seen') : 'hidden'; for (const id in ghosts) out[id] = 'ghost'; return out; },
+      view: () => (fogged ? RTK.view(B, cfg, R, 'player') : null),
       // the game again from the log: the same state as the one played (the clock's remainder aside)
       replays() { const a = RTK.replay(B, cfg, log, RTK.stepOf(R)), strip = (x) => JSON.stringify(Object.assign({}, x, { acc: 0 })); return strip(a) === strip(R); },
     },

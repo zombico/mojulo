@@ -1112,7 +1112,11 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   the mind raises one on the nearest field once its own nodes run low. The victory rule (`rts.victory`): a side
   loses when its base falls, or under the melee rule only when its last building does. A side may give up
   (`act({ k: 'surrender' })`). Each side's match is counted: trained, units lost, raised, buildings lost, mined,
-  research done, and its army's worth every ten seconds.
+  research done, and its army's worth every ten seconds. The fog (`rts.fog`): each side sees what its units and
+  buildings see (a flyer a step farther), keeps the ground it explored and the foe's buildings as it last saw them;
+  a unit strikes only what its side sees (a siege out of sight needs a spotter), and the mind plays under the same
+  fog, its waves sent where it last saw the foe, else where the foe started, then the fields. On the page the
+  unexplored ground is dark, the explored dim, the foe hidden out of sight and its buildings remembered as ghosts.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

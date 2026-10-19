@@ -389,6 +389,33 @@ describe('the board on the World page', () => {
     await page.close();
   }, 180000);
 
+  it('draws the fog: the foe hidden where nothing of the player\'s sees, its base remembered as a ghost once seen', async () => {
+    if (!browser) return;
+    const { payload } = await resolveWorldScene({ ref: 'fog', title: null, manifest: { kind: 'board', board: { seed: 'fog', relief: 0.1, cols: 9, rows: 16 },
+      rts: { fog: true, army: 1, workers: 0, enemy: { workers: 0, army: 0 }, ai: { workers: 0, wave: 30 } }, game: { levelRef: 'fog', mechanics: [{ kind: 'board' }] } } });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1120, height: 780 });
+    await page.setContent(emitThreeWorld({ ...payload, inline: true, hud: false }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__mojBoard && window.__mojBoard.rts, { timeout: 20000 });
+    const out = await page.evaluate(() => {
+      const r = window.__mojBoard.rts, S = r.state(), base = S.buildings.find((b) => b.side === 'enemy');
+      const at0 = r.shown()[base.id], dark = r.view().explored[base.at];
+      // the soldier walks up within sight of the enemy's base, then home again
+      const s = S.units.find((u) => u.side === 'player');
+      r.select([s.id]);
+      r.order({ kind: 'move', to: base.at - 9 * 4 });
+      for (let k = 0; k < 400 && !r.view().seen[base.at]; k++) r.run(0.1);
+      const near = r.shown()[base.id];
+      r.order({ kind: 'move', to: S.buildings.find((b) => b.side === 'player').at + 9 });
+      for (let k = 0; k < 400 && r.view().seen[base.at]; k++) r.run(0.1);
+      r.run(0.1);
+      return { at0, dark, near, after: r.shown()[base.id], explored: r.view().explored[base.at] };
+    });
+    expect(out).toEqual({ at0: 'hidden', dark: 0, near: 'seen', after: 'ghost', explored: 1 });
+    if (process.env.MOJULO_BOARD_SHOTS) await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/rts-fog.png` });
+    await page.close();
+  }, 180000);
+
   it('plays a skirmish between two civilizations, each drawn as its technology crafted it, the player climbing its ladder', async () => {
     if (!browser) return;
     const G = readGameworld(HALDEN_REACH), side = (cid) => { const r = rtsRoster(G, cid); return { ...r, looks: rtsLooks(G, cid, r, { kit: HALDEN_REACH.style.kit }) }; };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY, rtsView } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -629,5 +629,57 @@ describe('the match', () => {
     const hall = R.buildings.find((b) => b.side === 'enemy' && b.kind === 'hall');
     expect(hall && hall.raising).toBe(0);
     expect(cfg.fields.map((f) => f.at)).toContain(hall.at);
+  });
+});
+
+describe('the fog', () => {
+  const mk = (B, id, side, kind, n, extra = {}) => { const i = at(B, n); return { id, side, kind, hp: (RTS_UNITS[kind] || OWN.units[kind]).hp, x: (i % B.cols) + 0.5, y: Math.floor(i / B.cols) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0, ...extra }; };
+  it('shows a side only what its units and buildings see, the ground it explored, the foe\'s buildings where it last saw them', () => {
+    // (a node, so an empty field is no draw)
+    const B = flat(9, 20), cfg = readBoardRts(B, { fog: true, workers: 0, nodes: ['A10'], ai: { workers: 0, wave: 30 } });
+    let R = rtsStart(B, cfg);
+    let V = rtsView(B, cfg, R, 'player');
+    // its own base's ground, not the far one; the foe's base not in its view
+    expect([V.seen[cfg.bases.player], V.seen[cfg.bases.enemy]]).toEqual([1, 0]);
+    expect(V.buildings.map((b) => b.side)).toEqual(['player']);
+    // a scout walks up to the foe's base and back: the base remembered where it stood, the ground explored
+    R = { ...R, units: [mk(B, 's', 'player', 'soldier', 'E15', { order: { kind: 'stop' } })] };
+    R = rtsTick(B, cfg, R, 0.1).R;
+    expect(rtsView(B, cfg, R, 'player').buildings.some((b) => b.side === 'enemy')).toBe(true);
+    R = { ...R, units: [mk(B, 's', 'player', 'soldier', 'E8', { order: { kind: 'stop' } })] };
+    R = rtsTick(B, cfg, R, 0.1).R;
+    V = rtsView(B, cfg, R, 'player');
+    expect(V.buildings.some((b) => b.side === 'enemy')).toBe(false);
+    expect(V.ghosts).toEqual([{ id: R.buildings.find((b) => b.side === 'enemy').id, kind: 'base', at: cfg.bases.enemy }]);
+    expect([V.explored[at(B, 'E17')], V.seen[at(B, 'E17')]]).toEqual([1, 0]);
+    // without the fog, all of it
+    const open = readBoardRts(B, { workers: 0, nodes: 0 });
+    expect(rtsView(B, open, rtsStart(B, open), 'player').ghosts).toEqual([]);
+    expect(() => readBoardRts(B, { fog: 'thick' })).toThrow(/fog is true/);
+  });
+
+  it('strikes only what its side sees: a siege out of sight needs a spotter', () => {
+    const SG = { ...OWN, units: { ...OWN.units, crew: { ...OWN.units.crew, range: 8, sight: 4 } } };
+    const B = flat(5, 22), cfg = { ...own(B, { workers: 0, fog: true }, { player: SG, enemy: SG }) };
+    const R = { ...rtsStart(B, cfg), units: [mk(B, 'c', 'player', 'crew', 'C3'), mk(B, 'x', 'enemy', 'soldier', 'C11')] };
+    const shots = (R) => run(B, cfg, R, 3).ev.filter((e) => e.kind === 'shot' && e.from === 'c').length;
+    expect(shots(R)).toBe(0);
+    expect(shots({ ...R, units: R.units.concat([mk(B, 'p', 'player', 'soldier', 'C8')]) })).toBeGreaterThan(0);
+  });
+
+  it('plays the mind under the same fog: what it does reads only what its side sees', () => {
+    const B = flat(9, 20), cfg = readBoardRts(B, { fog: true, ai: { wave: 2 } });
+    let R = rtsStart(B, cfg);
+    for (let k = 0; k < 300; k++) R = rtsTick(B, cfg, R, 0.1).R;
+    // the player's side as it is, or with more out of the enemy's sight: the enemy's mind does the same
+    const far = { ...R, units: R.units.concat([mk(B, 'q1', 'player', 'archer', 'B2'), mk(B, 'q2', 'player', 'archer', 'H2')]), gold: { ...R.gold, player: 5000 } };
+    expect(rtsView(B, cfg, far, 'enemy').units.some((u) => u.id === 'q1' || u.id === 'q2')).toBe(false);
+    const theirs = (S) => JSON.stringify({ u: S.units.filter((u) => u.side === 'enemy'), b: S.buildings.filter((b) => b.side === 'enemy'), g: S.gold.enemy, w: S.wave.enemy, s: S.sent });
+    expect(theirs(rtsMind(B, cfg, far, 'enemy'))).toBe(theirs(rtsMind(B, cfg, R, 'enemy')));
+    // its waves go where the player started, which it knows, without having seen it
+    const armed = readBoardRts(B, { fog: true, ai: { wave: 2 }, enemy: { army: 3 } });
+    let W = rtsStart(B, armed);
+    for (let k = 0; k < 40; k++) W = rtsTick(B, armed, W, 0.1).R;
+    expect(W.units.filter((u) => u.side === 'enemy' && u.order.kind === 'amove').map((u) => u.order.to)).toContain(armed.bases.player);
   });
 });

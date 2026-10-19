@@ -100,10 +100,63 @@ export function buildBoardRts() {
   const classOf = (cfg, x) => (x.x == null ? 'structure' : UN(cfg, x.side, x.kind).armour || (UN(cfg, x.side, x.kind).machine ? 'armoured' : 'light'));
   // unseen: cloaked, and no detector of the looker's side (a unit or a standing building that `detects`) within reach
   function hidden(B, cfg, R, x, looker) {
+    // in the fog: what none of the looker's units or buildings sees
+    if (cfg.fog && x.side !== looker && !sight(B, cfg, R)[looker][x.x != null ? spotAt(B, x.x, x.y) : x.at]) return true;
     if (x.x == null || !UN(cfg, x.side, x.kind).cloak) return false;
     for (const d of R.units) { const D = UN(cfg, d.side, d.kind); if (d.side === looker && D.detects && !d.inside && dist([d.x, d.y], [x.x, x.y]) <= D.detects) return false; }
     for (const b of R.buildings) { const K = BU(cfg, b.side, b.kind); if (b.side === looker && K.detects && b.raising <= 0 && dist(mid(B, b.at), [x.x, x.y]) <= K.detects) return false; }
     return true;
+  }
+  // ── the fog (cfg.fog): what a side sees (a spot within its units' sight, a flyer's a step farther, or its buildings':
+  // a depot's 5, the rest 4, a foundation 2), what it has explored (R.exp), the foe's buildings as it last saw them
+  // (R.mem); worked out once a step and kept for it
+  let VC = null;
+  function sight(B, cfg, R) {
+    if (VC && VC.R === R && VC.t === R.t) return VC.v;
+    const n = B.spots.length, v = { player: new Uint8Array(n), enemy: new Uint8Array(n) };
+    const mark = (side, p, r) => {
+      const c0 = Math.floor(p[0]), r0 = Math.floor(p[1]), k = Math.ceil(r);
+      for (let y = r0 - k; y <= r0 + k; y++) for (let x = c0 - k; x <= c0 + k; x++) if (x >= 0 && y >= 0 && x < B.cols && y < B.rows && Math.hypot(x + 0.5 - p[0], y + 0.5 - p[1]) <= r + 1e-9) v[side][y * B.cols + x] = 1;
+    };
+    for (const u of R.units) if (!u.inside && u.hp > 0) { const U = UN(cfg, u.side, u.kind); mark(u.side, [u.x, u.y], (U.sight || SIGHT) + (U.fly ? 1 : 0)); }
+    for (const b of R.buildings) if (b.hp > 0) { const K = BU(cfg, b.side, b.kind); mark(b.side, mid(B, b.at), b.raising > 0 ? 2 : K.sight || (isDepot(K) ? 5 : 4)); }
+    VC = { R, t: R.t, v };
+    return v;
+  }
+  function remember(B, cfg, R) {
+    const v = sight(B, cfg, R);
+    for (const side of ['player', 'enemy']) {
+      const ex = R.exp[side], seen = v[side];
+      if (ex.some((e, i) => !e && seen[i])) R.exp = Object.assign({}, R.exp, { [side]: ex.map((e, i) => (e || seen[i] ? 1 : 0)) });
+      const mem = R.mem[side], next = {};
+      let changed = false;
+      for (const id in mem) { const b = R.buildings.find((x) => x.id === id); if (seen[mem[id].at] && (!b || b.side === side)) changed = true; else next[id] = mem[id]; }
+      for (const b of R.buildings) if (b.side !== side && seen[b.at] && (!mem[b.id] || mem[b.id].kind !== b.kind)) { next[b.id] = { kind: b.kind, at: b.at }; changed = true; }
+      if (changed) R.mem = Object.assign({}, R.mem, { [side]: next });
+    }
+  }
+  // what a side may know of the field: everything, or in the fog what it sees, the ground it explored and the foe's
+  // buildings remembered where it no longer sees them
+  function view(B, cfg, R, side) {
+    if (!cfg.fog) return { units: R.units, buildings: R.buildings, seen: null, explored: null, ghosts: [] };
+    const v = sight(B, cfg, R)[side];
+    return { units: R.units.filter((u) => u.side === side || !hidden(B, cfg, R, u, side)), buildings: R.buildings.filter((b) => b.side === side || v[b.at]), seen: Array.from(v), explored: R.exp[side].slice(),
+      ghosts: Object.keys(R.mem[side]).filter((id) => !v[R.mem[side][id].at]).map((id) => Object.assign({ id }, R.mem[side][id])) };
+  }
+  // where a side's wave goes: the foe's base (or, under the melee rule, its building nearest home); in the fog only
+  // what it has seen (what it sees and remembers), else where the foe started, then the fields, the first out of sight
+  function aim(B, cfg, R, side) {
+    const foe = side === 'player' ? 'enemy' : 'player', home = mid(B, cfg.bases[side]);
+    const near = (list) => list.slice().sort((a, b) => dist(mid(B, a.at), home) - dist(mid(B, b.at), home) || a.at - b.at)[0];
+    const isBase = (k) => BU(cfg, foe, k).role === 'base';
+    if (!cfg.fog) { const b = R.buildings.find((x) => x.side === foe && isBase(x.kind)) || (cfg.victory === 'melee' && near(R.buildings.filter((x) => x.side === foe))); return b ? b.at : null; }
+    const v = sight(B, cfg, R)[side], known = R.buildings.filter((b) => b.side === foe && v[b.at]).map((b) => ({ kind: b.kind, at: b.at })).concat(Object.keys(R.mem[side]).map((id) => R.mem[side][id]));
+    const base = known.find((k) => isBase(k.kind));
+    if (base) return base.at;
+    if (known.length) return near(known).at;
+    const far = mid(B, cfg.bases[foe]), look = [cfg.bases[foe]].concat((cfg.fields || []).map((f) => f.at).sort((a, b) => dist(mid(B, a), far) - dist(mid(B, b), far) || a - b));
+    const out = look.find((i) => !v[i]);
+    return out === undefined ? null : out;
   }
   // the ladder: the tier a side has researched to, and what its trips pay over what they carry
   const known = (R, side) => (R.known && R.known[side]) || {};
@@ -247,6 +300,7 @@ export function buildBoardRts() {
     }
     if (path(B, cfg, R, cfg.bases.player, cfg.bases.enemy) === null) throw new Error('rts: the bases have no way to each other');
     R.stats = { player: tally(cfg, R, 'player'), enemy: tally(cfg, R, 'enemy') };
+    if (cfg.fog) { R.exp = { player: B.spots.map(() => 0), enemy: B.spots.map(() => 0) }; R.mem = { player: {}, enemy: {} }; remember(B, cfg, R); }
     return R;
   }
   // ── a match's count, per side: trained, units lost, raised, buildings lost, mined (gold, the second), research done,
@@ -602,9 +656,9 @@ export function buildBoardRts() {
     // (a board with no nodes at all has no economy to run out of: nothing is ever spent there)
     const spent = R.nodes.length > 0 && stuck(cfg, R, side);
     const ready = mine().filter((u) => (spent || !isWorker(cfg, u)) && u.order.kind === 'stop');
-    const target = R.buildings.find((b) => b.side === foe && roleOf(cfg, b) === 'base');
-    if (go() && target && ready.length && (ready.length >= R.wave[side] || spent)) {
-      R = order(B, cfg, R, ready.map((u) => u.id), { kind: 'amove', to: target.at });
+    const target = aim(B, cfg, R, side);
+    if (go() && target !== null && ready.length && (ready.length >= R.wave[side] || spent)) {
+      R = order(B, cfg, R, ready.map((u) => u.id), { kind: 'amove', to: target });
       did();
       R = Object.assign({}, R, { wave: Object.assign({}, R.wave, { [side]: R.wave[side] + ai.grow }), sent: Object.assign({}, R.sent, { [side]: ((R.sent && R.sent[side]) || 0) + 1 }) });
     }
@@ -800,6 +854,7 @@ export function buildBoardRts() {
       if (R.stats && Math.floor(R.t / 10 + 1e-9) >= R.stats.player.army.length) for (const side of ['player', 'enemy']) R.stats[side].army.push(worth(cfg, R, side));
       // the upgrades and auras on every unit, this step
       effects(B, cfg, R);
+      if (cfg.fog) remember(B, cfg, R);
       // the enemy's mind, once a second
       R.mindT -= STEP;
       if (R.mindT <= 0) {
@@ -918,7 +973,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, view, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -938,6 +993,7 @@ export const rtsLockOf = _rts.lockOf;
 export const rtsMind = _rts.mind;
 export const RTS_LEVELS = _rts.LEVELS;
 export const rtsAct = _rts.act;
+export const rtsView = _rts.view;
 export const rtsReplay = _rts.replay;
 export const rtsApm = _rts.apmOf;
 export const rtsStepOf = _rts.stepOf;
@@ -946,7 +1002,7 @@ export const rtsPath = _rts.path;
 export const rtsOpen = _rts.open;
 
 const NODE = 1500, NODE2 = 800;
-const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'seed', 'jump', 'doctrine'];
+const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'fog', 'seed', 'jump', 'doctrine'];
 export const RTS_VICTORY = Object.freeze({ base: 'its base falls', melee: 'every building it has falls' });
 const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
@@ -960,7 +1016,8 @@ const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
  *          doctrine?: { player?, enemy? } (RTS_DOCTRINES: how each side chose to play), expansions?: n (0 to 3 fields a
  *          side: two nodes and a hall's spot each, the other side's mirrored through the board's middle, chosen by
  *          `seed`), victory?: 'base' | 'melee' (RTS_VICTORY: a side loses when its base falls, or every building),
- *          seed? (the layout's: the same seed, the same fields) }
+ *          seed? (the layout's: the same seed, the same fields), fog?: true (each side sees what its units and
+ *          buildings see, the ground it explored, the foe's buildings as it last saw them; its mind too) }
  *   near / far: the near (far) row's walkable spot nearest its middle, a row in from the edge; nodes 1500 each
  */
 // the expansions' fields: a hall's spot nearer the player's base than the enemy's, four or more steps from it, its two
@@ -1072,6 +1129,8 @@ export function readBoardRts(B, spec = {}) {
     cfg.fields = fieldsOf(B, player, enemy, nx, spec.seed ?? 1, cfg.nodes, walk);
     for (const f of cfg.fields) for (const at of f.nodes) cfg.nodes.push({ at, amount: NODE });
   }
+  // the fog: each side sees what its units and buildings see
+  if (spec.fog !== undefined) { if (typeof spec.fog !== 'boolean') rtsNo('fog is true (each side sees only what its units and buildings see) or false'); if (spec.fog) cfg.fog = true; }
   if (spec.victory !== undefined) {
     if (!RTS_VICTORY[spec.victory]) rtsNo(`victory '${spec.victory}' is not a rule (${Object.entries(RTS_VICTORY).map(([k, v]) => `${k}: ${v}`).join('; ')})`);
     if (spec.victory !== 'base') cfg.victory = spec.victory;
