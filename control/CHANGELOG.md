@@ -97,7 +97,6 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
   measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
 
-
 ### Science worlds further: spacetime, volumes and settings
 
 - **Planned.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
