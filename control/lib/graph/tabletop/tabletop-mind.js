@@ -24,7 +24,7 @@
  * give up) taken greedily, and plays the first action of the best line. A seat's worth: its points, what its pieces
  * earn a roll (the square root of each resource's share, so a spread beats a pile), its hand (a little, less past
  * seven), the builds it can pay for, the corners it can settle next, its cards, its army and its road. It plays
- * against the leader: its own worth less most of the best other seat's.
+ * against the leader: its own worth less a share of the best other seat's.
  */
 
 export function buildTabletopMind(T) {
@@ -99,7 +99,8 @@ export function buildTabletopMind(T) {
       const B = G.build[kind];
       let ok = (S.stock[side][kind] || 0) > 0;
       for (const r in B.cost || {}) if ((h[r] || 0) < B.cost[r]) ok = false;
-      if (ok) v += 0.35 + 0.15 * Object.keys(B.cost || {}).length;
+      // a build it can pay for is worth what the build scores (a city more than a settlement), a little for any other
+      if (ok) v += 0.35 + 0.5 * ((G.score && G.score.pieces && G.score.pieces[kind]) || 0);
     }
     // the corners it could settle next: kinds that score, needing what it has laid
     for (const kind of Object.keys(G.build || {})) {
@@ -110,6 +111,17 @@ export function buildTabletopMind(T) {
       for (let p = lo; p < hi && n < 2; p++) if (S.board[p] < 0 && T.legalPlace(K, S, side, kind, p)) n++;
       v += 0.6 * n;
     }
+    // how many rolls to its next scoring build (or a card), at what its pieces earn: a trade that brings it nearer is worth it
+    let soon = 6;
+    const inc2 = T.income(K, S, side);
+    const goals = Object.keys(G.build || {}).filter((k) => (S.stock[side][k] || 0) > 0 && G.score && G.score.pieces && G.score.pieces[k]).map((k) => G.build[k].cost || {})
+      .concat(Object.keys(G.decks || {}).filter((d) => S.deck[d].length).map((d) => G.decks[d].cost || {}));
+    for (const cost of goals) {
+      let t = 0;
+      for (const r in cost) { const miss = Math.max(0, cost[r] - (h[r] || 0)); if (miss) t = Math.max(t, miss / Math.max(inc2[r] || 0, 0.02)); }
+      soon = Math.min(soon, t);
+    }
+    v -= 0.25 * Math.min(soon, 6);
     const held = S.cards[side];
     for (const c in held) if (!(G.score && G.score.cards && G.score.cards[c])) v += 0.55 * held[c];
     for (const id of Object.keys((G.score && G.score.awards) || {})) {
@@ -122,7 +134,9 @@ export function buildTabletopMind(T) {
   function seat(K, S, side) {
     let other = -Infinity;
     for (let s = 0; s < K.players.length; s++) if (s !== side) other = Math.max(other, worth(K, S, s, false));
-    return worth(K, S, side, true) - 0.6 * (other === -Infinity ? 0 : other);
+    // the leader's worth weighed as an answer weighs an offerer's gain (judge's base): enough to keep from feeding the
+    // leader, not so much that every trade, which always helps its partner too, looks like a loss
+    return worth(K, S, side, true) - 0.35 * (other === -Infinity ? 0 : other);
   }
   // the actor's forced choices answered greedily, one ply each, until the decision is someone else's or none is left
   function resolve(K, S, side, roll) {
@@ -139,6 +153,43 @@ export function buildTabletopMind(T) {
     }
     return N;
   }
+  // ── trading ──────────────────────────────────────────────────────────────────────────────────────────────────────
+  // An offer answered by expected value and the table: what the trade does for the answerer's own worth, less what it
+  // does for the offerer's, that weighed heavier when the offerer is ahead of the answerer and heavier again when the
+  // offerer leads the table; nothing at all for a player within two points of winning (no king made). An easier mind
+  // weighs the offerer's gain less and asks less of a trade.
+  function swapped(S, a, b, give, get) {
+    const N = JSON.parse(JSON.stringify(S));
+    for (const r in give) { N.hand[a][r] -= give[r]; N.hand[b][r] += give[r]; }
+    for (const r in get) { N.hand[b][r] -= get[r]; N.hand[a][r] += get[r]; }
+    return N;
+  }
+  function judge(K, S, side, from, offer, o) {
+    for (const r in offer.get) if ((S.hand[side][r] || 0) < offer.get[r]) return { yes: false, why: 'cannot pay' };
+    const win = (K.G.score && K.G.score.win) || Infinity;
+    const theirs = T.score(K, S, from, true), mine = T.score(K, S, side, false);
+    if (theirs >= win - 2) return { yes: false, why: 'kingmaker' };
+    let top = -Infinity;
+    for (let s = 0; s < K.players.length; s++) if (s !== from) top = Math.max(top, T.score(K, S, s, s !== side));
+    const A = swapped(S, from, side, offer.give, offer.get);
+    const myGain = worth(K, A, side, true) - worth(K, S, side, true);
+    const theirGain = worth(K, A, from, false) - worth(K, S, from, false);
+    const soft = o.slack >= 0.5;
+    const weight = (0.35 + (theirs > mine ? 0.4 : 0) + (theirs > top ? 0.3 : 0)) * (soft ? 0.5 : 1);
+    const margin = soft ? 0 : o.depth >= 3 ? 0.2 : 0.12;
+    const ev = myGain - weight * theirGain;
+    return { yes: ev > margin, ev, myGain, theirGain, why: ev > margin ? 'worth it' : 'not worth it' };
+  }
+  // an offer's answers as each other seat would give them (their hands are open; their hidden cards as the view dealt)
+  function answered(K, N, side, o) {
+    let C = N, guard = 0;
+    while (!C.over && C.pending.length && C.pending[0].do === 'answer' && guard++ < 12) {
+      const d = C.pending[0], j = judge(K, C, d.side, d.from, d.offer, o);
+      C = T.apply(K, C, { type: j.yes ? 'accept' : 'decline' });
+    }
+    return C;
+  }
+
   function planTurn(K, S, o) {
     const real = T.legal(K, S);
     if (!real.length) return null;
@@ -149,7 +200,8 @@ export function buildTabletopMind(T) {
     // the line's worth: at its end, or when the turn has passed to another
     function line(N, depth) {
       if (!mine(N) || depth <= 0 || N.phase !== 'main' || N.pending.length) return seat(K, N, side);
-      const opts = T.legal(K, N).filter((m) => m.type !== 'end').map((m) => ({ m, C: resolve(K, T.apply(K, N, m), side, roll) }));
+      // offers are weighed at the root only, where a trade can open a build
+      const opts = T.legal(K, N).filter((m) => m.type !== 'end' && m.type !== 'offer').map((m) => ({ m, C: resolve(K, T.apply(K, N, m), side, roll) }));
       for (const x of opts) x.v = seat(K, x.C, side);
       opts.sort((a, b) => b.v - a.v);
       let best = seat(K, N, side);
@@ -158,6 +210,11 @@ export function buildTabletopMind(T) {
     }
     let scored;
     const moves = T.legal(K, V);
+    if (V.pending.length && V.pending[0].do === 'answer') {
+      const d = V.pending[0], j = judge(K, V, side, d.from, d.offer, o);
+      const move = real.find((m) => m.type === (j.yes ? 'accept' : 'decline'));
+      return { move, score: j.ev || 0, depth: 0, nodes: 1, why: j.why };
+    }
     if (V.pending.length || V.phase === 'opening') {
       // a forced choice: its worth once the actor's own follow-ups are answered
       scored = moves.map((m) => ({ m, v: seat(K, resolve(K, T.apply(K, V, m), side, roll), side) }));
@@ -166,8 +223,19 @@ export function buildTabletopMind(T) {
       const now = seat(K, V, side);
       scored = moves.map((m) => ({ m, v: m.type === 'roll' ? now + 0.5 : seat(K, resolve(K, T.apply(K, V, m), side, roll), side) }));
     } else {
+      const own = worth(K, V, side, true);
       scored = moves.map((m) => {
         if (m.type === 'end') return { m, v: seat(K, V, side) + 0.05 };
+        if (m.type === 'offer') {
+          // only an offer that would help it, its answers foreseen, its partner chosen, then the turn played on
+          const mine2 = JSON.parse(JSON.stringify(V));
+          for (const r in m.offer.give) mine2.hand[side][r] -= m.offer.give[r];
+          for (const r in m.offer.get) mine2.hand[side][r] += m.offer.get[r];
+          if (worth(K, mine2, side, true) <= own) return { m, v: -Infinity };
+          const C = resolve(K, answered(K, T.apply(K, V, m), side, o), side, roll);
+          if (JSON.stringify(C.hand[side]) === JSON.stringify(V.hand[side])) return { m, v: -Infinity };
+          return { m, v: line(C, o.depth - 1) };
+        }
         return { m, v: line(resolve(K, T.apply(K, V, m), side, roll), o.depth - 1) };
       });
     }
@@ -249,5 +317,5 @@ export function buildTabletopMind(T) {
     return { move: pick.m, score: pick.v, depth: reached, nodes };
   }
 
-  return { think, evaluate, LEVELS, WIN };
+  return { think, evaluate, judge, LEVELS, WIN };
 }

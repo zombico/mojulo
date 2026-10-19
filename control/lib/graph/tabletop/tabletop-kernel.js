@@ -461,6 +461,11 @@ export function buildTabletop() {
   //     then take one card at random from a player beside it | { free: kind, n } place without paying | { gain: n }
   //     take from the bank | { claim: true } name a resource and take it from every other player
   //   G.exchange { rate } the bank swaps rate of one resource for one of another (off unless given)
+  //   G.trade { offers?, shapes? } trading between players, after the roll: the player to move offers cards for cards
+  //     to every other player (`offers` a turn, 2); each answers in turn order, accept (if they hold what is asked) or
+  //     decline; the offerer then deals with one who accepted, or cancels. Any offer of whole cards the offerer holds,
+  //     asking for others, is legal (`validOffer`); `legal` lists the plain shapes ([give, get] counts of one resource
+  //     for another: [[1, 1], [2, 1], [1, 2]] by default) so a mind has a short list to weigh
   //   G.score { pieces: { <kind>: n }, cards: { <card>: n }, awards: { <id>: { vp, min, trail?: kind, block?: [kind],
   //     played?: card } }, win: n }  an award goes to the one strictly ahead at its measure (the longest trail of a kind,
   //     broken by a foe's block kind; the most of a card played), a holder keeping it on a tie; a player at `win` on
@@ -517,7 +522,7 @@ export function buildTabletop() {
     const G = K.G, n = K.players.length;
     const S = { board: new Array(K.P.n).fill(-1), pieces: [], side: 0, turn: 0, over: null, phase: G.opening ? 'opening' : 'roll',
       pending: [], hand: [], bank: Object.assign({}, G.resources || {}), stock: [], deck: {}, cards: [], fresh: [], played: [],
-      playedTurn: false, awards: {}, last: [], roll: null, r: mixSeed(G.seed || 1, 0, 0) };
+      playedTurn: false, offersTurn: 0, awards: {}, last: [], roll: null, r: mixSeed(G.seed || 1, 0, 0) };
     for (let s = 0; s < n; s++) {
       S.hand.push(K.res.reduce((h, r) => { h[r] = 0; return h; }, {}));
       S.stock.push(Object.assign({}, G.stock || {}));
@@ -641,8 +646,42 @@ export function buildTabletop() {
       for (const r of K.res) if (S.bank[r] > 0) out.push({ type: 'gain', res: r });
     } else if (d.do === 'claim') {
       for (const r of K.res) out.push({ type: 'claim', res: r });
+    } else if (d.do === 'answer') {
+      if (afford(S.hand[side], d.offer.get)) out.push({ type: 'accept' });
+      out.push({ type: 'decline' });
+    } else if (d.do === 'choose') {
+      for (const s of d.accepted) if (afford(S.hand[s], d.offer.get) && afford(S.hand[side], d.offer.give)) out.push({ type: 'deal', with: s });
+      if (out.length) out.push({ type: 'cancel' });
     }
     return out;
+  }
+
+  const bundle = (h) => Object.keys(h).filter((r) => h[r] > 0).map((r) => h[r] + ' ' + r).join(' + ');
+  function someoneHolds(K, S, side, h) {
+    for (let s = 0; s < K.players.length; s++) if (s !== side && afford(S.hand[s], h)) return true;
+    return false;
+  }
+  // why an offer cannot be made now (null when it can): the player to move, after the roll, nothing pending, offers
+  // left this turn, whole cards it holds for whole cards of other resources
+  function validOffer(K, S, offer) {
+    const T = K.G.trade;
+    if (!T) return 'this game has no trading';
+    if (S.over || S.phase !== 'main' || S.pending.length) return 'an offer is made after the roll, with nothing else waiting';
+    if ((S.offersTurn || 0) >= (T.offers || 2)) return 'no offers left this turn';
+    if (!offer || typeof offer !== 'object' || !offer.give || !offer.get) return 'an offer is { give: { <res>: n }, get: { <res>: n } }';
+    let gave = 0, got = 0;
+    for (const part of ['give', 'get']) {
+      for (const r in offer[part]) {
+        const n = offer[part][r];
+        if (K.res.indexOf(r) < 0) return 'no resource \'' + r + '\'';
+        if (!Number.isInteger(n) || n < 0) return 'an offer counts whole cards';
+        if (part === 'give') gave += n; else got += n;
+      }
+    }
+    if (!gave || !got) return 'an offer gives something and asks something';
+    for (const r in offer.give) if (offer.give[r] > 0 && (offer.get[r] || 0) > 0) return 'an offer does not give and ask the same resource';
+    if (!afford(S.hand[S.side], offer.give)) return 'the offer gives cards the player does not hold';
+    return null;
   }
 
   function euroLegal(K, S) {
@@ -659,6 +698,19 @@ export function buildTabletop() {
           for (const at of spots(K, S, side, kind, B[kind].need)) out.push({ type: 'build', kind, at });
         }
         for (const id of Object.keys(K.G.decks || {})) if (S.deck[id].length && afford(S.hand[side], K.G.decks[id].cost)) out.push({ type: 'buy', deck: id });
+        if (K.G.trade && (S.offersTurn || 0) < (K.G.trade.offers || 2)) {
+          for (const [gn, tn] of K.G.trade.shapes || [[1, 1], [2, 1], [1, 2]]) {
+            for (const g of K.res) {
+              if (S.hand[side][g] < gn) continue;
+              for (const t of K.res) {
+                if (t === g) continue;
+                const offer = { give: {}, get: {} };
+                offer.give[g] = gn; offer.get[t] = tn;
+                if (someoneHolds(K, S, side, offer.get)) out.push({ type: 'offer', offer });
+              }
+            }
+          }
+        }
         if (K.G.exchange) {
           const rate = K.G.exchange.rate;
           for (const g of K.res) if (S.hand[side][g] >= rate) for (const t of K.res) if (t !== g && S.bank[t] > 0) out.push({ type: 'exchange', give: g, get: t });
@@ -685,6 +737,8 @@ export function buildTabletop() {
       case 'buy': return 'buy ' + m.deck;
       case 'play': return 'play ' + m.card;
       case 'exchange': return 'exchange ' + m.give + '>' + m.get;
+      case 'offer': return 'offer ' + bundle(m.offer.give) + ' for ' + bundle(m.offer.get);
+      case 'deal': return 'deal ' + K.players[m.with].id;
       default: return m.type;
     }
   }
@@ -791,12 +845,29 @@ export function buildTabletop() {
       const rate = G.exchange.rate;
       N.hand[actor][m.give] -= rate; N.bank[m.give] += rate;
       N.hand[actor][m.get] += 1; N.bank[m.get] -= 1;
+    } else if (m.type === 'offer') {
+      const why = validOffer(K, S, m.offer);
+      if (why) throw new Error('tabletop: ' + why);
+      N.offersTurn = (S.offersTurn || 0) + 1;
+      const offer = { give: Object.assign({}, m.offer.give), get: Object.assign({}, m.offer.get) };
+      for (let i = 1; i < K.players.length; i++) N.pending.push({ side: (actor + i) % K.players.length, do: 'answer', offer, from: actor });
+      N.pending.push({ side: actor, do: 'choose', offer, accepted: [] });
+    } else if (m.type === 'accept' || m.type === 'decline') {
+      N.answers = (N.answers || []).concat([{ side: actor, offer: d.offer, from: d.from, yes: m.type === 'accept' }]);
+      if (m.type === 'accept') { const c = N.pending.find((x) => x.do === 'choose' && x.side === d.from); if (c) c.accepted.push(actor); }
+    } else if (m.type === 'deal') {
+      for (const r in d.offer.give) { N.hand[actor][r] -= d.offer.give[r]; N.hand[m.with][r] += d.offer.give[r]; }
+      for (const r in d.offer.get) { N.hand[m.with][r] -= d.offer.get[r]; N.hand[actor][r] += d.offer.get[r]; }
+    } else if (m.type === 'cancel') {
+      // the offer lapses
     } else if (m.type === 'end') {
       N.side = (S.side + 1) % K.players.length;
       N.phase = 'roll';
       N.turn = S.turn + 1;
       N.fresh = K.players.map(() => ({}));
       N.playedTurn = false;
+      N.offersTurn = 0;
+      N.answers = [];
       N.roll = null;
     }
     settle(K, N);
@@ -897,7 +968,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer };
 }
 
 const _tabletop = buildTabletop();

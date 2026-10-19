@@ -14,11 +14,11 @@
  * the computer thinks in a count of positions, so a replayed game is the same game.
  */
 
-import { lattice } from '../polygonizer/lattice.js';
 import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
 import { latticeFaces, latticeCameras } from '../polygonizer/lattice-css3d.js';
 import { cameraMatrixFromWorldFraming, planeMatrix } from '../scene/scene-css3d.js';
 import { buildTabletop } from './tabletop-kernel.js';
+import { tabletopGame } from './tabletop.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { euroPageHtml } from './tabletop-euro-page.js';
 
@@ -34,8 +34,9 @@ const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 
 export function tabletopPageHtml(G, opts = {}) {
   if (!G?.board) throw new Error('tabletop page: the game needs a board');
-  const L = lattice(G.board);
-  const K = buildTabletop().compile(L, G);   // refuses a game the kernel cannot play, here rather than on the page
+  // refuses a game the kernel cannot play, here rather than on the page; a game's `deal` is done here, the page plays it
+  const { L, K, G: dealtG } = tabletopGame(G);
+  G = dealtG;
   const human = opts.human ?? K.players[0].id;
   if (K.sideOf[human] === undefined) throw new Error(`tabletop page: '${human}' is not a player (${K.players.map((p) => p.id).join(', ')})`);
   const level = opts.level ?? 'fair';

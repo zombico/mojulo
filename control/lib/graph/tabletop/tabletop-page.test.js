@@ -36,8 +36,8 @@ describe('tabletop page', () => {
 
 describe('tabletop page: a euro game', () => {
   it('carries every place to click and draw, on the plan and the table', async () => {
-    const { settlersGame } = await import('./games/settlers.js');
-    const html = tabletopPageHtml(settlersGame({ seed: 2, players: 3 }));
+    const { islandEconomy } = await import('./fixtures/island-economy.js');
+    const html = tabletopPageHtml(islandEconomy({ seed: 2, players: 3 }));
     expect(html).toContain('function tabletopEuroClient(D, T, M)');
     expect(html.match(/<\/script>/g)).toHaveLength(1);
     const data = JSON.parse(html.match(DATA)[1]);
@@ -45,6 +45,6 @@ describe('tabletop page: a euro game', () => {
     expect(data.plan.places).toHaveLength(19 + 54 + 72);
     expect(data.table.places).toHaveLength(19 + 54 + 72);
     expect(data.plan.places[19 + 54]).toHaveLength(4);
-    expect(tabletopPageHtml(settlersGame({ seed: 2, players: 3 }))).toBe(html);
+    expect(tabletopPageHtml(islandEconomy({ seed: 2, players: 3 }))).toBe(html);
   });
 });

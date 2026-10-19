@@ -349,7 +349,7 @@ export function registerGameTools() {
         title: { type: 'string', description: 'Title for the game.' },
         tabletop: {
           type: 'object',
-          description: "A board game against the computer instead of levels (no store): { game: 'chess'|'checkers'|'settlers' | a game written out (board, players, pieces and their moves, rules), human?, level?: easy|fair|hard, view?: plan|table, seed?, players?, clock?: { base, inc? } s }. Plays as its own page.",
+          description: "A board game against the computer instead of levels (no store): { game: 'chess'|'checkers' | a game written out from systems (board, pieces and their moves, rules; resources, dice, building, cards, trading), human?, level?: easy|fair|hard, view?: plan|table, seed?, clock?: { base, inc? } s }. A published game by name: ask its rules first. get_game_vocab({ id: 'tabletop' }).",
         },
         store: {
           type: 'object',

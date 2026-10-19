@@ -30,9 +30,8 @@ describe('create_game — a board game (tabletop)', () => {
     expect(html).toBe(emitTabletopGame(row.manifest, { title: row.title }));
   });
 
-  it('settlers for three, and a game written out', async () => {
-    const s = await createGameHandler({ title: 'Island', tabletop: { game: 'settlers', players: 3, seed: 7 } });
-    expect(SketchRepository.getByRef(s.ref).manifest.tabletop).toEqual({ game: 'settlers', players: 3, seed: 7 });
+  it('a published game is not in the book; a game written out is', async () => {
+    await expect(createGameHandler({ title: 'Island', tabletop: { game: 'settlers' } })).rejects.toThrow(/no game 'settlers'/);
     const tiny = {
       board: { shape: 'hex', radius: 2 },
       players: [{ id: 'a', facing: 'N' }, { id: 'b', facing: 'S' }],
@@ -67,6 +66,8 @@ describe('create_game — a board game (tabletop)', () => {
   it('get_game_vocab serves the board games\' card: the keys, the grammar, the book\'s own pieces', async () => {
     const { card } = await getGameVocabHandler({ id: 'tabletop' });
     expect(card.body).toContain('tabletop: { game');
+    expect(card.body).toContain('ask the person to explain its rules');
+    expect(card.body).toContain('trade: { offers?, shapes? }');
     expect(card.body).toContain('"N":[{"vec":[1,2]}]');
     await expect(getGameVocabHandler({ id: 'tabletops' })).rejects.toThrow(/Known: .*tabletop/);
   });

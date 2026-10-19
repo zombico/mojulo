@@ -79,8 +79,10 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
 
 ### Traditional board games: a board world of tiles, pieces and rules
 
-Board games composed, not coded: a board is a connection of tiles, and chess, checkers and (later) a settlers game
-are put together from the same pieces, move rules, turns and exceptions, played against the computer. The board is
+Board games composed, not coded: a board is a connection of tiles, and chess, checkers and euro games of resources,
+dice and trading are put together from the same systems and meeples (pieces, move rules, turns and exceptions; places,
+resources, building, cards, trading, scores), played against the computer. The book holds only games nobody owns: a
+published game asked for by name is written out from the rules the person explains, never guessed. The board is
 abstract (representational state, heights allowed, no map yet), drawn as an SVG plan and, where it is good enough,
 in CSS 3D. In progress:
 
@@ -137,27 +139,42 @@ in CSS 3D. In progress:
   trail of a kind, broken by a foe's building; the most of a card played), a win on one's own turn. A view per player
   deals what it cannot see again from what is unseen, so a computer never reads a hidden card or the dice ahead. A
   bank exchange is an option. Chess and checkers keep their counts.
-- **Settlers without trading** (`lib/graph/tabletop/games/settlers.js`), built: written in those words alone. Nineteen
-  hexes dealt from a seed (terrain and numbers shuffled, no 6 or 8 side by side), the robber on the desert, the snake
-  opening with the second settlement paying, development cards, the longest road and the largest army, ten points to
-  win; three or four players. No trading between players, and no bank exchange.
+- **The deal**, built: a system for a seeded setup. Cell types and numbers shuffled onto the board from the game's
+  seed, numberless types left bare, chosen numbers kept off neighbouring cells, neutral pieces set on a type; the same
+  seed, the same board.
+- **Trading between players**, built: a system (`trade: { offers, shapes }`). After the roll the player to move offers
+  any whole cards it holds for others; each other player answers in turn, accepting only what it can pay; the offerer
+  deals with one who accepted or calls it off; a few offers a turn, so a game always ends. The computer answers by
+  expected value and the table: what the trade does for its own position (points, income, hand, and how many rolls
+  it now stands from its next build) less what it does for the offerer's, weighed heavier when the offerer is ahead
+  of it and heavier again when the offerer leads, and never a trade with a player two points from winning. It offers
+  only what it foresees accepted and helpful, and deals with the partner its own position likes best. Four computers
+  with trading finish a dealt island in fewer turns than without (56, 128 and 66 turns against 96, 114 and 107 on
+  three seeds).
+- **An island economy, as a test fixture** (`lib/graph/tabletop/fixtures/island-economy.js`), built: nineteen hexes
+  dealt by the deal system, settlements, cities and roads, dice, production and the seven's robber, development cards,
+  the longest road and the largest army, an opening in rounds, and trading when asked: written in the systems alone,
+  the way a person's own rules would be once explained. Not in the book and not reachable from the tools.
 - **The computer at a euro game**, built: a turn planner. From its own view it weighs lines of its own actions this
   turn, the best few at each step, each forced choice on the way taken greedily, and plays the first action of the
   best line. A seat's worth is its points, what its pieces earn a roll (a spread of resources over a pile), its hand,
-  the builds it can pay for, the corners it can settle next, its cards, its army and its road, less most of the
+  the builds it can pay for, the corners it can settle next, its cards, its army and its road, less a share of the
   leader's. Four computers play a dealt island to a winner.
-- **Settlers to play** (`lib/graph/tabletop/tabletop-euro-page.js`), built: the same page for a euro game. The island
+- **A euro game to play** (`lib/graph/tabletop/tabletop-euro-page.js`), built: the same page for a euro game. The island
   on the plan and the table, its numbers, the pieces in the players' colours; the corners, edges and hexes that can
   be taken now marked and clicked; the person's hand and cards, the roll, the builds, buying and playing cards, and
   the forced choices as prompts (what to give up, where the robber goes, whom to rob); every seat's open points,
-  cards and awards; a log. The computers play their turns a beat apart, so their moves can be followed.
+  cards and awards; a log; with trading, an offer drafted card by card (checked by the kernel's own rule), the
+  computers' offers to accept or decline, and the partner chosen from those who accepted. The computers play their
+  turns a beat apart, so their moves can be followed.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
-  against the computer, chess, checkers or settlers from the book or a game written out, with the person's side, the
-  level, the view, a seed, the players (settlers), a clock and a bank rate. It is a recipe: a game row (`engine:
+  against the computer, chess or checkers from the book or a game written out from the systems, with the person's
+  side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person
+  for its rules first. It is a recipe: a game row (`engine:
   'tabletop'`) whose page is made again on every read, played at `/api/sketches/<ref>/game`, edited with
   `update_sketch` (the kernel checks the edit) and exported by `export_game` as one page and its recipe. A game the
   kernel cannot play is refused when it is made. A routing card, two routing rows, and a vocab card
-  (`get_game_vocab({ id: 'tabletop' })`) with the grammar and the book's own chess pieces; the cosmos registry's board
+  (`get_game_vocab({ id: 'tabletop' })`) with the systems' grammar and the book's own chess pieces; the cosmos registry's board
   learns `lattice`. The `tools/list` payload pin is raised for the one schema property.
 
 ## [3.1.1] - 2026-10-16

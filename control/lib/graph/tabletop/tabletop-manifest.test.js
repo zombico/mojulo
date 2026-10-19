@@ -7,15 +7,17 @@ describe('tabletop manifest', () => {
     expect(G.title).toBe('Chess');
     expect(G.clock).toEqual({ base: 300000, inc: 2000, delay: 0 });
     expect(opts).toMatchObject({ human: 'black', level: 'hard', seed: 1 });
-    expect(Object.keys(TABLETOP_GAMES)).toEqual(['chess', 'checkers', 'settlers']);
+    expect(Object.keys(TABLETOP_GAMES)).toEqual(['chess', 'checkers']);
   });
 
-  it('settlers dealt by the seed, for three or four, its bank exchange an option', () => {
-    const a = resolveTabletop({ game: 'settlers', seed: 3, players: 3 }).G;
-    expect(a.players).toHaveLength(3);
-    expect(a.exchange).toBeUndefined();
-    expect(resolveTabletop({ game: 'settlers', seed: 3, exchange: 4 }).G.exchange).toEqual({ rate: 4 });
-    expect(resolveTabletop({ game: 'settlers', seed: 4 }).G.numbers).not.toEqual(a.numbers);
+  it('the book holds only games nobody owns; an economy is written out, its deal done from the seed', async () => {
+    const { islandEconomy } = await import('./fixtures/island-economy.js');
+    expect(() => resolveTabletop({ game: 'settlers' })).toThrow(/no game 'settlers'/);
+    const { deal, seed, ...rules } = islandEconomy({ players: 3 });
+    const a = resolveTabletop({ game: { ...rules, deal }, seed: 3 }).G;
+    expect(a.deal).toBeUndefined();
+    expect(Object.keys(a.numbers)).toHaveLength(18);
+    expect(resolveTabletop({ game: { ...rules, deal }, seed: 4 }).G.numbers).not.toEqual(a.numbers);
   });
 
   it('a game written out is played as written', () => {
@@ -32,8 +34,7 @@ describe('tabletop manifest', () => {
 
   it('refuses what it cannot play, at minting', () => {
     expect(() => resolveTabletop({ game: 'go' })).toThrow(/no game 'go'/);
-    expect(() => resolveTabletop({ game: 'chess', players: 4 })).toThrow(/players is settlers/);
-    expect(() => resolveTabletop({ game: 'settlers', clock: { base: 60 } })).toThrow(/clock is for a game of moves/);
+    expect(() => resolveTabletop({ game: 'chess', players: 4 })).toThrow(/unknown key 'players'/);
     expect(() => resolveTabletop({ game: 'chess', colour: 'red' })).toThrow(/unknown key 'colour'/);
     expect(() => resolveTabletop({ game: { board: { shape: 'square', cols: 2, rows: 2 }, players: [{ id: 'a', facing: 'NNE' }], pieces: {} } })).toThrow(/no way 'NNE'/);
   });

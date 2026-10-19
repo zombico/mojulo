@@ -112,6 +112,9 @@ export function euroPageHtml(G, L, K, opts = {}) {
   .seat.now{font-weight:600}
   #log{margin:0;padding-left:34px;max-height:220px;overflow:auto;font-size:13px}
   .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;box-shadow:0 0 0 1px #1a1512 inset}
+  .tr{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 8px;align-items:center;font-variant-numeric:tabular-nums}
+  .tr .st{display:flex;gap:4px;align-items:center}
+  .tr .st button{padding:0 7px}
   #dice{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   @media (max-width:600px){aside{flex-basis:100%}}
 </style></head><body>
@@ -129,6 +132,7 @@ export function euroPageHtml(G, L, K, opts = {}) {
   </div>
   <aside>
     <div class="card"><div class="row" style="justify-content:space-between"><span id="prompt"></span><span id="dice"></span></div><div class="row" id="acts" style="margin-top:8px"></div></div>
+    <div class="card" id="trade" style="display:none"><h2>Trade</h2><div id="trade-body"></div></div>
     <div class="card"><h2>Your hand</h2><div class="row" id="hand"></div><h2 style="margin-top:10px">Your cards</h2><div class="row" id="cards"></div></div>
     <div class="card"><h2>Table</h2><div id="seats"></div></div>
     <div class="card"><h2>Log</h2><ol id="log"></ol></div>
@@ -199,14 +203,22 @@ export function tabletopEuroClient(D, T, M) {
     if (m.type === 'robber') return 'moves the robber';
     if (m.type === 'steal') return 'robs ' + K.players[m.from].id;
     if (m.type === 'discard') return 'gives up a card';
+    if (m.type === 'offer') return 'offers ' + say(m.offer.give) + ' for ' + say(m.offer.get);
+    if (m.type === 'accept') return 'accepts';
+    if (m.type === 'decline') return 'declines';
+    if (m.type === 'deal') return 'trades with ' + K.players[m.with].id;
+    if (m.type === 'cancel') return 'calls the trade off';
     return m.name;
   }
+  const say = (h) => Object.keys(h).filter((r) => h[r] > 0).map((r) => h[r] + ' ' + r).join(' + ');
+  let draft = { give: {}, get: {} };
   function play(m) {
     if (busy) return;
     note(me, m);
     if (m.type === 'roll') { S = T.apply(K, S, m); n++; log[log.length - 1] = log[log.length - 1].replace('rolls', 'rolls ' + S.roll); }
     else { S = T.apply(K, S, m); n++; }
     mode = null;
+    if (m.type === 'offer' || m.type === 'end') draft = { give: {}, get: {} };
     step();
   }
   // the moves that take a place now: the pending decision's, or the chosen build's
@@ -283,10 +295,16 @@ export function tabletopEuroClient(D, T, M) {
     else if (!mine) prompt = K.players[T.actor(S)].id + ' is playing…';
     else if (S.pending.length) {
       const d = S.pending[0];
-      prompt = { place: 'Place a ' + d.kind, free: 'Place a free ' + d.kind, discard: 'Give up ' + d.n + ' more', robber: 'Move the robber', steal: 'Rob a player', gain: 'Take ' + d.n + ' from the bank', claim: 'Name a resource to claim' }[d.do] || d.do;
+      prompt = { place: 'Place a ' + d.kind, free: 'Place a free ' + d.kind, discard: 'Give up ' + d.n + ' more', robber: 'Move the robber', steal: 'Rob a player', gain: 'Take ' + d.n + ' from the bank', claim: 'Name a resource to claim',
+        answer: d.do === 'answer' ? K.players[d.from].id + ' offers ' + say(d.offer.give) + ' for your ' + say(d.offer.get) : '',
+        choose: d.do === 'choose' ? 'Accepted by ' + d.accepted.map((s) => K.players[s].id).join(', ') + ': trade with' : '' }[d.do] || d.do;
       for (const m of legal) {
         if (m.res) acts.appendChild(button(m.res, () => play(m), true));
         if (m.type === 'steal') acts.appendChild(button(K.players[m.from].id, () => play(m), true));
+        if (m.type === 'accept') acts.appendChild(button('Accept', () => play(m), true));
+        if (m.type === 'decline') acts.appendChild(button('Decline', () => play(m), true));
+        if (m.type === 'deal') acts.appendChild(button(K.players[m.with].id, () => play(m), true));
+        if (m.type === 'cancel') acts.appendChild(button('Call it off', () => play(m), true));
       }
     } else if (S.phase === 'roll') {
       prompt = 'Your turn';
@@ -325,6 +343,46 @@ export function tabletopEuroClient(D, T, M) {
     }).join('');
     $('log').innerHTML = log.join('');
     $('log').scrollTop = 1e6;
+    tradePanel(mine);
+  }
+  // an offer drafted by hand: any whole cards held for any others, checked by the kernel's own rule
+  function tradePanel(mine) {
+    const box = $('trade');
+    const open = !!K.G.trade && mine && !S.pending.length && S.phase === 'main';
+    box.style.display = K.G.trade ? '' : 'none';
+    if (!K.G.trade) return;
+    const body = $('trade-body');
+    if (!open) { body.textContent = S.over ? '' : 'Offer cards after you roll, on your turn.'; return; }
+    body.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'tr';
+    grid.innerHTML = '<span></span><b>give</b><b>get</b>';
+    for (const r of K.res) {
+      const name = document.createElement('span');
+      name.innerHTML = '<span class="chip"><i style="background:' + resColour(r) + '"></i>' + r + '</span>';
+      grid.appendChild(name);
+      for (const part of ['give', 'get']) {
+        const cell = document.createElement('span');
+        cell.className = 'st';
+        const n = draft[part][r] || 0;
+        cell.appendChild(button('−', () => { draft[part][r] = Math.max(0, n - 1); panel(); }, n > 0));
+        const v = document.createElement('span'); v.textContent = String(n); cell.appendChild(v);
+        cell.appendChild(button('+', () => { draft[part][r] = n + 1; panel(); }, part === 'get' || n < S.hand[me][r]));
+        grid.appendChild(cell);
+      }
+    }
+    body.appendChild(grid);
+    const why = T.validOffer(K, S, draft);
+    const left = (K.G.trade.offers || 2) - (S.offersTurn || 0);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.marginTop = '8px';
+    row.appendChild(button('Offer to all', () => play({ type: 'offer', offer: JSON.parse(JSON.stringify(draft)), name: 'offer' }), !why));
+    const note = document.createElement('span');
+    note.style.color = 'var(--mute)';
+    note.textContent = why && Object.keys(draft.give).length + Object.keys(draft.get).length ? why : left + ' offer' + (left === 1 ? '' : 's') + ' left this turn';
+    row.appendChild(note);
+    body.appendChild(row);
   }
 
   function clickPlace(p) {

@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { tabletopGame } from './tabletop.js';
-import { settlersGame, dealIsland } from './games/settlers.js';
+import { islandEconomy } from './fixtures/island-economy.js';
 
 const T = buildTabletop();
 const M = buildTabletopMind(T);
-const at = (seed = 1, players = 4) => { const { L, K } = tabletopGame(settlersGame({ seed, players })); return { L, K, S: T.start(K) }; };
+const at = (seed = 1, players = 4, trade = false) => { const { L, K } = tabletopGame(islandEconomy({ seed, players, trade })); return { L, K, S: T.start(K) }; };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const place = (K, name) => K.P.byName.get(name);
 // a piece set straight onto the board (a crafted position)
@@ -34,25 +34,23 @@ function rolling(K, S, v) {
 }
 function main(K, S) { const s = clone(S); s.phase = 'main'; s.pending = []; return s; }
 
-describe('settlers: the island', () => {
-  it('nineteen hexes, the desert numberless, no 6 or 8 beside another', () => {
-    const { L } = at();
+describe('island economy: the deal system', () => {
+  it('types and numbers dealt from the seed, the numberless cell bare, the apart numbers never neighbours, the robber set', () => {
     for (const seed of [1, 2, 3]) {
-      const { types, numbers, desert } = dealIsland(seed);
-      expect(Object.keys(types)).toHaveLength(19);
-      expect(Object.keys(numbers)).toHaveLength(18);
-      expect(numbers[desert]).toBeUndefined();
-      const red = Object.keys(numbers).filter((c) => numbers[c] === 6 || numbers[c] === 8);
-      for (const c of red) {
-        const cell = L.cells.find((x) => x.name === c);
-        expect(cell.n.filter((j) => j >= 0).map((j) => L.cells[j].name).filter((n) => red.includes(n))).toEqual([]);
-      }
+      const { L, K, S } = at(seed);
+      const types = L.cells.map((c) => c.type), nums = L.cells.map((c, i) => K.P.num[i]);
+      expect(types.filter((t) => t === 'desert')).toHaveLength(1);
+      expect(nums[types.indexOf('desert')]).toBeNull();
+      expect(nums.filter((n) => n !== null).sort((a, b) => a - b)).toEqual([2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12]);
+      const hot = nums.map((n, i) => (n === 6 || n === 8 ? i : -1)).filter((i) => i >= 0);
+      for (const i of hot) expect(L.cells[i].n.filter((j) => hot.includes(j))).toEqual([]);
+      expect(S.pieces.find((x) => x.kind === 'robber').at).toBe(types.indexOf('desert'));
     }
-    expect(dealIsland(5)).toEqual(dealIsland(5));
+    expect(tabletopGame(islandEconomy({ seed: 5 })).G).toEqual(tabletopGame(islandEconomy({ seed: 5 })).G);
   });
 });
 
-describe('settlers: the opening', () => {
+describe('island economy: the opening', () => {
   it('the snake: each player a settlement and a road, then back again', () => {
     const { S } = at();
     expect(S.pending.map((d) => d.side)).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 2, 2, 1, 1, 0, 0]);
@@ -91,7 +89,7 @@ describe('settlers: the opening', () => {
   });
 });
 
-describe('settlers: dice and production', () => {
+describe('island economy: dice and production', () => {
   it('a roll pays each hex showing it to the pieces on its corners, a city twice', () => {
     const { K, S } = at();
     const s0 = opened(K, S);
@@ -151,7 +149,7 @@ describe('settlers: dice and production', () => {
   });
 });
 
-describe('settlers: building', () => {
+describe('island economy: building', () => {
   it('a road reaches from the player\'s own net, not through a foe\'s settlement; a settlement keeps its distance', () => {
     const { K, S } = at();
     const s = main(K, S);
@@ -209,7 +207,7 @@ describe('settlers: building', () => {
   });
 });
 
-describe('settlers: cards', () => {
+describe('island economy: cards', () => {
   it('bought, held, not played the turn it was bought; a knight moves the robber; three knights, the largest army', () => {
     const { K, S } = at();
     const s = main(K, S);
@@ -242,7 +240,7 @@ describe('settlers: cards', () => {
   });
 });
 
-describe('settlers: what a player may know', () => {
+describe('island economy: what a player may know', () => {
   it('a view deals the others\' cards and the deck again from what is unseen, and the dice ahead cannot be read', () => {
     const { K, S } = at();
     const s = main(K, S);
@@ -259,7 +257,7 @@ describe('settlers: what a player may know', () => {
   });
 });
 
-describe('settlers: the computer', () => {
+describe('island economy: the computer', () => {
   it('opens on a corner that earns, and the same seeds play the same game', () => {
     const { K, S } = at(2);
     const r = M.think(K, S, { ...M.LEVELS.fair, seed: 1 });
@@ -278,5 +276,94 @@ describe('settlers: the computer', () => {
       return line;
     };
     expect(run()).toEqual(run());
+  });
+});
+
+describe('island economy: trading between players', () => {
+  const hands = (S, ...hs) => { hs.forEach((h, s) => { S.hand[s] = { lumber: 0, brick: 0, wool: 0, grain: 0, ore: 0, ...h }; }); return S; };
+
+  it('after the roll: an offer, each other player answers in turn, the offerer deals with one who accepted', () => {
+    const { K, S } = at(1, 4, true);
+    const s = hands(main(K, S), { wool: 3 }, { ore: 1 }, {}, { ore: 2 });
+    const offers = T.legal(K, s).filter((m) => m.type === 'offer').map((m) => m.name);
+    expect(offers).toContain('offer 1 wool for 1 ore');
+    expect(offers).toContain('offer 2 wool for 1 ore');
+    expect(offers.some((n) => n.includes('for 1 brick'))).toBe(false);   // nobody holds brick to give
+    let N = T.apply(K, s, { type: 'offer', offer: { give: { wool: 2 }, get: { ore: 1 } } });
+    expect(N.pending.map((d) => [d.side, d.do])).toEqual([[1, 'answer'], [2, 'answer'], [3, 'answer'], [0, 'choose']]);
+    N = T.apply(K, N, { type: 'accept' });
+    // player 2 holds no ore: it can only decline
+    expect(T.legal(K, N).map((m) => m.type)).toEqual(['decline']);
+    N = T.apply(K, N, { type: 'decline' });
+    N = T.apply(K, N, { type: 'accept' });
+    expect(T.legal(K, N).map((m) => m.name)).toEqual(['deal blue', 'deal orange', 'cancel']);
+    const done = T.apply(K, N, T.legal(K, N).find((m) => m.name === 'deal orange'));
+    expect(done.hand[0]).toMatchObject({ wool: 1, ore: 1 });
+    expect(done.hand[3]).toMatchObject({ wool: 2, ore: 1 });
+    expect(done.hand[1]).toMatchObject({ ore: 1, wool: 0 });
+    const cancelled = T.apply(K, N, { type: 'cancel' });
+    expect(cancelled.hand).toEqual(N.hand);
+  });
+
+  it('any offer of whole cards the offerer holds is legal; a bad one is refused with its reason; two a turn', () => {
+    const { K, S } = at(1, 4, true);
+    const s = hands(main(K, S), { wool: 2, grain: 1 }, { ore: 1 });
+    expect(T.validOffer(K, s, { give: { wool: 2, grain: 1 }, get: { ore: 1 } })).toBeNull();
+    expect(T.validOffer(K, s, { give: { wool: 3 }, get: { ore: 1 } })).toMatch(/does not hold/);
+    expect(T.validOffer(K, s, { give: { wool: 1 }, get: { wool: 1 } })).toMatch(/same resource/);
+    expect(T.validOffer(K, s, { give: { wool: 1 }, get: {} })).toMatch(/gives something and asks something/);
+    let N = s;
+    for (let i = 0; i < 2; i += 1) {
+      N = T.apply(K, N, { type: 'offer', offer: { give: { wool: 1 }, get: { ore: 1 } } });
+      while (N.pending.length) N = T.apply(K, N, T.legal(K, N).find((m) => m.type === 'decline' || m.type === 'cancel'));
+    }
+    expect(T.legal(K, N).some((m) => m.type === 'offer')).toBe(false);
+    expect(T.validOffer(K, N, { give: { wool: 1 }, get: { ore: 1 } })).toMatch(/no offers left/);
+    expect(T.apply(K, N, { type: 'end' }).offersTurn).toBe(0);
+    const { K: K2, S: S2 } = at(1, 4, false);
+    expect(T.validOffer(K2, main(K2, S2), { give: { wool: 1 }, get: { ore: 1 } })).toMatch(/no trading/);
+  });
+
+  it('the computer accepts a trade that brings its next build nearer, weighs the offerer\'s gain heavier when the offerer leads, and makes no king', () => {
+    const { K, S } = at(1, 4, true);
+    // the answerer one ore short of a city, wool to spare; the offerer wanting little: accepted
+    const base = hands(main(K, S), { ore: 2 }, { wool: 4, grain: 2, ore: 2 });
+    put(K, base, 'settlement', 1, 'C3.n');
+    put(K, base, 'settlement', 0, 'A3.wnw');
+    const offer = { give: { ore: 1 }, get: { wool: 1 } };
+    const fair = M.LEVELS.fair;
+    const plain = M.judge(K, base, 1, 0, offer, fair);
+    expect(plain.myGain).toBeGreaterThan(plain.theirGain);
+    expect(plain.yes).toBe(true);
+    // when the trade completes the offerer's settlement too, its gain counts against the answer, more so when it leads
+    const both = hands(clone(base), { ore: 2, lumber: 1, brick: 1, grain: 1 }, { wool: 4, grain: 2, ore: 2 });
+    const level = M.judge(K, both, 1, 0, offer, fair);
+    expect(level.theirGain).toBeGreaterThan(0);
+    const leading = clone(both);
+    for (const c of ['E3.ene', 'C1.s']) put(K, leading, 'settlement', 0, c);
+    const ahead = M.judge(K, leading, 1, 0, offer, fair);
+    expect(ahead.ev).toBeLessThan(level.ev);
+    expect(ahead.yes).toBe(false);
+    // two points from winning: never
+    const near = clone(base);
+    for (const c of ['E3.ene', 'C1.s', 'C5.n', 'B1.wsw']) put(K, near, 'city', 0, c);
+    expect(T.score(K, near, 0, true)).toBeGreaterThanOrEqual(8);
+    expect(M.judge(K, near, 1, 0, offer, fair)).toMatchObject({ yes: false, why: 'kingmaker' });
+    // and nothing it cannot pay
+    expect(M.judge(K, base, 1, 0, { give: { ore: 1 }, get: { brick: 1 } }, fair)).toMatchObject({ yes: false, why: 'cannot pay' });
+  });
+
+  it('the computer offers what it foresees accepted and helpful, and answers through think', () => {
+    const { K, S } = at(1, 4, true);
+    // it is one ore short of a city with wool to spare; blue is one wool short of a settlement with ore to spare
+    const s = hands(main(K, S), { wool: 4, grain: 2, ore: 2 }, { ore: 3, lumber: 1, brick: 1, grain: 1 }, {}, {});
+    put(K, s, 'settlement', 0, 'C3.n');
+    put(K, s, 'settlement', 1, 'A3.wnw');
+    const r = M.think(K, s, { ...M.LEVELS.fair, seed: 3 });
+    expect(r.move.type).toBe('offer');
+    expect(Object.keys(r.move.offer.get)).toEqual(['ore']);
+    const N = T.apply(K, s, r.move);
+    const a = M.think(K, N, { ...M.LEVELS.fair, seed: 3 });
+    expect(['accept', 'decline']).toContain(a.move.type);
   });
 });

@@ -3,7 +3,7 @@ import { tabletopStart, tabletopPerft } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { CHESS, chessFromFen } from './games/chess.js';
 import { CHECKERS } from './games/checkers.js';
-import { settlersGame } from './games/settlers.js';
+import { islandEconomy } from './fixtures/island-economy.js';
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 
@@ -27,9 +27,9 @@ describe('tabletop perft, deep', () => {
     expect(count(CHECKERS, 6)).toBe(36768);
   }, 120000);
 
-  it('settlers: four computers play a dealt island to a winner at ten', () => {
+  it('an island economy with trading: four computers play a dealt island to a winner at ten', () => {
     const T = buildTabletop(), M = buildTabletopMind(T);
-    const { K } = tabletopGame(settlersGame({ seed: 1 }));
+    const { K } = tabletopGame(islandEconomy({ seed: 1, trade: true }));
     let S = T.start(K), n = 0;
     while (!S.over && n < 4000) { const a = T.actor(S); S = T.apply(K, S, M.think(K, S, { ...M.LEVELS.fair, seed: a }).move); n += 1; }
     expect(S.over.reason).toBe('score');
