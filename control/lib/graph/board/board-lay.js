@@ -27,10 +27,10 @@
  *   }
  *
  *   readBoardSpec(spec) → the spec, checked and its defaults filled (throws, teaching)
- *   layBoard(spec, { scene? }) → { board, frame: { origin: [x, y, z], cell, step }, source, faces? , scene? }
+ *   layBoard(spec, { scene? }) → { board, frame: { origin: [x, y, z], cell, step }, source, faces?, scene?, drape? }
  *     board: the kernel's B (board-kernel.js); frame: where it lies (a spot's centre in the world is origin plus
  *     boardCentre); faces: the diorama's own (blocks); scene: the stage payload it was sampled from (stage, assembled
- *     here unless handed in)
+ *     here unless handed in); drape: over land, the ground's height at 3 × 3 points of each spot (null where none)
  *
  * Pure: the same spec gives the same board and the same faces.
  */
@@ -156,12 +156,19 @@ function layBlocks(S, cube) {
   return { board, frame: { origin: [0, 0, 0], cell: S.cell, step: S.step }, source: { from: 'blocks', side, geocube: cube.id }, faces: blockFaces(board, cube, side) };
 }
 
+// a side's colour: the band's mid stone, shaded by the way it faces (the page draws unlit, so the light is baked: east
+// and west darker than north and south) and a touch darker every other step, so the bands count without shouting
+export const SIDE_SHADES = Object.freeze({ ns: 0.9, ew: 0.74, band: 0.9 });
+const shadeHex = (hex, f) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(hex.slice(k, k + 2), 16) * f).toString(16).padStart(2, '0')).join('');
+function sideFill(base, n, h) { return shadeHex(base, (n[0] ? SIDE_SHADES.ew : SIDE_SHADES.ns) * (h % 2 ? SIDE_SHADES.band : 1)); }
+export { shadeHex };
+
 // the diorama's faces: a top a spot, and its sides banded a step at a time where they stand above a neighbour (or the
 // plinth, a metre under the lowest ground), so a height reads as a count of bands
 function blockFaces(B, cube, side) {
   const R = geocubeRamps(cube), inside = side === 'inside', base = -1, out = [];
   const top = { ground: inside ? R.floor : R.grass, sand: R.sand ?? R.floor, trail: R.floor, rock: R.stone, cliff: R.stone, water: R.water };
-  const band = inside ? R.trim : R.stone, group = (t) => `board:${t}`;
+  const band = (inside ? R.trim : R.stone)[2], group = (t) => `board:${t}`;
   const quad = (corners, normal, g, fill) => out.push({ corners: corners.map((p) => p.map(r5)), normal, outNormal: normal, group: g, fill });
   for (let i = 0; i < B.spots.length; i++) {
     const s = B.spots[i];
@@ -175,7 +182,7 @@ function blockFaces(B, cube, side) {
       const lo = o ? o.h * B.step : base;
       for (let k = 0, zk = z; zk > lo + 1e-9; k++, zk -= B.step) {
         const zl = Math.max(lo, zk - B.step), h = Math.round(zk / B.step);
-        quad([[a[0], a[1], zl], [b[0], b[1], zl], [b[0], b[1], zk], [a[0], a[1], zk]], n, 'board:side', band[h % 2 ? 1 : 2]);
+        quad([[a[0], a[1], zl], [b[0], b[1], zl], [b[0], b[1], zk], [a[0], a[1], zk]], n, 'board:side', sideFill(band, n, h));
       }
     }
   }
@@ -351,5 +358,13 @@ function layStage(S, scene) {
     }
   }
   const board = boardOf(heights, { types, walk, cut, cell, step });
-  return { board, frame: { origin: [origin[0], origin[1], z0], cell, step }, source: { from: 'stage', side: S.side, geocube: readGeocube(S.geocube).id }, scene: P };
+  // the land under each spot as it lies (its corners, its edges' middles and its centre, row by row from the south-west),
+  // so what the page draws on a spot lies on the ground, not on its height rounded to a step; a room's floor is flat
+  const drape = S.side === 'outside' ? board.spots.map((sp, i) => {
+    if (!sp) return null;
+    const c = i % cols, r = (i - c) / cols, z = z0 + sp.h * step, out = [];
+    for (let b = 0; b <= 2; b++) for (let a = 0; a <= 2; a++) { const h = at(origin[0] + (c + a / 2) * cell, origin[1] + (r + b / 2) * cell); out.push(r5(h ? h.z : z)); }
+    return out;
+  }) : null;
+  return { board, frame: { origin: [origin[0], origin[1], z0], cell, step }, source: { from: 'stage', side: S.side, geocube: readGeocube(S.geocube).id }, scene: P, ...(drape ? { drape } : {}) };
 }

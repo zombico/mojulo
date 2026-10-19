@@ -1,0 +1,57 @@
+/**
+ * THE `board` WORLD KIND — a tactics board shown on the World page: its ground (the diorama its geocube paints, or the
+ * cube's rooms or land under it), its spots drawn over that ground, units standing on them, and the tactical camera
+ * (board-camera.js) that plays it. Not walked: the board owns the camera.
+ *
+ *   { kind: 'board', board?: <board-lay.js spec>, units?: [<board-kernel.js start unit>], camera?: { rotate, edge,
+ *     fov, pitches, zooms, yaw }, cursor?: 'C4' }
+ *
+ *   assembleBoardScene(manifest, ctx) → payload: the ground's faces (and a stage's own light and sky; a room's without
+ *     its ceiling, its walls cut at the waist, no haze), `board` (the page's data: board-page.js boardChannelData), and a camera
+ *     at the tactical view's rest, for a picture of it
+ */
+import { layBoard } from './board-lay.js';
+import { boardStart } from './board-kernel.js';
+import { boardCameraInit, boardCameraPose } from './board-camera.js';
+import { boardChannelData } from './board-page.js';
+
+const KEYS = ['kind', 'board', 'units', 'camera', 'cursor', 'title'];
+const CAMERA_KEYS = ['rotate', 'edge', 'fov', 'pitches', 'zooms', 'yaw'];
+const ASPECT = 1120 / 780;
+const CUTAWAY = 1.5;   // metres over the floor a room's walls are cut at, seen from above (the stage's walls are banded every half metre)
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const no = (m) => { throw new Error(`board: ${m}`); };
+
+function readCamera(c) {
+  if (c === undefined) return {};
+  if (!isObj(c)) no(`camera is { ${CAMERA_KEYS.join(', ')} } (every one optional)`);
+  for (const k of Object.keys(c)) if (!CAMERA_KEYS.includes(k)) no(`camera.${k} is not a camera setting (settings: ${CAMERA_KEYS.join(', ')})`);
+  for (const k of ['rotate', 'edge']) if (c[k] !== undefined && typeof c[k] !== 'boolean') no(`camera.${k} is true or false`);
+  if (c.fov !== undefined && !(c.fov >= 10 && c.fov <= 60)) no('camera.fov is degrees, 10 to 60 (narrow reads close to isometric)');
+  if (c.pitches !== undefined && !(Array.isArray(c.pitches) && c.pitches.length && c.pitches.every((p) => p >= 15 && p <= 80))) no('camera.pitches are degrees below the horizon, 15 to 80 each');
+  if (c.zooms !== undefined && !(Array.isArray(c.zooms) && c.zooms.length && c.zooms.every((z) => z > 0.1 && z <= 2))) no('camera.zooms are shares of the distance that frames the board, over 0.1 and up to 2 each');
+  if (c.yaw !== undefined && !(Number.isInteger(c.yaw) && c.yaw >= 0 && c.yaw <= 3)) no('camera.yaw is 0 to 3: which diagonal the view starts on');
+  return c;
+}
+
+export function assembleBoardScene(manifest = {}, ctx = {}) {
+  for (const k of Object.keys(manifest)) if (!KEYS.includes(k)) no(`'${k}' is not a setting of the board kind (settings: ${KEYS.filter((x) => x !== 'kind').join(', ')})`);
+  const L = layBoard(manifest.board ?? {}), camera = readCamera(manifest.camera), units = manifest.units ?? [];
+  if (!Array.isArray(units)) no('units are [{ id, side, at: \'C4\', move?, jump?, spd?, hp?, … }]');
+  if (units.length) boardStart(L.board, {}, units);   // the kernel says what cannot stand, before a page is made
+  // in rooms, what is drawn on a spot keeps to the floor inside the walls (a wall cut at the waist is hollow from above)
+  const clip = L.source.side === 'inside' && L.scene ? L.scene.rooms.map((r) => [r.box.min[0], r.box.min[1], r.box.max[0], r.box.max[1]]) : undefined;
+  const data = boardChannelData(L, { units, camera, cursor: manifest.cursor, drape: L.drape, clip });
+  const B = L.board, O = L.frame.origin, zs = B.spots.filter(Boolean).map((s) => O[2] + s.h * B.step);
+  const P = boardCameraPose(boardCameraInit({ bounds: [O[0], O[1], O[0] + B.cols * B.cell, O[1] + B.rows * B.cell], z: (Math.min(...zs) + Math.max(...zs)) / 2, ...camera }));
+  const hfov = (2 * Math.atan(Math.tan((P.fov * Math.PI) / 360) * ASPECT) * 180) / Math.PI;
+  const cameras = [{ name: 'board', worldFraming: { cameraPosition: P.pos, lookAt: P.target, horizontalFov: Math.round(hfov * 100) / 100 } }];
+  const title = ctx.title || `mojulo board · ${L.source.geocube} · ${L.source.side}`;
+  if (L.faces) return { faces: L.faces, cameras, title, bg: '#141920', board: data };
+  const { walk: _walk, cameras: _cams, ...scene } = L.scene;
+  // a room seen from above is a dollhouse: its ceiling gone and its walls cut at the waist, so the camera sees in
+  const faces = L.source.side === 'inside' ? scene.faces.filter((f) => !/:ceiling$/.test(f.group || '') && Math.min(...f.corners.map((c) => c[2])) < O[2] + CUTAWAY) : scene.faces;
+  // and a room's haze is a walker's (a few metres of air): from the board's camera it would grey the whole room out
+  if (L.source.side === 'inside') delete scene.haze;
+  return { ...scene, faces, cameras, title, walk: false, board: data };
+}

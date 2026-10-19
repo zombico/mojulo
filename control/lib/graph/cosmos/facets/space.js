@@ -21,8 +21,9 @@ export const SPACE = Object.freeze({
         // the trail). A climb has no spine, so a side game is trails only. Godot carries no camera mode yet.
         side: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)', godot: false },
         'first-person': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
-        // priced 10-19 (strategy board): a commander's camera over a board, not a hero's
-        tactical: { status: 'absent', effort: 'L', pkg: 'strategy-board', ...WEB, note: 'a locked pitch, quarter-turn rotation, zoom stops and pan held to the board; an RTS form pans and edge-scrolls instead of rotating. No camera follows anything but a hero today' },
+        // priced 10-19 (strategy board); 10-19 phase 3: built on the `board` world kind (board/board-camera.js, the board
+        // channel owns the page's camera), not yet a game's: no gameworld level is played through it
+        tactical: { status: 'partial', effort: 'L', pkg: 'strategy-board', ...WEB, lowers: 'lib/graph/board/board-camera.js', note: 'a locked pitch (two stops), quarter-turn rotation, zoom stops (the widest holds the board, the closer follow the cursor) and the focus held to the board, the cursor stepping the way the screen shows; an RTS form pans and edge-scrolls instead. On the board world kind; no game level is played through it yet' },
       },
     },
     topology: {
@@ -62,7 +63,7 @@ export const SPACE = Object.freeze({
     board: {
       values: {
         none: { status: 'built' },
-        spots: { status: 'absent', effort: 'L', pkg: 'strategy-board', ...WEB, note: 'square spots over the ground (a geocube\'s rooms or its land, or a diorama of its own), each a height, a type and one occupant; reach by move and jump, aim and area shapes, legal moves. The push puzzle\'s grid is the only discrete layer, compiled away into zones' },
+        spots: { status: 'partial', effort: 'L', pkg: 'strategy-board', ...WEB, lowers: 'lib/graph/board/board-kernel.js', note: 'square spots over the ground (a geocube\'s diorama, its rooms or its land), each a height, a type and one occupant; reach by move and jump, aim and area shapes, walls cutting steps, legal moves; shown on the board world kind with its overlay and units. No game lays one yet' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS' } },

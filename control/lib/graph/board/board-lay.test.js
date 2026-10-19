@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBoardSpec, layBoard } from './board-lay.js';
+import { readBoardSpec, layBoard, SIDE_SHADES, shadeHex } from './board-lay.js';
 import { boardStart, boardReach, boardPath, boardParse, boardCentre } from './board-kernel.js';
 import { readGeocube, geocubeRamps } from '../era/geocube.js';
 import { assembleStageScene } from '../era/stage.js';
@@ -58,12 +58,13 @@ describe('a diorama the cube paints', () => {
   it('wears the cube: grass and stone outside, floor and trim inside, water and its sand only when asked', () => {
     const R = geocubeRamps(readGeocube('island-noon'));
     const out = layBoard({ seed: 'fft' });
-    for (const f of out.faces) expect(f.group === 'board:side' ? R.stone : f.group === 'board:ground' ? R.grass : [...R.stone, ...(R.sand ?? [])]).toContain(f.fill);
+    const sides = (ramp) => [SIDE_SHADES.ns, SIDE_SHADES.ew].flatMap((f) => [f, f * SIDE_SHADES.band]).map((f) => shadeHex(ramp[2], f));
+    for (const f of out.faces) expect(f.group === 'board:side' ? sides(R.stone) : f.group === 'board:ground' ? R.grass : [...R.stone, ...(R.sand ?? [])]).toContain(f.fill);
     expect(spotsOf(out.board).some((x) => x.s.type === 'water')).toBe(false);
     const wet = layBoard({ seed: 'fft', water: true }).board;
     expect(spotsOf(wet).some((x) => x.s.type === 'water' && !x.s.walk)).toBe(true);
     const G = geocubeRamps(readGeocube('gothic-night')), hall = layBoard({ side: 'inside', seed: 'hall' });
-    for (const f of hall.faces) expect(f.group === 'board:side' ? G.trim : G.floor).toContain(f.fill);
+    for (const f of hall.faces) expect(f.group === 'board:side' ? sides(G.trim) : G.floor).toContain(f.fill);
     expect(Math.max(...spotsOf(hall.board).map((x) => x.s.h))).toBeLessThanOrEqual(1);
   });
 });

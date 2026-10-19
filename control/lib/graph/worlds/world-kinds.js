@@ -26,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleCityScene } from '@/lib/graph/city/plan/scene';
@@ -491,6 +492,12 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+  },
+  // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
+  // them, played with the tactical camera. Not walked: the board owns the camera and the keys
+  board: {
+    title: 'mojulo board',
+    resolve: (m, ctx) => assembleBoardScene(m, { title: ctx.title === 'mojulo board' ? undefined : ctx.title }),
   },
   // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
   // its thread, side by side; characters are made from it by ref (create_character { egocube })

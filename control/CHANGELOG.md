@@ -38,8 +38,14 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
     doorways;
   - over the cube's land (a trail's valley by default): heights and types read off the ground, trees shutting
     their spots, laid inside the site where the most ground can be stood on.
-- **The tactical camera**: a locked pitch, quarter-turn rotation, zoom stops and pan held to the board, with an RTS
-  form that pans and edge-scrolls instead of rotating.
+- **The board on the World page**, built: a `board` world kind (`{ board, units, camera, cursor }`) shows a board over
+  its ground with a faint grid of its spots, highlights for reach, aim and area, a cursor and the units, and plays it
+  with **the tactical camera**: a locked pitch with two stops, quarter turns (Q / E), zoom stops (Z / X or the
+  wheel), the cursor moving the way the screen shows whichever way the view is turned. The widest stop holds the
+  whole board; the closer ones follow the cursor. Selecting a unit shows its reach from the board kernel, and moving
+  it hops the kernel's path. A room is seen as a dollhouse (no ceiling, its walls cut at the waist); over land the
+  overlay drapes on the ground. An RTS form pans and scrolls at the edge instead of turning. A page without a board
+  keeps every byte. The `board` input scheme names its keys.
 - **A `tactics` quick goal**, and **tower defence on a board** (`defend` with `board`): towers fill spots, and foes
   path over the free ones.
 
