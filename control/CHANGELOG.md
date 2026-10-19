@@ -24,7 +24,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `measure_view`, and a `dress` that only sells the picture, light and explorable on the interactive page,
   choreographed with timed callouts on film. Every exaggeration is a declared liberty the page shows. A law the
   table lacks is named as a gap, never approximated silently.
-- **The classical solver** (`lib/graph/science-worlds/`), not yet reachable from `create_view`. A table of
+- **The classical solver** (`lib/graph/science-worlds/`). A table of
   laws (uniform and universal gravity, springs, rods and ropes, linear and quadratic drag, buoyancy, Coulomb, the
   Lorentz force, planes with restitution and friction, sphere collisions) composes a model; the solver picks velocity
   Verlet or RK4 and a step from the fastest motion, runs it, and checks it: energy conserved (or never gained when
@@ -34,6 +34,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   checks say when a model has left Newton's ground: near light speed, or a wavelength as large as the path. Units are
   read with their dimension, so a mass in m/s is an error. `machina/quantities` gains charge, temperature and amount,
   and the units the sciences use.
+- **`create_view({ kind: 'classical' })`**: the solver as a door. The recipe (`params: { model, dress?,
+  liberties? }`) is stored as given and solved again on every render; the mint returns every gate with what it wanted
+  and what it saw, and says nobody has looked yet. The page plays the run on equal-time samples (bodies, their trails,
+  optional velocity and acceleration arrows, rods, ropes and springs as bars, surfaces as patches) with a system
+  readout (the model's own clock, kinetic and potential energy and the total, momentum when nothing outside acts, the
+  speeds asked for) and a **What's real · what's drawn** panel: the laws, the checks and their numbers, what the model
+  leaves out, and every liberty, the drawing's own included (a scale other than a metre per unit, a body drawn larger
+  to be seen, time sped up or slowed). The readout and panel are a new opt-in page block (`scene/channels/science.js`)
+  that adds nothing to a page without it. `measure_view` reads a classical world at tier `si`: every body's samples
+  and the system's energy, momentum and angular momentum. The `classical` vocab card prints the law and closed-form
+  tables from the code (`node scripts/science-cards.mjs`; a test fails when they drift), and its worked examples are
+  tested to hold. The same setups composed from the table agree with the mechanics kind (a projectile, a wide
+  pendulum, a spring, a rough ramp) and the orbit kind (an ellipse's period and apsides) to a thousandth.
 
 ### Epidermis cube: skin and hair as a recipe
 

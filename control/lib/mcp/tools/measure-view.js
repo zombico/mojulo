@@ -30,17 +30,18 @@ import { planAirplaneScene, sampleAirplanePhysics } from '@/lib/graph/views/scie
 import { planOrbitScene, sampleOrbitPhysics } from '@/lib/graph/views/science/orbit-view';
 import { planDerivativeScene, sampleDerivativeExact } from '@/lib/graph/views/math/derivative-view';
 import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/series-view';
+import { solveClassical, classicalStats } from '@/lib/graph/science-worlds/classical/solve';
 
 // kinds with an honest sampler, in two tiers: 'si' (real physical units — mechanics
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -79,6 +80,10 @@ export function recomputeViewStats(manifest) {
   // the math mints return plan.stats verbatim — recompute is the planner's stats, whole.
   if (kind === 'derivative-view') return planDerivativeScene(manifest).stats;
   if (kind === 'series-view') return planSeriesScene(manifest).stats;
+  // a classical world: the solver's stats and its gates' verdicts (the model alone; the dress never reaches the solver)
+  if (kind === 'classical-view') {
+    return classicalStats(solveClassical({ model: manifest.model }));
+  }
   throw new Error(
     `recomputeViewStats: kind '${kind}' is not reviewable. Reviewable kinds: ${[...REVIEWABLE_VIEW_KINDS].join(', ')}.`,
   );
@@ -130,10 +135,34 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
     const s = sampleSeriesExact(manifest, { every });
     return { kind, tier: 'exact', scenario: s.scenario, units: s.units, domain: s.domain, family: s.family, series: s.series };
   }
+  if (kind === 'classical-view') return sampleClassical(manifest, every);
   throw new Error(
     `measure_view: kind '${kind}' has no honest read-back channel — its numbers are render units `
     + `or presets, so samples would lie. Measurable kinds: ${[...MEASURABLE_VIEW_KINDS].join(', ')}.`,
   );
+}
+
+// a classical world's samples: every body's { t, pos, vel, speed } and the system's { t, ke, pe, e, p, L }, in SI,
+// straight from the solver's recorded run (the same samples the page plays), with its gates beside them
+function sampleClassical(manifest, every) {
+  const r = solveClassical({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), t = r.tracks.t;
+  const keep = t.map((x, k) => k).filter((k) => k % step === 0 || k === t.length - 1);
+  return {
+    kind: 'classical-view', tier: 'si', scenario: 'composed',
+    units: { t: 's', pos: 'm', vel: 'm/s', speed: 'm/s', ke: 'J', pe: 'J', e: 'J', p: 'kg·m/s', L: 'kg·m²/s' },
+    T: r.model.duration, dt: r.dt, stepper: r.stepper, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed,
+    series: [
+      ...r.model.bodies.map((b) => {
+        const tr = r.tracks.bodies[b.id];
+        const samples = keep.map((k) => ({ t: t[k], pos: tr.x[k], vel: tr.v[k], speed: +Math.hypot(...tr.v[k]).toPrecision(9) }));
+        return { name: b.id, label: b.fixed ? `${b.id} (fixed)` : b.id, samples, count: samples.length };
+      }),
+      { name: 'system', label: 'the whole system', samples: keep.map((k) => ({ t: t[k], ke: r.series.ke[k], pe: r.series.pe[k], e: r.series.e[k], p: r.series.p[k], L: r.series.L[k] })), count: keep.length },
+    ],
+  };
 }
 
 export async function measureViewHandler(input) {

@@ -42,6 +42,9 @@ export const FIXTURE = [
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
+  // science worlds: a demo composed from laws, the kind carried as the mode
+  ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_view', 'classical'],
+  ['simulate two moons going around a planet so my students can watch the orbits', 'create_view', 'classical'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],

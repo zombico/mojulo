@@ -75,6 +75,8 @@ import { createTrigCircleViewHandler } from '@/lib/mcp/tools/trig-circle-view';
 import { createVectorMatchViewHandler } from '@/lib/mcp/tools/vector-match-view';
 import { createWavepacketViewHandler } from '@/lib/mcp/tools/wavepacket-view';
 import { createWindmillViewHandler } from '@/lib/mcp/tools/windmill-view';
+// Science worlds: a demo composed from a scale's law table, not one authored experiment (lib/graph/science-worlds/).
+import { createClassicalViewHandler } from '@/lib/mcp/tools/classical-view';
 // Animated bio PROCESS explainers — folded in from the standalone create_dna_process /
 // create_energy_cycle tools (mint-solid-consolidation.plan.md Tier 2 sibling).
 import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
@@ -89,6 +91,7 @@ export const VIEW_KINDS = {
   'black-hole': { family: 'science', retired: 'create_black_hole_view', handler: createBlackHoleViewHandler },
   'cascade': { family: 'science', retired: 'create_cascade_view', handler: createCascadeViewHandler },
   'cellular': { family: 'bio', retired: 'create_cellular_view', handler: createCellularViewHandler },
+  'classical': { family: 'science', handler: createClassicalViewHandler },   // a science world: composed from laws — no retired alias
   'cherenkov': { family: 'science', retired: 'create_cherenkov_view', handler: createCherenkovViewHandler },
   'comet': { family: 'science', retired: 'create_comet_view', handler: createCometViewHandler },
   'complete-square': { family: 'math', retired: 'create_complete_square_view', handler: createCompleteSquareViewHandler },

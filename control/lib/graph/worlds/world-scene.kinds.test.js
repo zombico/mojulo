@@ -41,6 +41,8 @@ const FIXTURES = {
   'cellular-view': { kind: 'cellular-view' },
   'atom-view': { kind: 'atom-view' },
   'mechanics-view': { kind: 'mechanics-view' },
+  // a science world needs a model: one body under gravity is its smallest
+  'classical-view': { kind: 'classical-view', model: { bodies: [{ id: 'ball', mass: 1, radius: 0.1, at: [0, 0, 1], v: [3, 0, 4] }], laws: [{ law: 'gravity-uniform' }], duration: 1 } },
   'orbit-view': { kind: 'orbit-view' },
   'comet-view': { kind: 'comet-view' },
   'field-view': { kind: 'field-view' },

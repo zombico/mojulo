@@ -102,6 +102,7 @@ import { assembleDnaProcessScene } from '@/lib/graph/views/bio/dna-process';
 import { assembleCellularScene } from '@/lib/graph/views/bio/cellular-view';
 import { assembleAtomScene } from '@/lib/graph/views/science/atom-view';
 import { assembleMechanicsScene } from '@/lib/graph/views/science/mechanics-view';
+import { assembleClassicalScene } from '@/lib/graph/science-worlds/classical/world';
 import { assembleRocketScene } from '@/lib/graph/views/science/rocket-view';
 import { assembleAirplaneScene } from '@/lib/graph/views/science/airplane-view';
 import { assembleOrbitScene } from '@/lib/graph/views/science/orbit-view';
@@ -372,6 +373,7 @@ export const WORLD_KINDS = {
   'cellular-view': view(assembleCellularScene, 'mojulo cell'),
   'atom-view': view(assembleAtomScene, 'mojulo atom'),
   'mechanics-view': view(assembleMechanicsScene, 'mojulo mechanics'),
+  'classical-view': view(assembleClassicalScene, 'mojulo classical world'),
   'rocket-view': view(assembleRocketScene, 'mojulo rocket'),
   'airplane-view': view(assembleAirplaneScene, 'mojulo airplane'),
   'orbit-view': view(assembleOrbitScene, 'mojulo orbit'),

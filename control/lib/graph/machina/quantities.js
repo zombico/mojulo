@@ -70,6 +70,7 @@ export const UNITS = {
   // the science worlds' units. Small lengths and masses, short times, angles (dimensionless), acceleration, the
   // fluid and spring constants, charge and fields, temperature and amount.
   'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), mg: U(DIM.mass, 1e-6),
+  AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
   ms: U(DIM.time, 1e-3), 'µs': U(DIM.time, 1e-6), us: U(DIM.time, 1e-6), d: U(DIM.time, 86400), yr: U(DIM.time, 365.25 * 86400),
   rad: U(DIM.scalar, 1), deg: U(DIM.scalar, Math.PI / 180), '°': U(DIM.scalar, Math.PI / 180),
   'm/s²': U(DIM.accel, 1), 'm/s2': U(DIM.accel, 1),

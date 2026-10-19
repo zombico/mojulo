@@ -163,6 +163,7 @@ export const PAGE_MARKS = Object.freeze({
   liveGrass: m(A, 'live grass is not drawn'),
   versus: m(A, 'the side-on fighter (versus/versus-core.js, scene/channels/versus.js) is the page\'s own frame simulation: nothing in the kernel fights it'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
+  science: m(A, 'a science world\'s readout, honesty panel and body labels (scene/channels/science.js) are the page\'s; no engine leg plays a science world'),
 });
 
 // ── a rigged figure's page overlays (scene/channels/controllable: what the page does to a figure beyond its clips) ──

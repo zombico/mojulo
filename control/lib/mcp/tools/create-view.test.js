@@ -140,7 +140,7 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(65 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18)
+    expect(all.cards.length).toBe(66 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, a science world, 2026-10-19)
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(12 + stage);
     expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(13);   // the bases, the weather and structures channel cards and the generated city-plan card (city rails, 2026-10-12)

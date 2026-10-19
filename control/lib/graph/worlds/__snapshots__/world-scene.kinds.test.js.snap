@@ -30,6 +30,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "8ab5fd55",
     "title": "mojulo Cherenkov glow",
   },
+  "classical-view": {
+    "hash": "b9630ca3",
+    "title": "mojulo classical world",
+  },
   "comet-view": {
     "hash": "981ebaa9",
     "title": "mojulo comet",

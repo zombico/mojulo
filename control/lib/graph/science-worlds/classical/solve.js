@@ -154,7 +154,7 @@ const OBSERVABLES = {
 };
 
 function normalizeObserve(list, index) {
-  if (list === undefined) return ['energy'];
+  if (list === undefined) return [{ quantity: 'energy' }];
   if (!Array.isArray(list)) fail('model.observe', "wants ['energy', { quantity: 'period', of: '<body>' }, …]");
   return list.map((o, i) => {
     const q = typeof o === 'string' ? { quantity: o } : o;
@@ -322,6 +322,11 @@ export function solveClassical(params) {
       energy: { start: sig(E[0]), end: sig(E[E.length - 1]) },
     },
   };
+}
+
+/** The stats digest a classical mint reports and research review recomputes: one function, so they cannot drift. */
+export function classicalStats(r) {
+  return { ...r.stats, stepper: r.stepper, dt: r.dt, steps: r.steps, samples: r.samples, held: r.held };
 }
 
 function observe(model, run, ctx, E) {
