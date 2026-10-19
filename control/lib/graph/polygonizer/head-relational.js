@@ -434,10 +434,12 @@ export function coreVajras(P, rel = RELATIONS) {
   v('philtrumBody', { x: 0, y: P.sn.y - 0.024, z: P.sn.z - 0.016 }, philMid, { x: 0, y: P.ls.y - 0.024, z: P.ls.z + 0.012 }, [0.016, pv, 0.02 * pk], 'lipBody');
   // THE SILLS — under each wing the lip's top edge: from the philtrum's top, under the lobule, out to the wing's base
   // where the fold begins. Its top tucks under the nostril, so the wing sits ON the lip in a crease (without it the
-  // lip's top fell 8 mm back under each wing, a slot you could see into from the side)
+  // lip's top fell 8 mm back under each wing, a slot you could see into from the side). Its outer end sinks into the
+  // cheek under the wing's outer edge (ended outside the wing and level with the lip, it stood a round knob 7 mm proud
+  // of the cheek beside each wing)
   for (const s of ['L', 'R']) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
-    taper(`sill${s}`, { x: sg * 0.006, y: P.sn.y - 0.026, z: P.sn.z - 0.016 }, { x: al.x + sg * 0.008, y: al.y - 0.044, z: al.z - 0.026 }, 0.013, 0.01);
+    taper(`sill${s}`, { x: sg * 0.006, y: P.sn.y - 0.026, z: P.sn.z - 0.016 }, { x: al.x, y: al.y - 0.07, z: al.z - 0.026 }, 0.013, 0.01);
   }
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x), ch = P[`ch${s}`];
@@ -512,10 +514,12 @@ export function coreVajras(P, rel = RELATIONS) {
   // a carved groove between them read as a line, and cut through the lip under the nose.)
   const cut = (name, a, c, b, r, drive, blend) => V.push({ name, a, c, b, r, group: 'carve', ...(drive ? { drive } : {}), ...(blend ? { blend } : {}) });
   // the ALAR CREASES — round the back and the bottom of each wing, where it meets the cheek and the lip: the wing stands
-  // off the face in a groove (the summed wave fills between near masses; it never parts them)
+  // off the face in a groove (the summed wave fills between near masses; it never parts them). It runs behind the
+  // wing's root (the nostril's first bead), its edge blended over ~1.5 mm: cut across the wing in front of the root, it
+  // left the root standing outside the groove as a curled flap
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`al${s}`].x), lb = lobule[s];
-    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.006, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.016, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.022, z: -0.018 }), [0.003, 0.004, 0.003]);
+    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.018, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.028, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.034, z: -0.018 }), [0.003, 0.004, 0.003], null, 0.006);
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);

@@ -64,6 +64,9 @@ node .claude/skills/head-study/study.mjs --field male --no-marks \
      --acts '[{}, {"jaw":0.7}, {"smile":1}, {"browRaise":1}, {"browLower":1}, {"blink":1}]'
 ```
 
+`--crop face` frames the face (chin to above the brow, cheek to cheek); `--crop nose` frames the nose's base and wings
+(the lip's top to the mid-bridge, just past the alae), close enough to read the alar creases and the sills.
+
 Options (the march turntable):
 - `male` / `female` — which poles (default both).
 - `--proto '{"jawWidth":1.2}'` — extra `proto` dials merged over the pole (headScale, browRidge,
