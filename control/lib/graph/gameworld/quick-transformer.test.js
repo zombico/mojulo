@@ -23,6 +23,14 @@ describe('a quick hero that transforms', () => {
     expect(() => readQuick({ goal: 'reach', transformer: car, ride: 'car' })).toThrow(/no ride beside it/);
     expect(() => readQuick({ goal: 'fly', transformer: { robot: { variable: { palette: 'mauve' } } } })).toThrow(/palette is one of/);
     expect(() => readQuick({ goal: 'reach', transformer: { vehicle: { boat: {} } } })).toThrow(/vehicle one of/);
+    // its ways: a car's and a craft's schemes, a fuselage fold's dials, a jetski on a trail
+    expect(() => readQuick({ goal: 'reach', transformer: { ...car, scheme: 'rear-foot' } })).not.toThrow();
+    expect(() => readQuick({ goal: 'reach', transformer: { ...car, scheme: 'fuselage-fold' } })).toThrow(/a car transforms as car-bot or rear-foot/);
+    expect(() => readQuick({ goal: 'fly', transformer: { vehicle: { craft: 'jetFighter' }, scheme: 'fuselage-fold', fold: 'back', legs: 'box' } })).not.toThrow();
+    expect(() => readQuick({ goal: 'fly', transformer: { vehicle: { craft: 'jetFighter' }, legs: 'box' } })).toThrow(/fuselage fold's/);
+    expect(() => readQuick({ goal: 'reach', transformer: { robot: { alien: { palette: 'void' } } } })).not.toThrow();
+    expect(() => readQuick({ goal: 'fly', transformer: { robot: { alien: {} } } })).toThrow(/jetski's goals are reach/);
+    expect(() => readQuick({ goal: 'reach', transformer: { robot: { alien: {} }, scheme: 'rear-foot' } })).toThrow(/folds its own way/);
   });
 
   it('scales the robot to its height, and gives a car its drive', () => {

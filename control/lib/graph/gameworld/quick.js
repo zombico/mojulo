@@ -8,12 +8,16 @@
  *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
- *     transformer?: { robot?, vehicle?, height? },   // the hero TRANSFORMS (transformation/: B, the pad's L3): a robot
- *                                           // that is a vehicle too. robot: { variable: { palette? } } a variable suit
- *                                           // folding into its waverider; vehicle: { supercar } | { ride } | { racer }
- *                                           // a car that stands up into a robot, { craft } a jet that does. A car's
- *                                           // goals are a trail's (reach, collect, survive, avoid, race alone); a
- *                                           // flier's the fly goal, flown from its seat in the air
+ *     transformer?: { robot?, vehicle?, scheme?, fold?, legs?, height? },   // the hero TRANSFORMS (transformation/: B,
+ *                                           // the pad's L3): a robot that is a vehicle too. robot: { variable: { palette? } }
+ *                                           // a variable suit folding into its waverider, { alien: { palette? } } an alien
+ *                                           // body of pointed shells folding into a hover jetski; vehicle: { supercar } |
+ *                                           // { ride } | { racer } a car that stands up into a robot (scheme 'car-bot', or
+ *                                           // 'rear-foot': its legs together the rear, the head popping out of the
+ *                                           // middle), { craft } a jet that does ('jet-bot', or 'fuselage-fold' with fold
+ *                                           // 'front' | 'back' and legs 'stretch' | 'box'). A car's and a jetski's goals
+ *                                           // are a trail's (reach, collect, survive, avoid, race alone); a flier's the
+ *                                           // fly goal, flown from its seat in the air
  *     climb?: true,                         // a climb after the trail, the exit at its top
  *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):
  *                                           // entered at its way in, its goal room the end, pickups in its other rooms
@@ -107,6 +111,8 @@ import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
+import { ALIEN_PALETTES } from '../transformation/alien-body.js';
+import { SCHEME_DIALS } from '../transformation/schemes.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
@@ -184,21 +190,25 @@ function readQuickCast(Q) {
 // a quick transformer: which form its vehicle is (a car drives a trail; a jet or a variable suit's waverider flies),
 // and the goals each plays
 export const QUICK_TRANSFORMER_GOALS = Object.freeze({ ground: ['reach', 'collect', 'survive', 'avoid', 'race'], air: ['fly'] });
-export const transformerForm = (T) => (T.vehicle ? (T.vehicle.craft ? 'air' : 'ground') : 'air');
+export const transformerForm = (T) => (T.vehicle ? (T.vehicle.craft ? 'air' : 'ground') : T.robot && T.robot.alien ? 'ground' : 'air');
+// the ways a car and a craft may transform (a body drawn to fold has its own)
+export const QUICK_TRANSFORMER_SCHEMES = Object.freeze({ car: ['car-bot', 'rear-foot'], craft: ['jet-bot', 'fuselage-fold'] });
 function readQuickTransformer(Q) {
   const T = Q.transformer;
-  const shape = '.transformer is { robot?, vehicle?, height? }: robot { variable: { palette?, build? } } (a variable suit, folding into its waverider), vehicle one of { supercar: { preset? } }, { ride: \'car\' | \'coupe\' | \'van\' }, { racer: { … } }, { craft: \'<archetype>\' }';
+  const shape = '.transformer is { robot?, vehicle?, scheme?, fold?, legs?, height? }: robot { variable: { palette?, build? } } (a variable suit, folding into its waverider) or { alien: { palette?, build? } } (pointed shells folding into a hover jetski), vehicle one of { supercar: { preset? } }, { ride: \'car\' | \'coupe\' | \'van\' }, { racer: { … } }, { craft: \'<archetype>\' }';
   if (!isObj(T)) throw fail(shape);
-  for (const k of Object.keys(T)) if (!['robot', 'vehicle', 'height'].includes(k)) throw fail(`.transformer.${k}: ${shape}`);
+  for (const k of Object.keys(T)) if (!['robot', 'vehicle', 'scheme', 'fold', 'legs', 'height'].includes(k)) throw fail(`.transformer.${k}: ${shape}`);
   for (const k of ['hero', 'ride', 'racers', 'supercars', 'craft', 'rivals']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.transformer is the hero: no ${k} beside it`);
   if (Q.climb || Q.building !== undefined) throw fail('.transformer runs a trail or flies a map: no climb, no building');
   if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.transformer is followed from behind (camera third-person)');
   if (T.height !== undefined && !(Number.isFinite(T.height) && T.height >= 2 && T.height <= 40)) throw fail('.transformer.height is the robot\'s height in metres, 2 to 40');
   if (T.robot !== undefined) {
-    if (!isObj(T.robot) || !isObj(T.robot.variable) || Object.keys(T.robot).length !== 1) throw fail('.transformer.robot is { variable: { palette?, build? } } (a stored suit rides compose_world\'s figures.<name>.transformer)');
-    const P = T.robot.variable.palette;
-    if (P !== undefined && !VARIABLE_PALETTES[P]) throw fail(`.transformer.robot.variable.palette is one of ${Object.keys(VARIABLE_PALETTES).join(', ')}`);
-    if (T.vehicle !== undefined) throw fail('.transformer.robot { variable } is its own vehicle (its waverider): no vehicle beside it');
+    const kind = isObj(T.robot) && Object.keys(T.robot).length === 1 ? Object.keys(T.robot)[0] : null;
+    if (!['variable', 'alien'].includes(kind) || !isObj(T.robot[kind])) throw fail('.transformer.robot is { variable: { palette?, build? } } or { alien: { palette?, build? } } (a stored suit rides compose_world\'s figures.<name>.transformer)');
+    const P = T.robot[kind].palette, PAL = kind === 'alien' ? ALIEN_PALETTES : VARIABLE_PALETTES;
+    if (P !== undefined && !PAL[P]) throw fail(`.transformer.robot.${kind}.palette is one of ${Object.keys(PAL).join(', ')}`);
+    if (T.vehicle !== undefined) throw fail(`.transformer.robot { ${kind} } is its own vehicle (${kind === 'alien' ? 'its jetski' : 'its waverider'}): no vehicle beside it`);
+    for (const k of ['scheme', 'fold', 'legs']) if (T[k] !== undefined) throw fail(`.transformer.${k}: a body drawn to fold folds its own way (no ${k})`);
   }
   if (T.vehicle !== undefined) {
     const V = T.vehicle, ks = isObj(V) ? Object.keys(V) : [];
@@ -208,8 +218,18 @@ function readQuickTransformer(Q) {
     if (V.supercar !== undefined && !(isObj(V.supercar) && (V.supercar.preset === undefined || SUPERCAR_LIBRARY[V.supercar.preset]))) throw fail(`.transformer.vehicle.supercar is { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')} }`);
     if (V.racer !== undefined && !isObj(V.racer)) throw fail('.transformer.vehicle.racer is a racer\'s recipe ({ seed?, facets?, brief? })');
   }
+  if (T.vehicle !== undefined) {
+    const which = T.vehicle.craft !== undefined ? 'craft' : 'car', ok = QUICK_TRANSFORMER_SCHEMES[which];
+    if (T.scheme !== undefined && !ok.includes(T.scheme)) throw fail(`.transformer.scheme: a ${which} transforms as ${ok.join(' or ')}`);
+    const D = SCHEME_DIALS[T.scheme ?? ok[0]] || {};
+    for (const k of ['fold', 'legs']) {
+      if (T[k] === undefined) continue;
+      if (!D[k]) throw fail(`.transformer.${k} is a fuselage fold's (scheme 'fuselage-fold')`);
+      if (!D[k].includes(T[k])) throw fail(`.transformer.${k} is ${D[k].join(' or ')}`);
+    }
+  }
   const form = transformerForm(T);
-  if (!QUICK_TRANSFORMER_GOALS[form].includes(Q.goal)) throw fail(`.transformer: a ${form === 'air' ? 'flier' : 'car'}'s goals are ${QUICK_TRANSFORMER_GOALS[form].join(', ')}`);
+  if (!QUICK_TRANSFORMER_GOALS[form].includes(Q.goal)) throw fail(`.transformer: a ${form === 'air' ? 'flier' : T.robot ? 'jetski' : 'car'}'s goals are ${QUICK_TRANSFORMER_GOALS[form].join(', ')}`);
 }
 
 /**
@@ -219,18 +239,23 @@ function readQuickTransformer(Q) {
  */
 export function quickTransformer(Q) {
   const T = Q.transformer, form = transformerForm(T);
-  // a variable suit stands a mobile worker's height on a trail's land; a car-bot its car's length; a jet-bot its jet's
-  const H = T.height ?? (T.robot ? 7 : T.vehicle.craft ? 14 : 4.5);
-  const spec = { ...(T.robot ? { robot: T.robot } : {}), ...(T.vehicle ? { vehicle: T.vehicle } : {}), height: H };
+  // a variable suit stands a mobile worker's height on a trail's land; an alien its jetski's length; a car-bot its car's
+  // length; a jet-bot its jet's
+  const alien = !!(T.robot && T.robot.alien);
+  const H = T.height ?? (alien ? 3.5 : T.robot ? 7 : T.vehicle.craft ? 14 : 4.5);
+  const spec = { ...(T.robot ? { robot: T.robot } : {}), ...(T.vehicle ? { vehicle: T.vehicle } : {}), ...(T.scheme ? { scheme: T.scheme } : {}), ...(T.fold ? { fold: T.fold } : {}), ...(T.legs ? { legs: T.legs } : {}), height: H };
   const robot = {
     rule: { type: 'platform', speed: r3(2 + 2.2 * Math.sqrt(H)), jumpSpeed: r3(2 + 3 * Math.sqrt(H)), stride: r3(0.55 * H), collideRadius: r3(0.12 * H), collideHeight: r3(0.9 * H) },
     camera: { dist: r3(2.6 * H), height: r3(H), lead: r3(0.6 * H), lookH: r3(0.6 * H) },
   };
   if (form === 'air') return { transformer: spec, H, forms: { robot } };
-  // the car: its proportions (a wheelbase about 0.6 of its length, a wheel about 0.077), on a ride's drive
-  const L = H;
+  // the car: its proportions (a wheelbase about 0.6 of its length, a wheel about 0.077), on a ride's drive (a rear-foot
+  // robot stands shorter than its car); a jetski skims on the same drive, quick to turn, no wheel to read
+  const L = T.scheme === 'rear-foot' ? H / 0.85 : H;
   const vehicle = {
-    rule: { type: 'drive', horsepower: 320, mass: 1500, wheelbase: r3(0.6 * L), wheelRadius: r3(0.077 * L), topSpeed: 26, collideRadius: r3(0.22 * L) },
+    rule: alien
+      ? { type: 'drive', horsepower: 180, mass: 420, wheelbase: r3(0.5 * L), wheelRadius: r3(0.1 * L), topSpeed: 30, steerMax: 0.7, collideRadius: r3(0.25 * L) }
+      : { type: 'drive', horsepower: 320, mass: 1500, wheelbase: r3(0.6 * L), wheelRadius: r3(0.077 * L), topSpeed: 26, collideRadius: r3(0.22 * L) },
     camera: { dist: r3(2.4 * L), height: r3(L), lead: 5, lookH: r3(0.27 * L) },
   };
   return { transformer: spec, H, forms: { robot, vehicle } };

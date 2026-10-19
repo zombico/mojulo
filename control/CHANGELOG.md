@@ -34,6 +34,19 @@ reorients them; it aims at visual plausibility, not mechanical fidelity.
   drawn to fold. Its kit moves apart as it transforms: the kite shield on its forearm becomes the nose, the flight
   binders on its back spread into swept wings, the hip fins flip up into the tail, and the legs close into the engine
   pods, their heel jets the engines. Three palettes (`federal`, `titans`, `crimson`) and breadth dials.
+- **Three more ways of transforming.** The REAR FOOT (`rear-foot`, a car): the legs together are the car's rear, its
+  bumper split between the feet, the hood the chest, the head folded down into the chest under the middle of the car
+  and the last thing out on the way up. The FUSELAGE FOLD (`fuselage-fold`, a jet; its dials `fold` and `legs`): lying
+  face down in the jet, the nose and cockpit hinge down onto the chest (`front`) or the tail hinges down behind as a
+  pack and the front of the fuselage stands up as the chest (`back`); the legs stretch back as the engine nacelles
+  (`stretch`) or tuck up into a box under the fuselage (`box`). A panel may now SWING about a hinge on its way between
+  its places. The ALIEN JETSKI (`alien-jetski`): the alien body below, folded.
+- **The alien body** (`transformation/alien-body.js`): a humanoid formed of pointed ellipsoid shells and their
+  relations, no part a vehicle's or a suit's: shoulders thrown out and up, forearms fattening to blades, a head
+  leaning forward like a dart, feet long spurs. Folded face down it is a hover jetski: a long keel (a blade down its
+  back standing) runs under it as the hull, the thigh shells slide up beside it as sponsons, the feet hang as skegs,
+  its blades, spikes and spine swing back as fins; it skims a hand's breadth over the ground on a light, quick drive.
+  Palettes `void`, `chrome`, `ember`.
 - **The craft rig** (`craft-shelf/craft-rig.js`): a craft archetype as a rig figure, one bone per item, so a jet form
   is the shelf's jet.
 - **Forms in the engine** (`worlds/controllable/forms.js`): an entity carries `forms`, a rule per form, and B (the
@@ -46,7 +59,8 @@ reorients them; it aims at visual plausibility, not mechanical fidelity.
 - **The doors.** `figures.<name>.transformer: { robot?, vehicle?, scheme?, height? }` bakes the body at resolve (a
   variable suit, a stored suit by `unitRef`, a stored build by `vehicleRef`, a ride, racer, supercar or craft);
   `compose_world` entities take `forms`, refused unless each names a rule the engine knows. A quick game's
-  `transformer` is its hero: a car-bot plays a trail's goals, a flier the fly goal from its seat in the air. The cosmos
+  `transformer` is its hero (its `scheme`, `fold` and `legs` read and refused by what the vehicle is): a car-bot or an
+  alien jetski plays a trail's goals, a flier the fly goal from its seat in the air. The cosmos
   counts `soul.hero=transformer` (web only; Godot and Roblox have no forms).
 
 ### Engine legs: the engines as translations, declared

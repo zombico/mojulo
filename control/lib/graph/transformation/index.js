@@ -6,6 +6,8 @@
  *   robot:   { frame: { tint?, joint?, eye? } }   (the default: an inner frame made to the vehicle's size)
  *          | { variable: { palette?, build? } }  (a VARIABLE SUIT, variable-suit.js: a suit drawn to fold into its own
  *                                                waverider; no vehicle, its scheme 'variable', `height` its height)
+ *          | { alien: { palette?, build? } }     (an ALIEN BODY, alien-body.js: pointed shells folding into a hover
+ *                                                jetski; no vehicle, its scheme 'alien-jetski')
  *          | { figure }                          (a baked biped rig: a suit's bakeUnitRig, a unitRef resolved upstream)
  *          | { manifest }                        (an assembler biped, inline)
  *   vehicle: { ride: 'car' | 'coupe' | 'van', seed? }   (gameworld/ride.js, the veh-* shelf)
@@ -14,7 +16,8 @@
  *          | { craft: '<archetype>', palette? }  (the craft shelf: a jet, a warbird, a starfighter)
  *          | { figure }                          (a baked vehicle rig: a vehicleRef resolved upstream)
  *          | absent                              (the robot's own alt form: the scheme says which)
- *   scheme:  a TRANSFORM_SCHEMES id (absent: by the vehicle, schemes.js schemeFor)
+ *   scheme:  a TRANSFORM_SCHEMES id (absent: by the vehicle, schemes.js schemeFor): a car 'car-bot' | 'rear-foot', a
+ *            jet 'jet-bot' | 'fuselage-fold' (its dials `fold` 'front' | 'back', `legs` 'stretch' | 'box')
  *   height:  the robot's height in metres when the frame is made (absent: the vehicle's length × the scheme's ratio)
  *
  * The figure is a plain rig figure (`rig: true`) carrying `forms`: the World page plays it as any rig body, and an
@@ -24,12 +27,13 @@
 import { bakeUnitRig } from '../worlds/unit-rig.js';
 import { innerFrameManifest } from './inner-frame.js';
 import { composeTransformer, piecesOfFigure, normalizePieces } from './compose.js';
-import { TRANSFORM_SCHEMES, SCHEME_IDS, schemeFor } from './schemes.js';
+import { TRANSFORM_SCHEMES, SCHEME_IDS, SCHEME_DIALS, schemeFor, resolveScheme } from './schemes.js';
 import { variableSuit, VARIABLE_PALETTES } from './variable-suit.js';
+import { alienBody, ALIEN_PALETTES } from './alien-body.js';
 import { lowerAssemblerBuild } from '../worlds/workbench-assembler.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
 
-export { TRANSFORM_SCHEMES, SCHEME_IDS, schemeFor, composeTransformer, piecesOfFigure, innerFrameManifest, variableSuit, VARIABLE_PALETTES };
+export { TRANSFORM_SCHEMES, SCHEME_IDS, SCHEME_DIALS, schemeFor, resolveScheme, composeTransformer, piecesOfFigure, innerFrameManifest, variableSuit, VARIABLE_PALETTES, alienBody, ALIEN_PALETTES };
 
 const RIDE_H = 1.5;   // a ride's height in the world (gameworld/ride.js)
 
@@ -59,19 +63,18 @@ export async function vehiclePieces(src) {
 }
 
 /**
- * bakeVariableSuit({ H, palette, build, keys }) → { figure, readout }: a variable suit (variable-suit.js) baked as a
- * suit and composed with its kit into the body that folds into its waverider. The kit is lowered into the suit bake's
- * own frame (centred on x and y over the suit's faces, its feet on z = 0, scaled to H), as the suit's faces are.
+ * bakeKitBody(built, { H, keys }) → { figure, readout }: a body drawn to fold (variable-suit.js, alien-body.js:
+ * { manifest, kit, scheme }) baked as a suit and composed with its kit. The kit is lowered into the suit bake's own
+ * frame (centred on x and y over the suit's faces, its feet on z = 0, scaled to H), as the suit's faces are.
  */
-export function bakeVariableSuit({ H = 18, palette = 'federal', build = {}, keys = 24 } = {}) {
-  const vs = variableSuit({ H, palette, build });
-  const fig = bakeUnitRig(vs.manifest, { keys: 12, targetH: H });
-  const { faces } = lowerAssemblerBuild(vs.manifest);
+export function bakeKitBody(built, { H, keys = 24 } = {}) {
+  const fig = bakeUnitRig(built.manifest, { keys: 12, targetH: H });
+  const { faces } = lowerAssemblerBuild(built.manifest);
   let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < mn[k]) mn[k] = c[k]; if (c[k] > mx[k]) mx[k] = c[k]; }
   const s = H / ((mx[2] - mn[2]) || 1), cx = (mn[0] + mx[0]) / 2, cy = (mn[1] + mx[1]) / 2;
   const N = (v) => [(v[0] - cx) * s, (v[1] - cy) * s, (v[2] - mn[2]) * s];
-  const kit = vs.kit.map((k) => {
+  const kit = built.kit.map((k) => {
     const lowered = lowerAssemblerBuild({ kind: 'assembler', units: 'm', items: [{ id: k.id, source: k.source, at: [0, 0, 0] }] }).faces
       .map((f) => ({ ...f, corners: f.corners.map(N) }));
     const gm = faceListToMesh(lowered);
@@ -82,15 +85,22 @@ export function bakeVariableSuit({ H = 18, palette = 'federal', build = {}, keys
       flight: { bone: F.bone, turns: F.turns, pivot: F.pivot && N(F.pivot), to: F.to && N(F.to) },
     };
   });
-  return composeTransformer({ robot: fig, scheme: vs.scheme, keys, kit });
+  return composeTransformer({ robot: fig, scheme: built.scheme, keys, kit });
 }
 
+/** bakeVariableSuit({ H, palette, build, keys }): the variable suit folding into its waverider */
+export const bakeVariableSuit = ({ H = 18, palette = 'federal', build = {}, keys = 24 } = {}) => bakeKitBody(variableSuit({ H, palette, build }), { H, keys });
+
+/** bakeAlienBody({ H, palette, build, keys }): the alien body folding into its hover jetski */
+export const bakeAlienBody = ({ H = 3.5, palette = 'void', build = {}, keys = 24 } = {}) => bakeKitBody(alienBody({ H, palette, build }), { H, keys });
+
 /** bakeTransformer(spec) → { figure, readout } */
-export async function bakeTransformer({ robot = { frame: {} }, vehicle = null, scheme, height, keys = 24 } = {}) {
+export async function bakeTransformer({ robot = { frame: {} }, vehicle = null, scheme, fold, legs, height, keys = 24 } = {}) {
   if (robot.variable) return bakeVariableSuit({ H: Number.isFinite(height) ? height : 18, ...(robot.variable || {}), keys });
+  if (robot.alien) return bakeAlienBody({ H: Number.isFinite(height) ? height : 3.5, ...(robot.alien || {}), keys });
   const sid = scheme || schemeFor({ vehicle });
-  const S = TRANSFORM_SCHEMES[sid];
-  if (!S) throw new Error(`transformation: scheme '${sid}' is not one of ${SCHEME_IDS.join(', ')}`);
+  const dials = { fold, legs };
+  const S = resolveScheme(sid, dials);
   const V = await vehiclePieces(vehicle);
   let fig;
   if (robot.figure) fig = robot.figure;
@@ -99,5 +109,5 @@ export async function bakeTransformer({ robot = { frame: {} }, vehicle = null, s
     const manifest = robot.manifest || innerFrameManifest({ H, build: (S.frame && S.frame.build) || undefined, ...(robot.frame || {}) });
     fig = bakeUnitRig(manifest, { keys: 12, targetH: H });
   }
-  return composeTransformer({ robot: fig, vehicle: V, scheme: sid, keys });
+  return composeTransformer({ robot: fig, vehicle: V, scheme: sid, dials, keys });
 }

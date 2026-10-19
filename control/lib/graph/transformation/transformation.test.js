@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { bakeTransformer, bakeVariableSuit, composeTransformer, innerFrameManifest, TRANSFORM_SCHEMES } from './index.js';
+import { bakeTransformer, bakeVariableSuit, bakeAlienBody, composeTransformer, innerFrameManifest, resolveScheme, TRANSFORM_SCHEMES } from './index.js';
 import { decodePart, soupBounds } from './rig-parts.js';
 import { bakeUnitRig } from '../worlds/unit-rig.js';
 
@@ -104,6 +104,60 @@ describe('transformation (more-than-meets): one body in two forms', () => {
     expect(minZ(figure, 'vehicle:idle', 0)).toBeGreaterThan(-0.05);
     expect(figure.thrusters.some((t) => t.kind === 'foot')).toBe(true);   // the heels' jets: the waverider's engines
     expect(nb).toBe(figure.parts.length);
+  });
+
+  // the middle of a bone's part under a clip key
+  const partCenter = (fig, clip, id, k = 0) => {
+    const i = fig.bones.findIndex((b) => b.id === id), o = (k * fig.bones.length + i) * 7, B = fig.clips[clip].b;
+    const q = B.slice(o, o + 4), h = B.slice(o + 4, o + 7), r = fig.bones[i].head, c = soupBounds(decodePart(fig.parts[i])).center;
+    const v = [c[0] - r[0], c[1] - r[1], c[2] - r[2]], [x, y, z, w] = q;
+    const t = [2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0])];
+    return [h[0] + v[0] + w * t[0] + (y * t[2] - z * t[1]), h[1] + v[1] + w * t[1] + (z * t[0] - x * t[2]), h[2] + v[2] + w * t[2] + (x * t[1] - y * t[0])];
+  };
+  // a bone's head (or a panel's middle) under a clip key
+  const at = (fig, clip, id, k = 0) => { const i = fig.bones.findIndex((b) => b.id === id), o = (k * fig.bones.length + i) * 7; return fig.clips[clip].b.slice(o + 4, o + 7); };
+
+  it('rear foot: the legs together are the car\'s rear, the head hides in the middle and pops out last', async () => {
+    const { figure, readout } = await bakeTransformer({ vehicle: { supercar: { preset: 'razor' } }, scheme: 'rear-foot' });
+    expect(readout.tris.composed).toBe(readout.tris.robot + readout.tris.vehicle);
+    const on = Object.fromEntries(readout.panels.map((p) => [p.id, p.on]));
+    // each half of the rear on a leg: the halves of the bumper the feet
+    expect([on.v_footL, on.v_footR].sort()).toEqual(['shinL', 'shinR']);
+    expect(on.v_chest).toBe('torso');
+    // folded, the legs lie together at the rear, closer than standing
+    const gap = (clip) => Math.abs(at(figure, clip, 'shinL')[0] - at(figure, clip, 'shinR')[0]);
+    expect(gap('vehicle:idle')).toBeLessThan(gap('idle'));
+    expect(at(figure, 'vehicle:idle', 'shinL')[1]).toBeLessThan(0);
+    // the head is under the middle of the car, and comes out in the sequence's last stretch (robot ← vehicle)
+    expect(Math.abs(at(figure, 'vehicle:idle', 'head')[1])).toBeLessThan(0.25 * figure.forms.length);
+    expect(resolveScheme('rear-foot').windows.head[1]).toBeLessThanOrEqual(0.3);
+  });
+
+  it('fuselage fold: its dials are read, the nose hinges down onto the chest, the boxed legs fold', async () => {
+    expect(() => resolveScheme('fuselage-fold', { fold: 'sideways' })).toThrow(/fold is one of front, back/);
+    expect(() => resolveScheme('jet-bot', { legs: 'box' })).toThrow(/takes no dials/);
+    const front = await bakeTransformer({ vehicle: { craft: 'jetFighter' }, scheme: 'fuselage-fold' });
+    expect(front.readout.dials).toEqual({ fold: 'front', legs: 'stretch' });
+    expect(front.readout.tris.composed).toBe(front.readout.tris.robot + front.readout.tris.vehicle);
+    // standing, the nose hangs on the chest below its hinge: the panel's middle under the torso's head
+    expect(at(front.figure, 'idle', 'v_nose')[2]).toBeLessThan(at(front.figure, 'idle', 'head')[2]);
+    const back = await bakeTransformer({ vehicle: { craft: 'jetFighter' }, scheme: 'fuselage-fold', fold: 'back', legs: 'box' });
+    expect(back.readout.panels.some((p) => p.id === 'v_tail' && p.on === 'torso')).toBe(true);
+    // the box: folded, the shin doubles back under the thigh (the foot by the hip); stretched, it carries on behind
+    const foot = (f) => { const c = partCenter(f, 'vehicle:idle', 'shinL'), h = at(f, 'vehicle:idle', 'thighL'); return Math.hypot(c[0] - h[0], c[1] - h[1], c[2] - h[2]) / f.figH; };
+    expect(foot(back.figure)).toBeLessThan(0.75 * foot(front.figure));
+  });
+
+  it('the alien body: pointed shells, its kit kept, folding into a hover jetski with its keel under it', () => {
+    const { figure, readout } = bakeAlienBody({ H: 3.5 });
+    expect(readout.tris.composed).toBe(readout.tris.robot + readout.tris.kit);
+    expect(figure.forms.kind).toBe('ground');
+    // hovering: the lowest part off the ground; the keel the lowest shell of the trunk, under it
+    expect(minZ(figure, 'vehicle:idle', 0)).toBeGreaterThan(0.05);
+    expect(at(figure, 'vehicle:idle', 'kit_keel')[2]).toBeLessThan(at(figure, 'vehicle:idle', 'torso')[2]);
+    // the sponsons beside the trunk, one each side
+    expect(at(figure, 'vehicle:idle', 'kit_hull_l')[0]).toBeLessThan(0);
+    expect(at(figure, 'vehicle:idle', 'kit_hull_r')[0]).toBeGreaterThan(0);
   });
 
   it('is deterministic', async () => {

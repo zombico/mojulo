@@ -27,7 +27,7 @@
 import { QI, qmul, qconj, qrot, qslerp, qaxis, qx, qy, qz, vadd, vsub, vlerp, vscale, vlen, windowEase, r4, DEG } from './kin.js';
 import { robotSkeleton, fk, CORE_BONES } from './skeleton.js';
 import { decodePart, packSoup, appendSoup, mapSoup, splitSoup, soupBounds, soupTris, emptySoup } from './rig-parts.js';
-import { TRANSFORM_SCHEMES, boneGroup } from './schemes.js';
+import { boneGroup, resolveScheme } from './schemes.js';
 
 const AXIS = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
 const euler = ([rx = 0, ry = 0, rz = 0] = []) => qmul(qz(rz), qmul(qy(ry), qx(rx)));
@@ -118,9 +118,8 @@ const rootWindow = (stow) => {
  * the standing robot, in its rest frame), bone (the bone it rides standing), flight: { bone, pivot, turns, to? } (its
  * place in the vehicle form: turned about `pivot` by `turns`, moved to `to`, riding `flight.bone` as it stows)}.
  */
-export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', keys = 24, kit = [] } = {}) {
-  const S = typeof scheme === 'string' ? TRANSFORM_SCHEMES[scheme] : scheme;
-  if (!S) throw new Error(`transformation: unknown scheme '${scheme}'`);
+export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', dials = {}, keys = 24, kit = [] } = {}) {
+  const S = typeof scheme === 'string' ? resolveScheme(scheme, dials) : scheme;
   if (!robot || !robot.rig) throw new Error('transformation: the robot must be a baked rig figure');
   const skel = robotSkeleton(robot);
   const NB = skel.bones.length;
@@ -158,8 +157,10 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
     return { min: mn, max: mx, center: [0, 1, 2].map((k) => (mn[k] + mx[k]) / 2) };
   };
   const b0 = stowedBounds(fk(skel, { root: { q: rootQ, at: pelvisRest }, local }));
-  const want = V ? [0, 0, S.stow.z * V.height] : [0, 0, b0.center[2] - b0.min[2]];
-  const stowAt = vadd(pelvisRest, vsub(want, b0.center));
+  // in the vehicle's middle at the row's height; alone, on the ground (or hovering over it)
+  // (`stow.y`: moved along the vehicle, a share of its length: a rear-foot's body sits back, its head under the middle)
+  const want = V ? [0, (S.stow.y || 0) * V.length, S.stow.z * V.height] : [0, 0, b0.center[2] - b0.min[2] + (S.stow.hover || 0) * H];
+  let stowAt = vadd(pelvisRest, vsub(want, b0.center));
   const stow = fk(skel, { root: { q: rootQ, at: stowAt }, local });
   const toRest = (i, v) => vadd(head(i), qrot(qconj(stow.q[i]), vsub(v, stow.h[i])));
 
@@ -212,7 +213,9 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
         mr[k] = (n > 0 ? bb.max[k] : bb.min[k]) + n * ext[k] * (1 - 2 * embed);
       }
     }
-    panels.push({ id, bone: bi, soup, head: c, Rr, mr, Rv, mv, Vq: QI, Vh: c, spin });
+    // a hinged panel swings about that edge of its box (in the vehicle's frame) between its two places
+    const hp = Array.isArray(rule.hinge) ? [0, 1, 2].map((k) => pb.center[k] + rule.hinge[k] * pb.size[k] / 2) : null;
+    panels.push({ id, bone: bi, soup, head: c, Rr, mr, Rv, mv, Vq: QI, Vh: c, spin, hp });
   };
 
   let vehicleTris = 0;
@@ -266,8 +269,22 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
     panels.push({ id: k.id, bone: bi, soup: k.soup, head: c, Rr: QI, mr: c, Rv, mv, Vq, Vh, spin: false, kit: true });
   }
 
-  // ── the composed bone list and parts ──
   const boxWelded = soups.map((s, i) => soupBounds(s) || box[i]);
+  // a body alone stands its vehicle form on the ground, or hovers it, by ALL of it (the kit too: a keel hangs lowest)
+  if (!V) {
+    let mn = Infinity;
+    for (let i = 0; i < NB; i++) for (const c of corners(boxWelded[i])) mn = Math.min(mn, stow.h[i][2] + qrot(stow.q[i], vsub(c, head(i)))[2]);
+    for (const x of panels) for (const c of corners(soupBounds(x.soup))) mn = Math.min(mn, x.Vh[2] + qrot(x.Vq, vsub(c, x.head))[2]);
+    const dz = (S.stow.hover || 0) * H - mn;
+    if (Math.abs(dz) > 1e-9) {
+      // a translation of the whole body: every panel's place on its bone is unchanged
+      for (let i = 0; i < NB; i++) stow.h[i] = [stow.h[i][0], stow.h[i][1], stow.h[i][2] + dz];
+      for (const x of panels) x.Vh = [x.Vh[0], x.Vh[1], x.Vh[2] + dz];
+      stowAt = [stowAt[0], stowAt[1], stowAt[2] + dz];
+    }
+  }
+
+  // ── the composed bone list and parts ──
   const bones = [...skel.bones.map((b) => ({ id: b.id, head: b.head.map(r4) })), ...panels.map((x) => ({ id: x.id, head: x.head.map(r4) }))];
   const parts = [...soups.map((s) => packSoup(s)), ...panels.map((x) => packSoup(x.soup))];
   const NX = bones.length;
@@ -321,11 +338,19 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
     for (let i = 0; i < NB; i++) frames.push([P.q[i], P.h[i]]);
     const a = windowEase(t, pw[0], pw[1]);
     for (const x of panels) {
-      // slide from the seat to the vehicle's place on the bone, bowing out from the bone's middle
-      const mid = vlerp(x.mr, x.mv, 0.5), out = vsub(mid, box[x.bone].center), ol = vlen(out) || 1;
-      const bow = 0.3 * vlen(vsub(x.mv, x.mr)) * Math.sin(Math.PI * a);
-      const m = vadd(vlerp(x.mr, x.mv, a), vscale(out, bow / ol));
-      frames.push(onBone(x, P.q[x.bone], P.h[x.bone], qslerp(x.Rr, x.Rv, a), m));
+      const R = qslerp(x.Rr, x.Rv, a);
+      let m;
+      if (x.hp) {
+        // swing about the hinge: the hinge edge travels straight between its two places, the panel turns about it
+        const hr = vadd(x.mr, qrot(x.Rr, vsub(x.hp, x.head))), hv = vadd(x.mv, qrot(x.Rv, vsub(x.hp, x.head)));
+        m = vadd(vlerp(hr, hv, a), qrot(R, vsub(x.head, x.hp)));
+      } else {
+        // slide from the seat to the vehicle's place on the bone, bowing out from the bone's middle
+        const mid = vlerp(x.mr, x.mv, 0.5), out = vsub(mid, box[x.bone].center), ol = vlen(out) || 1;
+        const bow = 0.3 * vlen(vsub(x.mv, x.mr)) * Math.sin(Math.PI * a);
+        m = vadd(vlerp(x.mr, x.mv, a), vscale(out, bow / ol));
+      }
+      frames.push(onBone(x, P.q[x.bone], P.h[x.bone], R, m));
     }
     // set on the ground: the lowest corner of any part, lifted to z = 0 (never pushed down)
     let mn = Infinity;
@@ -349,6 +374,7 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
   const wheels = panels.filter((x) => x.spin);
   const readout = {
     scheme: typeof scheme === 'string' ? scheme : 'custom',
+    ...(S.dials ? { dials: S.dials } : {}),
     form: S.form,
     height: r4(H),
     vehicle: V ? { length: r4(V.length), height: r4(V.height), pieces: V.pieces.length } : null,
