@@ -192,7 +192,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   bend and pushed not at all takes the bend's inside (a point's middle share split between the two by its side of the
   limb, eased round it), where the fold's push had drawn the skin in toward the bone: the sprint's knee pinches to 0.82
   of its ring at worst, and the bent elbow's inside stays full. The rig carries the two helpers (`kneeCrease<S>`,
-  `elbowCrease<S>`) as bones an engine skins with. Only the feet are still the authored cage.
+  `elbowCrease<S>`) as bones an engine skins with. THE NECK STANDS ON THE SHOULDERS, not on a pyramid: the core's
+  column and the ribcage's dome had reached 6 cm up inside the neck, and the base's wide blend filled from them to the
+  neck in a tent, the neck's silhouette widening from under the jaw straight down to the shoulder at 40 degrees; the
+  column now ends at the thoracic inlet and the dome under it, and the upper trapezius leaves the neck's side lower
+  (it had begun at the jaw's height), so the neck is a column to its root and the trapezius falls from it at about 30
+  degrees to a shoulder that stands where it stood (the collarbone was already nearly level: the slope was the fill).
+  Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

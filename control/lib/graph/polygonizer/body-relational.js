@@ -83,8 +83,10 @@ const NORRIN = {
   lower: { top: 0.5, navel: -0.02, hip: -1.0, at: 0.3, lift: 0.15 },
   kBase: 0.12, kMuscle: 0.03,
   base: [
-    { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 1.0]], r: [0.3, 0.27] },
-    { id: 'ribcage', egg: [0, -0.06, 0.5], r: [0.62, 0.44, 0.8] },
+    // (the column and the ribcage's dome end at the thoracic inlet: reaching 6 cm up inside the neck, the wide blend filled
+    // from them to the neck in a tent, the neck widening from under the jaw straight down to the shoulder, a pyramid)
+    { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 0.86]], r: [0.3, 0.27] },
+    { id: 'ribcage', egg: [0, -0.06, 0.44], r: [0.62, 0.44, 0.66] },
     // (the belly's mass over the navel: under the lower frame the navel came down from the ribs' edge, and the run from
     // it up to the chest is the belly's to fill)
     { id: 'abdomen', egg: [0, -0.02, 0.15], r: [0.58, 0.4, 0.5] },
@@ -128,7 +130,8 @@ const NORRIN = {
     { id: 'erector', on: { x: 0.14, t: -0.2, face: 'back' }, along: [0, 0, 1], r: [0.5, 0.13, 0.08], proud: 0.07 },
     // the sternocleidomastoid: from behind the ear down and in to the sternum's head, the neck's V from the front
     { id: 'sternocleidomastoid', cone: [[0.22, -0.06, 1.58], [0.06, 0.2, 0.98]], r: [0.07, 0.06] },
-    { joint: true, id: 'trapeziusUpper', cone: [[0.12, -0.15, 1.3], [0.7, -0.06, 0.98]], r: [0.14, 0.1] },
+    // (the upper trapezius leaving the neck's side low, not at the jaw's height: the neck a column to its root)
+    { joint: true, id: 'trapeziusUpper', cone: [[0.2, -0.14, 1.12], [0.7, -0.06, 0.97]], r: [0.13, 0.1] },
     // the armpit FILLED (the hanging arm covers it): the pectoral's and the latissimus's tendons into the arm and the
     // hollow between them, a cone from a point low on the chest's wall up to the shoulder, its side only ever moving
     // out as it rises. Without it the torso's rays at the shoulder's height crossed a gap between the chest's wall and
