@@ -1,6 +1,6 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>]`.
+description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--vitruvian]`.
 ---
 
 # body-study
@@ -46,6 +46,14 @@ muscle masses placed from the hero's rest joints, summed into one skin), denser 
 silver-grey, wearing the RELATIONAL head (head-relational.js, the head-study field lane's) fitted to the hero's head and
 carried by its head bone. A build may carry a tune of the hero's own (norrin's shoulders 0.9). A dev path: no minted
 hero changes. The pelvis and the legs are on the field too; only the feet are still the authored cage.
+
+**The Vitruvian rows** (`--vitruvian`, or a row's `{ "vitruvian": "square" | "circle" }`): the front alone, large, in
+Leonardo's two figures, to tune the ratios against. The SQUARE: the arms level, the feet together, the square of the
+stature drawn round the figure and its centre dashed; the margin reads the stature, the span (span / stature, Leonardo's
+1) and the crotch against the square's centre. The CIRCLE: the arms raised 18°, the feet spread (a stance of 2.8 hip
+spans, the hips sunk 3.5 cm into it), the circle centred on the navel through the soles; the margin reads the navel's
+height (of the stature, Leonardo's about 0.6) and how far the hands reach of the circle's radius. On the form field the
+navel and the crotch are the slice's own (`formSlice` `landmarks`), else the rig's navel joint.
 
 **Which shell shows** (`--tint`): each part in its own colour, so a handover between two shells (the torso and the
 pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps

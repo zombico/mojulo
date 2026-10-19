@@ -89,7 +89,10 @@ Opt-in and versioned: a default hero keeps its bytes.
   posed joints; and at the bind a sections panel (the trunk cut level at the neck, chest, waist and seat, the right
   limbs square to their bones) with each girth as a tape reads it, and a measures table (stature, heads tall, the
   shoulders' and hips' breadths, the girths). `--tint` colours each part its own (which shell shows where two hand
-  over) and `--parts` keeps only the parts a pattern names. The eyes gate beside the stretch audit's numbers: the sprint's knee crop
+  over), `--parts` keeps only the parts a pattern names, and `--vitruvian` adds Leonardo's two figures, the front large
+  in its square (the arms level: the span against the stature) and its circle (the arms raised, the feet spread: the
+  circle on the navel through the soles), with what each reads in the margin; norrin's span is 1.11 of its stature,
+  shalla's 1.08, where Leonardo's is 1. The eyes gate beside the stretch audit's numbers: the sprint's knee crop
   shows the shank's top out of the thigh where the audit measures it. Baseline, male and female: stature 1753 and
   1664 mm, 7.15 and 6.79 heads tall; chest 107 and 88 cm, waist 84 and 64, seat 86 and 90.
 - **The form field, a vertical slice** (`body-relational.js`; seen through `body-study --form`, not yet on the door).
@@ -139,7 +142,21 @@ Opt-in and versioned: a default hero keeps its bytes.
   the way from the hip's joint to the shoulder's and the seat carried over the hip's joint, so the lower trunk rides
   the leg wherever it is; a mass's height stretches with the frame. The rectus abdominis re-laid for it, three
   segments down to the navel and one long sheet under it to the pubis. Navel to crotch is now 0.139 and 0.134 of the
-  stature (norrin, shalla), the crotch 8 cm under the hip's joint. Only the feet are still the authored cage.
+  stature (norrin, shalla), the crotch 8 cm under the hip's joint. THE LIMBS' VOLUME (a build limb's `thick`): every
+  girth had stood 10 to 28 % under ANSUR II's means (the calf and the upper arm most), the bellies ballooned off a slim
+  bone; each limb is thickened across, not lengthened (the bone's cone and the bellies' round and out radii, the joints
+  as they were, which thickened stood out as knobs), so the upper arm, forearm, thigh, knee and calf read 0.188, 0.167,
+  0.335, 0.222 and 0.210 of the stature on norrin and 0.177, 0.147, 0.340, 0.216 and 0.207 on shalla. THE DELTOID RIDES
+  THE ARM: the torso's cap over the deltoid had been bound to the trunk and the collarbone and the arm's top half to the
+  collarbone, so a raised arm swung up out from under its own deltoid and left the cap hanging at the side like a pad.
+  A point's share of the upper arm's bone is now how near it lies to the deltoid's heads, read the same by the cap and
+  by the arm's top under it, so the two move as one; none under the armpit, whose folds follow the arm and whose flank
+  does not. THE GIRDLE RIDES THE COLLARBONE: the rig lifts the collarbone with a raised arm (the shoulder's joint 5 cm up
+  at the arm level, 6.4 overhead), but the torso had given it half a share or less in one band of rings, so the joint
+  rose under a shoulder that stayed down. The skin over the girdle (the collarbone, the acromion, the trapezius's fall,
+  the scapula's top) is now bound to it by its nearness to the bone, none inside the bone's sternal pivot (rising, it
+  turns that side down, and the neck's root split): a raised arm levels the shoulder's top from the neck to the arm.
+  Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

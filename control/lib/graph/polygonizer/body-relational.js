@@ -141,7 +141,8 @@ const NORRIN = {
   // the arms (the right; the left its mirror): s along the bone, az round it (0 the front, 90 the outside)
   kLimb: 0.03,
   limbs: {
-    upperArm: { from: 'shoulderR', to: 'elbowR', rings: 19, masses: [
+    // (each limb thickened across, `thick`: the girths had stood 10 to 28 % under the body's own, ANSUR II's means)
+    upperArm: { from: 'shoulderR', to: 'elbowR', rings: 19, thick: { bone: 1.35, belly: 1.25 }, masses: [
       { id: 'humerus', cone: [0, 1], r: [0.15, 0.13] },
       { id: 'deltoidAnterior', s: 0.16, az: 25, off: 0.11, r: [0.3, 0.16, 0.13] },
       { id: 'deltoidLateral', s: 0.2, az: 90, off: 0.12, r: [0.32, 0.19, 0.14] },
@@ -152,7 +153,7 @@ const NORRIN = {
       { id: 'tricepsLateral', s: 0.38, az: 135, off: 0.11, r: [0.3, 0.15, 0.12] },
       { id: 'elbow', s: 0.98, r: [0.13, 0.17, 0.13] },
     ] },
-    foreArm: { from: 'elbowR', to: 'wristR', rings: 17, masses: [
+    foreArm: { from: 'elbowR', to: 'wristR', rings: 17, thick: { bone: 1.2, belly: 1.12 }, masses: [
       { id: 'radiusUlna', cone: [0, 1], r: [0.14, 0.085] },
       { id: 'elbow', s: 0.02, r: [0.12, 0.16, 0.13] },
       { id: 'brachioradialis', s: 0.22, az: 45, off: 0.1, r: [0.36, 0.15, 0.13] },
@@ -162,7 +163,7 @@ const NORRIN = {
     ] },
     // the legs (the right; the left its mirror): the thigh from the hip's socket, the shank from the knee
     // (the thigh rounder and finer than the other limbs: under the hip's level it takes the seat's fold and the crotch)
-    thigh: { from: 'hipR', to: 'kneeR', rings: 33, around: 32, masses: [
+    thigh: { from: 'hipR', to: 'kneeR', rings: 33, around: 32, thick: { bone: 1.2, belly: 1.1 }, masses: [
       // (the bone slim, begun below the joint: a 6 cm ball at the hip's socket, forward of the trunk, read through the
       // pelvis's skin as an action figure's ball joint; the thigh's breadth up top is its muscles')
       { id: 'femur', cone: [0.12, 1], r: [0.17, 0.17] },
@@ -180,7 +181,7 @@ const NORRIN = {
       { id: 'knee', s: 1, r: [0.22, 0.27, 0.25] },
       { id: 'patella', s: 0.96, az: 0, off: 0.17, r: [0.13, 0.13, 0.07] },
     ] },
-    shank: { from: 'kneeR', to: 'ankleR', rings: 23, masses: [
+    shank: { from: 'kneeR', to: 'ankleR', rings: 23, thick: { bone: 1.35, belly: 1.15 }, masses: [
       { id: 'tibia', cone: [0, 1], r: [0.22, 0.12] },
       { id: 'knee', s: 0, r: [0.2, 0.26, 0.23] },
       { id: 'gastrocnemiusMedial', s: 0.27, az: -150, off: 0.15, r: [0.38, 0.19, 0.17] },
@@ -194,6 +195,15 @@ const NORRIN = {
 };
 /** a build's masses with their radii (and a belly's proud) scaled: one hand on a whole group's mass */
 const scaled = (masses, f, proud = f) => masses.map((m) => (m.chain ? { ...m, chain: m.chain.map(([a, b, c, r]) => [a, b, c, r * f]) } : { ...m, r: m.r.map((x) => x * f), ...(m.proud !== undefined ? { proud: m.proud * proud } : {}) }));
+/** a limb's masses thickened across, not lengthened (a build limb's `thick`: { bone, belly }): the bone's cone by `bone`,
+ * a belly off the axis (an `az`) and a chain's beads by `belly`, an egg in its round and out radii only; the joints on
+ * the axis (the knee, the elbow) as they are, where a limb is narrowest (a limb read thin between its bellies, the
+ * bellies ballooned off a slim bone; the joints thickened with the bone stood out as knobs) */
+const thick = (masses, { bone, belly }) => masses.map((m) => {
+  if (m.chain) return { ...m, chain: m.chain.map(([a, b, c, r]) => [a, b, c, r * belly]) };
+  const f = m.az !== undefined ? belly : m.cone ? bone : 1;
+  return { ...m, r: m.cone ? m.r.map((x) => x * f) : [m.r[0], m.r[1] * f, m.r[2] * f] };
+});
 const byId = (masses, edits) => masses.map((m) => (edits[m.id] ? { ...m, ...edits[m.id] } : m));
 const SHALLA = {
   note: 'lean and toned, the anatomy softer under one smooth skin, the bust in the field: the female slice',
@@ -225,10 +235,10 @@ const SHALLA = {
   dimples: [{ ...NORRIN.dimples[0], r: 0.016, k: 0.04 }],
   kLimb: 0.035,
   limbs: {
-    upperArm: { ...NORRIN.limbs.upperArm, masses: scaled(NORRIN.limbs.upperArm.masses, 0.98) },
-    foreArm: { ...NORRIN.limbs.foreArm, masses: scaled(NORRIN.limbs.foreArm.masses, 1.02) },
-    thigh: { ...NORRIN.limbs.thigh, masses: scaled(NORRIN.limbs.thigh.masses, 1.04, 0.8) },
-    shank: { ...NORRIN.limbs.shank, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8) },
+    upperArm: { ...NORRIN.limbs.upperArm, thick: { bone: 1.4, belly: 1.32 }, masses: scaled(NORRIN.limbs.upperArm.masses, 0.98) },
+    foreArm: { ...NORRIN.limbs.foreArm, thick: { bone: 1.1, belly: 1.02 }, masses: scaled(NORRIN.limbs.foreArm.masses, 1.02) },
+    thigh: { ...NORRIN.limbs.thigh, thick: { bone: 1.3, belly: 1.22 }, masses: scaled(NORRIN.limbs.thigh.masses, 1.04, 0.8) },
+    shank: { ...NORRIN.limbs.shank, thick: { bone: 1.55, belly: 1.42 }, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8) },
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
@@ -303,7 +313,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   });
   // masses another field owns and this one shares (the arm's deltoid heads: the shoulder's cap, so both shells agree)
   muscles.push(...extra.flatMap((p) => [p, mirror(p)]));
-  const dimples = (B.dimples || []).flatMap((d) => { const { s } = seat(d.on); return [{ c: s, r: d.r * W, k: d.k * W }]; });
+  const dimples = (B.dimples || []).flatMap((d) => { const { s } = seat(d.on); return [{ id: d.id, c: s, r: d.r * W, k: d.k * W }]; });
   // a mass with its own blend `k` (tighter: a border the eye reads, the pectoral's lower edge) joins after the rest
   const soft = muscles.filter((p) => !p.k), sharp = muscles.filter((p) => p.k);
   // THE BUST (`bust`): the summed skin pushed out by the breast's FIELD (breast-field.js: the footprint, the poles'
@@ -474,7 +484,7 @@ export function limbField(R, build, limb, extra = []) {
   const fr = unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
   const dirAt = (az) => add(scl(fr, dmath.cos((az * Math.PI) / 180)), scl(out, dmath.sin((az * Math.PI) / 180)));
   const at = (s, az = 0, off = 0) => add(add(h, scl(ax, s * L)), scl(dirAt(az), off * W));
-  const prims = Lb.masses.flatMap((m) => {
+  const prims = (Lb.thick ? thick(Lb.masses, Lb.thick) : Lb.masses).flatMap((m) => {
     // a CHAIN: round cones bead to bead, each bead [s, az, off, r] (a mass that spirals round the bone)
     if (m.chain) return m.chain.slice(1).map((b, i) => { const a = m.chain[i]; return { id: `${m.id}${i}`, cone: [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])], r: [a[3] * W, b[3] * W] }; });
     if (m.cone) return { id: m.id, cone: [at(m.cone[0], m.az, m.off?.[0] ?? 0), at(m.cone[1], m.az, m.off?.[1] ?? 0)], r: m.r.map((x) => x * W) };
@@ -488,7 +498,8 @@ export function limbField(R, build, limb, extra = []) {
 
 /** the slice: the torso and the arms re-sampled onto the build's field (the torso `around` × `rings`, each limb
  * `limbAround` × its build's rings), the pectoral and bust parts gone (the field carries their form), the dials' station
- * blends extended by u. Returns { recipe, field, removed, fields } (`fields`: each re-sampled shell's signed distance,
+ * blends extended by u. Returns { recipe, field, removed, landmarks, fields } (`landmarks`: the crotch's and the navel's
+ * heights; `fields`: each re-sampled shell's signed distance,
  * its handovers' set-ins included, by part: what a seam's diagnosis reads) */
 export function formSlice(recipe, R, build, opts = {}) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build;
@@ -583,6 +594,61 @@ export function formSlice(recipe, R, build, opts = {}) {
   for (const T of [r.parts.torso, r.parts.neck, pelvic && r.parts.pelvis].filter(Boolean)) for (const s of T.stations) { s.points.front[0] = 0; s.points.back[0] = 0; for (const sl of T.slots) if (sl.endsWith('L')) { const p = s.points[`${sl.slice(0, -1)}R`]; s.points[sl] = [-p[0], p[1], p[2]]; } }
   // the limbs: the right one sampled on its field, the left its mirror
   const done = ['torso', 'neck', ...(pelvic ? ['pelvis'] : [])];
+  // THE DELTOID RIDES THE ARM: a point's share of the upper arm's bone by how near it lies to the deltoid's heads (on
+  // them, the arm's; `dBand` off them, none), read the same by the torso's cap and the arm's top under it, so the two
+  // skins, one over the other at rest, move as one. The cap had been bound to the trunk and the collarbone, the arm's top
+  // half to the collarbone: a raised arm swung up out from under its own deltoid, the cap left hanging at the side
+  const delt = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)), dBand = 0.5 * W0;
+  // (and none under the armpit: its folds, the pectoral's and the latissimus's, follow the arm, the flank under them
+  // does not; a share by nearness alone carried the flank up in a web under a raised arm)
+  const zAx = R.joints.shoulderR[2], deltoidShare = (q) => {
+    const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]]))), x = Math.max(0, Math.min(1, 1 - Math.max(0, d) / dBand));
+    const y = Math.max(0, Math.min(1, (q[2] - zAx + 1.1 * W0) / (0.6 * W0)));
+    return x * x * (3 - 2 * x) * y * y * (3 - 2 * y);
+  };
+  // (`least`: the arm's share raised to the deltoid's where it was less, the arm's own rings; else mixed in by it)
+  const rideDeltoid = (P, least) => {
+    if (!delt.length) return P;
+    const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
+    const ride = (key, fallback, p) => {
+      if (p[0] === 0) return;
+      const f = deltoidShare(p), arm = `upperArm${p[0] < 0 ? 'L' : 'R'}`, w0 = blend[key] || fallback || own, cur = w0[arm] ?? 0;
+      const t = least ? (f > cur ? (f - cur) / (1 - cur) : 0) : f;
+      if (t < 1e-3) return;
+      const w = mixW(w0, { [arm]: 1 }, t);
+      if (Object.keys(w).length <= 4) blend[key] = w;
+    };
+    for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
+    for (const [k, q] of Object.entries(P.caps || {})) ride(k, null, q);
+    return { ...P, bind: { ...b, blend } };
+  };
+  // THE GIRDLE RIDES THE COLLARBONE: the skin over the shoulder's girdle (the collarbone, the acromion, the trapezius's
+  // fall to it, the scapula's top) bound to the collarbone's bone by its nearness to it (within `gIn`, wholly; `gOut`,
+  // not at all), so a raised arm, which lifts the collarbone, levels the shoulder's top from the neck out to the arm.
+  // The torso had given the collarbone half a share or less in one band of rings: the joint rose under a shoulder that
+  // stayed down
+  const c0 = R.joints.clavicleR, c1 = R.joints.shoulderR, gIn = 0.35 * W0, gOut = 0.8 * W0;
+  const girdleShare = (q) => {
+    if (!c0) return 0;
+    const p = [Math.abs(q[0]), q[1], q[2]], ab = sub(c1, c0), t = Math.max(0, Math.min(1, dot(sub(p, c0), ab) / dot(ab, ab))), d = len(sub(p, add(c0, scl(ab, t))));
+    // (none inside the collarbone's pivot, its sternal end: rising, the bone turns that side down, and the skin at the
+    // neck's root split at the midline)
+    const x = Math.max(0, Math.min(1, (gOut - d) / (gOut - gIn))), m = Math.max(0, Math.min(1, (p[0] - c0[0]) / (0.3 * W0)));
+    return x * x * (3 - 2 * x) * m * m * (3 - 2 * m);
+  };
+  const rideGirdle = (P) => {
+    const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
+    for (const st of P.stations) for (const sl of P.slots) {
+      const p = st.points[sl]; if (p[0] === 0) continue;
+      const f = girdleShare(p); if (f < 1e-3) continue;
+      const key = `${st.id}.${sl}`, w0 = blend[key] || blend[st.id] || own, cl = `clavicle${p[0] < 0 ? 'L' : 'R'}`, cur = w0[cl] ?? 0;
+      if (f <= cur) continue;
+      const w = mixW(w0, { [cl]: 1 }, (f - cur) / (1 - cur));
+      if (Object.keys(w).length <= 4) blend[key] = w;
+    }
+    return { ...P, bind: { ...b, blend } };
+  };
+  r.parts.torso = rideDeltoid(rideGirdle(r.parts.torso), false);
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
     // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
@@ -597,6 +663,7 @@ export function formSlice(recipe, R, build, opts = {}) {
       return null;   // (the bone itself not in the skin: the thigh's top rings above the hip's joint)
     };
     r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
+    if (limb === 'upperArm') r.parts[pr] = rideDeltoid(r.parts[pr], true);
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }
@@ -606,5 +673,5 @@ export function formSlice(recipe, R, build, opts = {}) {
     if (Array.isArray(d.parts)) d.parts = d.parts.filter((p) => !gone.includes(p));
     if (d.blend && d.parts?.some((p) => done.includes(p))) for (const pn of done) for (const s of r.parts[pn]?.stations || []) if (d.blend[s.id] === undefined) { const lo = d.blend[`st${Math.floor(s.u)}`] ?? 0, hi = d.blend[`st${Math.ceil(s.u)}`] ?? 0, t = s.u - Math.floor(s.u); d.blend[s.id] = r6(lo * (1 - t) + hi * t); }
   }
-  return { recipe: r, field, removed: gone, fields: Object.fromEntries([['torso', pelvic ? handed(field.sd, 1) : field.sd], ...(pelvic ? [['pelvis', handed(pelvisSd ?? field.sd, -1)]] : []), ...Object.entries(limbs).map(([k, l]) => [k, l.sd])]) };
+  return { recipe: r, field, removed: gone, landmarks: { crotch, navel: field.masses.dimples.find((d) => d.id === 'navel')?.c[2] ?? null }, fields: Object.fromEntries([['torso', pelvic ? handed(field.sd, 1) : field.sd], ...(pelvic ? [['pelvis', handed(pelvisSd ?? field.sd, -1)]] : []), ...Object.entries(limbs).map(([k, l]) => [k, l.sd])]) };
 }

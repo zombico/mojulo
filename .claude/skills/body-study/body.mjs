@@ -51,7 +51,7 @@ const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null, vitruvian = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -61,6 +61,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--form') { form = args[++i]; continue; }
   if (a === '--tint') { tint = true; continue; }
+  if (a === '--vitruvian') { vitruvian = true; continue; }
   if (a === '--parts') { only = new RegExp(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
   if (a.startsWith('--')) throw new Error(`body-study: unknown option ${a}`);
@@ -130,15 +131,25 @@ function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BODY_BUILDS[form]?.tune ? { tune: BODY_BUILDS[form].tune } : {}) } : {}), ...extra }) });
-  if (form) m.recipe = formSlice(m.recipe, validateRig(m.recipe.rig), form).recipe;
+  const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), form) : null;
+  if (sl) m.recipe = sl.recipe;
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
-  const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R) };
+  const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R), navelZ: sl?.landmarks?.navel ?? null, crotchZ: sl?.landmarks?.crotch ?? null };
   if (form) h.graft = graftHead(h, cast === 'female' ? 'female' : 'male');
   heroes.set(key, h);
   return h;
 }
+/** THE VITRUVIAN rows (`--vitruvian`, or a row's `vitruvian`): Leonardo's two figures. The SQUARE, the arms level out
+ * and the feet together: the span against the stature, the square's centre at the groin; the CIRCLE, the arms raised
+ * 18° and the feet spread to a stance of 2.8 hip spans (the hips sunk 3.5 cm, as Leonardo's figure sinks into the spread),
+ * the circle centred on the navel through the soles */
+const VITRUVIAN = {
+  square: { armR: 'outward', armL: 'outward' },
+  circle: { armR: ['outward', 'outward', 'outward', 'up'], armL: ['outward', 'outward', 'outward', 'up'], stance: 2.8, sink: 0.035 },
+};
 /** a row's posed joints and its label */
 function rowNodes(cast, H, row) {
+  if (row.vitruvian) { if (!VITRUVIAN[row.vitruvian]) throw new Error(`body-study: vitruvian is ${Object.keys(VITRUVIAN).join(' or ')}`); return { nodes: rigNodesAt(H.R, VITRUVIAN[row.vitruvian]).nodes, label: `vitruvian ${row.vitruvian}` }; }
   if (row.gait) { const ph = row.phase ?? 0; return { nodes: rigNodesAt(H.R, gaitPose(H.R, row.gait)(ph)).nodes, label: `${row.gait} ${ph}` }; }
   if (row.gesture) { const g = hero(cast, { gesture: row.gesture }); const pose = standPose(g.m.recipe, g.R); return { nodes: rigNodesAt(H.R, pose || {}).nodes, label: `gesture ${row.gesture}` }; }
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
@@ -261,15 +272,40 @@ const parts = [], report = {};
 let y0 = 0, sheetW = 0;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const label = (x, y, t, size = 13) => parts.push(`<text x="${x + 8}" y="${y}" font-family="monospace" font-size="${size}" fill="#555">${esc(t)}</text>`);
+/** a Vitruvian row: the front, the figure in its square or circle, and what the canon reads off it (the stature and the
+ * span, the navel's height and the circle's reach, the groin against the square's centre), in the cell's margin */
+async function vitruvianCell(H, nodes, kind, cast, y) {
+  const W = 640, Hh = 720, P = posed(H, nodes), V = P.V;
+  let floor = Infinity, top = -Infinity, xl = Infinity, xr = -Infinity;
+  for (const v of V) { floor = Math.min(floor, v[2]); top = Math.max(top, v[2]); xl = Math.min(xl, v[0]); xr = Math.max(xr, v[0]); }
+  const stature = top - floor, span = xr - xl;
+  // the navel: the form's dimple where the slice has one, else the rig's navel joint
+  const navel = H.navelZ ?? nodes.navel[2], R0 = navel - floor;
+  const side = Math.max(stature, span), half = side / 2 + 0.06, cz = kind === 'circle' ? navel : floor + stature / 2, rz = kind === 'circle' ? Math.max(R0, half) : half;
+  const box = { min: [-rz - 0.04, -0.3, cz - rz - 0.04], max: [rz + 0.04, 0.3, cz + rz + 0.04] };
+  const cam = camera(0, 0, box, W, Hh);
+  await cell(0, y, rasterize(V, P.faces, P.normals, cam, W, Hh), W, Hh);
+  const pt = (x, z) => { const [u, v] = cam.project([x, 0, z]); return [u, y + v]; };
+  if (kind === 'square') { const [x0, y1] = pt(-stature / 2, floor), [x1, y2] = pt(stature / 2, floor + stature); parts.push(`<rect x="${Math.min(x0, x1)}" y="${Math.min(y1, y2)}" width="${Math.abs(x1 - x0)}" height="${Math.abs(y1 - y2)}" fill="none" stroke="#b5482a" stroke-width="1.5"/>`); const [mx, my] = pt(0, floor + stature / 2); parts.push(`<line x1="${x0}" y1="${my}" x2="${x1}" y2="${my}" stroke="#b5482a" stroke-dasharray="5 4" stroke-width="1"/>`); }
+  else { const [cx, cy] = pt(0, navel), [ex] = pt(R0, navel); parts.push(`<circle cx="${cx}" cy="${cy}" r="${Math.abs(ex - cx)}" fill="none" stroke="#2a62b5" stroke-width="1.5"/>`, `<circle cx="${cx}" cy="${cy}" r="3" fill="#2a62b5"/>`); }
+  const groin = H.crotchZ ?? null, mm = (m) => `${Math.round(m * 1000)} mm`;
+  const lines = kind === 'square'
+    ? [`stature ${mm(stature)}, span ${mm(span)}: span/stature ${(span / stature).toFixed(3)} (Leonardo 1)`, `square's centre ${mm(stature / 2)} up${groin !== null ? `; the crotch ${mm(groin - floor)} (${((groin - floor) / stature).toFixed(3)})` : ''}`]
+    : [`navel ${mm(R0)} up: navel/stature ${(R0 / stature).toFixed(3)} (Leonardo ~0.6)`, `circle through the soles; the hands reach ${mm(V.reduce((m, v) => Math.max(m, Math.hypot(v[0], v[2] - navel)), 0))} of ${mm(R0)}`];
+  lines.forEach((t, i) => parts.push(`<text x="${W + 16}" y="${y + 40 + i * 20}" font-family="monospace" font-size="13" fill="#333">${esc(t)}</text>`));
+  label(0, y + Hh - 10, `${cast} · vitruvian ${kind} · front`, 12);
+  return W + 560;
+}
 async function cell(x, y, img, W, H) {
   const png = await sharp(img, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
   parts.push(`<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${BG}"/>`, `<image x="${x}" y="${y}" width="${W}" height="${H}" href="data:image/png;base64,${png.toString('base64')}"/>`);
 }
 for (const cast of casts) {
   const H = hero(cast);
-  const rows = acts || [{}];
+  const rows = [...(acts || (vitruvian ? [] : [{}])), ...(vitruvian ? [{ vitruvian: 'square' }, { vitruvian: 'circle' }] : [])];
   for (const row of rows) {
     const { nodes, label: lab } = rowNodes(cast, H, row);
+    if (row.vitruvian) { sheetW = Math.max(sheetW, await vitruvianCell(H, nodes, row.vitruvian, cast, y0)); y0 += 720; continue; }
     const which = row.crop ?? crop, views = acts ? ROW_VIEWS : ALL_VIEWS;
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
