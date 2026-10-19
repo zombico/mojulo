@@ -5,7 +5,8 @@
  *
  *   select: click a unit, shift-click to add, drag a box on the ground; Ctrl+A every fighter
  *   orders (to the selection): right-click the ground (move), a foe (attack), a node (workers gather), your foundation
- *   (workers build it), your damaged building or machine (workers repair it), with a building selected its rally point; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
+ *   (workers build it), your damaged building or machine (workers repair it), your transport (the rest board it), with a
+ *   building selected its rally point; U: a transport unloads where it stands; A then click: attack-move · S stop · H hold · B then click: build (B again: the next
  *   building the side can raise) · Q / W / E / R: the selected building trains its first … fourth kind · T: it researches
  *   its next step · Esc lets go
  *   a side with a roster (cfg.sides: a civilization's, board-rts-tech.js) is drawn as its technology crafted it (its
@@ -134,6 +135,7 @@ export function boardRtsPage(api) {
       if (!meshes[u.id]) { meshes[u.id] = unitMesh(u); root.add(meshes[u.id]); }
       const g = meshes[u.id], w = api.worldAt([u.x, u.y]);
       g.position.set(w[0], w[1], w[2]);
+      g.visible = !u.inside;
       if (u.path.length) { const to = tops[u.path[0]]; g.userData.body.rotation.z = Math.atan2(to[1] - w[1], to[0] - w[0]); }
       fillBar(g.userData.fill, u.hp / UN(u.side, u.kind).hp, 0.8);
       g.userData.ring.visible = sel.indexOf(u.id) >= 0;
@@ -178,7 +180,8 @@ export function boardRtsPage(api) {
     const b = selB && R.buildings.find((x) => x.id === selB);
     const kinds = {};
     for (const u of R.units) if (sel.indexOf(u.id) >= 0) kinds[u.kind] = (kinds[u.kind] || 0) + 1;
-    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})` : '';
+    const carrying = R.units.filter((u) => sel.indexOf(u.id) >= 0 && UN('player', u.kind).carries).map((u) => `${(u.cargo || []).length} / ${UN('player', u.kind).carries} aboard`).join(', ');
+    let what = sel.length ? `selected: ${sel.length} (${Object.keys(kinds).map((k) => kinds[k] + ' ' + UN('player', k).name.toLowerCase()).join(', ')})${carrying ? `  ${carrying} · U: unload` : ''}` : '';
     if (b) {
       const K = BU('player', b.kind), L = P.research || {}, step = b.raising <= 0 && !b.study ? nextStep(b) : null;
       const builders = R.units.filter((u) => u.order.kind === 'build' && u.order.target === b.id).length;
@@ -195,7 +198,7 @@ export function boardRtsPage(api) {
   const near = (list, p, r) => list.filter((x) => Math.hypot(place(x)[0] - p[0], place(x)[1] - p[1]) <= r).sort((a, b) => Math.hypot(place(a)[0] - p[0], place(a)[1] - p[1]) - Math.hypot(place(b)[0] - p[0], place(b)[1] - p[1]))[0] || null;
   const spotP = (i) => [(i % B.cols) + 0.5, Math.floor(i / B.cols) + 0.5];
   function selectAt(i, add) {
-    const p = spotP(i), u = near(R.units.filter((x) => x.side === 'player'), p, 0.8), b = !u && R.buildings.find((x) => x.side === 'player' && x.at === i);
+    const p = spotP(i), u = near(R.units.filter((x) => x.side === 'player' && !x.inside), p, 0.8), b = !u && R.buildings.find((x) => x.side === 'player' && x.at === i);
     if (u) { selB = null; sel = add ? (sel.indexOf(u.id) >= 0 ? sel.filter((x) => x !== u.id) : sel.concat([u.id])) : [u.id]; }
     else if (b) { sel = []; selB = b.id; }
     else if (!add) { sel = []; selB = null; }
@@ -208,6 +211,9 @@ export function boardRtsPage(api) {
     // the side's own: a foundation its workers build, a damaged building or machine they repair
     const workersSel = R.units.filter((u) => sel.indexOf(u.id) >= 0 && isWorker(u)).map((u) => u.id);
     const mineB = R.buildings.find((x) => x.side === 'player' && x.at === i), mineU = !mineB && near(R.units.filter((x) => x.side === 'player' && sel.indexOf(x.id) < 0 && UN('player', x.kind).machine), p, 0.8);
+    // a transport of the side's: the rest of the selection boards it
+    const ride = near(R.units.filter((x) => x.side === 'player' && !x.inside && UN('player', x.kind).carries && sel.indexOf(x.id) < 0), p, 0.8);
+    if (ride) { R = RTK.order(B, cfg, R, sel.filter((id) => id !== ride.id), { kind: 'board', target: ride.id }); return 'board'; }
     if (workersSel.length && mineB && mineB.raising > 0) { R = RTK.order(B, cfg, R, workersSel, { kind: 'build', target: mineB.id }); return 'build'; }
     if (workersSel.length && ((mineB && mineB.hp < mineB.hpMax) || (mineU && mineU.hp < UN('player', mineU.kind).hp))) { R = RTK.order(B, cfg, R, workersSel, { kind: 'repair', target: (mineB || mineU).id }); return 'repair'; }
     const foe = near(R.units.filter((x) => x.side === 'enemy'), p, 0.8) || R.buildings.find((x) => x.side === 'enemy' && x.at === i);
@@ -278,6 +284,7 @@ export function boardRtsPage(api) {
       else if (e.code === 'KeyE') trainAt(2);
       else if (e.code === 'KeyR') trainAt(3);
       else if (e.code === 'KeyT') researchNext();
+      else if (e.code === 'KeyU' && sel.length) R = RTK.order(B, cfg, R, sel, { kind: 'unload' });
       else if (e.code === 'Escape') { armed = null; sel = []; selB = null; }
       drawPanel();
     });
@@ -286,7 +293,7 @@ export function boardRtsPage(api) {
   function boxSelect(x0, y0, x1, y1, add) {
     const r = el.getBoundingClientRect(), lo = [Math.min(x0, x1), Math.min(y0, y1)], hi = [Math.max(x0, x1), Math.max(y0, y1)], v = new THREE.Vector3();
     const inside = R.units.filter((u) => {
-      if (u.side !== 'player') return false;
+      if (u.side !== 'player' || u.inside) return false;
       const w = api.worldAt([u.x, u.y]);
       v.set(w[0], w[1], w[2] + 0.5).project(api.camera);
       const sx = r.left + ((v.x + 1) / 2) * r.width, sy = r.top + ((1 - v.y) / 2) * r.height;
@@ -308,6 +315,7 @@ export function boardRtsPage(api) {
         const r = a.x != null ? UN(a.side, a.kind).role : 'defence', fx = r === 'ranged' || r === 'defence' ? 'arrow' : r === 'siege' ? 'shell' : r === 'flyer' ? 'bolt' : 'hit';
         FX.play(fx, { from: [from[0], from[1], from[2] + (r === 'flyer' ? 1.8 : r === 'defence' ? 1.4 : 0.6)], at: to, targets: [to], seed: 'rts:' + R.t.toFixed(1) + ':' + e.from });
       } else if (e.kind === 'down' && FX) { const w = api.worldAt(e.at); FX.play(!UN(e.side, e.kind2) ? 'strike' : 'hit', { at: w, targets: [w], seed: 'down:' + e.id }); }
+      else if (e.kind === 'healed' && FX) { const t = R.units.find((u) => u.id === e.to); if (t) { const w = api.worldAt([t.x, t.y]); FX.play('mend', { at: w, targets: [w], seed: 'heal:' + R.t.toFixed(1) + ':' + e.to }); } }
       else if (e.kind === 'won' || e.kind === 'lost' || e.kind === 'draw') end(e.kind === 'won', e.kind === 'draw');
     }
   }

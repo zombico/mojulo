@@ -363,9 +363,17 @@ describe('the board on the World page', () => {
       r.selectBuilding(r.state().buildings.find((b) => b.kind === 'works' && b.side === 'player').id);
       const trained = r.trainAt(2); go(20);
       const S = r.state(), looks = r.looks(), drawn = (kind, side = 'player') => S.units.concat(S.buildings).filter((x) => x.side === side && x.kind === kind).map((x) => looks[x.id]);
-      return { built, tooSoon, step, trained, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
+      // a fighter without a weapon: the cargo helicopter, the army right-clicked onto it, carried, and unloaded
+      const lifts = r.trainAt(3); go(20);
+      const lifter = r.state().units.find((u) => u.kind === 'lifter'), army = r.state().units.filter((u) => u.side === 'player' && ['carbine', 'shield'].includes(u.kind)).map((u) => u.id);
+      r.select(army); const boarded = r.command(lifter.at); go(8);
+      const aboard = (r.state().units.find((u) => u.id === lifter.id).cargo || []).length;
+      r.select([lifter.id]); r.order({ kind: 'unload' }); go(1);
+      const out = r.state().units.filter((u) => army.includes(u.id) && !u.inside).length;
+      return { built, tooSoon, step, trained, lifts, boarded, aboard, out, n: army.length, tier: S.known.player.tier2, skimmer: drawn('skimmer'), hauler: drawn('hauler'), mast: drawn('mast'), base: drawn('base'), lance: drawn('lance', 'enemy'), carbine: drawn('carbine') };
     });
-    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true });
+    expect(out).toMatchObject({ built: ['built', 'built', 'built'], step: 'tier2', trained: true, tier: true, lifts: true, boarded: 'board' });
+    expect([out.aboard, out.out]).toEqual([Math.min(out.n, 4), out.n]);
     expect(out.tooSoon).toMatch(/needs Machines researched first/);
     // what it crafted is drawn as crafted (coloured meshes); what it did not (the plain base) as before
     expect(out.skimmer.length).toBe(1);

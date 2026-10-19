@@ -40,7 +40,8 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect([raiders.units.gunship.fly, raiders.units.cannon.siege, raiders.units.bike.role, raiders.units.jeep.role]).toEqual([true, 3, 'scout', 'fighting']);
     // what has no place on the board says so: a vessel, an unarmed flyer
     expect(growers.ledger.find((l) => l.of === 'vehicles/barge').line).toMatch(/waiting for water/);
-    expect(corps.ledger.find((l) => l.of === 'vehicles/lifter').line).toMatch(/unarmed flyer/);
+    // a fighter without a weapon: the cargo helicopter carries units over anything
+    expect(corps.units.lifter).toMatchObject({ role: 'transport', atk: 0, fly: true, carries: 4, tier: 2 });
     // dials move the stats: armour the hp, energy the strike, the showpiece more
     expect(corps.units.crawler.hp).toBeGreaterThan(Math.round(260 * 1.5) - 1);
     expect(corps.units.carbine.atk).toBe(RTS_UNITS.archer.atk * 1.25);
@@ -83,7 +84,7 @@ describe('the ladder', () => {
     const corps = rtsRoster(G, 'survey-corps');
     expect([corps.units.skimmer.tier, corps.units.walker.tier, corps.units.carbine.tier]).toEqual([2, 3, undefined]);
     expect(corps.builds).toEqual(['barracks', 'mast', 'works']);
-    expect(corps.research.tier2).toMatchObject({ at: 'mast', gives: { tier: 2 }, opens: ['skimmer', 'works'] });
+    expect(corps.research.tier2).toMatchObject({ at: 'mast', gives: { tier: 2 }, opens: ['skimmer', 'lifter', 'works'] });
     expect(corps.research.tier3).toMatchObject({ needs: 'tier2', gives: { tier: 3 }, opens: ['walker', 'crawler'] });
     expect(Object.values(corps.research).filter((r) => r.gives.income)).toHaveLength(2);
     expect(corps.study[0]).toBe('tier2');

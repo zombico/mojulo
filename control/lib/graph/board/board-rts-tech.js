@@ -13,7 +13,8 @@
  *   a held weapon arms infantry: blade, polearm, axe melee; bow, gun, staff ranged; a shield a guard
  *   a vehicle or thing that moves and carries is the worker (one: ground before air, vehicles before things)
  *   an armoured vehicle is heavy; a small one or a cycle a scout; an armed one a fighting vehicle; rotor, winged and
- *   airship fly (an unarmed flyer that is not the worker carries, and the skirmish has nothing for it to carry)
+ *   airship fly; what carries or shelters and is not the worker, unarmed, is a transport (a flyer's over anything);
+ *   what its words call medical (a medic, an ambulance) mends its own
  *   a machine weapon (cannon, launcher, siege, ballista) is siege: long range, slow, three times as hard on a building
  *   a turret is a defence (a building that shoots); a barrier or a gate a wall; a thing that makes is the works (the
  *   vehicles and siege train there); a thing that stores, standing, a depot (workers drop gold there)
@@ -35,6 +36,9 @@ const ROLE = {
   fighting: { hp: 160, atk: 12, range: 2.5, rate: 1.2, speed: 2.2 },
   flyer: { hp: 110, atk: 9, range: 3, rate: 1.2, speed: 2.4, fly: true },
   siege: { hp: 90, atk: 24, range: 6, rate: 3.0, speed: 1.2, siege: 3 },
+  // fighters without a weapon: what carries units, what mends them
+  transport: { hp: 150, atk: 0, range: 0, rate: 1, speed: 2.2, carries: 4 },
+  medic: { hp: 60, atk: 0, range: 3, rate: 1, speed: 2.0, heals: 4 },
 };
 export const RTS_ROLES = Object.freeze(Object.keys(ROLE));
 const HOUSE = {
@@ -51,6 +55,10 @@ const INCOME = 0.2, INCOMES = 2;
 const RESEARCH_FORMS = ['tower', 'dish', 'launch', 'portal'];
 const MELEE_FORMS = ['blade', 'polearm', 'axe'], RANGED_FORMS = ['bow', 'gun', 'staff'], SIEGE_FORMS = ['cannon', 'launcher', 'siege', 'ballista'];
 const FLY_FORMS = ['rotor', 'winged', 'airship'];
+// what its words call medical mends its own (no function says it: the words do)
+const MEDICAL = /\b(medic|medics|medical|ambulance|hospital|healer|healing|infirmary|nurse|surgeon|triage)\b/i;
+// and what they call a carrier of people carries them, whatever its functions read
+const CARRIER = /\b(transport|transports|troop|troops|carrier|apc|shuttle|dropship|ferry|bus|personnel)\b/i;
 // a vehicle's pace, by what it goes on
 const PACE = { hover: 1.3, wheeled: 1.15, cycle: 1.4, rotor: 1.15, winged: 1.3, airship: 0.8, tracked: 0.85, walker: 0.9, drawn: 1.0 };
 
@@ -58,6 +66,8 @@ const PACE = { hover: 1.3, wheeled: 1.15, cycle: 1.4, rotor: 1.15, winged: 1.3, 
 // and flight; calibrated on the plain soldier (60 gold)
 const K = 60 / Math.sqrt(80 * 8);
 export function rtsWorth(U) {
+  // what fights no fight is worth what it carries or mends
+  if (!U.atk) return (U.carries ? 10 + 4 * U.carries + U.hp / 30 : Math.sqrt(U.hp * (U.heals || 0) * 2)) * Math.sqrt(U.speed / 1.8) * (U.fly ? 1.25 : 1);
   const dps = (U.atk / U.rate) * (U.siege ? (1 + U.siege) / 2 : 1);
   return Math.sqrt(U.hp * dps) * (1 + 0.3 * Math.max(0, U.range - 1.2)) * Math.sqrt(U.speed / 1.8) * (U.fly ? 1.25 : 1);
 }
@@ -76,7 +86,8 @@ function statsOf(role, t, rank) {
   if (typeof d.scale === 'number' && d.scale > 1 && role !== 'scout') { U.hp *= d.scale; U.speed /= Math.sqrt(d.scale); why.push(`a size up × ${d.scale}: hp up, pace down`); }
   if (t?.kind === 'vehicle' && PACE[t.form] && role !== 'worker') { U.speed *= PACE[t.form]; if (PACE[t.form] !== 1) why.push(`${t.form}: pace × ${PACE[t.form]}`); }
   if (rank === 'focus') { U.hp *= 1.25; U.atk *= 1.25; why.push('its showpiece (focus): hp and strike × 1.25'); }
-  const out = { role, hp: Math.round(U.hp), atk: r1(U.atk), range: r1(U.range), rate: r2(U.rate), speed: r2(U.speed), ...(U.fly ? { fly: true } : {}), ...(U.siege ? { siege: U.siege } : {}) };
+  if (role === 'transport' && typeof d.scale === 'number' && d.scale > 1) { U.carries += 2; why.push('a size up: carries 2 more'); }
+  const out = { role, hp: Math.round(U.hp), atk: r1(U.atk), range: r1(U.range), rate: r2(U.rate), speed: r2(U.speed), ...(U.fly ? { fly: true } : {}), ...(U.siege ? { siege: U.siege } : {}), ...(U.carries ? { carries: U.carries } : {}), ...(U.heals ? { heals: U.heals } : {}) };
   return { U: out, why };
 }
 
@@ -91,8 +102,9 @@ export function rtsRoster(G, cid) {
   const entries = (list) => Object.entries(T[list] ?? {}).map(([id, t]) => ({ list, id, t, fns: t.block?.functions ?? [], kind: list === 'things' ? 'thing' : list.slice(0, -1) }));
   const vehicles = entries('vehicles'), weapons = entries('weapons'), structures = entries('structures'), things = entries('things');
   // a machine is tier 2, a showpiece (focus rank) tier 3; infantry and the worker tier 1
-  const field = (e, role, noun, machine) => {
+  const field = (e, role, noun, machine, fly) => {
     const rank = rankOf(e.list, e.id), id = idFor(e.id), { U, why } = statsOf(role, { ...e.t, kind: e.kind }, rank);
+    if (fly && !U.fly) { U.fly = true; why.push('it flies: over anything'); }
     const cost = five(K * rtsWorth(U)), tier = machine ? (rank === 'focus' ? 3 : 2) : 1;
     units[id] = { name: noun ? `${named(e.id)} ${noun}` : named(e.id), ...U, cost, time: Math.max(4, Math.round(cost / 6)), ...(tier > 1 ? { tier } : {}), ...(machine ? { machine: true } : {}) };
     said(`${e.list}/${e.id}`, id, `${e.t.intent}: ${role}${why.length ? ` (${why.join('; ')})` : ''}, ${cost} gold${tier > 1 ? `, tier ${tier}` : ''}`);
@@ -137,15 +149,13 @@ export function rtsRoster(G, cid) {
     if (e.t.block?.tier === 'vessel' || e.t.form === 'ship') { said(`vehicles/${e.id}`, null, `${e.t.intent}: a vessel, waiting for water (the board has none to sail)`); continue; }
     if (e.t.form === 'rail') { said(`vehicles/${e.id}`, null, `${e.t.intent}: it runs on rails, and the board lays none`); continue; }
     const armed = e.fns.includes('strike'), armoured = e.fns.includes('guard');
-    if (flies(e)) {
-      if (armed || armoured) machines.push(field(e, 'flyer', null, true));
-      else said(`vehicles/${e.id}`, null, `${e.t.intent}: an unarmed flyer that carries, and the skirmish has nothing for it to carry`);
-      continue;
-    }
+    if (MEDICAL.test(e.t.intent)) { machines.push(field(e, 'medic', null, true, flies(e))); continue; }
+    // unarmed, and it carries, shelters or lifts: a transport, armoured or not
+    if (!armed && (e.fns.includes('store') || e.fns.includes('keep') || e.fns.includes('lift') || CARRIER.test(e.t.intent))) { machines.push(field(e, 'transport', null, true, flies(e))); continue; }
+    if (flies(e)) { machines.push(field(e, armed || armoured ? 'flyer' : 'transport', null, true, !(armed || armoured))); continue; }
     if (armoured) machines.push(field(e, 'heavy', null, true));
     else if ((typeof e.t.dials?.scale === 'number' && e.t.dials.scale < 1) || e.t.form === 'cycle') machines.push(field(e, 'scout', null, true));
     else if (armed) machines.push(field(e, 'fighting', null, true));
-    else if (e.fns.includes('store')) said(`vehicles/${e.id}`, null, `${e.t.intent}: a second carrier; one worker is enough`);
     else machines.push(field(e, 'scout', null, true));
   }
   for (const e of weapons) if (e.t.block?.tier !== 'held' && SIEGE_FORMS.includes(e.t.form)) machines.push(field(e, 'siege', 'crew', true));

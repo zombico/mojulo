@@ -127,7 +127,9 @@ describe('orders', () => {
 const OWN = {
   units: { ...RTS_UNITS,
     gunship: { name: 'Gunship', role: 'flyer', hp: 110, atk: 9, range: 3, rate: 1.2, speed: 2.4, fly: true, cost: 200, time: 30 },
-    crew: { name: 'Cannon crew', role: 'siege', hp: 90, atk: 24, range: 6, rate: 3, speed: 1.2, siege: 3, cost: 180, time: 30, machine: true } },
+    crew: { name: 'Cannon crew', role: 'siege', hp: 90, atk: 24, range: 6, rate: 3, speed: 1.2, siege: 3, cost: 180, time: 30, machine: true },
+    lifter: { name: 'Lifter', role: 'transport', hp: 150, atk: 0, range: 0, rate: 1, speed: 2.6, fly: true, carries: 2, cost: 90, time: 15, machine: true },
+    medic: { name: 'Medic', role: 'medic', hp: 60, atk: 0, range: 3, rate: 1, speed: 2, heals: 4, cost: 50, time: 9 } },
   buildings: { ...RTS_BUILDINGS,
     works: { name: 'Works', role: 'works', hp: 400, cost: 200, time: 25, needs: 'barracks', trains: ['gunship', 'crew'] },
     tower: { name: 'Tower', role: 'defence', hp: 300, cost: 120, time: 15, atk: 10, range: 4.5, rate: 1.2 },
@@ -242,6 +244,41 @@ describe('a side\'s own roster', () => {
     const ws = R.units.filter((u) => u.side === 'player' && u.kind === 'worker').map((u) => u.id);
     const C = run(B, cfg, rtsOrder(B, cfg, rtsOrder(B, cfg, R, ws.slice(0, 1), { kind: 'repair', target: 'xc' }), ws.slice(1, 2), { kind: 'repair', target: 'xs' }), 40).R;
     expect([C.units.find((u) => u.id === 'xc').hp, C.units.find((u) => u.id === 'xs').hp]).toEqual([90, 40]);
+  });
+
+  it('carries units without a weapon: a flying transport boards them, crosses what they cannot, unloads; they fall with it', () => {
+    // a row of holes across the whole board but one spot at its edge (far round); the flyer goes straight over
+    const B = boardOf(Array.from({ length: 16 }, (_, r) => Array.from({ length: 5 }, (_, c) => (r === 7 && c < 4 ? null : 0))));
+    const cfg = own(B, { workers: 0 });
+    let R = { ...rtsStart(B, cfg), units: [] };
+    const put = (side, kind, n, hp) => { const i = at(B, n); R.units.push({ id: 'x' + n, side, kind, hp: hp ?? OWN.units[kind].hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 }); };
+    put('player', 'lifter', 'B5'); put('player', 'soldier', 'B4'); put('player', 'archer', 'C4'); put('player', 'soldier', 'A4');
+    // two board (it carries two); the third finds no room
+    R = rtsOrder(B, cfg, rtsOrder(B, cfg, R, ['xB4', 'xC4'], { kind: 'board', target: 'xB5' }), ['xA4'], { kind: 'board', target: 'xB5' });
+    expect(() => rtsOrder(B, cfg, R, ['xB5'], { kind: 'attack', target: 'xA4' })).not.toThrow();
+    let E = run(B, cfg, R, 4).R;
+    expect(E.units.find((u) => u.id === 'xB5').cargo).toEqual(['xB4', 'xC4']);
+    expect(E.units.find((u) => u.id === 'xA4').inside).toBeUndefined();
+    // over the holes, out on the far side
+    const T = run(B, cfg, rtsOrder(B, cfg, E, ['xB5'], { kind: 'unload', to: at(B, 'B10') }), 10);
+    E = T.R;
+    expect(T.ev.filter((e) => e.kind === 'unloaded').map((e) => e.id)).toEqual(['xB4', 'xC4']);
+    expect(E.units.filter((u) => ['xB4', 'xC4'].includes(u.id)).every((u) => !u.inside && Math.floor(u.y) >= 8)).toBe(true);
+    // loaded again and shot down: what it carried falls with it, and nothing struck at them inside
+    E = run(B, cfg, rtsOrder(B, cfg, E, ['xB4'], { kind: 'board', target: 'xB5' }), 4).R;
+    const shot = run(B, cfg, { ...E, units: E.units.map((u) => (u.id === 'xB5' ? { ...u, hp: 0 } : u)) }, 0.1);
+    expect(shot.ev.filter((e) => e.kind === 'down').map((e) => e.id).sort()).toEqual(['xB4', 'xB5']);
+  });
+
+  it('mends its own with a medic, never a machine, and strikes at nothing', () => {
+    const B = flat(5, 16), cfg = own(B, { workers: 0 });
+    let R = { ...rtsStart(B, cfg), units: [] };
+    const put = (side, kind, n, hp) => { const i = at(B, n); R.units.push({ id: 'x' + n, side, kind, hp, x: (i % 5) + 0.5, y: Math.floor(i / 5) + 0.5, at: i, path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 }); };
+    put('player', 'medic', 'C5', 60); put('player', 'soldier', 'C6', 20); put('player', 'crew', 'D5', 30); put('enemy', 'worker', 'C7', 40);
+    const E = run(B, cfg, rtsOrder(B, cfg, R, ['xC5'], { kind: 'stop' }), 20);
+    expect([E.R.units.find((u) => u.id === 'xC6').hp, E.R.units.find((u) => u.id === 'xD5').hp]).toEqual([80, 30]);
+    expect(E.ev.some((e) => e.kind === 'shot' && e.from === 'xC5')).toBe(false);
+    expect(E.ev.some((e) => e.kind === 'healed' && e.from === 'xC5' && e.to === 'xC6')).toBe(true);
   });
 
   it('is a draw when the gold is gone and nobody stands on either side', () => {

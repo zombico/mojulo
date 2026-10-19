@@ -15,7 +15,9 @@
  *   plays PLAIN): { units: { <id>: { name, role, hp, atk, range, rate, speed, cost, time, carry?, fly?, siege? } },
  *   buildings: { <id>: { name, role, hp, cost?, time?, trains?, studies?, depot?, needs?, tier?, atk?, range?, rate? } },
  *   worker, base, army:
- *   [ids, in turn], builds: [ids the mind raises, in order] }. Roles that act: a worker gathers; a flyer goes straight
+ *   [ids, in turn], builds: [ids the mind raises, in order] }. A unit with no `atk` never strikes; one that `carries`
+ *   n is a transport (units board it, ride where it goes, unload; they fall with it), one that `heals` hp a second a
+ *   medic (the nearest hurt of its own within its range, no machine). Roles that act: a worker gathers; a flyer goes straight
  *   over any spot and is out of reach of what strikes from closer than REACH_UP; siege strikes buildings `siege` times
  *   as hard; a building with `atk` shoots (at units: a base defends itself); a depot takes in what workers mine; a
  *   building is its capabilities, any of them together: a factory (`trains`, a queue over time), research (`studies`:
@@ -190,6 +192,8 @@ export function buildBoardRts() {
     for (const u of R.units) {
       if (ids.indexOf(u.id) < 0) continue;
       if ((o.kind === 'gather' || o.kind === 'build' || o.kind === 'repair') && !isWorker(cfg, u)) continue;
+      if (u.inside || (o.kind === 'unload' && !UN(cfg, u.side, u.kind).carries) || (o.kind === 'attack' && !UN(cfg, u.side, u.kind).atk)) continue;
+      if (o.kind === 'board') { const t = R.units.find((x) => x.id === o.target); if (!t || t.side !== u.side || t.id === u.id || !UN(cfg, t.side, t.kind).carries || UN(cfg, u.side, u.kind).carries) continue; }
       // a worker sent to build or repair goes back to its mining after
       const back = (o.kind === 'build' || o.kind === 'repair') && u.order.kind === 'gather' ? { after: Object.assign({}, u.order) } : {};
       u.order = Object.assign({}, o, back);
@@ -310,7 +314,8 @@ export function buildBoardRts() {
     for (const k of S.builds) {
       const b = R.buildings.find((x) => x.side === side && x.kind === k);
       // (the best it has opened: the highest tier unlocked there)
-      const open = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
+      // (the mind fields no transports: it carries nobody)
+      const open = b ? (BU(cfg, side, k).trains || []).filter((t) => t !== S.worker && !UN(cfg, side, t).carries && !lockOf(cfg, R, side, UN(cfg, side, t))) : [];
       const top = Math.max(1, ...open.map((t) => UN(cfg, side, t).tier || 1)), trains = open.filter((t) => (UN(cfg, side, t).tier || 1) === top);
       if (!b || b.raising > 0 || b.queue.length >= 2 || !trains.length) continue;
       const army = mine().filter((u) => !isWorker(cfg, u)).length, kind = trains[army % trains.length];
@@ -332,7 +337,7 @@ export function buildBoardRts() {
   function placeOf(B, x) { return x.x != null ? [x.x, x.y] : mid(B, x.at); }
   const reachOf = (x) => (x.x != null ? 0 : 0.5);   // a building is a spot wide
   // what can strike at what: nothing from close in reaches a flyer
-  const canHit = (cfg, range, x) => x.x == null || !UN(cfg, x.side, x.kind).fly || range >= REACH_UP;
+  const canHit = (cfg, range, x) => x.x == null || (!x.inside && (!UN(cfg, x.side, x.kind).fly || range >= REACH_UP));
   function nearestFoe(B, cfg, R, u, within, range) {
     let best = null, bd = Infinity;
     const p = placeOf(B, u);
@@ -391,6 +396,32 @@ export function buildBoardRts() {
     walk(B, cfg, u, STEP);
   }
 
+  // boarding: walk to the transport, in once beside it and there is room
+  function boardOn(B, cfg, R, u, events) {
+    const t = R.units.find((x) => x.id === u.order.target);
+    if (!t || t.hp <= 0 || (t.cargo || []).length >= UN(cfg, t.side, t.kind).carries) { u.order = { kind: 'stop' }; u.path = []; return; }
+    if (dist([u.x, u.y], [t.x, t.y]) <= 1.2) { t.cargo = (t.cargo || []).concat([u.id]); u.inside = t.id; u.order = { kind: 'stop' }; u.path = []; events.push({ kind: 'boarded', id: u.id, into: t.id }); return; }
+    u.again -= STEP;
+    if (!u.path.length || u.again <= 0) { u.path = route(B, cfg, R, u, spotAt(B, t.x, t.y)) || []; u.again = REPATH; }
+    walk(B, cfg, u, STEP);
+  }
+  // unloading: to the spot named (or where it is), then every unit out onto the open spots round it
+  function unload(B, cfg, R, t, events) {
+    const o = t.order;
+    if (o.to != null && t.at !== o.to) { if (!t.path.length) t.path = route(B, cfg, R, t, o.to) || []; if (t.path.length) { walk(B, cfg, t, STEP); return; } }
+    const spots = around(B, cfg, R, t.at, 3);
+    if (open(B, R, t.at)) spots.unshift(t.at);
+    let k = 0;
+    for (const id of (t.cargo || []).slice()) {
+      const c = R.units.find((x) => x.id === id), at = spots[k++];
+      if (!c || at === undefined) continue;
+      const p = mid(B, at);
+      c.inside = null; c.x = p[0]; c.y = p[1]; c.at = at; c.path = []; c.order = { kind: 'stop' };
+      t.cargo = t.cargo.filter((x) => x !== id);
+      events.push({ kind: 'unloaded', id, from: t.id });
+    }
+    t.order = { kind: 'stop' }; t.path = [];
+  }
   // a worker at its site: beside the building, or (repairing a machine) beside it
   const atSite = (B, u, x) => dist([u.x, u.y], placeOf(B, x)) - reachOf(x) <= 1.2;
   // the price of mending: a gold a tenth of a fighter's worth of hp mended
@@ -470,19 +501,29 @@ export function buildBoardRts() {
       for (const u of R.units) {
         if (u.hp <= 0) continue;
         u.cd = Math.max(0, u.cd - STEP);
-        const o = u.order;
-        const range = UN(cfg, u.side, u.kind).range;
+        // inside a transport: carried where it goes, and nothing else
+        if (u.inside) { const t = R.units.find((x) => x.id === u.inside); if (t) { u.x = t.x; u.y = t.y; u.at = t.at; } continue; }
+        const o = u.order, U = UN(cfg, u.side, u.kind);
+        const range = U.range;
+        // a medic mends the nearest hurt of its own that is no machine, within its reach, whatever its order
+        if (U.heals) {
+          let best = null, bd = Infinity;
+          for (const x of R.units) { if (x === u || x.side !== u.side || x.inside || x.hp >= UN(cfg, x.side, x.kind).hp || UN(cfg, x.side, x.kind).machine) continue; const d = dist([u.x, u.y], [x.x, x.y]); if (d <= range && (d < bd - 1e-9 || (Math.abs(d - bd) <= 1e-9 && x.id < best.id))) { bd = d; best = x; } }
+          if (best) { best.hp = Math.min(UN(cfg, best.side, best.kind).hp, best.hp + U.heals * STEP); if (u.cd <= 0) { u.cd = 1; events.push({ kind: 'healed', from: u.id, to: best.id }); } }
+        }
+        if (o.kind === 'board') { boardOn(B, cfg, R, u, events); continue; }
+        if (o.kind === 'unload') { unload(B, cfg, R, u, events); continue; }
         if (o.kind === 'move') { walk(B, cfg, u, STEP); if (!u.path.length) u.order = { kind: 'stop' }; }
         else if (o.kind === 'gather') gather(B, cfg, R, u, events);
         else if (o.kind === 'build' || o.kind === 'repair') tend(B, cfg, R, u, events);
         else if (o.kind === 'attack') {
           const x = find(R, o.target);
           if (!x || x.hp <= 0 || !canHit(cfg, range, x)) { u.order = { kind: 'stop' }; u.path = []; } else engage(B, cfg, R, u, x, events, true);
-        } else if (o.kind === 'hold') { const x = nearestFoe(B, cfg, R, u, range, range); if (x) engage(B, cfg, R, u, x, events, false); }
+        } else if (o.kind === 'hold') { const x = U.atk ? nearestFoe(B, cfg, R, u, range, range) : null; if (x) engage(B, cfg, R, u, x, events, false); }
         else {
           // stop and attack-move: what comes in sight is fought (an idle worker keeps to its work: it fights when told);
           // an attack-move then goes on where it was going
-          const x = o.kind === 'stop' && isWorker(cfg, u) ? null : nearestFoe(B, cfg, R, u, SIGHT, range);
+          const x = (o.kind === 'stop' && isWorker(cfg, u)) || !U.atk ? null : nearestFoe(B, cfg, R, u, SIGHT, range);
           if (x) engage(B, cfg, R, u, x, events, true);
           else if (o.kind === 'amove') {
             if (!u.path.length) u.path = route(B, cfg, R, u, o.to) || [];
@@ -491,7 +532,8 @@ export function buildBoardRts() {
           }
         }
       }
-      // the fallen, and the end
+      // the fallen, and the end (what a fallen transport carried falls with it)
+      for (const t of R.units) if (t.hp <= 0 && t.cargo) for (const id of t.cargo) { const c = R.units.find((x) => x.id === id); if (c) c.hp = 0; }
       for (const x of R.units.concat(R.buildings)) if (x.hp <= 0) events.push({ kind: 'down', id: x.id, side: x.side, kind2: x.kind, at: placeOf(B, x) });
       R.units = R.units.filter((u) => u.hp > 0);
       R.buildings = R.buildings.filter((b) => b.hp > 0);

@@ -68,6 +68,10 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   nearest worker goes when none is named, and goes back to mining after. Workers repair buildings and machines,
   paying a gold for every ten hp mended. An idle worker keeps to its work instead of picking fights; the mind trains
   the best its factories have opened and sends a worker to any foundation left unbuilt.
+  Fighters without a weapon: what carries, shelters or lifts, unarmed (or what its words call a carrier: a troop
+  transport, a shuttle), is a transport: units board it (right-click it), ride where it goes, a flyer's over what
+  they cannot cross, and unload (U); what it carries falls with it. What its words call medical (a medic, an
+  ambulance) mends its own nearby, never a machine. Each is priced by what it carries or mends.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
