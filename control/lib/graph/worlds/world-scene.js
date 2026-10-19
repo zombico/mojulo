@@ -703,7 +703,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           continue;
         }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
-        // (`transformer`: { robot?, vehicle?, scheme?, height? }): the robot a stored suit (`robot.unitRef`, baked as
+        // (`transformer`: { robot?, vehicle?, scheme?, height? }): the robot a VARIABLE SUIT (`robot.variable`: { palette?,
+        // build? }, a suit drawn to fold into its own waverider), a stored suit (`robot.unitRef`, baked as
         // a unitRef is, its `targetH`/`aim`/`aimArms`/`swings`/`dodges` with it) or the inner frame made to the vehicle;
         // the vehicle a stored build (`vehicle.vehicleRef`), a ride, a racer, a supercar or a craft off the shelf, or
         // none (the suit's own flight form). Delivered as one rig figure carrying `forms`: the robot's clips, the
@@ -711,7 +712,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (rawSpec.transformer && typeof rawSpec.transformer === 'object') {
           const T = rawSpec.transformer;
           const { bakeTransformer } = await import('@/lib/graph/transformation/index.js');
-          let robot = { frame: (T.robot && T.robot.frame) || {} };
+          let robot = T.robot && T.robot.variable ? { variable: T.robot.variable } : { frame: (T.robot && T.robot.frame) || {} };
           if (T.robot && typeof T.robot.unitRef === 'string') {
             const { SketchRepository } = await import('@/lib/db/repositories/sketches');
             const src = SketchRepository.getByRef(T.robot.unitRef);

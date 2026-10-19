@@ -105,6 +105,25 @@ export const TRANSFORM_SCHEMES = Object.freeze({
     ],
     holds: ['head'],
   },
+  variable: {
+    words: 'a variable suit (variable-suit.js) folding into its waverider: face down, legs together for the engine pods, arms along its belly, the head tucked under the shield that is its nose, the binders spread into wings, the hip fins up for the tail',
+    form: 'air',
+    ratio: 1.0,
+    stow: {
+      root: [{ axis: 'x', deg: -90, at: [0.12, 0.8] }],
+      local: {
+        head: [60, 0, 0],
+        upperArmL: [14, -8, 0], upperArmR: [14, 8, 0], forearmL: [10, 0, 0], forearmR: [10, 0, 0],
+        thighL: [0, -3, 0], thighR: [0, 3, 0],
+      },
+      z: 0.5,
+    },
+    windows: WINDOWS,
+    hop: 0.12,
+    regions: [],
+    parts: [],
+    holds: [],
+  },
   waverider: {
     words: 'a suit that folds into its own flight form: face down, legs together for the engines, arms stretched ahead',
     form: 'air',

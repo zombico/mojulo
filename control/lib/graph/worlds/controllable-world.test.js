@@ -1128,7 +1128,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // without rule.missiles).
     // More-than-meets added the forms: 'transform' after the pilot swap (the B press, a body's own ask) and the
     // 'transform' body owner after the tackle cine (the beat; it measures a walker's motion and owns nothing
-    // without `forms`).
+    // without `forms`), and 'form-thrust' among the entity actions (a flying form burns its jets).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'transform', 'carry-snapshot', 'launch-lock', 'lock'],
@@ -1136,7 +1136,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
       bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'transform', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
-      entityActions: ['weapon', 'missiles', 'melee', 'tackle'],
+      entityActions: ['weapon', 'missiles', 'melee', 'tackle', 'form-thrust'],
       worldPasses: ['body-collisions', 'carry', 'launch', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });

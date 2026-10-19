@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { bakeTransformer, composeTransformer, innerFrameManifest, TRANSFORM_SCHEMES } from './index.js';
+import { bakeTransformer, bakeVariableSuit, composeTransformer, innerFrameManifest, TRANSFORM_SCHEMES } from './index.js';
 import { decodePart, soupBounds } from './rig-parts.js';
 import { bakeUnitRig } from '../worlds/unit-rig.js';
 
@@ -89,6 +89,21 @@ describe('transformation (more-than-meets): one body in two forms', () => {
     let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
     for (let i = 0; i < nb; i++) for (let k = 0; k < 3; k++) { const v = b[i * 7 + 4 + k]; mn[k] = Math.min(mn[k], v); mx[k] = Math.max(mx[k], v); }
     expect(mx[1] - mn[1]).toBeGreaterThan(2 * (mx[2] - mn[2]));
+  });
+
+  it('a variable suit keeps its kit, rides it standing, and folds it into a waverider: the shield its nose ahead', () => {
+    const { figure, readout } = bakeVariableSuit({ H: 18 });
+    expect(readout.tris.composed).toBe(readout.tris.robot + readout.tris.kit);
+    const on = Object.fromEntries(readout.panels.map((p) => [p.id, p.on]));
+    expect(on).toMatchObject({ kit_shield: 'forearmL', kit_binder_l: 'torso', kit_binder_r: 'torso', kit_hip_fin_l: 'pelvis' });
+    // folded: long and flat, the shield out ahead of everything else (the nose), the binders spread wider than the body
+    const nb = figure.bones.length, b = figure.clips['vehicle:idle'].b, at = (id) => b.slice(figure.bones.findIndex((x) => x.id === id) * 7 + 4, figure.bones.findIndex((x) => x.id === id) * 7 + 7);
+    const ys = figure.bones.map((_, i) => b[i * 7 + 5]);
+    expect(at('kit_shield')[1]).toBe(Math.max(...ys));
+    expect(Math.abs(at('kit_binder_l')[0])).toBeGreaterThan(Math.abs(at('upperArmL')[0]));
+    expect(minZ(figure, 'vehicle:idle', 0)).toBeGreaterThan(-0.05);
+    expect(figure.thrusters.some((t) => t.kind === 'foot')).toBe(true);   // the heels' jets: the waverider's engines
+    expect(nb).toBe(figure.parts.length);
   });
 
   it('is deterministic', async () => {

@@ -371,8 +371,29 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
     // enough to glide to the first gate), followed from behind by a chase camera that banks with it
     const aloft = ends.seat.rule.engine === false;
-    const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
+    const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${ride?.transformer ? ' · B  transform' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = { ...craftPilot(ends.airMap, ends.seat), events: P.events || {} };
+    if (ride?.transformer) {
+      // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its
+      // body the transformer; B drops it into its robot form (it falls, lands, walks) and back into the air
+      const e0 = pilotPart.entities[0], { rule, ambient, body, ...seat } = e0;
+      const { rule: _c, target: _t, ...chase } = pilotPart.camera;
+      pilotPart = {
+        ...pilotPart,
+        figures: { ride: { transformer: ride.transformer } },
+        entities: [{ ...seat, ambient, form: 'vehicle', forms: { vehicle: { rule, camera: chase }, robot: ride.forms.robot }, transformDur: 0.8, body: { type: 'figure-rig', figure: 'ride' } }],
+      };
+    }
+  } else if (ride?.transformer) {
+    // A HERO THAT TRANSFORMS (quick.transformer): a robot that runs and jumps and a car it folds into (B), one body
+    // (transformation/), followed from behind at each form's own stand-off
+    const P = playerWorld({ heroRef: 'none', id: 'hero', title: name, controls: `W / S  run · A / D  turn · Space  jump · B  transform (then W  throttle · S  brake)${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
+    pilotPart = {
+      figures: { ride: { transformer: ride.transformer } },
+      entities: [{ id: 'hero', pilotable: true, forms: ride.forms, transformDur: 0.8, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
+      camera: { rule: 'follow', target: 'hero', ...ride.forms.robot.camera },
+      events: P.events || {},
+    };
   } else if (ride?.ref || ride?.racer || ride?.figure) {
     // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
     // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)

@@ -11,6 +11,9 @@
  *     speed and a craft's airspeed (at least its take-off speed, so a jet form flies at once), and back.
  *   • BUSY: a body mid-swing, mid-dodge, mid-tackle, in a clash, reeling or downed does not transform.
  *
+ * A form may carry `camera` ({ dist, height, lookH }): a follow camera on the body takes it when the body becomes that
+ * form (the first form's stand-off is remembered). A flying form burns its jets with its throttle (`thrust`).
+ *
  * Facts: form, transforming, transformT (0 … 1 through the beat), transformTo, and the edges transformStart and
  * transformed (the frame it began, the frame it ended). `e.wantTransform` (a form name or true) asks for one from
  * outside the input (a mind, a bus op). An entity without `forms` is untouched: a world without one steps
@@ -20,7 +23,7 @@
  */
 
 export function buildForms(E) {
-  const { fwdXY, fwd3, resolveBlocking, registerNormalize, registerPreStep, registerBodyOwner } = E;
+  const { fwdXY, fwd3, resolveBlocking, registerNormalize, registerPreStep, registerBodyOwner, registerEntityAction } = E;
 
   registerNormalize((ent, raw) => {
     const F = raw.forms;
@@ -62,8 +65,16 @@ export function buildForms(E) {
     return true;
   }
 
-  function finishTransform(e) {
+  function finishTransform(e, state) {
     const to = e.transformTo, F = e.forms[to], r = F.rule, t = e.transform;
+    // a follow camera on this body takes the form's own stand-off (`camera`: { dist, height, … }), the first form's
+    // remembered from before the first change
+    const cam = state && state.camera && state.camera.rule;
+    if (cam && cam.target === e.id) {
+      if (!e.formCamera) e.formCamera = { [e.transformFrom]: { dist: cam.dist, height: cam.height, lookH: cam.lookH } };
+      const want = F.camera || e.formCamera[to];
+      if (want) for (const k of Object.keys(want)) if (want[k] != null) cam[k] = want[k];
+    }
     const piloted = e.pilotable && e.rule === e.pilotRule;
     e.form = to;
     e.rule = r;
@@ -84,6 +95,7 @@ export function buildForms(E) {
       e.speed = 0; e.airspeed = 0; e.tilt = null; t.pitch = 0;
       e.locomotion = 'forward';
     }
+    e.thrust = 0;
     e.transformT = null; e.transformVel = null; e.transformFrom = null;
     e.transforming = false; e.transformed = true;
     if (e.cineT == null) e.invincible = false;
@@ -125,9 +137,14 @@ export function buildForms(E) {
     e.gaitPhase = e.transformT;
     e.moving = true;
     e.invincible = true;
-    if (e.transformT >= 1) finishTransform(e);
+    if (e.transformT >= 1) finishTransform(e, state);
     return true;
   }, 35);
+
+  // a flying form burns its jets with its throttle (the nozzles a suit carries: its feet are a waverider's engines)
+  registerEntityAction('form-thrust', (e) => {
+    if (e.forms && e.transformT == null && e.rule && e.rule.type === 'fly') e.thrust = 0.35 + 0.65 * (e.throttle || 0);
+  }, 50);
 
   Object.assign(E, { beginTransform });
 }

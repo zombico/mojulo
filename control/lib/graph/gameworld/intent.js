@@ -109,6 +109,7 @@ export function cubeOfWorld(world) {
   if (world?.camera) put(cube, 'space', 'camera', world.camera);
   if (world?.topology) put(cube, 'space', 'topology', world.topology);
   if (Q?.ride) put(cube, 'soul', 'hero', 'vehicle');
+  if (Q?.transformer) put(cube, 'soul', 'hero', 'transformer');
   if (Q?.track) put(cube, 'space', 'levelForm', Q.track === 'loop' ? 'circuit' : 'trail');
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');

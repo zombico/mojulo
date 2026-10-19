@@ -25,6 +25,29 @@ reorients them; it aims at visual plausibility, not mechanical fidelity.
   vehicle's shell is cut into panels along its length, width and height, each panel riding the bone it lies over.
   The sequence between the forms is the skeleton moving joint by joint, staggered, its panels carried. It all bakes
   into one rig figure: the robot's clips, the vehicle form's clips and the two once-clips of the transformation.
+- **The ways of transforming are rows** (`transformation/schemes.js`): a car-bot (the hood and nose its chest, the
+  roof its back, the doors its forearms, the rear its legs, the front wheels its shoulders), a jet-bot (the nose and
+  canopy its chest, the engines its legs, the wings on its back), a waverider (a suit alone, folded into its own
+  flight form) and the variable suit's. A row names the stow, the regions the shell is cut into and where each sits
+  on the robot.
+- **The variable suit** (`transformation/variable-suit.js`): the primitive between a Transformer and a Gundam, a suit
+  drawn to fold. Its kit moves apart as it transforms: the kite shield on its forearm becomes the nose, the flight
+  binders on its back spread into swept wings, the hip fins flip up into the tail, and the legs close into the engine
+  pods, their heel jets the engines. Three palettes (`federal`, `titans`, `crimson`) and breadth dials.
+- **The craft rig** (`craft-shelf/craft-rig.js`): a craft archetype as a rig figure, one bone per item, so a jet form
+  is the shelf's jet.
+- **Forms in the engine** (`worlds/controllable/forms.js`): an entity carries `forms`, a rule per form, and B (the
+  pad's L3) turns it into the next: an owned, invincible beat plays the figure's sequence, then the form's rule and
+  pilot rule take over with the speed carried across (a walker's motion is a car's speed and a craft's airspeed, at
+  least its take-off speed). A form may name its follow camera's stand-off; a flying form burns its jets with its
+  throttle. A body mid-swing, mid-dodge, reeling or downed does not transform.
+- **The World page** plays each form's own clips (`vehicle:drive`, `vehicle:idle`), a flying form's attitude on its
+  rig and the flight HUD for a body whose form flies, all emitted only when an entity or figure carries `forms`.
+- **The doors.** `figures.<name>.transformer: { robot?, vehicle?, scheme?, height? }` bakes the body at resolve (a
+  variable suit, a stored suit by `unitRef`, a stored build by `vehicleRef`, a ride, racer, supercar or craft);
+  `compose_world` entities take `forms`, refused unless each names a rule the engine knows. A quick game's
+  `transformer` is its hero: a car-bot plays a trail's goals, a flier the fly goal from its seat in the air. The cosmos
+  counts `soul.hero=transformer` (web only; Godot and Roblox have no forms).
 
 ### Engine legs: the engines as translations, declared
 

@@ -111,11 +111,14 @@ const rootWindow = (stow) => {
 };
 
 /**
- * composeTransformer({ robot, vehicle, scheme, keys }) → { figure, readout }.
+ * composeTransformer({ robot, vehicle, scheme, keys, kit }) → { figure, readout }.
  * `robot`: a baked biped figure. `vehicle`: { pieces, length, height } or null (the robot's own alt form).
  * `scheme`: a TRANSFORM_SCHEMES id or a row. `keys`: the transformation's keys.
+ * `kit`: the robot's own parts that move apart as it transforms (variable-suit.js): each { id, soup (where it sits on
+ * the standing robot, in its rest frame), bone (the bone it rides standing), flight: { bone, pivot, turns, to? } (its
+ * place in the vehicle form: turned about `pivot` by `turns`, moved to `to`, riding `flight.bone` as it stows)}.
  */
-export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', keys = 24 } = {}) {
+export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', keys = 24, kit = [] } = {}) {
   const S = typeof scheme === 'string' ? TRANSFORM_SCHEMES[scheme] : scheme;
   if (!S) throw new Error(`transformation: unknown scheme '${scheme}'`);
   if (!robot || !robot.rig) throw new Error('transformation: the robot must be a baked rig figure');
@@ -209,7 +212,7 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
         mr[k] = (n > 0 ? bb.max[k] : bb.min[k]) + n * ext[k] * (1 - 2 * embed);
       }
     }
-    panels.push({ id, bone: bi, soup, head: c, Rr, mr, Rv, mv, spin });
+    panels.push({ id, bone: bi, soup, head: c, Rr, mr, Rv, mv, Vq: QI, Vh: c, spin });
   };
 
   let vehicleTris = 0;
@@ -250,6 +253,19 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
     }
   }
 
+  // the robot's own moving parts: seated where they are authored standing, and on their flight seat folded
+  for (const k of kit || []) {
+    const bi = skel.byId[k.bone] ?? skel.byId.torso, c = soupBounds(k.soup).center, F = k.flight || {};
+    const fb = skel.byId[F.bone] ?? bi;
+    let Q = QI;
+    for (const [axis, deg] of F.turns || []) Q = qmul(qaxis(AXIS[axis], deg * DEG), Q);
+    const p = F.pivot || c, at = F.to || p;
+    const Lc = vadd(at, qrot(Q, vsub(c, p)));                       // its middle in the flight bone's rest frame
+    const Vq = qmul(stow.q[fb], Q), Vh = vadd(stow.h[fb], qrot(stow.q[fb], vsub(Lc, head(fb))));
+    const Rv = qmul(qconj(stow.q[bi]), Vq), mv = vadd(head(bi), qrot(qconj(stow.q[bi]), vsub(Vh, stow.h[bi])));
+    panels.push({ id: k.id, bone: bi, soup: k.soup, head: c, Rr: QI, mr: c, Rv, mv, Vq, Vh, spin: false, kit: true });
+  }
+
   // ── the composed bone list and parts ──
   const boxWelded = soups.map((s, i) => soupBounds(s) || box[i]);
   const bones = [...skel.bones.map((b) => ({ id: b.id, head: b.head.map(r4) })), ...panels.map((x) => ({ id: x.id, head: x.head.map(r4) }))];
@@ -278,7 +294,7 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
   const vehicleKey = (spin) => {
     const b = [];
     for (let i = 0; i < NB; i++) push(b, stow.q[i], stow.h[i]);
-    for (const x of panels) push(b, x.spin ? qx(spin) : QI, x.head);
+    for (const x of panels) push(b, x.spin ? qx(spin) : x.Vq, x.Vh);
     return b;
   };
   clips['vehicle:idle'] = { k: 1, b: vehicleKey(0) };
@@ -328,6 +344,7 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
 
   // ── the readout: what the machine gate measures ──
   const composedTris = soups.reduce((a, s) => a + soupTris(s), 0) + panels.reduce((a, x) => a + soupTris(x.soup), 0);
+  const kitTris = panels.filter((x) => x.kit).reduce((a, x) => a + soupTris(x.soup), 0);
   const hiddenShare = V ? frameCover(robot, skel, stow, V) : null;
   const wheels = panels.filter((x) => x.spin);
   const readout = {
@@ -336,7 +353,7 @@ export function composeTransformer({ robot, vehicle = null, scheme = 'car-bot', 
     height: r4(H),
     vehicle: V ? { length: r4(V.length), height: r4(V.height), pieces: V.pieces.length } : null,
     // triangles: every one of the robot's and the vehicle's is in the composed figure
-    tris: { robot: robotTris, vehicle: vehicleTris, composed: composedTris },
+    tris: { robot: robotTris, vehicle: vehicleTris, kit: kitTris, composed: composedTris },
     panels: panels.map((x) => ({ id: x.id, on: skel.bones[x.bone].id, tris: soupTris(x.soup), travel: r4(vlen(vsub(x.mv, x.mr))) })),
     weld,
     ground: { transformMin: r4(groundMin) },

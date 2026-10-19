@@ -8,6 +8,12 @@
  *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
+ *     transformer?: { robot?, vehicle?, height? },   // the hero TRANSFORMS (transformation/: B, the pad's L3): a robot
+ *                                           // that is a vehicle too. robot: { variable: { palette? } } a variable suit
+ *                                           // folding into its waverider; vehicle: { supercar } | { ride } | { racer }
+ *                                           // a car that stands up into a robot, { craft } a jet that does. A car's
+ *                                           // goals are a trail's (reach, collect, survive, avoid, race alone); a
+ *                                           // flier's the fly goal, flown from its seat in the air
  *     climb?: true,                         // a climb after the trail, the exit at its top
  *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):
  *                                           // entered at its way in, its goal room the end, pickups in its other rooms
@@ -100,6 +106,8 @@ import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
+import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -156,7 +164,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -171,6 +179,61 @@ function readQuickCast(Q) {
   for (const k of Object.keys(C)) if (!QUICK_CAST_KEYS.includes(k)) throw fail(`.cast.${k} is not part of a quick game's cast (${QUICK_CAST_KEYS.join(', ')})`);
   if (C.scale !== undefined && !QUICK_CAST_SCALES.includes(C.scale)) throw fail(`.cast.scale is ${QUICK_CAST_SCALES.join(', ')} (a journey's cast is the book's: its sheets wait on the creator's approval)`);
   if (C.n !== undefined && !(Number.isInteger(C.n) && C.n >= 1 && C.n <= 4)) throw fail('.cast.n is the party beside you, 1 to 4');
+}
+
+// a quick transformer: which form its vehicle is (a car drives a trail; a jet or a variable suit's waverider flies),
+// and the goals each plays
+export const QUICK_TRANSFORMER_GOALS = Object.freeze({ ground: ['reach', 'collect', 'survive', 'avoid', 'race'], air: ['fly'] });
+export const transformerForm = (T) => (T.vehicle ? (T.vehicle.craft ? 'air' : 'ground') : 'air');
+function readQuickTransformer(Q) {
+  const T = Q.transformer;
+  const shape = '.transformer is { robot?, vehicle?, height? }: robot { variable: { palette?, build? } } (a variable suit, folding into its waverider), vehicle one of { supercar: { preset? } }, { ride: \'car\' | \'coupe\' | \'van\' }, { racer: { … } }, { craft: \'<archetype>\' }';
+  if (!isObj(T)) throw fail(shape);
+  for (const k of Object.keys(T)) if (!['robot', 'vehicle', 'height'].includes(k)) throw fail(`.transformer.${k}: ${shape}`);
+  for (const k of ['hero', 'ride', 'racers', 'supercars', 'craft', 'rivals']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.transformer is the hero: no ${k} beside it`);
+  if (Q.climb || Q.building !== undefined) throw fail('.transformer runs a trail or flies a map: no climb, no building');
+  if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.transformer is followed from behind (camera third-person)');
+  if (T.height !== undefined && !(Number.isFinite(T.height) && T.height >= 2 && T.height <= 40)) throw fail('.transformer.height is the robot\'s height in metres, 2 to 40');
+  if (T.robot !== undefined) {
+    if (!isObj(T.robot) || !isObj(T.robot.variable) || Object.keys(T.robot).length !== 1) throw fail('.transformer.robot is { variable: { palette?, build? } } (a stored suit rides compose_world\'s figures.<name>.transformer)');
+    const P = T.robot.variable.palette;
+    if (P !== undefined && !VARIABLE_PALETTES[P]) throw fail(`.transformer.robot.variable.palette is one of ${Object.keys(VARIABLE_PALETTES).join(', ')}`);
+    if (T.vehicle !== undefined) throw fail('.transformer.robot { variable } is its own vehicle (its waverider): no vehicle beside it');
+  }
+  if (T.vehicle !== undefined) {
+    const V = T.vehicle, ks = isObj(V) ? Object.keys(V) : [];
+    if (!isObj(V) || ks.length !== 1 || !['supercar', 'ride', 'racer', 'craft'].includes(ks[0])) throw fail(shape);
+    if (V.ride !== undefined && !RIDES[V.ride]) throw fail(`.transformer.vehicle.ride is one of ${Object.keys(RIDES).join(', ')}`);
+    if (V.craft !== undefined && !CRAFT_ARCHETYPES[V.craft]) throw fail(`.transformer.vehicle.craft is a craft archetype (${Object.keys(CRAFT_ARCHETYPES).slice(0, 6).join(', ')}, …)`);
+    if (V.supercar !== undefined && !(isObj(V.supercar) && (V.supercar.preset === undefined || SUPERCAR_LIBRARY[V.supercar.preset]))) throw fail(`.transformer.vehicle.supercar is { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')} }`);
+    if (V.racer !== undefined && !isObj(V.racer)) throw fail('.transformer.vehicle.racer is a racer\'s recipe ({ seed?, facets?, brief? })');
+  }
+  const form = transformerForm(T);
+  if (!QUICK_TRANSFORMER_GOALS[form].includes(Q.goal)) throw fail(`.transformer: a ${form === 'air' ? 'flier' : 'car'}'s goals are ${QUICK_TRANSFORMER_GOALS[form].join(', ')}`);
+}
+
+/**
+ * The quick transformer's body and its robot form: the figure spec (world-scene.js figures.<name>.transformer), the
+ * robot's height, and its rule and camera, scaled to that height; a car's vehicle form too (a flier's is the airspace
+ * seat's, levels.js). → { transformer, H, forms: { robot, vehicle? } }
+ */
+export function quickTransformer(Q) {
+  const T = Q.transformer, form = transformerForm(T);
+  // a variable suit stands a mobile worker's height on a trail's land; a car-bot its car's length; a jet-bot its jet's
+  const H = T.height ?? (T.robot ? 7 : T.vehicle.craft ? 14 : 4.5);
+  const spec = { ...(T.robot ? { robot: T.robot } : {}), ...(T.vehicle ? { vehicle: T.vehicle } : {}), height: H };
+  const robot = {
+    rule: { type: 'platform', speed: r3(2 + 2.2 * Math.sqrt(H)), jumpSpeed: r3(2 + 3 * Math.sqrt(H)), stride: r3(0.55 * H), collideRadius: r3(0.12 * H), collideHeight: r3(0.9 * H) },
+    camera: { dist: r3(2.6 * H), height: r3(H), lead: r3(0.6 * H), lookH: r3(0.6 * H) },
+  };
+  if (form === 'air') return { transformer: spec, H, forms: { robot } };
+  // the car: its proportions (a wheelbase about 0.6 of its length, a wheel about 0.077), on a ride's drive
+  const L = H;
+  const vehicle = {
+    rule: { type: 'drive', horsepower: 320, mass: 1500, wheelbase: r3(0.6 * L), wheelRadius: r3(0.077 * L), topSpeed: 26, collideRadius: r3(0.22 * L) },
+    camera: { dist: r3(2.4 * L), height: r3(L), lead: 5, lookH: r3(0.27 * L) },
+  };
+  return { transformer: spec, H, forms: { robot, vehicle } };
 }
 
 /** Read the quick block and say what is wrong. */
@@ -194,6 +257,7 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
   }
+  if (Q.transformer !== undefined) readQuickTransformer(Q);
   if (Q.racers !== undefined) {
     if (Q.goal !== 'race') throw fail('.racers belongs to the race goal');
     if (Q.ride !== undefined || Q.hero) throw fail('.racers and a ride or hero: your racer is the first of the field');
@@ -416,7 +480,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // a flight: the level is an airspace (skyscape/), its map flown by the craft, its course its laps
   // (a dogfight is a flight with no course: the foes are its goal)
   const dogfight = quick.goal === 'shoot' && quick.craft !== undefined;
-  const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
+  const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? (quick.transformer ? 'jet' : 'trainer') }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
   // (the race's mood: the roadway lit in it, roads/race-mood.js)
   const mood = quick.mood ? { mood: quick.mood } : {};
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }

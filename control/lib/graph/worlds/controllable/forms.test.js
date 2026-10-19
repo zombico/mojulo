@@ -77,6 +77,23 @@ describe('forms (more-than-meets): one body that changes what it is', () => {
     expect(e.transform.pos[2]).toBeGreaterThan(1);
   });
 
+  it('a follow camera takes each form\'s stand-off, and a flying form burns its jets', () => {
+    const w = createWorld({
+      entities: [{ id: 'bot', pilotable: true, transform: { pos: [0, 0, 0], heading: 0 }, transformDur: 0.5, body: { type: 'none' },
+        forms: { robot: { rule: { type: 'platform' } }, vehicle: { rule: { type: 'fly', stallSpeed: 30 }, camera: { dist: 40, height: 12 } } } }],
+      camera: { rule: 'follow', target: 'bot', dist: 8, height: 3 },
+    });
+    const e = w.byId.bot;
+    run(w, 1, { transform: 1 });
+    run(w, 40, { forward: 1 });
+    expect(w.camera.rule.dist).toBe(40);
+    expect(e.thrust).toBeGreaterThan(0.9);
+    run(w, 1, { transform: 1 });
+    run(w, 40);
+    expect(w.camera.rule.dist).toBe(8);   // the robot's own, remembered
+    expect(e.thrust).toBe(0);
+  });
+
   it('a busy body does not transform', () => {
     const w = bot();
     const e = w.byId.bot;
