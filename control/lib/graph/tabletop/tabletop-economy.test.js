@@ -17,6 +17,10 @@ function put(K, S, kind, side, name) {
   S.pieces.push({ kind, side, at: p, moved: 0 });
   if (S.stock[side] && S.stock[side][kind] !== undefined) S.stock[side][kind] -= 1;
 }
+// cards held or played: objects off the board (a crafted position)
+function give(S, side, zone, kinds) {
+  for (const kind of kinds) S.pieces.push({ kind, side, at: -1, moved: 0, zone });
+}
 // the opening played by taking the first choice each time
 function opened(K, S) {
   let s = S;
@@ -214,13 +218,13 @@ describe('island economy: cards', () => {
     s.hand[0] = { lumber: 0, brick: 0, wool: 1, grain: 1, ore: 1 };
     s.deck.development = ['knight', ...s.deck.development.filter((c) => c !== 'knight')];
     const bought = T.apply(K, s, T.legal(K, s).find((m) => m.type === 'buy'));
-    expect(bought.cards[0]).toEqual({ knight: 1 });
+    expect(T.held(bought, 0)).toEqual({ knight: 1 });
     expect(T.legal(K, bought).some((m) => m.type === 'play')).toBe(false);
     // its next turn, before rolling
     const next = clone(bought);
-    next.fresh = K.players.map(() => ({}));
+    for (const o of next.pieces) delete o.fresh;
     next.phase = 'roll';
-    next.played[0] = { knight: 2 };
+    give(next, 0, 'played', ['knight', 'knight']);
     const knight = T.legal(K, next).find((m) => m.name === 'play knight');
     const N = T.apply(K, next, knight);
     expect(N.pending[0]).toMatchObject({ side: 0, do: 'robber' });
@@ -244,11 +248,11 @@ describe('island economy: what a player may know', () => {
   it('a view deals the others\' cards and the deck again from what is unseen, and the dice ahead cannot be read', () => {
     const { K, S } = at();
     const s = main(K, S);
-    s.cards[1] = { knight: 2, vp: 1 };
-    s.cards[0] = { corner: 1 };
+    give(s, 1, 'hand', ['knight', 'knight', 'vp']);
+    give(s, 0, 'hand', ['corner']);
     const seen = T.view(K, s, 0, 9);
-    expect(seen.cards[0]).toEqual({ corner: 1 });
-    expect(Object.values(seen.cards[1]).reduce((a, b) => a + b, 0)).toBe(3);
+    expect(T.held(seen, 0)).toEqual({ corner: 1 });
+    expect(Object.values(T.held(seen, 1)).reduce((a, b) => a + b, 0)).toBe(3);
     expect(seen.deck.development).toHaveLength(s.deck.development.length);
     expect(seen.r).not.toBe(s.r);
     expect(T.view(K, s, 0, 9)).toEqual(seen);

@@ -133,6 +133,10 @@ export function tabletopTileClient(D, T, M) {
   const colour = (s) => D.G.players[s].colour || '#888';
   const shade = (hex, k) => { const v = parseInt(hex.slice(1), 16), c = (x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0'); return '#' + c(v >> 16) + c((v >> 8) & 255) + c(v & 255); };
   let S, legal, rot = 0, busy = false, level = D.level, log = [], turns = 0;
+  // the laid tiles and the standing claims are objects (S.pieces): a cell's tile as { t, rot }, a claim as { c, s, side }
+  const laidAt = (c) => (S.tiles[c] === null ? null : { t: S.pieces[S.tiles[c]].kind, rot: S.pieces[S.tiles[c]].rot });
+  const laid = () => S.tiles.map((_, c) => laidAt(c));
+  const standing = () => S.claims.map((q) => ({ c: S.pieces[q].at, s: S.pieces[q].seg, side: S.pieces[q].side }));
 
   // ── a tile's art, in a 0–100 box: the plain ground, then areas, lines and centres
   const G0 = D.geo, mid = [50, 50];
@@ -186,7 +190,7 @@ export function tabletopTileClient(D, T, M) {
     if ($('table').style.display === 'none') return;
     const box = () => {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      S.tiles.forEach((tl, c) => {
+      laid().forEach((tl, c) => {
         if (!tl) return;
         const r = cellDivs[c].getBoundingClientRect();
         x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top); x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
@@ -222,7 +226,7 @@ export function tabletopTileClient(D, T, M) {
   function act(m) {
     const who = S.side;
     if (m.type === 'tile') note(who, 'lays a tile');
-    if (m.type === 'claim') note(who, 'claims a ' + K.tile.types[S.tiles[S.last].t].segments[m.seg].type);
+    if (m.type === 'claim') note(who, 'claims a ' + K.tile.types[laidAt(S.last).t].segments[m.seg].type);
     if (m.type === 'redraw') note(who, 'sets aside a tile that fits nowhere');
     const before = S.score.slice();
     S = T.apply(K, S, m);
@@ -242,15 +246,16 @@ export function tabletopTileClient(D, T, M) {
     // the plan: laid tiles' art, claims, where the drawn tile fits; cropped to the laid area and a ring round it
     const P = D.plan, artOut = [], marks = [];
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    S.tiles.forEach((tl, c) => {
+    const tiles = laid(), claims = standing();
+    tiles.forEach((tl, c) => {
       if (!tl) return;
       const [bx, by] = P.box[c];
       x0 = Math.min(x0, bx); y0 = Math.min(y0, by); x1 = Math.max(x1, bx + P.cw); y1 = Math.max(y1, by + P.ch);
       artOut.push('<g transform="translate(' + bx + ' ' + by + ') scale(' + (P.cw / 100) + ' ' + (P.ch / 100) + ')">' + art(tl.t, tl.rot) + (c === S.last ? '<polygon points="' + pts(G0.k) + '" fill="none" stroke="#e0b84a" stroke-width="4"/>' : '') + '</g>');
     });
     for (const c of fits) { const [bx, by] = P.box[c]; marks.push('<rect x="' + (bx + 4) + '" y="' + (by + 4) + '" width="' + (P.cw - 8) + '" height="' + (P.ch - 8) + '" fill="none" stroke="#3a8f5a" stroke-width="4" rx="4"/>'); }
-    for (const q of S.claims) {
-      const tl = S.tiles[q.c], [ax, ay] = anchor(K.tile.types[tl.t].segments[q.s], tl.rot), [bx, by] = P.box[q.c];
+    for (const q of claims) {
+      const tl = tiles[q.c], [ax, ay] = anchor(K.tile.types[tl.t].segments[q.s], tl.rot), [bx, by] = P.box[q.c];
       const x = bx + ax / 100 * P.cw, y = by + ay / 100 * P.ch, icon = P.icons.meeple, sc = P.cw * 0.7;
       const d = icon ? icon.map((poly) => 'M' + poly.map(([px, pz]) => (x + px * sc).toFixed(1) + ' ' + (y + (0.25 - pz) * sc).toFixed(1)).join('L') + 'Z').join('') : '';
       marks.push(d ? '<path d="' + d + '" fill="' + colour(q.side) + '" stroke="#1a1512" stroke-width="1.5"/>' : '<circle cx="' + x + '" cy="' + y + '" r="8" fill="' + colour(q.side) + '"/>');
@@ -261,13 +266,13 @@ export function tabletopTileClient(D, T, M) {
     $('plan-svg').setAttribute('viewBox', (x0 - pad) + ' ' + (y0 - pad) + ' ' + (x1 - x0 + 2 * pad) + ' ' + (y1 - y0 + 2 * pad));
     // the table: the laid tiles' art on their cells, the claims as bodies
     for (const k in cellDivs) {
-      const tl = S.tiles[k], d = cellDivs[k], look = tl ? tl.t + '/' + tl.rot : '';
+      const tl = tiles[k], d = cellDivs[k], look = tl ? tl.t + '/' + tl.rot : '';
       if (d.dataset.look !== look) { d.dataset.look = look; d.innerHTML = tl ? tileSvg(tl.t, tl.rot) : ''; }
       d.className = 'f cell' + (fits.indexOf(+k) >= 0 ? ' fit' : '') + (+k === S.last ? ' last' : '');
     }
     const body = D.table.bodies.meeple;
-    $('pieces').innerHTML = body ? S.claims.map((q) => {
-      const tl = S.tiles[q.c], [ax, ay] = anchor(K.tile.types[tl.t].segments[q.s], tl.rot), a = D.table.at[q.c];
+    $('pieces').innerHTML = body ? claims.map((q) => {
+      const tl = tiles[q.c], [ax, ay] = anchor(K.tile.types[tl.t].segments[q.s], tl.rot), a = D.table.at[q.c];
       const x = a[0] + (ax - 50) / 50 * D.table.hw, y = a[1] - (ay - 50) / 50 * D.table.hh, c = colour(q.side);
       return '<div class="pc" style="transform:translate3d(' + x + 'px,' + y + 'px,' + a[2] + 'px) scale3d(0.7,0.7,0.7)">' + body.map((f) => '<div class="f" style="width:' + f.w + 'px;height:' + f.h + 'px;background:' + shade(c, f.k) + ';' + (f.clip ? 'clip-path:' + f.clip + ';' : '') + 'transform:' + f.t + '"></div>').join('') + '</div>';
     }).join('') : '';
@@ -292,7 +297,7 @@ export function tabletopTileClient(D, T, M) {
       if (red) acts.appendChild(button('Set it aside', () => play(red), true));
     } else {
       prompt = 'Claim a feature of your tile?';
-      for (const m of legal.filter((x) => x.type === 'claim')) acts.appendChild(button('Claim the ' + K.tile.types[S.tiles[S.last].t].segments[m.seg].type, () => play(m), true));
+      for (const m of legal.filter((x) => x.type === 'claim')) acts.appendChild(button('Claim the ' + K.tile.types[laidAt(S.last).t].segments[m.seg].type, () => play(m), true));
       acts.appendChild(button('No claim', () => play(legal.find((x) => x.type === 'skip')), true));
     }
     $('prompt').textContent = prompt;

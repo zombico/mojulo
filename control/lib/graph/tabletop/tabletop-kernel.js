@@ -134,6 +134,7 @@ export function buildTabletop() {
       kinds[id] = { id, rules, value: P.value || 0, royal: !!P.royal, promote: P.promote || null, chainRules: rules.filter((r) => r.chain) };
     }
     const K = { T, L, G, players, sideOf, rows, kinds, memo, royal: !!G.royal, quiet: G.quiet || null, moves: (G.turn && G.turn.moves) || 1 };
+    defsCompile(K);
     placementCompile(K);
     if (G.build || G.dice || G.opening) euroCompile(K);
     if (G.tiles) tileCompile(K);
@@ -718,8 +719,9 @@ export function buildTabletop() {
   //     start: { tile, at }, claim?: { kind, stock }, features: { <type>: { complete, incomplete } } }
   //     edges k count from the board's first way round (a square's E N W S; a pointy hex's E NE NW W SW SE); an edge in
   //     no segment is plain; a centre feature's tiles are its own and those round it; points are a feature's tiles × rate
-  //   state: { tiles: [{ t, rot } | null], bag, drawn, phase: 'tile' | 'claim', last, claims: [{ c, s, side }],
-  //     stock: [n], score: [n], r }
+  //   state: { pieces: [objects: a laid tile { kind, side: -1, at, rot }, a claim { kind, side, at, seg }],
+  //     tiles: [the laid tile's object id | null, a cell each], bag: [kind], drawn: kind, phase: 'tile' | 'claim', last,
+  //     claims: [object id] (the claims standing), stock: [n] (claims in hand, counted), score: [n], r }
   //   moves: { type: 'tile', at, rot } | { type: 'redraw' } (a tile that fits nowhere is set aside) | { type: 'claim', seg }
   //     | { type: 'skip' }
   function tileCompile(K) {
@@ -745,8 +747,9 @@ export function buildTabletop() {
     K.tile = { n, types, labels, segOf, ring };
   }
 
-  const tileEdge = (K, cell, e) => {
-    const t = cell.t, k = (e - cell.rot + K.tile.n) % K.tile.n;
+  // a laid tile's edge e (a way round the board): its label, and the segment on it (-1: plain)
+  const tileEdge = (K, o, e) => {
+    const t = o.kind, k = (e - o.rot + K.tile.n) % K.tile.n;
     return { label: K.tile.labels[t][k], seg: K.tile.segOf[t][k] };
   };
 
@@ -757,7 +760,7 @@ export function buildTabletop() {
       score: K.players.map(() => 0), stock: K.players.map(() => (D.claim ? D.claim.stock : 0)) };
     const at = K.T.byName.get(D.start.at);
     if (at === undefined) throw new Error('tabletop: tiles.start names no cell ' + D.start.at);
-    S.tiles[at] = { t: D.start.tile, rot: 0 };
+    S.tiles[at] = make(S, { kind: D.start.tile, side: -1, at, moved: 0, rot: 0 });
     for (const id of Object.keys(D.bag || {})) for (let i = 0; i < D.bag[id]; i++) S.bag.push(id);
     for (let i = S.bag.length - 1; i > 0; i--) { const j = Math.floor(rnd(S) * (i + 1)); const t = S.bag[i]; S.bag[i] = S.bag[j]; S.bag[j] = t; }
     S.drawn = S.bag.shift() || null;
@@ -770,9 +773,9 @@ export function buildTabletop() {
     let touches = false;
     for (let e = 0; e < n; e++) {
       const j = near[e];
-      if (j < 0 || !S.tiles[j]) continue;
+      if (j < 0 || S.tiles[j] === null) continue;
       touches = true;
-      const mine = K.tile.labels[t][(e - rot + n) % n], theirs = tileEdge(K, S.tiles[j], (e + n / 2) % n).label;
+      const mine = K.tile.labels[t][(e - rot + n) % n], theirs = tileEdge(K, S.pieces[S.tiles[j]], (e + n / 2) % n).label;
       if (mine !== theirs) return false;
     }
     return touches;
@@ -782,19 +785,20 @@ export function buildTabletop() {
   function tileFeatures(K, S) {
     const n = K.tile.n, parent = {}, open = {}, find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
     const keyOf = (c, s) => c * 32 + s, out = [];
+    const laid = (c) => (S.tiles[c] === null ? null : S.pieces[S.tiles[c]]);
     for (let c = 0; c < S.tiles.length; c++) {
-      const T = S.tiles[c];
+      const T = laid(c);
       if (!T) continue;
-      (K.tile.types[T.t].segments || []).forEach((g, s) => { if (!g.centre) { parent[keyOf(c, s)] = keyOf(c, s); open[keyOf(c, s)] = 0; } });
+      (K.tile.types[T.kind].segments || []).forEach((g, s) => { if (!g.centre) { parent[keyOf(c, s)] = keyOf(c, s); open[keyOf(c, s)] = 0; } });
     }
     for (let c = 0; c < S.tiles.length; c++) {
-      const T = S.tiles[c];
+      const T = laid(c);
       if (!T) continue;
       for (let e = 0; e < n; e++) {
         const mine = tileEdge(K, T, e);
         if (mine.seg < 0) continue;
         const j = K.L.cells[c].n[e];
-        const other = j >= 0 && S.tiles[j] ? tileEdge(K, S.tiles[j], (e + n / 2) % n) : null;
+        const other = j >= 0 && laid(j) ? tileEdge(K, laid(j), (e + n / 2) % n) : null;
         if (other && other.seg >= 0) { const a = find(keyOf(c, mine.seg)), b = find(keyOf(j, other.seg)); if (a !== b) parent[a] = b; }
         else open[keyOf(c, mine.seg)] += 1;
       }
@@ -802,22 +806,22 @@ export function buildTabletop() {
     const groups = {};
     for (const k in parent) {
       const root = find(+k), c = Math.floor(+k / 32), s = +k % 32;
-      if (!groups[root]) groups[root] = { type: K.tile.types[S.tiles[c].t].segments[s].type, parts: [], cells: {}, open: 0, claims: [] };
+      if (!groups[root]) groups[root] = { type: K.tile.types[laid(c).kind].segments[s].type, parts: [], cells: {}, open: 0, claims: [] };
       groups[root].parts.push([c, s]);
       groups[root].cells[c] = 1;
       groups[root].open += open[k];
     }
     for (const g of Object.values(groups)) out.push({ type: g.type, parts: g.parts, size: Object.keys(g.cells).length, open: g.open, centre: false });
     for (let c = 0; c < S.tiles.length; c++) {
-      const T = S.tiles[c];
+      const T = laid(c);
       if (!T) continue;
-      (K.tile.types[T.t].segments || []).forEach((g, s) => {
+      (K.tile.types[T.kind].segments || []).forEach((g, s) => {
         if (!g.centre) return;
-        const filled = K.tile.ring[c].filter((j) => S.tiles[j]).length;
+        const filled = K.tile.ring[c].filter((j) => S.tiles[j] !== null).length;
         out.push({ type: g.type, parts: [[c, s]], size: 1 + filled, open: K.tile.ring[c].length - filled, centre: true });
       });
     }
-    for (const f of out) f.claims = S.claims.filter((q) => f.parts.some(([c, s]) => c === q.c && s === q.s));
+    for (const f of out) f.claims = S.claims.filter((q) => f.parts.some(([c, s]) => c === S.pieces[q].at && s === S.pieces[q].seg));
     return out;
   }
 
@@ -826,21 +830,21 @@ export function buildTabletop() {
     const out = [];
     if (S.phase === 'tile') {
       for (let c = 0; c < S.tiles.length; c++) {
-        if (S.tiles[c]) continue;
+        if (S.tiles[c] !== null) continue;
         for (let rot = 0; rot < K.tile.n; rot++) if (tileFits(K, S, c, S.drawn, rot)) out.push({ type: 'tile', at: c, rot });
       }
       if (!out.length) out.push({ type: 'redraw' });
     } else {
       if (S.stock[S.side] > 0) {
-        const feats = tileFeatures(K, S), T = S.tiles[S.last];
-        (K.tile.types[T.t].segments || []).forEach((g, s) => {
+        const feats = tileFeatures(K, S), T = S.pieces[S.tiles[S.last]];
+        (K.tile.types[T.kind].segments || []).forEach((g, s) => {
           const f = feats.find((x) => x.parts.some(([c, q]) => c === S.last && q === s));
           if (f && !f.claims.length) out.push({ type: 'claim', seg: s });
         });
       }
       out.push({ type: 'skip' });
     }
-    for (const m of out) m.name = m.type === 'tile' ? 'tile@' + K.L.cells[m.at].name + '/' + m.rot : m.type === 'claim' ? 'claim ' + K.tile.types[S.tiles[S.last].t].segments[m.seg].type + ' ' + m.seg : m.type;
+    for (const m of out) m.name = m.type === 'tile' ? 'tile@' + K.L.cells[m.at].name + '/' + m.rot : m.type === 'claim' ? 'claim ' + K.tile.types[S.pieces[S.tiles[S.last]].kind].segments[m.seg].type + ' ' + m.seg : m.type;
     return out;
   }
 
@@ -853,10 +857,11 @@ export function buildTabletop() {
       if (!done && !final) continue;
       const rate = F[f.type] ? (done ? F[f.type].complete : F[f.type].incomplete) : 0;
       const count = K.players.map(() => 0);
-      for (const q of f.claims) count[q.side] += 1;
+      for (const q of f.claims) count[N.pieces[q].side] += 1;
       const top = Math.max.apply(null, count);
       count.forEach((x, side) => { if (x === top) N.score[side] += rate * f.size; });
-      for (const q of f.claims) N.stock[q.side] += 1;
+      // a claim returns: its object leaves the board, the stock counts it again
+      for (const q of f.claims) { N.stock[N.pieces[q].side] += 1; N.pieces[q].at = -1; }
       N.claims = N.claims.filter((q) => f.claims.indexOf(q) < 0);
     }
   }
@@ -870,8 +875,8 @@ export function buildTabletop() {
   function tileApply(K, S, m) {
     const N = clone(S), side = S.side;
     if (m.type === 'tile') {
-      if (S.phase !== 'tile' || S.tiles[m.at] || !tileFits(K, S, m.at, S.drawn, m.rot)) throw new Error('tabletop: the tile does not fit there');
-      N.tiles[m.at] = { t: S.drawn, rot: m.rot };
+      if (S.phase !== 'tile' || S.tiles[m.at] !== null || !tileFits(K, S, m.at, S.drawn, m.rot)) throw new Error('tabletop: the tile does not fit there');
+      N.tiles[m.at] = make(N, { kind: S.drawn, side: -1, at: m.at, moved: 0, rot: m.rot });
       N.last = m.at;
       N.drawn = null;
       N.phase = 'claim';
@@ -883,7 +888,7 @@ export function buildTabletop() {
       return N;
     }
     if (m.type === 'claim') {
-      N.claims.push({ c: S.last, s: m.seg, side });
+      N.claims.push(make(N, { kind: K.G.tiles.claim.kind, side, at: S.last, moved: 0, seg: m.seg }));
       N.stock[side] -= 1;
     }
     // the turn ends: what is done pays, the next player draws
@@ -896,9 +901,58 @@ export function buildTabletop() {
     return N;
   }
 
-  // ── cards: piles, hands and markets ─────────────────────────────────────────────────────────────────────────────────
-  // A game with `piles` is played with cards, not on a board. Each player has piles (deck, hand, discard, play, tableau);
-  // a supply of piles anyone may take from; a market, a row of cards face up refilled from its own deck.
+  // ── the object model ────────────────────────────────────────────────────────────────────────────────────────────
+  // Every game thing in play or owned is an object in one table, S.pieces (named for the board, where it began):
+  // { kind, side, at, moved } as a board piece has always been, `at` its place or -1 off the board; off the board,
+  // `zone` names where it is (a deck, a hand, a discard…), and the zones hold object ids in order. Only when used:
+  // `ready: false` (exhausted), `counters: { <name>: n }`, `mods: [modifier]`; an object leaving play keeps none of
+  // them. A shared supply of like things (a supply pile, a bag of tiles, a bank, a stock of meeples) is counted or
+  // listed by kind, and an object is made when one comes out of it.
+  //   derive(K, S, id) → the object's characteristics: the definition of its kind (K.defs: the game's pieces, card
+  //     types, tile types and economy cards, one namespace), then its modifiers in a fixed order: set, add, counters (a
+  //     counter named after a stat adds to it), grant and remove abilities; by timestamp within each. With no counters
+  //     and no modifiers it is the definition itself, shared, so a game that uses neither pays nothing.
+  //   modifier: { t, set?: { <field>: v, stats?: {…} }, add?: { <field>: n, stats?: {…} }, grant?: [ability],
+  //     remove?: [ability] | 'all' }   (an ability is any value; removed by equality of its JSON)
+  function defsCompile(K) {
+    const G = K.G, defs = {}, from = {};
+    const add = (family, table) => {
+      for (const kind of Object.keys(table || {})) {
+        if (from[kind]) throw new Error('tabletop: \'' + kind + '\' names both a ' + from[kind] + ' and a ' + family + '; give each its own name');
+        from[kind] = family;
+        const d = table[kind];
+        defs[kind] = Object.assign({}, d, { kind, family, stats: Object.assign({}, d.stats), abilities: (d.abilities || []).slice() });
+      }
+    };
+    add('piece', G.pieces);
+    add('card', G.piles && G.piles.types);
+    add('tile', G.tiles && G.tiles.types);
+    add('card', G.cards);
+    K.defs = defs;
+  }
+  function derive(K, S, id) {
+    const o = S.pieces[id], base = K.defs[o.kind];
+    if (!o.counters && !(o.mods && o.mods.length)) return base;
+    const out = Object.assign({}, base, { stats: Object.assign({}, base.stats), abilities: base.abilities.slice() });
+    const mods = (o.mods || []).slice().sort((a, b) => (a.t || 0) - (b.t || 0));
+    const each = (field, fn) => { for (const m of mods) if (m[field]) fn(m[field]); };
+    each('set', (x) => { for (const f in x) { if (f === 'stats') Object.assign(out.stats, x.stats); else out[f] = x[f]; } });
+    each('add', (x) => { for (const f in x) { if (f === 'stats') { for (const st in x.stats) out.stats[st] = (out.stats[st] || 0) + x.stats[st]; } else out[f] = (out[f] || 0) + x[f]; } });
+    for (const c in o.counters || {}) if (c in out.stats) out.stats[c] += o.counters[c];
+    for (const m of mods) {
+      if (m.remove === 'all') out.abilities = [];
+      else if (m.remove) { const gone = m.remove.map((a) => JSON.stringify(a)); out.abilities = out.abilities.filter((a) => gone.indexOf(JSON.stringify(a)) < 0); }
+      if (m.grant) out.abilities = out.abilities.concat(m.grant);
+    }
+    return out;
+  }
+  function make(S, o) { S.pieces.push(o); return S.pieces.length - 1; }
+  const kindsOf = (S, ids) => ids.map((id) => (id === null || id === undefined ? null : S.pieces[id].kind));
+
+  // ── cards: piles, hands and markets ─────────────────────────────────────────────────────────────────────────────
+  // A game with `piles` is played with cards, not on a board. Each player has zones (deck, hand, discard, play,
+  // tableau) holding its cards as objects; a supply of piles anyone may take from, counted by kind; a market, a row of
+  // cards face up (objects) refilled from its own deck (listed by kind).
   //
   //   G.piles { types: { <id>: { cost?, coin?, points?, treasure?, play?: [effect], tags?: { <tag>: value } } },
   //     take: 'build' (the default) | 'draft', supply?: { <id>: n }, start?: { deck: { <id>: n } },
@@ -914,8 +968,10 @@ export function buildTabletop() {
   //   scorer: { points: true } the cards' points | { distinct: { tag, table } } table[number of different values held] |
   //     { same: { tag, table } } table[number held] for each value | { most: { tag, value?, bonus } } the most cards
   //     (of that value) earn the bonus, a tie sharing it | { sum: { tag } } the tag's numbers added
-  //   state: { zones: [{ deck, hand, discard, play, tableau }], supply, market: { row, deck } | null, trash, score,
-  //     act: { actions, buys, coins }, pending, r }
+  //   state: { pieces: [card objects], zones: [{ deck, hand, discard, play, tableau }] (object ids), supply,
+  //     market: { row: [id | null], deck: [kind] } | null, trash: [id], score, act: { actions, buys, coins }, pending, r }
+  //   a move names a card by its kind (play coin1); `id` is the object it takes
+  const IN_PLAY = { play: 1, tableau: 1 };
   function cardCompile(K) {
     const C = K.G.piles, types = C.types || {};
     const known = (id, where) => { if (!types[id]) throw new Error('tabletop: ' + where + ' names a card ' + id + ' the game does not describe'); };
@@ -930,15 +986,23 @@ export function buildTabletop() {
     return list;
   }
   const expand = (counts) => { const out = []; for (const id of Object.keys(counts || {})) for (let i = 0; i < counts[id]; i++) out.push(id); return out; };
+  // an object to a zone: leaving play it keeps no counters, exhaustion or modifiers
+  function zoneTo(S, id, zone) {
+    const o = S.pieces[id];
+    if (IN_PLAY[o.zone] && !IN_PLAY[zone]) { delete o.ready; delete o.counters; delete o.mods; }
+    o.zone = zone;
+    return id;
+  }
 
   function drawCards(S, side, n) {
     const Z = S.zones[side];
     for (let i = 0; i < n; i++) {
-      if (!Z.deck.length) { Z.deck = shuffle(S, Z.discard); Z.discard = []; }
+      if (!Z.deck.length) { Z.deck = shuffle(S, Z.discard); Z.discard = []; for (const id of Z.deck) zoneTo(S, id, 'deck'); }
       if (!Z.deck.length) break;
-      Z.hand.push(Z.deck.pop());
+      Z.hand.push(zoneTo(S, Z.deck.pop(), 'hand'));
     }
   }
+  const marketCard = (S, kind) => make(S, { kind, side: -1, at: -1, moved: 0, zone: 'market' });
 
   function cardStart(K) {
     const C = K.G.piles, n = K.players.length;
@@ -946,42 +1010,45 @@ export function buildTabletop() {
       zones: [], supply: Object.assign({}, C.supply || {}), market: null, trash: [], score: K.players.map(() => 0),
       act: { actions: K.card.actions, buys: K.card.buys, coins: 0 } };
     for (let s = 0; s < n; s++) {
-      S.zones.push({ deck: shuffle(S, expand(C.start && C.start.deck)), hand: [], discard: [], play: [], tableau: [] });
+      const deck = shuffle(S, expand(C.start && C.start.deck)).map((kind) => make(S, { kind, side: s, at: -1, moved: 0, zone: 'deck' }));
+      S.zones.push({ deck, hand: [], discard: [], play: [], tableau: [] });
       if (!K.card.draft) drawCards(S, s, K.card.hand);
     }
     if (C.market) {
       const deck = shuffle(S, expand(C.market.deck)), row = [];
-      for (let i = 0; i < C.market.row; i++) row.push(deck.length ? deck.pop() : null);
+      for (let i = 0; i < C.market.row; i++) row.push(deck.length ? marketCard(S, deck.pop()) : null);
       S.market = { row, deck };
     }
     return S;
   }
 
-  const costOf = (K, id) => K.card.types[id].cost || 0;
+  const costOf = (K, kind) => K.defs[kind].cost || 0;
+  // each kind in a list once, with the first object of it
+  const firsts = (S, ids) => { const seen = {}, out = []; for (const id of ids) { const k = S.pieces[id].kind; if (!seen[k]) { seen[k] = 1; out.push(id); } } return out; };
 
   function cardLegal(K, S) {
     if (S.over) return [];
-    const out = [], side = S.side, Z = S.zones[side], types = K.card.types;
+    const out = [], side = S.side, Z = S.zones[side];
     if (S.pending.length) {
       const d = S.pending[0];
       if (d.do === 'gain') for (const id of Object.keys(S.supply)) { if (S.supply[id] > 0 && costOf(K, id) <= d.upTo) out.push({ type: 'gain', card: id }); }
-      if (d.do === 'trash') { for (const id of Array.from(new Set(Z.hand))) out.push({ type: 'trash', card: id }); out.push({ type: 'done' }); }
+      if (d.do === 'trash') { for (const id of firsts(S, Z.hand)) out.push({ type: 'trash', card: S.pieces[id].kind, id }); out.push({ type: 'done' }); }
     } else if (K.card.draft) {
-      S.market.row.forEach((id, slot) => { if (id) out.push({ type: 'take', slot }); });
+      S.market.row.forEach((id, slot) => { if (id !== null) out.push({ type: 'take', slot }); });
       if (!out.length) out.push({ type: 'end' });
     } else {
-      for (const id of Array.from(new Set(Z.hand))) {
-        const t = types[id];
-        if (t.treasure || (t.play && t.play.length && S.act.actions > 0)) out.push({ type: 'play', card: id });
+      for (const id of firsts(S, Z.hand)) {
+        const t = derive(K, S, id);
+        if (t.treasure || (t.play && t.play.length && S.act.actions > 0)) out.push({ type: 'play', card: t.kind, id });
       }
       if (S.act.buys > 0) {
         for (const id of Object.keys(S.supply)) if (S.supply[id] > 0 && costOf(K, id) <= S.act.coins) out.push({ type: 'buy', card: id });
-        if (S.market) S.market.row.forEach((id, slot) => { if (id && costOf(K, id) <= S.act.coins) out.push({ type: 'buy', slot }); });
+        if (S.market) S.market.row.forEach((id, slot) => { if (id !== null && (derive(K, S, id).cost || 0) <= S.act.coins) out.push({ type: 'buy', slot }); });
       }
       out.push({ type: 'end' });
     }
     for (const m of out) {
-      const card = m.card || (m.slot !== undefined ? S.market.row[m.slot] : null);
+      const card = m.card || (m.slot !== undefined ? S.pieces[S.market.row[m.slot]].kind : null);
       m.name = m.type + (card ? ' ' + card : '') + (m.slot !== undefined ? '@' + m.slot : '');
     }
     return out;
@@ -1000,28 +1067,28 @@ export function buildTabletop() {
   }
 
   function cardScores(K, S) {
-    const types = K.card.types, scorers = K.G.piles.score || [{ points: true }];
-    const owned = S.zones.map((Z) => Z.deck.concat(Z.hand, Z.discard, Z.play, Z.tableau));
+    const scorers = K.G.piles.score || [{ points: true }];
+    const owned = S.zones.map((Z) => Z.deck.concat(Z.hand, Z.discard, Z.play, Z.tableau).map((id) => derive(K, S, id)));
     const out = S.score.slice();
-    const tag = (id, t) => (types[id].tags || {})[t];
+    const tag = (c, t) => (c.tags || {})[t];
     for (const sc of scorers) {
       owned.forEach((cards, s) => {
-        if (sc.points) for (const id of cards) out[s] += types[id].points || 0;
+        if (sc.points) for (const c of cards) out[s] += c.points || 0;
         if (sc.distinct) {
-          const vals = new Set(cards.map((id) => tag(id, sc.distinct.tag)).filter((v) => v !== undefined));
+          const vals = new Set(cards.map((c) => tag(c, sc.distinct.tag)).filter((v) => v !== undefined));
           const tb = sc.distinct.table;
           out[s] += tb[Math.min(vals.size, tb.length - 1)] || 0;
         }
         if (sc.same) {
           const by = {};
-          for (const id of cards) { const v = tag(id, sc.same.tag); if (v !== undefined) by[v] = (by[v] || 0) + 1; }
+          for (const c of cards) { const v = tag(c, sc.same.tag); if (v !== undefined) by[v] = (by[v] || 0) + 1; }
           const tb = sc.same.table;
           for (const v in by) out[s] += tb[Math.min(by[v], tb.length - 1)] || 0;
         }
-        if (sc.sum) for (const id of cards) out[s] += +(tag(id, sc.sum.tag) || 0);
+        if (sc.sum) for (const c of cards) out[s] += +(tag(c, sc.sum.tag) || 0);
       });
       if (sc.most) {
-        const m = sc.most, counts = owned.map((cards) => cards.filter((id) => (m.value === undefined ? tag(id, m.tag) !== undefined : tag(id, m.tag) === m.value)).length);
+        const m = sc.most, counts = owned.map((cards) => cards.filter((c) => (m.value === undefined ? tag(c, m.tag) !== undefined : tag(c, m.tag) === m.value)).length);
         const top = Math.max.apply(null, counts);
         if (top > 0) { const lead = counts.map((c, s) => (c === top ? s : -1)).filter((s) => s >= 0); for (const s of lead) out[s] += Math.floor(m.bonus / lead.length); }
       }
@@ -1034,7 +1101,7 @@ export function buildTabletop() {
     const empty = Object.keys(N.supply).filter((id) => N.supply[id] <= 0).length;
     if (E.piles && empty >= E.piles) return true;
     if (E.pile && (N.supply[E.pile] || 0) <= 0) return true;
-    if (E.market && N.market && !N.market.deck.length && N.market.row.every((x) => !x)) return true;
+    if (E.market && N.market && !N.market.deck.length && N.market.row.every((x) => x === null)) return true;
     if (E.turns && N.turn >= E.turns) return true;
     return false;
   }
@@ -1042,7 +1109,7 @@ export function buildTabletop() {
   function cardTurnEnds(K, N, side) {
     if (!K.card.draft) {
       const Z = N.zones[side];
-      Z.discard = Z.discard.concat(Z.hand, Z.play);
+      for (const id of Z.hand.concat(Z.play)) Z.discard.push(zoneTo(N, id, 'discard'));
       Z.hand = [];
       Z.play = [];
       drawCards(N, side, K.card.hand);
@@ -1057,38 +1124,43 @@ export function buildTabletop() {
   }
 
   function cardApply(K, S, m) {
-    const N = clone(S), side = S.side, Z = N.zones[side], types = K.card.types;
+    const N = clone(S), side = S.side, Z = N.zones[side];
     const d = N.pending.length ? N.pending.shift() : null;
+    // the object a move names: its own id when it still stands where the move found it, else the first of its kind
+    const inHand = () => {
+      const i = m.id !== undefined && Z.hand.indexOf(m.id) >= 0 ? Z.hand.indexOf(m.id) : Z.hand.findIndex((id) => N.pieces[id].kind === m.card);
+      if (i < 0) throw new Error('tabletop: no ' + m.card + ' in the hand');
+      return Z.hand.splice(i, 1)[0];
+    };
     const take = (slot) => {
       const id = N.market.row[slot];
-      N.market.row[slot] = N.market.deck.length ? N.market.deck.pop() : null;
+      N.market.row[slot] = N.market.deck.length ? marketCard(N, N.market.deck.pop()) : null;
+      N.pieces[id].side = side;
       return id;
     };
+    const fresh = (kind) => make(N, { kind, side, at: -1, moved: 0, zone: 'discard' });
     if (m.type === 'play') {
-      const i = Z.hand.indexOf(m.card);
-      if (i < 0) throw new Error('tabletop: no ' + m.card + ' in the hand');
-      Z.hand.splice(i, 1);
-      Z.play.push(m.card);
-      const t = types[m.card];
+      const id = inHand();
+      Z.play.push(zoneTo(N, id, 'play'));
+      const t = derive(K, N, id);
       if (!t.treasure) N.act.actions -= 1;
       if (t.coin) N.act.coins += t.coin;
       cardEffects(K, N, side, t.play);
     } else if (m.type === 'buy') {
-      const id = m.slot !== undefined ? N.market.row[m.slot] : m.card;
-      if (!id || costOf(K, id) > N.act.coins || N.act.buys <= 0) throw new Error('tabletop: that cannot be bought now');
-      N.act.coins -= costOf(K, id);
+      const cost = m.slot !== undefined ? (N.market.row[m.slot] !== null ? derive(K, N, N.market.row[m.slot]).cost || 0 : Infinity) : costOf(K, m.card);
+      if (cost > N.act.coins || N.act.buys <= 0) throw new Error('tabletop: that cannot be bought now');
+      N.act.coins -= cost;
       N.act.buys -= 1;
-      if (m.slot !== undefined) take(m.slot); else N.supply[id] -= 1;
-      Z.discard.push(id);
+      if (m.slot !== undefined) Z.discard.push(zoneTo(N, take(m.slot), 'discard'));
+      else { N.supply[m.card] -= 1; Z.discard.push(fresh(m.card)); }
     } else if (m.type === 'take') {
-      Z.tableau.push(take(m.slot));
+      Z.tableau.push(zoneTo(N, take(m.slot), 'tableau'));
       cardTurnEnds(K, N, side);
     } else if (m.type === 'gain') {
       N.supply[m.card] -= 1;
-      Z.discard.push(m.card);
+      Z.discard.push(fresh(m.card));
     } else if (m.type === 'trash') {
-      Z.hand.splice(Z.hand.indexOf(m.card), 1);
-      N.trash.push(m.card);
+      N.trash.push(zoneTo(N, inHand(), 'trash'));
       if (d.left > 1 && Z.hand.length) N.pending.unshift(Object.assign({}, d, { left: d.left - 1 }));
     } else if (m.type === 'end') {
       cardTurnEnds(K, N, side);
@@ -1106,6 +1178,8 @@ export function buildTabletop() {
       const pool = shuffle(N, Z.deck.concat(Z.hand)), n = Z.hand.length;
       Z.hand = pool.slice(0, n);
       Z.deck = pool.slice(n);
+      for (const id of Z.hand) N.pieces[id].zone = 'hand';
+      for (const id of Z.deck) N.pieces[id].zone = 'deck';
     });
     if (N.market) shuffle(N, N.market.deck);
     return N;
@@ -1115,8 +1189,9 @@ export function buildTabletop() {
   // A game with `build`, `dice` or `opening` is played on places, not only cells: one index over the cells, then the
   // corners, then the edges (a settlement on a corner, a road on an edge, the robber on a cell). Its state carries,
   // beside the board and the pieces: { phase: 'opening' | 'roll' | 'main', pending: [decision], hand: [{ <res>: n }],
-  // bank: { <res>: n }, stock: [{ <kind>: n }], deck: { <deck>: [card] }, cards / fresh (bought this turn) / played:
-  // [{ <card>: n }], playedTurn, awards: { <id>: side | -1 }, last: [place], roll, r (the dice, mulberry32) }.
+  // bank: { <res>: n }, stock: [{ <kind>: n }], deck: { <deck>: [card kind] }, playedTurn, awards: { <id>: side | -1 },
+  // last: [place], roll, r (the dice, mulberry32) }; a card bought is an object in S.pieces off the board (zone 'hand',
+  // `fresh` the turn it is bought, then zone 'played'), counted by `held`.
   //
   //   G.pieces[kind].on 'cell' | 'corner' | 'edge';  G.setup.neutral: pieces nobody owns (the robber)
   //   G.stock { <kind>: n } each player's pieces off the board;  G.resources { <res>: n } the bank
@@ -1197,12 +1272,12 @@ export function buildTabletop() {
   function euroStart(K) {
     const G = K.G, n = K.players.length;
     const S = { board: new Array(K.P.n).fill(-1), pieces: [], side: 0, turn: 0, over: null, phase: G.opening ? 'opening' : 'roll',
-      pending: [], hand: [], bank: Object.assign({}, G.resources || {}), stock: [], deck: {}, cards: [], fresh: [], played: [],
+      pending: [], hand: [], bank: Object.assign({}, G.resources || {}), stock: [], deck: {},
       playedTurn: false, offersTurn: 0, awards: {}, last: [], roll: null, r: mixSeed(G.seed || 1, 0, 0) };
     for (let s = 0; s < n; s++) {
       S.hand.push(K.res.reduce((h, r) => { h[r] = 0; return h; }, {}));
       S.stock.push(Object.assign({}, G.stock || {}));
-      S.cards.push({}); S.fresh.push({}); S.played.push({}); S.last.push(-1);
+      S.last.push(-1);
     }
     const setup = G.setup || {};
     for (const pid of Object.keys(setup)) {
@@ -1393,9 +1468,10 @@ export function buildTabletop() {
         }
       }
       if (!S.playedTurn) {
-        for (const c of Object.keys(S.cards[side])) {
+        const hand = held(S, side), aged = held(S, side, 'hand', true);
+        for (const c of Object.keys(hand)) {
           const card = (K.G.cards || {})[c];
-          if (card && card.play && S.cards[side][c] - (S.fresh[side][c] || 0) > 0) out.push({ type: 'play', card: c });
+          if (card && card.play && aged[c] > 0) out.push({ type: 'play', card: c });
         }
       }
       if (S.phase === 'main') out.push({ type: 'end' });
@@ -1508,13 +1584,13 @@ export function buildTabletop() {
     } else if (m.type === 'buy') {
       const D = G.decks[m.deck];
       for (const r in D.cost || {}) { N.hand[actor][r] -= D.cost[r]; N.bank[r] += D.cost[r]; }
-      const c = N.deck[m.deck].shift();
-      N.cards[actor][c] = (N.cards[actor][c] || 0) + 1;
-      N.fresh[actor][c] = (N.fresh[actor][c] || 0) + 1;
+      make(N, { kind: N.deck[m.deck].shift(), side: actor, at: -1, moved: 0, zone: 'hand', fresh: true });
     } else if (m.type === 'play') {
-      N.cards[actor][m.card] -= 1;
-      if (!N.cards[actor][m.card]) delete N.cards[actor][m.card];
-      N.played[actor][m.card] = (N.played[actor][m.card] || 0) + 1;
+      // the newest of its kind held since before this turn
+      let id = -1;
+      for (let i = N.pieces.length - 1; i >= 0 && id < 0; i--) { const o = N.pieces[i]; if (o.at < 0 && o.side === actor && o.zone === 'hand' && o.kind === m.card && !o.fresh) id = i; }
+      if (id < 0) throw new Error('tabletop: no ' + m.card + ' to play');
+      N.pieces[id].zone = 'played';
       N.playedTurn = true;
       effects(K, N, actor, G.cards[m.card].play);
     } else if (m.type === 'exchange') {
@@ -1540,7 +1616,7 @@ export function buildTabletop() {
       N.side = (S.side + 1) % K.players.length;
       N.phase = 'roll';
       N.turn = S.turn + 1;
-      N.fresh = K.players.map(() => ({}));
+      for (const o of N.pieces) if (o.fresh) delete o.fresh;
       N.playedTurn = false;
       N.offersTurn = 0;
       N.answers = [];
@@ -1576,7 +1652,7 @@ export function buildTabletop() {
 
   function measure(K, S, side, A) {
     if (A.trail) return trail(K, S, side, A.trail, A.block);
-    if (A.played) return S.played[side][A.played] || 0;
+    if (A.played) return held(S, side, 'played')[A.played] || 0;
     return 0;
   }
 
@@ -1591,12 +1667,20 @@ export function buildTabletop() {
     }
   }
 
+  // the economy's cards are objects off the board: in a hand (zone 'hand'; `fresh` the turn one is bought) or played
+  // (zone 'played'); counted by kind for the rules that read them (`aged`: only those held since before this turn)
+  function held(S, side, zone, aged) {
+    const out = {}, z = zone || 'hand';
+    for (const o of S.pieces) if (o.at < 0 && o.side === side && o.zone === z && !(aged && o.fresh)) out[o.kind] = (out[o.kind] || 0) + 1;
+    return out;
+  }
+
   // a player's points: `open` leaves out what only they can see (cards that score in the hand)
   function score(K, S, side, open) {
     const Sc = K.G.score || {};
     let n = 0;
     for (const x of S.pieces) if (x.at >= 0 && x.side === side) n += (Sc.pieces || {})[x.kind] || 0;
-    if (!open) for (const c in S.cards[side]) n += ((Sc.cards || {})[c] || 0) * S.cards[side][c];
+    if (!open) { const hand = held(S, side); for (const c in hand) n += ((Sc.cards || {})[c] || 0) * hand[c]; }
     for (const id in S.awards) if (S.awards[id] === side) n += Sc.awards[id].vp;
     return n;
   }
@@ -1632,16 +1716,17 @@ export function buildTabletop() {
     const N = clone(S);
     N.r = mixSeed(seed || 1, S.turn, side);
     for (const id of Object.keys(K.G.decks || {})) {
-      const kinds = Object.keys(K.G.decks[id].cards), unseen = N.deck[id].slice(), held = [];
+      // the others' unplayed cards of this deck, gathered with the deck, shuffled, and dealt back to the same objects
+      const kinds = Object.keys(K.G.decks[id].cards), unseen = N.deck[id].slice(), theirs = [];
       for (let s = 0; s < K.players.length; s++) {
         if (s === side) continue;
-        let n = 0;
-        for (const c of kinds) { n += N.cards[s][c] || 0; for (let i = 0; i < (N.cards[s][c] || 0); i++) unseen.push(c); delete N.cards[s][c]; }
-        held.push([s, n]);
-        N.fresh[s] = {};
+        const mine = N.pieces.map((o, i) => i).filter((i) => { const o = N.pieces[i]; return o.at < 0 && o.side === s && o.zone === 'hand' && kinds.indexOf(o.kind) >= 0; });
+        for (const c of kinds) for (const i of mine) if (N.pieces[i].kind === c) unseen.push(c);
+        for (const i of mine) delete N.pieces[i].fresh;
+        theirs.push(mine);
       }
       for (let i = unseen.length - 1; i > 0; i--) { const j = Math.floor(rnd(N) * (i + 1)); const t = unseen[i]; unseen[i] = unseen[j]; unseen[j] = t; }
-      for (const [s, n] of held) for (let i = 0; i < n; i++) { const c = unseen.shift(); N.cards[s][c] = (N.cards[s][c] || 0) + 1; }
+      for (const mine of theirs) for (const i of mine) N.pieces[i].kind = unseen.shift();
       N.deck[id] = unseen;
     }
     return N;
@@ -1652,7 +1737,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits, cardScores, derive, kindsOf, held };
 }
 
 const _tabletop = buildTabletop();

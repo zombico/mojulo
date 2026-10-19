@@ -216,6 +216,19 @@ in CSS 3D. In progress:
   named by principle (deck building; drafting and set collection), played on a card page: the supply and the market
   lit where a buy, a take or a gain may go, the hand lit where a play or a trash may, the others' piles as counts and
   their tableaux face up, actions, buys and coins, every seat's points as the game scores them now, a log.
+- **The engine, stage 1: one object model**, built. The thesis behind the next stages: every board game is the same
+  duel of objects (things with characteristics in zones; a turn of phases; windows to act; a chain of responses;
+  triggers; world effects; rules checked between actions), so the kernel grows that engine rather than one feature per
+  paradigm. Stage 1 unifies what things are. Every piece, card and laid tile is now an object in one table: a board
+  piece as before, a card in its owner's zones (deck, hand, discard, played, tableau; zones hold object ids in order),
+  a laid tile and a claim at their cell, an economy card held or played. A shared supply of like things (a supply
+  pile, a bag of tiles, a bank, a stock of meeples) stays counted by kind until one comes out of it. Pieces, card types,
+  tile types and economy cards share one namespace (a name used twice is refused). One function derives an object's
+  characteristics: its definition, then its modifiers in a fixed order (set, add, counters, grant and remove
+  abilities, by timestamp within each); with no counters and no modifiers it is the definition itself, so a game that
+  uses neither pays nothing, and an object leaving play keeps none of them. Machine gates: the seeded mind-against-mind
+  games of every mode (chess, enclosure, tiles, deck building, drafting, three island games, one with trading) replay
+  move for move as before the change; perft's counts and time are unchanged; the kernel grew by 8.7 per cent.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

@@ -347,7 +347,7 @@ export function tabletopEuroClient(D, T, M) {
     $('hand').innerHTML = K.res.map((r) => '<span class="chip"><i style="background:' + resColour(r) + '"></i>' + r + ' ' + S.hand[me][r] + '</span>').join('');
     const cards = $('cards');
     cards.innerHTML = '';
-    const held = S.cards[me];
+    const held = T.held(S, me);
     if (!Object.keys(held).length) cards.textContent = 'none';
     for (const c of Object.keys(held)) {
       const m = legal.find((x) => x.type === 'play' && x.card === c);
@@ -357,7 +357,7 @@ export function tabletopEuroClient(D, T, M) {
     // the seats
     const awards = (K.G.score && K.G.score.awards) || {};
     $('seats').innerHTML = K.players.map((p, s) => {
-      const hand = K.res.reduce((a, r) => a + S.hand[s][r], 0), dev = Object.values(S.cards[s]).reduce((a, b) => a + b, 0);
+      const hand = K.res.reduce((a, r) => a + S.hand[s][r], 0), dev = Object.values(T.held(S, s)).reduce((a, b) => a + b, 0);
       const won = Object.keys(awards).filter((id) => S.awards[id] === s).map((id) => awards[id].name || id).join(', ');
       return '<div class="seat' + (s === S.side ? ' now' : '') + '"><span><b style="background:' + colour(s) + '"></b>' + p.id + (s === me ? ' (you)' : '') + '</span><span>' + T.score(K, S, s, s !== me) + ' pts · ' + hand + ' cards · ' + dev + ' dev' + (won ? ' · ' + won : '') + '</span></div>';
     }).join('');

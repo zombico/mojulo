@@ -135,10 +135,12 @@ export function tabletopCardClient(D, T, M) {
     const v = tags[vals[0]], fill = look[v] || t.colour || '#999';
     return '<svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="' + fill + '" stroke="#2b2622" stroke-width="1.5"/><text x="13" y="17.5" text-anchor="middle" font-size="12" font-weight="700" fill="#2b2622">' + esc(String(v)[0].toUpperCase()) + '</text></svg>';
   }
+  // a card drawn from its kind, or from an object (o.obj: its characteristics as derived, modifiers and all)
+  const kindOf = (id) => (id === null || id === undefined ? null : S.pieces[id].kind);
   function cardHtml(id, o) {
     o = o || {};
     if (!id) return '<div class="c' + (o.small ? ' small' : '') + ' out"></div>';
-    const t = types[id], tags = t.tags || {};
+    const t = o.obj !== undefined ? T.derive(K, S, o.obj) : K.defs[id], tags = t.tags || {};
     const tagText = Object.keys(tags).map((k) => k + ' ' + tags[k]).join(' · ');
     return '<div class="c' + (o.small ? ' small' : '') + (o.go ? ' go' : '') + (o.out ? ' out' : '') + '"' + (o.data ? ' ' + o.data : '') + ' title="' + esc((t.name || id) + (effects(t).length ? ': ' + effects(t).join(', ') : '')) + '">'
       + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div>'
@@ -166,7 +168,7 @@ export function tabletopCardClient(D, T, M) {
     }, 260);
   }
   function act(m) {
-    const who = S.side, card = m.card || (m.slot !== undefined ? S.market.row[m.slot] : null), nm = card ? (types[card].name || card) : '';
+    const who = S.side, card = m.card || (m.slot !== undefined ? kindOf(S.market.row[m.slot]) : null), nm = card ? (types[card].name || card) : '';
     if (m.type === 'play' && !types[card].treasure) note(who, 'plays ' + nm);
     if (m.type === 'buy') note(who, 'buys ' + nm);
     if (m.type === 'take') note(who, 'takes ' + nm);
@@ -188,8 +190,8 @@ export function tabletopCardClient(D, T, M) {
       const Y = S.zones[s];
       return '<div class="seatrow" style="margin-bottom:6px"><span class="who"><i class="sw" style="background:' + colour(s) + '"></i>' + esc(p.id) + '</span>'
         + (K.card.draft ? '' : '<span class="pile"><span class="back">' + Y.deck.length + '</span>deck</span><span class="pile"><span class="back">' + Y.hand.length + '</span>hand</span><span class="pile"><span class="back">' + Y.discard.length + '</span>discard</span>')
-        + (Y.play.length && s === S.side ? '<span class="cards">' + Y.play.map((id) => cardHtml(id, { small: true })).join('') + '</span>' : '')
-        + (Y.tableau.length ? '<span class="cards">' + stack(Y.tableau).map(([id, n]) => cardHtml(id, { small: true, n: n > 1 ? n : undefined })).join('') + '</span>' : '')
+        + (Y.play.length && s === S.side ? '<span class="cards">' + Y.play.map((id) => cardHtml(kindOf(id), { small: true, obj: id })).join('') + '</span>' : '')
+        + (Y.tableau.length ? '<span class="cards">' + stack(Y.tableau.map(kindOf)).map(([id, n]) => cardHtml(id, { small: true, n: n > 1 ? n : undefined })).join('') + '</span>' : '')
         + '</div>';
     }).join('');
     // the market's row and the supply's piles: lit where a buy, a take or a gain may go
@@ -197,7 +199,7 @@ export function tabletopCardClient(D, T, M) {
     if (S.market) {
       $('market').innerHTML = S.market.row.map((id, slot) => {
         const m = legal.find((x) => x.slot === slot);
-        return cardHtml(id, { go: go && m, data: 'data-slot="' + slot + '"' });
+        return cardHtml(kindOf(id), { go: go && m, obj: id === null ? undefined : id, data: 'data-slot="' + slot + '"' });
       }).join('') + '<span class="pile"><span class="back">' + S.market.deck.length + '</span>deck</span>';
     }
     const ids = Object.keys(S.supply);
@@ -208,16 +210,16 @@ export function tabletopCardClient(D, T, M) {
     }).join('');
     // the person's own cards
     $('play-zone').style.display = K.card.draft ? 'none' : '';
-    $('play').innerHTML = Z.play.map((id) => cardHtml(id)).join('');
+    $('play').innerHTML = Z.play.map((id) => cardHtml(kindOf(id), { obj: id })).join('');
     $('play').classList.toggle('empty', !Z.play.length);
     $('hand-zone').style.display = K.card.draft ? 'none' : '';
     $('hand').innerHTML = Z.hand.map((id, i) => {
-      const m = owed === 'trash' ? find('trash', id) : !owed ? find('play', id) : null;
-      return cardHtml(id, { go: go && m, data: 'data-hand="' + i + '"' });
+      const k = kindOf(id), m = owed === 'trash' ? find('trash', k) : !owed ? find('play', k) : null;
+      return cardHtml(k, { go: go && m, obj: id, data: 'data-hand="' + i + '"' });
     }).join('');
     $('hand').classList.toggle('empty', !Z.hand.length);
     $('tableau-zone').style.display = Z.tableau.length || K.card.draft ? '' : 'none';
-    $('tableau').innerHTML = stack(Z.tableau).map(([id, n]) => cardHtml(id, { n: n > 1 ? n : undefined })).join('');
+    $('tableau').innerHTML = stack(Z.tableau.map(kindOf)).map(([id, n]) => cardHtml(id, { n: n > 1 ? n : undefined })).join('');
     $('tableau').classList.toggle('empty', !Z.tableau.length);
     $('mine').innerHTML = K.card.draft ? '' : '<div class="seatrow"><span class="pile"><span class="back">' + Z.deck.length + '</span>deck</span><span class="pile"><span class="back">' + Z.discard.length + '</span>discard</span>' + (S.trash.length ? '<span class="pile"><span class="back">' + S.trash.length + '</span>trashed</span>' : '') + '</div>';
     panel(go, owed);
@@ -258,7 +260,7 @@ export function tabletopCardClient(D, T, M) {
     const c = e.target.closest('.c');
     if (!c) return;
     const owed = S.pending.length ? S.pending[0].do : null;
-    if (c.dataset.hand !== undefined) { const id = S.zones[me].hand[+c.dataset.hand]; play(owed === 'trash' ? find('trash', id) : owed ? null : find('play', id)); }
+    if (c.dataset.hand !== undefined) { const id = kindOf(S.zones[me].hand[+c.dataset.hand]); play(owed === 'trash' ? find('trash', id) : owed ? null : find('play', id)); }
     else if (c.dataset.supply !== undefined) { const id = c.dataset.supply; play(owed === 'gain' ? find('gain', id) : owed ? null : find('buy', id)); }
     else if (c.dataset.slot !== undefined) play(legal.find((m) => m.slot === +c.dataset.slot));
   });

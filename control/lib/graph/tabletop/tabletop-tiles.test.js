@@ -13,20 +13,22 @@ const cell = (K, n) => K.T.byName.get(n);
 // a position with the tile to lay chosen by hand (the bag's own draw set aside)
 const drawing = (S, t) => ({ ...clone(S), drawn: t });
 const lay = (K, S, t, name, rot) => T.apply(K, drawing(S, t), { type: 'tile', at: cell(K, name), rot });
+// a laid tile is an object: the cell's tile as { t, rot }
+const laidAt = (S, c) => (S.tiles[c] === null ? null : { t: S.pieces[S.tiles[c]].kind, rot: S.pieces[S.tiles[c]].rot });
 
 describe('tiles: laying', () => {
   it('the start tile is laid; a tile goes only beside laid ones, every shared edge matching', () => {
     const { K, S } = at(tileGame());
-    expect(S.tiles[cell(K, 'K11')]).toEqual({ t: 'wall-cap-path', rot: 0 });
+    expect(laidAt(S, cell(K, 'K11'))).toEqual({ t: 'wall-cap-path', rot: 0 });
     expect(S.bag.length + 1 + 1).toBe(Object.values(K.G.tiles.bag).reduce((a, b) => a + b, 0) + 1);
     const n = K.tile.n;
     for (const m of T.legal(K, S)) {
       const near = K.L.cells[m.at].n;
       let touches = false;
       for (let e = 0; e < n; e++) {
-        if (near[e] < 0 || !S.tiles[near[e]]) continue;
+        if (near[e] < 0 || !laidAt(S, near[e])) continue;
         touches = true;
-        const other = S.tiles[near[e]];
+        const other = laidAt(S, near[e]);
         expect(K.tile.labels[S.drawn][(e - m.rot + n) % n]).toBe(K.tile.labels[other.t][((e + n / 2) % n - other.rot + n) % n]);
       }
       expect(touches).toBe(true);
@@ -75,7 +77,7 @@ describe('tiles: features, claims and pay', () => {
     expect(T.legal(K, s).filter((m) => m.type === 'claim')).toEqual([]);
     s = T.apply(K, s, { type: 'skip' });
     const f = T.tileFeatures(K, s).find((x) => x.type === 'path' && x.size === 3);
-    expect(f.claims.map((q) => q.side)).toEqual([0]);
+    expect(f.claims.map((q) => s.pieces[q].side)).toEqual([0]);
   });
 
   it('a shrine pays 9 when the eight round it are laid; at the end an open one pays 1 and its neighbours', () => {

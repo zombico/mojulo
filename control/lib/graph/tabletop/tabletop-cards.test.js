@@ -15,11 +15,13 @@ const named = (K, S, name) => {
   if (!m) throw new Error(`no move ${name} among ${T.legal(K, S).map((x) => x.name).join(' ')}`);
   return T.apply(K, S, m);
 };
+// cards are objects: the kinds a zone holds, and new objects of given kinds for a crafted position
+const kinds = (S, ids) => T.kindsOf(S, ids);
+const put = (S, side, zone, list) => list.map((kind) => { S.pieces.push({ kind, side, at: -1, moved: 0, zone }); return S.pieces.length - 1; });
 // a deck-game position with the hand set by hand (the rest of the starting cards the deck)
-const holding = (K, S, hand, deck) => {
+const holding = (K, S, hand) => {
   const N = clone(S);
-  N.zones[N.side].hand = hand;
-  if (deck) N.zones[N.side].deck = deck;
+  N.zones[N.side].hand = put(N, N.side, 'hand', hand);
   return N;
 };
 
@@ -28,7 +30,7 @@ describe('cards: a deck, a hand, a discard', () => {
     const { K, S } = at(deckGame());
     for (const Z of S.zones) {
       expect(Z.hand).toHaveLength(5);
-      expect(sorted(Z.deck.concat(Z.hand))).toEqual(sorted([...Array(7).fill('coin1'), ...Array(3).fill('acre1')]));
+      expect(sorted(kinds(S, Z.deck.concat(Z.hand)))).toEqual(sorted([...Array(7).fill('coin1'), ...Array(3).fill('acre1')]));
     }
     expect(S.supply.acre6).toBe(8);
     expect(K.L.cells).toHaveLength(1);
@@ -48,7 +50,7 @@ describe('cards: a deck, a hand, a discard', () => {
     expect(T.legal(K, s).map((m) => m.name)).not.toContain('buy acre6');
     s = named(K, s, 'buy acre1');
     expect(s.act).toMatchObject({ coins: 0, buys: 0 });
-    expect(s.zones[0].discard).toEqual(['acre1']);
+    expect(kinds(s, s.zones[0].discard)).toEqual(['acre1']);
     expect(s.supply.acre1).toBe(7);
     expect(T.legal(K, s).filter((m) => m.type === 'buy')).toEqual([]);
   });
@@ -79,10 +81,10 @@ describe('cards: effects owed', () => {
     expect(sorted(T.legal(K, s).map((m) => m.name))).toEqual(['done', 'trash acre1', 'trash coin1']);
     s = named(K, s, 'trash acre1');
     s = named(K, s, 'trash acre1');
-    expect(s.trash).toEqual(['acre1', 'acre1']);
+    expect(kinds(s, s.trash)).toEqual(['acre1', 'acre1']);
     s = named(K, s, 'done');
     expect(s.pending).toEqual([]);
-    expect(s.zones[0].hand).toEqual(['coin1', 'coin1']);
+    expect(kinds(s, s.zones[0].hand)).toEqual(['coin1', 'coin1']);
     expect(T.legal(K, s).map((m) => m.type)).toContain('play');
   });
 
@@ -94,7 +96,7 @@ describe('cards: effects owed', () => {
     expect(offered.every((id) => (K.card.types[id].cost || 0) <= 4)).toBe(true);
     expect(offered).toContain('draw-three');
     s = named(K, s, 'gain draw-three');
-    expect(s.zones[0].discard).toEqual(['draw-three']);
+    expect(kinds(s, s.zones[0].discard)).toEqual(['draw-three']);
     expect(s.supply['draw-three']).toBe(9);
     // its action spent: the other action waits for another turn
     expect(T.legal(K, s).map((m) => m.name)).not.toContain('play coin-two-buy');
@@ -126,9 +128,9 @@ describe('cards: the end and the scorers', () => {
     const { K, S } = at(draftGame());
     const s = clone(S);
     // teal: three suits (6, one a star), knots twice (2); plum: one suit (1), a star; the most stars a tie, five shared as two each
-    s.zones[0].tableau = ['sun-knot', 'moon-knot', 'star-ring'];
-    s.zones[1].tableau = ['star-spire'];
-    const gems = (ids) => ids.reduce((a, id) => a + (K.card.types[id].tags.gems || 0), 0);
+    s.zones[0].tableau = put(s, 0, 'tableau', ['sun-knot', 'moon-knot', 'star-ring']);
+    s.zones[1].tableau = put(s, 1, 'tableau', ['star-spire']);
+    const gems = (ids) => kinds(s, ids).reduce((a, id) => a + (K.card.types[id].tags.gems || 0), 0);
     expect(T.cardScores(K, s)).toEqual([
       6 + 2 + gems(s.zones[0].tableau) + 2,
       1 + gems(s.zones[1].tableau) + 2,
@@ -141,10 +143,10 @@ describe('cards: the draft', () => {
     const { K, S } = at(draftGame());
     expect(S.market.row).toHaveLength(5);
     expect(S.zones[0].hand).toEqual([]);
-    const id = S.market.row[2], next = S.market.deck[S.market.deck.length - 1];
+    const id = S.pieces[S.market.row[2]].kind, next = S.market.deck[S.market.deck.length - 1];
     const s = named(K, S, `take ${id}@2`);
-    expect(s.zones[0].tableau).toEqual([id]);
-    expect(s.market.row[2]).toBe(next);
+    expect(kinds(s, s.zones[0].tableau)).toEqual([id]);
+    expect(s.pieces[s.market.row[2]].kind).toBe(next);
     expect(s.side).toBe(1);
     let t = S;
     while (!t.over) t = T.apply(K, t, T.legal(K, t)[0]);

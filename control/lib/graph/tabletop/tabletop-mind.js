@@ -179,11 +179,11 @@ export function buildTabletopMind(T) {
       soon = Math.min(soon, t);
     }
     v -= 0.25 * Math.min(soon, 6);
-    const held = S.cards[side];
+    const held = T.held(S, side);
     for (const c in held) if (!(G.score && G.score.cards && G.score.cards[c])) v += 0.55 * held[c];
     for (const id of Object.keys((G.score && G.score.awards) || {})) {
       const A = G.score.awards[id];
-      if (A.played) v += 0.35 * Math.min(S.played[side][A.played] || 0, A.min + 1);
+      if (A.played) v += 0.35 * Math.min(T.held(S, side, 'played')[A.played] || 0, A.min + 1);
       if (A.trail) v += 0.12 * Math.min(T.trail(K, S, side, A.trail, A.block), A.min + 1);
     }
     return v;
@@ -316,7 +316,7 @@ export function buildTabletopMind(T) {
     for (const f of feats) {
       if (!f.claims.length) continue;
       const count = K.players.map(() => 0);
-      for (const q of f.claims) count[q.side] += 1;
+      for (const q of f.claims) count[S.pieces[q].side] += 1;
       const top = Math.max.apply(null, count), rate = F[f.type] || { complete: 0, incomplete: 0 };
       const p = f.open === 0 ? 1 : 1 / (1 + 0.7 * f.open);
       const done = f.centre ? 9 * rate.complete : (f.size + Math.min(f.open, 3)) * rate.complete;
@@ -365,8 +365,7 @@ export function buildTabletopMind(T) {
   }
   // what a card brings to a hand it is drawn in: its coins, the cards and coins it plays for, a little for the actions
   // and buys it adds, and for the gaining and trashing it does early on
-  function cardEcon(K, id) {
-    const t = K.card.types[id];
+  function cardEcon(t) {
     let v = t.coin || 0;
     for (const e of t.play || []) v += (e.coin || 0) + 0.8 * (e.draw || 0) + 0.25 * (e.actions || 0) + 0.4 * (e.buys || 0) + 0.25 * (e.gain || 0) + 0.12 * (e.trash || 0);
     return v;
@@ -380,7 +379,7 @@ export function buildTabletopMind(T) {
       let v = x * (0.2 + p);
       if (!K.card.draft) {
         const Z = S.zones[s], owned = Z.deck.concat(Z.hand, Z.discard, Z.play);
-        const econ = owned.reduce((a, id) => a + cardEcon(K, id), 0) / (owned.length || 1);
+        const econ = owned.reduce((a, id) => a + cardEcon(T.derive(K, S, id)), 0) / (owned.length || 1);
         v += 4 * econ * K.card.hand * (1 - p);
       }
       return v;
@@ -392,12 +391,12 @@ export function buildTabletopMind(T) {
   // what this turn can still buy: the coins in hand, the treasures not yet played, a card's draw at the deck's average
   function turnReach(K, S, side) {
     if (S.side !== side) return 0;
-    const Z = S.zones[side], types = K.card.types;
+    const Z = S.zones[side];
     let v = S.act.coins + 0.5 * (S.act.buys - 1);
     for (const id of Z.hand) {
-      const t = types[id];
+      const t = T.derive(K, S, id);
       if (t.treasure) v += t.coin || 0;
-      else if (S.act.actions > 0) v += cardEcon(K, id) * 0.5;
+      else if (S.act.actions > 0) v += cardEcon(t) * 0.5;
     }
     return v;
   }
@@ -424,7 +423,7 @@ export function buildTabletopMind(T) {
       const plays = V.pending.length ? [] : moves.filter((m) => m.type === 'play');
       if (plays.length) {
         scored = plays.map((m) => {
-          const t = K.card.types[m.card], N = T.apply(K, V, m);
+          const t = T.derive(K, V, m.id), N = T.apply(K, V, m);
           const keeps = (t.play || []).some((e) => e.actions) ? 2 : t.treasure ? 0 : 1;
           return { m, v: turnReach(K, N, side) + keeps };
         });
