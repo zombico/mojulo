@@ -21,6 +21,9 @@ and at most one unit. From any state the board lists every legal move, so a play
 tactics (in the manner of Final Fantasy Tactics) and tower defence share it. A board lies over a geocube's level,
 indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only. In progress:
 
+- **Real-time strategy on the board** (in progress): units given orders (move, attack-move, attack, hold, stop,
+  gather), workers mining for a purse, buildings training units to a rally point, against a plain mind that builds
+  and attacks in waves; destroy the other base.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
