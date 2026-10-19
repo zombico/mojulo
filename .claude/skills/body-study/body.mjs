@@ -17,6 +17,11 @@
 //   --register      the hero's register word (the door's `register`, default its own).
 //   --laws          the hero laws to mint under (hero-form.js HERO_LAWS_VERSION; default the current): 1 for a hero as
 //                   rows minted before laws 2 read
+//   --form          a body build of the form field (body-relational.js BODY_BUILDS: norrin, shalla): the torso
+//                   re-sampled onto it, bald, in a matte silver-grey (the realistic register's vertical slice; a dev
+//                   path, no minted hero changes), wearing the RELATIONAL head (head-relational.js, the head-study
+//                   field lane's) in place of the hero's: its skin meshed, fitted to the hero's head (vertex to
+//                   menton, the ear's depth) and carried by the head bone
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
 //
 // Each cast gets a SECTIONS panel at the bind (the trunk cut level at the neck, the chest, the waist and the seat; the
@@ -40,10 +45,13 @@ const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await 
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
+const { formSlice, BODY_BUILDS } = await import('@/lib/graph/polygonizer/body-relational.js');
+const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
+const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -51,6 +59,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--crop') { crop = args[++i]; continue; }
   if (a === '--register') { reg = args[++i]; continue; }
   if (a === '--laws') { laws = Number(args[++i]); continue; }
+  if (a === '--form') { form = args[++i]; continue; }
   if (a === '--out') { out = args[++i]; continue; }
   if (a.startsWith('--')) throw new Error(`body-study: unknown option ${a}`);
   casts.push(a);
@@ -66,7 +75,8 @@ const ALL_VIEWS = [
   { name: 'back', az: 180, elev: 4 }, { name: 'under', az: 20, elev: -40 },
 ];
 const ROW_VIEWS = ALL_VIEWS.filter((v) => v.name !== 'under');
-const CLAY = [196, 184, 170], BG = '#e9e7e3';
+// the clay; the slice's a matte silver-grey (the shader is diffuse: no highlight)
+const CLAY = form ? [176, 180, 186] : [196, 184, 170], BG = '#e9e7e3';
 function camera(az, elev, box, W, H) {
   const a = (az * Math.PI) / 180, e = (elev * Math.PI) / 180;
   const c = [Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e)];
@@ -114,9 +124,11 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...extra }) });
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BODY_BUILDS[form]?.tune ? { tune: BODY_BUILDS[form].tune } : {}) } : {}), ...extra }) });
+  if (form) m.recipe = formSlice(m.recipe, validateRig(m.recipe.rig), form).recipe;
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
   const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R) };
+  if (form) h.graft = graftHead(h, cast === 'female' ? 'female' : 'male');
   heroes.set(key, h);
   return h;
 }
@@ -127,10 +139,36 @@ function rowNodes(cast, H, row) {
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
   return { nodes: H.R.joints, label: 'bind' };
 }
+// the hero's own head (its shell and what sits on it), hidden where the relational head is grafted
+const HERO_HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face)/;
+/** the relational head's skin as triangles in the hero's rest frame: scaled so vertex to menton is the hero's head's,
+ * the menton on the hero's, the ear canal at the hero's ear's depth; its normals the field's gradient */
+function graftHead(H, sex) {
+  const head = relationalHead({ sex, tune: true }), quads = headFieldMesh(head, { cells: 110 });
+  const of = (re) => H.mesh.vertices.filter((_, i) => re.test(H.mesh.provenance[i].part));
+  const cran = of(/^(cranium|jaw)$/), ear = of(/^earR$/);
+  const top = Math.max(...cran.map((v) => v[2])), men = Math.min(...of(/^jaw$/).map((v) => v[2]));
+  const hz = Math.max(...quads.flatMap((q) => q.corners.map((c) => c.z))), sc = (top - men) / hz;
+  const earY = ear.length ? ear.reduce((a, v) => a + v[1], 0) / ear.length : 0, ty = earY - head.landmarks.tragionR.y * sc;
+  const e = 1e-5, grad = (c) => norm([head.field({ ...c, x: c.x + e }) - head.field({ ...c, x: c.x - e }), head.field({ ...c, y: c.y + e }) - head.field({ ...c, y: c.y - e }), head.field({ ...c, z: c.z + e }) - head.field({ ...c, z: c.z - e })]);
+  const V = [], N = [], faces = [];
+  for (const q of quads) {
+    const b = V.length;
+    for (const c of q.corners) { V.push([c.x * sc, c.y * sc + ty, c.z * sc + men]); N.push(grad(c)); }
+    faces.push([b, b + 1, b + 2], [b, b + 2, b + 3]);
+  }
+  const keep = H.mesh.faces.map((tri, fi) => (HERO_HEAD.test(H.mesh.provenance[tri[0]].part) ? -1 : fi)).filter((fi) => fi >= 0);
+  return { V, N, faces, keep, bone: H.R.bones.findIndex((b) => b.id === 'head') };
+}
 function posed(H, nodes) {
-  const V = skinLayered(H.mesh, H.skin, boneFrames(H.R, H.R.joints, nodes));
+  const frames = boneFrames(H.R, H.R.joints, nodes);
+  const V = skinLayered(H.mesh, H.skin, frames);
   const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh });
-  return { V, normals };
+  if (!H.graft) return { V, normals, faces: H.mesh.faces };
+  // the graft rides the head bone rigidly; the hero's own head stays out of the picture
+  const G = H.graft, f = frames[G.bone], mv = (m, v) => [0, 1, 2].map((r) => m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2]);
+  const o = V.length, Vall = [...V, ...G.V.map((p) => { const q = mv(f.m, sub(p, f.restHead)); return [f.head[0] + q[0], f.head[1] + q[1], f.head[2] + q[2]]; })], Ng = G.N.map((n) => mv(f.m, n));
+  return { V: Vall, faces: [...G.keep.map((fi) => H.mesh.faces[fi]), ...G.faces.map((t) => t.map((i) => i + o))], normals: [...G.keep.map((fi) => normals[fi]), ...G.faces.map((t) => t.map((i) => Ng[i]))] };
 }
 /** the camera's box: the whole posed body, or a crop about the posed joints (the right side's) */
 function frameBox(V, J, which) {
@@ -229,10 +267,10 @@ for (const cast of casts) {
     const { nodes, label: lab } = rowNodes(cast, H, row);
     const which = row.crop ?? crop, views = acts ? ROW_VIEWS : ALL_VIEWS;
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
-    const { V, normals } = posed(H, nodes);
+    const { V, normals, faces } = posed(H, nodes);
     const box = frameBox(V, nodes, which);
     for (const [col, v] of views.entries()) {
-      const img = rasterize(V, H.mesh.faces, normals, camera(v.az, v.elev, box, W, Hh), W, Hh);
+      const img = rasterize(V, faces, normals, camera(v.az, v.elev, box, W, Hh), W, Hh);
       await cell(col * W, y0, img, W, Hh);
       label(col * W, y0 + Hh - 10, `${cast} · ${lab}${which ? ` · ${which}` : ''} · ${v.name}`, 12);
     }

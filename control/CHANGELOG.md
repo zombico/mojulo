@@ -69,6 +69,23 @@ Opt-in and versioned: a default hero keeps its bytes.
   shoulders' and hips' breadths, the girths). The eyes gate beside the stretch audit's numbers: the sprint's knee crop
   shows the shank's top out of the thigh where the audit measures it. Baseline, male and female: stature 1753 and
   1664 mm, 7.15 and 6.79 heads tall; chest 107 and 88 cm, waist 84 and 64, seat 86 and 90.
+- **The form field, a vertical slice** (`body-relational.js`; seen through `body-study --form`, not yet on the door).
+  The body read the way the relational head is: bone where it shows (the ribcage's egg, the clavicles, the spine's
+  column) and the muscle masses (trapezius, deltoid's three heads, pectoral, rectus abdominis in its segments, the
+  obliques, serratus, latissimus, infraspinatus, erector spinae, sternocleidomastoid; biceps, brachialis, triceps,
+  the forearm's flexors and extensors) placed from the hero's REST JOINTS in units of its half biacromial, so the field
+  rides any cast and tune, summed into one skin (log-sum-exp: where two masses meet, a groove). The torso, the neck and
+  the arms are re-sampled onto it, denser than authored (the torso 48 slots round, 37 rings), each slot on a ray through
+  the authored cage's point, then relaxed onto the field (the neighbours' mean, projected back down its gradient) where
+  a ray crossed a pocket; the bind follows the authored shares (per slot, and by zone on a hard limb), so the rig poses
+  it unchanged, and the pectoral and bust parts give way to the field. The armpit is filled (the hanging arm covers it);
+  the deltoid is shared by the torso and the arm and handed over along one cone above the armpit (the torso's skin the
+  shoulder's cap, the arm's below it, set a few millimetres under the cap where it reaches in), so the arm grows out of
+  the shoulder with no ledge; under the bust the rays come down from above to meet the fold. Two builds, a Silver Surfer-like body: `norrin` (male, lean and sculpted, the
+  shoulders 10 % closer by the hero's own tune, the neck thin and flaring into the trapezius) and `shalla` (female, the
+  definition softer, the bust in the field). Every re-sampled part closes on both builds; deterministic. The lane wears
+  the RELATIONAL head on it (head-relational.js, meshed and fitted vertex to menton, carried by the head bone), bald, in
+  a matte silver-grey. The legs and the pelvis are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -1,6 +1,6 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>]`.
+description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>]`.
 ---
 
 # body-study
@@ -39,6 +39,13 @@ seam where the head sits). Framed on the POSED joints, so a crop follows its joi
 **Laws** (`--laws <n>`): mint the hero under an earlier version of the hero laws (hero-form.js `HERO_LAWS_VERSION`;
 default the current), so a change a laws bump carries can be seen against the hero as rows minted before it read
 (`--laws 1`: the shoulder line before laws 2).
+
+**The form field** (`--form norrin | shalla`): the realistic register's vertical slice. The torso, the neck and the
+arms re-sampled onto a build of the body's form field (`body-relational.js` `BODY_BUILDS`: bone where it shows and the
+muscle masses placed from the hero's rest joints, summed into one skin), denser than authored; bald, in a matte
+silver-grey, wearing the RELATIONAL head (head-relational.js, the head-study field lane's) fitted to the hero's head and
+carried by its head bone. A build may carry a tune of the hero's own (norrin's shoulders 0.9). A dev path: no minted
+hero changes. The legs and the pelvis are still the authored cage.
 
 **The sections panel and the measures table** come at the bind, per cast:
 
