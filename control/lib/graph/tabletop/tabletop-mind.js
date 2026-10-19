@@ -567,8 +567,10 @@ export function buildTabletopMind(T) {
     const seat = K.players.map((_, s) => {
       let v = L ? S.pools[s][L.pool] : 0;
       for (const id of S.zones[s].field) {
-        const c = T.derive(K, S, id), st = c.stats || {};
+        const c = T.derive(K, S, id), st = c.stats || {}, at = S.pieces[id].at;
         v += 1 + 1.5 * (st.power || 0) + 0.5 * Math.max(0, (st.guard || 0) - (S.pieces[id].damage || 0)) + 0.5 * (c.abilities || []).length;
+        // on a board, a summon is worth more the further it has come (its power, toward the row it strikes from)
+        if (at >= 0) v += 0.8 * Math.max(0, st.power || 0) * (K.rows[s].of[at] - 1) / Math.max(1, K.rows[s].last - 1);
       }
       return v + 0.8 * S.zones[s].hand.length;
     });
@@ -581,6 +583,64 @@ export function buildTabletopMind(T) {
     for (let guard = 0; !N.over && N.links.length && guard < 200; guard++) N = T.apply(K, N, T.legal(K, N).find((m) => m.type === 'pass'));
     return N;
   }
+  // ── a supply to buy from, on turns (deck building) ───────────────────────────────────────────────────────────
+  // what a cast card brings to a hand it is drawn in, from its effects (the card mode's measure, read off the turn
+  // engine's verbs)
+  function turnEcon(t) {
+    let v = 0;
+    for (const e of t.do || []) { const g = e.get || {}; v += (g.coin || 0) + 0.8 * (e.draw || 0) + 0.25 * (g.actions || 0) + 0.4 * (g.buys || 0); }
+    return v;
+  }
+  function supplyProgress(K, S) {
+    const R = K.G.round, E = R.end || {};
+    let p = Math.min(1, S.round / 24);
+    if (E.pile) p = Math.max(p, 1 - (S.supply[E.pile] || 0) / (R.supply[E.pile] || 1));
+    if (E.piles) {
+      const gone = Object.keys(R.supply).map((k) => 1 - (S.supply[k] || 0) / (R.supply[k] || 1)).sort((a, b) => b - a);
+      p = Math.max(p, gone[Math.min(E.piles, gone.length) - 1] || 0);
+    }
+    return Math.min(1, p);
+  }
+  // a seat's worth with a supply: its points weighed more as the end nears; the average hand its cards draw, less
+  function deckWorth(K, S, side) {
+    if (S.over) return S.over.winner === side ? WIN : S.over.winner === null ? 0 : -WIN;
+    const p = supplyProgress(K, S), sc = T.roundScores(K, S, false);
+    const seat = sc.map((x, s) => {
+      const Z = S.zones[s], owned = [].concat(Z.deck, Z.hand, Z.discard, Z.play, Z.field);
+      const econ = owned.reduce((a, id) => a + turnEcon(T.derive(K, S, id)), 0) / (owned.length || 1);
+      return x * (0.2 + p) + 4 * econ * (K.G.round.hand || 5) * (1 - p);
+    });
+    let other = -Infinity;
+    for (let s = 0; s < seat.length; s++) if (s !== side) other = Math.max(other, seat[s]);
+    return seat[side] - 0.5 * other;
+  }
+  // what this turn can still buy: the coins it has, the coins its cards in hand would give, a little for actions
+  function supplyReach(K, S, side) {
+    if (S.active !== side) return 0;
+    let v = (S.pools[side].coin || 0) + 0.5 * ((S.pools[side].buys || 0) - 1);
+    for (const id of S.zones[side].hand) {
+      const t = T.derive(K, S, id), coins = (t.do || []).reduce((a, e) => a + ((e.get || {}).coin || 0), 0);
+      if (t.do && !(t.cost && t.cost.actions)) v += coins;
+      else if (t.do && (S.pools[side].actions || 0) > 0) v += 0.5 * turnEcon(t);
+    }
+    return v;
+  }
+  // cast while anything can be cast (an action that keeps the actions going first, then what leaves the most to
+  // buy with); then the buy, or the end, that leaves the best worth
+  function planSupply(K, S, o, V, moves, roll) {
+    const side = S.side;
+    const seen = overlook(K, S, moves, (m) => m.type === 'cast' || m.type === 'buy', o.use);
+    const casts = seen.filter((m) => m.type === 'cast');
+    if (casts.length) {
+      return casts.map((m) => {
+        const t = T.derive(K, V, m.id), keeps = (t.do || []).some((e) => e.get && e.get.actions) ? 2 : t.cost && t.cost.actions ? 1 : 0;
+        return { m, v: supplyReach(K, settled(K, T.apply(K, V, m)), side) + keeps };
+      });
+    }
+    const price = (m) => Object.values((K.defs[m.card] || {}).price || {}).reduce((a, b) => a + b, 0);
+    return seen.map((m) => ({ m, v: deckWorth(K, settled(K, T.apply(K, V, m)), side) + (m.type === 'buy' ? TEMPO * (1 + price(m)) : m.type === 'end' ? 0 : 1e-3) }));
+  }
+
   // a duel's choice from the mind's own view: each move played, the chain settled, the seat's worth weighed
   function planDuel(K, S, o) {
     const real = T.legal(K, S);
@@ -588,8 +648,13 @@ export function buildTabletopMind(T) {
     const side = S.side, V = T.view(K, S, side, o.seed);
     const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
     const moves = T.legal(K, V);
-    const spends = (m) => m.type === 'cast' || m.type === 'use';
-    const cost = (m) => { const c = m.type === 'cast' ? T.derive(K, V, m.id).cost : T.derive(K, V, m.id).abilities[m.ab].act.cost; return Object.values(c || {}).reduce((a, b) => a + b, 0); };
+    if (V.supply && !V.links.length) {
+      const scored = planSupply(K, S, o, V, moves, roll), top = Math.max.apply(null, scored.map((x) => x.v));
+      const near = scored.filter((x) => x.v >= top - o.slack - 1e-9), pick = near[Math.floor(roll() * near.length)];
+      return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
+    }
+    const spends = (m) => m.type === 'cast' || m.type === 'use' || m.type === 'go' || m.type === 'attack';
+    const cost = (m) => { const c = m.type === 'cast' ? T.derive(K, V, m.id).cost : m.type === 'use' ? T.derive(K, V, m.id).abilities[m.ab].act.cost : null; return Object.values(c || {}).reduce((a, b) => a + b, 0); };
     const scored = overlook(K, S, moves, spends, o.use).map((m) => ({ m, v: duelWorth(K, settled(K, T.apply(K, V, m)), side) + (spends(m) ? TEMPO * (1 + cost(m)) : 0) }));
     const top = Math.max.apply(null, scored.map((x) => x.v));
     const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
@@ -606,7 +671,7 @@ export function buildTabletopMind(T) {
   // visited is played. Seeded and bounded by a count, never a clock.
   const MCTS = { playouts: 160, horizon: 6, explore: 0.9, scale: 6 };
   function worthOf(K, S, side) {
-    if (K.round) return K.G.round.turn ? duelWorth(K, S, side) : roundWorth(K, S, side);
+    if (K.round) return K.G.round.turn ? (K.G.round.supply ? deckWorth(K, S, side) : duelWorth(K, S, side)) : roundWorth(K, S, side);
     if (K.card) return cardWorth(K, S, side);
     if (K.tile) return tileWorth(K, S, side);
     if (K.euro) return seat(K, S, side);

@@ -297,6 +297,29 @@ in CSS 3D. In progress:
   as derived (raised green, lowered brown) and counters. Machine gates: forty random duels keep every invariant with
   the new cards; every other mode replays move for move as before (the world-effect path costs nothing where there is
   none); perft unchanged; the kernel grew to 125,634 bytes.
+- **The engine, stage 5: fixtures that join the systems**, built. *A summoning duel on a board*: a turn game given
+  a board puts its summons on the lattice. A summon card names a piece, whose rules (vectors under the board's
+  symmetry, as chess's) move it; it is cast onto an empty cell of its controller's home row; a ready summon goes (a
+  move onto an empty cell, which simply happens) or attacks (a move onto a foe, which goes on the chain so the foe can
+  answer before blows land), either exhausting it; blows are struck together, each its power, and an attacker takes
+  the cell of a defender that dies; an ability may need its object's row, so a summon strikes the foe only from the
+  far row; a summon leaving play leaves its cell. The fixture (footmen, outriders that leap as knights, lancers that
+  charge forward two, a captain's aura, bolts, a counter, a snare) on a five by five board. *Deck building on the turn
+  engine*: the card mode's deck game built from its own cards and played on turns, a treasure a card cast for
+  nothing that gives coins, an action costing one of the turn's actions, buying a move from a counted supply (a
+  card's price, one of the buy pool), cast cards waiting in play until cleanup, a step that discards the hand and
+  what was played, pools set each turn, the discard reshuffled into the deck when it runs out, the game ended by the
+  supply's piles, every owned card scored (the cards that trash or gain, a choice of several cards, are left out). A
+  scripted turn gives the same coins, the same purchase, the same discard and the same next hand in both engines.
+  *Worker placement as exhaust and ready* had already been built so in stage 2. The round page shows the board (the
+  summons standing on their cells; a summon picked lights where it may go, green, and whom it may attack, red; a
+  summon cast lights the cells it may enter), a supply to buy from, and card faces drawn from data (a summon's piece's
+  silhouette, a card's glyph); a cell's name no longer swallows the click meant for its cell. Machine gates: thirty
+  board duels, random and computer, keep every board invariant (a cell's object stands there, a summon in play stands
+  on its cell, nothing off the field holds one); on the board the computer beats random play 12 of 12 and hard beats
+  easy 8 of 12; on turns deck building the computer beats random 6 of 6 and hard beats easy 6 of 6; every other mode,
+  the response duel too, replays move for move; perft unchanged; the kernel grew to 132,580 bytes and the mind to
+  42,449.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

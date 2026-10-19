@@ -5,7 +5,11 @@
  * what it could spend that it spent); a log. A sealed choice shows only that it was made, until all are revealed. A
  * game of turns (a duel) adds each seat's field (summons with their power and guard, damage taken, exhausted ones
  * turned), the chain top first, the cards it can cast and the abilities it can use lit (a choice of targets as
- * buttons), and a window's question: answer, or pass.
+ * buttons), and a window's question: answer, or pass. On a board, the plan (SVG) with the summons standing on their
+ * cells: a summon picked lights where it may go (green) and whom it may attack (red); a summon cast lights the cells
+ * it may enter. A supply to buy from, when there is one. A card's face is drawn from its data: its colour, its
+ * name, its cost, its effects in words, its stats, and its art (the silhouette of the piece a summon names, or its
+ * glyph).
  *
  *   roundPageHtml(G, L, K, { human, level, seed, title }) → html   (tabletopPageHtml sends a round game here)
  */
@@ -13,6 +17,7 @@
 import { buildTabletop } from './tabletop-kernel.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { shapeIcon } from './tabletop-shapes.js';
+import { latticeSvg, latticeSvgFrame } from '../polygonizer/lattice-svg.js';
 
 const LEVELS = ['easy', 'fair', 'hard'];
 
@@ -20,9 +25,8 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 const scriptJson = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 const r2 = (x) => Math.round(x * 100) / 100;
 
-// a worker's side silhouette as an SVG path in a 0–24 box, from its shape (none: a disc)
-function workerIcon(G) {
-  const kind = G.round.workers && G.round.workers.kind, shape = kind && G.pieces[kind] && G.pieces[kind].shape;
+// a piece's side silhouette as an SVG path in a 0–24 box, from its shape (none: null)
+function iconPath(shape) {
   if (shape === undefined) return null;
   const icon = shapeIcon(shape), pts = icon.flat(), xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]);
   const x0 = Math.min(...xs), z1 = Math.max(...zs), span = Math.max(Math.max(...xs) - x0, z1 - Math.min(...zs)) || 1, k = 22 / span;
@@ -31,7 +35,21 @@ function workerIcon(G) {
 
 export function roundPageHtml(G, L, K, opts = {}) {
   const { human, level, seed } = opts;
-  const data = { L, G, human, level, seed, icon: workerIcon(G) };
+  const wk = G.round.workers && G.round.workers.kind;
+  // a card's art, a recipe: the silhouette of the piece a summon names, else its glyph
+  const art = {};
+  for (const [kind, t] of Object.entries((G.piles && G.piles.types) || {})) {
+    const path = t.piece && G.pieces[t.piece] ? iconPath(G.pieces[t.piece].shape) : null;
+    if (path) art[kind] = { path }; else if (t.glyph) art[kind] = { glyph: t.glyph };
+  }
+  // the board's plan, when the game is played on one: cell centres and a token's size in its frame
+  let plan = null;
+  if (K.round && K.round.board) {
+    const f = latticeSvgFrame(L, { px: 72 });
+    plan = { svg: latticeSvg(L, { px: 72, names: true, ids: true }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, ''), W: r2(f.W), H: r2(f.H),
+      at: L.cells.map((c) => [r2((c.at[0] - f.x0) * f.px + f.pad), r2((f.y1 - c.at[1]) * f.px + f.pad)]), r: r2(f.px * L.cell * 0.36) };
+  }
+  const data = { L, G, human, level, seed, icon: wk && G.pieces[wk] ? iconPath(G.pieces[wk].shape) : null, art, plan };
   const title = opts.title ?? G.title ?? 'mojulo round game';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -78,6 +96,12 @@ export function roundPageHtml(G, L, K, opts = {}) {
   .c .cnt{position:absolute;right:5px;bottom:26px;font-size:10px;background:#e8d79a;color:#2b2622;border-radius:8px;padding:0 5px}
   .c .fx{font-size:11px;line-height:1.25;max-height:62px;overflow:hidden}
   #chain{display:flex;flex-direction:column;gap:4px}
+  #plan svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
+  #plan [data-cell]{cursor:pointer}
+  #tokens,#marks,#plan text{pointer-events:none}
+  .c .art{position:absolute;left:5px;bottom:5px;width:26px;height:26px}
+  .c.small .art{width:18px;height:18px}
+  .c .glyph{position:absolute;left:7px;bottom:3px;font-size:20px;opacity:.75}
   .link{background:rgba(255,255,255,.12);border-radius:6px;padding:3px 8px;font-size:13px}
   .link:first-child{background:rgba(224,184,74,.3)}
   .chip{display:inline-block;background:rgba(255,255,255,.14);border-radius:10px;padding:0 8px;margin:0 4px 2px 0;font-size:12px}
@@ -106,7 +130,9 @@ export function roundPageHtml(G, L, K, opts = {}) {
 <main>
   <div id="felt">
     <div class="zone" id="others"></div>
+    <div class="zone" id="board-zone"><div id="plan"></div></div>
     <div class="zone" id="spaces-zone"><h2>Spaces</h2><div class="row" id="spaces"></div></div>
+    <div class="zone" id="supply-zone"><h2>Supply</h2><div class="row" id="supply"></div></div>
     <div class="zone" id="lot-zone"><h2>Up for bids</h2><div class="row" id="lot"></div></div>
     <div class="zone" id="chain-zone"><h2>The chain (top first)</h2><div id="chain"></div></div>
     <div class="zone" id="field-zone"><h2>Your field</h2><div class="row" id="field"></div></div>
@@ -137,7 +163,7 @@ export function tabletopRoundClient(D, T, M) {
   const colour = (s) => D.G.players[s].colour || '#888';
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const name = (s) => K.players[s].id;
-  let S, legal, busy = false, level = D.level, log = [], turns = 0, choosing = null;
+  let S, legal, busy = false, level = D.level, log = [], turns = 0, choosing = null, picked = -1;
   const duel = !!R.turn, L0 = R.lose && R.lose.pool;
 
   const pool = (o) => Object.keys(o || {}).filter((r) => o[r]).map((r) => o[r] + ' ' + r).join(', ');
@@ -192,6 +218,16 @@ export function tabletopRoundClient(D, T, M) {
     }
     return out.join('; ');
   }
+  const artHtml = (kind) => { const a = D.art[kind]; return !a ? '' : a.path ? '<svg class="art" viewBox="0 0 24 24"><path d="' + a.path + '" fill="' + (K.defs[kind].colour || '#7a6f63') + '" stroke="#2b2622" stroke-width="1"/></svg>' : '<div class="glyph">' + esc(a.glyph) + '</div>'; };
+  // a card of the supply (no object yet): drawn from its definition, its count, lit when it can be bought
+  function supplyHtml(kind, n, go) {
+    const t = K.defs[kind], price = Object.values(t.price || {}).reduce((a, b) => a + b, 0);
+    return '<div class="c' + (go ? ' go' : '') + (n <= 0 ? ' spent' : '') + '" data-buy="' + esc(kind) + '" title="' + esc(t.name || kind) + '">'
+      + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div><div class="nm">' + esc(t.name || kind) + '</div>'
+      + '<div class="cc" style="background:#e0b84a;color:#2b2622">' + price + '</div>'
+      + '<div class="fx">' + esc([duelText(t), t.points ? t.points + ' points' : ''].filter(Boolean).join('; ')) + '</div>'
+      + artHtml(kind) + '<div class="n" style="top:auto;bottom:5px">' + n + '</div></div>';
+  }
   function cardHtml(id, o) {
     o = o || {};
     const t = T.derive(K, S, id), tags = t.tags || {}, ob = S.pieces[id];
@@ -205,9 +241,9 @@ export function tabletopRoundClient(D, T, M) {
       + '<div class="band" style="background:' + (t.colour || '#b9ad98') + '"></div><div class="nm">' + esc(t.name || t.kind) + '</div>' + cost
       + (fx ? '<div class="fx">' + esc(fx) + '</div>' : '')
       + (Object.keys(tags).length ? '<div class="tg">' + esc(Object.keys(tags).map((k) => k + ' ' + tags[k]).join(' · ')) + '</div>' : '')
-      + st + cnt + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
+      + artHtml(t.kind) + st + cnt + (o.n > 1 ? '<div class="n">' + o.n + '</div>' : '') + '</div>';
   }
-  const targetName = (t) => (t.p !== undefined ? name(t.p) : (S.pieces[t.o] ? (K.defs[S.pieces[t.o].kind].name || S.pieces[t.o].kind) : '?'));
+  const targetName = (t) => (t.p !== undefined ? name(t.p) : t.c !== undefined ? K.L.cells[t.c].name : (S.pieces[t.o] ? (K.defs[S.pieces[t.o].kind].name || S.pieces[t.o].kind) : '?'));
   function linkText(l) {
     const src = S.pieces[l.src], what = K.defs[src.kind].name || src.kind;
     return name(l.side) + ': ' + what + (l.card ? '' : l.trigger ? ' (trigger)' : ' (ability)') + (l.target ? ' → ' + targetName(l.target) : '');
@@ -218,7 +254,7 @@ export function tabletopRoundClient(D, T, M) {
   // past the last phase once the game is over: the last one stands
   const phase = () => T.phaseNow(K, S) || (R.phases || R.turn)[(R.phases || R.turn).length - 1];
 
-  function reset() { S = T.start(K); busy = false; log = []; turns = 0; choosing = null; step(); }
+  function reset() { S = T.start(K); busy = false; log = []; turns = 0; choosing = null; picked = -1; step(); }
   function step() {
     legal = T.legal(K, S);
     render();
@@ -241,6 +277,9 @@ export function tabletopRoundClient(D, T, M) {
       if (m.type === 'cast') note(who, 'casts ' + (K.defs[m.card].name || m.card) + (m.target ? ' → ' + targetName(m.target) : ''));
       if (m.type === 'use') note(who, 'uses ' + (K.defs[before.pieces[m.id].kind].name || before.pieces[m.id].kind) + (m.target ? ' → ' + targetName(m.target) : ''));
       if (m.type === 'pass') note(who, 'lets it resolve');
+      if (m.type === 'go') note(who, (K.defs[before.pieces[m.id].kind].name || before.pieces[m.id].kind) + ' to ' + K.L.cells[m.to].name);
+      if (m.type === 'attack') note(who, (K.defs[before.pieces[m.id].kind].name || before.pieces[m.id].kind) + ' attacks ' + targetName({ o: m.foe }));
+      if (m.type === 'buy') note(who, 'buys ' + (K.defs[m.card].name || m.card));
       before.zones.forEach((Z, s) => { for (const id of Z.field) if (S.pieces[id].zone !== 'field') note(-1, name(s) + '\'s ' + (K.defs[S.pieces[id].kind].name || S.pieces[id].kind) + ' dies'); });
       if (L0) S.pools.forEach((p, s) => { const d = p[L0] - before.pools[s][L0]; if (d) note(-1, name(s) + ' ' + (d > 0 ? '+' : '') + d + ' ' + L0); });
     }
@@ -297,12 +336,43 @@ export function tabletopRoundClient(D, T, M) {
     $('tableau-zone').style.display = Z.tableau.length ? '' : 'none';
     $('tableau').innerHTML = stack(Z.tableau).map(([id, n]) => cardHtml(id, { n })).join('');
     const w = crew(me);
+    // the supply: what can be bought, lit
+    $('supply-zone').style.display = S.supply ? '' : 'none';
+    if (S.supply) $('supply').innerHTML = Object.keys(S.supply).map((k) => supplyHtml(k, S.supply[k], go && legal.some((m) => m.type === 'buy' && m.card === k))).join('');
+    // the board: the summons on their cells; a picked one's goes (green) and attacks (red); a cast's cells
+    $('board-zone').style.display = D.plan ? '' : 'none';
+    if (D.plan) drawBoard(go);
     $('mine').innerHTML = '<div class="seatrow"><span class="who">You' + (S.first === me ? ' ★' : '') + '</span>'
       + Object.keys(S.pools[me]).map((r) => '<span class="chip">' + r + ' ' + S.pools[me][r] + '</span>').join('')
       + (wkind ? '<span class="chip">workers ' + w.filter((o) => o.zone === 'home' && o.ready !== false).length + '/' + w.length + '</span>' : '') + '</div>';
     panel(go, P);
   }
 
+  function drawBoard(go) {
+    const Pl = D.plan;
+    if (!$('plan').firstChild) $('plan').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + Pl.W + ' ' + Pl.H + '">' + Pl.svg + '<g id="marks"></g><g id="tokens"></g></svg>';
+    const marks = [], tokens = [], ring = (c, colour) => '<circle cx="' + Pl.at[c][0] + '" cy="' + Pl.at[c][1] + '" r="' + (Pl.r * 1.15) + '" fill="none" stroke="' + colour + '" stroke-width="5"/>';
+    if (go && choosing) for (const m of choosing) if (m.target && m.target.c !== undefined) marks.push(ring(m.target.c, '#3a8f5a'));
+    if (go && picked >= 0) for (const m of legal) if ((m.type === 'go' || m.type === 'attack') && m.id === picked) marks.push(ring(m.to, m.type === 'go' ? '#3a8f5a' : '#c4362a'));
+    S.board.forEach((id, c) => {
+      if (id < 0) return;
+      const o = S.pieces[id], t = T.derive(K, S, id), [x, y] = Pl.at[c], r = Pl.r, a = D.art[o.kind];
+      const st = t.stats || {}, k = r / 12;
+      tokens.push('<g opacity="' + (o.ready === false ? 0.55 : 1) + '"><circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + colour(o.side) + '" stroke="' + (id === picked ? '#e0b84a' : '#1a1512') + '" stroke-width="' + (id === picked ? 5 : 2) + '"/>'
+        + (a && a.path ? '<path d="' + a.path + '" transform="translate(' + (x - 12 * k) + ' ' + (y - 14 * k) + ') scale(' + k + ')" fill="#fbf7ee" opacity=".9"/>' : '')
+        + '<text x="' + x + '" y="' + (y + r * 0.9) + '" text-anchor="middle" font-size="' + (r * 0.5) + '" font-weight="700" fill="#fbf7ee" stroke="#1a1512" stroke-width="2" paint-order="stroke">' + (st.power || 0) + '/' + ((st.guard || 0) - (o.damage || 0)) + '</text></g>');
+    });
+    $('marks').innerHTML = marks.join('');
+    $('tokens').innerHTML = tokens.join('');
+  }
+  function clickCell(c) {
+    if (!mine()) return;
+    if (choosing) { const m = choosing.find((x) => x.target && x.target.c === c); if (m) { choosing = null; play(m); } return; }
+    if (picked >= 0) { const m = legal.find((x) => (x.type === 'go' || x.type === 'attack') && x.id === picked && x.to === c); if (m) { picked = -1; play(m); return; } }
+    const id = S.board[c];
+    picked = id >= 0 && S.pieces[id].side === me && legal.some((x) => (x.type === 'go' || x.type === 'attack') && x.id === id) ? id : -1;
+    render();
+  }
   function button(text, on, enabled) { const b = document.createElement('button'); b.textContent = text; b.disabled = !enabled; b.onclick = on; return b; }
   function panel(go, P) {
     const acts = $('acts');
@@ -318,7 +388,7 @@ export function tabletopRoundClient(D, T, M) {
       prompt = 'Answer ' + linkText(S.links[S.links.length - 1]) + '?';
       acts.appendChild(button('Pass', () => play(legal.find((m) => m.type === 'pass')), go));
     } else if (duel) {
-      prompt = 'Your turn: cast, use your summons, or end it';
+      prompt = D.plan ? (picked >= 0 ? 'Move or attack: a lit cell' : 'Your turn: cast, pick a summon on the board, or end it') : S.supply ? 'Play your cards, buy, or end your turn' : 'Your turn: cast, use your summons, or end it';
       acts.appendChild(button('End turn', () => play(legal.find((m) => m.type === 'end')), go));
     } else if (P.move === 'place') {
       prompt = legal.some((m) => m.type === 'place') ? 'Send a worker to a space' : 'Nowhere left to go';
@@ -341,7 +411,9 @@ export function tabletopRoundClient(D, T, M) {
 
   $('felt').addEventListener('click', (e) => {
     if (!mine()) return;
-    const sp = e.target.closest('.sp'), c = e.target.closest('.c');
+    const sp = e.target.closest('.sp'), c = e.target.closest('.c'), cellEl = e.target.closest('[data-cell]');
+    if (cellEl && D.plan) { clickCell(+cellEl.dataset.cell); return; }
+    if (c && c.dataset.buy !== undefined) { play(legal.find((m) => m.type === 'buy' && m.card === c.dataset.buy)); return; }
     if (sp) play(legal.find((m) => m.type === 'place' && m.space === sp.dataset.space));
     else if (duel && c) {
       // a card cast, or a summon's ability used: one way, played; several (targets), chosen in the panel

@@ -209,7 +209,8 @@ export function buildTabletop() {
 
   // the moves one piece could make, before the royal rule
   function pieceMoves(K, S, p, rules, out) {
-    const P = S.pieces[p], side = P.side, kind = K.kinds[P.kind];
+    // a summon on a duel's board moves by the rules of the piece its card names
+    const P = S.pieces[p], side = P.side, kind = K.kinds[P.kind] || K.kinds[(K.defs[P.kind] || {}).piece];
     for (const R of rules) {
       let fromRow = true;
       if (R.when) {
@@ -1420,7 +1421,7 @@ export function buildTabletop() {
       if (S.phase >= list.length) {
         // the round's phases done, each seat's turn in order; the last turn done, the round ends
         if (R.turn && S.part !== 'turn') { S.part = 'turn'; S.seat = 0; beginTurn(K, S); continue; }
-        if (S.part === 'turn') endTurn(S);
+        if (S.part === 'turn') { endTurn(S); if (supplyEnds(K, S)) return; }
         if (S.part === 'turn' && ++S.seat < K.players.length) { beginTurn(K, S); continue; }
         roundEnd(K, S);
         return;
@@ -1456,7 +1457,8 @@ export function buildTabletop() {
 
   function roundScores(K, S, final) {
     const R = K.G.round, scorers = (R.score || [{ points: true }]).filter((sc) => !sc.pools);
-    const out = scoreCards(K, S, S.zones.map((Z) => Z.tableau), scorers, S.score);
+    const counted = R.count === 'owned' ? (Z) => [].concat(Z.deck || [], Z.hand, Z.discard || [], Z.play || [], Z.field || [], Z.tableau) : (Z) => Z.tableau;
+    const out = scoreCards(K, S, S.zones.map(counted), scorers, S.score);
     if (final !== false) for (const sc of R.score || []) if (sc.pools) S.pools.forEach((pool, s) => { for (const r in sc.pools) out[s] += Math.floor((pool[r] || 0) / sc.pools[r]); });
     return out;
   }
@@ -1579,6 +1581,15 @@ export function buildTabletop() {
   //
   //   round.turn: [{ id, who: 'auto' | 'active', steps? }]   round.decks: { <card>: n } (each player's)
   //   round.hand: n drawn to start   round.lose: { pool, at? } (0)   round.cap: actions a turn (200)
+  //   round.home: the rows a summon is cast into, on a board (1)   round.supply: { <card>: n } (bought for a card's
+  //   `price`, and one of round.buy's pool if named)   round.played: true (a resolved spell waits in play)
+  //   round.reshuffle: true (the discard becomes the deck when it runs out)   round.end: { pile?, piles? } (checked as a
+  //   turn ends)   round.count: 'owned' (the scorers count every card a player owns, not its tableau)
+  //   On a board (a turn game given one), a summon card names a piece (`piece`) whose rules move it; it is cast onto an
+  //   empty cell of its controller's home rows. A ready summon may go (a move by its rules onto an empty cell: it
+  //   simply happens) or attack (onto a foe: a link on the chain), either exhausting it; an attack's blows are struck
+  //   together, each its power, and the attacker takes the cell of a defender that dies. An ability may require its
+  //   object's row (act.at: { row }, counted from its controller's side). Leaving play, a summon leaves its cell.
   //   a card (piles.types): { cost?: { <res>: n }, summon?: true (it enters the field, exhausted), stats?: { power,
   //     guard }, fast?: true (cast in any window it holds the initiative in), do?: [effect] (a spell's),
   //     abilities?: [{ when: 'enters' | 'dies' | 'turn' (its controller's, at the start) | 'foe-casts', do: [effect] }
@@ -1591,14 +1602,16 @@ export function buildTabletop() {
   //     (the spell beneath it, cancelled); `to` also 'my-summons' and 'this' (the source)
   //     A cast's or an ability's one target is chosen when it goes on; a trigger's 'target' is the first foe; a target
   //     gone by resolution is skipped.
-  //   step: { ready: 'mine' } (the active player's objects) | { draw: n } | { refill: { pool, grow?: 1, max? } } (the
+  //   step: { ready: 'mine' } (the active player's objects) | { draw: n } | { discard: zone | [zone] } (the active
+  //     player's hand, play or field, to its discard) | { refill: { pool, grow?: 1, max? } | { pool, to } } (the
   //     pool's turn allowance grows, and the pool is set to it: what was left is gone) | { mend: true } (damage healed)
   //     | { empty: pool } (the active player's, to nothing). A turn's end takes off every modifier until: 'turn'.
-  //   moves: { type: 'cast', card, id, target? } | { type: 'use', id, ab, target? } | { type: 'end' } (the active phase)
+  //   moves: { type: 'cast', card, id, target? } | { type: 'use', id, ab, target? } | { type: 'go' | 'attack', id, to }
+  //     | { type: 'buy', card } | { type: 'end' } (the active phase)
   //     | { type: 'pass' } (a window)
   //   link: { side, src, card: bool, ab, target, power }
   const phaseNow = (K, S) => (S.part === 'turn' ? K.G.round.turn : K.G.round.phases || [])[S.phase];
-  const label = (K, S, t) => (t.p !== undefined ? K.players[t.p].id : S.pieces[t.o].kind + '#' + t.o);
+  const label = (K, S, t) => (t.p !== undefined ? K.players[t.p].id : t.c !== undefined ? K.L.cells[t.c].name : S.pieces[t.o].kind + '#' + t.o);
   const onField = (S, id) => S.pieces[id] && S.pieces[id].zone === 'field';
   const needsTarget = (list) => (list || []).some((e) => e.to === 'target');
 
@@ -1607,20 +1620,33 @@ export function buildTabletop() {
     R.turn.forEach((P, i) => { if (P.who !== 'auto' && P.who !== 'active') throw new Error('tabletop: round.turn phase ' + (P.id || i) + ': who is auto or active'); });
     for (const id of Object.keys(R.decks || {})) if (!(K.defs[id] && K.defs[id].family === 'card')) throw new Error('tabletop: round.decks holds a card ' + id + ' the game does not describe (piles.types)');
     K.round.refills = [];
+    // a turn game played on a board (more than the single cell a game without one is given)
+    K.round.board = K.L.cells.length > 1;
+    for (const d of Object.values(K.defs)) if (d.piece && !K.kinds[d.piece]) throw new Error('tabletop: card ' + d.kind + ' names a piece ' + d.piece + ' the game does not describe');
     for (const P of R.turn) for (const st of P.steps || []) if (st.refill) { K.round.refills.push(st.refill.pool); if (K.round.res.indexOf(st.refill.pool) < 0) K.round.res.push(st.refill.pool); }
     if (R.lose && K.round.res.indexOf(R.lose.pool) < 0) K.round.res.push(R.lose.pool);
   }
   function turnStart(K, S) {
     const R = K.G.round;
     Object.assign(S, { part: 'round', seat: 0, active: -1, links: [], passed: K.players.map(() => false), wait: [], cap: K.players.map(() => ({})), acts: 0, ran: false });
+    if (K.round.board) { S.board = K.L.cells.map(() => -1); S.marks = []; }
+    if (R.reshuffle) S.reshuffle = true;
+    if (R.supply) S.supply = Object.assign({}, R.supply);
     S.zones.forEach((Z, s) => {
-      Object.assign(Z, { deck: shuffle(S, expand(R.decks)).map((kind) => make(S, { kind, side: s, at: -1, moved: 0, zone: 'deck' })), discard: [], field: [] });
+      Object.assign(Z, { deck: shuffle(S, expand(R.decks)).map((kind) => make(S, { kind, side: s, at: -1, moved: 0, zone: 'deck' })), discard: [], field: [], play: [] });
       drawFor(S, s, R.hand || 0);
     });
   }
   function drawFor(S, side, n) {
     const Z = S.zones[side];
-    for (let i = 0; i < n && Z.deck.length; i++) { const id = Z.deck.pop(); S.pieces[id].zone = 'hand'; Z.hand.push(id); }
+    for (let i = 0; i < n; i++) {
+      // a game that reshuffles turns its discard into a new deck when the deck runs out
+      if (!Z.deck.length && S.reshuffle && Z.discard.length) { Z.deck = shuffle(S, Z.discard); Z.discard = []; for (const id of Z.deck) S.pieces[id].zone = 'deck'; }
+      if (!Z.deck.length) break;
+      const id = Z.deck.pop();
+      S.pieces[id].zone = 'hand';
+      Z.hand.push(id);
+    }
   }
   function beginTurn(K, S) {
     S.phase = 0;
@@ -1634,8 +1660,12 @@ export function buildTabletop() {
     const a = S.active, Z = S.zones[a];
     if (st.ready === 'mine') for (const id of Z.field) delete S.pieces[id].ready;
     if (st.draw) drawFor(S, a, st.draw);
+    if (st.discard) for (const zone of [].concat(st.discard)) {
+      for (const id of Z[zone].slice()) { if (zone === 'field') leaveField(K, S, id, 'discard'); else { S.pieces[id].zone = 'discard'; Z.discard.push(id); } }
+      if (zone !== 'field') Z[zone] = [];
+    }
     if (st.refill) {
-      const F = st.refill, cap = Math.min(F.max === undefined ? Infinity : F.max, (S.cap[a][F.pool] || 0) + (F.grow === undefined ? 1 : F.grow));
+      const F = st.refill, cap = F.to !== undefined ? F.to : Math.min(F.max === undefined ? Infinity : F.max, (S.cap[a][F.pool] || 0) + (F.grow === undefined ? 1 : F.grow));
       S.cap[a][F.pool] = cap;
       S.pools[a][F.pool] = cap;
     }
@@ -1672,9 +1702,9 @@ export function buildTabletop() {
     const counterable = S.links.length && S.links[S.links.length - 1].card;
     for (const id of firsts(S, Z.hand)) {
       const c = derive(K, S, id);
-      if (!(c.fast || sorcery) || !affords(S.pools[side], c.cost)) continue;
+      if (!(c.summon || (c.do && c.do.length)) || !(c.fast || sorcery) || !affords(S.pools[side], c.cost)) continue;
       if ((c.do || []).some((e) => e.counter) && !counterable) continue;
-      for (const t of c.summon ? [null] : targets(c.do)) out.push({ type: 'cast', card: c.kind, id, target: t });
+      for (const t of c.summon ? homeCells(K, S, side) : targets(c.do)) out.push({ type: 'cast', card: c.kind, id, target: t });
     }
     for (const id of Z.field) {
       const c = derive(K, S, id);
@@ -1683,10 +1713,54 @@ export function buildTabletop() {
         if (ab.act.exhaust && S.pieces[id].ready === false) return;
         if (!affords(S.pools[side], ab.act.cost)) return;
         if (!affords(S.pieces[id].counters || {}, ab.act.spend)) return;
+        if (ab.act.at && !(S.pieces[id].at >= 0 && rowIs(K, side, S.pieces[id].at, ab.act.at.row))) return;
         for (const t of targets(ab.do)) out.push({ type: 'use', id, ab: i, target: t });
       });
+      // on a board, a ready summon goes or attacks by its piece's rules
+      if (c.piece && sorcery && S.pieces[id].ready !== false && S.pieces[id].at >= 0) {
+        for (const m of pieceMoves(K, S, id, K.kinds[c.piece].rules, [])) {
+          if (m.promote) continue;
+          if (m.cap.length) { if (onField(S, m.cap[0])) out.push({ type: 'attack', id, foe: m.cap[0], to: m.to }); }
+          else out.push({ type: 'go', id, to: m.to });
+        }
+      }
     }
-    return out.filter((m) => m.type === 'cast' || !m.target || m.target.o === undefined || onField(S, m.target.o));
+    // a counted supply: a card bought for its price (and one of the buy pool) into the discard
+    if (S.supply && sorcery) for (const kind of Object.keys(S.supply)) if (S.supply[kind] > 0 && affords(S.pools[side], priceOf(K, kind))) out.push({ type: 'buy', card: kind });
+    return out.filter((m) => m.type === 'cast' || m.type === 'buy' || !m.target || m.target.o === undefined || onField(S, m.target.o));
+  }
+  const priceOf = (K, kind) => { const R = K.G.round, d = K.defs[kind], p = Object.assign({}, d.price || {}); if (R.buy) p[R.buy] = (p[R.buy] || 0) + 1; return p; };
+  function supplyEnds(K, S) {
+    const E = K.G.round.end;
+    if (!E || !S.supply) return false;
+    const empty = Object.keys(S.supply).filter((k) => S.supply[k] <= 0).length;
+    if (!((E.piles && empty >= E.piles) || (E.pile && (S.supply[E.pile] || 0) <= 0))) return false;
+    const sc = roundScores(K, S, true), top = Math.max.apply(null, sc), lead = sc.map((x, i) => (x === top ? i : -1)).filter((i) => i >= 0);
+    S.over = { winner: lead.length === 1 ? lead[0] : null, reason: 'score', scores: sc };
+    return true;
+  }
+  // where a summon may be cast: anywhere, off a board; on one, an empty cell in its controller's home rows
+  function homeCells(K, S, side) {
+    if (!K.round.board) return [null];
+    const out = [], home = K.G.round.home || 1;
+    for (let c = 0; c < K.L.cells.length; c++) if (S.board[c] < 0 && K.rows[side].of[c] <= home) out.push({ c });
+    return out;
+  }
+  // an attack resolved: both strike at once, each its power; the attacker takes the cell of a defender that dies
+  function blows(K, S, link) {
+    const a = link.src, d = link.attack;
+    if (!onField(S, a) || !onField(S, d)) return;
+    const pa = (derive(K, S, a).stats || {}).power || 0, pd = (derive(K, S, d).stats || {}).power || 0, cell = S.pieces[d].at;
+    hurt(K, S, { o: d }, pa);
+    hurt(K, S, { o: a }, pd);
+    checks(K, S);
+    if (onField(S, a) && !onField(S, d) && cell >= 0 && S.board[cell] < 0) {
+      const o = S.pieces[a];
+      S.board[o.at] = -1;
+      o.at = cell;
+      S.board[cell] = a;
+      o.moved += 1;
+    }
   }
   const hasStop = (K, S, side) => turnMoves(K, S, side, true).length > 0;
   // the first seat, going round from after `after` (from the active player itself when -1), that has not passed, holds
@@ -1741,6 +1815,7 @@ export function buildTabletop() {
   function leaveField(K, S, id, zone) {
     const o = S.pieces[id], Z = S.zones[o.side];
     Z.field.splice(Z.field.indexOf(id), 1);
+    if (o.at >= 0) { if (S.board[o.at] === id) S.board[o.at] = -1; o.at = -1; }
     delete o.ready; delete o.counters; delete o.mods; delete o.damage;
     o.zone = zone;
     Z[zone].push(id);
@@ -1764,9 +1839,15 @@ export function buildTabletop() {
   }
   function resolveTop(K, S) {
     const link = S.links.pop(), side = link.side;
+    if (link.attack !== undefined) { blows(K, S, link); return; }
     const def = derive(K, S, link.src);
-    if (link.card && def.summon) {
+    // a summon cast onto a cell taken meanwhile cannot enter: it goes to the discard
+    if (link.card && def.summon && link.target && link.target.c !== undefined && S.board[link.target.c] >= 0) {
+      S.pieces[link.src].zone = 'discard';
+      S.zones[side].discard.push(link.src);
+    } else if (link.card && def.summon) {
       const o = S.pieces[link.src];
+      if (link.target && link.target.c !== undefined) { o.at = link.target.c; S.board[o.at] = link.src; }
       o.zone = 'field';
       o.ready = false;
       o.t = stamp(S);
@@ -1790,7 +1871,8 @@ export function buildTabletop() {
           if (below && below.card) { S.links.pop(); const c = S.pieces[below.src]; c.zone = 'discard'; S.zones[c.side].discard.push(below.src); }
         }
       }
-      if (link.card) { S.pieces[link.src].zone = 'discard'; S.zones[side].discard.push(link.src); }
+      // a resolved spell goes to the discard, or waits in play until a step clears it (round.played)
+      if (link.card) { const z = K.G.round.played ? 'play' : 'discard'; S.pieces[link.src].zone = z; S.zones[side][z].push(link.src); }
     }
     checks(K, S);
   }
@@ -1817,7 +1899,9 @@ export function buildTabletop() {
     else { out = turnMoves(K, S, side, false); out.push({ type: 'end' }); }
     for (const m of out) {
       const t = m.target ? ' @' + label(K, S, m.target) : '';
-      m.name = m.type === 'cast' ? 'cast ' + m.card + t : m.type === 'use' ? 'use ' + S.pieces[m.id].kind + '#' + m.id + (m.ab ? '/' + m.ab : '') + t : m.type;
+      const who = m.id !== undefined ? S.pieces[m.id].kind + '#' + m.id : '';
+      m.name = m.type === 'cast' ? 'cast ' + m.card + t : m.type === 'use' ? 'use ' + who + (m.ab ? '/' + m.ab : '') + t
+        : m.type === 'go' || m.type === 'attack' ? m.type + ' ' + who + ' @' + K.L.cells[m.to].name : m.type === 'buy' ? 'buy ' + m.card : m.type;
     }
     return out;
   }
@@ -1839,6 +1923,23 @@ export function buildTabletop() {
       pay(ab.act.cost);
       if (ab.act.spend) countOn(N.pieces[m.id], Object.fromEntries(Object.entries(ab.act.spend).map(([c, n]) => [c, -n])));
       N.links.push({ side, src: m.id, card: false, ab: m.ab, target: m.target || null, power: (derive(K, N, m.id).stats || {}).power || 0 });
+    } else if (m.type === 'buy') {
+      pay(priceOf(K, m.card));
+      N.supply[m.card] -= 1;
+      Z.discard.push(make(N, { kind: m.card, side, at: -1, moved: 0, zone: 'discard' }));
+    } else if (m.type === 'go') {
+      // a step on the board is not answered: it simply happens
+      const o = N.pieces[m.id];
+      o.ready = false;
+      spend(N, side, 'ready', 1);
+      N.board[o.at] = -1;
+      o.at = m.to;
+      N.board[m.to] = m.id;
+      o.moved += 1;
+    } else if (m.type === 'attack') {
+      N.pieces[m.id].ready = false;
+      spend(N, side, 'ready', 1);
+      N.links.push({ side, src: m.id, card: false, ab: -1, target: { o: m.foe }, attack: m.foe, power: 0 });
     } else if (m.type === 'pass') {
       N.passed[side] = true;
       const h = nextStop(K, N, side);
@@ -1851,8 +1952,8 @@ export function buildTabletop() {
       // a refilled pool left while something could still be paid from it is idle
       const could = turnMoves(K, S, side, false);
       // a ready object whose exhausting ability could have been used, left ready, is idle too
-      spend(N, side, 'ready', new Set(could.filter((x) => x.type === 'use' && derive(K, S, x.id).abilities[x.ab].act.exhaust).map((x) => x.id)).size, true);
-      for (const r of K.round.refills) if ((S.pools[side][r] || 0) > 0 && could.some((x) => { const c = x.type === 'cast' ? derive(K, S, x.id).cost : derive(K, S, x.id).abilities[x.ab].act.cost; return c && c[r] > 0; })) spend(N, side, r, S.pools[side][r], true);
+      spend(N, side, 'ready', new Set(could.filter((x) => (x.type === 'use' && derive(K, S, x.id).abilities[x.ab].act.exhaust) || x.type === 'go' || x.type === 'attack').map((x) => x.id)).size, true);
+      for (const r of K.round.refills) if ((S.pools[side][r] || 0) > 0 && could.some((x) => { const c = x.type === 'cast' ? derive(K, S, x.id).cost : x.type === 'use' ? derive(K, S, x.id).abilities[x.ab].act.cost : x.type === 'buy' ? priceOf(K, x.card) : null; return c && c[r] > 0; })) spend(N, side, r, S.pools[side][r], true);
       N.phase += 1;
       N.ran = false;
       enterPhase(K, N);
