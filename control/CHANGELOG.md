@@ -51,6 +51,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   only when some body carries one.
 
   Without `level.hero`, the walker plays the segment as before.
+- **The wall.** A platform body with `rule.wall` holds any collider's face (`worlds/controllable/wall.js`, a body
+  owner beside the ladder's climb). Nothing is authored: a box's side is a plane with a known normal.
+  - **Taking hold:** pressing forward into a face, in the air, or from the street when the face stands higher than the
+    body. A low box, a narrow one (a tree's trunk) or a box marked `hold: false` (a hero level's edge) is not held.
+  - **The crawl:** up and down the face, and across it with A / D. It rounds an outside corner onto the box's next
+    face, unless another box stands there. A face of stacked boxes climbs as one.
+  - **The top:** up past it, the body mantles over the lip onto the roof. Down at the foot it lets go.
+  - **Off the wall:** a tapped jump is a wall-jump, out and up. A held jump is a wall-launch, its speed growing to
+    twice the jump's.
+  - **Between holds:** standing still at a roof's lip is a perch; falling fast off a roof is a dive.
+
+  The wall's defaults are in metres, scaled by the rule's `metre` (world units per metre), so `wall: true` holds in a
+  city level's units too.
+  - **The city hero** has the wall unless `level.hero.wall: false`. Each of its new states (`wall_crawl`, `mantle`,
+    `perch`, `dive`) plays the figure's first fallback clip it has (`TRAVERSAL_FALLBACK` in `playscape/player.js`).
+  - **Godot and Roblox** name the wall lost.
+  - **The registry** marks `space.traversal=wall` built on the web. The City stalker probe now waits on the swinger,
+    the idiom and the look.
 
 ### Epidermis cube: skin and hair as a recipe
 

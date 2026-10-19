@@ -58,6 +58,7 @@ export const PLATFORM_KEYS = Object.freeze({
     dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
     tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
     loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
+    wall: 'the wall (wall.js: any face held, crawled, mantled, jumped off)', metre: 'the wall',
   },
 });
 // the `ai` rule's opt-in moves the kernel's mind does not run (yet): the match player and the arena shooter's moves

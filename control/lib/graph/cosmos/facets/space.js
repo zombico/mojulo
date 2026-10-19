@@ -70,9 +70,10 @@ export const SPACE = Object.freeze({
     traversal: {
       source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' },
       // the city stalker (10-19): every building's face a surface the hero holds, crawls, wraps and mantles off onto its
-      // roof, read from the level's own lot boxes (a body owner beside the climb, not an object placed)
+      // roof, read from the level's own lot boxes (a body owner beside the climb, not an object placed, so not the table's)
       planned: {
-        wall: { status: 'absent', effort: 'M', godot: 'absent', roblox: 'absent', note: 'any building\'s face held and crawled, round its corners and up onto its roof, and launched from (a wall-jump, a charged leap); the climb holds only a placed ladder, rope or net' },
+        // built 10-19 (phase 2): a body owner beside the climb, read off the level's own boxes; web only
+        wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', godot: 'absent', roblox: 'absent', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
       },
     },
   },

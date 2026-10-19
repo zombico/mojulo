@@ -186,7 +186,8 @@ export function buildCore(E) {
     const out = [];
     for (const c of list) {
       if (c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3) {
-        out.push({ min: [c.min[0], c.min[1], c.min[2]], max: [c.max[0], c.max[1], c.max[2]] });
+        // `hold: false` (a level's edge): a box a wall's hero does not take hold of (wall.js); absent, the record as it was
+        out.push({ min: [c.min[0], c.min[1], c.min[2]], max: [c.max[0], c.max[1], c.max[2]], ...(c.hold === false ? { hold: false } : {}) });
       }
     }
     return out.length ? out : null;

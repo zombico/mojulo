@@ -164,6 +164,11 @@ import { emitThreeWorld } from './scene-three.js';
 // direction, fov, aspect), which the first-frame check reads (lib/graph/game/first-frame-check.js). Emitted only when
 // `capture` is set: the five capture fixtures (capture-bare, capture-controllable, kitchen-sink-capture, fog-effects,
 // shoot-set-capture) gain 6 lines and change none; every live page stays byte-identical.
+// Re-pinned 2026-10-19 (city hunter: the wall): the controllable runtime the page embeds gained the `wall` builder
+// (worlds/controllable/wall.js: a platform body with `rule.wall` holds any collider's face, crawls it, rounds its
+// corners, mantles onto its roof, jumps or launches off it; the `wall-pose` pass), and normalizeColliders keeps a box's
+// `hold: false`. On the `controllable` fixture 1 line is replaced (the collider record, the same without `hold`) and
+// 176 added. The same 14 fixtures that embed the runtime re-pinned with it; no page asks for the wall yet.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
