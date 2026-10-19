@@ -124,7 +124,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   thigh, and the seam had wandered in teeth across the thigh's front and hemmed the seat in a jagged line). Every
   handover is one crossing: each skin fades in from its line, a ring or so, with no gap between the two fades (a gap
   had left both on one skin, in a sawtooth at the waist, the elbow and the knee). The thigh is rounder and finer than
-  the other limbs (32 round, 33 rings). Only the feet are still the authored cage.
+  the other limbs (32 round, 33 rings). THE LOWER TRUNK ON THE ANATOMY (a build's `lower` frame, bodyFrame): the
+  rig's navel joint is a joint of the spine at the ribs' lower edge, and the slice had hung the belly from it, so the
+  navel stood 7 to 9 cm high and the crotch hung 11 cm under the hip's joint: navel to crotch ran 0.225 of the stature,
+  the body's own 0.125 (ANSUR II). Under the chest's middle every height is now laid by three knots, the navel 30 % of
+  the way from the hip's joint to the shoulder's and the seat carried over the hip's joint, so the lower trunk rides
+  the leg wherever it is; a mass's height stretches with the frame. The rectus abdominis re-laid for it, three
+  segments down to the navel and one long sheet under it to the pubis. Navel to crotch is now 0.139 and 0.134 of the
+  stature (norrin, shalla), the crotch 8 cm under the hip's joint. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

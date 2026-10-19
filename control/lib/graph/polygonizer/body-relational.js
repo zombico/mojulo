@@ -75,11 +75,17 @@ const NORRIN = {
   spine: [{ t: -0.05, depth: 0.16, w: 0.4 }, { t: 0.62, depth: -0.08, w: 0.38 }],
   // the pectoral's lower border is an overhang: the torso's rays there come down from above (as under the bust)
   lift: { t: 0.4, w: 0.18, h: 0.5 },
+  // the lower trunk on the anatomy (bodyFrame): the navel 30 % of the way from the hip's joint to the shoulder's, the
+  // seat and the crotch carried 0.15 T over where the build laid them (the navel had stood at the ribs' edge, the
+  // crotch 11 cm under the hip's joint: the belly ran 1.8 times the body's own from navel to crotch)
+  lower: { top: 0.5, navel: -0.02, hip: -1.0, at: 0.3, lift: 0.15 },
   kBase: 0.12, kMuscle: 0.03,
   base: [
     { id: 'core', cone: [[0, -0.09, -0.42], [0, -0.09, 1.0]], r: [0.3, 0.27] },
     { id: 'ribcage', egg: [0, -0.06, 0.5], r: [0.62, 0.44, 0.8] },
-    { id: 'abdomen', egg: [0, -0.02, -0.05], r: [0.58, 0.4, 0.5] },
+    // (the belly's mass over the navel: under the lower frame the navel came down from the ribs' edge, and the run from
+    // it up to the chest is the belly's to fill)
+    { id: 'abdomen', egg: [0, -0.02, 0.15], r: [0.58, 0.4, 0.5] },
     // (the neck thin at the top and flaring out to its root, into the trapezius: a column read pinched at the base)
     { id: 'neck', cone: [[0, -0.05, 0.86], [0, -0.06, 1.8]], r: [0.31, 0.2] },
     { id: 'girdle', cone: [[0.25, -0.06, 0.8], [0.9, -0.02, 0.84]], r: [0.26, 0.2] },
@@ -103,10 +109,13 @@ const NORRIN = {
     // the sternum between the pectorals' heads: a low ridge, so they meet over it in a shallow groove (their tight blend
     // alone cut a V down the midline)
     { id: 'sternum', on: { x: 0, t: 0.62, face: 'front' }, along: [0, 0, 1], r: [0.5, 0.12, 0.08], proud: 0.08, mid: true },
-    { id: 'rectus1', on: { x: 0.15, t: 0.36, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.05 },
-    { id: 'rectus2', on: { x: 0.15, t: 0.15, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
-    { id: 'rectus3', on: { x: 0.15, t: -0.05, face: 'front' }, along: [0, 0, 1], r: [0.11, 0.14, 0.05], proud: 0.055 },
-    { id: 'rectus4', on: { x: 0.14, t: -0.3, face: 'front' }, along: [0, 0, 1], r: [0.2, 0.13, 0.05], proud: 0.03 },
+    // the rectus abdominis: three segments evenly from the chest down to the navel (on the lower frame the run above the
+    // navel is stretched, so their heights here are short), and under the navel one long smooth sheet to the pubis (the
+    // third segment and a short lower one, squeezed under the navel, read as a belt's crease)
+    { id: 'rectus1', on: { x: 0.15, t: 0.33, face: 'front' }, along: [0, 0, 1], r: [0.084, 0.14, 0.05], proud: 0.05 },
+    { id: 'rectus2', on: { x: 0.15, t: 0.19, face: 'front' }, along: [0, 0, 1], r: [0.084, 0.14, 0.05], proud: 0.055 },
+    { id: 'rectus3', on: { x: 0.15, t: 0.05, face: 'front' }, along: [0, 0, 1], r: [0.084, 0.14, 0.05], proud: 0.055 },
+    { id: 'rectus4', on: { x: 0.12, t: -0.45, face: 'front' }, along: [0, 0, 1], r: [0.35, 0.2, 0.05], proud: 0.03 },
     { id: 'obliqueExternal', on: { az: 74, t: -0.3 }, along: [0, 0.3, 1], r: [0.3, 0.22, 0.08], proud: 0.03 },
     { id: 'serratus1', on: { az: 60, t: 0.3 }, along: [0, 1, -0.5], r: [0.13, 0.05, 0.035], proud: 0.03 },
     { id: 'serratus2', on: { az: 62, t: 0.44 }, along: [0, 1, -0.45], r: [0.13, 0.05, 0.035], proud: 0.03 },
@@ -211,6 +220,7 @@ const SHALLA = {
   // the fold under the bust: the torso's rays there come down from above (t the fold's height on the torso bone, w the
   // window's half width in t, h the raise in W)
   lift: { t: 0.31, w: 0.2, h: 0.8 },
+  lower: NORRIN.lower,
   // (her navel shallower: on her finer cage the man's dimple read as a pit)
   dimples: [{ ...NORRIN.dimples[0], r: 0.016, k: 0.04 }],
   kLimb: 0.035,
@@ -224,23 +234,43 @@ const SHALLA = {
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
 
 
-/** the build's measures from the rest joints: the half biacromial W, the navel's height and the torso bone's length T */
-export function bodyFrame(R) {
-  const J = R.joints, W = J.shoulderR[0], z0 = J.navel[2], T = J.neckHub[2] - J.navel[2];
-  return { W, z0, T, at: ([x, y, t]) => [x * W, y * W, z0 + t * T] };
+/** the build's measures from the rest joints: the half biacromial W, the navel joint's height z0 and the torso bone's
+ * length T; a height t up the torso bone is `zOf(t)`, z0 + t T, but under the ribs a build with a `lower` frame lays its
+ * heights on the anatomy's own landmarks: the rig's navel joint is a joint of the spine at the ribs' lower edge, not the
+ * navel, and the hip's joint is the leg's. Three knots, by t: `top` (above it z0 + t T, the chest as built), `navel` (the
+ * navel's dimple, set `at` of the way from the hip's joint to the shoulder's, the body's own ratio) and `hip` (the hip's
+ * joint's height as the build was laid out, set `lift` T over the joint); straight between the knots, and under the
+ * hip's knot the build's own spacing. So the lower trunk rides the hip's joint wherever the leg puts it. `slope(t)` is
+ * how much a height is stretched there (a mass's height scales with it), `tOf` the inverse */
+export function bodyFrame(R, build = null) {
+  const J = R.joints, W = J.shoulderR[0], z0 = J.navel[2], T = J.neckHub[2] - J.navel[2], lin = (t) => z0 + t * T;
+  const Lw = build?.lower;
+  let zOf = lin, tOf = (z) => (z - z0) / T;
+  if (Lw) {
+    const hz = J.hipR[2], kt = [Lw.hip, Lw.navel, Lw.top], kz = [hz + Lw.lift * T, hz + Lw.at * (J.shoulderR[2] - hz), lin(Lw.top)];
+    if (!(kz[0] < kz[1] && kz[1] < kz[2])) throw new Error(`body-relational: the lower frame's knots are out of order (${kz.map((z) => z.toFixed(3)).join(', ')})`);
+    const seg = (x, xs, ys) => { const i = x <= xs[1] ? 0 : 1; return ys[i] + ((x - xs[i]) * (ys[i + 1] - ys[i])) / (xs[i + 1] - xs[i]); };
+    zOf = (t) => (t >= Lw.top ? lin(t) : t <= Lw.hip ? kz[0] + (t - Lw.hip) * T : seg(t, kt, kz));
+    tOf = (z) => (z >= kz[2] ? (z - z0) / T : z <= kz[0] ? Lw.hip + (z - kz[0]) / T : seg(z, kz, kt));
+  }
+  const slope = (t) => (zOf(t + 0.01) - zOf(t - 0.01)) / (0.02 * T);
+  return { W, z0, T, zOf, tOf, slope, at: ([x, y, t]) => [x * W, y * W, zOf(t)] };
 }
 
 /** the field: { sd(p), base(p), masses } for a build on a rig's rest */
 export function bodyField(R, build, { extra = [] } = {}) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build;
   if (!B) throw new Error(`body-relational: unknown build '${build}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
-  const F = bodyFrame(R), W = F.W;
+  const F = bodyFrame(R, B), W = F.W;
   const frameOf = (along, n) => { const u = unit(sub(along, scl(n, dot(along, n)))), v = cross(n, u); return [u, v, n]; };
+  // (a radius `i` stretched by the frame's `slope`, as far as it runs up the body, `up` of it)
+  const tall = (r, i, up, sl) => r.map((x, j) => (j === i ? x * (1 + (sl - 1) * up) : x));
   const prim = (m) => {
     if (m.cone) return { cone: [F.at(m.cone[0]), F.at(m.cone[1])], r: m.r.map((x) => x * W), ...(m.squash ? { squash: m.squash } : {}) };
-    // an egg without a fibre lies on the world's axes (r: x, y, z); with one, r is along, across, depth (depth forward)
+    // an egg without a fibre lies on the world's axes (r: x, y, z); with one, r is along, across, depth (depth forward);
+    // its height stretched as the frame stretches it there
     const ax = m.along ? frameOf(unit(m.along), [0, 1, 0]) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-    return { egg: true, c: F.at(m.egg), ax, r: m.r.map((x) => x * W) };
+    return { egg: true, c: F.at(m.egg), ax, r: tall(m.r, m.along ? 0 : 2, m.along ? Math.abs(unit(m.along)[2]) : 1, F.slope(m.egg[2])).map((x) => x * W) };
   };
   const mirror = (p) => (p.cone ? { ...p, cone: p.cone.map(([x, y, z]) => [-x, y, z]) } : { ...p, c: [-p.c[0], p.c[1], p.c[2]], ax: p.ax.map(([x, y, z]) => [-x, y, z]) });
   const sides = (m, p) => (m.mid || (p.cone ? p.cone.every((q) => q[0] === 0) : p.c[0] === 0) ? [p] : [p, mirror(p)]);
@@ -258,7 +288,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   const grad = (fn, q) => { const e = 1e-4; return unit([fn(add(q, [e, 0, 0])) - fn(sub(q, [e, 0, 0])), fn(add(q, [0, e, 0])) - fn(sub(q, [0, e, 0])), fn(add(q, [0, 0, e])) - fn(sub(q, [0, 0, e]))]); };
   // a point seated on the base: cast from the trunk's axis at height t toward the face, the base's first crossing
   const seat = (on) => {
-    const z = F.z0 + on.t * F.T, o = [0, 0, z];
+    const z = F.zOf(on.t), o = [0, 0, z];
     const dir = on.az !== undefined ? [dmath.sin((on.az * Math.PI) / 180), dmath.cos((on.az * Math.PI) / 180), 0] : [0, on.face === 'back' ? -1 : 1, 0];
     const from = on.az !== undefined ? o : [on.x * W, 0, z];
     const s = crossing(base, from, dir, 0.6) ?? from;
@@ -267,7 +297,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   const muscles = B.muscles.flatMap((m) => {
     const k = m.k ? { k: m.k * W } : {};
     if (m.cone || m.egg) return sides(m, { ...prim(m), id: m.id, ...k });
-    const { s, n } = seat(m.on), r = m.r.map((x) => x * W);
+    const { s, n } = seat(m.on), r = tall(m.r, 0, Math.abs(unit(m.along)[2]), F.slope(m.on.t)).map((x) => x * W);
     const ax = frameOf(unit(m.along), n);
     return sides(m, { egg: true, c: add(s, scl(n, m.proud * W - r[2])), ax, r, id: m.id, ...k });
   });
@@ -281,7 +311,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // midline, `rb` its radius (W). It rides on what is under it, the pectoral's slope its upper pole; the pair is the
   // greater of the two heights, so they meet in the field's own valley; on the front only
   const bustH = B.bust ? (() => {
-    const Fb = { ...BREAST_FIELD, ...(B.bust.field || {}) }, rb = B.bust.rb * W, za = F.z0 + B.bust.t * F.T, cx = -Fb.cleft * rb, y0 = B.bust.front * W;
+    const Fb = { ...BREAST_FIELD, ...(B.bust.field || {}) }, rb = B.bust.rb * W, za = F.zOf(B.bust.t), cx = -Fb.cleft * rb, y0 = B.bust.front * W;
     return (q) => {
       const v = (q[2] - za) / rb, f = Math.max(0, Math.min(1, (q[1] - y0) / (0.2 * W))), fr = f * f * (3 - 2 * f); if (!fr) return 0;
       // (the pair's crossing a smooth max: the hard one creased the cleft's floor, and its rings boxed there)
@@ -291,7 +321,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // THE SPINE'S CURVE (`spine`): the back's surface carried forward at the lumbar curve and back at the thoracic, by a
   // warp of the field over the back half only (the front, the belly and the chest, as built): each curve a bump at `t`
   // up the torso bone, `depth` in W (+ forward), `w` its half reach in t. The trunk stood as a straight column in profile
-  const curve = (B.spine || []).map((c) => ({ z: F.z0 + c.t * F.T, h: c.w * F.T, d: c.depth * W }));
+  const curve = (B.spine || []).map((c) => ({ z: F.zOf(c.t), h: (F.zOf(c.t + c.w) - F.zOf(c.t - c.w)) / 2, d: c.depth * W }));
   const warp = curve.length ? (q) => {
     const back = Math.max(0, Math.min(1, -q[1] / (0.3 * W))); if (!back) return q;
     let dy = 0; for (const c of curve) { const x = (q[2] - c.z) / c.h; if (Math.abs(x) < 1) dy += c.d * (1 - x * x) * (1 - x * x); }
@@ -525,7 +555,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   // and round an undercut (`lift`: the fold under the bust) they come down from a point raised above the ring, so they
   // meet the underside face on (level rays left one ring on the bust's underside and the next on the chest's wall, and
   // the band between them shaded in a sawtooth)
-  const Fr = field.frame, L = B.lift, raise = (z) => { if (!L) return 0; const x = Math.min(1, Math.abs((z - Fr.z0) / Fr.T - L.t) / L.w); return L.h * Fr.W * (1 - x * x * (3 - 2 * x)); };
+  const Fr = field.frame, L = B.lift, raise = (z) => { if (!L) return 0; const x = Math.min(1, Math.abs(Fr.tOf(z) - L.t) / L.w); return L.h * Fr.W * (1 - x * x * (3 - 2 * x)); };
   // THE PELVIS on the field too (a build with a seat): the torso no longer eases onto the authored pelvis, and the two
   // hand over by height at the middle of their overlap (`zH`), in one crossing: below it the pelvis's skin shows (the
   // torso's set `deep` inside, faded in over `bz` from zH), above it the torso's
