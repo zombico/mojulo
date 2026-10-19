@@ -21,6 +21,7 @@ import { buildTabletop } from './tabletop-kernel.js';
 import { tabletopGame } from './tabletop.js';
 import { buildTabletopMind } from './tabletop-mind.js';
 import { euroPageHtml } from './tabletop-euro-page.js';
+import { tilePageHtml } from './tabletop-tile-page.js';
 import { pieceBodies } from './tabletop-bodies.js';
 
 const VIEWPORT = { width: 760, height: 560 };
@@ -44,6 +45,7 @@ export function tabletopPageHtml(G, opts = {}) {
   if (!LEVELS.includes(level)) throw new Error(`tabletop page: level is ${LEVELS.join(', ')}`);
   const view = opts.view ?? 'plan';
   if (K.euro) return euroPageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
+  if (K.tile) return tilePageHtml(G, L, K, { human, level, view, seed: opts.seed ?? 1, title: opts.title });
   const facing = K.T.ways.get(K.players[K.sideOf[human]].facing);
   // the person sits at their own side of the board: the plan and the table both turn to face their forward
   const turnRad = ((facing.angle - 90) * Math.PI) / 180;

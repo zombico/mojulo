@@ -187,6 +187,18 @@ in CSS 3D. In progress:
   points; it narrows a wide board to the cells near the play. Five fixtures, each named by its principle (enclosure,
   lines with and without falling, connection, sandwiching, majorities), are played by clicking on the plan or the
   table, with a pass, the score in the status and the regions tinted.
+- **Tile placement**, built: a board grown a tile at a time. Tile types are segments of feature types over a tile's
+  edges (an area, a line) or its centre; tiles come from a seeded bag, one drawn a turn, laid beside the laid ones,
+  turned any of the board's turns, every shared edge's label matching (square or hex alike); a tile that fits nowhere
+  is set aside. A segment of the tile just laid may be claimed with a piece from stock if its feature has none. A
+  feature (segments joined across edges) with no open edge pays at once, its tiles times its rate, to the most claims
+  in it, a tie paying each, and its claims return; a centre feature is done when every cell round it is laid. An empty
+  bag ends the game, open features paying their lower rate. A player's view deals the bag again. The computer weighs
+  every placement and turn with the best claim it allows: points, each feature it leads at its chance of being done,
+  a claim in hand worth more the fuller the bag, less a share of the leader's. A tile-placement fixture named by its
+  principle (walls, paths, shrines). The page draws each tile from its segments on the plan (cropped to what is laid)
+  and on the table (the art on the cell's top, claims as standing bodies, the view following the play); the drawn tile
+  is turned by hand and laid where it fits, then a claim chosen or not.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person

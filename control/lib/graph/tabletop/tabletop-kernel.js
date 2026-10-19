@@ -136,11 +136,13 @@ export function buildTabletop() {
     const K = { T, L, G, players, sideOf, rows, kinds, memo, royal: !!G.royal, quiet: G.quiet || null, moves: (G.turn && G.turn.moves) || 1 };
     placementCompile(K);
     if (G.build || G.dice || G.opening) euroCompile(K);
+    if (G.tiles) tileCompile(K);
     return K;
   }
 
   // ── the state ───────────────────────────────────────────────────────────────────────────────────────────────────
   function start(K) {
+    if (K.tile) return tileStart(K);
     if (K.euro) return euroStart(K);
     const board = K.L.cells.map(() => -1), pieces = [];
     const setup = K.G.setup || {};
@@ -328,6 +330,7 @@ export function buildTabletop() {
   }
 
   function legal(K, S) {
+    if (K.tile) return tileLegal(K, S);
     if (K.euro) return euroLegal(K, S);
     if (S.over) return [];
     let moves = pseudo(K, S);
@@ -371,6 +374,7 @@ export function buildTabletop() {
   }
 
   function apply(K, S, m, opts) {
+    if (K.tile) return tileApply(K, S, m);
     if (K.euro) return euroApply(K, S, m);
     const o = opts || {};
     const N = place(K, S, m);
@@ -435,7 +439,7 @@ export function buildTabletop() {
 
   function outcome(K, S, moves) {
     if (S.over) return S.over;
-    if (K.euro) return null;
+    if (K.euro || K.tile) return null;
     const list = moves || legal(K, S);
     if (list.length) return null;
     if (K.G.end) return scoredEnd(K, S);
@@ -696,6 +700,196 @@ export function buildTabletop() {
       }
     }
     return count;
+  }
+
+  // ── tiles: a board laid a tile at a time ────────────────────────────────────────────────────────────────────────────
+  // A game with `tiles` grows its board from a start tile: each turn the player draws a tile from a seeded bag and lays
+  // it on an empty cell beside the laid ones, turned any of the board's turns, every edge it shares matching its
+  // neighbour's; then may claim one of its segments with a piece from stock, if the feature that segment is part of
+  // has no claim yet. A feature is segments joined across matching edges: complete when no edge of it is open (a centre
+  // feature: when every cell round it holds a tile), it pays at once, to the most claims in it, and its claims return.
+  // When the bag is empty, the claimed features left open pay their lower rate and the game ends on points.
+  //
+  //   G.tiles { types: { <id>: { segments: [{ type, edges: [k] } | { type, centre: true }] } }, bag: { <id>: n },
+  //     start: { tile, at }, claim?: { kind, stock }, features: { <type>: { complete, incomplete } } }
+  //     edges k count from the board's first way round (a square's E N W S; a pointy hex's E NE NW W SW SE); an edge in
+  //     no segment is plain; a centre feature's tiles are its own and those round it; points are a feature's tiles × rate
+  //   state: { tiles: [{ t, rot } | null], bag, drawn, phase: 'tile' | 'claim', last, claims: [{ c, s, side }],
+  //     stock: [n], score: [n], r }
+  //   moves: { type: 'tile', at, rot } | { type: 'redraw' } (a tile that fits nowhere is set aside) | { type: 'claim', seg }
+  //     | { type: 'skip' }
+  function tileCompile(K) {
+    const G = K.G, D = G.tiles, n = K.L.dirs.length, types = D.types || {};
+    const labels = {}, segOf = {};
+    for (const id of Object.keys(types)) {
+      const segs = types[id].segments || [];
+      labels[id] = new Array(n).fill('plain');
+      segOf[id] = new Array(n).fill(-1);
+      segs.forEach((g, i) => {
+        if (g.centre) return;
+        for (const k of g.edges || []) {
+          if (!(k >= 0 && k < n)) throw new Error('tabletop: tile ' + id + ' names an edge ' + k + ' (0 to ' + (n - 1) + ' on this board)');
+          if (segOf[id][k] >= 0) throw new Error('tabletop: tile ' + id + ' has two segments on edge ' + k);
+          labels[id][k] = g.type;
+          segOf[id][k] = i;
+        }
+      });
+    }
+    for (const id of Object.keys(D.bag || {})) if (!types[id]) throw new Error('tabletop: the bag holds a tile ' + id + ' the game does not describe');
+    if (!D.start || !types[D.start.tile]) throw new Error('tabletop: tiles.start is { tile, at }, a tile the game describes');
+    const ring = K.L.cells.map((c) => Array.from(new Set(c.n.concat(c.d).filter((j) => j >= 0))));
+    K.tile = { n, types, labels, segOf, ring };
+  }
+
+  const tileEdge = (K, cell, e) => {
+    const t = cell.t, k = (e - cell.rot + K.tile.n) % K.tile.n;
+    return { label: K.tile.labels[t][k], seg: K.tile.segOf[t][k] };
+  };
+
+  function tileStart(K) {
+    const G = K.G, D = G.tiles, n = K.L.cells.length;
+    const S = { board: new Array(n).fill(-1), pieces: [], pending: [], side: 0, turn: 0, over: null, phase: 'tile',
+      tiles: new Array(n).fill(null), bag: [], drawn: null, last: -1, claims: [], r: mixSeed(G.seed || 1, 0, 0),
+      score: K.players.map(() => 0), stock: K.players.map(() => (D.claim ? D.claim.stock : 0)) };
+    const at = K.T.byName.get(D.start.at);
+    if (at === undefined) throw new Error('tabletop: tiles.start names no cell ' + D.start.at);
+    S.tiles[at] = { t: D.start.tile, rot: 0 };
+    for (const id of Object.keys(D.bag || {})) for (let i = 0; i < D.bag[id]; i++) S.bag.push(id);
+    for (let i = S.bag.length - 1; i > 0; i--) { const j = Math.floor(rnd(S) * (i + 1)); const t = S.bag[i]; S.bag[i] = S.bag[j]; S.bag[j] = t; }
+    S.drawn = S.bag.shift() || null;
+    return S;
+  }
+
+  // whether tile t turned rot fits cell c: beside a laid tile, every shared edge matching
+  function tileFits(K, S, c, t, rot) {
+    const n = K.tile.n, near = K.L.cells[c].n;
+    let touches = false;
+    for (let e = 0; e < n; e++) {
+      const j = near[e];
+      if (j < 0 || !S.tiles[j]) continue;
+      touches = true;
+      const mine = K.tile.labels[t][(e - rot + n) % n], theirs = tileEdge(K, S.tiles[j], (e + n / 2) % n).label;
+      if (mine !== theirs) return false;
+    }
+    return touches;
+  }
+
+  // the features on the board: segments joined across edges; open edges counted; a centre feature by its ring
+  function tileFeatures(K, S) {
+    const n = K.tile.n, parent = {}, open = {}, find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    const keyOf = (c, s) => c * 32 + s, out = [];
+    for (let c = 0; c < S.tiles.length; c++) {
+      const T = S.tiles[c];
+      if (!T) continue;
+      (K.tile.types[T.t].segments || []).forEach((g, s) => { if (!g.centre) { parent[keyOf(c, s)] = keyOf(c, s); open[keyOf(c, s)] = 0; } });
+    }
+    for (let c = 0; c < S.tiles.length; c++) {
+      const T = S.tiles[c];
+      if (!T) continue;
+      for (let e = 0; e < n; e++) {
+        const mine = tileEdge(K, T, e);
+        if (mine.seg < 0) continue;
+        const j = K.L.cells[c].n[e];
+        const other = j >= 0 && S.tiles[j] ? tileEdge(K, S.tiles[j], (e + n / 2) % n) : null;
+        if (other && other.seg >= 0) { const a = find(keyOf(c, mine.seg)), b = find(keyOf(j, other.seg)); if (a !== b) parent[a] = b; }
+        else open[keyOf(c, mine.seg)] += 1;
+      }
+    }
+    const groups = {};
+    for (const k in parent) {
+      const root = find(+k), c = Math.floor(+k / 32), s = +k % 32;
+      if (!groups[root]) groups[root] = { type: K.tile.types[S.tiles[c].t].segments[s].type, parts: [], cells: {}, open: 0, claims: [] };
+      groups[root].parts.push([c, s]);
+      groups[root].cells[c] = 1;
+      groups[root].open += open[k];
+    }
+    for (const g of Object.values(groups)) out.push({ type: g.type, parts: g.parts, size: Object.keys(g.cells).length, open: g.open, centre: false });
+    for (let c = 0; c < S.tiles.length; c++) {
+      const T = S.tiles[c];
+      if (!T) continue;
+      (K.tile.types[T.t].segments || []).forEach((g, s) => {
+        if (!g.centre) return;
+        const filled = K.tile.ring[c].filter((j) => S.tiles[j]).length;
+        out.push({ type: g.type, parts: [[c, s]], size: 1 + filled, open: K.tile.ring[c].length - filled, centre: true });
+      });
+    }
+    for (const f of out) f.claims = S.claims.filter((q) => f.parts.some(([c, s]) => c === q.c && s === q.s));
+    return out;
+  }
+
+  function tileLegal(K, S) {
+    if (S.over) return [];
+    const out = [];
+    if (S.phase === 'tile') {
+      for (let c = 0; c < S.tiles.length; c++) {
+        if (S.tiles[c]) continue;
+        for (let rot = 0; rot < K.tile.n; rot++) if (tileFits(K, S, c, S.drawn, rot)) out.push({ type: 'tile', at: c, rot });
+      }
+      if (!out.length) out.push({ type: 'redraw' });
+    } else {
+      if (S.stock[S.side] > 0) {
+        const feats = tileFeatures(K, S), T = S.tiles[S.last];
+        (K.tile.types[T.t].segments || []).forEach((g, s) => {
+          const f = feats.find((x) => x.parts.some(([c, q]) => c === S.last && q === s));
+          if (f && !f.claims.length) out.push({ type: 'claim', seg: s });
+        });
+      }
+      out.push({ type: 'skip' });
+    }
+    for (const m of out) m.name = m.type === 'tile' ? 'tile@' + K.L.cells[m.at].name + '/' + m.rot : m.type === 'claim' ? 'claim ' + K.tile.types[S.tiles[S.last].t].segments[m.seg].type + ' ' + m.seg : m.type;
+    return out;
+  }
+
+  // the claimed features done now pay (on `final`, every claimed one, at its rate); their claims return
+  function tilePay(K, N, final) {
+    const F = K.G.tiles.features || {};
+    for (const f of tileFeatures(K, N)) {
+      if (!f.claims.length) continue;
+      const done = f.open === 0;
+      if (!done && !final) continue;
+      const rate = F[f.type] ? (done ? F[f.type].complete : F[f.type].incomplete) : 0;
+      const count = K.players.map(() => 0);
+      for (const q of f.claims) count[q.side] += 1;
+      const top = Math.max.apply(null, count);
+      count.forEach((x, side) => { if (x === top) N.score[side] += rate * f.size; });
+      for (const q of f.claims) N.stock[q.side] += 1;
+      N.claims = N.claims.filter((q) => f.claims.indexOf(q) < 0);
+    }
+  }
+
+  function tileEnd(K, N) {
+    tilePay(K, N, true);
+    const top = Math.max.apply(null, N.score), lead = N.score.map((x, s) => (x === top ? s : -1)).filter((s) => s >= 0);
+    N.over = { winner: lead.length === 1 ? lead[0] : null, reason: 'score', scores: N.score.slice() };
+  }
+
+  function tileApply(K, S, m) {
+    const N = clone(S), side = S.side;
+    if (m.type === 'tile') {
+      if (S.phase !== 'tile' || S.tiles[m.at] || !tileFits(K, S, m.at, S.drawn, m.rot)) throw new Error('tabletop: the tile does not fit there');
+      N.tiles[m.at] = { t: S.drawn, rot: m.rot };
+      N.last = m.at;
+      N.drawn = null;
+      N.phase = 'claim';
+      return N;
+    }
+    if (m.type === 'redraw') {
+      N.drawn = N.bag.shift() || null;
+      if (!N.drawn) tileEnd(K, N);
+      return N;
+    }
+    if (m.type === 'claim') {
+      N.claims.push({ c: S.last, s: m.seg, side });
+      N.stock[side] -= 1;
+    }
+    // the turn ends: what is done pays, the next player draws
+    tilePay(K, N, false);
+    N.side = (side + 1) % K.players.length;
+    N.turn = S.turn + 1;
+    N.phase = 'tile';
+    N.drawn = N.bag.shift() || null;
+    if (!N.drawn) tileEnd(K, N);
+    return N;
   }
 
   // ── the economy: euro games ─────────────────────────────────────────────────────────────────────────────────────
@@ -1207,6 +1401,13 @@ export function buildTabletop() {
   // what `side` may know: the cards it cannot see dealt again at random from those unseen (the deck, the others'
   // hands), the dice ahead unknowable; seeded, so a mind's guess is its own and the same each time
   function view(K, S, side, seed) {
+    if (K.tile) {
+      // the bag's order is what nobody knows: dealt again for the viewer
+      const N = clone(S);
+      N.r = mixSeed(seed || 1, S.turn, side);
+      for (let i = N.bag.length - 1; i > 0; i--) { const j = Math.floor(rnd(N) * (i + 1)); const t = N.bag[i]; N.bag[i] = N.bag[j]; N.bag[j] = t; }
+      return N;
+    }
     if (!K.euro) return S;
     const N = clone(S);
     N.r = mixSeed(seed || 1, S.turn, side);
@@ -1231,7 +1432,7 @@ export function buildTabletop() {
     return S.board[p] < 0 && placeOf(K, p) === K.P.on[kind] && needs(K, S, side, kind, p, ((K.G.build || {})[kind] || {}).need);
   }
 
-  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf };
+  return { compile, start, legal, apply, outcome, attacked, perft, key, view, moveName, turn, mirror: mir, actor: actorOf, score, income, trail, placeName, placeOf, legalPlace, validOffer, scores, connectDistance, lineWindows, groupAt, sidesOf, tileFeatures, tileFits };
 }
 
 const _tabletop = buildTabletop();

@@ -303,8 +303,50 @@ export function buildTabletopMind(T) {
     return { move, score: pick.v, depth: o.depth, nodes: scored.length };
   }
 
+  // ── tiles ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  // A seat's worth in a tile game: its points, and each feature it holds most claims in at what it would pay (done, at
+  // a chance falling with its open edges; else the end's rate), a claim still in hand worth more the fuller the bag;
+  // less a share of the leader's. A placement is weighed with the best claim it allows (or none), the bag never looked into.
+  function tileWorth(K, S, side) {
+    const F = K.G.tiles.features || {}, feats = T.tileFeatures(K, S);
+    // a claim in hand is worth more while many tiles are left to use it on
+    const total = Object.values(K.G.tiles.bag || {}).reduce((x, y) => x + y, 0) || 1;
+    const inHand = 1.2 + 3 * S.bag.length / total;
+    const seat = K.players.map((_, s) => S.score[s] + inHand * S.stock[s]);
+    for (const f of feats) {
+      if (!f.claims.length) continue;
+      const count = K.players.map(() => 0);
+      for (const q of f.claims) count[q.side] += 1;
+      const top = Math.max.apply(null, count), rate = F[f.type] || { complete: 0, incomplete: 0 };
+      const p = f.open === 0 ? 1 : 1 / (1 + 0.7 * f.open);
+      const done = f.centre ? 9 * rate.complete : (f.size + Math.min(f.open, 3)) * rate.complete;
+      const value = p * done + (1 - p) * f.size * rate.incomplete;
+      count.forEach((x, s) => { if (x === top) seat[s] += value; });
+    }
+    let other = -Infinity;
+    for (let s = 0; s < seat.length; s++) if (s !== side) other = Math.max(other, seat[s]);
+    return seat[side] - 0.5 * other;
+  }
+  function planTiles(K, S, o) {
+    const real = T.legal(K, S);
+    if (!real.length) return null;
+    const side = S.side, V = T.view(K, S, side, o.seed);
+    const roll = dice((o.seed * 2654435761) ^ (S.turn * 40503) ^ side);
+    const bestClaim = (N) => {
+      let best = -Infinity;
+      for (const m of T.legal(K, N)) best = Math.max(best, tileWorth(K, T.apply(K, N, m), side));
+      return best;
+    };
+    const scored = T.legal(K, V).map((m) => ({ m, v: m.type === 'tile' ? bestClaim(T.apply(K, V, m)) : tileWorth(K, T.apply(K, V, m), side) }));
+    const top = Math.max.apply(null, scored.map((x) => x.v));
+    const near = scored.filter((x) => x.v >= top - o.slack - 1e-9);
+    const pick = near[Math.floor(roll() * near.length)];
+    return { move: real.find((m) => m.name === pick.m.name) || real[0], score: pick.v, depth: 1, nodes: scored.length };
+  }
+
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4 }, opts || {});
+    if (K.tile) return planTiles(K, S, o);
     if (K.euro) return planTurn(K, S, o);
     const all = T.legal(K, S);
     if (!all.length) return null;
