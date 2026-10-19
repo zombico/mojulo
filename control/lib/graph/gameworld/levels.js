@@ -131,7 +131,7 @@ export function cityStages(level, C, map = false) {
   while (queue.length) { const a = queue.shift(); for (const nb of byId.get(a).neighbours) if (!hops.has(nb.id)) { hops.set(nb.id, hops.get(a) + 1); prev.set(nb.id, a); queue.push(nb.id); } }
   const to = C.to ?? [...hops.keys()].reduce((b, id) => (hops.get(id) > hops.get(b) ? id : b), from);
   if (!hops.has(to)) throw new Error(`gameworld: ${name('to')} '${to}' cannot be reached from '${from}' through the city's portals`);
-  const stage = (segment, i, lv) => ({ level, node: segment, section: 'city', index: i, city: { segment, neighbours: byId.get(segment).neighbours.map((n) => n.id) }, manifest: { kind: 'city', ...recipe, level: { segment, ...lv } } });
+  const stage = (segment, i, lv) => ({ level, node: segment, section: 'city', index: i, city: { segment, neighbours: byId.get(segment).neighbours.map((n) => n.id), ...(C.stalker ? { stalker: true } : {}) }, manifest: { kind: 'city', ...recipe, level: { segment, ...lv } } });
   if (map) {
     const order = [from, ...segs.map((x) => x.id).filter((id) => id !== from && id !== to && hops.has(id)), ...(to !== from ? [to] : [])];
     return order.map((id, i) => stage(id, i, {}));
@@ -142,13 +142,16 @@ export function cityStages(level, C, map = false) {
 
 /** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
  *  ways out of the city (`map`: mapPlan's for this stage) at its start (back) or its farthest crossing (on). The
- *  segment's own first-person walker plays it: a city is in its own units, not the hero's metres. */
-function cityLevelOrder(G, stage, { title, map = null, cityRefs = {} } = {}) {
+ *  segment's own first-person walker plays it: a city is in its own units, not the hero's metres. A stalker's city
+ *  (`city.stalker`) is played by the world's hero instead (`level.hero`), turned into the city's units where it is
+ *  lowered (city/plan/level.js); with no hero, a stand-in. */
+function cityLevelOrder(G, stage, { title, map = null, cityRefs = {}, heroRef = null, heroGaits = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   if (map && ((map.keys ?? []).length || (map.powers ?? []).length)) throw new Error(`levels: a key is laid in '${stage.level}', a city: lay it in a walk's level (links[].keyAt)`);
   const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
-  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}) } };
+  const hero = stage.city.stalker ? { hero: { ...(heroRef ? { ref: heroRef } : {}), ...(heroRef && heroGaits ? { gaits: heroGaits } : {}) } } : {};
+  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}), ...hero } };
   return { tool: 'create_sketch', args: { title: name, manifest } };
 }
 
@@ -331,7 +334,7 @@ function withOwnMoves(L, byRef) {
 
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
-  if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
+  if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal

@@ -63,6 +63,9 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
+  // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
+  const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
   // a bone part carrying metal (a hero wearing its cube's materials, rig-bake.js `metal`): the metal channel's patch on
   // its mesh. Soup parts only (the hero's encoding); no metal part → the emitted channel is byte-identical
   const rigMetalHook = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.parts) && f.parts.some((p) => p && p.metal))
@@ -439,7 +442,8 @@ function __makeRigGroup(fig, b) {
     group.add(mesh);
     return mesh;
   });
-  scene.add(group);
+  scene.add(group);${bodyScaled ? `
+  if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,
     yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };
   // muzzle locator: an empty child of the weapon bone mesh at the muzzle's bone-local rest point,

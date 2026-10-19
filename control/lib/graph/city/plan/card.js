@@ -176,7 +176,7 @@ export function readCityPlan(rec) {
   const segments = readSegments(rec.segments, play);
   let level = null;
   if (rec.level !== undefined) {
-    keys(rec.level, 'level', ['segment', 'refs', 'route', 'ways']);
+    keys(rec.level, 'level', ['segment', 'refs', 'route', 'ways', 'hero']);
     if (!segments) no('level: a city is played by its segments: give it segments: true (or { across })');
     if (typeof rec.level.segment !== 'string') no("level.segment is the segment this level plays ('r1c2': the book's Segments sheet names them)");
     if (rec.level.refs !== undefined && !(isObj(rec.level.refs) && Object.values(rec.level.refs).every((v) => typeof v === 'string'))) no("level.refs is { <segment id>: <its level's ref> }, for neighbours whose levels are not '<city ref>-<segment id>'");
@@ -189,6 +189,11 @@ export function readCityPlan(rec) {
     if (rec.level.ways !== undefined) {
       const w = rec.level.ways;
       if (!Array.isArray(w) || !w.every((x) => isObj(x) && typeof x.id === 'string' && typeof x.to === 'string' && ['start', 'end'].includes(x.at) && Object.keys(x).every((k) => ['id', 'to', 'at', 'gate'].includes(k)))) no("level.ways is [{ id, to, at: 'start' | 'end', gate? }]: the world's ways out of the city, at the segment's start or its farthest crossing");
+    }
+    // a hero plays it (level.js cityHero): a made character by ref, or a stand-in with none
+    if (rec.level.hero !== undefined) {
+      const h = rec.level.hero;
+      if (!isObj(h) || Object.keys(h).some((k) => !['ref', 'gaits'].includes(k)) || (h.ref !== undefined && typeof h.ref !== 'string') || (h.gaits !== undefined && !(Array.isArray(h.gaits) && h.gaits.every((g) => typeof g === 'string')))) no("level.hero is { ref?, gaits? }: the made character who plays the segment third person (its sketch ref; none plays a stand-in) and its own door gaits");
     }
     level = rec.level;
   }

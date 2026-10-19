@@ -15,12 +15,22 @@
  *   - a segment with no neighbours: its goal is the crossing farthest along the walk from its spawn
  *
  * Everything is in the world's units (the legacy city's, CITY_METERS_PER_UNIT).
+ *
+ * THE HERO (opt-in `level.hero`: { ref?, gaits? }, the city stalker): a third-person hero plays the segment in place of
+ * the walker. It is the player slot every game uses (playscape/player.js playerWorld: the platform rule, a figure-rig
+ * body, its clips), tuned in metres (CITY_HERO) and turned into the city's units once here: every length and speed of
+ * its rule and its camera divided by the unit, its body drawn at 1 / unit. With no `ref` a stand-in box plays it. Its
+ * roofs are ground (a lot's box top, the page's faces and the sim's alike), the page's wall pull-in keeps a tower from
+ * standing between the chase camera and the hero (its stand-off read off the hero's own capsule, so it holds in the
+ * city's units: follow-pull-in.js), and the segment's edges rise to the sky (a hero who climbs is not held by
+ * a walker's 8 m wall). Absent, the walker plays it, byte for byte.
  */
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { registerLevelKind } from '../../structure/level.js';
 import { designCity } from './design.js';
 import { lobbyOf, LOBBY } from './doors.js';
 import { cityGreen, PLANTER } from './green.js';
+import { playerWorld } from '../../playscape/player.js';
 // a tree's trunk as a walker meets it (m, half its side)
 const TRUNK = 0.35;
 
@@ -28,6 +38,20 @@ const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const u = (v) => r3(v / U);
 export const CITY_LEVEL = Object.freeze({ eye: 1.7, speed: 5, wall: 8, arrive: 7, radius: 0.4 });
+/** The city's hero, in metres: its rule's run, jump and fall (a person's, as playerWorld's, falling as the platform rule
+ *  does by default), its capsule, the chase camera, and the sky its edges rise to over the tallest mass in reach. */
+export const CITY_HERO = Object.freeze({
+  rule: { speed: 6, jumpSpeed: 6.5, gravity: 20, maxFall: 26, step: 0.35, snap: 0.15, collideRadius: 0.35, collideHeight: 1.7 },
+  camera: { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
+  standIn: { size: [0.5, 0.5, 1.7], color: '#d8b04a' },
+  sky: 60,
+});
+// the lengths a platform rule reads (and its speeds and accelerations, in lengths per second): the ones a unit divides
+const RULE_LENGTHS = ['speed', 'jumpSpeed', 'gravity', 'fallGravity', 'maxFall', 'step', 'snap', 'stride', 'collideRadius', 'collideHeight', 'eye', 'glideFall'];
+/** A rule in metres, in the city's units. */
+export function ruleInUnits(rule) {
+  return Object.fromEntries(Object.entries(rule).map(([k, v]) => [k, RULE_LENGTHS.includes(k) && Number.isFinite(v) ? u(v) : v]));
+}
 
 const inside = (rect, x, y, m = 0) => x >= rect.x0 - m && x <= rect.x1 + m && y >= rect.y0 - m && y <= rect.y1 + m;
 
@@ -49,7 +73,7 @@ function walkPath(g, from, to) {
 }
 
 /** The level a segment makes, in units: { spawn, heading, exits, arrivals, goal?, colliders, via }; or { error }. */
-export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null, ways = [] } = {}) {
+export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null, ways = [], hero = false } = {}) {
   const seg = (d.segments || []).find((s) => s.id === segId);
   if (!seg) return { error: `the city has no segment '${segId}' (${(d.segments || []).map((s) => s.id).join(', ') || 'cut it with segments: true'})` };
   const R = seg.rect, cx = (R.x0 + R.x1) / 2, cy = (R.y0 + R.y1) / 2, g = d.walk;
@@ -120,7 +144,8 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null
     colliders.push({ min: [u(g.x - r), u(g.y - r), 0], max: [u(g.x + r), u(g.y + r), u(h)], of: `green:${g.key}` });
   }
   for (const s of d.sites) if (s.mass && !(s.mass.x1 < R.x0 - reach || s.mass.x0 > R.x1 + reach || s.mass.y1 < R.y0 - reach || s.mass.y0 > R.y1 + reach)) colliders.push({ min: [u(s.mass.x0), u(s.mass.y0), 0], max: [u(s.mass.x1), u(s.mass.y1), u(s.mass.h)], of: `site:${s.id}` });
-  const T = 0.5, H = CITY_LEVEL.wall;
+  // a hero's segment is walled to the sky: over the tallest mass in reach, so no climb or jump leaves it but by a street
+  const T = 0.5, H = hero ? Math.max(CITY_LEVEL.wall, ...colliders.map((c) => c.max[2] * U)) + CITY_HERO.sky : CITY_LEVEL.wall;
   const side = (name, a0, a1, fixed, horizontal) => {
     const gaps = open.filter((x) => x.side === name).map((x) => [(horizontal ? x.at[0] : x.at[1]) - x.gap, (horizontal ? x.at[0] : x.at[1]) + x.gap]).sort((p, q) => p[0] - q[0]);
     let a = a0;
@@ -148,9 +173,11 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null
  * and the walls. `ref` is the level's own sketch ref; `cityRef` the city it was cut from.
  */
 export function withCityLevel(m, d, ref) {
-  const L = segmentLevel(d, m.level.segment, { refs: m.level.refs ?? {}, cityRef: m.cityRef ?? null, route: m.level.route ?? null, ways: m.level.ways ?? [] });
+  const H = m.level.hero ?? null;
+  const L = segmentLevel(d, m.level.segment, { refs: m.level.refs ?? {}, cityRef: m.cityRef ?? null, route: m.level.route ?? null, ways: m.level.ways ?? [], hero: !!H });
   if (L.error) throw new Error(`level: ${L.error}`);
-  const eye = u(CITY_LEVEL.eye);
+  const pilot = H ? cityHero(H, L) : null;
+  const eye = pilot ? pilot.eye : u(CITY_LEVEL.eye);
   const via = L.via.length ? { via: L.via } : {};
   // on a route the level ends (success) at its way on, or its end: no exit named, the line's gates do the rest
   const mechanics = L.route
@@ -164,14 +191,45 @@ export function withCityLevel(m, d, ref) {
   const eyeAt = (p) => [p[0], p[1], 0];
   const doorMechs = L.doors.map((x) => ({ kind: 'door', id: x.id, at: eyeAt(x.at), radius: x.radius, spawn: eyeAt(x.spawn), heading: x.heading }));
   const game = { levelRef: ref, mechanics: [...doorMechs, ...mechanics], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
+  const reactions = arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: pilot ? pilot.id : 'player', to: [x.arrive[0], x.arrive[1], eye] }));
+  if (pilot) {
+    return {
+      ...m,
+      game,
+      ...(pilot.figures ? { figures: { ...(m.figures || {}), ...pilot.figures } } : {}),
+      entities: [pilot.entity],
+      camera: pilot.camera,
+      events: { ...pilot.events, reactions: [...(pilot.events.reactions || []), ...reactions] },
+      colliders: L.colliders,
+      walk: false,
+    };
+  }
   return {
     ...m,
     game,
     entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: r3(CITY_LEVEL.speed / U), turn: 2.4, eye, turnMode: 'look', lookPitch: true, keyTurn: true, strafe: 1, collideRadius: u(CITY_LEVEL.radius), collideHeight: eye }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], eye], heading: L.heading } }],
     camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true },
-    events: { reactions: arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: 'player', to: [x.arrive[0], x.arrive[1], eye] })) },
+    events: { reactions },
     colliders: L.colliders,
     walk: false,
+  };
+}
+
+/** The hero who plays a segment (`level.hero`), in the city's units: the player slot's entity at the spawn, its figure
+ *  (a made character by `ref`, drawn at 1 / unit) or a stand-in box, the chase camera, and the controls legend. The stand-in stands at its half height (a box body is drawn about the entity's point). */
+function cityHero(H, L) {
+  const C = CITY_HERO.camera, legend = 'W / S  run · A / D  turn · Space  jump';
+  const P = playerWorld({ heroRef: H.ref ?? 'none', ...(H.gaits ? { gaits: H.gaits } : {}), id: 'hero', controls: legend });
+  const standIn = !H.ref, half = CITY_HERO.standIn.size[2] / 2;
+  const rule = ruleInUnits({ ...P.entities[0].rule, ...CITY_HERO.rule, ...(standIn ? { eye: half } : {}) });
+  const eye = standIn ? u(half) : 0;
+  const body = standIn ? { type: 'mesh', shape: 'box', size: CITY_HERO.standIn.size.map(u), color: CITY_HERO.standIn.color } : { ...P.entities[0].body, scale: r3(1 / U) };
+  return {
+    id: 'hero', eye,
+    ...(standIn ? {} : { figures: P.figures }),
+    entity: { ...P.entities[0], rule, body, transform: { pos: [L.spawn[0], L.spawn[1], eye], heading: L.heading } },
+    camera: { rule: 'follow', target: 'hero', dist: u(C.dist), height: u(C.height), lookH: u(C.lookH), lead: u(C.lead) },
+    events: P.events || {},
   };
 }
 

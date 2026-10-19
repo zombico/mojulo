@@ -38,6 +38,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The probe reads blocked on exactly those four. Its Godot export would lose the city level, which no Godot fixture
   plays yet.
+- **The district as a stage.** A city segment can be played by a hero, third person (`level.hero: { ref?, gaits? }` on
+  a city level; a gameworld's `city.stalker: true` names the world's hero on every segment).
+  - **The hero** is the player slot every game uses: the platform rule, a figure-rig body and its clips. It is tuned in
+    metres (`CITY_HERO`) and turned into the city's units once (`ruleInUnits`). With no `ref`, a stand-in box plays it.
+  - **Roofs are ground.** A lot's box top is ground on the page and in the headless sim alike.
+  - **The edges rise to the sky:** over the tallest mass in reach, so only a street leads out.
+  - **The camera** chases the hero. The page's own wall pull-in keeps towers out of the frame: its stand-off is read off
+    the hero's capsule, so it holds in the city's units.
+
+  One engine addition, opt-in: a rig body's `body.scale`. The page draws the body at that scale, and the code is emitted
+  only when some body carries one.
+
+  Without `level.hero`, the walker plays the segment as before.
 
 ### Epidermis cube: skin and hair as a recipe
 

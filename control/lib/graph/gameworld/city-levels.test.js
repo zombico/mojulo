@@ -121,3 +121,23 @@ describe('the bible and the graph draw it', () => {
     expect(g.nodes.some((n) => n.id === 'section:downtown/city')).toBe(true);
   });
 });
+
+// A STALKER'S city (`city.stalker`, the city stalker): each segment played by the world's hero, third person, in place
+// of the first-person walker; with no hero, a stand-in. Absent, every segment is the walker's.
+describe('a stalker\'s city is played by the world\'s hero', () => {
+  const W = withCity(MEADOWMARK, { ...CITY, stalker: true }), G = readGameworld(W), mine = gameStages(W).filter((s) => s.level === 'downtown');
+  it('names the hero on every segment, and the walker plays a city without it', () => {
+    for (const s of mine) expect(stageLevelOrder(G, s, { ref: 'x', heroRef: 'sk_hero', heroGaits: ['jog'] }).args.manifest.level.hero).toEqual({ ref: 'sk_hero', gaits: ['jog'] });
+    expect(stageLevelOrder(G, mine[0], { ref: 'x' }).args.manifest.level.hero).toEqual({});
+    const plain = gameStages(withCity(MEADOWMARK)).filter((s) => s.level === 'downtown');
+    expect(stageLevelOrder(readGameworld(withCity(MEADOWMARK)), plain[0], { ref: 'x', heroRef: 'sk_hero' }).args.manifest.level.hero).toBeUndefined();
+  });
+  it('lowers to the platform hero and its chase camera', () => {
+    const L = withBuildingLevel(stageLevelOrder(G, mine[0], { ref: 'gw-0', heroRef: 'sk_hero' }).args.manifest, 'gw-0');
+    expect(L.entities[0]).toMatchObject({ id: 'hero', rule: { type: 'platform' }, body: { type: 'figure-rig', figure: 'hero' } });
+    expect(L.camera.rule).toBe('follow');
+  });
+  it('is true or false', () => {
+    expect(() => readGameworld(withCity(MEADOWMARK, { ...CITY, stalker: 'yes' }))).toThrow(/city.stalker is true or false/);
+  });
+});
