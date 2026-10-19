@@ -10,6 +10,8 @@
  *     depth the turns looked ahead (2); nodes the positions it may weigh before it settles on the deepest search it
  *     finished (40000); slack how far below the best a move may score and still be picked, an easier opponent (0);
  *     quiet captures followed past the horizon, so it does not stop counting mid-exchange (4)
+ *     use the share of a turn's capacity-spending options seen (utilization; 1); search 'auto' (search where it measured
+ *     stronger than the game's planner) | 'mcts' (always); mcts { playouts, horizon, prior, centre, scale, explore }
  *   LEVELS { easy, fair, hard }: the dials for each
  *   evaluate(K, S, side) → score   from `side`'s seat; a pawn is 1
  *
@@ -29,7 +31,7 @@
 
 export function buildTabletopMind(T) {
   const WIN = 10000;
-  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2, use: 0.7 }, fair: { depth: 2, slack: 0.05, use: 0.92 }, hard: { depth: 3, use: 1 } };
+  const LEVELS = { easy: { depth: 1, slack: 0.6, quiet: 2, use: 0.7 }, fair: { depth: 2, slack: 0.05, use: 0.92 }, hard: { depth: 3, use: 1, search: 'auto' } };
   // capacity used over capacity idle, when worths are close: so much a unit spent (a coin, a buy, a worker placed)
   const TEMPO = 0.02;
 
@@ -669,7 +671,10 @@ export function buildTabletopMind(T) {
   // not starved), one new node, then a playout of `horizon` moves (one that acts is preferred to one that ends a turn
   // or passes) scored by the game's own worth for every seat, squashed to 0..1 (a win 1, a loss 0). The move most
   // visited is played. Seeded and bounded by a count, never a clock.
-  const MCTS = { playouts: 160, horizon: 6, explore: 0.9, scale: 6 };
+  //   prior: w   the game's own judgement one move deep, the first time a position is chosen from, orders the untried
+  //              moves and biases the choice by w × prior / (1 + visits) (a move unseen then counts as even)
+  //   centre     a worth counted as its change since the root, so a game whose worths run large is not flattened
+  const MCTS = { playouts: 160, horizon: 6, explore: 0.9, scale: 6, prior: 0, centre: false };
   function worthOf(K, S, side) {
     if (K.round) return K.G.round.turn ? (K.G.round.supply ? deckWorth(K, S, side) : duelWorth(K, S, side)) : roundWorth(K, S, side);
     if (K.card) return cardWorth(K, S, side);
@@ -677,9 +682,11 @@ export function buildTabletopMind(T) {
     if (K.euro) return seat(K, S, side);
     return evaluate(K, S, side);
   }
-  function rewards(K, N, scale) {
+  // a playout's end for every seat: a win 1, a loss 0; else the change in the seat's worth since the root, squashed
+  // (centred, so a game whose worths run large is not flattened at one end)
+  function rewards(K, N, scale, base) {
     if (N.over) return K.players.map((_, s) => (N.over.winner === s ? 1 : N.over.winner === null ? 0.5 : 0));
-    return K.players.map((_, s) => 1 / (1 + Math.exp(-worthOf(K, N, s) / scale)));
+    return K.players.map((_, s) => 1 / (1 + Math.exp(-(worthOf(K, N, s) - (base ? base[s] : 0)) / scale)));
   }
   function mcts(K, S, o) {
     const real = T.legal(K, S);
@@ -689,6 +696,7 @@ export function buildTabletopMind(T) {
     const P = Object.assign({}, MCTS, o.mcts || {});
     const root = { visits: 0, kids: {} };
     const quiet = (m) => m.type === 'end' || m.type === 'pass' || m.type === 'skip';
+    const V0 = T.view(K, S, side, o.seed), base = P.centre ? K.players.map((_, s) => worthOf(K, V0, s)) : null;
     for (let i = 0; i < P.playouts; i++) {
       let N = T.view(K, S, side, (o.seed * 7919 + i * 104729) | 0), node = root;
       const path = [];
@@ -696,15 +704,24 @@ export function buildTabletopMind(T) {
         const moves = T.legal(K, N);
         if (!moves.length) break;
         for (const x of moves) if (node.kids[x.name]) node.kids[x.name].avail += 1;
+        // the game's own judgement, one move deep, as each move's prior: the first time a position is chosen from
+        if (P.prior && !node.prior) {
+          node.prior = {};
+          for (const x of moves) node.prior[x.name] = 1 / (1 + Math.exp(-(worthOf(K, T.apply(K, N, x), N.side) - (base ? base[N.side] : 0)) / P.scale));
+        }
         const fresh = moves.filter((x) => !node.kids[x.name]);
         let m;
         if (fresh.length) {
-          m = fresh[Math.floor(roll() * fresh.length)];
+          // untried moves: the best prior first (the dice between equals), else any
+          // (a move legal only in this deal, unseen when the priors were taken, counts as even)
+          if (node.prior) { let top = -Infinity; for (const x of fresh) { const q = (node.prior[x.name] === undefined ? 0.5 : node.prior[x.name]) + roll() * 1e-6; if (q > top) { top = q; m = x; } } }
+          else m = fresh[Math.floor(roll() * fresh.length)];
           node.kids[m.name] = { visits: 0, value: 0, avail: 1, kids: {} };
         } else {
           let best = -Infinity;
           for (const x of moves) {
-            const c = node.kids[x.name], u = c.value / c.visits + P.explore * Math.sqrt(Math.log(c.avail) / c.visits);
+            const c = node.kids[x.name];
+            const u = c.value / c.visits + P.explore * Math.sqrt(Math.log(c.avail) / c.visits) + (node.prior ? P.prior * (node.prior[x.name] === undefined ? 0.5 : node.prior[x.name]) / (1 + c.visits) : 0);
             if (u > best) { best = u; m = x; }
           }
         }
@@ -720,7 +737,7 @@ export function buildTabletopMind(T) {
         const act = L.filter((x) => !quiet(x)), pool = act.length && roll() < 0.75 ? act : L;
         N = T.apply(K, N, pool[Math.floor(roll() * pool.length)]);
       }
-      const r = rewards(K, N, P.scale);
+      const r = rewards(K, N, P.scale, base);
       for (const p of path) { p.node.visits += 1; p.node.value += r[p.mover]; }
       root.visits += 1;
     }
@@ -730,9 +747,33 @@ export function buildTabletopMind(T) {
     return { move: best.m, score: best.c.value / best.c.visits, depth: 1, nodes: root.visits };
   }
 
+  // Which mind plays: search, or the game's own planner. A level asking for 'auto' (hard) gets search only where it
+  // measured stronger than the planner, with the settings that measured best: tiles drawn from a hidden bag (400
+  // playouts, priors from the game's worth, centred, six-move playouts: 9 of 12 against the tile planner at 500), and
+  // placement games whose drops flip lines, which the planner's terms do not read (full playouts: 8 of 8 against
+  // alpha-beta). Elsewhere it held even or lost: the duels (even, at fifty to three hundred times the cost), deck
+  // building (lost: long turns of one player's moves it could not order), perfect-information boards (alpha-beta with
+  // the game's own terms won). A game may decide for itself: G.mind.search 'mcts' (search at hard, its
+  // G.mind.playouts) or 'plan' (never). Easier levels keep the planners, which carry the difficulty dials.
+  const SEARCHED = {
+    tiles: { prior: 1, centre: true, horizon: 6, scale: 3, playouts: 400 },
+    flip: { horizon: 60, playouts: 600 },
+    asked: { prior: 1, centre: true, horizon: 6, scale: 3, playouts: 300 },
+  };
+  function searchFor(K, o) {
+    const g = (K.G.mind || {}).search;
+    if (o.search === 'mcts') return {};
+    if (o.search !== 'auto' || g === 'plan') return null;
+    if (g === 'mcts') return Object.assign({}, SEARCHED.asked, K.G.mind.playouts ? { playouts: K.G.mind.playouts } : {});
+    if (K.tile) return SEARCHED.tiles;
+    if (K.drops && K.drops.some((d) => d.flip)) return SEARCHED.flip;
+    return null;
+  }
+
   function think(K, S, opts) {
     const o = Object.assign({ depth: 2, nodes: 40000, seed: 1, slack: 0, quiet: 4, use: 1 }, opts || {});
-    if (o.search === 'mcts') return mcts(K, S, o);
+    const searched = searchFor(K, o);
+    if (searched) return mcts(K, S, Object.assign({}, o, { mcts: Object.assign({}, searched, o.mcts) }));
     if (K.round) return K.G.round.turn ? planDuel(K, S, o) : planRounds(K, S, o);
     if (K.card) return planCards(K, S, o);
     if (K.tile) return planTiles(K, S, o);

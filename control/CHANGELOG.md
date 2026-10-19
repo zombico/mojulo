@@ -320,6 +320,19 @@ in CSS 3D. In progress:
   easy 8 of 12; on turns deck building the computer beats random 6 of 6 and hard beats easy 6 of 6; every other mode,
   the response duel too, replays move for move; perft unchanged; the kernel grew to 132,580 bytes and the mind to
   42,449.
+- **The engine, stage 6: Monte Carlo search as the third mind**, built, and placed where it measured stronger. The
+  search gains priors (the game's own judgement one move deep orders the untried moves and biases the choice, fading
+  with visits; a move legal only in some deals of what is hidden counts as even) and centred values (a worth counted
+  as its change since the root, so a game whose worths run large is not flattened). Measured against each game's
+  hard planner: tiles 9 of 12 (500 playouts, about a second a move), placement whose drops flip lines 8 of 8 (the
+  planner's terms do not read it), four in a row about even, the duels about even at fifty to three hundred times
+  the cost, deck building and connection and enclosure lost (long one-player turns it could not order; alpha-beta
+  with the game's own terms on small perfect-information boards). So hard (`search: 'auto'`) searches the tile game
+  (400 playouts) and games whose drops flip, and keeps the planners everywhere else; easier levels keep the
+  planners, which carry the difficulty dials; a written game may decide for itself (`mind: { search: 'mcts' | 'plan',
+  playouts }`). Seeded and bounded by playouts, never a clock: the same position and seed give the same move. On the
+  tile page the computer at hard takes about a second and a half a turn in the browser. Every game at fair replays
+  move for move as before.
 - **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
   against the computer, chess or checkers from the book or a game written out from the systems, with the person's
   side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person
