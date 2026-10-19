@@ -28,14 +28,28 @@ Opt-in and versioned: a default hero keeps its bytes.
   (a crease's compression, the far side's stretch, folds through itself). Each ring keeps its worst frame, and the knee,
   elbow, hip and shoulder are gathered as regions. The bands carry the read: the hero binds its knee and elbow rings
   rigidly to fold bones, so a ring keeps its area however far the joint bends, and the joint gives in the skin between
-  rings. The baseline, male (female alike within a few hundredths): the hip's band stretches to 2.5× its rest length
-  in the sprint and compresses to 0.55, the knee's to 2.1× and 0.61, the elbow's to 1.6× and 0.75 in the guard; the
-  shoulder's top ring loses a quarter of its area in the sprint and twists 9° off its bone in the relaxed stand; the
-  foot's heel ring keeps 40% of its area at the sprint's push. The SEAMS, where one part's tube is tucked into the
+  rings. The baseline, male (female alike within a few hundredths), on the gaits as minted now (the swing foot
+  following its leg, below): the hip's band stretches to 2.5× its rest length in the sprint and compresses to 0.67 in
+  the walk, the knee's to 2.15× and 0.65, the elbow's to 1.6× and 0.75 in the guard; the shoulder's top ring loses a
+  quarter of its area in the sprint and twists 9° off its bone in the relaxed stand; the foot's rings keep a third of
+  their area and the ankle's ring twists 21° (male) to 39° (female) off the shank at the sprint's curled foot. The SEAMS, where one part's tube is tucked into the
   next (the groin, the armpit, the elbow, the knee, the neck), read whether the child's end ring stays inside its
   parent: the groin and the armpit hold through every frame (the hip's and the shoulder's give is all in their bands),
   while the elbow's and the knee's open: at the hand-on-hip's bent elbow the forearm's tucked slots come 41 mm out of
-  the upper arm, and at the sprint's knee the shank's top comes 11 mm (male) to 32 mm (female) out of the thigh.
+  the upper arm, and at the sprint's knee, folded as far as the gait means it to (130°), the shank's top comes 41 mm
+  out of the thigh.
+- **The swing foot follows its leg.** In a hero's walk, jog and sprint the foot in its swing was held level with the
+  floor (the toe placed, the ankle rebuilt at the standing heel), so as a run's recovery folded the knee the toes
+  pointed forward, and as the knee drove through they were pulled up against the shin. With the hero dial `swingFoot`
+  (stamped on every hero gait minted now, the walk's `HERO_WALK` and the run's new `HERO_RUN`; a hero stored before keeps
+  its level foot, byte for byte) the swing foot rides its shank at the ankle's standing angle, square to it, eased in
+  over the first 30% of the swing and handed back to the flat landing over the last quarter: the tucked foot points out
+  behind, and comes round under the knee as it drives through. The rig takes a new channel, `toeTurnL` / `toeTurnR`
+  (degrees the toes turn about the ball with a targeted foot; absent, level as a push-off needs), so the swing foot's
+  toes turn with it, never hooked back level, cut short where their tip would dip under the floor. The recovery now
+  folds as far as the gait means it to (the sprint's `swingTuck`: the level foot had held the knee shallower). Through
+  the sprint and the jog the swing ankle stays within 3° of its standing angle; no toe goes through the floor, and each
+  gait's speed is unchanged.
 - **The body lane** (the `body-study` skill). The hero's body as an engine gets it, the skinned cage shaded smooth,
   from the front, the front ¾, the lateral, the back and below; rows posed at the bind, a gait at a phase, a stand
   gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the

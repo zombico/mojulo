@@ -26,7 +26,7 @@ import { AURAS, heroAura } from './hero-aura.js';
 import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
 import { STRIKES, heroStrike } from './hero-strike.js';
 import { RESTS } from './hero-rest.js';
-import { GAITS, HERO_WALK } from './hero-gaits.js';
+import { GAITS, HERO_WALK, HERO_RUN } from './hero-gaits.js';
 import { VAULTS } from './hero-vault-moves.js';
 import { heroVault } from './hero-vault.js';
 import { HOLD_WORDS, GUARD_WORDS } from './hero-held-words.js';
@@ -75,9 +75,10 @@ function needAt(hip, toe, heelRest, heel, reach) {
  * @param {{ footY?: { [side]: number } }} [opt]  a stance toe's fore-aft place, overriding the forward-kinematic one
  *   (heroLocomotion's constant-speed stance; absent for a side in swing); `swing` the side's place in its swing, 0 … 1
  *   (lifted off the floor between the ends); `sink` the root's drop and `heel` each side's heel (degrees up), when the
- *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone
+ *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone; `swingFoot` a timed
+ *   swing's foot following its own shank (HERO_RUN)
  */
-export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null } = {}) {
+export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null, swingFoot = false } = {}) {
   const { plant, support, heelLift: _heel, ...own } = dof || {};   // the rig lifts its own heels (heelL / heelR, below)
   const free = rigNodesAt(R, { ...own, support: 'none' }).nodes;
   const sides = Object.keys(R.legs); const rest = R.joints; const legs = {};
@@ -101,9 +102,26 @@ export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = nu
   }
   // heroLocomotion's sink: one smooth curve over the whole cycle, at or above every phase's need
   if (Number.isFinite(sinkAt)) sink = sinkAt;
-  const feet = {}; const heels = {};
+  const feet = {}; const heels = {}; const toeTurn = {};
   for (const S of sides) {
-    const { L, w, fk, y, heelRest, floor, reach, heel } = legs[S];
+    const { L, w, fk, y, heelRest, floor, reach } = legs[S];
+    let { heel } = legs[S], turn = 0;
+    // `swingFoot`: a foot in its timed swing follows its own shank at the ankle's rest angle (square to the shank, as it
+    // stands), eased in off the push-off and held through the swing: the recovery's folding knee carries the toes out
+    // behind, square to the tucked shank, and the knee driving through brings them round under it (held level instead,
+    // they point forward as the knee folds and are yanked up against the shin as it drives through; carried at the
+    // gait's own pointed ankle, they fold up along the shank). It hands back to the planned heel, the foot flat, over the
+    // last quarter of the swing, the shank near upright for the landing.
+    if (swingFoot && Number.isFinite(swing[S])) {
+      const ang = (v) => (Math.atan2(v[2], v[1]) * 180) / Math.PI;
+      // the shank's turn from its rest, in the leg's plane, carried by the foot whole
+      let own = ang(sub(rest[L.hock], rest[L.knee])) - ang(sub(free[L.hock], free[L.knee])); own -= 360 * Math.round(own / 360);
+      const b = smooth(0, 0.3, swing[S]) * (1 - smooth(0.75, 1, swing[S]));
+      heel += (own - heel) * b;
+      // and the toes with it (the rig holds a targeted foot's toes level, as a push-off's roll needs): turned by the
+      // foot's own turn, by the same share, so the swing foot is one piece, never hooked back on level toes
+      turn = -own * b;
+    }
     const hip = [free[L.hip][0], free[L.hip][1], free[L.hip][2] - sink];
     // the forward toe rode the root down by `sink`; the plant weight brings it to the floor
     let z = Math.max(floor, (1 - w) * (fk[2] - sink) + w * floor);
@@ -115,8 +133,15 @@ export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = nu
     const zMin = hip[2] - hv[2] - Math.sqrt(Math.max(0, reach * reach - dh * dh));
     if (z < zMin) z = zMin;
     feet[S] = [fk[0], y, z]; heels[`heel${S}`] = -Math.round(heel * 1000) / 1000;   // the rig's heel word: negative raises the heel
+    // (the turned toes keep their tip off the floor: just after the lift-off the ball is barely up, and a full turn
+    // would sink the tip through it, so the turn is cut to what the clearance allows)
+    if (turn) {
+      const tv = sub(rest[L.toeTip], rest[L.toeBase]), tipOK = (t) => z + rotX(tv, t)[2] >= rest[L.toeTip][2] - 1e-9;
+      if (!tipOK(turn)) { let lo = 0, hi = 1; for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2; if (tipOK(turn * m)) lo = m; else hi = m; } turn *= lo; }
+      toeTurn[`toeTurn${S}`] = Math.round(turn * 1000) / 1000;
+    }
   }
-  return { pose: { ...own, ...heels, feet, sink }, toes: Object.fromEntries(sides.map((S) => [S, free[R.legs[S].toeBase]])), plant: Object.fromEntries(sides.map((S) => [S, legs[S].w])) };
+  return { pose: { ...own, ...heels, ...toeTurn, feet, sink }, toes: Object.fromEntries(sides.map((S) => [S, free[R.legs[S].toeBase]])), plant: Object.fromEntries(sides.map((S) => [S, legs[S].w])) };
 }
 
 /**
@@ -149,6 +174,8 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
   // the toe's own extremes give about 0.67, a long double support that keeps the body sunk); `heelMax` the most the
   // trailing heel may rise at push-off (degrees; studied HEEL_MAX).
   const W = (spec && typeof spec === 'object' && (spec.walk || spec.gait)) || {};
+  // `swingFoot` (a hero dial on the walk and the run, hero-gaits.js HERO_WALK and HERO_RUN; absent ⇒ the swing foot level)
+  const swingFoot = (spec && typeof spec === 'object' && (spec.walk || spec.sprint || spec.gait || {}).swingFoot) === true;
   const duty = walked && Number.isFinite(W.duty) && W.duty > 0.3 && W.duty < 0.9 ? W.duty : null;
   const heelCap = Number.isFinite(W.heelMax) && W.heelMax > 0 ? W.heelMax : HEEL_MAX;
   // `heelRoll` (a hero dial; absent ⇒ the heel planned for the lift-off alone): the heel rises through the stance by just
@@ -231,7 +258,7 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
   const series = (phase) => coef.reduce((o, [re, im], h) => { const a = 2 * Math.PI * h * phase; return o + (h ? 2 : 1) * (re * Math.cos(a) - im * Math.sin(a)); }, 0);
   const lift = Math.max(0, ...need.map((x, i) => x - series(i / fine)), ...need.map((_, i) => -series(i / fine)));
   const sinkOf = (phase) => series(phase) + lift;
-  const fn = (phase) => groundedPose(R, move(phase), { ...timing(phase), sink: sinkOf(phase), heel: Object.fromEntries(sides.map((S) => [S, heelOf(S, phase)])) }).pose;
+  const fn = (phase) => groundedPose(R, move(phase), { ...timing(phase), sink: sinkOf(phase), heel: Object.fromEntries(sides.map((S) => [S, heelOf(S, phase)])), swingFoot }).pose;
   const speeds = sides.map((S) => stance[S]).filter(Boolean).map((st) => (st.y0 - st.y1) / st.span);   // metres per cycle
   const travel = speeds.length ? Math.max(0, speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
   return { fn, travel, stance, need, v: (seconds) => (seconds > 0 ? travel / seconds : 0) };
@@ -354,7 +381,7 @@ const MOTION_WORDS = (() => {
   return `have ${plainNames.filter((n) => !['hold', 'guard'].includes(MOTION_GAITS[n].motion)).join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the holds ${HOLD_WORDS.join(', ')}; the guards ${GUARD_WORDS.filter((n) => !/Left$/.test(n)).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
 })();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
-export function validateHeroMotion(motion, dials = { walk: { ...WALK_MINT, ...HERO_WALK }, sprint: SPRINT_MINT }) {
+export function validateHeroMotion(motion, dials = { walk: { ...WALK_MINT, ...HERO_WALK }, sprint: { ...SPRINT_MINT, ...HERO_RUN } }) {
   if (motion === undefined) return [];
   if (!isObj(motion)) return [`motion: an object of gaits and moves (${MOTION_WORDS}), each true or { <the gait's dials>, tilt, seconds } ({ seconds } for a jump, stop or move)`];
   const errs = [];
@@ -440,8 +467,8 @@ export function stampHeroMotion(motion) {
   return Object.fromEntries(Object.entries(motion).map(([name, g]) => {
     const G = MOTION_GAITS[name];
     if (!G || (G.motion !== 'walk' && G.motion !== 'sprint') || !(g === true || isObj(g))) return [name, g];
-    // a hero's walk is the figure's mint table with the hero's own dials over it (hero-gaits.js HERO_WALK)
-    const mint = G.motion === 'walk' ? { ...WALK_MINT, ...HERO_WALK } : SPRINT_MINT;
+    // a hero's gait is the figure's mint table with the hero's own dials over it (hero-gaits.js HERO_WALK, HERO_RUN)
+    const mint = G.motion === 'walk' ? { ...WALK_MINT, ...HERO_WALK } : { ...SPRINT_MINT, ...HERO_RUN };
     return [name, { ...mint, ...G.base, seconds: G.seconds, tilt: G.tilt, ...(g === true ? {} : g) }];
   }));
 }

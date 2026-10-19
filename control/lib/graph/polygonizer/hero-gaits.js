@@ -11,9 +11,19 @@ export const GAITS = Object.freeze({
 
 /**
  * The hero's own walk dials, over the figure's mint table (figure-posing.js WALK_MINT) on every hero walk minted now:
- * heroLocomotion reads `duty` (the stance's share of the cycle), `heelMax` (the heel's cap at push-off, degrees) and
- * `heelRoll` (the heel rolled up through the stance by each phase's need); `strideLength` is in the rig's metres. Tuned
+ * heroLocomotion reads `duty` (the stance's share of the cycle), `heelMax` (the heel's cap at push-off, degrees),
+ * `heelRoll` (the heel rolled up through the stance by each phase's need) and `swingFoot` (HERO_RUN); `strideLength` is
+ * in the rig's metres. Tuned
  * on the cast heroes: about 1.05 m/s, a 3.3 cm bob, a 58 % stance, the body no longer held low all cycle (the studied
- * walk: 0.70 m/s, 5.5 cm, the hips never less than 5.5 cm down). The figure's gait ignores the three hero dials.
+ * walk: 0.70 m/s, 5.5 cm, the hips never less than 5.5 cm down). The figure's gait ignores the hero dials.
  */
-export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true });
+export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true });
+
+/**
+ * The hero's own run dials (the jog and the sprint), over the figure's mint table (figure-posing.js SPRINT_MINT):
+ * heroLocomotion reads `swingFoot`, as it does on the walk (HERO_WALK). With it, a foot in its swing follows its own
+ * shank (the gait's own ankle, its `anklePoint` and `toeFlick`), so a run's recovery tucks the heel up with the toes
+ * trailing down and back; without it (a hero stored before), the swing foot is held level with the floor, and as the
+ * knee folds the toes point forward. The figure's gait ignores it.
+ */
+export const HERO_RUN = Object.freeze({ swingFoot: true });

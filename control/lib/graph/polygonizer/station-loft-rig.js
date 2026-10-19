@@ -20,7 +20,8 @@
  *
  * Pose: `resolvePose` words / raw dof for the vajra core (LIMITS apply), plus this module's channels:
  *   crouch ∈ [0,1] (pelvis drop, toes planted), lift (metres, airborne), support: 'both'|'L'|'R'|'none',
- *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), seat (degrees, 0 … 60: the free legs
+ *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), toeTurnL/toeTurnR (degrees the toes turn
+ *   about the toe base with a targeted foot, about +x; absent level), seat (degrees, 0 … 60: the free legs
  *   turned further forward about the hips, a seated statue's thighs level; seatL/seatR one leg's alone, added), and every
  *   rig chain channel.
  * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
@@ -49,7 +50,7 @@ import { faceHex } from './face-hex.js';
 import { cellTriangles } from './field-paint.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -299,12 +300,15 @@ export function rigNodesAt(R, pose = {}) {
   for (const S of legKeys) {
     // `feet: { L?, R? }` (a locomotion bake's) gives a leg its toe-base TARGET in the rig frame: the leg reaches it
     // whatever the support says (a footfall planted anywhere on the floor, or a swing foot on its arc), the foot keeping
-    // its rest orientation turned by heel<S>. Absent ⇒ the planted / free legs as before.
+    // its rest orientation turned by heel<S>. Absent ⇒ the planted / free legs as before. The toes stay level (a planted
+    // push-off rolls onto them) unless `toeTurn<S>` (degrees, about +x as heel<S> is) turns them about the toe base: a
+    // swing foot's toes turned with the foot. Absent ⇒ level.
     const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
     const L = R.legs[S]; const planted = !!target || (lift === 0 && (support === 'both' || support === S));
     const femur = len(sub(rest[L.knee], rest[L.hip])), tibia = len(sub(rest[L.hock], rest[L.knee])), meta = len(sub(rest[L.toeBase], rest[L.hock]));
     if (planted) {
-      const foot = target ? { toeBase: [...target], toeTip: add(target, sub(rest[L.toeTip], rest[L.toeBase])) } : plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
+      const toeTurn = Number(pose[`toeTurn${S}`]) || 0, toeVec = sub(rest[L.toeTip], rest[L.toeBase]);
+      const foot = target ? { toeBase: [...target], toeTip: add(target, toeTurn ? rotAxis(toeVec, [0, 0, 0], 0, toeTurn) : toeVec) } : plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
       let metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
       // `splay<S>` (degrees, + the toe outward: a stance's) turns the planted foot about the vertical through its ball —
       // the toe and the heel round it — and the knee's pole with it, so the knee tracks over the toes. Absent ⇒ none.

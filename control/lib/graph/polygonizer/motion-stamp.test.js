@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
-import { HERO_WALK } from './hero-gaits.js';
+import { HERO_WALK, HERO_RUN } from './hero-gaits.js';
 import { stampAuthoredMotion, stampHero, withDefaultWalk } from './motion-stamp.js';
 
 const PHASES = Array.from({ length: 12 }, (_, i) => i / 12);
@@ -46,7 +46,8 @@ describe('stampHeroMotion — a hero door gait stored by value', () => {
   it('writes the mint table, the gait base, its seconds and tilt under what the creator set', () => {
     const s = stampHeroMotion({ walk: true, jog: { tilt: 12 }, sprint: { armSwing: 60 } });
     expect(s.walk).toEqual({ ...WALK_MINT, ...HERO_WALK, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt });
-    expect(s.jog).toEqual({ ...SPRINT_MINT, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: 12 });
+    expect(s.jog).toEqual({ ...SPRINT_MINT, ...HERO_RUN, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: 12 });
+    expect(s.sprint.swingFoot).toBe(true);
     expect(s.sprint.armSwing).toBe(60);
     expect(s.sprint.hipDrive).toBe(MOTION_GAITS.sprint.base.hipDrive);
   });
