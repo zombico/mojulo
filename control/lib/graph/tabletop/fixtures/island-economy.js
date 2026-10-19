@@ -52,13 +52,13 @@ export function islandEconomy({ seed = 1, players = 4, trade = false } = {}) {
       block: 'robber',
     },
     rolls: { 7: [{ discard: { over: 7 } }, { robber: 'robber' }] },
-    decks: { development: { cards: { knight: 14, vp: 5, roads: 2, plenty: 2, monopoly: 2 }, cost: { wool: 1, grain: 1, ore: 1 } } },
+    decks: { development: { cards: { knight: 14, vp: 5, roads: 2, plenty: 2, corner: 2 }, cost: { wool: 1, grain: 1, ore: 1 } } },
     cards: {
       knight: { name: 'knight', play: [{ robber: 'robber' }] },
       vp: { name: 'victory point' },
       roads: { name: 'road building', play: [{ free: 'road', n: 2 }] },
       plenty: { name: 'year of plenty', play: [{ gain: 2 }] },
-      monopoly: { name: 'monopoly', play: [{ claim: true }] },
+      corner: { name: 'corner the market', play: [{ claim: true }] },
     },
     score: {
       pieces: { settlement: 1, city: 2 },

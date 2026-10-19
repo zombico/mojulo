@@ -12,7 +12,7 @@ describe('tabletop manifest', () => {
 
   it('the book holds only games nobody owns; an economy is written out, its deal done from the seed', async () => {
     const { islandEconomy } = await import('./fixtures/island-economy.js');
-    expect(() => resolveTabletop({ game: 'settlers' })).toThrow(/no game 'settlers'/);
+    expect(() => resolveTabletop({ game: 'a-published-game' })).toThrow(/no game 'a-published-game'/);
     const { deal, seed, ...rules } = islandEconomy({ players: 3 });
     const a = resolveTabletop({ game: { ...rules, deal }, seed: 3 }).G;
     expect(a.deal).toBeUndefined();

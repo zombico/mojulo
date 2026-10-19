@@ -21,7 +21,7 @@ describe('lattice: the relations hold', () => {
     });
   }
 
-  it('counts the board games know: a chessboard, and the nineteen hexes of a settlers island', () => {
+  it('counts the board games know: a chessboard, and the nineteen hexes of a hexagon of hexes', () => {
     const chess = lattice(BOARDS.square);
     expect([chess.cells.length, chess.corners.length, chess.edges.length]).toEqual([64, 81, 144]);
     const island = lattice(BOARDS.pointy);

@@ -402,7 +402,7 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-10-15 (211_100 -> 211_300; measured 211,171) for the level demo: design_game's `compose` (the interpreter as a
 // door: a world read from a few words), one schema property and its clause in the description. No new tool.
 // Raised 2026-10-19 (211_300 -> 211_600; measured 211,490) for traditional board games: create_game's `tabletop` (chess,
-// checkers, settlers or a game written out, played against the computer as its own page), one schema property. No new tool.
+// checkers or a game written out, played against the computer as its own page), one schema property. No new tool.
 const PAYLOAD_CEILING = 211_600;
 
 async function listedTools() {

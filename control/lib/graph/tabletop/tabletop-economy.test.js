@@ -245,9 +245,9 @@ describe('island economy: what a player may know', () => {
     const { K, S } = at();
     const s = main(K, S);
     s.cards[1] = { knight: 2, vp: 1 };
-    s.cards[0] = { monopoly: 1 };
+    s.cards[0] = { corner: 1 };
     const seen = T.view(K, s, 0, 9);
-    expect(seen.cards[0]).toEqual({ monopoly: 1 });
+    expect(seen.cards[0]).toEqual({ corner: 1 });
     expect(Object.values(seen.cards[1]).reduce((a, b) => a + b, 0)).toBe(3);
     expect(seen.deck.development).toHaveLength(s.deck.development.length);
     expect(seen.r).not.toBe(s.r);

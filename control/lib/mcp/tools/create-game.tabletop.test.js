@@ -31,7 +31,7 @@ describe('create_game — a board game (tabletop)', () => {
   });
 
   it('a published game is not in the book; a game written out is', async () => {
-    await expect(createGameHandler({ title: 'Island', tabletop: { game: 'settlers' } })).rejects.toThrow(/no game 'settlers'/);
+    await expect(createGameHandler({ title: 'Island', tabletop: { game: 'a-published-game' } })).rejects.toThrow(/no game 'a-published-game'/);
     const tiny = {
       board: { shape: 'hex', radius: 2 },
       players: [{ id: 'a', facing: 'N' }, { id: 'b', facing: 'S' }],
