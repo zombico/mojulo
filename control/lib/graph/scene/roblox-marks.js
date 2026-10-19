@@ -121,7 +121,7 @@ export const PAGE_MARKS = Object.freeze({
 });
 
 // ── a rigged figure's page overlays ──────────────────────────────────────────────────────────────────────────────────
-export const FIGURE_MARKS = absent(['live', 'juice', 'beams', 'trails']);
+export const FIGURE_MARKS = absent(['live', 'juice', 'beams', 'trails', 'forms']);
 
 // ── the events manifest's keys ───────────────────────────────────────────────────────────────────────────────────────
 const BUS = 'kernel/bus.luau, held equal to the web by the bus and level corpora (Lune)';

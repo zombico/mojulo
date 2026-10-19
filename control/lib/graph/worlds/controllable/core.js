@@ -316,8 +316,9 @@ export function buildCore(E) {
   // `cycle` (R press edge) and `slot` (1–N digit press edge, 0 = none) drive weapon cycling
   // on entities whose rule carries a `loadout` (mobile-suit weapon switching); `swap` (T press
   // edge) transfers the pilot between `pilotable` entities (the suit switcher); `aiToggle`
-  // (G press edge) flips the world-level AI-attack switch (the ai ambients stand down / wake up).
-  const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, lift: 0, lookDX: 0, lookDY: 0, buttons: 0, jump: 0, jumpHeld: 0, fire: 0, cycle: 0, slot: 0, swap: 0, aiToggle: 0, tackle: 0, lock: 0, missile: 0, flare: 0 };
+  // (G press edge) flips the world-level AI-attack switch (the ai ambients stand down / wake up); `transform` (B press
+  // edge) turns a body with forms into its next one (forms.js).
+  const ZERO_INPUT = { forward: 0, strafe: 0, turn: 0, lift: 0, lookDX: 0, lookDY: 0, buttons: 0, jump: 0, jumpHeld: 0, fire: 0, cycle: 0, slot: 0, swap: 0, aiToggle: 0, tackle: 0, lock: 0, missile: 0, flare: 0, transform: 0 };
   const readInput = (i) => ({ ...ZERO_INPUT, ...(i || {}) });
 
   // ── world construction ──

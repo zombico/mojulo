@@ -17,6 +17,9 @@ export const SOUL = Object.freeze({
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
         aircraft: { status: 'built', godot: 'absent', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
+        // built 10-19 (more than meets): a hero in two forms, one body (transformation/), B to change; Godot and Roblox
+        // have no forms
+        transformer: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/transformation/index.js', note: 'a quick game\'s transformer: a variable suit folding into its waverider, or a car or jet standing up into a robot (controllable/forms.js: the rule of each form, the beat between them); a car\'s goals are a trail\'s, a flier\'s the fly goal' },
       },
     },
     // proportions and a vibe are baked into the figure and its clips; gear rides it (scene/godot-marks.js)

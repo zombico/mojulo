@@ -36,7 +36,7 @@ import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
@@ -361,7 +361,10 @@ function quickSteps(world, G, ref, lookup) {
   const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1, setting) : null;
   // a field of supercars (quick.supercars): each a recipe its figure resolves through, its livery solved; yours first
   const supercars = Q.supercars !== undefined ? quickSupercars(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
-  const ride = rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+  // a transformer (quick.transformer): its figure resolves through its recipe (nothing to mint), its forms the rules it
+  // plays (a flier's vehicle form is the airspace seat's, levels.js)
+  const ride = Q.transformer ? quickTransformer(Q)
+    : rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
     : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field }
     : supercars ? { figure: supercars.field[0].figure, rule: supercars.field[0].rule, field: supercars.field } : null;
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)

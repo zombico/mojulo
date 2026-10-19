@@ -47,12 +47,13 @@ export const LEDGER_INFO = Object.freeze([
 // the game manifest's shell keys that carry nothing to judge (a soundtrack plays wherever a level plays)
 export const SHELL_INFO = Object.freeze(['music']);
 
-/** The overlays a payload's rigged figures carry: a vehicle's live overlay, a racer's juice and its lamps (sorted). */
+/** The overlays a payload's rigged figures carry: a vehicle's live overlay, a racer's juice and its lamps, a body's forms (sorted). */
 export function figureOverlays(figures) {
   const on = new Set();
   for (const f of Object.values(figures && typeof figures === 'object' ? figures : {})) {
     if (!f || !f.rig) continue;
     if (f.live) on.add('live');
+    if (f.forms) on.add('forms');
     if (f.juice) { on.add('juice'); if (f.juice.beams) on.add('beams'); if (f.juice.trails) on.add('trails'); }
   }
   return [...on].sort();

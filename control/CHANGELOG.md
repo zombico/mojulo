@@ -242,6 +242,61 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   stood about 19 mm proud of the cornea right down to the lid margin, which hid the lid, the crease and the hood. The
   `hood` channel lowers the crease and draws the fold down, and the crease is a groove along it. `--rig` draws the
   bridge, the strings and the arcs in red on the skin.
+
+### More than meets: one body in two forms
+
+A hero can now transform: the robot you walk and fight in folds into the vehicle you drive or fly, and back, on one
+button, the way a Transformers or a transforming mobile suit does. The transformation keeps the parts that exist and
+reorients them; it aims at visual plausibility, not mechanical fidelity.
+
+- **One skeleton, two poses** (`lib/graph/transformation/`). The robot is a skeleton: an operator's suit (`unitRef`)
+  or an inner frame made to the vehicle's size. The vehicle form is a pose of the same skeleton (the stow), and the
+  vehicle's shell is cut into panels along its length, width and height, each panel riding the bone it lies over.
+  The sequence between the forms is the skeleton moving joint by joint, staggered, its panels carried. It all bakes
+  into one rig figure: the robot's clips, the vehicle form's clips and the two once-clips of the transformation.
+- **The ways of transforming are rows** (`transformation/schemes.js`): a car-bot (the hood and nose its chest, the
+  roof its back, the doors its forearms, the rear its legs, the front wheels its shoulders), a jet-bot (the nose and
+  canopy its chest, the engines its legs, the wings on its back), a waverider (a suit alone, folded into its own
+  flight form) and the variable suit's. A row names the stow, the regions the shell is cut into and where each sits
+  on the robot.
+- **The variable suit** (`transformation/variable-suit.js`): the primitive between a Transformer and a Gundam, a suit
+  drawn to fold. Its kit moves apart as it transforms: the kite shield on its forearm becomes the nose, the flight
+  binders on its back spread into swept wings, the hip fins flip up into the tail, and the legs close into the engine
+  pods, their heel jets the engines. Three palettes (`federal`, `titans`, `crimson`) and breadth dials.
+- **Three more ways of transforming.** The REAR FOOT (`rear-foot`, a car): the legs together are the car's rear, its
+  bumper split between the feet, the hood the chest, the head folded down into the chest under the middle of the car
+  and the last thing out on the way up. The FUSELAGE FOLD (`fuselage-fold`, a jet; its dials `fold` and `legs`): lying
+  face down in the jet, the nose and cockpit hinge down onto the chest (`front`) or the tail hinges down behind as a
+  pack and the front of the fuselage stands up as the chest (`back`); the legs stretch back as the engine nacelles
+  (`stretch`) or tuck up into a box under the fuselage (`box`). A panel may now SWING about a hinge on its way between
+  its places. The ALIEN JETSKI (`alien-jetski`): the alien body below, folded.
+- **The alien body** (`transformation/alien-body.js`): a humanoid formed of pointed ellipsoid shells and their
+  relations, no part a vehicle's or a suit's: shoulders thrown out and up, forearms fattening to blades, a head
+  leaning forward like a dart, feet long spurs. Folded face down it is a hover jetski: a long keel (a blade down its
+  back standing) runs under it as the hull, the thigh shells slide up beside it as sponsons, the feet hang as skegs,
+  its blades, spikes and spine swing back as fins; it skims a hand's breadth over the ground on a light, quick drive.
+  Palettes `void`, `chrome`, `ember`.
+- **The craft rig** (`craft-shelf/craft-rig.js`): a craft archetype as a rig figure, one bone per item, so a jet form
+  is the shelf's jet.
+- **Forms in the engine** (`worlds/controllable/forms.js`): an entity carries `forms`, a rule per form, and B (the
+  pad's L3) turns it into the next: an owned, invincible beat plays the figure's sequence, then the form's rule and
+  pilot rule take over with the speed carried across (a walker's motion is a car's speed and a craft's airspeed, at
+  least its take-off speed). A form may name its follow camera's stand-off; a flying form burns its jets with its
+  throttle. A body mid-swing, mid-dodge, reeling or downed does not transform.
+- **The World page** plays each form's own clips (`vehicle:drive`, `vehicle:idle`), a flying form's attitude on its
+  rig and the flight HUD for a body whose form flies, all emitted only when an entity or figure carries `forms`.
+- **The doors.** `figures.<name>.transformer: { robot?, vehicle?, scheme?, height? }` bakes the body at resolve (a
+  variable suit, a stored suit by `unitRef`, a stored build by `vehicleRef`, a ride, racer, supercar or craft);
+  `compose_world` entities take `forms`, refused unless each names a rule the engine knows. A quick game's
+  `transformer` is its hero (its `scheme`, `fold` and `legs` read and refused by what the vehicle is): a car-bot or an
+  alien jetski plays a trail's goals, a flier the fly goal from its seat in the air. The cosmos
+  counts `soul.hero=transformer` (web only; Godot and Roblox have no forms).
+- A transformer exports to Godot and Roblox as its starting form. Its hero carries `forms` and no rule of its own (the
+  page picks the rule as it starts), so an engine export found no pilot: the pack had nothing to drive. Every engine
+  now takes such a body with its starting form's rule, chosen as the page chooses it (`engines/pack.js`
+  `startingForms`), and the export names the rest as the page's: `forms` is a figure overlay, absent in both engines
+  (the other form and the transform beat). A world without a body in two forms reaches the engines as before.
+
 ### Engine legs: the engines as translations, declared
 
 Every engine pack is a translation of the web game. Which engines exist, what each one carries, and how each is

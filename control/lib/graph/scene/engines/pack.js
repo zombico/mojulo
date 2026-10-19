@@ -54,6 +54,28 @@ export const layeredFigure = (payload) => Object.entries(payload?.figures || {})
 export const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.clips || {}) : Array.isArray(clips) ? clips.filter((c) => f?.clips?.[c]) : []);
 
 /**
+ * A body in two forms (worlds/controllable/forms.js) as an engine takes it: its STARTING form. The page picks an
+ * entity's rule from its `forms` when it starts (the named `form` when it is one of them, else the first form with a
+ * rule) and changes between them on the transform beat; no engine kernel has forms, so an entity that carries `forms`
+ * and no rule of its own enters every engine with its starting form's rule, and the export names the rest as the page's
+ * (FIGURE_MARKS.forms). A payload with no such entity is returned as it is, the same object.
+ */
+export function startingForms(payload) {
+  const ents = Array.isArray(payload?.entities) ? payload.entities : null;
+  if (!ents || !ents.some((e) => e && e.forms && typeof e.forms === 'object' && !e.rule)) return payload;
+  return {
+    ...payload,
+    entities: ents.map((e) => {
+      if (!e || !e.forms || typeof e.forms !== 'object' || e.rule) return e;
+      const names = Object.keys(e.forms).filter((k) => e.forms[k] && e.forms[k].rule && e.forms[k].rule.type);
+      if (names.length < 2) return e;
+      const form = names.includes(e.form) ? e.form : names[0];
+      return { ...e, form, rule: { ...e.forms[form].rule } };
+    }),
+  };
+}
+
+/**
  * One level through the seam every engine shares: resolveWorldScene → facesToGlb → the engine's score.
  *   engine    the engine the score's ledger reads the level for (engines/registry.js)
  *   lit       the UNSHADED payload and real PBR materials, so the engine lights it
@@ -62,7 +84,8 @@ export const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.
  * → { kind, payload, exported, score, fig, engine: the engine-skeleton figure, bus, soundtrack, sound }
  */
 export async function resolveLevel(levelSketch, { engine, clips, posture = null, lit = false, figure = false, humanoid = false }) {
-  const { payload, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
+  const { payload: resolved, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
+  const payload = startingForms(resolved);
   if (!payload) {
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }

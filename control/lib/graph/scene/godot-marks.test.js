@@ -45,7 +45,9 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     const extra = Object.keys(night.juice).filter((k) => !base.includes(k));
     expect(extra.length).toBeGreaterThan(0);
     expect(extra.filter((k) => !marked(FIGURE_MARKS[k])), 'mark each in godot-marks.js FIGURE_MARKS').toEqual([]);
-    expect(figureOverlays({ car: night })).toEqual(Object.keys(FIGURE_MARKS).sort());
+    expect(figureOverlays({ car: night })).toEqual(Object.keys(FIGURE_MARKS).filter((k) => k !== 'forms').sort());
+    // a body in two forms carries its forms (transformation/): the other form is the page's
+    expect(figureOverlays({ ride: { rig: true, forms: { robot: {}, vehicle: {} } } })).toEqual(['forms']);
     // a car at noon: no lights of its own; a figure with no rig, nothing
     expect(figureOverlays({ car: supercarFigure({}) })).toEqual(['juice', 'live']);
     expect(figureOverlays({ glyph: { juice: {} } })).toEqual([]);

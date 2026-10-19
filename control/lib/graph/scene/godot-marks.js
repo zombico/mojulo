@@ -169,6 +169,7 @@ export const PAGE_MARKS = Object.freeze({
 // The skinned figure and its clips ride the GLB (PAGE_MARKS.figures); these are read off each figure in payload.figures
 // (engines/marks.js figureOverlays).
 export const FIGURE_MARKS = Object.freeze({
+  forms: m(A, 'a body in two forms (transformation/) plays as its starting form, its rule and its clips: the other form and the transform beat (B) are the page\'s'),
   live: m(A, 'a vehicle\'s live overlay (the front wheels steering, the body leaning, squatting and diving off the drive) is the page\'s: the car holds its rest pose'),
   juice: m(A, 'a racer\'s juice (flames, smoke, sparks, dust, the landing ring, the lamps lit by its status) is the page\'s'),
   beams: m(A, 'the headlamps\' pool on the road (a dark race mood) is not drawn'),

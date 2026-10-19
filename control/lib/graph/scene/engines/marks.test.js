@@ -63,7 +63,7 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
   it('every controllable rule, every camera, every figure overlay, events key, system and link', () => {
     expect(sorted(Object.keys(M.RULE_MARKS))).toEqual(sorted(controllableRules()));
     for (const rule of Object.values(CAMERA_RULE)) expect(marked(M.RULE_MARKS[rule]), rule).toBe(true);
-    expect(sorted(Object.keys(M.FIGURE_MARKS))).toEqual(['beams', 'juice', 'live', 'trails']);
+    expect(sorted(Object.keys(M.FIGURE_MARKS))).toEqual(['beams', 'forms', 'juice', 'live', 'trails']);
     expect(sorted(Object.keys(M.EVENT_MARKS))).toEqual(sorted(Object.keys(marksOf(DEFAULT_ENGINE).EVENT_MARKS)));
     // every events key the page reads is marked (the table also marks the bus's own keys, which the reducer reads)
     expect(pageEventKeys().filter((k) => !M.EVENT_MARKS[k]).sort()).toEqual([]);
