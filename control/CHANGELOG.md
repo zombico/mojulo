@@ -14,6 +14,50 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Epidermis cube: skin and hair as a recipe
+
+- **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
+  is a level's look: its first groom is the brows, grown as strands on the relational head by its relations (the
+  head over the inner canthus, the arch's peak over the outer edge of the iris, the tail on the line from the nose's
+  wing through the outer canthus), in three regions (the head's hairs up, the body's out and up, the tail's out and
+  down) with the herringbone along the spine, laid on the skin. The brow hangs on the brow bridge's strings with the
+  fold under it: its head is tied on the medial string, its tail on the lateral string (which runs on the line from
+  the nose's wing through the outer canthus), and its peak rides the fold's arc. A raised or lowered brow pulls the
+  strings, so the hairs and the fold move together, and the same hairs are carried rather than regrown. The field
+  lane draws them (`--epidermis`).
+- **Lashes.** The cube's second groom roots on the eye rig's lid margins, which the rig now exposes as lash lines.
+  The upper lashes are longest centre-lateral and curl up; the lower are shorter and sparser and curl down; the
+  lateral lashes flare outward. Each leaves the margin at an elevation set by where the margin sits on the globe and
+  the lid's roll, so the lashes ride the openness, a squint, the gaze and a blink, and a shut lid's lashes hang.
+  Every lash is grown step by step: a step that would sink into the skin bends off it with its length kept, and a
+  lash that cannot clear the skin ends there. Shape words: `natural`, `long`, `curled`, `straight`, `sparse`, `full`,
+  each with numbers over it (`length`, `curl`, `density`, `flare`, `lower`, `seed`); `lashes: false` grows none.
+
+- **Skin relief, studied on swatches.** The cube's skin (`epidermis/skin-relief.js`) conveys keratin rather than
+  simulating it: a few numbers in, and a height and a roughness out at any point of a flat chart, gray. It has four
+  fidelity tiers, each adding to the last: `form` (nothing), `creases`, `keratin` and `micro`.
+  - **Creases** are thin lines at the bone/skin connections. They fan from a point (crow's feet across the lateral
+    orbital rim) or run beside a tether (under-eye, forehead), each a wavy, tapered, sometimes forked groove with
+    the skin bunched beside it.
+  - **Keratin** is the primary lines: two crossing families of long, wandering furrows about the skin's tension
+    direction, deep in stretches and fading in others, with a weaker family across. Round pores sit near their
+    crossings (and scatter between them on the nose), and a faint minor net turns to follow a crease.
+  - **Micro** adds the finest net, the keratin grain and its sheen.
+
+  The dials are the region (forehead, cheek, nose, eyelid, chin), age, squint, and the pore and crease scales.
+  `/head-study --skin` renders the swatch sheet. The cube reads `skin` (`fidelity`, `age`, `pores`, `creases`,
+  `seed`).
+- **Skin on the head, by zoom.** The relief lies on the relational head as a shading layer (`epidermis/skin-head.js`):
+  a perturbed normal and a cavity darkening per point, never geometry. Each layer shows over its own range of
+  millimetres per pixel (`SKIN_ZOOM`): keratin lines and pores from a close-up, the micro layer in a macro shot.
+  Coarser than its range a layer is held back rather than aliased, so a whole-head or portrait view is untouched.
+  - **Where it lies:** a millimetre chart runs around the head's vertical axis. The regions come from the relations
+    (nose, eyelids, forehead, chin, cheek), blended where they meet and with the tension mirrored left to right.
+  - **No creases:** the head carries no crow's feet or wrinkles, which read as incongruous with its design. The
+    creases tier stays in the swatch study, and lines along a tether are staggered pieces there.
+  - **Field lane:** `--skin` shades the field lane with it, and each panel names its zoom and the layers it shows.
+    `--crop macro` frames the outer canthus, and a row of `--acts` may carry its own `crop`, which makes a zoom strip.
+
 ### Relational head: the face as superposed vajras
 
 - **The head field, seen as it is.** `/head-study --field` meshes the protoform head's field with surface nets
@@ -140,6 +184,64 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   at jaw 0.6 the male's midline reads lip 2 mm ahead of the chin and the fold 2 mm behind it (was 4 mm ahead and 4 mm
   behind), at the limit lip to chin is one line. The tissue over the mandible (the chin's, the angle's, half the
   masseter's and the buccal's) now rides the jaw, so a swung chin keeps its own tissue depth.
+- **Ears.** The relational head wears ears in the shape of the operator's sketch (`head-ear.js` `EAR_OUTLINE`, now
+  exported): the helix rolled along the outline into the lobule and curling into its root, the antihelix's Y, the
+  tragus raised into the notch over the lobe, the concha's bowl and a blind canal. Their place is relational: the top
+  at the brow (`earTop`), the lobule level with the nose's base (`earBottom`), the long axis leaning back from
+  vertical by `earTilt` degrees, the hinge on the head's own skin, found by probing the field. The concha stands a little
+  off the head with its back welded to the skin, and the outer ear folds off it at the antihelix (`earProtrusion`).
+  `earlobe` sets the lobule from free (0, tilted off the head) to attached (1, tilted into the cheek, where it fuses).
+  `--crop ear` frames the right ear.
+- **Expressive eyes.** The relational head's eyes are a rig of their own (`head-relational-eye.js`): a globe whose
+  cornea, iris and pupil turn with the gaze; the lids as a skin shell over the globe and its cornea (a shut lid shows
+  the gaze), the opening carved between two lid curves, each with its own height, peak (inner to outer) and shape
+  (flat and tense to peaked); the upper lid following the gaze's pitch; a crease, a hood and a pretarsal roll that swells
+  in a squint. `eyes` takes a word (`neutral`, `wide`, `angry`, `sad`, `sleepy`, `happy`,
+  `suspicious`, `focused`, `closed`), channels over it and a side's own; blink, a smile's squint and the brows drive
+  the same channels. The field lane paints the sclera, iris and pupil, takes `--eyes` and rows with their own `eyes`,
+  and frames `--crop eyes` and `--crop eye`; a crop meshes only its own box.
+- **A gaze target.** `eyes: { look: { x, y, z } }` (metres from between the eyes: +x the figure's right, +y ahead,
+  +z up) aims each eye from its own centre, so a near target converges them and a far one leaves them parallel; the
+  lids follow, and a word or a side's own gaze composes with it. The head reports its `vergence`.
+- **The eye's depth.** The eye was set deep in a walled socket: it read from the front but sank from ¾. The skin
+  over the lateral orbital rim stood 6–8 mm ahead of the cornea, where it belongs about 10 mm behind, and the brow
+  stood 19–22 mm ahead. The cause was the orbit's frame: it was anchored to the glabella, not to the eye.
+  - **New relations:** the eye hangs off the nasion by `radix` (11 mm). The brow's outer end sits `orbitRim` behind
+    the cornea and the cheekbone's front sits `malarDepth` behind it. A `lateralOrbit` tissue marker gives that rim
+    forensic skin.
+  - **The brow** is an arch each side, the glabella over a supraorbital peak (`browProjection`, flatter on the
+    female pole) to the outer end. It replaces a straight bar, which ran in front of the eyes.
+  - **The skull** gains its lateral orbital rim, the zygoma's frontal process (skull only: the skin over it is
+    already the wave of its neighbours). Its orbit becomes a cone that holds the globe clear of bone.
+  - **Measured** in mm ahead of the cornea, male / female: radix 11 / 11, brow over the pupil 11.6 / 9.3, skin
+    over the lateral rim −9.6 / −9.5, the skull's rim −16.1 / −16.1 (Hertel's 12–20). The wave still meets every
+    relation within 0.4 mm, with no through-holes.
+- **Upright ears.** `earTilt` is now degrees from vertical, not a share of the nose's dorsum. Through the dorsum the
+  ears read about 18° along the long axis (helix top to lobule bottom), too angled. At 6° they read about 10°, the
+  clinic's floor. The ear still turns about its hinge with its top at the brow and its lobule at the nose's base. The
+  tragion moved 0.4 mm and the outer canthus to tragion stays about 76 mm. The attached lobule still fuses, with no
+  through-holes.
+- **The outer canthus, closed cleanly.** With the outer wall gone, a slab showed at the outer eye corner. The lid
+  space's floor ran level past the canthus to the arc's foot, and both it and the opening's sliver end cut back to
+  the globe's centre, where the globe no longer reaches, leaving a shelf and a slot.
+  - **The lid space:** its floor now rises to the arc's foot, and its cut has a depth floor, shallowing toward the
+    feet and past the canthi.
+  - **The opening:** it keeps its deep corner pockets where it is open, and grows shallow only where it thins to a
+    sliver.
+  - **The cut's blend** is softer, so its fold edge is smoother.
+- **The iris, patterned.** The iris carries a light pattern: radial fibres, a wavy collarette ring parting a lighter
+  pupillary zone from the ciliary, darker crypts, a dark limbal ring and a thin pupillary ruff. It is a tone over its
+  colour (`irisTone`, the head's `paintTone`), periodic round the iris, seeded per eye and paint only, with no
+  relief. The field lane shades it per pixel.
+- **The brow's bridge, and the lid space hung from it.** An invisible bridge runs across the forehead (`browBridge`)
+  with four strings hanging from it: two medial strings down beside the nose's root, and two lateral strings down the
+  temples. Each eye's arc, the edge of its fold under the brow, hangs between its two strings' feet just past the
+  canthi, and the brow is tied on the same strings. The brow pad's action pulls the strings, so a raised brow lifts the arc and a lowered one drops it. The
+  upper lid now drapes the globe from its margin to the crease. The fold rolls out of the crease and rises forward
+  to the brow at the arc, and the lid space closes where the arc's feet meet the canthi. Before this, the brow's skin
+  stood about 19 mm proud of the cornea right down to the lid margin, which hid the lid, the crease and the hood. The
+  `hood` channel lowers the crease and draws the fold down, and the crease is a groove along it. `--rig` draws the
+  bridge, the strings and the arcs in red on the skin.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

@@ -84,6 +84,34 @@ Examples:
 - `… study.mjs male --pose '{"face":{"jaw":25}}' --no-wire` — the open jaw, from all around.
 - `… study.mjs female --hair longWave` — hair seating on the female skull.
 
+## The skin lane (`--skin`)
+
+The epidermis cube's skin (`control/lib/graph/epidermis/skin-relief.js`) is studied on SWATCHES, small blocks of
+skin a few mm across, before it goes on the head. Gray only, under a raking light with the cavities shaded:
+
+```bash
+node .claude/skills/head-study/study.mjs --skin [--seed N] [--out dir]
+```
+
+Then **Read `<out>/sheet.png`** (default `/tmp/head-study-skin`); each panel's bar is 1 mm. The rows are:
+- the sequence: one cheek swatch over the orbital rim, one fidelity tier at a time (form → creases → keratin →
+  pores → micro);
+- the regions (forehead, cheek, nose, eyelid, chin);
+- age on crow's feet, and a squint;
+- lines along a tether (under-eye, forehead), and 5 mm close-ups of pores.
+
+On the head, `--field --skin` lays the same relief on the relational head as a shading layer. Each layer shows
+only at its zoom (`SKIN_ZOOM`, in mm per pixel), and each panel says which layers are on. Read it as a zoom strip:
+
+```bash
+node .claude/skills/head-study/study.mjs --field male --source relational --skin --epidermis '{"skin":{"age":0.6}}' \
+     --acts '[{"crop":"face"},{"crop":"eyes","smile":1},{"crop":"eye","smile":1},{"crop":"macro","smile":1}]'
+```
+
+Tune a region's numbers (`SKIN_REGIONS`) or the age's against it. Skin that reads as leather or dried mud means
+the primary lines are too even, too deep or too cellular. Skin that reads as scratched glass means they are too
+straight and regular.
+
 ## The dials it checks (map)
 
 The head is `figure-head.js`: a signed-distance field of named anatomical primitives

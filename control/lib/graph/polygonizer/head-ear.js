@@ -21,7 +21,7 @@ const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 /** the outline, traced from the operator's sketch (unit height, `u` forward, `v` up, about the bowl): the helix root
  * over the face, the broad top, the back nearly straight, the lower back on a diagonal into a broad lobe, the front up
  * past the tragus. `open` marks the front points where the rim stops (the bowl opens to the face there). */
-const OUTLINE = [[0.196, 0.212], [0.148, 0.36], [0.085, 0.481], [-0.106, 0.519], [-0.365, 0.492], [-0.413, 0.307],
+export const EAR_OUTLINE = [[0.196, 0.212], [0.148, 0.36], [0.085, 0.481], [-0.106, 0.519], [-0.365, 0.492], [-0.413, 0.307],
   [-0.402, 0.074], [-0.418, 0.011], [-0.37, -0.138], [-0.286, -0.243], [-0.222, -0.312], [-0.106, -0.423], [0.021, -0.481],
   [0.138, -0.471], [0.196, -0.434], [0.185, -0.328], [0.175, -0.201, 'open'], [0.153, -0.127, 'open'], [0.164, 0, 'open'], [0.169, 0.106, 'open']];
 /** The ear is a PLATE, thin as a leaf (`thick`), hinged at its front edge (u = HINGE) and angled off the head toward
@@ -31,7 +31,8 @@ const OUTLINE = [[0.196, 0.212], [0.148, 0.36], [0.085, 0.481], [-0.106, 0.519],
  * fold inside it (the scapha), the antihelix ridge, the bowl's wall and its floor, and the cap (the bowl, dipping toward
  * the head). Its back face is the outline at the plate's back; it sinks into the head toward the front, where the ear
  * joins it, and its cap (behind the bowl) is on the head. Below `lobe` the ear is solid. */
-const HINGE = 0.19;
+export const EAR_HINGE = 0.19;
+const HINGE = EAR_HINGE;
 const FORM = {
   western: { rings: [[1, 0, false], [0.95, 0.05, false], [0.84, 0.015, true], [0.64, 0.04, true], [0.44, 0.005, true], [0.2, -0.03, true]], bowl: [0.06, -0.02, -0.035], lobe: -0.26, inner: 3 },
   // the anime ear: the rim, one fold, the bowl's wall and floor
@@ -51,7 +52,7 @@ const LEAN_RINGS = [[1, 0, false], [0.93, 0.05, false], [0.4, -0.01, true]];
 export function earMesh({ origin, side = 1, height, width = 1, style = 'western', tilt = 0.2, angle = 0.45, thick = 0.07, lift = 0.12, inner = 'Skin', skin = 'Skin', sparse = false, lean = false }) {
   const F0 = FORM[style]; if (!F0) throw new Error(`head-ear: unknown style '${style}'`);
   const F = lean ? { ...F0, rings: LEAN_RINGS } : F0;
-  const outline = sparse || lean ? OUTLINE.filter((_, i) => i % 2 === 0) : OUTLINE, n = outline.length;
+  const outline = sparse || lean ? EAR_OUTLINE.filter((_, i) => i % 2 === 0) : EAR_OUTLINE, n = outline.length;
   const ct = dmath.cos(tilt), st = dmath.sin(tilt);
   // the ear's frame (the right ear): out +x, forward +y, up +z leaning back by `tilt`
   const ta = dmath.tan(angle), plate = (u) => lift + Math.max(0, HINGE - u) * ta;
