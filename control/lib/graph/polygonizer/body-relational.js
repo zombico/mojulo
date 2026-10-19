@@ -175,6 +175,9 @@ const NORRIN = {
       { id: 'vastusLateralis', s: 0.48, az: 80, off: 0.2, r: [0.7, 0.27, 0.22] },
       { id: 'vastusMedialis', s: 0.8, az: -45, off: 0.17, r: [0.3, 0.22, 0.18] },
       { id: 'adductors', s: 0.25, az: -100, off: 0.16, r: [0.45, 0.24, 0.2] },
+      // (the adductors' origin, fanning from the pubis into the thigh's inside just under the groin: the stretch's stuff
+      // when the leg opens, which had pulled the inner thigh's top across the crotch in a thin web)
+      { id: 'adductorOrigin', s: 0.17, az: -80, off: 0.22, r: [0.3, 0.22, 0.16] },
       { id: 'hamstrings', s: 0.5, az: 175, off: 0.16, r: [0.55, 0.22, 0.17] },
       // THE SWEEP (the operator's): one mass spiralling round the femur from the hip's side under the glute, down behind
       // the thigh (the hamstrings) and in to the knee's inside (the adductor magnus, the tendons' insertion), so the
@@ -664,6 +667,29 @@ export function formSlice(recipe, R, build, opts = {}) {
     return { ...P, bind: { ...b, blend } };
   };
   r.parts.torso = rideDeltoid(rideGirdle(r.parts.torso), false);
+  // THE GROIN STRETCHES: a point's share of the thigh's bone by how far down the femur it lies (`downHip`: none at the
+  // hip's joint, the groin, the crotch and the seat's fold staying with the pelvis; wholly a hand's breadth down), through
+  // the hip's fold bone (the rig's helper turned half the leg's swing) in the middle, read the same by the pelvis and the
+  // thigh's top, so the two stretch as one skin. The thigh's top had been the thigh's bone's from its first rings: an
+  // opened leg swung its root away from the pelvis, a notch at the crotch and the seat's edge left as a shelf
+  const hj = R.joints.hipR, femDir = unit(sub(R.joints.kneeR, hj)), fold = !!R.joints.hipFoldR;
+  const downHip = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], hj), femDir) - 0.05 * W0) / (0.55 * W0));
+  const hipShare = (f, S) => (f <= 0 ? { pelvis: 1 } : !fold ? mixW({ pelvis: 1 }, { [`thigh${S}`]: 1 }, f) : f < 0.5 ? mixW({ pelvis: 1 }, { [`hipFold${S}`]: 1 }, 2 * f) : mixW({ [`hipFold${S}`]: 1 }, { [`thigh${S}`]: 1 }, 2 * f - 1));
+  const rideHip = (P, all) => {
+    const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
+    const ride = (key, fallback, p) => {
+      if (p[0] === 0) return;
+      const f = downHip(p), w0 = blend[key] || fallback || own;
+      if (f >= 0.999 || (!all && Object.keys(w0).some((k) => !/^(pelvis|lumbar)$/.test(k)))) return;
+      // (the pelvis's own skin: its share mixed in by nearness to the leg, the trunk above the hip's crest its own)
+      const w = all ? hipShare(f, p[0] < 0 ? 'L' : 'R') : mixW(w0, hipShare(f, p[0] < 0 ? 'L' : 'R'), sm((hj[2] - p[2] + 0.1 * W0) / (0.5 * W0)));
+      if (Object.keys(w).length <= 4) blend[key] = w;
+    };
+    for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);
+    for (const [k, q] of Object.entries(P.caps || {})) ride(k, null, q);
+    return { ...P, bind: { ...b, blend } };
+  };
+  if (pelvic && limbs.thigh) r.parts.pelvis = rideHip(r.parts.pelvis, false);
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
     // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
@@ -679,6 +705,7 @@ export function formSlice(recipe, R, build, opts = {}) {
     };
     r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
     if (limb === 'upperArm') r.parts[pr] = rideDeltoid(r.parts[pr], true);
+    if (limb === 'thigh' && pelvic) r.parts[pr] = rideHip(r.parts[pr], true);
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }

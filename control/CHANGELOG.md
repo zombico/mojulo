@@ -173,7 +173,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   trapezius's fall, the armpit, the pectoral's tendon: `joint`) drawn in with it. Norrin's arms 20 % in over a body 10 %
   narrower than the hero's, shalla's 8 % over her own: the shoulder's joints 0.205 and 0.194 of the stature apart
   (0.231 and 0.211 before; the body's about 0.20), the deltoids 0.283 and 0.269 across, the pectoral running into the
-  shoulder with no ledge between. Only the feet are still the authored cage.
+  shoulder with no ledge between. THE GROIN STRETCHES: a point's share of the thigh's bone by how far down the femur
+  it lies (none at the hip's joint, the groin, the crotch and the seat's fold; through the rig's hip fold bone, which
+  turns half the leg's swing; wholly a hand's breadth down), read the same by the pelvis and the thigh's top, so an
+  opened leg stretches one skin (the thigh's top had been its bone's from the first rings: opened, its root swung away
+  from the pelvis in a notch at the crotch, the seat's edge left a shelf); and the adductors' origin, a mass high on
+  the thigh's inside, gives the stretch its stuff (the inner thigh's top had pulled across the crotch in a thin web).
+  Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 
