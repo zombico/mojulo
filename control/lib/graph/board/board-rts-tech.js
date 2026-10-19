@@ -207,6 +207,8 @@ export function rtsRoster(G, cid) {
 
   // buildings
   buildings.base = { name: 'Base', ...RTS_BUILDINGS.base, trains: [worker] };
+  // a hall where an expansion is claimed: its depot, training its workers
+  buildings.hall = { ...RTS_BUILDINGS.hall, trains: [worker] };
   // the base grows into its civilization's fort once its machines are known: harder, and it shoots farther
   const fortName = typeof C.fort === 'string' ? `${named(C.fort)} fort` : 'Fort';
   buildings.barracks = { name: 'Barracks', ...HOUSE.barracks, trains: infantry };
@@ -324,6 +326,7 @@ export function rtsRoster(G, cid) {
   const SUPPLY = { worker: 1, melee: 1, ranged: 1, guard: 1, medic: 1, scout: 2, fighting: 2, transport: 2, flyer: 2, deploy: 2, siege: 3, heavy: 3 };
   for (const U of Object.values(units)) U.supply = (SUPPLY[U.role] || 1) + ((U.tier || 1) === 3 ? 1 : 0);
   buildings.base.supplies = 10;
+  buildings.hall.supplies = 6;
   if (buildings.fort) buildings.fort.supplies = 15;
   // the second resource: named for what it powers itself with, else what it grows, else crystal; its machines and its
   // research cost some of it

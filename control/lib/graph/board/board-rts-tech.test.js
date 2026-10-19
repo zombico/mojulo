@@ -127,9 +127,9 @@ describe('a civilization\'s technology read as a skirmish side', () => {
     expect(raiders.units.archer).toMatchObject(RTS_UNITS.archer);
     expect(raiders.ledger.find((l) => l.as === 'archer').line).toMatch(/no bow, gun or staff/);
     const hermits = rtsRoster(G, 'hermits');
-    // (the plain tables, each unit taking its supply; plain quarters to hold more)
+    // (the plain tables, each unit taking its supply; plain quarters to hold more; a hall to expand)
     expect(Object.fromEntries(Object.entries(hermits.units).map(([k, u]) => { const { supply, ...rest } = u; return [k, rest]; }))).toEqual(RTS_UNITS);
-    expect([hermits.army, hermits.builds, Object.keys(hermits.buildings), hermits.res2]).toEqual([['soldier', 'archer'], ['barracks'], ['base', 'barracks', 'quarters'], undefined]);
+    expect([hermits.army, hermits.builds, Object.keys(hermits.buildings), hermits.res2]).toEqual([['soldier', 'archer'], ['barracks'], ['base', 'hall', 'barracks', 'quarters'], undefined]);
     expect(roleOf(hermits, 'flyer')).toBeUndefined();
     expect(hermits.research).toBeUndefined();
     expect(() => rtsRoster(G, 'nobody')).toThrow(/'nobody' is not one of the world's civilizations/);

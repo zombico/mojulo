@@ -1106,6 +1106,13 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   level (`rts.level`: easy, normal, hard, or one each side): its workers, its first wave and how fast the next
   grow, its actions a minute (easy is held to 40, a few seconds' worth in hand) and how often it thinks; each
   side's waves now its own.
+- **The match**, built: a skirmish played end to end as a match, not a campaign's battle. Expansions
+  (`rts.expansions`: up to three fields a side, two nodes and a hall's spot each, the same for both sides, mirrored
+  through the board's middle and chosen by `rts.seed`) are claimed by a hall, a second depot that trains workers;
+  the mind raises one on the nearest field once its own nodes run low. The victory rule (`rts.victory`): a side
+  loses when its base falls, or under the melee rule only when its last building does. A side may give up
+  (`act({ k: 'surrender' })`). Each side's match is counted: trained, units lost, raised, buildings lost, mined,
+  research done, and its army's worth every ten seconds.
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

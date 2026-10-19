@@ -130,7 +130,7 @@ export function boardRtsPage(api) {
       g.userData = { fill, box, ring, look: true };
       return g;
     }
-    const g = new THREE.Group(), c = SIDE[b.side], big = BU(b.side, b.kind).role === 'base';
+    const g = new THREE.Group(), c = SIDE[b.side], big = BU(b.side, b.kind).role === 'base' || BU(b.side, b.kind).role === 'hall';
     const w = cell * (big ? 0.86 : 0.7), h = big ? 1.6 : 1.1;
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, w, h), lambert(big ? 0xd9d2c0 : 0x9a8a72)); box.position.z = h / 2;
     const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.72, 0.7, 4), lambert(c)); roof.rotation.x = Math.PI / 2; roof.rotation.y = Math.PI / 4; roof.position.z = h + 0.35;

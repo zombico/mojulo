@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -565,5 +565,69 @@ describe('the clock and the hand', () => {
     F = rtsAct(B, C2, F, { k: 'auto', kind: 'ranger', on: true });
     expect(run(B, C2, F, 0.2).R.units.find((u) => u.id === 'r').shield).toBe(40);
     expect(() => rtsAct(B, C2, F, { k: 'auto', kind: 'soldier', on: true })).toThrow(/a Soldier has no ability to cast/);
+  });
+});
+
+describe('the match', () => {
+  it('lays expansions: the same fields for both sides, mirrored, the same for the same seed', () => {
+    const B = flat(11, 18), cfg = readBoardRts(B, { expansions: 1, seed: 'north' });
+    const mirror = (i) => (B.rows - 1 - Math.floor(i / B.cols)) * B.cols + (B.cols - 1 - (i % B.cols));
+    const [f, g] = cfg.fields;
+    expect([g.at, g.nodes]).toEqual([mirror(f.at), f.nodes.map(mirror)]);
+    // a field nearer its side's base, its nodes laid with the rest
+    const d = (a, b) => Math.max(Math.abs((a % 11) - (b % 11)), Math.abs(Math.floor(a / 11) - Math.floor(b / 11)));
+    expect(d(f.at, cfg.bases.player)).toBeLessThan(d(f.at, cfg.bases.enemy));
+    for (const at of [...f.nodes, ...g.nodes]) expect(cfg.nodes.some((n) => n.at === at)).toBe(true);
+    expect(readBoardRts(B, { expansions: 1, seed: 'north' }).fields).toEqual(cfg.fields);
+    expect(() => readBoardRts(flat(7, 9), { expansions: 3 })).toThrow(/the board has room for \d expansions? a side, not 3/);
+    expect(() => readBoardRts(B, { victory: 'regicide' })).toThrow(/victory 'regicide' is not a rule \(base: its base falls; melee: every building it has falls\)/);
+    expect(Object.keys(RTS_VICTORY)).toEqual(['base', 'melee']);
+  });
+
+  it('is lost when the base falls, or (melee) only when the last building does; a side may give up', () => {
+    const B = flat(9, 14), play = (victory) => {
+      const cfg = readBoardRts(B, { workers: 0, nodes: 0, ai: { workers: 0, wave: 30 }, ...(victory ? { victory } : {}) });
+      let R = raise(B, cfg, { ...rtsStart(B, cfg), units: [] }, 'barracks', 'E4');
+      // (the enemy's own barracks, standing)
+      R = { ...R, buildings: R.buildings.map((b) => (b.kind === 'barracks' ? { ...b, side: 'enemy', at: at(B, 'E11') } : b)) };
+      const fall = (R, pick) => rtsTick(B, cfg, { ...R, buildings: R.buildings.map((b) => (pick(b) ? { ...b, hp: 0 } : b)) }, 0.1).R;
+      const once = fall(R, (b) => b.side === 'enemy' && b.kind === 'base');
+      return [once.over, once.over ? null : fall(once, (b) => b.side === 'enemy').over];
+    };
+    expect(play()).toEqual([{ won: true }, null]);
+    expect(play('melee')).toEqual([null, { won: true }]);
+    const B2 = flat(9, 12), cfg = readBoardRts(B2, {});
+    const R = rtsAct(B2, cfg, rtsStart(B2, cfg), { k: 'surrender' });
+    expect([R.over, R.acts.player]).toEqual([{ won: false, surrender: 'player' }, 1]);
+    expect(() => rtsAct(B2, cfg, R, { k: 'order', ids: [], o: { kind: 'stop' } })).toThrow(/the game is over/);
+  });
+
+  it('counts the match per side: trained, lost, raised, mined, research, and its army\'s worth every ten seconds', () => {
+    const B = flat(9, 12), cfg = readBoardRts(B, { ai: { wave: 3 } });
+    let R = rtsStart(B, cfg);
+    const down = { player: [0, 0], enemy: [0, 0] };
+    for (let k = 0; k < 2400 && !R.over; k++) {
+      if (k % 10 === 0) R = rtsMind(B, cfg, R, 'player');
+      const o = rtsTick(B, cfg, R, 0.1);
+      R = o.R;
+      for (const e of o.events) if (e.kind === 'down') down[e.side][RTS_UNITS[e.kind2] ? 0 : 1]++;
+    }
+    for (const side of ['player', 'enemy']) {
+      const S = R.stats[side];
+      expect([S.lost, S.fell]).toEqual(down[side]);
+      expect(S.trained).toBeGreaterThan(0);
+      expect(S.mined).toBeGreaterThan(0);
+      expect(S.army).toHaveLength(Math.floor(R.t / 10 + 1e-9) + 1);
+    }
+    expect(R.stats.enemy.built).toBeGreaterThan(0);
+  });
+
+  it('is a mind that claims a field with a hall once its own nodes run low', () => {
+    const B = flat(11, 18), cfg = readBoardRts(B, { nodes: 1, expansions: 1, gold: 400, ai: { wave: 30 } });
+    let R = rtsStart(B, cfg);
+    for (let k = 0; k < 6000 && !R.buildings.some((b) => b.side === 'enemy' && b.kind === 'hall' && b.raising <= 0); k++) R = rtsTick(B, cfg, R, 0.1).R;
+    const hall = R.buildings.find((b) => b.side === 'enemy' && b.kind === 'hall');
+    expect(hall && hall.raising).toBe(0);
+    expect(cfg.fields.map((f) => f.at)).toContain(hall.at);
   });
 });
