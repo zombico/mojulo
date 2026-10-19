@@ -497,7 +497,13 @@ export const WORLD_KINDS = {
   // them, played with the tactical camera. Not walked: the board owns the camera and the keys
   board: {
     title: 'mojulo board',
-    resolve: (m, ctx) => assembleBoardScene(m, { title: ctx.title === 'mojulo board' ? undefined : ctx.title }),
+    // a battle's units stood as figures (board/board-figures.js): each look a hero, resolved as the figures map resolves one
+    resolve: async (m, ctx) => {
+      const P = assembleBoardScene(m, { title: ctx.title === 'mojulo board' ? undefined : ctx.title });
+      if (!P.board.battle || m.battle?.figures === false) return P;
+      const [{ boardFigures }, { heroFigure }] = await Promise.all([import('@/lib/graph/board/board-figures'), import('@/lib/graph/worlds/world-scene')]);
+      return boardFigures(P, { heroFigure });
+    },
   },
   // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
   // its thread, side by side; characters are made from it by ref (create_character { egocube })

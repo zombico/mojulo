@@ -85,7 +85,7 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
-async function heroFigure(name, spec) {
+export async function heroFigure(name, spec) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');

@@ -37,7 +37,7 @@ export function boardChannelData(laid, { units = [], camera = {}, cursor, drape,
     ...(drape ? { drape } : {}), ...(clip ? { clip } : {}), ...(battle ? { battle } : {}) };
 }
 
-/* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue */
+/* global THREE, scene, camera, controls, renderer, wrap, __ctrlOwnsCamera, __inputQueue, window */
 export function boardPage(D, K, CAM, MIND) {
   const B = D.B, O = D.origin, cell = B.cell;
   controls.enabled = false;
@@ -119,6 +119,14 @@ export function boardPage(D, K, CAM, MIND) {
   let S = units0 && units0.length ? K.start(B, cfg, units0) : null;
   const tokens = {};
   const FACE = [Math.PI / 2, 0, -Math.PI / 2, Math.PI];   // n e s w as a heading from +x
+  // a unit's figure: the controllable runtime's entity and body the board drives (none when it is a token)
+  const CTRL = typeof window !== 'undefined' ? window.__mojCtrl : null;
+  function figureOf(id) {
+    const eid = D.figures && D.figures[id];
+    if (!eid || !CTRL || !CTRL.world) return null;
+    const e = CTRL.world.entities.find((x) => x.id === eid);
+    return e ? { e, eid } : null;
+  }
   if (S) for (const id of S.order) {
     const U = S.u[id], g = new THREE.Group(), colour = new THREE.Color(D.colours[U.side] || '#cccccc');
     const body = new THREE.Mesh(new THREE.CylinderGeometry(cell * 0.24, cell * 0.28, 1.3, 14), new THREE.MeshBasicMaterial({ color: colour }));
@@ -129,7 +137,12 @@ export function boardPage(D, K, CAM, MIND) {
     const nose = new THREE.Mesh(new THREE.ConeGeometry(cell * 0.1, cell * 0.28, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     nose.rotation.z = -Math.PI / 2;
     nose.position.set(cell * 0.3, 0, 0.9);
-    g.add(body, head, nose);
+    // the side's ring under it; the body itself is the figure's when the unit wears one (board-figures.js)
+    const ring = new THREE.Mesh(new THREE.RingGeometry(cell * 0.3, cell * 0.4, 28), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+    ring.position.z = LIFT * 1.2;
+    ring.renderOrder = 3;
+    const fig = figureOf(id);
+    if (fig) g.add(ring); else g.add(body, head, nose, ring);
     root.add(g);
     tokens[id] = { g, hops: [], t: 0, from: centre(U.at) };
     g.position.set(...centre(U.at));
@@ -509,6 +522,15 @@ export function boardPage(D, K, CAM, MIND) {
         if (f >= 1) { T.from = to; T.hops.shift(); T.t = 0; if (!T.hops.length) T.g.rotation.z = FACE[U.face]; }
       }
       T.g.visible = U.hp > 0;
+      const F = figureOf(id);
+      if (F) {
+        const p = T.g.position;
+        F.e.transform.pos = [p.x, p.y, p.z];
+        F.e.transform.heading = T.g.rotation.z;
+        F.e.moving = T.hops.length > 0;
+        F.e.locomotion = 'forward';
+        F.e.gone = U.hp <= 0;   // the runtime hides a body that is gone; a raised one stands again
+      }
     }
     if (battle) { drawFloats(dt); run(dt); }
   };

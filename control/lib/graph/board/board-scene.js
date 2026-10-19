@@ -4,9 +4,10 @@
  * (board-camera.js) that plays it. Not walked: the board owns the camera.
  *
  *   { kind: 'board', board?: <board-lay.js spec>, units?: [<board-kernel.js start unit>], camera?: { rotate, edge,
- *     fov, pitches, zooms, yaw }, cursor?: 'C4', battle?: <board-battle.js spec> & { players?: [sides] } }
+ *     fov, pitches, zooms, yaw }, cursor?: 'C4', battle?: <board-battle.js spec> & { players?: [sides], figures?: false } }
  *   units: tokens to look at and move freely; battle: a battle the page plays (the player moves `players`, ['party'] by
- *   default; [] lets the minds fight it out)
+ *   default; [] lets the minds fight it out); a battle's units stand as figures (board-figures.js, by the kind's resolver)
+ *   unless `figures: false`
  *
  *   assembleBoardScene(manifest, ctx) → payload: the ground's faces (and a stage's own light and sky; a room's without
  *     its ceiling, its walls cut at the waist, no haze), `board` (the page's data: board-page.js boardChannelData), and a camera
@@ -45,7 +46,7 @@ export function assembleBoardScene(manifest = {}, ctx = {}) {
   if (units.length) boardStart(L.board, {}, units);   // the kernel says what cannot stand, before a page is made
   let battle;
   if (manifest.battle !== undefined) {
-    const { players = ['party'], ...spec } = manifest.battle ?? {};
+    const { players = ['party'], figures: _figures, ...spec } = manifest.battle ?? {};   // figures: the kind's resolver stands them (board-figures.js)
     if (!Array.isArray(players) || !players.every((x) => typeof x === 'string')) no('battle.players are the sides the player moves: [\'party\'] (or [] to watch)');
     const { cfg, units: fielded } = readBoardBattle(spec);
     boardStart(L.board, cfg, fielded);
