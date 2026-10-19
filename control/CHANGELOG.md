@@ -97,8 +97,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Ears.** The relational head wears ears in the shape of the operator's sketch (`head-ear.js` `EAR_OUTLINE`, now
   exported): the helix rolled along the outline into the lobule and curling into its root, the antihelix's Y, the
   tragus raised into the notch over the lobe, the concha's bowl and a blind canal. Their place is relational: the top
-  at the brow (`earTop`), the lobule level with the nose's base (`earBottom`), the long axis leaning back with the
-  nose's dorsum (`earTilt`), the hinge on the head's own skin, found by probing the field. The concha stands a little
+  at the brow (`earTop`), the lobule level with the nose's base (`earBottom`), the long axis leaning back from
+  vertical by `earTilt` degrees, the hinge on the head's own skin, found by probing the field. The concha stands a little
   off the head with its back welded to the skin, and the outer ear folds off it at the antihelix (`earProtrusion`).
   `earlobe` sets the lobule from free (0, tilted off the head) to attached (1, tilted into the cheek, where it fuses).
   `--crop ear` frames the right ear.
@@ -126,6 +126,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Measured** in mm ahead of the cornea, male / female: radix 11 / 11, brow over the pupil 11.6 / 9.3, skin
     over the lateral rim −9.6 / −9.5, the skull's rim −16.1 / −16.1 (Hertel's 12–20). The wave still meets every
     relation within 0.4 mm, with no through-holes.
+- **Upright ears.** `earTilt` is now degrees from vertical, not a share of the nose's dorsum. Through the dorsum the
+  ears read about 18° along the long axis (helix top to lobule bottom), too angled. At 6° they read about 10°, the
+  clinic's floor. The ear still turns about its hinge with its top at the brow and its lobule at the nose's base. The
+  tragion moved 0.4 mm and the outer canthus to tragion stays about 76 mm. The attached lobule still fuses, with no
+  through-holes.
 - **The outer canthus, closed cleanly.** With the outer wall gone, a slab showed at the outer eye corner. The lid
   space's floor ran level past the canthus to the arc's foot, and both it and the opening's sliver end cut back to
   the globe's centre, where the globe no longer reaches, leaving a shelf and a slot.

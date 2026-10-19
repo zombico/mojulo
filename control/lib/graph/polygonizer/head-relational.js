@@ -75,7 +75,9 @@ export const RELATIONS = Object.freeze({
   earTop: 0.5,          // the ear's top between the eye line (0) and the glabella (1): at the brow
   earBottom: 0,         // the lobule's bottom above the subnasale / v-me: level with the nose's base
   earWidth: 1,          // the ear's width over its outline's own
-  earTilt: 0.65,        // the ear's long axis leans back by this share of the nose's dorsum (the ear parallels the bridge)
+  earTilt: 6,           // degrees the ear leans back from vertical (its frame; the long axis, helix top to lobule
+                        // bottom, reads ~4° more, ~10°): upright, at the clinic's 10–30 floor (a share of the nose's dorsum
+                        // read ~18°, too angled)
   earProtrusion: 35,    // degrees the outer ear folds off the concha at the antihelix (the concha itself stands 15° off the head)
   earlobe: 0,           // 0 a free lobule (tilted off the head, a gap behind it) … 1 attached (tilted into the cheek, fused)
   // ── masses (radii as shares of v-me)
@@ -481,7 +483,7 @@ export function applyActions(vajras, P, acts) {
  * its relief on the front face as vajras: the helix rim chained along the outline (the lobule fuller), the antihelix's
  * Y (its stem from the antitragus, its two crura), the tragus and the antitragus; the concha carved into it, and the
  * canal a blind dimple at its floor. Its place is relational: the top at the brow (`earTop`), the lobule level with the
- * nose's base (`earBottom`), the long axis leaning back by a share of the nose's dorsum (`earTilt`), the hinge on the
+ * nose's base (`earBottom`), the long axis leaning back from vertical by `earTilt` degrees, the hinge on the
  * head's own skin, found by probing the field (`baseX`). Returns { f, carve, top, tragion } in V (`f` the ear's mass,
  * `carve` its hollows) for side `s` ('L' | 'R').
  */
@@ -495,7 +497,7 @@ export function earPart(P, rel, s, baseX) {
   const R = { ...RELATIONS, ...rel };
   const sg = s === 'L' ? -1 : 1;
   const zEye = P[`eye${s}`].z, zSa = zEye + R.earTop * (P.g.z - zEye), zSba = P.sn.z + R.earBottom;
-  const lean = Math.atan2(P.prn.y - P.n.y, P.n.z - P.prn.z), t = R.earTilt * lean, ct = Math.cos(t), st = Math.sin(t);
+  const t = (R.earTilt * Math.PI) / 180, ct = Math.cos(t), st = Math.sin(t);
   const Hear = (zSa - zSba) / ct;                                   // the outline's unit height, along the leaning axis
   // THE EAR'S THREE PIECES, each a flat frame, meeting along shared lines: the CONCHA lies on the head (the bowl's
   // back is on the skin); the OUTER ear — the helix and the scapha behind the antihelix — folds off the head at the

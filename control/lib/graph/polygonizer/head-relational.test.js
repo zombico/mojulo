@@ -1,7 +1,7 @@
 /**
  * head-relational — the orbit's frame in depth: the cornea hangs off the nasion by the radix; the brow hoods the eye
  * and the lateral rim sits behind it, skin and bone, in the clinic's ranges, so the globe shows from ¾ and in a
- * profile; the skull's orbit holds the globe clear of bone.
+ * profile; the skull's orbit holds the globe clear of bone. The ear stands upright, in its place.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -42,5 +42,20 @@ describe('the orbit in depth', () => {
       const p = { x: gc.x + r * Math.sin(ph) * Math.cos(th), y: gc.y + r * Math.cos(ph), z: gc.z + r * Math.sin(ph) * Math.sin(th) };
       expect(bone.field(p)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('the ear', () => {
+  it('stands upright: its long axis (helix top to lobule bottom) within a few degrees of the clinic\'s floor', () => {
+    const L = skin.landmarks, T = L.tragionR;
+    let bot = null, lobeY = null;
+    for (let z = T.z; z >= T.z - 0.04; z -= 0.0004) for (let y = T.y - 0.02; y <= T.y + 0.015; y += 0.0006)
+      if (skin.field({ x: T.x + 0.004, y, z }) < 0 && (bot === null || z < bot)) { bot = z; lobeY = y; }
+    const lean = (Math.atan2(lobeY - L.earTopR.y, L.earTopR.z - bot) * 180) / Math.PI;
+    expect(lean).toBeGreaterThan(5);
+    expect(lean).toBeLessThan(14);
+    // still where it was on the face: the tragion ~76 mm behind the outer canthus
+    expect((L.exR.y - T.y) * 1800).toBeGreaterThan(70);
+    expect((L.exR.y - T.y) * 1800).toBeLessThan(82);
   });
 });
