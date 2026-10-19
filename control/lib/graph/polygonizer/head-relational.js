@@ -458,13 +458,14 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE NOSTRILS — one vajra each, placed from the nose's bottom (`nostrilRise`, `nostrilSet` put the alare over the
   // subnasale): the wing's base where it inserts into the lip → the alar lobule (its outer side IS the alare) → the
   // soft triangle beside the tip. Mirrored, with the columella between them; the space between a lobule and the
-  // columella, roofed by the tip and the walls, is the nostril's opening seen from below.
+  // columella, roofed by the tip and the walls, is the nostril's opening seen from below. (The root sits just inside
+  // the alare, so the lobule alone is the wing's widest: as wide, it stood a second bump behind the lobule.)
   const lobule = {}, soft3 = {};
   for (const s of ['L', 'R']) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
     lobule[s] = at(al, { x: -sg * 0.018, y: -0.006 });
     soft3[s] = { x: sg * 0.024, y: P.prn.y - 0.036, z: P.prn.z - 0.008 };
-    v(`nostril${s}`, at(al, { x: -sg * 0.008, y: -0.03, z: -0.006 }), lobule[s], soft3[s], [0.012, 0.018, 0.012], 'nose');
+    v(`nostril${s}`, at(al, { x: -sg * 0.014, y: -0.03, z: -0.006 }), lobule[s], soft3[s], [0.012, 0.018, 0.012], 'nose');
   }
   // THE ALAR BAR — lobule → under the subnasale → lobule: the nose's base, joining the nostrils. Its ends are the
   // lobules (the same bead and radius), so the wing's outer side stays the alare (ended at the alare itself, the bar
@@ -515,11 +516,12 @@ export function coreVajras(P, rel = RELATIONS) {
   const cut = (name, a, c, b, r, drive, blend) => V.push({ name, a, c, b, r, group: 'carve', ...(drive ? { drive } : {}), ...(blend ? { blend } : {}) });
   // the ALAR CREASES — round the back and the bottom of each wing, where it meets the cheek and the lip: the wing stands
   // off the face in a groove (the summed wave fills between near masses; it never parts them). It runs behind the
-  // wing's root (the nostril's first bead), its edge blended over ~1.5 mm: cut across the wing in front of the root, it
-  // left the root standing outside the groove as a curled flap
+  // wing's root (the nostril's first bead), clear of it, its edge blended over ~3 mm, so the root's own round end is the
+  // wing's heel: cut across the wing in front of the root, it left the root standing outside the groove as a curled
+  // flap, and cut into the root's back, it met the root's flat underside in a point
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`al${s}`].x), lb = lobule[s];
-    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.018, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.028, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.034, z: -0.018 }), [0.003, 0.004, 0.003], null, 0.006);
+    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.026, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.036, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.042, z: -0.018 }), [0.003, 0.004, 0.003], null, 0.012);
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);

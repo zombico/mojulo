@@ -114,8 +114,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lower row and the tongue. A septum fills the nose's midline (a
   pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane finds none over
   the jaw's range in tenths, plain and smiling.
-- **The wings' bases.** Each wing meets the face in one crease: the alar crease runs behind the wing's root, its edge
-  blended (cut across the wing in front of the root, it left a curled flap outside the groove), and the sill under the
+- **The wings' bases.** Each wing meets the face in one crease: the alar crease runs behind the wing's root, clear of
+  it, its edge blended, so the root's round end is the wing's heel (cut across the wing in front of the root, it left a
+  curled flap outside the groove; cut into the root's back, a point), the root sits just inside the alare so the
+  lobule alone is the wing's widest, and the sill under the
   wing sinks its outer end into the cheek (it stood a round knob 7 mm proud of the cheek beside each wing). The
   calipers (al-al, n-sn, sn-prn) are unchanged.
 - **A soft mentolabial fold.** The fold between the lower lip and the chin is a broad, shallow hollow curving with the
