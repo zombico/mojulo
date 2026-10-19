@@ -152,7 +152,8 @@ const NORRIN = {
       { id: 'wrist', s: 0.97, r: [0.1, 0.1, 0.14] },
     ] },
     // the legs (the right; the left its mirror): the thigh from the hip's socket, the shank from the knee
-    thigh: { from: 'hipR', to: 'kneeR', rings: 25, masses: [
+    // (the thigh rounder and finer than the other limbs: under the hip's level it takes the seat's fold and the crotch)
+    thigh: { from: 'hipR', to: 'kneeR', rings: 33, around: 32, masses: [
       // (the bone slim, begun below the joint: a 6 cm ball at the hip's socket, forward of the trunk, read through the
       // pelvis's skin as an action figure's ball joint; the thigh's breadth up top is its muscles')
       { id: 'femur', cone: [0.12, 1], r: [0.17, 0.17] },
@@ -457,7 +458,8 @@ export function limbField(R, build, limb, extra = []) {
 
 /** the slice: the torso and the arms re-sampled onto the build's field (the torso `around` × `rings`, each limb
  * `limbAround` × its build's rings), the pectoral and bust parts gone (the field carries their form), the dials' station
- * blends extended by u. Returns { recipe, field, removed } */
+ * blends extended by u. Returns { recipe, field, removed, fields } (`fields`: each re-sampled shell's signed distance,
+ * its handovers' set-ins included, by part: what a seam's diagnosis reads) */
 export function formSlice(recipe, R, build, opts = {}) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build;
   if (!B) throw new Error(`body-relational: unknown build '${build}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
@@ -478,29 +480,39 @@ export function formSlice(recipe, R, build, opts = {}) {
   // A LIMB'S TWO SEGMENTS share one field (both segments' masses, the knee's and the elbow's from each side) and hand over
   // by the plane through the joint square to the upper bone, the deltoid's pattern: past it the lower segment's skin
   // shows, the upper's set `tuck` inside; before it the reverse (each segment's own knee mass, of its own size, met the
-  // other's in a step)
+  // other's in a step). One crossing at the plane: each fades in from it, so the two skins meet there only (two fades
+  // begun `gap` either side of it left both on one skin between, and the elbow and the knee wore a line)
   const chain = (a, b, joint) => {
     if (!limbs[a] || !limbs[b]) return;
     const all = [...limbs[a].prims, ...limbs[b].prims], k = B.kLimb * W0, both = (q) => lse(all.map((p) => sdPrim(p, q)), k);
     const J = R.joints[joint], n = unit(sub(J, R.joints[B.limbs[a].from])), past = (q) => dot(sub(q, J), n);
-    limbs[a].sd = (q) => both(q) + tuck * ease((past(q) - gap) / band);
-    limbs[b].sd = (q) => both(q) + tuck * ease((-past(q) - gap) / band);
+    limbs[a].sd = (q) => both(q) + tuck * ease(past(q) / band);
+    limbs[b].sd = (q) => both(q) + tuck * ease(-past(q) / band);
   };
   chain('upperArm', 'foreArm', B.limbs?.upperArm?.to); chain('thigh', 'shank', B.limbs?.thigh?.to);
   const shared = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)).map((p) => ({ ...p, clip }));
-  // THE HIP'S HANDOVER, by height (`zHip`, under the hip's joint): the pelvis samples a field carrying the thighs' masses
-  // whole, so its skin goes round the thigh's root; above `zHip` the thigh is set `tuck` inside (its top ring and cap
-  // under the pelvis's skin: the hip's joint sits forward of the trunk's axis, and the thigh's top ring stood out of the
-  // pelvis's front in a shelf); below it the pelvis is set inside where it lies along the thigh's skin only (`near`), so
-  // the thigh shows there and the seat and the pubis keep their size (the thighs' masses cut at `zHip` left the pelvis's
-  // low rings nothing to land on behind, and they fell back to the authored cage in flat panels)
-  const pelvicB = B.base.some((m) => m.id === 'seatLobe'), zHip = R.joints.hipR[2] - 0.3 * W0;
-  let pelvisSd = null;
+  // THE HIP'S HANDOVER, on one field and one level (`zp`, a little over the crotch, the skin's lowest point on the
+  // midline): the pelvis samples the body's field carrying the thighs' masses whole, and about the level the thigh
+  // samples the same field, cut at the midline (`hip`), easing back to its own masses over `bz` above the level and
+  // down the femur. The pelvis ends at the crotch and is set `deep` inside under the level, the thigh over it, each
+  // faded in from the level over `bp`, a ring or so: so the two skins meet at the level only, on one surface, and the
+  // skin that shows either side of it is the field's (a thigh faded in slowly stayed within a mesh's error of the
+  // pelvis's skin, and poked through it in spikes). Under the level the thighs take the seat's fold, the crotch and the
+  // groin.
+  // (A seam by which masses own the skin wandered where the thigh and the belly blend shallowly, in teeth; one by
+  // height with a gap between the two fades left both on one skin, a sawtooth across the thigh's front; rings of the
+  // pelvis under the crotch, cast from inside it, all left through its underside and folded in flaps)
+  const ramp = (x) => Math.max(0, Math.min(1, x)), deep = 0.004, bz = 0.04, bp = 0.012;
+  const pelvicB = B.base.some((m) => m.id === 'seatLobe');
+  let pelvisSd = null, zp = null, crotch = null;
   if (pelvicB && limbs.thigh) {
-    const th = limbs.thigh.sd, thighs = (q) => Math.min(th(q), th([-q[0], q[1], q[2]]));
-    const pf = bodyField(R, B, { extra: limbs.thigh.prims });
-    pelvisSd = (q) => pf.sd(q) + tuck * ease((zHip - q[2] - gap) / band) * ease(1 - Math.max(0, thighs(q)) / 0.01);
-    limbs.thigh.sd = (q) => th(q) + tuck * ease((q[2] - zHip - gap) / band);
+    const th = limbs.thigh.sd, pf = bodyField(R, B, { extra: limbs.thigh.prims }).sd, zh = R.joints.hipR[2];
+    crotch = zh;
+    for (let y = -0.1; y <= 0.15; y += 0.01) for (let z = zh - 2 * W0; z < crotch; z += 0.002) if (pf([0, y, z]) < 0) { crotch = z; break; }
+    zp = crotch + 0.005 + bp + 0.003;
+    const hip = (q) => Math.max(pf(q), -q[0]), w = (z) => ramp((zp + bz - z) / bz) * ramp((z - zp + 0.14) / bz);
+    pelvisSd = (q) => pf(q) + deep * ramp((zp - q[2]) / bp);
+    limbs.thigh.sd = (q) => { const a = w(q[2]); return (a < 1 ? th(q) * (1 - a) : 0) + (a > 0 ? hip(q) * a : 0) + deep * ramp((q[2] - zp) / bp); };
   }
   const field = bodyField(R, B, { extra: shared }), r = structuredClone(recipe), P = r.parts.torso;
   const under = (q) => (clip.slope * (Math.hypot(q[0], q[1]) - clip.rho) - (q[2] - clip.z)) / Math.hypot(1, clip.slope);
@@ -515,14 +527,25 @@ export function formSlice(recipe, R, build, opts = {}) {
   // the band between them shaded in a sawtooth)
   const Fr = field.frame, L = B.lift, raise = (z) => { if (!L) return 0; const x = Math.min(1, Math.abs((z - Fr.z0) / Fr.T - L.t) / L.w); return L.h * Fr.W * (1 - x * x * (3 - 2 * x)); };
   // THE PELVIS on the field too (a build with a seat): the torso no longer eases onto the authored pelvis, and the two
-  // hand over by height at the middle of their overlap (`zH`), as the deltoid does: below it the pelvis's skin shows
-  // (the torso's set `tuck` inside), above it the torso's (the pelvis's inside)
+  // hand over by height at the middle of their overlap (`zH`), in one crossing: below it the pelvis's skin shows (the
+  // torso's set `deep` inside, faded in over `bz` from zH), above it the torso's
   const cz = (st, Pt) => Pt.slots.reduce((a, sl) => a + st.points[sl][2], 0) / Pt.slots.length;
   const pelvic = !!r.parts.pelvis && B.base.some((m) => m.id === 'seatLobe');
   const zH = pelvic ? (cz(P.stations[0], P) + cz(r.parts.pelvis.stations.at(-1), r.parts.pelvis)) / 2 : null;
-  const handed = (sd, sign) => (q) => sd(q) + tuck * ease((sign * (zH - q[2]) - gap) / band);
+  const handed = (sd, sign) => (q) => sd(q) + deep * ramp((sign * (zH - q[2])) / bz);
   r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 });
-  if (pelvic) r.parts.pelvis = resamplePart(r.parts.pelvis, handed(pelvisSd ?? field.sd, -1), { around, rings: B.pelvisRings ?? 25, relax: 2 });
+  if (pelvic) {
+    // its lowest station set on the crotch (`crotch`), wholly under the level. Its centre lies on the crotch's skin, so a
+    // ring's rays cast from the first point inside straight above (`up`)
+    const psd = handed(pelvisSd ?? field.sd, -1), P0 = structuredClone(r.parts.pelvis), s0 = P0.stations[0];
+    if (crotch !== null) for (const k of P0.slots) s0.points[k] = [s0.points[k][0], s0.points[k][1], crotch + 0.005];
+    const up = (c) => { if (psd(c) < 0) return c; for (let t = 0.002; t <= 0.12; t += 0.002) { const q = [c[0], c[1], c[2] + t]; if (psd(q) < -0.004) return q; } return c; };
+    const Pp = r.parts.pelvis = resamplePart(P0, psd, { around, rings: B.pelvisRings ?? 33, origin: up, relax: 2 });
+    // its lowest cap on the crotch's skin, over the lowest ring's centre (the authored pole hung a nub between the thighs)
+    const ring = Pp.slots.map((k) => Pp.stations[0].points[k]), o = up(scl(ring.reduce((a, p) => add(a, p), [0, 0, 0]), 1 / ring.length));
+    const hit = Pp.caps?.back && psd(o) < 0 ? crossing(psd, o, [0, 0, -1], 0.15) : null;
+    if (hit) Pp.caps = { ...Pp.caps, back: [0, r6(hit[1]), r6(hit[2])] };
+  }
   // the neck on its own masses of the same field (its column, the sternocleidomastoids, the trapezius's climb), so the
   // torso's top and the neck's root agree
   if (r.parts.neck) r.parts.neck = resamplePart(r.parts.neck, field.only(['neck', 'sternocleidomastoid', 'trapeziusUpper']), { around: 32, rings: 15, relax: 2 });
@@ -543,7 +566,7 @@ export function formSlice(recipe, R, build, opts = {}) {
       for (let t = 0; t <= L; t += 0.002) { const q = add(c, scl(d, t / L)); if (lsd(q) < -0.004) return q; }
       return null;   // (the bone itself not in the skin: the thigh's top rings above the hip's joint)
     };
-    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
+    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }
@@ -553,5 +576,5 @@ export function formSlice(recipe, R, build, opts = {}) {
     if (Array.isArray(d.parts)) d.parts = d.parts.filter((p) => !gone.includes(p));
     if (d.blend && d.parts?.some((p) => done.includes(p))) for (const pn of done) for (const s of r.parts[pn]?.stations || []) if (d.blend[s.id] === undefined) { const lo = d.blend[`st${Math.floor(s.u)}`] ?? 0, hi = d.blend[`st${Math.ceil(s.u)}`] ?? 0, t = s.u - Math.floor(s.u); d.blend[s.id] = r6(lo * (1 - t) + hi * t); }
   }
-  return { recipe: r, field, removed: gone };
+  return { recipe: r, field, removed: gone, fields: Object.fromEntries([['torso', pelvic ? handed(field.sd, 1) : field.sd], ...(pelvic ? [['pelvis', handed(pelvisSd ?? field.sd, -1)]] : []), ...Object.entries(limbs).map(([k, l]) => [k, l.sd])]) };
 }

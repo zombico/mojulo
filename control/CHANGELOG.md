@@ -80,7 +80,8 @@ Opt-in and versioned: a default hero keeps its bytes.
   gesture or a raw rig pose; crops at the torso, shoulder, hip, knee, hand, foot and the neck's seam, framed on the
   posed joints; and at the bind a sections panel (the trunk cut level at the neck, chest, waist and seat, the right
   limbs square to their bones) with each girth as a tape reads it, and a measures table (stature, heads tall, the
-  shoulders' and hips' breadths, the girths). The eyes gate beside the stretch audit's numbers: the sprint's knee crop
+  shoulders' and hips' breadths, the girths). `--tint` colours each part its own (which shell shows where two hand
+  over) and `--parts` keeps only the parts a pattern names. The eyes gate beside the stretch audit's numbers: the sprint's knee crop
   shows the shank's top out of the thigh where the audit measures it. Baseline, male and female: stature 1753 and
   1664 mm, 7.15 and 6.79 heads tall; chest 107 and 88 cm, waist 84 and 64, seat 86 and 90.
 - **The form field, a vertical slice** (`body-relational.js`; seen through `body-study --form`, not yet on the door).
@@ -116,9 +117,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   rises into the seat in profile and its inside reads full and tapering from the front; a limb's mass may be a `chain`
   of round cones bead to bead) and the shank (both heads of the gastrocnemius, the soleus, the tibialis anterior, the Achilles, the ankle).
   A limb's two segments share one field and hand over by the plane through the joint (each segment's own knee had met
-  the other's in a step); the torso and the pelvis hand over by height; the pelvis's field carries the thighs' masses,
-  so its skin goes round the thigh's root, the thigh tucked under it above the hip. Only the feet are still the
-  authored cage.
+  the other's in a step); the torso and the pelvis hand over by height. THE HIP'S JOIN: the pelvis ends at the crotch,
+  and about one level a little over it the thigh samples the pelvis's own field (the body with the thighs' masses, cut
+  at the midline), so the two skins meet on one surface; under the level the thighs take the seat's fold, the crotch
+  and the groin, and the seat runs on round into the thigh (it had ended at the fold in a flat ring over the narrower
+  thigh, and the seam had wandered in teeth across the thigh's front and hemmed the seat in a jagged line). Every
+  handover is one crossing: each skin fades in from its line, a ring or so, with no gap between the two fades (a gap
+  had left both on one skin, in a sawtooth at the waist, the elbow and the knee). The thigh is rounder and finer than
+  the other limbs (32 round, 33 rings). Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -51,7 +51,7 @@ const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -60,6 +60,8 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--register') { reg = args[++i]; continue; }
   if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--form') { form = args[++i]; continue; }
+  if (a === '--tint') { tint = true; continue; }
+  if (a === '--parts') { only = new RegExp(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
   if (a.startsWith('--')) throw new Error(`body-study: unknown option ${a}`);
   casts.push(a);
@@ -94,8 +96,10 @@ function camera(az, elev, box, W, H) {
     shade: (n) => { const d = Math.max(0, (n[0] * r[0] + n[1] * r[1] + n[2] * r[2]) * light[0] + (n[0] * u[0] + n[1] * u[1] + n[2] * u[2]) * light[1] + (n[0] * c[0] + n[1] * c[1] + n[2] * c[2]) * light[2]); return 0.30 + 0.70 * d; },
   };
 }
-/** the triangles (vertex positions, per-corner normals) z-buffered and lit in clay */
-function rasterize(V, faces, normals, cam, W, H) {
+/** a part's own colour (`--tint`): which shell shows where two hand over */
+const partTint = (part) => { let h = 0; for (const c of part.replace(/[RL]$/, '')) h = (h * 31 + c.charCodeAt(0)) % 360; const f = (n) => { const k = (n + h / 30) % 12; return 200 * (0.75 - 0.4 * Math.max(-1, Math.min(k - 3, 9 - k, 1))); }; return [f(0), f(8), f(4)]; };
+/** the triangles (vertex positions, per-corner normals) z-buffered and lit in clay (or each part its own colour) */
+function rasterize(V, faces, normals, cam, W, H, hue = null) {
   const zbuf = new Float32Array(W * H).fill(-Infinity), img = Buffer.alloc(W * H * 4, 0);
   faces.forEach((tri, fi) => {
     const P = tri.map((v) => cam.project(V[v])), N = normals[fi];
@@ -113,7 +117,8 @@ function rasterize(V, faces, normals, cam, W, H) {
       zbuf[o] = d;
       const n = [0, 1, 2].map((q) => w0 * N[0][q] + w1 * N[1][q] + w2 * N[2][q]), l = Math.hypot(...n) || 1;
       const s = cam.shade(n.map((v) => v / l));
-      img[o * 4] = Math.min(255, CLAY[0] * s); img[o * 4 + 1] = Math.min(255, CLAY[1] * s); img[o * 4 + 2] = Math.min(255, CLAY[2] * s); img[o * 4 + 3] = 255;
+      const K = hue ? hue[fi] : CLAY;
+      img[o * 4] = Math.min(255, K[0] * s); img[o * 4 + 1] = Math.min(255, K[1] * s); img[o * 4 + 2] = Math.min(255, K[2] * s); img[o * 4 + 3] = 255;
     }
   });
   return img;
@@ -267,10 +272,11 @@ for (const cast of casts) {
     const { nodes, label: lab } = rowNodes(cast, H, row);
     const which = row.crop ?? crop, views = acts ? ROW_VIEWS : ALL_VIEWS;
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
-    const { V, normals, faces } = posed(H, nodes);
-    const box = frameBox(V, nodes, which);
+    const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
+    const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
+    const box = frameBox(V, nodes, which), hue = tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
-      const img = rasterize(V, faces, normals, camera(v.az, v.elev, box, W, Hh), W, Hh);
+      const img = rasterize(V, faces, normals, camera(v.az, v.elev, box, W, Hh), W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);
       label(col * W, y0 + Hh - 10, `${cast} · ${lab}${which ? ` · ${which}` : ''} · ${v.name}`, 12);
     }

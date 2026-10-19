@@ -45,7 +45,11 @@ arms re-sampled onto a build of the body's form field (`body-relational.js` `BOD
 muscle masses placed from the hero's rest joints, summed into one skin), denser than authored; bald, in a matte
 silver-grey, wearing the RELATIONAL head (head-relational.js, the head-study field lane's) fitted to the hero's head and
 carried by its head bone. A build may carry a tune of the hero's own (norrin's shoulders 0.9). A dev path: no minted
-hero changes. The legs and the pelvis are still the authored cage.
+hero changes. The pelvis and the legs are on the field too; only the feet are still the authored cage.
+
+**Which shell shows** (`--tint`): each part in its own colour, so a handover between two shells (the torso and the
+pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps
+only the parts it names (`--parts '^pelvis$'`), to see one shell whole.
 
 **The sections panel and the measures table** come at the bind, per cast:
 
