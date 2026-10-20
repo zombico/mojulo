@@ -645,6 +645,12 @@ export function formSlice(recipe, R, build, opts = {}) {
     r.rig.folds[id] = { joint: `shoulder${S}`, inAxis: [0, 1, 2].map((k) => r6(J[`elbow${S}`][k] - J[`shoulder${S}`][k])), to: `elbow${S}`, front: [0, 1, 0], push: 0, bones: [`clavicle${S}`, `upperArm${S}`], head: id, tail: `shoulderFoldTip${S}`, aim: `shoulderFoldAim${S}` };
     r.rig.bones.push({ id, head: id, tail: `shoulderFoldTip${S}`, aux: [id, `shoulderFoldAim${S}`] });
   }
+  // THE FOREARM BENDS FROM THE UPPER ARM: framed from the upper arm's frame by the elbow's bend alone (the rig's `parent`),
+  // so the elbow never twists. Each framed by the shortest turn to its own line, the two disagreed about their roll by
+  // as much as the arm had swung, the elbow wrung 47 degrees with the forearms reaching behind the head. (Framing both
+  // by the shoulder's roll instead, the skin had a turn of up to 110 degrees to lose somewhere between the collarbone
+  // and the elbow, and blended skin can only lose it in a candy wrapper or a spiral)
+  for (const S of ['R', 'L']) { const b = r.rig.bones.find((x) => x.id === `foreArm${S}`); if (b && !b.aux && R.joints[`clavicle${S}`]) b.parent = `upperArm${S}`; }
   const viaFold = (S, f) => {
     const cl = { [`clavicle${S}`]: 1 }, arm = { [`upperArm${S}`]: 1 }, F = `shoulderFold${S}`;
     return !r.rig.folds?.[F] ? mixW(cl, arm, f) : f < 0.5 ? mixW(cl, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, arm, 2 * f - 1);

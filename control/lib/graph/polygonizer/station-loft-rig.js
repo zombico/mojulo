@@ -124,7 +124,7 @@ export function validateRig(rig) {
     if (b.head === b.tail) throw new Error(`station-loft-rig: bone ${b.id} has zero length`);
     if (b.aux && !(Array.isArray(b.aux) && b.aux.length === 2 && b.aux.every((j) => joints[j]))) throw new Error(`station-loft-rig: bone ${b.id}.aux must name two joints`);
     if (b.align !== undefined && !(Array.isArray(b.align) && b.align.length === 2 && b.align.every((j) => joints[j]) && b.align[0] !== b.align[1])) throw new Error(`station-loft-rig: bone ${b.id}.align must name two different joints`);
-    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}), ...(twistPairFor(b.head, b.tail) ? { twist: twistPairFor(b.head, b.tail) } : {}) };   // a bone spanning the neck turns with it
+    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}), ...(b.parent ? { parent: b.parent } : {}), ...(twistPairFor(b.head, b.tail) ? { twist: twistPairFor(b.head, b.tail) } : {}) };   // a bone spanning the neck turns with it
   });
   for (const [name, bid] of Object.entries(rides)) if (boneIndex[bid] === undefined) throw new Error(`station-loft-rig: joint ${name} rides unknown bone ${bid}`);
   // riding must resolve: a joint rides a bone whose head and tail are core or ride bones that resolve first
@@ -166,6 +166,10 @@ export function validateRig(rig) {
     hands[S] = { carrier: h.carrier, wrist: h.wrist, axes: Object.fromEntries(['flex', 'deviation', 'twist'].map((k) => [k, unit(h.axes[k])])), joints: [...handJoints], digits, poses: h.poses || HAND_POSES };
   }
   for (const [id, f] of Object.entries(folds)) for (const b of f.bones) if (boneIndex[b] === undefined) throw new Error(`station-loft-rig: folds.${id}.bones names unknown bone ${b}`);
+  // a bone's `parent` (a limb's next segment: the forearm's upper arm) frames it from that bone's frame by the shortest turn
+  // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
+  // not a field of the bone)
+  for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
   return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}) };
 }
 
@@ -224,6 +228,12 @@ function boneFrame(bone, rest, nodes) {
     return { id: bone.id, q, m: quatToMat(q), head: nodes[bone.head], restHead: rest[bone.head], lengthError: Math.abs(len(d1) - len(d0)) };
   }
   const d0 = sub(rest[bone.tail], rest[bone.head]), d1 = sub(nodes[bone.tail], nodes[bone.head]);
+  if (bone.parentBone) {
+    const P = boneFrame(bone.parentBone, rest, nodes), A = quatToMat(frameQuat(mv(P.m, d0), null, d1, null));
+    const m = [0, 1, 2].map((r) => [0, 1, 2].map((c) => A[r][0] * P.m[0][c] + A[r][1] * P.m[1][c] + A[r][2] * P.m[2][c]));
+    const q = matToQuat([0, 1, 2].map((c) => [0, 1, 2].map((r) => m[r][c])));
+    return { id: bone.id, q, m: quatToMat(q), head: nodes[bone.head], restHead: rest[bone.head], lengthError: Math.abs(len(d1) - len(d0)) };
+  }
   const a0 = bone.aux ? sub(rest[bone.aux[1]], rest[bone.aux[0]]) : null, a1 = bone.aux ? sub(nodes[bone.aux[1]], nodes[bone.aux[0]]) : null;
   let q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
   // a head turn: the twist pair is in the posed map only while the neck or head turns

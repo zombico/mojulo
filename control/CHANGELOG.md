@@ -205,7 +205,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   weakest instead of the share, which had vanished for one ring of the torso under the arm and come back on the next,
   a step where the deltoid's ramp was meant. Hands behind the head is hittable: the forearms reach behind the skull
   on the shoulder's roll (the elbow's hinge alone folds them forward, across the face). The stretch audit takes
-  `--poses` (rig poses, `--only` for those alone). Only the feet are still the authored cage.
+  `--poses` (rig poses, `--only` for those alone). THE ELBOW NEVER TWISTS: the forearm is framed from the upper arm's
+  frame by the elbow's bend alone (a rig bone's `parent`: its frame the parent's, then the shortest turn from its rest
+  line carried there to its posed line), where each had taken the shortest turn to its own line and the two disagreed
+  about their roll by as much as the arm had swung: forearms behind the head wrung the elbow 47 degrees (now 14) and
+  pinched its ring to 0.51 (now 0.59, the deep bend's own), the arm's creased edges in that pose 306, now 162. Framing
+  the arm by the shoulder's roll instead was tried and left: blended skin could only lose a roll of up to 110 degrees
+  in a candy wrapper at the shoulder or a spiral down the humerus. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 
