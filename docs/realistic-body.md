@@ -77,5 +77,6 @@ under the face; over them `visage` (rings about the mouth cast along the face's 
 the brow), `nose` and `eyeR/L` (rings following the nose's outline and each eye's opening: the wings' creases and the
 lids' margins run along them; the eyes painted Sclera, Iris, Pupil), each sunk under the next where they hand over (the
 eyes over the nose over the visage over the cranium), and `earR/L` (a tube up each ear on the ear's own field). The
-rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion; the lower face (the jaw part, the visage under
+rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion. Every head part's stations carry `normals` (each
+point's unit gradient of its field at rest), which the shading takes in place of the facets' (`authoredNormals`); the lower face (the jaw part, the visage under
 the lips' line) is bound to the jaw. No face rig or expressions yet; the lips stretch as the jaw opens.

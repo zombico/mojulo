@@ -223,6 +223,32 @@ function triFrame(V, t) {
   return [e1, cross(nn, e1), nn];
 }
 
+/** AUTHORED normals: a layer-1 part whose stations carry `normals` (slot → the surface's unit normal at rest: the
+ * gradient of the field it was sampled from; the realistic hero's relational head) shades by them, not by its facets,
+ * each carried onto the posed face by that face's own rest → posed rotation. So parts sampled from one field shade as
+ * one where they hand over, and a feature finer than the rings reads smooth. Absent, the weld's, every byte. In place. */
+function authoredNormals(mesh, rest, out) {
+  const P = rest.parts || mesh.parts || {}, by = new Map();
+  for (const [name, p] of Object.entries(P)) if (p.layer === 1 && p.stations?.some((st) => st.normals)) by.set(name, new Map(p.stations.map((st) => [st.id, st.normals])));
+  if (!by.size) return;
+  const posed = rest !== mesh, RV = rest.vertices, V = mesh.vertices, ids = mesh.pointIds;
+  mesh.faces.forEach((t, fi) => {
+    const part = partOf(mesh, fi), m = by.get(part); if (!m) return;
+    let fr = null;
+    t.forEach((vi, k) => {
+      const id = ids[vi].slice(part.length + 1), d = id.lastIndexOf('.'); if (d < 0) return;   // (a cap's point: the weld's)
+      let s = m.get(id.slice(0, d))?.[id.slice(d + 1)]; if (!s) return;
+      if (posed) {
+        if (!fr) fr = [triFrame(RV, t), triFrame(V, t)];
+        const [R0, R1] = fr; if (!R0 || !R1) return;
+        const co = [dot(R0[0], s), dot(R0[1], s), dot(R0[2], s)];
+        s = [co[0] * R1[0][0] + co[1] * R1[1][0] + co[2] * R1[2][0], co[0] * R1[0][1] + co[1] * R1[1][1] + co[2] * R1[2][1], co[0] * R1[0][2] + co[1] * R1[1][2] + co[2] * R1[2][2]];
+      }
+      out[fi][k] = [s[0], s[1], s[2]];
+    });
+  });
+}
+
 /** The weld (see layeredShadingNormals): per-corner normals over `V` (the shown positions), welded by (group, REST
  * position) into FANS — the faces of one bin joined across the edges they share where their faces turn less than the
  * crease — each corner the area-weighted sum of its own fan. */
@@ -365,6 +391,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   const CW = cloth ? { ...crease, ...Object.fromEntries([...new Set(GW.filter((g) => g.startsWith('$cloth:')))].map((g) => [g, crease.$cloth])) } : crease;
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
+  authoredNormals(mesh, rest, out);
   const ew = typeof ellipsoid === 'object' && ellipsoid ? ellipsoid.w : ellipsoid;
   if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1, ellipsoid?.brow ?? 1);
   if (!proxy) return out;

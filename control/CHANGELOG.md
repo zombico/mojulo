@@ -131,6 +131,12 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
   eye's opening, so the wings' creases and the lids' margins run along the rings, not across them; each sunk under the
   next where they hand over (the body's handover), the eyes painted. The ears are their own parts, a tube up each ear
   on the ear's field (`earFields`). About 19k vertices for the head; the swap takes about 50 s once (then kept).
+- The head shades by its FIELD, not its facets: each part's stations carry `normals` (every point's unit gradient of the
+  field it was sampled from), and the shading takes a part's authored normals where it has them, carried onto a posed
+  face by that face's own rotation (station-loft-shade.js `authoredNormals`; the world, the lit export and the lit
+  pieces all read `layeredShadingNormals`). Where the parts hand over, each let down under the other by a slope, they
+  shade as one skin (the lines round the nose and under the eyes read as wrinkles at full-figure scale); the lids' and
+  the nose's wings' blends, finer than the rings, read smooth. A part without `normals` shades as before, every byte.
 
 ### Realistic body: the dermal skin on the body
 

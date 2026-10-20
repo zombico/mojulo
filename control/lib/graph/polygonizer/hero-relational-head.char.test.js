@@ -7,6 +7,12 @@
  *
  * Pinned 2026-10-20: the face's parts sampled from their own directions (the visage about the mouth, the nose and the
  * eyes about their outlines, the ears on their own fields), approved by the operator's eyes.
+ *
+ * Re-pin log:
+ * - 2026-10-20, the field's normals. Every part's stations carry `normals` (each point's unit gradient of the field it was
+ *   sampled from), and the shading takes them (station-loft-shade.js authoredNormals): the handover lines round the
+ *   nose and under the eyes, the parts let down under each other by a slope, read at full-figure scale as wrinkles and
+ *   a grimace. The points are byte for byte as pinned; only `normals` is new.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -14,7 +20,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: '94fb16e24fcc7a42', female: 'e8770bc6f6dd98f5' };
+const PINS = { male: '77334ad0c5bbf65e', female: '3d4776b597017dcd' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

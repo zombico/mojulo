@@ -117,6 +117,14 @@ function castAlong(f, from, d, reach, step = 0.0005) {
 const add3 = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
 const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
+/** each station's `normals` (slot → the unit gradient of `f` at its point, at rest): the part shades by its field, not its
+ * facets (station-loft-shade.js authoredNormals) */
+function withNormals(P, f, e = 1e-4) {
+  const n4 = (x) => Math.round(x * 1e4) / 1e4;
+  const at = (p) => { const g = [f([p[0] + e, p[1], p[2]]) - f([p[0] - e, p[1], p[2]]), f([p[0], p[1] + e, p[2]]) - f([p[0], p[1] - e, p[2]]), f([p[0], p[1], p[2] + e]) - f([p[0], p[1], p[2] - e])], l = Math.hypot(...g) || 1; return g.map((x) => n4(x / l)); };
+  return { ...P, stations: P.stations.map((st) => ({ ...st, normals: Object.fromEntries(P.slots.map((sl) => [sl, at(st.points[sl])])) })) };
+}
+
 /** a RELIEF's frame: the disc about `c` square to `d` (the look, from the viewer to the skin: forward, tilted down by
  * `tilt`°), 0° `up` and 90° toward the figure's right; a point cast onto a field along the look, and a point's place in
  * the disc ({ r, th } and its depth `h` along the look's reverse) */
@@ -444,6 +452,11 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   parts.eyeR = { ...eye.part, bind: { bone: 'head', blend: {} } };
   parts.nose = { ...nose.part, bind: 'head' };
   parts.eyeL = mirrorPart(parts.eyeR, { ...parts.eyeR, bind: { bone: 'head' } });
+  // THE NORMALS: each part shades by the field it was sampled from, so where two hand over (each let down under the
+  // other by a slope) they shade as one skin, and the lids' and the wings' blends finer than the rings read smooth
+  parts.jaw = withNormals(parts.jaw, fU); parts.cranium = withNormals(parts.cranium, fU);
+  for (const k of ['visage', 'nose', 'eyeR', 'eyeL']) parts[k] = withNormals(parts[k], fV);
+  if (earR) { const fE = inHead(earR.field); parts.earR = withNormals(parts.earR, fE); parts.earL = withNormals(parts.earL, (q) => fE([-q[0], q[1], q[2]])); }
 
 
   // the rig's jaw on the head's own joint: the hinge between the condyles, the tip at the gnathion
