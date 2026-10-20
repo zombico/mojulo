@@ -35,6 +35,11 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   layer together, and a layer set to `false` adds nothing. Seeded dice only, over the integer-exact noise
   (`noise/noise.js`), and pinned. Nothing uses it yet: the stone-block wall is next.
   `scripts/spikes/matte/sheet.mjs` paints a sheet of one block from a cube's ramps.
+- **A rock can be a dressed block.** The rock field (`polygonizer/rock-fracture.js`) takes `base: 'box'`: a box's six
+  faces are the block in place of the random fracture planes round an ellipsoid, so its faces stay whole and the chips
+  find its arrises and corners, breaking along the minerals' cleavage. `chipScale` (0–1) shrinks every fracture level,
+  so a dressed block chips by the centimetre. Both are opt-in; a rock that names neither is the same field.
+  `scripts/spikes/matte/rock-compare.mjs` sets the matte painter beside faces traced from the rock field.
 
 ### Geocube styles: principles and the laws that check them
 

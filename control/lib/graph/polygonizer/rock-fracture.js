@@ -60,10 +60,11 @@ const L0_FRACTION = 0.45;
 
 /**
  * rockField(spec) → { d(p), bounds, colorAt(p, footprint), meanColor, blockPolytope(), meta }
- * spec: { size (the longest extent), rock (preset | { modes, grain, fabric?, colors? }), unit? ('cm' default, 'm',
+ * spec: { size (the longest extent), rock (preset | { modes, grain, fabric?, colors? }), base? ('box': a dressed block,
+ *         below), unit? ('cm' default, 'm',
  *         'mm': what one world unit is, so the rock's grain — stored in metres — lands at its true size), center?, seed?,
  *         octaves?, hurst?, alpha?, aspect?, blockPlanes?, grain? (world units, overrides the rock's), joints? { above
- *         (world units), prob? }, color? }
+ *         (world units), prob? }, color?, chipScale? (0–1: every fracture level shrunk, 1 by default) }
  * Points are [x, y, z] in world units.
  */
 export function rockField(spec) {
@@ -91,10 +92,15 @@ export function rockField(spec) {
     return grainProps(...best);
   };
 
-  // base: an ellipsoid (a bound with the right sign, like field-terms' ellipsoid)
-  const rad = o.aspect.map((a) => (a * S) / 2);
-  const ellipsoid = (q) => { const k0 = Math.hypot(q[0] / rad[0], q[1] / rad[1], q[2] / rad[2]); const k1 = Math.hypot(q[0] / rad[0] ** 2, q[1] / rad[1] ** 2, q[2] / rad[2] ** 2); return (k0 * (k0 - 1)) / (k1 || 1e-12); };
-  const L0 = L0_FRACTION * S; const Ls = [...Array(o.octaves + 1)].map((_, k) => L0 / 2 ** k);   // Ls[0] the block, Ls[1..] chips
+  // base: an ellipsoid (a bound with the right sign, like field-terms' ellipsoid); or, opt-in, a BOX (`base: 'box'`, a
+  // dressed block: its six faces are the block, so no planes are drawn round it, and the chips find its arrises and
+  // corners by the same normal spread they find a fragment's edges by, leaving its flat faces whole)
+  const rad = o.aspect.map((a) => (a * S) / 2), boxed = o.base === 'box';
+  const ellipsoid = boxed
+    ? (q) => { const a = [Math.abs(q[0]) - rad[0], Math.abs(q[1]) - rad[1], Math.abs(q[2]) - rad[2]], m = [Math.max(a[0], 0), Math.max(a[1], 0), Math.max(a[2], 0)]; return Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]) + Math.min(Math.max(a[0], a[1], a[2]), 0); }
+    : (q) => { const k0 = Math.hypot(q[0] / rad[0], q[1] / rad[1], q[2] / rad[2]); const k1 = Math.hypot(q[0] / rad[0] ** 2, q[1] / rad[1] ** 2, q[2] / rad[2] ** 2); return (k0 * (k0 - 1)) / (k1 || 1e-12); };
+  // (`chipScale`, opt-in: every level shrunk by it, so a dressed block chips by the centimetre, not by the hand's breadth)
+  const L0 = L0_FRACTION * S * (o.chipScale ?? 1); const Ls = [...Array(o.octaves + 1)].map((_, k) => L0 / 2 ** k);   // Ls[0] the block, Ls[1..] chips
   const budget = Ls.map((L) => Math.min(o.alpha * L0 * (L / L0) ** o.hurst, o.depthCap * L));
   const reach = budget.slice(1).reduce((s, x) => s + x, 0) + 0.3 * S;
   const jr = mulberry32(hash4(seed, 97, 5, 3)); const JOINTS = [[1, 0, 0], [0, 1, 0]].map((v) => tilt(v, 6, jr));
@@ -116,7 +122,7 @@ export function rockField(spec) {
 
   // the block: global planes around the base, with the core guard
   const block = [];
-  if (o.blockPlanes > 0) {
+  if (o.blockPlanes > 0 && !boxed) {
     const r = mulberry32(hash4(seed, 17, 29, 3)); const N = o.blockPlanes;
     for (let i = 0; i < N; i++) {
       const zf = 1 - (2 * (i + 0.5)) / N, az = i * 2.39996 + r() * 0.6;
@@ -186,7 +192,7 @@ export function rockField(spec) {
     bounds: { min: lo, max: hi },
     colorAt: o.color === false ? null : colorAt,
     meanColor: rgbHex(mean),
-    blockPolytope: () => blockPolytope(block, rad, center),
+    blockPolytope: () => blockPolytope(boxed ? [0, 1, 2].flatMap((a) => [1, -1].map((sg) => { const n = [0, 0, 0]; n[a] = sg; return { n, c: scale(n, rad[a]) }; })) : block, rad, center),
     meta: { size: S, grain: g, levels: Ls, block: block.length, seed },
   };
 }
@@ -236,6 +242,8 @@ export function validateRockSpec(spec, at = 'rock') {
   if (spec.aspect !== undefined && !(Array.isArray(spec.aspect) && spec.aspect.length === 3 && spec.aspect.every((a) => Number.isFinite(a) && a > 0 && a <= 1))) e.push(`${at}.aspect: [x, y, z] proportions of the base, each in (0, 1]`);
   if (spec.joints != null && !(Number.isFinite(spec.joints.above) && spec.joints.above > 0 && (spec.joints.prob === undefined || (spec.joints.prob >= 0 && spec.joints.prob <= 1)))) e.push(`${at}.joints: { above: metres > 0, prob?: 0–1 }`);
   if (spec.color !== undefined && !['grain', 'mean', false].includes(spec.color)) e.push(`${at}.color: 'grain' | 'mean' | false`);
+  if (spec.chipScale !== undefined && !(Number.isFinite(spec.chipScale) && spec.chipScale > 0 && spec.chipScale <= 1)) e.push(`${at}.chipScale: 0–1, every fracture level shrunk by it`);
+  if (spec.base !== undefined && spec.base !== 'box') e.push(`${at}.base: 'box' (a dressed block, chipped at its arrises), or left out (a fragment)`);
   if (spec.unit !== undefined && !(spec.unit in ROCK_UNITS)) e.push(`${at}.unit: what one world unit is — 'cm' (the workbench default), 'm' or 'mm'; match the manifest's units`);
   return e;
 }
