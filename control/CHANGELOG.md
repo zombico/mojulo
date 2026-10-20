@@ -99,7 +99,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Science worlds further: spacetime, volumes and settings
 
-- **Planned.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
+- **What it is.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
   The law always lives in JS where the gates run; a shader is generated from the same numbers and held to them by
   a shader conformance gate in headless Chrome ("not run" without a browser). A setting is dress: anything a body
   touches is a law in the model, a gate advises when a body passes through scenery no law covers, and the world
@@ -218,6 +218,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   The shader's E and V agree with JS at 48 points and moments through the run as the charge orbits, and one whose
   field falls off as 1/r disagrees. The solver never sees the dress, and a world without a field is byte-identical.
   A volume or shells cannot stand in a world; lines can.
+- **Docs.** `docs/AGENT-REFERENCE.md` states the shader rule (the law in JS, the shader generated from the same
+  numbers and held to them) beside the setting rule and the channel, and says a page drawn by a shader cannot stand
+  in a world. `docs/raymarch-effects-layer.md` gains the science pages as a worked example: the four shader pages,
+  the pattern for a picture a gate has to vouch for, and two gotchas: a probe must run on the page's own inputs,
+  and a Chrome test that finds no browser passes without proving anything (`MOJULO_CHROMIUM`). The
+  `physics-demo-for-a-class` catalyst's scale table names the two-slit plane, orbital volumes and drawn fields, and
+  its last step says which demos can stand in a world. The `get_substrate` sentence already named the fourth
+  scale. The routing eval that would decide whether `relativistic` supersedes `black-hole`, or the plane supersedes
+  `double-slit`, at the door was not run: the curated kinds keep the door, and their cards point at the composed
+  ones.
 
 ### Epidermis cube: skin and hair as a recipe
 
