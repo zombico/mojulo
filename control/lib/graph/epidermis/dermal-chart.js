@@ -66,7 +66,8 @@ function onAxis(axis, cum, p) {
  * The chart of a mesh whose parts know their axes: `mesh` { vertices, faces }, `partOf(vi)` → a part's key or null (not
  * skin), `parts` { key: { part, side, axis: [points proximal → distal], front: [x, y, z] (the anterior reference;
  * default the body's forward, +y), lateral?: [x, y, z] (default the side's: +x right, −x left, +x on the midline),
- * feature?: (vi) → a feature word or undefined } }.
+ * feature?: (vi) → a feature word or undefined, marks?: the shape's own landmarks, handed through to every address
+ * (dermal-head.js: the relational head's) } }.
  */
 export function chartFromMesh(mesh, partOf, parts) {
   const { vertices, faces } = mesh;
@@ -95,7 +96,7 @@ export function chartFromMesh(mesh, partOf, parts) {
     const tr = unit(perp(add(scl(f, -Math.sin(th)), scl(l, Math.cos(th))), n), l);
     const bin = Math.min(11, Math.floor(at.s * 12)); D.bins[bin][0] += len(r); D.bins[bin][1]++;
     const feature = D.feature?.(vi);
-    return { key, part: D.part, side: D.side, ...(feature ? { feature } : {}), along: at.s, around, n, ta, tr, radius: len(r) };
+    return { key, part: D.part, side: D.side, ...(feature ? { feature } : {}), ...(D.marks ? { marks: D.marks } : {}), along: at.s, around, n, ta, tr, radius: len(r) };
   });
   // girth at an along: 2π × the mean radius of the vertices in its twelfth (filled from the neighbours where empty)
   for (const D of Object.values(P)) {
@@ -105,7 +106,7 @@ export function chartFromMesh(mesh, partOf, parts) {
   }
   for (const s of samples) if (s) { const D = P[s.key]; s.length = D.length; s.girth = D.girths[Math.min(11, Math.floor(s.along * 12))]; }
   const out = {};
-  for (const [k, D] of Object.entries(P)) out[k] = { part: D.part, side: D.side, length: D.length, girth: D.girth, girths: D.girths, axis: D.axis };
+  for (const [k, D] of Object.entries(P)) out[k] = { part: D.part, side: D.side, length: D.length, girth: D.girth, girths: D.girths, axis: D.axis, ...(D.marks ? { marks: D.marks } : {}) };
   return { vertices, faces, normals, samples, parts: out, frame: { up: [0, 0, 1], forward: [0, 1, 0] } };
 }
 

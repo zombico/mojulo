@@ -18,7 +18,7 @@
  *                  relief (`reliefTile`, from skin-relief.js, friction ridges on glabrous skin) repeated at its true
  *                  scale and masked per kind, since no atlas holds pores at a body's size
  *
- *   layoutDermis(chart, opts)                     → { page, rects, mmPerTexel }
+ *   layoutDermis(chart, opts)                     → { page, pageH, rects, mmPerTexel } (`page` wide, `pageH` tall)
  *   paintDermis(chart, dermis, layout, opts)      → { page, albedo (RGBA), roughness, translucency, hair (RGBA: density,
  *                                                     flow u, flow v, 255), fuzz, detail, classes, faceUV(fi) }
  *   reliefTile(relief, { size, px, seed, age })   → { px, size, height, normal (RGB), cavity }: periodic both ways
@@ -46,6 +46,7 @@ export function layoutDermis(chart, { page = 1024, faceWeight = 2 } = {}) {
   }).sort((a, b) => b.hmm - a.hmm || (a.key < b.key ? -1 : 1));
   const pack = (mpt) => {
     let x = WHITE + PAD, y = 0, shelf = 0;
+    if (rects.length && Math.ceil(rects[0].wmm * (1 + rects[0].extra) / mpt) + x + PAD > page) { x = 0; y = WHITE + PAD; }
     for (const r of rects) {
       r.w = Math.max(4, Math.ceil(r.wmm * (1 + r.extra) / mpt)); r.h = Math.max(4, Math.ceil(r.hmm / mpt));
       if (x + r.w + PAD > page) { x = 0; y += shelf + PAD; shelf = 0; }
@@ -53,17 +54,22 @@ export function layoutDermis(chart, { page = 1024, faceWeight = 2 } = {}) {
     }
     return y + shelf <= page && rects.every((r) => r.w <= page);
   };
-  // the finest density that packs: bisect the millimetres a texel holds
+  // the finest density that packs: bisect the millimetres a texel holds; the page then as tall as it needs (a power of
+  // two), so a lone wide part (a head) does not leave most of a square page empty
   let lo = 0.05, hi = 50;
   for (let i = 0; i < 30; i++) { const mid = Math.sqrt(lo * hi); if (pack(mid)) hi = mid; else lo = mid; }
+  // packed at full height first, then filled: a page cut to a power of two re-packs at the finest density that fits it
   pack(hi);
-  return { page, mmPerTexel: hi, faceWeight, rects };
+  const used = Math.max(...rects.map((r) => r.y + r.h)) + PAD, pageH = Math.min(page, 1 << Math.ceil(Math.log2(Math.max(8, used))));
+  let mpt = hi;
+  if (pageH < page) { const tall = (m) => pack(m) && Math.max(...rects.map((r) => r.y + r.h)) <= pageH; lo = 0.05; hi = mpt; for (let i = 0; i < 30; i++) { const mid = Math.sqrt(lo * hi); if (tall(mid)) hi = mid; else lo = mid; } mpt = hi; pack(mpt); }
+  return { page, pageH, mmPerTexel: mpt, faceWeight, rects };
 }
 
 /** a rectangle texel's address: its u round the ring from the seam, its v down the part */
 function addressAt(chart, r, u, v) {
   const P = chart.parts[r.key], around = (((u + r.seam) % 1) + 1) % 1;
-  return { key: r.key, part: P.part, side: P.side, along: v, around, length: P.length, girth: P.girths[Math.min(GRID - 1, Math.floor(v * GRID))] };
+  return { key: r.key, part: P.part, side: P.side, along: v, around, length: P.length, girth: P.girths[Math.min(GRID - 1, Math.floor(v * GRID))], ...(P.marks ? { marks: P.marks } : {}) };
 }
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const byte = (x) => Math.round(clamp01(x) * 255);
@@ -73,9 +79,9 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * shadow); `opts.scalpPaint` the paint's share (default 0.8).
  */
 export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 } = {}) {
-  const N = layout.page, albedo = new Uint8Array(N * N * 4), rough = new Uint8Array(N * N).fill(140), trans = new Uint8Array(N * N);
-  const hair = new Uint8Array(N * N * 4), fuzz = new Uint8Array(N * N), detail = new Uint8Array(N * N);
-  for (let i = 0; i < N * N; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
+  const N = layout.page, NH = layout.pageH ?? N, albedo = new Uint8Array(N * NH * 4), rough = new Uint8Array(N * NH).fill(140), trans = new Uint8Array(N * NH);
+  const hair = new Uint8Array(N * NH * 4), fuzz = new Uint8Array(N * NH), detail = new Uint8Array(N * NH);
+  for (let i = 0; i < N * NH; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
   const classes = [], classOf = new Map(), hairLin = hairColourOf(D);
   const classIndex = (rel) => { if (!classOf.has(rel.class)) { classOf.set(rel.class, classes.length); classes.push({ ...rel }); } return classOf.get(rel.class); };
   for (const r of layout.rects) {
@@ -119,7 +125,7 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 }
   // the white tile: what no skin face samples
   for (let y = 0; y < WHITE; y++) for (let x = 0; x < WHITE; x++) { const o = y * N + x; albedo.fill(255, o * 4, o * 4 + 4); }
   const uvOf = faceUVs(chart, layout);
-  return { page: N, albedo, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
+  return { page: N, pageH: NH, albedo, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -132,13 +138,14 @@ function follicles(A, density, lengthMm, mpt, seed) {
   const sp = Math.sqrt(100 / Math.max(density, 0.1)), r = 0.07 + 0.09 * Math.min(lengthMm, 5);
   const expect = Math.min(0.9, (Math.PI * r * r) / (sp * sp) * (1 + 0.15 * Math.min(lengthMm, 5)));
   if (mpt > sp * 0.7) return expect * (0.85 + 0.3 * vnoise(A.around * A.girth * 1000 / 3, A.along * A.length * 1000 / 3, seed));
-  const G = A.girth * 1000, x = A.around * G / sp, y = A.along * A.length * 1000 / sp, R = r / sp, soft = Math.max(0.05, mpt / sp);
+  // (a dot finer than the texel covers its area's share of it, never the whole texel: a stubble is a shadow of dots)
+  const G = A.girth * 1000, x = A.around * G / sp, y = A.along * A.length * 1000 / sp, share = Math.min(1, (Math.PI * r * r) / (mpt * mpt));
   let cov = 0;
   for (let j = Math.floor(y) - 1; j <= Math.floor(y) + 1; j++) for (let i = Math.floor(x) - 1; i <= Math.floor(x) + 1; i++) {
     const cx = i + 0.15 + 0.7 * hash3(i, j, seed), cy = j + 0.15 + 0.7 * hash3(j, i, seed + 1);
     // a hair lies along its flow: its dot drawn out down the part a little
-    const d = Math.hypot(x - cx, (y - cy) * 0.6);
-    cov = Math.max(cov, clamp01((R - d) / soft + 0.5));
+    const d = Math.hypot(x - cx, (y - cy) * 0.6) * sp;
+    cov = Math.max(cov, share * clamp01((r + 0.5 * mpt - d) / (0.5 * mpt)));
   }
   return Math.min(0.9, cov);
 }
@@ -149,7 +156,7 @@ function follicles(A, density, lengthMm, mpt, seed) {
  * neighbours' mean.
  */
 export function faceUVs(chart, layout) {
-  const N = layout.page, byKey = new Map(layout.rects.map((r) => [r.key, r])), white = [(WHITE / 2) / N, 1 - (WHITE / 2) / N];
+  const N = layout.page, NH = layout.pageH ?? N, byKey = new Map(layout.rects.map((r) => [r.key, r])), white = [(WHITE / 2) / N, 1 - (WHITE / 2) / NH];
   const out = chart.faces.map((tri) => {
     const s = tri.map((vi) => chart.samples[vi]);
     if (s.some((x) => !x) || s.some((x) => x.key !== s[0].key)) return null;
@@ -158,7 +165,7 @@ export function faceUVs(chart, layout) {
     if (Math.max(...us) - Math.min(...us) > 0.5) us = us.map((u) => (u < 0.5 ? u + 1 : u));
     // a cap's apex: its around is arbitrary; it takes the other two corners' mean
     us = us.map((u, k) => { const o = us.filter((_, q) => q !== k), m = (o[0] + o[1]) / 2; return (s[k].along < 0.015 || s[k].along > 0.985) && Math.abs(u - m) > 0.2 ? m : u; });
-    return us.map((u, k) => [(r.x + (u / (1 + r.extra)) * r.w) / N, 1 - (r.y + s[k].along * r.h) / N]);
+    return us.map((u, k) => [(r.x + (u / (1 + r.extra)) * r.w) / N, 1 - (r.y + s[k].along * r.h) / NH]);
   });
   return (fi) => out[fi] || [white, white, white];
 }
@@ -207,10 +214,10 @@ export function reliefTile(relief, { size = 12, px = 256, seed = 1, age = 0.35, 
 
 /** The texture's channels as PNG buffers. */
 export function dermalPngs(T) {
-  const N = T.page, B = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
+  const N = T.page, NH = T.pageH ?? N, B = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
   return {
-    albedo: encodePngRgba(B(T.albedo), N, N), roughness: encodePngGrey(B(T.roughness), N, N), translucency: encodePngGrey(B(T.translucency), N, N),
-    hair: encodePngRgba(B(T.hair), N, N), fuzz: encodePngGrey(B(T.fuzz), N, N),
+    albedo: encodePngRgba(B(T.albedo), N, NH), roughness: encodePngGrey(B(T.roughness), N, NH), translucency: encodePngGrey(B(T.translucency), N, NH),
+    hair: encodePngRgba(B(T.hair), N, NH), fuzz: encodePngGrey(B(T.fuzz), N, NH),
   };
 }
 export { encodePng };

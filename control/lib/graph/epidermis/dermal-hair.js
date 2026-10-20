@@ -134,7 +134,7 @@ function onFace(chart, tri, b1, b2) {
   const ta = unit(perp(mix((i) => s[i].ta), n)), tr = unit(perp(mix((i) => s[i].tr), n), cross(n, ta));
   let ar = s.map((x) => x.around); if (Math.max(...ar) - Math.min(...ar) > 0.5) ar = ar.map((a) => (a < 0.5 ? a + 1 : a));
   const around = ((w[0] * ar[0] + w[1] * ar[1] + w[2] * ar[2]) % 1 + 1) % 1, along = w[0] * s[0].along + w[1] * s[1].along + w[2] * s[2].along;
-  return { p, n, ta, tr, address: { key: s[0].key, part: s[0].part, side: s[0].side, along, around, length: s[0].length, girth: s[0].girth } };
+  return { p, n, ta, tr, address: { key: s[0].key, part: s[0].part, side: s[0].side, along, around, length: s[0].length, girth: s[0].girth, ...(s[0].marks ? { marks: s[0].marks } : {}) } };
 }
 const faceArea = (chart, tri) => len(cross(sub(chart.vertices[tri[1]], chart.vertices[tri[0]]), sub(chart.vertices[tri[2]], chart.vertices[tri[0]]))) / 2;
 const skinFace = (chart, tri) => tri.every((vi) => chart.samples[vi] && !chart.samples[vi].feature) && tri.every((vi) => chart.samples[vi].key === chart.samples[tri[0]].key);
@@ -266,7 +266,7 @@ export function growScalp(chart, D, scalp, { share = 1, colliders = ['head', 'ne
     const L = S.length * reg * (0.93 + 0.14 * gd()), F = L * k;
     // the comb LIES on the scalp first (the styling cheat: a lock combed, never released over the face), walked along
     // the shell until it turns down the head's side, then the elastica hangs the rest from there
-    const lie = fringe ? { pts: [add(at.p, scl(at.n, 0.0008))], dir: aim, run: 0 } : lieOnScalp(at.p, comb, headC, Math.min(0.45 * F, 0.12), 0.0008 + 0.004 * S.volume);
+    const lie = fringe ? { pts: [add(at.p, scl(at.n, 0.0008))], dir: aim, run: 0 } : lieOnScalp(at.p, comb, headC, Math.min((L < 0.12 ? 0.8 : 0.45) * F, 0.12), 0.0008 + 0.004 * S.volume);
     const free = Math.max(0.004, F - lie.run);
     const turns = S.curl ? free / (S.curl.period * k) : 0, nSteps = Math.min(220, Math.max(12, Math.ceil(8 * turns) + 4));
     const lastN = lie.n || at.n;

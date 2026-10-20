@@ -23,8 +23,12 @@ ring-stack body as adapters; `dermal-map.js` lays regions, the painter's colour 
 lines and hair tracts by a few dials over the egocube's tones; `dermal-texture.js` bakes them to a per-part atlas (seams
 on the hidden side, the face weighted up, the scalp paint and the stubble's follicles) with tileable relief tiles;
 `dermal-hair.js` grows body hair lying on the skin and scalp locks as clumps on the elastica's guides (curl types
-straight to coily, the coil's shrinkage, frizz, ragged tips, flyaways, cards). Seen through `/dermis-study`. Next: the
-relational head and the form-field body as the chart's shape, in place of the cage's block head.
+straight to coily, the coil's shrinkage, frizz, ragged tips, flyaways, cards). The realistic head is its shape:
+`dermal-head.js` charts the relational head (its field surface-netted and welded, the globes off the skin) and hands
+its relations to the map as marks, so the hairline, the nose, the lids, the cheeks, the lips and the beard's line are
+laid from the trichion, the nasion and pronasale, the canthi, the cheek points, the stomion and the porion. Seen
+through `/dermis-study`. Next: the scalp laid out fractally (the anime figure's clumps split into segments, each level
+its own length) in place of strands.
 
 ### Realistic register: a stronger body for the hero
 

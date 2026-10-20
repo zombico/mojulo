@@ -129,7 +129,8 @@ export function dermalRegions(A, D) {
   const { part, along: u, around: a } = A, R = {};
   const front = ad(a, 0), back = ad(a, 0.5);
   const put = (k, w) => { if (w > 0.002) R[k] = Math.max(R[k] || 0, Math.min(1, w)); };
-  if (part === 'head') {
+  if (part === 'head' && A.marks) relationalHeadRegions(A, D, put, R);
+  else if (part === 'head') {
     const L = HEAD_LEVELS, male = D.sex === 'male', H = L.hairline * D.hairline;
     const hl = hairlineAt(front, H, male), scalp = smooth(hl - 0.02, hl + 0.02, u);
     put('scalp', scalp);
@@ -201,8 +202,67 @@ export function dermalRegions(A, D) {
   return R;
 }
 
+/** a point's place on the relational head's chart (mm): X the arc at the face's radius (+ the head's right), Y up */
+export const headXY = (A) => ({ X: (A.around > 0.5 ? A.around - 1 : A.around) * 2 * Math.PI * A.marks.r0, Y: A.along * A.marks.length * 1000 });
+const segD = (q, a, b) => { const bx = b.X - a.X, by = b.Y - a.Y, l2 = bx * bx + by * by || 1e-9, t = Math.max(0, Math.min(1, ((q.X - a.X) * bx + (q.Y - a.Y) * by) / l2)); return Math.hypot(q.X - a.X - bx * t, q.Y - a.Y - by * t); };
+/** piecewise linear through [x, y] points (x increasing) */
+const pwl = (pts, x) => { if (x <= pts[0][0]) return pts[0][1]; for (let i = 0; i + 1 < pts.length; i++) if (x <= pts[i + 1][0]) { const [a, ha] = pts[i], [b, hb] = pts[i + 1]; return ha + ((x - a) / (b - a || 1)) * (hb - ha); } return pts[pts.length - 1][1]; };
+
+/**
+ * The relational head's regions, every one laid from its relations (dermal-head.js `headMarks`), in mm on its chart:
+ * the hairline from the trichion (the `hairline` dial moves it), round the temple's corner over the brow's outer end,
+ * down the sideburn before the ear to the porion's height (a woman's higher), over the ear and down behind it to the
+ * nape; the nose down its dorsum from the nasion to the pronasale and the subnasale, as wide as its wings; the lids
+ * about each eye, the hollow under it; the cheek on its apex; the lips about the stomion, out to the mouth's corners;
+ * the chin on pogonion; the ear about the porion; the beard under the line from the sideburn's foot to the mouth's
+ * corner, the moustache under the nose's base.
+ */
+function relationalHeadRegions(A, D, put, R) {
+  const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), male = D.sex === 'male';
+  const side = q.X >= 0 ? 'R' : 'L', P = (k) => M[k + side] || M[k];
+  const back = Math.PI * A.marks.r0, por = P('porion'), fz = P('fz'), tr = M.trichion;
+  // the hairline over |X|: the trichion's height at the middle (the dial lifts or lowers its front), the temple's
+  // corner, the sideburn's foot, over the ear, behind it, the nape
+  const Ht = M.g.Y + (tr.Y - M.g.Y) * D.hairline, sideX = Math.abs(por.X) - 16;
+  const hl = pwl([[0, Ht], [Math.abs(fz.X) * 0.7, Ht - 3], [Math.abs(fz.X) + 6, Ht - (male ? 18 : 10)], [sideX - 6, M.g.Y - 8], [sideX, por.Y + (male ? -4 : 14)],
+    [sideX + 2, por.Y + 34], [Math.abs(por.X) + 30, por.Y + 34], [Math.abs(por.X) + 42, por.Y - 6], [back * 0.85, por.Y - 38], [back, por.Y - 42]], x);
+  // the edge broken as a hairline is (no hairline is a drawn line): a few millimetres of wander along it, soft over 5 mm
+  const wander = 4 * (vnoise(q.X / 7, 0.5, D.seed + 41) - 0.5) + 2 * (vnoise(q.X / 2.2, 3.5, D.seed + 43) - 0.5);
+  const scalp = smooth(hl + wander - 5, hl + wander + 3, q.Y);
+  put('scalp', scalp);
+  const faceW = Math.abs(P('zy').X) + 4, face = (1 - scalp) * (1 - smooth(faceW - 8, faceW + 4, x)) * smooth(-12, 0, q.Y);
+  const blobQ = (c, r, sy = 1) => Math.exp(-(((q.X - c.X) ** 2) + ((q.Y - c.Y) / sy) ** 2) / (r * r));
+  put('ear', (1 - scalp) * blobQ({ X: por.X + Math.sign(por.X) * 4, Y: por.Y + 8 }, 26, 1.3));
+  put('forehead', face * smooth(M.g.Y + 2, M.g.Y + 12, q.Y) * (1 - smooth(Math.abs(fz.X) - 6, Math.abs(fz.X) + 6, x)));
+  const alW = Math.abs(P('al').X);
+  put('nose', face * Math.max(near(segD(q, M.n, M.prn), alW * 0.85), near(segD(q, M.prn, M.sn), alW * 1.15)));
+  const eye = P('eye'), eyeW = Math.abs(P('ex').X - P('en').X);
+  const lid = Math.exp(-(((q.X - eye.X) / (eyeW * 0.65)) ** 2) - ((q.Y - eye.Y - 3) / 8) ** 2);
+  put('eyelid', face * lid);
+  put('underEye', face * Math.exp(-(((q.X - eye.X) / (eyeW * 0.6)) ** 2) - ((q.Y - eye.Y + 11) / 6) ** 2) * (1 - lid));
+  put('cheek', face * blobQ(P('cheek'), 22, 1.2) * (1 - (R.nose || 0)));
+  const ch = P('ch'), chW = Math.abs(ch.X) + 2;
+  const lipTop = M.ls.Y + 1.5, lipBot = M.li.Y - 3, lipMid = M.sto.Y;
+  const lipY = q.Y >= lipMid ? (q.Y - lipMid) / Math.max(1, lipTop - lipMid) : (lipMid - q.Y) / Math.max(1, lipMid - lipBot);
+  put('lip', face * near(Math.hypot(x / chW, lipY), 1));
+  put('chin', face * blobQ(M.pg, 16, 1.2));
+  // the beard: under the cheek line (the sideburn's foot → the mouth's corner), the moustache under the nose's base,
+  // round the jaw and under the chin to the neck; never the lips
+  const foot = { X: sideX, Y: por.Y + (male ? -4 : 14) }, cor = { X: Math.abs(ch.X) + 6, Y: ch.Y + 6 };
+  const cheekLine = x > cor.X ? cor.Y + ((x - cor.X) / Math.max(1, foot.X - cor.X)) * (foot.Y - cor.Y) : Math.min(M.sn.Y - 2, cor.Y + (cor.X - x) * 2);
+  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 3, cheekLine - 3, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)));
+  put('face', face);
+  put('headSide', (1 - scalp) * (1 - face) * 0.6);
+}
+
 /** the dominant region's name (what kind of skin this is) */
-export const dominant = (R) => Object.entries(R).reduce((m, [k, w]) => (w > m[1] ? [k, w] : m), ['skin', 0])[0];
+export const dominant = (R) => {
+  const best = (ok) => Object.entries(R).filter(([k]) => ok(k)).reduce((m, [k, w]) => (w > m[1] ? [k, w] : m), ['skin', 0]);
+  const own = best((k) => !UMBRELLA.has(k));
+  return own[1] >= 0.35 ? own[0] : best(() => true)[0];
+};
+/** the broad regions a specific one lies within: named only where nothing specific is */
+const UMBRELLA = new Set(['face', 'headSide', 'arm', 'leg', 'neck']);
 
 const GLABROUS = (R) => Math.max(R.palm || 0, R.sole || 0);
 
@@ -225,10 +285,10 @@ export function dermisAt(A, D, { detail = true } = {}) {
   let c = mulc(base0, UNDERTONE_TINT[D.undertone]);
   const Z = D.zones, show = 1 - 0.6 * mel;   // a deep skin shows its blood less
   const blood = Math.max(w('cheek') * 0.55, w('nose') * 0.6, w('ear') * 0.7, w('knuckles') * 0.6, w('elbow') * 0.5, w('knee') * 0.5, w('fingertip') * 0.55, w('palm') * 0.25, w('sole') * 0.3, w('heel') * 0.4, w('underEye') * 0.15, w('lip') * 0.3, w('axilla') * 0.1);
-  const middle = A.part === 'head' ? band(A.along, HEAD_LEVELS.noseBase, HEAD_LEVELS.brow, 0.03) * w('face') * 0.3 : 0;
+  const middle = A.part === 'head' ? (A.marks ? band(headXY(A).Y, A.marks.points.sn.Y, A.marks.points.g.Y, 6) : band(A.along, HEAD_LEVELS.noseBase, HEAD_LEVELS.brow, 0.03)) * w('face') * 0.3 : 0;
   c = tint(c, BLOOD, (blood + middle) * D.flush * Z * show);
   c = tint(c, YELLOW, Math.max(w('forehead') * 0.5, w('shin') * 0.4, w('knee') * 0.25, w('elbow') * 0.25, w('heel') * 0.3, w('chin') * 0.2) * Z * (0.4 + 0.6 * D.age));
-  const shadow = D.sex === 'male' ? w('beard') * Math.min(1, D.beard) * (D.stubble > 0 ? 0.6 : 0.3) : 0;
+  const shadow = D.sex === 'male' ? w('beard') * Math.min(1, D.beard) * (D.stubble > 0 ? 0.45 : 0.25) : 0;
   c = tint(c, COOL, Math.max(shadow, w('underEye') * 0.3) * Z);
   c = tint(c, VEIN, w('innerArm') * 0.6 * Z * (1 - mel) + w('wrist') * 0.4 * Z * (1 - mel));
   c = mixc(c, mulc(c, [1.08, 1.06, 1.05]), w('innerArm') * 0.5);   // the inner arm: paler, out of the sun
@@ -305,7 +365,8 @@ export function hairTract(A, R, D) {
     }
     if (w('beard') > 0.3 && D.beard > 0) {
       // the cheeks down and a little forward; the upper lip down and out from the middle
-      const out = u > HEAD_LEVELS.mouth && u < HEAD_LEVELS.noseBase && ad(a, 0) < 0.07 ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
+      const lip = A.marks ? (() => { const q = headXY(A), M = A.marks.points; return q.Y > M.sto.Y && q.Y < M.sn.Y && Math.abs(q.X) < Math.abs(M.chR.X); })() : u > HEAD_LEVELS.mouth && u < HEAD_LEVELS.noseBase && ad(a, 0) < 0.07;
+      const out = lip ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
       return T('beard', 55 * D.beard * w('beard'), D.stubble, flowOf(-1, out), 0.3);
     }
     return vellus;
