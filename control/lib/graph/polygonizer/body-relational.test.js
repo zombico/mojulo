@@ -30,7 +30,7 @@ describe('the form field slice', () => {
       expect(recipe.parts.torso.stations.length).toBeGreaterThan(m.recipe.parts.torso.stations.length);
       expect(removed.length).toBeGreaterThan(0);
       for (const k of removed) expect(recipe.parts[k]).toBeUndefined();
-    }, 120_000);
+    }, 300_000);   // (shalla's pauldron resamples her denser torso three more times)
   }
 
   it('the cage stands on the field, the midline on x = 0, the left the right\'s mirror', () => {
@@ -65,5 +65,5 @@ describe('the form field slice', () => {
     expect(JSON.stringify(slice('shalla').recipe)).toBe(JSON.stringify(slice('shalla').recipe));
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) });
     expect(() => formSlice(m.recipe, validateRig(m.recipe.rig), 'galactus')).toThrow(/unknown build 'galactus'/);
-  }, 120_000);
+  }, 480_000);   // (two shalla slices, each with her pauldron's stages)
 });

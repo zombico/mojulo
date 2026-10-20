@@ -237,8 +237,10 @@ Opt-in and versioned: a default hero keeps its bytes.
   raise between the stage's own degrees) that `correctiveRest` adds to the rest
   before the skin poses it, an engine's morph target (its export to come); the body study and the stretch audit pose
   through it. The skin over the shoulder's point and over the blade rides the blade, the collarbone its own inner run
-  in front: all of it on the collarbone, a raised arm's shoulder top had floated over the acromion under it. Only the
-  feet are still the authored cage.
+  in front: all of it on the collarbone, a raised arm's shoulder top had floated over the acromion under it. Shalla
+  wears the hero's pauldron, its masses 0.85 of his; her bust's fold is filleted in the field (`fold`, bust radii: the
+  height eases in from flat, the apex kept at its projection), the fold's wall a corner the rings crossed on the slant
+  in stair-steps. Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -255,11 +255,13 @@ const SHALLA = {
   // pair set apart over the sternum (a shallow valley, not the deep cleft that boxed its floor's rings), the
   // lower reach shorter; its pole ratios are the build's, past the field's own gates on purpose)
   cage: { around: 64, rings: 49 },
-  bust: { t: 0.5, rb: 0.3, front: 0.15, field: { cleft: -1.5, proj: 0.85, round: 0.6, reach: { up: 1.3, down: 0.95, out: 1.25, in: 1.35 }, profile: { up: 1.8, down: 0.6, out: 2.4, in: 1.3 } } },
+  bust: { t: 0.5, rb: 0.3, front: 0.15, fold: 0.75, field: { cleft: -1.5, proj: 0.85, round: 0.6, reach: { up: 1.3, down: 0.95, out: 1.25, in: 1.35 }, profile: { up: 1.8, down: 0.6, out: 2.4, in: 1.3 } } },
   // the fold under the bust: the torso's rays there come down from above (t the fold's height on the torso bone, w the
   // window's half width in t, h the raise in W)
   lift: { t: 0.31, w: 0.2, h: 0.8 },
   lower: NORRIN.lower,
+  // (her pauldron the hero's, its masses 0.85 of his, as her muscles are lighter)
+  pauldron: scaled(NORRIN.pauldron, 0.85),
   // (her navel shallower: on her finer cage the man's dimple read as a pit)
   dimples: [{ ...NORRIN.dimples[0], r: 0.016, k: 0.04 }],
   kLimb: 0.035,
@@ -354,11 +356,15 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // midline, `rb` its radius (W). It rides on what is under it, the pectoral's slope its upper pole; the pair is the
   // greater of the two heights, so they meet in the field's own valley; on the front only
   const bustH = B.bust ? (() => {
-    const Fb = { ...BREAST_FIELD, ...(B.bust.field || {}) }, rb = B.bust.rb * W, za = F.zOf(B.bust.t), cx = -Fb.cleft * rb, y0 = B.bust.front * W;
+    const Fb = { ...BREAST_FIELD, ...(B.bust.field || {}) }, rb = B.bust.rb * W, za = F.zOf(B.bust.t), cx = -Fb.cleft * rb, y0 = B.bust.front * W, k = (B.bust.fold || 0) * rb, keep = Fb.proj * rb / (Fb.proj * rb - k / 2);
     return (q) => {
       const v = (q[2] - za) / rb, f = Math.max(0, Math.min(1, (q[1] - y0) / (0.2 * W))), fr = f * f * (3 - 2 * f); if (!fr) return 0;
       // (the pair's crossing a smooth max: the hard one creased the cleft's floor, and its rings boxed there)
-      return fr * rb * smaxp(breastHeight((q[0] - cx) / rb, v, Fb), breastHeight((-q[0] - cx) / rb, v, Fb), 0.15);
+      const h = fr * rb * smaxp(breastHeight((q[0] - cx) / rb, v, Fb), breastHeight((-q[0] - cx) / rb, v, Fb), 0.15);
+      // (the fold filleted, `fold` bust radii: the field's lower pole meets the chest in a wall, a corner no grid follows,
+      // and the rings crossing its curve on the slant shaded it in stair-steps; under `k` the height eases in from flat,
+      // the whole scaled back so the apex keeps its projection)
+      return (h < k ? (h * h) / (2 * k) : h - k / 2) * keep;
     };
   })() : null;
   // THE SPINE'S CURVE (`spine`): the back's surface carried forward at the lumbar curve and back at the thoracic, by a
