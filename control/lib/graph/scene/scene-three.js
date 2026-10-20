@@ -213,7 +213,29 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null } = {}) {
+// THE SCREEN'S ZONES (game/screen.js): a game made for a screen lays its level UI out once, by the page's
+// data-screen / data-orientation, never per game: the HUD's corners clear of the notch and the home bar, its bottom
+// slots lifted over the touch pad (--thumb, --thumb-c: set by the touch layer while it shows, 0 otherwise), and on an
+// upright screen the banner sized to the width, the battle bar stacked, its line above it.
+const SCREEN_ZONES_CSS = [
+  '  #wrap{--thumb:0px;--thumb-c:0px}',
+  '  html[data-screen] .moj-hud-top-left{left:calc(12px + var(--safe-l));top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-top-right{right:calc(12px + var(--safe-r));top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-top{top:calc(12px + var(--safe-t))}',
+  '  html[data-screen] .moj-hud-bottom-left{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
+  '  html[data-screen] .moj-hud-bottom-right{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b) + var(--thumb))}',
+  '  html[data-screen] .moj-hud-bottom{bottom:calc(12px + var(--safe-b) + var(--thumb-c));max-width:calc(100% - 24px)}',
+  '  html[data-screen] .moj-quest-toast,html[data-screen] .moj-rpg-foes{top:calc(16px + var(--safe-t))}',
+  '  html[data-orientation=portrait] .moj-hud-top{max-width:calc(100% - 24px)}',
+  '  html[data-orientation=portrait] .moj-w-banner{font-size:clamp(18px,7vw,34px);letter-spacing:1px;padding:8px 16px;white-space:normal;text-align:center}',
+  '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
+  '  html[data-orientation=portrait] .moj-rpg-bottom{flex-direction:column;bottom:calc(12px + var(--safe-b));gap:8px}',
+  '  html[data-orientation=portrait] .moj-rpg-cmd{width:auto;min-height:0}',
+  '  html[data-orientation=portrait] .moj-rpg-msg{bottom:auto;top:calc(96px + var(--safe-t))}',
+  '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
+].join('\n');
+
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -857,7 +879,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}) }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -918,7 +940,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   };
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"${screen ? ` data-screen="${escapeHtml(String(screen.pole))}" data-orientation="${screen.portrait ? 'portrait' : 'landscape'}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
 <title>${escapeHtml(title)}</title>
 <style>
   :root{color-scheme:dark}
@@ -930,6 +952,13 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
      the host gives instead of holding the authored studio pixel size — a short pane would
      otherwise clip the canvas bottom (and skew the camera aspect the fit is computed at). */
   #wrap{width:100vw;height:100vh}
+` : ''}${screen ? `  /* the SCREEN the game is made for (game/screen.js): the page fills its window and #wrap holds the frame inside
+     it (screenFit below), bars past its reach; the safe area is the notch's and the home bar's */
+  :root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
+  html,body{height:100%;overflow:hidden}
+  body{background:#000;justify-content:center;height:100dvh}
+  #wrap{max-width:none;aspect-ratio:auto;flex:none}
+${SCREEN_ZONES_CSS}
 ` : ''}  canvas{display:block;width:100%;height:100%}
   .hud{position:absolute;left:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap}
   .hud button{color:#9cc4ff;background:rgba(11,18,32,.6);border:1px solid #24324a;border-radius:5px;padding:4px 10px;cursor:pointer;font:inherit}
@@ -1101,11 +1130,12 @@ controls.autoRotate = true; controls.autoRotateSpeed = 1.5;
 controls.addEventListener('start', () => { controls.autoRotate = false; });
 ` : ''}
 
-function applyCam(i){
-  const c = CAMS[i];
+${screen ? `let __camAt = 0;
+` : ''}function applyCam(i){
+  const c = CAMS[i];${screen ? ' __camAt = i;' : ''}
   camera.position.set(c.pos[0], c.pos[1], c.pos[2]);
   controls.target.set(c.target[0], c.target[1], c.target[2]);
-  camera.fov = c.vfov; camera.updateProjectionMatrix();
+  camera.fov = ${screen ? 'screenFov(c.vfov)' : 'c.vfov'}; camera.updateProjectionMatrix();
 ${spin ? `  // showcase FIT (?spin=1): the preset shots frame tight (and target high) for the studio
   // read — re-center on the SUBJECT's true bounds and back off far enough that the whole
   // machine sits in frame at this pane's aspect, keeping the preset's viewing direction.
@@ -1214,10 +1244,23 @@ function updateCutaway() {
   }
 }
 
-function resize(){
-  const w = wrap.clientWidth, h = wrap.clientHeight;
+${screen ? `// THE SCREEN (game/screen.js fitScreen): #wrap is the frame, longer along its long axis up to the reach, barred past
+// it; a portrait frame grown taller keeps its horizontal fov, so its vertical one opens by frame / shown
+const SCREEN = ${JSON.stringify({ aspect: screen.aspect, portrait: !!screen.portrait, reach: screen.reach, ...(Number.isFinite(screen.v0) ? { v0: screen.v0 } : {}) })};
+let __fovK = 1;
+function screenFit(){
+  const W = window.innerWidth || 1, H = window.innerHeight || 1, a = W / H, A = SCREEN.aspect;
+  const shown = Math.min(SCREEN.portrait ? A : A * SCREEN.reach, Math.max(SCREEN.portrait ? A / SCREEN.reach : A, a));
+  wrap.style.width = (shown < a ? H * shown : W) + 'px'; wrap.style.height = (shown > a ? W / shown : H) + 'px';
+  __fovK = SCREEN.portrait && shown < A ? A / shown : 1;
+}
+// (the frame's own vertical fov when the screen names one, the camera table's for an upright frame: in place of the level's)
+const screenFov = (v) => 2 * Math.atan(Math.tan((SCREEN.v0 ?? v) * Math.PI / 360) * __fovK) * 180 / Math.PI;
+` : ''}function resize(){
+${screen ? `  screenFit();
+` : ''}  const w = wrap.clientWidth, h = wrap.clientHeight;
   renderer.setSize(w, h, false);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
+  camera.aspect = w / h;${screen ? ' camera.fov = screenFov(CAMS[__camAt].vfov);' : ''} camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
 resize();

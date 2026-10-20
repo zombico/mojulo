@@ -39,6 +39,8 @@ export const REALITY = Object.freeze({
         '3d': { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/scene/scene-three.js' },
         // built 10-12: a world's `pixel` (a gameworld's style.pixel) draws the page small and blows it up unsmoothed
         pixel: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
+        // built 10-19 (mobile genres): a 2D board game on a pixelizer reducer (create_pixelizer_game): one page, no world
+        board: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'a 2D board or falling-blocks game on a pixelizer reducer (falling blocks, match-3, the match-3 saga): one page, no world or level audit; falling blocks alone ports to Godot' },
       },
     },
     // the weather's fog, colour and light play (kernel/weather.gd); its falls and lightning are the web's

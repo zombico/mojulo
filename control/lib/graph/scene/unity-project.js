@@ -23,7 +23,7 @@
  */
 import { createHash } from 'node:crypto';
 // Guide helpers are shared with the Unreal + Blender legs (operator-guide.js, the D10 lift).
-import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
+import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble, screenSection } from './operator-guide.js';
 
 export const UNITY_LEG_VERSION = '0.4.1';
 export const UNITY_EDITOR_TARGET = 'Unity 6 (6000.2.x)';
@@ -1450,7 +1450,11 @@ ${GUIDE_LEDGER(ledger)}
 }
 
 /** Game-pack guide: menu-first eyes gate over the whole progression loop. */
-function importGuideGame({ title, levels, ledger, greybox = false }) {
+// the screen it is made for, in Unity: the Game view at its aspect, and a mobile build at its orientation
+const unityScreen = (S) => `T007.01 Game view > aspect dropdown(currently \`Free Aspect\`) > [+] > Type: Aspect Ratio, Width ${S.aspect[0]}, Height ${S.aspect[1]} > [OK] — select it
+T007.02 Edit > Project Settings > Player > (iOS / Android tab) > Resolution and Presentation > Default Orientation > \`${S.orientation === 'portrait' ? 'Portrait' : 'Landscape Left'}\``;
+
+function importGuideGame({ title, levels, ledger, greybox = false, screen = null }) {
   const levelList = levels
     .map((lv, i) => `#${String(10 + i).padStart(3, '0')} level ${i + 1}: ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : ''}`)
     .join('\n');
@@ -1464,7 +1468,7 @@ ${levelList}
 #020 click a level: WASD/arrows + mouse to walk, Space jumps, Esc frees the mouse, M returns to the menu
 #021 completing a level returns you to the menu with the next gate unlocked; progress persists between plays (PlayerPrefs)
 ${levels.some((lv) => playerSuit(lv.score)) ? '#022 levels whose player is a rigged figure show it as a third-person suit that follows you: walk cycle while moving, idle when still, upright, turns with the mouse; other figures breathe their idle\n' : ''}
-## ⑥ Ship it (optional) — a standalone app
+${screenSection(screen, unityScreen)}## ⑥ Ship it (optional) — a standalone app
 
 T008 File > Build Profiles(older editors: Build Settings) > Build — pick an output folder; the scene list (menu first, then every level) is already filled in by the importer
 
@@ -1707,7 +1711,7 @@ ${ledgerLines(ledger)}
  * ledgers. The assembler ships game.json, per-level model.glb/score.json,
  * recipe/, audio/. levels: [{ ref, title, gate, score, audioFile }].
  */
-export function emitUnityGame({ ref, title, manifestHash, levels, shellExtras = [], packFolder = 'MojuloPack', remint = null }) {
+export function emitUnityGame({ ref, title, manifestHash, levels, shellExtras = [], packFolder = 'MojuloPack', remint = null, screen = null }) {
   const ledger = {
     skipped_store: { note: 'store slices (character/inventory state) do not travel — only completion progression is kept (PlayerPrefs "mojulo.completed")' },
     levels: {},
@@ -1742,7 +1746,7 @@ export function emitUnityGame({ ref, title, manifestHash, levels, shellExtras = 
   const greybox = levels.some((lv) => lv.score?.posture === 'greybox');
   const files = [
     ...kernelFiles({ packFolder }),
-    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger: topLedger, greybox }) },
+    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger: topLedger, greybox, screen }) },
     {
       file: 'README.md',
       text: `# ${title} — Unity handoff (game)

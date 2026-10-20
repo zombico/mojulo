@@ -89,6 +89,7 @@
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
+ *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // written to the world's own `screen` (game/screen.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
  *                                           // rolled order; a death ends the run (the play shell keeps the deepest)
  *   }
@@ -105,6 +106,8 @@ import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
+import { readScreen } from '../game/screen.js';
+import { readRunner } from '../worlds/controllable/runner.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -154,6 +157,7 @@ export const QUICK_GOALS = Object.freeze({
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
   conquer: 'a real-time skirmish on the stage\'s spots, seen from above: workers mine gold, a barracks trains soldiers and archers; select and order them (move, attack-move, hold) and take the enemy\'s base before it takes yours',
+  runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -184,7 +188,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -338,11 +342,21 @@ export function readQuick(Q) {
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
   if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
+  // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
+  if (Q.goal !== 'runner' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal');
+  if (Q.goal === 'runner') {
+    if (Q.runner !== undefined) { try { readRunner(Q.runner, 'quick.runner'); } catch (e) { throw fail(`: ${e.message}`); } }
+    if (Q.distance !== undefined && !(Number.isInteger(Q.distance) && Q.distance >= 10)) throw fail('.distance is the metres a run is won at, a whole number of 10 or more (leave it out: endless)');
+    if (Q.hero === false) throw fail('.runner runs a hero: leave hero out (a hero is made) or give one');
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.runner is followed from behind (camera third-person)');
+    for (const k of ['climb', 'building', 'run', 'ride', 'racers', 'supercars', 'roadway', 'airspace', 'craft']) if (Q[k] !== undefined) throw fail(`.${k}: a runner is the run alone`);
+  }
   for (const k of ['bots', 'frags', 'arena', 'pole', 'weapons', 'mode']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
   if (Q.mode !== undefined && !DEATHMATCH_MODES.includes(Q.mode)) throw fail(`.mode is ${DEATHMATCH_MODES.join(', ')} (two sides: team deathmatch, or a point held for time)`);
   if (Q.mode && Q.mode !== 'free-for-all' && (Q.bots ?? DEATHMATCH.bots) < 1) throw fail('.mode: two sides need a bot on the other side');
@@ -444,7 +458,7 @@ export function readQuick(Q) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera', 'screen'];
 function readFight(Q) {
   for (const k of Object.keys(Q)) {
     if (k === 'stages') throw fail('.stages: a fight is fought on its arenas (name them as arenas)');
@@ -517,7 +531,8 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
-  const { camera: named, moves, ...quick } = given;
+  // (and the screen it is made for, beside it: game/screen.js)
+  const { camera: named, moves, screen, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -540,6 +555,15 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? (quick.transformer ? 'jet' : 'trainer') }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
   // (the race's mood: the roadway lit in it, roads/race-mood.js)
   const mood = quick.mood ? { mood: quick.mood } : {};
+  // a runner: the run is the level (its seed the world's), and a hero runs it (made when none is named)
+  if (quick.goal === 'runner') {
+    return {
+      id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(screen !== undefined ? { screen } : {}),
+      style: { ...(style ?? {}), kit },
+      levels: { run: { name: name ?? id, runner: quick.runner ?? true } },
+      quick: { ...quick, hero: quick.hero ?? {} },
+    };
+  }
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
@@ -547,7 +571,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}),
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}), ...(screen !== undefined ? { screen } : {}),
     style: { ...(style ?? {}), kit },
     levels,
     quick,
@@ -567,6 +591,8 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    case 'runner':
+      return [{ kind: 'runner', ...(quick.distance !== undefined ? { distance: quick.distance } : {}) }];
     case 'fly': {
       // the course's gates in three dimensions, then a landing on the runway (skyscape/course.js), round `laps` times; a
       // crash comes back at the last gate passed

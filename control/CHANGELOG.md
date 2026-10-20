@@ -1484,6 +1484,65 @@ in CSS 3D. In progress:
   (`get_game_vocab({ id: 'tabletop' })`) with the systems' grammar and the book's own chess pieces; the cosmos registry's board
   learns `lattice`. The `tools/list` payload pin is raised for the one schema property.
 
+### Mobile genres
+
+- **Swipe.** One reader turns a finger's flick into a tap or a direction, shared by every touch game.
+- **A match-3 saga.** `create_pixelizer_game({ reducer: 'stone-saga' })` makes Philosopher's Stone a saga: a map of
+  levels (thirty by default, `saga: { seed, levels }`), each a few moves to reach a score or to dissolve so many of one
+  reagent, with a bonus for every move left and up to three stars. The map opens a level at a time and remembers the
+  stars in the browser; there are no lives, a level is retried as often as you like. The map is made from the
+  recipe's seed (the title's, unless you name one), so the same game is the same map everywhere, and its curve was
+  measured against a steady player: the first levels are generous, the last leave little to spare. A gem is swiped
+  toward its neighbour, or tapped twice. Philosopher's Stone without a saga is unchanged.
+- **An endless runner.** `design_game({ quick: { goal: 'runner' } })` makes a game where your hero runs on its own down
+  three lanes, faster and faster: swipe left or right to change lane, up to jump a hurdle, down to slide under a bar
+  (A / D, Space and S on a keyboard), and take the coins. The rows come from the level's seed as you run, each with a
+  way through; a crash ends the run and the best score and distance are kept. `distance: n` makes reaching it the win;
+  `runner: { lanes, speed, max, palette, … }` tunes the run. A level of a world can be a run too (`levels.<id>.runner`).
+  It plays in the browser (not in an engine export). Worlds without a runner are unchanged.
+- **What can be made, measured.** The capability page gains the two genres: the endless runner is makeable; the
+  match-3 saga is made by Stone Saga, and a world game's levels taking stars and a map is the next step it names.
+
+### Resolution lock
+
+- **A game is made for a screen.** A gameworld's `screen` (beside `camera`; `quick.screen` too) names the screen it is
+  designed for: `'phone'` (upright, 9:16), `'tablet'` (an iPad on its side, 4:3; `{ pole: 'tablet', orientation:
+  'portrait' }` stands it up), `'screen'` (a monitor, 16:9), or `{ aspect: [w, h] }`. A new game `design_game` starts
+  is made for a phone unless another screen is named; `screen: null` asks for none. A stored game without one plays
+  exactly as it did.
+- **The frame is held.** Each level plays in the screen's frame, the least a player sees: a longer device shows more
+  world along the frame's long axis (up to a third more), and bars past that or on a shorter device. The camera's
+  field of view across the frame's short side never changes, so an upright phone keeps the view it was designed with.
+  The game's pages leave room for the notch and the home bar.
+- **The gates measure it.** The first-frame check and traversals render each level at its screen's frame.
+- **Cameras framed for an upright screen.** On a phone (or any upright frame) each camera is framed by its kind, never
+  by genre: a chase camera is pulled back and looks a little higher, so the hero stands about a third of the way up
+  the screen, clear of the thumbs, with the way ahead above; the top-down and side cameras pull back; the view across
+  the width narrows so the screen's height does not stretch. A frame on its side plays every camera as authored.
+  `screen: { pole: 'phone', fov }` names the view across the short side yourself.
+- **Touch controls.** A game made for a screen draws a touch pad on a touch device: a stick that rises where the left
+  thumb lands, a look zone the right thumb drags (a first-person camera, a craft), and the buttons the hero answers
+  to (jump; up and down in flight; fire when armed; use while standing where something is used). The layout follows
+  the hero's kind of movement and the camera, never the genre: a side-scroller's stick runs left and right only. The
+  pad is a gamepad drawn on the screen, so a remapped gamepad control moves with it, and a real gamepad, once
+  connected, takes over. `?touch=1` shows it on any device, `?touch=0` hides it.
+- **The screens laid out for it.** A game made for a screen lays out its UI once by that screen, never per game. The
+  HUD's corners stay clear of the notch and the home bar, and its bottom row rises over the touch pad while the pad
+  shows. Upright, a long banner wraps to the width, the battle menu stacks, and the title screen stands its title and
+  menu at the foot of the screen in reach of the thumbs, with the cover above. On touch, the level's control hint and
+  the pause sheet say what the thumbs do instead of naming keys, and the pad steps aside while a menu, a battle or the
+  journal is open.
+- **The exports carry it.** The desktop app opens in the screen's shape (a phone game upright at 450×800, a monitor
+  game at 1280×720). The Godot project holds the frame (`[display]`: the base viewport, `canvas_items` + `expand`, the
+  handheld orientation), and its kernel (0.30.0) keeps an upright game's view across the width, as the browser does.
+  Roblox does not carry the screen: `screen` is a World page input marked approximated in Godot (the project file
+  holds the frame; the touch pad and the safe-area zones are the page's) and absent in Roblox, and an endless run is
+  the page's in both (`runner`, and the runner mechanic, whose events only the page's lanes send).
+  The level cameras every engine reads take the screen's view. The Unity and Unreal guides add the two steps that match
+  the editor's play view and a mobile build's orientation. The touch pad and the screen's UI layout stay in the browser.
+- **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
+  (a tablet or a screen frames them better); it is never refused.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

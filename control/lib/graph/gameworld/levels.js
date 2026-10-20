@@ -34,7 +34,8 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
-import { fixedStations } from './cameras.js';
+import { fixedStations, uprightCamera } from './cameras.js';
+import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
@@ -75,6 +76,8 @@ export function gameStages(world) {
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
+    // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
+    if (R.runner) { out.push({ level, node: 'runner', section: 'runner', index: 0, manifest: runnerStage(R.runner) }); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
     // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
@@ -197,6 +200,21 @@ export function roadwayEnds(manifest) {
   return out;
 }
 
+/** A runner level's stage: the run alone (its lanes, posts and rows drawn by its page as it is played), on a floor the
+ * whole way, in a sky; started at the origin facing +x. */
+export const RUNNER_FLOOR = Object.freeze({ min: [-100000, -100000, -2], max: [100000, 100000, 0] });
+function runnerStage(runner) {
+  return { kind: 'controllable', title: 'run', bg: '#9cc4e4', faces: [], colliders: [RUNNER_FLOOR], runner, worldFraming: { cameraPosition: [-8, 0, 4], lookAt: [12, 0, 1], horizontalFov: 70 } };
+}
+/** A runner stage's anchors: the start, facing down the run, and an end it never reaches (its rows end it). */
+export function runnerEnds() {
+  const out = { spawn: [0, 0, 0], heading: 0, exit: [100000, 0, 0], exitFrom: 'the end of the run', planar: true, beats: [], hazards: [] };
+  for (const [k, v] of Object.entries({ ground: () => 0, rocks: null, colliders: [RUNNER_FLOOR] })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  return out;
+}
+// a runner's chase camera: behind and above, looking well ahead (the rows come fast)
+export const RUNNER_CAMERA = Object.freeze({ dist: 6, height: 3, lead: 8, lookH: 1.2 });
+
 /** Where a stage spawns the hero and where it ends, read off the stage as it lays (drawn once per stage recipe: a
  * stage is pure, so the same recipe always ends the same). */
 const ENDS = new Map();
@@ -313,8 +331,10 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * world's `moves`): each figure of the level standing for one, the pilot's included, plays them over the library's.)
  */
 export function stageLevelOrder(G, stage, opts = {}) {
-  const L = levelOrder(G, stage, opts);
-  return opts.moves ? withOwnMoves(L, opts.moves) : L;
+  const laid = levelOrder(G, stage, opts);
+  const L = opts.moves ? withOwnMoves(laid, opts.moves) : laid;
+  // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
+  return G.screen ? screenLevel(G.screen, L) : L;
 }
 function withOwnMoves(L, byRef) {
   const m = L.args?.manifest;
@@ -329,11 +349,24 @@ function withOwnMoves(L, byRef) {
   return changed ? { ...L, args: { ...L.args, manifest: { ...m, figures } } } : L;
 }
 
+/** A level order framed for its screen: the screen on its manifest; an UPRIGHT frame's camera from the table
+ * (cameras.js uprightCamera: its width fov, a chase pulled back with its look raised), the creator's own fov winning;
+ * a side camera across an upright frame advised (a law that does not hold: advice, never a refusal). */
+function screenLevel(written, L) {
+  const S = readScreen(written), m = L.args.manifest;
+  if (S.orientation !== 'portrait') return { ...L, args: { ...L.args, manifest: { ...m, screen: written } } };
+  const U = uprightCamera(m.camera ?? null);
+  const screen = { ...(typeof written === 'string' ? { pole: written } : written), fov: S.fov ?? U.fov };
+  const manifest = { ...m, ...(U.camera ? { camera: U.camera } : {}), screen };
+  const advice = U.lane !== undefined ? [{ concern: 'screen', law: 'frame-fits', holds: false, says: `a side camera across an upright ${S.pole === 'custom' ? 'frame' : S.pole} sees about ${U.lane} m of its lane (about ${U.laneWide} m on a monitor): a side-scroller reads better on a tablet or a screen` }] : [];
+  return { ...L, args: { ...L.args, manifest }, ...(advice.length ? { laws: [...(L.laws ?? []), ...advice] } : {}) };
+}
+
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -354,9 +387,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
-  const moveWords = lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
+  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const placed0 = goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  // (a runner's own goal is the run: a crash ends it, the score its result)
+  const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
@@ -414,6 +448,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
         : lane ? { rule: 'side', target: 'hero' }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
+        : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
         : P.camera;
     pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
   } else {
@@ -503,7 +538,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
-  const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
+  const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

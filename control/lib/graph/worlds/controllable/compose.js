@@ -36,6 +36,7 @@ import { buildForms } from './forms.js';
 import { buildNav } from './nav.js';
 import { buildMind } from './mind.js';
 import { buildGroup } from './group.js';
+import { buildRunner } from './runner.js';
 
 export function composeControllable(builders) {
   const E = {};
@@ -51,14 +52,19 @@ export function composeControllable(builders) {
 // own export for the callers that name it. S4: all.js is dissolved.
 export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildForms, buildNav, buildMind, buildGroup];
 export const EMISSION = [...EMISSION_ENGINE];
+// OPT-IN builders: composed into a page only when its world asks for them (the endless runner), so a page without one
+// keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec)
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {
-  return composeControllable(EMISSION);
+  return composeControllable([...EMISSION, ...Object.values(EMISSION_OPT_IN)]);
 }
 
 // The browser-emission source: the kernel + every builder, stringified. The emitter interpolates
-// this ONE expression where it used to interpolate `(${buildControllable.toString()})()`.
-export function emissionSource() {
-  return `(${composeControllable.toString()})([\n${EMISSION.map((b) => b.toString()).join(',\n')}\n])`;
+// this ONE expression where it used to interpolate `(${buildControllable.toString()})()`. `opts` names the opt-in
+// builders the page's world needs ({ runner: true }); absent, the source is as it was.
+export function emissionSource(opts = {}) {
+  const list = [...EMISSION, ...Object.keys(EMISSION_OPT_IN).filter((k) => opts[k]).map((k) => EMISSION_OPT_IN[k])];
+  return `(${composeControllable.toString()})([\n${list.map((b) => b.toString()).join(',\n')}\n])`;
 }

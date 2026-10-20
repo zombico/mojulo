@@ -64,6 +64,8 @@ export const GENRES = Object.freeze({
   // a skirmish commanded from above: a commander's cast, never a child
   conquer:    { weight: 0.2, mascot: { promise: { might: 2, pride: 3 } }, person: { role: { frontline: 2, ranged: 2 }, archetype: { ruler: 3, hero: 1.5, outlaw: 1.5 }, age: { adult: 1.5, seasoned: 2, ...combat } } },
   fly:        { weight: 0.4, mascot: { promise: { speed: 3, wonder: 2 } }, person: { archetype: { explorer: 3, hero: 2 }, role: { ranged: 2 } } },
+  // an endless runner (worlds/controllable/runner.js): the genre's heroes are quick and cheeky, mascots first
+  runner:     { weight: 0.85, mascot: { promise: { speed: 4, cheer: 2, mischief: 1.5 }, energy: { zippy: 2 } }, person: { archetype: { explorer: 2, jester: 2, outlaw: 1.5, hero: 1.5 }, age: { youth: 2, elder: 0.5 } } },
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

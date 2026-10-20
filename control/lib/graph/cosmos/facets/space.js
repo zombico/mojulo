@@ -50,6 +50,8 @@ export const SPACE = Object.freeze({
         trail: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/era/out-trail.js' },
         meru: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/worlds/match-modes.js' },
+        // built 10-19 (mobile genres): a runner level, the run alone on its floor, its rows laid ahead as it is played
+        run: { status: 'built', godot: 'absent', roblox: 'absent', lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
         // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap
         circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: 'built', roblox: 'approximated', note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use

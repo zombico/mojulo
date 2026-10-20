@@ -53,6 +53,16 @@ export const DEVICES = {
     },
   },
 
+  // a VIRTUAL pad drawn on a touch screen (scene/channels/controllable/touch.js): it speaks the gamepad family's own
+  // controls (its stick is the left stick, its look zone the mouse's drag, its buttons sit at the pad's positions), so
+  // a scheme binds it as `gamepad` and it carries no controls of its own. Drawn only for a game made for a screen.
+  touch: {
+    standard: 'W3C Pointer Events (touch pointers), drawn as a virtual pad in the W3C Gamepad "standard" mapping',
+    driver: 'touch-virtual-pad',
+    drives: 'gamepad',
+    controls: { leftStick: 'the stick under the left thumb', south: 'jump (up, in flight)', east: 'down (in flight)', west: 'use, while in reach', rt: 'fire' },
+  },
+
   xr: {
     standard: 'WebXR Gamepads Module, "xr-standard" mapping per hand; buttons past the thumbstick follow the WebXR Input Profiles registry',
     driver: null,

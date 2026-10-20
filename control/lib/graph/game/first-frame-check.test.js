@@ -52,6 +52,14 @@ describe('first-frame check', () => {
     expect(again.levels.map((l) => l.status)).toEqual(['pass', 'failed']);
   });
 
+  it('a level made for a screen is rendered in its own frame; the rest at the check\'s', async () => {
+    const framed = async (ref) => ({ html: `<html>${ref}</html>`, ...(ref === 'lv-tall' ? { frame: { width: 180, height: 320 } } : {}) });
+    let items = null;
+    const capture = async (xs) => { items = xs; return xs.map(() => ({ rgba: halves(), scene: {} })); };
+    await firstFrameCheck(['lv-tall', 'lv-wide'], { findBrowser: found, page: framed, capture });
+    expect(items.map((x) => x.frame ?? null)).toEqual([{ width: 180, height: 320 }, null]);
+  });
+
   it('design_game\'s readout: nothing without a run, skipped when the run kept everything, else the game\'s levels', async () => {
     SketchRepository.create({ ref: 'g-game', title: 'g', manifest: { kind: 'game', title: 'g', store: { slices: [] }, levels: [{ ref: 'g-level-a-0' }, { ref: 'g-level-a-1' }] } });
     const world = { made: { game: { ref: 'g-game' }, 'level-a-0': { ref: 'g-level-a-0' } } };

@@ -30,6 +30,17 @@ const AUTO = { ...MEADOWMARK_HERO, mode: 'autonomous' };
 describe('design_game', () => {
   beforeEach(() => { closeDb(); });
 
+  it('a new game is made for a phone unless another screen is named; a recipe re-sent whole keeps its screen', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw-phone' });
+    expect(stored('gw-phone').screen).toBe('phone');
+    await designGameHandler({ world: GATED, ref: 'gw-phone' });   // re-sent whole, no screen in it
+    expect(stored('gw-phone').screen).toBe('phone');
+    await designGameHandler({ world: { ...GATED, screen: 'tablet' }, ref: 'gw-tablet' });
+    expect(stored('gw-tablet').screen).toBe('tablet');
+    await designGameHandler({ world: { ...GATED, screen: null }, ref: 'gw-none' });
+    expect(stored('gw-none').screen).toBe(null);
+  });
+
   it('starts a gameworld from a recipe and reads it: every part proposed, the steps waiting, the next moves said', async () => {
     const out = await designGameHandler({ world: GATED, ref: 'gw' });
     expect(out).toMatchObject({ ok: true, ref: 'gw', bible: '/api/sketches/gw/bible', mode: 'gated', steps: { adornment: 'waiting', systems: 'waiting', equipment: 'waiting' } });

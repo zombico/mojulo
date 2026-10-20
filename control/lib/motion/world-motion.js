@@ -18,6 +18,7 @@
 
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld, verticalFov } from '@/lib/graph/scene/scene-three';
+import { payloadFrame } from '@/lib/graph/game/screen';
 import { cameraPathFor, CAMERA_MOTIONS } from './camera-path.js';
 import { renderWorldFrames, renderWorldTraversal, compileWorldWaypoints } from './world-frames.js';
 
@@ -245,8 +246,10 @@ export async function renderWorldTraversalMotion({ sketch, ticks, waypoints, fps
   }
   if (params.camera && params.camera.rule) payload.camera = params.camera;   // inject a follow/FPV camera entity
 
-  const width = Math.round(params.width || DEFAULT_W);
-  const height = Math.round(params.height || DEFAULT_H);
+  // a game made for a screen (game/screen.js) is walked in its own frame, its long side the default's
+  const framed = payload.screen && !params.width && !params.height ? payloadFrame(payload.screen, Math.max(DEFAULT_W, DEFAULT_H)) : null;
+  const width = Math.round(params.width || framed?.width || DEFAULT_W);
+  const height = Math.round(params.height || framed?.height || DEFAULT_H);
 
   const html = emitThreeWorld({
     ...payload,

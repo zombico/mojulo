@@ -481,7 +481,8 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
 
   // target 'desktop': the same folder plus the three root files that make it an Electron app (desktop-shell.js)
   const writeDesktop = async () => {
-    const app = { title: manifest.title || sketch.title, ref };
+    // (the screen the game is made for sizes its window: desktop-shell.js desktopWindow)
+    const app = { title: manifest.title || sketch.title, ref, ...(manifest.screen != null ? { screen: manifest.screen } : {}) };
     await write('package.json', desktopPackageJson(app));
     await write('main.js', desktopMainJs(app));
     await write('.gitignore', DESKTOP_GITIGNORE);

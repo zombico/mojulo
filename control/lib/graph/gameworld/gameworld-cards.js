@@ -35,6 +35,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
@@ -134,6 +135,7 @@ function worldCard() {
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
     '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
     '  a key that is a hero\'s power opens the door and gives the hero its move.',
     '',
@@ -273,6 +275,11 @@ const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
   survive: () => ['  seconds: n (5..600)   how long to last'],
+  runner: () => [
+    '  distance: n (10+)   metres a run is won at (absent: endless, a crash ends it, the best kept)',
+    '  runner: { lanes?, speed?, accel?, max?, seed?, palette? }   the run itself; a hero runs it (made when none is named)',
+    '  played by swipe on a phone (left and right a lane, up a jump, down a slide), A / D, Space and S on a keyboard',
+  ],
   avoid: () => [],
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
@@ -349,6 +356,7 @@ const quickShared = () => [
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
+  `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
   '  cast: true | { scale?: hero | rival | party, n?, cast?, bodies?, … }   on foot: people rolled for the game (the casting',

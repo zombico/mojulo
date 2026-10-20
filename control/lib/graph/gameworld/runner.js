@@ -24,6 +24,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { readScreen } from '../game/screen.js';
 import { fingerprint, reviewState } from './review.js';
 import { readGameworld } from './world.js';
 import { resolveBook, characterReady } from './character-review.js';
@@ -274,7 +275,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     const links = onBoard ? [] : gameLinks(stages, levelRefs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -357,7 +358,7 @@ function worldSteps(world, G, ref) {
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -393,7 +394,10 @@ function quickSteps(world, G, ref, lookup) {
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
     const game = quickVersus(Q, { title, theme: Q.theme ?? paletteTheme(G), arenas: arenas.map((a) => ({ ref: a.ref, name: a.name })), roster });
-    return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+    // (a side-view fight across an upright screen: advised, never refused)
+    const upright = G.screen ? readScreen(G.screen).orientation === 'portrait' : false;
+    const laws = upright ? [{ concern: 'screen', law: 'frame-fits', holds: false, says: 'a side-view fight across an upright screen leaves the two fighters a sliver of the stage: a fight reads better on a tablet or a screen' }] : null;
+    return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game), ...(laws ? { laws } : {}) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
@@ -524,7 +528,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

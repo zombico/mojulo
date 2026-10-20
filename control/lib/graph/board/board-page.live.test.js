@@ -226,7 +226,9 @@ describe('the board on the World page', () => {
       await page.waitForFunction(() => window.__mojBoard.fx.pieces > 1 && window.__mojBoard.camera.spin !== 0 && window.__mojBoard.fx.dim < 0.6, { timeout: 5000 });
       expect(await page.evaluate(() => !!window.__mojBoard.camera.shot), being).toBe(true);
       if (process.env.MOJULO_BOARD_SHOTS) { await new Promise((r) => setTimeout(r, (out.land - 0.6) * 1000)); await page.screenshot({ path: `${process.env.MOJULO_BOARD_SHOTS}/summon-${being}.png` }); }
-      await page.waitForFunction(() => window.__mojBoard.fx.playing === 0, { timeout: 15000 });
+      // the effects play in real time on the page's clock: 45 s, as a headless Chrome sharing four cores with the e2e
+      // tier's other pages runs them slower (15 s timed out once in a full run, 2026-10-20; alone it passes)
+      await page.waitForFunction(() => window.__mojBoard.fx.playing === 0, { timeout: 45000 });
       await page.waitForFunction(() => window.__mojBoard.camera.yaw === window.__mojBoard.camera.yawTo, { timeout: 5000 });
       const after = await page.evaluate(() => { const C = window.__mojBoard.camera, q = (C.yaw - Math.PI / 4) / (Math.PI / 2); return { fx: window.__mojBoard.fx, shot: C.shot, spin: C.spin, onQuarter: Math.abs(q - Math.round(q)) < 1e-6 }; });
       expect(after, being).toEqual({ fx: { playing: 0, pieces: 0, waiting: false, dim: 1 }, shot: null, spin: 0, onQuarter: true });
@@ -246,7 +248,7 @@ describe('the board on the World page', () => {
     const mid = await page.evaluate(() => ({ fx: window.__mojBoard.fx, hp: window.__mojBoard.state().u.g.hp }));
     expect(mid.fx.waiting).toBe(true);
     expect(mid.hp).toBeLessThan(hp0);
-    await page.waitForFunction(() => !window.__mojBoard.fx.waiting && window.__mojBoard.fx.playing === 0, { timeout: 15000 });
+    await page.waitForFunction(() => !window.__mojBoard.fx.waiting && window.__mojBoard.fx.playing === 0, { timeout: 45000 });   // 45 s: as above
     await page.close();
   }, 120000);
 

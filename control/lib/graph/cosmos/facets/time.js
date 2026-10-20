@@ -49,6 +49,8 @@ export const TIME = Object.freeze({
         runs: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
         // built 10-19 (the strategy board): a tactics book is travelled from its map, a diorama of dots
         map: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-map.js', note: 'a map level: a diorama with a dot a level, roads between, a dot open once the one before it is won; the party walks there and the game travels by the dot (the map mechanic); skirmishes to fight again' },
+        // local 10-19 (mobile genres): the match-3 saga's map (a level a time, each a move budget for a goal, three stars)
+        saga: { status: 'local', ...WEB, effort: 'M', lowers: 'lib/graph/pixelizer/philosophers-stone-saga.js', note: 'Stone Saga\'s map: levels generated from its seed, opened one at a time, three stars each kept in the browser; a world game\'s levels do not take stars or a map yet' },
       },
     },
     chapters: {

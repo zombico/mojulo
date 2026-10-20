@@ -115,6 +115,7 @@ export async function buildUnityGamePack({ ref, outDir, clips = '_all', posture 
     ref, title: manifest.title ?? ref, manifestHash, levels,
     shellExtras: shellExtras(manifest),
     remint: `node scripts/export-unity.mjs --ref ${ref}`,
+    ...(manifest.screen != null ? { screen: manifest.screen } : {}),
   });
   const written = await writePack({ outDir, binaries, emitted, portability, manifestHash });
   return {

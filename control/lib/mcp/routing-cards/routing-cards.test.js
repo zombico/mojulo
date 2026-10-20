@@ -111,7 +111,7 @@ describe('routing-card shelf — registry + body sweeps', () => {
 // so some fixture row says it in a user's words (CLAUDE.md, the MCP tool surface). The doors below had no row when
 // the rule landed: shrink-only, so a new door brings its row instead of a name here.
 const DOORS_WITHOUT_A_ROW = [
-  'capture_reference', 'cook', 'create_cover', 'create_pixelizer_game', 'create_sprite_sheet', 'design_game',
+  'capture_reference', 'cook', 'create_cover', 'create_sprite_sheet', 'design_game',
   'execute_plan', 'forge_plan', 'forge_publications', 'mint_diagram', 'run_experiment_sweep', 'start_research',
   'synthesize_abstract',
 ];

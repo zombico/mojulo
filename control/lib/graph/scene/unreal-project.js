@@ -24,7 +24,7 @@
  * two MUST stay identical.
  */
 // Guide helpers are shared with the Unity + Blender legs (operator-guide.js, the D10 lift).
-import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble } from './operator-guide.js';
+import { fmt, ledgerLines, greyboxSection, guideLedger, guidePreamble, screenSection } from './operator-guide.js';
 import { emitUnrealKernel } from './unreal-kernel.js';
 
 export const UNREAL_LEG_VERSION = '0.4.2';
@@ -1301,7 +1301,15 @@ ${GUIDE_LEDGER(ledger)}
 }
 
 /** Game-pack guide (U1 shape): menu-first eyes gate, the kernel walker. */
-function importGuideGame({ title, levels, ledger, posture, lit = false }) {
+// the screen it is made for, in Unreal: play-in-editor at its frame, and a mobile build at its orientation
+const unrealScreen = (S) => {
+  const k = Math.min(1280 / S.aspect[0], 800 / S.aspect[1]), w = Math.round(S.aspect[0] * k), h = Math.round(S.aspect[1] * k);
+  return `T007 Edit > Editor Preferences > Level Editor > Play > Game Viewport Settings > New Viewport Resolution > ${w} × ${h}
+T007.01 Toolbar > [Play] dropdown > \`New Editor Window (PIE)\` — the level plays in the frame
+T007.02 Edit > Project Settings > Platforms > iOS / Android > Orientation > ${S.orientation === 'portrait' ? 'portrait only' : 'landscape only'}`;
+};
+
+function importGuideGame({ title, levels, ledger, posture, lit = false, screen = null }) {
   const eyes = [
     'the menu lists every level; gated levels show [locked] until their gate level is [done]',
     'Enter starts the selected level — the kernel walker spawns at the score spawn (WASD + mouse, Space jumps, M returns to the menu)',
@@ -1323,7 +1331,7 @@ T005 Content Browser > Content > MojuloPack > Maps > \`mojulo-menu\` — open
 T006 Toolbar > [Play] — menu first, then play a level start to finish:
 ${eyes.join('\n')}
 
-## Optional project character
+${screenSection(screen, unrealScreen)}## Optional project character
 
 Set \`MojuloPawnClass\` in your project's \`Config/DefaultGame.ini\` under
 \`[/Script/MojuloKernel.MojuloGameMode]\` to your pawn's generated class path
@@ -1423,7 +1431,7 @@ export function emitUnrealGame({ ref, manifest, levels, manifestHash, remint = n
   const files = [
     { file: 'import_mojulo.py', text: importerPy({ lit }) },
     ...emitUnrealKernel(),
-    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger, posture: manifest.posture, lit }) },
+    { file: 'IMPORT-GUIDE.md', text: importGuideGame({ title, levels, ledger, posture: manifest.posture, lit, screen: manifest.screen ?? null }) },
     {
       file: 'README.md',
       text: `# ${title} — Unreal handoff (game)

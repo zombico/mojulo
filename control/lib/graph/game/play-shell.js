@@ -33,6 +33,7 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
+import { readScreen } from './screen.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -40,6 +41,25 @@ const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).b
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // JSON inside <script>: a `</script>` in a title must not close the tag
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+// the shell made for a screen (screen.js): the safe area (the notch's, the home bar's) held clear by the menus and the
+// fixed chrome, buttons no smaller than a thumb, the level's frame standing on the black of its bars; upright, the
+// front's title and menu stand in the thumbs' reach at the foot of the screen, its cover above them
+const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
+  html,body{height:100dvh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  body{touch-action:manipulation}
+  button{min-height:44px}
+  button.link{min-height:44px}
+  #app{min-height:100dvh;padding:calc(32px + var(--safe-t)) calc(16px + var(--safe-r)) calc(32px + var(--safe-b)) calc(16px + var(--safe-l))}
+  #pauseBtn{top:calc(12px + var(--safe-t));right:calc(12px + var(--safe-r));min-width:44px}
+  #playtag{top:calc(12px + var(--safe-t));left:calc(12px + var(--safe-l))}
+  #toast{bottom:calc(22px + var(--safe-b))}
+  #debug{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}
+  html[data-screen] #front .fx-skip{right:calc(16px + var(--safe-r));bottom:calc(14px + var(--safe-b))}
+  html[data-orientation=portrait] #front .fx-stage.cover{left:0;top:calc(6vh + var(--safe-t));transform:none;width:100vw}
+  html[data-orientation=portrait] #front .fx-zone{position:fixed;left:50%!important;top:auto!important;bottom:calc(8vh + var(--safe-b));width:min(320px,calc(100vw - 32px))!important;height:auto!important;transform:translateX(-50%)}
+  html[data-orientation=portrait] #front .fx-col:not(.fx-hide){left:50%;right:auto;top:auto;bottom:calc(8vh + var(--safe-b));transform:translateX(-50%);align-items:center;text-align:center;width:calc(100vw - 32px)}
+  html[data-orientation=portrait] #front .fx-menu{width:100%;min-width:0}`;
+
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
 export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
@@ -94,9 +114,13 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
   };
   const front = !!cfg.front;
+  // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
+  // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
+  // Absent: no attribute, no rule, the page as it was
+  const screen = manifest.screen != null ? readScreen(manifest.screen) : null;
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"${screen ? ` data-screen="${screen.pole}" data-orientation="${screen.orientation}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
 <title>${esc(manifest.title)}${playtest ? ' · playtest' : ''}</title>
 <style>
   :root{--bg:${c.bg};--ink:${c.ink};--accent:${c.accent};--accent2:${c.accent2};--line:${c.line};--panel:${panel};--dim:color-mix(in srgb,var(--ink) 58%,transparent)}
@@ -149,7 +173,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #debug summary{cursor:pointer;font-size:12px;color:var(--dim);text-align:right;list-style:none}
   #debug .body{margin-top:6px;max-height:56vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,Menlo,monospace}
   #debug pre{margin:4px 0 10px;white-space:pre-wrap;word-break:break-word}
-  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${front ? `
+  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
+  ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}
 </style></head>
 <body>

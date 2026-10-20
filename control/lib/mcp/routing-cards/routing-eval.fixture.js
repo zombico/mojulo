@@ -60,6 +60,8 @@ export const FIXTURE = [
   // a board game against the computer: create_game's tabletop, not its levels
   ['I want to play chess against the computer', 'create_game', 'tabletop'],
   ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
+  // mobile genres: the match-3 saga is a reducer game, not a world game
+  ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
@@ -188,6 +190,7 @@ export const COLLISION_FIXTURE = [
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
   ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
+  ['an endless runner for my phone where you swipe to dodge', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

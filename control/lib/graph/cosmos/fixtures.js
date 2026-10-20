@@ -243,6 +243,29 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'endless-runner',
+    name: 'Endless runner',
+    anchor: false,
+    why: 'a hero runs on its own down lanes, ever faster: change lane, jump and slide past what comes; a crash ends the run, the best kept',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', levelForm: 'run' },
+      power: { rules: ['platform'], mechanics: ['runner'] },
+      soul: { hero: 'hero', gaits: ['jump'] },
+      time: { progression: 'none' },
+    },
+  },
+  {
+    id: 'match-3-saga',
+    name: 'Match-3 saga',
+    anchor: false,
+    why: 'a map of short puzzle levels on a swap-to-match board, each a few moves to reach its goal, three stars to earn',
+    cube: {
+      reality: { medium: 'board' },
+      time: { progression: 'saga' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,

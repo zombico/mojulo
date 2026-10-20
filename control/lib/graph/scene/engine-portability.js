@@ -58,9 +58,15 @@ export const MECHANIC_SAMPLES = Object.freeze({
   party: {},
   board: { exit: 'map' },
   map: { dots: ['a', 'b'] },
+  runner: { distance: 100 },
 });
-// a mechanic only a page plays: its events come from the strategy board's page (board/*), which no engine kernel runs
-const PAGE_ONLY = Object.freeze({ board: 'the board page\'s board-won and board-lost (board/*); no engine kernel plays a board', map: 'the board map page\'s map-go (board/board-map.js); no engine kernel plays a board' });
+// a mechanic only a page plays: its events come from a page no engine kernel runs (the strategy board's, board/*; the
+// endless runner's lanes, worlds/controllable/runner.js), so the bus rows it lowers to would run with nothing to feed them
+const PAGE_ONLY = Object.freeze({
+  board: 'the board page\'s board-won and board-lost (board/*); no engine kernel plays a board',
+  map: 'the board map page\'s map-go (board/board-map.js); no engine kernel plays a board',
+  runner: 'the run\'s runner:run, runner:coin and runner:crash come from the page\'s lanes (worlds/controllable/runner.js); no engine kernel runs them',
+});
 
 const lowered = new Map();
 const lowerSample = (kind) => lowered.get(kind) || lowered.set(kind, lowerMechanic(kind, MECHANIC_SAMPLES[kind], { storeSchema: SAMPLE_STORE, player: 'player' })).get(kind);

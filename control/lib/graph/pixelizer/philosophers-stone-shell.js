@@ -27,8 +27,12 @@ import { emitBeatsKernel } from '../beats/beats-kernel.js';
 import { beatsFeatures, pagePatches } from '../beats/beats-features.js';
 import { PS_THEME, PS_SFX } from './philosophers-stone-beats.js';
 import { moduleDir } from '../../module-dir.js';
+import { swipeOf } from '../controls/swipe.js';
+import { readSaga } from './philosophers-stone-saga.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/pixelizer');
+
+const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 /** Read a sibling pixelizer module and strip its import/export lines to inline it. */
 export const inlineSource = (file) =>
@@ -44,7 +48,111 @@ const PS_THEME = ${JSON.stringify(PS_THEME)};
 const PS_SFX = ${JSON.stringify(PS_SFX)};
 `;
 
-const shell = ({ scale = 4, music = true } = {}) => `
+// ---- THE SAGA (philosophers-stone-saga.js): a map of levels, each a move budget for a goal, stars kept in the
+// browser; the page code below is spliced into the shell only for a saga, so the cabinet without one keeps every byte
+const SAGA_STATE = (saga) => `const SAGA = ${JSON.stringify(saga)};
+const LEVELS = sagaLevels(SAGA);
+// what this browser has won: stars and best score by level number (no lives: a level is retried as often as wanted)
+const SAVE_KEY = 'mojulo.saga.' + document.title + '.' + SAGA.seed + '.' + SAGA.levels;
+const loadSave = () => { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); return v && v.stars ? v : { stars: {}, best: {} }; } catch (e) { return { stars: {}, best: {} }; } };
+let save = loadSave();
+const keep = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* private mode: progress lives for the visit */ } };
+const unlocked = (n) => n === 1 || (save.stars[n - 1] || 0) > 0;
+let at = Math.max(0, LEVELS.findIndex((L) => unlocked(L.n) && !save.stars[L.n]));
+if (at < 0 || !unlocked(LEVELS[at].n)) at = 0;
+let state = sagaStart(LEVELS[at]);`;
+const SAGA_HUD = `hud.goal = el('goal'); hud.goalDot = el('goal-dot'); hud.stars = el('stars');
+const starRow = (k) => '★★★'.slice(0, k) + '☆☆☆'.slice(0, 3 - k);
+const sagaHud = () => {
+  const L = state.spec, g = L.goal;
+  hud.level.textContent = L.n + ' / ' + LEVELS.length;
+  hud.moves.textContent = state.movesLeft;
+  hud.score.textContent = fmtScore(state.score);
+  hud.stones.textContent = state.stones;
+  hud.goal.textContent = g.collect ? Math.min(state.collected[g.collect.c], g.collect.n) + ' / ' + g.collect.n + ' ' + REAGENT_NAMES[g.collect.c] : Math.min(state.score, g.score) + ' / ' + g.score;
+  hud.goalDot.style.display = g.collect ? 'inline-block' : 'none';
+  if (g.collect) hud.goalDot.style.background = REAGENTS[g.collect.c][3];
+  hud.stars.textContent = starRow(state.over ? state.stars : L.stars.filter((t) => t > 0 && state.score >= t).length);
+  overEl.style.display = state.over ? 'flex' : 'none';
+  if (!state.over) return;
+  const won = state.result === 'won';
+  if (won && !state.kept) {
+    state.kept = true;
+    save.stars[L.n] = Math.max(save.stars[L.n] || 0, state.stars);
+    save.best[L.n] = Math.max(save.best[L.n] || 0, state.score);
+    keep();
+    sfx('levelup');
+  }
+  overMsg.textContent = won ? 'LEVEL ' + L.n + ' COMPLETE' : 'OUT OF MOVES';
+  overMsg.style.color = won ? '#7ad1a6' : '#e8564a';
+  el('over-stars').textContent = won ? starRow(state.stars) : '';
+  el('over-score').textContent = won ? 'score ' + state.score + (save.best[L.n] > state.score ? ' · best ' + save.best[L.n] : '') : (g.collect ? 'dissolve ' + g.collect.n + ' ' + REAGENT_NAMES[g.collect.c] : 'reach ' + g.score) + ' in ' + L.moves + ' moves';
+  el('next-btn').style.display = won && at + 1 < LEVELS.length ? '' : 'none';
+};
+`;
+const SAGA_MAP = `const mapEl = el('map'), mapList = el('map-list');
+const playLevel = (i) => {
+  at = i; state = sagaStart(LEVELS[i]); cursor = { x: 0, y: 0 }; animating = false; started = true;
+  mapEl.style.display = 'none'; splash.style.display = 'none'; overEl.style.display = 'none';
+  render(); fitBoard();
+};
+const openMap = () => {
+  mapList.innerHTML = '';
+  for (let i = 0; i < LEVELS.length; i++) {
+    const L = LEVELS[i], open = unlocked(L.n), k = save.stars[L.n] || 0;
+    const b = document.createElement('button');
+    b.className = 'lv' + (open ? '' : ' locked') + (k ? ' won' : '') + (i === at ? ' here' : '');
+    b.innerHTML = '<span class="n">' + L.n + '</span><span class="s">' + (open ? starRow(k) : '\u{1F512}') + '</span>';
+    if (open) b.addEventListener('click', () => { startMusic(); playLevel(i); });
+    mapList.appendChild(b);
+  }
+  el('map-total').textContent = Object.values(save.stars).reduce((a, k) => a + k, 0) + ' / ' + LEVELS.length * 3 + ' ★';
+  mapEl.style.display = 'flex';
+  const here = mapList.querySelector('.here'); if (here && here.scrollIntoView) here.scrollIntoView({ block: 'center' });
+};
+el('map-btn').addEventListener('click', () => openMap());
+el('next-btn').addEventListener('click', (e) => { e.stopPropagation(); playLevel(at + 1); });
+el('retry-btn').addEventListener('click', (e) => { e.stopPropagation(); playLevel(at); });
+el('to-map-btn').addEventListener('click', (e) => { e.stopPropagation(); openMap(); });
+openMap();`;
+const SAGA_SWIPE = `// a swipe: a gem flicked toward its neighbour swaps with it (controls/swipe.js); a tap arms it, a second tap on a
+// neighbour swaps; a slow drag onto a neighbour swaps too
+${swipeOf.toString()}
+let down = null;
+world.addEventListener('pointerdown', (e) => { e.preventDefault(); begin(); const c = cellFromEvent(e); down = c ? { c, x: e.clientX, y: e.clientY, t: performance.now() } : null; });
+world.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (!down) return;
+  const cell = world.getBoundingClientRect().width / state.W;   // a cell on screen, the fit scale in it
+  const g = swipeOf(e.clientX - down.x, e.clientY - down.y, performance.now() - down.t, { dead: 10, travel: Math.max(14, cell * 0.3), ms: 900 });
+  const a = down.c, D = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[g];
+  down = null;
+  if (g === 'tap') dispatch({ type: 'select', x: a.x, y: a.y });
+  else if (D) { const b = { x: a.x + D[0], y: a.y + D[1] }; if (b.x >= 0 && b.y >= 0 && b.x < state.W && b.y < state.H) dispatch({ type: 'swap', a, b }); }
+  else { const up = cellFromEvent(e); if (up && Math.abs(up.x - a.x) + Math.abs(up.y - a.y) === 1) dispatch({ type: 'swap', a, b: up }); }
+});
+world.addEventListener('pointercancel', () => { down = null; });`;
+const SAGA_CSS = `
+  #board-wrap { width: max-content; }   /* the result card covers the whole board when the phone fit scales it */
+  #map { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; align-items: center; background: #120c1c;
+         padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+  #map h2 { color: #c9a227; letter-spacing: 3px; font-size: 18px; margin: 4px 0 2px; }
+  #map .sub { color: #8a7ea6; font-size: 12px; margin-bottom: 12px; }
+  #map-list { display: grid; grid-template-columns: repeat(5, 60px); gap: 12px; overflow-y: auto; padding: 8px 4px 24px; max-height: 100%; }
+  #map .lv { width: 60px; height: 64px; border-radius: 14px; border: 2px solid #38304a; background: #1c1428; color: #f2eefb; font: inherit;
+             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; padding: 0; }
+  #map .lv .n { font-size: 18px; } #map .lv .s { font-size: 11px; color: #c9a227; letter-spacing: 1px; }
+  #map .lv.won { border-color: #7ad1a6; } #map .lv.here { border-color: #ffe27a; box-shadow: 0 0 10px rgba(255,226,122,.45); }
+  #map .lv.locked { opacity: .4; cursor: default; }
+  #over .row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+  #over button, #map-btn { border: 2px solid #38304a; background: #1c1428; color: #f2eefb; font: inherit; font-size: 13px; min-height: 44px; padding: 8px 16px; border-radius: 14px; cursor: pointer; }
+  #over #next-btn { background: #c9a227; color: #1c1428; border-color: #ffe27a; }
+  #over-stars { color: #c9a227; font-size: 30px; letter-spacing: 4px; margin: 4px 0; }
+  #goal-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  #hud .value.goal { font-size: 16px; }
+  #stars { color: #c9a227; letter-spacing: 2px; }`;
+
+const shell = ({ scale = 4, music = true, saga = null } = {}) => `
 const SCALE = ${scale};
 const TP = 16 * SCALE;                 // one gem cell in px
 const SWAP_MS = 240, POP_MS = 300, FALL_MS = 380, SWAP_SLIDE_MS = 200; // slow enough to read
@@ -55,16 +163,17 @@ const overEl = document.getElementById('over');
 const overMsg = document.getElementById('over-msg');
 const hudEl = document.getElementById('hud');
 const timeFill = document.getElementById('timebar-fill');
-const freeBtn = document.getElementById('free-btn');
-const timedBtn = document.getElementById('timed-btn');
+${saga ? '' : `const freeBtn = document.getElementById('free-btn');
+const timedBtn = document.getElementById('timed-btn');`}
 const el = (id) => document.getElementById(id);
 const hud = { score: el('score'), moves: el('moves'), stones: el('stones'), chain: el('chain'),
   level: el('level'), target: el('target'), time: el('time') };
 const fmtScore = (s) => String(Math.min(s, 9999999)).padStart(7, '0');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-let mode = 'free';
-let state = newGame((Date.now() & 0xffffffff) >>> 0, { mode });
+${saga ? `let mode = 'saga';
+${SAGA_STATE(saga)}` : `let mode = 'free';
+let state = newGame((Date.now() & 0xffffffff) >>> 0, { mode });`}
 let cursor = { x: 0, y: 0 };
 // the keyboard cursor is noise on touch screens — hidden there until a key moves it
 let cursorSeen = !matchMedia('(pointer: coarse)').matches;
@@ -111,8 +220,9 @@ const renderCursor = () => {
   cursorEl.style.width = cursorEl.style.height = TP + 'px';
   cursorEl.style.transform = 'translate(' + cursor.x * TP + 'px,' + cursor.y * TP + 'px)';
 };
-const renderHud = () => {
-  const o = resolveOverlay(state);
+${saga ? SAGA_HUD : ''}const renderHud = () => {
+${saga ? `  if (mode === 'saga') { sagaHud(); return; }
+` : ''}  const o = resolveOverlay(state);
   hud.score.textContent = o.score;
   hud.stones.textContent = o.stones;
   if (o.mode === 'timed') {
@@ -235,7 +345,7 @@ const dispatch = async (action) => {
   else if (action.type === 'select' && before.sel && manh(before.sel, { x: action.x, y: action.y }) === 1)
     pair = { a: before.sel, b: { x: action.x, y: action.y } };
   const stoneSwap = pair && (cellKind(before, pair.a) === 'stone' || cellKind(before, pair.b) === 'stone');
-  const after = step(state, action);
+  const after = ${saga ? 'sagaStep' : 'step'}(state, action);
   const committed = after.moves > before.moves; // a real swap landed
 
   if (pair && !committed) {                // attempted swap, no match → slide together and snap back
@@ -278,11 +388,11 @@ const newRun = (m) => {
   timedBtn.classList.toggle('on', mode === 'timed');
   render();
 };
-freeBtn.addEventListener('click', () => newRun('free'));
+${saga ? SAGA_MAP : `freeBtn.addEventListener('click', () => newRun('free'));
 timedBtn.addEventListener('click', () => newRun('timed'));
 overEl.addEventListener('pointerdown', (e) => { e.preventDefault(); newRun(mode); });
 // the splash covers the board, so its own tap must lift the gate (touch has no keyboard)
-splash.addEventListener('pointerdown', (e) => { e.preventDefault(); begin(); });
+splash.addEventListener('pointerdown', (e) => { e.preventDefault(); begin(); });`}
 
 // the clock: wall-time deltas → reducer tick dt (timed mode; paused during a cascade)
 setInterval(() => {
@@ -303,7 +413,7 @@ const cellFromEvent = (e) => {
   const y = Math.floor((e.clientY - rect.top) / (rect.height / state.H));
   return x >= 0 && y >= 0 && x < state.W && y < state.H ? { x, y } : null;
 };
-let downCell = null;
+${saga ? SAGA_SWIPE : `let downCell = null;
 world.addEventListener('pointerdown', (e) => { e.preventDefault(); begin(); downCell = cellFromEvent(e); });
 world.addEventListener('pointerup', (e) => {
   e.preventDefault();
@@ -312,13 +422,13 @@ world.addEventListener('pointerup', (e) => {
   if (up.x === downCell.x && up.y === downCell.y) dispatch({ type: 'select', x: up.x, y: up.y });
   else if (Math.abs(up.x - downCell.x) + Math.abs(up.y - downCell.y) === 1) dispatch({ type: 'swap', a: downCell, b: up });
   downCell = null;
-});
+});`}
 world.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // --- keyboard: arrows move the cursor, enter arms it (and swaps into an armed neighbour) ---
 const STEPS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 addEventListener('keydown', (e) => {
-  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); newRun(mode); return; }
+  if (e.key === 'r' || e.key === 'R') { e.preventDefault(); ${saga ? 'playLevel(at)' : 'newRun(mode)'}; return; }
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cursorSeen = true; renderCursor(); begin(); dispatch({ type: 'select', x: cursor.x, y: cursor.y }); return; }
   const d = STEPS[e.key];
   if (!d) return;
@@ -349,8 +459,10 @@ render();
 `;
 
 /** The playable cabinet: gem world + real-text HUD, pointer + keyboard, two modes, animated cascades, beats audio. */
-export function emitPhilosophersStoneShell({ title = "Philosopher's Stone", scale = 4, music = true } = {}) {
+export function emitPhilosophersStoneShell({ title = "Philosopher's Stone", scale = 4, music = true, saga = null } = {}) {
   const TP = 16 * scale;
+  // a SAGA (philosophers-stone-saga.js): the map, the level HUD, the result card and the swipe; absent, the cabinet as it was
+  const S = saga ? readSaga(saga) : null;
   return `<!doctype html><meta charset="utf-8"><title>${title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
@@ -415,19 +527,27 @@ export function emitPhilosophersStoneShell({ title = "Philosopher's Stone", scal
     #time-stat { width: 100%; order: 9; margin-top: 2px; }
     #audio { order: 10; margin: 2px 0 0; }
     #keys { display: none; }
-  }
+  }${S ? SAGA_CSS : ''}
 </style>
 <div>
   <div id="frame">
     <div id="board-outer"><div id="board-wrap">
       <div id="game"></div>
       <div id="cursor"></div>
-      <div id="splash"><h2>PHILOSOPHER'S STONE</h2><p>swap adjacent reagents to make 3+</p><p>4 &rarr; Aqua Vitae &middot; L/T &rarr; Athanor &middot; 5 &rarr; the Stone</p><p style="margin-top:10px;color:#c9a227">tap, click, or press a key to begin</p></div>
-      <div id="over"><div class="card"><div id="over-msg"></div>tap or press r to retry</div></div>
+      <div id="splash"${S ? ' style="display:none"' : ''}><h2>PHILOSOPHER'S STONE</h2><p>swap adjacent reagents to make 3+</p><p>4 &rarr; Aqua Vitae &middot; L/T &rarr; Athanor &middot; 5 &rarr; the Stone</p><p style="margin-top:10px;color:#c9a227">tap, click, or press a key to begin</p></div>
+      <div id="over"><div class="card"><div id="over-msg"></div>${S ? '<div id="over-stars"></div><div id="over-score"></div><div class="row"><button id="next-btn">next</button><button id="retry-btn">retry</button><button id="to-map-btn">map</button></div>' : 'tap or press r to retry'}</div></div>
     </div></div>
-    <div id="hud" class="free">
-      <h1>PHILOSOPHER'S STONE</h1>
-      <div class="sub">a cute-alchemy transmutation</div>
+    <div id="hud" class="${S ? 'saga' : 'free'}">
+      <h1>${S ? esc(title).toUpperCase() : "PHILOSOPHER'S STONE"}</h1>
+      <div class="sub">a cute-alchemy transmutation</div>${S ? `
+      <div id="modes"><button id="map-btn">&#9776; map</button></div>
+      <div class="stat"><div class="label">LEVEL</div><div class="value sm" id="level"></div></div>
+      <div class="stat"><div class="label">MOVES</div><div class="value" id="moves"></div></div>
+      <div class="stat"><div class="label">GOAL</div><div class="value goal"><span id="goal-dot"></span><span id="goal"></span></div></div>
+      <div class="stat"><div class="label">SCORE</div><div class="value" id="score"></div></div>
+      <div class="stat"><div class="label">STARS</div><div class="value sm" id="stars"></div></div>
+      <div class="stat"><div class="label">STONES BREWED</div><div class="value sm" id="stones"></div></div>
+      <span id="chain" hidden></span><span id="target" hidden></span><span id="time" hidden></span>` : `
       <div id="modes">
         <button id="free-btn" class="on">Free Play</button>
         <button id="timed-btn">Alchemist's Trial</button>
@@ -441,7 +561,7 @@ export function emitPhilosophersStoneShell({ title = "Philosopher's Stone", scal
       <div class="stat timed-only"><div class="label">TARGET</div><div class="value sm" id="target"></div></div>
       <div class="stat free-only"><div class="label">MOVES</div><div class="value" id="moves"></div></div>
       <div class="stat"><div class="label">STONES BREWED</div><div class="value" id="stones"></div></div>
-      <div class="stat free-only"><div class="label">CASCADE</div><div class="value" id="chain"></div></div>
+      <div class="stat free-only"><div class="label">CASCADE</div><div class="value" id="chain"></div></div>`}
       <div id="legend">
         <b>Aqua Vitae</b> — a bar; clears its line<br>
         <b>Athanor</b> — a furnace; bursts 3×3<br>
@@ -449,14 +569,16 @@ export function emitPhilosophersStoneShell({ title = "Philosopher's Stone", scal
       </div>${music ? '\n      <div id="audio"><button id="mute-btn" aria-pressed="false" aria-label="mute music">&#9834; music</button></div>' : ''}
     </div>
   </div>
-  <div id="keys">drag or tap-tap adjacent gems &middot; arrows move cursor &middot; enter selects &middot; r restart</div>
-</div>
+  <div id="keys">${S ? 'swipe a gem toward a neighbour, or tap-tap &middot; arrows move cursor &middot; enter selects &middot; r retries the level' : 'drag or tap-tap adjacent gems &middot; arrows move cursor &middot; enter selects &middot; r restart'}</div>
+</div>${S ? `
+<div id="map"><h2>${esc(title).toUpperCase()}</h2><div class="sub">a saga of ${S.levels} levels &middot; <span id="map-total"></span></div><div id="map-list"></div></div>` : ''}
 <script>
 ${inlineSource('pixelizer.js')}
 ${inlineSource('philosophers-stone-core.js')}
-${inlineSource('philosophers-stone-skin.js')}
+${inlineSource('philosophers-stone-skin.js')}${S ? `
+${inlineSource('philosophers-stone-saga.js')}` : ''}
 ${music ? beatsBundle() : ''}
-${shell({ scale, music })}
+${shell({ scale, music, saga: S })}
 </script>
 `;
 }
