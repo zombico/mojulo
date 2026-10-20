@@ -14,6 +14,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Micro matte painting: surfaces painted from relief
+
+Every surface mark becomes relief, painted from a light: an element's face is a seeded height field, lit from a
+chosen direction with its own shadows and hollows, painted by sampling the cube's ramps at the values the light gives,
+and cut to the element's outline as a PNG. No line is drawn; a crack is a groove whose lip catches the light. The
+light is baked into the paint, the house era's way; no normal maps. First stone blocks, then cliffs and rocks painted
+on the road. Nothing has landed yet, and existing tiles are untouched: a cube, stage or road that does not ask for it
+emits the same bytes.
+
 ### Geocube styles: principles and the laws that check them
 
 A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
