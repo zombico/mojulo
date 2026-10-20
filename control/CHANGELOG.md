@@ -14,6 +14,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Dermal texturizer: skin and hair laid out on the realistic register's body
+
+In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the
+body: the skin's layout and the hair it grows, read from an ADDRESS so the shape stays separate. `epidermis/dermal-chart.js`
+is the shape's contract (a canonical part, `along`, `around` anatomical, the tangents), with the hero's cage and any
+ring-stack body as adapters; `dermal-map.js` lays regions, the painter's colour zones, roughness, translucency, Langer's
+lines and hair tracts by a few dials over the egocube's tones; `dermal-texture.js` bakes them to a per-part atlas (seams
+on the hidden side, the face weighted up, the scalp paint and the stubble's follicles) with tileable relief tiles;
+`dermal-hair.js` grows body hair lying on the skin and scalp locks as clumps on the elastica's guides (curl types
+straight to coily, the coil's shrinkage, frizz, ragged tips, flyaways, cards). Seen through `/dermis-study`. Next: the
+relational head and the form-field body as the chart's shape, in place of the cage's block head.
+
 ### Realistic register: a stronger body for the hero
 
 The third point on the hero's style gradient (anime → cartoon → realistic), as western games draw a person: accurate
