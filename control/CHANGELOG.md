@@ -30,7 +30,12 @@ laid from the trichion, the nasion and pronasale, the canthi, the cheek points, 
 grows on it. The scalp is COMBED: one smooth comb over the head (never across the part, which runs over the top only),
 guides walked along it lifted off the skull for volume and hung by the elastica where the head turns away, waved in
 phase along the flow so a type's crests run across neighbouring locks as bands, and every strand interpolated from its
-nearest guides on its own side of the part, so strands run parallel. Seen through `/dermis-study`.
+nearest guides on its own side of the part, so strands run parallel. The CUT is the stylist's: a perimeter line (a
+level the head's relations name, the jaw, the shoulder, the collarbone, cut blunt, a-line, stacked, v or u) where each
+lock is combed down, cut where it crosses, regrown at that length and cut again so its end lands on the line; a clipper's
+taper by the root's rise over the hairline; a shelf (an undercut); layers (no lock longer than this from its root);
+point cutting off the line. The library's cuts: buzz, crop, short (tapered), undercut, bob, angled, shoulder, long,
+layers. Seen through `/dermis-study`.
 
 ### Realistic register: a stronger body for the hero
 

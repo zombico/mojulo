@@ -57,18 +57,47 @@ export const HAIR_TYPES = Object.freeze({
 
 /**
  * The scalp's STYLES: `length` (m, stretched, at the back), the region's share of it (`front`, `sides`, `crown`), the
- * `part` (side | centre | none: swept back), a `fringe` (the front combed forward over the brow), `ragged` (how much each
- * level's length wanders: 0 a buzz's even cut). A style under 4 cm lies on the scalp as body hair does: no clumps.
+ * `part` (side | centre | none: swept back), a `fringe` (the front combed forward over the brow), `ragged` (how much the
+ * ends wander: 0 a buzz's even cut) and its CUT, the stylist's: `line` (a perimeter: `at` a level or metres above the
+ * menton, `shape` blunt | a-line | stacked | v | u, `drop`), `taper` (a clipper's length by the root's rise over the
+ * hairline: `min` at `rise[0]`, the full length by `rise[1]`), `shelf` (the sides and back under `rise` clipped to `min`:
+ * an undercut), `layers` (no lock longer than this from its root), `soft` (point cutting off the line, m). A style under
+ * 4 cm lies on the scalp as body hair does.
  */
 export const SCALP_STYLES = Object.freeze({
   buzz: { length: 0.006, front: 1, sides: 0.8, crown: 1, part: 'none', fringe: false, ragged: 0 },
   crop: { length: 0.03, front: 1.1, sides: 0.6, crown: 1, part: 'none', fringe: false },
-  short: { length: 0.07, front: 1, sides: 0.55, crown: 1.05, part: 'side', fringe: false },
-  bob: { length: 0.2, front: 0.7, sides: 0.9, crown: 0.6, part: 'side', fringe: false },
-  shoulder: { length: 0.32, front: 0.55, sides: 0.85, crown: 0.6, part: 'side', fringe: false },
-  long: { length: 0.5, front: 0.5, sides: 0.85, crown: 0.6, part: 'centre', fringe: false },
+  // a scissor-over-comb short back and sides: the top long, tapered to the nape and round the ears
+  short: { length: 0.07, front: 1, sides: 1, crown: 1, part: 'side', fringe: false, cut: { taper: { min: 0.008, rise: [0.05, 0.55] } } },
+  // the sides and the back clipped under a shelf, the top long and combed over to lie on it: disconnected
+  undercut: { length: 0.11, front: 1, sides: 1, crown: 1, part: 'side', fringe: false, volume: 0.12, cut: { shelf: { rise: 0.5, min: 0.004 } } },
+  // one-length cuts: grown long and cut to a line (the front a little shorter, framing the face)
+  bob: { length: 0.32, front: 0.7, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'jaw', shape: 'blunt' } } },
+  angled: { length: 0.36, front: 0.85, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'jaw', shape: 'a-line', drop: 0.05 } } },
+  shoulder: { length: 0.45, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'shoulder', shape: 'blunt' } } },
+  long: { length: 0.7, front: 0.55, sides: 1, crown: 1, part: 'centre', fringe: false, cut: { line: { at: 'chest', shape: 'u', drop: 0.05 } } },
+  // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
+  layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'ragged', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const CUT_KEYS = ['line', 'taper', 'shelf', 'layers', 'soft'];
+/** the cut's errors (empty = valid) */
+function cutErrors(c) {
+  if (c === undefined || c === null) return [];
+  if (typeof c !== 'object' || Array.isArray(c)) return [`scalp.cut: { ${CUT_KEYS.join(', ')} }`];
+  const e = [];
+  for (const k of Object.keys(c)) if (!CUT_KEYS.includes(k)) e.push(`scalp.cut.${k}: unknown (have ${CUT_KEYS.join(', ')})`);
+  if (c.line) {
+    if (!(typeof c.line.at === 'number' || Object.hasOwn(CUT_LEVELS, c.line.at))) e.push(`scalp.cut.line.at: metres above the menton or a level (${Object.keys(CUT_LEVELS).join(', ')})`);
+    if (c.line.shape !== undefined && !CUT_SHAPES.includes(c.line.shape)) e.push(`scalp.cut.line.shape: ${CUT_SHAPES.join(' | ')}`);
+    if (c.line.drop !== undefined && !(c.line.drop >= 0 && c.line.drop <= 0.3)) e.push('scalp.cut.line.drop: 0 … 0.3 m');
+  }
+  if (c.taper && !(c.taper.min >= 0 && Array.isArray(c.taper.rise) && c.taper.rise[0] < c.taper.rise[1])) e.push('scalp.cut.taper: { min: m, rise: [from, to] (0 the hairline … 1 the vertex) }');
+  if (c.shelf && !(c.shelf.rise > 0 && c.shelf.rise < 1 && c.shelf.min >= 0)) e.push('scalp.cut.shelf: { rise: 0 … 1, min: m }');
+  if (c.layers !== undefined && !(c.layers > 0.01)) e.push('scalp.cut.layers: metres (> 0.01)');
+  if (c.soft !== undefined && !(c.soft >= 0 && c.soft <= 0.03)) e.push('scalp.cut.soft: 0 … 0.03 m (point cutting)');
+  return e;
+}
 
 /** The scalp groom: a style word, or { style, type, …the style's numbers over it, spacing (m, between guides), strandGap (m,
  * between strands), seed }. */
@@ -79,12 +108,13 @@ export function readScalp(spec = 'short') {
   if (!st) throw new Error(`scalp: unknown style '${doc.style}' (have ${Object.keys(SCALP_STYLES).join(', ')})`);
   const ty = HAIR_TYPES[doc.type || 'straight'];
   if (!ty) throw new Error(`scalp: unknown type '${doc.type}' (have ${Object.keys(HAIR_TYPES).join(', ')})`);
-  const out = { style: doc.style || 'short', type: doc.type || 'straight', ragged: 1, ...st, ...ty, spacing: 0.012, strandGap: 0.003, seed: 1, ...doc };
+  const out = { style: doc.style || 'short', type: doc.type || 'straight', ragged: 1, ...st, ...ty, spacing: 0.012, strandGap: 0.003, seed: 1, ...doc, cut: doc.cut === null ? null : { ...(st.cut || {}), ...(doc.cut || {}) } };
   if (!['side', 'centre', 'none'].includes(out.part)) throw new Error(`scalp: part '${out.part}' (side | centre | none)`);
   if (!(out.length > 0 && out.length <= 1.2)) throw new Error('scalp: length 0 … 1.2 m');
   if (!(out.spacing >= 0.004 && out.spacing <= 0.04)) throw new Error('scalp: spacing 0.004 … 0.04 m');
   if (!(out.strandGap >= 0.001 && out.strandGap <= out.spacing)) throw new Error('scalp: strandGap 0.001 m … the guides\' spacing');
   if (!(out.ragged >= 0 && out.ragged <= 2)) throw new Error('scalp: ragged 0 … 2 (0 a cut without wander: a buzz)');
+  const ce = cutErrors(out.cut); if (ce.length) throw new Error(ce.join('; '));
   return Object.freeze(out);
 }
 
@@ -231,6 +261,41 @@ function nearestK(P, p, k, ok = () => true) {
   return best.map(([d, i]) => ({ i, d: Math.sqrt(d) }));
 }
 
+/** the heights the cut's words name (m above the menton): the head's own, from its marks; the body's below the chin */
+const CUT_LEVELS = { brow: (M) => M.g.Y / 1000, eye: (M) => M.eyeR.Y / 1000, cheekbone: (M) => M.malarR.Y / 1000, mouth: (M) => M.sto.Y / 1000, jaw: (M) => M.goR.Y / 1000, chin: () => 0.008, neck: () => -0.06, shoulder: () => -0.13, collarbone: () => -0.17, chest: () => -0.3, waist: () => -0.55 };
+export const CUT_SHAPES = Object.freeze(['blunt', 'a-line', 'stacked', 'v', 'u']);
+/**
+ * A perimeter line as the cut height at a point (m): `at` a word (`CUT_LEVELS`) or metres above the menton; `shape`
+ * blunt (level all round), a-line (longer at the front by `drop`), stacked (shorter at the back by `drop`: a graduated
+ * bob), v (a point at the back's middle, `drop` below the sides), u (rounded, `drop` deeper at the back).
+ */
+function cutLine(line, chart) {
+  const M = chart.parts[Object.keys(chart.parts).find((q) => chart.parts[q].part === 'head')]?.marks?.points;
+  const lvl = typeof line.at === 'number' ? line.at : M && CUT_LEVELS[line.at] ? CUT_LEVELS[line.at](M) : CUT_LEVELS[line.at]?.({}) ?? 0;
+  const drop = line.drop ?? 0.04, cy = ((chart.parts.head?.axis?.[0]?.[1]) ?? 0);
+  return (p) => {
+    const f = Math.min(1, Math.abs(Math.atan2(p[0], p[1] - cy)) / Math.PI);   // 0 the front, 1 the back's middle
+    return line.shape === 'a-line' ? lvl - drop * (1 - f) : line.shape === 'stacked' ? lvl + drop * f
+      : line.shape === 'v' ? lvl - drop * Math.max(0, (f - 0.5) / 0.5) ** 1.2 : line.shape === 'u' ? lvl - drop * f * f : lvl;
+  };
+}
+/** where along a line (0 … 1 of its points) it first crosses below the cut height, past its first fifth; null if never */
+function crossing(pts, cutZ) {
+  const N = pts.length - 1;
+  for (let i = Math.max(1, Math.floor(N * 0.1)); i <= N; i++) {
+    const a = pts[i - 1], b = pts[i], za = a[2] - cutZ(a), zb = b[2] - cutZ(b);
+    if (za >= 0 && zb < 0) return (i - 1 + za / (za - zb)) / N;
+  }
+  return null;
+}
+/** a guide cut at `t` of its arc, resampled to `NS` again */
+function trimTo(g, t, NS) {
+  const N = g.pts.length - 1, u = Math.max(0, Math.min(1, t)) * N, j = Math.min(N - 1, Math.floor(u)), f = u - j;
+  const kept = [...g.pts.slice(0, j + 1), add(g.pts[j], scl(sub(g.pts[j + 1], g.pts[j]), f))];
+  const line = arcResample(kept, NS);
+  return { ...g, pts: line.pts, L: line.L };
+}
+
 /** How each type WAVES when combed: a wave across the lock in the hair's own layer (`amp` m, `period` m along it), or a
  * helix (`coil`: the curl's radius and period, hair-spine.js's coil). Straight hair combed still shows a long, low wave. */
 const COMB_WAVE = { straight: { amp: 0.0018, period: 0.065 }, wavy: { amp: 0.006, period: 0.07 }, curly: { coil: true }, coily: { coil: true } };
@@ -317,11 +382,17 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const hull = { pts: headC.flatMap((c) => c.surface.pts), nrm: headC.flatMap((c) => c.surface.nrm) };
   const nearHull = (p) => { let bi = 0, bd = Infinity; for (let i = 0; i < hull.pts.length; i++) { const q = hull.pts[i], d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2; if (d < bd) { bd = d; bi = i; } } return bi; };
   const k = curlShrink(S.curl), REG = { front: S.front, sides: S.sides, back: 1, crown: S.crown }, wave = COMB_WAVE[S.type] || COMB_WAVE.straight;
+  const ax = chart.parts[Object.keys(chart.parts).find((q) => chart.parts[q].part === 'head')].axis, c0 = scl(add(ax[0], ax[ax.length - 1]), 0.5);
+  // a root's rise: 0 at the hairline under it, 1 at the vertex (the hairline read from the scalp's own roots, by azimuth)
+  const BINS = 36, hlAt = new Array(BINS).fill(1);
+  for (const r of roots) { const b = Math.floor(r.address.around * BINS) % BINS; hlAt[b] = Math.min(hlAt[b], r.address.along); }
+  const riseOf = (r) => { const h = hlAt[Math.floor(r.address.around * BINS) % BINS]; return Math.max(0, (r.address.along - h) / Math.max(1e-6, 1 - h)); };
   const liftOf = (a) => { const fd = ad(a.around, 0), topW = smooth(0.62, 0.85, a.along); return (0.003 + 0.06 * S.volume) * (0.35 + 0.65 * Math.max(topW, 1 - smooth(0.2, 0.3, fd) * (1 - topW))); };
   const lengthOf = (a) => { const fd = ad(a.around, 0), fr = 1 - smooth(0.12, 0.2, fd), sd = smooth(0.12, 0.2, fd) * (1 - smooth(0.33, 0.4, fd)), cr = smooth(0.82, 0.92, a.along); return S.length * ((fr * REG.front + sd * REG.sides + (1 - fr - sd)) * (1 - cr) + cr * REG.crown); };
   const NS = 48;
-  const guides = roots.map((at, gi) => {
-    const L = lengthOf(at.address), F = L * k, lift = liftOf(at.address), hug = L < 0.12, sd = side[gi];
+  // one guide grown at a stretched length L: the streamline on the head, the hang, the coil, the drape, the wave
+  const growGuide = (at, gi, L) => {
+    const F = L * k, lift = liftOf(at.address), hug = L < 0.12, sd = side[gi];
     // the streamline: 4 mm steps on the head at the lift (rising to it over the first 2 cm), turning with the field
     let p = add(at.p, scl(at.n, 0.0008)), d = comb[gi], run = 0, n = at.n;
     const walk = [p], max = Math.min((hug ? 0.9 : 0.5) * F, 0.16);
@@ -342,7 +413,6 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     // the combed wave: across the lock in the hair's layer (square to the lock and to the head's outward), its phase the
     // root's place downstream plus the arc, so neighbouring locks crest together; none at the root
     if (wave.amp) {
-      const mid = chart.parts[Object.keys(chart.parts).find((q) => chart.parts[q].part === 'head')].axis, c0 = scl(add(mid[0], mid[mid.length - 1]), 0.5);
       line.pts = line.pts.map((q, i) => {
         if (!i) return q;
         const t = unit(sub(line.pts[Math.min(NS, i + 1)], line.pts[i - 1])), out = unit(perp(sub(q, c0), t)), across = cross(t, out), s = (line.L * i) / NS;
@@ -350,6 +420,38 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
       });
     }
     return { root: at.p, n: at.n, side: sd, pts: line.pts, L: line.L, fall: F };
+  };
+  // ── THE CUT: the stylist's, where the ends land ──
+  const C = S.cut || {}, cutZ = C.line ? cutLine(C.line, chart) : null, lay = C.layers ?? Infinity;
+  const guides = roots.map((at, gi) => {
+    let L = Math.min(lengthOf(at.address), lay / k);
+    // a clipper's taper: the length by the root's height over the hairline (short at the nape and round the ears)
+    if (C.taper) { const r = riseOf(at); L = Math.min(L, C.taper.min + (L - C.taper.min) * smooth(C.taper.rise[0], C.taper.rise[1], r)); }
+    // a disconnection: the sides and the back under the shelf cut to the clipper's length, the top left long
+    if (C.shelf && riseOf(at) < C.shelf.rise && ad(at.address.around, 0) > 0.12) L = Math.min(L, C.shelf.min);
+    // (under a line every lock is grown long enough to reach it: the line, not the length, says where the ends land;
+    // the front is still held to its own share, the pieces that frame the face)
+    const own = L;
+    if (cutZ) L = Math.max(L, 1.8 * S.length);
+    let g = growGuide(at, gi, L);
+    // a perimeter LINE: combed down and cut where the lock crosses it, regrown at that length and a centimetre over (a
+    // shorter lock hangs stiffer, and may stop short: then grown on by what it lacks) and cut again, on the line
+    const t0 = cutZ ? crossing(g.pts, cutZ) : null;
+    if (t0 !== null) {
+      let Lc = Math.max(0.006, (g.L * t0 + 0.012) / k);
+      for (let pass = 0; pass < 4; pass++) {
+        g = growGuide(at, gi, Lc);
+        const t = crossing(g.pts, cutZ);
+        if (t !== null) { g = trimTo(g, t, NS); break; }
+        const end = g.pts[g.pts.length - 1];
+        Lc += (Math.max(0, end[2] - cutZ(end)) + 0.01) / k;   // still short of the line by that much: grown on
+      }
+    }
+    if (cutZ && S.front < 1 && ad(at.address.around, 0) < 0.2 && g.L > own * k) g = trimTo(g, (own * k) / g.L, NS);
+    // point cutting: a few millimetres of softness off the line, never past it
+    const pd = streamOf(S.seed, 'dermal-cut', `${gi}`), soft = (C.soft ?? 0.006) * (S.ragged ?? 1) * pd();
+    if (soft > 0 && g.L > soft * 3) g = trimTo(g, 1 - soft / g.L, NS);
+    return g;
   });
   // ── the strands: each from its nearest guides on its own side, parallel ──
   const sroots = darts(S.strandGap, 'strands'), strands = [];
@@ -357,18 +459,20 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     const sd = sideOf(at.address), ns = nearestK(G, at.p, 3, (j) => sd === 0 ? side[j] === 0 || nearestK(G, at.p, 1)[0].i === j : side[j] === sd);
     if (!ns.length) return;
     const W = ns.map((q) => 1 / (q.d + 0.002)), Wt = W.reduce((a, b) => a + b, 0), dice = streamOf(S.seed, 'dermal-strand', `${si}`);
-    const end = Math.round(NS * (1 - 0.06 * (S.ragged ?? 1) * dice()));
+    // blended at the same distance from the root on every guide (the cut leaves neighbours of different lengths), as long
+    // as their weighted length, a few percent ragged
+    const Ls = ns.reduce((a, g, gk) => a + guides[g.i].L * W[gk], 0) / Wt, end = Math.round(NS * (1 - 0.06 * (S.ragged ?? 1) * dice()));
+    const at_ = (gd, sArc) => { const u = Math.min(NS, (sArc / Math.max(1e-6, gd.L)) * NS), j = Math.min(NS - 1, Math.floor(u)), f = u - j; return add(gd.pts[j], scl(sub(gd.pts[j + 1], gd.pts[j]), f)); };
     const pts = [];
     for (let i = 0; i <= end; i++) {
       let q = at.p.slice();
-      ns.forEach((g, gk) => { const gd = guides[g.i]; q = add(q, scl(sub(gd.pts[i], gd.pts[0]), W[gk] / Wt)); });
+      ns.forEach((g, gk) => { const gd = guides[g.i]; q = add(q, scl(sub(at_(gd, (Ls * i) / NS), gd.pts[0]), W[gk] / Wt)); });
       if (i > 1) q = keepOut(q, i < NS / 2 ? headC : cols, 0.04).p;
       pts.push(q);
     }
     strands.push({ pts, r: 0.00004, groom: 'scalp' });
   });
   // ── the cards: a ribbon per guide, for an engine ──
-  const mid = chart.parts[Object.keys(chart.parts).find((q) => chart.parts[q].part === 'head')].axis, c0 = scl(add(mid[0], mid[mid.length - 1]), 0.5);
   const cards = guides.map((g, gi) => ({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(NS, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / NS))), v: g.pts.map((_, i) => i / NS) }));
   return { guides, strands, cards, shade, counts: { guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }

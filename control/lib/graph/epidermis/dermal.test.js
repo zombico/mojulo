@@ -86,4 +86,19 @@ describe('the combed scalp', () => {
     const ls = z.strands.slice(0, 30).map((s) => s.pts.slice(1).reduce((a, p, i) => a + Math.hypot(...sub(p, s.pts[i])), 0));
     expect(Math.max(...ls) - Math.min(...ls)).toBeLessThan(0.0006);
   });
+  it('cuts to a line: a bob\'s ends land at the jaw, combed down, however high their roots', () => {
+    const b = growScalp(chart, D, readScalp({ style: 'bob', spacing: 0.02, strandGap: 0.01, ragged: 0 }), { colliders: ['head'] });
+    const jaw = chart.parts.head.marks.points.goR.Y / 1000;
+    // (the front's framing pieces are cut shorter than the line, by the style's `front`)
+    const cy = chart.parts.head.axis[0][1], back = (g) => Math.abs(Math.atan2(g.pts[0][0], g.pts[0][1] - cy)) > Math.PI / 2;
+    const hanging = b.guides.filter((g) => back(g) && g.pts[0][2] - g.pts[g.pts.length - 1][2] > 0.05);
+    expect(hanging.length).toBeGreaterThan(10);
+    for (const g of hanging) expect(Math.abs(g.pts[g.pts.length - 1][2] - jaw)).toBeLessThan(0.008);
+  });
+  it('tapers a short cut: the nape\'s locks shorter than the top\'s', () => {
+    const t = growScalp(chart, D, readScalp({ style: 'short', spacing: 0.02, strandGap: 0.01 }), { colliders: ['head'] });
+    const low = t.guides.filter((g) => g.pts[0][2] < 0.12), high = t.guides.filter((g) => g.pts[0][2] > 0.2);
+    const mean = (gs) => gs.reduce((a, g) => a + g.L, 0) / gs.length;
+    expect(mean(low)).toBeLessThan(0.5 * mean(high));
+  });
 });
