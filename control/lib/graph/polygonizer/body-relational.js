@@ -269,10 +269,97 @@ const SHALLA = {
     upperArm: { ...NORRIN.limbs.upperArm, thick: { bone: 1.4, belly: 1.32 }, masses: scaled(NORRIN.limbs.upperArm.masses, 0.98) },
     foreArm: { ...NORRIN.limbs.foreArm, thick: { bone: 1.1, belly: 1.02 }, masses: scaled(NORRIN.limbs.foreArm.masses, 1.02) },
     thigh: { ...NORRIN.limbs.thigh, thick: { bone: 1.3, belly: 1.22 }, masses: scaled(NORRIN.limbs.thigh.masses, 1.04, 0.8) },
-    shank: { ...NORRIN.limbs.shank, thick: { bone: 1.55, belly: 1.42 }, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8) },
+    // (her calf one form: the gastrocnemius's heads and the soleus a third longer and the soleus a little higher, so they
+    // run into one another; thickened across alone, they stood as two beads with a waist between, from behind)
+    shank: { ...NORRIN.limbs.shank, thick: { bone: 1.55, belly: 1.42 }, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8).map((m) => (/^(gastrocnemius|soleus)/.test(m.id) ? { ...m, ...(m.id === 'soleus' ? { s: 0.47 } : {}), r: [m.r[0] * 1.35, m.r[1], m.r[2]] } : m)) },
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
+
+/** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
+ * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set
+ * out with the shoulders' muscle, the V of a superhero), `tone` their definition (the blends tighter or looser, the
+ * abdomen's segments and the serratus prouder or sunk), `weight` the fat (a layer over the whole skin, thinning down the
+ * limbs to none at the wrist and the ankle, where the authored hand and foot meet them, and none at the head's base; the
+ * belly forward and the flanks, the seat and the neck fuller; under zero the layer thinner and the belly flat), `height`
+ * the stature (a tenth either way, the hero's own tune: the joints, so the build must be minted with the build's tune).
+ * Bulk on the plus side also sizes the hands (`hands`: the authored hand, its joints with it, about the wrist).
+ * The words are points in it (`PHYSIQUES`). */
+export const PHYSIQUE_DIALS = Object.freeze(['bulk', 'tone', 'weight', 'height']);
+export const PHYSIQUES = Object.freeze({
+  athletic: Object.freeze({ bulk: 0, tone: 0, weight: 0, height: 0 }),
+  skinny: Object.freeze({ bulk: -0.6, tone: -0.2, weight: -0.8, height: 0 }),
+  heavyset: Object.freeze({ bulk: 0.2, tone: -0.8, weight: 1, height: 0 }),
+  jacked: Object.freeze({ bulk: 1, tone: 0.8, weight: 0.1, height: 0.5 }),
+});
+// (the masses that are bone or joint, never bulked: the sternum's ridge, the collarbone, the limbs' bones and ends)
+const BONY = /^(sternum|clavicle|humerus|radiusUlna|femur|tibia|elbow|wrist|knee|ankle|patella|achilles)$/;
+/** a build under a physique: a word (PHYSIQUES), or an object of dials (a word under `from`, the dials over it) */
+export function physique(build, dials = 'athletic') {
+  const B = typeof build === 'string' ? BODY_BUILDS[build] : build;
+  if (!B) throw new Error(`body-relational: unknown build '${build}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
+  const word = typeof dials === 'string' ? dials : dials?.from;
+  if (word !== undefined && !PHYSIQUES[word]) throw new Error(`body-relational: unknown physique '${word}' (have ${Object.keys(PHYSIQUES).join(', ')})`);
+  const D = { ...PHYSIQUES[word ?? 'athletic'], ...(typeof dials === 'object' ? dials : {}) };
+  for (const k of Object.keys(D)) {
+    if (k === 'from') continue;
+    if (!PHYSIQUE_DIALS.includes(k)) throw new Error(`body-relational: '${k}' is not a physique dial (have ${PHYSIQUE_DIALS.join(', ')})`);
+    if (!(Math.abs(D[k]) <= 1)) throw new Error(`body-relational: physique ${k} ${D[k]} is outside −1 to 1`);
+  }
+  const { bulk: b, tone: t, weight: w, height: h } = D;
+  if (!b && !t && !w && !h) return B;   // (the athletic base: the build itself, byte for byte)
+  const wp = Math.max(0, w), f = 1 + 0.25 * b, proud = Math.max(0.3, 1 + 0.6 * b), k = 1 - 0.35 * t;
+  // the torso's muscles: bellies across and proud by bulk, the blends by tone, the abdomen's and the serratus's relief
+  const tor = (m) => {
+    if (BONY.test(m.id)) return m;
+    const fm = m.id === 'sternocleidomastoid' ? 1 + 0.15 * b : f, out = m.chain || m.cone || m.egg ? scaled([m], fm)[0] : scaled([m], fm, proud)[0];
+    const relief = /^rectus[123]$/.test(m.id) ? 1 + 0.4 * t : /^serratus/.test(m.id) ? 1 + 0.5 * t : 1;
+    return { ...out, ...(out.proud !== undefined ? { proud: out.proud * relief } : {}), ...(m.k ? { k: m.k * k } : {}) };
+  };
+  // a limb's muscles across (not along: a longer belly runs into the joint), the deltoid's heads whole. On the plus
+  // side the calf fuller still, and the forearm carried full down to a wrist the size of the bigger hand (`hands`): the
+  // bellies alone left the forearm a club over a narrow wrist
+  const bp = Math.max(0, b), hands = 1 + 0.1 * bp, calf = 1 + 0.15 * bp;
+  const limb = (m) => {
+    if (m.id === 'radiusUlna') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.35 * bp)] };
+    if (m.id === 'wrist') return { ...m, r: m.r.map((x) => x * hands) };
+    // (and longer as it is fuller, or the bellies round into beads)
+    if (/^(gastrocnemius|soleus)/.test(m.id)) return { ...m, r: [m.r[0] * calf, m.r[1] * f * calf, m.r[2] * f * calf] };
+    if (BONY.test(m.id)) return m;
+    if (m.chain) return { ...m, chain: m.chain.map(([s, az, off, r]) => [s, az, off, r * f]) };
+    if (m.cone) return { ...m, r: m.r.map((x) => x * f) };
+    return { ...m, r: /^deltoid/.test(m.id) ? m.r.map((x) => x * f) : [m.r[0], m.r[1] * f, m.r[2] * f] };
+  };
+  // the fat: the layer in W, and down each limb its two ends (the hand's and the foot's ends none)
+  const fat = w > 0 ? 0.09 * w : 0.03 * w;
+  const FAT = { upperArm: [fat, 0.6 * fat], foreArm: [0.6 * fat, 0], thigh: [1.1 * fat, 0.5 * fat], shank: [0.5 * fat, 0] };
+  const base = B.base.map((m) => {
+    if (m.id === 'abdomen') return { ...m, egg: [m.egg[0], m.egg[1] + 0.08 * wp, m.egg[2] - 0.1 * wp], r: [m.r[0] * (1 + 0.12 * wp), m.r[1] * (w > 0 ? 1 + 0.5 * w : 1 + 0.25 * w), m.r[2] * (1 + 0.15 * wp)] };
+    // (the seat's lobes fuller behind and below, not across: grown toward the midline they closed the crotch's gap)
+    if (m.id === 'seatLobe') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.12 * w), m.r[2] * (1 + 0.12 * w)] };
+    if (m.id === 'neck') return { ...m, r: m.r.map((x) => x * (1 + 0.1 * b + 0.15 * wp)) };
+    return m;
+  });
+  // (the flanks over the hip's crest, the love handles: a mass of the base only where there is fat to carry)
+  if (wp > 0) base.push({ id: 'flank', egg: [0.42, -0.06, -0.32], r: [0.3, 0.32, 0.3].map((x) => x * (0.5 + 0.5 * wp)) });
+  const S = 1 + 0.08 * bp;
+  return {
+    ...B,
+    note: `${B.note}, under the physique ${PHYSIQUE_DIALS.map((x) => `${x} ${D[x]}`).join(', ')}`,
+    physique: Object.fromEntries(PHYSIQUE_DIALS.map((x) => [x, D[x]])),
+    tune: { ...(B.tune || {}), ...(S !== 1 ? { shoulders: r6((B.tune?.shoulders ?? 1) * S) } : {}), ...(h ? { stature: r6((B.tune?.stature ?? 1) * (1 + 0.1 * h)) } : {}) },
+    kMuscle: B.kMuscle * k, kLimb: B.kLimb * k,
+    base,
+    muscles: B.muscles.map(tor),
+    // (the pauldron grown faster than the muscles on the plus side: bulked, the deltoid and the trapezius stand further
+    // off the blade, and a raised arm leaves the bigger corner to fill)
+    ...(B.pauldron ? { pauldron: scaled(B.pauldron, f + 0.25 * bp) } : {}),
+    ...(B.bust ? { bust: { ...B.bust, rb: B.bust.rb * (1 + 0.12 * w) } } : {}),
+    ...(fat ? { fat } : {}),
+    ...(hands !== 1 ? { hands } : {}),
+    limbs: Object.fromEntries(Object.entries(B.limbs).map(([id, Lb]) => [id, { ...Lb, masses: Lb.masses.map(limb), ...(fat && FAT[id] ? { fat: FAT[id] } : {}) }])),
+  };
+}
 
 
 /** the build's measures from the rest joints: the half biacromial W, the navel joint's height z0 and the torso bone's
@@ -300,6 +387,15 @@ export function bodyFrame(R, build = null) {
   const slope = (t) => (zOf(t + 0.01) - zOf(t - 0.01)) / (0.02 * T);
   return { W, Sx, z0, T, zOf, tOf, slope, at: ([x, y, t]) => [x * W, y * W, zOf(t)] };
 }
+
+/** the fat's share between the legs: none at the midline under the hip's joint, whole a hand's breadth out (the
+ * layer on both inner thighs fused them, and the crotch, the lowest skin on the midline, fell to the knees). One
+ * function of the world, read by the body's field and the thigh's alike, so their skins agree across the hip */
+const crotchEase = (R, W) => {
+  const hz = R.joints.hipR?.[2]; if (hz === undefined) return () => 1;
+  const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
+  return (q) => 1 - sm((hz - 0.2 * W - q[2]) / (0.3 * W)) * (1 - sm(Math.abs(q[0]) / (0.45 * W)));
+};
 
 /** the field: { sd(p), base(p), masses } for a build on a rig's rest */
 export function bodyField(R, build, { extra = [] } = {}) {
@@ -376,18 +472,22 @@ export function bodyField(R, build, { extra = [] } = {}) {
     let dy = 0; for (const c of curve) { const x = (q[2] - c.z) / c.h; if (Math.abs(x) < 1) dy += c.d * (1 - x * x) * (1 - x * x); }
     return [q[0], q[1] - dy * back * back * (3 - 2 * back), q[2]];
   } : (q) => q;
+  // THE FAT (a physique's `fat`, W): one layer over the whole skin, eased out up the neck to none at the head's base,
+  // where the head meets it
+  const J = R.joints, nz0 = J.neckHub?.[2], nz1 = J.headBase?.[2], between = crotchEase(R, W);
+  const fatAt = !B.fat ? () => 0 : nz1 > nz0 ? (q) => { const x = Math.max(0, Math.min(1, (nz1 - q[2]) / (nz1 - nz0))); return B.fat * W * x * x * (3 - 2 * x) * between(q); } : (q) => B.fat * W * between(q);
   const sd = (q0) => {
     const q = warp(q0);
     let d = lse([base(q), ...soft.map((p) => sdOf(p, q))], kM);
     for (const p of sharp) d = lse([d, sdOf(p, q)], p.k);
     if (bustH) d -= bustH(q);
     for (const h of dimples) d = smaxp(d, -(len(sub(q, h.c)) - h.r), h.k);
-    return d;
+    return d - fatAt(q0);
   };
   // a field of some masses alone (by id): a part whose rings run inside another's (the neck's root in the torso) reads
   // only its own, or its rays catch the shoulder's
-  const only = (ids) => { const sel = [...baseP, ...muscles].filter((p) => ids.includes(p.id)); return (q) => lse(sel.map((p) => sdOf(p, q)), kM); };
-  return { build: B, frame: F, base, sd, only, masses: { base: baseP, muscles, dimples } };
+  const only = (ids) => { const sel = [...baseP, ...muscles].filter((p) => ids.includes(p.id)); return (q) => lse(sel.map((p) => sdOf(p, q)), kM) - fatAt(q); };
+  return { build: B, frame: F, base, sd, only, fat: fatAt, masses: { base: baseP, muscles, dimples } };
 }
 
 /** the first crossing outward (inside → outside) of a field along a ray, within `reach` metres; null when none */
@@ -539,7 +639,9 @@ export function limbField(R, build, limb, extra = []) {
   });
   const all = [...prims, ...extra], k = B.kLimb * W;
   const sdOf = (p, q) => (p.cone ? sdCone(q, p.cone[0], p.cone[1], p.r[0], p.r[1]) : sdEgg(q, p));
-  return { sd: (q) => lse(all.map((p) => sdOf(p, q)), k), prims };
+  // (a physique's fat, `fat`: [at the head joint, at the tail], W, straight between by where a point lies along the bone)
+  const between = crotchEase(R, W), fat = !Lb.fat ? () => 0 : (q) => { const s = Math.max(0, Math.min(1, dot(sub(q, h), ax) / L)); return (Lb.fat[0] + (Lb.fat[1] - Lb.fat[0]) * s) * W * between(q); };
+  return { sd: (q) => lse(all.map((p) => sdOf(p, q)), k) - fat(q), prims, fat };
 }
 
 /** A sliced recipe's CORRECTIVES (formSlice: the pauldron) added to a compiled mesh's rest for posed nodes: each its
@@ -588,8 +690,9 @@ export function formSlice(recipe, R, build, opts = {}) {
   // begun `gap` either side of it left both on one skin between, and the elbow and the knee wore a line)
   const chain = (a, b, joint) => {
     if (!limbs[a] || !limbs[b]) return;
-    const all = [...limbs[a].prims, ...limbs[b].prims], k = B.kLimb * W0, both = (q) => lse(all.map((p) => sdPrim(p, q)), k);
     const J = R.joints[joint], n = unit(sub(J, R.joints[B.limbs[a].from])), past = (q) => dot(sub(q, J), n);
+    // (the fat the upper segment's to the joint's plane, the lower's past it: the two meet at the joint's value)
+    const fa = limbs[a].fat, fb = limbs[b].fat, all = [...limbs[a].prims, ...limbs[b].prims], k = B.kLimb * W0, both = (q) => lse(all.map((p) => sdPrim(p, q)), k) - (past(q) < 0 ? fa(q) : fb(q));
     limbs[a].sd = (q) => both(q) + tuck * ease(past(q) / band);
     limbs[b].sd = (q) => both(q) + tuck * ease(-past(q) / band);
   };
@@ -612,13 +715,27 @@ export function formSlice(recipe, R, build, opts = {}) {
   if (pelvicB && limbs.thigh) {
     const th = limbs.thigh.sd, pf = bodyField(R, B, { extra: limbs.thigh.prims }).sd, zh = R.joints.hipR[2];
     crotch = zh;
-    for (let y = -0.1; y <= 0.15; y += 0.01) for (let z = zh - 2 * W0; z < crotch; z += 0.002) if (pf([0, y, z]) < 0) { crotch = z; break; }
+    // (under a physique no lower than `0.6 W` under the hip's joint: thighs bulked or fat enough meet on the midline, and
+    // the crotch, the lowest skin there, fell to the knees; below it they touch, each cut at the midline)
+    const floor = zh - (B.physique ? 0.6 : 2) * W0;
+    for (let y = -0.1; y <= 0.15; y += 0.01) for (let z = floor; z < crotch; z += 0.002) if (pf([0, y, z]) < 0) { crotch = z; break; }
     zp = crotch + 0.005 + bp + 0.003;
     const hip = (q) => Math.max(pf(q), -q[0]), w = (z) => ramp((zp + bz - z) / bz) * ramp((z - zp + 0.14) / bz);
     pelvisSd = (q) => pf(q) + deep * ramp((zp - q[2]) / bp);
     limbs.thigh.sd = (q) => { const a = w(q[2]); return (a < 1 ? th(q) * (1 - a) : 0) + (a > 0 ? hip(q) * a : 0) + deep * ramp((q[2] - zp) / bp); };
   }
   const field = bodyField(R, B, { extra: shared }), r = structuredClone(recipe), P = r.parts.torso;
+  // THE HANDS (a physique's `hands`): the authored hand and its digits scaled about the wrist, their joints with them, so
+  // the fingers still turn in their knuckles; the forearm's wrist mass grown the same, so the cuff and the hand agree
+  if (B.hands && B.hands !== 1) for (const S of ['R', 'L']) {
+    const w = R.joints[`wrist${S}`]; if (!w) continue;
+    const at = (p) => add(w, scl(sub(p, w), B.hands)).map(r6), re = new RegExp(`^(hand|thumb|index|middle|ring|little)${S}$`);
+    for (const [k, Pt] of Object.entries(r.parts)) if (re.test(k)) {
+      for (const st of Pt.stations) for (const sl of Object.keys(st.points)) st.points[sl] = at(st.points[sl]);
+      if (Pt.caps) for (const c of Object.keys(Pt.caps)) Pt.caps[c] = at(Pt.caps[c]);
+    }
+    for (const j of Object.keys(r.rig.joints)) if (new RegExp(`^(knuckles|fingerAxis|thumb|index|middle|ring|little)[A-Za-z]*${S}$`).test(j)) { const v = r.rig.joints[j]; r.rig.joints[j] = Array.isArray(v) ? at(v) : { ...v, at: at(v.at) }; }
+  }
   const under = (q) => (clip.slope * (Math.hypot(q[0], q[1]) - clip.rho) - (q[2] - clip.z)) / Math.hypot(1, clip.slope);
   if (limbs.upperArm) { const arm = limbs.upperArm.sd; limbs.upperArm.sd = (q) => arm(q) + tuck * ease((-under(q) - gap) / band); }
   // the torso: above the chest the rays fan from one point on the trunk's axis (a ring's own radial line grazes the
@@ -642,7 +759,11 @@ export function formSlice(recipe, R, build, opts = {}) {
   if (pelvic) {
     // its lowest station set on the crotch (`crotch`), wholly under the level. Its centre lies on the crotch's skin, so a
     // ring's rays cast from the first point inside straight above (`up`)
-    const psd = handed(pelvisSd ?? field.sd, -1), P0 = structuredClone(r.parts.pelvis), s0 = P0.stations[0];
+    // (under a physique the rings under the level, hidden inside the thighs, drawn in to a cone round the crotch, a
+    // point at it and wide at the level: where the thighs nearly meet, their rays crossed the thigh and left it at its
+    // front or side, and the rings folded in a zigzag)
+    const psd0 = handed(pelvisSd ?? field.sd, -1), P0 = structuredClone(r.parts.pelvis), s0 = P0.stations[0];
+    const psd = B.physique && crotch !== null ? (q) => { if (q[2] >= zp) return psd0(q); const t = ramp((q[2] - crotch) / (zp - crotch)); return Math.max(psd0(q), Math.hypot(q[0], q[1]) - (0.01 + 1.5 * W0 * t * t * t)); } : psd0;
     if (crotch !== null) for (const k of P0.slots) s0.points[k] = [s0.points[k][0], s0.points[k][1], crotch + 0.005];
     const up = (c) => { if (psd(c) < 0) return c; for (let t = 0.002; t <= 0.12; t += 0.002) { const q = [c[0], c[1], c[2] + t]; if (psd(q) < -0.004) return q; } return c; };
     const Pp = r.parts.pelvis = resamplePart(P0, psd, { around, rings: B.pelvisRings ?? 33, origin: up, relax: 2 });

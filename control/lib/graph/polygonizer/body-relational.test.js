@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
-import { BODY_BUILDS, formSlice, ringSlots } from './body-relational.js';
+import { BODY_BUILDS, PHYSIQUES, formSlice, ringSlots, physique, bodyField, limbField, bodyFrame, crossing } from './body-relational.js';
 
 const CASTS = { norrin: 'male', shalla: 'female' };
 const slice = (build) => {
@@ -66,4 +66,33 @@ describe('the form field slice', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male' }) });
     expect(() => formSlice(m.recipe, validateRig(m.recipe.rig), 'galactus')).toThrow(/unknown build 'galactus'/);
   }, 480_000);   // (two shalla slices, each with her pauldron's stages)
+
+  it('a physique dials the build: athletic is the build itself, weight the waist, bulk the arm, tone the blends, height the stature', () => {
+    expect(physique('norrin', 'athletic')).toBe(BODY_BUILDS.norrin);
+    expect(physique('norrin', { bulk: 0, tone: 0, weight: 0, height: 0 })).toBe(BODY_BUILDS.norrin);
+    expect(() => physique('norrin', 'brawny')).toThrow(/unknown physique 'brawny'/);
+    expect(() => physique('norrin', { bulk: 2 })).toThrow(/outside/);
+    expect(() => physique('norrin', { girth: 1 })).toThrow(/not a physique dial/);
+    expect(physique('norrin', { from: 'jacked', height: 0 }).physique).toEqual({ ...PHYSIQUES.jacked, height: 0 });
+    // on the rig the build is minted under (its tune: the stature, the shoulders)
+    const on = (B) => { const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', hair: 'none', tune: B.tune }) }); return validateRig(m.recipe.rig); };
+    const waist = (B) => { const R = on(B), F = bodyFrame(R, B), c = crossing(bodyField(R, B).sd, [0, 0, F.zOf(-0.02)], [0, 1, 0], 0.5); return c[1]; };
+    const arm = (B) => { const R = on(B), J = R.joints, mid = J.shoulderR.map((x, i) => x + 0.55 * (J.elbowR[i] - x)), c = crossing(limbField(R, B, 'upperArm').sd, mid, [0, 1, 0], 0.2); return c[1] - mid[1]; };
+    const lean = physique('norrin', { weight: -1 }), heavy = physique('norrin', { weight: 1 }), N = BODY_BUILDS.norrin;
+    expect(waist(heavy)).toBeGreaterThan(waist(N) + 0.03);
+    expect(waist(lean)).toBeLessThan(waist(N));
+    expect(arm(physique('norrin', { bulk: 1 }))).toBeGreaterThan(arm(N) * 1.1);
+    expect(arm(physique('norrin', { bulk: -1 }))).toBeLessThan(arm(N));
+    expect(physique('norrin', { tone: 1 }).kMuscle).toBeLessThan(N.kMuscle);
+    expect(physique('norrin', { tone: -1 }).kLimb).toBeGreaterThan(N.kLimb);
+    expect(on(physique('norrin', { height: 1 })).joints.headTop[2]).toBeGreaterThan(on(N).joints.headTop[2] * 1.05);
+  }, 120_000);
+
+  it('a physique\'s slice closes as the build\'s does (jacked: the bulk over every part, the hands scaled about the wrist)', () => {
+    const B = physique('norrin', 'jacked'), m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', hair: 'none', tune: B.tune }) });
+    const { recipe } = formSlice(m.recipe, validateRig(m.recipe.rig), B), A = auditLayered(compileLayered(recipe, m.dials));
+    for (const p of SLICED) { expect(A[p].pass, p).toBe(true); expect(A[p].windingErrors, p).toBe(0); }
+    const span = (Rg) => Math.hypot(...[0, 1, 2].map((k) => Rg.joints.middleTipR[k] - Rg.joints.wristR[k]));
+    expect(span(validateRig(recipe.rig)) / span(validateRig(m.recipe.rig))).toBeCloseTo(B.hands, 4);
+  }, 300_000);
 });

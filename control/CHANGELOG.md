@@ -240,7 +240,18 @@ Opt-in and versioned: a default hero keeps its bytes.
   in front: all of it on the collarbone, a raised arm's shoulder top had floated over the acromion under it. Shalla
   wears the hero's pauldron, its masses 0.85 of his; her bust's fold is filleted in the field (`fold`, bust radii: the
   height eases in from flat, the apex kept at its projection), the fold's wall a corner the rings crossed on the slant
-  in stair-steps. Only the feet are still the authored cage.
+  in stair-steps. Only the feet are still the authored cage. THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the
+  build as authored (the athletic base, the build itself to the byte): `bulk` the muscles across and how proud they
+  stand (the bones and the joints as they are; on the plus side the arms set out with the shoulders' muscle, the
+  pauldron grown faster, the calf fuller and longer, the forearm full down to a wrist the size of hands a tenth bigger),
+  `tone` the blends tighter or looser and the abdomen's and the serratus's relief, `weight` a layer of fat over the
+  whole skin (thinning down the limbs to none at the wrist, the ankle and the head's base, and eased out between the
+  legs, where it fused the thighs), the belly forward, the flanks, the seat behind, the neck; `height` the stature a
+  tenth either way, by the hero's own tune. Words for points in it (`PHYSIQUES`): athletic, skinny, heavyset, jacked;
+  `physique(build, word | dials)`, body-study `--physique`. Under a physique the crotch is sought no lower than 0.6 W
+  under the hip's joint and the pelvis's rings hidden inside the thighs drawn in to a cone round it (thighs that nearly
+  meet had folded them in a zigzag). Shalla's calf bellies run a third longer, one form from behind where they had stood
+  as two beads.
 
 ### Epidermis cube: skin and hair as a recipe
 

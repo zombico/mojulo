@@ -22,6 +22,8 @@
 //                   path, no minted hero changes), wearing the RELATIONAL head (head-relational.js, the head-study
 //                   field lane's) in place of the hero's: its skin meshed, fitted to the hero's head (vertex to
 //                   menton, the ear's depth) and carried by the head bone
+//   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
+//                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
 //
 // Each cast gets a SECTIONS panel at the bind (the trunk cut level at the neck, the chest, the waist and the seat; the
@@ -45,13 +47,13 @@ const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await 
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
-const { formSlice, BODY_BUILDS, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
+const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
 const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
 const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null, vitruvian = false, bones = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, tint = false, only = null, vitruvian = false, bones = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -60,6 +62,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--register') { reg = args[++i]; continue; }
   if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--form') { form = args[++i]; continue; }
+  if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--vitruvian') { vitruvian = true; continue; }
@@ -69,6 +72,8 @@ for (let i = 0; i < args.length; i++) {
   casts.push(a);
 }
 if (!casts.length) casts.push('male', 'female');
+if (phys && !form) throw new Error('body-study: --physique dials a form build; name one with --form');
+const BUILD = form ? physique(form, phys ?? 'athletic') : null;
 const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'hand', 'foot', 'neck'];
 for (const c of [crop, ...(acts || []).map((r) => r.crop)]) if (c && !CROPS.includes(c)) throw new Error(`body-study: crop '${c}' is not one of ${CROPS.join(', ')}`);
 mkdirSync(out, { recursive: true });
@@ -131,8 +136,8 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BODY_BUILDS[form]?.tune ? { tune: BODY_BUILDS[form].tune } : {}) } : {}), ...extra }) });
-  const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), form) : null;
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...extra }) });
+  const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = sl.recipe;
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
   const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R), navelZ: sl?.landmarks?.navel ?? null, crotchZ: sl?.landmarks?.crotch ?? null };

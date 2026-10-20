@@ -1,6 +1,6 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--vitruvian]`.
+description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--physique <word|json>] [--vitruvian]`.
 ---
 
 # body-study
@@ -46,6 +46,10 @@ muscle masses placed from the hero's rest joints, summed into one skin), denser 
 silver-grey, wearing the RELATIONAL head (head-relational.js, the head-study field lane's) fitted to the hero's head and
 carried by its head bone. A build may carry a tune of the hero's own (norrin's shoulders 0.9). A dev path: no minted
 hero changes. The pelvis and the legs are on the field too; only the feet are still the authored cage.
+
+**The physique** (`--physique athletic | skinny | heavyset | jacked`, or its dials as JSON, `'{"from":"jacked","height":0}'`,
+each of `bulk`, `tone`, `weight`, `height` −1 to 1; with `--form`): the build under `body-relational.js` `physique`,
+athletic the build itself. The hero is minted with the physique's tune (its stature, its shoulders).
 
 **The Vitruvian rows** (`--vitruvian`, or a row's `{ "vitruvian": "square" | "circle" }`): the front alone, large, in
 Leonardo's two figures, to tune the ratios against. The SQUARE: the arms level, the feet together, the square of the
