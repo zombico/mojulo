@@ -105,6 +105,8 @@ const TRIS = [[0, 1, 2], [0, 2, 3]];
 // trivially retimed downstream (Blender scales NLA strips). A clip carrying its DESIGNED DURATION (`s`, the anime hero's:
 // hero-gesture.js heroClipSeconds, station-loft-rig packLayeredRig `seconds`) plays over that instead.
 const RIG_CLIP_SECONDS = 1;
+// a face drawing held to a hair before the next where the correctives merge its STEP track into a LINEAR channel (seconds)
+const CORRECTIVE_STEP = 1e-3;
 
 // base64 → typed array, COPYING into a fresh buffer: Buffer.from(base64) allocates from node's
 // shared pool, whose byteOffset is not guaranteed 4-aligned for a Float32Array view.
@@ -704,6 +706,15 @@ class GlbBuilder {
    * hull stays baked from the stored face), `mesh.weights` the authored expression (so an engine that
    * plays nothing shows the approved face) and `mesh.extras` the target names and the face's words.
    * Without a face every byte is as before.
+   *
+   * THE CORRECTIVES (a sliced recipe's, the realistic body's: station-loft-rig packLayeredRig `correctives`; a figure
+   * carrying `correctives` whose parts carry `corrective`): one sparse POSITION target per corrective after the face's,
+   * named by its id; its weight at rest in `mesh.weights`; `mesh.extras.correctives` each one's driver (the raise of the
+   * bone from `joint` to `to` against the trunk's down, navel from neckHub, eased by smoothstep from `from` to `full`
+   * degrees) and the driver joints on their bones, for an engine that drives them; and every clip a LINEAR weights
+   * channel on its own keys, the weights its poses drive (merged with the face's STEP track where a clip carries one,
+   * each drawing held to a hair before the next). The engine skeleton (`parents`, the T-pose export) leaves them out: its
+   * rest is not the bind they are measured at. Without them every byte is as before.
    */
   addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null, parents = null } = {}) {
     // ENGINE SKELETON (`parents`, the T-pose export: docs/emote-bridge.md phase 4): `fig` arrives in the VRM space
@@ -769,6 +780,8 @@ class GlbBuilder {
     let vertices = 0, triangles = 0;
     // the face's rows at their global vertex (base + the part's own index): the rebase, then every target
     const faceT = fig.face && Array.isArray(fig.face.targets) ? fig.face.targets.length : 0, morphAt = [], morphRow = [];
+    // the correctives' rows likewise (3 × targets: each corrective's offset)
+    const corrT = !parents && Array.isArray(fig.correctives?.targets) ? fig.correctives.targets.length : 0, corrAt = [], corrRow = [];
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -808,6 +821,11 @@ class GlbBuilder {
         const mi = b64ToU32(part.morph.i), md = b64ToF32(part.morph.d), W = (1 + faceT) * 3;
         if (md.length !== mi.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} face rows do not match their vertices`);
         for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
+      }
+      if (corrT && part.corrective) {
+        const ci = b64ToU32(part.corrective.i), cd = b64ToF32(part.corrective.d), W = corrT * 3;
+        if (cd.length !== ci.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} corrective rows do not match their vertices`);
+        for (let k = 0; k < ci.length; k++) { corrAt.push(base + ci[k]); corrRow.push(cd.subarray(k * W, k * W + W)); }
       }
       vertices += d.vertexCount;
       triangles += d.triangleCount;
@@ -884,18 +902,16 @@ class GlbBuilder {
       }
     }
     let faceMesh = null;
-    if (morphAt.length) {
+    const hasFace = morphAt.length > 0, corr = corrAt.length ? fig.correctives : null;
+    if (hasFace || corr) {
       const n = positions.length / 3;
-      prim.targets = fig.face.targets.map((_, t) => {
-        const ids = [], vals = [];
-        morphAt.forEach((g, k) => { const r = morphRow[k], o = 3 + t * 3; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
-        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
-      });
-      if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = fig.face.targets.map(() => ({ POSITION: zero })); }
+      const sparse = (at, rows, o) => { const ids = [], vals = []; at.forEach((g, k) => { const r = rows[k]; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } }); return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) }; };
+      prim.targets = [...(hasFace ? fig.face.targets.map((_, t) => sparse(morphAt, morphRow, 3 + t * 3)) : []), ...(corr ? corr.targets.map((_, t) => sparse(corrAt, corrRow, t * 3)) : [])];
+      if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = prim.targets.map(() => ({ POSITION: zero })); }
       // the facial tracks (anime-face-tracks.js): a clip's track rides its animation, the ambient blink its own; the
       // layer plays over the exported clips whose eyes hold the authored face
-      const tracked = fig.face.tracks ? clipNames.filter((c) => fig.clips?.[c]?.k && Array.isArray(fig.clips[c].b)) : [];
-      faceMesh = { weights: [...fig.face.weights], extras: { targetNames: [...fig.face.targets], face: {
+      const tracked = hasFace && fig.face.tracks ? clipNames.filter((c) => fig.clips?.[c]?.k && Array.isArray(fig.clips[c].b)) : [];
+      faceMesh = { weights: [...(hasFace ? fig.face.weights : []), ...(corr ? corr.targets.map((c) => c.w) : [])], extras: { targetNames: [...(hasFace ? fig.face.targets : []), ...(corr ? corr.targets.map((c) => c.id) : [])], ...(hasFace ? { face: {
         about: fig.face.about ?? 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
@@ -905,7 +921,10 @@ class GlbBuilder {
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],
           keying: 'each clip carries a STEP weights channel on the mesh node, a drawing per frame at fps keyed half a frame early ((f - 0.5) / fps; the first key at 0, the last at the clip\'s end), the eyes only ever at the knots; ambientClip holds the authored face with seeded blinks, to layer over the ambientOver clips through a filter on the blink targets (blink*); play at 30 fps or more (at 24, Blender\'s default scene rate, a one-frame drawing can fall between two samples)',
         } : {}),
-      } } };
+      } } : {}), ...(corr ? { correctives: {
+        about: "morph targets on the rest after the face's, each its offsets at full weight; a target's weight is the smoothstep of its driver's raise between from and full (degrees): the angle of the bone from driver.joint to driver.to against the trunk's down (navel from neckHub); a joint's posed point is its bone's transform of `at` (its offset from the bone's head at rest); the default weights are the rest's, and every clip carries the weights its poses drive",
+        targets: corr.targets.map((c) => ({ id: c.id, driver: { ...c.driver } })), joints: corr.joints,
+      } } : {}) } };
     }
     const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
@@ -959,22 +978,25 @@ class GlbBuilder {
     }
 
     let animations = 0;
-    const track = (c) => (faceMesh && fig.face.tracks?.[c] ? { node: meshNode, ...fig.face.tracks[c] } : null);
+    const track = (c) => (hasFace && fig.face.tracks?.[c] ? { node: meshNode, ...fig.face.tracks[c] } : null);
+    // the correctives' weights per clip (the pack's `cw`), after the face's: its authored weights where a clip has no track
+    const corrW = corr ? { node: meshNode, n: corr.targets.length, face: hasFace ? fig.face.weights : [] } : null;
     for (const clipName of clipNames) {
       const clip = fig.clips && fig.clips[clipName];
       if (!clip || !clip.k || !Array.isArray(clip.b)) continue;
-      this.addRigClip(name, fig, jointNodes, clipName, parents ? localClip(clip, parents, fig.bones.length) : clip, track(clipName));
+      this.addRigClip(name, fig, jointNodes, clipName, parents ? localClip(clip, parents, fig.bones.length) : clip, track(clipName), corrW);
       animations++;
     }
     // the AMBIENT BLINK: a face-only animation (the authored face, seeded blinks) an engine layers over a held clip
-    if (faceMesh && fig.face.ambient) {
-      const samplers = [], channels = [];
-      this.addWeightsChannel(samplers, channels, { node: meshNode, t: fig.face.ambient.t, w: fig.face.ambient.w });
+    // (the correctives held at their rest weights in it)
+    if (hasFace && fig.face.ambient) {
+      const samplers = [], channels = [], amb = fig.face.ambient;
+      this.addWeightsChannel(samplers, channels, { node: meshNode, t: amb.t, w: corr ? amb.w.map((x) => [...x, ...corr.targets.map((c) => c.w)]) : amb.w });
       if (!this.json.animations) this.json.animations = [];
       this.json.animations.push({ name: fig.face.ambient.name, samplers, channels });
       animations++;
     }
-    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(faceMesh ? { face: true } : {}) };
+    return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
   }
 
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once?, s? }) → one glTF
@@ -994,7 +1016,9 @@ class GlbBuilder {
   // FACE (`face` = { node, t, w }: the clip's facial track, anime-face-tracks.js, on the skinned mesh's node): a `weights`
   // channel with its own input (the drawings' times, the last one the body's last, so both end together) and a STEP
   // sampler — the face holds each drawing, never tweens it. Absent ⇒ the channels as before.
-  addRigClip(figName, fig, boneNodes, clipName, clip, face = null) {
+  // CORRECTIVES (`corr` = { node, n, face }: the clip's `cw`, station-loft-rig packLayeredRig): a LINEAR `weights` channel
+  // on the clip's own keys, the face's weights before them (its track, else the authored `face`); see addCorrectiveWeights.
+  addRigClip(figName, fig, boneNodes, clipName, clip, face = null, corr = null) {
     const nb = fig.bones.length;
     const K = clip.k;
     const B = clip.b;
@@ -1027,7 +1051,8 @@ class GlbBuilder {
       channels.push({ sampler: trSampler, target: { node, path: 'translation' } });
     }
     if (!channels.length) return;
-    if (face) this.addWeightsChannel(samplers, channels, face, times[outKeys - 1]);
+    if (corr && Array.isArray(clip.cw)) this.addCorrectiveWeights(samplers, channels, corr, clip, times, face);
+    else if (face) this.addWeightsChannel(samplers, channels, face, times[outKeys - 1]);
     if (!this.json.animations) this.json.animations = [];
     // a locomotion clip's ground speed (`v`, hero-motion.js) rides the animation as `moj:speed` — metres a second in the
     // exported scene (the root's metres per unit applied): any engine plays the cycle at planar speed ÷ moj:speed
@@ -1049,6 +1074,34 @@ class GlbBuilder {
     const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}), ...(clip.held ? { 'moj:held': clip.held } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
+  }
+
+  // The correctives' weights over a clip (its `cw`: n per key, at the body's `times`, a loop's last key its first again)
+  // as one LINEAR `weights` channel, each key the face's weights then the correctives'. With the face's track (STEP, on
+  // its own times, the last the body's last) the two are merged on the union of their times: each drawing is held until
+  // a hair (CORRECTIVE_STEP seconds) before the next, so the step stays a step under the linear sampler, and the
+  // correctives are interpolated between the body's keys at every time.
+  addCorrectiveWeights(samplers, channels, { node, n, face: authored }, clip, times, face = null) {
+    const K = clip.k, last = times.length - 1, cwAt = (k) => clip.cw.slice((k % K) * n, (k % K) * n + n);
+    const corrAt = (x) => {
+      let k = 0; while (k < last - 1 && times[k + 1] <= x) k++;
+      const a = cwAt(k), b = cwAt(k + 1), s = times[k + 1] > times[k] ? Math.max(0, Math.min(1, (x - times[k]) / (times[k + 1] - times[k]))) : 0;
+      return a.map((v, i) => v + (b[i] - v) * s);
+    };
+    let ts, rows;
+    if (!face) { ts = Array.from(times); rows = ts.map((_, k) => [...authored, ...cwAt(k)]); }
+    else {
+      const ft = Array.from(face.t); ft[ft.length - 1] = times[last];
+      const drawingAt = (x) => { let j = 0; while (j < ft.length - 1 && ft[j + 1] <= x) j++; return face.w[j]; };
+      const xs = [...Array.from(times), ...ft, ...ft.slice(1).map((t) => t - CORRECTIVE_STEP)].filter((x) => x >= 0 && x <= times[last]).sort((a, b) => a - b);
+      ts = []; rows = [];
+      for (const x of xs) { if (ts.length && Math.fround(x) <= Math.fround(ts[ts.length - 1])) continue; ts.push(x); rows.push([...drawingAt(x), ...corrAt(x)]); }
+    }
+    const t32 = Float32Array.from(ts), out = new Float32Array(rows.length * rows[0].length);
+    rows.forEach((r, k) => out.set(r, k * r.length));
+    const input = this.floatAccessor(t32, 1, { min: [t32[0]], max: [t32[t32.length - 1]] }, null);
+    const sampler = samplers.push({ input, output: this.floatAccessor(out, 1, null, null), interpolation: 'LINEAR' }) - 1;
+    channels.push({ sampler, target: { node, path: 'weights' } });
   }
 
   // A facial track ({ node, t, w: [weights per key] }) → a STEP sampler (its own float32 input; the last time `end` when

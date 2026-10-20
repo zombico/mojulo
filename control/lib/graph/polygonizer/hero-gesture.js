@@ -34,6 +34,7 @@
  * Pure and deterministic: tables and functions of the mesh, the recipe and the pose alone.
  */
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } from './station-loft-rig.js';
+import { correctiveRest } from './body-relational-correctives.js';
 import { validateAnimeExpression, resolveAnimeExpression } from './anime-head.js';
 import { westernExpressionErrors, resolveWesternExpression } from './humanoid-head.js';
 import { SWING_WORDS, isSwing } from './hero-swing.js';
@@ -357,11 +358,13 @@ export function rigidParts(mesh, skin, R, bone = 'head') {
 
 /**
  * A compiled layered mesh skinned at `pose` (bindLayered → rigNodesAt → boneFrames → skinLayered): the same mesh,
- * same topology, its vertices posed. `rig` reuses an already validated rig and binding `{ R, skin }`.
+ * same topology, its vertices posed. `rig` reuses an already validated rig and binding `{ R, skin }`. A sliced recipe's
+ * CORRECTIVES (the realistic body's, body-relational-correctives.js) are added to the rest by the weights the pose drives
+ * before it is skinned, as an engine's blend shapes are; a recipe without them skins its rest as it is.
  */
 export function poseLayered(mesh, recipe, pose, { R = validateRig(recipe.rig), skin = bindLayered(mesh, recipe, R) } = {}) {
-  const { nodes, report } = rigNodesAt(R, pose);
-  return { mesh: { ...mesh, vertices: skinLayered(mesh, skin, boneFrames(R, R.joints, nodes)) }, nodes, report };
+  const { nodes, report } = rigNodesAt(R, pose), rest = correctiveRest(mesh, recipe, nodes);
+  return { mesh: { ...mesh, vertices: skinLayered({ ...mesh, vertices: rest }, skin, boneFrames(R, R.joints, nodes)) }, nodes, report };
 }
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

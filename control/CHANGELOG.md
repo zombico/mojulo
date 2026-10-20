@@ -34,6 +34,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
   `docs/realistic-body.md`, held by hero-realistic.test.js.
 
+### Realistic body: correctives posed and exported
+
+In progress. The realistic body's correctives (`recipe.correctives`, docs/realistic-body.md) outside the body study:
+- Posed: `poseLayered` (hero-gesture.js) skins the rest with the correctives the pose drives (`correctiveRest`), so a
+  standing hero's solid and the door's gesture gates carry them. A recipe without correctives poses byte for byte.
+- Packed: `packLayeredRig({ correctives })` (station-loft-rig.js) carries each corner's rows as the face's are
+  (`corrective` on a part), the pack's `correctives` (each target's id, driver and weight at rest; each driver joint as
+  the bone carrying it and its offset from that bone's head) and every clip's `cw` (each key's weights, by
+  `correctiveWeight`, correctiveRest's formula). The layered world resolve asks for them only when the export asks for
+  blend shapes (`ctx.face`: the skinned GLB, the Godot pack's figure); the World page's payload is as before.
+- Exported: the skinned GLB writes one sparse POSITION target per corrective after the face's, named by its id, its rest
+  weight in `mesh.weights`, `mesh.extras.correctives` the drivers and joints for an engine that drives them, and every
+  clip a LINEAR weights channel with the weights its poses drive (merged with the face's STEP track, each drawing held
+  to a millisecond before the next), so Godot, Blender and Unity play them with the clips. The T-pose (engine skeleton)
+  export leaves them out. Without correctives every byte is as before.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the
