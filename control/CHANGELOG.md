@@ -20,8 +20,21 @@ Every surface mark becomes relief, painted from a light: an element's face is a 
 chosen direction with its own shadows and hollows, painted by sampling the cube's ramps at the values the light gives,
 and cut to the element's outline as a PNG. No line is drawn; a crack is a groove whose lip catches the light. The
 light is baked into the paint, the house era's way; no normal maps. First stone blocks, then cliffs and rocks painted
-on the road. Nothing has landed yet, and existing tiles are untouched: a cube, stage or road that does not ask for it
-emits the same bytes.
+on the road. Existing tiles are untouched: a cube, stage or road that does not ask for it emits the same bytes.
+
+- **The painter** (`lib/graph/matte-paint/`): `paintSurface({ outline, ppm, grit, seed, light, relief, paint })` paints
+  one face and cuts it to its outline as an RGBA PNG, in about a tenth of a second for a 1.2 m block at 256 px/m.
+  The relief comes in layers. `form` makes the chamfered, slightly pillowed face with a ragged arris. `rough` adds
+  undulation and grain, and `tool` the finish's marks (tooled ridges, or a pitched face of tilted facets). `spall`
+  breaks the arrises back along curved fracture planes; where a break falls deep enough the stone is gone and the
+  outline follows. `groove` cuts cracks as tapered V-grooves that wander and fork, and `pit` adds round craters. The
+  light gives each texel a value from its normal, a self-shadow marched over the height field, and darkening in
+  hollows, held at a mean of 1 so the World's vertex light still does the large shading. The paint picks each texel's
+  stop on the material's ramp by that value, then lays on its other layers: patches of a second ramp, mineral flecks,
+  damp at the foot, dirt in the hollows and toward the foot, and moss on what faces up (opt-in). `grit` moves every
+  layer together, and a layer set to `false` adds nothing. Seeded dice only, over the integer-exact noise
+  (`noise/noise.js`), and pinned. Nothing uses it yet: the stone-block wall is next.
+  `scripts/spikes/matte/sheet.mjs` paints a sheet of one block from a cube's ramps.
 
 ### Geocube styles: principles and the laws that check them
 
