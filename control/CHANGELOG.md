@@ -18,9 +18,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
 `why` already carries the principles and the color theorist's laws already name a palette's mistakes; this theme
-joins them. Nothing has landed yet. The opt-in keys (a palette's `waive` and `values`, a cube's `avoid` and `ink`)
-leave every existing spec and cube byte-identical. New presets will follow from published art-direction
-principles: black-figure pottery, muted theatrical light and painterly value groups.
+joins them. Both keys are opt-in: a spec without `values` and a cube without `avoid` solve and lower byte for byte as
+before.
+
+- **Value groups.** A palette spec takes `values: { groups: 2 | 3, of? }` (`color-theorist/solve.js`,
+  `PALETTE_VALUES`): each land role's lightness band becomes its group's, so the land reads as a few masses of value
+  instead of a continuous spread. Two groups are a figure and its ground (what stands dark, the sky and the ground
+  light); three are a painter's masses (the sky and the stone light, the ground and what is made mid, the leaves dark).
+  `of` moves a role to another group. The key moves every band; the accents are not grouped. Such a spec is also
+  checked by a new law, `value-groups`: each grouped role's middle sits in its band and the groups sit apart.
+  `pick_palette` takes `values`.
+- **A cube's avoid list.** A geocube takes `avoid: [{ line, law }]`: the mistakes its style names, each with the law
+  that measures it (`era/geocube-laws.js`). A law is one of the palette's, read off the contract the cube's colours
+  were solved from, or one of the cube's own: `quiet-surfaces` (every tile's block shift and speckle under a ceiling).
+  Each line is written back with `ok` and `value` when the cube is read; a palette law on a cube whose colours are its
+  own is `ok: null`, unmeasured. The readout rides the specimen's `geocube` payload and a painted stage's `painted`.
+  It advises and never refuses.
+- **Two presets from published art direction.** `theatre-grey`: a grey, quiet world staged in pools of light, one
+  red for what matters (a `mono-accent` palette, quiet surfaces, thick air, lab bones). `painted-haze`: a hazy town
+  painted in warm and cool masses (three value groups, a jaundiced sky, a deep rust accent, `contrast: 'wii'`, quiet
+  surfaces). Each carries its avoid list, and every line holds under its own palette. Only the automated checks have
+  run; neither preset has been looked at.
 
 ### Epidermis cube: skin and hair as a recipe
 

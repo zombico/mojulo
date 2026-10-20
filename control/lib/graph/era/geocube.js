@@ -33,6 +33,9 @@
  *             the others, each a few changes to it ({ reads?, base?, land?, relief?, ground?, colour? }: a shore, a highland). A level
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
+ *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
+ *             as { ok, value }: advice, never a refusal
  *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
  *   target    what the level is drawn for (target.js: resolution, framing, error; 1080p third-person by default): how
  *             many pixels a metre covers, so how dense its cast's rings and its surfaces' texels need to be. A hero lit
@@ -47,6 +50,7 @@
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  */
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
+import { readAvoid, measureAvoid } from './geocube-laws.js';
 import { rampFrom, resample } from './look-facets.js';
 import { ISEKAI_STYLES } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
@@ -81,6 +85,9 @@ const UPLAND_ISLE = { ...ISLE, seabed: 'merged' };
 // the gen-6 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
 // torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
 const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
+// quiet surfaces (geocube-laws.js QUIET): the same stone and flags with half the block shift and the speckle
+const QUIET_STONE = { ...STONE, vary: 12, grain: 5 };
+const QUIET_FLAGS = { ...FLAGS, vary: 10, grain: 5 };
 
 /** The cubes to start from. A cube is a starter: copy one with `from` and change what the level needs. */
 export const GEOCUBE_PRESETS = Object.freeze({
@@ -167,6 +174,51 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'What people wear is made of something: plate is worked steel, gilt is gold, and metal sits in the same light as the stone.',
     ],
   },
+  'theatre-grey': {
+    id: 'theatre-grey', title: 'Theatre grey', reads: 'A grey, quiet world staged in pools of light',
+    light: { reference: 'jungle-haze', outsideFog: 1.4 },
+    colour: { stone: '#7c8084', floor: '#5e6064', trim: '#9a9ea2', accent: '#b8261e', grass: '#6a706a', foliage: '#4c524e', water: '#4a5258', sand: '#8a8a86', shade: 230 },
+    register: { steps: 0, key: 0.42 },
+    surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
+    inside: { bones: 'research-lab', size: [12, 12, 7], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'Volumes are simple and strong; the surfaces are quiet, so the light does the drawing.',
+      'Grey, cool and low in colour: the world is nearly without hue.',
+      'A small red is the only loud colour, and it marks what matters.',
+      'Light falls in pools and beams; between them the space goes soft into the air.',
+      'Shade stays a colour the eye can read into, never flat black.',
+      'The player is found by light and placement, never by an outline or a glow.',
+    ],
+    avoid: [
+      { line: 'Flat black where nothing can be read.', law: 'shade-is-colour' },
+      { line: 'Noisy realistic textures.', law: 'quiet-surfaces' },
+      { line: 'Bright colours unrelated to what matters.', law: 'accent-unique' },
+    ],
+  },
+  'painted-haze': {
+    id: 'painted-haze', title: 'Painted haze', reads: 'A hazy town painted in warm and cool masses',
+    light: { reference: 'desert-dusk', outsideFog: 2 },
+    colour: { stone: '#a69a78', floor: '#6e6448', trim: '#c8bc94', accent: '#8a3020', grass: '#7a7a44', foliage: '#4e5432', water: '#4a6660', sand: '#b0a27a', shade: 195 },
+    register: { steps: 0, key: 0.48 },
+    contrast: 'wii',
+    surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'Forms are simplified on purpose: broad planes, and detail only where the eye lands.',
+      'The light is a warm, jaundiced haze and the shade a cool teal: every plane is warm or cool, never neutral.',
+      'Three masses of value: the sky and the stone light, the ground and what is made mid, the leaves dark.',
+      'Surfaces are broad material and quiet: no glossy physical detail, no brush noise.',
+      'One accent, a rust red; the rest stays in the haze\'s family.',
+      'Distance goes warm and pale into the haze.',
+    ],
+    avoid: [
+      { line: 'Random brush noise, or a painting filter over realistic surfaces.', law: 'quiet-surfaces' },
+      { line: 'Muddy values with no clear masses.', law: 'value-groups' },
+      { line: 'Values that only read in colour.', law: 'greyscale-read' },
+    ],
+  },
 });
 
 /**
@@ -182,6 +234,8 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
   'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'upland-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'guardhouse', enter: 'door' }] },
+  'theatre-grey': { anchor: 'tiered', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
+  'painted-haze': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'guardhouse', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
 });
 /**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
@@ -195,9 +249,11 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'jungle-haze': { intent: 'olive concrete, mud and a soft hazy sun', key: 'mid', heat: 0.15, weight: 0.2, activity: -0.6, scheme: 'analogous', hue: '#767a64', hues: { sky: 120, accent: '#8a5f34' } },
   'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
   'upland-morning': { intent: 'limestone, red roofs and a rocky green upland in the morning', key: 'high', heat: 0.3, weight: 0, activity: 0.25, scheme: 'complementary', hues: { sky: 222, rock: 50, soil: 34, ground: 108, foliage: 126, accent: '#b8442c' } },
+  'theatre-grey': { intent: 'a grey, quiet world staged in pools of light, one red for what matters', key: 'mid', heat: -0.25, weight: 0.35, activity: -0.8, scheme: 'mono-accent', hues: { rock: 230 }, lock: { accent: '#b8261e' } },
+  'painted-haze': { intent: 'a hazy town painted in warm and cool masses under a jaundiced sky', key: 'mid', heat: 0.35, weight: 0.45, activity: -0.35, scheme: 'analogous', hue: '#8a8a52', hues: { sky: 95 }, lock: { accent: '#8a3020' }, values: { groups: 3 } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'painted-haze': [1, 4] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
@@ -211,7 +267,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1, materials: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -263,7 +319,7 @@ export function readGeocube(spec) {
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
-  if (P) solveInto(c, P, ref);
+  const checks = P ? solveInto(c, P, ref) : null;
   if (c.light.sky !== undefined) {
     if (!isObj(c.light.sky)) no('light.sky is { zenith, horizon, fog? }: the outside\'s sky, #rrggbb each');
     only(c.light.sky, ['zenith', 'horizon', 'fog'], 'light.sky');
@@ -334,6 +390,8 @@ export function readGeocube(spec) {
   }
   // why
   if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
+  // avoid (optional): the mistakes the style names, each measured by its law (geocube-laws.js)
+  if (c.avoid !== undefined) { readAvoid(c.avoid, no); c.avoid = measureAvoid(c, checks); }
   return c;
 }
 
@@ -361,6 +419,7 @@ function solveInto(c, P, ref) {
   c.why = [...c.why, `Its colours are the color theorist's (${K.id}): ${K.read.says}, in a ${K.read.key} key.`,
     ...(K.read.moonlit ? ['The moon is the cool light and the dark is warm: a cold night inverts the palette.'] : [])];
   c.palette = { ...P, id: K.id, reads: `${K.read.scheme}, a ${K.read.key} key` };
+  return K.checks;
 }
 
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -532,7 +591,8 @@ export function readTerrainAsk(cube, terrain) {
 /** What a stage painted by a cube got: the cube, the terrain, from whom, and what the cube offered. */
 export function geocubePaint(manifest) {
   const cube = readGeocube(manifest.geocube), T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
-  return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}) };
+  return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}),
+    ...(cube.avoid ? { avoid: cube.avoid.map(({ law, ok }) => ({ law, ok })) } : {}) };
 }
 
 // the accent wall: the cube's wall re-tiled in the accent's pattern (a toned room keeps its value twins, so it does too)
@@ -581,6 +641,6 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   else withIslandCamera(payload);
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
     ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
-    ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}) };
+    ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}), ...(cube.avoid ? { avoid: cube.avoid } : {}) };
   return payload;
 }

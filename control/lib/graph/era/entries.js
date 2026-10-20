@@ -41,7 +41,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // 4600 -> 4800 (2026-10-17): the geocube card took its `materials` line and contrast's `metal` term (look materials)
 // 4800 -> 5000 (2026-10-17): the geocube card took `materials.age` and `outside.crystals` (level age and crystals);
 // it stood at 4873 with them
-export const STAGE_CARD_BODY_CEILING = 5000;
+// 5000 -> 5400 (2026-10-20): the geocube card took its `avoid` line and the theatre-grey and painted-haze presets
+// (geocube styles); it stood at 5388 with them
+export const STAGE_CARD_BODY_CEILING = 5400;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -254,6 +256,7 @@ export function geocubeCard() {
     '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex (metal: metal takes the occlusion too)',
     '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; cloth and leather painted (a group may name silk, velvet, wool, denim …); a hero takes it through its geocube',
     '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
+    '  avoid?    [{ line, law }]: the mistakes the style names, each measured by a law as the cube is read (a pick_palette law, or quiet-surfaces) and written back as ok, value. Advice, never a refusal.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
     '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, crystals? <gem> | { gem, where: crags | hollows, count, size (m), glow }, terrain?, terrains? }',

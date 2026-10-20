@@ -405,7 +405,9 @@ const DESCRIPTION_ALLOWLIST = {
 // checkers or a game written out, played against the computer as its own page), one schema property. No new tool.
 // Raised 2026-10-19 (211_600 -> 211_800; measured 211,664) merging the strategy board with the board games: create_game's
 // `final` (the game's last level, its first win completing it) beside `tabletop`, each pinned on its own branch. No new tool.
-const PAYLOAD_CEILING = 211_800;
+// Raised 2026-10-20 (211_800 -> 212_000; measured 211,867) for geocube styles: pick_palette's `values` (value groups,
+// the land in two or three masses of value), one schema property. No new tool.
+const PAYLOAD_CEILING = 212_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

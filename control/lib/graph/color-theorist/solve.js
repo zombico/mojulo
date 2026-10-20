@@ -2,7 +2,7 @@
  * THE COLOR THEORIST — a palette solved for what a world is trying to be, instead of picked off a short shelf of kits.
  *
  * A palette SPEC is what a recipe stores: a seed and whatever the agent read from the world's intent —
- *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock?, shift?, script? }
+ *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock?, shift?, script?, values? }
  * heat (cool −1 … warm 1), weight (light −1 … heavy 1) and activity (calm −1 … active 1) are the three colour-emotion
  * factors that held across cultures (Ou, Luo et al. 2004); the agent reads the words, this file never does. What the
  * spec leaves out is rolled from its seed. The CONTRACT is what the spec solves to, every time the same:
@@ -10,7 +10,9 @@
  *
  * The order is the art director's, not the colour wheel's (hue templates alone do not predict a palette people like:
  * O'Donovan, Agarwala & Hertzmann 2011):
- *   1. VALUE: the key (high / mid / low) sets every role's band of lightness; the sky is the brightest thing by day
+ *   1. VALUE: the key (high / mid / low) sets every role's band of lightness; the sky is the brightest thing by day.
+ *      `values` (opt-in) groups them instead: every role in one of two or three bands, so the land reads as a few
+ *      masses of value (a painter's value groups) rather than a continuous spread
  *   2. CHROMA: activity sets the ceiling; most roles stay well under it, the accent spends it
  *   3. HUE: the scheme only says how the hues relate — the world's (A), its secondary (B), its accent (C, C2)
  *   4. TEMPERATURE: each ramp leans to the world's shadow hue below its middle and to its light hue above
@@ -126,9 +128,24 @@ const overPreset = (spec) => {
   return { ...P, ...spec, ...(hues ? { hues } : {}) };
 };
 const LOCKABLE = PALETTE_ROLES.filter((r) => !ROLES[r].derived);
+
+/** VALUE GROUPS (`values`): the bands of lightness a land is grouped into (mid key; the key moves them all), and the
+ * group each role takes when `of` names none. Two groups are a figure and its ground (what stands is dark, the sky and
+ * the ground light); three are a painter's masses: the sky and the stone light, the ground and what is made mid, the
+ * leaves dark. A band is as wide as a shift keeps a band (0.18), so a shifted palette keeps its groups. The accents
+ * are not grouped: they are set in value against the ground, as always. */
+export const PALETTE_VALUES = Object.freeze({
+  2: Object.freeze({ bands: { dark: [0.24, 0.42], light: [0.66, 0.92] },
+    of: { sky: 'light', cloud: 'light', ground: 'light', soil: 'light', rope: 'light', foliage: 'dark', bark: 'dark', rock: 'dark', made: 'dark' } }),
+  3: Object.freeze({ bands: { dark: [0.24, 0.42], mid: [0.49, 0.67], light: [0.74, 0.92] },
+    of: { sky: 'light', cloud: 'light', rock: 'light', ground: 'mid', soil: 'mid', made: 'mid', rope: 'mid', foliage: 'dark', bark: 'dark' } }),
+});
+const GROUPABLE = LOCKABLE.filter((r) => !ROLES[r].accent);
+// the values a spec names, each role in its group (the count's defaults under what `of` names)
+const valuesOf = (v) => ({ groups: v.groups, of: { ...PALETTE_VALUES[v.groups].of, ...(v.of ?? {}) } });
 // how much of a world each role covers, roughly (for the hue-family count)
 const COVER = { sky: 3, cloud: 1, ground: 4, foliage: 2, soil: 1, rock: 1.5, bark: 0.4, made: 1, rope: 0.2 };
-const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset'];
+const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values'];
 // a shift: the same palette moved (its seed, its candidate, its hue relations kept)
 const SHIFT_RANGE = Object.freeze({ turn: [-180, 180, 'degrees every hue turns'], light: [-1, 1, 'toward night (−1) or day (1)'], chroma: [0.25, 2, 'chroma scaled'], warm: [-1, 1, 'hues and the light pulled cool (−1) or warm (1)'] });
 const NEUTRAL = Object.freeze({ turn: 0, light: 0, chroma: 1, warm: 0 });
@@ -210,6 +227,18 @@ export function readPaletteSpec(v, at = 'palette') {
       if (typeof h !== 'string' || !HEX.test(h)) throw new Error(`${at}.lock.${r} is a '#hex'`);
     }
   }
+  if (v.values !== undefined) {
+    if (!isObj(v.values) || !PALETTE_VALUES[v.values.groups]) throw new Error(`${at}.values is { groups: 2 | 3, of?: { <role>: <group> } }: the land in two or three bands of value`);
+    for (const k of Object.keys(v.values)) if (!['groups', 'of'].includes(k)) throw new Error(`${at}.values.${k} is not part of values (groups, of)`);
+    const names = Object.keys(PALETTE_VALUES[v.values.groups].bands);
+    if (v.values.of !== undefined) {
+      if (!isObj(v.values.of)) throw new Error(`${at}.values.of is { <role>: ${names.join(' | ')} }`);
+      for (const [r, g] of Object.entries(v.values.of)) {
+        if (!GROUPABLE.includes(r)) throw new Error(`${at}.values.of.${r} is not a role a group takes (${GROUPABLE.join(', ')}; the accents are set against the ground)`);
+        if (!names.includes(g)) throw new Error(`${at}.values.of.${r} is ${names.join(', ')} (with ${v.values.groups} groups)`);
+      }
+    }
+  }
   return { ...v };
 }
 
@@ -227,10 +256,16 @@ function readAxes(spec) {
   const hr = R(), named = spec.hue !== undefined ? hueOf(spec.hue) : null;
   const band = Math.max(50, 360 * (1 - Math.abs(heat)) ** 1.5);
   const hue = named ?? (spec.heat !== undefined ? (heat >= 0 ? 50 : 235) + (hr - 0.5) * band : heat > 0.25 ? 20 + hr * 80 : heat < -0.25 ? 160 + hr * 130 : hr * 360);
-  return { seed, heat, weight, activity, scheme, key, hue: r3(wrapHue(hue)), named: named !== null, air: spec.air ?? 'full' };
+  return { seed, heat, weight, activity, scheme, key, hue: r3(wrapHue(hue)), named: named !== null, air: spec.air ?? 'full', ...(spec.values ? { values: valuesOf(spec.values) } : {}) };
 }
 
 const KEY_SHIFT = { high: [0.1, 0.04], mid: [0, 0], low: [-0.08, -0.14] };
+/** A value group's band in this key: the whole band moved by the key's mean shift, kept inside the gamut's useful L. */
+function groupBand(A, g) {
+  const [lo, hi] = PALETTE_VALUES[A.values.groups].bands[g], d = (KEY_SHIFT[A.key][0] + KEY_SHIFT[A.key][1]) / 2;
+  const m = clamp(d, 0.22 - lo, 0.97 - hi);
+  return [r3(lo + m), r3(hi + m)];
+}
 // how each scheme leans with activity: + toward the active end, − toward the calm
 const SCHEME_LEAN = Object.freeze({ analogous: -1.5, complementary: 1.2, 'split-complementary': 1.2, triad: 1.4, tetrad: 1.2, 'mono-accent': -1.5, duotone: -0.8 });
 /** A scheme from a roll, weighted by activity: at 0 all alike; at ±1 the leaning schemes several times as likely. */
@@ -261,6 +296,8 @@ function candidate(spec, A, k) {
     const lo = clamp(D.L[0] + (D.fixed ? 0 : dlo), D.floor ?? 0.22, 0.9), hi = clamp(D.L[1] + (D.fixed ? 0 : dhi), lo + (D.fixed ? 0.12 : 0.18), 0.97);
     P[role] = { L: [r3(lo), r3(hi)], C: r3(cmax * D.c * mute), h: r3(spec.hues?.[role] !== undefined ? hueOf(spec.hues[role]) : slot[D.slot]), ...(D.airy ? { airy: true } : {}) };
   }
+  // value groups: each grouped role takes its group's band, moved by the key (the void's fixed sky keeps its own)
+  if (A.values) for (const [role, g] of Object.entries(A.values.of)) if (P[role] && !RL[role].fixed) P[role].L = groupBand(A, g);
   // the sky stays the brightest thing (by day its light end above the ground's); in vacuum the void stays the darkest
   if (!vac) P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
   // a teal sky saturated is half of the teal-and-orange cliché: in that band the sky stays under its line
@@ -395,13 +432,26 @@ export const PALETTE_LAWS = Object.freeze([
     const hits = [tealOrange && 'teal-and-orange', black && 'black shadows', loud && 'everything loud'].filter(Boolean);
     return { ok: !hits.length, value: hits.join(', ') || 'none' };
   } },
+  { law: 'value-groups', values: true, want: 'the land reads in its value groups: each grouped role\'s middle in its group\'s band, the groups apart', test: (K) => {
+    const V = K.read.values, at = Object.fromEntries(Object.keys(PALETTE_VALUES[V.groups].bands).map((g) => [g, []])), stray = [];
+    for (const [role, g] of Object.entries(V.of)) {
+      const L = Lof(mid(K.roles[role])), [lo, hi] = K.read.bands[g];
+      at[g].push(L);
+      if (L < lo - 0.03 || L > hi + 0.03) stray.push(role);
+    }
+    // the gap between neighbouring groups: the lightest middle below to the darkest above
+    const order = Object.keys(at).filter((g) => at[g].length), gaps = order.slice(1).map((g, i) => Math.min(...at[g]) - Math.max(...at[order[i]]));
+    const gap = gaps.length ? Math.min(...gaps) : 0;
+    return { ok: !stray.length && gap >= 0.05, value: `${stray.length ? `out of group: ${stray.join(', ')}` : 'every role in its group'} · gap ${gap.toFixed(2)}` };
+  } },
   { law: 'off-the-shelf', want: 'not a stock kit again: the ground, sky and foliage sit away from every shipped kit\'s, the HUD from the stock HUD', test: (K) => {
     const near = STOCK.filter((s) => s.vac === (K.read.air === 'none')).map((s) => ({ id: s.id, d: (deltaE(mid(K.roles.ground), s.ground) + deltaE(K.roles.sky.at(-1), s.sky) + deltaE(mid(K.roles.foliage), s.foliage)) / 3 })).reduce((x, y) => (y.d < x.d ? y : x), { id: '', d: Infinity });
     const hud = Math.min(deltaE(hexToRgb(K.ui.bg), HUD_STOCK.bg) + deltaE(hexToRgb(K.ui.accent), HUD_STOCK.accent), 1);
     return { ok: near.d >= 0.05 && hud >= 0.06, value: `nearest kit ${near.id} at ${near.d.toFixed(3)} · HUD ${hud.toFixed(3)} from stock`, novelty: Math.min(near.d, 0.25) / 0.25 };
   } },
 ]);
-function check(K) { const air = K.read.air ?? 'full'; return PALETTE_LAWS.filter((l) => !l.air || l.air.includes(air)).map((l) => ({ law: l.law, want: l.want, ...l.test(K) })); }
+// (a law marked `values` is read only on a spec that names value groups: a spec without them is checked as it always was)
+function check(K) { const air = K.read.air ?? 'full'; return PALETTE_LAWS.filter((l) => (!l.air || l.air.includes(air)) && (!l.values || K.read.values)).map((l) => ({ law: l.law, want: l.want, ...l.test(K) })); }
 
 const hexRoles = (roles) => Object.fromEntries(Object.entries(roles).map(([k, r]) => [k, r.map(rgbToHex)]));
 
@@ -409,7 +459,8 @@ const SOLVED = new Map();
 /** One candidate's ramps, HUD, checks and score. */
 function weigh(cand, A, shift) {
   const roles = rolesOf(cand), ui = Object.fromEntries(Object.entries(uiOf(roles, cand, A.key, cand.P)).map(([n, c]) => [n, rgbToHex(c)]));
-  const K = { roles, ui, read: { scheme: A.scheme, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}) } }, checks = check(K);
+  const groups = A.values ? { values: A.values, bands: Object.fromEntries(Object.keys(PALETTE_VALUES[A.values.groups].bands).map((g) => [g, groupBand(A, g)])) } : {};
+  const K = { roles, ui, read: { scheme: A.scheme, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}), ...groups } }, checks = check(K);
   const passed = checks.filter((c) => c.ok).length, novelty = checks.find((c) => c.law === 'off-the-shelf').novelty, fams = hueFamilies(roles).length;
   return { cand, roles, ui, checks, score: passed * 10 + novelty * 8 + (fams >= 2 && fams <= 3 ? 2 : 0) };
 }
@@ -440,7 +491,7 @@ export function solvePalette(spec0 = {}) {
   const contract = {
     id: `pal-${fingerprint([solved, best.k]).slice(0, 8)}`,
     spec,
-    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}), ...(still.preset ? { preset: still.preset } : {}), ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
+    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}), ...(A.values ? { values: A.values.groups } : {}), ...(still.preset ? { preset: still.preset } : {}), ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
     roles: hexRoles(roles),
     light: rgbToHex(light), shadow: rgbToHex(shadow), fog: rgbToHex(A.air === 'none' ? roles.sky[1] : roles.far[Math.min(roles.far.length - 1, Math.floor(roles.far.length * 0.6))]),   // (in vacuum what the view fades into is the void)
     ui,
