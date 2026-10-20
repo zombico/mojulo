@@ -55,6 +55,15 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   few pixels, and a pixel covering more than the coarsest feature's share does no work, so the detail is a sphere round
   the eye that ends at the grain. Under the threshold, or with no `grit`, nothing is emitted. The boulders stay polygon
   for now. `landform.js` records the joints it lays (`s.joints`); its output is unchanged.
+- **A rock's skin.** The land's shading takes `skin` (with `grit`): `true` for the rock's own, or one of `ROCK_SKINS`
+  (`fluted`, `sculpted`, `slabs`, `bedded`; granite's blocky joints give sculpted, basalt's columns fluted, slate's
+  cleavage slabs, a stone with strata bedded). The page then draws the near rock in its CHUNKS rather than its joints'
+  grooves: Voronoi regions in 3D, warped by noise and laid in the fabric's own frame (along the joint strike, across it,
+  up), so the chunks are the blocks the joints bound and every face through one agrees. Each chunk stands proud or sits
+  back by its own dice, its edge rounded into a recess, and one sample toward the sun casts its shadow into the recess
+  beside it. The height bumps the face's light by screen-space derivatives, and the chunks read only on the steep faces
+  the landform broke. A skin's chunks read from farther than a groove, so the visual domain grows to them. Without
+  `skin`, the page's fabric is byte for byte as pinned.
 
 ### Geocube styles: principles and the laws that check them
 

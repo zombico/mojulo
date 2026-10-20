@@ -29,6 +29,34 @@ const D2R = Math.PI / 180, cosD = (a) => Math.cos(a * D2R);
 const READ = { blocky: { width: 0.025, hold: 0.75 }, columnar: { width: 0.022, hold: 0.95 }, slabby: { width: 0.04, hold: 0.9 } };
 export const FABRIC_GROUPS = Object.freeze(['isekai:cliff']);
 
+/**
+ * SKINS (`skin`, opt-in): the rock's chunks, not its lines. One field, Voronoi regions in 3D warped by Perlin noise, laid
+ * in the fabric's own frame (along the joint strike, across it, up; a slate's along its cleavage), so the chunks are the
+ * blocks the joints bound and every face through one agrees. Each chunk stands proud or sits back by its own dice, its
+ * edge rounded into a recess (lit on its sunward wall, in its neighbour's cast shadow on the other), its skin uneven.
+ *   cell      the chunk's size in the fabric's frame, metres: [along, across, up]
+ *   warp      how far the outlines wander (m), over `warpScale` m;  bevel, gap, gapDepth: the rounded edge and the recess
+ *   proud     how far a chunk stands out or back;  rough: its skin;  flute: [amp, across m, up m] vertical flutes
+ *   beds      [height, ledge] m: courses of ledges (a stone with strata)
+ * By pattern: blocky (granite) → sculpted, columnar (basalt) → fluted, slabby (slate) → slabs, strata → bedded.
+ */
+export const ROCK_SKINS = Object.freeze({
+  fluted: Object.freeze({ cell: [0.7, 0.7, 2.4], warp: 0.25, warpScale: 1.2, bevel: 0.1, gap: 0.03, gapDepth: 0.14, proud: 0.14, rough: 0.01, flute: [0.014, 0.16, 1.4], beds: null }),
+  sculpted: Object.freeze({ cell: [0.9, 0.9, 1.6], warp: 0.3, warpScale: 1.0, bevel: 0.14, gap: 0.05, gapDepth: 0.22, proud: 0.2, rough: 0.016, flute: [0.008, 0.12, 1.0], beds: null }),
+  slabs: Object.freeze({ cell: [1.1, 1.1, 0.42], warp: 0.25, warpScale: 1.2, bevel: 0.12, gap: 0.035, gapDepth: 0.16, proud: 0.2, rough: 0.006, flute: [0, 1, 1], beds: null }),
+  bedded: Object.freeze({ cell: [1.4, 1.4, 0.3], warp: 0.15, warpScale: 1.5, bevel: 0.08, gap: 0.015, gapDepth: 0.05, proud: 0.06, rough: 0.01, flute: [0, 1, 1], beds: [0.32, 0.09] }),
+});
+export const ROCK_SKIN_IDS = Object.freeze(Object.keys(ROCK_SKINS));
+const SKIN_OF = { blocky: 'sculpted', columnar: 'fluted', slabby: 'slabs' };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
+/** The skin's frame: rows along the fabric's strike, across it, and up (a slate's up is its cleavage's normal). */
+function skinFrame(pattern, masters) {
+  if (pattern === 'slabby') { const up = unit(masters[0].n), along = unit(masters[1].n); return [along, unit(cross(up, along)), up]; }
+  const along = unit([masters[0].n[0], masters[0].n[1], 0]);
+  return [along, unit(cross([0, 0, 1], along)), [0, 0, 1]];
+}
+
 /** The joint sets of a fabric: [{ n, s }] (unit normal, spacing in metres), from its pattern, strike, spacing, cell. */
 function setsOf(J) {
   const P = JOINT_PATTERNS[J.pattern] ?? JOINT_PATTERNS.blocky, cell = J.cell ?? P.cell, c = Math.cos(J.strike * D2R), s = Math.sin(J.strike * D2R);
@@ -41,7 +69,7 @@ function setsOf(J) {
   return [{ n: [c, s, 0], s: J.spacing * cell[0] }, { n: [-s, c, 0], s: J.spacing * cell[1] }];
 }
 
-export function rockFabric({ joints = null, strata = null, rock = 'granite', grit = 0.6, sun, ambient = 0.35, seed = 1 } = {}) {
+export function rockFabric({ joints = null, strata = null, rock = 'granite', grit = 0.6, sun, ambient = 0.35, seed = 1, skin = undefined } = {}) {
   if (!sun) throw new Error('fabric: sun is the direction toward the key light');
   const pattern = joints?.pattern ?? ROCK_JOINTS[typeof rock === 'string' ? rock : ''] ?? 'blocky';
   const J = { pattern, strike: joints?.strike ?? Math.round(hash01(seed, 3, 7) * 180), spacing: joints?.spacing ?? 3, cell: joints?.cell, dip: joints?.dip };
@@ -63,6 +91,12 @@ export function rockFabric({ joints = null, strata = null, rock = 'granite', gri
   // the sphere's edge: where the widest groove (a joint's, or a soft bed's step) first spans `px` pixels; farther, no
   // feature can be read, so no pixel does the work
   const PX = 1.5, widest = Math.max(...sets.map((x) => x.w), beds ? 0.06 : 0);
+  // the skin (opt-in): by the pattern, or named; a stone with strata is bedded
+  const skinId = skin === undefined || skin === false ? null : skin === true ? (beds ? 'bedded' : SKIN_OF[pattern] ?? 'sculpted') : skin;
+  if (skinId !== null && !ROCK_SKINS[skinId]) throw new Error(`fabric: skin is true (by the rock's pattern) or one of ${ROCK_SKIN_IDS.join(', ')}`);
+  const K = skinId ? ROCK_SKINS[skinId] : null;
+  const skinOut = K ? { skin: { id: skinId, frame: skinFrame(pattern, masters).map((r) => r.map(r4)), cell: K.cell, warp: K.warp, warpScale: K.warpScale, bevel: K.bevel, gap: K.gap,
+    gapDepth: r4(K.gapDepth * g), proud: r4(K.proud * g), rough: r4(K.rough * g), flute: [r4(K.flute[0] * g), K.flute[1], K.flute[2]], ...(K.beds ? { beds: K.beds } : {}) } } : {};
   return {
     groups: [...FABRIC_GROUPS], sun: sun.map(r4), ambient: r4(ambient), sets,
     ...(beds ? { beds, recess: r4(0.08 * g) } : {}),
@@ -71,6 +105,8 @@ export function rockFabric({ joints = null, strata = null, rock = 'granite', gri
     // the joints read where the landform breaks the ground on them: its steep band (degrees), the gentler slopes soft
     steep: [r4(cosD((joints?.steep ?? 38) - (joints?.band ?? 12) / 2 - 6)), r4(cosD((joints?.steep ?? 38) + (joints?.band ?? 12) / 2))], grain: { size: r4(grain * 2), amount: r4(0.1 * g) },
     // the level of detail: a layer fades in from `px` pixels across; past `maxFoot` metres a pixel, none is drawn
-    px: PX, maxFoot: r4(widest / PX),
+    // (a skin's chunks read from farther than any groove: from when the smallest spans four times `px`)
+    px: PX, maxFoot: r4(K ? Math.max(widest / PX, Math.min(...K.cell) / (PX * 4)) : widest / PX),
+    ...skinOut,
   };
 }

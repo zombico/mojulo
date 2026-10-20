@@ -41,9 +41,9 @@ function voronoi(x, y, S, seed) {
 }
 
 const SKINS = {
-  fluted: { title: 'fluted (tall narrow columns, vertical flutes)', cell: [0.35, 1.6], warp: 0.35, warpScale: 0.9, bevel: 0.07, gap: 0.03, gapDepth: 0.12, proud: 0.12, rough: 0.012, flute: 0.03, beds: null,
+  fluted: { title: 'fluted (tall columns, soft vertical flutes)', cell: [0.7, 2.4], warp: 0.25, warpScale: 1.2, bevel: 0.1, gap: 0.03, gapDepth: 0.14, proud: 0.14, rough: 0.01, flute: 0.014, fluteScale: [0.16, 1.4], beds: null,
     ramp: ['#3e2c1e', '#6b4e33', '#9a7450', '#c4a07a', '#e8d2b0'] },
-  sculpted: { title: 'sculpted (tall warped chunks, deep gaps)', cell: [0.6, 1.3], warp: 0.6, warpScale: 0.7, bevel: 0.1, gap: 0.05, gapDepth: 0.2, proud: 0.18, rough: 0.02, flute: 0.012, beds: null,
+  sculpted: { title: 'sculpted (tall chunks, deep recesses)', cell: [0.9, 1.6], warp: 0.3, warpScale: 1.0, bevel: 0.14, gap: 0.05, gapDepth: 0.22, proud: 0.2, rough: 0.016, flute: 0.008, fluteScale: [0.12, 1.0], beds: null,
     ramp: ['#33261a', '#5c4630', '#8a6c4c', '#b3946e', '#d9c19c'] },
   slabs: { title: 'stacked slabs (wide flat chunks, strong bevels)', cell: [1.1, 0.42], warp: 0.25, warpScale: 1.2, bevel: 0.12, gap: 0.035, gapDepth: 0.16, proud: 0.2, rough: 0.006, flute: 0, beds: null,
     ramp: ['#3a3a3c', '#646466', '#8e8c88', '#b6b2aa', '#dcd6cc'] },
@@ -66,7 +66,7 @@ function skin(S, { w = 4, h = 3, ppm = 64, seed = 7 } = {}) {
     z += ((hash01(id[0], id[1], seed + 11) - 0.5) * (x - (id[0] + 0.5) * S.cell[0]) + (hash01(id[0], id[1], seed + 13) - 0.5) * (y - (id[1] + 0.5) * S.cell[1])) * 0.08;
     // inside: Perlin unevenness, and the flutes (ridged, long in y)
     z += fractal2(x / 0.25, y / 0.25, { seed: seed + 15, octaves: 4 })[0] * S.rough;
-    if (S.flute) z += fractal2(x / 0.06, y / 0.8, { seed: seed + 17, octaves: 3, flavour: 'ridged' })[0] * S.flute;
+    if (S.flute) z += fractal2(x / S.fluteScale[0], y / S.fluteScale[1], { seed: seed + 17, octaves: 3, flavour: 'ridged' })[0] * S.flute;
     // beds: courses of ledges, each stepping back a little under the one above, its lip rounded
     if (S.beds) {
       const b = (y + 0.04 * gnoise2(x / 0.6, 0, seed + 19)) / S.beds.h, bi = Math.floor(b), t = b - bi;
@@ -75,7 +75,8 @@ function skin(S, { w = 4, h = 3, ppm = 64, seed = 7 } = {}) {
     }
     height[k] = z; cellTone[k] = own;
   }
-  const lit = lightRelief({ W, H, px, height, inside }, { az: 130, el: 40, ambient: 0.32, wrap: 0.2, reach: 0.35, soft: 0.01, floor: 0.3, radius: 0.05, cavity: 0.55, edge: 0.18 });
+  // a gap is a recess, not an ink line: lit on its sunward wall, in cast shadow on the other, the hollow darkening light
+  const lit = lightRelief({ W, H, px, height, inside }, { az: 130, el: 34, ambient: 0.34, wrap: 0.25, reach: 0.6, soft: 0.03, floor: 0.32, radius: 0.08, cavity: 0.15, edge: 0.2 });
   const ramp = S.ramp.map(hex), tone = S.tone ? S.tone.map(hex) : null, out = Buffer.alloc(W * H * 4);
   for (let k = 0; k < W * H; k++) {
     const t = 0.5 + (lit.value[k] - 1) * 0.95 + (cellTone[k] - 0.5) * 0.12;

@@ -39,5 +39,7 @@ describe('rock takes pixels in a gritty style', () => {
     expect(lowerGeocube(readGeocube('valley-morning'), 'outside').meru.shading.grit).toBeUndefined();
     expect(() => readGeocube({ from: 'valley-morning', grit: 2 })).toThrow(/grit is how gritty the style is/);
     expect(() => readLocalMeru({ shading: { grit: -1 } })).toThrow(/shading\.grit is 0\.\.1/);
+    expect(() => readLocalMeru({ shading: { grit: 0.7, skin: 'moss' } })).toThrow(/shading\.skin is true/);
+    expect(build({ grit: 0.7, skin: true }).fabric.skin.id).toBe('sculpted');
   });
 });

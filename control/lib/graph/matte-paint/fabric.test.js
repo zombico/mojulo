@@ -41,6 +41,24 @@ describe('a rock\'s fabric', () => {
   });
 });
 
+describe('a rock\'s skin', () => {
+  it('is the rock\'s own by its pattern, framed along its fabric, and absent unless asked', () => {
+    expect(rockFabric({ joints: { pattern: 'blocky', strike: 30, spacing: 3 }, sun }).skin).toBeUndefined();
+    const S = rockFabric({ joints: { pattern: 'blocky', strike: 30, spacing: 3 }, sun, skin: true }).skin;
+    expect(S.id).toBe('sculpted');
+    expect(angle(S.frame[0], [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6), 0])).toBeLessThan(0.5);
+    expect(S.frame[2]).toEqual([0, 0, 1]);
+    expect(rockFabric({ rock: 'basalt', sun, skin: true }).skin.id).toBe('fluted');
+    expect(rockFabric({ rock: 'granite', sun, skin: true, strata: { layers: [{ b: 0, t: 1, hard: true }], tanD: 0 } }).skin.id).toBe('bedded');
+    expect(rockFabric({ rock: 'granite', sun, skin: 'slabs' }).skin.id).toBe('slabs');
+    expect(() => rockFabric({ rock: 'granite', sun, skin: 'moss' })).toThrow(/skin is true/);
+  });
+  it('reads from farther than a groove: the sphere grows to the chunks', () => {
+    const F = rockFabric({ rock: 'granite', sun, skin: true }), G = rockFabric({ rock: 'granite', sun });
+    expect(F.maxFoot).toBeGreaterThan(G.maxFoot);
+  });
+});
+
 describe('the page\'s fabric channel', () => {
   const face = { corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], fill: '#808080', group: 'isekai:cliff' };
   it('is emitted with a fabric and not one byte without', () => {
@@ -49,5 +67,7 @@ describe('the page\'s fabric channel', () => {
     expect(withF).toMatch(/rock fabric/);
     expect(withF).toMatch(/uFabMaxFoot/);
     expect(emitThreeWorld({ faces: [face], fabric: { groups: [], sets: [] } })).toBe(plain);
+    expect(withF).not.toMatch(/skinH/);
+    expect(emitThreeWorld({ faces: [face], fabric: rockFabric({ rock: 'granite', sun, skin: true }) })).toMatch(/skinH/);
   });
 });

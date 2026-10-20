@@ -92,12 +92,59 @@ const FRAG_MAIN = `{
 }
 `;
 
+// THE SKIN (`cfg.skin`, opt-in; matte-paint/fabric.js ROCK_SKINS): the rock's chunks, a 3D Voronoi warped by noise in the
+// fabric's own frame. Its height bumps the face's normal (by the screen-space derivatives: no second evaluation), one
+// sample toward the sun casts each chunk's shadow into the recess beside it, and its cells are the joints, so the plane
+// grooves step aside. Spliced only when the fabric names a skin: without one, not a byte of it.
+const SKIN_HEAD = `uniform int uSkinOn; uniform mat3 uSkinF; uniform vec3 uSkinCell; uniform vec4 uSkinA; uniform vec4 uSkinB; uniform vec4 uSkinC;
+float skinH(vec3 p) {
+  vec3 w = (vec3(fabNoise(p / uSkinA.y), fabNoise(p / uSkinA.y + 5.2), fabNoise(p / uSkinA.y - 3.1)) - 0.5) * 2.0 * uSkinA.x;
+  vec3 q = (uSkinF * (p + w)) / uSkinCell, c = floor(q), id = c;
+  float f1 = 1e9, f2 = 1e9;
+  for (int z = -1; z <= 1; z++) for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec3 cc = c + vec3(float(x), float(y), float(z)), pt = cc + 0.15 + 0.7 * vec3(fabHash(cc), fabHash(cc + 17.1), fabHash(cc + 31.7));
+    float d = length(q - pt);
+    if (d < f1) { f2 = f1; f1 = d; id = cc; } else if (d < f2) f2 = d;
+  }
+  float minc = min(uSkinCell.x, min(uSkinCell.y, uSkinCell.z)), edge = (f2 - f1) * minc * 0.5, own = fabHash(id + 7.7);
+  float z = (own - 0.5) * uSkinB.y - uSkinA.z * (1.0 - smoothstep(0.0, uSkinA.z * 1.5, edge));
+  if (edge < uSkinA.w) z -= uSkinB.x * (1.0 - edge / uSkinA.w);
+  z += (fabNoise(p / 0.25) - 0.5) * 2.0 * uSkinB.z + (fabNoise(p / 0.11 + 3.3) - 0.5) * uSkinB.z;
+  if (uSkinC.x > 0.0) z += (1.0 - abs(2.0 * fabNoise(vec3(p.x / uSkinC.y, p.y / uSkinC.y, p.z / uSkinC.z)) - 1.0)) * uSkinC.x;
+  if (uSkinB.w > 0.0) { float b = (p.z + 0.04 * (fabNoise(p / 0.6) - 0.5)) / uSkinB.w, t = fract(b); z -= uSkinC.w * smoothstep(0.55, 1.0, t) - uSkinC.w * 0.4 * (fabHash(vec3(floor(b), 0.0, 5.0)) - 0.5); }
+  return z;
+}
+`;
+const SKIN_MAIN = `    if (uSkinOn == 1) {
+      // (the chunks read where the joints do: on the steep faces the landform broke on them; a soft slope keeps its soil)
+      float minc = min(uSkinCell.x, min(uSkinCell.y, uSkinCell.z)), lodS = smoothstep(uFabPx * 4.0, uFabPx * 10.0, minc / foot) * steepJ;
+      dbM = lodS;
+      if (lodS > 0.0) {
+        float h = skinH(fp), dhx = dFdx(h), dhy = dFdy(h);
+        vec3 R1 = cross(dpy, Ng), R2 = cross(Ng, dpx); float det = dot(dpx, R1);
+        g += sign(det) * (dhx * R1 + dhy * R2) / max(abs(det), 1e-10) * lodS;
+        // the cast shadow: the skin a step toward the sun standing above the ray to it
+        vec3 st = uFabSun - Ng * dot(uFabSun, Ng); float sl = length(st);
+        if (sl > 1e-3) { st /= sl; float occ = skinH(fp + st * 0.08) - h - 0.08 * dot(uFabSun, Ng) / sl; alb *= 1.0 - 0.45 * smoothstep(0.0, 0.03, occ) * lodS; }
+        cav = max(cav, 0.3 * (1.0 - smoothstep(-0.12, -0.02, h)) * lodS);
+      }
+    }
+`;
+const SKIN_UNIFORMS = `
+      if (F.skin) {
+        const K = F.skin, r = K.frame, m = new THREE.Matrix3(); m.set(r[0][0], r[0][1], r[0][2], r[1][0], r[1][1], r[1][2], r[2][0], r[2][1], r[2][2]);
+        Object.assign(sh.uniforms, { uSkinOn: { value: 1 }, uSkinF: { value: m }, uSkinCell: { value: new THREE.Vector3(K.cell[0], K.cell[1], K.cell[2]) },
+          uSkinA: { value: V4(K.warp, K.warpScale, K.bevel, K.gap) }, uSkinB: { value: V4(K.gapDepth, K.proud, K.rough, K.beds ? K.beds[0] : 0) },
+          uSkinC: { value: V4(K.flute[0], K.flute[1], K.flute[2], K.beds ? K.beds[1] : 0) }, uFabSets: { value: 0 }, uFabBeds: { value: 0 } });
+      }`;
+
 export function fabricScript(cfg) {
+  const skin = !!cfg.skin, FH = skin ? FRAG_HEAD + SKIN_HEAD : FRAG_HEAD, FM = skin ? FRAG_MAIN.replace('    float lodG', SKIN_MAIN + '    float lodG') : FRAG_MAIN;
   return `
 // --- rock fabric: what the rock's own joints and beds do to a face, drawn only where they can be seen ---
 (function () {
   const F = ${safeJson(cfg)}, groups = new Set(F.groups), V4 = (a, b, c, d) => new THREE.Vector4(a, b, c, d);
-  const VH = ${safeJson(VERT_HEAD)}, VM = ${safeJson(VERT_MAIN)}, FH = ${safeJson(FRAG_HEAD)}, FM = ${safeJson(FRAG_MAIN)};
+  const VH = ${safeJson(VERT_HEAD)}, VM = ${safeJson(VERT_MAIN)}, FH = ${safeJson(FH)}, FM = ${safeJson(FM)};
   const N = [0, 1, 2, 3, 4, 5].map((i) => (F.sets[i] ? V4(F.sets[i].n[0], F.sets[i].n[1], F.sets[i].n[2], F.sets[i].s) : V4(0, 0, 1, 1)));
   const K = [0, 1, 2, 3, 4, 5].map((i) => (F.sets[i] ? V4(F.sets[i].w, F.sets[i].d, F.sets[i].hold, F.sets[i].phase) : V4(0, 0, 0, 0)));
   const B = F.beds, pad = (a) => [...(a || []), ...Array(16).fill(1)].slice(0, 16);
@@ -110,7 +157,7 @@ export function fabricScript(cfg) {
         uFabDip: { value: new THREE.Vector2(B ? B.dip[0] : 0, B ? B.dip[1] : 0) }, uFabRecess: { value: F.recess || 0 },
         uFabSteep: { value: new THREE.Vector2(F.steep ? F.steep[0] : 1, F.steep ? F.steep[1] : 0.9) }, uFabTilt: { value: F.tilt }, uFabCav: { value: F.cavity }, uFabGrain: { value: F.grain.size }, uFabGrainAmt: { value: F.grain.amount },
         uFabPx: { value: F.px }, uFabMaxFoot: { value: F.maxFoot }, uFabDebug: { value: F.debug === 'relief' ? 1 : F.debug === 'domain' ? 2 : 0 }, uFabMasters: { value: F.masters ?? Math.ceil(F.sets.length / 2) },
-      });
+      });${skin ? SKIN_UNIFORMS : ''}
       sh.vertexShader = VH + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n' + VM);
       sh.fragmentShader = FH + sh.fragmentShader.replace('#include <fog_fragment>', FM + '#include <fog_fragment>');
     };
