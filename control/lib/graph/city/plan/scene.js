@@ -11,6 +11,7 @@
  * each lot as a plain mass in its skin's colour instead: the plan judged as a plan.
  */
 import { designCity } from './design.js';
+import { CITY_KEYS, WORLD_CHANNELS } from './card.js';
 import { skinLot } from './facades.js';
 import { strHash } from './dice.js';
 import { CITY_METERS_PER_UNIT, METRO } from '../fractal-city.js';
@@ -28,6 +29,7 @@ import { cityPedestrians, readPeople } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
+import { stalkerEye, skylineFaces } from './eye.js';
 import { resolveLookSpec } from '../../era/look.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
 import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
@@ -61,6 +63,38 @@ function box(x0, y0, x1, y1, z0, z1, wall, roof, group) {
   ];
 }
 const toUnits = (f) => ({ ...f, corners: f.corners.map((p) => p.map((v) => r3(v / U))) });
+// sRGB hex → linear rgb: an instance's tint multiplies its template's (linear) vertex colour on the page
+const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const linHex = (h) => [1, 3, 5].map((k) => Math.round(lin(parseInt(h.slice(k, k + 2), 16)) * 1e4) / 1e4);
+// a level's lowered channels (level.js: its game, its pilot and its figure, its camera, events and walls) are the
+// world's, not the plan's
+const LOWERED = ['kind', 'title', 'walk', 'game', 'entities', 'camera', 'events', 'colliders', 'figures'];
+const planOf = (m) => Object.fromEntries(Object.entries(m).filter(([k]) => !LOWERED.includes(k)));
+
+/** The city's masses as the volumetric fog's and the cloud deck's solids (world-kinds.js fogBoxes), in units, as
+ *  footprints: a level's segment and its ring (the fog clips where it is played), else the whole plan. */
+export function cityFogBoxes(m) {
+  // (the manifest as the world has it by then, other channels' keys on it: only the plan's own are read)
+  const d = designCity(Object.fromEntries(Object.entries(m).filter(([k]) => CITY_KEYS.includes(k) || WORLD_CHANNELS.includes(k)))), seg = m.level ? (d.segments || []).find((x) => x.id === m.level.segment) : null, ring = 140;
+  const near = (l) => !seg || !(l.x1 < seg.rect.x0 - ring || l.x0 > seg.rect.x1 + ring || l.y1 < seg.rect.y0 - ring || l.y0 > seg.rect.y1 + ring);
+  return d.lots.filter((l) => l.h > 0 && l.use !== 'parking' && near(l)).map((l) => ({ x: r3(l.x0 / U), y: r3(l.y0 / U), w: r3((l.x1 - l.x0) / U), d: r3((l.y1 - l.y0) / U), z0: 0, z1: r3(l.h / U) }));
+}
+
+/** The FAR ring (eye.js): every lot past the level's ring as one instance of a unit box (its walls and its roof two
+ *  instanced meshes, lit as the city is, tinted with the lot's own colours), in units: thousands of lots, a few numbers
+ *  each, not five faces. */
+function farRepeats(lots, G) {
+  if (!lots.length) return [];
+  const q = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
+  const walls = q.map((a, i) => { const b = q[(i + 1) % 4], n = [b[1] - a[1], a[0] - b[0], 0]; return { corners: [[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], 1], [a[0], a[1], 1]], normal: n, fill: shade('#ffffff', n) }; });
+  const roof = [{ corners: [[-0.5, -0.5, 1], [0.5, -0.5, 1], [0.5, 0.5, 1], [-0.5, 0.5, 1]], normal: [0, 0, 1], fill: shade('#ffffff', [0, 0, 1], -0.05) }];
+  const at = (l, c) => ({ pos: [r3((l.x0 + l.x1) / 2 / U), r3((l.y0 + l.y1) / 2 / U), 0], scale: [r3((l.x1 - l.x0 - 0.1) / U), r3((l.y1 - l.y0 - 0.1) / U), r3(l.h / U)], tint: linHex(c) });
+  const cs = lots.map((l) => lotColours(l, G));
+  return [
+    { group: 'city:far-walls', template: walls, transforms: lots.map((l, i) => at(l, cs[i].wall)) },
+    { group: 'city:far-roofs', template: roof, transforms: lots.map((l, i) => at(l, cs[i].roof)) },
+  ];
+}
 
 /** A lot's wall and roof colours for the massing and the plan sheet: its skin's family, hashed off its id. */
 export function lotColours(lot, G) {
@@ -164,12 +198,16 @@ export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
 /** The `city` world kind: the recipe → the city in its facades (or its massing), walkable, the design's readout attached. */
 export function assembleCityScene(manifest, ctx = {}) {
   // a level's lowered channels (level.js) are the world's, not the plan's
-  const { kind, title, walk: walkFlag, game: _g, entities: _e, camera: _c, events: _v, colliders: _k, ...recipe } = manifest;
+  const { title, walk: walkFlag } = manifest, recipe = planOf(manifest);
   const d0 = designCity(recipe), G = d0.grammar;
   // a segment played as a level: its own masses and a ring of the city round it (the backdrop past its walls)
   const seg = d0.plan.level ? (d0.segments || []).find((x) => x.id === d0.plan.level.segment) : null;
   const ring = 140, near = (r) => !seg || !(r.x1 < seg.rect.x0 - ring || r.x0 > seg.rect.x1 + ring || r.y1 < seg.rect.y0 - ring || r.y0 > seg.rect.y1 + ring);
   const d = seg ? { ...d0, lots: d0.lots.filter(near), sites: d0.sites.filter((x) => near(x.rect)) } : d0;
+  // a HERO's segment (level.hero, the city stalker) is seen from its roofs: the stalker's eye plans its air, the rest of
+  // the plan stands round it as massing and a skyline band past the plan's edge (eye.js)
+  const eyePlan = seg && d0.plan.level.hero ? stalkerEye(d0, seg) : null;
+  const farLots = eyePlan ? d0.lots.filter((l) => !near(l) && l.use !== 'parking' && l.h > 0) : [];
   const W = seg ? seg.rect.x1 - seg.rect.x0 : d.frame.W, D = seg ? seg.rect.y1 - seg.rect.y0 : d.frame.D;
   // the look lights the city (the world-wide channel adds its air and sky after); with none, a paint's cube's look does,
   // and the city takes that look's air and sky itself
@@ -178,10 +216,10 @@ export function assembleCityScene(manifest, ctx = {}) {
   LIT = lit ? lit.light : CITY_LIGHT;
   const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
   const crop = seg ? { x0: seg.rect.x0 - ring, y0: seg.rect.y0 - ring, x1: seg.rect.x1 + ring, y1: seg.rect.y1 + ring } : null;
-  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop, eyePlan, farLots, whole: d0 }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
 }
 
-function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title, walkFlag, ctx }) {
+function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop, eyePlan = null, farLots = [], whole = d }, { title, walkFlag, ctx }) {
   // the green (green.js), grown once: its ground laid with the city's, its plants after the masses; a level grows its reach's
   const inCrop = (p) => !crop || (p.strip ? [p.a, p.b].some(([x, y]) => x >= crop.x0 && x <= crop.x1 && y >= crop.y0 && y <= crop.y1) : p.x >= crop.x0 && p.x <= crop.x1 && p.y >= crop.y0 && p.y <= crop.y1);
   const green = d.plan.fidelity === 'massing' ? [] : cityGreen(d).filter(inCrop);
@@ -249,6 +287,12 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }
   const air = spec && spec.ref.air;
+  // the stalker's eye (eye.js): the far ring and the skyline band, and its air, per unit (fog density is per world unit)
+  const bg0 = '#cfd6dc', hz = eyePlan ? { density: +(eyePlan.haze.density * U).toPrecision(6), hazeHeight: r3(eyePlan.haze.hazeHeight / U) } : null;
+  if (eyePlan) {
+    const hazeColour = air ? air.fog.color : bg0;
+    scene = { ...scene, repeats: [...(scene.repeats || []), ...farRepeats(farLots, G)], faces: [...scene.faces, ...skylineFaces(whole, eyePlan, { fill: scaleHex(hazeColour, 0.55), seed: d.plan.seed }).map(toUnits)] };
+  }
   // the streets driven (traffic.js): lanes and signalled junctions the world path fills with its car bank, real-size
   const C = d.plan.fidelity !== 'massing' ? readCars(d.plan.cars) : null, T = C ? cityTraffic(d, crop) : null;
   const traffic = T && T.carLanes.length ? {
@@ -263,11 +307,14 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     ...scene,
     ...traffic,
     ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
-    bg: '#cfd6dc',
+    bg: bg0,
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
     // by it: lookLit); a paint's cube's look is laid here
-    ...(spec && !own ? { lookLit: true, lookHaze: CITY_HAZE } : {}),
-    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1 } } : {}),
+    ...(spec && !own ? { lookLit: true, lookHaze: hz ? +(hz.density / air.fog.density).toPrecision(6) : CITY_HAZE } : {}),
+    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: hz ? hz.density : +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1 } } : {}),
+    // a hero's air with no look of its own: the sheet's grey, thickening with distance and thinning with height
+    ...(hz && !spec ? { haze: { color: bg0, density: hz.density } } : {}),
+    ...(hz ? { hazeHeight: hz.hazeHeight } : {}),
     walk: walkFlag === false ? false : { speed: r3(G.walk.speed * 1.1 / U), spawn: u(eye), minEye: r3(1.7 / U), gravity: r3(22 / U), radius: r3(0.4 / U) },
     metersPerUnit: U,
     city: { grammar: typeof d.plan.grammar === 'string' ? d.plan.grammar : `${d.plan.grammar.from}+`, label: G.label, ...(spec ? { look: spec.id } : {}), ...(paint ? { paint: paint.cube.id } : {}), play: d.plan.play, fidelity: d.plan.fidelity, stats: d.stats, laws: d.laws.map((l) => ({ id: l.id, ok: l.ok, findings: l.findings.length })) },

@@ -63,7 +63,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
 
   it('every key the platform rule reads is where the kernel runs it: ported, the fight\'s, or named lost', () => {
     const keys = new Set(['type']);
-    for (const f of ['rules-platform', 'maneuvers', 'combat-melee']) for (const x of SRC(`lib/graph/worlds/controllable/${f}.js`).matchAll(/\br\.([A-Za-z]+)/g)) keys.add(x[1]);
+    for (const f of ['rules-platform', 'maneuvers', 'combat-melee', 'wall', 'swing']) for (const x of SRC(`lib/graph/worlds/controllable/${f}.js`).matchAll(/\br\.([A-Za-z]+)/g)) keys.add(x[1]);
     // combat-melee reads the walk-shared eye and speed too: those are the rule's own, ported
     const placed = new Set([...PLATFORM_KEYS.ported, ...PLATFORM_KEYS.fight, ...Object.keys(PLATFORM_KEYS.lost)]);
     expect([...keys].filter((k) => !placed.has(k)), 'place each in godot-marks.js PLATFORM_KEYS').toEqual([]);

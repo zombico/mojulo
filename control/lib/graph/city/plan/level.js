@@ -15,12 +15,29 @@
  *   - a segment with no neighbours: its goal is the crossing farthest along the walk from its spawn
  *
  * Everything is in the world's units (the legacy city's, CITY_METERS_PER_UNIT).
+ *
+ * THE HERO (opt-in `level.hero`: { ref?, gaits?, wall?, gear? }, the city stalker): a third-person hero plays the segment in place of
+ * the walker. It is the player slot every game uses (playscape/player.js playerWorld: the platform rule, a figure-rig
+ * body, its clips), tuned in metres (CITY_HERO) and turned into the city's units once here: every length and speed of
+ * its rule and its camera divided by the unit, its body drawn at 1 / unit. With no `ref` a stand-in box plays it. Its
+ * roofs are ground (a lot's box top, the page's faces and the sim's alike), the page's wall pull-in keeps a tower from
+ * standing between the chase camera and the hero (its stand-off read off the hero's own capsule, so it holds in the
+ * city's units: follow-pull-in.js), and the segment's edges rise to the sky (a hero who climbs is not held by
+ * a walker's 8 m wall, and not one it can hold: `hold: false`). It holds any other wall (wall.js), crawls it and mantles
+ * onto its roof, unless `wall: false`, and swings on the swinger's line (swing.js; F held in the air, a zip on the ground),
+ * unless `gear: false`; its figure's clips fall back for those states (player.js traversalStates).
+ * A hero's district carries a cloud deck (`clouds`, unless the recipe names its own), dark by night. Absent, the walker
+ * plays it, byte for byte.
  */
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { registerLevelKind } from '../../structure/level.js';
 import { designCity } from './design.js';
 import { lobbyOf, LOBBY } from './doors.js';
 import { cityGreen, PLANTER } from './green.js';
+import { playerWorld, traversalStates } from '../../playscape/player.js';
+import { readCityLook, readPaint } from './look.js';
+import { resolveLookSpec } from '../../era/look.js';
+import { reachOf } from '../../game/reach.js';
 // a tree's trunk as a walker meets it (m, half its side)
 const TRUNK = 0.35;
 
@@ -28,6 +45,29 @@ const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const u = (v) => r3(v / U);
 export const CITY_LEVEL = Object.freeze({ eye: 1.7, speed: 5, wall: 8, arrive: 7, radius: 0.4 });
+/** The city's hero, in metres: its rule's run, jump and fall (a person's, as playerWorld's, falling as the platform rule
+ *  does by default), its capsule, the chase camera, and the sky its edges rise to over the tallest mass in reach. */
+export const CITY_HERO = Object.freeze({
+  rule: { speed: 6, jumpSpeed: 6.5, gravity: 20, maxFall: 26, step: 0.35, snap: 0.15, collideRadius: 0.35, collideHeight: 1.7, wall: true, gear: 'swinger' },
+  camera: { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
+  standIn: { size: [0.5, 0.5, 1.7], color: '#d8b04a' },
+  sky: 60,
+  // the cloud deck over a hero's district (world-scene.js composeCloudDeck, its band defaults already in the city's units:
+  // 44 m over the tallest mass, 48 m deep), dark by night so it reads against the sky instead of glowing
+  clouds: { day: { coverage: 0.35 }, night: { coverage: 0.4, color: [0.16, 0.17, 0.2] } },
+});
+// the lengths a platform rule reads (and its speeds and accelerations, in lengths per second): the ones a unit divides
+const RULE_LENGTHS = ['speed', 'jumpSpeed', 'gravity', 'fallGravity', 'maxFall', 'step', 'snap', 'stride', 'collideRadius', 'collideHeight', 'eye', 'glideFall'];
+/** A power's grant in metres (gameworld actions.js TRAVERSAL_MOVES), in the city's units: its lengths divided. */
+export function grantInUnits(g) {
+  const { metre: _m, ...rest } = ruleInUnits(g);
+  return rest;
+}
+/** A rule in metres, in the city's units: its lengths divided, and `metre` (world units per metre) stamped for what
+ *  keeps its defaults in metres (the wall's, wall.js). */
+export function ruleInUnits(rule) {
+  return { ...Object.fromEntries(Object.entries(rule).map(([k, v]) => [k, RULE_LENGTHS.includes(k) && Number.isFinite(v) ? u(v) : v])), metre: u(1) };
+}
 
 const inside = (rect, x, y, m = 0) => x >= rect.x0 - m && x <= rect.x1 + m && y >= rect.y0 - m && y <= rect.y1 + m;
 
@@ -49,7 +89,7 @@ function walkPath(g, from, to) {
 }
 
 /** The level a segment makes, in units: { spawn, heading, exits, arrivals, goal?, colliders, via }; or { error }. */
-export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null, ways = [] } = {}) {
+export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null, ways = [], hero = false } = {}) {
   const seg = (d.segments || []).find((s) => s.id === segId);
   if (!seg) return { error: `the city has no segment '${segId}' (${(d.segments || []).map((s) => s.id).join(', ') || 'cut it with segments: true'})` };
   const R = seg.rect, cx = (R.x0 + R.x1) / 2, cy = (R.y0 + R.y1) / 2, g = d.walk;
@@ -120,12 +160,14 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null
     colliders.push({ min: [u(g.x - r), u(g.y - r), 0], max: [u(g.x + r), u(g.y + r), u(h)], of: `green:${g.key}` });
   }
   for (const s of d.sites) if (s.mass && !(s.mass.x1 < R.x0 - reach || s.mass.x0 > R.x1 + reach || s.mass.y1 < R.y0 - reach || s.mass.y0 > R.y1 + reach)) colliders.push({ min: [u(s.mass.x0), u(s.mass.y0), 0], max: [u(s.mass.x1), u(s.mass.y1), u(s.mass.h)], of: `site:${s.id}` });
-  const T = 0.5, H = CITY_LEVEL.wall;
+  // a hero's segment is walled to the sky: over the tallest mass in reach, so no climb or jump leaves it but by a street
+  const T = 0.5, H = hero ? Math.max(CITY_LEVEL.wall, ...colliders.map((c) => c.max[2] * U)) + CITY_HERO.sky : CITY_LEVEL.wall;
   const side = (name, a0, a1, fixed, horizontal) => {
     const gaps = open.filter((x) => x.side === name).map((x) => [(horizontal ? x.at[0] : x.at[1]) - x.gap, (horizontal ? x.at[0] : x.at[1]) + x.gap]).sort((p, q) => p[0] - q[0]);
     let a = a0;
     for (const [g0, g1] of [...gaps, [a1, a1]]) {
-      if (g0 - a > 0.2) colliders.push(horizontal ? { min: [u(a), u(fixed - T), 0], max: [u(g0), u(fixed + T), u(H)], of: `edge:${name}` } : { min: [u(fixed - T), u(a), 0], max: [u(fixed + T), u(g0), u(H)], of: `edge:${name}` });
+      // (a hero's edge is not a wall to climb: `hold: false`, wall.js)
+      if (g0 - a > 0.2) colliders.push({ ...(horizontal ? { min: [u(a), u(fixed - T), 0], max: [u(g0), u(fixed + T), u(H)] } : { min: [u(fixed - T), u(a), 0], max: [u(fixed + T), u(g0), u(H)] }), of: `edge:${name}`, ...(hero ? { hold: false } : {}) });
       a = Math.max(a, g1);
     }
   };
@@ -148,9 +190,11 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null
  * and the walls. `ref` is the level's own sketch ref; `cityRef` the city it was cut from.
  */
 export function withCityLevel(m, d, ref) {
-  const L = segmentLevel(d, m.level.segment, { refs: m.level.refs ?? {}, cityRef: m.cityRef ?? null, route: m.level.route ?? null, ways: m.level.ways ?? [] });
+  const H = m.level.hero ?? null;
+  const L = segmentLevel(d, m.level.segment, { refs: m.level.refs ?? {}, cityRef: m.cityRef ?? null, route: m.level.route ?? null, ways: m.level.ways ?? [], hero: !!H });
   if (L.error) throw new Error(`level: ${L.error}`);
-  const eye = u(CITY_LEVEL.eye);
+  const pilot = H ? cityHero(H, L) : null;
+  const eye = pilot ? pilot.eye : u(CITY_LEVEL.eye);
   const via = L.via.length ? { via: L.via } : {};
   // on a route the level ends (success) at its way on, or its end: no exit named, the line's gates do the rest
   const mechanics = L.route
@@ -163,15 +207,83 @@ export function withCityLevel(m, d, ref) {
   // each door-scene building's door: a zone on the walk before it, a walker coming back out standing on the walk
   const eyeAt = (p) => [p[0], p[1], 0];
   const doorMechs = L.doors.map((x) => ({ kind: 'door', id: x.id, at: eyeAt(x.at), radius: x.radius, spawn: eyeAt(x.spawn), heading: x.heading }));
-  const game = { levelRef: ref, mechanics: [...doorMechs, ...mechanics], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
+  const found = cityFound(m.level.found ?? [], L, pilot, eye);
+  const grants = pilot && m.level.powers ? Object.fromEntries(Object.entries(m.level.powers).map(([id, g]) => [id, grantInUnits(g)])) : {};
+  const held = m.level.powers || (m.level.found ?? []).some((f) => f.into === 'powers');
+  const game = {
+    levelRef: ref, mechanics: [...doorMechs, ...mechanics, ...found], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}),
+    ...(held ? { consumes: [{ slice: 'powers' }] } : {}),
+    ...(Object.keys(grants).length ? { powers: { slice: 'powers', target: pilot.id, grants } } : {}),
+  };
+  const reactions = arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: pilot ? pilot.id : 'player', to: [x.arrive[0], x.arrive[1], eye] }));
+  if (pilot) {
+    return {
+      ...m,
+      ...(m.clouds === undefined ? { clouds: CITY_HERO.clouds[nightOf(m) ? 'night' : 'day'] } : {}),
+      game,
+      ...(pilot.figures ? { figures: { ...(m.figures || {}), ...pilot.figures } } : {}),
+      entities: [pilot.entity],
+      camera: pilot.camera,
+      events: { ...pilot.events, reactions: [...(pilot.events.reactions || []), ...reactions] },
+      colliders: L.colliders,
+      walk: false,
+    };
+  }
   return {
     ...m,
     game,
     entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: r3(CITY_LEVEL.speed / U), turn: 2.4, eye, turnMode: 'look', lookPitch: true, keyTurn: true, strafe: 1, collideRadius: u(CITY_LEVEL.radius), collideHeight: eye }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], eye], heading: L.heading } }],
     camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true },
-    events: { reactions: arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: 'player', to: [x.arrive[0], x.arrive[1], eye] })) },
+    events: { reactions },
     colliders: L.colliders,
     walk: false,
+  };
+}
+
+/** The keys a map world lays in a segment (`level.found`: [{ item, into: 'bag' | 'powers' }], gameworld levels.js): one row
+ *  of pickups on the TALLEST ROOF of the segment the hero's own moves reach (game/reach.js: a key the climb, or the line,
+ *  wins), taken only up there (planar: false); with no hero, or no roof it reaches, on the walk halfway along its way. */
+function cityFound(found, L, pilot, eye) {
+  if (!found.length) return [];
+  let at = null, planar = true;
+  if (pilot) {
+    const R = reachOf({ colliders: L.colliders, start: [pilot.entity.transform.pos[0], pilot.entity.transform.pos[1], 0] }, pilot.entity.rule);
+    const [x0, y0, x1, y1] = [L.rect.x0, L.rect.y0, L.rect.x1, L.rect.y1].map(u);
+    const roofs = R.surfaces.filter((s) => !s.ground && R.reached.has(s.id) && s.rect.x0 >= x0 && s.rect.x1 <= x1 && s.rect.y0 >= y0 && s.rect.y1 <= y1);
+    const top = roofs.reduce((b, s) => (!b || s.z > b.z ? s : b), null);
+    if (top) { at = [r3((top.rect.x0 + top.rect.x1) / 2), r3((top.rect.y0 + top.rect.y1) / 2), r3(top.z + eye)]; planar = false; }
+  }
+  if (!at) { const v = L.via[Math.floor(L.via.length / 2)] ?? L.spawn; at = [v[0], v[1], eye]; }
+  const out = [];
+  for (const into of ['bag', 'powers']) {
+    const row = found.map((f, j) => ({ ...f, j })).filter((f) => f.into === into);
+    if (row.length) out.push({ kind: 'collect', into, pickups: row.map((f) => ({ item: f.item, at: [r3(at[0] + u(1.5) * f.j), at[1], at[2]], radius: u(1.6), ...(planar ? {} : { planar: false }) })) });
+  }
+  return out;
+}
+
+/** Whether the city's look (its own, or its paint's cube's) has no sun: its night (look.js lookLight's reading). */
+function nightOf(m) {
+  const paint = readPaint(m.paint), spec = readCityLook(m.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
+  return !!(spec && !spec.ref.light.key);
+}
+
+/** The hero who plays a segment (`level.hero`), in the city's units: the player slot's entity at the spawn, its figure
+ *  (a made character by `ref`, drawn at 1 / unit) or a stand-in box, the chase camera, and the controls legend. The stand-in stands at its half height (a box body is drawn about the entity's point). */
+function cityHero(H, L) {
+  const C = CITY_HERO.camera, legend = `W / S  run · A / D  turn · Space  jump${H.gear === false ? '' : ' · F  swing (in the air), zip (on the ground)'}`;
+  const P = playerWorld({ heroRef: H.ref ?? 'none', ...(H.gaits ? { gaits: H.gaits } : {}), id: 'hero', controls: legend });
+  const standIn = !H.ref, half = CITY_HERO.standIn.size[2] / 2;
+  const { wall, gear, ...base } = CITY_HERO.rule;
+  const rule = ruleInUnits({ ...P.entities[0].rule, ...base, ...(H.wall === false ? {} : { wall }), ...(H.gear === false ? {} : { gear }), ...(standIn ? { eye: half } : {}) });
+  const eye = standIn ? u(half) : 0;
+  const body = standIn ? { type: 'mesh', shape: 'box', size: CITY_HERO.standIn.size.map(u), color: CITY_HERO.standIn.color } : { ...P.entities[0].body, scale: r3(1 / U) };
+  return {
+    id: 'hero', eye,
+    ...(standIn ? {} : { figures: { hero: { ...P.figures.hero, clips: traversalStates(P.figures.hero.clips) } } }),
+    entity: { ...P.entities[0], rule, body, transform: { pos: [L.spawn[0], L.spawn[1], eye], heading: L.heading } },
+    camera: { rule: 'follow', target: 'hero', dist: u(C.dist), height: u(C.height), lookH: u(C.lookH), lead: u(C.lead) },
+    events: P.events || {},
   };
 }
 

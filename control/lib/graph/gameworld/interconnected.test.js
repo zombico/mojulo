@@ -6,6 +6,7 @@ import { gameStages, stageLevelOrder, gameLevels, gameStore, mapPlan, powerKeys 
 import { readActions } from './actions.js';
 import { validateLevelContract } from '../game/level-contract.js';
 import { gameChannelScript } from '../scene/channels/game.js';
+import { controllableChannelScript } from '../scene/channels/controllable/index.js';
 import { validateGameManifest } from '../game/game-manifest.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
 import { composeMechanics } from '../game/mechanics.js';
@@ -188,6 +189,20 @@ describe('an interconnected world, keyed by a power', () => {
     const yard = po[pat('hub', 'yard')].args.manifest.game;
     expect(gameChannelScript(yard)).toContain('function __grant(id)');
     expect(gameChannelScript({ ...yard, powers: undefined })).not.toContain('__grant');
+  }, 120_000);
+
+  it('the wall and the line are moves a power gives too: the grant the contract takes, the pilot\'s clips falling back, the line drawn', () => {
+    for (const [move, grant] of [['wall', { wall: true }], ['swinger', { gear: 'swinger' }]]) {
+      const W = withMove(move), WG = readGameworld(W), ws = gameStages(W), wr = ws.map((s) => `w-${s.level}-${s.node}`), wp = mapPlan(WG, ws, wr);
+      const yard = stageLevelOrder(WG, ws[pat('hub', 'yard')], { ref: wr[pat('hub', 'yard')], heroRef: 'h', map: wp[pat('hub', 'yard')] }).args.manifest;
+      expect(yard.game.powers.grants['gust-step']).toEqual(grant);
+      expect(validateLevelContract({ ...yard.game, produces: { events: [] } }, gameStore(W, null)).errors).toEqual([]);
+      expect(yard.figures.hero.clips.wall_crawl).toBeTruthy();
+    }
+    expect(validateLevelContract({ levelRef: 'x', mechanics: [], consumes: [{ slice: 'powers' }], powers: { slice: 'powers', target: 'hero', grants: { g: { wall: 'yes', airJumps: false } } }, produces: { events: [] } }, gameStore(P, null)).errors.join(' ')).toMatch(/number \| true \| word/);
+    const pilot = [{ id: 'hero', pilotable: true, rule: { type: 'platform' }, body: { type: 'mesh', shape: 'box' } }];
+    expect(controllableChannelScript(pilot, { rule: 'follow', target: 'hero' }, {}, { gearGranted: true })).toContain('__updateGearLines();');
+    expect(controllableChannelScript(pilot, { rule: 'follow', target: 'hero' }, {}, {})).not.toContain('__updateGearLines');
   }, 120_000);
 
   it('a power\'s move is one the hero can be given', () => {

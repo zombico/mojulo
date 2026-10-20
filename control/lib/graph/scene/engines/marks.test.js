@@ -116,7 +116,8 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
     agree(reg.space.camera, (v) => (PAGE_CAMERAS[v] ? 'absent' : M.RULE_MARKS[CAMERA_RULE[v]][e]));
     agree(reg.power.kit, (v) => kitMark(v, e)[e]);
     agree(reg.power.systems, (v) => M.SYSTEM_MARKS[v]?.[e]);
-    agree(reg.power.idiom, (v) => M.SYSTEM_MARKS[IDIOMS[v].system.kind][e]);
+    // (a planned idiom, not in the table yet, carries its own marks on its registry value)
+    agree(reg.power.idiom, (v) => (IDIOMS[v] ? M.SYSTEM_MARKS[IDIOMS[v].system.kind][e] : undefined));
     agree(reg.space.links, (v) => M.LINK_MARKS[v]?.[e]);
     agree(reg.space.traversal, (v) => M.traversalMark(v)[e]);
     agree(reg.soul.gaits, (v) => M.gaitMark(v, MOTION_GAITS[v])[e]);

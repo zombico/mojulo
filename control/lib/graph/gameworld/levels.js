@@ -29,10 +29,10 @@ import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
-import { playerWorld } from '../playscape/player.js';
+import { playerWorld, traversalStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
-import { TRAVERSAL_MOVES } from './actions.js';
+import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera } from './cameras.js';
 import { readScreen } from '../game/screen.js';
@@ -46,6 +46,7 @@ import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
+import { CITY_HERO } from '../city/plan/level.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
@@ -134,7 +135,7 @@ export function cityStages(level, C, map = false) {
   while (queue.length) { const a = queue.shift(); for (const nb of byId.get(a).neighbours) if (!hops.has(nb.id)) { hops.set(nb.id, hops.get(a) + 1); prev.set(nb.id, a); queue.push(nb.id); } }
   const to = C.to ?? [...hops.keys()].reduce((b, id) => (hops.get(id) > hops.get(b) ? id : b), from);
   if (!hops.has(to)) throw new Error(`gameworld: ${name('to')} '${to}' cannot be reached from '${from}' through the city's portals`);
-  const stage = (segment, i, lv) => ({ level, node: segment, section: 'city', index: i, city: { segment, neighbours: byId.get(segment).neighbours.map((n) => n.id) }, manifest: { kind: 'city', ...recipe, level: { segment, ...lv } } });
+  const stage = (segment, i, lv) => ({ level, node: segment, section: 'city', index: i, city: { segment, neighbours: byId.get(segment).neighbours.map((n) => n.id), ...(C.stalker ? { stalker: true } : {}) }, manifest: { kind: 'city', ...recipe, level: { segment, ...lv } } });
   if (map) {
     const order = [from, ...segs.map((x) => x.id).filter((id) => id !== from && id !== to && hops.has(id)), ...(to !== from ? [to] : [])];
     return order.map((id, i) => stage(id, i, {}));
@@ -143,15 +144,36 @@ export function cityStages(level, C, map = false) {
   return path.map((id, i) => stage(id, i, { route: { ...(i > 0 ? { from: path[i - 1] } : {}), ...(i + 1 < path.length ? { to: path[i + 1] } : {}) } }));
 }
 
+/** The moves the world's hero starts with (characters.hero.actions.moves, actions.js HERO_MOVES): the patch they make
+ *  to its platform rule (null with none), and its player made over it: the rule, the traversal states' clips
+ *  (player.js traversalStates: the wall's and the line's states play a clip every figure has), F named on the legend. */
+function heroMoves(G) {
+  const ids = G.characters?.hero?.actions?.moves ?? [];
+  return ids.length ? Object.assign({}, ...ids.map((id) => HERO_MOVES[id].rule)) : null;
+}
+function withMoves(P, moves) {
+  if (!moves) return P;
+  const figures = Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}) }]));
+  return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: { ...e.rule, ...moves } } : e)) };
+}
+const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground)' : '');
+
 /** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
  *  ways out of the city (`map`: mapPlan's for this stage) at its start (back) or its farthest crossing (on). The
- *  segment's own first-person walker plays it: a city is in its own units, not the hero's metres. */
-function cityLevelOrder(G, stage, { title, map = null, cityRefs = {} } = {}) {
+ *  segment's own first-person walker plays it: a city is in its own units, not the hero's metres. A stalker's city
+ *  (`city.stalker`) is played by the world's hero instead (`level.hero`), turned into the city's units where it is
+ *  lowered (city/plan/level.js); with no hero, a stand-in. */
+function cityLevelOrder(G, stage, { title, map = null, cityRefs = {}, heroRef = null, heroGaits = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
-  if (map && ((map.keys ?? []).length || (map.powers ?? []).length)) throw new Error(`levels: a key is laid in '${stage.level}', a city: lay it in a walk's level (links[].keyAt)`);
+  // a map world's keys laid here go on the segment's tallest roof the hero reaches (city/plan/level.js cityFound); its
+  // power keys' moves ride as grants in metres, turned into the city's units where it is lowered
+  const found = map ? [...(map.keys ?? []).map((item) => ({ item, into: 'bag' })), ...(map.powers ?? []).map((item) => ({ item, into: 'powers' }))] : [];
+  const pk = map ? powerKeys(G) : [];
+  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed })])) : null;
   const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
-  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}) } };
+  const hero = stage.city.stalker ? { hero: { ...(heroRef ? { ref: heroRef } : {}), ...(heroRef && heroGaits ? { gaits: heroGaits } : {}) } } : {};
+  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}), ...hero, ...(found.length ? { found } : {}), ...(powers ? { powers } : {}) } };
   return { tool: 'create_sketch', args: { title: name, manifest } };
 }
 
@@ -364,7 +386,7 @@ function screenLevel(written, L) {
 
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
-  if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
+  if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
@@ -442,7 +464,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
     const rule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
-    const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
+    const moves = heroMoves(G);
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves);
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -532,6 +555,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const base = heroRef ? pilotPart.entities[0].rule : null;
     const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
+    // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
+    if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
@@ -881,8 +906,11 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
     return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
   }
-  const controls = `W / S  run · A / D  turn · Space  jump${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls });
+  // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
+  const moves = heroMoves(G);
+  if (moves) base = { ...base, ceilings: true };
+  const controls = `W / S  run · A / D  turn · Space  jump${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls }), moves);
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }, ...(X?.entities ?? [])], camera: P.camera, events };

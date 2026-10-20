@@ -73,6 +73,16 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
     light: { ambient: '#3a424e', key: null, placed: ['troffer', 'screen', 'warning-lamp', 'tank'], contrast: 'high' },
     air: { fog: { color: '#1a1e24', density: 0.015 }, sky: 'interior', dome: { zenith: [16, 18, 22], horizon: [26, 30, 36] } },
   }),
+  // the city stalker (10-19): a night city seen from its streets and its roofs, its depth all air and lit windows
+  mc2: Object.freeze({
+    title: 'Midnight Club II',
+    setting: 'night city streets',
+    kit: 'night-city',
+    surfaces: ['concrete', 'curtain-glass', 'asphalt', 'neon-sign'],
+    palette: { base: '#3a3f4a', accent: '#ff3d7f', warm: '#ffb347' },
+    light: { ambient: '#1e2433', key: null, placed: ['street-lamp', 'neon-sign', 'window-glow'], contrast: 'high' },
+    air: { fog: { color: '#1a1f2b', density: 0.04 }, sky: 'night-city-glow', dome: { zenith: [8, 10, 22], horizon: [44, 40, 58] } },
+  }),
 });
 
 export const SIXTH_GEN_REFERENCE_IDS = Object.freeze(Object.keys(SIXTH_GEN_REFERENCES));
@@ -88,6 +98,7 @@ export const SIXTH_GEN_LOOKS = Object.freeze({
   'island-noon': 'sunshine',
   'jungle-haze': 'mgs3',
   'lab-dark': 'doom3',
+  'city-night': 'mc2',
 });
 export const SIXTH_GEN_LOOK_IDS = Object.freeze(Object.keys(SIXTH_GEN_LOOKS));
 const LOOK_OF_REFERENCE = Object.freeze(Object.fromEntries(Object.entries(SIXTH_GEN_LOOKS).map(([look, ref]) => [ref, look])));

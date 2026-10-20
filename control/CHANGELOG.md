@@ -233,6 +233,140 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `double-slit`, at the door was not run: the curated kinds keep the door, and their cards point at the composed
   ones.
 
+### City hunter: the swinger in a district
+
+- **In progress, nothing built yet.** The city-stalker open world as a primitive: a third-person hero in a city
+  district (one `city` segment played as a level). The hero:
+  - sticks to any building's wall and launches from it;
+  - swings on a gear whose directions its profile constrains (the swinger first: a line to a face above and ahead);
+  - fights with the controllable engine's combat.
+
+  Other parts of the theme:
+  - **Progression:** gear upgrades open districts, and the reach of the gear is measured against the city's roofs.
+  - **Distance:** a planned air (height-aware haze, street smog, a cloud deck, a skyline past the plan) carries the
+    city past the district's edge.
+  - **Characters** plug into the hero's slot; each new movement state falls back to one every model already has.
+
+  Every key is opt-in; absent, every city level and game renders as before.
+- **The probe.** The capability registry (`lib/graph/cosmos`) names the genre, so the hill-climb page measures what it
+  waits on:
+  - A **City stalker** fixture.
+  - `space.levelForm=city`: a city segment played as a level, which is built today (first person, no roofs).
+  - Four planned gaps, priced: `power.gear` (a new setting: `none`, built, and `swinger`), `space.traversal=wall`,
+    `power.idiom=city-stalker-like` (it requires the swinger and the wall), and `reality.look=city-night`.
+
+  The probe reads blocked on exactly those four. Its Godot export would lose the city level, which no Godot fixture
+  plays yet.
+- **The district as a stage.** A city segment can be played by a hero, third person (`level.hero: { ref?, gaits? }` on
+  a city level; a gameworld's `city.stalker: true` names the world's hero on every segment).
+  - **The hero** is the player slot every game uses: the platform rule, a figure-rig body and its clips. It is tuned in
+    metres (`CITY_HERO`) and turned into the city's units once (`ruleInUnits`). With no `ref`, a stand-in box plays it.
+  - **Roofs are ground.** A lot's box top is ground on the page and in the headless sim alike.
+  - **The edges rise to the sky:** over the tallest mass in reach, so only a street leads out.
+  - **The camera** chases the hero. The page's own wall pull-in keeps towers out of the frame: its stand-off is read off
+    the hero's capsule, so it holds in the city's units.
+
+  One engine addition, opt-in: a rig body's `body.scale`. The page draws the body at that scale, and the code is emitted
+  only when some body carries one.
+
+  Without `level.hero`, the walker plays the segment as before.
+- **The wall.** A platform body with `rule.wall` holds any collider's face (`worlds/controllable/wall.js`, a body
+  owner beside the ladder's climb). Nothing is authored: a box's side is a plane with a known normal.
+  - **Taking hold:** pressing forward into a face, in the air, or from the street when the face stands higher than the
+    body. A low box, a narrow one (a tree's trunk) or a box marked `hold: false` (a hero level's edge) is not held.
+  - **The crawl:** up and down the face, and across it with A / D. It rounds an outside corner onto the box's next
+    face, unless another box stands there. A face of stacked boxes climbs as one.
+  - **The top:** up past it, the body mantles over the lip onto the roof. Down at the foot it lets go.
+  - **Off the wall:** a tapped jump is a wall-jump, out and up. A held jump is a wall-launch, its speed growing to
+    twice the jump's.
+  - **Between holds:** standing still at a roof's lip is a perch; falling fast off a roof is a dive.
+
+  The wall's defaults are in metres, scaled by the rule's `metre` (world units per metre), so `wall: true` holds in a
+  city level's units too.
+  - **The city hero** has the wall unless `level.hero.wall: false`. Each of its new states (`wall_crawl`, `mantle`,
+    `perch`, `dive`) plays the figure's first fallback clip it has (`TRAVERSAL_FALLBACK` in `playscape/player.js`).
+  - **Godot and Roblox** name the wall lost.
+  - **The registry** marks `space.traversal=wall` built on the web. The City stalker probe now waits on the swinger,
+    the idiom and the look.
+- **The swinger.** A platform body with `rule.gear: 'swinger'` casts a line to a building's face and swings on it
+  (`worlds/controllable/swing.js`, a body owner after the wall). A gear is a set of direction constraints on where
+  its line lands; the swinger's are a face above and ahead.
+  - **The anchor** is found for the hero, never aimed. It is the face point nearest an ideal one (55° up, out along
+    the heading), within reach, at least 25° up, inside a 75° cone either side of the heading, with a clear line.
+    With no face in reach (an open plaza, a park) there is no line. A `hold: false` box takes none.
+  - **The swing:** the gear's key (`boost`, F) held in the air. The line cannot stretch; gravity pulls the body; A / D
+    steer and forward pumps. Its pivot is the anchor drawn three quarters of the way toward the hero's own line, so
+    the arc runs down the street rather than into the wall the line is on. Its length keeps the arc's bottom clear of
+    the street.
+  - **Letting go:** the key let go, a jump (with a lift), a box across the line, a box met (the wall then takes the
+    body), or the ground. The body flies on with the swing's speed.
+  - **The zip:** the key pressed on the ground pulls the hero straight to the face, where the wall takes hold.
+
+  Supporting pieces:
+  - **The page** draws the line from the hand to the anchor, emitted only where a body has a gear.
+  - **The new states** (`swing`, `swing_release`, `zip`) fall back to the leap.
+  - **The city hero** carries the swinger unless `level.hero.gear: false`, and its controls legend names F.
+  - **Godot and Roblox** name the gear lost.
+  - **The registry** marks `power.gear=swinger` built on the web. The City stalker probe now waits on the idiom and
+    the look.
+- **The air: distance and scale.** A hero's district is a few hundred metres across; from its tallest roof the city
+  goes on for kilometres. The stalker's eye (`city/plan/eye.js`) plans the air that carries it past the edge, on the
+  pilot's eye's law (`skyscape/map.js`): fog opaque where ρ·d reaches 1.978, its density thinning with height.
+  - **The plan:** from the street the hero sees the district and the 140 m ring of real masses round it; from the
+    tallest roof, out to a skyline past the plan's edge.
+  - **The far ring:** the rest of the plan stands round the district as massing, one instance a lot (two instanced
+    meshes in all), lit as the city is and tinted with each lot's own colours.
+  - **The skyline band:** seeded cards past the plan's edge, so the city never visibly ends.
+  - **The page** thins the haze with the camera's height (`hazeHeight`), composed with any other writer of the fog
+    (the weather), and emitted only where a world asks.
+  - **A cloud deck** over the district by default (`clouds`: the recipe's own wins), dark by night.
+  - **The city kind** now honours `fog` (street smog, clipped to the level) and `clouds`. Both were accepted in a
+    recipe before and silently dropped.
+  - **The `city-night` look:** concrete, asphalt and neon under a glowing night sky, no sun, so the windows light.
+    Its reference card is Midnight Club II. A `city-night` geocube preset carries its colours, buildings and palette.
+    The registry marks `reality.look=city-night` built.
+  - **Godot and Roblox** name the height thinning lost.
+
+- **Indoors: a warehouse, a dungeon.** The wall and the swinger play under a roof, in any gameworld level.
+  - **A hero's starting moves:** `characters.hero.actions.moves: ['wall', 'swinger']` (`HERO_MOVES` in
+    `gameworld/actions.js`) puts them on its platform rule in every level it plays: a trail, a building, an inside
+    behind a door. Its clips fall back for their states, and F is named on its controls.
+  - **Ceilings as colliders:** a building level such a hero plays lays each room's ceiling as a collider
+    (`ceilings: true` on a stage; `stageColliders` in `era/anchors.js`). They are never laid over a room a stair rises
+    out of, nor under an open sky.
+  - **The swinger indoors** also casts to a box's underside over the hero (a ceiling, a beam), aimed where its ideal
+    ray meets that plane. Its arc's clearance shrinks with the room under the pivot, and no line shorter than the hero
+    casts (a low room swings nothing).
+  - **The wall indoors** keeps the head under a lid (a ceiling, a tower's setback) as it climbs.
+  - **A warehouse** is a barn with a great floor: `building: { use: 'barn', rooms: { floor: { w: 30, d: 20, h: 12 } } }`.
+  - **A dungeon:** a crypt's chain of rooms plays with the moves, and so does a tower up its storeys, its stair rooms
+    left open overhead.
+
+- **The reach: progression the map measures.** `game/reach.js` works out which surfaces a hero's moves carry it to: the
+  grounds, and every box top with room to stand. It reads the engine's own dials (the platform rule's run and jump,
+  the wall's, the gear's).
+  - **Its moves:** walk, jump (air jumps added), drop, the wall (a holdable face up to its top, stacked boxes as one)
+    and the swing (across a gap under an anchor the line can take, rising a jump and the gear's clearance).
+  - **Each law is held to the engine's own runs:** the hero climbs the tower the wall reaches; it swings across the
+    gap the line crosses and lands on the far roof; a street swing rises past the law's bound.
+  - **What it answers:** `reachUpgrades` says what each move opens; on a district the wall opens every roof. The
+    solver is analytic, a law per move: a move it allows the engine makes, and one it refuses a player's skill may
+    still find.
+  - **The moves as powers:** `wall` and `swinger` are moves a power gives (`TRAVERSAL_MOVES`), so a map world can hide
+    them and gate by them. The level contract takes a grant of `true` or a preset's name. The page draws a granted line
+    (the drawer is emitted where a grant carries a gear), and the pilot's figure plays the moves' fallback clips.
+  - **Keys in a city:** a map world may lay a key in a city level. It lies on the segment's tallest roof the hero's
+    own moves reach, by the solver, and is taken only up there. A power found there gives its move in the city's
+    units. City levels refused keys before.
+  - **The idiom** `city-stalker-like` ("the gear's reach gates the city", an unlock system) is built. **The City
+    stalker probe is makeable.**
+  - **The swinger's line** is now reeled in at `reel` (20 m/s) from the cast's length. Before, it snapped to its own
+    length across the gap, a 12 m jump on the first step.
+
+  The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
+  swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
+  draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube

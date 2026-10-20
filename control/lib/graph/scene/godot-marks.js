@@ -58,6 +58,7 @@ export const PLATFORM_KEYS = Object.freeze({
     dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
     tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
     loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
+    wall: 'the wall (wall.js: any face held, crawled, mantled, jumped off)', metre: 'the wall and the gear', gear: 'the gear (swing.js: the swinger\'s line, its swing and zip)',
   },
 });
 // the `ai` rule's opt-in moves the kernel's mind does not run (yet): the match player and the arena shooter's moves
@@ -138,6 +139,7 @@ export const PAGE_MARKS = Object.freeze({
   events: m(B, 'bus.json and score.json carry what the kernel runs; the keys they drop are named by EVENT_MARKS'),
   fog: m(A, 'the page\'s fog rides only on weather (weather-score.js)'),
   haze: m(P, 'score.haze: exponential fog in the horizon colour, the background with it, the sky clear of it; Godot\'s exponential curve is not three\'s squared one, so the falloff differs'),
+  hazeHeight: m(A, 'the haze does not thin with the camera\'s height (a city stalker\'s district): Godot keeps its density'),
   splats: m(A, 'fur and grass splats are not drawn'),
   audio: m(P, 'the soundtrack and one-shot sounds play (kernel/sound.gd); positional sound and weather beds are the web\'s'),
   fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),

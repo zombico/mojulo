@@ -66,6 +66,15 @@ export const POWER = Object.freeze({
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' }, roblox: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
+    // the gear that moves the hero through the air, its directions held by the gear: a line to a face above and ahead (a
+    // swinger), and later one to an edge or a roof (a grapnel) or two to any face in a cone (a twin hook). The city stalker (10-19)
+    gear: {
+      values: {
+        none: { status: 'built', godot: 'built', roblox: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
+        // built 10-19 (phase 3): a body owner after the wall, the line to a face found for the hero; web only
+        swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
+      },
+    },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
   },
 });

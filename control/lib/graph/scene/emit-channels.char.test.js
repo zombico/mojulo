@@ -170,6 +170,26 @@ import { emitThreeWorld } from './scene-three.js';
 // form, a flying form's attitude, the fly HUD for a jet form) is gated on an entity or figure that carries `forms`,
 // which no fixture holds. Proof: the 14 fixtures that embed the runtime, emitted before and after with the engine
 // source and the pilot scheme cut out, are byte-identical.
+// Re-pinned 2026-10-19 (city hunter: the wall): the controllable runtime the page embeds gained the `wall` builder
+// (worlds/controllable/wall.js: a platform body with `rule.wall` holds any collider's face, crawls it, rounds its
+// corners, mantles onto its roof, jumps or launches off it; the `wall-pose` pass), and normalizeColliders keeps a box's
+// `hold: false`. On the `controllable` fixture 1 line is replaced (the collider record, the same without `hold`) and
+// 176 added. The same 14 fixtures that embed the runtime re-pinned with it; no page asks for the wall yet.
+// Re-pinned 2026-10-19 (city hunter: the swinger): the runtime gained the `swing` builder (worlds/controllable/swing.js:
+// a platform body with `rule.gear` casts the swinger's line to a face above and ahead, swings under it, zips to it; the
+// `gear-pose` pass). On the `controllable` fixture 158 lines are added and none changed; the page's line drawer is
+// emitted only where a body has a gear, so no fixture carries it. The same 14 re-pinned.
+// Re-pinned 2026-10-19 (city hunter: indoors): the swinger also casts to a box's underside over the hero (a ceiling, a
+// beam), aimed where its ideal ray meets that plane, its clearance shrinking with the room and no line shorter than the
+// hero; the wall holds the head under a lid (a ceiling) as it climbs. On the `controllable` fixture 5 lines replaced
+// (each reads the same with no gear or wall) and 32 added. The same 14 re-pinned.
+// Re-pinned 2026-10-19 (city hunter: the reach): the wall and the gear hand their dials to the reach solver
+// (E.wallDials, E.gearOf: game/reach.js), and the swinger's line is reeled in at `reel` from the cast's length instead of
+// snapping to its own across the gap. On the `controllable` fixture 3 lines replaced (each the same with no gear) and
+// 7 added. The same 14 re-pinned.
+// Re-pinned 2026-10-20 merging 1019-city-hunter over more-than-meets and the resolution lock: the runtime carries the
+// forms and the runner beside the wall and the swinger; each side's own re-pin above says what it adds and that no
+// fixture asks for it.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

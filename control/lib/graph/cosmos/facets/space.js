@@ -40,7 +40,7 @@ export const SPACE = Object.freeze({
         open: { status: 'partial', godot: 'absent', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; no game level is a streamed region, nothing loads content by region' },
         // built 10-11: a gameworld's topology: 'interconnected' plays as a map (exits, travel, arrival, keyed doors). Godot's
         // game.gd still plays a list from its menu, with no exits or arrival.
-        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives); trails only', godot: 'built', roblox: 'absent' },
+        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches)', godot: 'built', roblox: 'absent' },
       },
     },
     levelForm: {
@@ -58,6 +58,10 @@ export const SPACE = Object.freeze({
         building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'built', roblox: 'approximated', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
         // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
         airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: 'absent', roblox: 'absent', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
+        // a city segment played as a level (city/plan/level.js, gameworld cityStages): its lots as solid boxes, lobbies walked
+        // into, doors to insides, a ring of the city as its backdrop. No Godot fixture plays one: its traffic and walkers do
+        // not step there (godot-marks.js), and the rest is unproven
+        city: { status: 'built', lowers: 'lib/graph/city/plan/level.js', godot: 'absent', roblox: 'absent', note: 'a district of a planned city: a segment cut along its streets, left by its portals, its lots solid, lobbies walked into and doors to insides; played first person by a walker, or third person by a hero whose roofs are ground (level.hero)' },
       },
     },
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it
@@ -78,6 +82,14 @@ export const SPACE = Object.freeze({
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', marks: 'linkMarks' } },
     // the runtime rule each object lowers to (a lift and a moving deck: mover; a catapult: launcher; a ladder: a climb)
-    traversal: { source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' } },
+    traversal: {
+      source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' },
+      // the city stalker (10-19): every building's face a surface the hero holds, crawls, wraps and mantles off onto its
+      // roof, read from the level's own lot boxes (a body owner beside the climb, not an object placed, so not the table's)
+      planned: {
+        // built 10-19 (phase 2): a body owner beside the climb, read off the level's own boxes; web only
+        wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', godot: 'absent', roblox: 'absent', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
+      },
+    },
   },
 });

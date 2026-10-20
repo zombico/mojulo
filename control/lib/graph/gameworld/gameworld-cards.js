@@ -17,7 +17,7 @@ import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './
 import { ELEMENT_WORDS } from './element-words.js';
 import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
-import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES } from './actions.js';
+import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
@@ -130,14 +130,14 @@ function worldCard() {
     `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
     '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
-    '  or city: { grammar?, civilization?, from?, to?, … } (card city-plan), played by its segments.',
+    '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
+    '  a hero\'s power as the key also gives the hero its move.',
     `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
-    '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
-    '  a key that is a hero\'s power opens the door and gives the hero its move.',
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
   );
@@ -202,8 +202,9 @@ function motionCard() {
 function actionsCard() {
   return lines(
     'THE ACTIONS — what the hero can DO beyond platforming; this decides the systems.',
-    'hero.actions { idiom?, system?: { kind, resource?, source?, rule? }, powers: [{ id, verb, element?, look?, attack?, move? }], progression: [{ stage, gains, gate? }] }',
+    'hero.actions { idiom?, system?: { kind, resource?, source?, rule? }, powers: [{ id, verb, element?, look?, attack?, move? }], progression: [{ stage, gains, gate? }], moves? }',
     `move: what a power lets the hero do, given when it is found as a map key: ${Object.entries(TRAVERSAL_MOVES).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
+    `moves: what the hero starts with, in every level, outdoors and in (a building's rooms roofed for them): ${Object.entries(HERO_MOVES).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
     '',
     `idioms (a design convention, "-like", never a title): ${Object.entries(IDIOMS).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
     `system kinds: ${Object.entries(SYSTEM_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,

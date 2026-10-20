@@ -39,6 +39,19 @@ export const TRAVERSAL_MOVES = Object.freeze({
   'double-jump': { read: 'a second jump in the air', rule: () => ({ airJumps: 1 }) },
   glide: { read: 'a held jump slows the fall', rule: () => ({ glideFall: 2.5 }) },
   'high-jump': { read: 'jumps half as high again', rule: (base) => ({ jumpSpeed: Math.round((base?.jumpSpeed ?? 8.5) * Math.sqrt(1.5) * 1000) / 1000 }) },
+  // the city stalker's, found rather than started with (HERO_MOVES): the roofs a wall opens, the gaps a line crosses
+  wall: { read: 'any wall climbed', rule: () => ({ wall: true }) },
+  swinger: { read: 'a line swung across a gap', rule: () => ({ gear: 'swinger' }) },
+});
+
+/** The moves a hero STARTS with (`actions.moves`, the city stalker's): each a patch to the platform rule, held from the
+ *  first level, in every level it plays (a trail, a building, an inside), outdoors and in: the wall (any wall held and
+ *  crawled, worlds/controllable/wall.js) and the swinger's line (to a face or a ceiling above, swing.js). A building
+ *  level a hero with one plays lays its rooms' ceilings as colliders (a climb ends under them, a line lands on them).
+ *  Moves found later are powers (`move`, TRAVERSAL_MOVES). */
+export const HERO_MOVES = Object.freeze({
+  wall: { read: 'any wall climbed onto its roof', rule: Object.freeze({ wall: true }) },
+  swinger: { read: 'a line swung from a face or a ceiling; a zip on the ground', rule: Object.freeze({ gear: 'swinger' }) },
 });
 
 /** Genre conventions, by the word they are known by. Each: a system, and a progression template of stage → gate. */
@@ -63,6 +76,12 @@ export const IDIOMS = Object.freeze({
     system: { kind: 'equip', source: 'a dungeon\'s prize', rule: 'each tool solves its region and opens the next' },
     progression: [{ stage: 'early', gate: 'the first tool, from the first dungeon' }, { stage: 'mid', gate: 'tools that combine' }, { stage: 'late', gate: 'the last dungeon' }],
   },
+  // the city stalker (10-19): built on the wall, the swinger's line and the reach (game/reach.js) that measures what they open
+  'city-stalker-like': {
+    read: 'the gear\'s reach gates the city',
+    system: { kind: 'unlock', source: 'found on the roofs', rule: 'a move opens the roofs and the gaps that were closed' },
+    progression: [{ stage: 'early', gate: 'the first district, and the wall' }, { stage: 'mid', gate: 'districts across gaps the line crosses' }, { stage: 'late', gate: 'the tallest core, reached by both' }],
+  },
 });
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
@@ -84,9 +103,13 @@ function readSystem(s, at) {
 
 /** Read the actions page and say what is wrong. Shape only; references are checked by resolveActions. */
 export function readActions(A) {
-  if (!isObj(A)) throw err(' is { idiom?, system?, powers?, progression? }');
-  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression)`);
+  if (!isObj(A)) throw err(' is { idiom?, system?, powers?, progression?, moves? }');
+  for (const k of Object.keys(A)) if (!['idiom', 'system', 'powers', 'progression', 'moves'].includes(k)) throw err(`.${k} is not part of the actions page (idiom, system, powers, progression, moves)`);
   const out = {};
+  if (A.moves !== undefined) {
+    if (!Array.isArray(A.moves) || !A.moves.every((m) => HERO_MOVES[m]) || new Set(A.moves).size !== A.moves.length) throw err(`.moves is a list of the moves the hero starts with, each once: ${Object.keys(HERO_MOVES).map((m) => `'${m}'`).join(', ')}`);
+    out.moves = [...A.moves];
+  }
   if (A.idiom !== undefined) {
     if (!word(A.idiom) || !/like$/.test(A.idiom.trim().toLowerCase())) throw err(`.idiom is a convention read as "x-like" (${Object.keys(IDIOMS).join(', ')}); a pattern, never a title`);
     out.idiom = A.idiom.trim().toLowerCase();

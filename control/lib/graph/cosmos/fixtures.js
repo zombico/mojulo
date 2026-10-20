@@ -370,6 +370,21 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear', advance: 'cues' },
     },
   },
+  // the city stalker (10-19): the open city as a primitive, its districts played one at a time
+  {
+    id: 'city-stalker',
+    name: 'City stalker',
+    anchor: false,
+    why: 'a hero who swings between towers and crawls their walls, fights on the roofs and streets, the gear\'s reach opening the city district by district',
+    cube: {
+      reality: { medium: '3d', look: 'city-night' },
+      space: { camera: 'third-person', topology: 'interconnected', levelForm: 'city', traversal: 'wall' },
+      power: { idiom: 'city-stalker-like', gear: 'swinger', rules: ['platform', 'follow'], combat: ['melee'], systems: ['unlock'] },
+      soul: { hero: 'hero' },
+      mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' },
+      time: { progression: 'gated' },
+    },
+  },
 ]);
 
 export function fixture(id) {

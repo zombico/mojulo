@@ -284,3 +284,16 @@ describe('the fixed camera', () => {
     expect(c.stations[0].focus).toEqual(L.ends.spawn);
   });
 });
+
+// A rig body drawn at a scale of its own (`body.scale`: a hero in a city level's units) scales its group once; a page
+// with no scaled body carries none of it.
+describe('the page: a body at its own scale', () => {
+  const floor = { corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#445566', doubleSided: true };
+  const SCALE = 'if (b.scale > 0) group.scale.setScalar(b.scale);';
+  it('is emitted only when a body carries a scale', () => {
+    const at = (body) => emitThreeWorld({ faces: [floor], entities: [{ id: 'hero', rule: { type: 'platform' }, body }], camera: { rule: 'follow', target: 'hero' } });
+    expect(at({ type: 'mesh', shape: 'box', scale: 0.273 })).toContain(SCALE);
+    expect(at({ type: 'mesh', shape: 'box' })).not.toContain(SCALE);
+    expect(at({ type: 'mesh', shape: 'box', scale: 1 })).not.toContain(SCALE);
+  });
+});
