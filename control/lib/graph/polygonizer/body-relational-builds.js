@@ -155,6 +155,32 @@ const NORRIN = {
       { id: 'achilles', cone: [0.62, 0.95], az: 180, off: [0.1, 0.08], r: [0.07, 0.06] },
       { id: 'ankle', s: 0.98, r: [0.12, 0.17, 0.12] },
     ] },
+    // THE FOOT AND THE TOES (the right; the left its mirror), on one field with the shank's own skin: the bone near level,
+    // so az 0 is the dorsum (`front`, the world's up laid square to the bone), 90 the outside, 180 the sole. `foot` marks
+    // a limb formSlice re-samples as a foot (body-relational-feet.js: the sole cut flat on the ground, the ankle out of the shank's
+    // skin, the heel's and the toes' ends closed in domes); `k` its own blend, tighter than the limbs' (the toes' grooves)
+    // the foot: the heel (the calcaneus) behind and under the ankle, the arch's two columns from it (the medial lifted off
+    // the ground, the lateral on it), the midfoot's mass and the instep over them, the ankle's two bones (the inner
+    // higher and forward), the ball across the metatarsals' heads (the inner end forward: the toe line's slant)
+    foot: { from: 'ankleR', to: 'toeBaseR', front: [0, 0, 1], foot: true, k: 0.02, rings: 45, around: 72, masses: [
+      { id: 'calcaneus', s: -0.303, az: 175, off: 0.115, r: [0.165, 0.155, 0.15] },
+      { id: 'archLateral', chain: [[-0.067, 147, 0.203, 0.07], [0.892, 120, 0.207, 0.06]] },
+      { id: 'archMedial', chain: [[-0.023, -144, 0.101, 0.08], [1.029, -119, 0.137, 0.08]] },
+      { id: 'midfoot', chain: [[0.033, 173, 0.077, 0.15], [0.97, 180, 0.066, 0.09]] },
+      { id: 'dorsum', s: 0.353, az: 0, off: 0, r: [0.2, 0.15, 0.125] },
+      { id: 'malleolusLateral', s: -0.135, az: 78, off: 0.184, r: [0.07, 0.06, 0.05] },
+      { id: 'malleolusMedial', s: -0.038, az: -63, off: 0.191, r: [0.07, 0.06, 0.05] },
+      { id: 'ball', chain: [[1.113, -115, 0.165, 0.075], [0.915, 117, 0.224, 0.06]] },
+    ] },
+    // the toes: the big toe apart and the four beside it, each a bead from its knuckle to its pad, the tips on the
+    // toe line's diagonal (the second toe's a little short of the big toe's)
+    toes: { from: 'toeBaseR', to: 'toeTipR', front: [0, 0, 1], foot: true, k: 0.012, slant: 12, rings: 31, around: 64, masses: [
+      { id: 'hallux', chain: [[0.073, -114, 0.164, 0.075], [0.885, -112, 0.173, 0.06]] },
+      { id: 'toe2', chain: [[0.101, -161, 0.091, 0.05], [0.825, -166, 0.085, 0.04]] },
+      { id: 'toe3', chain: [[0.052, 151, 0.105, 0.047], [0.727, 144, 0.111, 0.037]] },
+      { id: 'toe4', chain: [[-0.01, 129, 0.155, 0.045], [0.615, 124, 0.169, 0.035]] },
+      { id: 'toe5', chain: [[-0.096, 120, 0.213, 0.042], [0.428, 116, 0.233, 0.032]] },
+    ] },
   },
 };
 /** a build's masses with their radii (and a belly's proud) scaled: one hand on a whole group's mass */
@@ -210,6 +236,7 @@ const SHALLA = {
     // (her calf one form: the gastrocnemius's heads and the soleus a third longer and the soleus a little higher, so they
     // run into one another; thickened across alone, they stood as two beads with a waist between, from behind)
     shank: { ...NORRIN.limbs.shank, thick: { bone: 1.55, belly: 1.42 }, masses: scaled(NORRIN.limbs.shank.masses, 0.92, 0.8).map((m) => (/^(gastrocnemius|soleus)/.test(m.id) ? { ...m, ...(m.id === 'soleus' ? { s: 0.47 } : {}), r: [m.r[0] * 1.35, m.r[1], m.r[2]] } : m)) },
+    foot: NORRIN.limbs.foot, toes: NORRIN.limbs.toes,
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
@@ -259,6 +286,12 @@ export function physique(build, dials = 'athletic') {
   // bellies alone left the forearm a club over a narrow wrist
   const bp = Math.max(0, b), hands = 1 + 0.1 * bp, calf = 1 + 0.25 * bp;
   const limb = (m, id) => {
+    // (the FOOT barely: its soft masses across by a twenty-fifth at the dials' ends, the ankle's bones as they are; a
+    // foot is its bones and its pads, and the gaits plant its sole)
+    if (B.limbs[id]?.foot) {
+      const gf = 1 + 0.04 * b + 0.04 * wp; if (/^malleolus/.test(m.id)) return m;
+      return m.chain ? { ...m, chain: m.chain.map(([s, az, off, r]) => [s, az, off, r * gf]) } : { ...m, r: [m.r[0], m.r[1] * gf, m.r[2] * gf] };
+    }
     if (m.id === 'radiusUlna') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.35 * bp)] };
     if (m.id === 'wrist') return { ...m, r: m.r.map((x) => x * hands) };
     // (the gastrocnemius's heads the calf's bulk, longer as they are fuller, or they round into beads, and set higher: a

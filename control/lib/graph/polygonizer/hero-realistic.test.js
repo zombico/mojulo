@@ -34,7 +34,7 @@ describe('the realistic hero at the door', () => {
     expect(m.recipe.parts.torso.slots.length).toBe(48);
     expect(() => planLayered(m)).not.toThrow();
     // THE CONTRACT (docs/realistic-body.md): the station ids, the correctives' shape, the rig's additions
-    for (const p of ['torso', 'neck', 'pelvis', 'upperArmR', 'thighR', 'shankR']) for (const s of m.recipe.parts[p].stations) expect(s.id, p).toMatch(/^st\d+(_st\d+_\d{3})?$/);
+    for (const p of ['torso', 'neck', 'pelvis', 'upperArmR', 'thighR', 'shankR', 'footR', 'toesR']) for (const s of m.recipe.parts[p].stations) expect(s.id, p).toMatch(/^st\d+(_st\d+_\d{3})?$/);
     for (const c of m.recipe.correctives) {
       expect(c.driver.from).toBeLessThan(c.driver.full); expect(m.recipe.rig.joints[c.driver.joint]).toBeTruthy(); expect(m.recipe.rig.joints[c.driver.to]).toBeTruthy();
       for (const [k, v] of Object.entries(c.d)) { expect(k).toMatch(/^(torso|upperArm[RL])\/st[\w]+\.(front|back|s\d\d[RL])$/); expect(v).toHaveLength(3); }

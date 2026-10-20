@@ -232,7 +232,8 @@ export function project(fn, p, iters = 24, forward = false) {
 export function limbField(R, build, limb, extra = []) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, Lb = B.limbs[limb], F = bodyFrame(R, B), W = F.W, J = R.joints;
   const h = J[Lb.from], tl = J[Lb.to], ax = unit(sub(tl, h)), L = len(sub(tl, h));
-  const fr = unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
+  // (az 0 the world's forward laid square to the bone; a limb near level, the foot, names its own `front`, the up)
+  const fr = Lb.front ? unit(sub(Lb.front, scl(ax, dot(Lb.front, ax)))) : unit(sub([0, 1, 0], scl(ax, ax[1]))), out = unit(cross(ax, fr));
   const dirAt = (az) => add(scl(fr, dmath.cos((az * Math.PI) / 180)), scl(out, dmath.sin((az * Math.PI) / 180)));
   const at = (s, az = 0, off = 0) => add(add(h, scl(ax, s * L)), scl(dirAt(az), off * W));
   const prims = (Lb.thick ? thick(Lb.masses, Lb.thick) : Lb.masses).flatMap((m) => {

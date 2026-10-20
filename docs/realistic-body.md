@@ -13,6 +13,7 @@ are in `control/lib/graph/polygonizer/hero-realistic.test.js`; the slice's own i
 | `body-relational-builds.js` | `BODY_BUILDS` (norrin, shalla: data), `PHYSIQUES`, `PHYSIQUE_DIALS`, `physique()` |
 | `body-relational-field.js` | the distances (`sdEgg`, `sdCone`, `lse`), `bodyFrame`, `bodyField`, `limbField`, `crossing`, `project` |
 | `body-relational-resample.js` | `resamplePart`, `ringSlots`, the bind's share mixing, `mirrorPart` |
+| `body-relational-feet.js` | the feet: `feetFrame` (the ground, the handover level), `feetFields`, `footPart` (the sock, the toes, the ankle's bind) |
 | `body-relational-correctives.js` | `correctiveRest`, `shoulderBlend` |
 | `body-relational-envelope.js` | the envelope the segment dress is fitted to (each ring over its hull, hollows filled) |
 | `body-relational-map.js` | `bodyPartMap`: each skin point's body part (`BODY_PARTS`) and the muscle most under it |
@@ -30,14 +31,21 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 
 ## The recipe
 
-- **Re-sampled parts:** `torso`, `neck`, `pelvis`, `upperArmR/L`, `foreArmR/L`, `thighR/L`, `shankR/L`. Each is a
+- **Re-sampled parts:** `torso`, `neck`, `pelvis`, `upperArmR/L`, `foreArmR/L`, `thighR/L`, `shankR/L`, `footR/L`,
+  `toesR/L`. Each is a
   closed part with `slots = ringSlots(N)` (`'front'`, `s01R` … down the right, `'back'`, … `s01L`; N = 48 round the male
-  torso, 64 the female, 32 the neck, 24 the arms and the shank, 32 the thigh) and stations whose `u` keeps the authored
+  torso, 64 the female, 32 the neck, 24 the arms and the shank, 32 the thigh, 72 the foot, 64 the toes) and stations whose `u` keeps the authored
   address: an integer station is `st<k>`, a fractional one `st<a>_st<b>_<mmm>` (`mmm` the fraction in thousandths, three
   digits; the authored plan's own fractional ids are in hundredths, `st1_st2_50`). `slotT` is dropped. The left limb is
   the right's mirror, slot for slot (R ↔ L). The bind's blends are per slot (`<station>.<slot>`).
 - **Removed parts:** `pectoralR/L`, `bustR/L` (the field carries their form). Their rig joints and bones stay.
-- **Kept authored:** the head, the hands, the feet. Under a physique with bulk the hands and their joints are scaled
+- **The feet:** the foot a sock, its station ids `st0` (a level ring a little over the handover level, `0.25 W` over the
+  ankle's joint, inside the shank's skin) … down the ankle, round the heel and on to past the toe base (inside the
+  toes), its front slot the leg's front turning to the foot's top; the toes in planes along the toe line from inside
+  the foot to the big toe's tip. The soles flat on the authored shoe's lowest point (the ground the gaits plant). The
+  foot's points near the shank's skin or over the level carry the shank's own shares, the toe base a hinge band (the
+  foot's bone and the toes', no fold). Their `group` is the shoe's (`Shoes`) still.
+- **Kept authored:** the head, the hands. Under a physique with bulk the hands and their joints are scaled
   about the wrist (`build.hands`).
 - **Rig additions:** joints `scapulaAcr<S>`, `scapulaSup<S>`, `scapulaInf<S>`, bone `scapula<S>`; the folds
   `shoulderFold<S>`, `kneeCrease<S>`, `elbowCrease<S>` with their bones; `foreArm<S>` gains `parent: 'upperArm<S>'`.

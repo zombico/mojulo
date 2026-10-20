@@ -24,6 +24,7 @@ import { BODY_BUILDS } from './body-relational-builds.js';
 import { sdPrim, lse, bodyFrame, bodyField, limbField, crossing } from './body-relational-field.js';
 import { ringSlots, resamplePart, mixW, four, swapRL, mirrorPart } from './body-relational-resample.js';
 import { correctiveRest, shoulderBlend } from './body-relational-correctives.js';
+import { feetFrame, feetFields, footPart } from './body-relational-feet.js';
 
 // the form field's modules, read from here as one: body-relational-builds (the builds and the physique), -field (the
 // distances, the fields and the ways onto them), -resample (a part re-sampled), -correctives (the correctives)
@@ -68,6 +69,9 @@ export function formSlice(recipe, R, build, opts = {}) {
     limbs[b].sd = (q) => both(q) + tuck * ease(-past(q) / band);
   };
   chain('upperArm', 'foreArm', B.limbs?.upperArm?.to); chain('thigh', 'shank', B.limbs?.thigh?.to);
+  // THE FEET (body-relational-feet.js): the foot and the toes on one field with the shank's skin, the sole on the ground
+  const feet = limbs.foot ? feetFrame(R, recipe, W0) : null;
+  if (feet) feetFields(R, B, limbs, feet, W0);
   const shared = (limbs.upperArm?.prims || []).filter((p) => /^deltoid/.test(p.id)).map((p) => ({ ...p, clip }));
   // THE HIP'S HANDOVER, on one field and one level (`zp`, a little over the crotch, the skin's lowest point on the
   // midline): the pelvis samples the body's field carrying the thighs' masses whole, and about the level the thigh
@@ -366,10 +370,19 @@ export function formSlice(recipe, R, build, opts = {}) {
     // (a hard limb's zone eases its station shares by the joint ring: the band's own shares stand per slot over it)
     return { ...P, bind: { ...b, blend } };
   };
-  const HINGES = { thigh: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], shank: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], upperArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'], foreArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'] };
+  const HINGES = { thigh: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], shank: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], upperArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'], foreArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'],
+    // (the toe base a hinge with no fold: the foot's bone and the toes' mixed straight across its band)
+    foot: ['toeBase', 'toeTip', 'foot', 'toeFold', 'toes'], toes: ['toeBase', 'toeTip', 'foot', 'toeFold', 'toes'] };
+  const hingeBands = { foot: 0.1 * W0, toes: 0.1 * W0 };
   const limbOpts = {};
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
+    // (a foot: its own cage, laid out by the field, and the ankle's bind; body-relational-feet.js)
+    if (Lb.foot) {
+      r.parts[pr] = hingeBand(footPart(r.parts[pr], limbs[limb].sd, { R, B, limb, frame: feet, W: W0, shank: r.parts.shankR, shankSd: limbs.shank?.sd }), ...HINGES[limb], hingeBands[limb]);
+      if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
+      done.push(pr, pl); continue;
+    }
     // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
     // the way to the bone, a few millimetres in: the thigh's top rings are centred behind the hip's joint, outside the
     // leg's masses, and their rays found nothing to land on; from the bone itself, the joint at those rings' edge, they

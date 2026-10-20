@@ -14,7 +14,7 @@ const slice = (build) => {
   const R = validateRig(m.recipe.rig);
   return { m, R, ...formSlice(m.recipe, R, build) };
 };
-const SLICED = ['torso', 'neck', 'pelvis', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shankR', 'shankL'];
+const SLICED = ['torso', 'neck', 'pelvis', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shankR', 'shankL', 'footR', 'footL', 'toesR', 'toesL'];
 
 describe('the form field slice', () => {
   for (const build of Object.keys(BODY_BUILDS)) {
@@ -46,6 +46,28 @@ describe('the form field slice', () => {
     const sw = (k) => k.replace(/[RL]$/, (c) => (c === 'R' ? 'L' : 'R'));
     for (const [i, s] of aR.stations.entries()) for (const sl of aR.slots) expect(aL.stations[i].points[sw(sl)]).toEqual([-s.points[sl][0], s.points[sl][1], s.points[sl][2]]);
     expect(ringSlots(8)).toEqual(['front', 's01R', 's02R', 's03R', 'back', 's03L', 's02L', 's01L']);
+  }, 120_000);
+
+  it('the feet: the soles flat on the authored ground, the foot out of the shank\'s skin at the handover level, the rest as without them', () => {
+    const { m, R, recipe, fields } = slice('norrin');
+    const zs = (P) => P.stations.flatMap((s) => Object.values(s.points).map((p) => p[2]));
+    const ground = Math.min(...['footR', 'toesR'].flatMap((k) => zs(m.recipe.parts[k])));
+    for (const k of ['footR', 'toesR']) {
+      const z = zs(recipe.parts[k]); expect(Math.min(...z), k).toBeCloseTo(ground, 4);
+      // (a pad, not a point: a run of the sole's points on the ground)
+      expect(z.filter((x) => x < ground + 5e-4).length, k).toBeGreaterThan(20);
+      for (const s of recipe.parts[k].stations) for (const p of Object.values(s.points)) expect(Math.abs(fields[k.slice(0, -1)](p)), `${k}/${s.id}`).toBeLessThan(2e-3);
+    }
+    // the foot's top ring a level ring inside the shank's skin (the handover is the shank's above it), bound as the shank is there
+    const top = recipe.parts.footR.stations[0], tz = Object.values(top.points).map((p) => p[2]);
+    expect(Math.max(...tz) - Math.min(...tz)).toBeLessThan(1e-3);
+    for (const p of Object.values(top.points)) expect(fields.shank(p)).toBeLessThan(0);
+    expect(Object.keys(recipe.parts.footR.bind.blend[`${top.id}.front`])).toContain('shankR');
+    // absent the feet's limbs, the feet stay the authored cage and every other part is the same, byte for byte
+    const B = BODY_BUILDS.norrin, { foot: _f, toes: _t, ...limbs } = B.limbs, without = formSlice(m.recipe, R, { ...B, limbs }).recipe;
+    for (const k of ['footR', 'footL', 'toesR', 'toesL']) expect(without.parts[k]).toEqual(m.recipe.parts[k]);
+    for (const k of Object.keys(recipe.parts).filter((x) => !/^(foot|toes)[RL]$/.test(x))) expect(JSON.stringify(without.parts[k]), k).toBe(JSON.stringify(recipe.parts[k]));
+    expect(JSON.stringify(without.rig)).toBe(JSON.stringify(recipe.rig));
   }, 120_000);
 
   it('the rig poses it: the bind is the rest, a bent elbow moves that forearm and leaves the torso where it was', () => {
