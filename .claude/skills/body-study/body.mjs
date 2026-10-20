@@ -51,7 +51,7 @@ const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null, vitruvian = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, tint = false, only = null, vitruvian = false, bones = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -61,6 +61,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--form') { form = args[++i]; continue; }
   if (a === '--tint') { tint = true; continue; }
+  if (a === '--bones') { bones = true; continue; }
   if (a === '--vitruvian') { vitruvian = true; continue; }
   if (a === '--parts') { only = new RegExp(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
@@ -313,6 +314,22 @@ async function vitruvianCell(H, nodes, kind, cast, y) {
   label(0, y + Hh - 10, `${cast} · vitruvian ${kind} · front`, 12);
   return W + 560;
 }
+/** THE SKELETON over a cell (`--bones`, x-ray): the spine, and each side's collarbone (blue), shoulder blade (red: the
+ * acromion, the superior and the inferior angle), humerus (green) and forearm (amber), at the posed joints the rig
+ * has (a rig without a blade draws none) */
+const BONE_INK = { spine: '#444', clavicle: '#2a6fdb', scapula: '#d23c2a', humerus: '#2e9e4a', forearm: '#d98a1c' };
+function skeleton(N, cam, x0, y0, W, H) {
+  // (drawn in the cell's own viewport, which clips it: a raised arm's bones had run on into the row above)
+  parts.push(`<svg x="${x0}" y="${y0}" width="${W}" height="${H}" overflow="hidden">`);
+  const seg = (a, b, ink, w = 3) => { if (!N[a] || !N[b]) return; const [p, q] = [cam.project(N[a]), cam.project(N[b])]; parts.push(`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="#fff" stroke-width="${w + 2.5}" stroke-linecap="round" opacity="0.8"/><line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${ink}" stroke-width="${w}" stroke-linecap="round"/>`); };
+  seg('pelvisHub', 'navel', BONE_INK.spine); seg('navel', 'neckHub', BONE_INK.spine); seg('neckHub', 'headBase', BONE_INK.spine);
+  for (const S of ['L', 'R']) {
+    seg(`clavicle${S}`, `shoulder${S}`, BONE_INK.clavicle);
+    seg(`scapulaAcr${S}`, `scapulaSup${S}`, BONE_INK.scapula); seg(`scapulaSup${S}`, `scapulaInf${S}`, BONE_INK.scapula); seg(`scapulaInf${S}`, `scapulaAcr${S}`, BONE_INK.scapula); seg(`scapulaAcr${S}`, `shoulder${S}`, BONE_INK.scapula, 2);
+    seg(`shoulder${S}`, `elbow${S}`, BONE_INK.humerus); seg(`elbow${S}`, `wrist${S}`, BONE_INK.forearm);
+  }
+  parts.push('</svg>');
+}
 async function cell(x, y, img, W, H) {
   const png = await sharp(img, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
   parts.push(`<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="${BG}"/>`, `<image x="${x}" y="${y}" width="${W}" height="${H}" href="data:image/png;base64,${png.toString('base64')}"/>`);
@@ -329,8 +346,9 @@ for (const cast of casts) {
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
     const box = frameBox(V, nodes, which), hue = tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
-      const img = rasterize(V, faces, normals, camera(v.az, v.elev, box, W, Hh), W, Hh, hue);
+      const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);
+      if (bones) skeleton(nodes, cam, col * W, y0, W, Hh);
       label(col * W, y0 + Hh - 10, `${cast} · ${lab}${which ? ` · ${which}` : ''} · ${v.name}`, 12);
     }
     sheetW = Math.max(sheetW, views.length * W);

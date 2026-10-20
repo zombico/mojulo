@@ -635,11 +635,23 @@ export function formSlice(recipe, R, build, opts = {}) {
   const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
   // (over a band from a little above the joint to a hand's breadth down: one narrower folded the skin in a ring at the
   // joint's height when the arm swung fore and aft, the sprint's)
-  const down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + 0.3 * W0) / (1.1 * W0));
+  const DOWN = [0.2, 0.6], down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + DOWN[0] * W0) / (DOWN[1] * W0));
   const deltoidShare = (q, byDown = true) => {
     const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
     return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * (byDown ? down(q) : 1);
   };
+  // THE SCAPULA: the blade the arm's raise turns (figure-vajra.js, the scapulohumeral rhythm), its acromion over the
+  // shoulder's joint and a little behind, its superior angle level with the joint and its inferior angle 15 cm under
+  // it, both 1.5 cm under the back's skin (the form field's) and 0.45 and 0.5 of the way out to the joint; a bone framed
+  // by the three (`scapula<S>`). The shoulder's girdle had a collarbone and no blade: the arm rose in a socket that
+  // never turned
+  for (const S of ['R', 'L']) {
+    const J = R.joints; if (!J[`clavicle${S}`]) continue;
+    const sg = S === 'R' ? 1 : -1, s0 = J.shoulderR, onBack = (x, z) => { const c = crossing(field.sd, [x, 0, z], [0, -1, 0], 0.4); return r6((c ? c[1] : -0.1) + 0.015); };
+    const pts = { scapulaAcr: [s0[0] - 0.01, s0[1] - 0.015, s0[2] + 0.035], scapulaSup: [0.45 * s0[0], onBack(0.45 * s0[0], s0[2]), s0[2]], scapulaInf: [0.5 * s0[0], onBack(0.5 * s0[0], s0[2] - 0.15), s0[2] - 0.15] };
+    for (const [k, p] of Object.entries(pts)) r.rig.joints[`${k}${S}`] = [r6(sg * p[0]), r6(p[1]), r6(p[2])];
+    r.rig.bones.push({ id: `scapula${S}`, head: `scapulaAcr${S}`, tail: `scapulaInf${S}`, aux: [`scapulaAcr${S}`, `scapulaSup${S}`] });
+  }
   // THE SHOULDER'S FOLD: a helper at the shoulder's joint turned half the arm's swing (the rig's fold, as the hip's: the
   // arm's rest line carried by the collarbone into the socket; unpushed: pushed to the armpit's side, a raised arm's
   // underside swelled there in a lobe over the chest's wall). The arm's own top goes from the collarbone to the arm's
@@ -647,7 +659,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   // the arm's, pinched the arm's root to a point at the armpit
   for (const S of ['R', 'L']) {
     const J = R.joints, id = `shoulderFold${S}`; if (!J[`clavicle${S}`] || !r.rig.folds) continue;
-    r.rig.folds[id] = { joint: `shoulder${S}`, inAxis: [0, 1, 2].map((k) => r6(J[`elbow${S}`][k] - J[`shoulder${S}`][k])), to: `elbow${S}`, front: [0, 1, 0], push: 0, bones: [`clavicle${S}`, `upperArm${S}`], head: id, tail: `shoulderFoldTip${S}`, aim: `shoulderFoldAim${S}` };
+    r.rig.folds[id] = { joint: `shoulder${S}`, inAxis: [0, 1, 2].map((k) => r6(J[`elbow${S}`][k] - J[`shoulder${S}`][k])), to: `elbow${S}`, front: [0, 1, 0], push: 0, bones: [r.rig.joints[`scapulaAcr${S}`] ? `scapula${S}` : `clavicle${S}`, `upperArm${S}`], head: id, tail: `shoulderFoldTip${S}`, aim: `shoulderFoldAim${S}` };
     r.rig.bones.push({ id, head: id, tail: `shoulderFoldTip${S}`, aux: [id, `shoulderFoldAim${S}`] });
   }
   // THE FOREARM BENDS FROM THE UPPER ARM: framed from the upper arm's frame by the elbow's bend alone (the rig's `parent`),
@@ -657,7 +669,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   // and the elbow, and blended skin can only lose it in a candy wrapper or a spiral)
   for (const S of ['R', 'L']) { const b = r.rig.bones.find((x) => x.id === `foreArm${S}`); if (b && !b.aux && R.joints[`clavicle${S}`]) b.parent = `upperArm${S}`; }
   const viaFold = (S, f) => {
-    const cl = { [`clavicle${S}`]: 1 }, arm = { [`upperArm${S}`]: 1 }, F = `shoulderFold${S}`;
+    const cl = { [r.rig.joints[`scapulaAcr${S}`] ? `scapula${S}` : `clavicle${S}`]: 1 }, arm = { [`upperArm${S}`]: 1 }, F = `shoulderFold${S}`;
     return !r.rig.folds?.[F] ? mixW(cl, arm, f) : f < 0.5 ? mixW(cl, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, arm, 2 * f - 1);
   };
   // (`ownArm`: the arm's own top, from the collarbone through the shoulder's fold to the arm's bone by `down` alone; the

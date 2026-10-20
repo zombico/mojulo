@@ -37,7 +37,7 @@
  * Pure, deterministic. Frames are flat (absolute rotation + posed head per bone), IBM = T(−restHead), the
  * contract scene-gltf's skinned writer already has.
  */
-import { articulate, TWIST_REF_NODES, twistPairFor } from './figure-vajra.js';
+import { articulate, TWIST_REF_NODES, twistPairFor, SCAPULA_POINTS } from './figure-vajra.js';
 import { resolvePose } from './figure-posing.js';
 import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear, faceListToMesh } from '../figures/face-mesh.js';
@@ -278,7 +278,8 @@ export function rigNodesAt(R, pose = {}) {
   // a rig with collarbones (`girdleL/R`: the structured core's) lifts the shoulder with a raised arm (figure-vajra.js
   // `girdle`), `girdle<S>` keeping where it sat for the chest's own line
   const girdle = !!rest.girdleR;
-  const coreKeys = [...VAJRA_CORE, ...(rest.pelvisTilt ? ['pelvisTilt'] : []), ...(girdle ? ['girdleL', 'girdleR', 'clavicleL', 'clavicleR'] : [])];
+  // (and the scapula's points where the rig has them: the vajra turns them with the shoulder and the rhythm)
+  const coreKeys = [...VAJRA_CORE, ...(rest.pelvisTilt ? ['pelvisTilt'] : []), ...(girdle ? ['girdleL', 'girdleR', 'clavicleL', 'clavicleR', ...['L', 'R'].flatMap((S) => SCAPULA_POINTS.map((k) => `${k}${S}`)).filter((k) => rest[k])] : [])];
   const core = Object.fromEntries(coreKeys.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
   const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
   // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)

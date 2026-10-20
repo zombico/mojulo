@@ -279,7 +279,7 @@ export function applyPose(ops, base = null) {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 function rotateSub(m, keys, pivotKey, axis, deg) {
   const pivot = m[pivotKey];
-  for (const k of keys) m[k] = rotateAbout(m[k], pivot, axis, deg);
+  for (const k of keys) { m[k] = rotateAbout(m[k], pivot, axis, deg); for (const sh of m.$shadow?.[k] || []) m[sh] = rotateAbout(m[sh], pivot, axis, deg); }
 }
 // Two-axis swivel within a cone: yaw (about NS) + pitch (about EW),
 // magnitude clamped to `limit`.
@@ -362,11 +362,22 @@ const unitV = (a) => { const l = SM.hypot(a.x, a.y, a.z) || 1; return scaleV(a, 
 /** v turned about the unit `k` by `a` radians (Rodrigues) */
 const rotVec = (v, k, a) => { const c = SM.cos(a), s = SM.sin(a), kv = crossV(k, v), d = dotV(k, v); return addV(addV(scaleV(v, c), scaleV(kv, s)), scaleV(k, d * (1 - c))); };
 const GIRDLE_MAX = 25;   // degrees: the clavicle's elevation at full raise
+/** the scapula's points (a rig's: station-loft-rig.js), the blade's upward rotation per degree of raise past 30 and its
+ * most (Inman's rhythm: about 60 of the 180 the arm rises) */
+export const SCAPULA_POINTS = ['scapulaAcr', 'scapulaSup', 'scapulaInf'];
+const SCAPULA_RHYTHM = 0.4, SCAPULA_MAX = 60;   // (0.4: 60 of the 150 past the first 30)
 export const CLAVICLE_IN = 0.375;   // the clavicle's inner end: this share of the way along the shoulder line toward the other
 
 export function articulate(dof = {}, base = null) {
   const m = restFrom(base);
   const L = LIMITS;
+  // THE SCAPULA (a base's `scapulaAcr<S>` / `scapulaSup<S>` / `scapulaInf<S>`: a rig's, station-loft-rig.js): the
+  // acromion and the blade's two angles, each a SHADOW of the shoulder, turned and carried by every turn and lift the
+  // shoulder takes (the trunk's bends, the girdle's), and then turned upward by the scapulohumeral rhythm (the girdle
+  // block). Absent ⇒ nothing changes.
+  const shadow = {};
+  for (const S of ['L', 'R']) for (const k of SCAPULA_POINTS) if (m[`${k}${S}`]) (shadow[`shoulder${S}`] ??= []).push(`${k}${S}`);
+  if (Object.keys(shadow).length) Object.defineProperty(m, '$shadow', { value: shadow, enumerable: false });
   // Spine: distribute the sagittal/lateral/axial drive across the three trunk
   // pivots (proximal→distal, so each rides its parent → the trunk curves).
   if (dof.spine) {
@@ -437,11 +448,30 @@ export function articulate(dof = {}, base = null) {
     const piv = addV(m[`girdle${S}`], scaleV(subV(O, m[`girdle${S}`]), f)); m[`clavicle${S}`] = piv;
     const down = unitV(subV(m.navel, m.neckHub)), d = unitV(subV(el, sh));
     const raise = SM.acos(Math.max(-1, Math.min(1, dotV(d, down)))) * 180 / Math.PI, g = Math.min(GIRDLE_MAX, Math.max(0, (raise - 30) / 3));
+    const arm = [`shoulder${S}`, ...(S === 'L' ? ARMS_L : ARMS_R)];
+    // THE SCAPULA (a rig's blade: its acromion and two angles): the blade turns upward, past the first 30 degrees of
+    // raise one degree to the humerus's two and a half (SCAPULA_RHYTHM, at most SCAPULA_MAX), about the normal of its own
+    // plane through the middle of its spine (between the spine's root and the acromion, where the turn's axis runs late
+    // in a raise), and the glenoid rides it: the shoulder rises because the blade turns, the arm carried with it, and
+    // the collarbone's lift follows from where the joint now is. Turned about the acromion, the inferior angle swept
+    // out of the body at the side; a rig without a blade lifts the shoulder by the collarbone alone, as before
+    const A = m[`scapulaAcr${S}`], Sp = m[`scapulaSup${S}`], I = m[`scapulaInf${S}`];
+    if (A && Sp && I) {
+      const sig = Math.min(SCAPULA_MAX, Math.max(0, (raise - 30) * SCAPULA_RHYTHM)); if (sig <= 0) continue;
+      const P = scaleV(addV(A, Sp), 0.5); let n = unitV(crossV(subV(Sp, A), subV(I, A)));
+      // (the turn's sense: the inferior angle swings away from the midline)
+      if (rotVec(subV(I, P), n, 1e-3).x * Math.sign(I.x || 1) < subV(I, P).x * Math.sign(I.x || 1)) n = scaleV(n, -1);
+      const turn = (q) => addV(P, rotVec(subV(q, P), n, sig * Math.PI / 180));
+      for (const k of SCAPULA_POINTS) m[`${k}${S}`] = turn(m[`${k}${S}`]);
+      const dv = subV(turn(sh), sh);
+      for (const k of arm) m[k] = addV(m[k], dv);
+      continue;
+    }
     if (g <= 0) continue;
     // about the clavicle's inner end, in the plane of the clavicle and the trunk's up
     const c = subV(sh, piv), up = scaleV(down, -1), axis = unitV(crossV(c, up));
     const r = rotVec(c, axis, g * Math.PI / 180), moved = addV(piv, r), dv = subV(moved, sh);
-    for (const k of [`shoulder${S}`, ...(S === 'L' ? ARMS_L : ARMS_R)]) m[k] = addV(m[k], dv);
+    for (const k of arm) m[k] = addV(m[k], dv);
   }
   if (dof.hipL) swivelSub(m, LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
   if (dof.hipR) swivelSub(m, LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
