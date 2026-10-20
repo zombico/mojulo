@@ -34,7 +34,8 @@
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
  *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
- *             cliffs a matte-painted rock face, matte-paint/tile.js); under it, or absent, rock is polygon only
+ *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
+ *             polygon only
  *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
  *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
  *             as { ok, value }: advice, never a refusal

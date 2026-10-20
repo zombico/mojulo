@@ -1,42 +1,37 @@
 /**
- * Rock takes pixels when the style is gritty (shading `grit`): at GRIT_PIXELS or over, the cliff faces take a matte rock
- * tile as a detail texture over the light the land gives them, their vertex colour lifted by the tile's mean; under it,
- * or absent, the land is as it was. On one small island.
+ * Rock takes pixels when the style is gritty (shading `grit`): at GRIT_PIXELS or over, the land's faces are the quiet
+ * style's byte for byte and the page is handed the rock's own fabric (matte-paint/fabric.js) to draw on the near cliffs;
+ * under it, or absent, the land is as it was. On one small island.
  */
 import { describe, expect, it } from 'vitest';
 
 import { readLocalMeru, GRIT_PIXELS } from './plan.js';
 import { assembleStageScene } from '../era/stage.js';
 import { readGeocube, lowerGeocube } from '../era/geocube.js';
-import { surfaceTexture } from '../landscape/surface-textures.js';
+import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const build = (shading) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, island: { geology: true, walk: 'base' }, shading } }, {});
 const base = build(true), quiet = build({ grit: GRIT_PIXELS - 0.1 }), gritty = build({ grit: 0.7 });
-const lin = (h) => [1, 3, 5].map((i) => { const v = parseInt(h.slice(i, i + 2), 16) / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
 
 describe('rock takes pixels in a gritty style', () => {
-  it('a quiet style\'s land is as it was, byte for byte', () => {
-    expect(JSON.stringify(quiet.faces)).toBe(JSON.stringify(base.faces));
+  it('a quiet style\'s land is as it was, and is handed no fabric', () => {
+    expect(JSON.stringify(quiet)).toBe(JSON.stringify(base));
+    expect(base.fabric).toBeUndefined();
   });
 
-  it('a gritty style\'s cliffs take the matte rock tile, and nothing else does', () => {
-    const cliffs = gritty.faces.filter((f) => f.group === 'isekai:cliff');
-    expect(cliffs.length).toBe(base.faces.filter((f) => f.group === 'isekai:cliff').length);
-    expect(cliffs.every((f) => /^matte:rock-/.test(f.texture) && f.textureLit && f.uv.length === f.corners.length)).toBe(true);
-    const rest = (p) => JSON.stringify(p.faces.filter((f) => f.group !== 'isekai:cliff'));
-    expect(rest(gritty)).toBe(rest(base));
-    expect(surfaceTexture(cliffs[0].texture)).toMatch(/^data:image\/png;base64,/);
+  it('a gritty style\'s faces are the quiet style\'s: the far view is the polygons\'', () => {
+    expect(JSON.stringify(gritty.faces)).toBe(JSON.stringify(base.faces));
   });
 
-  it('the cliff keeps its light: its vertex colour is lifted by the tile\'s mean, so the product averages the same', () => {
-    const was = base.faces.filter((f) => f.group === 'isekai:cliff'), now = gritty.faces.filter((f) => f.group === 'isekai:cliff');
-    let n = 0;
-    for (let i = 0; i < was.length; i += 7) {
-      const a = lin(was[i].fill), b = lin(now[i].fill);
-      for (let q = 0; q < 3; q++) if (b[q] < 0.999) { expect(Math.abs(b[q] * 0.72 - a[q])).toBeLessThan(0.01); n++; }
-    }
-    expect(n).toBeGreaterThan(10);
+  it('and the page is handed the island\'s own joint fabric for its cliffs', () => {
+    const F = gritty.fabric, joint = ISEKAI_STYLES['isekai-meadow'].landform.joint;
+    expect(F.groups).toEqual(['isekai:cliff']);
+    // the island's landform joints granite on the card's spacing at strike 0: the master sets lie along x and y
+    expect(F.sets[0]).toMatchObject({ n: [1, 0, 0], s: joint });
+    expect(F.sets[1].n).toEqual([-0, 1, 0]);
+    expect(F.sets[2].s).toBeCloseTo(joint / 3, 3);
+    expect(F.sun[2]).toBeGreaterThan(0);
   });
 
   it('a geocube carries its grit into the land, and the land checks it', () => {

@@ -40,17 +40,21 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   find its arrises and corners, breaking along the minerals' cleavage. `chipScale` (0–1) shrinks every fracture level,
   so a dressed block chips by the centimetre. Both are opt-in; a rock that names neither is the same field.
   `scripts/spikes/matte/rock-compare.mjs` sets the matte painter beside faces traced from the rock field.
-- **A gritty style's rock takes pixels.** "Rock takes no pixels" (the polygon land) now holds for a style that is not
-  gritty. A geocube takes `grit` (0–1), which lowers into its land's `shading.grit`. At `GRIT_PIXELS` (0.35) or over,
-  the land's cliff faces keep their planar texture coordinates (world height up the face) and take a matte-painted rock
-  face as a DETAIL texture. Their vertex colour keeps everything the land gives it (the palette's rock, the facet light,
-  crevice and ridge), lifted by the tile's mean so the average is unchanged; the texture adds only relief and grain.
-  Under the threshold, or with no `grit`, the land is byte for byte as before. The boulders stay polygon for now.
-- **A rock face tile** (`matte-paint/tile.js`, `paintRockTile`): the painter's periodic mode, a 6 m tile that meets
-  itself at both edges. It is painted from `beds` (courses whose boundaries waver; a soft bed recessed, a hard one with
-  a rounded lip), `joints` (jittered, wandering, some stopping short; each block between them its own tilted, fractured
-  plane), `rough` and `streak` (water stains under each hard lip), lit with the light wrapped round the tile's edges,
-  with the rock field's grain for colour. A `matte:` texture key names a tile by its numbers (`matte-paint/texture.js`).
+- **A gritty style's rock takes pixels, near the eye.** "Rock takes no pixels" (the polygon land) now holds for a style
+  that is not gritty. A geocube takes `grit` (0–1), which lowers into its land's `shading.grit`. At `GRIT_PIXELS` (0.35)
+  or over, the land's faces stay exactly the quiet style's, so the polygons carry the far view, and the page is handed
+  the rock's own FABRIC (`matte-paint/fabric.js`). That is its joint sets as planes in world space, read from the joints
+  the landform broke the cliff on (the island's granite: two vertical sets along its strike at the card's spacing,
+  each with minor joints at a third of it; basalt three sets sixty degrees apart; slate a dipping cleavage), and the
+  landform's beds when it has strata. The page's channel (`scene/channels/fabric.js`) draws where those planes cut each
+  cliff face. A joint is a groove whose lips the key light finds; it wanders a little, holds for a stretch and stops.
+  Each block between joints is its own plane, a soft bed is recessed, and the grain shows at its own size. The relief
+  is shaded as a ratio to the face's own light, so where it draws nothing the baked light is untouched. A face along a
+  joint set shows none of it, a face across it shows its lines, the beds stay level round the cliff, and joints fade on
+  slopes gentler than the landform's own joint band. THE VISUAL DOMAIN: each layer fades in once its feature spans a
+  few pixels, and a pixel covering more than the coarsest feature's share does no work, so the detail is a sphere round
+  the eye that ends at the grain. Under the threshold, or with no `grit`, nothing is emitted. The boulders stay polygon
+  for now. `landform.js` records the joints it lays (`s.joints`); its output is unchanged.
 
 ### Geocube styles: principles and the laws that check them
 

@@ -112,8 +112,8 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *   valley  0..1: how far the land darkens toward `shade` where its horizon is high (the foot of a slope, a hollow,
  *           a gully), read over tens of metres where crevice and ridge read a metre
  *   grit    0..1 (opt-in; absent, the land is as it was): how gritty the style is. Rock takes no pixels in a quiet style;
- *           at GRIT_PIXELS or over, the cliff faces take a matte-painted rock face (matte-paint/tile.js) as a detail
- *           texture over the light this shading gives them, so the facets keep their light and colour and gain a surface
+ *           at GRIT_PIXELS or over, the page draws the rock's own fabric on its cliff faces where they are near
+ *           (matte-paint/fabric.js, scene/channels/fabric.js): the faces are the quiet style's, byte for byte
  */
 /** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
 export const GRIT_PIXELS = 0.35;
