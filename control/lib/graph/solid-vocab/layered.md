@@ -518,7 +518,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 <!-- /section -->
 <!-- section: hero-outfit | Outfits | garments with volume, and the outfit build: a styled look with dials (stylize, fit, coverage, ornament) -->
   OUTFIT. `outfit` puts on garments WITH VOLUME that follow the body's own geometry (`body-garment.js`; words in
-  `hero-dress.js` OUTFIT_WORDS: `tee`, `shirt`, `trousers`, `shorts`, `boots`). Each piece copies its body part's rings
+  `hero-dress.js` OUTFIT_WORDS: `tee`, `shirt`, `fittedTee`, `fittedShirt` (skin-fitting), `trousers`, `shorts`, `boots`). Each piece copies its body part's rings
   over a window, carried out by its `ease` and lifted over the layers beneath it (the chest's, the garments already on
   that part), and copies the part's binding station by station: every garment vertex skins as the skin vertex under it,
   so sleeves and legs bend at the elbow and the knee with the body, every dial that moves the part moves the garment,

@@ -59,7 +59,7 @@ const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-rela
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -71,6 +71,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--hero') { heroSpec = JSON.parse(args[++i]); continue; }
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
+  if (a === '--dress') { dress = true; continue; }
   if (a === '--map') { partMap = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--graft') { graft = true; continue; }
@@ -376,7 +377,7 @@ for (const cast of casts) {
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
-    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
+    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; return P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);

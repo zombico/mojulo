@@ -33,6 +33,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   its upper hull: from the bust's apex straight down, no ledge) and over its rings' hollows, at most 40 mm off. On the
   skin's grid, so it takes the skin's bind and correctives; its ends closed beyond its end rings. A realistic hero's
   `outfit: ['tee']` wears it in place of the segment tee. The envelope gains `taut`.
+- SKIN-FITTING SHIRTS, outfit words `fittedTee` and `fittedShirt` (its sleeves to the wrist): close to the skin yet
+  hiding the musculature and the joints' formations as a shirt does, cloth under tension spanning the GROOVES (the
+  abdomen's lines, the cleft between the pecs, the deltoid's border, the spine's furrow, the elbow's hollows) and
+  following the FORMS (the chest, the waist's taper, the arm's swell). On the realistic body a field garment: the cloth
+  field blended half again looser, eased 2.5 mm, over each ring's hollows and pulled straight over any dip shorter than
+  9 cm along the piece (the envelope's `span`: the grooves, the fold under the bust, not the waist's taper), by a SOFT
+  cap (the envelope's `soft`: the lift saturating toward 45 mm, no ledge where it binds). Half of it lies within a
+  centimetre of the skin (the tee: four). On every other body, segment pieces eased 3 mm. A field garment takes its
+  envelope from its word (`looser`, `ease`, `reach`, `taut`, `span`, `along`, `soft`); the tee's as it was. body-study
+  `--dress` draws the garments in cloth blue over the clay body.
 
 ### The realistic hero at the door
 

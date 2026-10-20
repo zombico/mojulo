@@ -70,6 +70,9 @@ bone shows.
 pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps
 only the parts it names (`--parts '^pelvis$'`), to see one shell whole.
 
+**The dress** (`--dress`): garments (a field garment, or a segment piece `<id>_<body part>`) in cloth blue over
+the clay body, so how close a shirt lies and which grooves it spans read at a glance.
+
 **The sections panel and the measures table** come at the bind, per cast:
 
 - the trunk cut level at the neck, the chest (six tenths of the way from the navel to the shoulder joints), the waist

@@ -13,16 +13,25 @@ import { bodyField, limbField, crossing } from './body-relational-field.js';
 import { BODY_BUILDS } from './body-relational-builds.js';
 import { envelopePart } from './body-relational-envelope.js';
 
-/** the field garments: a word's body parts, its cut down the limbs (a share of the segment's rings), its ease and group */
+/** the field garments: a word's body parts, its cut down the limbs (a share of the segment's rings), its ease and group,
+ * and its cloth: how much looser than the body its field blends, and its envelope (`reach`, `taut`, `along`, `soft`:
+ * body-relational-envelope.js). The tee hangs from the chest (taut, 40 mm); a SKIN-FITTING shirt lies close (half again
+ * looser, 2.5 mm out), over each ring's hollows and straight over any dip shorter than 9 cm along it (the grooves
+ * between the muscles, the fold under the bust, the elbow's hollows), not from the chest to the hip, at most 45 mm off
+ * by a soft cap */
+const TOP = ['collar', 'shoulderTop', 'chest', 'breast', 'armpit', 'flank', 'abdomen', 'upperBack', 'back', 'lowerBack', 'shoulderCap', 'upperArm'];
+const FITTED = { ease: 0.0025, looser: 1.5, reach: 0.045, taut: false, span: 0.09, along: 2, soft: true, group: 'Top' };
 export const FIELD_GARMENTS = Object.freeze({
-  tee: { covers: ['collar', 'shoulderTop', 'chest', 'breast', 'armpit', 'flank', 'abdomen', 'upperBack', 'back', 'lowerBack', 'shoulderCap', 'upperArm'], limit: { upperArm: 0.45 }, ease: 0.008, group: 'Top' },
+  tee: { covers: TOP, limit: { upperArm: 0.45 }, ease: 0.008, group: 'Top' },
+  fittedTee: { covers: TOP, limit: { upperArm: 0.45 }, ...FITTED },
+  fittedShirt: { covers: [...TOP, 'elbow', 'forearm', 'wrist'], limit: { foreArm: 0.92 }, ...FITTED },
 });
 
 const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top' }) {
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   const want = new Set(covers), arm = limbField(R, B1, 'upperArm');
   // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
@@ -54,9 +63,9 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     const end = (st, nb) => { const c = mid(st), r = P.slots.reduce((a, sl) => a + len(sub(st.points[sl], c)), 0) / P.slots.length; return add(c, scl(unit(sub(c, mid(nb))), r / 3)).map(r6); };
     const ids = new Set(stations.map((s) => s.id)), blend = Object.fromEntries(Object.entries(P.bind?.blend || {}).filter(([k]) => ids.has(k.split('.')[0])));
     const piece = { layer: 1, closure: 'closed', garment: true, slots: P.slots, ...(P.slotT ? { slotT: P.slotT } : {}), stations, caps: { back: end(stations[0], stations[1]), tip: end(stations[stations.length - 1], stations[stations.length - 2]) }, group, bind: { ...P.bind, blend } };
-    // (cloth taut along the piece, and spanning deeper than the skin's envelope: from the bust's apex over the fold
-    // under it, 2 to 3 cm)
-    parts[`${id}_${seg}`] = envelopePart(piece, { reach: 0.04, taut: true });
+    // (the tee's cloth taut along the piece, spanning deeper than the skin's envelope: from the bust's apex over the
+    // fold under it, 2 to 3 cm; a fitted shirt's close)
+    parts[`${id}_${seg}`] = envelopePart(piece, { reach, taut, along, ...(span ? { span } : {}), ...(soft ? { soft } : {}) });
   }
   return { parts };
 }

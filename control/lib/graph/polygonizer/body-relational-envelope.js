@@ -13,13 +13,14 @@
  *                  crotch's level are drawn in to a cone on a physique; a plate baked on them collapsed into spikes at the
  *                  hips, and a trouser seat pushed off their downward faces folded under itself
  * Only ever outward, and (but where hung) at most `reach` (15 mm) off the skin: cloth spans a hollow, not the gap between
- * the thighs at the crotch (bridged, the seat of the trousers folded where its legs began). Pure and deterministic. */
+ * the thighs at the crotch (bridged, the seat of the trousers folded where its legs began). `soft`: the cap a saturation
+ * (a lift of l becomes reach · tanh(l / reach)), so where it binds the cloth leaves no ledge. Pure and deterministic. */
 import { add, sub, scl, dot, cross, len, unit, r6 } from './body-relational-vec.js';
 
 const centreOf = (P, st) => scl(P.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / P.slots.length);
 
 /** a closed part's envelope (a new part; the input untouched) */
-export function envelopePart(P, { along = 2, reach = 0.015, hang = false, taut = false } = {}) {
+export function envelopePart(P, { along = 2, reach = 0.015, hang = false, taut = false, span = 0, soft = false } = {}) {
   const S = P.stations, n = S.length, C = S.map((st) => centreOf(P, st));
   // each ring's frame: its axis from the rings either side, two directions square to it
   const frames = C.map((c, i) => {
@@ -52,6 +53,19 @@ export function envelopePart(P, { along = 2, reach = 0.015, hang = false, taut =
       }
     }
   }
+  // taut over a SPAN (`span`, metres: a close shirt): a slot's distance raised to the straight line between any two of its
+  // rings at most `span` apart that hold it between them, so the cloth runs straight from the bust's apex over the fold
+  // under it and across the abdomen's lines, and still follows a taper longer than the span (the waist)
+  if (span > 0) {
+    const h = [0]; for (let i = 1; i < n; i++) h.push(h[i - 1] + len(sub(frames[i].c, frames[i - 1].c)));
+    for (let j = 0; j < P.slots.length; j++) {
+      const r = rings.map((R) => Math.hypot(R[j].x, R[j].y)), m = r.slice();
+      for (let a = 0; a < n; a++) for (let b = a + 2; b < n && h[b] - h[a] <= span; b++) for (let i = a + 1; i < b; i++) {
+        const v = r[a] + ((r[b] - r[a]) * (h[i] - h[a])) / (h[b] - h[a] || 1); if (v > m[i]) m[i] = v;
+      }
+      for (let i = 0; i < n; i++) { const p = rings[i][j]; if (m[i] > r[i] && r[i] > 1e-9) { p.x *= m[i] / r[i]; p.y *= m[i] / r[i]; } }
+    }
+  }
   // along the part: a slot's distance raised to its neighbours' mean up and down the part, where it is less
   for (let it = 0; it < along; it++) {
     const rad = rings.map((R) => R.map((p) => Math.hypot(p.x, p.y)));
@@ -70,6 +84,7 @@ export function envelopePart(P, { along = 2, reach = 0.015, hang = false, taut =
     const f = frames[i];
     return { ...st, points: Object.fromEntries(P.slots.map((sl, j) => {
       const p = rings[i][j], q = add(f.c, add(add(scl(f.u, p.x), scl(f.v, p.y)), scl(f.a, p.z))), o = st.points[sl], d = sub(q, o), l = len(d);
+      if (soft && !hung[i][j]) return [sl, (l > 1e-12 ? add(o, scl(d, (reach * Math.tanh(l / reach)) / l)) : q).map(r6)];
       return [sl, (l > reach && !hung[i][j] ? add(o, scl(d, reach / l)) : q).map(r6)];
     })) };
   });

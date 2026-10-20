@@ -198,11 +198,15 @@ export function lowerPaint(paint, plan) {
  * cast's scale. Torso u: 0 the hem, 1 the navel, 2 the chest, 3 the shoulder, 4 the collar; the structured pelvis u 0
  * the crotch, 6 under the torso's hem. */
 const CHEST_UNDER = ['pectoral', 'bust', 'navel'];
-const torsoPiece = (id, g, k, sleeve) => [{ id, part: 'torso', ease: 0.008 * k, over: CHEST_UNDER, group: g }, ...sleeve];   // up to the collar ring: the neck rises out of it
-const hem = (id, g, k, { structured }) => (structured ? [{ id: `${id}Hem`, part: 'pelvis', u: [4, 6], ease: 0.012 * k, group: g }] : []);
+const torsoPiece = (id, g, k, sleeve, ease = 0.008) => [{ id, part: 'torso', ease: ease * k, over: CHEST_UNDER, group: g }, ...sleeve];   // up to the collar ring: the neck rises out of it
+const hem = (id, g, k, { structured }, ease = 0.012) => (structured ? [{ id: `${id}Hem`, part: 'pelvis', u: [4, 6], ease: ease * k, group: g }] : []);
 export const OUTFIT_WORDS = Object.freeze({
   tee: ({ scale: k, ...c }) => [...torsoPiece('tee', 'Top', k, [{ id: 'teeSleeve', part: 'upperArm', run: [0, 0.45], ease: 0.01 * k, flare: [0, 0.006 * k], group: 'Top' }]), ...hem('tee', 'Top', k, c)],
   shirt: ({ scale: k, ...c }) => [...torsoPiece('shirt', 'Top', k, [{ id: 'shirtSleeve', part: 'upperArm', ease: 0.01 * k, group: 'Top' }, { id: 'shirtCuff', part: 'foreArm', run: [0, 0.92], ease: 0.01 * k, group: 'Top' }]), ...hem('shirt', 'Top', k, c)],
+  // SKIN-FITTING: close to the skin, 3 mm out (on the realistic body a field garment over the body's grooves:
+  // body-relational-garment.js FIELD_GARMENTS)
+  fittedTee: ({ scale: k, ...c }) => [...torsoPiece('fittedTee', 'Top', k, [{ id: 'fittedTeeSleeve', part: 'upperArm', run: [0, 0.45], ease: 0.003 * k, group: 'Top' }], 0.003), ...hem('fittedTee', 'Top', k, c, 0.004)],
+  fittedShirt: ({ scale: k, ...c }) => [...torsoPiece('fittedShirt', 'Top', k, [{ id: 'fittedShirtSleeve', part: 'upperArm', ease: 0.003 * k, group: 'Top' }, { id: 'fittedShirtCuff', part: 'foreArm', run: [0, 0.92], ease: 0.003 * k, group: 'Top' }], 0.003), ...hem('fittedShirt', 'Top', k, c, 0.004)],
   trousers: ({ scale: k, structured }) => [...(structured ? [{ id: 'trousersSeat', part: 'pelvis', ease: 0.01 * k, group: 'Bottom' }] : []),
     { id: 'trousersLeg', part: 'thigh', ease: 0.01 * k, group: 'Bottom' }, { id: 'trousersShin', part: 'shank', run: [0, 0.94], ease: 0.01 * k, group: 'Bottom' }],   // whole above the knee: its overshoot ring meets the shin's
   shorts: ({ scale: k, structured }) => [...(structured ? [{ id: 'shortsSeat', part: 'pelvis', ease: 0.012 * k, group: 'Bottom' }] : []),

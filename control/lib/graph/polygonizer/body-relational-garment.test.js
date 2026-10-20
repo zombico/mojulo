@@ -30,4 +30,23 @@ describe('a field garment (the tee)', () => {
     expect(m.recipe.correctives.some((c) => Object.keys(c.d).some((id) => id.startsWith('tee_upperArmR/')))).toBe(true);
     expect(JSON.stringify(expandLayeredManifest({ kind: 'layered', hero }).recipe)).toBe(JSON.stringify(m.recipe));
   }, 180_000);
+
+  it('a skin-fitting shirt lies nearer the skin than the tee, yet spans its grooves; its sleeves to the wrist', () => {
+    const mint = (w) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: [w] }) }).recipe;
+    const tee = mint('tee'), fit = mint('fittedShirt');
+    const A = auditLayered(compileLayered(fit, {}));
+    for (const k of ['fittedShirt_torso', 'fittedShirt_upperArmR', 'fittedShirt_foreArmR', 'fittedShirt_foreArmL']) expect(A[k]?.pass, k).toBe(true);
+    // the sleeve down the forearm to the wrist
+    expect(fit.parts.fittedShirt_foreArmR.stations.length).toBeGreaterThan(0.85 * fit.parts.foreArmR.stations.length);
+    // each cloth point's lift off the skin point under it, over the torso
+    const lifts = (r, id) => { const G = r.parts[`${id}_torso`], P = r.parts.torso, out = [];
+      for (const st of G.stations) { const S = P.stations.find((x) => x.id === st.id); for (const sl of P.slots) out.push(Math.hypot(...[0, 1, 2].map((q) => st.points[sl][q] - S.points[sl][q]))); }
+      return out; };
+    const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length, lt = lifts(tee, 'tee'), lf = lifts(fit, 'fittedShirt');
+    expect(mean(lf)).toBeLessThan(0.4 * mean(lt));
+    // half of it within a centimetre of the skin (the tee: four), and lifted farther where it spans a groove
+    const mid = [...lf].sort((x, y) => x - y)[Math.floor(lf.length / 2)];
+    expect(mid).toBeLessThan(0.012);
+    expect(Math.max(...lf)).toBeGreaterThan(0.02);
+  }, 240_000);
 });
