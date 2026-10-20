@@ -323,7 +323,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   |f| / 8 away, so the nearer samples' signs are known: the same samples decide); the crossing within the step found
   by false position (Illinois), a handful of reads where halving took thirty; and a pauldron's stage casts again only
   the rays its mass reaches, the relaxing run over them and a margin round them (`resamplePart` `reuse`); the shoulder's
-  blend finds the arm's nearest vertex from a grid, not every vertex; the field's sums read into kept buffers.
+  blend finds the arm's nearest vertex from a grid, not every vertex; the field's sums read into kept buffers. Then
+  faster again, a few points moving: 5 s (Norrin) and 7.7 s (Shalla). The relaxing's projections read the field's
+  gradient forward from the value, three reads where centred took six (centred still for a ray's fallback and the
+  pelvis, where at the crotch's level the skin's two walls stand close and the cheaper read settled rings on the other
+  wall); the march's slope bound 4 (at 2 the shank's masses broke it); a pauldron's stage relaxes a band narrower each
+  iteration; the shoulder's blend compiles the torso and the upper arms alone. Of Norrin's 9,428 points 4 moved over
+  0.1 mm (0.11 the most); of Shalla's 11,316, 22, and 2 over a millimetre, in the fold under the bust, where a point
+  settles a few millimetres along the crease either way (the fold reads the same).
 
 ### Epidermis cube: skin and hair as a recipe
 
