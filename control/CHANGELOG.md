@@ -105,7 +105,13 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
   as recipe content, fitted to the landmark head it replaces (vertex to menton, the ear canal at its depth), sampled by
   rays from one centre into two parts that share the mouth's ring (`jaw` and `cranium`, their caps the mouth), sealed
   to the neck: the neck ends on a ring wholly under the head and the jaw part starts on that ring. The lower face is
-  bound to the rig's jaw bone, its hinge moved to the head's condyles, so the mouth opens. Bald; no ears yet.
+  bound to the rig's jaw bone, its hinge moved to the head's condyles, so the mouth opens. Bald.
+- The face sampled from its own direction: rays from one centre grazed the nose, the lips and the lids, and the face
+  read stair-stepped. The cranium and the jaw are now sampled on the head's BARE field (head-relational.js `bare`: the
+  skin wave without the nose, the lips, the eyes or the ears), smooth under the features; the `face` is its own part,
+  concentric rings about the nose cast along the face's direction onto the whole field, out past where the features
+  leave the bare skin, its rim sunk under the cranium (the body's handover); the eyes painted. The ears are their own
+  parts, a pillow each on the ear's field (`earFields`), front and back sheets across its plane.
 
 ### Realistic body: the dermal skin on the body
 

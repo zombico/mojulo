@@ -998,7 +998,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const lens = chain(mouth), oral = mouth.oral.map(chain);
     return (p) => { let d = lens(p); for (const o of oral) d = SM.min(d, o(p)); return d; };
   })() : null;
-  const skinField = (p) => {
+  const skinField = (p, bare = false) => {
     if (!skin) {
       let d = Infinity;
       for (const b of bonds) if (b.group === 'bone') { const e = b.f(p); d = d === Infinity ? e : smin(d, e, BLEND.bone * sc); }
@@ -1023,6 +1023,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     let sum = 0;
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);
+    // (BARE: the skin wave alone, no feature joined and nothing cut: what the face's parts lie over)
+    if (bare) return d;
     for (const k of ['nose', 'lipBody', 'lips']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
     // the grooves and the mouth cut from the skin (the eyes are their own rig, set in after)
     for (const c of carves) d = smax(d, -c.f(p), (c.blend ?? 0.003) * sc);
@@ -1039,7 +1041,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
     const baseX = (probe ? Math.abs(probe.x) / sc : Pt.porionR.x) - 0.004;   // sunk a touch into the skin, so it welds
     const e = earPart(Pt, rel, s, baseX);
-    return { f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
+    return { side: s, f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
   }) : [];
   const ears = withEars ? hung : [];
   // THE EYES — their own rig (head-relational-eye.js): the `eyes` spec (a word, channels, a side's own), and the
@@ -1125,5 +1127,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     bridge,
     eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV })),
   };
-  return { field, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
+  // the skin wave alone (no nose, lips, lip line, eyes or ears: what a head sampled feature by feature lies over), and
+  // each ear's own field, its bowl and canal cut (the ear alone, not joined to the head)
+  const bare = skin ? (p) => skinField(p, true) : null;
+  const earFields = hung.map((e) => ({ side: e.side, field: (p) => { const d = e.f(p); if (d === Infinity) return d; const c = e.carve(p); return c === Infinity ? d : smax(d, -c, 0.004 * sc); }, top: e.top, tragion: e.tragion }));
+  return { field, bare, earFields, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
 }

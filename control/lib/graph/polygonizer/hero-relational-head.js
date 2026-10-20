@@ -22,14 +22,21 @@
  * the field's (globe and lids in one skin); both, expressions and a face rig are later work. Pure and deterministic. */
 import { relationalHead } from './head-relational.js';
 import { compileLayered } from './station-loft.js';
-import { crossing } from './body-relational-field.js';
-import { ringSlots, mixW, four } from './body-relational-resample.js';
+import { crossing, project } from './body-relational-field.js';
+import { ringSlots, mixW, four, mirrorPart } from './body-relational-resample.js';
 import { r6 } from './body-relational-vec.js';
 import { smin } from './vajra.js';
 
 /** the head's density and its joins: `multiple` head slots to a neck slot, `jaw` and `cranium` rings, the neck's join
  * to the head (`join`, metres: the smooth union's width, and how far outside the head the seam ring stands) */
-export const RELATIONAL_HEAD = Object.freeze({ multiple: 4, jaw: 20, cranium: 80, join: 0.012, top: 86 });
+export const RELATIONAL_HEAD = Object.freeze({
+  multiple: 4, jaw: 20, cranium: 80, join: 0.012, top: 86,
+  // the visage: its look's tilt (°), its slots and rings, the share of its reach the features fill (`inner`), how far its
+  // rim sinks and the cranium under it is let down, how deep it closes behind; its casts' reach and its widest disc (m)
+  tilt: 15, slots: 96, rings: 40, inner: 0.72, sink: 0.001, deflate: 0.004, rimDeflate: 0.0008, depth: 0.015, reach: 0.1, most: 0.1, relax: 6,
+  // the ears: slots round a section, sections up the ear
+  earSlots: 40, earRings: 24,
+});
 
 /** the head's tune (head-relational.js `solveTune`, its wave's internal points) per pole, SOLVED once and kept: a solve
  * takes most of a minute, and a minted head is a compatibility promise (hero-relational-head.deep.test.js holds these to
@@ -42,6 +49,7 @@ export const HEAD_TUNES = Object.freeze({
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const rp = (p) => p.map(r6);
+const mid3 = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 
 /** the landmark head's parts: the cranium, the jaw and everything pinned on them (the eyes, the lips, the ears, the hair) */
@@ -87,6 +95,138 @@ function neckField(neck, from = 0) {
   };
 }
 
+/** the OUTERMOST crossing of `f` on the line from `from` along `d` (marched in from `from`, which stands outside, `reach`
+ * at most; a step no longer than `step`, so a lid or an ear's rim is not stepped over), or null */
+function castAlong(f, from, d, reach, step = 0.0005) {
+  const at = (t) => [from[0] + d[0] * t, from[1] + d[1] * t, from[2] + d[2] * t];
+  let t = 0, ft = f(from);
+  if (ft <= 0) return null;
+  while (t < reach) {
+    const tn = t + Math.max(step, Math.min(ft / 4, 0.01)), fn = f(at(tn));
+    if (fn <= 0) { let lo = t, hi = tn; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (f(at(m)) > 0) lo = m; else hi = m; } return at(hi); }
+    t = tn; ft = fn;
+  }
+  return null;
+}
+const add3 = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
+const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/** the VISAGE's frame and reach: looking at the face along `d` (forward, tilted down by `tilt`°, so the nose's underside
+ * and the lower lids are seen), the disc about `c` in the plane square to it, and per direction θ in that plane (0 up,
+ * toward the figure's right) how far the features change the skin (the whole field against the bare one, cast along d):
+ * the disc reaches past that by `1 / inner`, short of where the face turns away. { c, d, up, side, R(θ), half } */
+function visageFrame(fF, fB, c, C) {
+  const t = (C.tilt * Math.PI) / 180, d = [0, Math.cos(t), -Math.sin(t)], up = [0, Math.sin(t), Math.cos(t)], side = [1, 0, 0];
+  const half = C.slots / 2, inPlane = (th, r) => add3(add3(c, up, r * Math.cos(th)), side, r * Math.sin(th));
+  const cast = (f, q) => castAlong(f, add3(q, d, C.reach), d.map((v) => -v), 2 * C.reach);
+  const raw = [];
+  for (let j = 0; j <= half; j++) {
+    const th = (Math.PI * j) / half;
+    let zone = 0.01, sil = C.most;
+    for (let r = 0.002; r <= C.most; r += 0.001) {
+      const q = inPlane(th, r), a = cast(fF, q);
+      if (!a) { sil = r - 0.001; break; }
+      const b = cast(fB, q);
+      if (!b || dist3(a, b) > 0.0003) zone = r;
+    }
+    raw.push({ zone, sil });
+  }
+  // (the outline the convex hull of the features' reach, so the rim runs smooth past the eyes and the mouth, held short
+  // of where the face turns away; the left the right's mirror)
+  const pts = [];
+  for (let j = 0; j < C.slots; j++) { const jj = j <= half ? j : C.slots - j, th = (2 * Math.PI * j) / C.slots; pts.push([raw[jj].zone * Math.cos(th), raw[jj].zone * Math.sin(th)]); }
+  const hullR = (th) => { let r = 0; const u = [Math.cos(th), Math.sin(th)]; for (let i = 0; i < pts.length; i++) for (let k = i + 1; k < pts.length; k++) { const a = pts[i], b = pts[k], den = u[0] * (b[1] - a[1]) - u[1] * (b[0] - a[0]); if (Math.abs(den) < 1e-12) continue; const t = (a[0] * (b[1] - a[1]) - a[1] * (b[0] - a[0])) / den, s = (u[1] * a[0] - u[0] * a[1]) / den; if (t > r && s >= -1e-9 && s <= 1 + 1e-9) { const keep = pts.every((q) => (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]) <= 1e-12) || pts.every((q) => (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]) >= -1e-12); if (keep) r = t; } } return r; };
+  const R = Array.from({ length: C.slots }, (_, j) => { const jj = j <= half ? j : C.slots - j; return Math.min(hullR((2 * Math.PI * j) / C.slots) / C.inner, raw[jj].sil - 0.002); });
+  const Rat = (th) => { const x = ((th / (2 * Math.PI)) * C.slots + C.slots) % C.slots, i = Math.floor(x), f = x - i; return R[i % C.slots] * (1 - f) + R[(i + 1) % C.slots] * f; };
+  return { c, d, up, side, R, Rat, half, inPlane, cast };
+}
+
+/** where a point stands in the visage's disc: its share of the reach there (0 the middle, 1 the rim) and its depth along
+ * the face's direction from the disc's plane */
+function visageAt(V, q) {
+  const v = [q[0] - V.c[0], q[1] - V.c[1], q[2] - V.c[2]], h = v[0] * V.d[0] + v[1] * V.d[1] + v[2] * V.d[2];
+  const a = v[0] * V.up[0] + v[1] * V.up[1] + v[2] * V.up[2], b = v[0] * V.side[0] + v[1] * V.side[1] + v[2] * V.side[2];
+  return { f: Math.hypot(a, b) / V.Rat(Math.atan2(b, a)), h };
+}
+
+/** THE VISAGE part: rings about the disc's middle, each point cast along the face's direction onto the whole field (the
+ * face as seen from the front: no ray grazes the nose's side or the lips' curl), from the middle out to the rim; past
+ * `inner` of the reach (where the features have left the bare skin) sunk under the cranium by up to `sink`; closed behind
+ * by a ring `depth` back. Its groups paint the eyes. */
+function visagePart(V, fF, paintAt, C) {
+  const n = C.rings, half = V.half, slots = ringSlots(C.slots);
+  const sinkAt = (f) => C.sink * ramp((f - C.inner) / (1 - C.inner));
+  const ringAt = (f) => {
+    const pts = new Array(C.slots);
+    for (let j = 0; j <= half; j++) {
+      const th = (Math.PI * j) / half, q = V.inPlane(th, f * V.Rat(th)), hit = V.cast(fF, q);
+      if (!hit) throw new Error(`hero-relational-head: the visage found no skin (slot ${slots[j]})`);
+      const p = add3(hit, V.d, -sinkAt(f));
+      pts[j] = j === 0 || j === half ? [0, p[1], p[2]] : p;
+      if (j && j < half) pts[C.slots - j] = [-p[0], p[1], p[2]];
+    }
+    return pts;
+  };
+  const shown = Array.from({ length: n }, (_, i) => ringAt(1 - i / n));
+  // (the walls a view leaves under what overhangs it, the nose's wings, the lower lip, the lids' margins, relaxed out:
+  // each point of the rings inside the features' reach drawn toward its neighbours and projected back onto the skin)
+  const first = shown.findIndex((_, i) => 1 - i / n <= C.inner);
+  for (let it = 0; it < C.relax; it++) {
+    const next = shown.map((r) => r.slice());
+    for (let i = Math.max(1, first); i < n - 1; i++) for (let j = 0; j <= half; j++) {
+      const r = shown[i], nb = [r[(j + 1) % C.slots], r[(j + C.slots - 1) % C.slots], shown[i - 1][j], shown[i + 1][j]];
+      const m = [0, 1, 2].map((q) => (nb[0][q] + nb[1][q] + nb[2][q] + nb[3][q]) / 4), q0 = lerp3(r[j], m, 0.5), q = project(fF, q0, 12, true) ?? r[j];
+      next[i][j] = j === 0 || j === half ? [0, q[1], q[2]] : q;
+      if (j && j < half) next[i][C.slots - j] = [-q[0], q[1], q[2]];
+    }
+    shown.forEach((r, i) => { shown[i] = next[i]; });
+  }
+  const rim = shown[0], mid = mean(rim), deep = rim.map((p) => add3(lerp3(p, mid, 0.15), V.d, -C.depth));
+  const rings = [deep, ...shown], tip = V.cast(fF, V.c);
+  const stations = rings.map((pts, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(slots.map((s, j) => [s, rp(pts[j])])) }));
+  // the eyes' faces painted by what the head paints at their middle; the rest skin
+  const G = { sclera: 'Sclera', iris: 'Iris', pupil: 'Pupil' }, bandGroups = {};
+  for (let i = 1; i + 1 < rings.length; i++) {
+    const row = [];
+    for (let k = 0; k < half; k++) row.push(G[paintAt(mean([rings[i][k], rings[i][k + 1], rings[i + 1][k], rings[i + 1][k + 1]]))] || 'Skin');
+    if (row.some((g) => g !== 'Skin')) bandGroups[`st${i}-st${i + 1}`] = row;
+  }
+  return { rings, part: { layer: 1, closure: 'closed', slots, stations, caps: { back: rp(add3(mean(deep), V.d, -0.004)), tip: rp(tip) }, group: 'Skin', ...(Object.keys(bandGroups).length ? { bandGroups } : {}) } };
+}
+
+/** THE EAR (the right; the left its mirror): a tube up the ear from the lobe to the helix's top, each ring the ear's
+ * section at its height, its lateral face cast from beside the head and its medial face from inside, across the ear's
+ * width at that height (front slot its front edge, `back` its back edge): the plate stands off the head, its root sunk
+ * into the skin. Bound to the head. */
+function earPart(fE, tragion, C) {
+  // the ear's outline seen from beside the head (a grid of casts across it)
+  const out = [1, 0, 0], inn = [-1, 0, 0], x0 = tragion[0] + 0.06, x1 = tragion[0] - 0.05;
+  const lat = (y, z) => castAlong(fE, [x0, y, z], inn, 0.12, 0.0004), med = (y, z) => castAlong(fE, [x1, y, z], out, 0.12, 0.0004);
+  const hits = [];
+  for (let z = tragion[2] - 0.05; z <= tragion[2] + 0.06; z += 0.002) for (let y = tragion[1] - 0.06; y <= tragion[1] + 0.02; y += 0.002) if (lat(y, z)) hits.push([y, z]);
+  if (!hits.length) throw new Error('hero-relational-head: the ear\'s field shows nothing beside the head');
+  const z0 = Math.min(...hits.map((h) => h[1])) + 0.0015, z1 = Math.max(...hits.map((h) => h[1])) - 0.0015, half = C.earSlots / 2, slots = ringSlots(C.earSlots);
+  // its width at a height: the first and last cast that finds it, each edge then bisected
+  const edge = (z, yIn, yOut) => { let a = yIn, b = yOut; for (let i = 0; i < 16; i++) { const m = (a + b) / 2; if (lat(m, z)) a = m; else b = m; } return a; };
+  const width = (z) => { const row = []; for (let y = tragion[1] - 0.06; y <= tragion[1] + 0.02; y += 0.001) if (lat(y, z)) row.push(y); return row.length ? [edge(z, row[0], row[0] - 0.001), edge(z, row.at(-1), row.at(-1) + 0.001)] : null; };
+  const rings = [];
+  for (let i = 0; i < C.earRings; i++) {
+    const z = z0 + ((z1 - z0) * i) / (C.earRings - 1), w = width(z);
+    if (!w) continue;
+    const [yb, yf] = [w[0] + 0.0004, w[1] - 0.0004], pts = new Array(C.earSlots);
+    // slot j from the front edge (0) over the lateral face to the back edge (half), and back over the medial face
+    for (let j = 0; j < C.earSlots; j++) {
+      const s = j <= half ? j / half : (C.earSlots - j) / half, y = yf + (yb - yf) * (0.5 - 0.5 * Math.cos(Math.PI * s));
+      const p = (j <= half ? lat : med)(y, z) ?? (j <= half ? med : lat)(y, z);
+      pts[j] = p ?? [tragion[0], y, z];
+    }
+    rings.push(pts);
+  }
+  const cap = (ring, dz) => { const m = mean(ring); return rp([m[0], m[1], m[2] + dz]); };
+  const stations = rings.map((pts, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(slots.map((s, j) => [s, rp(pts[j])])) }));
+  return { layer: 1, closure: 'closed', slots, stations, caps: { back: cap(rings[0], -0.0015), tip: cap(rings.at(-1), 0.0015) }, group: 'Skin', bind: { bone: 'head', blend: {} } };
+}
+
 /**
  * The realistic hero's recipe (a sliced one: formSlice) wearing the relational head in place of its landmark head.
  * `sex` picks the head's pole. Returns a new recipe; the one given is left as it was.
@@ -100,14 +240,19 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   const head = relationalHead({ sex, tune, ears: false }), eared = relationalHead({ sex, tune });
   const { k, ty, men } = fitOf(parts, head, eared);
   const toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
-  const fH = (q) => head.field({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
+  const inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
+  const fH = inHead(head.field), fBare = inHead(head.bare);
+  // THE VISAGE's frame first: the cranium is let down under it by its reach (`deflate`, eased out over its rim)
+  const V = visageFrame(fH, fBare, toHero(mid3(head.points.rhinion, head.points.prn)), C);
+  const under = (q) => { const { f, h } = visageAt(V, q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
+  const fB = (q) => fBare(q) + under(q);
 
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width (where the union is the neck's)
   let seam = -1;
-  for (let i = neck.stations.length - 1; i >= 0 && seam < 0; i--) if (neck.slots.every((s) => fH(neck.stations[i].points[s]) > C.join)) seam = i;
+  for (let i = neck.stations.length - 1; i >= 0 && seam < 0; i--) if (neck.slots.every((s) => fB(neck.stations[i].points[s]) > C.join)) seam = i;
   if (seam < 1) throw new Error('hero-relational-head: no neck ring stands clear of the head');
   // (the union's neck from the ring under the seam: the head's lower rings start on the seam and only rise from it)
-  const fN = neckField(neck, seam - 1), fU = (q) => smin(fH(q), fN(q), C.join);
+  const fN = neckField(neck, seam - 1), fU = (q) => smin(fB(q), fN(q), C.join);
   const seamSt = neck.stations[seam], N = neck.slots.length, H = N * C.multiple, slots = ringSlots(H), half = H / 2;
   const seamPts = Array.from({ length: H }, (_, j) => { const i = Math.floor(j / C.multiple), t = (j % C.multiple) / C.multiple; return lerp3(seamSt.points[neck.slots[i]], seamSt.points[neck.slots[(i + 1) % N]], t); });
 
@@ -198,6 +343,29 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
     for (const key of Object.keys(nb)) { const st = key.split('.')[0]; if (st !== 'back' && st !== 'tip' && !kept.has(st)) delete nb[key]; }
     nb.tip = blend.back;
   }
+  // THE VISAGE over them, bound as the jaw's skin is: under the lips' line (the stomion to the corners, eased level past
+  // them) the jaw's share, sharp across the line between the corners; over it the head
+  const S2 = (q) => ({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k });
+  const vis = visagePart(V, fH, (q) => head.paint(S2(q)), C), sto = toHero(P.sto);
+  const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
+  const visW = (p) => {
+    const a = Math.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), below = (1 - s) * ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001) + s * ramp((lipZ(p[0]) - p[2]) / 0.015);
+    const wj = r6(ramp((ahead(p) + 0.006) / 0.018) * below);
+    return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
+  };
+  const vblend = {};
+  vis.rings.forEach((pts, i) => vis.part.slots.forEach((s, j) => { vblend[`st${i}.${s}`] = visW(pts[j]); }));
+  vblend.back = { head: 1 }; vblend.tip = visW(vis.part.caps.tip);
+  parts.visage = { ...vis.part, bind: { bone: 'head', blend: vblend } };
+
+  // THE EARS, each on its own field
+  const earR = head.earFields.find((e) => e.side === 'R');
+  if (earR) {
+    const R = earPart(inHead(earR.field), toHero(earR.tragion), C);
+    parts.earR = R; parts.earL = mirrorPart(R, { ...R, bind: { bone: 'head' } });
+  }
+
+
   // the rig's jaw on the head's own joint: the hinge between the condyles, the tip at the gnathion
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
