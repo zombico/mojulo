@@ -78,6 +78,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   band paint by position. `detail`, `statue` and `stylism` still refuse. Open: on a physique the pelvis's rings hidden
   under the crotch's level are drawn in to a cone, and a trouser seat fitted on them folds (the male skinny and heavyset,
   the female heavyset); body-study `--hero` renders the door's own hero.
+- The female's WAIST drawn in against her hips (body-relational-field.js `waist`, the build's `{ t, w, pinch }`: the
+  trunk's field read narrower across about a height on the torso bone, eased out either side, its depth as built). On
+  the hero's masses her waist measured 0.67 of her hips' width from the front and his 0.72, so the two read alike; with
+  a tenth's pinch hers is 0.61 (21.8 cm against 23.8). His, and every build without `waist`, byte for byte.
 
 ### Realistic body: correctives posed and exported
 

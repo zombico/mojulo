@@ -151,11 +151,19 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // warp of the field over the back half only (the front, the belly and the chest, as built): each curve a bump at `t`
   // up the torso bone, `depth` in W (+ forward), `w` its half reach in t. The trunk stood as a straight column in profile
   const curve = (B.spine || []).map((c) => ({ z: F.zOf(c.t), h: (F.zOf(c.t + c.w) - F.zOf(c.t - c.w)) / 2, d: c.depth * W }));
-  const warp = curve.length ? (q) => {
+  const bend = curve.length ? (q) => {
     const back = Math.max(0, Math.min(1, -q[1] / (0.3 * W))); if (!back) return q;
     let dy = 0; for (const c of curve) { const x = (q[2] - c.z) / c.h; if (Math.abs(x) < 1) dy += c.d * (1 - x * x) * (1 - x * x); }
     return [q[0], q[1] - dy * back * back * (3 - 2 * back), q[2]];
   } : (q) => q;
+  // THE WAIST (`waist`): the trunk drawn in across, `pinch` of its width at `t` up the torso bone, eased out over `w` (in
+  // t) either side, its depth as built (a woman's waist is narrower than a man's against her hips seen from the front, not
+  // shallower); absent, the trunk as built
+  const pinch = B.waist ? { z: F.zOf(B.waist.t), h: (F.zOf(B.waist.t + B.waist.w) - F.zOf(B.waist.t - B.waist.w)) / 2, p: B.waist.pinch } : null;
+  const warp = pinch ? (q0) => {
+    const q = bend(q0), x = (q[2] - pinch.z) / pinch.h; if (Math.abs(x) >= 1) return q;
+    return [q[0] / (1 - pinch.p * (1 - x * x) * (1 - x * x)), q[1], q[2]];
+  } : bend;
   // THE FAT (a physique's `fat`, W): one layer over the whole skin, eased out up the neck to none at the head's base,
   // where the head meets it
   const J = R.joints, nz0 = J.neckHub?.[2], nz1 = J.headBase?.[2], between = crotchEase(R, W);

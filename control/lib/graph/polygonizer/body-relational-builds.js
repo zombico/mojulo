@@ -204,6 +204,9 @@ const SHALLA = {
   // (the half biacromial already carries her narrower shoulders: on it her waist and seat stand wider than his)
   // (her lumbar curve a little deeper, her thoracic a little softer)
   spine: [{ t: -0.08, depth: 0.15, w: 0.42 }, { t: 0.6, depth: -0.07, w: 0.38 }],
+  // (her waist drawn in across against her hips: on the hero's masses it measured 0.67 of the hips' width from the front,
+  // his own 0.72, so the two read alike; a woman's runs about 0.6)
+  waist: { t: 0.05, w: 0.3, pinch: 0.1 },
   base: byId(NORRIN.base, { abdomen: { r: [0.6, 0.45, 0.6] }, seatLobe: { egg: [0.58, -0.1, -1.05], r: [0.33, 0.5, 0.48] }, seatTaper: { r: [0.76, 0.62] } }),
   muscles: [
     ...byId(scaled(NORRIN.muscles.filter((m) => !/^pectoral(Sternal|Clavicular)$/.test(m.id)), 1, 0.6), {
