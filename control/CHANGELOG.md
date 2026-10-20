@@ -34,6 +34,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
   `docs/realistic-body.md`, held by hero-realistic.test.js.
 
+### Realistic body: the feet on the form field
+
+- The realistic body's feet (`footR/L`, `toesR/L`) re-sampled onto the form field: the foot and the toes are limbs of
+  the builds (body-relational-builds.js `foot`, `toes`: the heel, the arch's two columns, the midfoot and the instep,
+  the ankle's two bones, the ball; the big toe and the four), on one field with the shank's own skin, so the ankle
+  flows out of the shank's last skin with no step. New module `body-relational-feet.js`.
+- The sole is flat on the ground the authored shoe stood on (the masses set so their lowest sinks past the rim's
+  rounding, then cut), so the gaits plant it where they did; the medial arch stands off it.
+- The foot is re-sampled as a SOCK: level rings round the ankle turning down the instep to stand square to the foot,
+  the heel the bend's outside; the toes in planes along the toe line, the big toe's tip on the field. The shank's skin
+  shows over a level `0.25 W` over the ankle's joint, the foot's under it, crossing there as the knee's chain does.
+- The bind: the foot's points near the shank's skin, or over the level, carry the shank's own shares at their height,
+  so the two skins move as one through a gait; the toe base is a hinge band (the foot's bone and the toes').
+- The physique reaches the feet barely: bulk and weight grow the foot's soft masses by a twenty-fifth at the dials'
+  ends; height scales them with the rest.
+- Every other part of the slice is byte for byte as before (norrin and shalla, athletic and jacked); the dials gain the
+  feet's new station ids. A slice costs about 2 s more.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the
