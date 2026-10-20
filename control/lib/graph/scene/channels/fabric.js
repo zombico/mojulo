@@ -18,13 +18,13 @@ import { safeJson } from '../emit-util.js';
 //
 // Absent `fabric` ⇒ NOT emitted. `debug` (opt-in, for looking at it): 'relief' draws the rock as the relief map alone
 // (mid-grey: unchanged), 'domain' as the visual domain (red the master joints, green the minor, blue the grain).
-// `cfg`: { groups, sun, ambient, sets: [{ n, s, w, d, hold, phase }] (≤ 6), beds?: { b, t, hard, dip }, recess?, tilt, wave,
+// `cfg`: { groups, sun, ambient, sets: [{ n, s, w, d, hold, phase }] (≤ 6), beds?: { b, t, hard, dip }, recess?, tilt, wave, echelon,
 //          cavity, grain: { size, amount }, px, maxFoot }
 const VERT_HEAD = 'varying vec3 vFabP;\n';
 const VERT_MAIN = 'vFabP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n';
 const FRAG_HEAD = `varying vec3 vFabP;
 uniform vec3 uFabSun; uniform float uFabAmb;
-uniform vec4 uFabN[6]; uniform vec4 uFabK[6]; uniform int uFabSets; uniform float uFabWave;
+uniform vec4 uFabN[6]; uniform vec4 uFabK[6]; uniform int uFabSets; uniform float uFabWave; uniform float uFabEch;
 uniform float uFabBedB[16]; uniform float uFabBedT[16]; uniform float uFabBedH[16]; uniform int uFabBeds; uniform vec2 uFabDip; uniform float uFabRecess;
 uniform vec2 uFabSteep; uniform float uFabTilt; uniform float uFabCav; uniform float uFabGrain; uniform float uFabGrainAmt; uniform float uFabPx; uniform float uFabMaxFoot; uniform int uFabDebug; uniform int uFabMasters;
 float fabHash(vec3 c) { return fract(sin(dot(c, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
@@ -50,8 +50,12 @@ const FRAG_MAIN = `{
     for (int i = 0; i < 6; i++) {
       if (i >= uFabSets) break;
       vec4 N = uFabN[i], K = uFabK[i];
-      // a joint's plane undulates: its trace wanders a little across the face
-      float q = dot(fp, N.xyz) / N.w + K.w + uFabWave * (fabNoise(fp * (1.3 / N.w) + float(i) * 3.1) - 0.5), cell = floor(q), fr = q - cell, dist = min(fr, 1.0 - fr) * N.w;
+      // a joint's plane undulates (two scales of wander) and steps sideways segment by segment (en echelon), so its
+      // trace across the face is never a ruled line
+      vec3 tg = cross(N.xyz, vec3(0.0, 0.0, 1.0)); tg = dot(tg, tg) < 1e-4 ? vec3(1.0, 0.0, 0.0) : normalize(tg);
+      float q0 = dot(fp, N.xyz) / N.w + K.w, seg = floor((dot(fp, tg) + fp.z * 0.7) / (N.w * 0.8));
+      float q = q0 + uFabWave * (fabNoise(fp * (1.3 / N.w) + float(i) * 3.1) - 0.5) + 0.3 * uFabWave * (fabNoise(fp * (5.0 / N.w) + float(i) * 7.7) - 0.5)
+        + uFabEch * (fabHash(vec3(floor(q0), seg, float(i) + 4.0)) - 0.5), cell = floor(q), fr = q - cell, dist = min(fr, 1.0 - fr) * N.w;
       // a joint holds for a stretch and stops: a slow noise along the plane, the set's own
       float hold = step(1.0 - K.z, fabNoise(fp * (0.7 / N.w) + vec3(cell * 1.71, float(i) * 9.3, 0.0)));
       float lodJ = smoothstep(uFabPx, uFabPx * 3.0, K.x / foot) * steepJ;
@@ -101,7 +105,7 @@ export function fabricScript(cfg) {
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, {
         uFabSun: { value: new THREE.Vector3(F.sun[0], F.sun[1], F.sun[2]) }, uFabAmb: { value: F.ambient },
-        uFabN: { value: N }, uFabK: { value: K }, uFabSets: { value: Math.min(6, F.sets.length) }, uFabWave: { value: F.wave || 0 },
+        uFabN: { value: N }, uFabK: { value: K }, uFabSets: { value: Math.min(6, F.sets.length) }, uFabWave: { value: F.wave || 0 }, uFabEch: { value: F.echelon || 0 },
         uFabBedB: { value: pad(B && B.b) }, uFabBedT: { value: pad(B && B.t) }, uFabBedH: { value: pad(B && B.hard) }, uFabBeds: { value: B ? Math.min(16, B.b.length) : 0 },
         uFabDip: { value: new THREE.Vector2(B ? B.dip[0] : 0, B ? B.dip[1] : 0) }, uFabRecess: { value: F.recess || 0 },
         uFabSteep: { value: new THREE.Vector2(F.steep ? F.steep[0] : 1, F.steep ? F.steep[1] : 0.9) }, uFabTilt: { value: F.tilt }, uFabCav: { value: F.cavity }, uFabGrain: { value: F.grain.size }, uFabGrainAmt: { value: F.grain.amount },

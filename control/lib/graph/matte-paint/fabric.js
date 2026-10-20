@@ -26,7 +26,7 @@ import { hash01 } from './relief.js';
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const D2R = Math.PI / 180, cosD = (a) => Math.cos(a * D2R);
 // how a joint reads, by pattern: its groove as a share of the set's spacing, and how much of its length it holds
-const READ = { blocky: { width: 0.035, hold: 0.75 }, columnar: { width: 0.03, hold: 0.95 }, slabby: { width: 0.05, hold: 0.9 } };
+const READ = { blocky: { width: 0.025, hold: 0.75 }, columnar: { width: 0.022, hold: 0.95 }, slabby: { width: 0.04, hold: 0.9 } };
 export const FABRIC_GROUPS = Object.freeze(['isekai:cliff']);
 
 /** The joint sets of a fabric: [{ n, s }] (unit normal, spacing in metres), from its pattern, strike, spacing, cell. */
@@ -52,7 +52,8 @@ export function rockFabric({ joints = null, strata = null, rock = 'granite', gri
   const masters = setsOf(J), sets = [];
   for (const [order, k, wk, hk] of [[0, 1, 1, 1], [1, 1 / 3, 0.5, 0.6]]) masters.forEach(({ n, s }, i) => {
     const sp = s * k, w = Math.max(0.02, R.width * s * wk);
-    sets.push({ n: n.map(r4), s: r4(sp), w: r4(w), d: r4(w * 0.9 * g), hold: r4(R.hold * hk), phase: r4(order ? hash01(seed, i, 13) : hash01(seed, i, 11) * 0.08) });
+    // a weathered joint is a shallow gap, not a cut: its depth about half its width
+    sets.push({ n: n.map(r4), s: r4(sp), w: r4(w), d: r4(w * 0.45 * g), hold: r4(R.hold * hk), phase: r4(order ? hash01(seed, i, 13) : hash01(seed, i, 11) * 0.08) });
   });
   const beds = strata && strata.layers?.length ? {
     b: strata.layers.map((L) => r4(L.b)).slice(0, 16), t: strata.layers.map((L) => r4(L.t)).slice(0, 16), hard: strata.layers.map((L) => (L.hard ? 1 : 0)).slice(0, 16),
@@ -65,7 +66,8 @@ export function rockFabric({ joints = null, strata = null, rock = 'granite', gri
   return {
     groups: [...FABRIC_GROUPS], sun: sun.map(r4), ambient: r4(ambient), sets,
     ...(beds ? { beds, recess: r4(0.08 * g) } : {}),
-    tilt: r4(0.12 * grit), cavity: 0.35, wave: 0.12,
+    // a joint's trace wanders (`wave`, in spacings) and steps sideways segment by segment (`echelon`): never a ruled line
+    tilt: r4(0.12 * grit), cavity: 0.35, wave: 0.14, echelon: 0.12,
     // the joints read where the landform breaks the ground on them: its steep band (degrees), the gentler slopes soft
     steep: [r4(cosD((joints?.steep ?? 38) - (joints?.band ?? 12) / 2 - 6)), r4(cosD((joints?.steep ?? 38) + (joints?.band ?? 12) / 2))], grain: { size: r4(grain * 2), amount: r4(0.1 * g) },
     // the level of detail: a layer fades in from `px` pixels across; past `maxFoot` metres a pixel, none is drawn
