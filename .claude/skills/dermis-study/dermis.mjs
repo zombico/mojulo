@@ -267,7 +267,7 @@ async function bodyOf(sex) {
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: sex, form: 'realistic', ...(physiqueSpec ? { physique: physiqueSpec } : {}) }) });
   const mesh = compileLayered(m.recipe, m.dials), t1 = Date.now();
   const H = headOf(sex), D = readDermis({ from: sex, ...BODY_DERMIS[sex], ...dermisSpec });
-  // the body-part map (body-relational-map.js): its hidden rings take no texels; the parts shown on the body
+  // the body-part map (body-relational-map.js): each point its part, drawn on the skin
   const { validateRig } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
   const { physique } = await import('@/lib/graph/polygonizer/body-relational.js');
   const { bodyPartMap } = await import('@/lib/graph/polygonizer/body-relational-map.js');
@@ -301,7 +301,7 @@ if (body) {
     const rows = [
       { what: 'textured from its atlas, lit as skin (the head its own atlas, grafted)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: whole, W: 300, Hh: 760 },
       { what: 'the map\'s kinds (each region its colour): the islands\' addresses read back on the body', cells: BV.map((v) => ({ v, mode: 'kinds' })), box: whole, W: 300, Hh: 760 },
-      { what: 'the body-part map (body-relational-map.js) on the skin (the limbs' seams run through its hidden patches), and the lit body beside it', cells: [BV[0], BV[2], BV[3]].map((v) => ({ v, mode: 'parts' })).concat([{ v: BV[1], mode: 'lit' }]), box: whole, W: 300, Hh: 760 },
+      { what: 'the body-part map (body-relational-map.js) on the skin (the limbs\' seams run through its hidden patches), and the lit body beside it', cells: [BV[0], BV[2], BV[3]].map((v) => ({ v, mode: 'parts' })).concat([{ v: BV[1], mode: 'lit' }]), box: whole, W: 300, Hh: 760 },
       { what: 'the channels on the body: hair density (front, back), translucency (front), roughness (back)', cells: [{ v: BV[0], mode: 'hair' }, { v: BV[3], mode: 'hair' }, { v: BV[0], mode: 'translucency' }, { v: BV[3], mode: 'roughness' }], box: whole, W: 300, Hh: 760 },
       { what: 'where the head meets the body: the neck (front, front ¾, lateral, back)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: boxAt(Y.neckAt, 0.14), W: 300, Hh: 300 },
     ];
