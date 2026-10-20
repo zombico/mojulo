@@ -46,6 +46,16 @@ export function layoutDermis(chart, { page = 1024, faceWeight = 2 } = {}) {
     // one ring step past the seam, for the faces that cross it
     return { key, part: P.part, side: P.side, seam: DERMAL_SEAMS[P.part] ?? 0.5, wmm: P.girth * 1000 * k, hmm: P.length * 1000 * k, extra: 0.06, density: k };
   }).sort((a, b) => b.hmm - a.hmm || (a.key < b.key ? -1 : 1));
+  const { pageH, mmPerTexel } = packRects(rects, { page });
+  return { page, pageH, mmPerTexel, faceWeight, rects };
+}
+
+/**
+ * Shelf-pack rectangles (each `wmm` × `hmm` millimetres, `extra` its share of width past the seam; in the order given)
+ * onto a page `page` texels wide at the finest density that fits: sets each one's `x`, `y`, `w`, `h` (texels). The page
+ * is then as tall as it needs (a power of two). → { page, pageH, mmPerTexel, rects }
+ */
+export function packRects(rects, { page = 1024 } = {}) {
   const pack = (mpt) => {
     let x = WHITE + PAD, y = 0, shelf = 0;
     if (rects.length && Math.ceil(rects[0].wmm * (1 + rects[0].extra) / mpt) + x + PAD > page) { x = 0; y = WHITE + PAD; }
@@ -65,7 +75,7 @@ export function layoutDermis(chart, { page = 1024, faceWeight = 2 } = {}) {
   const used = Math.max(...rects.map((r) => r.y + r.h)) + PAD, pageH = Math.min(page, 1 << Math.ceil(Math.log2(Math.max(8, used))));
   let mpt = hi;
   if (pageH < page) { const tall = (m) => pack(m) && Math.max(...rects.map((r) => r.y + r.h)) <= pageH; lo = 0.05; hi = mpt; for (let i = 0; i < 30; i++) { const mid = Math.sqrt(lo * hi); if (tall(mid)) hi = mid; else lo = mid; } mpt = hi; pack(mpt); }
-  return { page, pageH, mmPerTexel: mpt, faceWeight, rects };
+  return { page, pageH, mmPerTexel: mpt, rects };
 }
 
 /** a rectangle texel's address: its u round the ring from the seam, its v down the part */
@@ -81,62 +91,85 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * shadow); `opts.scalpPaint` the paint's share (default 0.8).
  */
 export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 } = {}) {
+  const P = dermalPages(layout, D);
+  for (const r of layout.rects) {
+    paintIsland(P, r, D, layout.mmPerTexel / r.density, {
+      grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
+      texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
+      scalp, scalpPaint,
+    });
+  }
+  return finishPages(P, chart, faceUVs(chart, layout), D, layout);
+}
+
+/** The pages, blank: the albedo white, the roughness mid, the flow at rest. */
+export function dermalPages(layout, D) {
   const N = layout.page, NH = layout.pageH ?? N, albedo = new Uint8Array(N * NH * 4), rough = new Uint8Array(N * NH).fill(140), trans = new Uint8Array(N * NH);
   const hair = new Uint8Array(N * NH * 4), fuzz = new Uint8Array(N * NH), detail = new Uint8Array(N * NH);
   for (let i = 0; i < N * NH; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
-  const classes = [], classOf = new Map(), hairLin = hairColourOf(D);
+  const classes = [], classOf = new Map();
   const classIndex = (rel) => { if (!classOf.has(rel.class)) { classOf.set(rel.class, classes.length); classes.push({ ...rel }); } return classOf.get(rel.class); };
-  for (const r of layout.rects) {
-    // the map at a stride (its masks are smooth), bilinear between; the fine detail per texel
-    const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
-    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
-      const u = Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), v = clamp01((j * STEP + 0.5) / r.h);
-      grid[j * gw + i] = dermisAt(addressAt(chart, r, u, v), D, { detail: false });
+  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairColourOf(D) };
+}
+
+/**
+ * Paint one rectangle `r` of the pages: the map at a stride (`grid(i, j)` the address of the stride's node i, j), its
+ * masks being smooth, bilinear between; the fine detail per texel (`texel(px, py)` the texel's own address). `flowSign`
+ * −1 where the rectangle's u runs against `around` (its hair's flow turned to match). `mpt` the texel's millimetres.
+ */
+export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false }) {
+  const { N, albedo, rough, trans, hair, fuzz, detail, classIndex, hairLin } = P;
+  const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) grid[j * gw + i] = dermisAt(gridAt(i, j), D, { detail: false });
+  for (let py = 0; py < r.h; py++) for (let px = 0; px < r.w; px++) {
+    const gx = px / STEP, gy = py / STEP, i0 = Math.min(gw - 2, Math.floor(gx)), j0 = Math.min(gh - 2, Math.floor(gy)), fx = gx - i0, fy = gy - j0;
+    const c = [grid[j0 * gw + i0], grid[j0 * gw + i0 + 1], grid[(j0 + 1) * gw + i0], grid[(j0 + 1) * gw + i0 + 1]];
+    const W = [(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy];
+    const lerp = (f) => W[0] * f(c[0]) + W[1] * f(c[1]) + W[2] * f(c[2]) + W[3] * f(c[3]);
+    const near = c[W.indexOf(Math.max(...W))];   // the nearest sample, for what does not blend (the kind, the tract)
+    const A = texel(px, py);
+    let col = [0, 1, 2].map((k) => lerp((s) => s.albedo[k]));
+    // (a caller's tone over the map's: the neck eased toward the head it meets)
+    if (tone) col = tone(col, A, px, py);
+    // the fine detail: freckles, the stubble's follicles, the scalp's paint
+    const fm = lerp((s) => s.freckleMask);
+    if (fm > 0.002) { const f = freckle(A, seedOf(A, D)) * fm; col = col.map((x, k) => x * (1 + ([0.8, 0.68, 0.56][k] - 1) * f)); }
+    const scalpW = lerp((s) => s.regions.scalp || 0), beardD = lerp((s) => (s.hair.tract === 'beard' ? s.hair.density : 0));
+    if (scalpW > 0.01) {
+      if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
+      else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
-    const mpt = layout.mmPerTexel / r.density;
-    for (let py = 0; py < r.h; py++) for (let px = 0; px < r.w; px++) {
-      const gx = px / STEP, gy = py / STEP, i0 = Math.min(gw - 2, Math.floor(gx)), j0 = Math.min(gh - 2, Math.floor(gy)), fx = gx - i0, fy = gy - j0;
-      const c = [grid[j0 * gw + i0], grid[j0 * gw + i0 + 1], grid[(j0 + 1) * gw + i0], grid[(j0 + 1) * gw + i0 + 1]];
-      const W = [(1 - fx) * (1 - fy), fx * (1 - fy), (1 - fx) * fy, fx * fy];
-      const lerp = (f) => W[0] * f(c[0]) + W[1] * f(c[1]) + W[2] * f(c[2]) + W[3] * f(c[3]);
-      const near = c[W.indexOf(Math.max(...W))];   // the nearest sample, for what does not blend (the kind, the tract)
-      const u = (px + 0.5) / r.w * (1 + r.extra), v = (py + 0.5) / r.h, A = addressAt(chart, r, u, v);
-      let col = [0, 1, 2].map((k) => lerp((s) => s.albedo[k]));
-      // the fine detail: freckles, the stubble's follicles, the scalp's paint
-      const fm = lerp((s) => s.freckleMask);
-      if (fm > 0.002) { const f = freckle(A, seedOf(A, D)) * fm; col = col.map((x, k) => x * (1 + ([0.8, 0.68, 0.56][k] - 1) * f)); }
-      const scalpW = lerp((s) => s.regions.scalp || 0), beardD = lerp((s) => (s.hair.tract === 'beard' ? s.hair.density : 0));
-      if (scalpW > 0.01) {
-        if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
-        else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
-      }
-      if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
-      // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
-      const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
-      if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
-      if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
-      if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
-      const o = (r.y + py) * N + r.x + px;
-      for (let k = 0; k < 3; k++) albedo[o * 4 + k] = byte(toSrgb(col[k]));
-      rough[o] = byte(lerp((s) => s.roughness));
-      trans[o] = byte(lerp((s) => s.translucency));
-      fuzz[o] = byte(lerp((s) => s.fuzz));
-      const hd = near.hair.kind === 'terminal' && near.hair.tract !== 'scalp' ? lerp((s) => (s.hair.kind === 'terminal' ? s.hair.density : 0)) : near.hair.tract === 'scalp' ? 200 : 0;
-      hair[o * 4] = byte(Math.sqrt(hd / 200));
-      // the flow in the rectangle's own axes: u round the ring (around increasing), v down the part (along increasing)
-      const th = near.hair.flow;
-      hair[o * 4 + 1] = byte(0.5 + 0.5 * Math.sin(th)); hair[o * 4 + 2] = byte(0.5 + 0.5 * Math.cos(th));
-      detail[o] = classIndex(near.relief);
-    }
+    if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
+    // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
+    const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
+    if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
+    if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
+    if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
+    const o = (r.y + py) * N + r.x + px;
+    for (let k = 0; k < 3; k++) albedo[o * 4 + k] = byte(toSrgb(col[k]));
+    rough[o] = byte(lerp((s) => s.roughness));
+    trans[o] = byte(lerp((s) => s.translucency));
+    fuzz[o] = byte(lerp((s) => s.fuzz));
+    // (`softHair`: a terminal tract's density blended across its edge, not cut where the nearest sample turns vellus)
+    const hd = (softHair || near.hair.kind === 'terminal') && near.hair.tract !== 'scalp' ? lerp((s) => (s.hair.kind === 'terminal' ? s.hair.density : 0)) : near.hair.tract === 'scalp' ? 200 : 0;
+    hair[o * 4] = byte(Math.sqrt(hd / 200));
+    // the flow in the rectangle's own axes: u round the ring (around increasing), v down the part (along increasing)
+    const th = near.hair.flow;
+    hair[o * 4 + 1] = byte(0.5 + 0.5 * flowSign * Math.sin(th)); hair[o * 4 + 2] = byte(0.5 + 0.5 * Math.cos(th));
+    detail[o] = classIndex(near.relief);
   }
+}
+
+/** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
+export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
+  const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
   // the white tile: what no skin face samples
   for (let y = 0; y < WHITE; y++) for (let x = 0; x < WHITE; x++) { const o = y * N + x; albedo.fill(255, o * 4, o * 4 + 4); }
-  const uvOf = faceUVs(chart, layout);
   // the OCCLUSION baked from the chart's own (`chart.ao`, one per vertex: the shape's adapter reads it from its field),
   // rasterized through the faces' UVs and darkening the colour as a game texture carries it
   let ao = null;
   if (Array.isArray(chart.ao)) {
-    ao = bakeVertex(chart, uvOf, N, NH, chart.ao, 1);
+    ao = bakeVertex(chart, uvOf, N, NH, chart.ao, aoEmpty);
     // (and the dirt gathers where the skin is enclosed: the creases, the sockets' corners, the nostrils' rims)
     for (let i = 0; i < N * NH; i++) { const k = 0.5 + 0.5 * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
     ao = Uint8Array.from(ao, (v) => byte(v));

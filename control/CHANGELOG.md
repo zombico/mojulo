@@ -34,6 +34,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
   `docs/realistic-body.md`, held by hero-realistic.test.js.
 
+### Realistic body: the dermal skin on the body
+
+In progress (a dev path: no minted hero changes, no tool surface; the export pack and the GLB do not carry it yet).
+The dermal texturizer's maps on the realistic body (`form: 'realistic'`, docs/realistic-body.md), so its head and its body
+wear one skin. `epidermis/dermal-body.js`:
+
+- The body's UVs from its own grids: each skin part (the re-sampled torso, neck, pelvis and limbs; the authored hands,
+  fingers, feet and toes) unrolled from its stations × slots into an island at its true size, one texel density over the
+  body, v down the rings' centroids (the caps' poles past the ends), u the arc round each ring from its SEAM, where an
+  artist cuts: the trunk, the neck and the pelvis down the back, the arms and the legs down the inside, the hands and
+  the feet along the inner edge. Each grid point's address is its slot's turn (`front` anterior, the left limb the
+  right's mirror, slot for slot) and its station's run; packed by the head's packer (`packRects`, shared out of
+  `layoutDermis`).
+- The maps painted by the head's painter (`paintIsland`, shared out of `paintDermis`, the head's maps byte for byte):
+  albedo, roughness, translucency, hair density and flow, fuzz, the relief tiles' index and the occlusion each part's
+  own folds cast, written by `dermalPngs`. The palms and soles glabrous; the body's terminal hair sparse by default (the
+  male's at half the preset's), its tracts the pole's (the forearms, the shins, the chest, the axillae); the neck's
+  beard and the belly's trail thin out instead of stopping at a line, and a body's terminal tract blends across its edge.
+- The neck meets the head: its top eased over its upper third toward the tone of the relational head's lowest skin
+  (`neckTone`).
+- For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck })` → `{ chart, layout, uv: { faceUV, corners,
+  vertex }, maps, dermis }`, and `unweldSeams(faces, corners)` to split the seams into one UV a vertex.
+- The eyes lane: `/dermis-study --body [male] [female] [--physique <word|json>] [--body-page N]`: the realistic body
+  textured and lit with the relational head grafted on it (its own atlas and hair), its map's kinds, its channels on the
+  shape, the neck close, and the body's atlas pages.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the

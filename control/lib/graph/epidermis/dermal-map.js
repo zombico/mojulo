@@ -382,12 +382,13 @@ export function hairTract(A, R, D) {
     }
     return vellus;
   }
-  if (A.part === 'neck') return w('beard') > 0.3 && D.beard > 0 ? T('beard', 40 * D.beard * w('beard'), D.stubble, flowOf(-1), 0.3) : vellus;
+  // (the throat's beard thins out under the jaw rather than stopping at a line)
+  if (A.part === 'neck') return w('beard') > 0.05 && D.beard > 0 ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.stubble, flowOf(-1), 0.3) : vellus;
   if (A.part === 'trunk') {
     if (w('axilla') > 0.4 && D.axilla > 0) return T('axilla', 35 * D.axilla, 14, flowOf(-1), 0.5);
     const chest = male ? w('chest') * near(Math.min(ad(a, 0), Math.abs(ad(a, 0) - 0.1)), 0.14) : 0;
     if (chest > 0.15) return T('chest', 14 * B * chest, 16, flowOf(-0.8, toward(a, 0) * 0.6), 0.3);
-    if (male && w('abdomen') > 0.5 && ad(a, 0) < 0.04) return T('trail', 10 * B, 12, flowOf(-1), 0.3);
+    if (male && w('abdomen') > 0.5 && ad(a, 0) < 0.05) return T('trail', 10 * B * near(ad(a, 0), 0.05) * smooth(0.5, 0.8, w('abdomen')), 12, flowOf(-1), 0.3);
     return vellus;
   }
   if (A.part === 'upperArm') return w('axilla') > 0.4 && D.axilla > 0 ? T('axilla', 30 * D.axilla, 12, flowOf(1), 0.5) : T('upperArm', 7 * B * (1 - 0.5 * w('innerArm')), 9, flowOf(1, 0.15));
