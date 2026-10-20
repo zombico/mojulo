@@ -14,6 +14,8 @@
  *   hair           the terminal hair's density (grey, √ of /cm² over 200) and its FLOW (RG: the direction it lies, in the
  *                  rectangle's own u and v), what a card or shell groom combs by
  *   fuzz           the vellus's sheen (the peach-fuzz rim a shader adds: no strands)
+ *   ao             the occlusion the shape's adapter read (`chart.ao`), baked through the faces' UVs and multiplied into
+ *                  the albedo (the sockets, the nostrils, the lips' line, the ear's folds: the shadow a game paints in)
  *   detail         which relief tile a texel wears (an index into `classes`): the detail-normal trick, a small tileable
  *                  relief (`reliefTile`, from skin-relief.js, friction ridges on glabrous skin) repeated at its true
  *                  scale and masked per kind, since no atlas holds pores at a body's size
@@ -27,7 +29,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, hairColourOf, freckle, seedOf, toSrgb } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairColourOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
@@ -109,6 +111,11 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 }
         else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
       }
       if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
+      // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
+      const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
+      if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
+      if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
+      if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
       const o = (r.y + py) * N + r.x + px;
       for (let k = 0; k < 3; k++) albedo[o * 4 + k] = byte(toSrgb(col[k]));
       rough[o] = byte(lerp((s) => s.roughness));
@@ -125,7 +132,16 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 }
   // the white tile: what no skin face samples
   for (let y = 0; y < WHITE; y++) for (let x = 0; x < WHITE; x++) { const o = y * N + x; albedo.fill(255, o * 4, o * 4 + 4); }
   const uvOf = faceUVs(chart, layout);
-  return { page: N, pageH: NH, albedo, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
+  // the OCCLUSION baked from the chart's own (`chart.ao`, one per vertex: the shape's adapter reads it from its field),
+  // rasterized through the faces' UVs and darkening the colour as a game texture carries it
+  let ao = null;
+  if (Array.isArray(chart.ao)) {
+    ao = bakeVertex(chart, uvOf, N, NH, chart.ao, 1);
+    // (and the dirt gathers where the skin is enclosed: the creases, the sockets' corners, the nostrils' rims)
+    for (let i = 0; i < N * NH; i++) { const k = 0.5 + 0.5 * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
+    ao = Uint8Array.from(ao, (v) => byte(v));
+  }
+  return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -148,6 +164,42 @@ function follicles(A, density, lengthMm, mpt, seed) {
     cov = Math.max(cov, share * clamp01((r + 0.5 * mpt - d) / (0.5 * mpt)));
   }
   return Math.min(0.9, cov);
+}
+
+const srgbLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+/**
+ * A per-vertex value baked into the page: each face's UV triangle filled with its corners' values (barycentric), then
+ * dilated four texels past every island's edge (a seam samples across it, and must not read the empty page). Texels no
+ * face covers keep `empty`.
+ */
+export function bakeVertex(chart, uvOf, N, NH, values, empty = 0) {
+  const out = new Float32Array(N * NH).fill(NaN);
+  chart.faces.forEach((tri, fi) => {
+    if (!tri.every((vi) => chart.samples[vi] && !chart.samples[vi].enclosed)) return;   // (an enclosed face shares its texels with the skin over it)
+    const uv = uvOf(fi), P = uv.map(([u, v]) => [u * N, (1 - v) * NH]), [A, B, C] = P;
+    const area = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]); if (!area) return;
+    const x0 = Math.max(0, Math.floor(Math.min(A[0], B[0], C[0]))), x1 = Math.min(N - 1, Math.ceil(Math.max(A[0], B[0], C[0])));
+    const y0 = Math.max(0, Math.floor(Math.min(A[1], B[1], C[1]))), y1 = Math.min(NH - 1, Math.ceil(Math.max(A[1], B[1], C[1])));
+    const va = tri.map((vi) => values[vi]);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const qx = x + 0.5, qy = y + 0.5;
+      const w0 = ((B[0] - qx) * (C[1] - qy) - (B[1] - qy) * (C[0] - qx)) / area, w1 = ((C[0] - qx) * (A[1] - qy) - (C[1] - qy) * (A[0] - qx)) / area, w2 = 1 - w0 - w1;
+      if (w0 < -0.02 || w1 < -0.02 || w2 < -0.02) continue;
+      out[y * N + x] = w0 * va[0] + w1 * va[1] + w2 * va[2];
+    }
+  });
+  for (let it = 0; it < 4; it++) {
+    const prev = out.slice();
+    for (let y = 0; y < NH; y++) for (let x = 0; x < N; x++) {
+      const o = y * N + x; if (!Number.isNaN(prev[o])) continue;
+      let s = 0, k = 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= NH) continue; const v = prev[yy * N + xx]; if (!Number.isNaN(v)) { s += v; k++; } }
+      if (k) out[o] = s / k;
+    }
+  }
+  for (let i = 0; i < out.length; i++) if (Number.isNaN(out[i])) out[i] = empty;
+  return out;
 }
 
 /**
@@ -217,7 +269,7 @@ export function dermalPngs(T) {
   const N = T.page, NH = T.pageH ?? N, B = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength);
   return {
     albedo: encodePngRgba(B(T.albedo), N, NH), roughness: encodePngGrey(B(T.roughness), N, NH), translucency: encodePngGrey(B(T.translucency), N, NH),
-    hair: encodePngRgba(B(T.hair), N, NH), fuzz: encodePngGrey(B(T.fuzz), N, NH),
+    hair: encodePngRgba(B(T.hair), N, NH), fuzz: encodePngGrey(B(T.fuzz), N, NH), ...(T.ao ? { ao: encodePngGrey(B(T.ao), N, NH) } : {}),
   };
 }
 export { encodePng };

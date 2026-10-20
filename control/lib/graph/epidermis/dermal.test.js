@@ -5,8 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { relationalHeadChart } from './dermal-head.js';
-import { chartFromRings } from './dermal-chart.js';
-import { readDermis, dermisAt } from './dermal-map.js';
+import { chartFromRings, meshOcclusion } from './dermal-chart.js';
+import { readLook, LOOKS } from './dermal-looks.js';
+import { readDermis, dermisAt, dermalDetail } from './dermal-map.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
 
@@ -88,7 +89,7 @@ describe('the combed scalp', () => {
   });
   it('cuts to a line: a bob\'s ends land at the jaw, combed down, however high their roots', () => {
     const b = growScalp(chart, D, readScalp({ style: 'bob', spacing: 0.02, strandGap: 0.01, ragged: 0 }), { colliders: ['head'] });
-    const jaw = chart.parts.head.marks.points.goR.Y / 1000;
+    const jaw = chart.parts.head.marks.points.goR.Z / 1000;
     // (the front's framing pieces are cut shorter than the line, by the style's `front`)
     const cy = chart.parts.head.axis[0][1], back = (g) => Math.abs(Math.atan2(g.pts[0][0], g.pts[0][1] - cy)) > Math.PI / 2;
     const hanging = b.guides.filter((g) => back(g) && g.pts[0][2] - g.pts[g.pts.length - 1][2] > 0.05);
@@ -100,5 +101,33 @@ describe('the combed scalp', () => {
     const low = t.guides.filter((g) => g.pts[0][2] < 0.12), high = t.guides.filter((g) => g.pts[0][2] > 0.2);
     const mean = (gs) => gs.reduce((a, g) => a + g.L, 0) / gs.length;
     expect(mean(low)).toBeLessThan(0.5 * mean(high));
+  });
+});
+
+describe('the creator\'s sliders', () => {
+  it('reads occlusion from the mesh: a point at the bottom of a groove is darker than one on a dome', () => {
+    // a ring of points rising round a centre (a socket) and the same ring falling away (a dome)
+    const ring = (h) => Array.from({ length: 24 }, (_, i) => [0.01 * Math.cos(i / 3.82), 0.01 * Math.sin(i / 3.82), h]);
+    const socket = meshOcclusion([[0, 0, 0], ...ring(0.006)], [[0, 0, 1], ...ring(0).map(() => [0, 0, 1])]);
+    const dome = meshOcclusion([[0, 0, 0], ...ring(-0.006)], [[0, 0, 1], ...ring(0).map(() => [0, 0, 1])]);
+    expect(socket[0]).toBeLessThan(0.7);
+    expect(dome[0]).toBe(1);
+  });
+  it('paints war paint where its pattern lies, by the face\'s own landmarks, and nothing without it', () => {
+    const P = chart.parts.head, M = P.marks.points;
+    const at = (X, Y) => ({ key: 'head', part: 'head', side: '', marks: P.marks, around: ((X / (2 * Math.PI * P.marks.r0)) % 1 + 1) % 1, along: Y / (P.length * 1000), length: P.length, girth: P.girth });
+    const woad = readDermis({ from: 'male', paint: { pattern: 'eyes', colour: 'woad' } });
+    expect(dermalDetail(at(M.eyeR.X + 12, M.eyeR.Y), woad).paint).not.toBeNull();
+    expect(dermalDetail(at(0, M.pg.Y), woad).paint).toBeNull();
+    expect(dermalDetail(at(M.eyeR.X + 12, M.eyeR.Y), readDermis('male')).paint).toBeNull();
+    expect(() => readDermis({ paint: { pattern: 'tiger' } })).toThrow(/pattern/);
+  });
+  it('reads every look into documents the readers take', () => {
+    for (const name of Object.keys(LOOKS).slice(0, 2)) {
+      const L = readLook(name);
+      expect(() => readDermis(L.dermis)).not.toThrow();
+      expect(() => readScalp(L.scalp)).not.toThrow();
+      expect(L.relations.skinWave).toBeLessThan(0.03);
+    }
   });
 });

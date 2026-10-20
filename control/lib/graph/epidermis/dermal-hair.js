@@ -80,7 +80,7 @@ export const SCALP_STYLES = Object.freeze({
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'tousle', 'flip', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
 const CUT_KEYS = ['line', 'fringe', 'taper', 'shelf', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
@@ -119,12 +119,13 @@ export function readScalp(spec = 'short') {
   for (const m of moves) { const { note: _n, cut: c, locks: L, ...g } = SCALP_MOVES[m]; cut = { ...cut, ...(c || {}) }; addLocks(L); globals = { ...globals, ...g }; }
   addLocks(doc.locks);
   const { moves: _m, locks: _l, ...rest } = doc;
-  const out = { style: doc.style || 'short', type: doc.type || 'straight', ragged: 1, tousle: 0, flip: 0, ...st, ...ty, spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
+  const out = { style: doc.style || 'short', type: doc.type || 'straight', ragged: 1, tousle: 0, flip: 0, chunk: 0, ...st, ...ty, spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
   for (const [n, e] of Object.entries(locks)) {
     if (!SCALP_CLUMPS.some((q) => q.name === n)) throw new Error(`scalp: locks.${n} is not a clump (${SCALP_CLUMPS.map((q) => q.name).join(', ')})`);
     for (const [k, v] of Object.entries(e)) { const r = LOCK_EDIT_KEYS[k]; if (!r) throw new Error(`scalp: locks.${n}.${k} unknown (have ${Object.keys(LOCK_EDIT_KEYS).join(', ')})`); if (!(v >= r[0] && v <= r[1])) throw new Error(`scalp: locks.${n}.${k} ${v} (${r[0]} … ${r[1]})`); }
   }
   if (!(out.tousle >= 0 && out.tousle <= 2) || !(out.flip >= 0 && out.flip <= 2)) throw new Error('scalp: tousle and flip 0 … 2');
+  if (!(out.chunk >= 0 && out.chunk <= 1.5)) throw new Error('scalp: chunk 0 … 1.5 (strands gathered into their guide\'s piece)');
   if (!['side', 'centre', 'none'].includes(out.part)) throw new Error(`scalp: part '${out.part}' (side | centre | none)`);
   if (!(out.length > 0 && out.length <= 1.2)) throw new Error('scalp: length 0 … 1.2 m');
   if (!(out.spacing >= 0.004 && out.spacing <= 0.04)) throw new Error('scalp: spacing 0.004 … 0.04 m');
@@ -161,7 +162,7 @@ function hullColliders(chart, parts, gap) {
     if (!parts.includes(chart.parts[key].part)) continue;
     const cells = new Map();
     chart.samples.forEach((s, vi) => {
-      if (!s || s.key !== key || s.feature) return;
+      if (!s || s.key !== key || s.feature || s.enclosed) return;
       const c = `${Math.min(23, Math.floor(s.along * 24))}:${Math.floor(s.around * 32) % 32}`, b = cells.get(c);
       if (!b || s.radius > chart.samples[b].radius) cells.set(c, vi);
     });
@@ -183,7 +184,7 @@ function onFace(chart, tri, b1, b2) {
   return { p, n, ta, tr, address: { key: s[0].key, part: s[0].part, side: s[0].side, along, around, length: s[0].length, girth: s[0].girth, ...(s[0].marks ? { marks: s[0].marks } : {}) } };
 }
 const faceArea = (chart, tri) => len(cross(sub(chart.vertices[tri[1]], chart.vertices[tri[0]]), sub(chart.vertices[tri[2]], chart.vertices[tri[0]]))) / 2;
-const skinFace = (chart, tri) => tri.every((vi) => chart.samples[vi] && !chart.samples[vi].feature) && tri.every((vi) => chart.samples[vi].key === chart.samples[tri[0]].key);
+const skinFace = (chart, tri) => tri.every((vi) => chart.samples[vi] && !chart.samples[vi].feature && !chart.samples[vi].enclosed) && tri.every((vi) => chart.samples[vi].key === chart.samples[tri[0]].key);
 
 /** How each tract curls (0 straight … 1 a tight curl) and how long its strands are drawn in steps. */
 const TRACT_CURL = { chest: 0.7, trail: 0.5, axilla: 0.9, beard: 0.35, scalp: 0.2, forearm: 0.15, upperArm: 0.15, thigh: 0.2, shank: 0.2, hand: 0.1, finger: 0.1, foot: 0.15, toe: 0.1 };
@@ -310,11 +311,12 @@ export const SCALP_MOVES = Object.freeze({
   'side-parted': { note: 'one dominant bang swept across the brow off a side part and cut at the cheekbone, clear of the eyes', part: 'side',
     cut: { fringe: { at: 'cheekbone' } }, locks: { 'fringe-2': { over: 0.6, sweep: 75 }, 'fringe-3': { over: 0.8, sweep: 70 } } },
   flipped: { note: 'the ends kicked out and up', flip: 1 },
+  chunky: { note: 'gathered into pieces, as a game\'s hair cards read', chunk: 1, spacing: 0.016 },
   ahoge: { note: 'one stiff lock standing up at the crown', locks: { 'crown-1-0': { stand: 1, length: 0.7 } } },
 });
 
 /** the heights the cut's words name (m above the menton): the head's own, from its marks; the body's below the chin */
-const CUT_LEVELS = { forehead: (M) => (M.g.Y + 0.55 * (M.trichion.Y - M.g.Y)) / 1000, brow: (M) => M.g.Y / 1000, eye: (M) => M.eyeR.Y / 1000, cheekbone: (M) => M.malarR.Y / 1000, mouth: (M) => M.sto.Y / 1000, jaw: (M) => M.goR.Y / 1000, chin: () => 0.008, neck: () => -0.06, shoulder: () => -0.13, collarbone: () => -0.17, chest: () => -0.3, waist: () => -0.55 };
+const CUT_LEVELS = { forehead: (M) => (M.g.Z + 0.55 * (M.trichion.Z - M.g.Z)) / 1000, brow: (M) => M.g.Z / 1000, eye: (M) => M.eyeR.Z / 1000, cheekbone: (M) => M.malarR.Z / 1000, mouth: (M) => M.sto.Z / 1000, jaw: (M) => M.goR.Z / 1000, chin: () => 0.008, neck: () => -0.06, shoulder: () => -0.13, collarbone: () => -0.17, chest: () => -0.3, waist: () => -0.55 };
 export const CUT_SHAPES = Object.freeze(['blunt', 'a-line', 'stacked', 'v', 'u']);
 /**
  * A perimeter line as the cut height at a point (m): `at` a word (`CUT_LEVELS`) or metres above the menton; `shape`
@@ -547,10 +549,13 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     // as their weighted length, a few percent ragged
     const Ls = ns.reduce((a, g, gk) => a + guides[g.i].L * W[gk], 0) / Wt, end = Math.round(NS * (1 - 0.06 * (S.ragged ?? 1) * dice()));
     const at_ = (gd, sArc) => { const u = Math.min(NS, (sArc / Math.max(1e-6, gd.L)) * NS), j = Math.min(NS - 1, Math.floor(u)), f = u - j; return add(gd.pts[j], scl(sub(gd.pts[j + 1], gd.pts[j]), f)); };
-    const pts = [];
+    // CHUNK: each strand drawn toward its nearest guide down the lock (by the type's `clump`), so the hair gathers into
+    // the pieces a game's hair cards read as; 0 leaves it combed silk
+    const lead = guides[ns[0].i], ck = (S.chunk ?? 0) * S.clump, pts = [];
     for (let i = 0; i <= end; i++) {
       let q = at.p.slice();
       ns.forEach((g, gk) => { const gd = guides[g.i]; q = add(q, scl(sub(at_(gd, (Ls * i) / NS), gd.pts[0]), W[gk] / Wt)); });
+      if (ck > 0) { const lp = add(at_(lead, (Ls * i) / NS), scl(sub(at.p, lead.pts[0]), 0.25)); q = add(lp, scl(sub(q, lp), 1 - ck * (i / NS) ** 0.7)); }
       pts.push(q);
     }
     // pushed out of the head straight along its normal (the guides were framed round the face; a strand beside its guides

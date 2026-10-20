@@ -55,14 +55,17 @@ export const DERMIS_DIALS = Object.freeze({
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
   body: '0 … 1.5 (the body\'s terminal hair: the limbs, the chest)',
   axilla: '0 … 1',
+  lines: '0 … 1 (the face\'s lines: the forehead\'s, the frown, crow\'s feet, the nasolabial fold, under the eyes)',
+  dirt: '0 … 1 (grime in the cavities and in blotches: the road\'s)',
+  paint: `a war paint: null, or { pattern: eyes | stripes | band | chin | mask, colour: a word (woad, soot, ochre, chalk, blood) or a hex, amount 0 … 1 }`,
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
-const RANGES = { age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
+const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
 
 export const DERMIS_PRESETS = Object.freeze({
-  male: { sex: 'male', tone: 3, undertone: 'neutral', age: 0.35, zones: 1, flush: 1, freckles: 0, oil: 0.5, hairline: 1, beard: 1, stubble: 1, body: 1, axilla: 1, hairColour: 'dark-brown', seed: 1 },
-  female: { sex: 'female', tone: 3, undertone: 'neutral', age: 0.3, zones: 1, flush: 1, freckles: 0, oil: 0.45, hairline: 1, beard: 0, stubble: 0, body: 0.12, axilla: 0, hairColour: 'dark-brown', seed: 1 },
+  male: { lines: 0, dirt: 0, paint: null, sex: 'male', tone: 3, undertone: 'neutral', age: 0.35, zones: 1, flush: 1, freckles: 0, oil: 0.5, hairline: 1, beard: 1, stubble: 1, body: 1, axilla: 1, hairColour: 'dark-brown', seed: 1 },
+  female: { lines: 0, dirt: 0, paint: null, sex: 'female', tone: 3, undertone: 'neutral', age: 0.3, zones: 1, flush: 1, freckles: 0, oil: 0.45, hairline: 1, beard: 0, stubble: 0, body: 0.12, axilla: 0, hairColour: 'dark-brown', seed: 1 },
 });
 
 /** The dermis: a preset id, a document, or { from, …changes }. Throws on an unknown dial or a value out of range. */
@@ -80,6 +83,12 @@ export function readDermis(spec = 'male') {
   if (D.sex !== 'male' && D.sex !== 'female') throw new Error(`dermis: sex '${D.sex}' (male | female)`);
   if (!(HAIR_COLOURS[D.hairColour] || /^#[0-9a-f]{6}$/i.test(D.hairColour))) throw new Error(`dermis: hairColour '${D.hairColour}' (${DERMIS_DIALS.hairColour})`);
   if (!Number.isInteger(D.seed)) throw new Error('dermis: seed is an integer');
+  if (D.paint !== null) {
+    const P = D.paint;
+    if (!P || typeof P !== 'object' || !PAINT_PATTERNS.includes(P.pattern)) throw new Error(`dermis: paint { pattern: ${PAINT_PATTERNS.join(' | ')}, colour, amount }`);
+    if (P.colour !== undefined && !(PAINT_COLOURS[P.colour] || /^#[0-9a-f]{6}$/i.test(P.colour))) throw new Error(`dermis: paint.colour (${Object.keys(PAINT_COLOURS).join(', ')} or a hex)`);
+    if (P.amount !== undefined && !(P.amount >= 0 && P.amount <= 1)) throw new Error('dermis: paint.amount 0 … 1');
+  }
   return Object.freeze(D);
 }
 
@@ -251,7 +260,7 @@ function relationalHeadRegions(A, D, put, R) {
   const foot = { X: sideX, Y: por.Y + (male ? -4 : 14) }, cor = { X: Math.abs(ch.X) + 6, Y: ch.Y + 6 };
   const cheekLine = x > cor.X ? cor.Y + ((x - cor.X) / Math.max(1, foot.X - cor.X)) * (foot.Y - cor.Y) : Math.min(M.sn.Y - 2, cor.Y + (cor.X - x) * 2);
   // (the ear is its own: no beard grows on it, nor in front of it past the sideburn's foot)
-  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 3, cheekLine - 3, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)) * (1 - Math.min(1, 1.6 * (R.ear || 0))));
+  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 6, cheekLine - 6, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)) * (1 - Math.min(1, 1.6 * (R.ear || 0))));
   if (A.feature === 'ear') { put('ear', 1); delete R.beard; delete R.scalp; }
   put('face', face);
   put('headSide', (1 - scalp) * (1 - face) * 0.6);
@@ -287,7 +296,7 @@ export function dermisAt(A, D, { detail = true } = {}) {
   let c = mulc(base0, UNDERTONE_TINT[D.undertone]);
   const Z = D.zones, show = 1 - 0.6 * mel;   // a deep skin shows its blood less
   const blood = Math.max(w('cheek') * 0.55, w('nose') * 0.6, w('ear') * 0.7, w('knuckles') * 0.6, w('elbow') * 0.5, w('knee') * 0.5, w('fingertip') * 0.55, w('palm') * 0.25, w('sole') * 0.3, w('heel') * 0.4, w('underEye') * 0.15, w('lip') * 0.3, w('axilla') * 0.1);
-  const middle = A.part === 'head' ? (A.marks ? band(headXY(A).Y, A.marks.points.sn.Y, A.marks.points.g.Y, 6) : band(A.along, HEAD_LEVELS.noseBase, HEAD_LEVELS.brow, 0.03)) * w('face') * 0.3 : 0;
+  const middle = A.part === 'head' ? (A.marks ? band(headXY(A).Y, A.marks.points.sn.Y, A.marks.points.g.Y, 16) : band(A.along, HEAD_LEVELS.noseBase, HEAD_LEVELS.brow, 0.03)) * w('face') * 0.3 : 0;
   c = tint(c, BLOOD, (blood + middle) * D.flush * Z * show);
   c = tint(c, YELLOW, Math.max(w('forehead') * 0.5, w('shin') * 0.4, w('knee') * 0.25, w('elbow') * 0.25, w('heel') * 0.3, w('chin') * 0.2) * Z * (0.4 + 0.6 * D.age));
   const shadow = D.sex === 'male' ? w('beard') * Math.min(1, D.beard) * (D.stubble > 0 ? 0.45 : 0.25) : 0;
@@ -394,3 +403,50 @@ export function hairTract(A, R, D) {
 
 /** the hair's colour (linear RGB) from the dermis's word */
 export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairColour);
+
+// ─── the creator's sliders: the face's lines, war paint ───
+export const PAINT_PATTERNS = Object.freeze(['eyes', 'stripes', 'band', 'chin', 'mask']);
+export const PAINT_COLOURS = Object.freeze({ woad: '#2c4a86', soot: '#1c1a19', ochre: '#8c3a1e', chalk: '#e6e1d6', blood: '#6e1414' });
+export const DIRT_COLOUR = hexLin('#4a3b2c');
+
+/** distance from a point to a polyline (mm) */
+const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length; i++) d = Math.min(d, segD(q, pts[i], pts[i + 1])); return d; };
+
+/**
+ * The FINE DETAIL at an address, too fine for the map's stride (a texture paints it per texel): the face's LINES (a
+ * darkening 0 … 1: three wavering forehead lines, the frown's two, crow's feet fanned from the outer canthus, the
+ * nasolabial fold from the nose's wing to the mouth's corner, the arc under each eye; deeper with age) and its WAR PAINT
+ * (`[r, g, b, alpha]`, linear, the brush's edge ragged). On the relational head (its marks); elsewhere nothing.
+ */
+export function dermalDetail(A, D) {
+  if (A.part !== 'head' || !A.marks) return { crease: 0, paint: null };
+  const M = A.marks.points, q = headXY(A), sg = q.X >= 0 ? 1 : -1, P = (k) => M[k + (sg > 0 ? 'R' : 'L')], X = Math.abs(q.X);
+  const line = (d, w) => Math.exp(-((d / w) ** 2));
+  let crease = 0;
+  if (D.lines > 0) {
+    const fz = Math.abs(P('fz').X), fade = 1 - smooth(fz - 14, fz - 2, X);
+    for (let k = 0; k < 3; k++) crease = Math.max(crease, line(q.Y - (M.g.Y + 13 + 8 * k + 1.4 * Math.sin(q.X / 9 + k * 1.7)), 0.75) * fade * (k === 1 ? 1 : 0.75));
+    crease = Math.max(crease, line(X - 5 - 0.08 * (q.Y - M.g.Y), 0.6) * band(q.Y, M.g.Y - 5, M.g.Y + 12, 2));
+    const ex = P('ex'), c = { X: Math.abs(ex.X) + 5, Y: ex.Y };
+    for (const a of [-0.45, 0, 0.42]) { const e = { X: c.X + 13 * Math.cos(a), Y: c.Y + 13 * Math.sin(a) }; crease = Math.max(crease, line(segD({ X, Y: q.Y }, c, e), 0.55) * 0.9); }
+    const al = P('al'), ch = P('ch');
+    crease = Math.max(crease, 0.8 * line(polyD({ X, Y: q.Y }, [{ X: Math.abs(al.X) + 4, Y: al.Y + 3 }, { X: Math.abs(al.X) + 9, Y: (al.Y + ch.Y) / 2 }, { X: Math.abs(ch.X) + 5, Y: ch.Y - 3 }]), 1.6));
+    const eye = P('eye'), eyeW = Math.abs(P('ex').X - P('en').X);
+    crease = Math.max(crease, 0.6 * line(Math.hypot((X - Math.abs(eye.X)) / (eyeW * 0.62), (q.Y - eye.Y + 4) / 11) * 11 - 11, 0.7) * smooth(eye.Y - 4, eye.Y - 9, q.Y));
+    crease *= D.lines * (0.55 + 0.45 * D.age);
+  }
+  let paint = null;
+  if (D.paint) {
+    const W = D.paint, brush = vnoise(q.X / 2.6 + 3, q.Y / 2.6, D.seed + 71) - 0.5, edge = (d) => smooth(1.2, -1.2, d + 2.2 * brush);   // d: mm outside the shape
+    const eye = P('eye'), ex = P('ex');
+    let d = Infinity;
+    if (W.pattern === 'eyes') d = Math.max(Math.abs(q.Y - eye.Y) - 9, X - (Math.abs(ex.X) + 22));
+    else if (W.pattern === 'band') d = Math.max(Math.abs(q.Y - (M.g.Y + 18)) - 7, X - (Math.abs(P('fz').X) + 10));
+    else if (W.pattern === 'chin') d = Math.max(X - 5, Math.max(q.Y - (M.li.Y - 2), -q.Y));
+    else if (W.pattern === 'stripes') { if (q.X > 0) for (let k = 0; k < 3; k++) { const top = eye.Y - 8, bot = M.goR.Y + 12 + 6 * k, x0 = 18 + 9 * k; d = Math.min(d, Math.max(polyD({ X: q.X, Y: q.Y }, [{ X: x0, Y: top }, { X: x0 + 0.15 * (top - bot), Y: bot }]) - 2.2, 0)); } }
+    else if (W.pattern === 'mask') d = Math.min(Math.hypot((X - Math.abs(eye.X)) / 18, (q.Y - eye.Y - 1) / 12) * 12 - 12, Math.max(X - 4, Math.max(q.Y - M.n.Y, M.prn.Y - q.Y)));
+    const a = edge(d) * (W.amount ?? 0.85);
+    if (a > 0.003) paint = [...hexLin(PAINT_COLOURS[W.colour] || W.colour || PAINT_COLOURS.woad), a];
+  }
+  return { crease, paint };
+}

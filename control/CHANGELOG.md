@@ -38,7 +38,15 @@ point cutting off the line. The library's cuts: buzz, crop, short (tapered), und
 layers. EDITS BY CLUMP NAME: the anime figure's clumps (fringe-1…7, the temples, back-1…11, the crown) as addresses on
 the scalp, each edit (`length`, `sweep`, `lift`, `over`, `stand`) reaching the guides about its seat with a soft falloff
 so the comb stays one field; the anime traits ported as MOVES over a groom (sleek, voluminous, messy, heavy-, short- and
-swept-bangs with the fringe's own cut line, peekaboo, side-parted, flipped, ahoge). Seen through `/dermis-study`.
+swept-bangs with the fringe's own cut line, peekaboo, side-parted, flipped, ahoge, chunky). CREATOR LOOKS (`dermal-looks.js`): the realistic head stylized as
+a game's character creator draws one, as data over the existing readers: `GAME_FACE` relations (a firmer skin wave, a
+heavier brow, cheekbones forward, a squarer jaw, deeper-set eyes) and archetype presets (warrior, shieldmaiden, scholar,
+rogue, elder). The dermis takes the creator's sliders: `lines` (the forehead's, the frown, crow's feet, the nasolabial
+fold, under the eyes), `dirt` (grime in the cavities and in blotches) and `paint` (war paint: eyes, stripes, band, chin,
+mask, in woad, soot, ochre, chalk or blood), painted per texel from the face's landmarks. The atlas bakes OCCLUSION read
+from the mesh (`meshOcclusion`, any shape) into the skin's colour. The relational head's chart is spherical about a
+centre at the ear's height (`headSphere`), so its undersides keep texels of their own, and what the head closes over (the
+teeth, a nostril's inside) is marked `enclosed`: no hair, no bake. Seen through `/dermis-study --look`.
 
 ### Realistic register: a stronger body for the hero
 

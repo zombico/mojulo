@@ -51,6 +51,31 @@ export function vertexNormals(vertices, faces) {
   return N.map((n) => unit(n));
 }
 
+/**
+ * The OCCLUSION of each vertex read from the mesh itself (1 open … 0 enclosed), for any shape: the share of the
+ * neighbourhood within `radius` that rises above the vertex's tangent plane (each neighbour weighted by nearness and by
+ * how steeply it rises), so a socket, a nostril, the lips' line, an ear's folds and the throat under the jaw darken and a
+ * dome does not. `skin(vi)` limits it to the skin (others are 1); a spatial grid keeps it local.
+ */
+export function meshOcclusion(vertices, normals, { radius = 0.012, strength = 1.7, skin = () => true } = {}) {
+  const cell = radius, grid = new Map(), key = (x, y, z) => `${x},${y},${z}`;
+  vertices.forEach((p, i) => { if (!skin(i)) return; const k = key(Math.floor(p[0] / cell), Math.floor(p[1] / cell), Math.floor(p[2] / cell)); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  return vertices.map((p, i) => {
+    if (!skin(i)) return 1;
+    const n = normals[i], cx = Math.floor(p[0] / cell), cy = Math.floor(p[1] / cell), cz = Math.floor(p[2] / cell);
+    let occ = 0, wt = 0;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+      for (const j of grid.get(key(cx + a, cy + b, cz + c)) || []) {
+        if (j === i) continue;
+        const d = sub(vertices[j], p), l = len(d); if (l > radius || l < 1e-9) continue;
+        const w = 1 - l / radius, rise = dot(n, d) / l;
+        occ += w * Math.max(0, rise); wt += w;
+      }
+    }
+    return wt ? Math.max(0, Math.min(1, 1 - strength * (occ / wt))) : 1;
+  });
+}
+
 /** The nearest point of a polyline: its arc share (0 … 1) and the tangent there. */
 function onAxis(axis, cum, p) {
   let best = { d: Infinity, s: 0, t: [0, 0, 1] };
