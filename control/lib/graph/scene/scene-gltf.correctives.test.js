@@ -130,4 +130,19 @@ describe('the realistic body\'s correctives, posed and exported', () => {
     expect(Array.from(av.slice(faceN, faceN + n))).toEqual(fig.correctives.targets.map((t) => Math.fround(t.w)));
     expect(out.faceFigures).toEqual(['body']);
   }, 60000);
+
+  it('the lit export: the realistic body\'s corners carry the weld\'s normals and no baked shade, one smooth skin', async () => {
+    const { payload } = await resolveWorldScene({ ref: 'corr', title: 'corr', manifest: M }, { face: true, unshaded: true });
+    const fig = payload.figures.body, G = glbOf(facesToGlb(payload, { generator: 'mojulo corr', clips: '_all', skinned: true, lit: true }).bytes);
+    expect(fig.parts.filter(Boolean).every((p) => typeof p.nrm === 'string')).toBe(true);
+    const prim = G.json.meshes.find((m) => m.name === 'body:skinned').primitives[0], P = floats(G, prim.attributes.POSITION), N = floats(G, prim.attributes.NORMAL);
+    // corners on one point agree (the weld; a crease or a part's seam may split them): far fewer split than the facets'
+    const by = new Map(); for (let v = 0; v < P.length / 3; v++) { const k = [0, 1, 2].map((c) => Math.round(P[v * 3 + c] * 1e5)).join(); if (!by.has(k)) by.set(k, []); by.get(k).push(v); }
+    let shared = 0, split = 0;
+    for (const vs of by.values()) if (vs.length > 1) { shared++; if (vs.some((v) => [0, 1, 2].reduce((s, c) => s + N[v * 3 + c] * N[vs[0] * 3 + c], 0) < 0.999)) split++; }
+    expect(shared).toBeGreaterThan(1000); expect(split / shared).toBeLessThan(0.2);
+    // no baked shade: the skin's corners are a handful of colours, not a gradient
+    const C0 = floats(G, prim.attributes.COLOR_0), cols = new Set(); for (let v = 0; v < C0.length / 3; v++) cols.add([0, 1, 2].map((c) => C0[v * 3 + c].toFixed(4)).join());
+    expect(cols.size).toBeLessThan(64);
+  }, 60000);
 });

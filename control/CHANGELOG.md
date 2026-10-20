@@ -49,6 +49,9 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
   clip a LINEAR weights channel with the weights its poses drive (merged with the face's STEP track, each drawing held
   to a millisecond before the next), so Godot, Blender and Unity play them with the clips. The T-pose (engine skeleton)
   export leaves them out. Without correctives every byte is as before.
+- Lit: under the lit GLB (`lit: true`) the realistic body's pack carries the studio weld's normals per corner and no
+  baked shade (`packLayeredRig({ engineLit })`), and the skinned writer writes those normals, so the engine shades one
+  smooth skin, once (it had the facets' normals and the bake's shade under its own). Every other figure as before.
 
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 

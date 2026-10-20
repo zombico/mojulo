@@ -782,6 +782,9 @@ class GlbBuilder {
     const faceT = fig.face && Array.isArray(fig.face.targets) ? fig.face.targets.length : 0, morphAt = [], morphRow = [];
     // the correctives' rows likewise (3 × targets: each corrective's offset)
     const corrT = !parents && Array.isArray(fig.correctives?.targets) ? fig.correctives.targets.length : 0, corrAt = [], corrRow = [];
+    // under the lit handoff, a pack whose every part carries its corners' shading normals (`nrm`: packLayeredRig engineLit,
+    // the realistic body's weld) writes those instead of the triangles' own
+    const carried = this.lit && !parents && fig.parts.every((p) => !p || typeof p.nrm === 'string') && fig.parts.some(Boolean) ? [] : null;
     fig.bones.forEach((bone, bi) => {
       const part = fig.parts[bi];
       if (!part) return;
@@ -822,6 +825,7 @@ class GlbBuilder {
         if (md.length !== mi.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} face rows do not match their vertices`);
         for (let k = 0; k < mi.length; k++) { morphAt.push(base + mi[k]); morphRow.push(md.subarray(k * W, k * W + W)); }
       }
+      if (carried) { const n = b64ToF32(part.nrm); if (n.length !== d.vertexCount * 3) throw new Error(`skinned export: rig '${name}' part ${bone.id} normals do not match its vertices`); for (let i = 0; i < n.length; i++) carried.push(n[i]); }
       if (corrT && part.corrective) {
         const ci = b64ToU32(part.corrective.i), cd = b64ToF32(part.corrective.d), W = corrT * 3;
         if (cd.length !== ci.length * W) throw new Error(`skinned export: rig '${name}' part ${bone.id} corrective rows do not match their vertices`);
@@ -843,7 +847,7 @@ class GlbBuilder {
       ...(uvs ? { TEXCOORD_0: this.floatAccessor(Float32Array.from(uvs), 2) } : {}),
       // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
       // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
-      ...(this.lit ? { NORMAL: this.floatAccessor(restNormals(positions, idx), 3) } : {}),
+      ...(this.lit ? { NORMAL: this.floatAccessor(carried ? Float32Array.from(carried) : restNormals(positions, idx), 3) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
