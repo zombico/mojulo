@@ -70,6 +70,8 @@ import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/f
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
+import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
+import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -252,7 +254,12 @@ function realisticExpand(plan, hero) {
   const has = (v) => v !== undefined && v !== null && !(Array.isArray(v) && !v.length);
   const bare = Object.fromEntries(Object.entries(plan).filter(([k]) => !DRESS_KEYS.includes(k)));
   const S = realisticRecipe(expandPlan(bare), hero);
-  if (!DRESS_KEYS.some((k) => has(plan[k]))) return S;
+  // THE FIELD GARMENTS: an outfit word with a body-part version (body-relational-garment.js FIELD_GARMENTS) is made on
+  // the body's parts, one cloth field across its segments, in place of its segment pieces (`<word>`, `<word>Sleeve` …)
+  const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
+  const fieldWords = words.filter((w) => FIELD_GARMENTS[w]);
+  if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
+  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
@@ -291,6 +298,15 @@ function realisticExpand(plan, hero) {
     const s = S.dials?.[k], out = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((p) => R.parts[p]) } : {}) };
     return [k, s?.blend ? { ...out, blend: { ...(d.blend || {}), ...s.blend } } : out];
   }));
+  if (fieldWords.length) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), map = bodyPartMap(S, RS, B);
+    for (const w of fieldWords) for (const [name, part] of Object.entries(fieldGarment(S, RS, B, map, { id: w, ...FIELD_GARMENTS[w] }).parts)) {
+      R.parts[name] = part;
+      // (it rides its segment's dials, as a garment does)
+      const seg = name.slice(w.length + 1);
+      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+    }
+  }
   if (S.correctives) R.correctives = garmentCorrectives(S.correctives, R.parts);
   return R;
 }

@@ -26,6 +26,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   knee, the wrist, the ankle about their joints); the armpit's fill above the hollow the shoulder's cap. A point inside
   another part's skin (the pelvis under the crotch, the arm's top under the cap) is `hidden`, for dress to leave alone.
   The labels eased over each grid (a point of a part fewer than three of its eight neighbours share takes theirs).
+- THE FIELD GARMENT, the tee first (body-relational-garment.js `fieldGarment`, `FIELD_GARMENTS`): a piece names the body
+  parts it covers, and on each segment that carries them the rings they mostly cover are its (down a limb to its
+  `limit`); its surface one CLOTH FIELD, the body's own blended three times looser and eased out, each point cast onto
+  it along the skin's own ray, then pulled TAUT along the piece (each slot's distance over the piece's length raised to
+  its upper hull: from the bust's apex straight down, no ledge) and over its rings' hollows, at most 40 mm off. On the
+  skin's grid, so it takes the skin's bind and correctives; its ends closed beyond its end rings. A realistic hero's
+  `outfit: ['tee']` wears it in place of the segment tee. The envelope gains `taut`.
 
 ### The realistic hero at the door
 

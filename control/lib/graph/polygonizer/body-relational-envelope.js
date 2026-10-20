@@ -19,7 +19,7 @@ import { add, sub, scl, dot, cross, len, unit, r6 } from './body-relational-vec.
 const centreOf = (P, st) => scl(P.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / P.slots.length);
 
 /** a closed part's envelope (a new part; the input untouched) */
-export function envelopePart(P, { along = 2, reach = 0.015, hang = false } = {}) {
+export function envelopePart(P, { along = 2, reach = 0.015, hang = false, taut = false } = {}) {
   const S = P.stations, n = S.length, C = S.map((st) => centreOf(P, st));
   // each ring's frame: its axis from the rings either side, two directions square to it
   const frames = C.map((c, i) => {
@@ -35,6 +35,21 @@ export function envelopePart(P, { along = 2, reach = 0.015, hang = false } = {})
     for (const p of R) {
       const r = Math.hypot(p.x, p.y); if (r < 1e-9) continue;
       const k = rayToHull(H, p.x / r, p.y / r); if (k > r) { p.x *= k / r; p.y *= k / r; }
+    }
+  }
+  // taut (`taut`, cloth): a slot's distances along the part raised to their upper convex hull over the part's length, the
+  // cloth pulled straight from one height of the body to the next it touches (from the bust's apex down the abdomen,
+  // with no ledge where the neighbours' mean, a step at a time, had left one)
+  if (taut) {
+    const h = [0]; for (let i = 1; i < n; i++) h.push(h[i - 1] + len(sub(frames[i].c, frames[i - 1].c)));
+    for (let j = 0; j < P.slots.length; j++) {
+      const pts = rings.map((R, i) => [h[i], Math.hypot(R[j].x, R[j].y)]), up = [];
+      for (const p of pts) { while (up.length >= 2 && (up[up.length - 1][0] - up[up.length - 2][0]) * (p[1] - up[up.length - 2][1]) - (up[up.length - 1][1] - up[up.length - 2][1]) * (p[0] - up[up.length - 2][0]) >= 0) up.pop(); up.push(p); }
+      for (let i = 0; i < n; i++) {
+        let k = 0; while (k < up.length - 2 && up[k + 1][0] < h[i]) k++;
+        const a = up[k], b = up[Math.min(k + 1, up.length - 1)], t = b[0] > a[0] ? (h[i] - a[0]) / (b[0] - a[0]) : 0, m = a[1] + (b[1] - a[1]) * Math.max(0, Math.min(1, t));
+        const p = rings[i][j], r = Math.hypot(p.x, p.y); if (m > r && r > 1e-9) { p.x *= m / r; p.y *= m / r; }
+      }
     }
   }
   // along the part: a slot's distance raised to its neighbours' mean up and down the part, where it is less
