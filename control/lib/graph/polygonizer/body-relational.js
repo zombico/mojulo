@@ -320,7 +320,7 @@ export function physique(build, dials = 'athletic') {
   // side the calf fuller still, and the forearm carried full down to a wrist the size of the bigger hand (`hands`): the
   // bellies alone left the forearm a club over a narrow wrist
   const bp = Math.max(0, b), hands = 1 + 0.1 * bp, calf = 1 + 0.25 * bp;
-  const limb = (m) => {
+  const limb = (m, id) => {
     if (m.id === 'radiusUlna') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.35 * bp)] };
     if (m.id === 'wrist') return { ...m, r: m.r.map((x) => x * hands) };
     // (the gastrocnemius's heads the calf's bulk, longer as they are fuller, or they round into beads, and set higher: a
@@ -329,9 +329,13 @@ export function physique(build, dials = 'athletic') {
     if (/^gastrocnemius/.test(m.id)) return { ...m, s: m.s - 0.04 * bp, r: [m.r[0] * calf, m.r[1] * f * calf, m.r[2] * f * calf] };
     if (m.id === 'soleus') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.1 * b), m.r[2] * (1 + 0.1 * b)] };
     if (BONY.test(m.id)) return m;
-    if (m.chain) return { ...m, chain: m.chain.map(([s, az, off, r]) => [s, az, off, r * f]) };
+    // (the THIGH's bulk eased off toward the knee, by where a belly or a bead lies down the femur, and its long front and
+    // outer heads set higher: grown alike, the thigh stood widest just over the knee, a barrel from the front)
+    const fs = (s) => (id !== 'thigh' || b <= 0 ? f : 1 + (f - 1) * Math.max(0.15, Math.min(1, 1 - (s - 0.45) / 0.45)));
+    if (m.chain) return { ...m, chain: m.chain.map(([s, az, off, r]) => [s, az, off, r * fs(s)]) };
     if (m.cone) return { ...m, r: m.r.map((x) => x * f) };
-    return { ...m, r: /^deltoid/.test(m.id) ? m.r.map((x) => x * f) : [m.r[0], m.r[1] * f, m.r[2] * f] };
+    const g = fs(m.s ?? 0), up = id === 'thigh' && /^(rectusFemoris|vastusLateralis)$/.test(m.id) ? { s: m.s - 0.06 * bp } : {};
+    return { ...m, ...up, r: /^deltoid/.test(m.id) ? m.r.map((x) => x * g) : [m.r[0], m.r[1] * g, m.r[2] * g] };
   };
   // the fat: the layer in W, and down each limb its two ends (the hand's and the foot's ends none)
   const fat = w > 0 ? 0.09 * w : 0.03 * w;
@@ -360,7 +364,7 @@ export function physique(build, dials = 'athletic') {
     ...(B.bust ? { bust: { ...B.bust, rb: B.bust.rb * (1 + 0.12 * w) } } : {}),
     ...(fat ? { fat } : {}),
     ...(hands !== 1 ? { hands } : {}),
-    limbs: Object.fromEntries(Object.entries(B.limbs).map(([id, Lb]) => [id, { ...Lb, masses: Lb.masses.map(limb), ...(fat && FAT[id] ? { fat: FAT[id] } : {}) }])),
+    limbs: Object.fromEntries(Object.entries(B.limbs).map(([id, Lb]) => [id, { ...Lb, masses: Lb.masses.map((m) => limb(m, id)), ...(fat && FAT[id] ? { fat: FAT[id] } : {}) }])),
   };
 }
 

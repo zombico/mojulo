@@ -243,7 +243,7 @@ Opt-in and versioned: a default hero keeps its bytes.
   in stair-steps. Only the feet are still the authored cage. THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the
   build as authored (the athletic base, the build itself to the byte): `bulk` the muscles across and how proud they
   stand (the bones and the joints as they are; on the plus side the arms set out with the shoulders' muscle, the
-  pauldron grown faster, the calf fuller, longer and higher over a soleus hardly grown (a high diamond over a long taper to a slim ankle), the forearm full down to a wrist the size of hands a tenth bigger),
+  pauldron grown faster, the calf fuller, longer and higher over a soleus hardly grown (a high diamond over a long taper to a slim ankle), the thigh eased off toward the knee and its front and outer heads set higher (widest up top, not a barrel over the knee), the forearm full down to a wrist the size of hands a tenth bigger),
   `tone` the blends tighter or looser and the abdomen's and the serratus's relief, `weight` a layer of fat over the
   whole skin (thinning down the limbs to none at the wrist, the ankle and the head's base, and eased out between the
   legs, where it fused the thighs), the belly forward, the flanks, the seat behind, the neck; `height` the stature a
