@@ -35,8 +35,8 @@ science: {
   to it. Its film is framed in the world.
 - **Anything else is a bench prop**: a microscopic box, a quantum orbital or packet, an orbit or clocks world round
   a black hole, a classical solar system drawn shrunk. It is drawn inside a glass case at `at`, and the panel gives
-  its true magnification. A relativistic light world, an orbital drawn as a volume and a quantum plane are drawn by
-  shaders over the whole page and cannot stand in a world.
+  its true magnification. A relativistic light world, an orbital drawn as a volume, a quantum plane and a classical
+  field drawn as a volume or shells are drawn by shaders over the whole page and cannot stand in a world.
 
 ## The setting is dress: what touches a body is a law
 

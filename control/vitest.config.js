@@ -20,6 +20,7 @@ export const E2E = [
   'lib/graph/science-worlds/conformance.chrome.test.js',
   'lib/graph/science-worlds/relativistic/conformance.chrome.test.js',
   'lib/graph/science-worlds/quantum/conformance.chrome.test.js',
+  'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
 ];
 

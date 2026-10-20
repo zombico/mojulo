@@ -72,9 +72,24 @@ the path needs the quantum scale). Say which gates ran and what they saw; the ey
   otherwise).
 - `background` — `'#rrggbb'`.
 - `playback` — seconds one run lasts on screen (default the model's duration, kept between 3 and 12).
+- `field` — the electric field the `coulomb` and `lorentz` rows make, drawn from the same model:
+  - `'lines'`: field lines traced from the charges where the run starts, as many from each as its share of the
+    largest charge (`lines`, default 12, 2 to 32), in the charges' plane when they lie in one. A uniform field is
+    drawn as even lines along it, gold for E and blue for B.
+  - `'volume'`: the field's strength glowing on a log scale, warm where the potential is positive and cool where
+    negative, drawn by a shader over the meshes that moves with the charges.
+  - `'shells'`: the potential's shells where its size doubles, the same way.
+
+  A drawn field adds its own checks to the page and the mint: `gauss`, the flux through a sphere round each charge
+  is q/ε₀ and none through one round no charge (a surface integral of the field drawn, to one part in a million);
+  `field-lines`, every line leaves a positive charge and ends on a negative one or leaves the frame, each charge
+  carrying lines in proportion to its charge. A volume or shells are held to the field's sums by the shader
+  conformance gate in the test suite (`node scripts/science-conformance.mjs --ref <ref>`), and cannot stand in a
+  world.
 
 The drawing declares its own liberties: a scale other than one metre per unit at very large or very small sizes, a
-body too small to see drawn larger (a body that touches things keeps its true size), and time sped up or slowed down.
+body too small to see drawn larger (a body that touches things keeps its true size), time sped up or slowed down, and
+a field drawn (its lines a way to draw it, where they start, its glow's scale).
 
 ## Reading the numbers back
 
@@ -122,6 +137,15 @@ the Earth is drawn):
 { "model": { "bodies": [{ "id": "sun", "mass": 1.989e30, "at": [0, 0, 0] },
     { "id": "earth", "mass": 5.972e24, "at": ["1 AU", 0, 0], "v": [0, "29.78 km/s", 0] }],
   "laws": [{ "law": "gravity-newton" }], "duration": "1 yr" } }
+```
+
+Two fixed charges, a positive one twice the size of the negative, with their field lines (twice as many leave the
+positive charge, and those that do not end on the negative one leave the frame):
+
+```
+{ "model": { "bodies": [{ "id": "p", "mass": 1, "radius": 0.02, "charge": "2 µC", "at": [-0.5, 0, 0], "fixed": true },
+    { "id": "n", "mass": 1, "radius": 0.02, "charge": "-1 µC", "at": [0.5, 0, 0], "fixed": true }],
+  "laws": [{ "law": "coulomb" }], "duration": 1 }, "dress": { "field": "lines" } }
 ```
 
 A ball bouncing on a lossy floor until it rests:

@@ -62,6 +62,15 @@ describe("create_view({ kind: 'classical' }): a science world, end to end", () =
     expect(recomputeViewStats(manifest).held).toBe(true);
   });
 
+  it('reports a drawn field\'s own checks beside the solver\'s, and says when a shader draws it', async () => {
+    const model = { bodies: [{ id: 'p', mass: 1, radius: 0.02, charge: '1 µC', at: [0, 0, 0], fixed: true }, { id: 'q', mass: 1e-3, radius: 0.01, charge: '-1 µC', at: [0.5, 0, 0], v: [0, 3.5, 0] }], laws: [{ law: 'coulomb' }], duration: 2 };
+    const lines = await createViewHandler({ kind: 'classical', params: { model, dress: { field: 'lines' } } });
+    expect(lines.gates.slice(-2).map((g) => g.id)).toEqual(['gauss', 'field-lines']);
+    expect(lines.held).toBe(true);
+    const volume = await createViewHandler({ kind: 'classical', params: { model, dress: { field: 'volume' } } });
+    expect(volume.note).toMatch(/drawn by a shader/);
+  });
+
   it('points a bad recipe at its card, and rejects a model field put beside the model', async () => {
     await expect(createViewHandler({ kind: 'classical', params: { model: { ...PENDULUM.model, bodies: [{ id: 'bob', mass: '1 m', at: [0, 0, 0] }] } } }))
       .rejects.toThrow(/wants a mass.*get_view_vocab\(\{ id: 'classical' \}\)/);

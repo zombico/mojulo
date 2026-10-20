@@ -34,15 +34,18 @@ export function mintClassicalView({ model, dress, liberties, title, viewBox, sce
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     recipe: manifest,
     // the machine gate: every check the solver ran, what it wanted and what it saw (they advise; none refuse)
-    held: solved.held,
-    gates: solved.gates.map((g) => ({ id: g.id, ok: g.ok, want: g.want, value: g.value, detail: g.detail })),
+    held: solved.held && plan.fieldGates.every((g) => g.ok),
+    // the solver's gates, then the drawn field's (dress.field) when there is one
+    gates: [...solved.gates, ...plan.fieldGates].map((g) => ({ id: g.id, ok: g.ok, want: g.want, value: g.value, detail: g.detail })),
     ...(solved.gaps.length ? { gaps: solved.gaps } : {}),
     ...(solved.warnings.length ? { warnings: solved.warnings } : {}),
     observed: solved.observed,
     // what the page says is drawn rather than real: the drawing's own liberties, then the recipe's
     liberties: [...plan.drawn, ...solved.liberties],
     stats: classicalStats(solved),
-    note: 'Machine gate only. Nobody has looked at it yet: open the worldUrl.',
+    note: plan.shader
+      ? 'Machine gate only. The field is drawn by a shader from the charges\' own paths, held to the solver by the shader conformance gate in the test suite (node scripts/science-conformance.mjs --ref <ref>). Nobody has looked at it yet: open the worldUrl.'
+      : 'Machine gate only. Nobody has looked at it yet: open the worldUrl.',
   };
 }
 

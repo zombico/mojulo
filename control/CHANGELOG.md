@@ -198,6 +198,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Shader pages over meshes.** `shaderPage` gains `output: 'layer'` (premultiplied, over the page's meshes),
   `dataTextures` (float RGBA, into both the image and the probe shader) and `depthClip` (`sciSceneDistance`, from the
   page's depth prepass). A page without them is byte-identical.
+- **Classical fields drawn** (`dress.field` on a classical world). The electric field the `coulomb` and `lorentz`
+  rows make, read off the same model at any moment of the run (`classical/field.js`), drawn three ways:
+  - `'lines'`: field lines traced by RK4 from the charges where the run starts, as many from each as its share of
+    the largest charge, in the charges' plane when they lie in one. Each ends on a charge of the other sign or leaves
+    the frame, and a negative charge adds only the lines it still lacks. A uniform E or B is drawn as even lines.
+  - `'volume'`: the field's strength glowing on a log scale (from its median in the region to its 99th
+    percentile), warm where the potential is positive and cool where negative.
+  - `'shells'`: the potential's shells where its size doubles.
+
+  The volume and the shells are a shader layer over the meshes. It reads the charges' paths from a float texture on
+  the movers' own clock and interpolation, so the field moves with the bodies. A drawn field adds two gates to the
+  page and the mint:
+  - `gauss`: the flux through a sphere round each charge is q/ε₀, and none through one round no charge, by a
+    Gauss–Legendre surface integral of the field drawn (worst about 4e-16 on the coulomb row's example);
+  - `field-lines`: no line stops short, and each charge carries lines in proportion to its charge, within one line
+    or a fifth.
+
+  The shader's E and V agree with JS at 48 points and moments through the run as the charge orbits, and one whose
+  field falls off as 1/r disagrees. The solver never sees the dress, and a world without a field is byte-identical.
+  A volume or shells cannot stand in a world; lines can.
 
 ### Epidermis cube: skin and hair as a recipe
 
