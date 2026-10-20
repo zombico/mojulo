@@ -12,6 +12,8 @@
 
 Mint the DOUBLE-SLIT EXPERIMENT as a live RIPPLE TANK in the traversable three.js World. An incoming wave hits a barrier with two slits; each slit re-emits a CIRCULAR wave, and their overlap IS the interference pattern — the bright/dark fan — with the fringes projected on a screen (bright where the waves add, dark where they cancel; fringe spacing Δ = λL/d). Three scenarios: 'double' (two slits → interference fringes), 'single' (one slit → smooth diffraction, NO two-source fringes — the contrast), and 'particles' (the quantum punchline: individual particles each land at ONE spot, yet collectively build the fringe pattern — dots distributed by |ψ|², the interference probability). The `separation` knob sets the slit spacing d (wider d → finer fringes). Served as a live, traversable three.js World at `/api/sketches/<ref>/world` (drag to ORBIT, scroll to zoom). You pass a tiny recipe; the substrate stores ONLY the recipe (`manifest.kind === 'double-slit-view'`, no geometry) and regenerates the wavefield on render. ORBIT-ONLY object study: no CSS-3D `/scene` form; open the worldUrl. Reach for this on framing like 'double-slit experiment / wave interference / quantum interference / how light/electrons interfere / diffraction fringes'.
 
+For a double slit whose particle, energy, slits and wall are the teacher's, solved from the Schrödinger equation with its fringes checked against λ/d and its detections against the far field, compose a quantum `plane` world instead (`get_view_vocab({ id: 'quantum' })`, the `slits` row); this kind keeps its one fixed picture.
+
 ## Parameters
 
 Pass these in `create_view`'s `params` object. `title`, `viewBox`, `scene`, `ref`, `folder_ref` are top-level `create_view` params and may be omitted from `params`.

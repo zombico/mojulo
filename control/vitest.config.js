@@ -19,6 +19,11 @@ export const E2E = [
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/board/board-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
+  'lib/graph/science-worlds/conformance.chrome.test.js',
+  'lib/graph/science-worlds/relativistic/conformance.chrome.test.js',
+  'lib/graph/science-worlds/quantum/conformance.chrome.test.js',
+  'lib/graph/science-worlds/classical/conformance.chrome.test.js',
+  'lib/mcp/tools/science-setting.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

@@ -410,6 +410,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     structureColliders = S.colliders;
   }
 
+  // science (science-worlds/setting.js): a science world stood in any world, a classical demo 1:1 or any other as a
+  // bench prop in a glass case. Its surfaces join before the material / AO passes; its readout and panel ride the
+  // page, with the placement's gates (the world's surfaces, its gravity). Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.science !== undefined && !String(sketch.manifest.kind || '').match(/^(classical|microscopic|quantum|relativistic)-view$/)) {
+    const { placeScience } = await import('@/lib/graph/science-worlds/setting.js');
+    try { placeScience(payload, sketch.manifest.science); } catch (err) { throw new Error(`${err.message} — see get_view_vocab({ id: 'science-setting' })`); }
+  }
+
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
   // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
   // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)

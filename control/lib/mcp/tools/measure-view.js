@@ -30,17 +30,21 @@ import { planAirplaneScene, sampleAirplanePhysics } from '@/lib/graph/views/scie
 import { planOrbitScene, sampleOrbitPhysics } from '@/lib/graph/views/science/orbit-view';
 import { planDerivativeScene, sampleDerivativeExact } from '@/lib/graph/views/math/derivative-view';
 import { planSeriesScene, sampleSeriesExact } from '@/lib/graph/views/math/series-view';
+import { solveClassical, classicalStats } from '@/lib/graph/science-worlds/classical/solve';
+import { solveMicroscopic, microscopicStats } from '@/lib/graph/science-worlds/microscopic/solve';
+import { solveQuantum, quantumStats } from '@/lib/graph/science-worlds/quantum/solve';
+import { solveRelativistic, relativisticStats } from '@/lib/graph/science-worlds/relativistic/solve';
 
 // kinds with an honest sampler, in two tiers: 'si' (real physical units — mechanics
 // dynamics, orbits) and 'exact' (pure mathematics — no unit problem at all, every value
 // the true value of the implemented expression). Growing this set means writing a sampler
 // beside the kind's planner (pure, honest numbers) and dispatching it here.
-export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const MEASURABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view']);
 
 // kinds whose mint-time stats digest can be recomputed byte-deterministically from the manifest.
 // Broader than MEASURABLE within mechanics (stats recompute works for machine/engine/collision
 // scenarios too, since planMechanicsScene covers every branch).
-export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view']);
+export const REVIEWABLE_VIEW_KINDS = new Set(['mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'derivative-view', 'series-view', 'classical-view', 'microscopic-view', 'quantum-view', 'relativistic-view']);
 
 /**
  * Recompute the stats digest a create_* mint returned, from a stored manifest. Must reproduce the
@@ -79,6 +83,13 @@ export function recomputeViewStats(manifest) {
   // the math mints return plan.stats verbatim — recompute is the planner's stats, whole.
   if (kind === 'derivative-view') return planDerivativeScene(manifest).stats;
   if (kind === 'series-view') return planSeriesScene(manifest).stats;
+  // a classical world: the solver's stats and its gates' verdicts (the model alone; the dress never reaches the solver)
+  if (kind === 'classical-view') {
+    return classicalStats(solveClassical({ model: manifest.model }));
+  }
+  if (kind === 'microscopic-view') return microscopicStats(solveMicroscopic({ model: manifest.model }));
+  if (kind === 'quantum-view') return quantumStats(solveQuantum({ model: manifest.model }));
+  if (kind === 'relativistic-view') return relativisticStats(solveRelativistic({ model: manifest.model }));
   throw new Error(
     `recomputeViewStats: kind '${kind}' is not reviewable. Reviewable kinds: ${[...REVIEWABLE_VIEW_KINDS].join(', ')}.`,
   );
@@ -130,10 +141,152 @@ export function measureViewSamples(manifest, { every = 1 } = {}) {
     const s = sampleSeriesExact(manifest, { every });
     return { kind, tier: 'exact', scenario: s.scenario, units: s.units, domain: s.domain, family: s.family, series: s.series };
   }
+  if (kind === 'classical-view') return sampleClassical(manifest, every);
+  if (kind === 'microscopic-view') return sampleMicroscopic(manifest, every);
+  if (kind === 'quantum-view') return sampleQuantum(manifest, every);
+  if (kind === 'relativistic-view') return sampleRelativistic(manifest, every);
   throw new Error(
     `measure_view: kind '${kind}' has no honest read-back channel — its numbers are render units `
     + `or presets, so samples would lie. Measurable kinds: ${[...MEASURABLE_VIEW_KINDS].join(', ')}.`,
   );
+}
+
+// a classical world's samples: every body's { t, pos, vel, speed } and the system's { t, ke, pe, e, p, L }, in SI,
+// straight from the solver's recorded run (the same samples the page plays), with its gates beside them
+function sampleClassical(manifest, every) {
+  const r = solveClassical({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), t = r.tracks.t;
+  const keep = t.map((x, k) => k).filter((k) => k % step === 0 || k === t.length - 1);
+  return {
+    kind: 'classical-view', tier: 'si', scenario: 'composed',
+    units: { t: 's', pos: 'm', vel: 'm/s', speed: 'm/s', ke: 'J', pe: 'J', e: 'J', p: 'kg·m/s', L: 'kg·m²/s' },
+    T: r.model.duration, dt: r.dt, stepper: r.stepper, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed,
+    series: [
+      ...r.model.bodies.map((b) => {
+        const tr = r.tracks.bodies[b.id];
+        const samples = keep.map((k) => ({ t: t[k], pos: tr.x[k], vel: tr.v[k], speed: +Math.hypot(...tr.v[k]).toPrecision(9) }));
+        return { name: b.id, label: b.fixed ? `${b.id} (fixed)` : b.id, samples, count: samples.length };
+      }),
+      { name: 'system', label: 'the whole system', samples: keep.map((k) => ({ t: t[k], ke: r.series.ke[k], pe: r.series.pe[k], e: r.series.e[k], p: r.series.p[k], L: r.series.L[k] })), count: keep.length },
+    ],
+  };
+}
+
+// a microscopic world's samples: every species' count, its share on the near side of each membrane, and the variance
+// of its displacement (6·D·t while it diffuses freely), in SI, from the same seeded run the page plays
+function sampleMicroscopic(manifest, every) {
+  const r = solveMicroscopic({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), t = r.tracks.t;
+  const keep = t.map((x, k) => k).filter((k) => k % step === 0 || k === t.length - 1);
+  return {
+    kind: 'microscopic-view', tier: 'si', scenario: 'composed',
+    units: { t: 's', count: 'molecules', near: 'molecules', spread: 'm²', D: 'm²/s' },
+    T: r.model.duration, dt: r.dt, seed: r.model.seed, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed,
+    series: r.model.species.map((sp, s) => {
+      const samples = keep.map((k) => ({
+        t: t[k], count: r.series.counts[sp.id][k], spread: r.series.msd[sp.id][k],
+        ...(r.series.sides.length ? { near: r.series.sides.map((m) => m[sp.id][k]) } : {}),
+      }));
+      return { name: sp.id, label: sp.id, D: r.D[s], samples, count: samples.length };
+    }),
+  };
+}
+
+// a quantum world's samples, per system, from the same run the page plays: a line's ⟨x⟩, spread, ⟨E⟩, total probability
+// and the share past its barrier or step (with the allowed levels when it has them); a plane's run (on the plane, past
+// the wall, taken by the rim), its far field by angle and its detections; an atom's orbitals, their exact
+// energies and mean radii beside what the drawn cloud measures; each magnet's counts beside the odds; the nuclei left
+function sampleQuantum(manifest, every) {
+  const r = solveQuantum({ model: manifest.model });
+  const step = Math.max(1, Math.floor(+every) || 1), m = r.model;
+  const thin = (n) => Array.from({ length: n }, (_, k) => k).filter((k) => k % step === 0 || k === n - 1);
+  const head = {
+    kind: 'quantum-view', tier: 'si', scenario: 'composed', system: r.system, seed: m.seed, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed, sources: r.sources, reviewed: r.reviewed,
+  };
+  if (r.system === 'line') {
+    const s = r.run.series, keep = thin(s.t.length);
+    return {
+      ...head, units: { t: 's', x: 'm', spread: 'm', E: 'eV', norm: 'probability', past: 'probability', levels: 'eV' },
+      T: m.duration * 1e-15, ...(r.run.levels ? { levels: r.run.levels } : {}),
+      series: [{ name: 'particle', label: m.particle, count: keep.length, samples: keep.map((k) => ({
+        t: s.t[k] * 1e-15, x: s.x[k] * 1e-9, spread: s.sigma[k] * 1e-9, E: s.E[k], norm: s.norm[k], ...(r.run.cut !== null ? { past: s.right[k] } : {}),
+      })) }],
+    };
+  }
+  if (r.system === 'plane') {
+    const s = r.run.series, keep = thin(s.t.length), ff = r.run.far, fk = thin(ff.theta.length);
+    return {
+      ...head, units: { t: 's', plane: 'probability', past: 'probability', taken: 'probability', theta: 'rad', density: 'per rad', wavelength: 'm' },
+      T: m.duration * 1e-15, wavelength: r.run.lambda * 1e-9,
+      series: [
+        { name: 'run', label: m.particle, count: keep.length, samples: keep.map((k) => ({ t: s.t[k] * 1e-15, plane: s.norm[k], taken: s.taken[k], ...(m.wall ? { past: s.past[k] } : {}) })) },
+        { name: 'far field', label: 'where the passed wave goes, by angle', count: fk.length, samples: fk.map((k) => ({ theta: ff.theta[k], density: ff.p[k] })) },
+        { name: 'detections', label: 'each detection\'s angle, in the order drawn', count: r.run.shots.length, samples: r.run.shots.map((a) => ({ theta: a })) },
+      ],
+    };
+  }
+  if (r.system === 'atom') {
+    const A0 = 5.29177210903e-11;
+    return {
+      ...head, units: { energy: 'eV', radius: 'm', pos: 'm' },
+      series: r.run.clouds.map((c) => {
+        const keep = thin(c.points.length);
+        const measured = c.points.reduce((a, p) => a + Math.hypot(...p), 0) / c.points.length;
+        return {
+          name: c.name, label: c.name, n: c.n, l: c.l, m: c.m, energy: c.energy, meanRadius: c.meanR * A0, measuredMeanRadius: measured * A0,
+          radialNodes: c.n - c.l - 1, angularNodes: c.l, count: keep.length,
+          samples: keep.map((k) => ({ pos: c.points[k].map((x) => x * A0), sign: c.signs[k] })),
+        };
+      }),
+    };
+  }
+  if (r.system === 'spin') {
+    return {
+      ...head, units: { reached: 'atoms', up: 'atoms', down: 'atoms', expected: 'atoms' },
+      series: r.run.stages.map((e, k) => ({ name: `magnet ${k + 1}`, label: `magnet ${k + 1} (${m.magnets[k].name})`, axis: m.magnets[k].axis, keep: m.magnets[k].keep,
+        count: 1, samples: [{ reached: e.reached, up: e.up, down: e.reached - e.up, expected: e.expected, sd: e.sd }] })),
+    };
+  }
+  const keep = thin(r.run.t.length);
+  return {
+    ...head, units: { t: 's', left: 'nuclei', decayed: 'nuclei' }, T: m.duration, half_life: m.halfLife,
+    series: [{ name: 'nuclei', label: 'the nuclei', count: keep.length, samples: keep.map((k) => ({ t: r.run.t[k], left: r.run.left[k], decayed: m.nuclei - r.run.left[k] })) }],
+  };
+}
+
+// a relativistic world's samples, in SI: each body's far-clock time, position, radius and own time (orbit); each
+// clock's own time against the far clock's (clocks); a light world's quantities (it has no motion to sample)
+function sampleRelativistic(manifest, every) {
+  const r = solveRelativistic({ model: manifest.model });
+  const m = r.model, step = Math.max(1, Math.floor(+every) || 1);
+  const thin = (n) => Array.from({ length: n }, (_, k) => k).filter((k) => k % step === 0 || k === n - 1);
+  const head = {
+    kind: 'relativistic-view', tier: 'si', scenario: 'composed', system: r.system, held: r.held,
+    gates: r.gates.map((g) => ({ id: g.id, ok: g.ok, value: g.value })),
+    observed: r.observed, sources: r.sources, reviewed: r.reviewed, rs: m.rs,
+  };
+  if (r.system === 'light') return { ...head, units: {}, series: [] };
+  if (r.system === 'orbit') {
+    return {
+      ...head, units: { t: 's', pos: 'm', r: 'm', tau: 's' }, T: m.duration,
+      series: r.run.runs.map((q) => {
+        const keep = thin(q.run.t.length);
+        return { name: q.id, label: q.id, fate: q.run.fate, count: keep.length, samples: keep.map((k) => ({ t: q.run.t[k] * m.tUnit, pos: q.run.x[k].map((c) => c * m.rs), r: q.run.r[k] * m.rs, tau: q.run.tau[k] * m.tUnit })) };
+      }),
+    };
+  }
+  const keep = thin(r.run.t.length);
+  return {
+    ...head, units: { t: 's', tau: 's', r: 'm' }, T: m.duration,
+    series: r.run.clocks.map((c) => ({ name: c.id, label: c.falls ? `falls from ${c.at * m.rs} m` : `at ${c.at * m.rs} m`, falls: c.falls, ...(c.falls ? {} : { rate: c.rate }), count: keep.length,
+      samples: keep.map((k) => ({ t: r.run.t[k] * m.tUnit, tau: c.tau[k] * m.tUnit, r: c.r[k] * m.rs })) })),
+  };
 }
 
 export async function measureViewHandler(input) {

@@ -408,6 +408,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Raised 2026-10-19 (211_800 -> 212_000; measured 211,872) merging 1019-resolution-lock over the strategy board: the mobile
 // genres' create_pixelizer_game `saga` (the match-3 saga) and its tool line, each pinned against the release on its own
 // branch. No new tool.
+// Held 2026-10-20 at 212_000 (measured 211,923) merging 1019-science-worlds: create_view's `kind` gains 'classical',
+// 'microscopic', 'quantum' and 'relativistic' (laws composed into a demo, each an argument on the view door; on its own
+// branch it raised the pin 211_300 -> 211_500). No new tool.
 const PAYLOAD_CEILING = 212_000;
 
 async function listedTools() {

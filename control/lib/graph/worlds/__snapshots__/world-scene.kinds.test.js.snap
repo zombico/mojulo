@@ -30,6 +30,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "8ab5fd55",
     "title": "mojulo Cherenkov glow",
   },
+  "classical-view": {
+    "hash": "c731e597",
+    "title": "mojulo classical world",
+  },
   "comet-view": {
     "hash": "492e0c7e",
     "title": "mojulo comet",
@@ -130,6 +134,10 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "107894ff",
     "title": "mojulo mechanics",
   },
+  "microscopic-view": {
+    "hash": "0fad5b8f",
+    "title": "mojulo microscopic world",
+  },
   "molecule-view": {
     "hash": "bd61ce9b",
     "title": "mojulo molecule",
@@ -175,9 +183,17 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "hash": "1033ae91",
     "title": "mojulo quadratic",
   },
+  "quantum-view": {
+    "hash": "b572946a",
+    "title": "mojulo quantum world",
+  },
   "reactor-view": {
     "hash": "dd649158",
     "title": "mojulo reactor",
+  },
+  "relativistic-view": {
+    "hash": "4df549bf",
+    "title": "mojulo relativistic world",
   },
   "restaurant": {
     "hash": "6c2032e9",

@@ -103,6 +103,10 @@ import { assembleDnaProcessScene } from '@/lib/graph/views/bio/dna-process';
 import { assembleCellularScene } from '@/lib/graph/views/bio/cellular-view';
 import { assembleAtomScene } from '@/lib/graph/views/science/atom-view';
 import { assembleMechanicsScene } from '@/lib/graph/views/science/mechanics-view';
+import { assembleClassicalScene } from '@/lib/graph/science-worlds/classical/world';
+import { assembleMicroscopicScene } from '@/lib/graph/science-worlds/microscopic/world';
+import { assembleQuantumScene } from '@/lib/graph/science-worlds/quantum/world';
+import { assembleRelativisticScene } from '@/lib/graph/science-worlds/relativistic/world';
 import { assembleRocketScene } from '@/lib/graph/views/science/rocket-view';
 import { assembleAirplaneScene } from '@/lib/graph/views/science/airplane-view';
 import { assembleOrbitScene } from '@/lib/graph/views/science/orbit-view';
@@ -374,6 +378,10 @@ export const WORLD_KINDS = {
   'cellular-view': view(assembleCellularScene, 'mojulo cell'),
   'atom-view': view(assembleAtomScene, 'mojulo atom'),
   'mechanics-view': view(assembleMechanicsScene, 'mojulo mechanics'),
+  'classical-view': view(assembleClassicalScene, 'mojulo classical world'),
+  'microscopic-view': view(assembleMicroscopicScene, 'mojulo microscopic world'),
+  'quantum-view': view(assembleQuantumScene, 'mojulo quantum world'),
+  'relativistic-view': view(assembleRelativisticScene, 'mojulo relativistic world'),
   'rocket-view': view(assembleRocketScene, 'mojulo rocket'),
   'airplane-view': view(assembleAirplaneScene, 'mojulo airplane'),
   'orbit-view': view(assembleOrbitScene, 'mojulo orbit'),

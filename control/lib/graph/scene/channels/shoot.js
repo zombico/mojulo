@@ -18,6 +18,8 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
   // camera following a live entity is evaluated each frame against where the entity really is (its path is a trail).
   // Plans in worlds that do not play live emit none of this.
   const live = !!shoot.live, liveCams = shoot.cameras.some((c) => c.live), cues = live && Array.isArray(shoot.cues) && shoot.cues.length > 0;
+  // a shot with a speed plays its span stretched (slow motion); a plan without one emits the line it always did
+  const stretched = shoot.shots.some((s) => s.speed);
   return `
 // --- shoot channel (a shoot plan's cameras and paths) ---
 {
@@ -135,7 +137,7 @@ ${liveCams ? `  // a live camera's keys against where its entities are now: the 
     let i = 0;
     while (i + 1 < SH.shots.length && SH.shots[i + 1].start <= tau) i++;
     const s = SH.shots[i];
-    return { i, s, t: s.span[0] + Math.min(s.length, tau - s.start) };
+    return { i, s, t: s.span[0] + ${stretched ? 'Math.min(s.span[1] - s.span[0], (tau - s.start) * (s.speed || 1))' : 'Math.min(s.length, tau - s.start)'} };
   };
   const __shView = (v) => {
     camera.position.set(v.pos[0], v.pos[1], v.pos[2]);

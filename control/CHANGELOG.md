@@ -14,6 +14,215 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Science worlds: a demo composed from laws, not authored per experiment
+
+- `create_view` gains three kinds that compose a demo from a closed table of laws instead of
+  one hand-authored experiment per kind: `classical` (Newtonian laws, body scale to orbits), `microscopic` (cells
+  down to molecules; DNA is the floor) and `quantum` (states in concept space, faithful to the model and claiming
+  nothing about reality; it supersedes `atom` for new asks). Chemistry goes to the scale its explanation needs.
+  A recipe has two halves: a `model` that is dimension-checked, machine-gated and measurable through
+  `measure_view`, and a `dress` that only sells the picture, light and explorable on the interactive page,
+  choreographed with timed callouts on film. Every exaggeration is a declared liberty the page shows. A law the
+  table lacks is named as a gap, never approximated silently.
+- **The classical solver** (`lib/graph/science-worlds/`). A table of
+  laws (uniform and universal gravity, springs, rods and ropes, linear and quadratic drag, buoyancy, Coulomb, the
+  Lorentz force, planes with restitution and friction, sphere collisions) composes a model; the solver picks velocity
+  Verlet or RK4 and a step from the fastest motion, runs it, and checks it: energy conserved (or never gained when
+  something loses it), momentum and angular momentum where nothing outside acts, rods held, no tunnelling, and the
+  textbook answer wherever one exists (a projectile's apex and range, a spring's and a pendulum's period at any
+  amplitude, a Kepler orbit, a cyclotron turn, terminal speed, a slide down a ramp, a head-on collision). Two regime
+  checks say when a model has left Newton's ground: near light speed, or a wavelength as large as the path. Units are
+  read with their dimension, so a mass in m/s is an error. `machina/quantities` gains charge, temperature and amount,
+  and the units the sciences use.
+- **`create_view({ kind: 'classical' })`**: the solver as a door. The recipe (`params: { model, dress?,
+  liberties? }`) is stored as given and solved again on every render; the mint returns every gate with what it wanted
+  and what it saw, and says nobody has looked yet. The page plays the run on equal-time samples (bodies, their trails,
+  optional velocity and acceleration arrows, rods, ropes and springs as bars, surfaces as patches) with a system
+  readout (the model's own clock, kinetic and potential energy and the total, momentum when nothing outside acts, the
+  speeds asked for) and a **What's real · what's drawn** panel: the laws, the checks and their numbers, what the model
+  leaves out, and every liberty, the drawing's own included (a scale other than a metre per unit, a body drawn larger
+  to be seen, time sped up or slowed). The readout and panel are a new opt-in page block (`scene/channels/science.js`)
+  that adds nothing to a page without it. `measure_view` reads a classical world at tier `si`: every body's samples
+  and the system's energy, momentum and angular momentum. The `classical` vocab card prints the law and closed-form
+  tables from the code (`node scripts/science-cards.mjs`; a test fails when they drift), and its worked examples are
+  tested to hold. The same setups composed from the table agree with the mechanics kind (a projectile, a wide
+  pendulum, a spring, a rough ramp) and the orbit kind (an ellipse's period and apsides) to a thousandth.
+- **The film.** A classical world proposes its own film when its recipe has no shoot plan: a wide shot of the run,
+  a close replay of the key moment slowed down (the sharpest change in motion, such as a bounce or a collision, else
+  the fastest moment), and an end card that is the honesty panel held on the last frame; `forge_motion` with
+  `shot: { motion: 'plan' }` renders it to MP4 or GIF. The film dress (`dress.film`) adds callouts on the model's own
+  clock (a caption, or one pinned beside a body), picks the replay's moment and speed, or drops the replay and the
+  card. Slow motion is tagged on screen while it plays and listed on the end card; the interactive page never shows
+  the film dress, and the film never shows the panel. Any world kind may now propose a film (`defaultShoot` on its
+  payload); a recipe's own shoot plan always wins.
+- **A shot's `speed`.** Shoot plans gain a time stretch per shot (`speed`, 0.05 to 4): `{ span: [2, 3], speed: 0.25 }`
+  is a four-second slow-motion replay of one second of the world, on the World page and in renders alike;
+  `set_shot { speed }` edits it. A plan without one is unchanged, byte for byte.
+- **`create_view({ kind: 'microscopic' })`**: cells down to molecules, composed from a table of laws (Brownian
+  motion with Stokes–Einstein diffusion, drift from a flow or a force, partially permeable membranes, reactions by
+  mass action drawn exactly by Gillespie's algorithm in a well-mixed volume). A model is a box, its species (by count
+  or concentration; each sphere may stand for many molecules, and the page says what that does to the noise) and
+  their laws, run with seeded dice. It is checked: the spread grows as 6·D·t, a drift carries the cloud at v·t, a
+  reversible reaction settles at its equilibrium constant, what no reaction can change stays exactly as it began, a
+  species that crosses a membrane evens out in proportion to the volumes while one that cannot never crosses; and it
+  says when counting stops standing for the volume (reactions outpace mixing) and when a model leaves the scale
+  (inertia that lasts, a radius smaller than an atom, flow fast enough for wakes). Statistical checks allow four to
+  five standard errors, so a sound run passes for any seed. An enzyme is two reaction rows (E + S ⇌ ES → E + P); an
+  unknown law names its scale or what to compose instead. The page draws every shown molecule (up to 300) walking
+  its recorded path, changing colour when it reacts, inside a see-through box with each membrane a lattice, counts
+  in the readout; its film replays the first reaction slowed. `measure_view` reads every species' count, its count
+  on each side of a membrane and its spread at tier `si`. The science readout became rows, shared by both scales,
+  and the page helpers moved to `science-worlds/page.js`. `machina/quantities` gains concentration, rate constants,
+  diffusivity and the small units.
+- **`create_view({ kind: 'quantum' })`**: states and the rules they follow, faithful to the model and claiming
+  nothing about reality. A world is one system: a particle on a line (an infinite well, a harmonic well, a
+  rectangular barrier, a step, summed into one potential) stepped by Crank–Nicolson; the hydrogen atom's orbitals
+  as the exact functions, each drawn as a cloud of points sampled from |ψ|² and coloured by the wavefunction's sign;
+  spin-½ atoms through a chain of Stern–Gerlach magnets, each outcome drawn with its odds; unstable nuclei with a
+  half-life. It is checked: the total probability and the energy stay as they began, a well's and an oscillator's
+  levels, a two-level beat, a displaced packet swinging like a classical mass, a free packet's spreading, a
+  barrier's or step's transmission averaged over the packet, an orbital's nodes, norm and mean radius and a χ² that
+  its cloud follows |ψ|², each magnet's counts against cos²(θ/2), the measured half-life; and it advises when the
+  waves are tiny next to the features, so a classical world would do. Every row carries its sources and the date it
+  was last reviewed, and the page lists them. A quantum word that is not a row (tunnelling, superposition, bond)
+  comes back as a gap naming the row that is or why there is none. `measure_view` reads each system back. It
+  supersedes the curated `atom` kind for orbitals at the door (the routing cards and the atom card point there);
+  the `atom` kind still renders. An atom's proposed film circles one orbital, or sways across the front of several. The science readout gains a femto
+  prefix and a page without a clock; `machina/quantities` gains eV, Å, pm, fs, ps and the atomic mass unit.
+- **Docs.** `docs/AGENT-REFERENCE.md` describes the science worlds (the model and dress split, gaps, the science block,
+  the proposed film, the generated cards); the `get_substrate` drawer says in one line that a composed science view
+  returns its solver's gates and that its page says what is the model and what is drawn. The `tools/list` payload pin
+  rises by 200 bytes for the three new `create_view` kinds (no new tool).
+- **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
+  the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
+  measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
+- The ready-made views a composed kind overlaps say when to compose instead, as atom, black-hole and double-slit do:
+  mechanics (a demo whose bodies, springs or start are the teacher's → `classical`), orbit (bodies the teacher sets →
+  `classical`; an orbit that turns because spacetime curves → `relativistic`) and wavepacket (a well, step or barrier
+  the teacher sets → `quantum`). Each keeps its ready-made picture.
+
+### Science worlds further: spacetime, volumes and settings
+
+- **Planned.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
+  The law always lives in JS where the gates run; a shader is generated from the same numbers and held to them by
+  a shader conformance gate in headless Chrome ("not run" without a browser). A setting is dress: anything a body
+  touches is a law in the model, a gate advises when a body passes through scenery no law covers, and the world
+  never changes the physics silently. In order: a fourth scale, `relativistic` (Schwarzschild spacetime: light
+  bent round one mass, orbits on geodesics, clocks), a `science` world channel that stands a science world in any
+  world, quantum orbitals as volumes and the two-slit plane, and classical field lines and field volumes.
+- **The shader conformance gate** (`science-worlds/shader.js`, `conformance.js`). A shader-drawn science page is
+  written once as GLSL that defines the picture (`sciImage`, the colour along a ray) and the model quantity it
+  computes (`sciValue`); one source makes both the page's full-frame `effects[]` layer and a probe shader, with the
+  model's numbers declared once as uniforms. On a capture run the science channel adds a probe bridge that evaluates
+  `sciValue` at given inputs into a float target and reads a rendered frame back; an ordinary page carries none of
+  it, byte for byte. The gate (`shader-conformance`) compares both with JS: values at probe points, and features
+  measured on frames (a dark disk's radius) against their projection. It advises; without a browser it is "not
+  run", never a pass. The mint never launches a browser: the e2e tier and `node scripts/science-conformance.mjs
+  --selftest` run it, and the self-test holds that a faithful shader agrees and a shader with a hand-typed factor
+  in its GLSL disagrees. Shader pages ride the normal World page, so the readout, the honesty panel and film
+  capture come with them.
+- **`create_view({ kind: 'relativistic' })`**: a fourth scale, the spacetime round one non-rotating mass
+  (Schwarzschild), composed from a table of laws with their sources and review dates. One system per world:
+  - `light`: what an observer held still sees, drawn by a shader that traces each pixel's light back with the JS
+    scheme step for step. You get the shadow (seen at Synge's angle), the photon ring, the sky bent round the mass
+    (a grid every 15° or stars), and a thin disk's direct and lensed images, shifted by g (Doppler and gravitational
+    together) and brightened by g⁴. Its film swings the eye toward the disk's plane.
+  - `orbit`: test bodies on geodesics (RK4 in their own time, played on the far clock's).
+  - `clocks`: clocks held at radii or let fall.
+
+  It is checked against the closed forms: the shadow's edge at 3√3/2 Rs by bisection, the bending of light against
+  the exact orbit integral, the drawn step against both, the perihelion advance against its elliptic integral each
+  lap, each body's fate against its effective potential, the innermost stable orbit at 3 Rs, and a falling clock's
+  own time against the cycloid. Mercury comes out at 43″ a century, and the GPS clocks 45.7 µs a day apart. The
+  light shader agrees with JS at every probe in Chrome, and one that bends light 3% too little does not.
+  `measure_view` reads orbits and clocks back in SI. Lengths may be given in Schwarzschild radii (`'20 Rs'`);
+  `machina/quantities` gains `M☉`, `ly`, `pc` and `c`. Relativity, lensing, time dilation and precession now name
+  this scale as gaps elsewhere. A spinning hole, gravitational waves and special relativity are gaps saying they
+  are not in the table yet. The curated `black-hole` kind keeps its picture, and its card points at this one.
+- **A science world in any world**: the `science` world channel (`compose_world` `overrides.science`, or `science`
+  on a stored world's recipe; manual: the `science-setting` card) stands a composed demo in any world kind. How it
+  stands:
+  - A classical demo drawn at one metre per unit stands 1:1 at `at`, turned by `yaw`. Its readout and its "what's
+    real · what's drawn" panel ride the world page, the page opens on its camera, and its film is moved into the
+    world.
+  - Anything else (a microscopic box, an orbital, an orbit or clocks world round a black hole, a solar system drawn
+    shrunk) is a bench prop in a glass case, its true magnification on the panel in place of its own scale. A
+    light world cannot stand in a world: its shader fills the frame.
+
+  The setting is dress, and what a body touches is a law:
+  - `ground: 'from-world'` makes the world's own surface under `at` a plane law at its height, and the panel says
+    so.
+  - `scenery-clear` checks every body's recorded path against the world's faces near the demo and names any surface
+    one passes through that no law covers.
+  - `setting-agrees` holds the model's g to the setting's (Earth, Moon, Mars, from the same table as the classical
+    frame's presets), and `setting-air` advises on drag where there is no air.
+
+  `compose_world` solves the demo at mint (a bad model refuses the mint) and stamps the setting from the theme
+  (`mars-colony` is Mars). The world's surfaces are checked when it renders. Each scale's card gains "In a world",
+  and the classical, microscopic, quantum and relativistic assemblers take a plan they were handed. Absent, every
+  world is byte-identical.
+- **Orbitals as a volume** (`dress.render: 'volume'` on a quantum atom world). Each orbital is ray-marched as a
+  density, gold where ψ is positive and blue where it is negative, several side by side in one shader, for every
+  orbital up to n = 7. The GLSL is generated from the orbital's own numbers (its Laguerre polynomial's coefficients
+  and its real solid harmonic as a polynomial in x, y and z), so nothing in it is a hand-typed twin of the JS. The
+  points stay the default, since they are the picture the χ² checks; the volume is a second picture of the same ψ,
+  and the panel says which checks are of what. `exposure` sets how strongly it glows. A volume is refused off an
+  atom world and in a setting. Its conformance probes are ψ at points of each orbital's cloud against the exact
+  function, within a thousandth of the orbital's brightest |ψ|; the worst in Chrome is about 2e-7 of it, out to
+  n = 7, and a shader whose ψ falls off 2% too slowly disagrees. `node scripts/science-conformance.mjs --examples`
+  runs it, and `--ref` takes a stored volume.
+- **The two-slit plane** (the quantum `plane` system and its `slits` row). A packet on a plane, ψ(x, y, t), stepped
+  by split-step Fourier, meets a wall with one to six slits. The plane's edge is an absorbing rim whose take is
+  counted as it is taken, so what is on the plane and what was taken add to one to round-off. The far field is read
+  from the passed wave's transform, zero-padded 4× and integrated along each direction over the packet's spread of
+  wavenumbers. Detections are drawn from it one at a time (seeded), and a χ² holds them to it. The checks:
+  - fringes against the thin-screen pattern of the grid's own slits, within 3%, with the textbook λ/d beside them
+    (two slits come out 0.211 against 0.212, λ/d 0.217; three slits 0.284 against 0.286);
+  - `wall-opaque`: the wall struck head on by a packet at the same energy, on the same grid and step;
+  - `far-field-settled` and `edges-quiet`: the far field is read once the wave has come through and before the rim
+    takes it;
+  - `grid-resolves`.
+
+  What the build found:
+  - A wall sharp to the cell lets the wave through by the split step's own error: 1e-4 at 20 eV, rising with the
+    wall's height, far above its tunnelling. That wave is as wide as the plane and floods the centre of the pattern
+    with a spike or a dip. The wall's edges now rise over two cells, which cuts the leak about a thousandfold.
+  - A slit in a wall is a short channel, not a thin screen, so one slit's central band comes out 11 to 26% wider than
+    λ/w gives. No zero is claimed for it: its `envelope` gate allows up to 35% wider and says why.
+
+  The page plays |ψ|² on a sheet from the solver's own frames (48 frames, 64 cells a side, four to a texel of a float
+  texture) through a shader drawn over the page's meshes. A depth prepass keeps the far screen in front of it. The
+  wall is a raised slab, and dots arrive at a far screen one at a time over the run's second half, each at its
+  detection's angle. The shader conformance gate holds the sheet to the frames (worst 9e-8) and the wall to the
+  model's either side of every slit edge. A shader that plays the frames backward between samples and drops the wall
+  disagrees. A solve takes about 1.3 s at 128 cells a side; the work is capped at 128² × 1500 grid-steps. `measure_view`
+  reads the run, the far field and the detections back. A plane cannot stand in a world. Interference, the double
+  slit, diffraction and gratings now name the slits row, and the curated `double-slit` card points here. Whether the
+  plane supersedes `double-slit` or `wavepacket` at the door is left to the routing eval.
+- **Shader pages over meshes.** `shaderPage` gains `output: 'layer'` (premultiplied, over the page's meshes),
+  `dataTextures` (float RGBA, into both the image and the probe shader) and `depthClip` (`sciSceneDistance`, from the
+  page's depth prepass). A page without them is byte-identical.
+- **Classical fields drawn** (`dress.field` on a classical world). The electric field the `coulomb` and `lorentz`
+  rows make, read off the same model at any moment of the run (`classical/field.js`), drawn three ways:
+  - `'lines'`: field lines traced by RK4 from the charges where the run starts, as many from each as its share of
+    the largest charge, in the charges' plane when they lie in one. Each ends on a charge of the other sign or leaves
+    the frame, and a negative charge adds only the lines it still lacks. A uniform E or B is drawn as even lines.
+  - `'volume'`: the field's strength glowing on a log scale (from its median in the region to its 99th
+    percentile), warm where the potential is positive and cool where negative.
+  - `'shells'`: the potential's shells where its size doubles.
+
+  The volume and the shells are a shader layer over the meshes. It reads the charges' paths from a float texture on
+  the movers' own clock and interpolation, so the field moves with the bodies. A drawn field adds two gates to the
+  page and the mint:
+  - `gauss`: the flux through a sphere round each charge is q/ε₀, and none through one round no charge, by a
+    Gauss–Legendre surface integral of the field drawn (worst about 4e-16 on the coulomb row's example);
+  - `field-lines`: no line stops short, and each charge carries lines in proportion to its charge, within one line
+    or a fifth.
+
+  The shader's E and V agree with JS at 48 points and moments through the run as the charge orbits, and one whose
+  field falls off as 1/r disagrees. The solver never sees the dress, and a world without a field is byte-identical.
+  A volume or shells cannot stand in a world; lines can.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
