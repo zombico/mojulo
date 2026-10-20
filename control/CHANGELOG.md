@@ -14,6 +14,63 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Dermal texturizer: skin and hair laid out on the realistic register's body
+
+In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the
+body: the skin's layout and the hair it grows, read from an ADDRESS so the shape stays separate. `epidermis/dermal-chart.js`
+is the shape's contract (a canonical part, `along`, `around` anatomical, the tangents), with the hero's cage and any
+ring-stack body as adapters; `dermal-map.js` lays regions, the painter's colour zones, roughness, translucency, Langer's
+lines and hair tracts by a few dials over the egocube's tones; `dermal-texture.js` bakes them to a per-part atlas (seams
+on the hidden side, the face weighted up, the scalp paint and the stubble's follicles) with tileable relief tiles;
+`dermal-hair.js` grows body hair lying on the skin and scalp locks as clumps on the elastica's guides (curl types
+straight to coily, the coil's shrinkage, frizz, ragged tips, flyaways, cards). The realistic head is its shape:
+`dermal-head.js` charts the relational head (its field surface-netted and welded, the globes off the skin) and hands
+its relations to the map as marks, so the hairline, the nose, the lids, the cheeks, the lips and the beard's line are
+laid from the trichion, the nasion and pronasale, the canthi, the cheek points, the stomion and the porion. The ear is its own feature: no beard or hair
+grows on it. The scalp is COMBED: one smooth comb over the head (never across the part, which runs over the top only),
+guides walked along it lifted off the skull for volume and hung by the elastica where the head turns away, waved in
+phase along the flow so a type's crests run across neighbouring locks as bands, and every strand interpolated from its
+nearest guides on its own side of the part, so strands run parallel. The CUT is the stylist's: a perimeter line (a
+level the head's relations name, the jaw, the shoulder, the collarbone, cut blunt, a-line, stacked, v or u) where each
+lock is combed down, cut where it crosses, regrown at that length and cut again so its end lands on the line; a clipper's
+taper by the root's rise over the hairline; a shelf (an undercut); layers (no lock longer than this from its root);
+point cutting off the line. The library's cuts: buzz, crop, short (tapered), undercut, bob, angled, shoulder, long,
+layers. EDITS BY CLUMP NAME: the anime figure's clumps (fringe-1…7, the temples, back-1…11, the crown) as addresses on
+the scalp, each edit (`length`, `sweep`, `lift`, `over`, `stand`) reaching the guides about its seat with a soft falloff
+so the comb stays one field; the anime traits ported as MOVES over a groom (sleek, voluminous, messy, heavy-, short- and
+swept-bangs with the fringe's own cut line, peekaboo, side-parted, flipped, ahoge, chunky). CREATOR LOOKS (`dermal-looks.js`): the realistic head stylized as
+a game's character creator draws one, as data over the existing readers: `GAME_FACE` relations (a firmer skin wave, a
+heavier brow, cheekbones forward, a squarer jaw, deeper-set eyes) and archetype presets (warrior, shieldmaiden, scholar,
+rogue, elder). The dermis takes the creator's sliders: `lines` (the forehead's, the frown, crow's feet, the nasolabial
+fold, under the eyes), `dirt` (grime in the cavities and in blotches) and `paint` (war paint: eyes, stripes, band, chin,
+mask, in woad, soot, ochre, chalk or blood), painted per texel from the face's landmarks. The atlas bakes OCCLUSION read
+from the mesh (`meshOcclusion`, any shape) into the skin's colour. The relational head's chart is spherical about a
+centre at the ear's height (`headSphere`), so its undersides keep texels of their own, and what the head closes over (the
+teeth, a nostril's inside) is marked `enclosed`: no hair, no bake. PEOPLE OF THE EGOCUBE'S ANCESTRIES
+(`readAncestry`): rolled inside each ancestry's own ranges (tone, undertone, hair colour, texture), the texture worn as
+the scalp's type in a style that suits it, the eye note through the ancestry's own derive (`sculpt.lidCover +`: the
+lid's cover, rolled among `EYE_SHAPES`: an in-fold crease tapering into the inner corner, a monolid, a parallel crease, a
+hooded lid; never a slant), the face's structure the
+individual's. AFROS: a `stand` dial (the root leaves the scalp toward its normal) with coily hair's spring and shrinkage,
+an `envelope` cut rounding it to an ellipsoid, a nape taper; `twa` close to the head; `curls` hanging in ringlets. The hair
+shader's highlight scatters with a coil's roughness and its mass shadows itself (a coil's interior dark); the skin
+reflects 4 % at every tone, so a deep skin's sheen carries its form. TIES: a tie anchored on a clump's seat (or an azimuth
+and a rise) gathers every root, the top section or those within a radius of it; each gathered lock is combed taut over
+the head to the tie and arrives at its own slot round the band (the side it came from), so nothing crosses; one bundle
+hangs from the tie (the elastica's lock, flaring then tapering, its ends ragged), a bun coils it about the tie, a braid
+plaits it in three (each bundle a figure of eight across the braid a third of a turn apart, bound, a brush past the
+band). Styles: ponytail, high-ponytail, bun, braid, half-up; the move `temple-braids` (the Nordic braids). The relational eye rig takes
+the eye's cover as channels: `creaseHeight`, `creaseShape` (parallel … tapered into the inner corner), `epicanthus` (the
+upper lid's skin laid over the inner corner) and `fullness`; each at rest leaves the eye as it was. THE EYES' BASELINE re-measured against the adult norms
+(Farkas; MRD1, MRD2): they sat close (the inner canthi 27 mm apart, the pupils 55) and stared (the upper lash line 7.9 mm
+over the pupil, 2 mm of white above the iris, the lower lid over its foot). The rule of fifths now reads against the face's
+width (`fifths` 0.215) with the inner canthi a little wider apart than an eye (`intercanthal` 1.12): en-en 33.0 / 32.3 mm,
+ex-ex 92 / 90, the pupils 62.6 / 61.2, an eye 31 mm wide. The fissure is split at the pupil by a relation (`lidSplit`
+0.32 of `fissure` 0.036 above it), so the upper lash line rests 4.4 to 5 mm over the pupil, over the iris's top, and the
+lower 5.3 mm under it at its foot: a neutral eye. The relational head is a dev path (no minted row reads it); a lash whose
+root cannot be laid within 2 mm of its lash line is dropped. The bands
+are returned for drawing. Seen through `/dermis-study --look`, `--ancestry` and `--lineup`.
+
 ### Realistic register: a stronger body for the hero
 
 The third point on the hero's style gradient (anime → cartoon → realistic), as western games draw a person: accurate

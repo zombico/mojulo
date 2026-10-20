@@ -13,6 +13,8 @@
  *   the folds     the upper lid drapes the globe from its margin to the crease (the LID SPACE, cut back out of the
  *                 skin), and the fold above rises to the brow's ARC, hung from a forehead BRIDGE by strings
  *                 (`browBridge`); the crease rises as the lid closes; a HOOD lowers the fold, from deep-set to monolid;
+ *                 the crease's HEIGHT and SHAPE (parallel to the margin, or tapered into the inner corner), the
+ *                 EPICANTHIC fold over the inner corner and the lid's FULLNESS shape the eye's cover;
  *                 the lower lid's pretarsal roll swells in a squint.
  *   the opening   the almond between the two curves, carved through the skin to the globe.
  *
@@ -37,6 +39,10 @@ export const EYE_CHANNELS = Object.freeze({
   lowerShape: [0, -1, 1],
   crease: [0.5, 0, 1],            // the upper lid's crease, how deep
   hood: [0.25, 0, 1],             // the fold above the crease: 0 deep-set (the crease shows) … 1 hooded (it hides)
+  creaseHeight: [1, 0.3, 1.6],    // the crease's height over the margin, over its rest (a low crease < 1)
+  creaseShape: [0, -1, 1],        // −1 PARALLEL (the crease stays up to the inner corner) … +1 TAPERED into the inner corner (an in-fold)
+  epicanthus: [0, 0, 1],          // the EPICANTHIC fold: the upper lid's skin laid over the inner corner (the caruncle)
+  fullness: [0, 0, 1],            // the upper lid's fullness between the lashes and the crease
   pupil: [1, 0.5, 1.7],           // the pupil's size over its rest
   gazeYaw: [0, -35, 35],          // (or `look`: a target the eyes aim at, each from its own centre)
   gazePitch: [0, -30, 30],
@@ -164,7 +170,7 @@ export function browBridge(P, pull = {}) {
  * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
  * `margins` are the lash lines (upper, lower) as functions of t.
  */
-export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
+export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
@@ -179,10 +185,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     const r2 = GLOBE.cornea ** 2 - (x - cc.x) ** 2 - (z - cc.z) ** 2;
     return r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy;
   };
-  // THE MARGINS: heights over the chord between the canthi. The upper's rest height is 0.6 of the fissure over the
-  // pupil, the lower's 0.4 under it; the upper closes onto the lower; the lids follow the gaze's pitch.
+  // THE MARGINS: heights over the chord between the canthi. The upper's rest height is `split` of the fissure over the
+  // pupil (the head's `lidSplit`), the lower's the rest under it; the upper closes onto the lower; the lids follow the
+  // gaze's pitch.
   const follow = SM.sin(pitch) * GLOBE.r;
-  const huRest = 0.6 * fissure, hlRest = 0.4 * fissure;
+  const huRest = split * fissure, hlRest = (1 - split) * fissure;
   const hl = hlRest * (1 - 0.85 * c.lower) - 0.3 * follow;
   const huOpen = c.open <= 1 ? -0.92 * hl + (huRest + 0.92 * hl) * c.open : huRest * c.open;
   const hu = huOpen + c.lidFollow * follow * Math.min(1, c.open);
@@ -230,7 +237,10 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     return Math.max(yFloor, r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy);
   };
   const upMax = Math.max(...ts.map(upZ)), room = clamp(gc.z + 0.75 * lidR - upMax, 0.004, gap);
-  const kneeZ = (t) => upZ(t) + Math.max(0, room - 0.012 * c.hood) * (0.35 + 0.65 * taper(t));
+  // the crease's profile along the lid: the rest's (low at both canthi), TAPERED into the inner corner (+, an in-fold:
+  // none at the medial end) or PARALLEL to the margin (−: held up to the inner corner); the height over its rest
+  const shapeK = (t) => { const b = 0.35 + 0.65 * taper(t); return c.creaseShape > 0 ? b * (1 - c.creaseShape * (1 - smooth01(t / 0.6))) : c.creaseShape < 0 ? b + -c.creaseShape * (0.8 + 0.2 * taper(t) - b) : b; };
+  const kneeZ = (t) => upZ(t) + Math.max(0, room * c.creaseHeight - 0.012 * c.hood) * shapeK(t);
   const yArc = e.y + 0.12;   // the fold reaches the brow's front by the arc: ahead of any skin, so the cut ends unseen
   // (past a canthus the floor rises to the arc's foot, so the space pinches shut there: a floor held level at the
   // canthus's height out to the foot left a flat shelf beside the eye)
@@ -260,7 +270,17 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     return { c: { x, y: (F ? F.yk : shellY(x, z)) + 0.001, z }, r: (0.002 + 0.004 * c.crease) * (0.3 + 0.7 * taper(t)) };
   })) : null;
   const roll = chainF(ts.map((t) => ({ c: pt(t, loZ(t) - 0.012 - 0.004 * c.lower, 0, 0.002 + 0.006 * c.lower), r: (0.003 + 0.007 * c.lower) * taper(t) })));
-  const rims = (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p));
+  // the EPICANTHIC fold: a roll of the upper lid's skin from the lid's medial third down over the inner corner to just
+  // below and medial of it, so the caruncle hides; the upper lid's FULLNESS a soft bead chain between the lashes and the
+  // crease (each absent at 0: the rims as they were)
+  const toNose = Math.sign(en.x - ex.x) || 1;
+  const epi = c.epicanthus > 0.02 ? chainF([
+    { c: pt(0.24, upZ(0.24) + 0.012, 0, 0.004 + 0.004 * c.epicanthus), r: 0.004 + 0.003 * c.epicanthus },
+    { c: { x: en.x + toNose * 0.002, y: en.y + 0.006 + 0.006 * c.epicanthus, z: en.z + 0.006 }, r: 0.005 + 0.006 * c.epicanthus },
+    { c: { x: en.x + toNose * (0.01 + 0.006 * c.epicanthus), y: en.y + 0.002, z: en.z - 0.008 }, r: 0.004 + 0.003 * c.epicanthus },
+  ]) : null;
+  const full = c.fullness > 0.02 ? chainF(ts.map((t) => { const z = (upZ(t) + kneeZ(t)) / 2; return { c: { x: xAt(t), y: shellY(xAt(t), z) + 0.001 + 0.004 * c.fullness, z }, r: (0.002 + 0.006 * c.fullness) * taper(t) }; })) : null;
+  const rims = epi || full ? (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p), epi ? epi(p) : Infinity, full ? full(p) : Infinity) : (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p));
   // THE LIDS' MASS: a skin shell over the globe — and over the cornea's bulge, so a shut lid shows the gaze — across
   // the eye's region (an ellipse about it, the canthi's span and a fissure and a crease high), in front of the globe's
   // centre. The opening is carved through it; where the opening closes, the lid stays.

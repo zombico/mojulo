@@ -52,7 +52,8 @@ export const RELATIONS = Object.freeze({
   // ── the face's widths
   faceWidth: 0.9,       // zy-zy / eu-eu
   jaw: 0.72,            // go-go / zy-zy
-  fifths: 0.2,          // eye width / zy-zy (the rule of fifths: en-en one eye, ex-ex three)
+  fifths: 0.215,        // eye width / zy-zy (the rule of fifths, read against the face's width: ~30 mm of ~137)
+  intercanthal: 1.12,   // en-en / one eye's width (the inner canthi a little wider apart than an eye: ~33 mm)
   nasalIndex: 0.65,     // al-al / n-sn: the nose's base widens with its length (a bigger nose, a wider base)
   mouthWidth: 1.5,      // ch-ch / al-al
   // ── the profile
@@ -76,7 +77,10 @@ export const RELATIONS = Object.freeze({
   orbitRim: 0.065,      // the frontozygomatic (the brow's outer end, the lateral rim's top) behind the cornea / v-me
   malarDepth: 0.045,    // the cheekbone's front behind the cornea / v-me
   browProjection: 0.035, // the supraorbital arch's peak ahead of the cornea / v-me (the summed skin lands ~3 mm further)
-  fissure: 0.045,       // the palpebral fissure's height / v-me (the eye's opening, ~10 mm)
+  fissure: 0.036,       // the palpebral fissure's height between the margins' cores / v-me (with the lash lines' own
+                        // thickness the opening reads ~10 mm, MRD1 + MRD2)
+  lidSplit: 0.32,       // the share of the fissure above the pupil: the upper lash line ~4.5 mm over it, covering the iris's
+                        // top (MRD1), the lower ~5.3 mm under it at the iris's lower edge (MRD2) — a neutral eye, not a stare
   canthalTilt: 0.008,   // the lateral canthus above the medial / v-me
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
@@ -111,7 +115,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ browProjection: 0.028, archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.79, third: 0.28, eyeLine: 0.49, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ browProjection: 0.028, archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.0384, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.79, third: 0.28, eyeLine: 0.49, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
@@ -130,7 +134,7 @@ export function corePoints(rel = RELATIONS) {
   const euX = (R.cephalic * R.headLength) / 2;
   const zyX = (R.faceWidth * 2 * euX) / 2, goX = (R.jaw * 2 * zyX) / 2;
   const eye = R.fifths * 2 * zyX;                 // one eye's width
-  const enX = eye / 2, exX = enX + eye, alX = (R.nasalIndex * (zN - zSn)) / 2, chX = R.mouthWidth * alX;
+  const enX = (R.intercanthal * eye) / 2, exX = enX + eye, alX = (R.nasalIndex * (zN - zSn)) / 2, chX = R.mouthWidth * alX;
   // the profile, hung off the nasion
   const n = { x: 0, y: g.y - R.nasionDepth, z: zN };
   const sn = { x: 0, y: n.y + 0.01, z: zSn };
@@ -1056,7 +1060,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
     c.open *= 1 - bl;
-    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s]);
+    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit);
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,

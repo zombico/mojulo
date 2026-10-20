@@ -157,7 +157,7 @@ const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x 
  * on the globe — half its angle, tipped down by the lid's roll, more as the lid shuts, so a closed lid's lashes hang —
  * then CURLS, the upper's up and the lower's down, the curl gathering toward the tip; the lateral lashes FLARE outward,
  * the medial a touch inward. The upper's longest sit centre-lateral, the lower's are shorter and sparser. Seeded per
- * side; `open` the lid's openness (the rig's channel). `skin` lays a root on the skin (`place(p)`) and takes each step
+ * side; `open` the lid's openness (the rig's channel). `skin` lays a root on the skin (`place(p)`, null where it cannot) and takes each step
  * (`step(prev, dir, len)`, which may deflect a lash off the skin it would sink into, or end it: null); both default to
  * free space.
  * Returns strands in V, their first point the root.
@@ -178,6 +178,7 @@ export function growLashes(margins, s, lash, open = 1, skin = {}) {
       const row = dice() - 0.5;   // the lashes stand in rows across the margin's front
       const len = L * (upper ? 0.5 + 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, t / 1.25 + 0.1)), 1.5) : 0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.12))) * (0.8 + 0.35 * dice()) * MM;
       const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : 0.15) + row * 0.5 * MM));
+      if (!root) continue;
       // the frame: forward (the globe's normal, flattened), the margin's tangent for the flare, up
       const fwd = unit({ x: m.n.x * 0.6, y: m.n.y, z: 0 }), fl = lash.flare * (t - 0.4) * 0.9 + (dice() - 0.5) * 0.12;
       const e0 = 0.5 * Math.asin(Math.max(-1, Math.min(1, m.n.z))) - roll + (dice() - 0.5) * 10 * deg, cu = curl * (0.8 + 0.4 * dice()) * (upper ? 1 : -1);
@@ -291,7 +292,8 @@ export function growEpidermis(head, cube) {
     const fV = (p) => f({ x: p.x * sc, y: p.y * sc, z: p.z * sc }) / sc, nV = (p) => normal({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
     const clear = 0.05 * MM;
     const skin = {
-      place: (p) => { const q = toLevel(f, { x: p.x * sc, y: p.y * sc, z: p.z * sc }, 0.2 * clear * sc, 0.05 * clear * sc); return { x: q.x / sc, y: q.y / sc, z: q.z / sc }; },
+      // (a root the snap cannot lay within 2 mm of its lash line is not a root: the line runs into a fold there)
+      place: (p) => { const q = toLevel(f, { x: p.x * sc, y: p.y * sc, z: p.z * sc }, 0.2 * clear * sc, 0.05 * clear * sc), r = { x: q.x / sc, y: q.y / sc, z: q.z / sc }; return Math.hypot(r.x - p.x, r.y - p.y, r.z - p.z) > 2 * MM ? null : r; },
       step: (p, dir, l) => {
         let q = add(p, dir, l);
         for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, nV(q), w)), l);
