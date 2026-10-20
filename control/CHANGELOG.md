@@ -26,9 +26,11 @@ on the hidden side, the face weighted up, the scalp paint and the stubble's foll
 straight to coily, the coil's shrinkage, frizz, ragged tips, flyaways, cards). The realistic head is its shape:
 `dermal-head.js` charts the relational head (its field surface-netted and welded, the globes off the skin) and hands
 its relations to the map as marks, so the hairline, the nose, the lids, the cheeks, the lips and the beard's line are
-laid from the trichion, the nasion and pronasale, the canthi, the cheek points, the stomion and the porion. Seen
-through `/dermis-study`. Next: the scalp laid out fractally (the anime figure's clumps split into segments, each level
-its own length) in place of strands.
+laid from the trichion, the nasion and pronasale, the canthi, the cheek points, the stomion and the porion. The ear is its own feature: no beard or hair
+grows on it. The scalp is COMBED: one smooth comb over the head (never across the part, which runs over the top only),
+guides walked along it lifted off the skull for volume and hung by the elastica where the head turns away, waved in
+phase along the flow so a type's crests run across neighbouring locks as bands, and every strand interpolated from its
+nearest guides on its own side of the part, so strands run parallel. Seen through `/dermis-study`.
 
 ### Realistic register: a stronger body for the hero
 
