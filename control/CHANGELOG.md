@@ -35,7 +35,10 @@ level the head's relations name, the jaw, the shoulder, the collarbone, cut blun
 lock is combed down, cut where it crosses, regrown at that length and cut again so its end lands on the line; a clipper's
 taper by the root's rise over the hairline; a shelf (an undercut); layers (no lock longer than this from its root);
 point cutting off the line. The library's cuts: buzz, crop, short (tapered), undercut, bob, angled, shoulder, long,
-layers. Seen through `/dermis-study`.
+layers. EDITS BY CLUMP NAME: the anime figure's clumps (fringe-1…7, the temples, back-1…11, the crown) as addresses on
+the scalp, each edit (`length`, `sweep`, `lift`, `over`, `stand`) reaching the guides about its seat with a soft falloff
+so the comb stays one field; the anime traits ported as MOVES over a groom (sleek, voluminous, messy, heavy-, short- and
+swept-bangs with the fringe's own cut line, peekaboo, side-parted, flipped, ahoge). Seen through `/dermis-study`.
 
 ### Realistic register: a stronger body for the hero
 
