@@ -99,6 +99,14 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
 - Every other part of the slice is byte for byte as before (norrin and shalla, athletic and jacked); the dials gain the
   feet's new station ids. A slice costs about 2 s more.
 
+### Realistic body: the relational head
+
+- `head: 'relational'` on the realistic hero (`form: 'realistic'` only): the relational head (head-relational.js) worn
+  as recipe content, fitted to the landmark head it replaces (vertex to menton, the ear canal at its depth), sampled by
+  rays from one centre into two parts that share the mouth's ring (`jaw` and `cranium`, their caps the mouth), sealed
+  to the neck: the neck ends on a ring wholly under the head and the jaw part starts on that ring. The lower face is
+  bound to the rig's jaw bone, its hinge moved to the head's condyles, so the mouth opens. Bald; no ears yet.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the

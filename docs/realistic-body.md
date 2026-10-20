@@ -68,5 +68,8 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 ## Not yet
 
 Posing outside the body study and the stretch audit does not apply the correctives, and no exporter carries them. The
-dress, armour, kits, paint and details are refused on the realistic body. The relational head is not in the door. The
-body has no UVs.
+dress, armour, kits, paint and details are refused on the realistic body. The body has no UVs.
+
+The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with two
+(`jaw`, `cranium`, four head slots to a neck slot), ends the neck on its seam ring and moves the rig's `jawHinge` and
+`jawTip`; it has no ears, no eye parts and no face rig yet.

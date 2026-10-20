@@ -882,9 +882,11 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * `tune` places the wave's internal points: `true` solves them (`solveTune`, cached), an object gives them.
  * `actions` are the activations of the face's action relationships (`ACTIONS`), applied over the tuned rest; `eyes`
  * is the eyes' spec (head-relational-eye.js: a word, channels, a side's own), the actions adding to it. `paint(p)`
- * names a surface point's part (the globe's 'sclera' | 'iris' | 'pupil'; null the skin).
+ * names a surface point's part (the globe's 'sclera' | 'iris' | 'pupil'; null the skin). `ears: false` leaves the ears out
+ * of the field (a surface sampled by rays from inside cannot carry a plate standing off the head: the hero's head,
+ * hero-relational-head.js); the landmarks keep the ear canal where the ears would hang it.
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
   // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
@@ -1033,12 +1035,13 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     return d;
   };
   // THE EARS — hinged on the skin: probe the head's own surface along the hinge's line, then hang each ear on it
-  const ears = skin ? ['L', 'R'].map((s) => {
+  const hung = skin ? ['L', 'R'].map((s) => {
     const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
     const baseX = (probe ? Math.abs(probe.x) / sc : Pt.porionR.x) - 0.004;   // sunk a touch into the skin, so it welds
     const e = earPart(Pt, rel, s, baseX);
     return { f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
   }) : [];
+  const ears = withEars ? hung : [];
   // THE EYES — their own rig (head-relational-eye.js): the `eyes` spec (a word, channels, a side's own), and the
   // head's actions on top — a blink shuts the lid, a smile raises and rounds the lower lid (the squint of a real
   // smile), a raised brow lifts the upper lid, a lowered one drops it and flattens it
@@ -1095,8 +1098,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     ...W, H: sc, s,
     glabella: W.g, nasion: W.n, noseBridge: W.rhinion, subnasale: W.sn, noseTip: W.prn, stomion: W.sto, menton: W.me,
     zygionR: W.zyR, gonionR: W.goR, alaR: W.alR,
-    tragionR: ears.length ? ears[1].tragion : { ...W.porionR, y: W.porionR.y - 0.01 * sc },
-    earTopR: ears.length ? ears[1].top : { ...W.porionR, z: W.g.z }, eyeL: W.eyeL, eyeR: W.eyeR,
+    tragionR: hung.length ? hung[1].tragion : { ...W.porionR, y: W.porionR.y - 0.01 * sc },
+    earTopR: hung.length ? hung[1].top : { ...W.porionR, z: W.g.z }, eyeL: W.eyeL, eyeR: W.eyeR,
   };
   const pad = 0.06 * sc;
   const bounds = {

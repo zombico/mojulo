@@ -353,8 +353,12 @@ export function expandPlan(plan, { body = null } = {}) {
       for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
       const R = ring(lo); P.slots.forEach((sl, i) => { st.points[sl] = R[i].map(r6); }); } }
   if (body) {
-    for (const k of Object.keys(parts)) if (parts[k].layer === 1 && body.parts[k]?.layer !== 1) delete parts[k];
-    for (const [k, p] of Object.entries(body.parts)) if (p.layer === 1 && parts[k]?.layer === 1) parts[k] = JSON.parse(JSON.stringify(p));
+    // (its parts, all of them: a part it dropped (the pectorals; a head it swapped, and that head's pinned features) left
+    // out, its own in place of the plan's; its dials only, and its creases)
+    for (const k of Object.keys(parts)) if (!body.parts[k]) delete parts[k];
+    for (const [k, p] of Object.entries(body.parts)) if (parts[k]) parts[k] = JSON.parse(JSON.stringify(p));
+    for (const k of Object.keys(dials)) if (body.dials && !body.dials[k]) delete dials[k];
+    for (const k of Object.keys(creases)) delete creases[k]; Object.assign(creases, JSON.parse(JSON.stringify(body.creases || {})));
     // (its dials: the parts it dropped left out, its blends over its own stations)
     for (const [k, d] of Object.entries(dials)) {
       const b = body.dials?.[k];
