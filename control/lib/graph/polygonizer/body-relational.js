@@ -145,10 +145,16 @@ const NORRIN = {
   dimples: [{ id: 'navel', on: { x: 0, t: -0.02, face: 'front' }, r: 0.025, k: 0.03 }],
   // THE PAULDRON: the mass bunched over the shoulder blade by a raised arm (formSlice's corrective; never in the bind)
   // (a water bag on the blade: narrow at its top over the blade's spine and full at its foot over the lower blade, so it
-  // hangs as the trunk stands; grown from 60 degrees of raise, whole at 160. A cap over the shoulder's top stood as a
-  // lump apart from the arm, and a pad over the arm's root stood out of the side like armour)
+  // hangs as the trunk stands; grown from 60 degrees of raise, whole at 160. And the corner the raised arm leaves by
+  // the neck filled: the trapezius's cap over the shoulder's top (60 to 150), a PLATE wide and tall but a third as deep,
+  // so the front and the back see it and the profile hardly does; and the deltoid's top bunched over the joint (100 to
+  // 170), sampled into the arm's top as well (an arm straight up turns its deltoid's outside toward the head: the
+  // corner is the arm's own skin), rounder but less deep than wide. Round and deep, the two had stood out of the
+  // profile like armour; the deltoid's as a thin plate, the arm's skin rose in a fin toward the head)
   pauldron: [
-    { joint: true, id: 'pauldron', cone: [[0.66, -0.34, 0.95], [0.6, -0.34, 0.7]], r: [0.14, 0.26], drive: { from: 60, full: 160 } },
+    { joint: true, id: 'pauldronBag', cone: [[0.66, -0.34, 0.95], [0.6, -0.34, 0.7]], r: [0.14, 0.26], drive: { from: 60, full: 160 } },
+    { joint: true, id: 'pauldronCap', egg: [0.64, -0.05, 0.98], r: [0.46, 0.14, 0.22], drive: { from: 60, full: 150 } },
+    { joint: true, id: 'pauldronDeltoid', egg: [1.02, -0.02, 0.9], r: [0.32, 0.28, 0.4], drive: { from: 100, full: 170 }, arm: true },
   ],
   // the arms (the right; the left its mirror): s along the bone, az round it (0 the front, 90 the outside)
   kLimb: 0.03,

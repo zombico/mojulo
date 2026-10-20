@@ -228,10 +228,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   fold turn from the blade, over a band 8 cm down the humerus (16 before): raised overhead, the arm's upper third had
   sagged off its bone by up to 4.5 cm, now 1.0; the arm's root ring 0.84 of its rest, now 0.93. body-study `--bones` draws
   the spine, the collarbones, the blades, the humeri and the forearms over the shell. THE PAULDRON: what a raised arm
-  bunches over the shoulder blade, a mass of the form field like the rest (the build's `pauldron`: a water bag over the
-  blade, narrow at its top and full at its foot, so it hangs as the trunk stands), never in the bind: the torso sampled
-  again with it, the same rings and slots, the difference a corrective per side (`recipe.correctives`, an offset per
-  point at full weight, the weight the arm's raise from 60 degrees, whole at 160) that `correctiveRest` adds to the rest
+  bunches over the shoulder, masses of the form field like the rest (the build's `pauldron`, in stages: a water bag
+  over the blade, narrow at its top and full at its foot, so it hangs as the trunk stands; the trapezius's cap over the
+  shoulder's top, a plate a third as deep as it is wide, so the front and the back see it and the profile hardly does;
+  the deltoid's top bunched over the joint, late in the raise, sampled into the arm's top too, the corner a raised arm
+  leaves by the head), never in the bind: the torso (and the arm) sampled again with each, the same rings and slots, the
+  difference a corrective per side (`recipe.correctives`, an offset per point at full weight, the weight by the arm's
+  raise between the stage's own degrees) that `correctiveRest` adds to the rest
   before the skin poses it, an engine's morph target (its export to come); the body study and the stretch audit pose
   through it. The skin over the shoulder's point and over the blade rides the blade, the collarbone its own inner run
   in front: all of it on the collarbone, a raised arm's shoulder top had floated over the acromion under it. Only the
