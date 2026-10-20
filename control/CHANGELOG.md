@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Body-part map: dress tailored to the body, not the segment
+
+- The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,
+  shoulder cap, armpit, upper arm, elbow, forearm, thigh, knee, shin, calf …) and by the MUSCLE most under each point,
+  from the form field's own blend (each mass's share of the skin there), the deep base masses read by position:
+  `bodyPartMap(recipe, R, build)` (body-relational-map.js); body-study `--map` colours the skin by part. The ground for
+  dress tailored to the parts it covers, one piece across segments.
+- Under the iliac crest (a hand over the hip's joint) the trunk is the seat behind, the hip at the side, the groin in
+  front; a limb's bands by where a point lies down its bone (the shoulder's cap over the upper arm's top, the elbow, the
+  knee, the wrist, the ankle about their joints); the armpit's fill above the hollow the shoulder's cap. A point inside
+  another part's skin (the pelvis under the crotch, the arm's top under the cap) is `hidden`, for dress to leave alone.
+  The labels eased over each grid (a point of a part fewer than three of its eight neighbours share takes theirs).
+
 ### The realistic hero at the door
 
 - `form: 'realistic'` on the hero door (`create_character`, `mint_solid` via 'hero'): the hero's body re-sampled onto
@@ -33,6 +46,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `-correctives.js` (`correctiveRest`, the shoulder's blend), `-vec.js`; `body-relational.js` keeps `formSlice` and
   re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
   `docs/realistic-body.md`, held by hero-realistic.test.js.
+- Dress on the realistic body (in progress): the bare body is sliced (kept by what the slice reads, so a dress edit never
+  re-slices), the plan expanded again on it (`expandPlan`'s `body`), the outfit, the kits, the armour and the paint made
+  on its ENVELOPE (body-relational-envelope.js: each ring over its convex hull, the hollows along the part filled, at
+  most 15 mm off the skin) and the skin put back under them, a pinned piece's offsets carried into the skin's frame; a
+  garment's points take the body's correctives. The sliced parts keep a `slotT` in the authored part's terms and their
+  band paint by position. `detail`, `statue` and `stylism` still refuse. Open: on a physique the pelvis's rings hidden
+  under the crotch's level are drawn in to a cone, and a trouser seat fitted on them folds (the male skinny and heavyset,
+  the female heavyset); body-study `--hero` renders the door's own hero.
 
 ### Realistic body: the dermal skin on the body
 

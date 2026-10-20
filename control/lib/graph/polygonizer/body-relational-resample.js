@@ -102,7 +102,24 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
     const c = scl(pts.reduce((a, x) => add(a, x), [0, 0, 0]), 1 / pts.length), rad = pts.reduce((a, x) => a + len(sub(x, c)), 0) / pts.length;
     return [k, add(c, scl(capsAlong, (k === 'back' ? -1 : 1) * rad / 3)).map(r6)];
   })) : P.caps;
-  const { slotT: _t, ...rest } = P, out = { ...rest, slots, stations, ...(caps ? { caps } : {}), bind: { ...b, blend } };
+  // (its slots' `t`, the address a pin or a dress window reads round the ring, in the authored part's own: slot j of
+  // `around` was cast through the authored ring at fractional slot j · n0 / around, so its t is the authored t there,
+  // the authored slots' (`slotT`, else their index) straight between; the right half, as the addresses read it)
+  const Ta = (k) => P.slotT?.[SL[k]] ?? k, slotT = Object.fromEntries(slots.slice(0, around / 2 + 1).map((sl, j) => {
+    const f = (j * n0) / around, k = Math.floor(f), x = f - k; return [sl, r6(x ? Ta(k) + (Ta(k + 1) - Ta(k)) * x : Ta(k))];
+  }));
+  // (its bands' groups, the paint on the authored rings (a swimsuit's, a segment's own): each new band takes the authored
+  // band under its middle, by u along the part and t round it; kept by the authored ids, they named no band of these)
+  let bandGroups;
+  if (P.bandGroups) {
+    bandGroups = {};
+    const half = n0 / 2, tk = (t) => { let k = 0; while (k < half - 1 && Ta(k + 1) <= t) k++; return k; };
+    for (let i = 0; i < stations.length - 1; i++) {
+      const um = (stations[i].u + stations[i + 1].u) / 2, [a] = bracket(um), row = P.bandGroups[`${a.id}-${st[st.indexOf(a) + 1].id}`]; if (!row) continue;
+      bandGroups[`${stations[i].id}-${stations[i + 1].id}`] = slots.slice(0, around / 2).map((sl, k) => row[tk((slotT[sl] + slotT[slots[k + 1]]) / 2)] ?? null);
+    }
+  }
+  const { slotT: _t, bandGroups: _g, ...rest } = P, out = { ...rest, slots, slotT, stations, ...(bandGroups ? { bandGroups } : {}), ...(caps ? { caps } : {}), bind: { ...b, blend } };
   CAST.set(out, CAST.get(stations)); CAST.delete(stations);
   return out;
 }
@@ -130,6 +147,7 @@ export const swapRL = (k) => k.replace(/([RL])$/, (m) => (m === 'R' ? 'L' : 'R')
 export function mirrorPart(P, L) {
   const flip = (p) => [-p[0], p[1], p[2]], swapW = (w) => Object.fromEntries(Object.entries(w).map(([k, v]) => [swapRL(k), v]));
   const blend = Object.fromEntries(Object.entries(P.bind.blend).map(([k, w]) => { const [s, sl] = k.split('.'); return [sl ? `${s}.${swapRL(sl)}` : s, swapW(w)]; }));
-  return { ...L, slots: P.slots, stations: P.stations.map((s) => ({ ...s, points: Object.fromEntries(P.slots.map((sl) => [sl, flip(s.points[swapRL(sl)])])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, flip(q)])) } : {}), bind: { ...L.bind, blend } };
+  const { bandGroups: _g, ...Lk } = L;
+  return { ...Lk, slots: P.slots, ...(P.slotT ? { slotT: P.slotT } : {}), ...(P.bandGroups ? { bandGroups: P.bandGroups } : {}), stations: P.stations.map((s) => ({ ...s, points: Object.fromEntries(P.slots.map((sl) => [sl, flip(s.points[swapRL(sl)])])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, q]) => [k, flip(q)])) } : {}), bind: { ...L.bind, blend } };
 }
 

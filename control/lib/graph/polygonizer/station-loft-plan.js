@@ -290,7 +290,10 @@ export function validatePlan(plan) {
 }
 
 // ── expansion ──
-export function expandPlan(plan) {
+/** `body`: a re-sampled body (a recipe whose layer-1 parts stand in for the plan's own, the realistic form's slice, its
+ * parts absent there dropped): placed where the plan's body is, after the head's seam, so the dress (garments, paint,
+ * details, body detail and adornment) is made on it. Absent, the plan's own body */
+export function expandPlan(plan, { body = null } = {}) {
   validatePlan(plan);
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
   const style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
@@ -349,6 +352,15 @@ export function expandPlan(plan) {
       let lo = 0.2, hi = 1; if (!fits(lo)) continue;   // cannot seal by shrinking: left as authored (the seam gate reports it)
       for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
       const R = ring(lo); P.slots.forEach((sl, i) => { st.points[sl] = R[i].map(r6); }); } }
+  if (body) {
+    for (const k of Object.keys(parts)) if (parts[k].layer === 1 && body.parts[k]?.layer !== 1) delete parts[k];
+    for (const [k, p] of Object.entries(body.parts)) if (p.layer === 1 && parts[k]?.layer === 1) parts[k] = JSON.parse(JSON.stringify(p));
+    // (its dials: the parts it dropped left out, its blends over its own stations)
+    for (const [k, d] of Object.entries(dials)) {
+      const b = body.dials?.[k];
+      dials[k] = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((n) => parts[n]) } : {}), ...(b?.blend ? { blend: { ...(d.blend || {}), ...b.blend } } : {}) };
+    }
+  }
   // garments with volume (body-garment.js): copied from the sealed body rings, beside their body part in every dial
   if (plan.garments?.length) { for (const k of Object.keys(dials)) dials[k] = { ...dials[k] }; try { garmentParts(parts, plan.garments, dials); } catch (err) { fail(err.message); } }
   // second-skin paint (body-paint.js) on the expanded rings — a segment's generated rings take it like a loft's, and a

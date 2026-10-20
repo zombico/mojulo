@@ -14,10 +14,13 @@ are in `control/lib/graph/polygonizer/hero-realistic.test.js`; the slice's own i
 | `body-relational-field.js` | the distances (`sdEgg`, `sdCone`, `lse`), `bodyFrame`, `bodyField`, `limbField`, `crossing`, `project` |
 | `body-relational-resample.js` | `resamplePart`, `ringSlots`, the bind's share mixing, `mirrorPart` |
 | `body-relational-correctives.js` | `correctiveRest`, `shoulderBlend` |
+| `body-relational-envelope.js` | the envelope the segment dress is fitted to (each ring over its hull, hollows filled) |
+| `body-relational-map.js` | `bodyPartMap`: each skin point's body part (`BODY_PARTS`) and the muscle most under it |
 | `body-relational-vec.js` | the vector helpers |
 
 The door: `control/lib/mcp/tools/layered.js` (`realisticRecipe`, `realisticBuild`, `realisticTune`, `realisticErrors`,
-`REALISTIC_LAWS_VERSION`). The eyes lane: `/body-study --form norrin|shalla --physique <word|json>`.
+`REALISTIC_LAWS_VERSION`). The eyes lane: `/body-study --form norrin|shalla --physique <word|json>`; the door's own hero
+with `--hero '{"form":"realistic", …}'`, coloured by body part with `--map`.
 
 ## The record
 
