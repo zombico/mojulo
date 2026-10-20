@@ -319,12 +319,15 @@ export function physique(build, dials = 'athletic') {
   // a limb's muscles across (not along: a longer belly runs into the joint), the deltoid's heads whole. On the plus
   // side the calf fuller still, and the forearm carried full down to a wrist the size of the bigger hand (`hands`): the
   // bellies alone left the forearm a club over a narrow wrist
-  const bp = Math.max(0, b), hands = 1 + 0.1 * bp, calf = 1 + 0.15 * bp;
+  const bp = Math.max(0, b), hands = 1 + 0.1 * bp, calf = 1 + 0.25 * bp;
   const limb = (m) => {
     if (m.id === 'radiusUlna') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.35 * bp)] };
     if (m.id === 'wrist') return { ...m, r: m.r.map((x) => x * hands) };
-    // (and longer as it is fuller, or the bellies round into beads)
-    if (/^(gastrocnemius|soleus)/.test(m.id)) return { ...m, r: [m.r[0] * calf, m.r[1] * f * calf, m.r[2] * f * calf] };
+    // (the gastrocnemius's heads the calf's bulk, longer as they are fuller, or they round into beads, and set higher: a
+    // high diamond over a long taper to a slim ankle, as a superhero's; the soleus under them hardly grows, or the calf
+    // swelled low and read as a club)
+    if (/^gastrocnemius/.test(m.id)) return { ...m, s: m.s - 0.04 * bp, r: [m.r[0] * calf, m.r[1] * f * calf, m.r[2] * f * calf] };
+    if (m.id === 'soleus') return { ...m, r: [m.r[0], m.r[1] * (1 + 0.1 * b), m.r[2] * (1 + 0.1 * b)] };
     if (BONY.test(m.id)) return m;
     if (m.chain) return { ...m, chain: m.chain.map(([s, az, off, r]) => [s, az, off, r * f]) };
     if (m.cone) return { ...m, r: m.r.map((x) => x * f) };
