@@ -12,6 +12,7 @@ import { add, sub, scl, len, unit, r6 } from './body-relational-vec.js';
 import { bodyField, limbField, crossing } from './body-relational-field.js';
 import { BODY_BUILDS } from './body-relational-builds.js';
 import { envelopePart } from './body-relational-envelope.js';
+import { smin } from './vajra.js';
 
 /** the field garments: a word's body parts, its cut down the limbs (a share of the segment's rings), its ease and group,
  * and its cloth: how much looser than the body its field blends, and its envelope (`reach`, `taut`, `along`, `soft`:
@@ -25,18 +26,24 @@ export const FIELD_GARMENTS = Object.freeze({
   tee: { covers: TOP, limit: { upperArm: 0.45 }, ease: 0.008, group: 'Top' },
   fittedTee: { covers: TOP, limit: { upperArm: 0.45 }, ...FITTED },
   fittedShirt: { covers: [...TOP, 'elbow', 'forearm', 'wrist'], limit: { foreArm: 0.92 }, ...FITTED },
+  // (TROUSERS: the seat from where the pelvis's rings start to rise, so it closes over the crotch by its cap instead of
+  // copying the floor the pelvis's lowest rings lay flat at the crotch; the trunk's cloth takes the thighs in, so the
+  // seat wraps their tops, and the legs' tops tuck under the seat)
+  trousers: { covers: ['hip', 'groin', 'seat', 'thigh', 'knee', 'shin', 'calf'], limit: { shank: 0.94 }, ease: 0.008, looser: 2, floor: true, join: 'thigh', group: 'Bottom' },
 });
 
 const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false }) {
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   const want = new Set(covers), arm = limbField(R, B1, 'upperArm');
   // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
   const trunk = bodyField(R, B1, { extra: arm.prims.filter((p) => /^deltoid/.test(p.id)) });
-  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunk.sd(q) - ease : ((L) => (q) => L.sd([Math.abs(q[0]), q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, ''))));
+  // (`join`: a limb taken into the trunk's cloth, both sides, so a trunk piece wraps the limb's top)
+  const J = join ? limbField(R, B1, join) : null, trunkSd = J ? (q) => smin(trunk.sd(q), J.sd([Math.abs(q[0]), q[1], q[2]]), B1.kMuscle) : (q) => trunk.sd(q);
+  const cloth = (seg) => (TRUNK.has(seg) ? (q) => trunkSd(q) - ease : ((L) => (q) => L.sd([Math.abs(q[0]), q[1], q[2]]) - ease)(limbField(R, B1, seg.replace(/[RL]$/, ''))));
   const parts = {};
   for (const [seg, P] of Object.entries(recipe.parts)) {
     if (P.layer !== 1 || !P.stations?.length || P.garment) continue;
@@ -48,6 +55,12 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     });
     let i0 = covered.indexOf(true), i1 = covered.lastIndexOf(true); if (i0 < 0) continue;
     if (limit[base] !== undefined) i1 = Math.min(i1, Math.round(limit[base] * (P.stations.length - 1)));
+    // (`floor`: a trunk piece starts where its rings rise, past those lying flat, widening at one height: a band of
+    // cloth laid flat has no outside to wind by)
+    if (floor && TRUNK.has(seg)) {
+      const at = (st) => { const c = scl(P.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / P.slots.length); return { z: c[2], r: P.slots.reduce((a, sl) => a + len(sub(st.points[sl], c)), 0) / P.slots.length }; };
+      while (i0 < i1 - 1) { const a = at(P.stations[i0]), b = at(P.stations[i0 + 1]); if (Math.abs(b.z - a.z) >= 0.5 * Math.abs(b.r - a.r)) break; i0++; }
+    }
     if (i1 - i0 < 1) continue;
     const sd = cloth(seg), stations = P.stations.slice(i0, i1 + 1).map((st) => {
       const c = scl(P.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / P.slots.length);
@@ -66,6 +79,19 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     // (the tee's cloth taut along the piece, spanning deeper than the skin's envelope: from the bust's apex over the
     // fold under it, 2 to 3 cm; a fitted shirt's close)
     parts[`${id}_${seg}`] = envelopePart(piece, { reach, taut, along, ...(span ? { span } : {}), ...(soft ? { soft } : {}) });
+  }
+  // THE HANDOVER (`join`): the joined limb's pieces let down under the trunk's piece above the level its first ring
+  // closes at (the seat's lowest ring over the thighs' tops), each point drawn in toward its ring's middle
+  const over = join && Object.entries(parts).find(([k]) => TRUNK.has(k.slice(id.length + 1)));
+  if (over) {
+    const st0 = over[1].stations[0], z0 = Object.values(st0.points).reduce((a, p) => a + p[2], 0) / over[1].slots.length;
+    for (const [k, G] of Object.entries(parts)) {
+      if (k.slice(id.length + 1).replace(/[RL]$/, '') !== join) continue;
+      G.stations = G.stations.map((st) => {
+        const c = scl(G.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / G.slots.length);
+        return { ...st, points: Object.fromEntries(G.slots.map((sl) => { const p = st.points[sl], w = Math.max(0, Math.min(1, (p[2] - z0 + 0.01) / 0.02)), s = 0.004 * w * w * (3 - 2 * w); return [sl, (s > 0 ? add(p, scl(unit(sub(c, p)), s)) : p).map(r6)]; })) };
+      });
+    }
   }
   return { parts };
 }
