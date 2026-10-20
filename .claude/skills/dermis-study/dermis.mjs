@@ -168,6 +168,58 @@ function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null) {
     }
   }
 }
+/**
+ * The CARDS, as an engine draws them: each a ribbon (two triangles a segment) carrying a strand-alpha texture made here
+ * (a dozen strands across it, each its own width and its own end, fading in at the root over the scalp paint), lit by
+ * the hair shader along the card's own direction, the section cards (the inner layer) darker; drawn back to front over
+ * the skin (depth-tested against it), blended by their alpha.
+ */
+function drawCards(R, cam, W, Hh, cards, shade, seed) {
+  const { img, zbuf } = R, root = hexLin(shade.root), tip = hexLin(shade.tip), tint = hexLin(shade.secondary.tint);
+  const L = cam.light, Vw = cam.view, Hv = [L[0] + Vw[0], L[1] + Vw[1], L[2] + Vw[2]], hl = Math.hypot(...Hv), Hn = Hv.map((x) => x / hl);
+  const hash = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(seed | 0, 2246822519); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const STR = 12;
+  const alphaAt = (ci, u, v) => {
+    // the strands across the card: each at its own place, width and end (ragged tips), thinning toward its end
+    let a = 0;
+    const k0 = Math.floor(u * STR);
+    for (let k = Math.max(0, k0 - 1); k <= Math.min(STR - 1, k0 + 1); k++) {
+      const c = (k + 0.2 + 0.6 * hash(ci, k)) / STR, w = (0.35 + 0.5 * hash(k, ci + 7)) / STR, end = 1 - 0.35 * hash(ci + 3, k) ** 2;
+      if (v > end) continue;
+      const d = Math.abs(u - c) / (w * (1 - 0.6 * v / end));
+      a = Math.max(a, Math.max(0, 1 - d * d));
+    }
+    return a * Math.min(1, v / 0.04) * (1 - smoothEdge(u));
+  };
+  const smoothEdge = (u) => { const e = Math.min(u, 1 - u); return e > 0.08 ? 0 : 1 - e / 0.08; };
+  const order = cards.map((c, i) => ({ i, d: c.pts.reduce((a, p) => a + cam.project(p)[2], 0) / c.pts.length })).sort((a, b) => a.d - b.d);
+  for (const { i: ci } of order) {
+    const c = cards[ci], dark = c.level === 'section' ? 0.62 : 1, N = c.pts.length - 1;
+    for (let k = 0; k < N; k++) {
+      const p = c.pts[k], q = c.pts[k + 1], t = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], tl = Math.hypot(...t) || 1, T = t.map((x) => x / tl);
+      const TL = T[0] * L[0] + T[1] * L[1] + T[2] * L[2], TH = T[0] * Hn[0] + T[1] * Hn[1] + T[2] * Hn[2];
+      const diff = Math.sqrt(Math.max(0, 1 - TL * TL)), s1 = Math.sqrt(Math.max(0, 1 - (TH + shade.primary.shift) ** 2)), s2 = Math.sqrt(Math.max(0, 1 - (TH + shade.secondary.shift) ** 2));
+      const sp1 = 0.3 * s1 ** (8 / shade.primary.roughness ** 2), sp2 = 0.25 * s2 ** (4 / shade.secondary.roughness ** 2);
+      const corner = (j, side) => { const m = c.pts[j], h = c.width[j] / 2 * side; return [m[0] + c.side[j][0] * h, m[1] + c.side[j][1] * h, m[2] + c.side[j][2] * h]; };
+      const quad = [[corner(k, -1), 0, c.v[k]], [corner(k, 1), 1, c.v[k]], [corner(k + 1, 1), 1, c.v[k + 1]], [corner(k + 1, -1), 0, c.v[k + 1]]].map(([P3, u, v]) => ({ P: cam.project(P3), u, v }));
+      for (const tri of [[quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]]) {
+        const [A, B, C] = tri.map((x) => x.P), area = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]); if (!area) continue;
+        const x0 = Math.max(0, Math.floor(Math.min(A[0], B[0], C[0]))), x1 = Math.min(W - 1, Math.ceil(Math.max(A[0], B[0], C[0])));
+        const y0 = Math.max(0, Math.floor(Math.min(A[1], B[1], C[1]))), y1 = Math.min(Hh - 1, Math.ceil(Math.max(A[1], B[1], C[1])));
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+          const qx = x + 0.5, qy = y + 0.5;
+          const w0 = ((B[0] - qx) * (C[1] - qy) - (B[1] - qy) * (C[0] - qx)) / area, w1 = ((C[0] - qx) * (A[1] - qy) - (C[1] - qy) * (A[0] - qx)) / area, w2 = 1 - w0 - w1;
+          if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+          const o = y * W + x, d = w0 * A[2] + w1 * B[2] + w2 * C[2]; if (d < zbuf[o] - 0.001) continue;
+          const u = w0 * tri[0].u + w1 * tri[1].u + w2 * tri[2].u, v = w0 * tri[0].v + w1 * tri[1].v + w2 * tri[2].v;
+          const a = alphaAt(ci, u, v) * (c.level === 'section' ? 0.9 : 0.85); if (a < 0.01) continue;
+          const col = root.map((r0, i) => (r0 + (tip[i] - r0) * v) * dark * (0.25 + 0.75 * diff) + (sp1 + sp2 * tint[i]) * dark);
+          for (let i = 0; i < 3; i++) img[o * 3 + i] = img[o * 3 + i] * (1 - a) + col[i] * a;
+        }
+      }
+    }
+  }
+}
 const toRGBA = (img, W, Hh) => { const b = Buffer.alloc(W * Hh * 4); for (let i = 0; i < W * Hh; i++) { for (let k = 0; k < 3; k++) b[i * 4 + k] = Math.round(Math.max(0, Math.min(1, toSrgb(img[i * 3 + k]))) * 255); b[i * 4 + 3] = 255; } return b; };
 
 // ─── the sheet ───
@@ -188,9 +240,8 @@ const m3 = (p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M];
 for (const sex of sexes) {
   const H = headOf(sex), V = H.chart.vertices, Lm = H.head.landmarks;
   const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour));
-  const scalpRep = H.S ? (H.scalp.counts.lying ? 2 : (200 * (H.S.spacing * 100) ** 2) / Math.max(1, H.S.children)) : 0;
-  const hair = [...(H.scalp?.strands || []), ...H.beard.strands], fine = H.brows;
-  const rep = (st) => (st.groom === 'scalp' || st.groom === 'flyaway' ? scalpRep : st.groom === 'beard' ? 2 : 1);
+  const hair = [...(H.scalp?.strands || []), ...H.beard.strands], fine = H.brows, cards = H.scalp?.cards || [];
+  const rep = (st) => (st.groom === 'scalp' ? 2 : st.groom === 'flyaway' ? 3 : st.groom === 'beard' ? 2 : 1);
   const hairBox = boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((s) => s.pts)]);
   const eyes = m3({ x: 0, y: Lm.eyeR.y, z: Lm.eyeR.z }), mouth = m3(Lm.stomion);
   const rows = [
@@ -204,7 +255,7 @@ for (const sex of sexes) {
     for (const [col, v] of row.views.entries()) {
       const cam = camera(v.az, v.elev, row.box, row.W, row.Hh), R = render(H, cam, row.W, row.Hh, row.mode);
       if (row.mode === 'kinds' && H.scalp) drawStrands(R, cam, row.W, row.Hh, H.scalp.guides.map((g) => ({ pts: g.pts, r: 0.0004 })), shade, () => 1, [0.05, 0.05, 0.08]);
-      if (row.hair) drawStrands(R, cam, row.W, row.Hh, hair, shade, rep);
+      if (row.hair) { drawCards(R, cam, row.W, row.Hh, cards, shade, H.D.seed); drawStrands(R, cam, row.W, row.Hh, hair, shade, rep); }
       drawStrands(R, cam, row.W, row.Hh, fine, hairShade(hexLin(H.epiColour)), () => 1);
       await cellRaw(col * row.W, y0, toRGBA(R.img, row.W, row.Hh), row.W, row.Hh);
       label(col * row.W, y0 + row.Hh - 10, `${sex} · ${v.name} · ${cam.pxMm.toFixed(2)} mm/px`, 11);
@@ -228,7 +279,7 @@ for (const sex of sexes) {
   const C = H.T.classes.map((c) => c.class).join(', ');
   const lines = [
     `dermis ${JSON.stringify(H.D)}`,
-    `scalp ${H.S ? `${H.S.style} · ${H.S.type} · ${(H.S.length * 100).toFixed(0)} cm stretched, falls ${(H.S.length * (H.scalp.counts.shrink ?? 1) * 100).toFixed(0)} cm · ${H.scalp.counts.guides} clumps × ${H.scalp.counts.children ?? 0} · ${H.scalp.counts.strands} strands` : 'none (shaven)'}`,
+    `scalp ${H.S ? `${H.S.style} · ${H.S.type} · ${(H.S.length * 100).toFixed(0)} cm stretched, falls ${(H.S.length * (H.scalp.counts.shrink ?? 1) * 100).toFixed(0)} cm · ${H.scalp.counts.lying ? `lying, ${H.scalp.counts.strands} strands` : `${H.scalp.counts.clumps} named clumps → ${H.scalp.counts.sections} sections → ${H.scalp.counts.leaves} leaves · ${H.scalp.counts.cards} cards · ${H.scalp.counts.strands} flyaways`}` : 'none (shaven)'}`,
     `beard ${H.beard.strands.length} strands (stubble ${H.D.stubble} mm; under 1.5 mm the texture's follicles alone) · brows and lashes ${fine.length} strands`,
     `atlas ${H.T.page}×${H.T.pageH} · ${(H.L.mmPerTexel / H.L.faceWeight).toFixed(2)} mm/texel · relief classes: ${C} · ${H.chart.vertices.length} vertices · ${H.ms} ms`,
   ];

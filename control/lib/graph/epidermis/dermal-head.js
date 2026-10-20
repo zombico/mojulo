@@ -10,7 +10,7 @@
  * corners, the beard's cheek line from the ear's front to the mouth's corner. An action that moves a relation moves
  * the skin's layout with it.
  *
- *   relationalHeadChart(head, { cells })  → a chart (one part, `head`, its `marks`)
+ *   relationalHeadChart(head, { cells })  → a chart (one part, `head`, its `marks`; the ear's points its `ear` feature)
  *   headMarks(head)                       → { r0, length, cy, points: { name: { X, Y } } } (mm)
  *
  * Pure: the field and its relations in, a mesh and addresses out; no dice, no clock.
@@ -56,5 +56,17 @@ export function relationalHeadChart(head, { cells = 110 } = {}) {
   }
   const M = headMarks(head);
   const axis = [[0, M.cy, 0], [0, M.cy, M.length]];
-  return chartFromMesh({ vertices, faces, normals }, (vi) => (skin[vi] ? 'head' : null), { head: { part: 'head', side: '', axis, marks: M } });
+  const ear = earTest(head);
+  return chartFromMesh({ vertices, faces, normals }, (vi) => (skin[vi] ? 'head' : null), { head: { part: 'head', side: '', axis, marks: M, feature: (vi) => (ear(vertices[vi]) ? 'ear' : undefined) } });
+}
+
+/**
+ * Which points are the EAR (a feature: no hair grows on it, the beard stops at it): the pinna stands off the skull, so
+ * a point is the ear's where it lies in the box from the tragion back to the helix and from under the lobe to the ear's
+ * top, and further out than the skin at the porion by more than the ear's own root (3 mm). Metres in, a boolean out.
+ */
+export function earTest(head) {
+  const L = head.landmarks, S = STAND_M, tr = L.tragionR, top = L.earTopR, por = L.porionR;
+  const y0 = (tr.y + 0.004 / S) * S, y1 = (tr.y - 0.034 / S) * S, z0 = (tr.z - 0.03 / S) * S, z1 = (top.z + 0.006 / S) * S, x0 = (por.x + 0.003 / S) * S;
+  return (p) => Math.abs(p[0]) > x0 && p[1] <= y0 && p[1] >= y1 && p[2] >= z0 && p[2] <= z1;
 }

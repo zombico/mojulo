@@ -250,7 +250,9 @@ function relationalHeadRegions(A, D, put, R) {
   // round the jaw and under the chin to the neck; never the lips
   const foot = { X: sideX, Y: por.Y + (male ? -4 : 14) }, cor = { X: Math.abs(ch.X) + 6, Y: ch.Y + 6 };
   const cheekLine = x > cor.X ? cor.Y + ((x - cor.X) / Math.max(1, foot.X - cor.X)) * (foot.Y - cor.Y) : Math.min(M.sn.Y - 2, cor.Y + (cor.X - x) * 2);
-  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 3, cheekLine - 3, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)));
+  // (the ear is its own: no beard grows on it, nor in front of it past the sideburn's foot)
+  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 3, cheekLine - 3, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)) * (1 - Math.min(1, 1.6 * (R.ear || 0))));
+  if (A.feature === 'ear') { put('ear', 1); delete R.beard; delete R.scalp; }
   put('face', face);
   put('headSide', (1 - scalp) * (1 - face) * 0.6);
 }
