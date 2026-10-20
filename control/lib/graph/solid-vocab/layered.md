@@ -783,6 +783,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
   bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
   balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
+- **The realistic body (`form: 'realistic'`).** The hero's body re-sampled onto the form field: bone where it shows and
+  the muscle masses placed from the rig's joints, summed into one skin, denser than authored (the torso 48 round, 64 on
+  the female, with the bust in the field), the shoulder girdle with a blade, and morph-like correctives a raised arm
+  wears (the pauldron, the shoulder's blend; `recipe.correctives`). The build is the cast's pole's (`cast: 'male'` or
+  `'female'`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
+  `{ from?, bulk, tone, weight, height }`, each −1 to 1 (bulk the muscles across, tone their definition, weight a layer
+  of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
+  `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. A slice takes seconds (5 male, 8 female); the same
+  body again is kept. Not yet worn on it: `outfit`, `adorn`, `paint`, `detail`, `statue`, `stylism` (each refuses by
+  name), nor `body` or `girth` (the physique dials those); the head is `landmark` or `none`.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

@@ -14,6 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic hero at the door
+
+- `form: 'realistic'` on the hero door (`create_character`, `mint_solid` via 'hero'): the hero's body re-sampled onto
+  the form field (body-relational.js `formSlice`) once its plan is a recipe, the build by the cast's pole (male: norrin,
+  female: shalla), with a `physique` (a word, `athletic | skinny | heavyset | jacked`, or `{ from?, bulk, tone, weight,
+  height }`), stored with the slice's laws. Absent `form`, every hero as it was.
+- The plan is laid out with the hero's tune times the build's (the build's shoulders, the physique's stature and
+  shoulders), so the door's athletic Norrin is the body study's slice byte for byte. A slice takes 6 s (male) to 10 s
+  (female, jacked) on the first expansion; slices are kept by their inputs (the expanded recipe and the build), so the
+  same body again (a world's inline hero each render, an edit that leaves the body) is a tenth of a second.
+- What the realistic body does not wear yet refuses by name: `outfit`, `adorn`, `paint`, `detail`, `statue`, `stylism`
+  (fitted to the authored body's rings, which the slice re-samples), `body` and `girth` (the physique dials those), a
+  cast other than 'male' / 'female', a head other than landmark or none, the streamlined core. The words agents guess
+  (`bulk`, `muscle`, `tone`, `weight`, `fat`) point to `physique`; the layered card teaches it.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the

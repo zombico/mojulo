@@ -68,6 +68,7 @@ import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/st
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
+import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
 import { WINGBEATS } from '@/lib/graph/bugs/gait';
@@ -176,7 +177,35 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withDressMaterials(expandAware(plan, hero), hero, plan, geocube);
+  return withDressMaterials(realisticRecipe(expandAware(plan, hero), hero), hero, plan, geocube);
+}
+/** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
+ * physique (its laws aside) */
+function realisticBuild(hero) {
+  // (a word patched in, `set /hero/physique 'jacked'`, reads as itself)
+  const p = hero.physique ?? 'athletic', { laws: _l, ...dials } = typeof p === 'string' ? { from: p } : p;
+  return physiqueBuild(femaleOf(hero) ? 'shalla' : 'norrin', Object.keys(dials).length ? dials : 'athletic');
+}
+/** A realistic hero's recipe: the body re-sampled onto the build's form field (formSlice). A slice costs seconds, so the
+ * slices are kept by their inputs (the recipe as expanded and the build): a world's inline hero re-expanded each render,
+ * or an edit that leaves the body as it was, finds its slice. Any other hero: the recipe as it was */
+const SLICES = new Map(), SLICES_KEPT = 8;
+function realisticRecipe(recipe, hero) {
+  if (hero?.form !== 'realistic') return recipe;
+  const B = realisticBuild(hero), key = JSON.stringify([recipe, B]);
+  let out = SLICES.get(key);
+  if (out) { SLICES.delete(key); SLICES.set(key, out); }
+  else {
+    out = formSlice(recipe, validateRig(recipe.rig), B).recipe;
+    SLICES.set(key, out); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
+  }
+  return structuredClone(out);
+}
+/** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
+ * the slice's frame finds the build's tune where it laid its masses out */
+function realisticTune(hero) {
+  const bt = realisticBuild(hero).tune || {}, own = hero.tune || {};
+  return Object.fromEntries([...new Set([...Object.keys(own), ...Object.keys(bt)])].map((k) => [k, (own[k] ?? 1) * (bt[k] ?? 1)]));
 }
 /** A creature plan's own `materials` ({ <group>: <material> | false }, as an armour card's) checked → error strings. */
 export function planMaterialsErrors(m) {
@@ -257,13 +286,19 @@ function resolveHeroWords(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-/** the base forms a hero may name: 'tiered' (tiered-form.js) */
-export const HERO_FORMS = Object.freeze(['tiered']);
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'painterly', 'stylism', 'laws'];
+/** the base forms a hero may name: 'tiered' (tiered-form.js), 'realistic' (body-relational.js: the body re-sampled
+ * onto the form field, dialled by a `physique`) */
+export const HERO_FORMS = Object.freeze(['tiered', 'realistic']);
+/** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
+ * `physique` at mint, so a later retune never moves a stored hero */
+export const REALISTIC_LAWS_VERSION = 1;
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
 /** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
 const KEY_HOMES = Object.freeze({
+  bulk: "muscle is the realistic body's physique: form: 'realistic', physique: { bulk }", muscle: "muscle is the realistic body's physique: form: 'realistic', physique: { bulk, tone }", muscles: "muscle is the realistic body's physique: form: 'realistic', physique: { bulk, tone }",
+  tone: "tone is the realistic body's physique: form: 'realistic', physique: { tone }", weight: "weight is the realistic body's physique: form: 'realistic', physique: { weight }", fat: "fat is the realistic body's physique: form: 'realistic', physique: { weight }",
   build: "a build is the cast's: cast: { pole: 'female' | 'male', build: '<build>' }",
   pole: "the pole is the cast's: cast: { pole: 'female' | 'male', build? }",
   age: "a child is the cast's child build: cast: { pole, build: 'child' }",
@@ -414,7 +449,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
   if (spec.laws !== undefined && !(Number.isInteger(spec.laws) && spec.laws >= 1 && spec.laws <= HERO_LAWS_VERSION)) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws 1 … ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
-  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base: triangles spent where the eye reads them, detail added by tier; absent is today's form)`);
+  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; absent is today's form)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
   if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
@@ -423,6 +458,31 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (wearsHead && spec.cast !== undefined && typeof spec.cast !== 'string' && !isBuiltCast(spec.cast)) errs.push(`cast: a list or a dial map builds only the blank trunk (head: 'none'); the ${headOf(spec)} head takes a cast word or a pole with a build ({ pole: 'female', build: 'brute' })`);
   // the tiered form's joints and sockets are cut on the structured core's pelvis and lumbar bones
   if (spec.form === 'tiered' && spec.core === 'streamlined') errs.push("form: 'tiered' builds on the structured core (its joints are cut on the pelvis and lumbar bones); drop core: 'streamlined', or the tiered form");
+  errs.push(...realisticErrors(spec));
+  return errs;
+}
+
+/** The realistic form's refusals: what it takes (a `physique`), and what it does not wear yet. Dress, armour, kits,
+ * paint and details are addressed on the authored body's rings and baked before the body is re-sampled, so on the
+ * realistic body they would float or vanish; the body's radii are the field's, dialled by the physique */
+function realisticErrors(spec) {
+  const errs = [], R = spec.form === 'realistic';
+  if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
+  if (!R) return errs;
+  if (spec.physique !== undefined && spec.physique !== null) {
+    const p = spec.physique, { laws, ...dials } = typeof p === 'object' && !Array.isArray(p) ? p : {};
+    if (typeof p !== 'string' && (typeof p !== 'object' || Array.isArray(p))) errs.push(`physique: a word (${Object.keys(PHYSIQUES).join(' | ')}) or { from?, ${PHYSIQUE_DIALS.join(', ')} } (each −1 to 1, 0 the athletic base)`);
+    else {
+      try { physiqueBuild('norrin', typeof p === 'string' ? p : Object.keys(dials).length ? dials : 'athletic'); } catch (e) { errs.push(`physique: ${e.message.replace(/^body-relational: /, '')}`); }
+      if (laws !== undefined && !(Number.isInteger(laws) && laws >= 1 && laws <= REALISTIC_LAWS_VERSION)) errs.push(`physique.laws: ${laws} is unknown — this kernel carries the realistic laws 1 … ${REALISTIC_LAWS_VERSION} (stamped at mint; leave it out)`);
+    }
+  }
+  if (spec.cast !== undefined && spec.cast !== 'male' && spec.cast !== 'female') errs.push("cast: the realistic body is built for 'male' or 'female' (its builds, norrin and shalla); dial it with physique");
+  if (spec.head !== undefined && spec.head !== 'landmark' && spec.head !== 'none') errs.push("head: the realistic body wears the landmark head or none (head: 'landmark' | 'none')");
+  if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
+  if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
+  for (const k of ['outfit', 'adorn', 'paint', 'detail', 'statue', 'stylism']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
+  for (const k of ['body', 'girth']) if (spec[k] !== undefined && spec[k] !== null) errs.push(`${k}: the realistic body's girths are its field's; dial them with physique: { bulk, tone, weight, height }`);
   return errs;
 }
 
@@ -459,6 +519,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
+  if (spec.form === 'realistic') { const p = spec.physique ?? 'athletic', o = typeof p === 'string' ? { from: p } : { ...p }; hero.physique = o.laws === undefined ? { ...o, laws: REALISTIC_LAWS_VERSION } : o; }
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
   if (Number.isFinite(spec.genki) && spec.genki > 0) hero.genki = spec.genki;
   // the stand, stored AS GIVEN (a word re-resolves for the cast on every regeneration, so a /hero/cast edit carries the
@@ -593,7 +655,7 @@ function heroFormPlan(hero) {
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
-  const common = { register: hero.register, tune: hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
+  const common = { register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   if ((hero.head ?? 'landmark') === 'landmark') {
     return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
