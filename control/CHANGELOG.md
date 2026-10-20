@@ -251,7 +251,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   `physique(build, word | dials)`, body-study `--physique`. Under a physique the crotch is sought no lower than 0.6 W
   under the hip's joint and the pelvis's rings hidden inside the thighs drawn in to a cone round it (thighs that nearly
   meet had folded them in a zigzag). Shalla's calf bellies run a third longer, one form from behind where they had stood
-  as two beads.
+  as two beads. THE SHOULDER BLENDED OVERHEAD, with the pauldron: a raised arm had crumpled the torso's skin round its
+  root into folds, and the torso's cap, a few millimetres over the arm's top at rest, stood through the arm's skin in a
+  sawtooth of spikes. The slice is posed in two stages, the arms level and the arms overhead, each over the one before:
+  there the torso's skin round the shoulder (by its share of the arm's and the girdle's bones, or its nearness to the
+  arm) is smoothed over its grid (Taubin's two steps, no shrinking), a point on or through the arm's skin sunk under it,
+  and the change carried back to the rest through each point's own skinning map (linear blend skinning is linear in the
+  rest point), a corrective per side and stage (`shoulderLevel`, `shoulderOverhead`) over the raise. The shares round
+  the arm's root are eased over the grid as well. The edge where the arm leaves the torso is one curve now; a few slivers
+  stay deep in the overhead armpit, and the level arm's own root still pinches to a point under it.
 
 ### Epidermis cube: skin and hair as a recipe
 

@@ -21,6 +21,8 @@
  * the door: no minted hero changes. Pure and deterministic (dmath). */
 import * as dmath from '../../util/dmath.js';
 import { BREAST_FIELD, breastHeight } from './breast-field.js';
+import { compileLayered } from './station-loft.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -903,6 +905,28 @@ export function formSlice(recipe, R, build, opts = {}) {
     const p = [Math.abs(q[0]), q[1], q[2]], ab = sub(c1, c0), t = dot(sub(p, c0), ab) / dot(ab, ab);
     return Math.max(sm((t - 0.4) / 0.45), sm((-p[1] - 0.05 * W0) / (0.25 * W0)));
   };
+  // THE SHOULDER'S EDGES BLENDED: the shares round the arm's root (a point carried by the arm's chain, or beside one)
+  // eased toward their four neighbours' mean, a few times over the grid, both sides alike. Each share is a smooth
+  // function of where the point lies, but round the armpit's pocket the rings land by turns on its two walls, a
+  // point on the cap beside one on the chest: a raised arm carried one and left the next, and the torso's skin stood
+  // through the arm's in a sawtooth of spikes
+  const ARMS = /^(upperArm|shoulderFold)[RL]$/;
+  const smoothShoulder = (P, iters = 6) => {
+    const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 }, SL = P.slots, st = P.stations, n = SL.length;
+    const wAt = (i, j) => blend[`${st[i].id}.${SL[j]}`] || blend[st[i].id] || own, army = (w) => Object.keys(w).some((k) => ARMS.test(k));
+    for (let it = 0; it < iters; it++) {
+      const next = {};
+      for (let i = 1; i < st.length - 1; i++) for (let j = 0; j < n; j++) {
+        if (st[i].points[SL[j]][0] === 0) continue;
+        const nb = [wAt(i, (j + 1) % n), wAt(i, (j + n - 1) % n), wAt(i + 1, j), wAt(i - 1, j)], w = wAt(i, j);
+        if (!army(w) && !nb.some(army)) continue;
+        let mean = nb[0]; for (let k = 1; k < 4; k++) mean = mixW(mean, nb[k], 1 / (k + 1));
+        next[`${st[i].id}.${SL[j]}`] = four(mixW(w, mean, 0.5));
+      }
+      Object.assign(blend, next);
+    }
+    return { ...P, bind: { ...b, blend } };
+  };
   const rideGirdle = (P) => {
     const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
     for (const st of P.stations) for (const sl of P.slots) {
@@ -916,7 +940,7 @@ export function formSlice(recipe, R, build, opts = {}) {
     }
     return { ...P, bind: { ...b, blend } };
   };
-  r.parts.torso = rideDeltoid(rideGirdle(r.parts.torso), false);
+  r.parts.torso = smoothShoulder(rideDeltoid(rideGirdle(r.parts.torso), false));
   // THE GROIN STRETCHES: a point's share of the thigh's bone by how far down the femur it lies (`downHip`: none at the
   // hip's joint, the groin, the crotch and the seat's fold staying with the pelvis; wholly a hand's breadth down), through
   // the hip's fold bone (the rig's helper turned half the leg's swing) in the middle, read the same by the pelvis and the
@@ -1010,6 +1034,74 @@ export function formSlice(recipe, R, build, opts = {}) {
     }
   }
   for (const c of r.correctives) delete c.arm;
+  // THE SHOULDER BLENDED OVERHEAD (with the pauldron): a raised arm crumpled the torso's skin round its root, in the
+  // armpit and over the blade, into folds, and at rest the torso's cap lies over the arm's top a few millimetres out, so
+  // the two skins, carried apart unevenly, crossed and recrossed: the torso's stood through the arm's in a sawtooth of
+  // spikes. The slice is posed with both arms overhead (the pauldron on); there the torso's skin round the shoulder (by
+  // its share of the arm's and the girdle's bones) is SMOOTHED over its grid (Taubin's two steps, so it does not shrink),
+  // and a point lying on the arm's skin or through it, beside it within `reach`, SUNK under it by `under`. The change
+  // carried back to the rest through the skin's own map at each point (linear blend skinning is linear in the rest
+  // point: three unit nudges give its matrix), a corrective per side over the raise, whole at the pose's own. In two
+  // STAGES, the arms level and the arms overhead, each sampled over the one before it, so the raise between is blended
+  // too (one stage, whole only overhead, left the level arm's armpit at a fifth of it)
+  const blendStage = (pose, from, id) => {
+    const mesh = compileLayered(r), R2 = validateRig(r.rig), skin = bindLayered(mesh, r, R2);
+    const nodes = rigNodesAt(R2, pose).nodes, frames = boneFrames(R2, R2.joints, nodes);
+    const rest0 = correctiveRest(mesh, r, nodes), V = skinLayered({ ...mesh, vertices: rest0 }, skin, frames);
+    const raise = (Math.acos(Math.max(-1, Math.min(1, dot(unit(sub(nodes.elbowR, nodes.shoulderR)), unit(sub(nodes.navel, nodes.neckHub)))))) * 180) / Math.PI;
+    const T = r.parts.torso, SL = T.slots, st = T.stations, nS = SL.length, at = Object.fromEntries(mesh.pointIds.map((id, i) => [id, i]));
+    const idx = st.map((x) => SL.map((sl) => at[`torso/${x.id}.${sl}`]));
+    // the region: a point's share of the arm's and the girdle's bones, or its nearness to the posed arm (the flank under
+    // the armpit, the torso's own), eased over the grid so its edge is soft
+    const SHOULDER = /^(upperArm|shoulderFold|scapula|clavicle)[RL]$/, own = { [T.bind.bone]: 1 };
+    const isArm = (i) => /^upperArm[RL]$/.test(mesh.provenance[i]?.part), arm = mesh.vertices.map((_, i) => i).filter(isArm);
+    const nearest = (q) => { let best = null, bd = Infinity; for (const k of arm) { const d = len(sub(q, V[k])); if (d < bd) { bd = d; best = k; } } return [best, bd]; };
+    let mask = st.map((x, i) => SL.map((sl, j) => { const w = T.bind.blend[`${x.id}.${sl}`] || T.bind.blend[x.id] || own, v = idx[i][j]; return Math.min(1, Math.max(Object.entries(w).reduce((t, [k, val]) => t + (SHOULDER.test(k) ? val : 0), 0) * 2, v === undefined ? 0 : 1 - nearest(V[v])[1] / 0.06)); }));
+    const nbOf = (i, j) => [[i, (j + 1) % nS], [i, (j + nS - 1) % nS], [i + 1, j], [i - 1, j]];
+    for (let it = 0; it < 3; it++) mask = mask.map((row, i) => row.map((m, j) => (i === 0 || i === st.length - 1 ? m : (m + nbOf(i, j).reduce((t, [a, b]) => t + mask[a][b], 0) / 4) / 2)));
+    let P = idx.map((row) => row.map((v) => [...V[v]]));
+    for (let it = 0; it < 10; it++) for (const lam of [0.5, -0.53]) {
+      P = P.map((row, i) => row.map((p, j) => {
+        if (i === 0 || i === st.length - 1 || !mask[i][j]) return p;
+        const m = scl(nbOf(i, j).reduce((a, [x, y]) => add(a, P[x][y]), [0, 0, 0]), 1 / 4);
+        return add(p, scl(sub(m, p), lam * mask[i][j]));
+      }));
+    }
+    // the sink, against the posed arms' skins (their outward normals by vertex)
+    const N = mesh.vertices.map(() => [0, 0, 0]);
+    for (const t of mesh.faces) if (isArm(t[0])) { const [a, b, c] = t.map((i) => V[i]), n = cross(sub(b, a), sub(c, a)); for (const i of t) N[i] = add(N[i], n); }
+    const reach = 0.035, under = 0.006;
+    let sink = P.map((row) => row.map(() => null));
+    P.forEach((row, i) => row.forEach((q, j) => {
+      const [best, bd] = nearest(q); if (bd > reach) return;
+      const n = unit(N[best]), out = (dot(sub(q, V[best]), n) + under) * (1 - Math.max(0, bd - reach / 2) / (reach / 2));
+      if (out > 0) sink[i][j] = scl(n, -out);
+    }));
+    // (the depths eased over the grid, never shallower than a point must go: the edge one curve)
+    for (let it = 0; it < 4; it++) sink = sink.map((row, i) => row.map((v, j) => {
+      if (i === 0 || i === st.length - 1) return v;
+      const nb = nbOf(i, j).map(([a, b]) => sink[a][b]); if (!v && !nb.some(Boolean)) return v;
+      const mean = scl(nb.reduce((a, x) => add(a, x || [0, 0, 0]), [0, 0, 0]), 1 / 4), m = scl(add(v || [0, 0, 0], mean), 0.5);
+      return !v || len(m) > len(v) ? m : v;
+    }));
+    // each point's change at the pose carried back to the rest by the inverse of its skin's map there
+    const e = 1e-3, nudged = [0, 1, 2].map((k) => skinLayered({ ...mesh, vertices: rest0.map((v) => v.map((x, a) => (a === k ? x + e : x))) }, skin, frames));
+    const inv3 = (M) => { const [a, b, c] = M, det = dot(a, cross(b, c)); if (Math.abs(det) < 1e-9) return null; const r0 = cross(b, c), r1 = cross(c, a), r2 = cross(a, b); return (v) => [dot(r0, v) / det, dot(r1, v) / det, dot(r2, v) / det]; };
+    const d = { R: {}, L: {} };
+    P.forEach((row, i) => row.forEach((q, j) => {
+      const v = idx[i][j]; if (v === undefined) return;
+      const dp = add(sub(q, V[v]), sink[i][j] || [0, 0, 0]); if (len(dp) < 1e-4) return;
+      const cols = [0, 1, 2].map((k) => scl(sub(nudged[k][v], V[v]), 1 / e)), un = inv3(cols); if (!un) return;
+      const x = st[i].points[SL[j]][0]; if (x === 0) return;
+      d[x < 0 ? 'L' : 'R'][`torso/${st[i].id}.${SL[j]}`] = un(dp).map(r6);
+    }));
+    for (const S of ['R', 'L']) if (Object.keys(d[S]).length) r.correctives.push({ id: `${id}${S}`, driver: { joint: `shoulder${S}`, to: `elbow${S}`, from, full: r6(raise) }, d: d[S] });
+    return raise;
+  };
+  if (r.correctives.length && limbs.upperArm && r.parts.upperArmR) {
+    const level = blendStage({ armR: { x: 1, y: 0, z: 0.1 }, armL: { x: -1, y: 0, z: 0.1 } }, 30, 'shoulderLevel');
+    blendStage({ armR: { x: 0.3, y: 0, z: 1 }, armL: { x: -0.3, y: 0, z: 1 } }, r6(level), 'shoulderOverhead');
+  }
   if (!r.correctives.length) delete r.correctives;
   const gone = Object.keys(r.parts).filter((k) => /^(pectoral|bust)[RL]$/.test(k));
   for (const k of gone) delete r.parts[k];
