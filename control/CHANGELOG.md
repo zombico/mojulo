@@ -49,9 +49,11 @@ wear one skin. `epidermis/dermal-body.js`:
   `layoutDermis`).
 - The maps painted by the head's painter (`paintIsland`, shared out of `paintDermis`, the head's maps byte for byte):
   albedo, roughness, translucency, hair density and flow, fuzz, the relief tiles' index and the occlusion each part's
-  own folds cast, written by `dermalPngs`. The palms and soles glabrous; the body's terminal hair sparse by default (the
+  own folds cast (broad, gentle and eased over each point's neighbours, the cage being coarse), written by
+  `dermalPngs`. The inner arm's pale skin turns from anteromedial to the forearm's flexor side across the elbow, so the
+  two parts meet in one colour. The palms and soles glabrous; the body's terminal hair sparse by default (the
   male's at half the preset's), its tracts the pole's (the forearms, the shins, the chest, the axillae); the neck's
-  beard and the belly's trail thin out instead of stopping at a line, and a body's terminal tract blends across its edge.
+  beard, the chest's patch and the belly's trail fade in with their regions instead of starting at a line, and a body's terminal tract blends across its edge.
 - The neck meets the head: its top eased over its upper third toward the tone of the relational head's lowest skin
   (`neckTone`).
 - For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck })` → `{ chart, layout, uv: { faceUV, corners,

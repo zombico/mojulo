@@ -121,12 +121,17 @@ export function bodyChart(mesh, recipe) {
   }
   const chart = { vertices, faces, normals, samples, parts, islands, where, frame: { up: [0, 0, 1], forward: [0, 1, 0] } };
   // the occlusion each part's own folds cast (the neighbours on the same part: a limb at the body's side in the bind
-  // would print its shadow on the flank, which a pose takes away)
-  chart.ao = new Array(vertices.length).fill(1);
+  // would print its shadow on the flank, which a pose takes away), broad and gentle, then eased over each point's
+  // neighbours: the cage is coarse, and a fold read face by face prints a saw's edge under a breast or a buttock
+  let ao = new Array(vertices.length).fill(1);
   for (const key of Object.keys(islands)) {
-    const own = (vi) => samples[vi]?.key === key, ao = meshOcclusion(vertices, normals, { radius: 0.035, strength: 1.2, skin: own });
-    ao.forEach((a, vi) => { if (own(vi)) chart.ao[vi] = a; });
+    const own = (vi) => samples[vi]?.key === key, part = meshOcclusion(vertices, normals, { radius: 0.05, strength: 0.7, skin: own });
+    part.forEach((a, vi) => { if (own(vi)) ao[vi] = a; });
   }
+  const nbr = vertices.map(() => new Set());
+  for (const [a, b, c] of faces) for (const [p, q] of [[a, b], [b, c], [c, a]]) if (samples[p] && samples[q] && samples[p].key === samples[q].key) { nbr[p].add(q); nbr[q].add(p); }
+  for (let it = 0; it < 3; it++) ao = ao.map((a, vi) => { if (!nbr[vi].size) return a; let t = 0; for (const q of nbr[vi]) t += ao[q]; return 0.5 * a + (0.5 * t) / nbr[vi].size; });
+  chart.ao = ao;
   return chart;
 }
 

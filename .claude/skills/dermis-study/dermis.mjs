@@ -271,7 +271,7 @@ async function bodyOf(sex) {
   const shell = { chart: B.chart, T: B.maps, D, head: null, cornerNormals: layeredShadingNormals(mesh, m.recipe), hide: (fi) => HERO_HEAD.test(prov[mesh.faces[fi][0]].part) };
   const hair = [...(H.scalp?.strands || []).map(moved), ...H.beard.strands.map(moved)], brows = H.brows.map(moved);
   const neckV = mesh.vertices.filter((_, i) => prov[i].part === 'neck'), neckTop = [0, 1, 2].map((k) => neckV.reduce((a, v) => a + v[k], 0) / neckV.length);
-  return { sex, H, B, D, k, shell, hair, brows, mesh, neckAt: [neckTop[0], neckTop[1], Math.max(...neckV.map((v) => v[2])) - 0.03], ms: [t1 - t0, Date.now() - t1] };
+  return { sex, H, B, D, k, shell, hair, brows, mesh, neckAt: [neckTop[0], neckTop[1], neckTop[2] + 0.01], ms: [t1 - t0, Date.now() - t1] };
 }
 if (body) {
   const BV = [{ name: 'front', az: 0, elev: 3 }, { name: 'front ¾', az: 35, elev: 5 }, { name: 'lateral', az: 90, elev: 2 }, { name: 'back', az: 180, elev: 4 }];
