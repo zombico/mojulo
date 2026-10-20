@@ -317,12 +317,13 @@ Opt-in and versioned: a default hero keeps its bytes.
   rest point), a corrective per side and stage (`shoulderLevel`, `shoulderOverhead`) over the raise. The shares round
   the arm's root are eased over the grid as well. The edge where the arm leaves the torso is one curve now; a few slivers
   stay deep in the overhead armpit, and the level arm's own root still pinches to a point under it. THE SLICE FASTER, to
-  the byte: an athletic slice took 54 s (Norrin) and 94 s (Shalla), now 10 s and 14.5 s, the recipe the same byte for
+  the byte: an athletic slice took 54 s (Norrin) and 94 s (Shalla), now 9.4 s and 12 s, the recipe the same byte for
   byte. The field's masses read without arrays (the same arithmetic in the same order; the allocations were most of the
   cost); the march reads a sample only where the field has not settled it (a sample `f` leaves the skin at least
   |f| / 8 away, so the nearer samples' signs are known: the same samples decide); the crossing within the step found
   by false position (Illinois), a handful of reads where halving took thirty; and a pauldron's stage casts again only
-  the rays its mass reaches, the relaxing run over them and a margin round them (`resamplePart` `reuse`).
+  the rays its mass reaches, the relaxing run over them and a margin round them (`resamplePart` `reuse`); the shoulder's
+  blend finds the arm's nearest vertex from a grid, not every vertex; the field's sums read into kept buffers.
 
 ### Epidermis cube: skin and hair as a recipe
 

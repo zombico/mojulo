@@ -439,7 +439,8 @@ export function bodyField(R, build, { extra = [] } = {}) {
     return smaxp(d, cut, c.k);
   };
   const baseP = B.base.flatMap((m) => sides(m, { ...prim(m), id: m.id })), kB = B.kBase * W, kM = B.kMuscle * W;
-  const base = (q) => lse(baseP.map((p) => sdOf(p, q)), kB);
+  // (the sums read into buffers kept between calls, not arrays made for each: the same values, in the same order)
+  const bufB = new Array(baseP.length), base = (q) => { for (let i = 0; i < baseP.length; i++) bufB[i] = sdOf(baseP[i], q); return lse(bufB, kB); };
   const grad = (fn, q) => { const e = 1e-4; return unit([fn(add(q, [e, 0, 0])) - fn(sub(q, [e, 0, 0])), fn(add(q, [0, e, 0])) - fn(sub(q, [0, e, 0])), fn(add(q, [0, 0, e])) - fn(sub(q, [0, 0, e]))]); };
   // a point seated on the base: cast from the trunk's axis at height t toward the face, the base's first crossing
   const seat = (on) => {
@@ -490,10 +491,12 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // where the head meets it
   const J = R.joints, nz0 = J.neckHub?.[2], nz1 = J.headBase?.[2], between = crotchEase(R, W);
   const fatAt = !B.fat ? () => 0 : nz1 > nz0 ? (q) => { const x = Math.max(0, Math.min(1, (nz1 - q[2]) / (nz1 - nz0))); return B.fat * W * x * x * (3 - 2 * x) * between(q); } : (q) => B.fat * W * between(q);
+  const bufM = new Array(soft.length + 1), buf2 = [0, 0];
   const sd = (q0) => {
     const q = warp(q0);
-    let d = lse([base(q), ...soft.map((p) => sdOf(p, q))], kM);
-    for (const p of sharp) d = lse([d, sdOf(p, q)], p.k);
+    bufM[0] = base(q); for (let i = 0; i < soft.length; i++) bufM[i + 1] = sdOf(soft[i], q);
+    let d = lse(bufM, kM);
+    for (const p of sharp) { buf2[0] = d; buf2[1] = sdOf(p, q); d = lse(buf2, p.k); }
     if (bustH) d -= bustH(q);
     for (const h of dimples) d = smaxp(d, -(len(sub(q, h.c)) - h.r), h.k);
     return d - fatAt(q0);
@@ -1103,7 +1106,15 @@ export function formSlice(recipe, R, build, opts = {}) {
     // the armpit, the torso's own), eased over the grid so its edge is soft
     const SHOULDER = /^(upperArm|shoulderFold|scapula|clavicle)[RL]$/, own = { [T.bind.bone]: 1 };
     const isArm = (i) => /^upperArm[RL]$/.test(mesh.provenance[i]?.part), arm = mesh.vertices.map((_, i) => i).filter(isArm);
-    const nearest = (q) => { let best = null, bd = Infinity; for (const k of arm) { const d = len(sub(q, V[k])); if (d < bd) { bd = d; best = k; } } return [best, bd]; };
+    // (the arm's nearest vertex, from a grid of 2 cm cells, within the 6 cm the region and the sink read; the lowest
+    // index of the nearest, as a search of every vertex finds it; none further, which reads the same in both)
+    const H = 0.02, cellOf = (x) => Math.floor(x / H), grid = new Map();
+    for (const k of arm) { const key = `${cellOf(V[k][0])},${cellOf(V[k][1])},${cellOf(V[k][2])}`; if (!grid.has(key)) grid.set(key, []); grid.get(key).push(k); }
+    const nearest = (q) => {
+      let best = null, bd = Infinity; const c = q.map(cellOf);
+      for (let a = -3; a <= 3; a++) for (let b2 = -3; b2 <= 3; b2++) for (let e = -3; e <= 3; e++) for (const k of grid.get(`${c[0] + a},${c[1] + b2},${c[2] + e}`) || []) { const d = len(sub(q, V[k])); if (d < bd || (d === bd && k < best)) { bd = d; best = k; } }
+      return bd <= 0.06 ? [best, bd] : [null, Infinity];
+    };
     let mask = st.map((x, i) => SL.map((sl, j) => { const w = T.bind.blend[`${x.id}.${sl}`] || T.bind.blend[x.id] || own, v = idx[i][j]; return Math.min(1, Math.max(Object.entries(w).reduce((t, [k, val]) => t + (SHOULDER.test(k) ? val : 0), 0) * 2, v === undefined ? 0 : 1 - nearest(V[v])[1] / 0.06)); }));
     const nbOf = (i, j) => [[i, (j + 1) % nS], [i, (j + nS - 1) % nS], [i + 1, j], [i - 1, j]];
     for (let it = 0; it < 3; it++) mask = mask.map((row, i) => row.map((m, j) => (i === 0 || i === st.length - 1 ? m : (m + nbOf(i, j).reduce((t, [a, b]) => t + mask[a][b], 0) / 4) / 2)));
