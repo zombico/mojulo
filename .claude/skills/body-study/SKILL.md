@@ -58,6 +58,10 @@ standing figure, and the spread feet stand on it); the margin reads the drop aga
 stature (his about 0.6) and how far the hands and the feet reach of the radius (on his figure, both touch it). On the
 form field the navel and the crotch are the slice's own (`formSlice` `landmarks`), else the rig's navel joint.
 
+**The skeleton** (`--bones`): the spine, and each side's collarbone (blue), shoulder blade (red, where the rig has
+one), humerus (green) and forearm (amber), drawn over the shell at the posed joints (x-ray), so a skin that has left its
+bone shows.
+
 **Which shell shows** (`--tint`): each part in its own colour, so a handover between two shells (the torso and the
 pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps
 only the parts it names (`--parts '^pelvis$'`), to see one shell whole.

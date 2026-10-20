@@ -635,16 +635,20 @@ export function formSlice(recipe, R, build, opts = {}) {
   const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
   // (over a band from a little above the joint to a hand's breadth down: one narrower folded the skin in a ring at the
   // joint's height when the arm swung fore and aft, the sprint's)
+  // (with a blade (the scapula, below) the band is short, whole 8 cm down the humerus: the humerus is rigid, and the blade
+  // carries the girdle's part of a raise; the collarbone's long band, 16 cm, had held the arm's upper third off its bone
+  // by up to 4.5 cm overhead, the skin sagging toward the body while the bone rose)
   const DOWN = [0.2, 0.6], down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + DOWN[0] * W0) / (DOWN[1] * W0));
   const deltoidShare = (q, byDown = true) => {
     const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
     return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * (byDown ? down(q) : 1);
   };
-  // THE SCAPULA: the blade the arm's raise turns (figure-vajra.js, the scapulohumeral rhythm), its acromion over the
-  // shoulder's joint and a little behind, its superior angle level with the joint and its inferior angle 15 cm under
-  // it, both 1.5 cm under the back's skin (the form field's) and 0.45 and 0.5 of the way out to the joint; a bone framed
-  // by the three (`scapula<S>`). The shoulder's girdle had a collarbone and no blade: the arm rose in a socket that
-  // never turned
+  // THE SCAPULA: the blade the arm's raise turns (figure-vajra.js, the scapulohumeral rhythm: the glenoid rides it, so
+  // the shoulder rises because the blade turns), its acromion over the shoulder's joint and a little behind, its
+  // superior angle level with the joint and its inferior angle 15 cm under it, both 1.5 cm under the back's skin (the
+  // form field's) and 0.45 and 0.5 of the way out to the joint; a bone framed by the three (`scapula<S>`), the shoulder
+  // fold and the arm's root turning from it. The shoulder's girdle had a collarbone and no blade: the arm rose in a
+  // socket that never turned, and the skin round its root took the whole raise
   for (const S of ['R', 'L']) {
     const J = R.joints; if (!J[`clavicle${S}`]) continue;
     const sg = S === 'R' ? 1 : -1, s0 = J.shoulderR, onBack = (x, z) => { const c = crossing(field.sd, [x, 0, z], [0, -1, 0], 0.4); return r6((c ? c[1] : -0.1) + 0.015); };

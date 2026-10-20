@@ -219,7 +219,16 @@ Opt-in and versioned: a default hero keeps its bytes.
   its peak low on the arm and its tendon into the elbow's crease, the triceps' long head from the shoulder blade behind
   the joint, fullest high on the arm's back, to its tendon at the elbow's point (the arm's front had dipped under the
   deltoid and the back fallen away from mid-arm; the girth now 31.8 cm a tenth down the arm, 29.4 before, the most 33.7).
-  Only the feet are still the authored cage.
+  THE SHOULDER GIRDLE IS A MECHANISM: a scapula (the acromion and the blade's two angles, `scapula<S>`) the vajra turns
+  upward by the scapulohumeral rhythm (past the first 30 degrees of raise one degree to the humerus's two and a half, at
+  most 60, about the blade's own normal through the middle of its spine; `SCAPULA_POINTS`), the glenoid riding it, so the
+  shoulder rises because the blade turns and the collarbone's lift follows; a rig without a blade lifts the shoulder by
+  the collarbone alone, as before, to the byte. At 170 degrees of raise the humerus stands 115 in its socket (the body's
+  most is about 120), where it had stood the whole 170 in a socket that never turned. The arm's root and the shoulder's
+  fold turn from the blade, over a band 8 cm down the humerus (16 before): raised overhead, the arm's upper third had
+  sagged off its bone by up to 4.5 cm, now 1.0; the arm's root ring 0.84 of its rest, now 0.93. body-study `--bones` draws
+  the spine, the collarbones, the blades, the humeri and the forearms over the shell. Only the feet are still the
+  authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 
