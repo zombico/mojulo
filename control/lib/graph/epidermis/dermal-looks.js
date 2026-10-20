@@ -25,8 +25,8 @@ import { streamOf } from '../city/plan/dice.js';
 
 /** the head's relations as a game's creator carves them: crisper planes and stronger bone (head-relational.js RELATIONS) */
 export const GAME_FACE = Object.freeze({
-  male: Object.freeze({ skinWave: 0.024, brow: 1.25, browProjection: 0.041, malarDepth: 0.037, jaw: 0.78, chin: 0.008, fissure: 0.041, nasionDepth: 0.03 }),
-  female: Object.freeze({ skinWave: 0.026, brow: 1.05, malarDepth: 0.037, jaw: 0.74, fissure: 0.042, nasionDepth: 0.028 }),
+  male: Object.freeze({ skinWave: 0.024, brow: 1.25, browProjection: 0.041, malarDepth: 0.037, jaw: 0.78, chin: 0.008, fissure: 0.032, nasionDepth: 0.03 }),
+  female: Object.freeze({ skinWave: 0.026, brow: 1.05, malarDepth: 0.037, jaw: 0.74, fissure: 0.035, nasionDepth: 0.028 }),
 });
 
 export const LOOKS = Object.freeze({

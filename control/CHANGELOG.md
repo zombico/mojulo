@@ -61,7 +61,14 @@ hangs from the tie (the elastica's lock, flaring then tapering, its ends ragged)
 plaits it in three (each bundle a figure of eight across the braid a third of a turn apart, bound, a brush past the
 band). Styles: ponytail, high-ponytail, bun, braid, half-up; the move `temple-braids` (the Nordic braids). The relational eye rig takes
 the eye's cover as channels: `creaseHeight`, `creaseShape` (parallel … tapered into the inner corner), `epicanthus` (the
-upper lid's skin laid over the inner corner) and `fullness`; each at rest leaves the eye as it was. The bands
+upper lid's skin laid over the inner corner) and `fullness`; each at rest leaves the eye as it was. THE EYES' BASELINE re-measured against the adult norms
+(Farkas; MRD1, MRD2): they sat close (the inner canthi 27 mm apart, the pupils 55) and stared (the upper lash line 7.9 mm
+over the pupil, 2 mm of white above the iris, the lower lid over its foot). The rule of fifths now reads against the face's
+width (`fifths` 0.215) with the inner canthi a little wider apart than an eye (`intercanthal` 1.12): en-en 33.0 / 32.3 mm,
+ex-ex 92 / 90, the pupils 62.6 / 61.2, an eye 31 mm wide. The fissure is split at the pupil by a relation (`lidSplit`
+0.32 of `fissure` 0.036 above it), so the upper lash line rests 4.4 to 5 mm over the pupil, over the iris's top, and the
+lower 5.3 mm under it at its foot: a neutral eye. The relational head is a dev path (no minted row reads it); a lash whose
+root cannot be laid within 2 mm of its lash line is dropped. The bands
 are returned for drawing. Seen through `/dermis-study --look`, `--ancestry` and `--lineup`.
 
 ### Realistic register: a stronger body for the hero

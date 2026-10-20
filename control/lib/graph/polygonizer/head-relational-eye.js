@@ -170,7 +170,7 @@ export function browBridge(P, pull = {}) {
  * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
  * `margins` are the lash lines (upper, lower) as functions of t.
  */
-export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
+export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
@@ -185,10 +185,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
     const r2 = GLOBE.cornea ** 2 - (x - cc.x) ** 2 - (z - cc.z) ** 2;
     return r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy;
   };
-  // THE MARGINS: heights over the chord between the canthi. The upper's rest height is 0.6 of the fissure over the
-  // pupil, the lower's 0.4 under it; the upper closes onto the lower; the lids follow the gaze's pitch.
+  // THE MARGINS: heights over the chord between the canthi. The upper's rest height is `split` of the fissure over the
+  // pupil (the head's `lidSplit`), the lower's the rest under it; the upper closes onto the lower; the lids follow the
+  // gaze's pitch.
   const follow = SM.sin(pitch) * GLOBE.r;
-  const huRest = 0.6 * fissure, hlRest = 0.4 * fissure;
+  const huRest = split * fissure, hlRest = (1 - split) * fissure;
   const hl = hlRest * (1 - 0.85 * c.lower) - 0.3 * follow;
   const huOpen = c.open <= 1 ? -0.92 * hl + (huRest + 0.92 * hl) * c.open : huRest * c.open;
   const hu = huOpen + c.lidFollow * follow * Math.min(1, c.open);

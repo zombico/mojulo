@@ -162,9 +162,13 @@ describe('the tie', () => {
     const near = t.strands.filter((st) => Math.min(...st.pts.map((p) => Math.hypot(...sub(p, band.c)))) < band.r * 2.2);
     expect(near.length).toBe(t.strands.length);
     // the plait: a strand swings from side to side across the braid (its offset from the bundle's middle turns sign)
-    const g = t.guides.find((q) => q.tie === 0), tail = g.pts.slice(g.walk.length), mid = (j) => t.strands[0].pts.length && tail[j];
-    const xs = tail.slice(4, 36).map((p, j) => Math.sign(p[0] - (tail[0][0])));
-    expect(new Set(xs).size).toBeGreaterThan(1);
-    expect(mid(0)).toBeTruthy();
+    const g = t.guides.find((q) => q.tie === 0), tail = g.pts.slice(g.walk.length, g.walk.length + 36);
+    const chord = sub(tail[tail.length - 1], tail[0]), cl = Math.hypot(...chord), d = chord.map((v) => v / cl);
+    // the offset from the braid's chord, across it: it changes sides as the bundle weaves
+    const across = tail.map((p) => { const o = sub(p, tail[0]), a = o[0] * d[0] + o[1] * d[1] + o[2] * d[2]; return [o[0] - d[0] * a, o[1] - d[1] * a, o[2] - d[2] * a]; });
+    const ref = across.reduce((m, o) => (Math.hypot(...o) > Math.hypot(...m) ? o : m), [0, 0, 0]);
+    const signs = across.slice(2, -2).map((o) => Math.sign(o[0] * ref[0] + o[1] * ref[1] + o[2] * ref[2])).filter(Boolean);
+    let flips = 0; for (let i = 1; i < signs.length; i++) if (signs[i] !== signs[i - 1]) flips++;
+    expect(flips).toBeGreaterThanOrEqual(2);
   });
 });
