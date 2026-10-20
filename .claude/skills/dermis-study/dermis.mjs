@@ -193,6 +193,16 @@ function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null, rib
     }
   }
 }
+/** a tie's BAND: a ring round the bundle where it is gathered, dark and a few millimetres wide */
+function drawBands(R, cam, W, Hh, bands, shade) {
+  if (!bands?.length) return;
+  for (const b of bands) {
+    const a = b.axis, e1 = (() => { const t = Math.abs(a[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0], d = t[0] * a[0] + t[1] * a[1] + t[2] * a[2], v = [t[0] - a[0] * d, t[1] - a[1] * d, t[2] - a[2] * d], l = Math.hypot(...v); return v.map((x) => x / l); })();
+    const e2 = [a[1] * e1[2] - a[2] * e1[1], a[2] * e1[0] - a[0] * e1[2], a[0] * e1[1] - a[1] * e1[0]];
+    const ring = Array.from({ length: 33 }, (_, i) => { const t = (i / 32) * 2 * Math.PI; return [0, 1, 2].map((k) => b.c[k] + b.r * (Math.cos(t) * e1[k] + Math.sin(t) * e2[k])); });
+    drawStrands(R, cam, W, Hh, [{ pts: ring, r: 0.002, groom: 'band' }], shade, () => 1, [0.06, 0.05, 0.05], () => 0.004);
+  }
+}
 const toRGBA = (img, W, Hh) => { const b = Buffer.alloc(W * Hh * 4); for (let i = 0; i < W * Hh; i++) { for (let k = 0; k < 3; k++) b[i * 4 + k] = Math.round(Math.max(0, Math.min(1, toSrgb(img[i * 3 + k]))) * 255); b[i * 4 + 3] = 255; } return b; };
 
 // ─── the sheet ───
@@ -225,6 +235,7 @@ if (lineup) {
     for (const [c, v] of VIEWS.slice(0, 2).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
       drawStrands(R, cam, W, Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * 0.75 : 0));
+      drawBands(R, cam, W, Hh, H.scalp?.bands, shade);
       drawStrands(R, cam, W, Hh, H.brows, hairShade(hexLin(H.epiColour)), () => 1);
       await cellRaw(col0 + c * W, y, toRGBA(R.img, W, Hh), W, Hh);
     }
@@ -255,7 +266,7 @@ for (const [who, look, anc] of lineup ? [] : subjects) {
     for (const [col, v] of row.views.entries()) {
       const cam = camera(v.az, v.elev, row.box, row.W, row.Hh), R = render(H, cam, row.W, row.Hh, row.mode);
       if (row.mode === 'kinds' && H.scalp) drawStrands(R, cam, row.W, row.Hh, H.scalp.guides.map((g) => ({ pts: g.pts, r: 0.0004 })), shade, () => 1, [0.05, 0.05, 0.08]);
-      if (row.hair) drawStrands(R, cam, row.W, row.Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * 0.75 : 0));
+      if (row.hair) { drawStrands(R, cam, row.W, row.Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * 0.75 : 0)); drawBands(R, cam, row.W, row.Hh, H.scalp?.bands, shade); }
       drawStrands(R, cam, row.W, row.Hh, fine, hairShade(hexLin(H.epiColour)), () => 1);
       await cellRaw(col * row.W, y0, toRGBA(R.img, row.W, row.Hh), row.W, row.Hh);
       label(col * row.W, y0 + row.Hh - 10, `${sex} · ${v.name} · ${cam.pxMm.toFixed(2)} mm/px`, 11);

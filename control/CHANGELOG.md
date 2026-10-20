@@ -53,8 +53,13 @@ or absent crease under a fuller fold, the lid covering more of the iris, never a
 individual's. AFROS: a `stand` dial (the root leaves the scalp toward its normal) with coily hair's spring and shrinkage,
 an `envelope` cut rounding it to an ellipsoid, a nape taper; `twa` close to the head; `curls` hanging in ringlets. The hair
 shader's highlight scatters with a coil's roughness and its mass shadows itself (a coil's interior dark); the skin
-reflects 4 % at every tone, so a deep skin's sheen carries its form. Seen through `/dermis-study --look`, `--ancestry`
-and `--lineup`.
+reflects 4 % at every tone, so a deep skin's sheen carries its form. TIES: a tie anchored on a clump's seat (or an azimuth
+and a rise) gathers every root, the top section or those within a radius of it; each gathered lock is combed taut over
+the head to the tie and arrives at its own slot round the band (the side it came from), so nothing crosses; one bundle
+hangs from the tie (the elastica's lock, flaring then tapering, its ends ragged), a bun coils it about the tie, a braid
+plaits it in three (each bundle a figure of eight across the braid a third of a turn apart, bound, a brush past the
+band). Styles: ponytail, high-ponytail, bun, braid, half-up; the move `temple-braids` (the Nordic braids). The bands
+are returned for drawing. Seen through `/dermis-study --look`, `--ancestry` and `--lineup`.
 
 ### Realistic register: a stronger body for the hero
 

@@ -84,10 +84,17 @@ export const SCALP_STYLES = Object.freeze({
   afro: { length: 0.22, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.85, cut: { envelope: { out: 0.06, up: 0.075, rise: 0.012, back: -0.008 }, taper: { min: 0.02, rise: [0, 0.4] } } },
   twa: { length: 0.06, front: 1, sides: 0.85, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.8, cut: { envelope: { out: 0.018, up: 0.022 } } },
   curls: { length: 0.3, front: 0.7, sides: 1, crown: 1, part: 'side', fringe: false, type: 'curly', stand: 0.12, chunk: 0.85, cut: { line: { at: 'shoulder', shape: 'u', drop: 0.03 } } },
+  // GATHERED to a tie: every root combed taut over the head to it, the rest one bundle from it
+  ponytail: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.48 }, gather: 'all', tail: { kind: 'tail', length: 0.32 } }] },
+  'high-ponytail': { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.8 }, gather: 'all', tail: { kind: 'tail', length: 0.36 } }] },
+  bun: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.62 }, gather: 'all', tail: { kind: 'bun' } }] },
+  braid: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'centre', fringe: false, ties: [{ at: { az: 180, rise: 0.3 }, gather: 'all', tail: { kind: 'braid', length: 0.36 } }] },
+  // the top section gathered at the crown's back, the rest falling to the shoulder
+  'half-up': { length: 0.45, front: 0.6, sides: 1, crown: 1, part: 'centre', fringe: false, cut: { line: { at: 'shoulder', shape: 'u', drop: 0.03 } }, ties: [{ at: { az: 180, rise: 0.66 }, gather: 'top', tail: { kind: 'tail', length: 0.24 } }] },
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
 const CUT_KEYS = ['line', 'fringe', 'envelope', 'taper', 'shelf', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
@@ -124,10 +131,19 @@ export function readScalp(spec = 'short') {
   for (const m of moves) if (!SCALP_MOVES[m]) throw new Error(`scalp: unknown move '${m}' (have ${Object.keys(SCALP_MOVES).join(', ')})`);
   let cut = { ...(st.cut || {}) }, locks = {}, globals = {};
   const addLocks = (L) => { for (const [n, e] of Object.entries(L || {})) { const o = locks[n] || {}; locks[n] = { ...o, ...e, ...(o.length && e.length ? { length: o.length * e.length } : {}), ...(o.sweep && e.sweep ? { sweep: o.sweep + e.sweep } : {}) }; } };
-  for (const m of moves) { const { note: _n, cut: c, locks: L, ...g } = SCALP_MOVES[m]; cut = { ...cut, ...(c || {}) }; addLocks(L); globals = { ...globals, ...g }; }
+  let ties = [];
+  for (const m of moves) { const { note: _n, cut: c, locks: L, ties: tz, ...g } = SCALP_MOVES[m]; cut = { ...cut, ...(c || {}) }; addLocks(L); globals = { ...globals, ...g }; if (tz) ties = [...ties, ...tz]; }
+  // (a move's ties come first: a temple braid claims its roots before a ponytail gathers the rest)
+  ties = [...ties, ...(doc.ties || st.ties || [])];
   addLocks(doc.locks);
-  const { moves: _m, locks: _l, ...rest } = doc;
-  const out = { style: doc.style || 'short', ragged: 1, tousle: 0, flip: 0, chunk: 0, stand: 0, ...ty, ...st, type: doc.type || st.type || 'straight', spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
+  const { moves: _m, locks: _l, ties: _t, ...rest } = doc;
+  for (const [i, T] of ties.entries()) {
+    const at = `scalp.ties[${i}]`;
+    if (!(typeof T.at === 'string' ? SCALP_CLUMPS.some((q) => q.name === T.at) : T.at && Number.isFinite(T.at.az) && Number.isFinite(T.at.rise))) throw new Error(`${at}.at: a clump's name or { az, rise }`);
+    if (!(T.gather === undefined || T.gather === 'all' || T.gather === 'top' || (T.gather > 0 && T.gather < 0.2))) throw new Error(`${at}.gather: 'all' | 'top' | metres (a radius)`);
+    if (T.tail && !['tail', 'braid', 'bun'].includes(T.tail.kind ?? 'tail')) throw new Error(`${at}.tail.kind: tail | braid | bun`);
+  }
+  const out = { style: doc.style || 'short', ragged: 1, tousle: 0, flip: 0, chunk: 0, stand: 0, ...ty, ...st, type: doc.type || st.type || 'straight', spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, ties, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
   for (const [n, e] of Object.entries(locks)) {
     if (!SCALP_CLUMPS.some((q) => q.name === n)) throw new Error(`scalp: locks.${n} is not a clump (${SCALP_CLUMPS.map((q) => q.name).join(', ')})`);
     for (const [k, v] of Object.entries(e)) { const r = LOCK_EDIT_KEYS[k]; if (!r) throw new Error(`scalp: locks.${n}.${k} unknown (have ${Object.keys(LOCK_EDIT_KEYS).join(', ')})`); if (!(v >= r[0] && v <= r[1])) throw new Error(`scalp: locks.${n}.${k} ${v} (${r[0]} … ${r[1]})`); }
@@ -323,6 +339,8 @@ export const SCALP_MOVES = Object.freeze({
   'side-parted': { note: 'one dominant bang swept across the brow off a side part and cut at the cheekbone, clear of the eyes', part: 'side',
     cut: { fringe: { at: 'cheekbone' } }, locks: { 'fringe-2': { over: 0.6, sweep: 75 }, 'fringe-3': { over: 0.8, sweep: 70 } } },
   flipped: { note: 'the ends kicked out and up', flip: 1 },
+  'temple-braids': { note: 'a thin braid from each temple falling before the ear (the Nordic braids)', ties: [
+    { at: 'left-temple-0', gather: 0.022, tail: { kind: 'braid', length: 0.2, radius: 0.0045 } }, { at: 'right-temple-0', gather: 0.022, tail: { kind: 'braid', length: 0.2, radius: 0.0045 } }] },
   chunky: { note: 'gathered into pieces, as a game\'s hair cards read', chunk: 1, spacing: 0.016 },
   ahoge: { note: 'one stiff lock standing up at the crown', locks: { 'crown-1-0': { stand: 1, length: 0.7 } } },
 });
@@ -439,6 +457,21 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
       if (ed.stand !== undefined) e.stand = Math.max(e.stand, ed.stand * w);
     });
   }
+  // ── the TIES: each anchored on a clump's seat (or an azimuth and a rise), gathering every root, the top section (a
+  // half-up), or those within a radius of it (a temple braid); the first tie that claims a root keeps it ──
+  const seatOf = (az, rise) => { const a0 = (((az / 360) % 1) + 1) % 1; let seat = -1, bc = Infinity; roots.forEach((r, i) => { const d = ad(r.address.around, a0) * 2 * Math.PI, e = riseOf(r) - rise, c = d * d + 2 * e * e; if (c < bc) { bc = c; seat = i; } }); return seat; };
+  const TIES = (S.ties || []).map((T, ti) => {
+    const at = typeof T.at === 'string' ? SCALP_CLUMPS.find((q) => q.name === T.at) : T.at, seat = seatOf(at.az, at.rise);
+    return { ...T, ti, seat, P: add(G[seat], scl(roots[seat].n, 0.003)), n: roots[seat].n };
+  }).filter((T) => T.seat >= 0);
+  const tieFor = (at) => {
+    for (const T of TIES) {
+      const g = T.gather ?? 'all', rz = riseOf(at);
+      if (g === 'all' || (g === 'top' && (rz > 0.5 || (ad(at.address.around, 0) < 0.3 && rz > 0.12))) || (typeof g === 'number' && len(sub(at.p, T.P)) < g)) return T.ti;
+    }
+    return -1;
+  };
+  const tieOf = roots.map(tieFor);
   // ── the comb at a root, then smoothed on its own side of the part ──
   const pAround = S.part === 'side' ? 0.92 : 0;
   // (a part runs over the top from the hairline toward the crown, never down the back: below it the comb is one field)
@@ -452,10 +485,11 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     if (!fringe && fd < 0.22 && comb[1] > 0) comb = unit([comb[0], 0.15 * comb[1], comb[2]]);
     return comb;
   };
-  const side = roots.map((r) => sideOf(r.address)), same = (a, b) => a === b || a === 0 || b === 0;
+  // (a tie's roots are a group of their own: no comb is smoothed across the edge of what a tie gathers)
+  const side = roots.map((r, i) => (tieOf[i] >= 0 ? 10 + tieOf[i] : sideOf(r.address))), same = (a, b) => a === b || (a < 10 && b < 10 && (a === 0 || b === 0));
   const nbr = G.map((p, i) => nearestK(G, p, 9, (j) => j !== i && same(side[j], side[i])).filter((q) => q.d < S.spacing * 3.2));
   // (a TOUSLE turns the comb by a slow wander over the head before it is smoothed: tousled, still combed lock to lock)
-  let comb = roots.map((r, i) => { const c = combAt(r); if (!S.tousle) return c; const a = S.tousle * 0.7 * (2 * vnoise(G[i][0] / 0.035 + 7, G[i][2] / 0.035 + G[i][1] / 0.05, S.seed + 61) - 1); return turnAbout(c, r.n, a); });
+  let comb = roots.map((r, i) => { if (tieOf[i] >= 0) return unit(perp(sub(TIES[tieOf[i]].P, r.p), r.n), scl(r.ta, -1)); const c = combAt(r); if (!S.tousle) return c; const a = S.tousle * 0.7 * (2 * vnoise(G[i][0] / 0.035 + 7, G[i][2] / 0.035 + G[i][1] / 0.05, S.seed + 61) - 1); return turnAbout(c, r.n, a); });
   for (let it = 0; it < 6; it++) comb = comb.map((c, i) => { let v = scl(c, 1.5); for (const q of nbr[i]) if (dot(comb[q.i], c) > 0) v = add(v, comb[q.i]); return unit(perp(v, roots[i].n), c); });
   // the edits on the smoothed comb: a SWEEP turns it (+ clockwise seen from outside the head: on the brow, toward the
   // head's right), OVER lets it fall straight down whatever the face (a bang over the brow, a lock over an eye)
@@ -478,6 +512,59 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const liftOf = (a) => { const fd = ad(a.around, 0), topW = smooth(0.62, 0.85, a.along); return (0.003 + 0.06 * S.volume) * (0.35 + 0.65 * Math.max(topW, 1 - smooth(0.2, 0.3, fd) * (1 - topW))); };
   const lengthOf = (a) => { const fd = ad(a.around, 0), fr = 1 - smooth(0.12, 0.2, fd), sd = smooth(0.12, 0.2, fd) * (1 - smooth(0.33, 0.4, fd)), cr = smooth(0.82, 0.92, a.along); return S.length * ((fr * REG.front + sd * REG.sides + (1 - fr - sd)) * (1 - cr) + cr * REG.crown); };
   const NS = 48;
+  // ── each tie's TAIL: one bundle from the tie (the elastica's lock, draped), a bun coiled about the tie, or a braid ──
+  const NT = 44;
+  const tails = TIES.map((T) => {
+    const kind = T.tail?.kind ?? 'tail', Lt = T.tail?.length ?? 0.3, share = tieOf.filter((t) => t === T.ti).length / Math.max(1, roots.length);
+    const r0 = T.tail?.radius ?? 0.006 + 0.014 * Math.sqrt(share);
+    let pts;
+    if (kind === 'bun') {
+      // coiled about the tie's normal: two and a third turns, closing in and rising off the head
+      const e1 = unit(perp([0, 0, 1], T.n), unit(perp([1, 0, 0], T.n))), e2 = cross(T.n, e1), Rb = T.tail?.coil ?? 0.026;
+      pts = Array.from({ length: NT + 1 }, (_, j) => { const u = j / NT, a = 2 * Math.PI * 2.3 * u, R = Rb * (0.25 + 0.75 * (1 - u)) * Math.min(1, u * 6 + 0.15); return add(add(T.P, scl(T.n, 0.006 + 0.022 * u)), add(scl(e1, R * Math.cos(a)), scl(e2, R * Math.sin(a)))); });
+    } else {
+      // hung from the tie: out off the head a little, then down by its weight (a braid is the stiffer bundle)
+      // (a thin bundle, a temple's braid, is light: it leaves the head barely and hangs limp)
+      const thin = r0 < 0.008, aim = unit(add(scl(T.n, thin ? 0.15 : 0.7), [0, 0, -1]));
+      pts = arcResample(drapeSpine(lockSpine({ root: T.P, aim, L: Lt, B: lockB(thin ? 'limp' : kind === 'braid' ? 'springy' : 'soft', Lt), hold: thin ? 0 : 0.06, n: NT }), cols, 0.04), NT).pts;
+    }
+    // a frame carried along the bundle (parallel transport): S across it, U its other side
+    const tan = (j) => unit(sub(pts[Math.min(NT, j + 1)], pts[Math.max(0, j - 1)]));
+    let Sx = unit(perp(cross(tan(0), T.n), tan(0)), unit(perp([1, 0, 0], tan(0))));
+    const frames = pts.map((_, j) => { const t = tan(j); Sx = unit(perp(Sx, t), Sx); return { T: t, S: Sx, U: cross(t, Sx) }; });
+    const radius = (u) => (kind === 'braid' ? r0 * (1 - 0.35 * smooth(0.7, 0.88, u)) * (u > 0.9 ? 1 + 2.2 * (u - 0.9) : 1) : kind === 'bun' ? r0 * 0.75 : r0 * (1 + 0.45 * smooth(0, 0.25, u)) * (1 - 0.65 * u * u));
+    const at = (u) => { const f = Math.max(0, Math.min(1, u)) * NT, j = Math.min(NT - 1, Math.floor(f)), w = f - j, F = frames[w < 0.5 ? j : j + 1]; return { p: add(pts[j], scl(sub(pts[j + 1], pts[j]), w)), ...F }; };
+    // a point in the bundle: its slot (θ round the bundle, ρ out from its middle) at u along it; a braid's three bundles
+    // plait (each a figure of eight across the braid, a third of a turn apart), bound at 0.88, a brush past it
+    const period = T.tail?.period ?? Math.max(0.018, 5 * r0);
+    const point = (th, rho, u) => {
+      const F = at(u), r = radius(u);
+      if (kind !== 'braid') return add(F.p, add(scl(F.S, r * rho * Math.cos(th)), scl(F.U, r * rho * Math.sin(th))));
+      const k3 = Math.floor((((th / (2 * Math.PI)) % 1) + 1) % 1 * 3), local = th * 3, w = (1 - smooth(0.82, 0.88, u)) * r * 0.95, om = (2 * Math.PI * u * Lt) / period + (2 * Math.PI * k3) / 3;
+      const c = add(F.p, add(scl(F.S, w * Math.cos(om)), scl(F.U, 0.55 * w * Math.sin(2 * om))));
+      return add(c, add(scl(F.S, r * 0.45 * rho * Math.cos(local)), scl(F.U, r * 0.45 * rho * Math.sin(local))));
+    };
+    const bands = [{ c: pts[0], axis: frames[0].T, r: r0 * 1.15 }, ...(kind === 'braid' ? [{ c: at(0.88).p, axis: at(0.88).T, r: radius(0.88) * 0.9 }] : [])];
+    return { T, kind, Lt, r0, pts, point, bands };
+  });
+  // a gathered root's slot in its tail: the side of the tie it came from (round the bundle) and how far (out in it)
+  const slotOf = (ti, p) => { const T = TIES[ti], tl = tails[ti], F0 = { T: unit(sub(tl.pts[1], tl.pts[0])) }; const off = perp(sub(p, T.P), F0.T), S0 = unit(perp(cross(F0.T, T.n), F0.T), [1, 0, 0]), U0 = cross(F0.T, S0); return { th: Math.atan2(dot(off, U0), dot(off, S0)), rho: 0.3 + 0.7 * Math.min(1, len(off) / 0.09) }; };
+  // a gathered guide: walked taut over the head to its tie (no lift: the hair is pulled), then into its tail at its slot
+  const tiedGuide = (at, gi) => {
+    const ti = tieOf[gi], T = TIES[ti], tl = tails[ti], { th, rho } = slotOf(ti, at.p);
+    let p = add(at.p, scl(at.n, 0.0008)), d = comb[gi];
+    const walk = [p];
+    for (let step = 0; step < 140 && len(sub(p, T.P)) > tl.r0 * 1.3; step++) {
+      const j = nearHull(p), m = hull.nrm[j], want = unit(perp(sub(T.P, p), m), d);
+      d = unit(add(scl(d, 0.3), scl(want, 0.7)), d);
+      let q = add(p, scl(d, Math.min(0.004, len(sub(p, T.P)))));
+      const jj = nearHull(q), mm = hull.nrm[jj];
+      q = add(q, scl(mm, 0.0012 - dot(sub(q, hull.pts[jj]), mm)));
+      d = unit(sub(q, p), d); p = q; walk.push(p);
+    }
+    const tail = Array.from({ length: NT + 1 }, (_, j) => tl.point(th, rho, j / NT));
+    return { root: at.p, n: at.n, side: side[gi], tie: ti, th, rho, walk, pts: [...walk, ...tail], L: 0, fall: 0 };
+  };
   // one guide grown at a stretched length L: the streamline on the head, the hang, the coil, the drape, the wave
   const growGuide = (at, gi, L) => {
     // (a short cut lies the whole way on the scalp, unless the hair stands: a curl springs off the head, a coil stands)
@@ -519,6 +606,7 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const EV = (S.cut || {}).envelope, envelope = EV ? (p) => { const c = [hb.c[0], hb.c[1] + (EV.back ?? 0), hb.c[2] + (EV.rise ?? 0)], r = [hb.r[0] + EV.out, hb.r[1] + EV.out, hb.r[2] + (EV.up ?? EV.out)]; return ((p[0] - c[0]) / r[0]) ** 2 + ((p[1] - c[1]) / r[1]) ** 2 + ((p[2] - c[2]) / r[2]) ** 2; } : null;
   const C = S.cut || {}, cutZ = C.line ? cutLine(C.line, chart) : null, fringeZ = C.fringe ? cutLine({ ...C.fringe, shape: 'blunt' }, chart) : null, lay = C.layers ?? Infinity;
   const guides = roots.map((at, gi) => {
+    if (tieOf[gi] >= 0) return tiedGuide(at, gi);
     let L = Math.min(lengthOf(at.address) * E[gi].len, lay / k);
     // a clipper's taper: the length by the root's height over the hairline (short at the nape and round the ears)
     if (C.taper) { const r = riseOf(at); L = Math.min(L, C.taper.min + (L - C.taper.min) * smooth(C.taper.rise[0], C.taper.rise[1], r)); }
@@ -561,7 +649,21 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const sroots = darts(S.strandGap, 'strands'), strands = [];
   const colsS = cols.map((c) => (c.surface ? { surface: { ...c.surface, frame: false } } : c)), headS = colsS.filter((_, i) => cols[i].surface?.frame);
   sroots.forEach((at, si) => {
-    const sd = sideOf(at.address), ns = nearestK(G, at.p, 3, (j) => sd === 0 ? side[j] === 0 || nearestK(G, at.p, 1)[0].i === j : side[j] === sd);
+    // a gathered strand: its walk blended from its tie's nearest guides (each walk at the same share of its way to the
+    // tie), then into the tail at its own slot, a little ragged at the tail's end
+    const st = tieFor(at);
+    if (st >= 0) {
+      const ns = nearestK(G, at.p, 3, (j) => tieOf[j] === st); if (!ns.length) return;
+      const W = ns.map((q) => 1 / (q.d + 0.002)), Wt = W.reduce((a, b) => a + b, 0), dice = streamOf(S.seed, 'dermal-strand', `${si}`), M = 14;
+      const walkAt = (g, f) => { const w = g.walk, u = f * (w.length - 1), j = Math.min(w.length - 2, Math.floor(u)), t = u - j; return w.length < 2 ? w[0] : add(w[j], scl(sub(w[j + 1], w[j]), t)); };
+      const pts = [];
+      for (let i = 0; i <= M; i++) { let q = at.p.slice(); ns.forEach((g, gk) => { const gd = guides[g.i]; q = add(q, scl(sub(walkAt(gd, i / M), gd.root), W[gk] / Wt)); }); pts.push(i > 1 ? keepOut(q, headS, 0.04).p : q); }
+      const { th, rho } = slotOf(st, at.p), tl = tails[st], end = 1 - (tl.kind === 'bun' ? 0 : 0.12 * (S.ragged ?? 1) * dice());
+      for (let j = 0; j <= NT; j++) { const u = (j / NT) * end; pts.push(tl.point(th + (dice() - 0.5) * 0.05, rho, u)); }
+      strands.push({ pts, r: 0.00004, groom: 'scalp' });
+      return;
+    }
+    const sd = sideOf(at.address), ns = nearestK(G, at.p, 3, (j) => tieOf[j] < 0 && (sd === 0 ? side[j] === 0 || nearestK(G, at.p, 1)[0].i === j : side[j] === sd));
     if (!ns.length) return;
     const W = ns.map((q) => 1 / (q.d + 0.002)), Wt = W.reduce((a, b) => a + b, 0), dice = streamOf(S.seed, 'dermal-strand', `${si}`);
     // blended at the same distance from the root on every guide (the cut leaves neighbours of different lengths), as long
@@ -582,6 +684,6 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     strands.push({ pts: pts.map((q, i) => (i > 1 ? keepOut(q, i < NS / 2 ? headS : colsS, 0.04).p : q)), r: 0.00004, groom: 'scalp' });
   });
   // ── the cards: a ribbon per guide, for an engine ──
-  const cards = guides.map((g, gi) => ({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(NS, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / NS))), v: g.pts.map((_, i) => i / NS) }));
-  return { guides, strands, cards, shade, counts: { guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
+  const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return { guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }; });
+  return { guides, strands, cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }

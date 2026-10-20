@@ -151,3 +151,19 @@ describe('people of the egocube\'s ancestries', () => {
     expect(off.reduce((x, y) => x + y, 0) / off.length).toBeGreaterThan(0.035);
   });
 });
+
+describe('the tie', () => {
+  it('gathers every strand of a ponytail to its band, and plaits a braid in three', () => {
+    const t = growScalp(chart, D, readScalp({ style: 'braid', spacing: 0.02, strandGap: 0.01 }), { colliders: ['head'] });
+    expect(t.bands.length).toBe(2);
+    const band = t.bands[0];
+    // every strand passes within a little more than the band's radius of its middle
+    const near = t.strands.filter((st) => Math.min(...st.pts.map((p) => Math.hypot(...sub(p, band.c)))) < band.r * 2.2);
+    expect(near.length).toBe(t.strands.length);
+    // the plait: a strand swings from side to side across the braid (its offset from the bundle's middle turns sign)
+    const g = t.guides.find((q) => q.tie === 0), tail = g.pts.slice(g.walk.length), mid = (j) => t.strands[0].pts.length && tail[j];
+    const xs = tail.slice(4, 36).map((p, j) => Math.sign(p[0] - (tail[0][0])));
+    expect(new Set(xs).size).toBeGreaterThan(1);
+    expect(mid(0)).toBeTruthy();
+  });
+});
