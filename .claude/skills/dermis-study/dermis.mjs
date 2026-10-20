@@ -21,6 +21,10 @@
 //                   the eyes close (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
 //   --look          creator looks (dermal-looks.js LOOKS: warrior, shieldmaiden, scholar, rogue, elder), comma-separated:
 //                   the game face's relations, the dermis, the groom and the brows as the look sets them (the flags over it)
+//   --body          the REALISTIC BODY (docs/realistic-body.md) in its dermis (epidermis/dermal-body.js) instead of the head
+//                   rows: the relational head grafted on it with its own atlas and hair; rows of the body textured and lit,
+//                   the map's kinds, the body-part map (polygonizer/body-relational-map.js) on the skin, the channels on the shape, the neck where the head meets it; then the body's atlas pages.
+//                   --physique a word or JSON (the door's), --body-page the atlas's width (default 2048)
 //   --cells         the head's surface net (default 110)
 //   --page          the atlas's page in texels (default 1024)
 //   --out           output dir (default /tmp/dermis-study): sheet.png, sheet.svg, atlas-*.png, report.json
@@ -47,6 +51,7 @@ const { growBodyHair, growScalp, readScalp, hairShade } = await import('@/lib/gr
 const { readEpidermis, growEpidermis } = await import('@/lib/graph/epidermis/epidermis.js');
 const { readLook, LOOKS, readAncestry } = await import('@/lib/graph/epidermis/dermal-looks.js');
 const { bodyDermis, neckTone, BODY_DERMIS } = await import('@/lib/graph/epidermis/dermal-body.js');
+const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-map.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -122,7 +127,7 @@ const SCLERA = hexLin('#efe8de'), IRIS = hexLin('#4a3626'), PUPIL = hexLin('#0e0
 function render(H, cam, W, Hh, mode, R = null) {
   const { chart, T, head } = H, V = chart.vertices, Nv = chart.normals;
   R ||= frame(W, Hh);
-  const kinds = mode === 'kinds' ? chart.samples.map((s) => (s ? dermisAt(s, H.D, { detail: false }).kind : null)) : null;
+  const kinds = mode === 'kinds' ? chart.samples.map((s) => (s ? dermisAt(s, H.D, { detail: false }).kind : null)) : mode === 'parts' ? chart.samples.map((s) => s?.bodyPart ?? null) : null;
   // (`H.place`: the head moved onto a body, its vertices and its normals; `H.cornerNormals`: per face corner)
   const P = H.place ? V.map(H.place) : V;
   raster(R, cam, W, Hh, P, chart.faces, (fi, tri) => H.cornerNormals?.[fi] ?? tri.map((v) => Nv[v]), (fi, tri, [w0, w1, w2], n, NL, NH, NV) => {
@@ -136,6 +141,8 @@ function render(H, cam, W, Hh, mode, R = null) {
       return base.map((c) => c * (0.35 + 0.65 * Math.max(0, NL)) + 0.5 * NH ** 200);
     }
     if (mode === 'kinds') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; return hueOf(k).map((c) => toLin(c) * (0.35 + 0.65 * Math.max(0, NL))); }
+    // (the body-part map's parts in its own colours; a point it does not label, the hands, the feet, the head: grey)
+    if (mode === 'parts') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; return (k ? hexLin(PART_COLOURS[k]) : [0.3, 0.3, 0.3]).map((c) => c * (0.35 + 0.65 * Math.max(0, NL))); }
     const uv = T.faceUV(fi), U = uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2, Vv = uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2;
     // (an enclosed face, a nostril's or the lips' line inside, is darkened by its own occlusion: it has no texels)
     const shut = tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
@@ -260,7 +267,12 @@ async function bodyOf(sex) {
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: sex, form: 'realistic', ...(physiqueSpec ? { physique: physiqueSpec } : {}) }) });
   const mesh = compileLayered(m.recipe, m.dials), t1 = Date.now();
   const H = headOf(sex), D = readDermis({ from: sex, ...BODY_DERMIS[sex], ...dermisSpec });
-  const B = bodyDermis(mesh, m.recipe, { dermis: D, page: bodyPage, neck: neckTone(H.chart, H.D) });
+  // the body-part map (body-relational-map.js): its hidden rings take no texels; the parts shown on the body
+  const { validateRig } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
+  const { physique } = await import('@/lib/graph/polygonizer/body-relational.js');
+  const { bodyPartMap } = await import('@/lib/graph/polygonizer/body-relational-map.js');
+  const partMap = bodyPartMap(m.recipe, validateRig(m.recipe.rig), physique(sex === 'female' ? 'shalla' : 'norrin', physiqueSpec ?? 'athletic'));
+  const B = bodyDermis(mesh, m.recipe, { dermis: D, page: bodyPage, neck: neckTone(H.chart, H.D), partMap });
   const prov = mesh.provenance, of = (re) => mesh.vertices.filter((_, i) => re.test(prov[i].part));
   const top = Math.max(...of(/^(cranium|jaw)$/).map((v) => v[2])), men = Math.min(...of(/^jaw$/).map((v) => v[2])), ear = of(/^earR$/);
   const sc = (top - men) / (Math.max(...H.chart.vertices.map((v) => v[2])) / STAND_M);
@@ -289,6 +301,7 @@ if (body) {
     const rows = [
       { what: 'textured from its atlas, lit as skin (the head its own atlas, grafted)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: whole, W: 300, Hh: 760 },
       { what: 'the map\'s kinds (each region its colour): the islands\' addresses read back on the body', cells: BV.map((v) => ({ v, mode: 'kinds' })), box: whole, W: 300, Hh: 760 },
+      { what: 'the body-part map (body-relational-map.js) on the skin (the limbs' seams run through its hidden patches), and the lit body beside it', cells: [BV[0], BV[2], BV[3]].map((v) => ({ v, mode: 'parts' })).concat([{ v: BV[1], mode: 'lit' }]), box: whole, W: 300, Hh: 760 },
       { what: 'the channels on the body: hair density (front, back), translucency (front), roughness (back)', cells: [{ v: BV[0], mode: 'hair' }, { v: BV[3], mode: 'hair' }, { v: BV[0], mode: 'translucency' }, { v: BV[3], mode: 'roughness' }], box: whole, W: 300, Hh: 760 },
       { what: 'where the head meets the body: the neck (front, front ¾, lateral, back)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: boxAt(Y.neckAt, 0.14), W: 300, Hh: 300 },
     ];

@@ -8,6 +8,9 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { bodyDermis, bodyChart, unweldSeams, BODY_DERMIS } from './dermal-body.js';
 import { dermisAt, readDermis } from './dermal-map.js';
+import { validateRig } from '../polygonizer/station-loft-rig.js';
+import { physique } from '../polygonizer/body-relational.js';
+import { bodyPartMap } from '../polygonizer/body-relational-map.js';
 
 let mesh, recipe, B;
 const PAGE = 256;
@@ -56,6 +59,16 @@ describe('the body\'s islands', () => {
       if (tri.some((v) => B.chart.where[v]?.j === B.chart.islands[w.key].s)) seamFaces++;
     });
     expect(seamFaces).toBeGreaterThan(0);
+  });
+  it('cut the limbs where the body-part map hides them: their seams run through the hidden patches', () => {
+    const map = bodyPartMap(recipe, validateRig(recipe.rig), physique('norrin', 'athletic'));
+    const C = bodyChart(mesh, recipe, { partMap: map });
+    expect(C.samples.filter((x) => x?.bodyPart).length).toBe(Object.keys(map.part).length);
+    for (const k of ['upperArmR', 'thighL']) {
+      const I = C.islands[k], hid = C.samples.filter((x) => x?.key === k && x.bodyPart === 'hidden');
+      // the hidden points sit about the seam: most within a quarter turn of it
+      expect(hid.filter((x) => Math.abs(turn(x.around, I.seamAround)) < 0.25).length / hid.length, k).toBeGreaterThan(0.6);
+    }
   });
   it('unweld at the seams for an engine: one UV a vertex, the faces\' own', () => {
     const U = unweldSeams(mesh.faces, B.uv.corners);

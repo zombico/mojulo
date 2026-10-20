@@ -77,7 +77,10 @@ wear one skin. `epidermis/dermal-body.js`:
   beard, the chest's patch and the belly's trail fade in with their regions instead of starting at a line, and a body's terminal tract blends across its edge.
 - The neck meets the head: its top eased over its upper third toward the tone of the relational head's lowest skin
   (`neckTone`).
-- For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck })` → `{ chart, layout, uv: { faceUV, corners,
+- The body-part map (body-relational-map.js) read in: each point of the chart carries its `bodyPart`
+  (`bodyDermis`'s `partMap`), and the limbs' seams run through its `hidden` patches (the skin inside the trunk's), so
+  the cut is where nothing shows; the study draws the parts on the skin.
+- For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck, partMap })` → `{ chart, layout, uv: { faceUV, corners,
   vertex }, maps, dermis }`, and `unweldSeams(faces, corners)` to split the seams into one UV a vertex.
 - The eyes lane: `/dermis-study --body [male] [female] [--physique <word|json>] [--body-page N]`: the realistic body
   textured and lit with the relational head grafted on it (its own atlas and hair), its map's kinds, its channels on the

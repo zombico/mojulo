@@ -13,7 +13,10 @@
  *             (dermal-map.js) lays the regions, the zones, the sheen and the hair tracts by it
  *   the neck  painted toward the tone of the head it meets (`neckTone`), eased in over its upper third
  *
- *   bodyChart(mesh, recipe)               → a chart (dermal-chart.js's shape) and its `islands`
+ *   bodyChart(mesh, recipe, { partMap })  → a chart (dermal-chart.js's shape) and its `islands`; with the body-part map
+ *                                           (polygonizer/body-relational-map.js `bodyPartMap`) each point carries its
+ *                                           `bodyPart` (the limbs' seams run through its `hidden` patches, the skin
+ *                                           inside the trunk's, so the cut is where nothing shows)
  *   layoutBody(chart, { page })           → { page, pageH, mmPerTexel, rects }
  *   bodyFaceUVs(chart, layout)            → (fi) → three [u, v] (the white texel off the skin)
  *   paintBody(chart, D, layout, opts)     → the texture (paintDermis's: albedo, roughness, translucency, hair, fuzz,
@@ -59,7 +62,7 @@ const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a
  * end is proximal) is read from the cage's geometric chart (dermal-chart.js `heroChart`); the re-sampled parts' slots
  * (ringSlots: front, s01R … back … s01L) are exact: 'front' anterior, a turn of the ring a slot's share.
  */
-export function bodyChart(mesh, recipe) {
+export function bodyChart(mesh, recipe, { partMap = null } = {}) {
   const ids = mesh.pointIds || [], index = new Map(ids.map((id, i) => [id, i])), geo = heroChart(mesh);
   const vertices = mesh.vertices, faces = mesh.faces, normals = vertexNormals(vertices, faces);
   const samples = vertices.map(() => null), where = vertices.map(() => null), islands = {}, parts = {};
@@ -110,7 +113,8 @@ export function bodyChart(mesh, recipe) {
     islands[name] = I;
     for (let i = 0; i < M; i++) for (let j = 0; j < N; j++) {
       const v = grid[i][j], c = C[i], r = sub(vertices[v], c);
-      samples[v] = { key: name, part, side, along: y[i] / L, around: wrap(I.seamAround + dir * turns[(j - s + N) % N]), length: L, girth: G[i], n: normals[v], radius: Math.hypot(...r) };
+      const bodyPart = partMap?.part?.[ids[v]];
+      samples[v] = { key: name, part, side, along: y[i] / L, around: wrap(I.seamAround + dir * turns[(j - s + N) % N]), length: L, girth: G[i], n: normals[v], radius: Math.hypot(...r), ...(bodyPart ? { bodyPart } : {}) };
       where[v] = { key: name, i, j };
     }
     for (const [v, p] of Object.entries(poles)) {
@@ -253,13 +257,13 @@ export function unweldSeams(faces, corners) {
 /**
  * The realistic body's dermis: its chart, its layout and its maps, and the UVs an export carries. `opts.dermis` a
  * dermis spec (dermal-map.js `readDermis`) or a resolved one (default the pole's, `sex`, with BODY_DERMIS over it),
- * `opts.page` the atlas's width (texels), `opts.neck` the head's tone (`neckTone`). `uv.corners` the faces' UVs (six a
+ * `opts.page` the atlas's width (texels), `opts.neck` the head's tone (`neckTone`), `opts.partMap` the body-part map. `uv.corners` the faces' UVs (six a
  * face, the white texel off the skin), `uv.vertex` each vertex's (two a vertex: the seam's on the island's near edge,
  * NaN off the skin): an exporter splits the seams with `unweldSeams(mesh.faces, uv.corners)`.
  */
-export function bodyDermis(mesh, recipe, { dermis = null, sex = 'male', page = 2048, neck = null } = {}) {
+export function bodyDermis(mesh, recipe, { dermis = null, sex = 'male', page = 2048, neck = null, partMap = null } = {}) {
   const D = dermis && Object.isFrozen(dermis) && 'seed' in dermis ? dermis : readDermis(typeof dermis === 'string' ? { from: dermis, ...BODY_DERMIS[dermis] } : dermis || { from: sex, ...BODY_DERMIS[sex] });
-  const chart = bodyChart(mesh, recipe), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck });
+  const chart = bodyChart(mesh, recipe, { partMap }), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck });
   const F = mesh.faces.length, corners = new Float32Array(F * 6), vertex = new Float32Array(mesh.vertices.length * 2).fill(NaN);
   for (let fi = 0; fi < F; fi++) { const uv = maps.faceUV(fi); for (let q = 0; q < 3; q++) { corners[fi * 6 + q * 2] = uv[q][0]; corners[fi * 6 + q * 2 + 1] = uv[q][1]; } }
   // each grid point's own UV (a seam point's on the island's near edge), a pole's at its island's centre line past the end
