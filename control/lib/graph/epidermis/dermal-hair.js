@@ -51,17 +51,19 @@ const ad = (a, b) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d);
 export const HAIR_TYPES = Object.freeze({
   straight: { curl: null, frizz: 0.0015, stiffness: 'limp', clump: 0.55, volume: 0.06, flyaways: 0.02, roughness: 0.25 },
   wavy: { curl: { radius: 0.007, period: 0.075, planar: true }, frizz: 0.003, stiffness: 'soft', clump: 0.62, volume: 0.1, flyaways: 0.035, roughness: 0.32 },
-  curly: { curl: { radius: 0.008, period: 0.032 }, frizz: 0.004, stiffness: 'springy', clump: 0.72, volume: 0.16, flyaways: 0.05, roughness: 0.42 },
-  coily: { curl: { radius: 0.0028, period: 0.008 }, frizz: 0.005, stiffness: 'stiff', clump: 0.5, volume: 0.3, flyaways: 0.07, roughness: 0.6 },
+  curly: { curl: { radius: 0.008, period: 0.032 }, frizz: 0.004, stiffness: 'springy', clump: 0.72, volume: 0.16, flyaways: 0.05, roughness: 0.42, stand: 0.3 },
+  coily: { curl: { radius: 0.0028, period: 0.008 }, frizz: 0.005, stiffness: 'stiff', clump: 0.5, volume: 0.3, flyaways: 0.07, roughness: 0.6, stand: 0.6 },
 });
 
 /**
  * The scalp's STYLES: `length` (m, stretched, at the back), the region's share of it (`front`, `sides`, `crown`), the
- * `part` (side | centre | none: swept back), a `fringe` (the front combed forward over the brow), `ragged` (how much the
+ * `part` (side | centre | none: swept back), `stand` (0 the root lies along the comb … 1 it leaves along the scalp's
+ * normal: a curl springs, a coil stands), a `fringe` (the front combed forward over the brow), `ragged` (how much the
  * ends wander: 0 a buzz's even cut) and its CUT, the stylist's: `line` (a perimeter: `at` a level or metres above the
  * menton, `shape` blunt | a-line | stacked | v | u, `drop`), `taper` (a clipper's length by the root's rise over the
  * hairline: `min` at `rise[0]`, the full length by `rise[1]`), `shelf` (the sides and back under `rise` clipped to `min`:
- * an undercut), `fringe` (the bangs' own line: `at` a level), `layers` (no lock longer than this from its root), `soft`
+ * an undercut), `fringe` (the bangs' own line: `at` a level), `envelope` (the hair rounded to an ellipsoid about the head:
+ * `out`, `up`, `rise`, `back` in m: an afro shaped), `layers` (no lock longer than this from its root), `soft`
  * (point cutting off the line, m). A style under
  * 4 cm lies on the scalp as body hair does.
  */
@@ -77,11 +79,16 @@ export const SCALP_STYLES = Object.freeze({
   angled: { length: 0.36, front: 0.85, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'jaw', shape: 'a-line', drop: 0.05 } } },
   shoulder: { length: 0.45, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'shoulder', shape: 'blunt' } } },
   long: { length: 0.7, front: 0.55, sides: 1, crown: 1, part: 'centre', fringe: false, cut: { line: { at: 'chest', shape: 'u', drop: 0.05 } } },
+  // the AFRO: coily hair standing off the scalp (its spring and its shrinkage hold it out), rounded to an ellipsoid; the
+  // TWA (a short afro) close to the head; a puff of curls the same, looser
+  afro: { length: 0.22, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.85, cut: { envelope: { out: 0.06, up: 0.075, rise: 0.012, back: -0.008 }, taper: { min: 0.02, rise: [0, 0.4] } } },
+  twa: { length: 0.06, front: 1, sides: 0.85, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.8, cut: { envelope: { out: 0.018, up: 0.022 } } },
+  curls: { length: 0.3, front: 0.7, sides: 1, crown: 1, part: 'side', fringe: false, type: 'curly', stand: 0.12, chunk: 0.85, cut: { line: { at: 'shoulder', shape: 'u', drop: 0.03 } } },
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
-const CUT_KEYS = ['line', 'fringe', 'taper', 'shelf', 'layers', 'soft'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const CUT_KEYS = ['line', 'fringe', 'envelope', 'taper', 'shelf', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
   if (c === undefined || c === null) return [];
@@ -97,6 +104,7 @@ function cutErrors(c) {
   if (c.taper && !(c.taper.min >= 0 && Array.isArray(c.taper.rise) && c.taper.rise[0] < c.taper.rise[1])) e.push('scalp.cut.taper: { min: m, rise: [from, to] (0 the hairline … 1 the vertex) }');
   if (c.shelf && !(c.shelf.rise > 0 && c.shelf.rise < 1 && c.shelf.min >= 0)) e.push('scalp.cut.shelf: { rise: 0 … 1, min: m }');
   if (c.layers !== undefined && !(c.layers > 0.01)) e.push('scalp.cut.layers: metres (> 0.01)');
+  if (c.envelope && !(c.envelope.out > 0 && c.envelope.out < 0.3)) e.push('scalp.cut.envelope: { out: m (0 … 0.3, past the head\'s half-width), up?: m, rise?: m, back?: m }');
   if (c.soft !== undefined && !(c.soft >= 0 && c.soft <= 0.03)) e.push('scalp.cut.soft: 0 … 0.03 m (point cutting)');
   return e;
 }
@@ -109,7 +117,7 @@ export function readScalp(spec = 'short') {
   for (const k of Object.keys(doc)) if (!SCALP_KEYS.includes(k)) throw new Error(`scalp: unknown key '${k}' (have ${SCALP_KEYS.join(', ')})`);
   const st = SCALP_STYLES[doc.style || 'short'];
   if (!st) throw new Error(`scalp: unknown style '${doc.style}' (have ${Object.keys(SCALP_STYLES).join(', ')})`);
-  const ty = HAIR_TYPES[doc.type || 'straight'];
+  const ty = HAIR_TYPES[doc.type || st.type || 'straight'];
   if (!ty) throw new Error(`scalp: unknown type '${doc.type}' (have ${Object.keys(HAIR_TYPES).join(', ')})`);
   // the moves, left to right, then the document over them: globals replace, cuts merge, clump edits compose
   const moves = doc.moves || [];
@@ -119,7 +127,7 @@ export function readScalp(spec = 'short') {
   for (const m of moves) { const { note: _n, cut: c, locks: L, ...g } = SCALP_MOVES[m]; cut = { ...cut, ...(c || {}) }; addLocks(L); globals = { ...globals, ...g }; }
   addLocks(doc.locks);
   const { moves: _m, locks: _l, ...rest } = doc;
-  const out = { style: doc.style || 'short', type: doc.type || 'straight', ragged: 1, tousle: 0, flip: 0, chunk: 0, ...st, ...ty, spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
+  const out = { style: doc.style || 'short', ragged: 1, tousle: 0, flip: 0, chunk: 0, stand: 0, ...ty, ...st, type: doc.type || st.type || 'straight', spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
   for (const [n, e] of Object.entries(locks)) {
     if (!SCALP_CLUMPS.some((q) => q.name === n)) throw new Error(`scalp: locks.${n} is not a clump (${SCALP_CLUMPS.map((q) => q.name).join(', ')})`);
     for (const [k, v] of Object.entries(e)) { const r = LOCK_EDIT_KEYS[k]; if (!r) throw new Error(`scalp: locks.${n}.${k} unknown (have ${Object.keys(LOCK_EDIT_KEYS).join(', ')})`); if (!(v >= r[0] && v <= r[1])) throw new Error(`scalp: locks.${n}.${k} ${v} (${r[0]} … ${r[1]})`); }
@@ -150,7 +158,11 @@ export function hairShade(colour, type = 'straight', { bleach = 0.15 } = {}) {
     root: linHex(root), tip: linHex(tip),
     // Kajiya-Kay / Marschner, as a game shades it: the primary (R) white and shifted toward the root, the secondary (TRT)
     // tinted with the hair's colour, broader and shifted toward the tip
+    // (a coil's tangents turn every way, so its highlight scatters: the brighter the shine the straighter the hair, `gloss`)
     primary: { shift: -0.08, roughness: T.roughness }, secondary: { shift: 0.12, roughness: Math.min(0.9, T.roughness * 1.8), tint: linHex(colour.map((x) => Math.min(1, x * 1.6 + 0.04))) },
+    gloss: Math.min(1, (1 - T.roughness) ** 3 / 0.42),
+    // the hair's own shadow inside its mass (its roots darker than its ends): deepest in a coil's volume
+    selfShadow: 0.25 + 0.6 * Math.max(0, T.roughness - 0.25) / 0.35,
     scatter: 0.4 + 0.4 * (1 - Math.min(1, colour.reduce((a, b) => a + b, 0) / 1.5)),
   };
 }
@@ -468,11 +480,12 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const NS = 48;
   // one guide grown at a stretched length L: the streamline on the head, the hang, the coil, the drape, the wave
   const growGuide = (at, gi, L) => {
-    const F = L * k, lift = liftOf(at.address) * E[gi].lift, hug = L < 0.12, sd = side[gi], ed = E[gi];
+    // (a short cut lies the whole way on the scalp, unless the hair stands: a curl springs off the head, a coil stands)
+    const stand = Math.max(S.stand ?? 0, E[gi].stand), F = L * k, lift = liftOf(at.address) * E[gi].lift, hug = L < 0.12 && stand < 0.3, sd = side[gi], ed = E[gi];
     // the streamline: 4 mm steps on the head at the lift (rising to it over the first 2 cm), turning with the field (a
     // lock let OVER the face, or one that STANDS, leaves the scalp at once)
     let p = add(at.p, scl(at.n, 0.0008)), d = comb[gi], run = 0, n = at.n;
-    const walk = [p], max = ed.over > 0.5 || ed.stand > 0.5 ? 0 : Math.min((hug ? 0.9 : 0.5) * F, 0.16);
+    const walk = [p], max = ed.over > 0.5 || stand > 0.5 ? 0 : Math.min((hug ? 0.9 : 0.5) * (1 - stand) * F, 0.16);
     while (run + 0.004 <= max) {
       const j = nearHull(p), m = hull.nrm[j];
       if (!hug && run > 0.01 && m[2] <= 0.3 && m[1] <= 0.35) break;   // the head turns away: the rest hangs
@@ -484,8 +497,9 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     }
     const free = Math.max(0.004, F - run);
     const turns = wave.coil && S.curl ? free / (S.curl.period * k) : 0, steps = Math.min(220, Math.max(12, Math.ceil(8 * turns) + 4));
-    const aim = ed.stand > 0.5 ? unit(add(scl(n, 3), d)) : unit(add(d, scl(n, 0.1 + 0.4 * S.volume)));
-    let hang = lockSpine({ root: p, aim, L: free, B: ed.stand > 0.5 ? lockB('stiff', free) : lockB(S.stiffness, free), hold: ed.stand > 0.5 ? 0.3 : 0, n: steps });
+    // STAND: the root leaves the scalp toward its normal (an afro's halo, a cowlick), the rest of the way the comb's
+    const aim = unit(add(scl(add(d, scl(n, 0.1 + 0.4 * S.volume)), 1 - stand), scl(n, 3 * stand)));
+    let hang = lockSpine({ root: p, aim, L: free, B: ed.stand > 0.5 ? lockB('stiff', free) : lockB(S.stiffness, free), hold: stand > 0.5 ? 0.3 : 0, n: steps });
     if (wave.coil && S.curl) hang = coilSpine(hang, { radius: S.curl.radius, turns, hand: 1, from: 0.02 }, free, n, false, (2 * Math.PI * (phi[gi] + run)) / (S.curl.period * k));
     const line = arcResample([...walk.slice(0, -1), ...drapeSpine(hang, cols, 0.04)], NS);
     // the combed wave: across the lock in the hair's layer (square to the lock and to the head's outward), its phase the
@@ -500,6 +514,9 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     return { root: at.p, n: at.n, side: sd, pts: line.pts, L: line.L, fall: F };
   };
   // ── THE CUT: the stylist's, where the ends land ──
+  // (the envelope's ellipsoid: about the head's middle raised by `rise`, its half-widths the head's own plus `out`, `up`)
+  const hb = (() => { const V = hull.pts; const lo = [0, 1, 2].map((q) => Math.min(...V.map((p) => p[q]))), hi = [0, 1, 2].map((q) => Math.max(...V.map((p) => p[q]))); return { c: lo.map((v, q) => (v + hi[q]) / 2), r: lo.map((v, q) => (hi[q] - v) / 2) }; })();
+  const EV = (S.cut || {}).envelope, envelope = EV ? (p) => { const c = [hb.c[0], hb.c[1] + (EV.back ?? 0), hb.c[2] + (EV.rise ?? 0)], r = [hb.r[0] + EV.out, hb.r[1] + EV.out, hb.r[2] + (EV.up ?? EV.out)]; return ((p[0] - c[0]) / r[0]) ** 2 + ((p[1] - c[1]) / r[1]) ** 2 + ((p[2] - c[2]) / r[2]) ** 2; } : null;
   const C = S.cut || {}, cutZ = C.line ? cutLine(C.line, chart) : null, fringeZ = C.fringe ? cutLine({ ...C.fringe, shape: 'blunt' }, chart) : null, lay = C.layers ?? Infinity;
   const guides = roots.map((at, gi) => {
     let L = Math.min(lengthOf(at.address) * E[gi].len, lay / k);
@@ -529,6 +546,8 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     // point cutting: a few millimetres of softness off the line, never past it
     const pd = streamOf(S.seed, 'dermal-cut', `${gi}`), soft = (C.soft ?? 0.006) * (S.ragged ?? 1) * pd();
     if (soft > 0 && g.L > soft * 3) g = trimTo(g, 1 - soft / g.L, NS);
+    // an ENVELOPE: the hair shaped to an ellipsoid about the head (an afro rounded), each lock cut where it leaves it
+    if (envelope) { const N = g.pts.length - 1; for (let i = 2; i <= N; i++) if (envelope(g.pts[i]) > 1) { const a0 = envelope(g.pts[i - 1]), a1 = envelope(g.pts[i]), f = (1 - a0) / Math.max(1e-9, a1 - a0); g = trimTo(g, (i - 1 + Math.max(0, Math.min(1, f))) / N, NS); break; } }
     // the FRINGE's own line: a bang that falls over the brow (a fringe, a lock let over) cut where it crosses that level
     if (fringeZ && (E[gi].over > 0.3 || (S.fringe && ad(at.address.around, 0) < 0.16))) { const t = crossing(g.pts, fringeZ); if (t !== null) g = trimTo(g, t, NS); }
     // a FLIP: the ends kicked out and up over the last fifth (a lock's tip turned off the shoulder)

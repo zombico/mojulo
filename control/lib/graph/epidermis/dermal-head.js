@@ -2,7 +2,7 @@
  * DERMAL HEAD — the realistic register's head (polygonizer/head-relational.js) as a dermal chart (dermal-chart.js):
  * the shape the texturizer is built for. The head's field is surface-netted and welded into a mesh in metres (its
  * normals the field's gradient), the globes left off the skin (`paint`), what the head closes over marked `enclosed` (the
- * teeth, the mouth's and the nostrils' insides: a point that meets the head again marched out along its normal), and
+ * teeth, the mouth's and the nostrils' insides: a point that meets the head again marched out from its centre), and
  * every vertex addressed on a plumb axis
  * through the middle of glabella and opisthocranion, then re-addressed on the head's SPHERE (`headSphere`: `along` the
  * elevation from a centre at the ear's height, `around` the azimuth), so the undersides keep texels of their own. The head's RELATIONS ride with the chart as MARKS: each landmark's place on the face
@@ -67,9 +67,12 @@ export function relationalHeadChart(head, { cells = 110 } = {}) {
   const grad = (c) => { const g = [f({ ...c, x: c.x + e }) - f({ ...c, x: c.x - e }), f({ ...c, y: c.y + e }) - f({ ...c, y: c.y - e }), f({ ...c, z: c.z + e }) - f({ ...c, z: c.z - e })], l = Math.hypot(...g) || 1; return g.map((v) => v / l); };
   const vertices = [], normals = [], skin = [], shut = [], faces = [], index = new Map();
   // a surface the head closes over (the teeth and the mouth's inside behind the lips, a nostril's inside, the lips' line):
-  // marched out along its normal, it meets the head again within 3 cm. It stays skin, marked `enclosed`: it grows no
+  // marched out from the head's centre, it meets the head again within 3 cm. It stays skin, marked `enclosed`: it grows no
   // hair and is left out of a bake (it shares its address with the skin over it)
-  const enclosed = (c, n) => { for (const mm of [2, 3.5, 5.5, 8, 12, 18, 26]) { const t = mm / 1000 / STAND_M; if (f({ x: c.x + n[0] * t, y: c.y + n[1] * t, z: c.z + n[2] * t }) < 0) return true; } return false; };
+  // (marched out from the head's centre, not along the normal: the hollow under the lower lip faces up into the lip's
+  // overhang, yet nothing lies beyond it outward; the teeth have the lips in front of them that way)
+  const sc = headSphere(head).c.map((v) => v / STAND_M);
+  const enclosed = (c) => { const d = [c.x - sc[0], c.y - sc[1], c.z - sc[2]], l = Math.hypot(...d) || 1; for (const mm of [2, 3.5, 5.5, 8, 12, 18, 26]) { const t = mm / 1000 / STAND_M / l; if (f({ x: c.x + d[0] * t, y: c.y + d[1] * t, z: c.z + d[2] * t }) < 0) return true; } return false; };
   const weld = (c) => {
     const k = `${Math.round(c.x * 1e6)},${Math.round(c.y * 1e6)},${Math.round(c.z * 1e6)}`;
     let i = index.get(k);

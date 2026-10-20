@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { relationalHeadChart } from './dermal-head.js';
 import { chartFromRings, meshOcclusion } from './dermal-chart.js';
-import { readLook, LOOKS } from './dermal-looks.js';
+import { readLook, LOOKS, readAncestry } from './dermal-looks.js';
+import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
 import { readDermis, dermisAt, dermalDetail } from './dermal-map.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
@@ -129,5 +130,24 @@ describe('the creator\'s sliders', () => {
       expect(() => readScalp(L.scalp)).not.toThrow();
       expect(L.relations.skinWave).toBeLessThan(0.03);
     }
+  });
+});
+
+describe('people of the egocube\'s ancestries', () => {
+  it('rolls inside the ancestry\'s own ranges, its eye note through its own derive, its face the individual\'s', () => {
+    for (const id of ['east-asian', 'african']) {
+      const A = HUMAN_ANCESTRIES[id], P = readAncestry({ id, sex: 'female', seed: 3 });
+      expect(P.dermis.tone).toBeGreaterThanOrEqual(A.tones[0]);
+      expect(P.dermis.tone).toBeLessThanOrEqual(A.tones[1]);
+      expect(A.textures).toContain(P.rolled.texture);
+      expect(P.relations).toEqual({});   // never the face's structure
+      expect(Object.keys(P.eyes).length > 0).toBe(!!A.derives?.eyes?.includes('sculpt.lidCover +'));
+      expect(() => readScalp(P.scalp)).not.toThrow();
+    }
+  });
+  it('stands an afro off the scalp, rounded: its ends within its envelope, well off the head', () => {
+    const a = growScalp(chart, D, readScalp({ style: 'afro', spacing: 0.02, strandGap: 0.01 }), { colliders: ['head'] });
+    const top = a.guides.filter((g) => g.pts[0][2] > 0.18), off = top.map((g) => Math.hypot(...sub(g.pts[g.pts.length - 1], g.pts[0])));
+    expect(off.reduce((x, y) => x + y, 0) / off.length).toBeGreaterThan(0.035);
   });
 });

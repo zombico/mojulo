@@ -46,7 +46,15 @@ fold, under the eyes), `dirt` (grime in the cavities and in blotches) and `paint
 mask, in woad, soot, ochre, chalk or blood), painted per texel from the face's landmarks. The atlas bakes OCCLUSION read
 from the mesh (`meshOcclusion`, any shape) into the skin's colour. The relational head's chart is spherical about a
 centre at the ear's height (`headSphere`), so its undersides keep texels of their own, and what the head closes over (the
-teeth, a nostril's inside) is marked `enclosed`: no hair, no bake. Seen through `/dermis-study --look`.
+teeth, a nostril's inside) is marked `enclosed`: no hair, no bake. PEOPLE OF THE EGOCUBE'S ANCESTRIES
+(`readAncestry`): rolled inside each ancestry's own ranges (tone, undertone, hair colour, texture), the texture worn as
+the scalp's type in a style that suits it, the eye note through the ancestry's own derive (`sculpt.lidCover +`: a low
+or absent crease under a fuller fold, the lid covering more of the iris, never a slant), the face's structure the
+individual's. AFROS: a `stand` dial (the root leaves the scalp toward its normal) with coily hair's spring and shrinkage,
+an `envelope` cut rounding it to an ellipsoid, a nape taper; `twa` close to the head; `curls` hanging in ringlets. The hair
+shader's highlight scatters with a coil's roughness and its mass shadows itself (a coil's interior dark); the skin
+reflects 4 % at every tone, so a deep skin's sheen carries its form. Seen through `/dermis-study --look`, `--ancestry`
+and `--lineup`.
 
 ### Realistic register: a stronger body for the hero
 

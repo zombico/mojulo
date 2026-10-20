@@ -102,7 +102,7 @@ const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 const mulc = (a, m) => [a[0] * m[0], a[1] * m[1], a[2] * m[2]];
 /** a multiplicative tint eased in by t: 1 + (m − 1)·t per channel */
 const tint = (c, m, t) => [c[0] * (1 + (m[0] - 1) * t), c[1] * (1 + (m[1] - 1) * t), c[2] * (1 + (m[2] - 1) * t)];
-const UNDERTONE_TINT = { cool: [0.99, 0.985, 1.03], neutral: [1, 1, 1], warm: [1.03, 1, 0.94], olive: [0.985, 1.01, 0.92] };
+const UNDERTONE_TINT = { cool: [0.99, 0.985, 1.03], neutral: [1, 1, 1], warm: [1.03, 1, 0.94], olive: [0.99, 1.008, 0.955] };
 // the zones' tints (multiplicative, linear): blood, the bony yellow, the beard's cool shadow, a vein's blue, a freckle
 const BLOOD = [1.0, 0.72, 0.7], YELLOW = [1.03, 0.99, 0.84], COOL = [0.84, 0.9, 0.97], VEIN = [0.93, 0.95, 1.04], FRECKLE = [0.8, 0.68, 0.56];
 const PALM = hexLin('#e3ad98'), NAIL = hexLin('#efc4b8');

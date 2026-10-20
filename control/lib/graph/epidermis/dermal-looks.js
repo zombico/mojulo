@@ -11,7 +11,16 @@
  *
  * Archetypes, never peoples: a look names a role in a story (a warrior, a scholar), and every skin tone, hair texture and
  * colour is a dial any look takes.
+ *
+ *   readAncestry({ id, sex, seed })  a person of one of the egocube's human ancestries (egocube/ancestry.js
+ *                   HUMAN_ANCESTRIES), rolled inside its ranges as the egocube rolls: the tone, the undertone, the hair's
+ *                   colour and texture (straight, wavy, curly, coily → the scalp's types, a style that suits the texture),
+ *                   and its eye note through its own derive (`sculpt.lidCover +`: a low or absent upper-lid crease under a
+ *                   fuller fold, never a slant). The face's structure stays the individual's: an ancestry is never drawn
+ *                   as a caricature of itself.
  */
+import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
+import { streamOf } from '../city/plan/dice.js';
 
 /** the head's relations as a game's creator carves them: crisper planes and stronger bone (head-relational.js RELATIONS) */
 export const GAME_FACE = Object.freeze({
@@ -65,5 +74,31 @@ export function readLook(spec) {
     dermis: { from: sex, ...merge(L.dermis, doc.dermis) },
     scalp: merge(L.scalp, doc.scalp),
     epidermis: { hair: merge(L.epidermis?.hair, doc.epidermis?.hair), ...(doc.epidermis?.skin ? { skin: doc.epidermis.skin } : {}) },
+  };
+}
+
+/** the egocube's derives read on the relational eye (head-relational-eye.js channels) */
+const EYE_DERIVES = Object.freeze({ 'sculpt.lidCover +': { crease: 0.04, hood: 1, open: 0.84 } });
+/** the styles a texture wears, by sex (the seed picks among them) */
+const TEXTURE_STYLES = Object.freeze({
+  straight: { male: [{ style: 'short' }, { style: 'undercut' }], female: [{ style: 'long' }, { style: 'bob' }, { style: 'shoulder' }] },
+  wavy: { male: [{ style: 'short', type: 'wavy' }], female: [{ style: 'shoulder', type: 'wavy' }, { style: 'layers', type: 'wavy' }] },
+  curly: { male: [{ style: 'twa', type: 'curly' }, { style: 'short', type: 'curly', stand: 0.3 }], female: [{ style: 'curls' }, { style: 'afro', type: 'curly' }] },
+  coily: { male: [{ style: 'twa' }, { style: 'afro' }], female: [{ style: 'afro' }, { style: 'twa' }] },
+});
+
+/** A person of an egocube ancestry, rolled inside its ranges: { sex, relations, eyes, dermis, scalp, epidermis, rolled }. */
+export function readAncestry({ id, sex = 'male', seed = 1, game = false } = {}) {
+  const A = HUMAN_ANCESTRIES[id];
+  if (!A) throw new Error(`ancestry: unknown '${id}' (have ${Object.keys(HUMAN_ANCESTRIES).join(', ')})`);
+  const d = streamOf(seed, 'dermal-ancestry', `${id}/${sex}`), pick = (list) => list[Math.floor(d() * list.length) % list.length];
+  const tone = A.tones[0] + Math.floor(d() * (A.tones[1] - A.tones[0] + 1)), undertone = pick(A.undertones), texture = pick(A.textures), hair = pick(A.hair);
+  const eyes = (A.derives?.eyes || []).reduce((o, k) => ({ ...o, ...(EYE_DERIVES[k] || {}) }), {});
+  const scalp = { ...pick(TEXTURE_STYLES[texture]?.[sex] || TEXTURE_STYLES.straight[sex]), seed };
+  return {
+    sex, relations: game ? { ...GAME_FACE[sex] } : {}, eyes,
+    dermis: { from: sex, tone, undertone, hairColour: hair, freckles: tone <= 2 ? Math.round(d() * 50) / 100 : 0, seed },
+    scalp, epidermis: { hair: { colour: hair } },
+    rolled: { ancestry: A.reads, tone, undertone, texture, hair, eyes: Object.keys(eyes).length ? A.notes?.eyes : null },
   };
 }
