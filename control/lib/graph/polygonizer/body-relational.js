@@ -152,9 +152,14 @@ const NORRIN = {
       { id: 'deltoidAnterior', s: 0.16, az: 25, off: 0.11, r: [0.3, 0.16, 0.13] },
       { id: 'deltoidLateral', s: 0.2, az: 90, off: 0.12, r: [0.32, 0.19, 0.14] },
       { id: 'deltoidPosterior', s: 0.18, az: 155, off: 0.11, r: [0.3, 0.16, 0.12] },
-      { id: 'biceps', s: 0.56, az: 5, off: 0.1, r: [0.36, 0.17, 0.15] },
+      // THE BICEPS AND THE TRICEPS, linked into the shoulder and the elbow (chains, as the thigh's sweep): the biceps from
+      // the socket's front under the deltoid (its long head's tendon), swelling to its peak low on the arm, its tendon
+      // into the elbow's crease; the triceps' long head from the shoulder blade behind the joint (the armpit's back wall),
+      // fullest high on the arm's back, flattening to its tendon at the elbow's point. Eggs at mid-arm, each stood alone:
+      // a dip under the deltoid, a lump, and a fall to the elbow
+      { id: 'biceps', chain: [[-0.02, 15, 0.05, 0.06], [0.25, 8, 0.08, 0.11], [0.62, 3, 0.1, 0.15], [0.84, 0, 0.09, 0.11], [0.98, -10, 0.06, 0.06]] },
       { id: 'brachialis', s: 0.74, az: 70, off: 0.09, r: [0.2, 0.13, 0.11] },
-      { id: 'tricepsLong', s: 0.44, az: 200, off: 0.11, r: [0.42, 0.17, 0.14] },
+      { id: 'tricepsLong', chain: [[-0.08, 210, 0.06, 0.07], [0.15, 200, 0.1, 0.14], [0.4, 188, 0.1, 0.16], [0.72, 180, 0.08, 0.12], [0.98, 180, 0.05, 0.07]] },
       { id: 'tricepsLateral', s: 0.38, az: 135, off: 0.11, r: [0.3, 0.15, 0.12] },
       { id: 'elbow', s: 0.98, r: [0.13, 0.17, 0.13] },
     ] },
@@ -631,9 +636,9 @@ export function formSlice(recipe, R, build, opts = {}) {
   // (over a band from a little above the joint to a hand's breadth down: one narrower folded the skin in a ring at the
   // joint's height when the arm swung fore and aft, the sprint's)
   const down = (q) => sm((dot(sub([Math.abs(q[0]), q[1], q[2]], sj), armDir) + 0.3 * W0) / (1.1 * W0));
-  const deltoidShare = (q) => {
+  const deltoidShare = (q, byDown = true) => {
     const d = Math.min(...delt.map((p) => sdPrim(p, [Math.abs(q[0]), q[1], q[2]])));
-    return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * down(q);
+    return sm(1 - Math.max(0, d) / dBand) * sm((q[2] - zAx + 1.1 * W0) / (0.6 * W0)) * (byDown ? down(q) : 1);
   };
   // THE SHOULDER'S FOLD: a helper at the shoulder's joint turned half the arm's swing (the rig's fold, as the hip's: the
   // arm's rest line carried by the collarbone into the socket; unpushed: pushed to the armpit's side, a raised arm's
@@ -656,7 +661,9 @@ export function formSlice(recipe, R, build, opts = {}) {
     return !r.rig.folds?.[F] ? mixW(cl, arm, f) : f < 0.5 ? mixW(cl, { [F]: 1 }, 2 * f) : mixW({ [F]: 1 }, arm, 2 * f - 1);
   };
   // (`ownArm`: the arm's own top, from the collarbone through the shoulder's fold to the arm's bone by `down` alone; the
-  // torso mixed toward the arm's bone by the deltoid's share)
+  // torso's cap over the deltoid mixed toward that same chain by its nearness to the deltoid's heads, so the two skins,
+  // one over the other at rest, move as one: mixed toward the arm's bone outright, a raised arm folded the cap up beside
+  // the arm's root in a horn, the shoulders square, the arm leaving each from its corner)
   const rideDeltoid = (P, ownArm) => {
     if (!delt.length) return P;
     const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
@@ -664,8 +671,8 @@ export function formSlice(recipe, R, build, opts = {}) {
       if (p[0] === 0) return;
       const S = p[0] < 0 ? 'L' : 'R', arm = `upperArm${S}`;
       if (ownArm) { const f = down(p); if (f < 0.999) blend[key] = viaFold(S, f); return; }
-      const f = deltoidShare(p); if (f < 1e-3) return;
-      const w = mixW(blend[key] || fallback || own, { [arm]: 1 }, f);
+      const f = deltoidShare(p, false); if (f < 1e-3) return;
+      const w = mixW(blend[key] || fallback || own, viaFold(S, down(p)), f);
       blend[key] = four(w);
     };
     for (const st of P.stations) for (const sl of P.slots) ride(`${st.id}.${sl}`, blend[st.id], st.points[sl]);

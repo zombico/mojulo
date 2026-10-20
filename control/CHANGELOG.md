@@ -211,7 +211,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   about their roll by as much as the arm had swung: forearms behind the head wrung the elbow 47 degrees (now 14) and
   pinched its ring to 0.51 (now 0.59, the deep bend's own), the arm's creased edges in that pose 306, now 162. Framing
   the arm by the shoulder's roll instead was tried and left: blended skin could only lose a roll of up to 110 degrees
-  in a candy wrapper at the shoulder or a spiral down the humerus. Only the feet are still the authored cage.
+  in a candy wrapper at the shoulder or a spiral down the humerus. THE SHOULDER ROUNDS INTO A RAISED ARM: the torso's
+  cap over the deltoid follows the arm's own top (from the collarbone through the shoulder's fold to the arm, by how far
+  down the humerus it lies), where it had gone to the arm's bone outright and a raised arm folded it up beside the arm's
+  root in a horn, the shoulders square with both arms overhead. THE BICEPS AND THE TRICEPS LINK INTO THE SHOULDER AND
+  THE ELBOW: each a chain where each had been an egg at mid-arm, the biceps from the socket's front under the deltoid to
+  its peak low on the arm and its tendon into the elbow's crease, the triceps' long head from the shoulder blade behind
+  the joint, fullest high on the arm's back, to its tendon at the elbow's point (the arm's front had dipped under the
+  deltoid and the back fallen away from mid-arm; the girth now 31.8 cm a tenth down the arm, 29.4 before, the most 33.7).
+  Only the feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 
