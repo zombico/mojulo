@@ -14,6 +14,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Geocube styles: principles and the laws that check them
+
+A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
+`why` already carries the principles and the color theorist's laws already name a palette's mistakes; this theme
+joins them. Nothing has landed yet. The opt-in keys (a palette's `waive` and `values`, a cube's `avoid` and `ink`)
+leave every existing spec and cube byte-identical. New presets will follow from published art-direction
+principles: black-figure pottery, muted theatrical light and painterly value groups.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
