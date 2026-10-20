@@ -43,11 +43,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   centimetre of the skin (the tee: four). On every other body, segment pieces eased 3 mm. A field garment takes its
   envelope from its word (`looser`, `ease`, `reach`, `taut`, `span`, `along`, `soft`); the tee's as it was. body-study
   `--dress` draws the garments in cloth blue over the clay body.
-- TROUSERS on the realistic body as a field garment (in progress): the hip, the groin, the seat, the thighs, the knees,
-  the shins and the calves on one cloth, taut down each leg. The seat starts where the pelvis's rings rise (`floor`:
-  its lowest rings lie flat at the crotch, widening at one height, and cloth copied from them wound inside out), its cap
-  closing between the legs; the trunk's cloth takes the thighs in (`join`), so the seat wraps their tops, and the legs'
-  tops are let down under it.
+- TROUSERS on the realistic body as a field garment, at the skin-fitting shirt's thickness (its cloth, so a shirt and
+  trousers read as one fidelity): the waist, the hip, the groin, the seat, the thighs, the knees, the shins and the
+  calves (`on`: the abdomen's and the back's names counted on the pelvis alone, so the trousers reach the waist and stop
+  there). The seat starts where the pelvis's rings rise (`floor`: its lowest rings lie flat at the crotch, widening at
+  one height, and cloth copied from them wound inside out), its cap closing between the legs; the trunk's cloth takes
+  the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
+  (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
 ### The realistic hero at the door
 

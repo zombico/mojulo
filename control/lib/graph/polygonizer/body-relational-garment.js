@@ -29,14 +29,16 @@ export const FIELD_GARMENTS = Object.freeze({
   // (TROUSERS: the seat from where the pelvis's rings start to rise, so it closes over the crotch by its cap instead of
   // copying the floor the pelvis's lowest rings lay flat at the crotch; the trunk's cloth takes the thighs in, so the
   // seat wraps their tops, and the legs' tops tuck under the seat)
-  trousers: { covers: ['hip', 'groin', 'seat', 'thigh', 'knee', 'shin', 'calf'], limit: { shank: 0.94 }, ease: 0.008, looser: 2, floor: true, join: 'thigh', group: 'Bottom' },
+  // (their cloth the skin-fitting shirt's, so a shirt and trousers read at one thickness)
+  // (and on the pelvis up to the waist, over the crest: `on` keeps the abdomen's and the back's names to the pelvis)
+  trousers: { covers: ['hip', 'groin', 'seat', 'thigh', 'knee', 'shin', 'calf', 'abdomen', 'lowerBack', 'flank'], on: ['pelvis', 'thigh', 'shank'], limit: { shank: 0.94 }, ...FITTED, floor: true, join: 'thigh', group: 'Bottom' },
 });
 
 const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null }) {
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   const want = new Set(covers), arm = limbField(R, B1, 'upperArm');
   // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
@@ -48,6 +50,7 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
   for (const [seg, P] of Object.entries(recipe.parts)) {
     if (P.layer !== 1 || !P.stations?.length || P.garment) continue;
     const base = seg.replace(/[RL]$/, '');
+    if (on && !on.includes(base)) continue;
     // the rings the piece's parts mostly cover (of the points any part shows), in one run from the first to the last
     const covered = P.stations.map((st) => {
       const seen = P.slots.map((sl) => map.part[`${seg}/${st.id}.${sl}`]).filter((p) => p && p !== 'hidden');
@@ -80,18 +83,19 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     // fold under it, 2 to 3 cm; a fitted shirt's close)
     parts[`${id}_${seg}`] = envelopePart(piece, { reach, taut, along, ...(span ? { span } : {}), ...(soft ? { soft } : {}) });
   }
-  // THE HANDOVER (`join`): the joined limb's pieces let down under the trunk's piece above the level its first ring
-  // closes at (the seat's lowest ring over the thighs' tops), each point drawn in toward its ring's middle
+  // THE HANDOVER (`join`): the trunk's piece and the joined limb's cross a few centimetres over the level the trunk's
+  // first ring closes at (the seat's lowest ring over the thighs' tops): under it the trunk's piece is let down under the
+  // limb's, over it the limb's under the trunk's, each point drawn in toward its ring's middle (no lip at the seat's edge)
   const over = join && Object.entries(parts).find(([k]) => TRUNK.has(k.slice(id.length + 1)));
   if (over) {
     const st0 = over[1].stations[0], z0 = Object.values(st0.points).reduce((a, p) => a + p[2], 0) / over[1].slots.length;
-    for (const [k, G] of Object.entries(parts)) {
-      if (k.slice(id.length + 1).replace(/[RL]$/, '') !== join) continue;
-      G.stations = G.stations.map((st) => {
-        const c = scl(G.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / G.slots.length);
-        return { ...st, points: Object.fromEntries(G.slots.map((sl) => { const p = st.points[sl], w = Math.max(0, Math.min(1, (p[2] - z0 + 0.01) / 0.02)), s = 0.004 * w * w * (3 - 2 * w); return [sl, (s > 0 ? add(p, scl(unit(sub(c, p)), s)) : p).map(r6)]; })) };
-      });
-    }
+    const ease3 = (x) => { const w = Math.max(0, Math.min(1, x)); return w * w * (3 - 2 * w); };
+    const letDown = (G, by) => G.stations.map((st) => {
+      const c = scl(G.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / G.slots.length);
+      return { ...st, points: Object.fromEntries(G.slots.map((sl) => { const p = st.points[sl], s = by(p[2] - z0); return [sl, (s > 0 ? add(p, scl(unit(sub(c, p)), s)) : p).map(r6)]; })) };
+    });
+    over[1].stations = letDown(over[1], (h) => 0.005 * (1 - ease3(h / 0.04)));
+    for (const [k, G] of Object.entries(parts)) if (k.slice(id.length + 1).replace(/[RL]$/, '') === join) G.stations = letDown(G, (h) => 0.004 * ease3((h - 0.02) / 0.03));
   }
   return { parts };
 }

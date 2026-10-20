@@ -49,4 +49,18 @@ describe('a field garment (the tee)', () => {
     expect(mid).toBeLessThan(0.012);
     expect(Math.max(...lf)).toBeGreaterThan(0.02);
   }, 240_000);
+
+  it('trousers: the seat over the crotch wound outward, to the waist, as close as the fitted shirt', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', physique: 'heavyset', outfit: ['trousers'] }) }).recipe;
+    const A = auditLayered(compileLayered(r, {})), pieces = Object.keys(r.parts).filter((k) => /^trousers_/.test(k));
+    expect(pieces).toEqual(expect.arrayContaining(['trousers_pelvis', 'trousers_thighR', 'trousers_thighL', 'trousers_shankR', 'trousers_shankL']));
+    for (const k of pieces) { expect(A[k].pass, k).toBe(true); expect(A[k].windingErrors, k).toBe(0); }
+    // the seat from above the crotch's flat floor up to the pelvis's top ring (the waist)
+    expect(r.parts.trousers_pelvis.stations.at(-1).id).toBe(r.parts.pelvis.stations.at(-1).id);
+    expect(r.parts.trousers_pelvis.stations[0].id).not.toBe(r.parts.pelvis.stations[0].id);
+    // a leg as close to its skin as the shirt to the torso: half within a centimetre
+    const G = r.parts.trousers_thighR, P = r.parts.thighR, lift = [];
+    for (const st of G.stations) { const S = P.stations.find((x) => x.id === st.id); for (const sl of P.slots) lift.push(Math.hypot(...[0, 1, 2].map((q) => st.points[sl][q] - S.points[sl][q]))); }
+    expect([...lift].sort((x, y) => x - y)[Math.floor(lift.length / 2)]).toBeLessThan(0.012);
+  }, 240_000);
 });
