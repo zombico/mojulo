@@ -196,7 +196,7 @@ function realisticBuild(hero) {
  * whatever the dress changed there, as they are). So a world's inline hero re-expanded each render, or an edit that
  * leaves the body (the dress, the hair, the colours), finds its slice */
 const SLICES = new Map(), SLICES_KEPT = 8;
-const SLICE_READS = /^(torso|neck|pelvis|(upperArm|foreArm|thigh|shank|pectoral|bust|hand|thumb|index|middle|ring|little)[RL])$/;
+const SLICE_READS = /^(torso|neck|pelvis|(upperArm|foreArm|thigh|shank|foot|toes|pectoral|bust|hand|thumb|index|middle|ring|little)[RL])$/;
 function realisticRecipe(recipe, hero) {
   const B = realisticBuild(hero), reads = (parts) => Object.fromEntries(Object.entries(parts).filter(([k]) => SLICE_READS.test(k)));
   const key = JSON.stringify([reads(recipe.parts), recipe.rig, recipe.dials, B]);
