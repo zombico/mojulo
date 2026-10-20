@@ -4,6 +4,8 @@
  *
  *   line     a particle on a line, ψ(x, t) under the Schrödinger equation, its potential the sum of the line's rows
  *            (an infinite well, a harmonic well, a rectangular barrier, a step); stepped by Crank–Nicolson (unitary)
+ *   plane    a particle on a plane, ψ(x, y, t), meeting a wall with slits; stepped by split-step Fourier, its far
+ *            field read off and detections drawn from it one at a time
  *   atom     the hydrogen atom's exact orbitals ψ_nlm, drawn as a cloud of points sampled from |ψ|²
  *   spin     a spin-½ through a chain of Stern–Gerlach magnets, each measuring along its axis
  *   decay    unstable nuclei, each decaying at a random moment with a fixed half-life
@@ -67,6 +69,19 @@ export const QUANTUM_LAWS = [
     sources: [GRIFFITHS + ', §2.6 (problem 2.35)', CODATA], reviewed: REVIEWED,
   },
   {
+    id: 'slits',
+    system: 'plane',
+    words: ['double slit', 'two-slit', 'young', 'slits', 'single slit', 'diffraction', 'interference', 'which way', 'wave-particle duality', 'grating'],
+    params: {
+      count: { dim: 'count', default: 2 }, width: { dim: 'length', required: true }, separation: { dim: 'length', default: 0 },
+      thickness: { dim: 'length', default: 'two grid cells' }, at: { dim: 'length', default: 0 }, height: { dim: 'work', default: '10 eV' },
+    },
+    summary: 'A wall across the plane at x = `at`, `thickness` thick and `height` high, open in `count` slits of `width` whose centres stand `separation` apart. A packet striking it passes through the slits and spreads: far off, the slits\' waves meet in bright fringes sin θ = mλ/d apart, and detections arriving one at a time build that pattern up.',
+    assumption: 'The wall is a smooth potential step two grid cells wide at each edge and reflects what it stops; a slit in it is a short channel, not a thin screen, so a single slit\'s band is a little wider than λ/w predicts. The plane is two-dimensional (no motion out of it).',
+    example: { system: 'plane', plane: { size: '24 nm', points: 128 }, laws: [{ law: 'slits', count: 2, width: '1 nm', separation: '4 nm', at: '-3 nm' }], state: { packet: { at: '-7 nm', width: ['1 nm', '3 nm'], energy: '2 eV' } }, duration: '13 fs', detections: 400 },
+    sources: ['Feynman, Leighton & Sands, The Feynman Lectures on Physics III, ch. 1 (1965)', 'Tonomura et al., Am. J. Phys. 57, 117 (1989)', 'Hecht, Optics, 5th ed. (2017), ch. 10 (Fraunhofer diffraction)', 'Feit, Fleck & Steiger, J. Comput. Phys. 47, 412 (1982) (the split-step method)', CODATA], reviewed: REVIEWED,
+  },
+  {
     id: 'hydrogen',
     system: 'atom',
     words: ['orbital', 'hydrogen', 'electron cloud', 'atom', 's orbital', 'p orbital', 'd orbital', 'quantum numbers'],
@@ -99,4 +114,4 @@ export const QUANTUM_LAWS = [
 ];
 
 export const QUANTUM_LAW = Object.fromEntries(QUANTUM_LAWS.map((r) => [r.id, r]));
-export const SYSTEMS = ['line', 'atom', 'spin', 'decay'];
+export const SYSTEMS = ['line', 'plane', 'atom', 'spin', 'decay'];

@@ -15,7 +15,8 @@
  *     setting that has no air.
  *   - Any other demo (a microscopic box, an orbital, an orbit round a black hole, a solar system drawn shrunk) is a
  *     BENCH PROP: drawn inside a glass case `case` metres across (default 1) at `at`, its true magnification on the
- *     panel. A light world fills the frame with its shader and cannot stand in a world.
+ *     panel. A light world, an orbital volume and a quantum plane are drawn by shaders over the page and cannot stand
+ *     in a world.
  */
 
 import { assembleClassicalScene, planClassicalWorld } from './classical/world.js';
@@ -53,6 +54,8 @@ export function readScienceSetting(spec, where = 'science') {
   if (!SCALES[spec.kind]) fail(`${where}.kind`, `is one of ${Object.keys(SCALES).join(', ')}`);
   if (!isObj(spec.model)) fail(`${where}.model`, `wants the ${spec.kind} model (get_view_vocab({ id: '${spec.kind}' }))`);
   if (spec.kind === 'relativistic' && spec.model.system === 'light') fail(`${where}.model`, 'a light world is drawn by a shader that fills the frame: it cannot stand in a world (an orbit or clocks world can)');
+  if (spec.kind === 'quantum' && isObj(spec.dress) && spec.dress.render === 'volume') fail(`${where}.dress.render`, 'a volume is drawn by a shader that fills the frame: it cannot stand in a world (the sampled points can)');
+  if (spec.kind === 'quantum' && spec.model.system === 'plane') fail(`${where}.model`, 'a plane world\'s sheet is drawn by a shader over the whole page: it cannot stand in a world (a line, an atom\'s points, spin or decay can)');
   if (!Array.isArray(spec.at) || spec.at.length !== 3) fail(`${where}.at`, 'wants [x, y, z] in the world (metres)');
   const at = spec.at.map((c, k) => quantity(c, 'length', `${where}.at[${k}]`));
   const yaw = spec.yaw === undefined ? 0 : quantity(spec.yaw, 'scalar', `${where}.yaw`);

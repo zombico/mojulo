@@ -197,7 +197,8 @@ function sampleMicroscopic(manifest, every) {
 }
 
 // a quantum world's samples, per system, from the same run the page plays: a line's ⟨x⟩, spread, ⟨E⟩, total probability
-// and the share past its barrier or step (with the allowed levels when it has them); an atom's orbitals, their exact
+// and the share past its barrier or step (with the allowed levels when it has them); a plane's run (on the plane, past
+// the wall, taken by the rim), its far field by angle and its detections; an atom's orbitals, their exact
 // energies and mean radii beside what the drawn cloud measures; each magnet's counts beside the odds; the nuclei left
 function sampleQuantum(manifest, every) {
   const r = solveQuantum({ model: manifest.model });
@@ -216,6 +217,18 @@ function sampleQuantum(manifest, every) {
       series: [{ name: 'particle', label: m.particle, count: keep.length, samples: keep.map((k) => ({
         t: s.t[k] * 1e-15, x: s.x[k] * 1e-9, spread: s.sigma[k] * 1e-9, E: s.E[k], norm: s.norm[k], ...(r.run.cut !== null ? { past: s.right[k] } : {}),
       })) }],
+    };
+  }
+  if (r.system === 'plane') {
+    const s = r.run.series, keep = thin(s.t.length), ff = r.run.far, fk = thin(ff.theta.length);
+    return {
+      ...head, units: { t: 's', plane: 'probability', past: 'probability', taken: 'probability', theta: 'rad', density: 'per rad', wavelength: 'm' },
+      T: m.duration * 1e-15, wavelength: r.run.lambda * 1e-9,
+      series: [
+        { name: 'run', label: m.particle, count: keep.length, samples: keep.map((k) => ({ t: s.t[k] * 1e-15, plane: s.norm[k], taken: s.taken[k], ...(m.wall ? { past: s.past[k] } : {}) })) },
+        { name: 'far field', label: 'where the passed wave goes, by angle', count: fk.length, samples: fk.map((k) => ({ theta: ff.theta[k], density: ff.p[k] })) },
+        { name: 'detections', label: 'each detection\'s angle, in the order drawn', count: r.run.shots.length, samples: r.run.shots.map((a) => ({ theta: a })) },
+      ],
     };
   }
   if (r.system === 'atom') {

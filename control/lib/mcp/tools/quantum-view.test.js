@@ -9,6 +9,7 @@ import { measureViewHandler, recomputeViewStats } from './measure-view.js';
 import { sketchRenderMode, classifyBucket } from '@/lib/graph/sketch/sketch-manifest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
+import { QUANTUM_LAW } from '@/lib/graph/science-worlds/quantum/laws';
 
 beforeEach(() => { closeDb(); });
 
@@ -52,8 +53,18 @@ describe("create_view({ kind: 'quantum' }): a science world, end to end", () => 
     expect(Math.abs(a.series[0].measuredMeanRadius - a.series[0].meanRadius) / a.series[0].meanRadius).toBeLessThan(0.1);
   });
 
+  it('mints a plane through slits as a shader page, and reads its run, far field and detections back', async () => {
+    const plane = await createViewHandler({ kind: 'quantum', params: { model: QUANTUM_LAW.slits.example } });
+    expect(plane.held).toBe(true);
+    expect(plane.note).toMatch(/sheet is the solver's frames drawn by a shader/);
+    const m = await measureViewHandler({ ref: plane.ref, every: 20 });
+    expect(m.series.map((x) => x.name)).toEqual(['run', 'far field', 'detections']);
+    expect(m.series[0].samples.every((x) => Math.abs(x.plane + x.taken - 1) < 1e-9)).toBe(true);
+    expect(m.series[2].count).toBe(400);
+  });
+
   it('points a bad recipe at its card', async () => {
     await expect(createViewHandler({ kind: 'quantum', params: { model: { ...TUNNEL.model, system: 'string' } } }))
-      .rejects.toThrow(/one of line, atom, spin, decay.*get_view_vocab\(\{ id: 'quantum' \}\)/);
+      .rejects.toThrow(/one of line, plane, atom, spin, decay.*get_view_vocab\(\{ id: 'quantum' \}\)/);
   });
 });

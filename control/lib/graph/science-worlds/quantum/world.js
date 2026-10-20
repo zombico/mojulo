@@ -3,28 +3,38 @@
  *
  *   line   |ψ|² drawn above the energy it carries, over the potential on the same energy scale (two quantities on one
  *          picture, as in a textbook figure); optionally Re ψ beside it (`dress.phase`). Its film: the run, its end card.
+ *   plane  |ψ|² on a lit sheet, played from the run's frames by a shader (plane-shader.js), the wall a raised slab
+ *          open at its slits; beyond it a far screen where detections arrive one at a time, each at the angle it was
+ *          drawn from the far field, so the pattern builds up dot by dot.
  *   atom   each orbital a cloud of points sampled from |ψ|², gold where ψ is positive and blue where negative, the
  *          nucleus at its centre, side by side when there are several. Its film: the camera circles the clouds.
  *   spin   atoms leaving a source, splitting at each magnet up or down, stopped where a magnet keeps one beam. Only
  *          which way each comes out, and how often, is the model; the paths are drawn.
  *   decay  the nuclei on a grid, each changing colour at the moment it decays.
  *
- *   dress = { hud?, camera?, background?, playback?, film?, phase? (line: draw Re ψ too) }
+ *          With `render: 'volume'` the orbitals are ray-marched as a density instead (volume-shader.js), a second
+ *          picture of the same ψ held to it by the shader conformance gate; the points stay the default, since they
+ *          are the depiction the χ² checks.
+ *
+ *   dress = { hud?, camera?, background?, playback?, film?, phase? (line: draw Re ψ too), render? ('points' |
+ *             'volume', atom), exposure? (volume) }
  */
 
 import { solveQuantum } from './solve.js';
 import { QUANTUM_LAWS, BOHR } from './laws.js';
+import { volumeShader, volumeReach } from './volume-shader.js';
+import { planeShader } from './plane-shader.js';
 import { normalizeFilm, defaultShoot, filmConfig } from '../classical/film.js';
 import { scl, add, isObj, hex, hexRgb, esc, drawScale, times, scaleLiberty, timeLiberty, bar, quad, framing, honesty, sig } from '../page.js';
 
 const HOLD = 1.2, LIFE_HOLD = 1.4;   // the period movers hold 1.2 s; the lifetime clock replays 1.4 s after its last track
-const DRESS_KEYS = ['hud', 'camera', 'background', 'playback', 'film', 'phase'];
+const DRESS_KEYS = ['hud', 'camera', 'background', 'playback', 'film', 'phase', 'render', 'exposure'];
 const GOLD = '#e0b15f', BLUE = '#5fa9e0', GREY = '#8e9bb6', PINK = '#e57cd8', DIM = '#4a5568';
 const SUMMARY = Object.fromEntries(QUANTUM_LAWS.map((r) => [r.id, r.summary]));
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
 
-export function normalizeQuantumDress(dress) {
-  const base = { hud: true, camera: null, background: '#0b1020', playback: null, film: normalizeFilm(undefined, []), phase: false };
+export function normalizeQuantumDress(dress, system) {
+  const base = { hud: true, camera: null, background: '#0b1020', playback: null, film: normalizeFilm(undefined, []), phase: false, render: 'points', exposure: 1 };
   if (dress == null) return base;
   if (!isObj(dress)) fail('dress', 'wants an object');
   const extra = Object.keys(dress).filter((k) => !DRESS_KEYS.includes(k));
@@ -33,6 +43,10 @@ export function normalizeQuantumDress(dress) {
   if (dress.camera !== undefined && !['side', 'angle', 'top'].includes(dress.camera)) fail('dress.camera', "is 'side', 'angle' or 'top'");
   if (dress.background !== undefined && !hex(dress.background)) fail('dress.background', "wants '#rrggbb'");
   if (dress.playback !== undefined && !(typeof dress.playback === 'number' && dress.playback >= 1 && dress.playback <= 120)) fail('dress.playback', 'is seconds on screen, 1 to 120');
+  if (dress.render !== undefined && !['points', 'volume'].includes(dress.render)) fail('dress.render', "is 'points' (the sampled cloud) or 'volume' (the density, ray-marched)");
+  if (dress.render === 'volume' && system !== 'atom') fail('dress.render', "'volume' draws an atom world's orbitals; this is a " + system + ' world');
+  if (dress.exposure !== undefined && !(typeof dress.exposure === 'number' && dress.exposure >= 0.1 && dress.exposure <= 10)) fail('dress.exposure', 'is 0.1 to 10');
+  if (dress.exposure !== undefined && dress.render !== 'volume') fail('dress.exposure', "is how strongly a volume glows: it goes with render: 'volume'");
   return { ...base, ...Object.fromEntries(Object.entries(dress).filter(([k]) => k !== 'film')), film: normalizeFilm(dress.film, []) };
 }
 
@@ -76,30 +90,90 @@ function layLine(solved, dress, drawn) {
   return { faces, planets, movers, pts, rows, t: s0.t.map((t) => t * 1e-15), durationS: model.duration * 1e-15, lead: 'side', hold: HOLD, labels: [], scale: s * 1e9, scaleNote: scaled };
 }
 
+function layPlane(solved, dress, drawn, playback) {
+  const { run, model } = solved, w = model.wall;
+  const s = drawScale(model.L * 1e-9) * 1e-9, half = (model.L / 2) * s, Ls = model.L * s;   // s: scene units per nm
+  const scaled = scaleLiberty(s * 1e9); if (scaled) drawn.push(scaled);
+  const wallH = 0.05 * Ls, xw = (w ? w.at : 0) * s;
+  // the far screen: the far field set at a drawn distance from the slits, covering where all but a 40th lands (to 40°)
+  const D = half - xw + 0.2 * Ls, cdf = [], th = run.far.theta, pf = run.far.p;
+  let acc = 0; for (let i = 0; i < th.length; i++) { if (i) acc += 0.5 * (pf[i] + pf[i - 1]) * (th[i] - th[i - 1]); cdf.push(acc); }
+  const lo = th[cdf.findIndex((c) => c >= 0.0125 * acc)], hi = th[cdf.findIndex((c) => c >= 0.9875 * acc)];
+  const reach = Math.min((40 * Math.PI) / 180, Math.max(Math.abs(lo), Math.abs(hi), 0.2));
+  const Y = D * Math.tan(reach), Hs = 0.16 * Ls, xs = xw + D;
+  const faces = [quad([[xs, -Y, 0], [xs, Y, 0], [xs, Y, Hs], [xs, -Y, Hs]], '#1d2536', 'scene')];
+  faces.push(...bar([xs, -Y, Hs], [xs, Y, Hs], 0.004 * Ls, GREY, 'scene'), ...bar([xs, -Y, 0], [xs, Y, 0], 0.004 * Ls, GREY, 'scene'));
+  // the dots: each detection at its angle, arriving one at a time over the run's second half
+  const planets = [], movers = [], N = run.shots.length;
+  let k = 0;
+  const shown = [];
+  run.shots.forEach((a, i) => { if (Math.abs(a) <= reach && shown.length < 400) shown.push({ a, i }); });
+  // the dots' heights on the screen are dress, seeded apart from the model's angles
+  let hseed = (model.seed * 2654435761 + 97) >>> 0;
+  const rnd = () => { hseed = (hseed + 0x6D2B79F5) >>> 0; let t = hseed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  for (const { a } of shown) {
+    const p = [xs - 0.003 * Ls, D * Math.tan(a), Hs * (0.08 + 0.84 * rnd())].map((c) => +c.toFixed(5));
+    const t0 = +(playback * (0.5 + (0.5 * k) / Math.max(1, shown.length))).toFixed(4), group = `dot:${k}`;
+    planets.push({ group, center: [0, 0, 0], radius: 0.006 * Ls, tint: hexRgb('#8fd6ff'), rough: 0.3, nlat: 5, nlon: 6 });
+    movers.push({ group, path: [p, p], basePos: [0, 0, 0], t0, t1: playback });
+    k++;
+  }
+  drawn.push({ what: '|ψ|² is drawn as light on the sheet, its brightness the square root of the probability against the brightest moment', why: 'so the weak wave past the wall shows beside the strong one that struck it' });
+  if (w) drawn.push({ what: `the wall is drawn as a raised slab ${times(wallH / (w.thickness * s))} as tall as it is thick`, why: 'the model\'s wall is a potential in the plane, with no height' });
+  drawn.push({ what: 'the far screen shows the far field: each dot stands at the angle its detection left the slits, at a drawn distance', why: 'a real screen stands far off, where the pattern has settled' });
+  drawn.push({ what: 'the dots arrive one at a time over the run\'s second half, and their heights on the screen are drawn at random', why: 'the plane is two-dimensional, and when each lands is not the model' });
+  if (shown.length < N) drawn.push({ what: `${shown.length} of the ${N} detections are drawn`, why: 'so the page stays quick; the counts are all of them' });
+  const sr = run.series, R = sr.t.length;
+  const arrive = shown.map((_, q) => playback * (0.5 + (0.5 * q) / Math.max(1, shown.length)));
+  const rows = [
+    { html: 'on the plane', values: sr.norm.map((v) => v * 100), unit: '%', plain: true },
+    ...(w ? [{ html: 'past the wall', values: sr.past.map((v) => v * 100), unit: '%', plain: true }] : []),
+    { html: 'detections', bar: true, int: true, color: '#8fd6ff', max: N, values: sr.t.map((_, q) => Math.round(arrive.filter((t) => t <= (q * playback) / (R - 1) + 1e-9).length * (N / Math.max(1, shown.length)))) },
+  ];
+  const shader = planeShader({ half, s, wall: w, wallH, period: playback, hold: LIFE_HOLD, frames: run.frames });
+  const pts = [[-half, -half, 0], [half, half, wallH], [xs, -Y, 0], [xs, Y, Hs]];
+  // the page opens behind the source, looking down the plane toward the screen
+  const look = [0.5 * (xw + xs), 0, 0].map((c) => +c.toFixed(5)), d = Math.max(half + xs, Y) * 1.3;
+  const cam = (name, at) => ({ name, worldFraming: { cameraPosition: at.map((c) => +c.toFixed(5)), lookAt: look, horizontalFov: 46 } });
+  const cameras = [cam('source', [look[0] - 1.05 * d, -0.35 * d, 0.75 * d]), cam('top', [look[0], 0.0001, 1.5 * d]), cam('side', [look[0], -1.5 * d, 0.35 * d])];
+  return { cameras, faces, planets, movers, pts, rows, t: sr.t.map((x) => x * 1e-15), durationS: model.duration * 1e-15, lead: 'angle', hold: LIFE_HOLD, labels: [], scale: s * 1e9, scaleNote: scaled, shader };
+}
+
 function layAtom(solved, dress, drawn) {
   const { run } = solved;
   const reachA = Math.max(...run.clouds.map((c) => 2.6 * c.meanR));
   const gap = 2.4 * reachA, n = run.clouds.length;
   const L = (gap * n) * BOHR, s = drawScale(L) * BOHR, Ls = gap * n * s;   // s: scene units per a₀
   const scaled = scaleLiberty(s / BOHR); if (scaled) drawn.push(scaled);
-  const faces = [], planets = [], labels = [], pts = [];
+  const volume = dress.render === 'volume';
+  const faces = [], planets = [], labels = [], pts = [], placed = [];
   const w = 0.004 * Ls;
+  // the nucleus: a fixed share of the page, or under a volume (where it would hide a small orbital's core) a fifth of
+  // the smallest orbital's mean radius at most
+  const rNuc = volume ? Math.min(0.008 * Ls, 0.2 * Math.min(...run.clouds.map((c) => c.meanR)) * s) : 0.008 * Ls;
   run.clouds.forEach((c, i) => {
     const center = [(i - (n - 1) / 2) * gap * s, 0, 0];
-    c.points.forEach((p, k) => faces.push(...dot3(add(center, scl(p, s)), w, c.signs[k] > 0 ? GOLD : BLUE, `orb:${i}`)));
+    if (!volume) c.points.forEach((p, k) => faces.push(...dot3(add(center, scl(p, s)), w, c.signs[k] > 0 ? GOLD : BLUE, `orb:${i}`)));
+    // (under a volume the nucleus sphere is the shader's; this one anchors the label)
     planets.push({ group: `nuc:${i}`, center, radius: 0.008 * Ls, tint: hexRgb('#ff7a59'), rough: 0.5 });
     labels.push({ group: `nuc:${i}`, text: c.name, lift: reachA * s * 0.9 });
     pts.push(add(center, [reachA * s, reachA * s, reachA * s]), add(center, [-reachA * s, -reachA * s, -reachA * s]));
+    if (volume) placed.push({ n: c.n, l: c.l, m: c.m, center, reach: Math.min(volumeReach(c.n, c.l), 1.15 * reachA) });
   });
-  drawn.push({ what: `each point is one sampled position (${solved.model.samples} per orbital): the cloud is |ψ|² drawn as samples, not an electron's path`, why: 'a probability has no picture of its own' });
+  if (volume) {
+    drawn.push({ what: '|ψ|² is drawn as a glowing density, ray-marched through each orbital: brighter and more opaque where the probability is higher', why: 'a probability has no picture of its own' });
+    drawn.push({ what: 'each orbital\'s glow is scaled to its own brightest point and its own size, and how strongly it glows is the exposure', why: 'so a large orbital and a small one both read' });
+    drawn.push({ what: `the density is cut off where a thousandth of the probability is left outside`, why: 'its tail goes on for ever' });
+  } else drawn.push({ what: `each point is one sampled position (${solved.model.samples} per orbital): the cloud is |ψ|² drawn as samples, not an electron's path`, why: 'a probability has no picture of its own' });
   drawn.push({ what: 'gold where ψ is positive, blue where it is negative', why: 'the sign is real, the colours are not' });
-  drawn.push({ what: `the nucleus drawn ${times((0.008 * Ls) / (0.84e-15 / BOHR * s))} its size`, why: 'at its true size (under a femtometre) it would be invisible' });
+  drawn.push({ what: `the nucleus drawn ${times(rNuc / (0.84e-15 / BOHR * s))} its size`, why: 'at its true size (under a femtometre) it would be invisible' });
   const N = 61;
   const rows = run.clouds.flatMap((c) => [
     { html: esc(`${c.name}: E`), values: constant(c.energy, N), unit: 'eV' },
     { html: esc(`${c.name}: ⟨r⟩`), values: constant(c.meanR * BOHR, N), unit: 'm' },
   ]);
-  return { faces, planets, movers: [], pts, rows, t: constant(0, N), noClock: true, durationS: null, lead: 'angle', hold: HOLD, labels, scale: s / BOHR, scaleNote: scaled };
+  const shader = volume ? volumeShader({ orbitals: placed, s, nucleus: rNuc, bg: hexRgb(dress.background), exposure: dress.exposure }) : null;
+  return { faces, planets, movers: [], pts, rows, t: constant(0, N), noClock: true, durationS: null, lead: 'angle', hold: HOLD, labels, scale: s / BOHR, scaleNote: scaled, ...(shader ? { shader, placed } : {}) };
 }
 
 function laySpin(solved, dress, drawn, playback) {
@@ -185,14 +259,16 @@ function layDecay(solved, dress, drawn, playback) {
 /** Solve and lay out a quantum world. */
 export function planQuantumWorld(manifest) {
   const solved = solveQuantum({ model: manifest.model, ...(manifest.dress !== undefined ? { dress: manifest.dress } : {}), ...(manifest.liberties !== undefined ? { liberties: manifest.liberties } : {}) });
-  const dress = normalizeQuantumDress(solved.dress);
+  const dress = normalizeQuantumDress(solved.dress, solved.system);
   const drawn = [];
   const sys = solved.system;
   const playback = dress.playback ?? (sys === 'decay' ? Math.max(4, Math.min(12, solved.model.duration)) : 8);
-  const lay = sys === 'line' ? layLine(solved, dress, drawn) : sys === 'atom' ? layAtom(solved, dress, drawn) : sys === 'spin' ? laySpin(solved, dress, drawn, playback) : layDecay(solved, dress, drawn, playback);
+  const lay = sys === 'line' ? layLine(solved, dress, drawn) : sys === 'plane' ? layPlane(solved, dress, drawn, playback) : sys === 'atom' ? layAtom(solved, dress, drawn) : sys === 'spin' ? laySpin(solved, dress, drawn, playback) : layDecay(solved, dress, drawn, playback);
   if (sys === 'line') { const timed = timeLiberty(lay.durationS, playback); if (timed) drawn.push(timed); for (const m of lay.movers) m.period = playback; }
-  const { center, radius, cameras } = framing([...lay.pts, ...lay.faces.flatMap((f) => f.corners)], { viewBox: manifest.viewBox, lead: dress.camera ?? lay.lead });
+  if (sys === 'plane') { const timed = timeLiberty(lay.durationS, playback); if (timed) drawn.push(timed); }
+  const { center, radius, cameras: framed } = framing([...lay.pts, ...lay.faces.flatMap((f) => f.corners)], { viewBox: manifest.viewBox, lead: dress.camera ?? lay.lead });
   const rate = lay.durationS ? lay.durationS / playback : 1;
+  const cameras = lay.cameras && !dress.camera ? lay.cameras : framed;
   return { solved, dress, drawn, ...lay, cameras, bounds: { center, radius }, playback, rate, pagePos: () => center, radiusOf: () => 0.01 * radius };
 }
 
@@ -202,6 +278,12 @@ function scienceConfig(plan, title) {
     model: [...new Set(solved.model.laws.map((l) => l.law))].map((id) => SUMMARY[id]),
     gates: solved.gates, assumptions: solved.assumptions, liberties: [...drawn, ...solved.liberties], gaps: solved.gaps, held: solved.held,
   });
+  if (plan.shader) {
+    const text = solved.system === 'plane'
+      ? 'the sheet is the solver\'s own frames of |ψ|², looked up by a shader; the shader conformance gate holds what it draws, and its wall, to them in the test suite (scripts/science-conformance.mjs)'
+      : 'every pixel is a ray marched through ψ, generated from the orbitals\' own coefficients; the checks above are of the sampled points, and the shader conformance gate holds the shader\'s ψ to the exact function in the test suite (scripts/science-conformance.mjs)';
+    sections.sections.splice(2, 0, { head: 'Drawn by a shader', color: '#9ad0ff', items: [{ text }] });
+  }
   sections.sections.push({ head: `Sources (reviewed ${solved.reviewed})`, color: '#80cbc4', items: solved.sources.map((text) => ({ text })) });
   return {
     t: plan.t, period: plan.playback, hold: plan.hold, titleHtml: esc(title), titleText: title, ...(plan.noClock ? { noClock: true } : {}),
@@ -233,11 +315,13 @@ export function assembleQuantumScene(manifest = {}, { title, plan: given } = {})
   const plan = given ?? planQuantumWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
   const name = title || manifest.title || 'mojulo quantum world';
   const film = planQuantumFilm(manifest, plan);
+  const science = plan.dress.hud || plan.shader ? { ...scienceConfig(plan, name), film: film.config, ...(plan.shader ? { probe: plan.shader.probe } : {}) } : null;
   return {
     faces: plan.faces, picks: [], movers: plan.movers, planets: plan.planets, cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
     title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false,
-    ...(plan.dress.hud ? { science: { ...scienceConfig(plan, name), film: film.config } } : {}),
+    ...(plan.shader ? { effects: [plan.shader.layer] } : {}),
+    ...(science ? { science: plan.dress.hud ? science : { ...science, rows: [], honesty: { sections: [] } } } : {}),
     ...(film.proposed ? { defaultShoot: film.proposed } : {}),
   };
 }

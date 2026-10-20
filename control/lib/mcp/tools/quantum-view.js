@@ -1,7 +1,7 @@
 /**
  * create_view({ kind: 'quantum' }) — a quantum science world: states and the rules they follow, composed from the
- * quantum law table (lib/graph/science-worlds/quantum/): a particle on a line (wells, barriers, steps), the hydrogen
- * atom's orbitals, spin through Stern–Gerlach magnets, radioactive decay. The agent writes the model; the solver
+ * quantum law table (lib/graph/science-worlds/quantum/): a particle on a line (wells, barriers, steps), a packet on a
+ * plane through slits (its far field and detections), the hydrogen atom's orbitals, spin through Stern–Gerlach magnets, radioactive decay. The agent writes the model; the solver
  * checks units, runs it (Crank–Nicolson, exact orbitals, seeded outcomes) and its gates; the page draws it with a
  * "what's real · what's drawn" panel and the rows' sources.
  *
@@ -39,7 +39,9 @@ export function mintQuantumView({ model, dress, liberties, title, viewBox, scene
     observed: solved.observed,
     liberties: [...plan.drawn, ...solved.liberties],
     stats: quantumStats(solved),
-    note: 'Machine gate only. Nobody has looked at it yet: open the worldUrl.',
+    note: plan.shader
+      ? `Machine gate only. The ${solved.system === 'plane' ? 'sheet is the solver\'s frames drawn' : 'volume is ψ drawn'} by a shader, held to the solver by the shader conformance gate in the test suite (node scripts/science-conformance.mjs --ref <ref>). Nobody has looked at it yet: open the worldUrl.`
+      : 'Machine gate only. Nobody has looked at it yet: open the worldUrl.',
   };
 }
 

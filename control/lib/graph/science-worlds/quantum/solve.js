@@ -3,6 +3,8 @@
  *
  *   { system: 'line',  line: { length, points?, particle? }, laws: [well | harmonic | barrier | step …],
  *     state: { packet: { at, width, energy?, direction? } } | { superpose: [{ n, weight?, phase? }] }, duration }
+ *   { system: 'plane', plane: { size, points?, particle? }, laws: [{ law: 'slits', … }]?,
+ *     state: { packet: { at, width, energy } }, duration, detections? }
  *   { system: 'atom',  laws: [{ law: 'hydrogen' }], state: { orbitals: [{ n, l, m }] }, samples? }
  *   { system: 'spin',  laws: [stern-gerlach …], state: { along: 'x' | { theta, phi } }, atoms? }
  *   { system: 'decay', laws: [{ law: 'decay', half_life }], state: { nuclei }, duration }
@@ -18,6 +20,7 @@ import { QUANTUM_LAWS, QUANTUM_LAW, SYSTEMS, ELECTRON_MASS, RYDBERG_EV } from '.
 import { grid, hamiltonian, eigen, stepper, measure, barrierT, stepT, HBAR_EVFS, HB2M_E } from './line.js';
 import { radialTable, radialNodes, sampleCloud, orbitalName, MAX_N } from './atom.js';
 import { direction, runSpin, spinExpectation, runDecay } from './counting.js';
+import { runPlane, farField, thinScreen, fringeSpacing, halfWidth, detections as drawDetections, wallLeak, slitCentres } from './plane.js';
 
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -51,6 +54,9 @@ function lawsFor(model, system) {
         const n = typeof v === 'string' ? direction(v) : direction({ theta: quantity(v, 'scalar', `${where}.${name}`), phi: 0 });
         if (!n) fail(`${where}.${name}`, "is 'x', 'y', 'z' (or '-z' …), or an angle from z toward x");
         entry[name] = typeof v === 'string' ? v : n;
+      } else if (spec.dim === 'count') {
+        if (!Number.isInteger(v) || v < 1 || v > 6) fail(`${where}.${name}`, 'is a whole number of slits, 1 to 6');
+        entry[name] = v;
       } else if (spec.dim === 'keep') {
         if (!['up', 'down', 'both'].includes(v)) fail(`${where}.${name}`, "is 'up', 'down' or 'both'");
         entry[name] = v;
@@ -66,7 +72,7 @@ export function normalizeQuantum(params) {
   const { model, dress, liberties } = splitParams(params);
   if (!SYSTEMS.includes(model.system)) fail('model.system', `is one of ${SYSTEMS.join(', ')} (one system per world)`);
   const system = model.system;
-  const allowed = { line: ['line', 'duration', 'dt'], atom: ['samples'], spin: ['atoms'], decay: ['duration'] }[system];
+  const allowed = { line: ['line', 'duration', 'dt'], plane: ['plane', 'duration', 'detections'], atom: ['samples'], spin: ['atoms'], decay: ['duration'] }[system];
   const extra = Object.keys(model).filter((k) => !['system', 'laws', 'state', 'observe', 'seed', ...allowed].includes(k));
   if (extra.length) fail('model', `unknown field '${extra[0]}' for a ${system} world`);
   const { laws, gaps } = lawsFor(model, system);
@@ -105,6 +111,44 @@ export function normalizeQuantum(params) {
         return { n: c.n, weight: w, phase: c.phase === undefined ? 0 : quantity(c.phase, 'scalar', `model.state.superpose[${i}].phase`) };
       }) };
     } else fail('model.state', "a line starts as { packet: { at, width, energy? } } or { superpose: [{ n, weight? }] }");
+  } else if (system === 'plane') {
+    const pl = model.plane;
+    if (!isObj(pl)) fail('model.plane', 'wants { size, points?, particle? }');
+    out.L = positive(pl.size, 'length', 'model.plane.size') / NM;
+    out.points = pl.points === undefined ? 128 : pl.points;
+    if (![64, 128, 256].includes(out.points)) fail('model.plane.points', 'is 64, 128 or 256 (cells a side)');
+    const p = pl.particle ?? 'electron';
+    out.mass = typeof p === 'string' ? PARTICLES[p] : isObj(p) ? positive(p.mass, 'mass', 'model.plane.particle.mass') : undefined;
+    if (!out.mass) fail('model.plane.particle', `is ${Object.keys(PARTICLES).join(', ')} or { mass }`);
+    out.particle = typeof p === 'string' ? p : 'particle';
+    out.duration = positive(model.duration, 'time', 'model.duration') / FS;
+    out.detections = model.detections === undefined ? 400 : model.detections;
+    if (!Number.isInteger(out.detections) || out.detections < 10 || out.detections > 2000) fail('model.detections', 'is a whole number from 10 to 2000');
+    const dx = out.L / out.points, rimW = Math.max(4, Math.round(out.points / 16)) * dx, inner = out.L / 2 - rimW;
+    if (laws.length > 1) fail('model.laws', 'a plane holds one wall: one slits row');
+    if (laws.length) {
+      const e = laws[0].entry;
+      for (const k of ['width', 'separation', 'thickness', 'at']) if (e[k] !== undefined) e[k] /= NM;
+      if (e.height !== undefined) e.height /= EVJ;
+      const w = { count: e.count ?? 2, width: e.width, separation: e.separation ?? 0, thickness: e.thickness ?? 2 * dx, at: e.at ?? 0, height: e.height ?? 10 };
+      if (w.width < 2 * dx) fail('model.laws[0].width', `a slit is at least two of the grid's cells wide (${sig(2 * dx * NM, 3)} m here): a finer grid (points) or a wider slit`);
+      if (w.count > 1 && !(w.separation >= w.width + 2 * dx)) fail('model.laws[0].separation', `slits ${w.count > 1 ? 'stand' : ''} at least their width and two cells apart, centre to centre (${sig((w.width + 2 * dx) * NM, 3)} m here)`);
+      if (w.thickness < 2 * dx) fail('model.laws[0].thickness', `is at least two of the grid's cells (${sig(2 * dx * NM, 3)} m here)`);
+      if (Math.abs(w.at) + w.thickness / 2 + 2 * dx > inner) fail('model.laws[0].at', 'puts the wall in the plane\'s absorbing rim');
+      const edge = Math.max(...slitCentres(w).map(Math.abs)) + w.width / 2;
+      if (edge > inner) fail('model.laws[0]', 'the slits reach the plane\'s absorbing rim: a larger plane or closer slits');
+      laws[0].entry = { law: 'slits', ...w };
+      out.wall = w;
+    } else out.wall = null;
+    const pk = model.state.packet;
+    if (!isObj(pk)) fail('model.state.packet', 'a plane starts as { packet: { at, width, energy } }, moving +x toward the wall');
+    const at = quantity(pk.at ?? 0, 'length', 'model.state.packet.at') / NM;
+    const wd = Array.isArray(pk.width) && pk.width.length === 2 && typeof pk.width[0] !== 'number' ? pk.width : [pk.width, pk.width];
+    const sx = positive(wd[0], 'length', 'model.state.packet.width') / NM, sy = positive(wd[1], 'length', 'model.state.packet.width') / NM;
+    const energy = positive(pk.energy, 'work', 'model.state.packet.energy') / EVJ;
+    if (Math.abs(at) + 2 * sx > inner) fail('model.state.packet.at', 'starts the packet in the plane\'s absorbing rim');
+    if (out.wall && at + 3 * sx > out.wall.at - out.wall.thickness / 2) fail('model.state.packet.at', 'starts the packet on or past the wall (it moves +x toward it; three widths clear)');
+    out.state = { packet: { at, sx, sy, energy } };
   } else if (system === 'atom') {
     const orb = model.state.orbitals;
     if (!Array.isArray(orb) || !orb.length || orb.length > 6) fail('model.state.orbitals', 'wants one to six [{ n, l, m }]');
@@ -298,6 +342,55 @@ function solveLine(m) {
   return { g, V, hb2m, dt, substeps, series, levels: levels ? levels.slice(0, 5).map((l) => sig(l.E, 6)) : null, pick, gates, warnings, cut, Ehi };
 }
 
+// ── the plane ──
+function solvePlane(m) {
+  const hb2m = HB2M_E * (ELECTRON_MASS / m.mass), pk = m.state.packet;
+  const run = runPlane({ L: m.L, n: m.points, hb2m, wall: m.wall, packet: pk, duration: m.duration });
+  const ff = farField(run, { from: m.wall ? run.back + 0.25 : -Infinity });
+  const shots = drawDetections(ff.theta, ff.p, m.detections, m.seed * 7919 + 17);
+  const lam = (2 * Math.PI) / run.k0;
+  const gates = [], s = run.series, last = s.t.length - 1;
+  const acc = Math.max(...s.norm.map((v, k) => Math.abs(v + s.taken[k] - 1)));
+  gates.push(gate('norm-accounted', 'what is on the plane and what its rim has taken add to one (the step is unitary; the rim\'s take is counted as it is taken)', acc <= 1e-9, { drift: sig(acc, 3) }, 'probability neither appears nor leaks unaccounted'));
+  const ppw = (2 * Math.PI) / (run.kmax * run.g.dx);
+  gates.push(gate('grid-resolves', 'the grid has at least three cells per shortest wavelength in the state (two thirds of the shortest it can hold, where a spectral step is exact)', ppw >= 3, { dx: sig(run.g.dx * NM, 3), wavelength: sig(lam * NM, 3) }, `${sig(ppw, 3)} cells per shortest wavelength`));
+  const k = s.t.findIndex((t) => Math.abs(t - run.snapStep * run.dt) < 1e-9);
+  const passed = s.past[k], lost = s.takenPast[k];
+  if (m.wall) {
+    const quiet = lost / Math.max(passed + lost, 1e-300);
+    gates.push(gate('edges-quiet', 'the far field is read while the passed wave is still whole (the rim has taken under 3% of it)', quiet <= 0.03, { taken: sig(quiet, 3) },
+      quiet <= 0.03 ? 'the plane is large enough' : 'the passed wave reached the rim first: a larger plane, or a shorter run'));
+    const settle = run.snapExit / Math.max(passed, 1e-300);
+    gates.push(gate('far-field-settled', 'the wave has finished coming through when the far field is read (under 3% of it still at the slits\' mouths)', settle <= 0.03, { 'at the mouths': sig(settle, 3) },
+      settle <= 0.03 ? 'the passed wave is all on its way' : 'part of it was still coming through: a longer run, or a shorter packet'));
+    const leak = wallLeak({ dx: run.g.dx, dt: run.dt, steps: run.steps, hb2m, wall: m.wall, packet: pk });
+    gates.push(gate('wall-opaque', 'the wall itself lets through under 1e-4 of what strikes it (a packet at the same energy, on the same grid and step, struck head on)', leak <= 1e-4, { through: sig(leak, 3) },
+      leak <= 1e-4 ? 'what passes, passes through the slits' : 'the wall leaks: a thicker or higher wall'));
+    const thin = thinScreen(run, m.wall, pk, ff.theta);
+    if (m.wall.count > 1) {
+      const lobe = 0.7 * lam / m.wall.width;
+      const sm = fringeSpacing(ff.theta, ff.p, lobe, m.wall.count), st = fringeSpacing(ff.theta, thin, lobe, m.wall.count);
+      const err = sm && st ? Math.abs(sm - st) / st : Infinity;
+      gates.push(gate('closed-form:fringes', 'bright fringes stand sin θ = λ/d apart: the measured spacing against the thin-screen pattern of the grid\'s own slits, within 3%', err <= 0.03,
+        { expected: { spacing: sig(st ?? NaN, 4), 'λ/d': sig(lam / m.wall.separation, 4) }, measured: { spacing: sig(sm ?? NaN, 4) }, error: sig(err, 3) },
+        sm ? 'in sin θ, over the fringes inside the central band' : 'fewer than three bright fringes inside the central band'));
+    } else {
+      const hm = halfWidth(ff.theta, ff.p), ht = halfWidth(ff.theta, thin), ratio = hm / ht;
+      gates.push(gate('envelope', 'one slit\'s central band is about λ/w wide: its half width lies from the thin screen\'s to 35% more (the slit is a short channel, which only widens it)', ratio >= 0.95 && ratio <= 1.35,
+        { expected: { 'half width': sig(ht, 4), '0.443 λ/w': sig((0.443 * lam) / m.wall.width, 4) }, measured: { 'half width': sig(hm, 4) }, error: sig(ratio - 1, 3) },
+        'in sin θ; a slit narrow next to the wavelength, or a thick wall, widens it further'));
+    }
+  }
+  // the detections follow the far field: twenty bins of equal probability each hold a twentieth of them
+  const B = 20, edges = [];
+  for (let b = 1; b < B; b++) { const tgt = (shots.total * b) / B; let i = 0; while (shots.cdf[i] < tgt) i++; edges.push(ff.theta[i]); }
+  const counts = new Array(B).fill(0);
+  for (const a of shots.angles) { let b = 0; while (b < B - 1 && a > edges[b]) b++; counts[b]++; }
+  const e = shots.angles.length / B, chi = counts.reduce((a, c) => a + (c - e) ** 2 / e, 0), dof = B - 1;
+  gates.push(gate('detections-honest', 'the detections follow the far field (a χ² over twenty bins of equal probability, within five spreads)', chi <= dof + 5 * Math.sqrt(2 * dof), { chi2: sig(chi, 4), dof }, 'each dot drawn one at a time from where the wave goes'));
+  return { ...run, far: ff, shots: shots.angles, lambda: lam, passed, gates, warnings: run.warnings, last };
+}
+
 // ── the atom ──
 function solveAtom(m) {
   const gates = [], clouds = [];
@@ -357,10 +450,11 @@ function solveDecay(m) {
 /** Solve a quantum world: the normalized model, its run, the readouts, the gates, the gaps and the sources. */
 export function solveQuantum(params) {
   const { model, gaps, dress, liberties } = normalizeQuantum(params);
-  const run = model.system === 'line' ? solveLine(model) : model.system === 'atom' ? solveAtom(model) : model.system === 'spin' ? solveSpin(model) : solveDecay(model);
+  const run = model.system === 'line' ? solveLine(model) : model.system === 'plane' ? solvePlane(model) : model.system === 'atom' ? solveAtom(model) : model.system === 'spin' ? solveSpin(model) : solveDecay(model);
   const rows = model.laws.map((l) => l.row);
   const assumptions = [STANCE, ...new Set(rows.map((r) => r.assumption))];
   if (model.system === 'line') assumptions.push('The line\'s ends are hard walls; the particle has no spin.');
+  if (model.system === 'plane') assumptions.push('The plane\'s edge is an absorbing rim (what reaches it is taken, and counted); the particle has no spin; the far field is where the passed wave goes far away, read along each direction.');
   const sources = [...new Set(rows.flatMap((r) => r.sources))];
   const reviewed = rows.map((r) => r.reviewed).sort()[0] ?? null;
   const observed = {};
@@ -371,6 +465,12 @@ export function solveQuantum(params) {
     observed.spread = { start: sig(s.sigma[0] * 1e-9, 4), end: sig(s.sigma[last] * 1e-9, 4), unit: 'm' };
     if (run.cut !== null) observed.transmitted = { value: sig(s.right[last], 4) };
     if (run.levels) observed.levels = { values: run.levels, unit: 'eV' };
+  } else if (model.system === 'plane') {
+    observed.wavelength = { value: sig(run.lambda * 1e-9, 4), unit: 'm' };
+    if (model.wall) observed.passed = { value: sig(run.passed, 4) };
+    const fr = run.gates.find((g) => g.id === 'closed-form:fringes');
+    if (fr) observed.fringes = { spacing: fr.value.measured.spacing, 'λ/d': fr.value.expected['λ/d'] };
+    observed.detections = { count: run.shots.length };
   } else if (model.system === 'atom') {
     for (const c of run.clouds) observed[c.name] = { energy: sig(c.energy, 6), unit: 'eV', 'mean radius': `${sig(c.meanR, 4)} a₀`, 'radial nodes': c.n - c.l - 1, 'angular nodes': c.l };
   } else if (model.system === 'spin') {
@@ -384,7 +484,7 @@ export function solveQuantum(params) {
     dress, liberties, assumptions, sources, reviewed, gaps, warnings: run.warnings,
     run, observed,
     gates: run.gates, held: run.gates.every((g) => g.ok),
-    stats: { system: model.system, laws: rows.length, seed: model.seed, ...(model.system === 'line' ? { steps: SAMPLES * run.substeps, dt: sig(run.dt * 1e-15, 4), points: model.points } : {}) },
+    stats: { system: model.system, laws: rows.length, seed: model.seed, ...(model.system === 'line' ? { steps: SAMPLES * run.substeps, dt: sig(run.dt * 1e-15, 4), points: model.points } : {}), ...(model.system === 'plane' ? { steps: run.steps, dt: sig(run.dt * 1e-15, 4), points: model.points } : {}) },
   };
 }
 

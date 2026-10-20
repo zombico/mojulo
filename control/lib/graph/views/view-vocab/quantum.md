@@ -4,8 +4,8 @@
   "name": "Quantum science world (states and their rules, composed from laws)",
   "family": "science",
   "entry": "create_view",
-  "summary": "Compose a quantum demo from a table of laws (a particle on a line in wells, barriers and steps; the hydrogen atom's orbitals; spin through Stern–Gerlach magnets; radioactive decay) instead of picking a ready-made one: solved exactly or by a unitary stepper, checked against the textbook formulas, every row sourced and dated, and the page says what is the model and what is a picture.",
-  "when": "Reach for this when a teacher or student wants to see a quantum idea worked: 'tunnelling through a barrier', 'a particle in a box and its energy levels', 'what do the hydrogen orbitals look like', 'the 2p and 3d orbitals side by side', 'why a measurement changes the spin', 'Stern–Gerlach with three magnets', 'radioactive decay and half-life', 'a wave packet spreading out', 'zero-point energy of an oscillator'. It supersedes the curated `atom` kind for orbitals: those are exact here and checked. Molecules moving and reacting are the microscopic scale's; a ball on a spring is the classical scale's."
+  "summary": "Compose a quantum demo from a table of laws (a particle on a line in wells, barriers and steps; a packet on a plane through slits, its fringes built up detection by detection; the hydrogen atom's orbitals; spin through Stern–Gerlach magnets; radioactive decay) instead of picking a ready-made one: solved exactly or by a unitary stepper, checked against the textbook formulas, every row sourced and dated, and the page says what is the model and what is a picture.",
+  "when": "Reach for this when a teacher or student wants to see a quantum idea worked: 'tunnelling through a barrier', 'a particle in a box and its energy levels', 'what do the hydrogen orbitals look like', 'the 2p and 3d orbitals side by side', 'why a measurement changes the spin', 'Stern–Gerlach with three magnets', 'radioactive decay and half-life', 'a wave packet spreading out', 'zero-point energy of an oscillator', 'electrons through two slits, dot by dot', 'what changes with three slits'. It supersedes the curated `atom` kind for orbitals: those are exact here and checked. Molecules moving and reacting are the microscopic scale's; a ball on a spring is the classical scale's."
 }
 ---
 
@@ -20,11 +20,13 @@ A world is one **system**, and every law in it belongs to that system:
 | System | What it is | How it runs |
 |---|---|---|
 | `line` | a particle on a line, ψ(x, t) under the Schrödinger equation, its potential the sum of the line's rows | Crank–Nicolson (unitary); levels by exact diagonalization |
+| `plane` | a packet on a plane, ψ(x, y, t), through a wall with slits; its far field, and detections drawn from it | split-step Fourier (unitary), the rim's take counted; detections seeded |
 | `atom` | the hydrogen atom's orbitals ψ_nlm, side by side | exact radial and angular functions; clouds sampled from \|ψ\|² |
 | `spin` | spin-½ atoms through a chain of Stern–Gerlach magnets | each outcome drawn with its odds, cos²(θ/2), seeded |
 | `decay` | unstable nuclei with a half-life | each decay moment drawn from the exponential law, seeded |
 
-Use a ready-made kind when it already is the demo (`double-slit`, `wavepacket`, `fission`, `fusion`). The curated
+Use a ready-made kind when it already is the demo (`double-slit`, `wavepacket`, `fission`, `fusion`): the `plane`
+system is the double slit worked from the Schrödinger equation, the `double-slit` kind one fixed picture of it. The curated
 `atom` kind still renders many-electron atoms as a picture; for orbitals that are the real functions, use this.
 
 ## The recipe
@@ -53,6 +55,13 @@ A bare number is SI. A string or pair carries its unit and is checked: `'2 nm'`,
   (none is a free particle). `state` is either `{ packet: { at, width, energy?, direction? } }` (a Gaussian packet
   moving `'right'` (default) or `'left'` with that mean energy) or `{ superpose: [{ n, weight?, phase? }] }` (the
   line's own levels, 1 the lowest).
+- `plane` — `{ system: 'plane', plane: { size, points?, particle? }, laws: [{ law: 'slits', … }], state: { packet: {
+  at, width, energy } }, duration, detections? }`. A square plane `size` across, centred on the origin, `points`
+  cells a side (64, 128 (default) or 256), its edge an absorbing rim. One `slits` row stands a wall across it at
+  x = `at`; none is a free packet. The packet starts at x = `at` (y = 0) moving +x with that mean `energy`; `width` is
+  its spread, one length or `[along, across]` (a broad `across` lights both slits evenly). `detections` (10 to 2000,
+  default 400) are drawn from the far field. A solve costs about a second at 128 cells a side; the work is capped at
+  128² × 1500 grid-steps (a longer run coarsens the step, and says so).
 - `atom` — `{ system: 'atom', laws: [{ law: 'hydrogen' }], state: { orbitals: [{ n, l, m }] }, samples? }`. One to
   six orbitals (n up to 7, 0 ≤ l < n, |m| ≤ l; the real forms a chemistry book draws: m = 1 is p_x, −1 is p_y);
   `samples` points per orbital (200 to 4000, default 1500).
@@ -79,6 +88,17 @@ allow five standard errors, so a sound run passes for any seed.
 - `closed-form:ehrenfest`, `closed-form:spreading`, `closed-form:beat` — a displaced packet swings like a
   classical mass; a free packet spreads as σ₀·√(1 + (ħt/2mσ₀²)²); two levels beat at h / (E₂ − E₁).
 - `quantum-regime` — the waves are not tiny next to the potential's features (else a classical world would do).
+- `norm-accounted` (plane) — what is on the plane and what its rim has taken add to one.
+- `grid-resolves`, `edges-quiet`, `far-field-settled` (plane) — three cells per shortest wavelength; the far field
+  read while the passed wave is whole (the rim has taken under 3% of it) and once it has finished coming through.
+- `wall-opaque` — the wall itself lets through under 1e-4 of what strikes it (a packet at the same energy struck head
+  on, on the same grid and step): what passes, passes through the slits.
+- `closed-form:fringes` — two slits or more: the bright fringes' spacing in sin θ against the thin-screen pattern of
+  the grid's own slits, within 3% (the textbook λ/d beside it; the grid samples the slits' edges at its cells).
+- `envelope` — one slit: its central band's half width from the thin screen's to 35% more. A slit in a wall is a
+  short channel, which only widens it; a thick wall or a slit near the wavelength widens it further, and the gate
+  says so.
+- `detections-honest` — a χ² that the detections follow the far field.
 - `radial-nodes:<orbital>`, `normalized:<orbital>`, `closed-form:mean-radius:<orbital>`, `cloud-honest:<orbital>` —
   n − l − 1 radial nodes, an integral of one, the cloud's mean radius against (a₀/2)(3n² − l(l+1)), and a χ² that
   the drawn points follow |ψ|².
@@ -89,6 +109,12 @@ allow five standard errors, so a sound run passes for any seed.
 ## The dress (the interactive page)
 
 - `phase` (line, default false) — draw Re ψ beside |ψ|², to see the phase turn.
+- `render` (atom, `'points'` (default) or `'volume'`) — `'volume'` ray-marches each orbital as a glowing density,
+  gold where ψ is positive and blue where it is negative, instead of the cloud of points. It is a second picture of
+  the same ψ: the shader is generated from the orbital's own coefficients and held to the exact function by the
+  shader conformance gate in the test suite (`node scripts/science-conformance.mjs --ref <ref>`), while the
+  machine gate's checks stay those of the sampled points. A volume cannot stand in a world.
+- `exposure` (volume, 0.1 to 10, default 1) — how strongly the volume glows.
 - `hud`, `camera` (`'side'`, `'angle'` or `'top'`), `background`, `playback` — as the classical world's.
 - `film` — the film dress, as the classical world's (`callouts` on the model's clock, `end_card`). A line, spin or
   decay world's proposed film is the run and its end card; an atom's circles the clouds.
@@ -97,10 +123,17 @@ The drawing declares its own liberties: the magnification, the potential and |ψ
 samples, the sign as colour, the nucleus far larger than it is, the beams' paths, the share drawn of many atoms or
 nuclei, and the time rate.
 
+The plane's sheet is drawn by a shader from the solver's own frames of |ψ|², over the far screen and its dots; the
+shader conformance gate holds what it draws, and its wall, to them in the test suite. Its brightness is the square
+root of |ψ|² against the brightest moment, the wall a raised slab, the far screen the far field set at a drawn
+distance, and the dots arrive one at a time over the run's second half: the page says each. A plane cannot stand
+in a world.
+
 ## Reading the numbers back
 
 The measuring tool reads a quantum world at tier `si`, per system, from the same run the page plays: a line's
-⟨x⟩, spread, ⟨E⟩ (eV), total probability and the share past its barrier, with its levels; each orbital's exact
+⟨x⟩, spread, ⟨E⟩ (eV), total probability and the share past its barrier, with its levels; a plane's run (on the
+plane, past the wall, taken by the rim), its far field by angle and each detection's angle; each orbital's exact
 energy and mean radius beside what its cloud measures, and the sampled points; each magnet's counts beside their
 odds; the nuclei left over time. The rows' sources and review date come with them.
 
@@ -123,6 +156,14 @@ A particle in a box in two levels at once: the density sloshes at h / (E₂ − 
 ```
 { "model": { "system": "line", "line": { "length": "4 nm" }, "laws": [{ "law": "well", "width": "2 nm" }],
   "state": { "superpose": [{ "n": 1 }, { "n": 2 }] }, "duration": "30 fs" } }
+```
+
+Electrons through two slits, building the fringes dot by dot (they stand λ/d ≈ 0.22 apart in sin θ):
+
+```
+{ "model": { "system": "plane", "plane": { "size": "24 nm" },
+  "laws": [{ "law": "slits", "count": 2, "width": "1 nm", "separation": "4 nm", "at": "-3 nm" }],
+  "state": { "packet": { "at": "-7 nm", "width": ["1 nm", "3 nm"], "energy": "2 eV" } }, "duration": "13 fs" } }
 ```
 
 Three hydrogen orbitals side by side (1s, 2s with its radial node, 3d_z²):
@@ -188,6 +229,17 @@ A potential step of `height` from `at` onward: a packet partly reflects even whe
 - Leaves out: The step is perfectly sharp.
 - Sources: Griffiths & Schroeter, Introduction to Quantum Mechanics, 3rd ed. (2018), §2.6 (problem 2.35); CODATA 2018 recommended values (NIST) (reviewed 2026-10-19).
 - Smallest example: `{"system":"line","line":{"length":"100 nm","points":2048},"laws":[{"law":"step","height":"0.1 eV","at":0}],"state":{"packet":{"at":"-10 nm","width":"2.5 nm","energy":"0.2 eV"}},"duration":"130 fs"}`
+
+### The plane system
+
+#### `slits`
+
+A wall across the plane at x = `at`, `thickness` thick and `height` high, open in `count` slits of `width` whose centres stand `separation` apart. A packet striking it passes through the slits and spreads: far off, the slits' waves meet in bright fringes sin θ = mλ/d apart, and detections arriving one at a time build that pattern up.
+
+- Takes `count` (a whole number; default 2), `width` (a length, e.g. '0.6 nm'; required), `separation` (a length, e.g. '0.6 nm'; default 0), `thickness` (a length, e.g. '0.6 nm'; default two grid cells), `at` (a length, e.g. '0.6 nm'; default 0), `height` (an energy, e.g. '0.2 eV'; default 10 eV).
+- Leaves out: The wall is a smooth potential step two grid cells wide at each edge and reflects what it stops; a slit in it is a short channel, not a thin screen, so a single slit's band is a little wider than λ/w predicts. The plane is two-dimensional (no motion out of it).
+- Sources: Feynman, Leighton & Sands, The Feynman Lectures on Physics III, ch. 1 (1965); Tonomura et al., Am. J. Phys. 57, 117 (1989); Hecht, Optics, 5th ed. (2017), ch. 10 (Fraunhofer diffraction); Feit, Fleck & Steiger, J. Comput. Phys. 47, 412 (1982) (the split-step method); CODATA 2018 recommended values (NIST) (reviewed 2026-10-19).
+- Smallest example: `{"system":"plane","plane":{"size":"24 nm","points":128},"laws":[{"law":"slits","count":2,"width":"1 nm","separation":"4 nm","at":"-3 nm"}],"state":{"packet":{"at":"-7 nm","width":["1 nm","3 nm"],"energy":"2 eV"}},"duration":"13 fs","detections":400}`
 
 ### The atom system
 

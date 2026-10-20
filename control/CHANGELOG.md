@@ -157,6 +157,47 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (`mars-colony` is Mars). The world's surfaces are checked when it renders. Each scale's card gains "In a world",
   and the classical, microscopic, quantum and relativistic assemblers take a plan they were handed. Absent, every
   world is byte-identical.
+- **Orbitals as a volume** (`dress.render: 'volume'` on a quantum atom world). Each orbital is ray-marched as a
+  density, gold where ψ is positive and blue where it is negative, several side by side in one shader, for every
+  orbital up to n = 7. The GLSL is generated from the orbital's own numbers (its Laguerre polynomial's coefficients
+  and its real solid harmonic as a polynomial in x, y and z), so nothing in it is a hand-typed twin of the JS. The
+  points stay the default, since they are the picture the χ² checks; the volume is a second picture of the same ψ,
+  and the panel says which checks are of what. `exposure` sets how strongly it glows. A volume is refused off an
+  atom world and in a setting. Its conformance probes are ψ at points of each orbital's cloud against the exact
+  function, within a thousandth of the orbital's brightest |ψ|; the worst in Chrome is about 2e-7 of it, out to
+  n = 7, and a shader whose ψ falls off 2% too slowly disagrees. `node scripts/science-conformance.mjs --examples`
+  runs it, and `--ref` takes a stored volume.
+- **The two-slit plane** (the quantum `plane` system and its `slits` row). A packet on a plane, ψ(x, y, t), stepped
+  by split-step Fourier, meets a wall with one to six slits. The plane's edge is an absorbing rim whose take is
+  counted as it is taken, so what is on the plane and what was taken add to one to round-off. The far field is read
+  from the passed wave's transform, zero-padded 4× and integrated along each direction over the packet's spread of
+  wavenumbers. Detections are drawn from it one at a time (seeded), and a χ² holds them to it. The checks:
+  - fringes against the thin-screen pattern of the grid's own slits, within 3%, with the textbook λ/d beside them
+    (two slits come out 0.211 against 0.212, λ/d 0.217; three slits 0.284 against 0.286);
+  - `wall-opaque`: the wall struck head on by a packet at the same energy, on the same grid and step;
+  - `far-field-settled` and `edges-quiet`: the far field is read once the wave has come through and before the rim
+    takes it;
+  - `grid-resolves`.
+
+  What the build found:
+  - A wall sharp to the cell lets the wave through by the split step's own error: 1e-4 at 20 eV, rising with the
+    wall's height, far above its tunnelling. That wave is as wide as the plane and floods the centre of the pattern
+    with a spike or a dip. The wall's edges now rise over two cells, which cuts the leak about a thousandfold.
+  - A slit in a wall is a short channel, not a thin screen, so one slit's central band comes out 11 to 26% wider than
+    λ/w gives. No zero is claimed for it: its `envelope` gate allows up to 35% wider and says why.
+
+  The page plays |ψ|² on a sheet from the solver's own frames (48 frames, 64 cells a side, four to a texel of a float
+  texture) through a shader drawn over the page's meshes. A depth prepass keeps the far screen in front of it. The
+  wall is a raised slab, and dots arrive at a far screen one at a time over the run's second half, each at its
+  detection's angle. The shader conformance gate holds the sheet to the frames (worst 9e-8) and the wall to the
+  model's either side of every slit edge. A shader that plays the frames backward between samples and drops the wall
+  disagrees. A solve takes about 1.3 s at 128 cells a side; the work is capped at 128² × 1500 grid-steps. `measure_view`
+  reads the run, the far field and the detections back. A plane cannot stand in a world. Interference, the double
+  slit, diffraction and gratings now name the slits row, and the curated `double-slit` card points here. Whether the
+  plane supersedes `double-slit` or `wavepacket` at the door is left to the routing eval.
+- **Shader pages over meshes.** `shaderPage` gains `output: 'layer'` (premultiplied, over the page's meshes),
+  `dataTextures` (float RGBA, into both the image and the probe shader) and `depthClip` (`sciSceneDistance`, from the
+  page's depth prepass). A page without them is byte-identical.
 
 ### Epidermis cube: skin and hair as a recipe
 

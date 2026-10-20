@@ -157,7 +157,11 @@ window.__sciProbe = (pairs) => {
   tex.minFilter = THREE.NearestFilter; tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true;
   const uniforms = { uTime: { value: 0 }, uPts: { value: tex }, uN: { value: N } };
   for (const [k, v] of Object.entries(SCI_PROBE.uniforms)) uniforms[k] = { value: Array.isArray(v) ? new THREE.Vector3(v[0], v[1], v[2]) : v };
-  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: SCI_PROBE.frag });
+${probe.dataTextures ? `  for (const [k, t] of Object.entries(SCI_PROBE.dataTextures)) {   // the frames the shader reads, as the page has them
+    const tx = new THREE.DataTexture(new Float32Array(t.data), t.width, t.height, THREE.RGBAFormat, THREE.FloatType);
+    tx.minFilter = THREE.NearestFilter; tx.magFilter = THREE.NearestFilter; tx.needsUpdate = true; uniforms[k] = { value: tx };
+  }
+` : ''}  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: SCI_PROBE.frag });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); quad.frustumCulled = false;
   const sc = new THREE.Scene(); sc.add(quad);
   const rt = new THREE.WebGLRenderTarget(N, 1, { type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });

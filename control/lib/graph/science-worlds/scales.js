@@ -23,6 +23,7 @@ export const OWNER = {
     'orbital', 'wavefunction', 'wave-function', 'tunnelling', 'tunneling', 'superposition', 'spin', 'entanglement',
     'bond', 'bonding', 'covalent', 'photon', 'photoelectric', 'decay', 'radioactive-decay', 'uncertainty',
     'interference', 'double-slit', 'quantization', 'energy-levels', 'schrodinger', 'schrödinger', 'hydrogen',
+    'slits', 'single-slit', 'diffraction', 'grating',
   ],
   relativistic: [
     'relativity', 'general-relativity', 'special-relativity', 'black-hole', 'lensing', 'gravitational-lensing',
@@ -82,8 +83,8 @@ const NOT_YET = {
   covalent: 'bonds need more than one electron, which is not in the table yet; the curated `molecule` kind shows molecules',
   entanglement: 'two-particle states are not in the table yet',
   photon: 'light as particles is not in the table yet', photoelectric: 'the photoelectric effect is not in the table yet',
-  interference: 'a two-slit plane is not in the table yet; the curated `double-slit` kind shows it',
-  'double-slit': 'a two-slit plane is not in the table yet; the curated `double-slit` kind shows it',
+  interference: 'the slits row (a plane world)', 'double-slit': 'the slits row (a plane world, count 2)',
+  'single-slit': 'the slits row (a plane world, count 1)', diffraction: 'the slits row (a plane world)', grating: 'the slits row (a plane world, count 3 or more)',
 };
 
 /** The gap for a law id `scale` lacks: which scale owns it, or why the table has no row for it. */

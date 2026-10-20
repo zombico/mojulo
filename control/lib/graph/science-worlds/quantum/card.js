@@ -7,7 +7,7 @@
 import { QUANTUM_LAWS, SYSTEMS } from './laws.js';
 import { CARD_BEGIN, CARD_END } from '../classical/card.js';
 
-const UNIT = { length: "a length, e.g. '0.6 nm'", work: "an energy, e.g. '0.2 eV'", time: "a time, e.g. '2 s'", axis: "'x', 'y', 'z', '-z' …, or an angle from z toward x", keep: "'up', 'down' or 'both'" };
+const UNIT = { length: "a length, e.g. '0.6 nm'", work: "an energy, e.g. '0.2 eV'", time: "a time, e.g. '2 s'", axis: "'x', 'y', 'z', '-z' …, or an angle from z toward x", keep: "'up', 'down' or 'both'", count: 'a whole number' };
 
 function paramLine(name, p) {
   const tail = p.required ? 'required' : p.default !== undefined ? `default ${p.default}` : 'optional';

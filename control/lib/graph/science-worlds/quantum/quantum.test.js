@@ -3,6 +3,9 @@ import { solveQuantum } from './solve.js';
 import { QUANTUM_LAW } from './laws.js';
 import { radial, realY, orbitalName } from './atom.js';
 import { assembleQuantumScene } from './world.js';
+import { orbitalConstants, psiFromConstants } from './volume-shader.js';
+import { MAX_N } from './atom.js';
+import { readScienceSetting } from '../setting.js';
 
 // One case per procedure: a line's unitary stepper and each closed form it is held to (levels, a beat, Ehrenfest,
 // spreading, transmission), the atom's exact orbitals and their sampled clouds, spin through magnets, decay, the
@@ -97,5 +100,57 @@ describe('science worlds: quantum', () => {
     expect(decay.movers.some((m) => m.vanish)).toBe(true);
     expect(assembleQuantumScene({ kind: 'quantum-view', model: law('decay'), dress: { hud: false } }).science).toBeUndefined();
     expect(() => assembleQuantumScene({ kind: 'quantum-view', model: law('decay'), dress: { trails: true } })).toThrow(/unknown field 'trails'/);
+  });
+
+  it('draws an atom as a volume from the orbitals\' own coefficients, held to the exact ψ, and only an atom', () => {
+    // one orbital per part of the solid harmonic (m = 0, the cos form, the sin form), at the largest n
+    for (const m of [0, 2, -3]) {
+      const c = orbitalConstants(MAX_N, 4, m);
+      for (const p of [[3, -7, 11], [-20, 4, -9], [0.5, 0.2, -0.1]]) {
+        const r = Math.hypot(...p), want = radial(MAX_N, 4, r) * realY(4, m, Math.acos(p[2] / r), Math.atan2(p[1], p[0]));
+        expect(Math.abs(psiFromConstants(c, p) - want)).toBeLessThan(1e-12 * c.peak);
+      }
+    }
+    const model = { ...law('hydrogen'), samples: 200 };
+    const vol = assembleQuantumScene({ kind: 'quantum-view', model, dress: { render: 'volume' } });
+    expect(vol.faces).toEqual([]);   // no sampled points drawn
+    expect(vol.effects).toHaveLength(1);
+    expect(vol.science.probe.frag).toMatch(/vec4 sciValue/);
+    expect(vol.science.honesty.sections.some((s) => s.head === 'Drawn by a shader')).toBe(true);
+    const pts = assembleQuantumScene({ kind: 'quantum-view', model });
+    expect(pts.effects).toBeUndefined();
+    expect(pts.science.probe).toBeUndefined();
+    // the dress never reaches the model: the same gates either way
+    expect(JSON.stringify(solveQuantum({ model, dress: { render: 'volume' } }).gates)).toBe(JSON.stringify(solveQuantum({ model }).gates));
+    expect(() => assembleQuantumScene({ kind: 'quantum-view', model: law('well'), dress: { render: 'volume' } })).toThrow(/draws an atom world/);
+    expect(() => assembleQuantumScene({ kind: 'quantum-view', model, dress: { exposure: 2 } })).toThrow(/goes with render: 'volume'/);
+    expect(() => readScienceSetting({ kind: 'quantum', model, dress: { render: 'volume' }, at: [0, 0, 0] })).toThrow(/cannot stand in a world/);
+  });
+
+  it('sends a packet through slits on a plane: unitary with its take counted, fringes λ/d apart, detections from the far field', () => {
+    const r = solveQuantum({ model: law('slits') });
+    expect(r.gates.filter((g) => !g.ok).map((g) => g.id)).toEqual([]);
+    const fr = gateOf(r, 'closed-form:fringes');
+    expect(Math.abs(fr.value.measured.spacing - fr.value.expected['λ/d']) / fr.value.expected['λ/d']).toBeLessThan(0.05);
+    expect(r.observed.detections.count).toBe(400);
+    // a wall the packet can climb leaks, and the gate says so; the far field read before the wave is through is flagged
+    const low = solveQuantum({ model: { ...law('slits'), laws: [{ ...law('slits').laws[0], height: '2.5 eV' }], duration: '8 fs' } });
+    expect(gateOf(low, 'wall-opaque').ok).toBe(false);
+    expect(gateOf(low, 'far-field-settled').ok).toBe(false);
+    expect(() => solveQuantum({ model: { ...law('slits'), laws: [{ law: 'slits', width: '0.2 nm', separation: '4 nm' }] } })).toThrow(/at least two of the grid's cells/);
+    expect(() => solveQuantum({ model: { ...law('slits'), state: { packet: { at: '-4 nm', width: '1 nm', energy: '2 eV' } } } })).toThrow(/on or past the wall/);
+  });
+
+  it('draws the plane as a sheet over the meshes, the far screen\'s dots arriving one at a time', () => {
+    const page = assembleQuantumScene({ kind: 'quantum-view', model: law('slits') });
+    expect(page.effects).toHaveLength(1);
+    expect(page.effects[0].depthClip).toBe(true);
+    expect(page.effects[0].dataTextures.uSheet.width).toBeGreaterThan(0);
+    expect(page.science.probe.dataTextures.uSheet).toBe(page.effects[0].dataTextures.uSheet);
+    const dots = page.movers.filter((m) => /^dot:/.test(m.group));
+    expect(dots.length).toBeGreaterThan(100);
+    expect(dots.every((m, i) => m.t0 >= page.science.period / 2 && m.t1 === page.science.period && (i === 0 || m.t0 >= dots[i - 1].t0))).toBe(true);
+    expect(page.science.rows.map((r) => r.html)).toEqual(['on the plane', 'past the wall', 'detections']);
+    expect(() => readScienceSetting({ kind: 'quantum', model: law('slits'), at: [0, 0, 0] })).toThrow(/cannot stand in a world/);
   });
 });
