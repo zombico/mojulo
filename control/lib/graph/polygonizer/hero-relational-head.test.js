@@ -1,5 +1,5 @@
-// hero-relational-head.test.js — the relational head worn by the realistic hero (`head: 'relational'`): two parts that
-// close, sealed to the neck on one ring, bound with four influences at most, the jaw on the rig's jaw bone so the mouth
+// hero-relational-head.test.js — the relational head worn by the realistic hero (`head: 'relational'`): a cranium and a
+// jaw that close, sealed to the neck on one ring, the face's parts over them (the visage, the nose, the eyes, the ears), bound with four influences at most, the jaw on the rig's jaw bone so the mouth
 // opens, the mouth's ring shut behind its corners whatever turns the head. (Beside the slice, not in the critical tier:
 // a realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
@@ -19,14 +19,14 @@ describe('the relational head on the realistic body', () => {
     expect(heroRecord({ cast: 'female', form: 'realistic', head: 'relational' })).not.toHaveProperty('face');
   });
 
-  it('mints: closes, binds, seals to the neck and opens its jaw', { timeout: 120000 }, () => {
+  it('mints: closes, binds, seals to the neck and opens its jaw', { timeout: 240000 }, () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', head: 'relational' }) });
     const P = m.recipe.parts;
     // the landmark head and everything pinned on it are gone; its jaw dial with it
     expect(Object.values(P).filter((p) => p.pin && /^(cranium|jaw)$/.test(p.pin.parent))).toEqual([]);
     expect(m.recipe.dials.jawOpen).toBeUndefined();
     const mesh = compileLayered(m.recipe, m.dials), A = auditLayered(mesh);
-    for (const k of ['neck', 'jaw', 'cranium']) expect(A[k].pass, k).toBe(true);
+    for (const k of ['neck', 'jaw', 'cranium', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL']) expect(A[k]?.pass, k).toBe(true);
     const R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
     expect(Math.max(...skin.weights.map((w) => w.filter((x) => x > 0).length))).toBeLessThanOrEqual(4);
 
@@ -49,6 +49,10 @@ describe('the relational head on the realistic body', () => {
     const chin = idx[`jaw/st${Math.round(P.jaw.stations.length / 2)}.front`], crown = idx['cranium/tip'];
     expect(rest[chin][2] - open[chin][2]).toBeGreaterThan(0.005);
     expect(Math.hypot(...[0, 1, 2].map((q) => open[crown][q] - rest[crown][q]))).toBeLessThan(1e-9);
+    // the visage opens with it: under the lips (straight down from its middle) it drops, the nose and the eyes stay
+    const moved = (id) => Math.hypot(...[0, 1, 2].map((q) => open[idx[id]][q] - rest[idx[id]][q]));
+    expect(moved(`visage/st${Math.round(0.6 * P.visage.stations.length)}.back`)).toBeGreaterThan(0.003);
+    for (const id of ['nose/tip', 'eyeR/tip', 'eyeL/tip', `visage/st${Math.round(0.6 * P.visage.stations.length)}.front`]) expect(moved(id), id).toBeLessThan(1e-9);
     // behind the corners the ring stays shut, opened and under a head and neck turn
     for (const p of [{ jaw: 15 }, { jaw: 15, head: { yaw: 25, pitch: 10 }, neck: { yaw: -15 } }]) {
       const V = pose(p);

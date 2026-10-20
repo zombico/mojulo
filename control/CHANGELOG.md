@@ -108,10 +108,12 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
   bound to the rig's jaw bone, its hinge moved to the head's condyles, so the mouth opens. Bald.
 - The face sampled from its own direction: rays from one centre grazed the nose, the lips and the lids, and the face
   read stair-stepped. The cranium and the jaw are now sampled on the head's BARE field (head-relational.js `bare`: the
-  skin wave without the nose, the lips, the eyes or the ears), smooth under the features; the `face` is its own part,
-  concentric rings about the nose cast along the face's direction onto the whole field, out past where the features
-  leave the bare skin, its rim sunk under the cranium (the body's handover); the eyes painted. The ears are their own
-  parts, a pillow each on the ear's field (`earFields`), front and back sheets across its plane.
+  skin wave without the nose, the lips, the eyes or the ears), let down under the face. The face is parts cast along
+  its own look onto the whole field (the dermis study's graft read through the same grid): the `visage`, rings about
+  the mouth (the lips run along them); the `nose` and the eyes (`eyeR/L`), rings following the nose's outline and each
+  eye's opening, so the wings' creases and the lids' margins run along the rings, not across them; each sunk under the
+  next where they hand over (the body's handover), the eyes painted. The ears are their own parts, a tube up each ear
+  on the ear's field (`earFields`). About 19k vertices for the head; the swap takes about 50 s once (then kept).
 
 ### Realistic body: the dermal skin on the body
 

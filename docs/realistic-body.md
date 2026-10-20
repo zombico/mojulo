@@ -70,6 +70,12 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 Posing outside the body study and the stretch audit does not apply the correctives, and no exporter carries them. The
 dress, armour, kits, paint and details are refused on the realistic body. The body has no UVs.
 
-The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with two
-(`jaw`, `cranium`, four head slots to a neck slot), ends the neck on its seam ring and moves the rig's `jawHinge` and
-`jawTip`; it has no ears, no eye parts and no face rig yet.
+The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own,
+each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
+bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
+under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,
+the brow), `nose` and `eyeR/L` (rings following the nose's outline and each eye's opening: the wings' creases and the
+lids' margins run along them; the eyes painted Sclera, Iris, Pupil), each sunk under the next where they hand over (the
+eyes over the nose over the visage over the cranium), and `earR/L` (a tube up each ear on the ear's own field). The
+rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion; the lower face (the jaw part, the visage under
+the lips' line) is bound to the jaw. No face rig or expressions yet; the lips stretch as the jaw opens.
