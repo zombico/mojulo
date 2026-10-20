@@ -45,7 +45,7 @@ const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await 
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
-const { formSlice, BODY_BUILDS } = await import('@/lib/graph/polygonizer/body-relational.js');
+const { formSlice, BODY_BUILDS, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
 const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
 const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
 
@@ -188,7 +188,8 @@ function graftHead(H, sex) {
 }
 function posed(H, nodes) {
   const frames = boneFrames(H.R, H.R.joints, nodes);
-  const V = skinLayered(H.mesh, H.skin, frames);
+  // (a sliced recipe's correctives, the pauldron, added to the rest by the pose before the skin poses it)
+  const V = skinLayered({ ...H.mesh, vertices: correctiveRest(H.mesh, H.m.recipe, nodes) }, H.skin, frames);
   const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh });
   if (!H.graft) return { V, normals, faces: H.mesh.faces };
   // the graft rides the head bone rigidly; the hero's own head stays out of the picture

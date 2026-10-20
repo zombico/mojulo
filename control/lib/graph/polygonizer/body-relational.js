@@ -143,6 +143,13 @@ const NORRIN = {
     { joint: true, id: 'clavicle', cone: [[0.1, 0.24, 0.94], [0.7, 0.06, 0.98]], r: [0.06, 0.07] },
   ],
   dimples: [{ id: 'navel', on: { x: 0, t: -0.02, face: 'front' }, r: 0.025, k: 0.03 }],
+  // THE PAULDRON: the mass bunched over the shoulder blade by a raised arm (formSlice's corrective; never in the bind)
+  // (a water bag on the blade: narrow at its top over the blade's spine and full at its foot over the lower blade, so it
+  // hangs as the trunk stands; grown from 60 degrees of raise, whole at 160. A cap over the shoulder's top stood as a
+  // lump apart from the arm, and a pad over the arm's root stood out of the side like armour)
+  pauldron: [
+    { joint: true, id: 'pauldron', cone: [[0.66, -0.34, 0.95], [0.6, -0.34, 0.7]], r: [0.14, 0.26], drive: { from: 60, full: 160 } },
+  ],
   // the arms (the right; the left its mirror): s along the bone, az round it (0 the front, 90 the outside)
   kLimb: 0.03,
   limbs: {
@@ -523,6 +530,23 @@ export function limbField(R, build, limb, extra = []) {
   return { sd: (q) => lse(all.map((p) => sdOf(p, q)), k), prims };
 }
 
+/** A sliced recipe's CORRECTIVES (formSlice: the pauldron) added to a compiled mesh's rest for posed nodes: each its
+ * offsets by its weight, the raise of its driver's bone (the angle from the trunk's down, the navel from the neck's
+ * root) eased from `from` to `full`. The rest vertices as they are without correctives or at weight 0. */
+export function correctiveRest(mesh, recipe, nodes) {
+  const C = recipe?.correctives; if (!C?.length) return mesh.vertices;
+  const sm = (v) => { const y = Math.max(0, Math.min(1, v)); return y * y * (3 - 2 * y); };
+  let V = null;
+  for (const c of C) {
+    const a = nodes[c.driver.joint], b = nodes[c.driver.to]; if (!a || !b || !nodes.navel || !nodes.neckHub) continue;
+    const raise = (Math.acos(Math.max(-1, Math.min(1, dot(unit(sub(b, a)), unit(sub(nodes.navel, nodes.neckHub)))))) * 180) / Math.PI;
+    const w = sm((raise - c.driver.from) / (c.driver.full - c.driver.from)); if (w <= 0) continue;
+    V ??= mesh.vertices.map((v) => [...v]);
+    mesh.pointIds.forEach((id, i) => { const o = c.d[id]; if (o) V[i] = [V[i][0] + o[0] * w, V[i][1] + o[1] * w, V[i][2] + o[2] * w]; });
+  }
+  return V ?? mesh.vertices;
+}
+
 /** the slice: the torso and the arms re-sampled onto the build's field (the torso `around` × `rings`, each limb
  * `limbAround` × its build's rings), the pectoral and bust parts gone (the field carries their form), the dials' station
  * blends extended by u. Returns { recipe, field, removed, landmarks, fields } (`landmarks`: the crotch's and the navel's
@@ -601,7 +625,8 @@ export function formSlice(recipe, R, build, opts = {}) {
   const pelvic = !!r.parts.pelvis && B.base.some((m) => m.id === 'seatLobe');
   const zH = pelvic ? (cz(P.stations[0], P) + cz(r.parts.pelvis.stations.at(-1), r.parts.pelvis)) / 2 : null;
   const handed = (sd, sign) => (q) => sd(q) + deep * ramp((sign * (zH - q[2])) / bz);
-  r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 });
+  const torsoOpts = { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 };
+  r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, torsoOpts);
   if (pelvic) {
     // its lowest station set on the crotch (`crotch`), wholly under the level. Its centre lies on the crotch's skin, so a
     // ring's rays cast from the first point inside straight above (`up`)
@@ -619,6 +644,25 @@ export function formSlice(recipe, R, build, opts = {}) {
   if (r.parts.neck) r.parts.neck = resamplePart(r.parts.neck, field.only(['neck', 'sternocleidomastoid', 'trapeziusUpper']), { around: 32, rings: 15, relax: 2 });
   // the midline exactly on it, the left the right's mirror (a midline part's contract)
   for (const T of [r.parts.torso, r.parts.neck, pelvic && r.parts.pelvis].filter(Boolean)) for (const s of T.stations) { s.points.front[0] = 0; s.points.back[0] = 0; for (const sl of T.slots) if (sl.endsWith('L')) { const p = s.points[`${sl.slice(0, -1)}R`]; s.points[sl] = [-p[0], p[1], p[2]]; } }
+  // THE PAULDRON (a build's `pauldron`: stages, each a mass of the field like the rest and its `drive`): what a raised
+  // arm bunches over the shoulder, absent from the bind. The torso sampled again with each stage's mass, the same rings
+  // and slots, and the difference kept as a CORRECTIVE per side (`recipe.correctives`: a point's offset at full weight,
+  // the weight the arm's raise past `from` degrees, whole at `full`; a stage with `arm` samples the arm's top too), which
+  // correctiveRest adds to the rest before the skin poses it (an engine's morph target). Raised, the shoulder had no
+  // stuff to fill what the arm leaves: the skin there could only hollow, crease or fold
+  r.correctives = [];
+  const pauldronPrim = {};
+  for (const stg of B.pauldron || []) {
+    const { drive, arm, ...mass } = stg, fieldP = bodyField(R, { ...B, muscles: [...B.muscles, mass] }, { extra: shared });
+    pauldronPrim[mass.id] = fieldP.masses.muscles.find((p) => p.id === mass.id && (p.c?.[0] ?? 0) > 0);
+    const T2 = resamplePart(P, pelvic ? handed(fieldP.sd, 1) : fieldP.sd, torsoOpts), T = r.parts.torso, d = { R: {}, L: {} };
+    for (const st of T2.stations) for (const sl of T2.slots) if (sl.endsWith('R')) {
+      const a = T.stations.find((x) => x.id === st.id)?.points[sl], b = st.points[sl]; if (!a) continue;
+      const v = sub(b, a); if (len(v) < 1e-4) continue;
+      d.R[`torso/${st.id}.${sl}`] = v.map(r6); d.L[`torso/${st.id}.${sl.slice(0, -1)}L`] = [r6(-v[0]), r6(v[1]), r6(v[2])];
+    }
+    for (const S of ['R', 'L']) r.correctives.push({ id: `${mass.id}${S}`, driver: { joint: `shoulder${S}`, to: `elbow${S}`, ...drive }, d: d[S], ...(arm ? { arm: true } : {}) });
+  }
   // the limbs: the right one sampled on its field, the left its mirror
   const done = ['torso', 'neck', ...(pelvic ? ['pelvis'] : [])];
   // THE DELTOID RIDES THE ARM: a point's share of the upper arm's bone by how near it lies to the deltoid's heads (on
@@ -711,14 +755,23 @@ export function formSlice(recipe, R, build, opts = {}) {
     const x = Math.max(0, Math.min(1, (gOut - d) / (gOut - gIn))), m = Math.max(0, Math.min(1, (p[0] - c0[0] - 0.1 * W0) / (0.5 * W0)));
     return x * x * (3 - 2 * x) * m * m * (3 - 2 * m);
   };
+  // (the girdle's share taken by the BLADE where the rig has one: toward the collarbone's outer end, the acromion, and
+  // behind the shoulder's midplane, over the blade; the collarbone keeps its own inner run in front. All the girdle's
+  // skin on the collarbone rose with it, 6 cm at a full raise, past the acromion under it (3.4): a raised arm's
+  // shoulder top floated 2 to 3 cm over its bone, a blob filling the corner between the neck and the arm)
+  const bladeShare = (q) => {
+    const p = [Math.abs(q[0]), q[1], q[2]], ab = sub(c1, c0), t = dot(sub(p, c0), ab) / dot(ab, ab);
+    return Math.max(sm((t - 0.4) / 0.45), sm((-p[1] - 0.05 * W0) / (0.25 * W0)));
+  };
   const rideGirdle = (P) => {
     const b = P.bind, blend = { ...(b.blend || {}) }, own = { [b.bone]: 1 };
     for (const st of P.stations) for (const sl of P.slots) {
       const p = st.points[sl]; if (p[0] === 0) continue;
       const f = girdleShare(p); if (f < 1e-3) continue;
-      const key = `${st.id}.${sl}`, w0 = blend[key] || blend[st.id] || own, cl = `clavicle${p[0] < 0 ? 'L' : 'R'}`, cur = w0[cl] ?? 0;
+      const S = p[0] < 0 ? 'L' : 'R', key = `${st.id}.${sl}`, w0 = blend[key] || blend[st.id] || own, cl = `clavicle${S}`, sc = r.rig.joints[`scapulaAcr${S}`] ? `scapula${S}` : null;
+      const cur = (w0[cl] ?? 0) + (sc ? w0[sc] ?? 0 : 0);
       if (f <= cur) continue;
-      const w = mixW(w0, { [cl]: 1 }, (f - cur) / (1 - cur));
+      const w = mixW(w0, sc ? mixW({ [cl]: 1 }, { [sc]: 1 }, bladeShare(p)) : { [cl]: 1 }, (f - cur) / (1 - cur));
       blend[key] = four(w);
     }
     return { ...P, bind: { ...b, blend } };
@@ -783,6 +836,7 @@ export function formSlice(recipe, R, build, opts = {}) {
     return { ...P, bind: { ...b, blend } };
   };
   const HINGES = { thigh: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], shank: ['knee', 'ankle', 'thigh', 'kneeFold', 'shank'], upperArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'], foreArm: ['elbow', 'wrist', 'upperArm', 'elbowFold', 'foreArm'] };
+  const limbOpts = {};
   for (const [limb, Lb] of Object.entries(B.limbs || {})) {
     const pr = `${limb}R`, pl = `${limb}L`; if (!r.parts[pr]) continue;
     // (each ring's rays from its centre, or where the field does not hold that, from the first point the field holds on
@@ -796,13 +850,27 @@ export function formSlice(recipe, R, build, opts = {}) {
       for (let t = 0; t <= L; t += 0.002) { const q = add(c, scl(d, t / L)); if (lsd(q) < -0.004) return q; }
       return null;   // (the bone itself not in the skin: the thigh's top rings above the hip's joint)
     };
-    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 });
+    limbOpts[limb] = { around: Lb.around ?? limbAround, rings: Lb.rings, capsAlong: unit(ab), origin: onBone, shrinkOutside: 0.7 };
+    r.parts[pr] = resamplePart(r.parts[pr], limbs[limb].sd, limbOpts[limb]);
     if (limb === 'upperArm') r.parts[pr] = rideDeltoid(r.parts[pr], true);
     if (limb === 'thigh' && pelvic) r.parts[pr] = rideHip(r.parts[pr], true);
     if (HINGES[limb]) r.parts[pr] = hingeBand(r.parts[pr], ...HINGES[limb], 0.35 * W0);
     if (r.parts[pl]) r.parts[pl] = mirrorPart(r.parts[pr], r.parts[pl]);
     done.push(pr, pl);
   }
+  // (a stage over the arm's top: the arm sampled again with the stage's mass in its field, the same rays, the difference
+  // its own offsets; the left the right's mirror, slot for slot)
+  for (const c of r.correctives) if (c.arm && c.id.endsWith('R') && limbOpts.upperArm && recipe.parts.upperArmR) {
+    const prim = pauldronPrim[c.id.slice(0, -1)]; if (!prim) continue;
+    const A2 = resamplePart(recipe.parts.upperArmR, limbField(R, B, 'upperArm', [prim]).sd, limbOpts.upperArm), A = r.parts.upperArmR, cl = r.correctives.find((x) => x.id === `${c.id.slice(0, -1)}L`);
+    for (const st of A2.stations) for (const sl of A2.slots) {
+      const a = A.stations.find((x) => x.id === st.id)?.points[sl], b = st.points[sl]; if (!a) continue;
+      const v = sub(b, a); if (len(v) < 1e-4) continue;
+      c.d[`upperArmR/${st.id}.${sl}`] = v.map(r6); cl.d[`upperArmL/${st.id}.${swapRL(sl)}`] = [r6(-v[0]), r6(v[1]), r6(v[2])];
+    }
+  }
+  for (const c of r.correctives) delete c.arm;
+  if (!r.correctives.length) delete r.correctives;
   const gone = Object.keys(r.parts).filter((k) => /^(pectoral|bust)[RL]$/.test(k));
   for (const k of gone) delete r.parts[k];
   for (const d of Object.values(r.dials || {})) {

@@ -31,7 +31,7 @@ const { stretchAudit, gaitFrames } = await import('@/lib/graph/polygonizer/hero-
 
 const cast = args.cast;
 // (the form slice: the build's tune worn and the hair off, as the body lane draws it; the gestures' heroes wear it too)
-const { formSlice, BODY_BUILDS } = args.form ? await import('@/lib/graph/polygonizer/body-relational.js') : {};
+const { formSlice, BODY_BUILDS, correctiveRest } = args.form ? await import('@/lib/graph/polygonizer/body-relational.js') : {};
 if (args.form && !BODY_BUILDS[args.form]) throw new Error(`hero-stretch: unknown form '${args.form}' (have ${Object.keys(BODY_BUILDS).join(', ')})`);
 const worn = args.form ? { hair: 'none', ...(BODY_BUILDS[args.form].tune ? { tune: BODY_BUILDS[args.form].tune } : {}) } : {};
 const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...worn }) });
@@ -48,7 +48,7 @@ for (const g of args.only ? [] : GESTURE_WORDS.filter((w) => w !== 'rest')) {
   if (pose) frames.push({ label: `gesture ${g}`, pose });
 }
 frames.push(...extra);
-const A = stretchAudit(mesh, skin, R, m.recipe, frames);
+const A = stretchAudit(mesh, skin, R, m.recipe, frames, args.form ? { restAt: (nodes) => correctiveRest(mesh, m.recipe, nodes) } : {});
 if (args.json) { console.log(JSON.stringify({ cast, ...A }, null, 2)); process.exit(0); }
 
 const f = (x, d = 2) => (typeof x === 'number' ? x.toFixed(d) : String(x));

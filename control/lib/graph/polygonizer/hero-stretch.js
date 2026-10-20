@@ -186,7 +186,7 @@ export function seamPairs(rings, rest) {
  *   parent (the part), share: { rest, min, at }, emerged: { max (metres), at } }], worst: the shell's worst
  *   of each, frames }.
  */
-export function stretchAudit(mesh, skin, R, recipe, frames) {
+export function stretchAudit(mesh, skin, R, recipe, frames, { restAt = null } = {}) {   // `restAt(nodes)`: the rest a pose skins (a slice's correctives, body-relational correctiveRest); absent ⇒ the mesh's own
   const rest = mesh.vertices, rings = shellRings(mesh, recipe);
   const acc = rings.map((r) => ({ part: r.part, station: r.station, k: r.k, n: r.n, area: { min: Infinity, minAt: null, max: -Infinity, maxAt: null }, pinch: { min: Infinity, at: null }, twist: { max: 0, at: null }, band: { min: Infinity, minAt: null, max: -Infinity, maxAt: null, folds: 0, foldAt: null } }));
   // the band from each ring to the next along its part (on the ring that starts it; the part's last ring has none)
@@ -197,7 +197,7 @@ export function stretchAudit(mesh, skin, R, recipe, frames) {
   const seamAcc = pairs.map((s) => ({ seam: s.seam, side: s.side, child: `${s.child.part}/${s.child.station}`, parent: s.near.part, share: { rest: share(s, rest), min: Infinity, at: null }, emerged: { max: 0, at: null } }));
   for (const { label, pose, nodes: given } of frames) {
     const nodes = given ?? rigNodesAt(R, pose).nodes;
-    const F = boneFrames(R, R.joints, nodes), posed = skinLayered(mesh, skin, F);
+    const F = boneFrames(R, R.joints, nodes), posed = skinLayered(restAt ? { ...mesh, vertices: restAt(nodes) } : mesh, skin, F);
     rings.forEach((r, i) => {
       const m = ringAt(r, rest, posed, skin, F), a = acc[i];
       if (m.area < a.area.min) { a.area.min = m.area; a.area.minAt = label; }

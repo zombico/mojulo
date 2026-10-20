@@ -227,8 +227,15 @@ Opt-in and versioned: a default hero keeps its bytes.
   most is about 120), where it had stood the whole 170 in a socket that never turned. The arm's root and the shoulder's
   fold turn from the blade, over a band 8 cm down the humerus (16 before): raised overhead, the arm's upper third had
   sagged off its bone by up to 4.5 cm, now 1.0; the arm's root ring 0.84 of its rest, now 0.93. body-study `--bones` draws
-  the spine, the collarbones, the blades, the humeri and the forearms over the shell. Only the feet are still the
-  authored cage.
+  the spine, the collarbones, the blades, the humeri and the forearms over the shell. THE PAULDRON: what a raised arm
+  bunches over the shoulder blade, a mass of the form field like the rest (the build's `pauldron`: a water bag over the
+  blade, narrow at its top and full at its foot, so it hangs as the trunk stands), never in the bind: the torso sampled
+  again with it, the same rings and slots, the difference a corrective per side (`recipe.correctives`, an offset per
+  point at full weight, the weight the arm's raise from 60 degrees, whole at 160) that `correctiveRest` adds to the rest
+  before the skin poses it, an engine's morph target (its export to come); the body study and the stretch audit pose
+  through it. The skin over the shoulder's point and over the blade rides the blade, the collarbone its own inner run
+  in front: all of it on the collarbone, a raised arm's shoulder top had floated over the acromion under it. Only the
+  feet are still the authored cage.
 
 ### Epidermis cube: skin and hair as a recipe
 
