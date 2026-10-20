@@ -69,6 +69,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
+import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
 import { WINGBEATS } from '@/lib/graph/bugs/gait';
@@ -192,11 +193,13 @@ function realisticBuild(hero) {
 const SLICES = new Map(), SLICES_KEPT = 8;
 function realisticRecipe(recipe, hero) {
   if (hero?.form !== 'realistic') return recipe;
-  const B = realisticBuild(hero), key = JSON.stringify([recipe, B]);
+  // (the relational head, `head: 'relational'`, swapped in after the slice and kept with it: hero-relational-head.js)
+  const B = realisticBuild(hero), rel = hero.head === 'relational', key = JSON.stringify(rel ? [recipe, B, 'relational'] : [recipe, B]);
   let out = SLICES.get(key);
   if (out) { SLICES.delete(key); SLICES.set(key, out); }
   else {
     out = formSlice(recipe, validateRig(recipe.rig), B).recipe;
+    if (rel) out = relationalHeadRecipe(out, { sex: femaleOf(hero) ? 'female' : 'male' });
     SLICES.set(key, out); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
   }
   return structuredClone(out);
@@ -335,13 +338,13 @@ export function lowerVibe(spec, vibe) {
     vibe: { read: R.vibe, unread: R.unread, reasons: R.reasons },
   };
 }
-const HEAD_WORDS = ['landmark', 'anime', 'none'];
+const HEAD_WORDS = ['landmark', 'anime', 'none', 'relational'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
 const headOf = (hero) => hero.head ?? 'landmark';
 /** a head whose rig carries a jaw chain (a door clip's `jaw`): the landmark head, or an include with a `jawHinge` joint
  * (hero-form.js decides the chain the same way) */
-const jawedHead = (hero) => headOf(hero) === 'landmark' || !!hero.head?.joints?.jawHinge;
+const jawedHead = (hero) => headOf(hero) === 'landmark' || headOf(hero) === 'relational' || !!hero.head?.joints?.jawHinge;
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 /** a hero whose cast reads female (a statue card drapes and paints by silhouette) */
 const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female';
@@ -403,7 +406,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
     else for (const [g, v] of Object.entries(spec.palette)) if (!isHex(v)) errs.push(`palette.${g}: must be a "#rrggbb" colour`);
   }
   if (spec.head !== undefined && spec.head !== null && !HEAD_WORDS.includes(spec.head) && !(spec.head && typeof spec.head === 'object' && spec.head.parts && typeof spec.head.parts === 'object')) {
-    errs.push(`head: 'landmark' (the fitted landmark head, the default), 'anime' (the Anime Form Studio's head), 'none' (a blank head trunk), or a baked head include { parts, dials?, creases?, palette?, joints, bind } (docs/examples/hero-head baked.json)`);
+    errs.push(`head: 'landmark' (the fitted landmark head, the default), 'anime' (the Anime Form Studio's head), 'relational' (the relational head, on the realistic body), 'none' (a blank head trunk), or a baked head include { parts, dials?, creases?, palette?, joints, bind } (docs/examples/hero-head baked.json)`);
   }
   if (spec.head === 'anime') {
     errs.push(...validateAnimeFace(spec.face));
@@ -468,6 +471,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
 function realisticErrors(spec) {
   const errs = [], R = spec.form === 'realistic';
   if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
+  if (spec.head === 'relational' && !R) errs.push("head: the relational head is worn by the realistic body; add form: 'realistic'");
   if (!R) return errs;
   if (spec.physique !== undefined && spec.physique !== null) {
     const p = spec.physique, { laws, ...dials } = typeof p === 'object' && !Array.isArray(p) ? p : {};
@@ -478,7 +482,7 @@ function realisticErrors(spec) {
     }
   }
   if (spec.cast !== undefined && spec.cast !== 'male' && spec.cast !== 'female') errs.push("cast: the realistic body is built for 'male' or 'female' (its builds, norrin and shalla); dial it with physique");
-  if (spec.head !== undefined && spec.head !== 'landmark' && spec.head !== 'none') errs.push("head: the realistic body wears the landmark head or none (head: 'landmark' | 'none')");
+  if (spec.head !== undefined && !['landmark', 'none', 'relational'].includes(spec.head)) errs.push("head: the realistic body wears the landmark head, the relational head or none (head: 'landmark' | 'relational' | 'none')");
   if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
   if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
   for (const k of ['outfit', 'adorn', 'paint', 'detail', 'statue', 'stylism']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
@@ -657,6 +661,8 @@ function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
   const common = { register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
+  // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
+  if (hero.head === 'relational') return humanoidPlan({ preset: hero.cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
   if ((hero.head ?? 'landmark') === 'landmark') {
     return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
