@@ -28,6 +28,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (fitted to the authored body's rings, which the slice re-samples), `body` and `girth` (the physique dials those), a
   cast other than 'male' / 'female', a head other than landmark or none, the streamlined core. The words agents guess
   (`bulk`, `muscle`, `tone`, `weight`, `fat`) point to `physique`; the layered card teaches it.
+- The form field split by job, the slice byte for byte: `body-relational-builds.js` (the builds, the physique),
+  `-field.js` (the distances, the fields, the crossing and the projection), `-resample.js` (a part re-sampled),
+  `-correctives.js` (`correctiveRest`, the shoulder's blend), `-vec.js`; `body-relational.js` keeps `formSlice` and
+  re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
+  `docs/realistic-body.md`, held by hero-realistic.test.js.
 
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
