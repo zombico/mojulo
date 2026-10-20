@@ -22,6 +22,8 @@
 //                   path, no minted hero changes), wearing the RELATIONAL head (head-relational.js, the head-study
 //                   field lane's) in place of the hero's: its skin meshed, fitted to the hero's head (vertex to
 //                   menton, the ear's depth) and carried by the head bone
+//   --hero          hero spec fields merged into every hero minted, as JSON (the door's own: '{"form":"realistic",
+//                   "physique":"jacked","outfit":["tee","trousers"]}' is the realistic hero dressed, as the door makes it)
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
 //                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
@@ -53,7 +55,7 @@ const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, tint = false, only = null, vitruvian = false, bones = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, only = null, vitruvian = false, bones = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -62,6 +64,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--register') { reg = args[++i]; continue; }
   if (a === '--laws') { laws = Number(args[++i]); continue; }
   if (a === '--form') { form = args[++i]; continue; }
+  if (a === '--hero') { heroSpec = JSON.parse(args[++i]); continue; }
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
   if (a === '--bones') { bones = true; continue; }
@@ -136,7 +139,7 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...extra }) });
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra }) });
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = sl.recipe;
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);

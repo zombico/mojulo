@@ -33,6 +33,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `-correctives.js` (`correctiveRest`, the shoulder's blend), `-vec.js`; `body-relational.js` keeps `formSlice` and
   re-exports the rest. The sliced recipe's contract (its parts, station ids, slots, rig additions and correctives) is
   `docs/realistic-body.md`, held by hero-realistic.test.js.
+- Dress on the realistic body (in progress): the bare body is sliced (kept by what the slice reads, so a dress edit never
+  re-slices), the plan expanded again on it (`expandPlan`'s `body`), the outfit, the kits, the armour and the paint made
+  on its ENVELOPE (body-relational-envelope.js: each ring over its convex hull, the hollows along the part filled, at
+  most 15 mm off the skin) and the skin put back under them, a pinned piece's offsets carried into the skin's frame; a
+  garment's points take the body's correctives. The sliced parts keep a `slotT` in the authored part's terms and their
+  band paint by position. `detail`, `statue` and `stylism` still refuse. Open: on a physique the pelvis's rings hidden
+  under the crotch's level are drawn in to a cone, and a trouser seat fitted on them folds (the male skinny and heavyset,
+  the female heavyset); body-study `--hero` renders the door's own hero.
 
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 

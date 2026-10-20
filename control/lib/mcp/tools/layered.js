@@ -38,7 +38,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
-import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
+import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
 import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
@@ -69,6 +69,8 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
+import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
+import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
 import { WINGBEATS } from '@/lib/graph/bugs/gait';
@@ -177,7 +179,7 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withDressMaterials(realisticRecipe(expandAware(plan, hero), hero), hero, plan, geocube);
+  return withDressMaterials(expandAware(plan, hero), hero, plan, geocube);
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
@@ -186,20 +188,25 @@ function realisticBuild(hero) {
   const p = hero.physique ?? 'athletic', { laws: _l, ...dials } = typeof p === 'string' ? { from: p } : p;
   return physiqueBuild(femaleOf(hero) ? 'shalla' : 'norrin', Object.keys(dials).length ? dials : 'athletic');
 }
-/** A realistic hero's recipe: the body re-sampled onto the build's form field (formSlice). A slice costs seconds, so the
- * slices are kept by their inputs (the recipe as expanded and the build): a world's inline hero re-expanded each render,
- * or an edit that leaves the body as it was, finds its slice. Any other hero: the recipe as it was */
+/** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
+ * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
+ * may scale), the rig, the dials and the build; a hit lays the kept body onto the recipe at hand (its head, its palette,
+ * whatever the dress changed there, as they are). So a world's inline hero re-expanded each render, or an edit that
+ * leaves the body (the dress, the hair, the colours), finds its slice */
 const SLICES = new Map(), SLICES_KEPT = 8;
+const SLICE_READS = /^(torso|neck|pelvis|(upperArm|foreArm|thigh|shank|pectoral|bust|hand|thumb|index|middle|ring|little)[RL])$/;
 function realisticRecipe(recipe, hero) {
-  if (hero?.form !== 'realistic') return recipe;
-  const B = realisticBuild(hero), key = JSON.stringify([recipe, B]);
-  let out = SLICES.get(key);
-  if (out) { SLICES.delete(key); SLICES.set(key, out); }
+  const B = realisticBuild(hero), reads = (parts) => Object.fromEntries(Object.entries(parts).filter(([k]) => SLICE_READS.test(k)));
+  const key = JSON.stringify([reads(recipe.parts), recipe.rig, recipe.dials, B]);
+  let kept = SLICES.get(key);
+  if (kept) { SLICES.delete(key); SLICES.set(key, kept); }
   else {
-    out = formSlice(recipe, validateRig(recipe.rig), B).recipe;
-    SLICES.set(key, out); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
+    const out = formSlice(recipe, validateRig(recipe.rig), B).recipe;
+    kept = { parts: reads(out.parts), removed: Object.keys(recipe.parts).filter((k) => SLICE_READS.test(k) && !out.parts[k]), rig: out.rig, dials: out.dials, ...(out.correctives ? { correctives: out.correctives } : {}) };
+    SLICES.set(key, kept); if (SLICES.size > SLICES_KEPT) SLICES.delete(SLICES.keys().next().value);
   }
-  return structuredClone(out);
+  const K = structuredClone(kept), parts = Object.fromEntries(Object.entries(recipe.parts).filter(([k]) => !K.removed.includes(k)));
+  return { ...recipe, parts: { ...parts, ...K.parts }, rig: K.rig, dials: K.dials, ...(K.correctives ? { correctives: K.correctives } : {}) };
 }
 /** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
  * the slice's frame finds the build's tune where it laid its masses out */
@@ -235,10 +242,81 @@ function statueRecipeOf(recipe, plan, hero) {
   const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });
   return { ...carved, statue: trace };
 }
+/** THE REALISTIC HERO'S EXPANSION: the bare body (the plan without its dress) expanded and re-sampled onto the form
+ * field, then the plan expanded again on that body (expandPlan's `body`), so the garments, the paint and the adornment
+ * are made on the realistic body's rings; the slice's rig, correctives and dial blends carried over, a garment's points
+ * taking its body point's correctives. Undressed, the slice itself */
+const DRESS_KEYS = ['garments', 'paint', 'details', 'body', 'adorn'];
+const ENVELOPED = /^(torso|neck|pelvis|(upperArm|foreArm|thigh|shank)[RL])$/;
+function realisticExpand(plan, hero) {
+  const has = (v) => v !== undefined && v !== null && !(Array.isArray(v) && !v.length);
+  const bare = Object.fromEntries(Object.entries(plan).filter(([k]) => !DRESS_KEYS.includes(k)));
+  const S = realisticRecipe(expandPlan(bare), hero);
+  if (!DRESS_KEYS.some((k) => has(plan[k]))) return S;
+  // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
+  // carries the chest now, so they stand off the torso alone)
+  const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
+  const onBody = (xs) => (Array.isArray(xs) ? xs.map((x) => (x && x.over !== undefined ? { ...x, over: kept(x.over) } : x)) : xs);
+  // (and paint addressed to a part the slice removed is the torso's there, which its own entries paint)
+  const painted = (xs) => (Array.isArray(xs) ? xs.filter((x) => !x?.part || S.parts[x.part] || S.parts[`${x.part}R`] || S.parts[`${x.part}L`]) : xs);
+  // the dress made on the body's ENVELOPE (body-relational-envelope.js: the skin's grid, each ring carried out over its
+  // hollows as cloth and plate would lie), then the skin put back under it, with whatever the dress wrote on those parts
+  // beside their points (the paint's groups)
+  const env = { ...S, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
+  const R = expandPlan({ ...plan, ...(plan.adorn ? { adorn: onBody(plan.adorn) } : {}), ...(plan.garments ? { garments: onBody(plan.garments) } : {}), ...(plan.paint ? { paint: painted(plan.paint) } : {}) }, { body: env });
+  const onEnvelope = { ...R.parts };
+  for (const k of Object.keys(env.parts)) if (ENVELOPED.test(k) && R.parts[k]) {
+    const E = env.parts[k], D = R.parts[k], wrote = Object.keys(D).filter((f) => f !== 'stations' && JSON.stringify(D[f]) !== JSON.stringify(E[f]));
+    R.parts[k] = { ...S.parts[k], ...Object.fromEntries(wrote.map((f) => [f, D[f]])) };
+  }
+  // a piece pinned to an enveloped part was baked in the envelope's frame there: its offsets put into the skin's frame
+  // at its pin, so it stands at rest where it was made (placed by the skin's frame as baked, a hip plate swung out where
+  // the envelope had bridged a hollow and turned the face)
+  const l1 = (parts) => compileLayered({ schema: 'layered-v1', frame: R.frame, dials: {}, parts: Object.fromEntries(Object.entries(parts).filter(([, p]) => p.layer === 1)) }, {}, { details: false, creases: false }).parts;
+  const pinned = Object.entries(R.parts).filter(([, p]) => p.pin && ENVELOPED.test(p.pin.parent));
+  if (pinned.length) {
+    const cE = l1(onEnvelope), cS = l1(R.parts), r6 = (v) => v.map((x) => Math.round(x * 1e6) / 1e6);
+    for (const [name, P] of pinned) {
+      const fE = pinFrame(cE[P.pin.parent], P.pin), fS = pinFrame(cS[P.pin.parent], P.pin), re = (o) => r6(surfaceLocalOffset(fS, placeSurfaceOffset(fE, o)));
+      const offsets = Object.fromEntries(Object.entries(P.offsets || {}).map(([id, o]) => [id, re(o)]));
+      let stretch = P.stretch;
+      if (stretch) { const o = re(stretch.origin), t = re(stretch.origin.map((x, i) => x + stretch.axis[i])), d = t.map((x, i) => x - o[i]), l = Math.hypot(...d); stretch = { ...stretch, origin: o, axis: r6(d.map((x) => x / l)) }; }
+      R.parts[name] = { ...P, offsets, ...(stretch ? { stretch } : {}) };
+    }
+  }
+  R.rig = S.rig;
+  // the dials: the dressed expansion's (a garment rides its body part's), the slice's blends over the new stations, a
+  // part the slice removed left out
+  R.dials = Object.fromEntries(Object.entries(R.dials || {}).map(([k, d]) => {
+    const s = S.dials?.[k], out = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((p) => R.parts[p]) } : {}) };
+    return [k, s?.blend ? { ...out, blend: { ...(d.blend || {}), ...s.blend } } : out];
+  }));
+  if (S.correctives) R.correctives = garmentCorrectives(S.correctives, R.parts);
+  return R;
+}
+/** a body's correctives worn by its garments: a garment ring copied from a body ring (the same station id; a garment's
+ * own between-rings carry `mix: [a, b, f]`, read from the body's rings either side) takes the body point's offset, slot
+ * for slot, so a raised arm's pauldron lifts the sleeve with the skin under it */
+function garmentCorrectives(C, parts) {
+  const garments = Object.entries(parts).filter(([, p]) => p.garment && p.layer === 1);
+  return C.map((c) => {
+    const d = { ...c.d };
+    for (const [g, G] of garments) {
+      const body = g.split('_').pop(); if (!parts[body]) continue;
+      for (const st of G.stations) for (const sl of G.slots) {
+        let o = c.d[`${body}/${st.id}.${sl}`];
+        const m = !o && st.mix;
+        if (m) { const a = c.d[`${body}/${m[0]}.${sl}`], b = c.d[`${body}/${m[1]}.${sl}`], t = m[2]; if (a || b) o = [0, 1, 2].map((i) => Math.round(((a?.[i] ?? 0) * (1 - t) + (b?.[i] ?? 0) * t) * 1e6) / 1e6); }
+        if (o) d[`${g}/${st.id}.${sl}`] = o;
+      }
+    }
+    return { ...c, d };
+  });
+}
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { return expandPlan(drawnPlan(compileOutfit(plan))); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? realisticExpand(full, hero) : expandPlan(full); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -481,7 +559,7 @@ function realisticErrors(spec) {
   if (spec.head !== undefined && spec.head !== 'landmark' && spec.head !== 'none') errs.push("head: the realistic body wears the landmark head or none (head: 'landmark' | 'none')");
   if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
   if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
-  for (const k of ['outfit', 'adorn', 'paint', 'detail', 'statue', 'stylism']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
+  for (const k of ['detail', 'statue', 'stylism']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
   for (const k of ['body', 'girth']) if (spec[k] !== undefined && spec[k] !== null) errs.push(`${k}: the realistic body's girths are its field's; dial them with physique: { bulk, tone, weight, height }`);
   return errs;
 }
