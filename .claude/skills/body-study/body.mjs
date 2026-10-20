@@ -12,16 +12,17 @@
 //                   stand word (relaxed, guard, hand-on-hip …) }, or { "pose": a rig pose as rigNodesAt takes it };
 //                   any entry may carry its own "crop". Without --acts: the bind, from the front, the front ¾, the
 //                   lateral, the back and below.
-//   --crop          torso | shoulder | hip | knee | hand | foot | neck (the right side's, the neck seam where the head
-//                   sits), framed on the posed joints; default the whole body.
+//   --crop          torso | shoulder | hip | knee | hand | foot | neck | head (the right side's, the neck seam where the
+//                   head sits, the head itself), framed on the posed joints; default the whole body.
 //   --register      the hero's register word (the door's `register`, default its own).
 //   --laws          the hero laws to mint under (hero-form.js HERO_LAWS_VERSION; default the current): 1 for a hero as
 //                   rows minted before laws 2 read
 //   --form          a body build of the form field (body-relational.js BODY_BUILDS: norrin, shalla): the torso
 //                   re-sampled onto it, bald, in a matte silver-grey (the realistic register's vertical slice; a dev
-//                   path, no minted hero changes), wearing the RELATIONAL head (head-relational.js, the head-study
-//                   field lane's) in place of the hero's: its skin meshed, fitted to the hero's head (vertex to
-//                   menton, the ear's depth) and carried by the head bone
+//                   path, no minted hero changes), wearing the RELATIONAL head (hero-relational-head.js: the door's
+//                   head: 'relational', two parts sealed to the neck, the jaw on the jaw bone)
+//   --graft         with --form: the relational head GRAFTED instead (its skin field-meshed, fitted the same way,
+//                   riding the head bone rigidly over a hidden hero head): the lane before the head was recipe content
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
 //                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
@@ -50,10 +51,11 @@ const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
 const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
 const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
+const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-relational-head.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, tint = false, only = null, vitruvian = false, bones = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, tint = false, only = null, vitruvian = false, bones = false, graft = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -65,6 +67,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
   if (a === '--bones') { bones = true; continue; }
+  if (a === '--graft') { graft = true; continue; }
   if (a === '--vitruvian') { vitruvian = true; continue; }
   if (a === '--parts') { only = new RegExp(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
@@ -74,7 +77,7 @@ for (let i = 0; i < args.length; i++) {
 if (!casts.length) casts.push('male', 'female');
 if (phys && !form) throw new Error('body-study: --physique dials a form build; name one with --form');
 const BUILD = form ? physique(form, phys ?? 'athletic') : null;
-const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'hand', 'foot', 'neck'];
+const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'hand', 'foot', 'neck', 'head'];
 for (const c of [crop, ...(acts || []).map((r) => r.crop)]) if (c && !CROPS.includes(c)) throw new Error(`body-study: crop '${c}' is not one of ${CROPS.join(', ')}`);
 mkdirSync(out, { recursive: true });
 
@@ -138,10 +141,12 @@ function hero(cast, extra = {}) {
   if (heroes.has(key)) return heroes.get(key);
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...extra }) });
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
-  if (sl) m.recipe = sl.recipe;
+  if (sl) m.recipe = graft ? sl.recipe : relationalHeadRecipe(sl.recipe, { sex: cast === 'female' ? 'female' : 'male' });
+  // (the relational head leaves the landmark head's jawOpen dial behind: the dials the recipe still has)
+  if (sl) m.dials = Object.fromEntries(Object.entries(m.dials).filter(([k]) => m.recipe.dials?.[k]));
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
   const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R), navelZ: sl?.landmarks?.navel ?? null, crotchZ: sl?.landmarks?.crotch ?? null };
-  if (form) h.graft = graftHead(h, cast === 'female' ? 'female' : 'male');
+  if (form && graft) h.graft = graftHead(h, cast === 'female' ? 'female' : 'male');
   heroes.set(key, h);
   return h;
 }
@@ -213,6 +218,7 @@ function frameBox(V, J, which) {
   if (which === 'hand') return box(mid(J.wristR, J.knucklesR, 0.7), [0.12, 0.12, 0.12]);
   if (which === 'foot') return box(mid(J.ankleR, J.toeTipR, 0.45), [0.14, 0.14, 0.14]);
   if (which === 'neck') return box(mid(J.neckHub, J.headBase, 0.4), [0.15, 0.15, 0.15]);
+  if (which === 'head') return box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]);
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const v of V) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   return { min: lo, max: hi };
