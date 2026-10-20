@@ -142,6 +142,7 @@ describe('people of the egocube\'s ancestries', () => {
       expect(A.textures).toContain(P.rolled.texture);
       expect(P.relations).toEqual({});   // never the face's structure
       expect(Object.keys(P.eyes).length > 0).toBe(!!A.derives?.eyes?.includes('sculpt.lidCover +'));
+      if (P.rolled.eyes) expect(['inner-fold', 'monolid', 'parallel', 'hooded']).toContain(P.rolled.eyes);
       expect(() => readScalp(P.scalp)).not.toThrow();
     }
   });

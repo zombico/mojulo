@@ -15,8 +15,9 @@
  *   readAncestry({ id, sex, seed })  a person of one of the egocube's human ancestries (egocube/ancestry.js
  *                   HUMAN_ANCESTRIES), rolled inside its ranges as the egocube rolls: the tone, the undertone, the hair's
  *                   colour and texture (straight, wavy, curly, coily → the scalp's types, a style that suits the texture),
- *                   and its eye note through its own derive (`sculpt.lidCover +`: a low or absent upper-lid crease under a
- *                   fuller fold, never a slant). The face's structure stays the individual's: an ancestry is never drawn
+ *                   and its eye note through its own derive (`sculpt.lidCover +`: the lid's cover, rolled among the
+ *                   `EYE_SHAPES` — an in-fold, a monolid, a parallel crease, a hooded lid — never a slant; `eyeShape`
+ *                   names one). The face's structure stays the individual's: an ancestry is never drawn
  *                   as a caricature of itself.
  */
 import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
@@ -77,8 +78,20 @@ export function readLook(spec) {
   };
 }
 
-/** the egocube's derives read on the relational eye (head-relational-eye.js channels) */
-const EYE_DERIVES = Object.freeze({ 'sculpt.lidCover +': { crease: 0.04, hood: 1, open: 0.84 } });
+/**
+ * The eye's COVER shapes, as the relational eye rig's channels (head-relational-eye.js): the upper lid's crease (its
+ * depth, height and course), the fold over it, the epicanthic fold over the inner corner, the lid's fullness and its
+ * cover of the iris. Words, never a slant: the canthi stay where the face's relations put them.
+ */
+export const EYE_SHAPES = Object.freeze({
+  monolid: { note: 'no crease: the fold rests on the lashes, a full lid, the inner corner covered', crease: 0, hood: 1, creaseHeight: 0.55, epicanthus: 0.75, fullness: 0.6, open: 0.86 },
+  'inner-fold': { note: 'a low crease tapering into the inner corner (an in-fold double lid), the corner partly covered', crease: 0.45, hood: 0.45, creaseHeight: 0.6, creaseShape: 1, epicanthus: 0.5, fullness: 0.35, open: 0.92 },
+  parallel: { note: 'a low crease running parallel to the lashes to the inner corner, outside a slight fold', crease: 0.55, hood: 0.25, creaseHeight: 0.72, creaseShape: -0.8, epicanthus: 0.2, fullness: 0.25 },
+  hooded: { note: 'a crease the fold hangs over, a full lid', crease: 0.3, hood: 0.92, creaseHeight: 0.8, epicanthus: 0.3, fullness: 0.45, open: 0.9 },
+});
+/** the egocube's derives read on the relational eye: `sculpt.lidCover +` names the lid's cover, and the person rolls which
+ * of the cover shapes theirs is (the in-fold the likeliest) */
+const EYE_DERIVES = Object.freeze({ 'sculpt.lidCover +': ['inner-fold', 'inner-fold', 'monolid', 'parallel', 'hooded'] });
 /** the styles a texture wears, by sex (the seed picks among them) */
 const TEXTURE_STYLES = Object.freeze({
   straight: { male: [{ style: 'short' }, { style: 'undercut' }], female: [{ style: 'long' }, { style: 'bob' }, { style: 'shoulder' }] },
@@ -88,17 +101,19 @@ const TEXTURE_STYLES = Object.freeze({
 });
 
 /** A person of an egocube ancestry, rolled inside its ranges: { sex, relations, eyes, dermis, scalp, epidermis, rolled }. */
-export function readAncestry({ id, sex = 'male', seed = 1, game = false } = {}) {
+export function readAncestry({ id, sex = 'male', seed = 1, game = false, eyeShape = null } = {}) {
   const A = HUMAN_ANCESTRIES[id];
   if (!A) throw new Error(`ancestry: unknown '${id}' (have ${Object.keys(HUMAN_ANCESTRIES).join(', ')})`);
   const d = streamOf(seed, 'dermal-ancestry', `${id}/${sex}`), pick = (list) => list[Math.floor(d() * list.length) % list.length];
   const tone = A.tones[0] + Math.floor(d() * (A.tones[1] - A.tones[0] + 1)), undertone = pick(A.undertones), texture = pick(A.textures), hair = pick(A.hair);
-  const eyes = (A.derives?.eyes || []).reduce((o, k) => ({ ...o, ...(EYE_DERIVES[k] || {}) }), {});
+  if (eyeShape && !EYE_SHAPES[eyeShape]) throw new Error(`ancestry: eyeShape '${eyeShape}' (have ${Object.keys(EYE_SHAPES).join(', ')})`);
+  const shapes = (A.derives?.eyes || []).flatMap((k) => EYE_DERIVES[k] || []), shape = eyeShape || (shapes.length ? pick(shapes) : null);
+  const { note: _n, ...eyes } = shape ? EYE_SHAPES[shape] : {};
   const scalp = { ...pick(TEXTURE_STYLES[texture]?.[sex] || TEXTURE_STYLES.straight[sex]), seed };
   return {
     sex, relations: game ? { ...GAME_FACE[sex] } : {}, eyes,
     dermis: { from: sex, tone, undertone, hairColour: hair, freckles: tone <= 2 ? Math.round(d() * 50) / 100 : 0, seed },
     scalp, epidermis: { hair: { colour: hair } },
-    rolled: { ancestry: A.reads, tone, undertone, texture, hair, eyes: Object.keys(eyes).length ? A.notes?.eyes : null },
+    rolled: { ancestry: A.reads, tone, undertone, texture, hair, eyes: shape, eyeNote: shape ? EYE_SHAPES[shape].note : null },
   };
 }

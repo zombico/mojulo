@@ -44,6 +44,12 @@ describe('the rig', () => {
     expect(open.paint({ x: 0.125, y: 0.36, z: 0.5 })).toBe('pupil');
     expect(eyeRig(P, 'R', resolveEye('closed', 'R'), 0.045).opening).toBeNull();
   });
+  it('covers the inner corner with an epicanthic fold, and leaves the rims as they were without one', () => {
+    const rest = eyeRig(P, 'R', resolveEye('neutral', 'R'), 0.045), fold = eyeRig(P, 'R', resolveEye({ epicanthus: 1 }, 'R'), 0.045);
+    const corner = { x: 0.052, y: 0.392, z: 0.506 };   // just before the inner canthus
+    expect(fold.rims(corner)).toBeLessThan(rest.rims(corner));
+    expect(eyeRig(P, 'R', resolveEye({ epicanthus: 0, fullness: 0, creaseShape: 0, creaseHeight: 1 }, 'R'), 0.045).rims(corner)).toBe(rest.rims(corner));
+  });
   it('patterns the iris: fibres round it, a dark limbal ring at its edge, plain off it', () => {
     const rig = eyeRig(P, 'R', resolveEye('neutral', 'R'), 0.045);
     // a point on the cornea's front at radius r (V) from the gaze axis, angle a

@@ -48,8 +48,9 @@ from the mesh (`meshOcclusion`, any shape) into the skin's colour. The relationa
 centre at the ear's height (`headSphere`), so its undersides keep texels of their own, and what the head closes over (the
 teeth, a nostril's inside) is marked `enclosed`: no hair, no bake. PEOPLE OF THE EGOCUBE'S ANCESTRIES
 (`readAncestry`): rolled inside each ancestry's own ranges (tone, undertone, hair colour, texture), the texture worn as
-the scalp's type in a style that suits it, the eye note through the ancestry's own derive (`sculpt.lidCover +`: a low
-or absent crease under a fuller fold, the lid covering more of the iris, never a slant), the face's structure the
+the scalp's type in a style that suits it, the eye note through the ancestry's own derive (`sculpt.lidCover +`: the
+lid's cover, rolled among `EYE_SHAPES`: an in-fold crease tapering into the inner corner, a monolid, a parallel crease, a
+hooded lid; never a slant), the face's structure the
 individual's. AFROS: a `stand` dial (the root leaves the scalp toward its normal) with coily hair's spring and shrinkage,
 an `envelope` cut rounding it to an ellipsoid, a nape taper; `twa` close to the head; `curls` hanging in ringlets. The hair
 shader's highlight scatters with a coil's roughness and its mass shadows itself (a coil's interior dark); the skin
@@ -58,7 +59,9 @@ and a rise) gathers every root, the top section or those within a radius of it; 
 the head to the tie and arrives at its own slot round the band (the side it came from), so nothing crosses; one bundle
 hangs from the tie (the elastica's lock, flaring then tapering, its ends ragged), a bun coils it about the tie, a braid
 plaits it in three (each bundle a figure of eight across the braid a third of a turn apart, bound, a brush past the
-band). Styles: ponytail, high-ponytail, bun, braid, half-up; the move `temple-braids` (the Nordic braids). The bands
+band). Styles: ponytail, high-ponytail, bun, braid, half-up; the move `temple-braids` (the Nordic braids). The relational eye rig takes
+the eye's cover as channels: `creaseHeight`, `creaseShape` (parallel … tapered into the inner corner), `epicanthus` (the
+upper lid's skin laid over the inner corner) and `fullness`; each at rest leaves the eye as it was. The bands
 are returned for drawing. Seen through `/dermis-study --look`, `--ancestry` and `--lineup`.
 
 ### Realistic register: a stronger body for the hero
