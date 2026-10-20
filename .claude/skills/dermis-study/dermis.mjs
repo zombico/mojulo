@@ -21,6 +21,10 @@
 //                   the eyes close (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
 //   --look          creator looks (dermal-looks.js LOOKS: warrior, shieldmaiden, scholar, rogue, elder), comma-separated:
 //                   the game face's relations, the dermis, the groom and the brows as the look sets them (the flags over it)
+//   --body          the REALISTIC BODY (docs/realistic-body.md) in its dermis (epidermis/dermal-body.js) instead of the head
+//                   rows: the relational head grafted on it with its own atlas and hair; rows of the body textured and lit,
+//                   the map's kinds, the body-part map (polygonizer/body-relational-map.js) on the skin, the channels on the shape, the neck where the head meets it; then the body's atlas pages.
+//                   --physique a word or JSON (the door's), --body-page the atlas's width (default 2048)
 //   --cells         the head's surface net (default 110)
 //   --page          the atlas's page in texels (default 1024)
 //   --out           output dir (default /tmp/dermis-study): sheet.png, sheet.svg, atlas-*.png, report.json
@@ -46,10 +50,12 @@ const { layoutDermis, paintDermis, dermalPngs, reliefTile } = await import('@/li
 const { growBodyHair, growScalp, readScalp, hairShade } = await import('@/lib/graph/epidermis/dermal-hair.js');
 const { readEpidermis, growEpidermis } = await import('@/lib/graph/epidermis/epidermis.js');
 const { readLook, LOOKS, readAncestry } = await import('@/lib/graph/epidermis/dermal-looks.js');
+const { bodyDermis, neckTone, BODY_DERMIS } = await import('@/lib/graph/epidermis/dermal-body.js');
+const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-map.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/dermis-study', dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], lineup = false, game = false, lineupCrop = null;
+let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], lineup = false, game = false, lineupCrop = null;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -62,6 +68,9 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--lineup') { lineup = true; continue; }
   if (a === '--lineup-crop') { lineup = true; lineupCrop = args[++i]; continue; }
   if (a === '--game') { game = true; continue; }
+  if (a === '--body') { body = true; continue; }
+  if (a === '--physique') { const v = args[++i]; physiqueSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; continue; }
+  if (a === '--body-page') { bodyPage = Number(args[++i]); continue; }
   if (a === '--page') { page = Number(args[++i]); continue; }
   if (a === '--out') { out = args[++i]; continue; }
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
@@ -115,50 +124,73 @@ const toLin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const KIND_HUE = {};
 const hueOf = (k) => (KIND_HUE[k] ??= (() => { let h = 0; for (const c of k) h = (h * 37 + c.charCodeAt(0)) % 360; const f = (n) => { const q = (n + h / 30) % 12; return 0.75 - 0.35 * Math.max(-1, Math.min(q - 3, 9 - q, 1)); }; return [f(0), f(8), f(4)]; })());
 const SCLERA = hexLin('#efe8de'), IRIS = hexLin('#4a3626'), PUPIL = hexLin('#0e0b0a');
-function render(H, cam, W, Hh, mode) {
-  const { chart, T, head } = H, N = [T.page, T.pageH], V = chart.vertices, Nv = chart.normals;
-  const zbuf = new Float32Array(W * Hh).fill(-Infinity), img = new Float32Array(W * Hh * 3);
-  const bg = hexLin(BG); for (let i = 0; i < W * Hh; i++) img.set(bg, i * 3);
-  const kinds = mode === 'kinds' ? chart.samples.map((s) => (s ? dermisAt(s, H.D, { detail: false }).kind : null)) : null;
-  chart.faces.forEach((tri, fi) => {
-    const P = tri.map((v) => cam.project(V[v])), [A, B, C] = P, uv = T.faceUV(fi);
+function render(H, cam, W, Hh, mode, R = null) {
+  const { chart, T, head } = H, V = chart.vertices, Nv = chart.normals;
+  R ||= frame(W, Hh);
+  const kinds = mode === 'kinds' ? chart.samples.map((s) => (s ? dermisAt(s, H.D, { detail: false }).kind : null)) : mode === 'parts' ? chart.samples.map((s) => s?.bodyPart ?? null) : null;
+  // (`H.place`: the head moved onto a body, its vertices and its normals; `H.cornerNormals`: per face corner)
+  const P = H.place ? V.map(H.place) : V;
+  raster(R, cam, W, Hh, P, chart.faces, (fi, tri) => H.cornerNormals?.[fi] ?? tri.map((v) => Nv[v]), (fi, tri, [w0, w1, w2], n, NL, NH, NV) => {
+    if (H.hide?.(fi)) return null;
+    const skin = tri.every((vi) => chart.samples[vi]);
+    if (!skin) {
+      if (!head) return null;
+      // the globe: its paint at the point (the head's own), glossy
+      const p = [0, 1, 2].map((k) => (w0 * V[tri[0]][k] + w1 * V[tri[1]][k] + w2 * V[tri[2]][k]) / STAND_M), t = head.paint({ x: p[0], y: p[1], z: p[2] });
+      const base = t === 'pupil' ? PUPIL : t === 'iris' ? IRIS : SCLERA;
+      return base.map((c) => c * (0.35 + 0.65 * Math.max(0, NL)) + 0.5 * NH ** 200);
+    }
+    if (mode === 'kinds') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; return hueOf(k).map((c) => toLin(c) * (0.35 + 0.65 * Math.max(0, NL))); }
+    // (the body-part map's parts in its own colours; a point it does not label, the hands, the feet, the head: grey)
+    if (mode === 'parts') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; return (k ? hexLin(PART_COLOURS[k]) : [0.3, 0.3, 0.3]).map((c) => c * (0.35 + 0.65 * Math.max(0, NL))); }
+    const uv = T.faceUV(fi), U = uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2, Vv = uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2;
+    // (an enclosed face, a nostril's or the lips' line inside, is darkened by its own occlusion: it has no texels)
+    const shut = tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
+    return skinShade(T, U, Vv, n, NL, NH, NV, cam, shut, mode);
+  });
+  return R;
+}
+const frame = (W, Hh) => { const zbuf = new Float32Array(W * Hh).fill(-Infinity), img = new Float32Array(W * Hh * 3), bg = hexLin(BG); for (let i = 0; i < W * Hh; i++) img.set(bg, i * 3); return { img, zbuf }; };
+/** the triangles z-buffered: `normalsOf(fi, tri)` the corners' normals, `colour(fi, tri, w, n, NL, NH, NV)` a texel's
+ * linear colour (null: not drawn) */
+function raster(R, cam, W, Hh, V, faces, normalsOf, colour) {
+  const { img, zbuf } = R;
+  faces.forEach((tri, fi) => {
+    const P = tri.map((v) => cam.project(V[v])), [A, B, C] = P;
     const area = (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0]); if (!area) return;
     const x0 = Math.max(0, Math.floor(Math.min(A[0], B[0], C[0]))), x1 = Math.min(W - 1, Math.ceil(Math.max(A[0], B[0], C[0])));
     const y0 = Math.max(0, Math.floor(Math.min(A[1], B[1], C[1]))), y1 = Math.min(Hh - 1, Math.ceil(Math.max(A[1], B[1], C[1])));
-    const skin = tri.every((vi) => chart.samples[vi]);
+    const Nc = normalsOf(fi, tri);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const qx = x + 0.5, qy = y + 0.5;
       const w0 = ((B[0] - qx) * (C[1] - qy) - (B[1] - qy) * (C[0] - qx)) / area, w1 = ((C[0] - qx) * (A[1] - qy) - (C[1] - qy) * (A[0] - qx)) / area, w2 = 1 - w0 - w1;
       if (w0 < 0 || w1 < 0 || w2 < 0) continue;
-      const d = w0 * A[2] + w1 * B[2] + w2 * C[2], o = y * W + x; if (d <= zbuf[o]) continue; zbuf[o] = d;
-      let n = [0, 1, 2].map((q) => w0 * Nv[tri[0]][q] + w1 * Nv[tri[1]][q] + w2 * Nv[tri[2]][q]); const l = Math.hypot(...n) || 1; n = n.map((v) => v / l);
+      const d = w0 * A[2] + w1 * B[2] + w2 * C[2], o = y * W + x; if (d <= zbuf[o]) continue;
+      let n = [0, 1, 2].map((q) => w0 * Nc[0][q] + w1 * Nc[1][q] + w2 * Nc[2][q]); const l = Math.hypot(...n) || 1; n = n.map((v) => v / l);
       const NL = n[0] * cam.light[0] + n[1] * cam.light[1] + n[2] * cam.light[2], NV = Math.max(0, n[0] * cam.view[0] + n[1] * cam.view[1] + n[2] * cam.view[2]);
       const Hv = [0, 1, 2].map((k) => cam.light[k] + cam.view[k]), hl = Math.hypot(...Hv), NH = Math.max(0, (n[0] * Hv[0] + n[1] * Hv[1] + n[2] * Hv[2]) / hl);
-      let col;
-      if (!skin) {
-        // the globe: its paint at the point (the head's own), glossy
-        const p = [0, 1, 2].map((k) => (w0 * V[tri[0]][k] + w1 * V[tri[1]][k] + w2 * V[tri[2]][k]) / STAND_M), t = head.paint({ x: p[0], y: p[1], z: p[2] });
-        const base = t === 'pupil' ? PUPIL : t === 'iris' ? IRIS : SCLERA;
-        col = base.map((c) => c * (0.35 + 0.65 * Math.max(0, NL)) + 0.5 * NH ** 200);
-      } else if (mode === 'kinds') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; col = hueOf(k).map((c) => toLin(c) * (0.35 + 0.65 * Math.max(0, NL))); }
-      else {
-        const U = uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2, Vv = uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2;
-        const alb = sample(T.albedo, N, U, Vv).slice(0, 3).map((c) => toLin(c / 255));
-        const tr = sample(T.translucency, N, U, Vv, 1)[0] / 255, ro = sample(T.roughness, N, U, Vv, 1)[0] / 255, fz = sample(T.fuzz, N, U, Vv, 1)[0] / 255;
-        // the skin's cheats: the wrap (red reaches past the terminator by the thinness), the sheen, the vellus's rim
-        const wrap = [0.18 + 0.5 * tr, 0.1 + 0.22 * tr, 0.08 + 0.18 * tr];
-        // (skin reflects about 4 % at every tone: an energy-conserving lobe, so a deep skin's sheen carries its form)
-        const pw = 2 / Math.max(0.02, ro ** 4), spec = 0.04 * ((pw + 2) / 8) * NH ** pw * Math.max(0, NL), rim = 0.12 * fz * (1 - NV) ** 3;
-        // and a cool RIM from behind (the creator's three-point light: a warm key, a cool rim that cuts the head out)
-        const rimL = 0.16 * (1 - NV) ** 2.5 * Math.max(0, -(n[0] * cam.light[0] + n[1] * cam.light[1]) * 0.6 + 0.4);
-        // (an enclosed face, a nostril's or the lips' line inside, is darkened by its own occlusion: it has no texels)
-        const shut = tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
-        col = alb.map((c, k) => c * shut * (0.22 + 0.78 * Math.max(0, (NL + wrap[k]) / (1 + wrap[k]))) * [1.04, 1, 0.95][k] + spec * shut + rim * 0.9 + rimL * [0.75, 0.85, 1][k]);
-      }
-      img.set(col, o * 3);
+      const col = colour(fi, tri, [w0, w1, w2], n, NL, NH, NV); if (!col) continue;
+      zbuf[o] = d; img.set(col, o * 3);
     }
   });
-  return { img, zbuf };
+}
+/** a skin texel lit from its atlas: `mode` 'lit' (the skin's cheats), or one of the atlas's channels shown as grey on
+ * the shape ('roughness', 'translucency', 'hair', 'ao'), lit flat */
+function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
+  const N = [T.page, T.pageH];
+  if (mode !== 'lit') {
+    const g = mode === 'hair' ? sample(T.hair, N, U, Vv)[0] / 255 : sample(T[mode === 'roughness' ? 'roughness' : mode], N, U, Vv, 1)[0] / 255;
+    return [0, 1, 2].map(() => toLin(g) * (0.55 + 0.45 * Math.max(0, NL)));
+  }
+  const alb = sample(T.albedo, N, U, Vv).slice(0, 3).map((c) => toLin(c / 255));
+  const tr = sample(T.translucency, N, U, Vv, 1)[0] / 255, ro = sample(T.roughness, N, U, Vv, 1)[0] / 255, fz = sample(T.fuzz, N, U, Vv, 1)[0] / 255;
+  // the skin's cheats: the wrap (red reaches past the terminator by the thinness), the sheen, the vellus's rim
+  const wrap = [0.18 + 0.5 * tr, 0.1 + 0.22 * tr, 0.08 + 0.18 * tr];
+  // (skin reflects about 4 % at every tone: an energy-conserving lobe, so a deep skin's sheen carries its form)
+  const pw = 2 / Math.max(0.02, ro ** 4), spec = 0.04 * ((pw + 2) / 8) * NH ** pw * Math.max(0, NL), rim = 0.12 * fz * (1 - NV) ** 3;
+  // and a cool RIM from behind (the creator's three-point light: a warm key, a cool rim that cuts the head out)
+  const rimL = 0.16 * (1 - NV) ** 2.5 * Math.max(0, -(n[0] * cam.light[0] + n[1] * cam.light[1]) * 0.6 + 0.4);
+  return alb.map((c, k) => c * shut * (0.22 + 0.78 * Math.max(0, (NL + wrap[k]) / (1 + wrap[k]))) * [1.04, 1, 0.95][k] + spec * shut + rim * 0.9 + rimL * [0.75, 0.85, 1][k]);
 }
 
 /** strands: each segment a line, depth-tested, its alpha the hairs it stands for over a pixel (a segment shorter than a
@@ -224,6 +256,87 @@ const m3 = (p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M];
 
 const ancOf = (t) => { const [id, sx = 'male', sd = '1', eyeShape = null] = t.split(':'); return { id, sex: sx, seed: Number(sd), eyeShape }; };
 const subjects = [...sexes.map((x) => [x, null, null]), ...looks.map((l) => [l, l, null]), ...ancestries.map((t) => [t.replace(/:/g, '-'), null, ancOf(t)])];
+// ─── THE BODY (`--body`): the realistic hero's body (docs/realistic-body.md) wearing its dermis (dermal-body.js), the
+// relational head grafted on it with its own atlas, as /body-study fits it (vertex to menton, the ear's depth) ───
+const HERO_HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face)/;
+async function bodyOf(sex) {
+  const t0 = Date.now();
+  const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+  const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
+  const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: sex, form: 'realistic', ...(physiqueSpec ? { physique: physiqueSpec } : {}) }) });
+  const mesh = compileLayered(m.recipe, m.dials), t1 = Date.now();
+  const H = headOf(sex), D = readDermis({ from: sex, ...BODY_DERMIS[sex], ...dermisSpec });
+  // the body-part map (body-relational-map.js): each point its part, drawn on the skin
+  const { validateRig } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
+  const { physique } = await import('@/lib/graph/polygonizer/body-relational.js');
+  const { bodyPartMap } = await import('@/lib/graph/polygonizer/body-relational-map.js');
+  const partMap = bodyPartMap(m.recipe, validateRig(m.recipe.rig), physique(sex === 'female' ? 'shalla' : 'norrin', physiqueSpec ?? 'athletic'));
+  const B = bodyDermis(mesh, m.recipe, { dermis: D, page: bodyPage, neck: neckTone(H.chart, H.D), partMap });
+  const prov = mesh.provenance, of = (re) => mesh.vertices.filter((_, i) => re.test(prov[i].part));
+  const top = Math.max(...of(/^(cranium|jaw)$/).map((v) => v[2])), men = Math.min(...of(/^jaw$/).map((v) => v[2])), ear = of(/^earR$/);
+  const sc = (top - men) / (Math.max(...H.chart.vertices.map((v) => v[2])) / STAND_M);
+  const ty = (ear.length ? ear.reduce((a, v) => a + v[1], 0) / ear.length : 0) - H.head.landmarks.tragionR.y * sc;
+  const place = (p) => [(p[0] / STAND_M) * sc, (p[1] / STAND_M) * sc + ty, (p[2] / STAND_M) * sc + men];
+  const k = sc / STAND_M, moved = (st) => ({ ...st, pts: st.pts.map(place), r: st.r * k });
+  H.place = place;
+  const shell = { chart: B.chart, T: B.maps, D, head: null, cornerNormals: layeredShadingNormals(mesh, m.recipe), hide: (fi) => HERO_HEAD.test(prov[mesh.faces[fi][0]].part) };
+  const hair = [...(H.scalp?.strands || []).map(moved), ...H.beard.strands.map(moved)], brows = H.brows.map(moved);
+  const neckV = mesh.vertices.filter((_, i) => prov[i].part === 'neck'), neckTop = [0, 1, 2].map((k) => neckV.reduce((a, v) => a + v[k], 0) / neckV.length);
+  return { sex, H, B, D, k, shell, hair, brows, mesh, neckAt: [neckTop[0], neckTop[1], neckTop[2] + 0.01], ms: [t1 - t0, Date.now() - t1] };
+}
+if (body) {
+  const BV = [{ name: 'front', az: 0, elev: 3 }, { name: 'front ¾', az: 35, elev: 5 }, { name: 'lateral', az: 90, elev: 2 }, { name: 'back', az: 180, elev: 4 }];
+  for (const sex of sexes) {
+    const Y = await bodyOf(sex), { H, B } = Y, V = Y.mesh.vertices;
+    const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
+    const rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
+    const whole = boxOf([...V.filter((_, i) => i % 7 === 0), ...Y.hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
+    const draw = (cam, W, Hh, mode, withHair) => {
+      const R = render(Y.shell, cam, W, Hh, mode); render(H, cam, W, Hh, mode, R);
+      if (withHair) { drawStrands(R, cam, W, Hh, Y.hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * 0.75 * Y.k : 0)); drawBands(R, cam, W, Hh, H.scalp?.bands?.map((b) => ({ ...b, c: H.place(b.c), r: b.r * Y.k })), shade); }
+      drawStrands(R, cam, W, Hh, Y.brows, hairShade(hexLin(H.epiColour)), () => 1);
+      return R;
+    };
+    const rows = [
+      { what: 'textured from its atlas, lit as skin (the head its own atlas, grafted)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: whole, W: 300, Hh: 760 },
+      { what: 'the map\'s kinds (each region its colour): the islands\' addresses read back on the body', cells: BV.map((v) => ({ v, mode: 'kinds' })), box: whole, W: 300, Hh: 760 },
+      { what: 'the body-part map (body-relational-map.js) on the skin (the limbs\' seams run through its hidden patches), and the lit body beside it', cells: [BV[0], BV[2], BV[3]].map((v) => ({ v, mode: 'parts' })).concat([{ v: BV[1], mode: 'lit' }]), box: whole, W: 300, Hh: 760 },
+      { what: 'the channels on the body: hair density (front, back), translucency (front), roughness (back)', cells: [{ v: BV[0], mode: 'hair' }, { v: BV[3], mode: 'hair' }, { v: BV[0], mode: 'translucency' }, { v: BV[3], mode: 'roughness' }], box: whole, W: 300, Hh: 760 },
+      { what: 'where the head meets the body: the neck (front, front ¾, lateral, back)', cells: BV.map((v) => ({ v, mode: 'lit', hair: true })), box: boxAt(Y.neckAt, 0.14), W: 300, Hh: 300 },
+    ];
+    for (const row of rows) {
+      for (const [col, c] of row.cells.entries()) {
+        const cam = camera(c.v.az, c.v.elev, row.box, row.W, row.Hh), R = draw(cam, row.W, row.Hh, c.mode, c.hair);
+        await cellRaw(col * row.W, y0, toRGBA(R.img, row.W, row.Hh), row.W, row.Hh);
+        label(col * row.W, y0 + row.Hh - 10, `${sex} · ${c.v.name}${c.mode === 'lit' ? '' : ` · ${c.mode}`} · ${cam.pxMm.toFixed(1)} mm/px`, 11);
+      }
+      label(0, y0 + 16, `${sex} body: ${row.what}`, 13);
+      sheetW = Math.max(sheetW, row.cells.length * row.W); y0 += row.Hh;
+    }
+    // the atlas's pages and the body's relief tiles
+    const pngs = dermalPngs(B.maps), PW = 300, PH = Math.round((PW * B.maps.pageH) / B.maps.page);
+    for (const [k, b] of Object.entries(pngs)) writeFileSync(path.join(out, `body-atlas-${sex}-${k}.png`), b);
+    parts.push(`<rect x="0" y="${y0}" width="${Math.max(sheetW, 1600)}" height="${PH + 120}" fill="#faf9f7"/>`);
+    let x = 0;
+    for (const k of ['albedo', 'roughness', 'translucency', 'hair', 'ao']) { if (!pngs[k]) continue; cellPng(x, y0 + 24, pngs[k], PW, PH); label(x, y0 + 18, `body atlas · ${k}`, 12); x += PW + 8; }
+    for (const cl of B.maps.classes.slice(0, 3)) {
+      const tile = reliefTile(cl, { px: 150, size: 8, seed: Y.D.seed, age: Y.D.age });
+      await cellRaw(x, y0 + 24, Buffer.from(tile.normal), 150, 150, 3); label(x, y0 + 18, `relief · ${cl.class} (8 mm)`, 12); x += 158;
+    }
+    sheetW = Math.max(sheetW, x);
+    const headMpt = H.L.mmPerTexel / H.L.faceWeight;
+    const lines = [
+      `dermis ${JSON.stringify(Y.D)}`,
+      `body atlas ${B.layout.page}×${B.layout.pageH} · ${B.layout.mmPerTexel.toFixed(2)} mm/texel (the head's ${headMpt.toFixed(2)} on its own ${H.T.page}×${H.T.pageH}) · ${B.layout.rects.length} islands · relief classes ${B.maps.classes.map((c) => c.class).join(', ')}`,
+      `mint + compile ${Y.ms[0]} ms · the head, the body's chart, layout and paint ${Y.ms[1]} ms`,
+    ];
+    lines.forEach((t, i) => label(0, y0 + PH + 50 + i * 17, t, 12));
+    report[`${sex}-body`] = { dermis: Y.D, page: B.layout.page, pageH: B.layout.pageH, mmPerTexel: B.layout.mmPerTexel, headMmPerTexel: headMpt, islands: B.layout.rects.map((r) => ({ key: r.key, x: r.x, y: r.y, w: r.w, h: r.h })), classes: B.maps.classes.map((c) => c.class), ms: Y.ms };
+    console.log(`\n${sex} body:`); for (const t of lines) console.log(`  ${t}`);
+    y0 += PH + 120;
+  }
+}
 // THE LINEUP: each subject at the front and the front ¾ only, lit with its hair, four subjects to a row, what each was
 // rolled to under it
 if (lineup) {
@@ -250,7 +363,7 @@ if (lineup) {
     sheetW = Math.max(sheetW, Math.min(per, subjects.length) * 2 * W); y0 = Math.max(y0, y + Hh + 60);
   }
 }
-for (const [who, look, anc] of lineup ? [] : subjects) {
+for (const [who, look, anc] of lineup || body ? [] : subjects) {
   const H = headOf(who, look, anc), sex = look ? `${look} (${H.sex})` : anc ? `${H.rolled.ancestry} (${H.sex}, MST ${H.rolled.tone})` : who, V = H.chart.vertices, Lm = H.head.landmarks;
   const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour));
   const hair = [...(H.scalp?.strands || []), ...H.beard.strands], fine = H.brows;

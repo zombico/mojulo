@@ -107,6 +107,37 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
   to the neck: the neck ends on a ring wholly under the head and the jaw part starts on that ring. The lower face is
   bound to the rig's jaw bone, its hinge moved to the head's condyles, so the mouth opens. Bald; no ears yet.
 
+### Realistic body: the dermal skin on the body
+
+In progress (a dev path: no minted hero changes, no tool surface; the export pack and the GLB do not carry it yet).
+The dermal texturizer's maps on the realistic body (`form: 'realistic'`, docs/realistic-body.md), so its head and its body
+wear one skin. `epidermis/dermal-body.js`:
+
+- The body's UVs from its own grids: each skin part (the re-sampled torso, neck, pelvis and limbs; the authored hands,
+  fingers, feet and toes) unrolled from its stations × slots into an island at its true size, one texel density over the
+  body, v down the rings' centroids (the caps' poles past the ends), u the arc round each ring from its SEAM, where an
+  artist cuts: the trunk, the neck and the pelvis down the back, the arms and the legs down the inside, the hands and
+  the feet along the inner edge. Each grid point's address is its slot's turn (`front` anterior, the left limb the
+  right's mirror, slot for slot) and its station's run; packed by the head's packer (`packRects`, shared out of
+  `layoutDermis`).
+- The maps painted by the head's painter (`paintIsland`, shared out of `paintDermis`, the head's maps byte for byte):
+  albedo, roughness, translucency, hair density and flow, fuzz, the relief tiles' index and the occlusion each part's
+  own folds cast (broad, gentle and eased over each point's neighbours, the cage being coarse), written by
+  `dermalPngs`. The inner arm's pale skin turns from anteromedial to the forearm's flexor side across the elbow, so the
+  two parts meet in one colour. The palms and soles glabrous; the body's terminal hair sparse by default (the
+  male's at half the preset's), its tracts the pole's (the forearms, the shins, the chest, the axillae); the neck's
+  beard, the chest's patch and the belly's trail fade in with their regions instead of starting at a line, and a body's terminal tract blends across its edge.
+- The neck meets the head: its top eased over its upper third toward the tone of the relational head's lowest skin
+  (`neckTone`).
+- The body-part map (body-relational-map.js) read in: each point of the chart carries its `bodyPart`
+  (`bodyDermis`'s `partMap`), and the limbs' seams run through its `hidden` patches (the skin inside the trunk's), so
+  the cut is where nothing shows; the study draws the parts on the skin.
+- For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck, partMap })` → `{ chart, layout, uv: { faceUV, corners,
+  vertex }, maps, dermis }`, and `unweldSeams(faces, corners)` to split the seams into one UV a vertex.
+- The eyes lane: `/dermis-study --body [male] [female] [--physique <word|json>] [--body-page N]`: the realistic body
+  textured and lit with the relational head grafted on it (its own atlas and hair), its map's kinds, its channels on the
+  shape, the neck close, and the body's atlas pages.
+
 ### Dermal texturizer: skin and hair laid out on the realistic register's body
 
 In progress (a dev path: no minted hero changes, no tool surface). The epidermis cube carried from the head to the

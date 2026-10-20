@@ -174,13 +174,14 @@ export function dermalRegions(A, D) {
     put(back < 0.25 ? 'seat' : 'hip', 1);
   } else if (part === 'upperArm') {
     put('arm', 1);
-    put('innerArm', near(ad(a, 0.75), 0.2));
+    // (the inner arm's pale skin anteromedial, turning to the forearm's anterior flexor side across the elbow)
+    put('innerArm', near(ad(a, 0.85), 0.22));
     put('elbow', blob(A, 0.5, 1, 45));
     put('axilla', near(ad(a, 0.75), 0.15) * smooth(0.14, 0.04, u));
     put('shoulder', near(ad(a, 0.25), 0.25) * smooth(0.25, 0.05, u));
   } else if (part === 'forearm') {
     put('arm', 1);
-    put('innerArm', near(front, 0.22));
+    put('innerArm', near(ad(a, 0.95), 0.22));
     put('elbow', blob(A, 0.5, 0, 45));
     put('wrist', near(front, 0.2) * smooth(0.82, 0.95, u));
   } else if (part === 'hand' || part === 'finger') {
@@ -382,12 +383,14 @@ export function hairTract(A, R, D) {
     }
     return vellus;
   }
-  if (A.part === 'neck') return w('beard') > 0.3 && D.beard > 0 ? T('beard', 40 * D.beard * w('beard'), D.stubble, flowOf(-1), 0.3) : vellus;
+  // (the throat's beard thins out under the jaw rather than stopping at a line)
+  if (A.part === 'neck') return w('beard') > 0.05 && D.beard > 0 ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.stubble, flowOf(-1), 0.3) : vellus;
   if (A.part === 'trunk') {
     if (w('axilla') > 0.4 && D.axilla > 0) return T('axilla', 35 * D.axilla, 14, flowOf(-1), 0.5);
     const chest = male ? w('chest') * near(Math.min(ad(a, 0), Math.abs(ad(a, 0) - 0.1)), 0.14) : 0;
-    if (chest > 0.15) return T('chest', 14 * B * chest, 16, flowOf(-0.8, toward(a, 0) * 0.6), 0.3);
-    if (male && w('abdomen') > 0.5 && ad(a, 0) < 0.04) return T('trail', 10 * B, 12, flowOf(-1), 0.3);
+    // (each fading in with its region rather than starting at a threshold's line)
+    if (chest > 0.02) return T('chest', 14 * B * chest * smooth(0.02, 0.4, chest), 16, flowOf(-0.8, toward(a, 0) * 0.6), 0.3);
+    if (male && w('abdomen') > 0.05 && ad(a, 0) < 0.05) return T('trail', 10 * B * near(ad(a, 0), 0.05) * smooth(0.05, 0.8, w('abdomen')), 12, flowOf(-1), 0.3);
     return vellus;
   }
   if (A.part === 'upperArm') return w('axilla') > 0.4 && D.axilla > 0 ? T('axilla', 30 * D.axilla, 12, flowOf(1), 0.5) : T('upperArm', 7 * B * (1 - 0.5 * w('innerArm')), 9, flowOf(1, 0.15));
