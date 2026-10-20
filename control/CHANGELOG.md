@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Body-part map: dress tailored to the body, not the segment
+
+- The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,
+  shoulder cap, armpit, upper arm, elbow, forearm, thigh, knee, shin, calf …) and by the MUSCLE most under each point,
+  from the form field's own blend (each mass's share of the skin there), the deep base masses read by position:
+  `bodyPartMap(recipe, R, build)` (body-relational-map.js); body-study `--map` colours the skin by part. The ground for
+  dress tailored to the parts it covers, one piece across segments.
+- Under the iliac crest (a hand over the hip's joint) the trunk is the seat behind, the hip at the side, the groin in
+  front; a limb's bands by where a point lies down its bone (the shoulder's cap over the upper arm's top, the elbow, the
+  knee, the wrist, the ankle about their joints); the armpit's fill above the hollow the shoulder's cap. A point inside
+  another part's skin (the pelvis under the crotch, the arm's top under the cap) is `hidden`, for dress to leave alone.
+  The labels eased over each grid (a point of a part fewer than three of its eight neighbours share takes theirs).
+
 ### The realistic hero at the door
 
 - `form: 'realistic'` on the hero door (`create_character`, `mint_solid` via 'hero'): the hero's body re-sampled onto

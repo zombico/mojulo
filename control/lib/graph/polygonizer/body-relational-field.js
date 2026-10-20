@@ -173,7 +173,7 @@ export function bodyField(R, build, { extra = [] } = {}) {
   // a field of some masses alone (by id): a part whose rings run inside another's (the neck's root in the torso) reads
   // only its own, or its rays catch the shoulder's
   const only = (ids) => { const sel = [...baseP, ...muscles].filter((p) => ids.includes(p.id)); return (q) => lse(sel.map((p) => sdOf(p, q)), kM) - fatAt(q); };
-  return { build: B, frame: F, base, sd, only, fat: fatAt, masses: { base: baseP, muscles, dimples } };
+  return { build: B, frame: F, base, sd, only, fat: fatAt, bust: bustH, masses: { base: baseP, muscles, dimples } };
 }
 
 /** the first crossing outward (inside → outside) of a field along a ray, within `reach` metres; null when none */

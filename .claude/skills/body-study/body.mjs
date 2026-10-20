@@ -22,6 +22,7 @@
 //                   path, no minted hero changes), wearing the RELATIONAL head (head-relational.js, the head-study
 //                   field lane's) in place of the hero's: its skin meshed, fitted to the hero's head (vertex to
 //                   menton, the ear's depth) and carried by the head bone
+//   --map           the realistic body coloured by its body-part map (body-relational-map.js), a part a hue
 //   --hero          hero spec fields merged into every hero minted, as JSON (the door's own: '{"form":"realistic",
 //                   "physique":"jacked","outfit":["tee","trousers"]}' is the realistic hero dressed, as the door makes it)
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
@@ -50,12 +51,13 @@ const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
+const { bodyPartMap, PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-map.js');
 const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
 const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, only = null, vitruvian = false, bones = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, partMap = false, only = null, vitruvian = false, bones = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -67,6 +69,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--hero') { heroSpec = JSON.parse(args[++i]); continue; }
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
+  if (a === '--map') { partMap = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--vitruvian') { vitruvian = true; continue; }
   if (a === '--parts') { only = new RegExp(args[++i]); continue; }
@@ -109,6 +112,20 @@ function camera(az, elev, box, W, H) {
 /** a part's own colour (`--tint`): which shell shows where two hand over */
 const partTint = (part) => { let h = 0; for (const c of part.replace(/[RL]$/, '')) h = (h * 31 + c.charCodeAt(0)) % 360; const f = (n) => { const k = (n + h / 30) % 12; return 200 * (0.75 - 0.4 * Math.max(-1, Math.min(k - 3, 9 - k, 1))); }; return [f(0), f(8), f(4)]; };
 /** the triangles (vertex positions, per-corner normals) z-buffered and lit in clay (or each part its own colour) */
+/** a face's colour by the body-part map (`--map`): its vertices' most common part (the realistic body: --form, or --hero
+ * with form 'realistic'), each part its own hue round the wheel, hidden points grey; the head, the hands and the feet clay */
+const MAP_HUE = (part) => { const h = PART_COLOURS[part] ?? '#b0b4ba'; return [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+function mapHues(H, faces) {
+  if (!H.map) {
+    const spec = { ...heroSpec }, B = BUILD ?? (spec.form === 'realistic' ? physique(H.cast === 'female' ? 'shalla' : 'norrin', spec.physique ?? 'athletic') : null);
+    H.map = B ? bodyPartMap(H.m.recipe, H.R, B) : { part: {} };
+  }
+  return faces.map((tri) => {
+    const count = {}; for (const v of tri) { const p = H.map.part[H.mesh.pointIds[v]]; if (p) count[p] = (count[p] || 0) + 1; }
+    const k = Object.keys(count).sort().reduce((a, x) => (a === null || count[x] > count[a] ? x : a), null);
+    return k ? MAP_HUE(k) : CLAY;
+  });
+}
 function rasterize(V, faces, normals, cam, W, H, hue = null) {
   const zbuf = new Float32Array(W * H).fill(-Infinity), img = Buffer.alloc(W * H * 4, 0);
   faces.forEach((tri, fi) => {
@@ -143,7 +160,7 @@ function hero(cast, extra = {}) {
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = sl.recipe;
   const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
-  const h = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R), navelZ: sl?.landmarks?.navel ?? null, crotchZ: sl?.landmarks?.crotch ?? null };
+  const h = { cast, m, mesh, R, skin: bindLayered(mesh, m.recipe, R), navelZ: sl?.landmarks?.navel ?? null, crotchZ: sl?.landmarks?.crotch ?? null };
   if (form) h.graft = graftHead(h, cast === 'female' ? 'female' : 'male');
   heroes.set(key, h);
   return h;
@@ -353,7 +370,7 @@ for (const cast of casts) {
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
-    const box = frameBox(V, nodes, which), hue = tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
+    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);
