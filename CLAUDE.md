@@ -182,7 +182,8 @@ Pointers only; each target carries its own design notes.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
-  law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated).
+  law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
+  picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).

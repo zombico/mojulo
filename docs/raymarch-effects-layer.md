@@ -91,6 +91,28 @@ Say you want light-shafts, rain, heat-shimmer, or a force-field over a world:
   generator: **resolve to numbers in JS, evaluate the same math per-pixel in GLSL** (don't reimplement
   the RNG in the shader).
 
+- **Science pages** ([science-worlds/shader.js](../control/lib/graph/science-worlds/shader.js)) — the
+  same layer held to a solver. A science page's shader is one GLSL source that defines the picture
+  (`sciImage(ro, rd)`) and the model quantity it computes (`sciValue(a, b)`). `shaderPage` makes both
+  the `effects[]` layer and a probe shader from it, the model's numbers passed once as uniforms and data
+  textures. Four pages use it:
+  - the relativistic light world: full frame, each pixel's light traced through Schwarzschild spacetime;
+  - a quantum atom drawn as a volume: full frame, its GLSL generated from each orbital's coefficients;
+  - the quantum plane: a layer over the meshes playing the solver's own frames from a float texture;
+  - a classical field drawn as a volume: a layer reading the charges' paths from a texture on the movers'
+    clock.
+
+  The layers over meshes take `depthClip`, so a mesh in front hides the picture (`sciSceneDistance`
+  reads the page's depth prepass). The pattern for any picture a gate has to vouch for:
+  - **compute the law in JS** where the gates run;
+  - **generate the GLSL from the same numbers**, never a hand-typed twin;
+  - **prove the two agree** with the conformance gate
+    ([conformance.js](../control/lib/graph/science-worlds/conformance.js),
+    `scripts/science-conformance.mjs`). It evaluates `sciValue` at probe inputs into a float target and
+    measures rendered frames, in headless Chrome, and reports "not run" without a browser.
+
+  Each page's test also feeds the gate a deliberately wrong shader and checks it disagrees.
+
 ## Gotchas (each cost real debugging time)
 
 - **Cell-wall step floor MUST exceed the occluder `surfEps`.** The grid SDF clamps the step to the
@@ -106,6 +128,13 @@ Say you want light-shafts, rain, heat-shimmer, or a force-field over a world:
   depthTexture pass we deliberately skipped.
 - **Data textures must be `FloatType` RGBA, `NearestFilter`.** Indices/coords need exact values;
   linear filtering corrupts them.
+- **A probe needs the page itself.** A shader's uniforms and data textures go into the probe shader too
+  (`shaderPage` declares them once for both), and the probe bridge builds the same textures. A probe that
+  rebuilds its own inputs only proves itself. Interpolate by hand in GLSL (Nearest texels, then
+  `mix`), and do the same arithmetic in JS (`Math.fround` on the texels), so the two can agree to float32.
+- **An empty-handed gate is not a pass.** A Chrome test that returns quietly without a browser passes
+  vitest without proving anything. Point `MOJULO_CHROMIUM` at a browser (in the cloud container,
+  `/opt/pw-browsers/chromium`) and read the gate's `ran` before believing a green suite.
 
 ## Verification discipline (how this was kept tractable)
 

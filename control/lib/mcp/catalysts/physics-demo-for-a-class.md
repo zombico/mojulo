@@ -35,9 +35,9 @@ ask for what the explanation needs to resolve:
 
 | The ask needs… | Scale | What to do |
 |---|---|---|
-| bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst) |
+| bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst); `dress.field` draws a charge's field as lines, a glow or equipotential shells, checked against Gauss's law |
 | molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_view_vocab({ id: 'microscopic' })` |
-| energy levels, tunnelling, orbitals, spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
+| energy levels, tunnelling, two slits building their fringes dot by dot, orbitals (as points or a volume), spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
 | a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_view_vocab({ id: 'relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the curated `black-hole` / `gravity-wave` kinds) |
 
 A ready-made kind is quicker when it already *is* the demo (the mechanics kind's simple machines and engines, the
@@ -91,7 +91,7 @@ should change ("what if the pendulum were on the Moon", "three balls, not two").
    `forge_motion({ subject: { world_ref: <ref> }, shot: { motion: 'plan' }, export: 'mp4' })`: a wide shot of
    the run, the slowed replay, and the end card (what is real, what was checked, what is drawn).
 
-9. **Stand it somewhere** (optional). A demo can stand in a world the class knows: `compose_world({ base, overrides: { science: { kind: 'classical', model, at, ground: 'from-world' } } })` (`get_view_vocab({ id: 'science-setting' })`). The world's ground becomes a law, and the panel says when a body would pass through a wall no law covers; move the demo or add the law, never hide it.
+9. **Stand it somewhere** (optional). A demo can stand in a world the class knows: `compose_world({ base, overrides: { science: { kind: 'classical', model, at, ground: 'from-world' } } })` (`get_view_vocab({ id: 'science-setting' })`). The world's ground becomes a law, and the panel says when a body would pass through a wall no law covers; move the demo or add the law, never hide it. A demo from another scale stands as a bench prop in a glass case, its magnification on the panel. A page drawn by a shader (a light world, an orbital volume, the two-slit plane, a field volume) fills the page and cannot stand in a world.
 
 10. **Report honestly.** Name the gates that ran and what they saw (with the numbers), every liberty (the page's
    and the film's), any gap, and say plainly that **nobody has looked at it yet**: the eyes gate is the teacher's
