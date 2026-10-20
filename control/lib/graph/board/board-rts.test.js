@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY, rtsView, rtsSetup, RTS_MATCH } from './board-rts.js';
+import { buildBoardRts, readBoardRts, rtsStart, rtsOrder, rtsTrain, rtsBuild, rtsRally, rtsMind, rtsTick, rtsPath, rtsResearch, rtsUpgrade, rtsLockOf, rtsAct, rtsReplay, rtsApm, rtsStepOf, RTS_LEVELS, RTS_UNITS, RTS_BUILDINGS, RTS_VICTORY, rtsView, rtsSetup, RTS_MATCH, RTS_HOTKEYS } from './board-rts.js';
 import { rtsRoster } from './board-rts-tech.js';
 import { boardOf, boardParse } from './board-kernel.js';
 
@@ -711,5 +711,40 @@ describe('the fog', () => {
     let W = rtsStart(B, armed);
     for (let k = 0; k < 40; k++) W = rtsTick(B, armed, W, 0.1).R;
     expect(W.units.filter((u) => u.side === 'enemy' && u.order.kind === 'amove').map((u) => u.order.to)).toContain(armed.bases.player);
+  });
+});
+
+describe('the commander', () => {
+  it('patrols: an attack-move back and forth between where it stood and where it was sent, fighting what it meets', () => {
+    // (a long board: the far base out of the patrol's sight)
+    const B = flat(5, 24), cfg = quiet(B, { army: 1 });
+    let R = rtsStart(B, cfg);
+    const s = mine(R).find((u) => u.kind === 'soldier'), from = s.at, to = at(B, 'C9');
+    // a patrol to where it stands is no order
+    expect(rtsOrder(B, cfg, R, [s.id], { kind: 'patrol', to: s.at }).units.find((u) => u.id === s.id).order.kind).toBe('stop');
+    R = rtsOrder(B, cfg, R, [s.id], { kind: 'patrol', to });
+    expect(R.units.find((u) => u.id === s.id).order).toEqual({ kind: 'patrol', to, from });
+    const ends = [];
+    for (let k = 0; k < 400; k++) { R = rtsTick(B, cfg, R, 0.1).R; const u = R.units.find((x) => x.id === s.id); if (!ends.length || ends[ends.length - 1] !== u.order.to) ends.push(u.order.to); }
+    // there and back, and there again
+    expect(ends.slice(0, 3)).toEqual([to, from, to]);
+    // it fights what comes in sight on its way
+    const foe = { id: 'x', side: 'enemy', kind: 'soldier', hp: 80, x: 2.5, y: 6.5, at: at(B, 'C7'), path: [], order: { kind: 'hold' }, cd: 0, carry: 0, mine: 0, again: 0 };
+    const F = run(B, cfg, { ...rtsOrder(B, cfg, rtsStart(B, cfg), [s.id], { kind: 'patrol', to }), units: rtsOrder(B, cfg, rtsStart(B, cfg), [s.id], { kind: 'patrol', to }).units.concat([foe]) }, 6).ev;
+    expect(F.some((e) => e.kind === 'shot' && e.from === s.id && e.to === 'x')).toBe(true);
+  });
+
+  it('reads a game\'s own keys: an action a key in each place it acts, refusing a key another action there holds', () => {
+    const B = flat(9, 12);
+    expect(readBoardRts(B, { keys: { patrol: 'KeyQ', pause: 'F10' } }).keys).toEqual({ patrol: 'KeyQ', pause: 'F10' });
+    // the same key in two places: a unit's and a building's
+    expect(() => readBoardRts(B, { keys: { stop: 'KeyQ' } })).not.toThrow();
+    expect(() => readBoardRts(B, { keys: { stop: 'KeyH' } })).toThrow(/keys.stop 'KeyH' is hold's key already \(unit\)/);
+    expect(() => readBoardRts(B, { keys: { stop: 'Period' } })).toThrow(/is idleWorker's key already \(global\)/);
+    expect(() => readBoardRts(B, { keys: { dance: 'KeyQ' } })).toThrow(/keys.dance is not an action/);
+    expect(() => readBoardRts(B, { keys: { stop: 'Digit1' } })).toThrow(/keys.stop 'Digit1' is not a key to bind/);
+    // the defaults hold one action a key in each place
+    const seen = {};
+    for (const [a, [where, code]] of Object.entries(RTS_HOTKEYS)) { const k = (where === 'global' ? 'g' : where) + code; expect(seen[k], a).toBeUndefined(); seen[k] = a; }
   });
 });

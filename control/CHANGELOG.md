@@ -1123,6 +1123,15 @@ indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only
   to give up, then the results (the winner, the time, each side's count, its APM and its army over time) with
   Rematch (the same setup, its fields laid anew by the next seed), New match (the lobby) and Leave (the level ends as
   the last match went). The lobby's choices are the match's setup (`setup`), so a match replays from them and its log.
+- **The command card**, built: the skirmish is commanded as an RTS is. Clicking a building shows it (its health,
+  queue with progress, research, upgrade, rally, repeat); clicking a unit shows it (health, attack, range, speed,
+  armour, statuses, cooldowns, its idle rule); a box dragged over the ground picks the player's units, never
+  buildings, shown a tile each (a click on one picks it). Beside it a command card of buttons, each with its hotkey:
+  Move, Stop, Hold, Attack, Attack-move and Patrol for units, then what the kind can (its abilities, Unload, Deploy,
+  Build, Gather, Repair); train, research, upgrade, repeat and rally for a building. A command that needs a target
+  arms the next click on the board; a button that cannot act says why. Patrol is a new order: an attack-move back and
+  forth between where the units were and where they were sent. Every action's key can be rebound in the card's Keys
+  panel (kept in the browser), and a game may set its own defaults (`rts.keys`).
 - **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
   registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
   (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze

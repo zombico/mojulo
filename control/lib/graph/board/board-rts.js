@@ -29,7 +29,8 @@
  *   (optional): research: { <id>: { name, cost, time, needs?, tier?, gives: { tier } | { income } } }, study: [ids, the
  *   mind's order]; every income step known pays that much more a trip
  *   start(B, cfg) → R
- *   order(B, cfg, R, ids, o) → R   o: { kind: 'move', to } | { kind: 'amove', to } | { kind: 'attack', target }
+ *   order(B, cfg, R, ids, o) → R   o: { kind: 'move', to } | { kind: 'amove', to } | { kind: 'patrol', to } (an
+ *                                  attack-move back and forth from where it stood) | { kind: 'attack', target }
  *                                  | { kind: 'hold' } | { kind: 'stop' } | { kind: 'gather', node }   (the player's
  *                                  units; a worker alone gathers; an order it cannot take is passed over)
  *   train(B, cfg, R, building, kind) → R    build(B, cfg, R, side, kind, spot) → R    rally(B, cfg, R, building, spot) → R
@@ -63,6 +64,20 @@ export function buildBoardRts() {
     hall: { name: 'Hall', role: 'hall', hp: 700, cost: 300, time: 40, depot: true, trains: ['worker'] },
   };
   const AI = { workers: 5, wave: 4, grow: 2 };
+  // the commander's actions and their keys (KeyboardEvent.code), by where they act: always, with units selected,
+  // with a building selected; a key is one action's in each place (rts.keys, the page's Keys panel rebind them)
+  const HOTKEYS = {
+    pause: ['global', 'Pause', 'pause'], slower: ['global', 'BracketLeft', 'slower'], faster: ['global', 'BracketRight', 'faster'],
+    idleWorker: ['global', 'Period', 'idle worker'], surrender: ['global', 'End', 'give up (twice)'],
+    move: ['unit', 'KeyM', 'move'], stop: ['unit', 'KeyS', 'stop'], hold: ['unit', 'KeyH', 'hold'], attack: ['unit', 'KeyA', 'attack'],
+    amove: ['unit', 'KeyE', 'attack-move'], patrol: ['unit', 'KeyP', 'patrol'], ability1: ['unit', 'KeyF', 'first ability'],
+    ability2: ['unit', 'KeyV', 'second ability'], unload: ['unit', 'KeyU', 'unload'], deploy: ['unit', 'KeyD', 'deploy'],
+    build: ['unit', 'KeyB', 'build'], gather: ['unit', 'KeyG', 'gather'], repair: ['unit', 'KeyR', 'repair'],
+    idleRule: ['unit', 'KeyI', 'idle rule'], autocast: ['unit', 'KeyC', 'auto-cast'],
+    train1: ['building', 'KeyQ', 'train the first'], train2: ['building', 'KeyW', 'train the second'], train3: ['building', 'KeyE', 'train the third'],
+    train4: ['building', 'KeyR', 'train the fourth'], research: ['building', 'KeyT', 'research'], upgrade: ['building', 'KeyG', 'upgrade'],
+    repeat: ['building', 'KeyY', 'repeat'], rally: ['building', 'KeyL', 'rally'],
+  };
   // how hard a side's mind plays: how many workers it keeps, how big its first wave and how fast the next ones grow,
   // its actions a minute (`apm`: none, as many as it likes) and how often it thinks (`react`, seconds); normal is AI
   const LEVELS = { easy: { workers: 4, wave: 6, grow: 3, apm: 40, react: 2 }, normal: AI, hard: { workers: 7, wave: 3, grow: 1, react: 0.5 } };
@@ -322,14 +337,16 @@ export function buildBoardRts() {
       // an ability cast at once (its status on itself, a shield, paid in hp), the order it had kept
       if (o.kind === 'cast') { cast(cfg, u, o.ability); continue; }
       // still (deployed, switching): it goes nowhere until it packs up
-      if ((ST(cfg, u).still || u.shift > 0) && (o.kind === 'move' || o.kind === 'amove' || o.kind === 'gather' || o.kind === 'board')) continue;
+      if ((ST(cfg, u).still || u.shift > 0) && (o.kind === 'move' || o.kind === 'amove' || o.kind === 'patrol' || o.kind === 'gather' || o.kind === 'board')) continue;
       if (o.kind === 'board') { const t = R.units.find((x) => x.id === o.target); if (!t || t.side !== u.side || t.id === u.id || !UN(cfg, t.side, t.kind).carries || UN(cfg, u.side, u.kind).carries) continue; }
       // a worker sent to build or repair goes back to its mining after
       const back = (o.kind === 'build' || o.kind === 'repair') && u.order.kind === 'gather' ? { after: Object.assign({}, u.order) } : {};
-      u.order = Object.assign({}, o, back);
+      // a patrol: between where it stands and where it is sent
+      if (o.kind === 'patrol' && o.to === u.at) continue;
+      u.order = Object.assign({}, o, back, o.kind === 'patrol' ? { from: u.at } : {});
       u.path = [];
       u.again = 0;
-      if (o.kind === 'move' || o.kind === 'amove') u.path = route(B, cfg, R, u, o.to) || [];
+      if (o.kind === 'move' || o.kind === 'amove' || o.kind === 'patrol') u.path = route(B, cfg, R, u, o.to) || [];
     }
     return R;
   }
@@ -1011,13 +1028,13 @@ export function buildBoardRts() {
         else {
           // stop and attack-move: what comes in sight (never shorter than its reach) is fought (an idle worker keeps to its
           // work: it fights when told);
-          // an attack-move then goes on where it was going
+          // an attack-move then goes on where it was going; a patrol turns back at each end
           const x = (o.kind === 'stop' && isWorker(cfg, u)) || !U.atk ? null : nearestFoe(B, cfg, R, u, Math.max(SIGHT, range), range);
           if (x) engage(B, cfg, R, u, x, events, true);
-          else if (o.kind === 'amove') {
+          else if (o.kind === 'amove' || o.kind === 'patrol') {
             if (!u.path.length) u.path = route(B, cfg, R, u, o.to) || [];
             walk(B, cfg, u, STEP);
-            if (!u.path.length && u.at === o.to) u.order = { kind: 'stop' };
+            if (!u.path.length && u.at === o.to) u.order = o.kind === 'patrol' ? { kind: 'patrol', to: o.from, from: o.to } : { kind: 'stop' };
           }
         }
       }
@@ -1037,7 +1054,7 @@ export function buildBoardRts() {
     return { R, events };
   }
 
-  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, view, setup, layFields, MATCH, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
+  return { STEP, SIGHT, CARRY, REACH_UP, UNITS, BUILDINGS, AI, HOTKEYS, LEVELS, IDLE, PLAIN, STATUS, DOCTRINES, costOf, stepCost, supplyOf, res2Name, roster, tierOf, incomeOf, lockOf, statsOf: ST, hidden, classOf, start, order, train, build, research, upgrade, rally, idle, repeat, auto, act, view, setup, layFields, MATCH, apmOf, stepOf, replay, mind, tick, open, path, spotAt };
 }
 
 const _rts = buildBoardRts();
@@ -1059,6 +1076,7 @@ export const RTS_LEVELS = _rts.LEVELS;
 export const rtsAct = _rts.act;
 export const rtsView = _rts.view;
 export const rtsSetup = _rts.setup;
+export const RTS_HOTKEYS = _rts.HOTKEYS;
 export const RTS_MATCH = _rts.MATCH;
 export const rtsReplay = _rts.replay;
 export const rtsApm = _rts.apmOf;
@@ -1068,7 +1086,7 @@ export const rtsPath = _rts.path;
 export const rtsOpen = _rts.open;
 
 const NODE = 1500, NODE2 = 800;
-const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'fog', 'seed', 'match', 'jump', 'doctrine'];
+const RTS_KEYS = ['bases', 'nodes', 'nodes2', 'expansions', 'gold', 'ore', 'workers', 'army', 'enemy', 'ai', 'level', 'victory', 'fog', 'seed', 'match', 'keys', 'jump', 'doctrine'];
 export const RTS_VICTORY = Object.freeze({ base: 'its base falls', melee: 'every building it has falls' });
 const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
 /**
@@ -1085,7 +1103,8 @@ const rtsNo = (m) => { throw new Error(`board rts: ${m}`); };
  *          seed? (the layout's: the same seed, the same fields), fog?: true (each side sees what its units and
  *          buildings see, the ground it explored, the foe's buildings as it last saw them; its mind too), match?: true
  *          (a whole match on the page: a lobby first, then results, rematch and a new match; the fog, the melee rule
- *          and a field a side unless said) }
+ *          and a field a side unless said), keys?: { <action>: '<KeyboardEvent.code>' } (RTS_HOTKEYS: the
+ *          commander's keys, one action a key where it acts) }
  *   near / far: the near (far) row's walkable spot nearest its middle, a row in from the edge; nodes 1500 each
  */
 export function readBoardRts(B, spec = {}) {
@@ -1163,6 +1182,23 @@ export function readBoardRts(B, spec = {}) {
     for (const f of cfg.fields) for (const at of f.nodes) cfg.nodes.push({ at, amount: NODE });
   }
   // the fog: each side sees what its units and buildings see
+  // a game's own keys: an action's KeyboardEvent.code (a letter, F1 to F12, Pause, End, a bracket or the full stop),
+  // one action a key in each place it acts
+  if (spec.keys !== undefined) {
+    const K = spec.keys;
+    if (!K || typeof K !== 'object' || Array.isArray(K)) rtsNo(`keys is { <action>: '<key code>' } (actions: ${Object.keys(RTS_HOTKEYS).join(', ')})`);
+    const bound = Object.fromEntries(Object.entries(RTS_HOTKEYS).map(([a, h]) => [a, h[1]]));
+    for (const [a, code] of Object.entries(K)) {
+      if (!RTS_HOTKEYS[a]) rtsNo(`keys.${a} is not an action (${Object.keys(RTS_HOTKEYS).join(', ')})`);
+      if (typeof code !== 'string' || !/^(Key[A-Z]|F([1-9]|1[0-2])|Pause|End|Home|Insert|Delete|BracketLeft|BracketRight|Period|Comma|Semicolon|Quote|Slash|Backslash|Backquote)$/.test(code)) rtsNo(`keys.${a} '${code}' is not a key to bind (a letter as KeyA, F1 to F12, Pause, End, Home, Insert, Delete, a bracket, Period, Comma, Semicolon, Quote, Slash, Backslash, Backquote)`);
+      bound[a] = code;
+    }
+    for (const a of Object.keys(K)) {
+      const twin = Object.keys(bound).find((b) => b !== a && bound[b] === bound[a] && (RTS_HOTKEYS[b][0] === RTS_HOTKEYS[a][0] || RTS_HOTKEYS[b][0] === 'global' || RTS_HOTKEYS[a][0] === 'global'));
+      if (twin) rtsNo(`keys.${a} '${bound[a]}' is ${twin}'s key already (${RTS_HOTKEYS[twin][0]}): give it another`);
+    }
+    cfg.keys = { ...K };
+  }
   if (spec.match) { cfg.match = { expansions: nx }; if (spec.fog === undefined) cfg.fog = true; if (spec.victory === undefined) cfg.victory = 'melee'; }
   if (spec.fog !== undefined) { if (typeof spec.fog !== 'boolean') rtsNo('fog is true (each side sees only what its units and buildings see) or false'); if (spec.fog) cfg.fog = true; }
   if (spec.victory !== undefined) {

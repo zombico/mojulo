@@ -191,7 +191,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
     wait: 'the level is starting',
     scene: '',
     td: 'arrows / WASD / edge: pan · Z X: zoom · click or Enter: build · 1 2 3: tower · S: sell · N: next wave · B: where',
-    rts: 'arrows / edge: pan · Z X: zoom · click / drag: select · right-click: move, attack, gather, rally · A: attack-move · S: stop · H: hold · B: build (again: the next) · Q W E R: train · T: research · U: unload · D: deploy · G: upgrade · F: ability · Ctrl+1–9 / 1–9: groups · .: idle worker · I: idle rule · Y: repeat · C: auto-cast · P: pause · [ ]: speed',
+    rts: 'arrows / edge: pan · Z X: zoom · click: select (a foe: shown) · drag: a box of units · right-click: move, attack, gather, rally · the card: each command and its key (Keys: rebind them) · Ctrl+1–9 / 1–9: groups · .: idle worker · Pause · [ ]: speed · End twice: give up',
   };
   const bar = (v, max, w) => { const n = Math.max(0, Math.round((v / Math.max(1, max)) * w)); return '█'.repeat(n) + '░'.repeat(w - n); };
   const ST = { poison: 'poisoned', sleep: 'asleep', silence: 'silenced' };
@@ -616,7 +616,7 @@ export function boardPage(D, K, CAM, MIND, RK, CARRY, FXB, TDK, TDP, RTK, RTP) {
   const FACE_OF = { '0,1': 0, '1,0': 1, '0,-1': 2, '-1,0': 3 };
   window.addEventListener('keydown', (e) => {
     if (mode === 'scene') return;   // a story slot plays: the scene has the keys
-    if (mode === 'rts' && /^Key[WASDQE]$/.test(e.code)) return;   // a skirmish's orders, not the cursor's or the camera's
+    if (mode === 'rts' && (/^Key[WASDQE]$/.test(e.code) || (rtsp && rtsp.claims(e)))) return;   // a skirmish's orders (its keys first), not the cursor's or the camera's
     if (e.code in DIRS) {
       e.preventDefault();
       if (rts) held[DIRS[e.code]] = true;
