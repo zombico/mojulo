@@ -34,17 +34,22 @@ const unit = (a) => { const l = len(a); return l > 1e-12 ? scl(a, 1 / l) : [0, 0
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
 /** an ellipsoid's signed distance (the bound Inigo Quilez's k0·(k0 − 1)/k1: exact on the surface, close near it) */
+// (written out without arrays, the same arithmetic in the same order as the vector helpers': the field is evaluated
+// millions of times a slice, and the allocations were most of its cost)
 function sdEgg(p, e) {
-  const d = sub(p, e.c), q = [dot(d, e.ax[0]) / e.r[0], dot(d, e.ax[1]) / e.r[1], dot(d, e.ax[2]) / e.r[2]];
-  const k0 = len(q), k1 = len([q[0] / e.r[0], q[1] / e.r[1], q[2] / e.r[2]]);
-  return k1 > 1e-12 ? (k0 * (k0 - 1)) / k1 : -Math.min(...e.r);
+  const c = e.c, A = e.ax, r = e.r, d0 = p[0] - c[0], d1 = p[1] - c[1], d2 = p[2] - c[2];
+  const q0 = (d0 * A[0][0] + d1 * A[0][1] + d2 * A[0][2]) / r[0], q1 = (d0 * A[1][0] + d1 * A[1][1] + d2 * A[1][2]) / r[1], q2 = (d0 * A[2][0] + d1 * A[2][1] + d2 * A[2][2]) / r[2];
+  const k0 = Math.sqrt(q0 * q0 + q1 * q1 + q2 * q2), u0 = q0 / r[0], u1 = q1 / r[1], u2 = q2 / r[2], k1 = Math.sqrt(u0 * u0 + u1 * u1 + u2 * u2);
+  return k1 > 1e-12 ? (k0 * (k0 - 1)) / k1 : -Math.min(...r);
 }
 /** a round cone's signed distance (the hull of two spheres; vajra.js's, on arrays) */
 function sdCone(p, a, b, r1, r2) {
-  const ba = sub(b, a), l2 = dot(ba, ba), rr = r1 - r2, a2 = l2 - rr * rr;
+  // (without arrays, as sdEgg: the same arithmetic in the same order)
+  const b0 = b[0] - a[0], b1 = b[1] - a[1], b2 = b[2] - a[2], l2 = b0 * b0 + b1 * b1 + b2 * b2, rr = r1 - r2, a2 = l2 - rr * rr;
   if (l2 < 1e-12 || a2 <= 1e-12) return Math.min(len(sub(p, a)) - r1, len(sub(p, b)) - r2);
-  const il2 = 1 / l2, pa = sub(p, a), y = dot(pa, ba), z = y - l2;
-  const xv = sub(scl(pa, l2), scl(ba, y)), x2 = dot(xv, xv), y2 = y * y * l2, z2 = z * z * l2, k = Math.sign(rr) * rr * rr * x2;
+  const il2 = 1 / l2, p0 = p[0] - a[0], p1 = p[1] - a[1], p2 = p[2] - a[2], y = p0 * b0 + p1 * b1 + p2 * b2, z = y - l2;
+  const x0 = p0 * l2 - b0 * y, x1 = p1 * l2 - b1 * y, x3 = p2 * l2 - b2 * y;
+  const x2 = x0 * x0 + x1 * x1 + x3 * x3, y2 = y * y * l2, z2 = z * z * l2, k = Math.sign(rr) * rr * rr * x2;
   if (Math.sign(z) * a2 * z2 > k) return Math.sqrt(x2 + z2) * il2 - r2;
   if (Math.sign(y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
   return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
@@ -500,17 +505,32 @@ export function bodyField(R, build, { extra = [] } = {}) {
 }
 
 /** the first crossing outward (inside → outside) of a field along a ray, within `reach` metres; null when none */
+// (the march's samples are `step` apart, but one is read only where the field has not already settled it: a sample `f`
+// from the skin leaves the surface at least |f| / `LIP` away, LIP the field's slope bound with room to spare, so the
+// samples nearer are skipped, their sign known. The same samples decide, so the same crossing is found)
+const LIP = 8;
 export function crossing(fn, o, dir, reach, step = 0.0015) {
   let t0 = 0, f0 = fn(o);
+  const at = (t) => [o[0] + dir[0] * t, o[1] + dir[1] * t, o[2] + dir[2] * t];
   if (f0 > 0) {   // the start outside: find the field first, then leave it
-    for (let t = step; t <= reach; t += step) { if (fn(add(o, scl(dir, t))) <= 0) { t0 = t; f0 = -1; break; } }
+    let safe = f0 / LIP;
+    for (let t = step; t <= reach; t += step) { if (t < safe) continue; const f = fn(at(t)); if (f <= 0) { t0 = t; f0 = f; break; } safe = t + f / LIP; }
     if (f0 > 0) return null;
   }
+  let safe = t0 - f0 / LIP;
   for (let t = t0 + step; t <= reach; t += step) {
-    if (fn(add(o, scl(dir, t))) > 0) {
-      let a = t - step, b = t;
-      for (let i = 0; i < 30; i++) { const m = (a + b) / 2; if (fn(add(o, scl(dir, m))) > 0) b = m; else a = m; }
-      return add(o, scl(dir, (a + b) / 2));
+    if (t < safe) continue;
+    const f = fn(at(t)); safe = t - f / LIP;
+    if (f > 0) {
+      // the crossing within the step, by false position (Illinois: the stale end's value halved, so it never stalls),
+      // the field's values steering each cut: to a nanometre in a handful of reads, where halving took thirty
+      let a = t - step, b = t, fa = fn(at(a)), fb = f, side = 0;
+      for (let i = 0; i < 30 && b - a > 1e-9; i++) {
+        const m = fa < 0 && fb > 0 ? (a * fb - b * fa) / (fb - fa) : (a + b) / 2, fm = fn(at(m));
+        if (fm > 0) { b = m; fb = fm; if (side === 1) fa /= 2; side = 1; } else { a = m; fa = fm; if (side === -1) fb /= 2; side = -1; }
+        if (Math.abs(fm) < 1e-12) return at(m);
+      }
+      return at((a + b) / 2);
     }
   }
   return null;
@@ -553,7 +573,14 @@ const stationId = (u) => (Number.isInteger(u) ? `st${u}` : `st${Math.floor(u)}_s
  * crossing outward; `ease(u)` how far the field wins over the authored point (1 everywhere by default). The bind's
  * shares interpolated: per slot where the authored bind names slots, by station elsewhere; a HARD limb (`bind.zone`)
  * keeps its bone rigid, a joint's share easing in only within the zone of the joint's ring (the refine pass's rule) */
-export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = () => 1, relax = 0, capsAlong = null, shrinkOutside = 0 } = {}) {
+// (each re-sampled part's rays as cast, before the relaxing: what a later pass `reuse`s)
+const CAST = new WeakMap();
+/** `reuse`: { from, near } a part re-sampled before with the same cage and options, on a field that differs from this
+ * one only near some masses (a pauldron's stage): a ray whose point there is `near` them is cast again, the rest keep
+ * their rays as cast; the relaxing runs over the cast rays and `relax` × 2 grid steps round them, and a point further
+ * than `relax` steps from them keeps its point (the relaxing carries a change one step an iteration, so it cannot
+ * have moved: the same points as casting every ray again, for the cast rays' share of the cost) */
+export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = () => 1, relax = 0, capsAlong = null, shrinkOutside = 0, reuse = null } = {}) {
   // (stations without a `u` are at their index, as the compiler reads them)
   const st = P.stations.map((x, i) => ({ ...x, u: x.u ?? i })), SL = P.slots, n0 = SL.length, U = st[st.length - 1].u, b = P.bind, own = { [b.bone]: 1 };
   const centre = (s) => scl(SL.reduce((a, k) => add(a, s.points[k]), [0, 0, 0]), 1 / n0);
@@ -573,6 +600,17 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
   };
   const slots = ringSlots(around), blend = { ...(b.blend?.back ? { back: b.blend.back } : {}), ...(b.blend?.tip ? { tip: b.blend.tip } : {}) };
   const stations = [];
+  // (with `reuse`: the grid points within `k` steps of a ray cast again, round the ring and along the part)
+  const prior = reuse && CAST.get(reuse.from), within = (seed, k) => {
+    const dist = seed.map((row) => row.map((x) => (x ? 0 : Infinity))), Q = [];
+    seed.forEach((row, i) => row.forEach((x, j) => { if (x) Q.push([i, j]); }));
+    for (let h = 0; h < Q.length; h++) {
+      const [i, j] = Q[h], d = dist[i][j]; if (d >= k) continue;
+      for (const [a, c] of [[i, (j + 1) % around], [i, (j + around - 1) % around], [i + 1, j], [i - 1, j]]) if (a >= 0 && a < rings && dist[a][c] > d + 1) { dist[a][c] = d + 1; Q.push([a, c]); }
+    }
+    return dist.map((row) => row.map((d) => d <= k));
+  };
+  const cast = prior ? reuse.from.stations.map((x) => slots.map((sl) => reuse.near(x.points[sl]))) : null;
   for (let i = 0; i < rings; i++) {
     const u = r6((U * i) / (rings - 1)), [a, c2, t] = bracket(u), id = stationId(u);
     const c = add(scl(centre(a), 1 - t), scl(centre(c2), t)), o = origin(c), points = {}, e = ease(u);
@@ -584,6 +622,7 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
     slots.forEach((sl, j) => {
       const q = j / around, p0 = cageAt(u, q);
       if (outside) { points[sl] = add(c, scl(sub(p0, c), shrinkOutside)).map(r6); if (!(b.zone > 0)) { const w = mixW(shareAt(a, q), shareAt(c2, q), t); if (!rigid(w)) blend[`${id}.${sl}`] = w; } return; }
+      if (cast && !cast[i][j]) { points[sl] = prior[i][sl]; if (!(b.zone > 0)) { const w = mixW(shareAt(a, q), shareAt(c2, q), t); if (!rigid(w)) blend[`${id}.${sl}`] = w; } return; }
       const hit = crossing(sd, o, unit(sub(p0, o)), 2.5 * len(sub(p0, o)) + 0.05);
       // (a ray that finds no skin, the pelvis's lowest ring between the thighs, takes the nearest skin to the authored
       // point, not the authored point itself: those stood off the new skin in a jagged hem under the seat)
@@ -593,7 +632,10 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
     });
     stations.push({ id, u, points });
   }
-  if (relax) relaxOnto(stations, slots, sd, relax, (i) => ease(stations[i].u) >= 1);
+  CAST.set(stations, stations.map((x) => ({ ...x.points })));
+  const moves = cast && within(cast, 2 * relax);
+  if (relax) relaxOnto(stations, slots, sd, relax, (i, j) => ease(stations[i].u) >= 1 && (!moves || moves[i][j]));
+  if (cast) { const kept = within(cast, relax); stations.forEach((x, i) => slots.forEach((sl, j) => { if (!kept[i][j]) x.points[sl] = reuse.from.stations[i].points[sl]; })); }
   // a limb's poles (`capsAlong`, the bone's direction): each end ring's centre carried a third of its radius on along
   // the bone, inside the neighbour's skin as the end ring is (an authored pole stood proud of the new skin, a tent on the
   // shoulder; one cast onto the field from a ring whose centre lay outside it stayed behind the ring and turned the fan)
@@ -602,8 +644,9 @@ export function resamplePart(P, sd, { around, rings, origin = (c) => c, ease = (
     const c = scl(pts.reduce((a, x) => add(a, x), [0, 0, 0]), 1 / pts.length), rad = pts.reduce((a, x) => a + len(sub(x, c)), 0) / pts.length;
     return [k, add(c, scl(capsAlong, (k === 'back' ? -1 : 1) * rad / 3)).map(r6)];
   })) : P.caps;
-  const { slotT: _t, ...rest } = P;
-  return { ...rest, slots, stations, ...(caps ? { caps } : {}), bind: { ...b, blend } };
+  const { slotT: _t, ...rest } = P, out = { ...rest, slots, stations, ...(caps ? { caps } : {}), bind: { ...b, blend } };
+  CAST.set(out, CAST.get(stations)); CAST.delete(stations);
+  return out;
 }
 /** the sampled grid RELAXED onto the field: each inner point drawn toward its four neighbours' mean, then carried back
  * onto the skin down the field's gradient, `iters` times. Where a ring's rays crossed a pocket (the armpit's front, the
@@ -614,7 +657,8 @@ function relaxOnto(stations, slots, sd, iters, owned = () => true, w = 0.5) {
   const n = slots.length;
   for (let it = 0; it < iters; it++) {
     const next = stations.map((s) => ({ ...s.points }));
-    for (let i = 1; i < stations.length - 1; i++) if (owned(i)) slots.forEach((sl, j) => {
+    for (let i = 1; i < stations.length - 1; i++) slots.forEach((sl, j) => {
+      if (!owned(i, j)) return;
       const P0 = stations[i].points, nb = [P0[slots[(j + 1) % n]], P0[slots[(j + n - 1) % n]], stations[i - 1].points[sl], stations[i + 1].points[sl]];
       const m = scl(nb.reduce((a, q) => add(a, q), [0, 0, 0]), 0.25), p = add(scl(P0[sl], 1 - w), scl(m, w));
       next[i][sl] = (project(sd, p, 12) ?? p).map(r6);
@@ -764,7 +808,7 @@ export function formSlice(recipe, R, build, opts = {}) {
   const zH = pelvic ? (cz(P.stations[0], P) + cz(r.parts.pelvis.stations.at(-1), r.parts.pelvis)) / 2 : null;
   const handed = (sd, sign) => (q) => sd(q) + deep * ramp((sign * (zH - q[2])) / bz);
   const torsoOpts = { around, rings, origin: (c) => (c[2] > zFan ? [c[0], c[1], zFan] : [c[0], c[1], c[2] + raise(c[2])]), ease: pelvic ? () => 1 : (u) => { const e = Math.min(1, u / (bottom || 1)); return e * e * (3 - 2 * e); }, relax: 4 };
-  r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, torsoOpts);
+  const T0 = r.parts.torso = resamplePart(P, pelvic ? handed(field.sd, 1) : field.sd, torsoOpts);
   if (pelvic) {
     // its lowest station set on the crotch (`crotch`), wholly under the level. Its centre lies on the crotch's skin, so a
     // ring's rays cast from the first point inside straight above (`up`)
@@ -797,7 +841,11 @@ export function formSlice(recipe, R, build, opts = {}) {
   for (const stg of B.pauldron || []) {
     const { drive, arm, ...mass } = stg, fieldP = bodyField(R, { ...B, muscles: [...B.muscles, mass] }, { extra: shared });
     pauldronPrim[mass.id] = fieldP.masses.muscles.find((p) => p.id === mass.id && (p.c?.[0] ?? 0) > 0);
-    const T2 = resamplePart(P, pelvic ? handed(fieldP.sd, 1) : fieldP.sd, torsoOpts), T = r.parts.torso, d = { R: {}, L: {} };
+    // (only the rays the stage's mass reaches cast again: a point further from it than 12 of the muscles' blend widths
+    // takes a share of it under e^-12 of a blend, a ten-thousandth of a millimetre)
+    const reach = fieldP.masses.muscles.filter((p) => p.id === mass.id), kM = B.kMuscle * fieldP.frame.W;
+    const near = (q) => reach.some((p) => sdPrim(p, q) < 12 * kM);
+    const T2 = resamplePart(P, pelvic ? handed(fieldP.sd, 1) : fieldP.sd, { ...torsoOpts, reuse: { from: T0, near } }), T = r.parts.torso, d = { R: {}, L: {} };
     for (const st of T2.stations) for (const sl of T2.slots) if (sl.endsWith('R')) {
       const a = T.stations.find((x) => x.id === st.id)?.points[sl], b = st.points[sl]; if (!a) continue;
       const v = sub(b, a); if (len(v) < 1e-4) continue;
