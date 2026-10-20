@@ -33,6 +33,8 @@
  *             the others, each a few changes to it ({ reads?, base?, land?, relief?, ground?, colour? }: a shore, a highland). A level
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
+ *             cliffs a matte-painted rock face, matte-paint/tile.js); under it, or absent, rock is polygon only
  *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
  *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
  *             as { ok, value }: advice, never a refusal
@@ -267,7 +269,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -343,6 +345,8 @@ export function readGeocube(spec) {
   only(c.register, ['steps', 'key'], 'register');
   if (!(Number.isInteger(c.register.steps) && c.register.steps >= 0 && c.register.steps <= 8)) no('register.steps is the tone\'s bands, 0 (continuous) to 8');
   if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
+  // grit (optional): how gritty the style is, 0..1; from GRIT_PIXELS its rock takes pixels (local-meru/plan.js)
+  if (c.grit !== undefined && !(typeof c.grit === 'number' && c.grit >= 0 && c.grit <= 1)) no('grit is how gritty the style is, 0 (quiet) to 1; a gritty style\'s rock takes matte-painted pixels');
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
@@ -497,7 +501,7 @@ function lowerOutside(cube0, terrain) {
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
   const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
-    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
+    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
     ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
 }
 

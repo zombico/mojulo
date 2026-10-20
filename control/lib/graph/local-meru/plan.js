@@ -111,13 +111,19 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *           so a cliff reads as a few planes of stone and not as a checkerboard of half-metre quads
  *   valley  0..1: how far the land darkens toward `shade` where its horizon is high (the foot of a slope, a hollow,
  *           a gully), read over tens of metres where crevice and ridge read a metre
+ *   grit    0..1 (opt-in; absent, the land is as it was): how gritty the style is. Rock takes no pixels in a quiet style;
+ *           at GRIT_PIXELS or over, the cliff faces take a matte-painted rock face (matte-paint/tile.js) as a detail
+ *           texture over the light this shading gives them, so the facets keep their light and colour and gain a surface
  */
+/** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
+export const GRIT_PIXELS = 0.35;
 export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2', sun: 1.5, mix: 0, facet: 0, valley: 0 });
 function readShading(v) {
   if (v === undefined || v === false) return null;
   if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade, sun, mix, facet, valley }');
   const o = v === true ? {} : v;
-  for (const k of Object.keys(o)) if (!(k in SHADING)) throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')})`);
+  for (const k of Object.keys(o)) if (!(k in SHADING) && k !== 'grit') throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')}, grit)`);
+  if (o.grit !== undefined && !(typeof o.grit === 'number' && o.grit >= 0 && o.grit <= 1)) throw new Error('local-meru: shading.grit is 0..1, how gritty the style is (rock takes pixels from GRIT_PIXELS)');
   const S = { ...SHADING, ...o };
   if (typeof S.smooth !== 'boolean') throw new Error('local-meru: shading.smooth is true (ground smoothed across the grid) or false (every quad its own facet)');
   for (const k of ['crevice', 'ridge', 'blend']) if (!(typeof S[k] === 'number' && S[k] >= 0 && S[k] <= 1)) throw new Error(`local-meru: shading.${k} is 0..1`);

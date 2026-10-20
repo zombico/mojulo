@@ -32,7 +32,8 @@ import { bakeLand, ruleLand } from './shading.js';
 import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
-import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor } from './plan.js';
+import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
+import { rockTileKey } from '../matte-paint/texture.js';
 
 const TAU = Math.PI * 2;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -464,11 +465,20 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
   const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:sand': mid(st.palette.sand || st.palette.soil), 'isekai:trail': mid(st.palette.soil) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
+  // a GRITTY style's rock takes pixels (shading.grit ≥ GRIT_PIXELS): its cliff faces keep their planar uv, rescaled to
+  // the matte rock tile's metres, and after the bake take the tile as a detail texture (below); a quiet style's rock is
+  // polygon only, as it always was
+  const gritty = SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS, rockTile = gritty ? rockTileKey({ grit: SH.grit, seed }) : null;
+  const textured = [];
+  const asCliff = (f) => (gritty ? { ...asRock(f), uv: f.uv.map(([u, v]) => [r5((u * st.tiles.cliff.scale) / rockTile.size[0]), r5((v * st.tiles.cliff.scale) / rockTile.size[1])]) } : asRock(f));
   // the pixel-locked faces: the cel band is the choice of tile
   const cel = [];
   const draw = (f, tile, isLit) => { const { cel: _c, celN: _n, size: _s, ...rest } = f; cel.push({ ...rest, texture: isekaiKeyOf(st, tile, isLit), fill: stopFill(st, tile, isLit) }); };
   const rockFaces = [];
-  if (SH) for (const f of [...ground.faces.filter((g) => g.cel === 'cliff'), ...walk.wall.filter((g) => g.cel === 'cliff'), ...rocks.flatMap((b) => [...b.sides, ...b.cap])]) rockFaces.push(asRock(f));
+  if (SH) {
+    for (const f of [...ground.faces.filter((g) => g.cel === 'cliff'), ...walk.wall.filter((g) => g.cel === 'cliff')]) { textured.push(gritty); rockFaces.push(asCliff(f)); }
+    for (const f of rocks.flatMap((b) => [...b.sides, ...b.cap])) { textured.push(false); rockFaces.push(asRock(f)); }
+  }
   else {
     for (const f of [...ground.faces, ...walk.wall]) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN));
     for (const b of rocks) { for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal)); for (const f of b.cap) draw(f, 'hat', lit(mean(f.corners), f.normal)); }
@@ -492,6 +502,13 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint, { ...(grain ? { grain: { at: grain, amount: p.recipe.relief.grain } } : {}),
       cell: ground.grid.dx, seed: seed + 517, ...(SH.valley > 0 ? { valley: valleyOf(ground.grid) } : {}) });
     baked = bakeStageLight(plain.filter((f) => !isLand(f)), [], ambient, undefined, sun);
+    // the gritty rock's faces (the last of the land, in order): the tile multiplied over their light, their vertex
+    // colour lifted by the tile's mean (in linear light) so the face's average is what the land gave it
+    if (gritty) {
+      const lift = (h) => rgbHex(hexRgb(h).map((v) => { const l = v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4, m = Math.min(1, l / rockTile.mean); return m <= 0.0031308 ? m * 12.92 : 1.055 * m ** (1 / 2.4) - 0.055; }));
+      const at0 = land.length - rockFaces.length;
+      textured.forEach((t, k) => { if (!t) return; const f = land[at0 + k]; land[at0 + k] = { ...f, texture: rockTile.key, textureLit: true, fill: lift(f.fill), ...(f.cornerFills ? { cornerFills: f.cornerFills.map(lift) } : {}) }; });
+    }
   } else baked = bakeStageLight(plain, [], ambient, undefined, sun);
   // sand takes the trail's ramp: a card has no sand of its own yet
   const lockOf = (g) => st.lock[g === 'isekai:sand' ? 'isekai:trail' : g];
