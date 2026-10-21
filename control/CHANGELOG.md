@@ -125,6 +125,20 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Geocube trail: the cube's island, walked by a dummy
+
+The first recipe expansion: a geocube shown one step further in. `show: 'land'` is where a cube's look is judged;
+`show: 'trail'` is the same island laid fresh with every way up drawn and a plain stand-in figure walking it, where
+the walk and the runtime cost are read. A showcase, not a level: no goal, no hero, nothing to export.
+
+- Planned: `show: 'trail'` on the geocube kind, the island and its land as `land` lowers them, with `hour` and `seed`.
+  A trail minted without a seed takes one from its new ref, so no two mints show the same island and a row re-renders
+  byte for byte; the seed moves the land and rolls the way up within the cube's own tiers.
+- Planned: a dummy (an unpainted rig figure on the walkers channel) walks the route, the camera chasing it; the walk
+  hands the operator the camera.
+- Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
+  and, on the page while the dummy walks, frame time and draw calls. `room` and `land` emit the same bytes.
+
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 
 - **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`
