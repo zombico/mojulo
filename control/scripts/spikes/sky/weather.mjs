@@ -17,7 +17,7 @@ const { resolveChromium, launchChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_AR
 const here = path.dirname(fileURLToPath(import.meta.url)), outDir = path.resolve(here, '../../../../lite-template/integration/1020/spike-output/sky');
 mkdirSync(outDir, { recursive: true });
 const cube = process.argv[2] || 'limestone-crags', name = 'weather';
-const SETS = [[undefined, undefined], ['noon', 'clear'], ['noon', 'fair'], ['noon', 'overcast'], ['noon', 'high'], ['noon', 'haze'], ['golden', 'fair'], ['golden', 'storm'], ['dusk', 'fair'], ['night', 'fair']];
+const SETS = (process.argv[3] || 'own,noon:clear,noon:fair,noon:overcast,noon:high,noon:haze,golden:fair,golden:storm,dusk:fair,night:fair').split(',').map((x) => (x === 'own' ? [undefined, undefined] : x.split(':')));
 const W = 520, H = 340, rows = [];
 const browser = await launchChromium({ executablePath: await resolveChromium(), args: [...CHROMIUM_LAUNCH_ARGS, ...CHROMIUM_WEBGL_ARGS] });
 const shoot = async (P, cam) => {
@@ -32,7 +32,11 @@ const shoot = async (P, cam) => {
 try {
   for (const [hour, weather] of SETS) {
     const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'weather', manifest: { kind: 'geocube', cube, show: 'land', walk: false, ...(hour ? { hour } : {}), ...(weather ? { clouds: weather } : {}) } });
-    const seam = P.cameras.find((c) => c.name === 'seam'), cells = [{ cap: 'island', src: await shoot(P, P.cameras[0]) }, { cap: 'walker', src: await shoot(P, seam) }];
+    // the sky: from the island's top, out to sea away from its middle, looking a little up
+    const top = P.cameras.find((c) => c.name === 'top').worldFraming.cameraPosition, mid = P.cameras.find((c) => c.name === 'wide').worldFraming.lookAt;
+    const out = [top[0] - mid[0], top[1] - mid[1]], l = Math.hypot(...out) || 1, at = [top[0] + (out[0] / l) * 100, top[1] + (out[1] / l) * 100, top[2] + 22];
+    const skyCam = { name: 'sky', worldFraming: { cameraPosition: top, lookAt: at, horizontalFov: 85 } };
+    const cells = [{ cap: 'island', src: await shoot(P, P.cameras[0]) }, { cap: 'from the top, out to sea', src: await shoot(P, skyCam) }];
     const kb = P.sky.clouds ? (P.sky.clouds.src.length * 0.75 / 1024).toFixed(0) : 0;
     rows.push({ cube: `${hour ?? 'own hour'} · ${weather ?? 'no weather'} · band ${kb} KB · ${Date.now() - t0} ms`, cells });
     console.log(rows[rows.length - 1].cube);
