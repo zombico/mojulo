@@ -6,7 +6,7 @@
  *   RUNS          `oneTube` two pieces one tube along a run, each point's weights its own piece's
  *   PROFILES      `drapeRun` down a limb's run: the FALL (`slack`, `taper`), the FOLDS, a FLARE, the BLOUSE over a
  *                 gathered CUFF, the MIDLINE; `flareRun` a piece widened from one end to the other; `fairRun` a
- *                 run's radii smoothed along it; `carrySkirt` a skirt carried down from a trunk tube's lowest ring; `clearanceOver` how far
+ *                 run's radii smoothed along it; `bridgeRun` its hollows bridged; `carrySkirt` a skirt carried down from a trunk tube's lowest ring; `clearanceOver` how far
  *                 out what is under the cloth reaches, ray by ray
  *   EDGES         `fallToFloor` an open hem carried down over the foot; `turnHemIn` a tube's hem folded back in to the
  *                 limb (so it opens, no lid)
@@ -146,6 +146,19 @@ export function fairRun(P, { passes = 2, keep = 1 } = {}) {
   let R = S.map((st, i) => Object.fromEntries(P.slots.map((sl) => [sl, len(sub(st.points[sl], C[i]))])));
   for (let it = 0; it < passes; it++) R = R.map((r, i) => (i < keep || i >= n - keep ? r : Object.fromEntries(P.slots.map((sl) => [sl, (R[i - 1][sl] + 2 * r[sl] + R[i + 1][sl]) / 4]))));
   S.forEach((st, i) => { if (i >= keep && i < n - keep) for (const sl of P.slots) st.points[sl] = add(C[i], scl(D[i][sl], R[i][sl])).map(r6); });
+  return P;
+}
+
+/** a run BRIDGED, as cloth lies over the hollows between what it rests on: each slot's radius off its ring's middle
+ * lifted to its neighbours' mean wherever it is less, along the run (between the deltoid and the biceps, at the elbow)
+ * and round each ring, `passes` times; its first and last `keep` rings held. Never inward, so the cloth stays clear of
+ * the peaks it rests on. In place */
+export function bridgeRun(P, { passes = 4, keep = 1 } = {}) {
+  const S = P.stations, n = S.length, N = P.slots.length; if (n < 2 * keep + 1) return P;
+  const C = S.map((st) => mean(P.slots.map((sl) => st.points[sl])));
+  const D = S.map((st, i) => P.slots.map((sl) => unitv(sub(st.points[sl], C[i])))), R = S.map((st, i) => P.slots.map((sl) => len(sub(st.points[sl], C[i]))));
+  for (let it = 0; it < passes; it++) for (let i = keep; i < n - keep; i++) for (let j = 0; j < N; j++) R[i][j] = Math.max(R[i][j], (R[i - 1][j] + R[i + 1][j]) / 2, (R[i][(j + N - 1) % N] + R[i][(j + 1) % N]) / 2);
+  S.forEach((st, i) => { if (i >= keep && i < n - keep) P.slots.forEach((sl, j) => { st.points[sl] = add(C[i], scl(D[i][j], R[i][j])).map(r6); }); });
   return P;
 }
 

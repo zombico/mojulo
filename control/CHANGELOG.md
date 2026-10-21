@@ -116,7 +116,12 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   name is an alias for it (turned: its hem the lowest `u`), so a trim painted on its hem lands there. Measured per side
   over the bare body: a long coat's chest about 10 cm → 6, its waist 9–12 → 4, its knee 11 → 7. Also fixed: a stand
   collar with no neck above the garment's top (a heavy figure's shirt) is left off instead of built inside out; the
-  martial trousers' shin piece no longer carries a negative flare the authored body refused.
+  martial trousers' shin piece no longer carries a negative flare the authored body refused. SLEEVES are their own
+  now: at their own pieces' ease, closer than the body's, a layer out only over the sleeves under them (not the
+  trousers), bridged over the arm's hollows (the tailor's `bridgeRun`), and hanging only when the cut itself is loose,
+  where every jacket's sleeve used to fall straight from the shoulder (a jacket sleeve 2.4 cm off the arm → 1.0–2.0). A
+  jacket worn over the trousers' belt clears it; an open front painted on a jacket whose body and tail are one tube
+  is each piece's own again (the tail's paint, in the trousers' colour, had covered the whole front).
 - `/garment-design <brief>`: the designer as a skill. The brief in stylism words or a card, the rationale principle by
   principle, the mint and the read, the words adjusted at most three times, the sheet shown; the eyes gate the
   operator's.

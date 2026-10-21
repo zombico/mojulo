@@ -9,6 +9,8 @@
  *                (the trunk's stations) or its `run` (a limb's share), the close cloth at a real WEARING EASE (the
  *                expander's compressed toward its role's ceiling), LAYER steps over the garments worn before it (the
  *                expander's order is the stacking)
+ *   SLEEVES      at their own pieces' ease, closer than the body (`SLEEVE` of it), a layer out only over the sleeves
+ *                under them, bridged over the arm's hollows (`bridgeRun`); hanging only when the cut is loose
  *   ITS TUBES    a limb's two pieces one tube (`<g>_arm<S>`, `<g>_leg<S>`: `oneTube`, faired over the joint), a top's
  *                tail and its body one
  *                (`<g>_body`) when it has no legs; trousers' seat and legs handed over as the field trousers' are
@@ -28,16 +30,18 @@
  *                inside; a skirt with no body hung from a waistband of the close cloth
  *   FOOTWEAR     `boot` (its `bootShaft`'s share of the shank) and `shoe`: the footwear primitive
  *   a BELT, a SASH the kit's band (or a shell wrapped round the trunk) at its height: the tailor's band on the piece it
- *                names, or the outermost cloth there when worn on top or named on the skin; its buckle or boss at the front
+ *                names, or the outermost cloth there when worn on top or named on the skin; its buckle or boss at the front;
+ *                a garment worn over it cleared over it
  *
  *   wearPieces(recipe, R, build, map, garments, kit, paint) → { parts, worn, belts, painted, alias, tones }   parts
  *                named by garment; `worn` the piece ids made here (the rest — a panel, a cape, a hood — left to the
  *                authored kernel); `belts` the kit ids made here; `painted` the paint entries made cloth
- *                here; `alias` authored part name → { part, du, k? } (`u` there k·u + du); `tones` the footwear's for a palette that names none
+ *                here; `alias` authored part name → { part, du, k?, win? } (`u` there k·u + du; `win` the piece's own window on
+ *                a merged tube); `tones` the footwear's for a palette that names none
  * Pure and deterministic.
  */
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
-import { oneTube, drapeRun, flareRun, fairRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, carrySkirt, clearanceOver } from './body-relational-tailor.js';
+import { oneTube, drapeRun, flareRun, fairRun, bridgeRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest, carrySkirt, clearanceOver } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 
 /** a piece's role after its garment's name */
@@ -53,6 +57,9 @@ const LOOSE = 0.014;
  * of girth, a jacket's 10–13, a coat's 15–20) */
 const WEAR_CAP = Object.freeze({ top: 0.012, outer: 0.022, bottom: 0.014 });
 const wearEase = (e, G) => { const cap = WEAR_CAP[G] ?? WEAR_CAP.bottom; return cap * (1 - Math.exp(-e / cap)); };
+/** a SLEEVE's share of its garment's wearing ease (a jacket's sleeve about 3–5 cm of girth over the shirt's at the biceps where its
+ * body has 10–13 over the chest), and the expander's sleeve ease past which the cut is loose and the sleeve hangs */
+const SLEEVE = 0.5, SLEEVE_HANG = 0.03;
 /** a skirt's FLARE at its hem (m out past its waist): the expander's (m per m of fall, tuned on the game body) over the
  * skirt's drop, compressed as the ease is toward a ceiling, so a trench is an A from the waist, never a bell */
 const FLARE_CAP = 0.09;
@@ -100,16 +107,23 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       // (and no farther past the skin than its ease and 1.5 cm more: the trunk's side ends at the armpit)
       const cloth = legs && on.includes('pelvis') ? { ...FIELD_GARMENTS.trousers, limit: {} } : { ...FIELD_GARMENTS.fittedShirt, covers: null, limit: {}, stand: ease + 0.015 };
       // (LOOSE cloth hangs: past `LOOSE` of ease the limbs' field is cut at it and the rest is the tailor's fall down the
-      // run, so a loose sleeve or leg falls straight from the shoulder or the hip instead of swelling round the limb)
-      // (a top's trunk keeps its full ease, its sleeves cut at LOOSE; trousers' seat and legs one block, handed over)
-      const loose = ease > LOOSE, limbs = on.filter((x) => /^(upperArm|foreArm|thigh|shank)$/.test(x)), trunk = on.filter((x) => !limbs.includes(x));
-      const made = !loose ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on, window, ease, group }).parts
-        : legs ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on, window, ease: LOOSE, group }).parts
-          : { ...(trunk.length ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on: trunk, window, ease, group }).parts : {}), ...(limbs.length ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on: limbs, window, ease: LOOSE, group }).parts : {}) };
-      if (loose) for (const S of ['R', 'L']) for (const [a, b] of [['upperArm', 'foreArm'], ['thigh', 'shank']]) {
-        const run = [made[`${G}_${a}${S}`], made[`${G}_${b}${S}`]].filter(Boolean);
+      // run, so a loose leg falls straight from the hip instead of swelling round the limb)
+      // (a top's trunk keeps its full ease; trousers' seat and legs one block, handed over)
+      // THE SLEEVES their own: at their own pieces' ease, worn closer than the body (`SLEEVE` of it: a tailored sleeve
+      // follows the arm), hanging only when the cut itself is loose (`SLEEVE_HANG`), never because the layers under it
+      // lift it past `LOOSE`
+      const arms = on.filter((x) => /^(upperArm|foreArm)$/.test(x)), rest = on.filter((x) => !arms.includes(x));
+      const armRaw = Math.max(0, ...body.filter((g) => arms.includes(seg(g))).map((g) => g.ease ?? 0.008)), armHang = armRaw > SLEEVE_HANG;
+      // (a layer out only over the sleeves worn before it: the trousers are not under a jacket's sleeve)
+      const armLift = LAYER * order.slice(0, k).filter((H) => copies.some((g) => groupOf(g) === H && /^(upperArm|foreArm)$/.test(seg(g)))).length;
+      const armEase = (G.startsWith('skin') ? armRaw : SLEEVE * wearEase(armRaw, G)) + armLift;
+      const loose = ease > LOOSE, limbs = rest.filter((x) => /^(thigh|shank)$/.test(x)), trunk = rest.filter((x) => !limbs.includes(x));
+      const block = (o, e) => (o.length ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, ...(cloth.stand !== undefined ? { stand: e + 0.015 } : {}), on: o, window, ease: e, group }).parts : {});
+      const made = { ...(!loose ? block(rest, ease) : legs ? block(rest, LOOSE) : { ...block(trunk, ease), ...block(limbs, LOOSE) }), ...block(arms, armHang ? LOOSE : armEase) };
+      for (const S of ['R', 'L']) for (const [a, b] of [['upperArm', 'foreArm'], ['thigh', 'shank']]) {
+        const run = [made[`${G}_${a}${S}`], made[`${G}_${b}${S}`]].filter(Boolean), arm = a === 'upperArm';
         // (a sleeve narrows toward its cuff, a trouser leg falls nearly straight)
-        if (run.length) drapeRun(run, S === 'R' ? 1 : -1, { slack: ease - LOOSE, taper: a === 'upperArm' ? 0.12 : 0.03, margin: 0.004, folds: 6, fold: 0.003, hem: 'fall' });
+        if (run.length && (arm ? armHang : loose)) drapeRun(run, S === 'R' ? 1 : -1, { slack: (arm ? armEase : ease) - LOOSE, taper: arm ? 0.12 : 0.03, margin: 0.004, folds: 6, fold: 0.003, hem: 'fall' });
       }
       // each piece's flare along its own run
       for (const g of body) if (g.flare) for (const S of ['', 'R', 'L']) if (made[`${G}_${seg(g)}${S}`]) flareRun(made[`${G}_${seg(g)}${S}`], g.flare);
@@ -118,7 +132,9 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       for (const S of ['R', 'L']) for (const [a, b, name] of [['upperArm', 'foreArm', 'arm'], ['thigh', 'shank', 'leg']]) {
         const A = made[`${G}_${a}${S}`], Bp = made[`${G}_${b}${S}`];
         if (A && Bp) {
+          // (a sleeve that does not hang bridged over the arm's hollows, as a tailored sleeve lies)
           const T = fairRun({ ...oneTube(A, Bp), garment: true, group }), from = T.stations.length - Bp.stations.length;
+          if (name === 'arm' && !armHang) bridgeRun(T);
           // (the second piece's rings run on from the first's end: its `u` shifted by the first segment's length in u)
           T.stations.forEach((st, i) => { if (i >= from) st.u = (st.u ?? 0) + uMax(a); });
           made[`${G}_${name}${S}`] = T; delete made[`${G}_${a}${S}`]; delete made[`${G}_${b}${S}`];
@@ -156,7 +172,10 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       for (const S of limb ? ['R', 'L'] : ['']) {
         const merged = limb ? `${G}_${/^(upperArm|foreArm)$/.test(s) ? 'arm' : 'leg'}${S}` : `${G}_body`;
         const to = s === 'neck' ? (parts[`${g.id}_neck`] ? [`${g.id}_neck`, 0] : null) : parts[`${G}_${s}${S}`] ? [`${G}_${s}${S}`, 0] : parts[merged] ? [merged, s === 'foreArm' ? uMax('upperArm') : s === 'shank' ? uMax('thigh') : s === 'pelvis' ? -uMax('pelvis') : 0] : null;
-        if (to) alias.set(`${g.id}_${s}${S}`, { part: to[0], du: to[1], seg: s });
+        // (on a merged tube, the piece's own window there: what it carried with no window of its own (an open front's
+        // paint) is the piece's, not the whole tube's, or the tail's paint would cover the body's)
+        const [w0, w1] = windowOf(g), win = to && to[0] === merged ? [Math.max(0, w0) + to[1], Math.min(uMax(s), w1) + to[1]] : null;
+        if (to) alias.set(`${g.id}_${s}${S}`, { part: to[0], du: to[1], seg: s, ...(win ? { win } : {}) });
       }
     }
   });
@@ -209,7 +228,24 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const tag = onName.split('_')[0];
     parts[`${A.id}_${tag}`] = { ...band, group: A.group ?? 'Leather' };
     const sig = A.signature;
-    if ((sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) { const b = buckleOn(band, 'front', { w: sig.w ?? (sig.r ?? 0.015) * 2, h: sig.h ?? (sig.r ?? 0.012) * 2 }); parts[`${A.id}Buckle_${tag}`] = { ...b, group: sig.group ?? 'Buckle', bind: bindNearest(b, on) }; }
+    let buckle = null;
+    if ((sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) { buckle = buckleOn(band, 'front', { w: sig.w ?? (sig.r ?? 0.015) * 2, h: sig.h ?? (sig.r ?? 0.012) * 2 }); parts[`${A.id}Buckle_${tag}`] = { ...buckle, group: sig.group ?? 'Buckle', bind: bindNearest(buckle, on) }; }
+    // A GARMENT WORN OVER THE BELT clears it (a jacket over the trousers' belt): out over the band and its buckle at its
+    // height, eased back to its own line within 2 cm above and below
+    // (the band's points all taken at its height, so its lower edge, wider over the hips, is cleared with the rest)
+    const bp = [band, buckle].filter(Boolean).flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))), zLo = Math.min(...bp.map((q) => q[2])), zHi = Math.max(...bp.map((q) => q[2]));
+    const need = clearanceOver(bp.map((q) => [q[0], q[1], z])), rOn = radiusAt(on, z);
+    for (const [k, P] of trunkParts()) {
+      if (k === onName || !(radiusAt(P, z) > rOn)) continue;
+      for (const st of P.stations) {
+        const c = mean(P.slots.map((sl) => st.points[sl])), t = Math.max(0, Math.min(1, (Math.max(zLo - c[2], c[2] - zHi, 0) - 0.003) / 0.02)), w = 1 - t * t * (3 - 2 * t), under = need([c[0], c[1], z]);
+        if (w <= 0) continue;
+        for (const sl of P.slots) {
+          const p = st.points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1), 0], R = under(d) + LAYER;
+          if (R > r) st.points[sl] = [c[0] + d[0] * (r + (R - r) * w), c[1] + d[1] * (r + (R - r) * w), p[2]].map((v) => Math.round(v * 1e6) / 1e6);
+        }
+      }
+    }
     belts.add(A.id);
   }
   return { parts, worn, belts, painted, alias, tones };

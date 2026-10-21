@@ -1,6 +1,6 @@
 // An outfit card on the realistic body, its pieces worn by the tailor (body-relational-wear.js), one case per concept:
 // a layered card (the suit: a shirt under a jacket, each a body and two sleeves, a stand collar, shoes, a belt with its
-// buckle, the trims painted on the cloth; the jacket outside the shirt; all closed and wound once; a stride flinging nothing); a
+// buckle, the trims painted on the cloth; the jacket outside the shirt and clear of the belt; an open front each piece's own; all closed and wound once; a stride flinging nothing); a
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
 // (the casual tee's), its hem turned back in to the arm; a coat's skirt (the operative's) carried down from its body.
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
@@ -9,6 +9,7 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
 import { gaitPose } from './hero-stretch.js';
+import { clearanceOver } from './body-relational-tailor.js';
 
 const card = (style) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style } }) }).recipe;
 const pointsOf = (P) => P.stations.flatMap((st) => Object.values(st.points));
@@ -36,6 +37,20 @@ describe('an outfit card worn by the tailor', () => {
     const inside = jacket.filter((j) => j.z > lo && j.z < hi).filter((j) => { const s = shirt.reduce((b, x) => (Math.abs(x.z - j.z) < Math.abs(b.z - j.z) ? x : b)); return j.r < s.r + 0.0015; });
     expect(inside.length).toBe(0);
   });
+
+  it('the jacket over the belt: at the belt\'s height every point of the jacket outside the band and its buckle', () => {
+    const J = suit.parts.outer_body, belt = ['belt_bottom', 'beltBuckle_bottom'].map((k) => suit.parts[k]).filter(Boolean).flatMap(pointsOf), z = belt.reduce((t, q) => t + q[2], 0) / belt.length;
+    const need = clearanceOver(belt), st = J.stations.reduce((b, x) => (Math.abs(centre(J, x)[2] - z) < Math.abs(centre(J, b)[2] - z) ? x : b)), c = centre(J, st), under = need([c[0], c[1], z]);
+    for (const p of Object.values(st.points)) { const h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h); expect(r).toBeGreaterThan(under([h[0] / r, h[1] / r, 0])); }
+  });
+
+  it('an open jacket with a tail: its front open on the shirt above the waist and on the trousers below, each piece\'s own', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: { id: 'open', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', collar: true }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic', open: true }, feet: 'shoes', tuck: true }, tones: { Outer: '#222222', Top: '#eeeeee', Bottom: '#555555' } } } }) }).recipe;
+    const J = r.parts.outer_body, z = (k) => centre(J, J.stations.find((st) => st.id === k.split('-')[0]))[2], waist = centre(r.parts.torso, r.parts.torso.stations[0])[2];
+    const bands = Object.entries(J.bandGroups || {}), has = (g, above) => bands.some(([k, row]) => row.includes(g) && (above ? z(k) > waist + 0.02 : z(k) < waist - 0.02));
+    expect(has('Top', true)).toBe(true); expect(has('Bottom', false)).toBe(true);
+    expect(has('Bottom', true)).toBe(false); expect(has('Top', false)).toBe(false);
+  }, 300_000);
 
   it('a stride flings nothing: no edge of what the suit is made of grown by more than 3 cm', () => {
     const R = validateRig(suit.rig), skin = bindLayered(mesh, suit, R), P = skinLayered(mesh, skin, boneFrames(R, R.joints, rigNodesAt(R, gaitPose(R, 'walk')(0.25)).nodes));
