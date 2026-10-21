@@ -8,7 +8,8 @@
 //            layer's `pod` a window of another group at the heel, proud of the layer's wall (an air sole)
 //   3 ADORN  per side, the card's primitives in order (ADORN_PRIMS), each on the layer under it, carried by its weights;
 //            a `panel` on a cobbler region (cobbler.js: the tongue, the eyestays, the quarters, the counter …)
-//   4 TONE   the colours of the groups laid, the card's own over FOOTWEAR_TONES, its skin's (a colourway) over those
+//   4 TONE   the colours of the groups laid, the card's own over FOOTWEAR_TONES, its skin's (a colourway) over those; a
+//            tone OF another group stays so, for the palette it lands in to read (readTones)
 //
 // Parts are layer 1, named `<id>_<segment>` (the sock), `<id>Sole_<segment>`, `<id>Strap<k>_<segment>` and
 // `<id>Buckle<k>_<segment>` (k counting the straps), `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
@@ -35,6 +36,21 @@ export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneak
  * every `every`-th point of its outline, `size` (m) */
 export const SOLE_PATTERNS = Object.freeze({ pod: ['from', 'to', 'welt', 'group'], heel: ['to', 'thick', 'group'], lugs: ['every', 'size', 'group'] });
 const GROUP = /^[A-Z][A-Za-z0-9]*$/;
+/** a tone: '#rrggbb', or { of: <group>, shade } (that group's colour darkened (−) or lightened (+)) */
+const isTone = (c) => (typeof c === 'string' ? /^#[0-9a-f]{6}$/i.test(c) : !!c && typeof c === 'object' && GROUP.test(c.of ?? '') && c.shade >= -1 && c.shade <= 1 && Object.keys(c).length === 2);
+/** A palette with its tones OF other groups read (each that group's colour, darkened or lightened; a group it names
+ * missing, a mid grey): '#rrggbb' throughout */
+export function readTones(palette) {
+  const out = { ...palette }, hex = (g, depth = 0) => {
+    const c = out[g]; if (typeof c === 'string') return c;
+    if (!c || depth > 4) return '#808080';
+    const base = hex(c.of, depth + 1), rgb = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16));
+    const v = rgb.map((x) => Math.round(c.shade < 0 ? x * (1 + c.shade) : x + (255 - x) * c.shade));
+    return (out[g] = `#${v.map((x) => x.toString(16).padStart(2, '0')).join('')}`);
+  };
+  for (const g of Object.keys(out)) hex(g);
+  return out;
+}
 /** each named pattern piece's group (an inline region's is Overlay) */
 const PANEL_GROUPS = { tongue: 'Tongue', eyestay: 'Eyestay', quarter: 'Overlay', vamp: 'Overlay', counter: 'Counter', foxing: 'Overlay' };
 const SEGS = ['foot', 'shank'], share = (x) => typeof x === 'number' && x >= 0 && x <= 1;
@@ -68,7 +84,7 @@ export function validateFootwear(spec, label = 'footwear') {
   if (spec.from !== undefined || spec.skin !== undefined || spec.adornPlus !== undefined) {
     const sub = typeof spec.from === 'object' ? validateFootwear(spec.from, `${label}.from`) : [];
     if (sub.length) return sub;
-    const tones = typeof spec.skin === 'object' ? Object.entries(spec.skin).filter(([, c]) => !/^#[0-9a-f]{6}$/i.test(c)).map(([g]) => `${label}.skin.${g}: '#rrggbb'`) : [];
+    const tones = typeof spec.skin === 'object' ? Object.entries(spec.skin).filter(([, c]) => !isTone(c)).map(([g]) => `${label}.skin.${g}: '#rrggbb', or { of, shade }`) : [];
     const { skin: _s, ...rest } = footwearCard(spec);
     return [...tones, ...validateFootwear(rest, label)];
   }
@@ -116,7 +132,7 @@ export function validateFootwear(spec, label = 'footwear') {
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
     if (['cuff', 'toeCap', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
   });
-  for (const [g, c] of Object.entries(spec.tones || {})) if (!/^#[0-9a-f]{6}$/i.test(c)) errs.push(`${label}.tones.${g}: '#rrggbb'`);
+  for (const [g, c] of Object.entries(spec.tones || {})) if (!isTone(c)) errs.push(`${label}.tones.${g}: '#rrggbb', or { of: <group>, shade: −1 … 1 } (that group's colour darkened or lightened)`);
   return errs;
 }
 

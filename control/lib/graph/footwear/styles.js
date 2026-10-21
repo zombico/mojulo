@@ -21,7 +21,9 @@
 //                     pattern piece on the sock, a matching pair where the region has two sides
 //             laces   { rows?, lift?, w? } criss-cross between the eyestays
 //           any of them `group` (its colour's name) over its own
-//   tones   { <group>: '#hex' } over FOOTWEAR_TONES, for the groups the card uses
+//   tones   { <group>: '#hex' | { of: <group>, shade: −1 … 1 } } over FOOTWEAR_TONES, for the groups the card uses; a tone
+//           OF another group is that group's colour darkened (−) or lightened (+), read after the palette, so recolouring
+//           the leather (`Shoes`) carries the pieces cut from it
 export const FOOTWEAR = Object.freeze({
   boots: { family: 'boot', sock: { height: 'boot', shaft: 0.3 }, sole: { thick: 0.009, welt: 0.003 },
     adorn: [{ prim: 'strap', on: 'foot', at: 0.625, buckle: true }, { prim: 'strap', on: 'shank', at: 0.9, buckle: true }] },
@@ -73,17 +75,18 @@ export const FOOTWEAR = Object.freeze({
     sole: { layers: [{ thick: 0.006, welt: 0.004, group: 'Sole', heel: { to: 0.3, thick: 0.024 } }, { thick: 0.003, welt: 0.005, group: 'Welt' }] },
     adorn: [{ prim: 'panel', region: { along: [0.22, 0.76], around: [0.04, 0.13], sides: 'both' }, lift: 0.0015, group: 'Eyestay' }, { prim: 'laces', rows: 5, lift: 0.0025, w: 0.0018 },
       { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap' }],
-    tones: { Shoes: '#2a1c16', Eyestay: '#2a1c16', Counter: '#2a1c16', Cap: '#24170f', Lace: '#151110', Sole: '#3a2a20', Welt: '#4a3628', Heel: '#3a2a20' } },
+    tones: { Shoes: '#2a1c16', Eyestay: LEATHER(-0.04), Counter: LEATHER(-0.04), Tongue: LEATHER(-0.08), Cap: LEATHER(-0.12), Saddle: LEATHER(-0.12), Tab: LEATHER(-0.3),
+      Broguing: LEATHER(-0.55), Lace: '#151110', Sole: '#3a2a20', Welt: '#4a3628', Heel: '#3a2a20' } },
   // the brogue: the oxford perforated round its cap
   brogues: { from: 'oxfords', adorn: [{ prim: 'panel', region: { along: [0.22, 0.76], around: [0.04, 0.13], sides: 'both' }, lift: 0.0015, group: 'Eyestay' }, { prim: 'laces', rows: 5, lift: 0.0025, w: 0.0018 },
     { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap', rivets: 1, stud: { size: 0.0018, group: 'Broguing' } }],
-    tones: { Shoes: '#6b3d22', Eyestay: '#6b3d22', Counter: '#6b3d22', Cap: '#5e341c', Broguing: '#24140a' } },
+    tones: { Shoes: '#6b3d22' } },
   // the derby: open lacing (the eyestays stitched over the vamp, the tongue showing between them)
   derbies: { from: 'oxfords', adorn: [{ prim: 'panel', region: 'tongue', lift: 0.0012 }, { prim: 'panel', region: 'eyestay', lift: 0.0022 }, { prim: 'laces', rows: 5, lift: 0.0034, w: 0.0018 },
     { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Shoes' }] },
   // the penny loafer: no laces, a saddle strap across the instep, a counter, the heel
   loafers: { from: 'oxfords', sock: { collar: 0.17 }, adorn: [{ prim: 'panel', region: 'saddle', lift: 0.0022, group: 'Saddle' }, { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Shoes' }],
-    tones: { Shoes: '#5a2a1c', Saddle: '#4c2216', Counter: '#5a2a1c' } },
+    tones: { Shoes: '#5a2a1c' } },
   // the double monk: two buckled straps across the instep, a cap toe
   monkStraps: { from: 'oxfords', adorn: [{ prim: 'strap', on: 'foot', at: 0.5, width: 0.012, lift: 0.002, buckle: true, group: 'Shoes' }, { prim: 'strap', on: 'foot', at: 0.6, width: 0.012, lift: 0.002, buckle: true, group: 'Shoes' },
     { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap' }], tones: { Brass: '#b9b9bd' } },
@@ -95,6 +98,8 @@ export const FOOTWEAR = Object.freeze({
     tones: { Elastic: '#1b1b1d', Tab: '#1b1b1d' } },
 });
 for (const c of Object.values(FOOTWEAR)) Object.freeze(c);
+/** a tone of the leather: the shoes' own colour, darkened (−) or lightened (+) */
+function LEATHER(shade) { return Object.freeze({ of: 'Shoes', shade }); }
 /** COLOURWAYS: a skin over any card's tones, by group (a card's groups it does not name keep their own) */
 const all = (c, groups) => Object.fromEntries(groups.split(' ').map((g) => [g, c]));
 export const SKINS = Object.freeze({
@@ -102,8 +107,8 @@ export const SKINS = Object.freeze({
   tripleWhite: Object.freeze(all('#f3f2ee', 'Shoes Overlay Counter Eyestay Tongue Cuff Midsole Outsole Stripe Foxing Suede Lace')),
   volt: Object.freeze({ Shoes: '#1c1d20', Overlay: '#d7f23a', Counter: '#d7f23a', Stripe: '#d7f23a', Eyestay: '#1c1d20', Lace: '#d7f23a', Midsole: '#f2f1ec', Outsole: '#1c1d20', Cuff: '#1c1d20' }),
   navy: Object.freeze({ Shoes: '#1d2a44', Overlay: '#f2f1ec', Counter: '#f2f1ec', Stripe: '#c8402a', Eyestay: '#1d2a44', Lace: '#f2f1ec', Midsole: '#f2f1ec', Cuff: '#1d2a44' }),
-  oxblood: Object.freeze(all('#4a1418', 'Shoes Eyestay Counter Saddle Tab')),
-  tan: Object.freeze({ ...all('#a0643a', 'Shoes Eyestay Counter Saddle Tab'), Cap: '#8f5631' }),
+  oxblood: Object.freeze({ Shoes: '#4a1418' }),
+  tan: Object.freeze({ Shoes: '#a0643a' }),
 });
 /** the colours of the groups footwear adds, for a palette that names none (a card's own tones over these) */
 export const FOOTWEAR_TONES = Object.freeze({ Sole: '#2a2420', Strap: '#4b3324', Brass: '#a8843f', Steel: '#8d9299', Gilt: '#c9a646', Cuff: '#4b3324',

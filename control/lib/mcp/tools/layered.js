@@ -73,7 +73,7 @@ import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope'
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
-import { FOOTWEAR } from '@/lib/graph/footwear';
+import { FOOTWEAR, readTones } from '@/lib/graph/footwear';
 import { footwear } from '@/lib/graph/footwear/adapters/realistic';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
@@ -361,6 +361,8 @@ function realisticExpand(plan, hero) {
     // (the tones the card or its colourway names stand over the palette's defaults; the operator's own palette over all)
     R.palette = { ...W.tones, ...(R.palette || {}) };
     for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+    // (a tone of another group, the leather's shade, read against the palette as it now stands)
+    R.palette = readTones(R.palette);
   }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {

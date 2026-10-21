@@ -17,7 +17,7 @@
  *   wearFootwear(adapter, card | word, { id, group }) → { parts, tones }   (expand.js)
  *   validateFootwear(card | word) → string[]                              the refusals, by name
  */
-export { wearFootwear, validateFootwear, footwearCard, ADORN_PRIMS, FOOTWEAR_FAMILIES, SOLE_PATTERNS } from './expand.js';
+export { wearFootwear, validateFootwear, footwearCard, readTones, ADORN_PRIMS, FOOTWEAR_FAMILIES, SOLE_PATTERNS } from './expand.js';
 export { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 export { FOOTWEAR_LAWS_VERSION } from './principles.js';
 export { COBBLER_REGIONS, REGION_SIDES } from './cobbler.js';

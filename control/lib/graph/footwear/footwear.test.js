@@ -3,7 +3,7 @@
 // with a buckle on the outer side, a sandal with no upper, a part not asked for adding nothing, the same twice.
 import { describe, it, expect } from 'vitest';
 
-import { wearFootwear, validateFootwear, footwearCard, SKINS } from './index.js';
+import { wearFootwear, validateFootwear, footwearCard, readTones, SKINS } from './index.js';
 import { compileLayered, auditLayered } from '../polygonizer/station-loft.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
@@ -123,6 +123,14 @@ describe('footwear on a foot adapter', () => {
     expect(Math.max(...ys(D.parts.dHeel0_footR))).toBeLessThan(Math.max(...ys(D.parts.dSole_footR)) - 0.02);
     expect(D.parts.dHeel0_toesR).toBeUndefined();
     expect(Object.keys(D.parts).filter((k) => k.startsWith('dLug')).length).toBeGreaterThan(2);
+  });
+
+  it('a tone of the leather follows the leather: recolour the shoes and the pieces cut from them follow, in their shades', () => {
+    const P = readTones({ Shoes: '#804020', Cap: { of: 'Shoes', shade: -0.5 }, Lift: { of: 'Cap', shade: 0.5 }, Lace: '#111111' });
+    expect(P).toEqual({ Shoes: '#804020', Cap: '#402010', Lift: '#a09088', Lace: '#111111' });
+    expect(readTones({ Shoes: '#ffffff', Cap: { of: 'Shoes', shade: -0.5 } }).Cap).toBe('#808080');
+    expect(readTones({ Cap: { of: 'Nothing', shade: 0 } }).Cap).toBe('#808080');   // a group it names missing: a mid grey
+    expect(validateFootwear({ sock: { height: 'shoe' }, tones: { Cap: { of: 'Shoes', shade: -2 } } })[0]).toMatch(/tones.Cap: '#rrggbb', or \{ of/);
   });
 
   it('refuses a card by name', () => {
