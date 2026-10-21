@@ -521,7 +521,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     haze: { color: st.air.fog.color, density: st.air.fog.density },
     // a GRITTY style's rock (shading.grit ≥ GRIT_PIXELS): its faces are the quiet style's, and the page draws its own
     // fabric on them where they are near (matte-paint/fabric.js): the island's landform joints, else the card's
-    ...(SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? { fabric: rockFabric({ joints: S && S.geo ? S.geo.joints : { spacing: st.landform.joint }, strata: S && S.geo ? S.geo.strata : null, grit: SH.grit, sun: dir, seed, ...(SH.skin !== undefined ? { skin: SH.skin } : {}) }) } : {}),
+    ...(SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? { fabric: rockFabric({ joints: S && S.geo ? S.geo.joints : { spacing: st.landform.joint }, strata: S && S.geo ? S.geo.strata : null, grit: SH.grit, sun: dir, seed, ...(SH.skin !== undefined ? { skin: SH.skin, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) } : {}) }) } : {}),
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     pack: true,
     // the walk, and the climbs the walker can take: each climb anchor's foot, lip and way in (channels/walk.js CLIMB)
