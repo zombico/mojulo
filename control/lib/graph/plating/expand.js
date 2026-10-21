@@ -21,7 +21,7 @@ import { ringSlots } from '../polygonizer/body-relational-resample.js';
 import { PLATE_REGIONS, PLATE_SIDES, TRUNK } from './regions.js';
 import { SUITS, SKINS, PLATING_TONES } from './styles.js';
 import { LAYOUTS, LAYERS } from './layouts.js';
-import { fairShell, shellPanel, slotOf } from './shell.js';
+import { fairShell, shellPanel, slotOf, circleEdges } from './shell.js';
 import { validateFootwear } from '../footwear/index.js';
 import { validateHandwear } from '../handwear/index.js';
 import { MUSCLE_GROUPS, muscleLayout } from './muscles.js';
@@ -208,12 +208,7 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
       if (pn.layer === 'under' || pn.layer === 'joint') { const v = showing(seg, kind, P); if (!v) continue; t = [Math.max(t[0], v[0]), Math.min(t[1], v[1])]; if (t[1] - t[0] < 0.02) continue; }
       // (a CIRCLE: its edges the circle's, in the segment's t and s, sized in metres by the segment's length and girth there)
       let edges = [pn.left, pn.right];
-      if (pn.circle) {
-        const { t: tc, s: sc, r } = pn.circle, rt = r / (F.length || 0.3), rs = (2 * r) / (F.perimeter(uOf(tc)) || 0.3), K = 8;
-        const half = (t) => rs * Math.sqrt(Math.max(0, 1 - ((t - tc) / rt) ** 2)), ts = Array.from({ length: K + 1 }, (_, i) => tc - rt + (2 * rt * i) / K);
-        edges = [ts.map((tt) => [tt, sc - Math.max(half(tt), rs * 0.15)]), ts.map((tt) => [tt, sc + Math.max(half(tt), rs * 0.15)])];
-        t = [tc - rt, tc + rt];
-      }
+      if (pn.circle) { const c = circleEdges(F, uOf, pn.circle); edges = [c.left, c.right]; t = c.t; }
       const copies = pn.mirror ? [['Lat', edges[0], edges[1]], ['Med', edges[1].map(([tt, v]) => [tt, -v]), edges[0].map(([tt, v]) => [tt, -v])]] : [['', edges[0], edges[1]]];
       for (const [tag, left, right] of copies) {
         // (a low panel's bevel no deeper than most of its lift: a finger's lame)

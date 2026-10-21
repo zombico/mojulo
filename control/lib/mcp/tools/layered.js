@@ -77,6 +77,8 @@ import { FOOTWEAR, readTones } from '@/lib/graph/footwear';
 import { footwear } from '@/lib/graph/footwear/adapters/realistic';
 import { SUITS } from '@/lib/graph/plating';
 import { plating } from '@/lib/graph/plating/adapters/realistic';
+import { HANDWEAR } from '@/lib/graph/handwear';
+import { handwear } from '@/lib/graph/handwear/adapters/realistic';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -309,7 +311,9 @@ function realisticExpand(plan, hero) {
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
   // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
   const suitWords = words.filter((w) => SUITS[w]);
-  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length) return S;
+  // HANDWEAR: a glove word (lib/graph/handwear HANDWEAR) is the library's
+  const handWords = words.filter((w) => HANDWEAR[w]);
+  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
@@ -382,6 +386,18 @@ function realisticExpand(plan, hero) {
     R.palette = readTones(R.palette);
     // (heeled shoes: the rig stands every pose in them)
     if (W.stance) R.rig = { ...R.rig, stance: W.stance };
+  }
+  for (const w of handWords) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), W = handwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
+    for (const [name, part] of Object.entries(W.parts)) {
+      R.parts[name] = part;
+      const seg = name.slice(name.indexOf('_') + 1);
+      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+    }
+    // (the card's tones over the palette's defaults, the operator's own palette over all; a tone of another group read)
+    R.palette = { ...W.tones, ...(R.palette || {}) };
+    for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+    R.palette = readTones(R.palette);
   }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {

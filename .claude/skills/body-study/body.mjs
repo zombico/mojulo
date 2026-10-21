@@ -58,6 +58,7 @@ const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.
 const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-relational-head.js');
 const { FOOTWEAR_TONES } = await import('@/lib/graph/footwear/index.js');
 const { PLATING_TONES } = await import('@/lib/graph/plating/index.js');
+const { HANDWEAR_TONES } = await import('@/lib/graph/handwear/index.js');
 // (a footwear or a plating group's tone, the recipe's palette over the library's, as the dress colours it; the shoes' own too)
 const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
@@ -384,7 +385,7 @@ for (const cast of casts) {
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
-    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; const g = P?.group; return g === 'Sole' ? [52, 46, 42] : g === 'Strap' ? [120, 82, 56] : g === 'Brass' ? [196, 160, 80] : FOOTWEAR_TONES[g] || PLATING_TONES[g] || (g === 'Shoes' && H.m.recipe.palette?.Shoes) ? rgbOf(H.m.recipe.palette?.[g] ?? FOOTWEAR_TONES[g] ?? PLATING_TONES[g]) : nm.startsWith('adorn.') ? [150, 156, 166] : P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
+    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; const g = P?.group; const pal = H.m.recipe.palette?.[g]; return typeof pal === 'string' && (FOOTWEAR_TONES[g] || PLATING_TONES[g] || HANDWEAR_TONES[g]) ? rgbOf(pal) : g === 'Sole' ? [52, 46, 42] : g === 'Strap' ? [120, 82, 56] : g === 'Brass' ? [196, 160, 80] : FOOTWEAR_TONES[g] || PLATING_TONES[g] || HANDWEAR_TONES[g] || (g === 'Shoes' && H.m.recipe.palette?.Shoes) ? rgbOf(H.m.recipe.palette?.[g] ?? FOOTWEAR_TONES[g] ?? PLATING_TONES[g] ?? HANDWEAR_TONES[g]) : nm.startsWith('adorn.') ? [150, 156, 166] : P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);

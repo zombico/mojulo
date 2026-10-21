@@ -1,6 +1,6 @@
 /**
  * HANDWEAR — a solver library: handwear in two layers (the GLOVE, the protoglove, the hand's own close leather; the
- * ADORNMENT the solver lays over it), composed by a CARD (styles.js: pure data, a new look is a card, annotated with its
+ * ADORNMENT the solver lays over it: a glover's pieces (cutter.js) and primitives, in the hand's design coordinates), composed by a CARD (styles.js: pure data, a new look is a card, annotated with its
  * family; a card extends another by `from`, and wears any colourway by `skin`) through passes (expand.js) under laws
  * (principles.js), worn on any body through its HAND ADAPTER (adapters/). The footwear library's sibling: the same card,
  * the same passes, the same laws, on the hand.
@@ -19,5 +19,7 @@
  *   wearHandwear(adapter, card | word, { id, group }) → { parts, tones, named }   (expand.js)
  *   validateHandwear(card | word) → string[]                                    the refusals, by name
  */
-export { wearHandwear, validateHandwear, handwearCard, readTones, DIGITS, FINGERS, HANDWEAR_FAMILIES } from './expand.js';
+export { wearHandwear, validateHandwear, handwearCard, readTones, ADORN_PRIMS, DIGITS, FINGERS, HANDWEAR_FAMILIES } from './expand.js';
+export { GLOVE_REGIONS } from './cutter.js';
+export { HANDWEAR_LAWS_VERSION } from './principles.js';
 export { HANDWEAR, HANDWEAR_TONES, SKINS } from './styles.js';

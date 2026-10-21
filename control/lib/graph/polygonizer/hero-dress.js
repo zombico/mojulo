@@ -29,6 +29,7 @@ import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/e
 import { validatePaint } from './body-paint.js';
 import { FOOTWEAR, footwearCard } from '../footwear/index.js';
 import { SUITS } from '../plating/index.js';
+import { HANDWEAR } from '../handwear/index.js';
 import { validateGarments } from './body-garment.js';
 import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
 
@@ -225,6 +226,9 @@ export const OUTFIT_WORDS = Object.freeze({
   // (the plating library's suits, lib/graph/plating: on the realistic body its undersuit and plates; on the authored body
   // nothing yet, its adapter to come)
   ...Object.fromEntries(Object.keys(SUITS).map((w) => [w, () => []])),
+  // (the handwear library's gloves, lib/graph/handwear: on the realistic body its own; on the authored body nothing yet,
+  // its adapter to come)
+  ...Object.fromEntries(Object.keys(HANDWEAR).map((w) => [w, () => []])),
   // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
   // its sandal or its shoe by the card's sock, under ids of their own)
   ...Object.fromEntries(Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w)).map((w) => {

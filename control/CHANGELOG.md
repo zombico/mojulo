@@ -141,10 +141,28 @@ segments it is `on`). body-study `--dress` colours each footwear group by its to
 ### Handwear: a solver library, an adapter per body's hand
 
 The footwear library's sibling for the hands (lib/graph/handwear): a CARD (pure data, a family, `from` its kin, `skin` a
-colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws. Its first layer is the PROTOGLOVE: the palm's
-and the digits' own rings stood off by the leather's thickness, a digit cut at its middle joint or at its knuckle where
-the card's `fingers` say (its end closed inside the finger), the cuff up the forearm by its share (the realistic
-adapter's close leather, a field garment). Words `gloves`, `suitGloves`, `fingerless`, `mitts`.
+colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gloves the way the shoes are made.
+- THE PROTOGLOVE: the palm's and the digits' own rings stood off by the leather's thickness, a digit cut at its middle
+  joint or at its knuckle where the card's `fingers` (and `thumb`) say, its end closed inside the finger; the cuff up
+  the forearm by its share (the realistic adapter's close leather, a field garment); a glove with no cuff tucks its
+  first ring under the forearm's skin. `glove: false` lays the adornment on the bare hand.
+- THE GLOVER'S CUT (cutter.js): pieces in the hand's design coordinates (the plating library's fitted shell: along the
+  segment, round it from the back of the hand, the thumb's side +, the palm ±1), named `back`, `palm`, `heel`,
+  `knuckles`, `fingerBacks`, `fingerPads`, `thumb`, or `{ seg, t, s }`.
+- ADORNMENT PRIMITIVES (`ADORN_PRIMS`): a piece, the points stitched down a dress glove's back, a cuff, a strap (a snap
+  or a buckle on its back), a flared gauntlet cuff from the wrist, a hard knuckle guard, studs, a knight's lames, rings
+  with stones, a stone on the back or the knuckles, claws curled toward the palm (each rigid on its last phalanx), fur, a
+  fighter's crossed wraps. Each takes its surface's weights.
+- CARDS by family: glove (`gloves`, `suitGloves`, `fingerless`, `mitts`), dress (`dressGloves`, `operaGloves`,
+  `drivingGloves`), work (`workGloves`, `weldingGloves`, `gardenGloves`), sport (`bikerGloves`, `cyclingGloves`,
+  `goalkeeperGloves`, `fightGloves`, `skiGloves`, `handWraps`), historic (`cavalierGloves`, `falconryGlove`,
+  `knightGauntlets`, `bishopGloves`), fantasy (`clawGloves`, `sorcererGloves`, `furGloves`, `gemGauntlet`); colourways in
+  `SKINS`; a piece's tone may be OF the leather's.
+- Every card is an outfit word: on the realistic body the library's (its parts riding their segments' dials, its tones
+  under the operator's palette); on the authored body nothing yet. body-study paints its groups, a palette's colour
+  first.
+- The fitted shell reads a coarse ring (the hand's eight points, a digit's six) as it is, unsmoothed: easing toward
+  neighbours that far round had lifted the flat back of the hand about 7 mm off it.
 
 ### Plating: segment-paneled armour on the realistic body
 

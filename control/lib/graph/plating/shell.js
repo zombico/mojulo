@@ -19,8 +19,10 @@ const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const sm = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
 
 /** the FAIR SHELL of a segment `P` (its rings in ring order): each point's reach from its ring's middle raised to its
- * neighbourhood's eased reach (so a groove is bridged, a form kept), read anywhere by station `u` and fractional slot */
-export function fairShell(P, { passes = 4 } = {}) {
+ * neighbourhood's eased reach (so a groove is bridged, a form kept), read anywhere by station `u` and fractional slot. A
+ * coarse ring (the hand's eight points, a digit's six) is read as it is: its neighbours lie too far round to be a groove's
+ * sides, and easing toward them would lift the flat back of the hand off it */
+export function fairShell(P, { passes = P.slots.length >= 16 ? 4 : 0 } = {}) {
   const n = P.slots.length, K = P.stations.length, U = P.stations.map((st, i) => st.u ?? i);
   const mids = P.stations.map((st) => mean(Object.values(st.points)));
   const dirs = P.stations.map((st, k) => P.slots.map((sl) => unitv(st.points[sl].map((x, q) => x - mids[k][q]))));
@@ -83,6 +85,14 @@ export function stepped(s0, steps = [], t0 = 0, t1 = 1) {
   for (const [a, b, ds] of steps) { pts.push([a, s]); s += ds; pts.push([b, s]); }
   pts.push([t1, s]);
   return pts;
+}
+
+/** a CIRCLE's edges on the shell `S` ({ t, s, r }: its centre in the segment's design coordinates, its radius in metres,
+ * through the segment's length and its girth there) → { t: [t0, t1], left, right } */
+export function circleEdges(S, uOf, { t: tc, s: sc, r }, K = 8) {
+  const rt = r / (S.length || 0.3), rs = (2 * r) / (S.perimeter(uOf(tc)) || 0.3);
+  const half = (t) => rs * Math.sqrt(Math.max(0, 1 - ((t - tc) / rt) ** 2)), ts = Array.from({ length: K + 1 }, (_, i) => tc - rt + (2 * rt * i) / K);
+  return { t: [tc - rt, tc + rt], left: ts.map((tt) => [tt, sc - Math.max(half(tt), rs * 0.15)]), right: ts.map((tt) => [tt, sc + Math.max(half(tt), rs * 0.15)]) };
 }
 
 export const slotOf = (n, S) => (s) => { const h = n / 2, lat = S === 'L' ? -1 : 1, x = s * lat; return x >= 0 ? x * h : n + x * h; };
