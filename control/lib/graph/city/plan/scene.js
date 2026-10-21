@@ -29,6 +29,7 @@ import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, cubeLookSpec, CITY_HAZE } from './look.js';
 import { cloudBand } from '../../matte-paint/sky.js';
+import { dressCity } from './dress.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
 import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
 
@@ -278,8 +279,11 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
   // the people (pedestrians.js): round their blocks, some across a street at its signals; their rigs baked by the world
   const people = d.plan.fidelity !== 'massing' ? readPeople(d.plan.people, !!C) : 0;
   const walkers = people > 0 ? cityPedestrians(d, T ? T.junctions : [], { people, crop }) : [];
+  // a gritty cube's city painted from relief (dress.js): its walls and sidewalks
+  const dressed = paint ? dressCity(scene.faces, paint, U) : null;
   return {
     ...scene,
+    ...(dressed ? { faces: dressed.faces, textures: { ...(scene.textures || {}), ...dressed.textures } } : {}),
     ...traffic,
     ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
     // a walk round one block for a stand-in to take (ctx.route: a geocube's micro-city, era/geocube-city.js): the sidewalk

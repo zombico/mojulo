@@ -167,8 +167,17 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
   lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
   walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
-- Planned: the city's masonry facades in the same detail (its facades are cards the page realizes, a pipeline of their
-  own).
+- **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
+  `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
+  are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,
+  or a coat that has weathered rather than fallen; its sidewalks and plazas in worn slabs. A card carries its wall's
+  `dress`, and the card realizer (`architecture/facade-card.js` `projectCardOntoQuad`) lays it on each facet of the shirt,
+  world-locked in metres on the city's units, so a facade's piers and spandrels carry one stone; the windows' body
+  behind, a curtain wall's glass and mullions, metal and the roads are as they were. The tiles a card names are served
+  with the payload (a card's facets are realized on the page, after the scene's textures are gathered). The laying is one
+  module for the town and the city (`matte-paint/detail.js`: the tile, its mean held, the face's paint lifted by it,
+  world-locked as a wall, a roof or a floor); the town's bytes are as they were. A quiet cube's city, and a city no cube
+  paints, is byte for byte as before.
 
 ### Geocube domains: one cube, many levels
 

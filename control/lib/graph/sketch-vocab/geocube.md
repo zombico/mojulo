@@ -48,7 +48,8 @@ A cube that names no domains offers one per terrain and one per interior.
   hamlet's) and `show: 'city'` a micro-city (the smallest city plan, in the cube's paint and builders' language),
   each walked by a stand-in at eye height to review the architecture, seen first from a person's eye before a house
   or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
-  cube's street is painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the stone;
+  cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
+  stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

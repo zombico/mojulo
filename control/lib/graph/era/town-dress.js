@@ -14,20 +14,15 @@
  *                                              or the face itself (no dress for it, or not a wall, or not a roof)
  *   DETAIL_MEAN                              the mean a detail is set to (linear)
  *
- * The detail tiles are served by a texture resolver (`detail:`), painted once a spec. Pure: the cube's numbers and the
+ * The laying is matte-paint/detail.js's (its tiles served by the `detail:` resolver). Pure: the cube's numbers and the
  * walls' places only. Absent a dress, a town is as it was, byte for byte.
  */
-import { dressedTile } from '../matte-paint/dressed.js';
-import { encodePng, registerTextureResolver } from '../landscape/surface-textures.js';
+import { detailKey, layDetail, DETAIL_MEAN } from '../matte-paint/detail.js';
 import { normalizeTileSpec } from './tile-specs.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 
-export const DETAIL_MEAN = 0.8;
+export { DETAIL_MEAN };
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
-const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
-const srgb = (c) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
-const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** A gritty cube's street dress: each source group's dressed stone, in the cube's own colours, tuned by its grit. */
 export function townDressOf(cube) {
@@ -48,42 +43,16 @@ export function townDressOf(cube) {
   };
 }
 
-// the detail tiles, by key: what each is painted from (filled as faces are dressed, read by the resolver)
-const SPECS = new Map(), PAINTED = new Map();
-function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h.toString(36); }
-function detailKey(entry, v) {
+const keyOf = (entry, v) => {
   // (the spec on the dressed tile's rails, in their order: anything off them refused)
   const { seed = 1, ...params } = normalizeTileSpec(entry.spec, 'town dress').params;
-  const key = `detail:dressed-${hash(JSON.stringify([params, seed, entry.metres]))}-${'ab'[v]}`;
-  if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres: entry.metres }, seed: seed * 1009 + 7 + v * 13 });
-  return key;
-}
-registerTextureResolver('detail:', (key) => {
-  if (PAINTED.has(key)) return PAINTED.get(key);
-  const S = SPECS.get(key);
-  if (!S) return null;
-  const T = dressedTile(S.cfg, { size: 512, seed: S.seed }), n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
-  for (let k = 0; k < n * 3; k++) { L[k] = lin(T.rgb[k]); m[k % 3] += L[k]; }
-  for (let c = 0; c < 3; c++) m[c] = m[c] / n || 1;
-  const out = Buffer.alloc(n * 3);
-  for (let k = 0; k < n * 3; k++) out[k] = Math.round(srgb(Math.min(1, (L[k] / m[k % 3]) * DETAIL_MEAN)));
-  const url = `data:image/png;base64,${encodePng(out, T.W, T.H).toString('base64')}`;
-  if (PAINTED.size >= 24) PAINTED.clear();
-  PAINTED.set(key, url);
-  return url;
-});
-
-const lift = (hex) => hexOf(rgbOf(hex).map((v) => srgb(Math.min(1, lin(v) / DETAIL_MEAN))));
-/** A placed face dressed for its source group: a wall (no steeper than 45° off upright) of a group the dress names. */
+  return detailKey(params, seed, entry.metres, v);
+};
+/** A placed face dressed for its source group: a wall of a group the dress names, or a pitched roof of one. */
 export function dressTownFace(face, group, dress) {
-  const E = dress && dress[group], n = face.normal;
-  if (!E || !n || !face.corners || face.corners.length < 3) return face;
-  const h = Math.hypot(n[0], n[1]);
-  // a wall: no steeper than 45° off upright; a roof: pitched (a flat one has no way up its slope to lay courses by)
-  if (E.roof ? h < 0.12 || n[2] <= 0 : Math.abs(n[2]) > 0.7) return face;
-  const t = [-n[1] / h, n[0] / h], up = E.roof ? 1 / h : 1;
+  const E = dress && dress[group];
+  if (!E || !face.normal || !face.corners || face.corners.length < 3) return face;
   const c0 = face.corners[0], v = Math.floor(Math.abs(c0[0] * 0.37 + c0[1] * 0.61 + c0[2] * 0.13)) % 2;
-  // (a roof's v runs up its slope: a rise of dz is dz / sin(pitch) along it, and sin(pitch) is the normal's horizontal part)
-  const uv = face.corners.map((p) => [r4((p[0] * t[0] + p[1] * t[1]) / E.metres), r4((p[2] * up) / E.metres)]);
-  return { ...face, texture: detailKey(E, v), textureLit: true, uv, fill: lift(face.fill), cornerFills: (face.cornerFills ?? [face.fill]).map(lift) };
+  const out = layDetail({ ...face, cornerFills: face.cornerFills ?? [face.fill] }, { key: keyOf(E, v), metres: E.metres, as: E.roof ? 'roof' : 'wall' });
+  return out.texture ? out : face;
 }
