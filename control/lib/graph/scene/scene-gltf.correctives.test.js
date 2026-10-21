@@ -24,7 +24,9 @@ const f32 = (b64) => { const b = Buffer.from(b64, 'base64'); return new Float32A
 const u32 = (b64) => { const b = Buffer.from(b64, 'base64'); return new Uint32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length)); };
 const RAISED = { armR: { x: 0.3, y: 0, z: 1 } };
 
-const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic' }) });
+// (the landmark head named: its face's targets are the ones the correctives follow; the realistic default, the relational
+// head, has none)
+const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', head: 'landmark' }) });
 const C = M.recipe.correctives;
 
 describe('the realistic body\'s correctives, posed and exported', () => {
@@ -136,11 +138,12 @@ describe('the realistic body\'s correctives, posed and exported', () => {
     const fig = payload.figures.body, G = glbOf(facesToGlb(payload, { generator: 'mojulo corr', clips: '_all', skinned: true, lit: true }).bytes);
     expect(fig.parts.filter(Boolean).every((p) => typeof p.nrm === 'string')).toBe(true);
     const prim = G.json.meshes.find((m) => m.name === 'body:skinned').primitives[0], P = floats(G, prim.attributes.POSITION), N = floats(G, prim.attributes.NORMAL);
-    // corners on one point agree (the weld; a crease or a part's seam may split them): far fewer split than the facets'
+    // corners on one point agree, so they are one vertex (the weld, scene-gltf.js weldCorners: a crease, a part's seam or a
+    // UV seam keeps its two sides apart, as a colour's edge does): far fewer vertices than corners, a point mostly once
     const by = new Map(); for (let v = 0; v < P.length / 3; v++) { const k = [0, 1, 2].map((c) => Math.round(P[v * 3 + c] * 1e5)).join(); if (!by.has(k)) by.set(k, []); by.get(k).push(v); }
-    let shared = 0, split = 0;
-    for (const vs of by.values()) if (vs.length > 1) { shared++; if (vs.some((v) => [0, 1, 2].reduce((s, c) => s + N[v * 3 + c] * N[vs[0] * 3 + c], 0) < 0.999)) split++; }
-    expect(shared).toBeGreaterThan(1000); expect(split / shared).toBeLessThan(0.2);
+    expect(N.length).toBe(P.length);
+    expect(P.length / 3).toBeLessThan(G.json.accessors[prim.indices].count / 4);
+    expect((P.length / 3 - by.size) / by.size).toBeLessThan(0.35);
     // no baked shade: the skin's corners are a handful of colours, not a gradient
     const C0 = floats(G, prim.attributes.COLOR_0), cols = new Set(); for (let v = 0; v < C0.length / 3; v++) cols.add([0, 1, 2].map((c) => C0[v * 3 + c].toFixed(4)).join());
     expect(cols.size).toBeLessThan(64);

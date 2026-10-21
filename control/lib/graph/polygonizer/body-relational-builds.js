@@ -162,7 +162,7 @@ const NORRIN = {
     // the foot: the heel (the calcaneus) behind and under the ankle, the arch's two columns from it (the medial lifted off
     // the ground, the lateral on it), the midfoot's mass and the instep over them, the ankle's two bones (the inner
     // higher and forward), the ball across the metatarsals' heads (the inner end forward: the toe line's slant)
-    foot: { from: 'ankleR', to: 'toeBaseR', front: [0, 0, 1], foot: true, k: 0.02, rings: 45, around: 72, masses: [
+    foot: { from: 'ankleR', to: 'toeBaseR', front: [0, 0, 1], foot: true, k: 0.02, rings: 36, around: 48, masses: [
       { id: 'calcaneus', s: -0.303, az: 175, off: 0.115, r: [0.165, 0.155, 0.15] },
       { id: 'archLateral', chain: [[-0.067, 147, 0.203, 0.07], [0.892, 120, 0.207, 0.06]] },
       { id: 'archMedial', chain: [[-0.023, -144, 0.101, 0.08], [1.029, -119, 0.137, 0.08]] },
@@ -174,7 +174,7 @@ const NORRIN = {
     ] },
     // the toes: the big toe apart and the four beside it, each a bead from its knuckle to its pad, the tips on the
     // toe line's diagonal (the second toe's a little short of the big toe's)
-    toes: { from: 'toeBaseR', to: 'toeTipR', front: [0, 0, 1], foot: true, k: 0.012, slant: 12, rings: 31, around: 64, masses: [
+    toes: { from: 'toeBaseR', to: 'toeTipR', front: [0, 0, 1], foot: true, k: 0.012, slant: 12, rings: 21, around: 48, masses: [
       { id: 'hallux', chain: [[0.073, -114, 0.164, 0.075], [0.885, -112, 0.173, 0.06]] },
       { id: 'toe2', chain: [[0.101, -161, 0.091, 0.05], [0.825, -166, 0.085, 0.04]] },
       { id: 'toe3', chain: [[0.052, 151, 0.105, 0.047], [0.727, 144, 0.111, 0.037]] },

@@ -240,6 +240,27 @@ function weldSoup(positions, colors, cc, normals, uvs) {
   return { positions: sP, colors: sC, normals: sN, uvs: sU, indices: null, origVerts, weldedVerts, dropped };
 }
 
+// The skinned figure's weld (addSkinnedRigFigure, the realistic body's lit pack): its parts arrive a corner a triangle,
+// so a grid point is written once per face round it. Corners whose every attribute (`cols`: [array, width] pairs, each
+// indexed by corner) and every target's row (`rows`: [corner ids, rows] pairs; absent is zero) are bit for bit alike
+// are one vertex, the first come kept: a seam's two UVs, a crease's two normals stay apart, so an engine draws the
+// same. → { of (corner → vertex), keep (vertex → its first corner), count }. Deterministic.
+function weldCorners(n, cols, rows) {
+  const width = cols.reduce((s, [, w]) => s + w, 0) + rows.reduce((s, [, r]) => s + (r[0]?.length ?? 0), 0);
+  const row = new Float32Array(n * width);
+  let o = 0;
+  for (const [a, w] of cols) { for (let i = 0; i < n; i++) for (let c = 0; c < w; c++) row[i * width + o + c] = a[i * w + c]; o += w; }
+  for (const [at, r] of rows) { const w = r[0]?.length ?? 0; at.forEach((g, k) => { for (let c = 0; c < w; c++) row[g * width + o + c] = r[k][c]; }); o += w; }
+  const bytes = Buffer.from(row.buffer, row.byteOffset, row.byteLength), seen = new Map(), of = new Int32Array(n), keep = [];
+  for (let i = 0; i < n; i++) {
+    const key = bytes.toString('latin1', i * width * 4, (i + 1) * width * 4);
+    let v = seen.get(key);
+    if (v === undefined) { v = keep.length; seen.set(key, v); keep.push(i); }
+    of[i] = v;
+  }
+  return { of, keep: Int32Array.from(keep), count: keep.length };
+}
+
 /**
  * Minimal GLB assembler. Accumulates bufferViews/accessors/meshes/nodes into a
  * single binary buffer, then `build()` packs the JSON + BIN chunks into a .glb.
@@ -839,18 +860,28 @@ class GlbBuilder {
     const positions = Float32Array.from(pos);
     // the face: POSITION at the neutral head (the stored face less its rebase); the ink below bakes from `pos`
     if (morphAt.length) morphAt.forEach((g, k) => { const r = morphRow[k]; for (let c = 0; c < 3; c++) positions[g * 3 + c] = pos[g * 3 + c] - r[c]; });
+    // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
+    // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
+    let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null }, I = idx;
+    // THE WELD (the carried normals' pack, the realistic body's): its corners alike in everything one vertex (weldCorners),
+    // five or six to one on the hero; its targets' rows follow their vertex. Any other figure: every byte as before.
+    const weld = carried ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), [A.N, 3]], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
+    if (weld) {
+      const pick = (a, w) => { if (!a) return a; const out = new a.constructor(weld.count * w); weld.keep.forEach((c, v) => { for (let k = 0; k < w; k++) out[v * w + k] = a[c * w + k]; }); return out; };
+      A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3) };
+      I = idx.map((i) => weld.of[i]);
+      vertices = weld.count;
+    }
     const attributes = {
-      POSITION: this.floatAccessor(positions, 3, bounds3(positions)),
-      COLOR_0: this.floatAccessor(Float32Array.from(col), 3),
-      JOINTS_0: this.jointAccessor(Uint16Array.from(jnt)),
-      WEIGHTS_0: this.floatAccessor(Float32Array.from(wgt), 4),
-      ...(uvs ? { TEXCOORD_0: this.floatAccessor(Float32Array.from(uvs), 2) } : {}),
-      // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
-      // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
-      ...(this.lit ? { NORMAL: this.floatAccessor(carried ? Float32Array.from(carried) : restNormals(positions, idx), 3) } : {}),
+      POSITION: this.floatAccessor(A.P, 3, bounds3(A.P)),
+      COLOR_0: this.floatAccessor(A.C, 3),
+      JOINTS_0: this.jointAccessor(A.J),
+      WEIGHTS_0: this.floatAccessor(A.W, 4),
+      ...(A.U ? { TEXCOORD_0: this.floatAccessor(A.U, 2) } : {}),
+      ...(A.N ? { NORMAL: this.floatAccessor(A.N, 3) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
-    const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
+    const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(I)) };
     const prims = [prim];
     if (inkParts) {
       // figure radius (AABB centre → max distance) sets the width scale, the channel's rule
@@ -908,8 +939,14 @@ class GlbBuilder {
     let faceMesh = null;
     const hasFace = morphAt.length > 0, corr = corrAt.length ? fig.correctives : null;
     if (hasFace || corr) {
-      const n = positions.length / 3;
-      const sparse = (at, rows, o) => { const ids = [], vals = []; at.forEach((g, k) => { const r = rows[k]; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } }); return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) }; };
+      const n = A.P.length / 3;
+      // (welded: a row once per vertex, the vertices ascending)
+      const sparse = (at, rows, o) => {
+        let ids = [], vals = [];
+        at.forEach((g, k) => { const r = rows[k]; if (Math.hypot(r[o], r[o + 1], r[o + 2]) > 1e-6) { ids.push(g); vals.push(r[o], r[o + 1], r[o + 2]); } });
+        if (weld) { const by = new Map(); ids.forEach((g, k) => { const v = weld.of[g]; if (!by.has(v)) by.set(v, k); }); const vs = [...by.keys()].sort((a, b) => a - b); vals = vs.flatMap((v) => { const k = by.get(v); return [vals[k * 3], vals[k * 3 + 1], vals[k * 3 + 2]]; }); ids = vs; }
+        return { POSITION: this.morphAccessor(n, Uint32Array.from(ids), Float32Array.from(vals)) };
+      };
       prim.targets = [...(hasFace ? fig.face.targets.map((_, t) => sparse(morphAt, morphRow, 3 + t * 3)) : []), ...(corr ? corr.targets.map((_, t) => sparse(corrAt, corrRow, t * 3)) : [])];
       if (prims[1]) { const zero = this.morphAccessor(this.json.accessors[prims[1].attributes.POSITION].count, new Uint32Array(0), new Float32Array(0)); prims[1].targets = prim.targets.map(() => ({ POSITION: zero })); }
       // the facial tracks (anime-face-tracks.js): a clip's track rides its animation, the ambient blink its own; the

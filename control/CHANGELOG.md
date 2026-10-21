@@ -95,6 +95,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   plan had a name for, so the relational head's visage and nose (the face's own parts) were dropped and the cranium,
   let down under them, showed as a smoothed mask. The hook now takes every part the body brings. An undressed hero is
   byte for byte as it was.
+- The realistic hero's GLB WELDED: its pack writes a corner a triangle, so a grid point went out once per face round
+  it; corners alike in every attribute and every target's row are now one vertex (scene-gltf.js `weldCorners`, under the
+  lit export of a pack carrying its normals), a UV seam's or a crease's two sides apart. The dressed female's lit GLB
+  went from 304k vertices and 23.7 MB to 51k and 5.2 MB (16-bit indices), drawn the same. Every other figure's export
+  byte for byte.
+- The realistic FEET lighter: the foot 36 rings × 48 round (was 45 × 72), the toes 21 × 48 (was 31 × 64), about 5.3k
+  triangles a side for 10.4k; the toes, the heel and the ankle read as before (the operator's eyes), the sole's flat
+  cut a little coarser.
 - The relational head's FIT on the recipe (`recipe.headFit`: `{ sex, k, ty, men }`, the scale and the offsets that seat
   the head on the neck), so an export can read the hero's head back into the head's own frame and chart it.
 
