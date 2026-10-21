@@ -21,10 +21,21 @@ describe('rock takes pixels in a gritty style', () => {
     expect(base.fabric).toBeUndefined();
   });
 
-  it('a gritty style\'s faces are the quiet style\'s but its boulders: the far view is the polygons\'', () => {
-    // (the land's shape is the quiet style's; its baked light differs only where the broken boulders cast their shadows)
-    const notRock = (P) => JSON.stringify(P.faces.filter((f) => f.group !== 'isekai:rock').map(({ corners, normal, group }) => ({ corners, normal, group })));
-    expect(notRock(gritty)).toBe(notRock(base));
+  it('a gritty style\'s land is the quiet style\'s but its broken rims, its boulders and its stones', () => {
+    // the same faces in the same order; a corner that moved is a cliff's rim vertex, pushed a little into the land
+    const land = (P) => P.faces.filter((f) => f.group !== 'isekai:rock'), a = land(base), b = land(gritty);
+    expect(b.map((f) => f.group)).toEqual(a.map((f) => f.group));
+    let moved = 0;
+    a.forEach((f, i) => f.corners.forEach((c, j) => {
+      const d = b[i].corners[j];
+      if (d.join() === c.join()) return;
+      moved++;
+      expect(Math.hypot(d[0] - c[0], d[1] - c[1])).toBeLessThan(0.8 * 0.7 * 0.5 + 1e-3);
+      expect(d[2]).toBeLessThanOrEqual(c[2]);
+    }));
+    expect(moved).toBeGreaterThan(0);
+    // and small stones lie about: more rock than the boulders' alone
+    expect(gritty.faces.filter((f) => f.group === 'isekai:rock').length).toBeGreaterThan(base.faces.filter((f) => f.group === 'isekai:rock').length);
     expect(JSON.stringify(build({ grit: 0.7 }).faces)).toBe(JSON.stringify(gritty.faces));
   });
 

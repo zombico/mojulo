@@ -34,6 +34,7 @@ import { groundField } from './ground.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
 import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
+import { breakRims, strewStones } from './broken-land.js';
 
 const TAU = Math.PI * 2;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -457,6 +458,12 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   }
   // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
   if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed, broken)));
+  // (and its cliffs' rims break as the boulders' edges do, and small stones lie about: on the boulders' tops, along
+  // the paths, at the cliffs' feet; broken-land.js)
+  if (broken) {
+    breakRims([...ground.faces, ...walk.faces, ...walk.wall], { grit: broken, seed, dx: ground.grid.dx });
+    rocks.push(...strewStones(st, { faces: [...ground.faces, ...walk.faces, ...walk.wall], rocks: [...rocks], heightAt, seed, grit: broken, sea: S ? S.sea : -Infinity }));
+  }
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), soft = p.recipe.shading ? p.recipe.shading.sun : 0;
   const shadow = soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });

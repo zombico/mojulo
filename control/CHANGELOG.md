@@ -87,6 +87,11 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   by its angle) and fade inside them, and the flats undulate a little. The land's shape is otherwise the quiet
   style's; its baked light differs only where the broken boulders cast their shadows. `boulderFaces` takes `broken`;
   without it a boulder is byte for byte as it was.
+- **Broken rims and strewn stones** (`local-meru/broken-land.js`). A gritty island's cliff rims break the same way.
+  Each vertex where a cliff face meets the land above it is pushed back into the land, and down a little, by stepped
+  chip dice. The move depends on the vertex alone, so the cliff and the ground beside it keep one corner. Small stones
+  lie about: a few on each boulder's top, pebbles along the paths, and scree fallen out at the cliffs' feet (never in
+  the sea). Each stone is a boulder of a few sides, drawn in the rock's own skin.
 - **A second rock.** The land's shading takes `rocks` (with `skin`): the boulders' own skin or formation, beside the
   cliff's, drawn by a program of its own. Without `rocks`, a formation takes the boulders too.
 
