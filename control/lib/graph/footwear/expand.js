@@ -6,20 +6,25 @@
 //   2 SOLE   per side, under the foot and under the toes (split at the toe base): its LAYERS stacked from the floor up
 //            (the outsole, a midsole, a stripe …), each the footprint's outline grown by its own welt, in its own group; a
 //            layer's `pod` a window of another group at the heel, proud of the layer's wall (an air sole)
-//   3 ADORN  per side, the card's primitives in order (ADORN_PRIMS), each on the layer under it, carried by its weights
+//   3 ADORN  per side, the card's primitives in order (ADORN_PRIMS), each on the layer under it, carried by its weights;
+//            a `panel` on a cobbler region (cobbler.js: the tongue, the eyestays, the quarters, the counter …)
 //   4 TONE   the colours of the groups laid, the card's own over FOOTWEAR_TONES
 //
 // Parts are layer 1, named `<id>_<segment>` (the sock), `<id>Sole_<segment>`, `<id>Strap<k>_<segment>` and
-// `<id>Buckle<k>_<segment>` (k counting the straps), `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`.
+// `<id>Buckle<k>_<segment>` (k counting the straps), `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
+// `<id><Region><Lat|Med>_…` (an inline region's `<id>Panel<k>…`), `<id>Lace<k>_…`.
 // Pure and deterministic: no dice, fixed order.
 import { soleSlab, strapBand, buckleOn, bindNearest, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv } from './parts.js';
 import { FOOTWEAR, FOOTWEAR_TONES } from './styles.js';
+import { COBBLER_REGIONS, REGION_SIDES, arcOf, panelOn, laceBars } from './cobbler.js';
 
 /** THE ADORNMENT PRIMITIVES: each one's keys, its group, and what it is */
 export const ADORN_PRIMS = Object.freeze({
   strap: { keys: ['on', 'at', 'width', 'lift', 'buckle', 'group'], group: 'Strap', what: 'a band round the sock (or the bare foot) at a share, a buckle on its outer side' },
   band: { keys: ['on', 'at', 'width', 'lift', 'group'], group: 'Gilt', what: 'a thin ring of gilding at a share' },
   cuff: { keys: ['width', 'lift', 'group'], group: 'Cuff', what: "a turned band at the sock's collar" },
+  panel: { keys: ['region', 'on', 'lift', 'thick', 'rise', 'group'], group: 'Overlay', what: 'a pattern piece laid over the sock on a cobbler region (cobbler.js COBBLER_REGIONS: tongue, eyestay, quarter …, or { along, around, sides }), a matching pair on both sides where the region has two' },
+  laces: { keys: ['rows', 'lift', 'w', 'group'], group: 'Lace', what: "criss-cross laces between the eyestays' inner edges, over the tongue" },
   toeCap: { keys: ['lift', 'rivets', 'group'], group: 'Steel', what: 'a quarter egg over the toes, toe base to tip (the half teacup), rivets round its back edge' },
 });
 /** the families a card is annotated with (what kind of footwear it is: a shelf to browse, a word to ask by) */
@@ -28,6 +33,8 @@ export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneak
  * the heel, proud of the layer's wall (an air sole) */
 export const SOLE_PATTERNS = Object.freeze({ pod: ['from', 'to', 'welt', 'group'] });
 const GROUP = /^[A-Z][A-Za-z0-9]*$/;
+/** each named pattern piece's group (an inline region's is Overlay) */
+const PANEL_GROUPS = { tongue: 'Tongue', eyestay: 'Eyestay', quarter: 'Overlay', vamp: 'Overlay', counter: 'Counter', foxing: 'Overlay' };
 const SEGS = ['foot', 'shank'], share = (x) => typeof x === 'number' && x >= 0 && x <= 1;
 
 /** a word or a card of one's own → the card */
@@ -63,10 +70,16 @@ export function validateFootwear(spec, label = 'footwear') {
     const P = ADORN_PRIMS[a?.prim], at = `${label}.adorn[${i}]`;
     if (!P) { errs.push(`${at}.prim: one of ${Object.keys(ADORN_PRIMS).join(', ')}`); return; }
     for (const k of Object.keys(a)) if (k !== 'prim' && !P.keys.includes(k)) errs.push(`${at}: ${a.prim} takes ${P.keys.join(', ')}, not '${k}'`);
-    if (P.keys.includes('on') && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    if (P.keys.includes('on') && a.prim !== 'panel' && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
     for (const k of ['at']) if (a[k] !== undefined && !share(a[k])) errs.push(`${at}.${k}: a share, 0 to 1`);
+    if (a.prim === 'panel') {
+      const R = a.region;
+      if (typeof R === 'string') { if (!COBBLER_REGIONS[R]) errs.push(`${at}.region: one of ${Object.keys(COBBLER_REGIONS).join(', ')}, or { along, around, sides }`); }
+      else if (!R || ![R.along, R.around].every((x) => Array.isArray(x) && x.length === 2 && x.every(share) && x[0] <= x[1]) || !REGION_SIDES.includes(R.sides)) errs.push(`${at}.region: a cobbler region's name, or { along: [a0, a1], around: [r0, r1] (shares), sides: ${REGION_SIDES.join(' | ')} }`);
+      if (a.on !== undefined && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    }
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
-    if ((a.prim === 'cuff' || a.prim === 'toeCap') && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
+    if (['cuff', 'toeCap', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
   });
   for (const [g, c] of Object.entries(spec.tones || {})) if (!/^#[0-9a-f]{6}$/i.test(c)) errs.push(`${label}.tones.${g}: '#rrggbb'`);
   return errs;
@@ -110,7 +123,7 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
       });
     }
     // 3 ADORN, in the card's order
-    const n = { strap: 0, band: 0, rivet: 0 };
+    const n = { strap: 0, band: 0, rivet: 0, panel: 0, lace: 0 };
     for (const a of C.adorn ?? []) {
       if (a.prim === 'strap' || a.prim === 'band' || a.prim === 'cuff') {
         const strap = a.prim === 'strap', k = n[a.prim] ?? 0; if (a.prim !== 'cuff') n[a.prim]++;
@@ -120,6 +133,23 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
         const name = { strap: `${id}Strap${k}`, band: `${id}Band${k}`, cuff: `${id}Cuff` }[a.prim];
         put(`${name}_${seg}`, { ...band, group: a.group ?? ADORN_PRIMS[a.prim].group });
         if (strap && a.buckle) { const b = buckleOn(band, S === 'R' ? 1 : -1); put(`${id}Buckle${k}_${seg}`, { ...b, group: 'Brass', bind: bindNearest(b, P) }); }
+      } else if (a.prim === 'panel') {
+        // a PATTERN PIECE on a cobbler region: its stations along, its arc round (a pair where the region has two sides)
+        const named = typeof a.region === 'string', R = named ? COBBLER_REGIONS[a.region] : a.region, kind = a.on ?? 'foot', seg = A.seg(kind, S), P = on(seg); if (!P) continue;
+        const sts = P.stations.filter((st, i) => { const u = st.u ?? i; return u >= A.u(kind, R.along[0]) - 1e-9 && u <= A.u(kind, R.along[1]) + 1e-9; });
+        const base = named ? `${id}${a.region[0].toUpperCase()}${a.region.slice(1)}` : `${id}Panel${n.panel++}`, g = a.group ?? PANEL_GROUPS[a.region] ?? 'Overlay';
+        const sides = R.sides === 'both' ? [['lateral', 'Lat'], ['medial', 'Med']] : [[R.sides, R.sides === 'centre' ? '' : R.sides === 'lateral' ? 'Lat' : 'Med']];
+        for (const [side, tag] of sides) {
+          const pc = panelOn(P, sts, arcOf(P.slots, R, side, S), { lift: a.lift ?? 0.0025, thick: a.thick ?? 0.0015, rise: a.rise ?? 0 }); if (!pc) continue;
+          put(`${base}${tag}_${seg}`, { ...pc, group: g, bind: bindNearest(pc, P) });
+        }
+      } else if (a.prim === 'laces') {
+        // LACES between the eyestays' inner edges (the slot of each nearest the tongue), over the tongue
+        const seg = A.seg('foot', S), P = on(seg); if (!P) continue;
+        const E = COBBLER_REGIONS.eyestay, sts = P.stations.filter((st, i) => { const u = st.u ?? i; return u >= A.u('foot', E.along[0]) - 1e-9 && u <= A.u('foot', E.along[1]) + 1e-9; });
+        const inner = (side) => { const arc = arcOf(P.slots, E, side, S), N = P.slots.length, j = (sl) => { const i = P.slots.indexOf(sl); return Math.min(i, N - i); }; return arc.reduce((b, sl) => (j(sl) < j(b) ? sl : b), arc[0]); };
+        laceBars(P, sts, inner('lateral'), inner('medial'), { rows: a.rows ?? 5, lift: a.lift ?? 0.0055, w: a.w ?? 0.003 })
+          .forEach((b) => put(`${id}Lace${n.lace++}_${seg}`, { ...b, group: a.group ?? 'Lace', bind: bindNearest(b, P) }));
       } else if (a.prim === 'toeCap') {
         // the half teacup: a quarter egg over the toes, mapped toe to toe (the toe base to past the tip), as wide and as
         // high as the toes and `lift` more, its bottom inside the sole, carried by the toes

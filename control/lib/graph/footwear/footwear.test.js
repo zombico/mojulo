@@ -5,12 +5,15 @@ import { describe, it, expect } from 'vitest';
 
 import { wearFootwear, validateFootwear } from './index.js';
 import { compileLayered, auditLayered } from '../polygonizer/station-loft.js';
+import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
-// a ring of 8 round `c`: level (the shank's), or square to y (the foot's and the toes', `rz` its half height)
-const ring = (c, rx, rz, level) => Object.fromEntries(Array.from({ length: 8 }, (_, j) => { const a = (2 * Math.PI * j) / 8;
-  return [`s${j}`, level ? [c[0] + rx * Math.cos(a), c[1] + rz * Math.sin(a), c[2]] : [c[0] + rx * Math.cos(a), c[1], c[2] + rz * Math.sin(a)]]; }));
+// a ring of 8 round `c` in ring order (ringSlots: `front` first, the R side on +x): level (the shank's, its front +y), or
+// square to y (the foot's and the toes', `rz` its half height, its front on top)
+const SL = ringSlots(8);
+const ring = (c, rx, rz, level) => Object.fromEntries(SL.map((nm, j) => { const a = (2 * Math.PI * j) / 8;
+  return [nm, level ? [c[0] + rx * Math.sin(a), c[1] + rz * Math.cos(a), c[2]] : [c[0] + rx * Math.sin(a), c[1], c[2] + rz * Math.cos(a)]]; }));
 // a segment from `from` to `to`, 9 stations, u 0 … 2
-const seg = (bone, from, to, rx, rz) => ({ layer: 0, closure: 'closed', slots: Array.from({ length: 8 }, (_, j) => `s${j}`),
+const seg = (bone, from, to, rx, rz) => ({ layer: 0, closure: 'closed', slots: SL,
   stations: Array.from({ length: 9 }, (_, i) => ({ id: `st${i}`, u: i / 4, points: ring(from.map((x, q) => x + ((to[q] - x) * i) / 8), rx, rz, from[2] !== to[2]) })),
   caps: { back: from, tip: to }, bind: { bone } });
 // (the foot and the toes: rings in the xz plane, square to y; the shank: rings level)
@@ -79,7 +82,29 @@ describe('footwear on a foot adapter', () => {
     expect(Object.keys(W.tones).sort()).toEqual(['Air', 'Midsole', 'Outsole']);
   });
 
+  it('cut as a cobbler: the tongue down the centre and above the collar, a matching pair of quarters, laces across', () => {
+    const W = wearFootwear(stub, { family: 'sneaker', sock: { height: 'shoe' }, sole: { thick: 0.01, welt: 0.003 },
+      adorn: [{ prim: 'panel', region: 'tongue', rise: 0.01 }, { prim: 'panel', region: 'quarter' }, { prim: 'panel', region: 'eyestay', lift: 0.004 }, { prim: 'laces', rows: 4 }] }, { id: 'snk' });
+    const pts = (P) => P.stations.flatMap((st) => Object.values(st.points)), xs = (P) => pts(P).map((p) => p[0] - 0.1);
+    const T = W.parts.snkTongue_footR;
+    expect(Math.max(...pts(T).map((p) => p[2]))).toBeGreaterThan(0.06);   // on top, over the instep
+    expect(T.stations.length).toBe(stub.bare('footR').stations.filter((st) => st.u <= 2 * 0.84 + 1e-9).length + 1);   // and risen past its first ring
+    // the quarters a matching pair, the lateral on the right foot's outer (+x) side, the medial mirrored
+    const lat = W.parts.snkQuarterLat_footR, med = W.parts.snkQuarterMed_footR;
+    expect(Math.min(...xs(lat))).toBeGreaterThan(0);
+    expect(Math.max(...xs(med))).toBeLessThan(0);
+    expect(Math.abs(Math.max(...xs(lat)) + Math.min(...xs(med)))).toBeLessThan(1e-6);
+    expect(Math.max(...xs(T).map(Math.abs))).toBeLessThan(Math.max(...xs(lat)));   // the tongue down the centre, narrower than the sides
+    expect([lat.group, T.group, W.parts.snkEyestayLat_footR.group]).toEqual(['Overlay', 'Tongue', 'Eyestay']);
+    const laces = Object.keys(W.parts).filter((k) => k.startsWith('snkLace'));
+    expect(laces.length).toBe(6);   // two bars between each of the four rows
+    for (const k of laces) { expect(W.parts[k].group).toBe('Lace'); expect(Math.min(...pts(W.parts[k]).map((p) => p[2]))).toBeGreaterThan(0.045); }   // over the top half
+    const A = auditLayered(compileLayered({ schema: 'layered-v1', frame: { up: 'z' }, dials: {}, parts: { t: { ...T, bind: undefined }, q: { ...lat, bind: undefined } } }, {}, { details: false, creases: false }));
+    for (const k of ['t', 'q']) { expect(A[k].pass, k).toBe(true); expect(A[k].windingErrors, k).toBe(0); }
+  });
+
   it('refuses a card by name', () => {
+    expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'heelTab' }] })[0]).toMatch(/region: one of tongue, eyestay/);
     expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);

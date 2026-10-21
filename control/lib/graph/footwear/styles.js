@@ -12,6 +12,9 @@
 //             band    { on, at, width? } a thin ring of gilding
 //             cuff    { width?, lift? } a turned band at the sock's collar
 //             toeCap  { lift?, rivets? (every n-th point of its back edge) } the half teacup: a quarter egg, toe base to tip
+//             panel   { region (cobbler.js COBBLER_REGIONS, or { along, around, sides }), on?, lift?, thick?, rise? } a
+//                     pattern piece on the sock, a matching pair where the region has two sides
+//             laces   { rows?, lift?, w? } criss-cross between the eyestays
 //           any of them `group` (its colour's name) over its own
 //   tones   { <group>: '#hex' } over FOOTWEAR_TONES, for the groups the card uses
 export const FOOTWEAR = Object.freeze({
@@ -27,18 +30,23 @@ export const FOOTWEAR = Object.freeze({
   adventurerBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.35, thick: 0.008 }, sole: { thick: 0.014, welt: 0.005 },
     adorn: [{ prim: 'cuff', width: 0.03 }, { prim: 'band', on: 'shank', at: 0.8, width: 0.008 }, { prim: 'strap', on: 'foot', at: 0.6, buckle: true }],
     tones: { Shoes: '#5a3e2b', Cuff: '#3f2a1d' } },
-  // SNEAKERS. The court shoe: a low sock, a tall white cupsole on a thin gum outsole, a rubber bumper over the toe
+  // SNEAKERS, cut as a cobbler cuts them: the tongue down the instep (standing above the collar), the eyestays either side
+  // and the laces across them, a matching overlay on each quarter, the heel counter, a padded collar, a toe bumper.
+  // The court shoe: a tall white cupsole on a thin gum outsole
   sneakers: { family: 'sneaker', sock: { height: 'shoe', collar: 0.1, thick: 0.005 },
     sole: { layers: [{ thick: 0.004, welt: 0.004, group: 'Outsole' }, { thick: 0.02, welt: 0.005, group: 'Midsole' }] },
-    adorn: [{ prim: 'toeCap', lift: 0.002, group: 'Midsole' }],
-    tones: { Shoes: '#ecebe6', Midsole: '#f6f5f0', Outsole: '#b5814a' } },
-  // the runner: a foam midsole with an air pod at the heel, a contrast stripe over it, a rubber outsole
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.003, rise: 0.014 }, { prim: 'panel', region: 'eyestay', lift: 0.004 }, { prim: 'laces', rows: 7 },
+      { prim: 'panel', region: 'quarter', lift: 0.003 }, { prim: 'panel', region: 'counter', lift: 0.003 }, { prim: 'cuff', width: 0.018, lift: 0.006 },
+      { prim: 'toeCap', lift: 0.002, group: 'Midsole' }],
+    tones: { Shoes: '#ecebe6', Midsole: '#f6f5f0', Outsole: '#b5814a', Overlay: '#1f4e8c', Counter: '#1f4e8c', Eyestay: '#e4e2dc', Tongue: '#ecebe6', Cuff: '#1f4e8c' } },
+  // the runner: a foam midsole with an air pod at the heel, a contrast stripe over it, a rubber outsole; the same cut
   runners: { family: 'sneaker', sock: { height: 'shoe', collar: 0.12, thick: 0.005 },
     sole: { layers: [{ thick: 0.005, welt: 0.004, group: 'Outsole' }, { thick: 0.018, welt: 0.006, group: 'Midsole', pod: { from: 0, to: 0.35 } }, { thick: 0.004, welt: 0.005, group: 'Stripe' }] },
-    adorn: [{ prim: 'toeCap', lift: 0.002, group: 'Outsole' }],
-    tones: { Shoes: '#2f3a4a', Midsole: '#f2f1ec', Outsole: '#262626', Stripe: '#e2552d', Air: '#9fd3e6' } },
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.003, rise: 0.012 }, { prim: 'panel', region: 'eyestay', lift: 0.004 }, { prim: 'laces', rows: 7 },
+      { prim: 'panel', region: 'quarter', lift: 0.003, group: 'Stripe' }, { prim: 'panel', region: 'counter', lift: 0.003 }, { prim: 'toeCap', lift: 0.002, group: 'Outsole' }],
+    tones: { Shoes: '#2f3a4a', Midsole: '#f2f1ec', Outsole: '#262626', Stripe: '#e2552d', Air: '#9fd3e6', Counter: '#262626', Eyestay: '#262626', Tongue: '#2f3a4a', Lace: '#f2f1ec' } },
 });
 for (const c of Object.values(FOOTWEAR)) Object.freeze(c);
 /** the colours of the groups footwear adds, for a palette that names none (a card's own tones over these) */
 export const FOOTWEAR_TONES = Object.freeze({ Sole: '#2a2420', Strap: '#4b3324', Brass: '#a8843f', Steel: '#8d9299', Gilt: '#c9a646', Cuff: '#4b3324',
-  Midsole: '#f2f1ec', Outsole: '#2b2b2b', Stripe: '#c8402a', Air: '#a8d8e8' });
+  Midsole: '#f2f1ec', Outsole: '#2b2b2b', Stripe: '#c8402a', Air: '#a8d8e8', Tongue: '#d9d6cf', Eyestay: '#c9c5bd', Overlay: '#b9b4ab', Counter: '#b9b4ab', Lace: '#f4f3ef' });

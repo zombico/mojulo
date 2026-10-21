@@ -13,5 +13,9 @@
 //   5. AN ADORNMENT IS A PRIMITIVE IN ITS OWN GROUP. A steel toe is a quarter egg over the toes, toe base to tip (the half
 //      teacup), in Steel, rivets along its back edge; gilding a thin band in Gilt; a cuff a turned band at the collar.
 //      Each takes the weights of the layer under it, so it moves as that does.
-//   6. A CARD'S TONES ARE SUGGESTIONS. They fill only the groups the card uses, under the operator's own palette.
+//   6. CUT AS A COBBLER CUTS. The upper is pattern pieces (cobbler.js): the tongue down the instep under the lacing, the
+//      eyestays either side of it, the vamp over the forefoot, the quarters at the sides, the counter round the heel, the
+//      foxing along the sole. A piece with two sides comes as a MATCHING PAIR, lateral and medial; laces cross between the
+//      eyestays over the tongue. A sneaker reads as one by its cut, not by its colour.
+//   7. A CARD'S TONES ARE SUGGESTIONS. They fill only the groups the card uses, under the operator's own palette.
 export const FOOTWEAR_LAWS_VERSION = 1;

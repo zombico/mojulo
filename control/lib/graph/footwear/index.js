@@ -19,3 +19,4 @@
 export { wearFootwear, validateFootwear, footwearCard, ADORN_PRIMS, FOOTWEAR_FAMILIES, SOLE_PATTERNS } from './expand.js';
 export { FOOTWEAR, FOOTWEAR_TONES } from './styles.js';
 export { FOOTWEAR_LAWS_VERSION } from './principles.js';
+export { COBBLER_REGIONS, REGION_SIDES } from './cobbler.js';
