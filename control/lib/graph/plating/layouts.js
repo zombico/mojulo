@@ -5,7 +5,7 @@
 // either side fit along them; chevrons narrowing down the front; an underplate showing through the windows the overplates
 // leave.
 //
-// A panel: { id, seg, layer: under | mid | over | cap | light, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
+// A panel: { id, seg, layer: under | mid | over | cap | light | joint, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
 //            mirror? (a copy on the other side: s negated), dome? (m), lift? (m, over the layer's: a light set on a cap),
 //            role? (its colour's role over the layer's) }
 // LAYERS set each layer's height off the shell, its depth and its bevel (a card's `bulk` scales the heights).
@@ -15,6 +15,7 @@ export const LAYERS = Object.freeze({
   over: Object.freeze({ lift: 0.0105, thick: 0.004, bevel: 0.003, role: 'Plate' }),
   cap: Object.freeze({ lift: 0.0135, thick: 0.004, bevel: 0.003, role: 'Plate' }),
   light: Object.freeze({ lift: 0.012, thick: 0.002, bevel: 0.0005, role: 'Light' }),
+  joint: Object.freeze({ lift: 0.0065, thick: 0.003, bevel: 0.0015, role: 'Joint' }),
 });
 
 import { stepped } from './shell.js';
@@ -23,7 +24,7 @@ const line = (s, t0 = 0, t1 = 1) => [[t0, s], [t1, s]];
 /** a pair of jogs a whole layout shares (a seam that steps out, runs on, steps back), so its neighbours fit along it */
 const J = { a: [0.3, 0.36], b: [0.58, 0.64] };
 
-export const LAYOUTS = Object.freeze({
+const BASE = {
   // the GREAVE: an underplate all round to a back seam; a shin plate narrowing down the front in a chevron; side plates
   // sweeping forward to the ankle, a window of underplate between them and the shin plate with a trim strip in it; calf
   // plates a layer higher, overlapping the sides; a cuff over the ankle; vents
@@ -41,6 +42,14 @@ export const LAYOUTS = Object.freeze({
     { id: 'Cuff', seg: 'shank', layer: 'over', t: [0.86, 0.98], left: line(-0.99, 0.86, 0.98), right: line(0.99, 0.86, 0.98) },
     { id: 'Vent', seg: 'shank', layer: 'light', lift: 0.016, mirror: true, t: [0.13, 0.17], left: line(0.82), right: line(0.92) },
   ],
+  // the JOINTS: two narrow bands round each joint, articulated (the lames a joint bends under), where the suit is not plated:
+  // the shoulder under the deltoid, the elbow, the wrist, the waist, the hip and the groin, the back of the knee
+  joints: [
+    ...[['upperArm', [[0.02, 0.09], [0.11, 0.18]]], ['upperArm', [[0.85, 0.915], [0.935, 0.995]]], ['foreArm', [[0.01, 0.07], [0.09, 0.15]]], ['foreArm', [[0.88, 0.935], [0.95, 0.995]]],
+      ['torso', [[0.005, 0.05], [0.065, 0.11]]], ['pelvis', [[0.9, 0.945], [0.955, 0.995]]], ['pelvis', [[0.01, 0.08], [0.1, 0.17]]],
+      ['thigh', [[0.01, 0.06], [0.075, 0.125]]], ['thigh', [[0.86, 0.915], [0.935, 0.995]]]]
+      .flatMap(([seg, bands], k) => bands.map((t, i) => ({ id: `${seg[0].toUpperCase()}${seg.slice(1)}${k}${i}`, seg, layer: 'joint', t, left: line(-0.995), right: line(0.995) }))),
+  ],
   // the KNEE CAP: a domed cap over the top of the shank, chevroned below
   kneeCap: [
     { id: 'Cap', seg: 'shank', layer: 'cap', dome: 0.008, t: [0.0, 0.14], left: [[0, -0.36], [0.14, -0.14]], right: [[0, 0.36], [0.14, 0.14]] },
@@ -53,4 +62,6 @@ export const LAYOUTS = Object.freeze({
     { id: 'Side', seg: 'foot', layer: 'over', mirror: true, t: [0.18, 0.9], left: stepped(0.36, [[0.48, 0.54, 0.1], [0.7, 0.76, 0.02]], 0.18, 0.9), right: line(0.72, 0.18, 0.9) },
     { id: 'Heel', seg: 'foot', layer: 'cap', mirror: true, t: [0.04, 0.34], left: stepped(0.78, [[0.18, 0.24, -0.06]], 0.04, 0.34), right: line(0.995, 0.04, 0.34) },
   ],
-});
+};
+/** the layouts by name (greaveFront: the greave without its drawn calf plate, for a suit that cuts the calf by its muscles) */
+export const LAYOUTS = Object.freeze({ ...BASE, greaveFront: BASE.greave.filter((p) => p.id !== 'Calf') });

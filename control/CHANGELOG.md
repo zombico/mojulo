@@ -167,7 +167,12 @@ each plate's edges the boundaries between its muscle and its neighbours' (at the
 share them), STRAIGHTENED (`straighten`: held straight, jogging only where the groove moves and holds), so the seams fall
 in the grooves in the stepped style; each group its layer and colour role, an underplate under each segment. A suit's
 `muscles: { on, only?, bulk?, seam? }`. The suit `markSuit`: the trunk, the arms and the thighs cut by their muscles, the
-greaves, knee caps and sabatons below, a reactor on the sternum. Layouts `greave` (a chevron shin plate, side
+greaves, knee caps and sabatons below, a reactor on the sternum. The JOINTS banded (`joints`: two narrow articulated
+bands at the shoulder, the elbow, the wrist, the waist, the hip and the groin, the back of the knee; the armpit a banded
+group), the grooves wider (14 mm), the calf cut by its muscles (the gastrocnemius's two heads and the soleus, under the
+greave's front, `greaveFront`); the labels eased before the cut (a point takes the group most of its neighbours share);
+a point inside another part's skin (`hidden`) left out, and each segment's underplate and joint bands kept to the stretch
+of it that shows, so the inner of two overlapping skins does not poke through. Layouts `greave` (a chevron shin plate, side
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
 suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
 its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.

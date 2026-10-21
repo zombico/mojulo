@@ -126,15 +126,27 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
   }
   // 2b SHELLS: each layout's panels cut from the fair shell of their segment (shell.js), on both limbs, a mirrored panel's
   // copy on the other side; stacked by their layers, so an overplate's window shows the underplate
-  const fair = {};
+  const fair = {}, underlaid = new Set();
+  // (each segment's SHOWING stretch: its rings most of whose points no other part's skin covers, `t` shares; a segment's
+  // underplate and joint bands kept to it, so the inner of two overlapping skins does not poke through the outer)
+  const shows = {};
+  const showing = (seg, kind, P) => (shows[seg] ??= (() => {
+    if (!A.hidden) return [0, 1];
+    const vis = P.stations.map((st) => P.slots.filter((sl) => !A.hidden(seg, st.id, sl)).length > P.slots.length / 2), U = P.stations.map((st, i) => (st.u ?? i) / A.u(kind, 1));
+    const i0 = vis.indexOf(true), i1 = vis.lastIndexOf(true); return i0 < 0 ? null : [U[i0], U[i1]];
+  })());
   for (const x of C.shells ?? []) {
     const name = typeof x === 'string' ? x : x.layout, bulk = (typeof x === 'object' && x.bulk) || 1, Name = name[0].toUpperCase() + name.slice(1);
-    for (const pn of LAYOUTS[name]) for (const S of A.sides) {
-      const seg = `${pn.seg}${S}`, P = on(seg); if (!P) continue;
+    for (const pn of LAYOUTS[name]) for (const S of TRUNK.includes(pn.seg) ? ['R'] : A.sides) {
+      const seg = TRUNK.includes(pn.seg) ? pn.seg : `${pn.seg}${S}`, P = on(seg); if (!P) continue;
+      if (pn.layer === 'under') underlaid.add(seg);
       const F = (fair[seg] ??= fairShell(P)), fOf = slotOf(P.slots.length, S), uOf = (t) => A.u(pn.seg, t), Ly = LAYERS[pn.layer];
+      // (an underplate or a joint band kept to the stretch of its segment that shows)
+      let t = pn.t;
+      if (pn.layer === 'under' || pn.layer === 'joint') { const v = showing(seg, pn.seg, P); if (!v) continue; t = [Math.max(t[0], v[0]), Math.min(t[1], v[1])]; if (t[1] - t[0] < 0.02) continue; }
       const copies = pn.mirror ? [['Lat', pn.left, pn.right], ['Med', pn.right.map(([t, v]) => [t, -v]), pn.left.map(([t, v]) => [t, -v])]] : [['', pn.left, pn.right]];
       for (const [tag, left, right] of copies) {
-        const pc = shellPanel(F, { t0: pn.t[0], t1: pn.t[1], left, right, lift: (pn.lift ?? Ly.lift) * bulk, thick: Ly.thick, bevel: Ly.bevel, dome: pn.dome ?? 0, uOf, fOf }); if (!pc) continue;
+        const pc = shellPanel(F, { t0: t[0], t1: t[1], left, right, lift: (pn.lift ?? Ly.lift) * bulk, thick: Ly.thick, bevel: Ly.bevel, dome: pn.dome ?? 0, uOf, fOf }); if (!pc) continue;
         put(`${id}${Name}${pn.id}${tag}_${seg}`, { ...pc, group: pn.role ?? Ly.role, bind: bindNearest(pc, P) });
       }
     }
@@ -147,10 +159,12 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
       for (const S of trunk ? ['R'] : A.sides) {
         const seg = trunk ? kind : `${kind}${S}`, P = on(seg); if (!P) continue;
         const F = (fair[seg] ??= fairShell(P)), fOf = slotOf(P.slots.length, S), uOf = (t) => A.u(kind, t), Name = kind[0].toUpperCase() + kind.slice(1);
-        const panels = [{ id: 'Under', layer: 'under', t: [0.02, 0.98], left: [[0, -0.995], [1, -0.995]], right: [[0, 0.995], [1, 0.995]] },
+        // (an underplate, unless a designed shell already lays the segment's)
+        const v = showing(seg, kind, P); if (!v) continue;
+        const panels = [...(underlaid.has(seg) ? [] : [{ id: 'Under', layer: 'under', t: [Math.max(0.02, v[0]), Math.min(0.98, v[1])], left: [[0, -0.995], [1, -0.995]], right: [[0, 0.995], [1, 0.995]] }]),
           ...muscleLayout(P, (st, sl) => A.muscle(seg, st, sl), S, { groups, uMax, trunk })];
         for (const pn of panels) {
-          const Ly = LAYERS[pn.layer], pc = shellPanel(F, { t0: pn.t[0], t1: pn.t[1], left: pn.left, right: pn.right, lift: Ly.lift * bulk, thick: Ly.thick, bevel: Ly.bevel, seam: M.seam ?? 0.009, uOf, fOf });
+          const Ly = LAYERS[pn.layer], pc = shellPanel(F, { t0: pn.t[0], t1: pn.t[1], left: pn.left, right: pn.right, lift: Ly.lift * bulk, thick: Ly.thick, bevel: Ly.bevel, seam: pn.layer === 'under' ? 0.004 : M.seam ?? 0.014, uOf, fOf });
           if (pc) put(`${id}${Name}${pn.id}_${seg}`, { ...pc, group: pn.role ?? Ly.role, bind: bindNearest(pc, P) });
         }
       }

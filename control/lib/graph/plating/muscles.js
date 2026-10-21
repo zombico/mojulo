@@ -4,7 +4,8 @@
 // plate's edges are the boundaries between its muscle and its neighbours', so the seams fall in the grooves. Each edge is
 // then STRAIGHTENED in the suit's style (shell.js `stepped`): held straight, jogging only where the groove moves a slot or
 // two and holds there, so a line bends yet stays straight; neighbours read the same boundary through the same rule, so
-// they jog together and fit. The bone between masses (the tibia's face, the humerus's) is left to the underplate.
+// they jog together and fit. The labels are eased first (a point takes the group most of its neighbours share), so a
+// muscle reads as one clean region. The bone between masses (the tibia's face, the humerus's) is left to the underplate.
 //
 //   muscleLayout(P, label, S, { groups, uMax, trunk }) → panels in layouts.js's form, the segment's own, for side `S`
 //                                                (a pair tagged Lat / Med on a limb, R / L on the trunk)
@@ -12,7 +13,8 @@
 // Pure and deterministic.
 
 /** each segment's PLATE GROUPS: a plate's id, the muscles it gathers (by id, or by a chain's stem: `biceps` its beads),
- * its layer (layouts.js LAYERS), its colour's `role` over the layer's, its `min` width (in slots) to be a plate at all */
+ * its layer (layouts.js LAYERS), its colour's `role` over the layer's, its `min` width (in slots) to be a plate at all,
+ * its `rows` (banded down its length: an articulated joint's) */
 export const MUSCLE_GROUPS = Object.freeze({
   torso: [
     { id: 'Pec', muscles: ['pectoralSternal', 'pectoralClavicular'], layer: 'cap' },
@@ -23,6 +25,7 @@ export const MUSCLE_GROUPS = Object.freeze({
     { id: 'Lat', muscles: ['latissimus'], layer: 'over' },
     { id: 'Trap', muscles: ['trapeziusUpper', 'trapeziusLower', 'infraspinatus'], layer: 'cap' },
     { id: 'Spine', muscles: ['erector'], layer: 'mid', role: 'Alloy', min: 3 },
+    { id: 'Armpit', muscles: ['axilla', 'pectoralTendon'], layer: 'mid', role: 'Joint', rows: 3 },
   ],
   pelvis: [
     { id: 'Abs4', muscles: ['rectus4'], layer: 'over', role: 'Trim' },
@@ -52,7 +55,9 @@ export const MUSCLE_GROUPS = Object.freeze({
     { id: 'Knee', muscles: ['knee', 'patella'], layer: 'cap' },
   ],
   shank: [
-    { id: 'Calf', muscles: ['gastrocnemiusMedial', 'gastrocnemiusLateral', 'soleus'], layer: 'over' },
+    { id: 'GastrocMedial', muscles: ['gastrocnemiusMedial'], layer: 'cap', min: 1 },
+    { id: 'GastrocLateral', muscles: ['gastrocnemiusLateral'], layer: 'cap', min: 1 },
+    { id: 'Soleus', muscles: ['soleus'], layer: 'over', min: 1 },
   ],
 });
 
@@ -83,8 +88,17 @@ export function muscleLayout(P, label, S, { groups, uMax, trunk = false }) {
   const n = P.slots.length, h = n / 2, gOf = groupOf(groups), lat = S === 'L' ? -1 : 1;
   // (a slot's design s: + the lateral side; the trunk reads as the right)
   const sOf = (j) => lat * (j <= h ? j / h : (j - n) / h);
-  const runs = P.stations.map((st) => {
-    const g = P.slots.map((sl) => gOf(label(st.id, sl))), out = [];
+  // (the labels EASED: a point takes the group most of its eight neighbours share, twice over, so a muscle reads as one
+  // clean region and a stray label or a flicker from ring to ring does not cut a plate)
+  let G = P.stations.map((st) => P.slots.map((sl) => gOf(label(st.id, sl))));
+  for (let pass = 0; pass < 2; pass++) G = G.map((row, k) => row.map((x, j) => {
+    const c = new Map();
+    for (let dk = -1; dk <= 1; dk++) { const R = G[k + dk]; if (!R) continue; for (let dj = -1; dj <= 1; dj++) { const v = R[(j + dj + n) % n]; c.set(v, (c.get(v) ?? 0) + 1); } }
+    let best = x, most = 0; for (const [v, m] of c) if (m > most || (m === most && v === x)) { best = v; most = m; }
+    return most >= 5 ? best : x;
+  }));
+  const runs = P.stations.map((st, si) => {
+    const g = G[si], out = [];
     // (runs round the ring, from the back slot so a run through the front stays whole; one through the back is cut there)
     for (let k = 0; k < n; k++) {
       const j = (h + k) % n; if (!g[j]) continue;
@@ -101,14 +115,16 @@ export function muscleLayout(P, label, S, { groups, uMax, trunk = false }) {
     const per = runs.map((rs) => rs.filter((r) => r.g === grp.id && r.key === key).sort((a, b) => b.hi - b.lo - (a.hi - a.lo))[0] ?? null);
     let best = [0, -1], i = 0;
     while (i < per.length) { if (!per[i]) { i++; continue; } let e = i; while (e + 1 < per.length && per[e + 1]) e++; if (e - i > best[1] - best[0]) best = [i, e]; i = e + 1; }
-    if (best[1] - best[0] < 2) continue;
+    if (best[1] - best[0] < 3) continue;
     const ks = Array.from({ length: best[1] - best[0] + 1 }, (_, q) => best[0] + q);
     if (ks.reduce((a, k) => a + per[k].hi - per[k].lo, 0) / ks.length < (grp.min ?? 1.5) / h) continue;
     const opt = { step: 1.5 / h, hold: 0.6 / h };
     const left = straighten(ks.map((k) => [U[k], per[k].lo]), opt), right = straighten(ks.map((k) => [U[k], per[k].hi]), opt);
-    const t0 = U[ks[0]], t1 = U[ks[ks.length - 1]];
-    panels.push({ id: `${grp.id}${key === 'M' ? '' : trunk ? (key === 'P' ? 'R' : 'L') : key === 'P' ? 'Lat' : 'Med'}`, layer: grp.layer, ...(grp.role ? { role: grp.role } : {}), t: [Math.min(t0, t1), Math.max(t0, t1)],
-      left: t1 >= t0 ? left : left.reverse(), right: t1 >= t0 ? right : right.reverse() });
+    const t0 = Math.min(U[ks[0]], U[ks[ks.length - 1]]), t1 = Math.max(U[ks[0]], U[ks[ks.length - 1]]), tag = key === 'M' ? '' : trunk ? (key === 'P' ? 'R' : 'L') : key === 'P' ? 'Lat' : 'Med';
+    // (banded down its length where its group says: the lames of an articulated joint)
+    const rows = grp.rows ?? 1, gap = 0.02, span = (t1 - t0 - gap * (rows - 1)) / rows;
+    for (let r = 0; r < rows; r++) panels.push({ id: `${grp.id}${rows > 1 ? r : ''}${tag}`, layer: grp.layer, ...(grp.role ? { role: grp.role } : {}),
+      t: rows > 1 ? [t0 + r * (span + gap), t0 + r * (span + gap) + span] : [t0, t1], left, right });
   }
   return panels;
 }
