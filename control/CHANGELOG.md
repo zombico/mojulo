@@ -69,6 +69,16 @@ by the tailor. Cards without them unchanged, byte for byte.
   `buttonOn`, a disc on the cloth. The wear adapter places them: the stance by the button count (two a little above the
   waist, one under it, three higher), the roll lines to the side of the neck, one row of buttons or two; a lapelled
   jacket wears no stand collar. Each part closed and wound once; a stride stretches no edge of it past 5 mm.
+- CLOSED, ONE SIDE OVER THE OTHER: a closed tailored jacket's right front lies over the left, its edge a band standing
+  on the left front from the top button to the hem. A single front is cut away below its last button (the quarters,
+  `cutOpening`, opening on the trousers, the left front's edge come out from under the right); a double front is square
+  to the hem, its edge past the left row of buttons, its left lapel going down under the right front so the two cross
+  above the buttons.
+- THE TIE (`language.tie: true`): a blade on the shirt from its collar to the belt (`bladeOn`: the knot a block, the
+  blade widening to its point), the jacket carried out over it (`clearOver`) and showing it in the V; a card's `Tie`
+  tone, else a deep red.
+- Two business cards: `business` (navy, single-breasted, two buttons, notch lapels, a burgundy tie) and
+  `doublebreasted` (charcoal, peak lapels, three rows of buttons, a navy tie over a pale blue shirt).
 
 ### The garment designer: silhouette principles over tailoring primitives
 

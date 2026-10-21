@@ -3,7 +3,7 @@
 // buckle, the trims painted on the cloth; the jacket outside the shirt and clear of the belt; an open front each piece's own; all closed and wound once; a stride flinging nothing); a
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
 // (the casual tee's), its hem turned back in to the arm; a coat's skirt (the operative's) carried down from its body;
-// a tailored front (a V, notch lapels, buttons).
+// a tailored front (a V, notch lapels, the tie, the right front over the left, buttons; double-breasted).
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -100,17 +100,32 @@ describe('an outfit card worn by the tailor', () => {
     const A = auditLayered(compileLayered(r)).outer_torso; expect(A.windingErrors).toBe(0); expect(A.boundaryEdges).toBe(0);
   }, 300_000);
 
-  it('a tailored front: the V onto the shirt, notch lapels and collar one band, two buttons, no stand collar; all closed', () => {
-    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: { id: 'two', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', collar: true, fit: 'fitted' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic', fit: 'fitted', collar: true, lapel: 'notch' }, feet: 'shoes', tuck: true }, tones: { Outer: '#1f2a44', Top: '#ffffff', Bottom: '#1f2a44' } } } }) }).recipe;
+  it('a tailored front: the V onto the shirt and the tie, notch lapels and collar one band, the right front over the left, two buttons, no stand collar; all closed', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'business' } }) }).recipe;
     expect(r.parts.outerLapel_torso).toBeTruthy(); expect(r.parts.outerCollar_neck).toBeUndefined();
     expect(Object.keys(r.parts).filter((k) => /^outerButton\d_torso$/.test(k)).length).toBe(2);
+    // (closed: the right front's edge down to the hem, the left's come out from under it below the last button)
+    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeL_torso).toBeTruthy();
+    // (the tie on the shirt, the jacket over it below the V: at the waist the jacket's front farther out than the tie)
+    const tie = r.parts.tie_torso; expect(tie).toBeTruthy();
+    const tz = Math.min(...pointsOf(tie).map((q) => q[2])) + 0.06, J0 = r.parts.outer_body, jst = J0.stations.reduce((b, st) => (Math.abs(centre(J0, st)[2] - tz) < Math.abs(centre(J0, b)[2] - tz) ? st : b));
+    const tieFront = Math.max(...pointsOf(tie).filter((q) => Math.abs(q[2] - tz) < 0.01).map((q) => Math.abs(q[1] - centre(J0, jst)[1])));
+    expect(Math.abs(jst.points.front[1] - centre(J0, jst)[1])).toBeGreaterThan(tieFront);
     // (in the V, at the chest, the jacket's front taken in under the shirt, and its faces there the shirt's)
     const J = r.parts.outer_body, T = r.parts.top_body, chest = (P) => P.stations.reduce((b, st) => (Math.abs(centre(P, st)[2] - 1.3) < Math.abs(centre(P, b)[2] - 1.3) ? st : b));
     const yJ = chest(J).points.front[1] - centre(J, chest(J))[1], yT = chest(T).points.front[1] - centre(T, chest(T))[1];
     expect(Math.abs(yJ)).toBeLessThan(Math.abs(yT));
     expect(Object.values(J.bandGroups).some((row) => row.includes('Top'))).toBe(true);
     const A = auditLayered(compileLayered(r));
-    for (const k of Object.keys(r.parts).filter((k) => /^outer/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].nonManifold, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
+    for (const k of Object.keys(r.parts).filter((k) => /^(outer|tie)/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].nonManifold, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
+  }, 300_000);
+
+  it('a double-breasted front: two rows of buttons, the right front square to the hem, no quarters cut away', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'doublebreasted' } }) }).recipe;
+    expect(Object.keys(r.parts).filter((k) => /^outerButton\d[RL]_torso$/.test(k)).length).toBe(6);
+    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeL_torso).toBeUndefined();
+    // (the edge on the wearer's left, past the left row of buttons)
+    expect(Math.max(...pointsOf(r.parts.outerEdge_torso).map((q) => q[0]))).toBeLessThan(0.02);
   }, 300_000);
 
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {

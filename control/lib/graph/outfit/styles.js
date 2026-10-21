@@ -23,6 +23,8 @@
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
 //             feet:   'boots' | 'shoes' | 'none'
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
+//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket: the realistic body's) |
+//             false
 //             focal:  'collar' | 'placket' | 'belt' (law 5; defaults to the woven top's placket, else the belt)
 //             (sleeve, hem and leg are LENGTHS words: principles.js)
 //   tones     group → '#hex': Top, Bottom, Shoes and the construction's (Trim, Placket, Button, Seam, Waistband,
@@ -157,6 +159,22 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": true, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "tones": { "Outer": "#e8eaee", "Top": "#2a2e36", "Bottom": "#2a2e36", "Shoes": "#e8eaee", "Trim": "#7fb2ff", "Leather": "#2a2e36", "Buckle": "#c9ced6" }
   },
+  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on the realistic body (a V,
+  // lapels, the right front over the left; the authored body wears the jacket as it always has)
+  business: {
+    "id": "business",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "single", "lapel": "notch", "buttons": 2 }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true },
+    "tones": { "Outer": "#1f2a44", "Top": "#f6f7f9", "Bottom": "#1f2a44", "Tie": "#6b1d2a", "Shoes": "#3b2416", "Button": "#15181f", "Leather": "#3b2416", "Buckle": "#c9a24a", "Trim": "#1f2a44" }
+  },
+  doublebreasted: {
+    "id": "doublebreasted",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 3 }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true },
+    "tones": { "Outer": "#3a3d42", "Top": "#cfdcec", "Bottom": "#3a3d42", "Tie": "#1d2b4a", "Shoes": "#141110", "Button": "#22252a", "Leather": "#141110", "Buckle": "#b9b9b9", "Trim": "#3a3d42" }
+  }
 });
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
@@ -198,6 +216,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   errs.push(...one(L.feet, FEET, `${at}.language.feet`), ...one(L.focal, FOCAL, `${at}.language.focal`));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
+  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt, the realistic body's)`);
   if (card.tones !== undefined && !(card.tones && typeof card.tones === 'object' && Object.values(card.tones).every(isHex))) errs.push(`${at}.tones: { group: '#rrggbb' }`);
   return errs;
 }
