@@ -26,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
@@ -494,7 +495,8 @@ export const WORLD_KINDS = {
     title: 'mojulo geocube',
     walk: true,
     ao: true,
-    resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+    // (a trail is walked by its dummy, local-meru/dummy.js: the one specimen that waits on a bake)
+    resolve: (m, ctx) => { const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene); return p.route ? attachDummy(p) : p; },
   },
   // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
   // them, played with the tactical camera. Not walked: the board owns the camera and the keys

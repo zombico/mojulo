@@ -714,7 +714,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const seed = manifest.seed ?? 1;
   const laid = show !== 'trail' ? low : { ...low, seed,
     meru: rollTiers({ ...low.meru, ...(low.meru.island ? { island: { ...low.meru.island, walk: 'all' } } : {}) }, seed) };
-  const payload = assemble({ ...laid, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
+  // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js)
+  const payload = assemble({ ...laid, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),

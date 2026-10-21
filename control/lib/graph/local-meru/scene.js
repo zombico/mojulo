@@ -433,6 +433,20 @@ function madeOf(kitId, seed) {
 }
 
 /** manifest → World payload, for a stage whose recipe carries a `meru` (a local meru on an isekai kit). */
+/** The route walked as a path on the land: each stretch walked laid every half metre at the ground's height, the
+ * flights and landings at their own (the shelf is cut out of the flank, under which the land falls away). */
+function groundRoute(route, heightAt) {
+  const out = [], on = (x, y) => [r5(x), r5(y), r5(heightAt(x, y))];
+  route.forEach((q, i) => {
+    if (i && q.kind === 'walk') {
+      const a = route[i - 1].at, b = q.at, n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+      for (let k = 1; k < n; k++) out.push(on(a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n));
+    }
+    out.push(q.kind === 'walk' ? on(q.at[0], q.at[1]) : q.at.map(r5));
+  });
+  return out;
+}
+
 export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   if (!st) throw new Error(`stage: meru: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
@@ -544,6 +558,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4,
       climbs: p.anchors.filter((a) => a.site === 'climb').map((a) => ({ id: a.id, base: a.from, top: a.to, N: a.N, width: 1.2, speed: 2 })) },
     anchors: p.anchors,
+    // the route walked, on the land, when the caller walks a figure on it (era/geocube.js show 'trail': its dummy)
+    ...(ctx.route ? { route: groundRoute(p.route, heightAt) } : {}),
     localMeru: {
       id: `local-meru:${p.recipe.id}`, ...(J.from ? { after: J.from } : {}),
       tiers: p.tiers.map((t) => ({ id: t.id, form: t.form, up: t.up.via, base: t.base, top: t.top })),

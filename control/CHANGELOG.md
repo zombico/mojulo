@@ -141,8 +141,16 @@ the walk and the runtime cost are read. A showcase, not a level: no goal, no her
   height, foot, summit and bulge, each spiral's turns and hand and each tower's deck drawn in a band round the cube's
   own. A roll is kept only when it breaks no law the cube's own tiers keep (the steps, landings, shelves, a tier inside
   the top below); else the next, and after eight the cube's own.
-- Planned: a dummy (an unpainted rig figure on the walkers channel) walks the route, the camera chasing it; the walk
-  hands the operator the camera.
+- **The dummy** (`local-meru/dummy.js`). A trail is walked by a stand-in: the protoform in plain clothes, its colours
+  greyed by their own light into a mannequin's, baked once and kept. It walks the island's route on the walkers
+  channel, up to the top and back down to the seam, round and round. The route is laid on the land: each walked
+  stretch every half metre at the ground's height, the flights and landings at their own (`local-meru/scene.js` emits
+  it only when the geocube asks). The walkers channel takes `follow` on one walker (`scene/channels/walkers.js`): the
+  orbit's target rides it and the camera moves with it, so the view still turns and zooms round it; a `follow` button
+  lets it go, the walk takes the camera while it is on, and the chase is seated behind the walker again after. A still
+  capture keeps its own camera. A world without `follow` emits the same bytes. The dummy adds about 4 MB to the page
+  (the clothed bake). A climb is not posed yet: the dummy slides up the ladder in its walk; none of the cubes' trails
+  has one.
 - Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
   and, on the page while the dummy walks, frame time and draw calls. `room` and `land` emit the same bytes.
 
