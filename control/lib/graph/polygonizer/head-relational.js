@@ -85,6 +85,15 @@ export const RELATIONS = Object.freeze({
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
+  // ── the harmonic shapes the ratios above do not reach: each an OFFSET from the canon, 0 the canon's own (the head as
+  // it was, byte for byte), so a face moves from a natural one and never starts from a carved one
+  chinWidth: 0,         // the mental tubercles' spread, added to the canon's 0.35 of the gonions' (− a narrower chin)
+  chinRound: 0,         // the chin's mass about the pogonion, its radius × (1 + this) (− a pointier, finer chin; its front kept)
+  dorsum: 0,            // the nose's bridge and root, their width × (1 + this) (− a finer bridge; the ridge's front kept)
+  gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
+  cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
+  masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
+  forehead: 0,          // the frontal bulb forward of its canon place / v-me (+ a more upright, rounder forehead)
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
   jawOpen: 0.17,        // the incisors' opening at full / v-me (~39 mm: a full, comfortable opening; the anatomical
                         // maximum is ~50 mm)
@@ -157,8 +166,8 @@ export function corePoints(rel = RELATIONS) {
   side('malar', zyX * 0.78, eyeY - R.malarDepth, zEye - 0.09); // the cheekbone's front (the zygomatic prominence)
   side('fz', exX + 0.01, eyeY - R.orbitRim, zG - 0.01);      // frontozygomatic: the brow's outer end
   side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
-  side('go', goX, 0.07, zSto - 0.03);                        // the jaw's corner
-  side('ment', goX * 0.35, pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
+  side('go', goX, 0.07, zSto - (0.03 + R.gonionDrop));                        // the jaw's corner
+  side('ment', goX * (0.35 + R.chinWidth), pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
   side('en', enX, eyeY + 0.025, zEye);
   side('ex', exX, eyeY - 0.02, zEye + R.canthalTilt);
   side('eye', (enX + exX) / 2, eyeY, zEye);
@@ -337,7 +346,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE VAULT — frontal, parietal and occipital bulbs along the sagittal line: the parietal's radius is the euryon's
   // bone, its top the vertex's; the frontal sits behind the brow; the occipital's back is the opisthocranion's bone
   const rP = euX - T('eu'), rF = rP * 0.82, rO = rP * 0.8;
-  const front = { x: 0, y: P.g.y - 0.035 - rF, z: P.g.z + 0.11 };
+  const front = { x: 0, y: P.g.y - 0.035 - rF + R.forehead, z: P.g.z + 0.11 };
   const crown = { x: 0, y: P.euR.y, z: 1 - T('vertex') - rP };
   const back = { x: 0, y: P.op.y + T('op') + rO, z: P.op.z + 0.02 };
   v('vault', front, crown, back, [rF, rP, rO]);
@@ -367,7 +376,9 @@ export function coreVajras(P, rel = RELATIONS) {
   // a third of the jaw's half-width out, low, and small (the mandible's front ends follow them in, at their size: made
   // smaller too, they thinned the floor of the mouth to a hole behind the lower incisors), so the chin's front rounds
   // off from the midline (out at 0.42 of it, higher and fuller, they held a flat plate 36 mm wide between two balls)
-  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05, 0.02], [J, J, J], { stepIn: true });
+  // (`chinRound`: the protuberance's radius, its centre moved forward by what it loses, so the pogonion stays put)
+  const cr = R.chinRound;
+  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05 - 0.05 * cr, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05 * (1 + cr), 0.02], [J, J, J], { stepIn: true });
   w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
   // THE BROW — an arch each side, the glabella → the supraorbital peak over the iris's outer edge → the
   // frontozygomatic: forward over the eye (`browProjection`), sweeping back to its outer end behind the eye
@@ -395,7 +406,9 @@ export function coreVajras(P, rel = RELATIONS) {
     const zy = P[`zy${s}`], go = P[`go${s}`], malar = P[`malar${s}`], ch = P[`ch${s}`], md = P[`mod${s}`], fz = P[`fz${s}`], eu = P[`eu${s}`], eye = P[`eye${s}`];
     // masseter: the arch's underside → the belly over the ramus → the jaw's corner (its insertion IS the gonion)
     const corner = [`corner${s}`];
-    soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05, 0.035], [null, ['jawHalf'], J]);
+    // (its belly's radius rides `masseter`, set in by what it gains so its inside stays put)
+    const mk = R.masseter;
+    soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05 - 0.05 * mk), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05 * (1 + mk), 0.035], [null, ['jawHalf'], J]);
     // temporalis: the temporal line on the vault → the fossa → under the arch (it fills the temple)
     soft(`temporalis${s}`, inX(at(mid(fz, eu, 0.5), { z: 0.06 }), 0.08), inX(at(mid(fz, zy, 0.55), { y: -0.03 }), 0.06), inX(at(zy, { y: 0.03, z: -0.02 }), 0.06), [0.05, 0.045, 0.025]);
     // THE CHEEK BALLOON — a water balloon of the cheek (the buccal fat and the malar pad as one mass): anchored at the
@@ -403,16 +416,17 @@ export function coreVajras(P, rel = RELATIONS) {
     // the back of the jaw and does not part from it), bulging at the cheek control point, tapering to the mouth's corner above and below it. Two vajras
     // sharing the bulge. `balloon` keeps its volume: when an action shortens it (a smile draws its ends toward the
     // cheek), its radii grow by √(rest length / length), so the cheek's lift in a smile comes from the relation.
-    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 });
+    // (`cheeks`: the balloon's fullness, its anchor's and bulge's radii)
+    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 }), bk = 1 + R.cheeks;
     // (the arms overlap end to end — their ends a corner's height apart, their radii wider than half of it — so the
     // balloon is one closed mass, not a loop with a hole through it)
     const endUp = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
-    V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
-    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { z: -0.035, y: -0.01 }), b: endLo, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
+    V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04 * bk, 0.055 * bk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
+    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { z: -0.035, y: -0.01 }), b: endLo, r: [0.04 * bk, 0.055 * bk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
     // the BELLY: the arms bend up through the bulge, so the triangle between the anchor, the bulge and the corner
     // would be empty — a third vajra through its centre fills it, and the balloon is solid
     const belly = { x: (anchor.x + bulge.x + ch.x) / 3, y: (anchor.y + bulge.y + ch.y) / 3 - 0.01, z: (anchor.z + bulge.z + ch.z) / 3 };
-    V.push({ name: `cheekBelly${s}`, a: anchor, c: inX(belly, 0.01), b: at(md, { x: -Math.sign(ch.x) * 0.008, y: -0.03 }), r: [0.04, 0.06, 0.026], group: 'soft', muscle: true, balloon: true, drive: [J, ['jawHalf'], corner] });
+    V.push({ name: `cheekBelly${s}`, a: anchor, c: inX(belly, 0.01), b: at(md, { x: -Math.sign(ch.x) * 0.008, y: -0.03 }), r: [0.04 * bk, 0.06 * bk, 0.026], group: 'soft', muscle: true, balloon: true, drive: [J, ['jawHalf'], corner] });
     // ZYGOMATICUS MAJOR — the smile's muscle: the cheekbone's side → the belly across the cheek → the mouth's corner
     // (the modiolus). At rest a thin strap under the balloon; `smile` pulls its insertion toward its origin, and as a
     // balloon it keeps its volume, so it thickens as it shortens.
@@ -486,7 +500,10 @@ export function coreVajras(P, rel = RELATIONS) {
     v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
   }
   // THE NOSE — nasion → rhinion → tip
-  v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
+  // (`dorsum`: the bridge's radii, at the root and the rhinion, their centres forward by what they lose: the ridge's
+  // front stays, the bridge narrows)
+  const dd = R.dorsum, D = 1 + dd;
+  v('nose', at(P.n, { y: -0.02 - 0.018 * dd }), at(P.rhinion, { y: -0.018 - 0.02 * dd }), at(P.prn, { y: -0.03 }), [0.018 * D, 0.02 * D, 0.03], 'nose');
   // THE NOSTRILS — one vajra each, placed from the nose's bottom (`nostrilRise`, `nostrilSet` put the alare over the
   // subnasale): the wing's base where it inserts into the lip → the alar lobule (its outer side IS the alare) → the
   // soft triangle beside the tip. Mirrored, with the columella between them; the space between a lobule and the
@@ -521,7 +538,7 @@ export function coreVajras(P, rel = RELATIONS) {
   const wallMid = {};
   for (const s of ['L', 'R']) {
     wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016, y: -0.022 });
-    v(`noseWall${s}`, at(lobule[s], { y: -0.004, z: 0.008 }), wallMid[s], at(P.rhinion, { y: -0.022 }), [0.015, 0.014, 0.012], 'nose');
+    v(`noseWall${s}`, at(lobule[s], { y: -0.004, z: 0.008 }), wallMid[s], at(P.rhinion, { y: -0.022 - 0.012 * dd }), [0.015, 0.014, 0.012 * D], 'nose');
   }
   // THE NOSE'S FLESH — one cone down the middle, narrow at the bridge and widening to the base over the wings: the
   // soft tissue over the cartilages, closing the grooves beside the ridge and the windows between each wing, its wall
@@ -530,7 +547,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // wider and fuller but no longer: the tip's projection stays its own relation, and al-al the wings'
   const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018;
   const base = { x: 0, y: P.prn.y - 0.009 - fat, z: wingTop + 0.6 * fat };
-  v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012, 0.6 * fat, fat], 'nose');
+  v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 - 0.012 * dd }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012 * D, 0.6 * fat, fat], 'nose');
   // and across it, low and forward beside the tip where the cone (set back by its radius) does not reach: a cone from
   // the window in one side (the triangle between the wing, its wall and the tip) to the other's, its ends at each
   // triangle's centre, its radius the same flesh

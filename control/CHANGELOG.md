@@ -22,6 +22,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   in the jaw's width and little else (the nose's root and dorsum, the chin's shape, the eyes' size are the male's), and
   relations alone move the eyes, the lips and the brow but cannot reach the nose's width, the chin's point or the lower
   face's taper.
+- The relational head's HARMONIC SHAPES, relations the canon's ratios did not reach (head-relational.js `RELATIONS`):
+  `chinWidth` and `chinRound` (the chin's width and its point), `dorsum` (the nose's bridge and root), `gonionDrop`
+  (the jaw's corner), `cheeks` (the cheek's fullness), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
+  Each is an offset from the canon, 0 the canon's own: a face moves from a natural one and never starts from a carved
+  one (no hollowed cheek by default), and both poles' heads are byte for byte as pinned.
+- face-harmony.js: `dimorphRelations(d)`, the relations `d` of the way from the male canon (0) to the female pole (1),
+  −0.25 … 1.5 (a Nordic heroine's bone part of the way, her features the female's); `harmonyMeasures(head)`, calipers
+  on the skin for the chin's width and its fall 10 mm out, the bridge's and the root's width, and the lower face's
+  taper (the width at the mouth and at the gonions over the zygions'). A reading, never a refusal.
 
 ### Body-part map: dress tailored to the body, not the segment
 
