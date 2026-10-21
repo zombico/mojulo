@@ -47,8 +47,10 @@ export function heroDermis(mesh, recipe, { sex = recipe.headFit?.sex ?? 'male', 
   const D = dermis && Object.isFrozen(dermis) && 'seed' in dermis ? dermis : readDermis(dermis || { from: sex, ...BODY_DERMIS[sex] });
   const partOf = (vi) => mesh.provenance[vi].part, groupOf = (fi) => mesh.groups[fi];
   const head = recipe.headFit ? headSkin(mesh, recipe, D, headPage) : null;
-  const covered = coveredSkin(mesh, recipe);
-  const body = bodyDermis(mesh, recipe, { dermis: D, sex, page, ...(head ? { neck: neckTone(head.chart, D) } : {}), ...(covered ? { shown: (vi) => !covered[vi] } : {}) });
+  // the body's islands only where its skin shows: a part painted another group (the suit's Top, the feet's Shoes) or a
+  // point under what it wears takes no texel
+  const covered = coveredSkin(mesh, recipe), shown = (vi) => recipe.parts[partOf(vi)]?.group === 'Skin' && !covered?.[vi];
+  const body = bodyDermis(mesh, recipe, { dermis: D, sex, page, ...(head ? { neck: neckTone(head.chart, D) } : {}), shown });
   const faceOf = (fi) => {
     if (groupOf(fi) !== 'Skin') return null;
     const tri = mesh.faces[fi], part = partOf(tri[0]);
@@ -103,11 +105,37 @@ export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
   return out;
 }
 
-/** the grid head's chart, layout and maps, its faces indexed locally (`local`: mesh face → chart face) */
-function headSkin(mesh, recipe, D, page) {
+/** the minted head read back into its own frame (`recipe.headFit`): its field with the ears (`H`) and without (`plain`),
+ * `stand` a hero point in the head's frame, and `shown(v)`: a head point on its surface (an ear on the ear's), not let
+ * down inside it under another part */
+function headFrame(mesh, recipe) {
   const { sex, k, ty, men } = recipe.headFit, H = relationalHead({ sex, tune: HEAD_TUNES[sex] });
   const plain = relationalHead({ sex, tune: HEAD_TUNES[sex], ears: false });
   const stand = (p) => ({ x: p[0] / k, y: (p[1] - ty) / k, z: (p[2] - men) / k });
+  const shown = (v) => (/^ear/.test(mesh.provenance[v].part) ? H : plain).field(stand(mesh.vertices[v])) * k >= -HIDDEN;
+  return { H, plain, stand, k, shown };
+}
+
+/**
+ * The realistic hero's HIDDEN points (→ a flag per mesh vertex, null without a head's fit): the head's layers let down
+ * under another of its parts (the cranium under the face, the face under the nose and the eyes, a lid's rings into the
+ * eye's opening), and the eye's globe. What the bake's occlusion leaves out of its casters (polygonizer/surface-bake.js `hidden`), as the
+ * skin's own occlusion does.
+ */
+export function heroHidden(mesh, recipe) {
+  if (!recipe.headFit) return null;
+  const { shown } = headFrame(mesh, recipe), out = new Uint8Array(mesh.vertices.length);
+  for (let v = 0; v < out.length; v++) if (HEAD.test(mesh.provenance[v].part) && !shown(v)) out[v] = 1;
+  // (and the eye's globe: lit and wet, it darkens no lid; the socket's shadow is cast by the brow and the lids)
+  mesh.faces.forEach((t, fi) => { if (GLOBE.test(mesh.groups[fi])) for (const v of t) out[v] = 1; });
+  return out;
+}
+/** the eye's globe's groups */
+export const GLOBE = /^(Sclera|Iris|Pupil)$/;
+
+/** the grid head's chart, layout and maps, its faces indexed locally (`local`: mesh face → chart face) */
+function headSkin(mesh, recipe, D, page) {
+  const { H, stand, k, shown: shownAt } = headFrame(mesh, recipe);
   // the head's faces and their points, in the head's frame (metres)
   const local = new Map(), vOf = new Map(), vertices = [], faces = [], src = [];
   mesh.faces.forEach((tri, fi) => {
@@ -126,7 +154,7 @@ function headSkin(mesh, recipe, D, page) {
   // where two cross the one on top is a little inside the field); SHOWN: on the head's surface (an ear on the ear's), not
   // let down inside it, so the layers under the face neither cast occlusion on it nor take any
   const skin = src.map((v) => !H.paint?.(stand(mesh.vertices[v])));
-  const shown = src.map((v) => { const q = stand(mesh.vertices[v]), ear = /^ear/.test(mesh.provenance[v].part); return (ear ? H : plain).field(q) * k >= -HIDDEN; });
+  const shown = src.map(shownAt);
   const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi] });
   const skinFace = faces.map((t) => t.every((vi) => skin[vi]));
   const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout);

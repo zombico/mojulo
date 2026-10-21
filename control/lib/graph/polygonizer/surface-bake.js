@@ -31,9 +31,11 @@
  *   validateBake(bake)                     error strings
  *   resolveBake(bake)                      { finish, strength } or null (absent, false, or invalid ⇒ null)
  *   finishFor(group, resolved)             the finish a palette group wears
- *   bakeChannels(mesh)                     per vertex { sky, occlusion, edge, height, rise }
+ *   bakeChannels(mesh, { hidden, normals }) per vertex { sky, occlusion, edge, height, rise } (`hidden` a flag per vertex:
+ *                                          a face hidden at every corner casts no occlusion; `normals` each face's corners'
+ *                                          own, summed for the surface's normal in place of the faces')
  *   bakeTint(mesh, bake, { glows })        per face its corners' multipliers (the face-tint shape), or null
- *   bakeSampler(mesh, bake, { glows, only })   { tint, groupTint(fi, group), characterLight }: a face's corners under any
+ *   bakeSampler(mesh, bake, { glows, only, hidden, normals })   { tint, groupTint(fi, group), characterLight }: a face's corners under any
  *                                          group's finish (`only`: a Set of the groups baked, the rest left as they are)
  *   bakePieces(pieces, mesh, tint)         the bake over the character light's pieces (only with `characterLight`)
  *   stackTints(a, b)                       two tints as one (corner by corner, the product)
@@ -59,6 +61,8 @@ export const FINISHES = Object.freeze({
   skin: Object.freeze({ sky: [[-1, 0.9], [1, 1.03]], occlusion: 0.45, edge: 0.04, height: 0.06, tint: [0.7, 1, 1] }),
   // a scaled hide: dark in the seams between scales, the scales' crowns catching light
   scale: Object.freeze({ sky: [[-1, 0.7], [0, 0.94], [1, 1.1]], occlusion: 0.9, edge: 0.4, height: 0.12, rise: 0.3, tint: [1, 1, 0.94] }),
+  // an eye's globe (the realistic hero's: polygonizer/hero-relational-head.js): wet and lit, a socket's shadow is the lids'
+  eye: Object.freeze({ sky: [[-1, 0.92], [1, 1.02]], occlusion: 0.12, edge: 0, height: 0, tint: [1, 1, 1] }),
   // anything else: a plain painted top-light
   matte: Object.freeze({ sky: [[-1, 0.8], [1, 1.05]], occlusion: 0.65, edge: 0.12, height: 0.12, tint: [1, 1, 1] }),
 });
@@ -145,7 +149,7 @@ const EDGE_LO = 32, EDGE_HI = 50;
  * Per vertex of `mesh` (its rest positions): { sky, occlusion, edge, height }, arrays by vertex index. The surface a
  * corner belongs to is its PART welded by position (a part's own seams close; a plate never borrows the body's normal).
  */
-export function bakeChannels(mesh) {
+export function bakeChannels(mesh, { hidden = null, normals = null } = {}) {
   const V = mesh.vertices, F = mesh.faces, nV = V.length, partOf = (vi) => mesh.provenance[vi].part;
   // the weld: (part, position) → one surface point
   const q = 1e-5, wid = new Int32Array(nV), ids = new Map(); let nW = 0;
@@ -158,7 +162,9 @@ export function bakeChannels(mesh) {
     const a = V[t[0]], b = V[t[1]], c = V[t[2]], n = cross(sub(b, a), sub(c, a)), l = len(n);
     C[fi] = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]; A[fi] = l / 2; N[fi] = l > 1e-14 ? [n[0] / l, n[1] / l, n[2] / l] : [0, 0, 0];
     const w = t.map((vi) => wid[vi]);
-    for (let k = 0; k < 3; k++) { const W = w[k]; nrm[W][0] += n[0]; nrm[W][1] += n[1]; nrm[W][2] += n[2]; nbr[W].add(w[(k + 1) % 3]); nbr[W].add(w[(k + 2) % 3]); }
+    // (`normals`, a face's corners' own, layeredShadingNormals's: the field's where the parts carry them, so a seam
+    // between two parts of one skin turns no corner)
+    for (let k = 0; k < 3; k++) { const W = w[k], m = normals ? normals[fi][k].map((x) => x * l) : n; nrm[W][0] += m[0]; nrm[W][1] += m[1]; nrm[W][2] += m[2]; nbr[W].add(w[(k + 1) % 3]); nbr[W].add(w[(k + 2) % 3]); }
   });
   for (let W = 0; W < nW; W++) { const l = len(nrm[W]); nrm[W] = l > 1e-14 ? [nrm[W][0] / l, nrm[W][1] / l, nrm[W][2] / l] : [0, 0, 1]; }
   // each corner's sharpest turn: the least cosine between its welded normal and a face it touches
@@ -171,7 +177,8 @@ export function bakeChannels(mesh) {
   const H = hi > lo ? hi - lo : 1, R = OCCLUSION_REACH * H, R2 = R * R;
   // the emitters' grid, cell R
   const cell = (x) => Math.floor(x / R), grid = new Map(), key = (i, j, k) => `${i},${j},${k}`;
-  for (let fi = 0; fi < F.length; fi++) { if (!(A[fi] > 0)) continue; const c = C[fi], k = key(cell(c[0]), cell(c[1]), cell(c[2])); let L = grid.get(k); if (!L) grid.set(k, L = []); L.push(fi); }
+  // (a face `hidden` at every corner, a layer let down under another part of the same skin, casts nothing: it is not seen)
+  for (let fi = 0; fi < F.length; fi++) { if (!(A[fi] > 0) || (hidden && F[fi].every((vi) => hidden[vi]))) continue; const c = C[fi], k = key(cell(c[0]), cell(c[1]), cell(c[2])); let L = grid.get(k); if (!L) grid.set(k, L = []); L.push(fi); }
   const wSky = new Float64Array(nW), wOcc = new Float64Array(nW), wEdge = new Float64Array(nW), wH = new Float64Array(nW), wRise = new Float64Array(nW);
   for (let W = 0; W < nW; W++) {
     const p = pos[W], n = nrm[W];
@@ -230,9 +237,9 @@ export function bakeTint(mesh, bake, opts = {}) { return bakeSampler(mesh, bake,
 /** The bake as a SAMPLER: `tint` (bakeTint's, each face under its own group's finish) and `groupTint(fi, group)`, face
  * `fi`'s corners under ANOTHER group's finish (a field paint cell's: a gold charge on a cloth tabard bakes as gilt), null
  * for an emissive group. The channels are read once. Null for no bake. */
-export function bakeSampler(mesh, bake, { glows = [], only = null } = {}) {
+export function bakeSampler(mesh, bake, { glows = [], only = null, hidden = null, normals = null } = {}) {
   const B = resolveBake(bake); if (!B) return null;
-  const ch = bakeChannels(mesh), lit = new Set(glows), fin = new Map();
+  const ch = bakeChannels(mesh, { hidden, normals }), lit = new Set(glows), fin = new Map();
   const groupTint = (fi, g) => {
     // `only` (a level's cloth and leather, dress-materials.js levelClothBake): every other group is left unbaked
     if (lit.has(g) || (only && !only.has(g))) return null;

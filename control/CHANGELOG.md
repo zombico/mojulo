@@ -53,7 +53,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### The hero's skin: a part of the character, shown where it shows
 
-In progress.
+- `skin` on the hero door (`form: 'realistic'`): the dermis's dials (dermal-map.js DERMIS_DIALS but `sex`, the cast's:
+  tone as an MST swatch or a hex, undertone, age, flush, freckles, oil, lines, dirt, war paint, hair colour …),
+  refused by name. `palette.Skin` is its tone when `skin` names none (both, differing: refused). The recipe carries the
+  resolved dermis (`recipe.dermis`), which the export paints, and the palette's Skin becomes its base colour
+  (dermal-map.js `skinBase`), so the page, a face no texture covers and the texture agree.
+- An OUTFIT takes the realistic body's suit off: the trunk and the limbs (painted Top and Bottom) are Skin under a
+  garment, so what it leaves bare is skin; the feet keep their shoes. Undressed, the suit as before.
+- COVERED skin off the atlas (epidermis/dermal-hero.js `coveredSkin`): a body skin point under a garment or an armour
+  (a ray out along its normal meets one carried by its bone or one within two joints, so a hand at the thigh is not
+  covered by the trousers). The body's islands (dermal-body.js `bodyChart` `shown`) are each part's runs of rings that
+  show (a sixteenth of a ring at least, a ring either side), each ring addressed on its whole part; a face off them,
+  and a part painted another group (the suit, the shoes), takes the base colour, no texel. Dressed in the fitted shirt
+  and the trousers the atlas went from 2048 × 3072 to 2048 × 2048 and the lit export from 33 s to 17 s.
+- The skin in the UNLIT export too (an export asks; the World page does not): its texel times the corner's baked light.
+- The BAKE (surface-bake.js, opt-in `bake`) on the realistic hero: its head's layers let down under one another and its
+  eyes' globes cast no occlusion (dermal-hero.js `heroHidden`; `bakeChannels` `hidden`), its surface's normals the
+  field's (`normals`), so a seam between two parts of one skin reads as none; the globes wear a new `eye` finish (a
+  wet, lit globe: the socket's shadow falls above the eye, on the lids, not in it) unless the bake names them. Every
+  other figure's bake as before.
+- The realistic hero's unlit GLB welded as its lit one is (the figure's `weld`): 17.4 MB → 4.0 MB, drawn the same.
 
 ### The realistic hero at the door
 

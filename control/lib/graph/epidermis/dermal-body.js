@@ -115,7 +115,9 @@ export function bodyChart(mesh, recipe, { partMap = null, shown = null } = {}) {
     // run. The address stays the whole part's (each ring's `along` of its length), the run offset by its first ring's.
     let runs = [[0, M - 1]];
     if (shown) {
-      const on = grid.map((row) => row.some((v) => shown(v))), keep = on.map((_, i) => on[i] || on[i - 1] || on[i + 1]);
+      // (a ring shows where a sixteenth of it does, two points at least: a stray point the cloth dips onto, or a ray only
+      // grazes, keeps the base colour rather than a run of rings)
+      const least = Math.max(2, Math.ceil(N / 16)), on = grid.map((row) => row.filter((v) => shown(v)).length >= least), keep = on.map((_, i) => on[i] || on[i - 1] || on[i + 1]);
       runs = []; for (let i = 0; i < M; i++) if (keep[i]) { if (runs.length && runs.at(-1)[1] === i - 1) runs.at(-1)[1] = i; else runs.push([i, i]); }
     }
     for (let i = 0; i < M; i++) for (let j = 0; j < N; j++) {

@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION } from '../../mcp/tools/layered.js';
+import { readDermis, skinBase } from '../epidermis/dermal-map.js';
 
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
 
@@ -49,6 +50,24 @@ describe('the realistic hero at the door', () => {
     const front = (r) => Math.max(...r.parts.torso.stations.map((s) => s.points.front[1]));
     expect(front(heavy.recipe)).toBeGreaterThan(front(m.recipe) + 0.02);
   }, 120_000);
+
+  it('wears its skin: the door\'s `skin` (the palette\'s Skin its tone when it names none) on the recipe, the palette\'s Skin its base; refused by name', () => {
+    expect(refused({ cast: 'male', skin: { tone: 7 } })).toMatch(/skin: the realistic body's skin.*add form: 'realistic'/);
+    expect(refused({ cast: 'male', form: 'realistic', skin: { sex: 'female' } })).toMatch(/skin\.sex: the skin's sex is the cast's/);
+    expect(refused({ cast: 'male', form: 'realistic', skin: { tone: 11 } })).toMatch(/skin: tone 11/);
+    expect(refused({ cast: 'male', form: 'realistic', skin: { glow: 1 } })).toMatch(/skin: unknown dial 'glow'/);
+    expect(refused({ cast: 'male', form: 'realistic', skin: { tone: 7 }, palette: { Skin: '#ffeedd' } })).toMatch(/skin\.tone and palette\.Skin both name/);
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', skin: { tone: 8, undertone: 'warm', freckles: 0.4 } }) }).recipe;
+    expect(r.dermis).toEqual({ from: 'female', tone: 8, undertone: 'warm', freckles: 0.4 });
+    expect(r.palette.Skin).toBe(skinBase(readDermis(r.dermis)));
+    const p = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', palette: { Skin: '#8d5524' } }) }).recipe;
+    expect(p.dermis.tone).toBe('#8d5524'); expect(p.palette.Skin).toBe('#8d5524');
+    // undressed, the body wears its suit (Top, Bottom, Shoes); an outfit takes it off, the body under it skin, the feet shod
+    expect(r.parts.torso.group).toBe('Top');
+    const d = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedTee'] }) }).recipe;
+    for (const k of ['torso', 'pelvis', 'foreArmR', 'thighL']) expect(d.parts[k].group, k).toBe('Skin');
+    expect(d.parts.footR.group).toBe('Shoes');
+  }, 240_000);
 
   it('dressed, wears its whole head: the parts of the face the plan has no name for kept, the fit its skin maps back by', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt'] }) }).recipe;

@@ -794,9 +794,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
   the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
-  the other words, `adorn` and `paint` are worn over the skin's envelope. A first mint takes about 40 s (the body's
-  slice and the head), then is kept. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
-  dials those).
+  the other words, `adorn` and `paint` are worn over the skin's envelope; an outfit takes off the body's suit (its
+  Top and Bottom paint), so what it leaves bare is skin. Its SKIN is the character's: `skin: { tone, undertone, age,
+  flush, freckles, oil, lines, dirt, paint, hairColour, … }` (tone an MST swatch 1–10 or a hex; `palette.Skin` is the
+  tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it
+  wears keeps the flat base colour. `bake: true` pre-bakes light into its corners (the unlit export): the head's layers
+  and the eyes' globes cast no shadow, the eyes wear the `eye` finish. A first mint takes about 40 s (the body's slice
+  and the head), then is kept. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique dials
+  those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

@@ -58,7 +58,6 @@ export const DERMIS_DIALS = Object.freeze({
   lines: '0 … 1 (the face\'s lines: the forehead\'s, the frown, crow\'s feet, the nasolabial fold, under the eyes)',
   dirt: '0 … 1 (grime in the cavities and in blotches: the road\'s)',
   paint: `a war paint: null, or { pattern: eyes | stripes | band | chin | mask, colour: a word (woad, soot, ochre, chalk, blood) or a hex, amount 0 … 1 }`,
-  makeup: `null, or { lips?, blush?, shadow?, liner? }: each a colour (a word: rose, red, berry, coral, nude, peach, plum, bronze, gold, smoke, brown, black; or a hex), or { colour, amount 0 … 1 }; under the war paint`,
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
@@ -90,7 +89,6 @@ export function readDermis(spec = 'male') {
     if (P.colour !== undefined && !(PAINT_COLOURS[P.colour] || /^#[0-9a-f]{6}$/i.test(P.colour))) throw new Error(`dermis: paint.colour (${Object.keys(PAINT_COLOURS).join(', ')} or a hex)`);
     if (P.amount !== undefined && !(P.amount >= 0 && P.amount <= 1)) throw new Error('dermis: paint.amount 0 … 1');
   }
-  if (D.makeup !== undefined && D.makeup !== null) D.makeup = readMakeup(D.makeup);
   return Object.freeze(D);
 }
 
@@ -417,27 +415,6 @@ export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairCo
 export const PAINT_PATTERNS = Object.freeze(['eyes', 'stripes', 'band', 'chin', 'mask']);
 export const PAINT_COLOURS = Object.freeze({ woad: '#2c4a86', soot: '#1c1a19', ochre: '#8c3a1e', chalk: '#e6e1d6', blood: '#6e1414' });
 export const DIRT_COLOUR = hexLin('#4a3b2c');
-export const MAKEUP_COLOURS = Object.freeze({ rose: '#b4495e', red: '#9e1b2c', berry: '#6e1f3c', coral: '#cf6250', nude: '#a87666', peach: '#de9a7c', plum: '#57294a', bronze: '#8a5a36', gold: '#b08b42', smoke: '#3b3742', brown: '#4a3427', black: '#151315' });
-/** each layer's colour and amount when only its name is given, in the order they are laid (the liner last) */
-export const MAKEUP_LAYERS = Object.freeze({ blush: { colour: 'rose', amount: 0.3 }, shadow: { colour: 'smoke', amount: 0.65 }, lips: { colour: 'rose', amount: 0.8 }, liner: { colour: 'black', amount: 0.9 } });
-
-/** a makeup spec read: each layer `{ colour (a hex), amount }`, frozen; a word or a hex alone takes the layer's amount */
-function readMakeup(m) {
-  if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`dermis: makeup ${DERMIS_DIALS.makeup}`);
-  const out = {};
-  for (const [k, v] of Object.entries(m)) {
-    if (!(k in MAKEUP_LAYERS)) throw new Error(`dermis: makeup.${k} is not a layer (have ${Object.keys(MAKEUP_LAYERS).join(', ')})`);
-    if (v === null || v === false) continue;
-    const L = typeof v === 'string' ? { colour: v } : v === true ? {} : v;
-    if (!L || typeof L !== 'object') throw new Error(`dermis: makeup.${k}: a colour or { colour, amount }`);
-    const colour = L.colour ?? MAKEUP_LAYERS[k].colour, amount = L.amount ?? MAKEUP_LAYERS[k].amount;
-    const hex = MAKEUP_COLOURS[colour] || (/^#[0-9a-f]{6}$/i.test(colour) ? colour : null);
-    if (!hex) throw new Error(`dermis: makeup.${k}.colour '${colour}' (${Object.keys(MAKEUP_COLOURS).join(', ')} or a hex)`);
-    if (!(amount >= 0 && amount <= 1)) throw new Error(`dermis: makeup.${k}.amount 0 … 1`);
-    out[k] = Object.freeze({ colour: hex, amount });
-  }
-  return Object.freeze(out);
-}
 
 /** distance from a point to a polyline (mm) */
 const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length; i++) d = Math.min(d, segD(q, pts[i], pts[i + 1])); return d; };
@@ -450,7 +427,6 @@ const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length
  */
 export function dermalDetail(A, D) {
   if (A.part !== 'head' || !A.marks) return { crease: 0, paint: null };
-  const made = D.makeup ? makeupAt(A, D) : null;
   const M = A.marks.points, q = headXY(A), sg = q.X >= 0 ? 1 : -1, P = (k) => M[k + (sg > 0 ? 'R' : 'L')], X = Math.abs(q.X);
   const line = (d, w) => Math.exp(-((d / w) ** 2));
   let crease = 0;
@@ -479,50 +455,5 @@ export function dermalDetail(A, D) {
     const a = edge(d) * (W.amount ?? 0.85);
     if (a > 0.003) paint = [...hexLin(PAINT_COLOURS[W.colour] || W.colour || PAINT_COLOURS.woad), a];
   }
-  // the war paint over the makeup (one colour and its cover: the paint's over the makeup's)
-  if (made && paint) { const a = paint[3] + made[3] * (1 - paint[3]); paint = [0, 1, 2].map((c) => (paint[c] * paint[3] + made[c] * made[3] * (1 - paint[3])) / a).concat(a); }
-  else if (made) paint = made;
   return { crease, paint };
-}
-
-/**
- * MAKEUP at a head address (`[r, g, b, alpha]`, linear; null where none), each layer over the last in MAKEUP_LAYERS'
- * order, laid by the marks (mm on the head's chart): the BLUSH a soft oval on the cheek's apex, drawn back toward the
- * temple; the SHADOW on the upper lid from the lash line up toward the brow, fading as it rises, a little past the outer
- * corner; the LIPS the lips' own outline (the lip region's: the stomion, the vermilions' heights, the mouth's corners),
- * its edge crisp; the LINER along the upper lid's edge (the corners and an arc over the eye), thickening outward and
- * flicked up past the outer corner.
- */
-function makeupAt(A, D) {
-  const M = A.marks.points, q = headXY(A), sg = q.X >= 0 ? 1 : -1, P = (k) => M[k + (sg > 0 ? 'R' : 'L')], X = Math.abs(q.X);
-  const eye = P('eye'), en = P('en'), ex = P('ex'), eyeW = Math.abs(ex.X - en.X), mk = D.makeup;
-  const layer = {
-    blush: () => {
-      const c = P('cheek'), t = 0.35, dx = X - Math.abs(c.X) - 4, dy = q.Y - c.Y - 2, u = dx * Math.cos(t) + dy * Math.sin(t), v = -dx * Math.sin(t) + dy * Math.cos(t);
-      return Math.exp(-((u / 24) ** 2) - ((v / 12) ** 2));
-    },
-    shadow: () => {
-      const lash = Math.max(en.Y, ex.Y) + eyeW * 0.12, w = Math.exp(-(((X - Math.abs(eye.X) - 2) / (eyeW * 0.72)) ** 2));
-      return w * smooth(lash - 1.5, lash + 0.5, q.Y) * (1 - smooth(lash + 4, lash + 10, q.Y));
-    },
-    lips: () => {
-      const ch = P('ch'), chW = Math.abs(ch.X) + 2, top = M.ls.Y + 1.5, bot = M.li.Y - 3, mid = M.sto.Y;
-      const y = q.Y >= mid ? (q.Y - mid) / Math.max(1, top - mid) : (mid - q.Y) / Math.max(1, mid - bot);
-      return smooth(0.6, -0.6, (Math.hypot(X / chW, y) - 1) * Math.min(chW, 6));
-    },
-    liner: () => {
-      const iX = Math.abs(en.X), oX = Math.abs(ex.X), top = Math.max(en.Y, ex.Y) + eyeW * 0.17;
-      const arc = [{ X: iX, Y: en.Y + 1 }, { X: (iX * 2 + oX) / 3, Y: top - 0.4 }, { X: (iX + oX * 2) / 3, Y: top - 0.6 }, { X: oX, Y: ex.Y + 1.2 }, { X: oX + 6, Y: ex.Y + 4 }];
-      const along = Math.max(0, Math.min(1, (X - iX) / Math.max(1, oX + 6 - iX))), w = 0.5 + 1.1 * along;
-      return smooth(w + 0.4, w - 0.4, polyD({ X, Y: q.Y }, arc));
-    },
-  };
-  let c = [0, 0, 0], a = 0;
-  for (const k of Object.keys(MAKEUP_LAYERS)) {
-    const L = mk[k]; if (!L) continue;
-    const t = layer[k]() * L.amount; if (t <= 0.003) continue;
-    const col = hexLin(L.colour), na = t + a * (1 - t);
-    c = [0, 1, 2].map((i) => (col[i] * t + c[i] * a * (1 - t)) / na); a = na;
-  }
-  return a > 0.003 ? [...c, a] : null;
 }

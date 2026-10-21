@@ -863,9 +863,10 @@ class GlbBuilder {
     // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
     // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
     let A = { P: positions, C: Float32Array.from(col), J: Uint16Array.from(jnt), W: Float32Array.from(wgt), U: uvs ? Float32Array.from(uvs) : null, N: this.lit ? (carried ? Float32Array.from(carried) : restNormals(positions, idx)) : null }, I = idx;
-    // THE WELD (the carried normals' pack, the realistic body's): its corners alike in everything one vertex (weldCorners),
-    // five or six to one on the hero; its targets' rows follow their vertex. Any other figure: every byte as before.
-    const weld = carried ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), [A.N, 3]], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
+    // THE WELD (the carried normals' pack, or a figure that asks, `weld`: the realistic body's, lit or not): its corners
+    // alike in everything one vertex (weldCorners), five or six to one on the hero; its targets' rows follow their vertex.
+    // Any other figure: every byte as before.
+    const weld = (carried || (fig.weld === true && !parents)) ? weldCorners(positions.length / 3, [[A.P, 3], [A.C, 3], [A.J, 4], [A.W, 4], ...(A.U ? [[A.U, 2]] : []), ...(A.N ? [[A.N, 3]] : [])], [[morphAt, morphRow], [corrAt, corrRow]]) : null;
     if (weld) {
       const pick = (a, w) => { if (!a) return a; const out = new a.constructor(weld.count * w); weld.keep.forEach((c, v) => { for (let k = 0; k < w; k++) out[v * w + k] = a[c * w + k]; }); return out; };
       A = { P: pick(A.P, 3), C: pick(A.C, 3), J: pick(A.J, 4), W: pick(A.W, 4), U: pick(A.U, 2), N: pick(A.N, 3) };

@@ -57,7 +57,7 @@ import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
-import { heroSkinPaint } from '@/lib/graph/epidermis/dermal-hero';
+import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
 import { planHeight } from '@/lib/graph/era/cast-density';
 /** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
@@ -701,7 +701,12 @@ export const WORLD_KINDS = {
       // (a statue carries its carving as surfaces: never a level's cloth)
       const levelG = m.hero ? m.hero.geocube : m.geocube, dressedBy = !m.bake && m.recipe?.surfaces && !m.recipe.statue && levelG ? readGeocube(levelG).materials : undefined;
       const levelBake = dressedBy !== undefined && dressedBy !== false ? levelClothBake(m.recipe.surfaces, Object.keys(m.hero ? m.recipe.palette || {} : recipeTones(m.recipe))) : null;
-      const bakeS = m.bake ? bakeSampler(mesh, m.bake, { glows: m.recipe?.emissive }) : levelBake ? bakeSampler(mesh, { finish: levelBake.finish }, { glows: m.recipe?.emissive, only: levelBake.only }) : null, baked = bakeS?.tint ?? null;
+      // (the REALISTIC HERO, its head parts: its layers let down under one another and its eyes' globes cast no occlusion,
+      // epidermis/dermal-hero.js heroHidden; its surface's normals the field's, so a seam between two parts of its skin
+      // reads as none; its globes in the `eye` finish unless the bake names them)
+      const realBake = m.bake && m.hero?.form === 'realistic' && m.recipe.headFit ? (m.bake === true ? {} : m.bake) : null;
+      const bakeIn = realBake ? { ...realBake, finish: { ...Object.fromEntries(['Sclera', 'Iris', 'Pupil'].map((g) => [g, 'eye'])), ...(realBake.finish || {}) } } : m.bake;
+      const bakeS = m.bake ? bakeSampler(mesh, bakeIn, { glows: m.recipe?.emissive, ...(realBake ? { hidden: heroHidden(mesh, m.recipe), normals: layeredShadingNormals(mesh, m.recipe, { crease, proxy: false }) } : {}) }) : levelBake ? bakeSampler(mesh, { finish: levelBake.finish }, { glows: m.recipe?.emissive, only: levelBake.only }) : null, baked = bakeS?.tint ?? null;
       const under = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
       const tint = stackTints(under, baked);
       // a field paint cell bakes under its OWN group's finish (a gold charge on a cloth tabard as gilt), over the same tint
@@ -790,9 +795,10 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, under the lit export: its body's and its head's dermal maps
-        // on one atlas, the GLB's base colour; absent the lit export or a head's fit, as before)
-        const heroSkin = light.flat && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe, m.recipe.dermis ? { dermis: m.recipe.dermis } : {}) : null;
+        // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, in an export: its body's and its head's dermal maps on one
+        // atlas, the GLB's base colour, under the lit export's plain corners or the unlit's baked light; the World page
+        // never asks; absent an export or a head's fit, as before)
+        const heroSkin = (light.flat || ctx.face) && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe, m.recipe.dermis ? { dermis: m.recipe.dermis } : {}) : null;
         const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
@@ -809,7 +815,8 @@ export const WORLD_KINDS = {
         const engineLit = light.flat && m.hero?.form === 'realistic' && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
-        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
+        // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
+        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
         // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a

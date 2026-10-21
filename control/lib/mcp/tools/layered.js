@@ -603,7 +603,7 @@ function realisticErrors(spec) {
   const errs = [], R = spec.form === 'realistic';
   if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
   if (spec.head === 'relational' && !R) errs.push("head: the relational head is worn by the realistic body; add form: 'realistic'");
-  if (spec.skin !== undefined && spec.skin !== null && !R) errs.push("skin: the realistic body's skin (its tone, its look, its makeup); add form: 'realistic' (another form's skin colour is palette: { Skin })");
+  if (spec.skin !== undefined && spec.skin !== null && !R) errs.push("skin: the realistic body's skin (its tone and its look: undertone, age, freckles, lines, war paint …); add form: 'realistic' (another form's skin colour is palette: { Skin })");
   if (!R) return errs;
   if (spec.skin !== undefined && spec.skin !== null) {
     const k = spec.skin;
