@@ -135,3 +135,26 @@ describe('a wall of lime render', () => {
     expect(() => normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut: 'render', loss: 2 })).toThrow(/loss/);
   });
 });
+
+describe('roofs and timber', () => {
+  it('tiles and slates lie in courses down the slope, boards run up the wall: each seamless and its own bytes', () => {
+    for (const cut of ['tile', 'slate', 'boards']) {
+      const T = dressedTile({ ...CFG, cut, rows: 8, cols: 6, metres: 1 }, { size: 128, seed: 3 });
+      // (row by row, the step across the edge no bigger than the biggest step inside the row: a course's joint may fall on
+      // the edge, and a joint is a step like any inside it)
+      let over = 0;
+      for (let j = 0; j < T.H; j++) {
+        let most = 0;
+        for (let i = 1; i < T.W; i++) most = Math.max(most, Math.abs(lum(T, i, j) - lum(T, i - 1, j)));
+        if (Math.abs(lum(T, T.W - 1, j) - lum(T, 0, j)) > 1.25 * most + 4) over++;
+      }
+      expect(over, cut).toBe(0);
+      expect(Buffer.compare(dressedTile({ ...CFG, cut, rows: 8, cols: 6, metres: 1 }, { size: 128, seed: 3 }).rgb, T.rgb), cut).toBe(0);
+    }
+    // a board's grain runs up it: a step down the wall changes it less than a step across
+    const B = dressedTile({ ...CFG, cut: 'boards', cols: 6, metres: 1 }, { size: 128, seed: 3 });
+    let down = 0, across = 0;
+    for (let j = 0; j < B.H - 1; j++) for (let i = 0; i < B.W - 1; i++) { down += Math.abs(lum(B, i, j + 1) - lum(B, i, j)); across += Math.abs(lum(B, i + 1, j) - lum(B, i, j)); }
+    expect(down).toBeLessThan(across);
+  });
+});

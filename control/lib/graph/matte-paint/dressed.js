@@ -24,6 +24,13 @@
  * behind it; each patch's edge a broken lip that casts its shadow onto the stone, the stone in the hollow dirtier than
  * the coat. `render` is the coat's colour (the stone's, lifted, by default).
  *
+ * A ROOF and a TIMBER WALL, for a town's houses: `cut: 'tile'` clay tiles in courses (`rows` a repeat, `cols` tiles a
+ * course), each course's lower edge lapping proud over the one below it and casting its shadow down onto it, each tile
+ * rolled across like a pantile, its edge ragged, its tone its own, lichen at grit; `cut: 'slate'` thin flat slates the
+ * same way, half-bonded course to course, each laid a little askew; `cut: 'boards'` vertical boards (`cols` a repeat)
+ * with gaps between them, a grain running up each, knots, and the weather streaked down. Tile space is the roof's: v up
+ * the slope, so the light from above (up the slope) finds each lap's edge.
+ *
  * SEAMLESS by construction: whole courses and whole blocks a repeat (a course's breaks wrap round its length), every
  * block painted in its own coordinates and laid whole, wrapping round the edge it crosses, and the light's march and
  * cavity wrapped (light.js `tile`). Pure: the seed's dice only; the same cfg and seed paint the same bytes.
@@ -48,6 +55,8 @@ const rampAt = (R, t) => { const x = clamp(t, 0, 1) * (R.length - 1), i = Math.m
 export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   const cut = cfgIn.cut ?? 'ashlar';
   if (cut === 'fluted' || cut === 'shaft') return shaftTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+  if (cut === 'tile' || cut === 'slate') return roofTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+  if (cut === 'boards') return boardsTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, g = c.grit;
   const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
   if (cut === 'render') return renderTile(c, { W, H, px, height, owner, lx, ly, blocks }, seed);
@@ -209,6 +218,67 @@ function shaftTile(c, size, seed) {
     // the weather: streaks running down the shaft (long in y, narrow in x), a broad mottle, dirt in the hollows
     const streak = Math.max(0, pfbm(x, y, M, 0.18, 1.5, 2, seed + 11) - 0.15) * (0.1 + 0.12 * g), mot = 0.08 * pfbm(x, y, M, 0.35, 0.35, 4, seed + 13) + 0.03 * pfbm(x, y, M, 0.05, 0.05, 2, seed + 17);
     const col = rampAt(stone, 0.56 + (lit.value[k] - 1) * 1.2 + mot - streak - 0.25 * lit.cavity[k] * (0.4 + 0.6 * g) + 0.05 * arris[k]);
+    rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
+  }
+  return { rgb, W, H };
+}
+
+/** A roof's repeat: tiles or slates in lapped courses. */
+function roofTile(c, size, seed) {
+  const W = size, H = size, M = c.metres, px = M / size, g = c.grit, slate = c.cut === 'slate';
+  const hc = M / c.rows, tw = M / c.cols, lap = slate ? 0.007 : 0.016, roll = slate ? 0 : 0.028, gap = slate ? 0.005 : 0.003;
+  const height = new Float32Array(W * H), tone = new Float32Array(W * H), edge = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i, r = Math.floor(y / hc);
+    // the course: half-bonded for slate, the tiles' columns kept for pantiles (a few centimetres' slip)
+    const shift = slate ? (r % 2) * tw / 2 : (hash01(r % c.rows, 1, seed) - 0.5) * 0.15 * tw;
+    const xi = x + shift, col = ((Math.floor(xi / tw) % c.cols) + c.cols) % c.cols, fx = xi / tw - Math.floor(xi / tw);
+    // the lower edge ragged a little, each tile its own; fy from 0 at the course's top (under the one above) to 1 at its edge
+    const rag = (hash01(r % c.rows, col, seed + 3) - 0.5) * 0.12 * hc + (slate ? 0.004 * pnoise(fx * 3, r, 3, c.rows, seed + 5) : 0);
+    const fy = clamp((y - r * hc) / (hc + rag), 0, 1);
+    let z = lap * fy ** 0.75 + roll * Math.cos(Math.PI * (2 * fx - 1)) * 0.5;
+    // a slate laid a little askew; the joint between two tiles a dark slot
+    if (slate) z += 0.0025 * (hash01(r % c.rows, col, seed + 7) - 0.5) * (fx - 0.5) * 2;
+    const dj = Math.min(fx, 1 - fx) * tw;
+    if (dj < gap) z -= 0.004 * (1 - dj / gap);
+    height[k] = z; tone[k] = (hash01(r % c.rows, col, seed + 9) - 0.5) * 2 * c.vary / 255; edge[k] = fy;
+  }
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, LIGHT);
+  const body = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3), lichen = [176, 178, 120];
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
+    const mot = 0.06 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 11) + 0.03 * sfbm(x, y, M, 0.04, 0.04, 2, seed + 13);
+    // the weather darker toward each course's exposed foot, lichen in spots at grit
+    let col = rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + tone[k] + mot - 0.05 * edge[k] * (0.3 + g) - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
+    // (lichen a fine speckle, gathered toward each course's exposed foot where the wet sits: a blotch thresholded broad
+    // reads as camouflage)
+    const L = 0.6 * sfbm(x, y, M, 0.025, 0.025, 2, seed + 15) + 0.4 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 17), at = 0.52 - 0.22 * g - 0.12 * edge[k];
+    if (L > at) col = col.map((v, q) => v + (lichen[q] - v) * clamp((L - at) * 4, 0, 0.3));
+    rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
+  }
+  return { rgb, W, H };
+}
+
+/** A timber wall's repeat: vertical boards, their gaps, grain, knots and weather. */
+function boardsTile(c, size, seed) {
+  const W = size, H = size, M = c.metres, px = M / size, g = c.grit, bw = M / c.cols, gap = 0.007;
+  const height = new Float32Array(W * H), tone = new Float32Array(W * H), knot = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i, b = Math.floor(x / bw) % c.cols, fx = x / bw - Math.floor(x / bw), dj = Math.min(fx, 1 - fx) * bw;
+    // the board: its face a little cupped, the grain in fine ridges running up it, the gap between boards a slot
+    let z = 0.0015 * Math.cos(Math.PI * (2 * fx - 1)) + 0.0006 * (0.4 + g) * sfbm(x, y, M, 0.006, 0.4, 3, seed + 21 + b);
+    if (dj < gap) z -= 0.006 * (1 - dj / gap);
+    // knots: a few to a board, on a wrapped grid of cells up it
+    const cy = Math.floor(y / 0.5), nc = Math.max(1, Math.round(M / 0.5)), h = hash01(b, ((cy % nc) + nc) % nc, seed + 23);
+    if (h < 0.35) { const kx = (0.25 + 0.5 * hash01(b, cy, seed + 25)) * bw, ky = (cy + 0.2 + 0.6 * hash01(b, cy, seed + 27)) * 0.5, d = Math.hypot((fx * bw - kx) * 2.2, y - ky); if (d < 0.03) { z -= 0.0012 * (1 - d / 0.03); knot[k] = 1 - d / 0.03; } }
+    height[k] = z; tone[k] = (hash01(b, 3, seed + 29) - 0.5) * 2 * c.vary / 255;
+  }
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, SHAFT_LIGHT);
+  const wood = rampOf(c.stone), rgb = Buffer.alloc(W * H * 3);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
+    const grain = 0.05 * sfbm(x, y, M, 0.01, 0.6, 2, seed + 31), streak = Math.max(0, sfbm(x, y, M, 0.15, 1.2, 2, seed + 33) - 0.1) * (0.1 + 0.15 * g);
+    const col = rampAt(wood, 0.55 + (lit.value[k] - 1) * 1.2 + tone[k] + grain - streak - 0.25 * knot[k] - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
   return { rgb, W, H };

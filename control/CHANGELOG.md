@@ -159,7 +159,16 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   `detail:` texture resolver painted once a spec. Openings, frames, doors and roofs are as they were. `limestone-crags`'s
   harbour is built in the timber hall's language (a coursed stone ground storey, lime render above, tile over it): its
   houses are what its grit dresses. A quiet cube's street, and any town without a dress, is as it was.
-- Planned: roofs in courses, timber's boards, and the city's masonry facades in the same detail.
+- **Roofs in courses, timber in boards** (`matte-paint/dressed.js` `cut: 'tile' | 'slate' | 'boards'`; the rails' `rows`
+  to 16 and `cols` to 12). Tiles in courses, each course's lower edge ragged a little and lapping proud over the one
+  below so its shadow falls down the slope, each tile rolled across like a pantile, its tone its own, the weather darker
+  toward each course's exposed foot and lichen a fine speckle gathered there at grit (a broad thresholded blotch read as
+  camouflage); slates the same, thin, flat, half-bonded and each laid a little askew; boards upright with gaps between
+  them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
+  lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
+  walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
+- Planned: the city's masonry facades in the same detail (its facades are cards the page realizes, a pipeline of their
+  own).
 
 ### Geocube domains: one cube, many levels
 

@@ -2,14 +2,16 @@
  * TOWN DRESS — a gritty cube's street painted from relief, as its island's rock is: the walls' plaster a lime render
  * fallen away here and there to the coursed stone under it (the Dust map), the stone walls ashlar, the plinths a course of
  * long blocks (matte-paint/dressed.js). Each is laid on a placed face as a DETAIL: the painted tile divided by its own
- * mean (per channel, in linear light) and set to `DETAIL_MEAN`, the face's own colour and baked light lifted by its
+ * mean (per channel, in linear light) and set to `DETAIL_MEAN`; and its roofs' tiles and slates in lapped courses and its
+ * timber in boards, the face's own colour and baked light lifted by its
  * inverse, so the face keeps its paint (the cube's ramps, era/out-structures-paint.js) and its light, and the stone's
  * relief, its patches and its joints ride on them. Laid world-locked (a metre is a metre on every wall: u along the
- * wall, v up it), the two variants by where the wall stands.
+ * wall, v up it; on a roof u along the eave, v up the slope), the two variants by where the face stands.
  *
  *   townDressOf(cube)                        → the street's dress (a cube's grit ≥ GRIT_PIXELS), or null
  *   dressTownFace(face, group, dress)        → the face dressed for its source group ('str:plaster', 'str:stone',
- *                                              'plinth'), or the face itself (no dress for it, or not a wall)
+ *                                              'str:timber', 'plinth'; a roof's 'str:tile', 'str:slate', 'str:shingle'),
+ *                                              or the face itself (no dress for it, or not a wall, or not a roof)
  *   DETAIL_MEAN                              the mean a detail is set to (linear)
  *
  * The detail tiles are served by a texture resolver (`detail:`), painted once a spec. Pure: the cube's numbers and the
@@ -38,6 +40,11 @@ export function townDressOf(cube) {
     'str:plaster': { spec: { gen: 'dressed', cut: 'render', stone, mortar, render: coat, rows: 6, cols: 2, ...wear, loss: Math.round(Math.min(1, 0.1 + 0.6 * g) * 100) / 100, seed: 23 }, metres: 3 },
     'str:stone': { spec: { gen: 'dressed', stone, mortar, rows: 5, cols: 2, tool: g >= 0.85 ? 'pitched' : 'tooled', ...wear, seed: 29 }, metres: 2.4 },
     plinth: { spec: { gen: 'dressed', stone: stone.map((v) => Math.round(v * 0.9)), mortar, rows: 2, cols: 2, tool: 'pitched', ...wear, seed: 31 }, metres: 1.6 },
+    'str:timber': { spec: { gen: 'dressed', cut: 'boards', stone: rgbOf(cube.colour.trim), mortar, cols: 9, ...wear, seed: 41 }, metres: 2 },
+    // the roofs: a course of tiles a fifth of a metre, slates a sixth (a roof's colour is its paint's: the floor's)
+    'str:tile': { spec: { gen: 'dressed', cut: 'tile', stone: rgbOf(cube.colour.floor), mortar, rows: 10, cols: 8, ...wear, seed: 43 }, metres: 2, roof: true },
+    'str:slate': { spec: { gen: 'dressed', cut: 'slate', stone: rgbOf(cube.colour.floor), mortar, rows: 12, cols: 6, ...wear, seed: 47 }, metres: 2, roof: true },
+    'str:shingle': { spec: { gen: 'dressed', cut: 'slate', stone: rgbOf(cube.colour.trim), mortar, rows: 14, cols: 8, ...wear, seed: 53 }, metres: 2, roof: true },
   };
 }
 
@@ -70,9 +77,13 @@ const lift = (hex) => hexOf(rgbOf(hex).map((v) => srgb(Math.min(1, lin(v) / DETA
 /** A placed face dressed for its source group: a wall (no steeper than 45° off upright) of a group the dress names. */
 export function dressTownFace(face, group, dress) {
   const E = dress && dress[group], n = face.normal;
-  if (!E || !n || Math.abs(n[2]) > 0.7 || !face.corners || face.corners.length < 3) return face;
-  const h = Math.hypot(n[0], n[1]) || 1, t = [-n[1] / h, n[0] / h];
+  if (!E || !n || !face.corners || face.corners.length < 3) return face;
+  const h = Math.hypot(n[0], n[1]);
+  // a wall: no steeper than 45° off upright; a roof: pitched (a flat one has no way up its slope to lay courses by)
+  if (E.roof ? h < 0.12 || n[2] <= 0 : Math.abs(n[2]) > 0.7) return face;
+  const t = [-n[1] / h, n[0] / h], up = E.roof ? 1 / h : 1;
   const c0 = face.corners[0], v = Math.floor(Math.abs(c0[0] * 0.37 + c0[1] * 0.61 + c0[2] * 0.13)) % 2;
-  const uv = face.corners.map((p) => [r4((p[0] * t[0] + p[1] * t[1]) / E.metres), r4(p[2] / E.metres)]);
+  // (a roof's v runs up its slope: a rise of dz is dz / sin(pitch) along it, and sin(pitch) is the normal's horizontal part)
+  const uv = face.corners.map((p) => [r4((p[0] * t[0] + p[1] * t[1]) / E.metres), r4((p[2] * up) / E.metres)]);
   return { ...face, texture: detailKey(E, v), textureLit: true, uv, fill: lift(face.fill), cornerFills: (face.cornerFills ?? [face.fill]).map(lift) };
 }

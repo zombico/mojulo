@@ -33,7 +33,7 @@ describe('a street\'s dress', () => {
     linOf(d.fill).forEach((v, k) => expect(v * DETAIL_MEAN).toBeCloseTo(linOf(f.fill)[k], 2));
     // (a roof, a floor and a group the dress does not name are left as they were)
     expect(dressTownFace({ ...f, normal: [0, 0, 1] }, 'str:plaster', D)).toEqual({ ...f, normal: [0, 0, 1] });
-    expect(dressTownFace(f, 'str:timber', D)).toBe(f);
+    expect(dressTownFace(f, 'str:thatch', D)).toBe(f);
   });
 
   it('is laid world-locked: a wall twice as wide carries twice the repeats; the same wall the same bytes', () => {
@@ -41,6 +41,20 @@ describe('a street\'s dress', () => {
     expect(span(8)).toBeCloseTo(2 * span(4), 3);
     expect(span(4)).toBeCloseTo(4 / D['str:stone'].metres, 3);
     expect(JSON.stringify(dressTownFace(wall(4), 'str:stone', D))).toBe(JSON.stringify(dressTownFace(wall(4), 'str:stone', D)));
+  });
+
+  it('lays a roof\'s courses up its slope: u along the eave, v the slope\'s own length; a flat roof and a wall are not a roof', () => {
+    const D = townDressOf(gritty), k = Math.SQRT1_2, fill = '#9a5a44';
+    // a 45° roof 4 m along the eave, its slope 2√2 m long (a 2 m rise)
+    const roof = { corners: [[0, 0, 0], [4, 0, 0], [4, 2, 2], [0, 2, 2]], normal: [0, -k, k], group: 'town:roof', fill, cornerFills: [fill, fill, fill, fill] };
+    const d = dressTownFace(roof, 'str:tile', D), vs = d.uv.map((p) => p[1]), us = d.uv.map((p) => p[0]);
+    expect(d.texture).toMatch(/^detail:dressed-/);
+    expect(Math.max(...vs) - Math.min(...vs)).toBeCloseTo((2 * Math.SQRT2) / D['str:tile'].metres, 3);
+    expect(Math.max(...us) - Math.min(...us)).toBeCloseTo(4 / D['str:tile'].metres, 3);
+    expect(dressTownFace({ ...roof, normal: [0, 0, 1] }, 'str:tile', D).texture).toBeUndefined();
+    expect(dressTownFace(wall(4), 'str:tile', D).texture).toBeUndefined();
+    // and timber walls in boards
+    expect(dressTownFace(wall(4), 'str:timber', D).texture).toMatch(/^detail:dressed-/);
   });
 
   it('serves its detail as a 512-texel tile', () => {
