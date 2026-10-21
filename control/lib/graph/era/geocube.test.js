@@ -68,7 +68,9 @@ describe('geocube: the two specimens share one style', () => {
     expect(trail.geocube).toMatchObject({ id: 'gothic-night', show: 'trail' });
     // the ways up: walked faces the land (walk 'base') leaves off
     expect(trail.faces.length).toBeGreaterThan(land.faces.length);
-    // the seed lays the island: another seed, another island; the same seed, the same bytes
+    // the seed lays the island and rolls its way up (local-meru/roll.js): another seed, another island; the same seed,
+    // the same bytes
+    expect(seeded.localMeru.tiers).not.toEqual(trail.localMeru.tiers);
     expect(JSON.stringify(seeded.faces)).not.toBe(JSON.stringify(trail.faces));
     expect(JSON.stringify(at(7).faces)).toBe(JSON.stringify(seeded.faces));
   });

@@ -67,6 +67,7 @@ import { readContrast } from './vertex-contrast.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
+import { rollTiers } from '../local-meru/roll.js';
 import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
@@ -708,9 +709,11 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
   const title = ctx.title || `${cube.title} · ${SHOWN[show]}`;
   const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', undefined, manifest.hour === undefined ? undefined : readHourOf(manifest.hour));
-  // the trail: every way up the island drawn, and the island laid from the seed (an island-less cube's ways are all drawn)
-  const laid = show !== 'trail' ? low : { ...low, ...(manifest.seed !== undefined ? { seed: manifest.seed } : {}),
-    meru: { ...low.meru, ...(low.meru.island ? { island: { ...low.meru.island, walk: 'all' } } : {}) } };
+  // the trail: every way up the island drawn, the island laid from the seed and its way up rolled from it
+  // (local-meru/roll.js); an island-less cube's ways are all drawn
+  const seed = manifest.seed ?? 1;
+  const laid = show !== 'trail' ? low : { ...low, seed,
+    meru: rollTiers({ ...low.meru, ...(low.meru.island ? { island: { ...low.meru.island, walk: 'all' } } : {}) }, seed) };
   const payload = assemble({ ...laid, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);

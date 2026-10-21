@@ -135,8 +135,12 @@ the walk and the runtime cost are read. A showcase, not a level: no goal, no her
   every way up drawn (the island's `walk: 'all'` in place of the specimen's `'base'`), walkable from the seam. It takes
   `hour` as `land` does, and `seed`, which lays the island (its relief, ground and geology); the same seed gives the
   same bytes. `room` and `land` refuse a `seed` and emit the same bytes as before.
-- Planned: a trail minted without a seed takes one from its new ref, so no two mints show the same island and a row
-  re-renders byte for byte; the seed also rolls the way up within the cube's own tiers.
+- **A new island every mint.** A trail minted without a seed takes one from its new ref (as a new house does), written
+  into the recipe, so no two mints show the same island and the row re-renders byte for byte. The seed also rolls the
+  way up (`local-meru/roll.js` `rollTiers`): the cube's own tiers, their forms, sides and ways up kept, each mound's
+  height, foot, summit and bulge, each spiral's turns and hand and each tower's deck drawn in a band round the cube's
+  own. A roll is kept only when it breaks no law the cube's own tiers keep (the steps, landings, shelves, a tier inside
+  the top below); else the next, and after eight the cube's own.
 - Planned: a dummy (an unpainted rig figure on the walkers channel) walks the route, the camera chasing it; the walk
   hands the operator the camera.
 - Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
