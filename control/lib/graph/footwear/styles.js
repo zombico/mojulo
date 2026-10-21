@@ -35,7 +35,10 @@ export const FOOTWEAR = Object.freeze({
     adorn: [{ prim: 'strap', on: 'foot', at: 0.675, width: 0.02, buckle: true }, { prim: 'strap', on: 'foot', at: 0.1, width: 0.012, buckle: true }] },
   // a steel toe: the toe box capped in steel, riveted along its edge, on a stout low boot with a deep sole
   workBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.22, thick: 0.006 }, sole: { thick: 0.016, welt: 0.005 },
-    adorn: [{ prim: 'toeCap', lift: 0.004, rivets: 3 }, { prim: 'band', on: 'foot', at: 0.1, width: 0.008 }] },
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.004, rise: 0.014 }, { prim: 'panel', region: 'eyestay', lift: 0.005 }, { prim: 'laces', rows: 4, shaftRows: 3, lift: 0.0065 },
+      { prim: 'panel', region: 'quarter', lift: 0.0035 }, { prim: 'panel', region: 'counter', lift: 0.0035 }, { prim: 'cuff', width: 0.018, lift: 0.007 },
+      { prim: 'toeCap', lift: 0.004, rivets: 3 }],
+    tones: { Shoes: '#8a5a2e', Overlay: LEATHER(-0.15), Eyestay: LEATHER(-0.15), Counter: LEATHER(-0.15), Tongue: LEATHER(0.05), Cuff: LEATHER(-0.3), Lace: '#3a2818' } },
   // the adventurer's: a thicker sock, a deep sole, the ankle dressed (a cuff at the collar, a gilt band, a buckled strap)
   adventurerBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.35, thick: 0.008 }, sole: { thick: 0.014, welt: 0.005 },
     adorn: [{ prim: 'cuff', width: 0.03 }, { prim: 'band', on: 'shank', at: 0.8, width: 0.008 }, { prim: 'strap', on: 'foot', at: 0.6, buckle: true }],
@@ -99,6 +102,36 @@ export const FOOTWEAR = Object.freeze({
       { prim: 'panel', on: 'shank', region: { along: [0.76, 0.86], around: [0.86, 1], sides: 'centre' }, lift: 0.002, rise: 0.016, group: 'Tab' },
       { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap' }],
     tones: { Elastic: '#1b1b1d', Tab: '#1b1b1d' } },
+  // ── BOOTS, laced and cut as a cobbler cuts them: the quarters up past the ankle wrapping round to the back, the tongue up
+  // the shaft standing above its top, the eyestays and the laces on up beside it ──
+  // the hiking boot: laced above the ankle, a padded collar, a lugged outsole under a firm midsole, a rubber toe guard
+  hikingBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.2, thick: 0.006 },
+    sole: { layers: [{ thick: 0.007, welt: 0.006, group: 'Outsole', lugs: { every: 2, size: 0.007 } }, { thick: 0.012, welt: 0.005, group: 'Midsole' }] },
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.004, rise: 0.016 }, { prim: 'panel', region: 'eyestay', lift: 0.005 }, { prim: 'laces', rows: 5, shaftRows: 3, lift: 0.0065 },
+      { prim: 'panel', region: 'quarter', lift: 0.0035 }, { prim: 'panel', region: 'counter', lift: 0.0035 }, { prim: 'cuff', width: 0.02, lift: 0.008 },
+      { prim: 'toeCap', lift: 0.003, group: 'Outsole' }],
+    tones: { Shoes: '#7a6448', Overlay: '#3e3226', Eyestay: '#3e3226', Counter: '#3e3226', Tongue: '#7a6448', Cuff: '#3e3226', Lace: '#b3412a', Midsole: '#cfc6b3', Outsole: '#2a2622' } },
+  // the combat boot: a tall shaft laced all the way up, a lugged sole, black leather in its shades
+  combatBoots: { from: 'hikingBoots', sock: { shaft: 0.42, thick: 0.005 },
+    sole: { layers: [{ thick: 0.008, welt: 0.005, group: 'Outsole', lugs: { every: 2, size: 0.007 } }, { thick: 0.01, welt: 0.004, group: 'Midsole' }] },
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.0035, rise: 0.01 }, { prim: 'panel', region: 'eyestay', lift: 0.0045 }, { prim: 'laces', rows: 4, shaftRows: 8, lift: 0.006 },
+      { prim: 'panel', region: 'quarter', lift: 0.003 }, { prim: 'panel', region: 'counter', lift: 0.003 }, { prim: 'toeCap', lift: 0.002, group: 'Shoes' }],
+    tones: { Shoes: '#1c1c1e', Overlay: LEATHER(0.06), Eyestay: LEATHER(0.1), Counter: LEATHER(0.06), Tongue: LEATHER(0.03), Lace: '#0e0e0f', Midsole: '#1a1a1a', Outsole: '#111112' } },
+  // the chukka: a suede ankle boot, two or three eyelets, a crepe sole
+  chukkas: { family: 'boot', sock: { height: 'boot', shaft: 0.1, thick: 0.004 }, sole: { thick: 0.013, welt: 0.004 },
+    adorn: [{ prim: 'panel', region: 'tongue', lift: 0.002, rise: 0.008 }, { prim: 'panel', region: { along: [0.15, 0.55], around: [0.08, 0.22], sides: 'both', shaft: { along: [0.85, 1] } }, lift: 0.003, group: 'Eyestay' },
+      { prim: 'laces', rows: 3, shaftRows: 0, lift: 0.0045, w: 0.0022 }, { prim: 'toeCap', lift: 0.0018, room: 0.01, group: 'Shoes' }],
+    tones: { Shoes: '#b08a5c', Eyestay: LEATHER(-0.06), Tongue: LEATHER(-0.04), Lace: '#5a3d22', Sole: '#c8a46a' } },
+  // the cowboy boot: a mid-calf shaft with pull tabs and stitched bands, a cuban heel the body stands on, a long toe
+  cowboyBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.55, thick: 0.004 }, sole: { welt: 0.004 }, heels: { height: 0.045, toe: 0.01, kind: 'block' },
+    adorn: [{ prim: 'panel', on: 'shank', region: { along: [0.45, 0.5], around: [0.4, 0.6], sides: 'both' }, lift: 0.002, rise: 0.022, group: 'Tab' },
+      { prim: 'band', on: 'shank', at: 0.6, width: 0.003, lift: 0.0015, group: 'Stitch' }, { prim: 'band', on: 'shank', at: 0.68, width: 0.003, lift: 0.0015, group: 'Stitch' },
+      { prim: 'panel', region: 'counter', lift: 0.0015 }, { prim: 'toeCap', lift: 0.0018, room: 0.025, group: 'Shoes' }],
+    tones: { Shoes: '#7b4a2a', Tab: LEATHER(-0.25), Counter: LEATHER(-0.1), Stitch: '#e8d9b5', Heel: LEATHER(-0.3), Sole: '#3a2516' } },
+  // the riding boot: a tall plain shaft to below the knee, a low heel
+  ridingBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.78, thick: 0.0035 }, sole: { welt: 0.003 }, heels: { height: 0.03, toe: 0.008, kind: 'block' },
+    adorn: [{ prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0016, room: 0.012, group: 'Shoes' }],
+    tones: { Shoes: '#161414', Counter: LEATHER(0.04), Heel: LEATHER(0.05), Sole: '#2a2220' } },
   // ── HEELS: the body stands in them ──
   // the pump: a low-cut sleek shoe on a stiletto
   pumps: { family: 'dress', sock: { height: 'shoe', collar: 0.22, thick: 0.0025 }, sole: { welt: 0.002 }, heels: { height: 0.085, toe: 0.006, kind: 'stiletto' },
@@ -125,4 +158,4 @@ export const SKINS = Object.freeze({
 /** the colours of the groups footwear adds, for a palette that names none (a card's own tones over these) */
 export const FOOTWEAR_TONES = Object.freeze({ Sole: '#2a2420', Strap: '#4b3324', Brass: '#a8843f', Steel: '#8d9299', Gilt: '#c9a646', Cuff: '#4b3324',
   Midsole: '#f2f1ec', Outsole: '#2b2b2b', Stripe: '#c8402a', Air: '#a8d8e8', Tongue: '#d9d6cf', Eyestay: '#c9c5bd', Overlay: '#b9b4ab', Counter: '#b9b4ab', Lace: '#f4f3ef',
-  Foxing: '#f2f1ec', Suede: '#55555a', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });
+  Foxing: '#f2f1ec', Suede: '#55555a', Stitch: '#e8d9b5', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });

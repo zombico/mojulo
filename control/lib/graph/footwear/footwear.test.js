@@ -152,6 +152,26 @@ describe('footwear on a foot adapter', () => {
     expect(wearFootwear(stub, { sock: { height: 'shoe' } }, { id: 'f' }).stance).toBeUndefined();
   });
 
+  it('a boot cut as a cobbler cuts it: the quarters up the shaft wrapping round to the back, the tongue rising above it', () => {
+    const W = wearFootwear(stub, { family: 'boot', sock: { height: 'boot', shaft: 0.5 }, sole: { thick: 0.01, welt: 0.003 },
+      adorn: [{ prim: 'panel', region: 'quarter' }, { prim: 'panel', region: 'tongue', rise: 0.012 }, { prim: 'laces', rows: 3, shaftRows: 3 }] }, { id: 'b' });
+    const pts = (P) => P.stations.flatMap((st) => Object.values(st.points));
+    const lat = W.parts.bQuarterLat_shankR, med = W.parts.bQuarterMed_shankR;
+    expect(lat && med).toBeTruthy();
+    // round to the back (−y, behind the shin) from either side, meeting there
+    expect(Math.min(...pts(lat).map((p) => p[1]))).toBeLessThan(-0.03);
+    expect(Math.min(...pts(med).map((p) => p[1]))).toBeLessThan(-0.03);
+    expect(Math.min(...pts(lat).map((p) => p[0] - 0.1))).toBeGreaterThan(-0.02);
+    // the tongue on the shaft risen past the boot's top; the foot's piece not risen
+    const top = Math.max(...pts(W.parts.b_shankR).map((p) => p[2]));
+    expect(Math.max(...pts(W.parts.bTongue_shankR).map((p) => p[2]))).toBeGreaterThan(top + 0.01);
+    expect(W.parts.bTongue_footR.stations.length).toBe(stub.bare('footR').stations.filter((st) => st.u <= 2 * 0.84 + 1e-9).length);
+    expect(Object.keys(W.parts).some((k) => /^bLace\d+_shankR$/.test(k))).toBe(true);
+    // a shoe has no shaft: its pieces on the foot alone
+    const shoe = wearFootwear(stub, { sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'quarter' }] }, { id: 's' });
+    expect(Object.keys(shoe.parts).filter((k) => k.endsWith('_shankR'))).toEqual([]);
+  });
+
   it('refuses a card by name', () => {
     expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'pullLoop' }] })[0]).toMatch(/region: one of tongue, eyestay/);
     expect(validateFootwear({ from: 'runners', skin: 'neon' })[0]).toMatch(/skin: a colourway \(tripleBlack/);

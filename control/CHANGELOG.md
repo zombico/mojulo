@@ -106,7 +106,12 @@ cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the hee
 suede vamp, a side stripe), `trailRunners` (a lugged outsole, a toe guard). DRESS shoes (a sleek sock, a leather sole on
 a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforated round the cap), `derbies` (open
 lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
-a pull tab). HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
+a pull tab). BOOTS cut as a cobbler cuts them: a region's `shaft` carries its piece on up a boot's shank (the quarters past the
+ankle, wrapping round to meet at a back seam; the tongue up the front, standing above the top; the eyestays beside it,
+the laces on up between them, `shaftRows`), so any boot-height card is cut up the leg and a shoe is not. Cards
+`hikingBoots` (lugged, a padded collar, a toe guard), `combatBoots` (laced to mid-calf), `chukkas` (suede, a crepe
+sole), `cowboyBoots` (pull tabs, stitched bands, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
+plain shaft, a low heel); `workBoots` laced. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
 tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
 `station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
 metatarsus `pitch` degrees heel-up, or the pose's own heel where it lifts further, a free foot's toes turned down by the

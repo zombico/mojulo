@@ -6,8 +6,10 @@
 //   along    a share of the segment (the foot: 0 the ankle, 1 past the toe base)
 //   around   0 on the centre line, 1 at the back; on the LATERAL side (the foot's outer: the R slots of the right foot)
 //            or the MEDIAL (its inner)
-// A region is { along: [a0, a1], around: [r0, r1], sides }: `sides` 'centre' (one piece through the centre line, |around|
-// up to r1), 'both' (a matching pair, lateral and medial), 'lateral' or 'medial'.
+// A region is { along: [a0, a1], around: [r0, r1], sides, shaft? }: `sides` 'centre' (one piece through the centre line,
+// |around| up to r1), 'both' (a matching pair, lateral and medial), 'lateral' or 'medial'; `shaft: { along, around? }`
+// carries the piece on up a BOOT's shaft (the shank: along 0 the knee, 1 the ankle; its own `around`, else the region's),
+// a second piece over the shank's leather meeting the foot's at the ankle.
 //
 //   panelOn(P, stations, arc, { lift, thick })   a thin slab over the sock's rings, the arc's slots, lifted off it
 //   arcOf(slots, region, side)                    the slots of a ring a region covers on one side (in ring order)
@@ -22,10 +24,10 @@ const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u
 
 /** THE PATTERN PIECES of an upper (the foot's), as a cobbler names them */
 export const COBBLER_REGIONS = Object.freeze({
-  tongue: { along: [0, 0.84], around: [0, 0.12], sides: 'centre', what: 'the tongue under the lacing, down the instep' },
-  eyestay: { along: [0.1, 0.82], around: [0.12, 0.24], sides: 'both', what: 'the lacing strips either side of the tongue, where the eyelets sit' },
+  tongue: { along: [0, 0.84], around: [0, 0.12], sides: 'centre', shaft: { along: [0, 1] }, what: 'the tongue under the lacing, down the instep (on a boot up the shaft too, standing above its top)' },
+  eyestay: { along: [0.1, 0.82], around: [0.12, 0.24], sides: 'both', shaft: { along: [0, 1] }, what: 'the lacing strips either side of the tongue, where the eyelets sit (on a boot up the shaft beside it)' },
   vamp: { along: [0.82, 1], around: [0, 0.5], sides: 'centre', what: 'the front of the upper over the forefoot, before the toe box' },
-  quarter: { along: [0.3, 0.88], around: [0.32, 0.68], sides: 'both', what: "the upper's sides behind the vamp: a sneaker's side overlay sits here" },
+  quarter: { along: [0.3, 0.88], around: [0.32, 0.68], sides: 'both', shaft: { along: [0, 1], around: [0.24, 1] }, what: "the upper's sides behind the vamp: a sneaker's side overlay sits here (on a boot up past the ankle, wrapping round to meet at the back)" },
   counter: { along: [0, 0.4], around: [0.72, 1], sides: 'centre', what: 'the stiffened cup round the heel' },
   foxing: { along: [0.45, 1], around: [0.74, 0.9], sides: 'both', what: 'a strip along the sole round the forefoot' },
   saddle: { along: [0.5, 0.66], around: [0, 0.45], sides: 'centre', what: "a strap of leather across the instep (a loafer's, its penny slot)" },
