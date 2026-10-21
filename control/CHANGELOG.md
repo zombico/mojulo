@@ -201,6 +201,11 @@ light line), `vambraceHeavy` (a ridge, a flared cuff). A shell may be laid on so
 Suits `markGauntlets`, `heavyGauntlets`, `sleekGauntlets`, `bracers`; `markSuit` wears the vambraces and the gauntlets.
 A plate takes the weights of its surface's nearest point or, where the surface blends by ring (a digit's), its ring's,
 so a finger's lames curl with it.
+THE PARADIGM CLOSED OUT: a layout is data a card can carry. A shell entry is a layout's name or `{ layout | panels,
+drop?, plus?, name?, on?, bulk? }` (a layout of its own, named; or a named one with panels dropped by id and others
+added), a variety adds shells to its kin's (`shellsPlus`), and every panel is checked by name (`validatePanel`) before
+it is cut. The laws carry it (a layout is data; the extremities are their own libraries' cards), and docs/plating.md
+sets out the card, the passes, the laws and the adapter the three wearable libraries share.
 
 ### The hero's skin: a part of the character, shown where it shows
 

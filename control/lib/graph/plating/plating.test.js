@@ -3,7 +3,7 @@
 // a limb's plate on both limbs, the reactor glowing, plates on the bare skin without a suit, refusals, the same twice.
 import { describe, it, expect } from 'vitest';
 
-import { wearPlating, validatePlating, suitCard, SKINS, fairShell, shellPanel } from './index.js';
+import { wearPlating, validatePlating, suitCard, SKINS, SUITS, LAYOUTS, fairShell, shellPanel } from './index.js';
 import { slotOf, stepped } from './shell.js';
 import { straighten, muscleLayout } from './muscles.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
@@ -143,6 +143,26 @@ describe('a plated suit on a body adapter', () => {
     expect(Object.values(W.parts.mGauntletLame2_indexR.bind.blend).some((w) => w.index3R)).toBe(true);
     expect(validatePlating({ shells: [{ layout: 'joints', on: ['wing'] }] })[0]).toMatch(/shells\[0\]\.on: the segments/);
     expect(validatePlating({ hands: 'mittens' })[0]).toMatch(/suit\.hands: 'mittens' is not a handwear word/);
+  });
+
+  it('a layout is data: every named one a valid shell; a card cuts its own, or drops and adds to one, or adds to its kin\'s', () => {
+    expect(validatePlating({ shells: Object.keys(LAYOUTS) })).toEqual([]);
+    const fin = { id: 'Fin', seg: 'shank', layer: 'cap', t: [0.2, 0.6], left: [[0.2, 0.9], [0.6, 0.95]], right: [[0.2, 1.1], [0.6, 1.05]] };
+    const card = { family: 'powered', shells: [{ name: 'fins', panels: [fin] }, { layout: 'greave', drop: ['Calf', 'Vent'], plus: [{ ...fin, id: 'Spur', mirror: true }], on: ['shank'] }] };
+    expect(validatePlating(card)).toEqual([]);
+    const W = wearPlating(stub, card, { id: 'c' });
+    expect(W.parts.cFinsFin_shankL).toBeTruthy();
+    expect(W.parts.cGreaveSpurMed_shankR).toBeTruthy();
+    expect(W.parts.cGreaveCalfLat_shankR).toBeUndefined();
+    expect(W.parts.cGreaveShin_shankR).toBeTruthy();
+    // (a variety adds shells to its kin's)
+    expect(suitCard({ from: 'markGauntlets', shellsPlus: [{ name: 'fins', panels: [fin] }] }).shells.length).toBe(SUITS.markGauntlets.shells.length + 1);
+    // (refused by name: a panel's keys, a line, a drop it does not have, a shell of its own unnamed, an id twice)
+    expect(validatePlating({ shells: [{ name: 'x', panels: [{ ...fin, layer: 'top' }] }] })[0]).toMatch(/panels\[0\]\.layer: one of under, mid/);
+    expect(validatePlating({ shells: [{ name: 'x', panels: [{ ...fin, left: [[0.5, 0]] }] }] })[0]).toMatch(/panels\[0\]\.left: a line/);
+    expect(validatePlating({ shells: [{ layout: 'greave', drop: ['Wing'] }] })[0]).toMatch(/drop: ids of its layout's panels/);
+    expect(validatePlating({ shells: [{ panels: [fin] }] })[0]).toMatch(/\.name: a shell of its own panels is named/);
+    expect(validatePlating({ shells: [{ name: 'x', panels: [fin, fin] }] })[0]).toMatch(/'Fin' twice/);
   });
 
   it('refuses a suit by name', () => {

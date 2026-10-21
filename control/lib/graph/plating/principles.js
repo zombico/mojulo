@@ -23,4 +23,12 @@
 //      elbow's sides).
 //   8. GROUPS ARE ROLES (Plate, Trim, Alloy, Suit, Reactor, Light), so a COLOURWAY recolours any suit; every plate rides the rig by
 //      the weights of the suit under it.
+//   9. A LAYOUT IS DATA. A panel is { id, seg, layer, t, left, right } in the segment's design coordinates (or a `circle`
+//      sized in metres), so a layout (layouts.js) is a list of them, and a card may cut its own (`shells: [{ name,
+//      panels }]`), take a named one and drop panels from it or add to it (`{ layout, drop, plus }`), lay one on some of
+//      its segments (`on`), stand it farther off (`bulk`), or add shells to its kin's (`shellsPlus`). Every one is
+//      checked by name before it is cut.
+//  10. THE EXTREMITIES ARE THEIR OWN LIBRARIES' CARDS. The feet a footwear card (its sole, its toe cap), the hands a
+//      handwear card (the glove the gauntlet's plates are laid on), so a suit composes with any shoe and any glove, and
+//      a plate on a finger curls with it (each plate takes its surface's weights, by point or by ring).
 export const PLATING_LAWS_VERSION = 1;

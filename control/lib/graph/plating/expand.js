@@ -33,14 +33,71 @@ const FINGERS = ['index', 'middle', 'ring', 'little'], kindsOf = (seg) => (seg =
 const share = (x) => typeof x === 'number' && x >= 0 && x <= 1, pair = (x) => Array.isArray(x) && x.length === 2 && x.every(share) && x[0] <= x[1];
 const GROUP = /^[A-Z][A-Za-z0-9]*$/, HEX = /^#[0-9a-f]{6}$/i;
 
-/** a word or a card → the card, resolved (`from` its kin: plates replaced where given, `platesPlus` appended, tones
- * merged; then its `skin`) */
+const PANEL_KEYS = ['id', 'seg', 'layer', 't', 'left', 'right', 'mirror', 'dome', 'lift', 'circle', 'role'];
+/** Error strings for a layout PANEL (layouts.js's form), by name */
+export function validatePanel(pn, at = 'panel') {
+  if (!pn || typeof pn !== 'object' || Array.isArray(pn)) return [`${at}: { id, seg, layer, t, left, right } or { id, seg, layer, circle }`];
+  const errs = [], num = (x, lo, hi) => typeof x === 'number' && x >= lo && x <= hi;
+  for (const k of Object.keys(pn)) if (!PANEL_KEYS.includes(k)) errs.push(`${at}: a panel takes ${PANEL_KEYS.join(', ')}, not '${k}'`);
+  if (!GROUP.test(pn.id ?? '')) errs.push(`${at}.id: a name, capitalised (Back, Lame0 …)`);
+  if (!SEGS.includes(pn.seg) && pn.seg !== 'fingers') errs.push(`${at}.seg: one of ${SEGS.join(', ')}, or fingers (the four)`);
+  if (!Object.hasOwn(LAYERS, pn.layer ?? '')) errs.push(`${at}.layer: one of ${Object.keys(LAYERS).join(', ')}`);
+  // (a line: [[t, s], …], `t` 0 … 1 rising, `s` −2 … 2: past ±1 it carries on through the back)
+  const line = (L) => Array.isArray(L) && L.length >= 2 && L.every((q) => Array.isArray(q) && q.length === 2 && num(q[0], 0, 1) && num(q[1], -2, 2)) && L.every((q, i) => i === 0 || q[0] >= L[i - 1][0]);
+  if (pn.circle !== undefined) {
+    const c = pn.circle;
+    if (!(c && num(c.t, 0, 1) && num(c.s, -2, 2) && num(c.r, 0.002, 0.1) && Object.keys(c).every((k) => ['t', 's', 'r'].includes(k)))) errs.push(`${at}.circle: { t (0 … 1), s (−2 … 2), r (m, 0.002 … 0.1) }`);
+    for (const k of ['t', 'left', 'right']) if (pn[k] !== undefined) errs.push(`${at}: a circle takes no ${k}`);
+  } else {
+    if (!(Array.isArray(pn.t) && pn.t.length === 2 && num(pn.t[0], 0, 1) && num(pn.t[1], 0, 1) && pn.t[0] < pn.t[1])) errs.push(`${at}.t: [t0, t1], 0 … 1, rising`);
+    for (const k of ['left', 'right']) if (!line(pn[k])) errs.push(`${at}.${k}: a line [[t, s], …] (t 0 … 1 rising, s −2 … 2), two points or more`);
+  }
+  if (pn.mirror !== undefined && typeof pn.mirror !== 'boolean') errs.push(`${at}.mirror: true or false`);
+  if (pn.dome !== undefined && !num(pn.dome, 0, 0.02)) errs.push(`${at}.dome: m, 0 … 0.02`);
+  if (pn.lift !== undefined && !num(pn.lift, 0, 0.05)) errs.push(`${at}.lift: m, 0 … 0.05`);
+  if (pn.role !== undefined && !GROUP.test(pn.role)) errs.push(`${at}.role: a group name (Plate, Trim, Alloy …)`);
+  return errs;
+}
+
+/** a card's SHELL entry → { Name, panels, bulk, only }: a layout by name, or { layout?, panels?, drop?, plus?, name?,
+ * on?, bulk? } (a layout of one's own, or a named one with panels dropped by id and others added) */
+export function shellOf(x) {
+  const o = typeof x === 'string' ? { layout: x } : x, drop = new Set(o.drop ?? []), name = o.name ?? o.layout ?? 'shell';
+  return { Name: name[0].toUpperCase() + name.slice(1), bulk: o.bulk ?? 1, only: o.on ? new Set(o.on) : null,
+    panels: [...(o.panels ?? LAYOUTS[o.layout] ?? []).filter((p) => !drop.has(p.id)), ...(o.plus ?? [])] };
+}
+const SHELL_KEYS = ['layout', 'panels', 'drop', 'plus', 'name', 'on', 'bulk'];
+/** Error strings for a card's shell entry */
+function validateShell(x, at) {
+  const names = Object.keys(LAYOUTS).join(', ');
+  if (typeof x === 'string') return Object.hasOwn(LAYOUTS, x) ? [] : [`${at}: one of ${names}, or { layout | panels, drop?, plus?, name?, on?, bulk? }`];
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return [`${at}: a layout (${names}) or { layout | panels, drop?, plus?, name?, on?, bulk? }`];
+  const errs = [];
+  for (const k of Object.keys(x)) if (!SHELL_KEYS.includes(k)) errs.push(`${at}: a shell takes ${SHELL_KEYS.join(', ')}, not '${k}'`);
+  if ((x.layout === undefined) === (x.panels === undefined)) errs.push(`${at}: a named layout (${names}) or panels of its own, one of the two`);
+  if (x.layout !== undefined && !Object.hasOwn(LAYOUTS, x.layout)) errs.push(`${at}.layout: one of ${names}`);
+  if (x.panels !== undefined && !Array.isArray(x.panels)) errs.push(`${at}.panels: a list of panels (layouts.js's form)`);
+  if (x.panels !== undefined && x.name === undefined) errs.push(`${at}.name: a shell of its own panels is named (its parts are)`);
+  if (x.name !== undefined && !/^[a-z][A-Za-z0-9]*$/.test(x.name)) errs.push(`${at}.name: a word (camelCase)`);
+  if (x.drop !== undefined && !(Array.isArray(x.drop) && x.drop.every((d) => (x.layout ? LAYOUTS[x.layout] ?? [] : x.panels ?? []).some((p) => p.id === d)))) errs.push(`${at}.drop: ids of its layout's panels`);
+  if (x.plus !== undefined && !Array.isArray(x.plus)) errs.push(`${at}.plus: a list of panels, laid after the layout's`);
+  if (x.bulk !== undefined && !(x.bulk >= 0.5 && x.bulk <= 3)) errs.push(`${at}.bulk: 0.5 … 3 (times the layers' heights)`);
+  if (x.on !== undefined && !(Array.isArray(x.on) && x.on.every((g) => SEGS.includes(g)))) errs.push(`${at}.on: the segments it is laid on (${SEGS.join(', ')})`);
+  if (errs.length) return errs;
+  const { panels } = shellOf(x), seen = new Set();
+  panels.forEach((pn, i) => { errs.push(...validatePanel(pn, `${at}.panels[${i}]`)); if (seen.has(pn?.id)) errs.push(`${at}.panels[${i}].id: '${pn.id}' twice (a panel's id names its parts)`); seen.add(pn?.id); });
+  return errs;
+}
+
+/** a word or a card → the card, resolved (`from` its kin: plates and shells replaced where given, `platesPlus` and
+ * `shellsPlus` appended, tones merged; then its `skin`) */
 export function suitCard(spec, depth = 0) {
   const C = typeof spec === 'string' ? SUITS[spec] : spec;
   if (!C || typeof C !== 'object' || depth > 4) return C;
-  const B = C.from !== undefined ? suitCard(C.from, depth + 1) : null, { from: _f, skin, platesPlus, ...own } = C;
+  const B = C.from !== undefined ? suitCard(C.from, depth + 1) : null, { from: _f, skin, platesPlus, shellsPlus, ...own } = C;
   const out = B ? { ...B, ...own, tones: { ...(B.tones || {}), ...(own.tones || {}) } } : { ...own };
   if (platesPlus) out.plates = [...(out.plates || []), ...platesPlus];
+  if (shellsPlus) out.shells = [...(out.shells || []), ...shellsPlus];
   if (skin !== undefined) out.tones = { ...(out.tones || {}), ...(typeof skin === 'string' ? SKINS[skin] : skin) };
   return out;
 }
@@ -50,7 +107,7 @@ export function validatePlating(spec, label = 'suit') {
   if (typeof spec === 'string') return Object.hasOwn(SUITS, spec) ? [] : [`${label}: '${spec}' is not a suit (${Object.keys(SUITS).join(', ')}), or give a card { suit, plates, reactor }`];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: a word or a card { suit, plates, reactor }`];
   const errs = [];
-  const KEYS = ['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'shells', 'muscles', 'feet', 'hands', 'reactor', 'tones', 'emissive'];
+  const KEYS = ['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'shells', 'shellsPlus', 'muscles', 'feet', 'hands', 'reactor', 'tones', 'emissive'];
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) errs.push(`${label}: a suit takes ${KEYS.join(', ')}, not '${k}'`);
   if (spec.from !== undefined && !(typeof spec.from === 'string' ? Object.hasOwn(SUITS, spec.from) : spec.from && typeof spec.from === 'object')) errs.push(`${label}.from: a suit (${Object.keys(SUITS).join(', ')}) or a card`);
   if (spec.skin !== undefined && !(typeof spec.skin === 'string' ? Object.hasOwn(SKINS, spec.skin) : spec.skin && typeof spec.skin === 'object')) errs.push(`${label}.skin: a colourway (${Object.keys(SKINS).join(', ')}) or { <group>: '#rrggbb' }`);
@@ -59,11 +116,8 @@ export function validatePlating(spec, label = 'suit') {
   if (C.family !== undefined && C.family !== 'powered') errs.push(`${label}.family: 'powered'`);
   if (C.suit !== undefined && C.suit !== false && !(C.suit && typeof C.suit === 'object' && (C.suit.ease === undefined || (C.suit.ease >= 0 && C.suit.ease <= 0.02)) && (C.suit.on === undefined || (Array.isArray(C.suit.on) && C.suit.on.every((g) => SEGS.includes(g)))))) errs.push(`${label}.suit: { ease? (0 … 0.02 m), on? [${SEGS.join(', ')}] }, or false`);
   if (C.shells !== undefined) {
-    if (!Array.isArray(C.shells)) errs.push(`${label}.shells: a list of layouts (${Object.keys(LAYOUTS).join(', ')}) or { layout, bulk? }`);
-    else C.shells.forEach((x, i) => { const L = typeof x === 'string' ? x : x?.layout;
-      if (!Object.hasOwn(LAYOUTS, L ?? '')) errs.push(`${label}.shells[${i}]: one of ${Object.keys(LAYOUTS).join(', ')}, or { layout, bulk? }`);
-      else if (typeof x === 'object' && x.bulk !== undefined && !(x.bulk >= 0.5 && x.bulk <= 3)) errs.push(`${label}.shells[${i}].bulk: 0.5 … 3 (times the layers' heights)`);
-      else if (typeof x === 'object' && x.on !== undefined && !(Array.isArray(x.on) && x.on.every((g) => SEGS.includes(g)))) errs.push(`${label}.shells[${i}].on: the segments it is laid on (${SEGS.join(', ')})`); });
+    if (!Array.isArray(C.shells)) errs.push(`${label}.shells: a list of layouts (${Object.keys(LAYOUTS).join(', ')}) or { layout | panels, drop?, plus?, name?, on?, bulk? }`);
+    else C.shells.forEach((x, i) => errs.push(...validateShell(x, `${label}.shells[${i}]`)));
   }
   if (C.feet !== undefined) errs.push(...validateFootwear(C.feet, `${label}.feet`));
   if (C.hands !== undefined) errs.push(...validateHandwear(C.hands, `${label}.hands`));
@@ -144,9 +198,8 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
     const i0 = vis.indexOf(true), i1 = vis.lastIndexOf(true); return i0 < 0 ? null : [U[i0], U[i1]];
   })());
   for (const x of C.shells ?? []) {
-    const name = typeof x === 'string' ? x : x.layout, bulk = (typeof x === 'object' && x.bulk) || 1, Name = name[0].toUpperCase() + name.slice(1);
-    const only = typeof x === 'object' && x.on ? new Set(x.on) : null;
-    for (const pn of LAYOUTS[name]) for (const kind of kindsOf(pn.seg).filter((k) => !only || only.has(k))) for (const S of TRUNK.includes(kind) ? ['R'] : A.sides) {
+    const { Name, panels, bulk, only } = shellOf(x);
+    for (const pn of panels) for (const kind of kindsOf(pn.seg).filter((k) => !only || only.has(k))) for (const S of TRUNK.includes(kind) ? ['R'] : A.sides) {
       const seg = TRUNK.includes(kind) ? kind : `${kind}${S}`, P = on(seg); if (!P) continue;
       if (pn.layer === 'under') underlaid.add(seg);
       const F = (fair[seg] ??= fairShell(P)), fOf = slotOf(P.slots.length, S), uOf = (t) => A.u(kind, t), Ly = LAYERS[pn.layer];
