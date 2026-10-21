@@ -59,6 +59,26 @@ describe('a rock\'s skin', () => {
   });
 });
 
+describe('a rock formation', () => {
+  it('is named on skin, carries the landform\'s strike, takes the boulders, and is absent unless named', () => {
+    const J = { pattern: 'blocky', strike: 30, spacing: 3, cell: [1, 0.8] };
+    const F = rockFabric({ joints: J, sun, skin: 'limestone' });
+    expect(F.formation.id).toBe('limestone');
+    expect(F.skin).toBeUndefined();
+    expect(angle(F.formation.joints[0].slice(0, 3), [Math.cos(Math.PI / 6), Math.sin(Math.PI / 6), 0])).toBeLessThan(0.5);
+    expect(F.groups).toContain('isekai:rock');
+    expect(rockFabric({ joints: J, sun }).formation).toBeUndefined();
+    expect(rockFabric({ joints: J, sun }).groups).not.toContain('isekai:rock');
+    expect(rockFabric({ joints: J, sun, skin: 'sculpted' }).formation).toBeUndefined();
+  });
+  it('hangs green over its ledges only when it grows it and the land has a grass to give', () => {
+    const J = { pattern: 'blocky', strike: 0, spacing: 3 };
+    expect(rockFabric({ joints: J, sun, skin: 'flagstone', rockColour: '#808080', green: '#507030' }).formation.colour.greenRgb).toHaveLength(3);
+    expect(rockFabric({ joints: J, sun, skin: 'flagstone' }).formation.colour.greenRgb).toBeUndefined();
+    expect(rockFabric({ joints: J, sun, skin: 'limestone', rockColour: '#808080', green: '#507030' }).formation.colour.greenRgb).toBeUndefined();
+  });
+});
+
 describe('the page\'s fabric channel', () => {
   const face = { corners: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], fill: '#808080', group: 'isekai:cliff' };
   it('is emitted with a fabric and not one byte without', () => {
@@ -69,5 +89,8 @@ describe('the page\'s fabric channel', () => {
     expect(emitThreeWorld({ faces: [face], fabric: { groups: [], sets: [] } })).toBe(plain);
     expect(withF).not.toMatch(/skinH/);
     expect(emitThreeWorld({ faces: [face], fabric: rockFabric({ rock: 'granite', sun, skin: true }) })).toMatch(/skinH/);
+    const form = emitThreeWorld({ faces: [face], fabric: rockFabric({ rock: 'granite', sun, skin: 'sandstone' }) });
+    expect(form).toMatch(/fmR/); expect(form).not.toMatch(/skinH/);
+    expect(withF).not.toMatch(/fmR/);
   });
 });

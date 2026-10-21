@@ -117,6 +117,7 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *           (matte-paint/fabric.js, scene/channels/fabric.js): the faces are the quiet style's, byte for byte
  *   skin    (with grit) true or a skin's name (matte-paint/fabric.js ROCK_SKINS): the rock drawn near in its chunks,
  *           Voronoi regions laid in its fabric's frame, rather than in its joints' grooves alone
+ *           or a formation's (ROCK_FORMATIONS): the cliff and its boulders as erosion leaves them, beds and fallen blocks
  */
 /** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
 export const GRIT_PIXELS = 0.35;
