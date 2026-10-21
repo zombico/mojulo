@@ -108,9 +108,11 @@ a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforat
 lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
 a pull tab). BOOTS cut as a cobbler cuts them: a region's `shaft` carries its piece on up a boot's shank (the quarters past the
 ankle, wrapping round to meet at a back seam; the tongue up the front, standing above the top; the eyestays beside it,
-the laces on up between them, `shaftRows`), so any boot-height card is cut up the leg and a shoe is not. Cards
+the laces on up between them, `shaftRows`; where the foot's piece begins below the ankle, a bridge on the foot's
+leather cut round as the shaft's, so no plain leather shows between them), so any boot-height card is cut up the leg
+and a shoe is not. Cards
 `hikingBoots` (lugged, a padded collar, a toe guard), `combatBoots` (laced to mid-calf), `chukkas` (suede, a crepe
-sole), `cowboyBoots` (pull tabs, stitched bands, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
+sole), `cowboyBoots` (pull tabs, a stitched band, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
 plain shaft, a low heel); `workBoots` laced. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
 tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
 `station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
@@ -122,7 +124,7 @@ leaned in the bind so it stands plumb when worn, a slender heel's foot under the
 group's colour darkened or lightened, read after the palette: `readTones`), so recolouring `Shoes` carries the pieces
 cut from it; the dress cards use it. A card's or its skin's named tones stand over the palette's defaults, the
 operator's palette over all. body-study `--dress` paints the shoes in their own colours; a rig with a stance stands the
-bind in it. On the
+bind in it; `--crop shin` frames a tall boot whole. On the
 authored body the library's other words are its boot, its sandal or its shoe by the card's family, for now. `boots`, `shoes` and `sandals` are pinned byte for
 byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
 segments it is `on`). body-study `--dress` colours each footwear group by its tone.

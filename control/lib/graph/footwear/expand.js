@@ -14,7 +14,7 @@
 //            tone OF another group stays so, for the palette it lands in to read (readTones)
 //
 // Parts are layer 1, named `<id>_<segment>` (the sock), `<id>Sole_<segment>`, `<id>Strap<k>_<segment>` and
-// `<id>Buckle<k>_<segment>` (k counting the straps), `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
+// `<id>Buckle<k>_<segment>` (k counting the straps), a boot's ankle bridge `<id><Region>Ankle<Lat|Med>_<foot>`, `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
 // `<id><Region><Lat|Med>_…` (an inline region's `<id>Panel<k>…`), `<id>Lace<k>_…`.
 // Pure and deterministic: no dice, fixed order.
 import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv } from './parts.js';
@@ -261,15 +261,18 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
         const named = typeof a.region === 'string', R = named ? COBBLER_REGIONS[a.region] : a.region, kind = a.on ?? 'foot';
         const base = named ? `${id}${a.region[0].toUpperCase()}${a.region.slice(1)}` : `${id}Panel${n.panel++}`, g = a.group ?? PANEL_GROUPS[a.region] ?? 'Overlay';
         const sides = R.sides === 'both' ? [['lateral', 'Lat'], ['medial', 'Med']] : [[R.sides, R.sides === 'centre' ? '' : R.sides === 'lateral' ? 'Lat' : 'Med']];
-        // (its pieces: on its segment, and on a boot's shaft where the region carries one; the topmost takes the rise)
+        // (its pieces: on its segment, and on a boot's shaft where the region carries one, the topmost taking the rise; and
+        // where the foot's piece begins below the ankle, a BRIDGE on the foot's leather from the ankle down to it, cut round
+        // as the shaft's is, so no plain leather shows between them)
         const shaft = R.shaft && kind === 'foot' && sock?.height === 'boot' && on(A.seg('shank', S)) ? { kind: 'shank', R: { ...R, along: R.shaft.along, around: R.shaft.around ?? R.around } } : null;
-        for (const piece of [{ kind, R }, ...(shaft ? [shaft] : [])]) {
+        const bridge = shaft && R.along[0] > 0 ? { kind: 'foot', tag: 'Ankle', R: { ...R, along: [0, Math.min(1, R.along[0] + 0.06)], around: shaft.R.around } } : null;
+        for (const piece of [{ kind, R }, ...(bridge ? [bridge] : []), ...(shaft ? [shaft] : [])]) {
           const seg = A.seg(piece.kind, S), P = on(seg); if (!P) continue;
           const sts = P.stations.filter((st, i) => { const u = st.u ?? i; return u >= A.u(piece.kind, piece.R.along[0]) - 1e-9 && u <= A.u(piece.kind, piece.R.along[1]) + 1e-9; });
           const rise = (shaft ? piece === shaft : true) ? a.rise ?? 0 : 0;
           for (const [side, tag] of sides) {
             const pc = panelOn(P, sts, arcOf(P.slots, piece.R, side, S), { lift: a.lift ?? 0.0025, thick: a.thick ?? 0.0015, rise }); if (!pc) continue;
-            put(`${base}${tag}_${seg}`, { ...pc, group: g, bind: bindNearest(pc, P) });
+            put(`${base}${piece.tag ?? ''}${tag}_${seg}`, { ...pc, group: g, bind: bindNearest(pc, P) });
           }
         }
       } else if (a.prim === 'laces') {

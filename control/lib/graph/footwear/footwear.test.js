@@ -167,6 +167,10 @@ describe('footwear on a foot adapter', () => {
     expect(Math.max(...pts(W.parts.bTongue_shankR).map((p) => p[2]))).toBeGreaterThan(top + 0.01);
     expect(W.parts.bTongue_footR.stations.length).toBe(stub.bare('footR').stations.filter((st) => st.u <= 2 * 0.84 + 1e-9).length);
     expect(Object.keys(W.parts).some((k) => /^bLace\d+_shankR$/.test(k))).toBe(true);
+    // the ankle bridged: the foot's leather from the ankle to where the foot's quarter begins, cut round as the shaft's
+    const br = W.parts.bQuarterAnkleLat_footR;
+    expect(br.stations[0].id).toBe('st0');
+    expect(br.slots.length).toBe(lat.slots.length);
     // a shoe has no shaft: its pieces on the foot alone
     const shoe = wearFootwear(stub, { sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'quarter' }] }, { id: 's' });
     expect(Object.keys(shoe.parts).filter((k) => k.endsWith('_shankR'))).toEqual([]);

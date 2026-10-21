@@ -12,8 +12,8 @@
 //                   stand word (relaxed, guard, hand-on-hip …) }, or { "pose": a rig pose as rigNodesAt takes it };
 //                   any entry may carry its own "crop". Without --acts: the bind, from the front, the front ¾, the
 //                   lateral, the back and below.
-//   --crop          torso | shoulder | hip | knee | hand | foot | neck | head (the right side's, the neck seam where the
-//                   head sits, the head itself), framed on the posed joints; default the whole body.
+//   --crop          torso | shoulder | hip | knee | shin | hand | foot | neck | head (the right side's, the neck seam where
+//                   the head sits, the head itself; the shin from over the knee to the floor, a tall boot whole), framed on the posed joints; default the whole body.
 //   --register      the hero's register word (the door's `register`, default its own).
 //   --laws          the hero laws to mint under (hero-form.js HERO_LAWS_VERSION; default the current): 1 for a hero as
 //                   rows minted before laws 2 read
@@ -87,7 +87,7 @@ for (let i = 0; i < args.length; i++) {
 if (!casts.length) casts.push('male', 'female');
 if (phys && !form) throw new Error('body-study: --physique dials a form build; name one with --form');
 const BUILD = form ? physique(form, phys ?? 'athletic') : null;
-const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'hand', 'foot', 'neck', 'head'];
+const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'shin', 'hand', 'foot', 'neck', 'head'];
 for (const c of [crop, ...(acts || []).map((r) => r.crop)]) if (c && !CROPS.includes(c)) throw new Error(`body-study: crop '${c}' is not one of ${CROPS.join(', ')}`);
 mkdirSync(out, { recursive: true });
 
@@ -240,6 +240,8 @@ function frameBox(V, J, which) {
   if (which === 'shoulder') return box(J.shoulderR, [0.15, 0.15, 0.15]);
   if (which === 'hip') return box(mid(J.pelvisHub, J.hipR, 0.7), [0.2, 0.2, 0.2]);
   if (which === 'knee') return box(J.kneeR, [0.14, 0.14, 0.16]);
+  // (the shin: from over the knee to the floor, the toes in front: a tall boot whole)
+  if (which === 'shin') { const c = mid(J.kneeR, J.toeTipR, 0.5), h = (J.kneeR[2] - Math.min(J.toeTipR[2], J.ankleR[2])) / 2 + 0.07; return box(c, [h, h, h]); }
   if (which === 'hand') return box(mid(J.wristR, J.knucklesR, 0.7), [0.12, 0.12, 0.12]);
   if (which === 'foot') return box(mid(J.ankleR, J.toeTipR, 0.45), [0.14, 0.14, 0.14]);
   if (which === 'neck') return box(mid(J.neckHub, J.headBase, 0.4), [0.15, 0.15, 0.15]);

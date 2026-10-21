@@ -122,12 +122,12 @@ export const FOOTWEAR = Object.freeze({
     adorn: [{ prim: 'panel', region: 'tongue', lift: 0.002, rise: 0.008 }, { prim: 'panel', region: { along: [0.15, 0.55], around: [0.08, 0.22], sides: 'both', shaft: { along: [0.85, 1] } }, lift: 0.003, group: 'Eyestay' },
       { prim: 'laces', rows: 3, shaftRows: 0, lift: 0.0045, w: 0.0022 }, { prim: 'toeCap', lift: 0.0018, room: 0.01, group: 'Shoes' }],
     tones: { Shoes: '#b08a5c', Eyestay: LEATHER(-0.06), Tongue: LEATHER(-0.04), Lace: '#5a3d22', Sole: '#c8a46a' } },
-  // the cowboy boot: a mid-calf shaft with pull tabs and stitched bands, a cuban heel the body stands on, a long toe
+  // the cowboy boot: a mid-calf shaft with pull tabs and a stitched band, a cuban heel the body stands on, a long toe
   cowboyBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.55, thick: 0.004 }, sole: { welt: 0.004 }, heels: { height: 0.045, toe: 0.01, kind: 'block' },
     adorn: [{ prim: 'panel', on: 'shank', region: { along: [0.45, 0.5], around: [0.4, 0.6], sides: 'both' }, lift: 0.002, rise: 0.022, group: 'Tab' },
-      { prim: 'band', on: 'shank', at: 0.6, width: 0.003, lift: 0.0015, group: 'Stitch' }, { prim: 'band', on: 'shank', at: 0.68, width: 0.003, lift: 0.0015, group: 'Stitch' },
+      { prim: 'band', on: 'shank', at: 0.62, width: 0.003, lift: 0.0012, group: 'Stitch' },
       { prim: 'panel', region: 'counter', lift: 0.0015 }, { prim: 'toeCap', lift: 0.0018, room: 0.025, group: 'Shoes' }],
-    tones: { Shoes: '#7b4a2a', Tab: LEATHER(-0.25), Counter: LEATHER(-0.1), Stitch: '#e8d9b5', Heel: LEATHER(-0.3), Sole: '#3a2516' } },
+    tones: { Shoes: '#7b4a2a', Tab: LEATHER(-0.25), Counter: LEATHER(-0.1), Stitch: LEATHER(0.18), Heel: LEATHER(-0.3), Sole: '#3a2516' } },
   // the riding boot: a tall plain shaft to below the knee, a low heel
   ridingBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.78, thick: 0.0035 }, sole: { welt: 0.003 }, heels: { height: 0.03, toe: 0.008, kind: 'block' },
     adorn: [{ prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0016, room: 0.012, group: 'Shoes' }],
