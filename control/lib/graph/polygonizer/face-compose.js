@@ -18,13 +18,15 @@
  * (European ancestry); the next buckets are new tables, not new code.
  *
  *   composeFace({ sex, bucket, seed, character?, accent? }) → { relations, eyes (the lids' channels), epidermis (the
- *                   brows' groom), picks, proportions (each −1 … 1 of its reach), character, accent, ancestry }
+ *                   brows' and the lashes' grooms), picks, proportions (each −1 … 1 of its reach; a groom's number its
+ *                   share of its shape's), character, accent, ancestry }
  *
  * Pure and deterministic: seeded dice (`streamOf`), no clock.
  */
 import { RELATIONS, RELATION_POLES } from './head-relational.js';
 import { EYE_CHANNELS } from './head-relational-eye.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
+import { BROW_SHAPES, LASH_SHAPES } from '../epidermis/epidermis.js';
 import { streamOf } from '../city/plan/dice.js';
 
 /**
@@ -92,6 +94,15 @@ export const FACE_PROPORTIONS = Object.freeze({
   headLength: 0.03, cephalic: 0.04, third: 0.008, faceWidth: 0.02, jaw: 0.04, mouthWidth: 0.15,
   // the eyes': how far apart, how high, how large, their tilt
   intercanthal: 0.08, eyeLine: 0.012, fifths: 0.008, canthalTilt: 0.004,
+});
+/**
+ * THE GROOMS — the brows' and the lashes' own weight, person to person: shares of the groom's numbers (epidermis.js
+ * BROW_SHAPES, LASH_SHAPES) over its shape's, each rolled in its range (the mean of two dice), last of all (a seed keeps
+ * its face when these change). A bucket may carry its own (`grooms`).
+ */
+export const FACE_GROOMS = Object.freeze({
+  brows: { thickness: [0.75, 1.3], density: [0.8, 1.25] },
+  lashes: { density: [0.7, 1.4], length: [0.85, 1.2] },
 });
 /** a shape's offsets are scaled by a seeded share in this range */
 export const FACE_SPREAD = Object.freeze([0.6, 1.2]);
@@ -192,8 +203,16 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     if (cover.open !== undefined) eyes.open = Math.round(cover.open * (eyes.open ?? 1) * 1000) / 1000;
     picks.lid = lid;
   }
+  // the grooms' weight: each number a share of its shape's
+  const browShape = brows || 'natural', lashShape = 'natural', groomShape = { brows: BROW_SHAPES[browShape], lashes: LASH_SHAPES[lashShape] };
+  const grooms = { brows: { shape: browShape }, lashes: { shape: lashShape } };
+  for (const [g, dials] of Object.entries(B.grooms || FACE_GROOMS)) for (const [k, [lo, hi]] of Object.entries(dials)) {
+    const share = lo + ((d() + d()) / 2) * (hi - lo);
+    grooms[g][k] = Math.round(groomShape[g][k] * share * 1000) / 1000;
+    proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
+  }
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { relations, eyes, epidermis: { hair: { brows: { shape: brows || 'natural' } } }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

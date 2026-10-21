@@ -57,6 +57,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   egocube's weights) and owns the fold's channels (`LID_FOLD`) over the character's eye shape; never a slant. Shapes
   weigh per bucket. `FACE_LIMITS` holds a composed face inside the head's working range, measured by the tune's solve
   (the nose's projection, the cephalic index): a face asked past it is drawn at it.
+- The composer's GROOMS (`FACE_GROOMS`): the brows' thickness and density and the lashes' density and length rolled per
+  face as shares of their shape's numbers, after its face (a seed keeps its relations); a bucket may carry its own.
 
 ### Body-part map: dress tailored to the body, not the segment
 

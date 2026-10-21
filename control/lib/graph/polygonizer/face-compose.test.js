@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 
 describe('the face composer', () => {
@@ -49,5 +49,19 @@ describe('the face composer', () => {
       for (const ch of LID_FOLD) if (EYE_SHAPES[f.picks.lid][ch] !== undefined) expect(f.eyes[ch]).toBe(EYE_SHAPES[f.picks.lid][ch]);
       expect(composeFace({ bucket: 'western', seed }).picks.lid).toBeUndefined();
     }
+  });
+
+  it('rolls the brows\' and the lashes\' weight per face, after its face (a seed keeps its relations)', () => {
+    const shares = { brows: [], lashes: [] };
+    for (let seed = 1; seed <= 16; seed++) {
+      const f = composeFace({ bucket: 'western', seed });
+      for (const [g, dials] of Object.entries(FACE_GROOMS)) for (const [k, [lo, hi]] of Object.entries(dials)) {
+        const share = f.proportions[`${g}.${k}`];
+        expect(share).toBeGreaterThanOrEqual(lo - 0.01); expect(share).toBeLessThanOrEqual(hi + 0.01);
+        expect(Number.isFinite(f.epidermis.hair[g][k])).toBe(true);
+        shares[g].push(share);
+      }
+    }
+    for (const g of Object.keys(shares)) expect(new Set(shares[g]).size).toBeGreaterThan(8);
   });
 });
