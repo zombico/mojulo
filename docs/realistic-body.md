@@ -26,7 +26,8 @@ with `--hero '{"form":"realistic", …}'`, coloured by body part with `--map`.
 ## The record
 
 `hero.form: 'realistic'`, `hero.physique: { from?: 'athletic'|'skinny'|'heavyset'|'jacked', bulk?, tone?, weight?,
-height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ from }`). The build is the cast's pole's
+height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ from }`). Its head is the relational head unless `head` names another
+(`'landmark'`, `'none'`). The build is the cast's pole's
 (`cast: 'male'` → norrin, `'female'` → shalla). The plan is laid out with the hero's tune times the build's.
 
 ## The recipe

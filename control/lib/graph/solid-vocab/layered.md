@@ -790,9 +790,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `'female'`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
   `{ from?, bulk, tone, weight, height }`, each −1 to 1 (bulk the muscles across, tone their definition, weight a layer
   of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
-  `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. A slice takes seconds (5 male, 8 female); the same
-  body again is kept. Not yet worn on it: `outfit`, `adorn`, `paint`, `detail`, `statue`, `stylism` (each refuses by
-  name), nor `body` or `girth` (the physique dials those); the head is `landmark` or `none`.
+  `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. Its head is the RELATIONAL head unless `head` says
+  `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
+  the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
+  `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
+  the other words, `adorn` and `paint` are worn over the skin's envelope. A first mint takes about 40 s (the body's
+  slice and the head), then is kept. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
+  dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

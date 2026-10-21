@@ -82,6 +82,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   trunk's field read narrower across about a height on the torso bone, eased out either side, its depth as built). On
   the hero's masses her waist measured 0.67 of her hips' width from the front and his 0.72, so the two read alike; with
   a tenth's pinch hers is 0.61 (21.8 cm against 23.8). His, and every build without `waist`, byte for byte.
+- The realistic hero's head is the RELATIONAL head by default (`head` absent on `form: 'realistic'`; `'landmark'` and
+  `'none'` still name theirs; a record stores its head, so a hero minted before keeps its own). The hero routing card
+  names the realistic form (`form: 'realistic'`, `physique`, the fitted outfit words) and a phrasing that reaches it;
+  the layered vocab card's paragraph says what the realistic body now wears.
 
 ### Realistic body: correctives posed and exported
 
