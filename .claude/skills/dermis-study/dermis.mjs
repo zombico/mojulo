@@ -20,7 +20,7 @@
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases; --lineup-all adds the lateral and
 //                   the back, two subjects to a row); --lineup-crop eyes frames
 //                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
-//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"tune"?}]'
+//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?}]'
 //                   (the head's relations replaced as given, the wave's tune solved for them; an ancestry rolls the
 //                   tone and the hair as --ancestry does, at the seed): a spike's sets side by side
 //   --look          creator looks (dermal-looks.js LOOKS: warrior, shieldmaiden, scholar, rogue, elder), comma-separated:
@@ -105,7 +105,7 @@ function camera(az, elev, box, W, H) {
 
 // ─── the head and its skin ───
 function headOf(sex, look = null, anc = null, face = null) {
-  const t0 = Date.now(), Lk = face ? { ...(face.ancestry ? ((A) => ({ ...A, dermis: { ...A.dermis, ...face.dermis } }))(readAncestry({ id: face.ancestry, sex: face.sex || 'female', seed: face.seed ?? 1 })) : { dermis: { from: face.sex || 'female', ...face.dermis }, scalp: face.scalp ?? (face.sex === 'male' ? 'short' : 'shoulder'), epidermis: { hair: {} } }), sex: face.sex || 'female', relations: face.relations || {}, eyes: face.eyes || {}, rolled: null, ...(face.epidermis ? { epidermis: { hair: { ...(face.ancestry ? readAncestry({ id: face.ancestry, sex: face.sex || 'female', seed: face.seed ?? 1 }).epidermis.hair : {}), ...face.epidermis.hair } } } : {}) } : anc ? readAncestry({ ...anc, game }) : look ? readLook(look) : null;
+  const t0 = Date.now(), Lk = face ? { ...(face.ancestry ? ((A) => ({ ...A, dermis: { ...A.dermis, ...face.dermis }, scalp: face.scalp && readScalp(A.scalp).part !== 'none' ? { ...A.scalp, ...face.scalp } : A.scalp }))(readAncestry({ id: face.ancestry, sex: face.sex || 'female', seed: face.seed ?? 1 })) : { dermis: { from: face.sex || 'female', ...face.dermis }, scalp: face.scalp ?? (face.sex === 'male' ? 'short' : 'shoulder'), epidermis: { hair: {} } }), sex: face.sex || 'female', relations: face.relations || {}, eyes: face.eyes || {}, rolled: null, ...(face.epidermis ? { epidermis: { hair: { ...(face.ancestry ? readAncestry({ id: face.ancestry, sex: face.sex || 'female', seed: face.seed ?? 1 }).epidermis.hair : {}), ...face.epidermis.hair } } } : {}) } : anc ? readAncestry({ ...anc, game }) : look ? readLook(look) : null;
   if (Lk) sex = Lk.sex;
   const head = relationalHead({ sex, tune: face?.tune ?? true, ...(Lk ? { relations: Lk.relations } : {}), ...(Lk?.eyes && Object.keys(Lk.eyes).length ? { eyes: Lk.eyes } : {}) }), chart = relationalHeadChart(head, { cells });
   const D = readDermis({ ...(Lk ? Lk.dermis : { from: sex }), ...dermisSpec });

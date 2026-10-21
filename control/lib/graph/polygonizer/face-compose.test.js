@@ -125,6 +125,7 @@ describe('the face composer', () => {
       const f = composeFace({ seed }), D = f.dermis;
       expect(() => readDermis({ from: 'female', ...D })).not.toThrow();
       expect(D.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline[0]); expect(D.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline[1]);
+      expect(!!f.scalp).toBe(D.peak !== undefined);
     }
     const share = (a) => a.filter((b) => b > 0).length / a.length;
     expect(share(lossOf('western', 'male'))).toBeGreaterThan(0.3);

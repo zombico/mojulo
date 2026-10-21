@@ -17,7 +17,8 @@
  * read by dermal-looks.js readAncestry) and its own shapes' weights and ranges where they differ. `western` first
  * (European ancestry); the next buckets are new tables, not new code.
  *
- *   composeFace({ sex, bucket, seed, character?, accent? }) → { relations, eyes (the lids' channels), epidermis (the
+ *   composeFace({ sex, bucket, seed, character?, accent? }) → { relations, dermis (the tone where the bucket holds it, the
+ *                   hairline's dials), scalp? (a groom's hint, over a style that has a part), eyes (the lids' channels), epidermis (the
  *                   brows' and the lashes' grooms), picks, proportions (each −1 … 1 of its reach; a groom's number its
  *                   share of its shape's), character, accent, ancestry }
  *
@@ -118,15 +119,18 @@ export const FACE_NOSE = Object.freeze({
 /**
  * THE HAIRLINE — where the scalp's hair starts and ends, person to person (epidermis/dermal-map.js's hairline dials):
  * the front's height, its shape (straight across … rounded), the temples' corners (fuller … receded), a widow's peak
- * (on some), the sideburn's foot, the nape's line; each the mean of two dice in its range. HAIR LOSS (`bald`, 0 … 1, by
+ * (on some, and with it a groom's hint: `scalp`, a centre part with volume), the sideburn's foot, the nape's line; each
+ * the mean of two dice in its range. HAIR LOSS (`bald`, 0 … 1, by
  * the sex's pattern): rolled on some faces, a man's far more often than a woman's (her front kept, her crown thinned),
  * scaled by the bucket's prevalence (`bald`: men of European descent bald the most; East Asian, African and others
  * less, by published prevalence at like ages). Rolled last of all: a seed keeps its face. `composeFace`'s `bald` sets it.
  */
 export const FACE_HAIRLINE = Object.freeze({
-  hairline: [0.92, 1.08], round: [-0.8, 0.8], sideburn: [-8, 10], nape: [-10, 15],
-  temples: { female: [-6, 12], male: [-4, 20] },
-  peak: { chance: 0.3, mm: [2, 8] },
+  hairline: [0.85, 1.15], round: [-1, 1], sideburn: [-12, 15], nape: [-15, 20],
+  temples: { female: [-8, 22], male: [-6, 30] },
+  // (a widow's peak is where the hair parts of itself: a face that has one carries its groom's hint, a centre part with
+  // volume, over any style that has a part)
+  peak: { chance: 0.45, mm: [2, 10], scalp: { part: 'centre', moves: ['voluminous'] } },
   bald: { female: { chance: 0.08, amount: [0.1, 0.5] }, male: { chance: 0.45, amount: [0.1, 1] } },
 });
 /** where a bucket's people sit on the nose's axis when it names none */
@@ -363,12 +367,13 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   // the hairline and the hair's loss, last of all
   const H = FACE_HAIRLINE, mid = ([lo, hi]) => lo + ((d() + d()) / 2) * (hi - lo), r1 = (v) => Math.round(v * 10) / 10;
   const hair = { hairline: Math.round(mid(H.hairline) * 1000) / 1000, round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
-  if (d() < H.peak.chance) hair.peak = r1(mid(H.peak.mm)); else d();
+  let scalpHint = null;
+  if (d() < H.peak.chance) { hair.peak = r1(mid(H.peak.mm)); scalpHint = H.peak.scalp; } else d();
   const BL = H.bald[sex], hasLoss = d() < BL.chance * (B.bald ?? 1), loss = BL.amount[0] + d() * (BL.amount[1] - BL.amount[0]);
   const bald = baldAt ?? (hasLoss ? Math.round(loss * 100) / 100 : 0);
   if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

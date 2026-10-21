@@ -83,8 +83,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the
   front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
   hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
-  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. The dermis
-  study's `--lineup-all` adds the lateral and the back.
+  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. A face rolled a
+  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part with volume over any style that has a
+  part (the peak is where the hair parts of itself). The dermis study's `--lineup-all` adds the lateral and the back.
 
 ### Body-part map: dress tailored to the body, not the segment
 
