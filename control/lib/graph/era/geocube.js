@@ -809,8 +809,9 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow }) {
   const night = H.moonlit ? { night: { day: Math.round(Math.min(1, Math.max(0, 1.25 * (1 - H.night))) * 1000) / 1000, stars: 1, moon: { phase: 0.62, size: 1.3 } } } : {};
   // the cloud band the dome draws: the sky's sheets in the hour's light
   const band = clouds ? { cloudBand: { clouds: { kind: clouds.kind, cover: clouds.cover, seed: clouds.seed }, sun: sunDir(H.key.elevation, H.key.azimuth).map((v) => Math.round(v * 1e5) / 1e5), key: H.key.color, zenith: dome.zenith, horizon: dome.horizon, night: H.night } } : {};
-  const { sun: disc, ...rest } = card;
-  const lookCard = { ...rest, ...(Wl.disc && disc ? { sun: disc } : {}), palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band };
+  // (the disc dropped where it stands: the card's keys keep their order, so its print, and the look's id, hold)
+  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band };
+  if (!Wl.disc) delete lookCard.sun;
   return outsideOf(cube, base, sw, land, lookCard);
 }
 
