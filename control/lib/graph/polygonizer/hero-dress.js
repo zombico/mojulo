@@ -213,7 +213,7 @@ export const OUTFIT_WORDS = Object.freeze({
     { id: 'shortsLeg', part: 'thigh', run: [0, 0.5], ease: 0.014 * k, flare: [0, 0.01 * k], group: 'Bottom' }],
   // MARTIAL ARTIST'S trousers: wide, falling from the hip (on the realistic body the drape: body-relational-drape.js)
   martialPants: ({ scale: k, structured }) => [...(structured ? [{ id: 'martialPantsSeat', part: 'pelvis', ease: 0.02 * k, group: 'Bottom' }] : []),
-    { id: 'martialPantsLeg', part: 'thigh', ease: 0.03 * k, flare: [0, 0.01 * k], group: 'Bottom' }, { id: 'martialPantsShin', part: 'shank', run: [0, 0.94], ease: 0.035 * k, flare: [0.005 * k, -0.01 * k], group: 'Bottom' }],
+    { id: 'martialPantsLeg', part: 'thigh', ease: 0.03 * k, flare: [0, 0.01 * k], group: 'Bottom' }, { id: 'martialPantsShin', part: 'shank', run: [0, 0.94], ease: 0.035 * k, flare: [0.005 * k, 0], group: 'Bottom' }],
   // the GI's jacket: wide, its sleeves to the forearm, its hem over the hips (on the realistic body the wrapped jacket,
   // belted: body-relational-gi.js)
   gi: ({ scale: k, structured }) => [...torsoPiece('gi', 'Top', k, [{ id: 'giSleeve', part: 'upperArm', ease: 0.022 * k, flare: [0, 0.01 * k], group: 'Top' }, { id: 'giCuff', part: 'foreArm', run: [0, 0.6], ease: 0.03 * k, flare: [0.005 * k, 0.015 * k], group: 'Top' }], 0.016),

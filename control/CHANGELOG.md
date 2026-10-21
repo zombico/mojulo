@@ -84,8 +84,8 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   primitive; the belt a band with its buckle at the front. Each authored part name a worn piece had is an ALIAS for the
   cloth it became (its `u` shifted where pieces were merged), and the cloth is in the body the dress is made on, so
   what the expander placed on a piece lands on it: trims and an open front painted on its faces, rows of buttons,
-  embroidered emblems, pauldrons. Still the authored kernel's: skirt hulls, hanging panels, capes, hoods. New tailor
-  primitives: `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
+  embroidered emblems, pauldrons. Still the authored kernel's: hanging panels, capes, hoods. New tailor primitives:
+  `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
 - STYLISM ON THE REALISTIC BODY: no longer refused. A genre, a register and a target outline lower to an outfit build,
   worn as above. `/body-study --palette` shows a figure in its palette's colours, face by face.
 - THE DESIGNER: the stylism given the principles (`stylism/proportion.js`), opt-in, nothing moving without it.
@@ -104,6 +104,19 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   the tailor's fall down the limb, a sleeve narrowing to its cuff); the read judged a hem just under the knee as on the
   calf (now a good landing, as the stage holds); the family cut-offs re-centred on this body as it is read (a gi and a
   straight coat H, a long coat and a gown A, a cinched bodice over a flared skirt X).
+- THE REALISTIC REGISTER: the realistic body's cloth cut as a character designer of the seventh console generation
+  cuts it (close, with a real wearing ease; the silhouette from the cut, the belt, the coat's skirt and the layers, not
+  from volume), where the expander's eases were tuned on the game body. Every garment the close cloth now, its ease
+  compressed toward its role's ceiling (a shirt 12 mm, trousers 14, a coat 22: a coat still looser than a jacket, a
+  jacket than a shirt) and held no farther than 15 mm past it (`fieldGarment`'s new `stand`: the trunk's cloth no longer
+  carried out over the arms at the armpit). A COAT'S SKIRT, or a skirt's own, is the tailor's now (`carrySkirt`): carried
+  down from the garment's body, close at the waist, falling from the hips' widest without following the legs back in,
+  the hollows bridged, an A by the expander's flare over its drop compressed the same way, its hem turned up inside so
+  it opens beneath; a skirt with no body hangs from a waistband of the close cloth, its belt on that. The authored skirt's
+  name is an alias for it (turned: its hem the lowest `u`), so a trim painted on its hem lands there. Measured per side
+  over the bare body: a long coat's chest about 10 cm → 6, its waist 9–12 → 4, its knee 11 → 7. Also fixed: a stand
+  collar with no neck above the garment's top (a heavy figure's shirt) is left off instead of built inside out; the
+  martial trousers' shin piece no longer carries a negative flare the authored body refused.
 - `/garment-design <brief>`: the designer as a skill. The brief in stylism words or a card, the rationale principle by
   principle, the mint and the read, the words adjusted at most three times, the sheet shown; the eyes gate the
   operator's.

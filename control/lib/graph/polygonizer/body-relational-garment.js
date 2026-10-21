@@ -38,7 +38,7 @@ const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null }) {
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null, stand = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   // (`covers` null: every ring of the segments `on` names, a boot over the whole foot)
   const want = covers ? new Set(covers) : null, arm = limbField(R, B1, 'upperArm');
@@ -73,8 +73,11 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
       const c = scl(P.slots.reduce((a, sl) => add(a, st.points[sl]), [0, 0, 0]), 1 / P.slots.length);
       return { ...st, points: Object.fromEntries(P.slots.map((sl) => {
         const p = st.points[sl], d = sub(p, c), hit = crossing(sd, c, unit(d), 2 * len(d) + 0.05);
-        // (a ray that finds no cloth, the skin's point eased straight out)
-        return [sl, (hit && len(sub(hit, c)) >= len(d) ? hit : add(p, scl(unit(d), ease))).map(r6)];
+        // (a ray that finds no cloth, the skin's point eased straight out; with `stand`, a cloth point farther than that past
+        // the skin held there: at the armpit the trunk's field runs on out over the arm the deltoid is blended with, and
+        // a garment's side ends at the armpit, the sleeve over the arm)
+        const q = hit && len(sub(hit, c)) >= len(d) ? hit : add(p, scl(unit(d), ease));
+        return [sl, (stand !== null && len(sub(q, c)) > len(d) + stand ? add(p, scl(unit(d), stand)) : q).map(r6)];
       })) };
     });
     // (its ends closed a third of their ring's radius on beyond it, along the piece, as the skin's are: in the ring's

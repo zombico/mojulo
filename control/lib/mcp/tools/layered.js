@@ -313,19 +313,21 @@ function realisticExpand(plan, hero) {
   const looseWords = words.filter((w) => LOOSE_GARMENTS[w] || LOOSE_TOPS[w]);
   if (looseWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !looseWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
   // the rest of the GARMENTS (an outfit card's, a stylism's, a word's copy pieces, its boots and its belt) worn by the
-  // tailor (body-relational-wear.js); a skirt hull, a panel, a cape or a hood left to the authored kernel on the envelope
+  // tailor (body-relational-wear.js), a skirt carried down from its body; a panel, a cape or a hood left to the authored
+  // kernel on the envelope
   let wear = null;
   if (plan.garments?.length || (Array.isArray(plan.paint) && plan.paint.some((x) => Array.isArray(x?.part)))) {
     const B = realisticBuild(hero), RS = validateRig(S.rig);
     wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : []);
     // what the expander placed on a worn piece (a row of buttons, an embroidered emblem, a painted trim) moved to the cloth
-    // it is now (its alias), its stations' `u` shifted where the piece was merged and a limb's `run` taken as its `u`; a
+    // it is now (its alias), its stations' `u` shifted where the piece was merged (and turned, `k`, on a skirt carried
+    // down from its coat: its hem the lowest `u`) and a limb's `run` taken as its `u`; a
     // side-less limb name for both sides; what has no cloth to land on is left off
     const uOf = (sg) => { const P = S.parts[sg] ?? S.parts[`${sg}R`]; return P ? P.stations[P.stations.length - 1].u ?? 1 : 1; };
     const moved = (x) => {
       if (typeof x?.part !== 'string' || !wear.worn.has(x.part.split('_')[0])) return [x];
       const hits = [wear.alias.get(x.part), wear.alias.get(`${x.part}R`), wear.alias.get(`${x.part}L`)].filter(Boolean); if (!hits.length) return [];
-      return hits.map((a) => { const sh = (r) => r.map((v) => v + a.du), run = x.run && !x.u ? x.run.map((v) => v * uOf(a.seg)) : null;
+      return hits.map((a) => { const sh = (r) => r.map((v) => (a.k ?? 1) * v + a.du).sort((p, q) => p - q), run = x.run && !x.u ? x.run.map((v) => v * uOf(a.seg)) : null;
         const { run: _r, ...rest } = x; return { ...(run ? rest : x), part: a.part, ...(x.s ? { s: sh(x.s) } : {}), ...(x.u ? { u: sh(x.u) } : {}), ...(run ? { u: sh(run) } : {}), ...(Array.isArray(x.over) ? { over: x.over.map((o) => wear.alias.get(o)?.part ?? o) } : {}) }; });
     };
     plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),

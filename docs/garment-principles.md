@@ -140,6 +140,25 @@ Threads' self-evaluation worksheet and "sew for your shape", UKY FCS2848, Seamwo
 - jacked or athletic: the garment follows the drop (the athletic band), no padding, ease over the upper arm (`e ≥ 0.05`)
   or the sleeve reads as strain.
 
+## The realistic register (seventh-generation costume)
+
+The realistic body is not the game body, and its clothes are not cut the same way [practice: the costume of
+seventh-generation console characters, close garments with real wearing ease over a realistic figure]. On the game
+body volume reads at a distance and on few polygons; on the realistic body volume reads as puff. So, there:
+
+- the cloth follows the body at a WEARING EASE, not a stand-off: about a sixth of a garment's extra girth each side
+  (a shirt's 8–10 cm of girth over the chest, a jacket's 10–13, a coat's 15–20), the order of the layers kept;
+- the silhouette comes from the CUT (a waist taken in, a shoulder line), the BELT, the COAT'S SKIRT and the LAYERS, not
+  from the ease;
+- a trench or a long coat is fitted through the body and an A from the waist: it falls from the hips' widest, never
+  back in round the legs, and its sweep is modest (a few centimetres past the hip each side at the knee, more on a long
+  coat);
+- a sleeve tapers to its cuff and the shoulder is the body's own, unpadded unless the design names a shoulder.
+
+Measured as the dressed outline's standoff per side over the bare body (`dress-outline.js`): close cloth at the chest
+within its ease and 1.5 cm, a waist within a few centimetres, a coat's knee well under 10 cm. The game body keeps its
+own eases; the compression is the realistic adapter's (`body-relational-wear.js`).
+
 ## Against the outfit laws
 
 The ten laws in `control/lib/graph/outfit/principles.js` hold most of these as words; this note gives them measures.

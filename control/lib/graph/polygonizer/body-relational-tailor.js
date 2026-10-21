@@ -6,7 +6,7 @@
  *   RUNS          `oneTube` two pieces one tube along a run, each point's weights its own piece's
  *   PROFILES      `drapeRun` down a limb's run: the FALL (`slack`, `taper`), the FOLDS, a FLARE, the BLOUSE over a
  *                 gathered CUFF, the MIDLINE; `flareRun` a piece widened from one end to the other; `fairRun` a
- *                 run's radii smoothed along it; `clearanceOver` how far
+ *                 run's radii smoothed along it; `carrySkirt` a skirt carried down from a trunk tube's lowest ring; `clearanceOver` how far
  *                 out what is under the cloth reaches, ray by ray
  *   EDGES         `fallToFloor` an open hem carried down over the foot; `turnHemIn` a tube's hem folded back in to the
  *                 limb (so it opens, no lid)
@@ -149,6 +149,48 @@ export function fairRun(P, { passes = 2, keep = 1 } = {}) {
   return P;
 }
 
+/** a SKIRT carried down from a trunk tube's lowest ring (its stations bottom-up) to `zHem`: a ring every `step`, each the
+ * lowest ring let down, every slot out to the larger of the ring's own reach widened by `flare` (m at the hem, by the
+ * share of the drop), what is under it (`needAt(c)(direction)`: the trousers, the legs) `clear` over it, and its reach
+ * on the ring above (never narrowing below the hips), a dent between its neighbours bridged; each slot's
+ * weights the lowest ring's, the thigh's shared in toward each side and down (`thigh` of it at the hem, so a stride
+ * carries the skirt's front with the leg); `u` below the tube's first by `span` over the drop, so what finds a station by
+ * its `u` still does. The HEM TURNED: with `zTurn`, a ring a quarter of the hem's up inside at that height (the crotch),
+ * so the hem is an edge and the skirt open beneath, the cap's pole back toward the opening, the tube then run top-down
+ * (its stations and caps reversed); else the hem's cap a third of its radius under it. A new tube */
+export function carrySkirt(P, { zHem, flare = 0, clear = 0.008, needAt = null, thigh = 0.55, step = 0.025, span = 1, zTurn = null }) {
+  const S = P.stations, base = S[0], slots = P.slots, c0 = mean(slots.map((sl) => base.points[sl])), z0 = c0[2];
+  if (!(zHem < z0 - 0.01)) return P;
+  const n = Math.max(2, Math.ceil((z0 - zHem) / step)), own = { [P.bind.bone]: 1 }, wOf = (sl) => P.bind.blend?.[`${base.id}.${sl}`] ?? P.bind.blend?.[base.id] ?? own;
+  const rings = [], blend = { ...(P.bind.blend || {}) }, held = {};
+  // (from the waist down, each slot's reach never less than the ring above's: cloth falls from the hips' widest, it does
+  // not follow the legs back in)
+  for (let k = 1; k <= n; k++) {
+    const f = k / n, dz = (z0 - zHem) * f, c = [c0[0], c0[1], z0 - dz], need = needAt ? needAt(c) : null, id = `stSkirt${n - k}`, points = {};
+    const D = {}, Rs = slots.map((sl) => { const p = base.points[sl], h = [p[0] - c0[0], p[1] - c0[1], 0], d = D[sl] = unitv(h); return Math.max(len(h) + flare * f, need ? need(d) + clear : 0, held[sl] ?? 0); });
+    // (and across the ring the hollows between what it rests on bridged, as cloth is: a dent lifted to its neighbours' mean)
+    const N = slots.length; for (let it = 0; it < 3; it++) for (let j = 0; j < N; j++) Rs[j] = Math.max(Rs[j], (Rs[(j + N - 1) % N] + Rs[(j + 1) % N]) / 2);
+    for (const [j, sl] of slots.entries()) {
+      const p = base.points[sl], d = D[sl], Rr = held[sl] = Rs[j];
+      points[sl] = [c[0] + d[0] * Rr, c[1] + d[1] * Rr, p[2] - dz].map(r6);
+      blend[`${id}.${sl}`] = four(mixW(wOf(sl), { [`thigh${p[0] >= 0 ? 'R' : 'L'}`]: 1 }, thigh * ease3((Math.abs(p[0]) - 0.02) / 0.06) * f));
+    }
+    rings.unshift({ id, u: r6((base.u ?? 0) - span * f), points });
+  }
+  const hem = rings[0], hc = mean(slots.map((sl) => hem.points[sl])), hr = slots.reduce((t, sl) => t + len(sub(hem.points[sl], hc)), 0) / slots.length;
+  if (zTurn !== null && zTurn > zHem + 0.02 && zTurn < z0) {
+    const lc = [hc[0], hc[1], zTurn], id = 'stSkirtLining', points = Object.fromEntries(slots.map((sl) => [sl, add(lc, scl(sub(hem.points[sl], hc), 0.25)).map(r6)]));
+    // (the tube run top-down, the lining last: the loft winds a tube by its first band, which a fold first would turn)
+    for (const sl of slots) blend[`${id}.${sl}`] = wOf(sl);
+    const { back: _b, tip, ...rest } = blend;
+    return { ...P, stations: [...S.slice().reverse(), ...rings.slice().reverse(), { id, u: r6(hem.u - 0.01), points }],
+      caps: { back: P.caps?.tip, tip: add(lc, scl(unitv(sub(hc, lc)), (hr * 0.25) / 3)).map(r6) },
+      bind: { ...P.bind, blend: { ...rest, ...(tip ? { back: tip } : {}), tip: ringW(Object.fromEntries(slots.map((sl) => [sl, wOf(sl)]))) } } };
+  }
+  blend.back = ringW(Object.fromEntries(slots.map((sl) => [sl, blend[`${hem.id}.${sl}`]])));
+  return { ...P, stations: [...rings, ...S], caps: { ...P.caps, back: [hc[0], hc[1], hc[2] - hr / 3].map(r6) }, bind: { ...P.bind, blend } };
+}
+
 // EDGES
 
 /** the HEM FALLING: below the leg's last ring, rings dropped straight down to `floor` over the ground, each point no
@@ -192,11 +234,13 @@ export function turnHemIn(sv, rest, restSlots, { back = 0.03, inset = 0.004 } = 
 /** a STAND COLLAR: a short tube from a garment's top ring (`body`'s last, lifted `lift` off it) up the neck `height` (m),
  * its upper ring the neck's skin there (`neck`, the nearest of its rings) eased out by `ease`, taken round at the
  * garment's slots (each the neck point at the same share of the turn); its lower ring's weights the garment's, its upper
- * ring's the neck's */
+ * ring's the neck's; null where the neck rises no higher than the garment's top */
 export function collarOn(body, neck, { height = 0.035, ease = 0.006, lift = 0.002 } = {}) {
   const S = body.stations, top = S[S.length - 1], c0 = mean(body.slots.map((sl) => top.points[sl])), z1 = c0[2] + height;
   const nk = neck.stations.reduce((b, st) => (Math.abs(mean(Object.values(st.points))[2] - z1) < Math.abs(mean(Object.values(b.points))[2] - z1) ? st : b));
   const nc = mean(neck.slots.map((sl) => nk.points[sl])), N = body.slots.length, M = neck.slots.length;
+  // (no neck above the garment's top to stand on, as on a heavy figure whose shirt rises to the jaw: no collar)
+  if (nc[2] < c0[2] + 0.005) return null;
   const lower = Object.fromEntries(body.slots.map((sl) => { const p = top.points[sl], d = unitv(sub(p, c0)); return [sl, add(p, scl(d, lift)).map(r6)]; }));
   const upper = Object.fromEntries(body.slots.map((sl, j) => { const q = nk.points[neck.slots[Math.round((j * M) / N) % M]], d = unitv(sub(q, nc)); return [sl, add(q, scl(d, ease)).map(r6)]; }));
   const own = { [body.bind.bone]: 1 }, nOwn = { [neck.bind?.bone ?? 'neck']: 1 }, blend = {};

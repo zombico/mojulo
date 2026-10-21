@@ -2,7 +2,7 @@
 // a layered card (the suit: a shirt under a jacket, each a body and two sleeves, a stand collar, shoes, a belt with its
 // buckle, the trims painted on the cloth; the jacket outside the shirt; all closed and wound once; a stride flinging nothing); a
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
-// (the casual tee's), its hem turned back in to the arm.
+// (the casual tee's), its hem turned back in to the arm; a coat's skirt (the operative's) carried down from its body.
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -66,6 +66,22 @@ describe('an outfit card worn by the tailor', () => {
     expect(sash.stations.length).toBe(2);
     const z = centre(sash, sash.stations[0])[2], ring = coat.stations.reduce((b, st) => (Math.abs(centre(coat, st)[2] - z) < Math.abs(centre(coat, b)[2] - z) ? st : b));
     expect(radius(sash, sash.stations[0])).toBeGreaterThan(radius(coat, ring) - 0.004);
+  }, 300_000);
+
+  it('a coat\'s skirt carried down from its body: no authored hull, close over the trousers, its hem an edge open beneath', () => {
+    const r = card('operative'), C = r.parts.outer_torso;
+    expect(Object.keys(r.parts).some((k) => /_skirt$/.test(k) && !/^belt/.test(k))).toBe(false);
+    const S = C.stations, z = (st) => centre(C, st)[2], last = S[S.length - 1], hem = S[S.length - 2];
+    // (run top-down, the turned lining last: inside the hem, above it)
+    expect(z(S[0])).toBeGreaterThan(z(last));
+    expect(radius(C, last)).toBeLessThan(0.4 * radius(C, hem));
+    expect(z(last)).toBeGreaterThan(z(hem) + 0.1);
+    // (an A, not a bell: at the hem no more than 9 cm past the trousers' reach at that height on either side)
+    const legs = Object.entries(r.parts).filter(([k]) => /^bottom_leg[RL]$/.test(k)).flatMap(([, P]) => pointsOf(P)).filter((q) => Math.abs(q[2] - z(hem)) < 0.03);
+    const xs = Object.values(hem.points).map((p) => p[0]), lx = legs.map((q) => q[0]);
+    expect(Math.max(...xs) - Math.max(...lx)).toBeLessThan(0.09); expect(Math.max(...xs) - Math.max(...lx)).toBeGreaterThan(0.005);
+    expect(Math.min(...lx) - Math.min(...xs)).toBeLessThan(0.09);
+    const A = auditLayered(compileLayered(r)).outer_torso; expect(A.windingErrors).toBe(0); expect(A.boundaryEdges).toBe(0);
   }, 300_000);
 
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {
