@@ -43,7 +43,7 @@ describe('the micro-town', () => {
 describe('the micro-city', () => {
   it('lays the smallest city in the cube\'s builders\' language, painted by the cube; it is lit by the cube, never an hour', () => {
     const { city, anchor } = geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 });
-    expect(city).toMatchObject({ kind: 'city', seed: 3, board: MICRO_CITY.board, paint: { geocube: 'gothic-night' }, cars: false, people: 0 });
+    expect(city).toMatchObject({ kind: 'city', seed: 3, board: MICRO_CITY.board, paint: { geocube: 'gothic-night', amount: 1 }, cars: false, people: 0 });
     expect(anchor).toBe('tiered');
     expect(geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', domain: 'harbour-town' }).pick.name).toBe('harbour-town');
     expect(() => geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', hour: 'dusk' })).toThrow(/a city is lit by its cube's look/);
@@ -61,5 +61,20 @@ describe('the micro-city', () => {
     expect(w.scale).toBeCloseTo(1 / CITY_METERS_PER_UNIT, 9);
     // a trail's open route is walked out and back, unscaled, as before
     expect(dummyWalker([[0, 0, 0], [1, 0, 0]])).toEqual({ figure: 'dummy', path: [[0, 0, 0], [1, 0, 0], [0, 0, 0]], style: 'bumble', speed: 1.4, follow: true });
+  });
+});
+
+describe('the cube paints its architecture', () => {
+  const walls = (cube) => {
+    const P = assembleGeocubeScene({ kind: 'geocube', cube, show: 'town', seed: 3 }, {}, assembleStageScene);
+    return [...new Set(P.faces.filter((f) => f.group === 'town:roof').map((f) => f.fill))].sort();
+  };
+  it('a street\'s houses take the cube\'s colours: two cubes on one base kit paint their roofs apart', () => {
+    expect(walls('gothic-night')).not.toEqual(walls('island-noon'));
+  });
+  it('a street with no paint, or one re-pointed at ramps its kit lacks, is the kit\'s own as before', () => {
+    const plain = { kind: 'stage', seed: 3, kit: 'isekai-meadow', trail: { run: 12 }, town: { houses: 2, enter: 0, recipe: MICRO_TOWN.town } };
+    const a = assembleStageScene(plain), b = assembleStageScene({ ...plain, town: { ...plain.town, paint: { 'str:tile': 'cube-roof' } } });
+    expect(JSON.stringify(b.faces)).toBe(JSON.stringify(a.faces));
   });
 });

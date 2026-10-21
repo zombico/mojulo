@@ -166,8 +166,8 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
 - **Settlements, the towns a domain walks through.** A cube's `settlements: { <name>: { town?, houses?, enter?, doors?,
   anchor? } }` are the towns its builders make: a town plan (`era/out-town.js`) and how much of its street stands and
   is walked into. A domain names one or writes its own (`settlement`; an interior takes none). `geocubeTown` makes it a
-  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own. The houses keep
-  the base kit's structure paint, not yet the cube's colours: two cubes on one base paint their houses alike. A town
+  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own, painted by the
+  cube (Geocube micro worlds, below). A town
   domain standing alone walks a trail through its street (a town does not fit on the island); a level lays the street
   once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains `harbour-town`, a street up
   from the cove.
@@ -203,9 +203,17 @@ hero, nothing to export.
   as it was), a person's height among the city's buildings. Under a second warm.
 - A domain with a town shown on its land is a street on a trail, so it raises no summit structures; nor do a
   micro-town or a micro-city.
-- Rendered once each in headless Chromium (no page errors), not reviewed: the dummy walks the town's trail and its
-  door spurs and stands a person's height on the city's sidewalk. What the shots show: the town's houses are the base
-  kit's paint, not the cube's, and the city's buildings read dark beside the cube's pale ground.
+- **The cube paints its architecture.** A geocube's look carries the cube's own made ramps beside its kit's, under
+  names of their own (`cube-stone`, `cube-trim`, `cube-roof` from the floor, `cube-accent`), so nothing that names a
+  kit's ramp moves. A stage's `town` takes `paint` (`era/stage-buildings.js`): its surface groups re-pointed at the
+  kit's ramps, a ramp the kit lacks passed over; a cube's street (`geocubeTown`) re-points its timber and trim at the
+  cube's trim, its roofs (tile, slate, shingle, thatch) at its floor, its shells at its stone and its painted things at
+  its accent (`CUBE_STREET_PAINT`; plaster and stone walls were already the land's soil and rock, the cube's). Two cubes
+  on one base kit now paint their houses apart. The micro-city leans its skins all the way to the cube
+  (`paint.amount` 1); a game's city level still leans halfway. A street with no `paint` is as it was.
+- Rendered headless (no page errors), not reviewed: the dummy walks the town's trail and its door spurs and stands a
+  person's height on the city's sidewalk; the gothic town's houses stand in cold grey stone, the island's under
+  terracotta, and the island city's facades lean to its stucco, their window bands still the glass's dark.
 
 ### Geocube trail: the cube's island, walked by a dummy
 

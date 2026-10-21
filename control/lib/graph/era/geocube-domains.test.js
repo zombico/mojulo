@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps, GEOCUBE_DOMAINS } from './geocube.js';
+import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps, GEOCUBE_DOMAINS, CUBE_STREET_PAINT } from './geocube.js';
 import { readHour } from './geocube-hours.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { assembleStageScene } from './stage.js';
@@ -187,7 +187,7 @@ describe('settlements, the towns a domain walks through', () => {
     const m = withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour' });
     expect(m.trail).toEqual({});
     expect(m.meru).toBeUndefined();
-    expect(m.town).toEqual({ anchor: 'tiered', houses: 4, enter: 1, recipe: { length: 100, branches: 1 } });
+    expect(m.town).toEqual({ anchor: 'tiered', houses: 4, enter: 1, recipe: { length: 100, branches: 1 }, paint: CUBE_STREET_PAINT });
     // the stage's own street wins
     expect(withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour', trail: {}, town: { houses: 2 } }).town).toEqual({ houses: 2 });
     expect(geocubePaint({ geocube: TOWN, domain: 'harbour' })).toMatchObject({ domain: 'harbour', settlement: 'harbour' });

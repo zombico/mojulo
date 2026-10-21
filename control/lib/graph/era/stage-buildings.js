@@ -25,6 +25,7 @@ import { withProgram } from './programs.js';
 import { stageLevel } from '../structure/level.js';
 import { STRUCTURE_RAILS } from './out-structures.js';
 import { structurePaint, paintStop } from './out-structures-paint.js';
+import { madeRamp } from './style/swatches.js';
 import { decompileAnchor, ANCHOR_STRUCTURES, ANCHOR_IDS } from './out-anchor-structure.js';
 import { designTown } from './out-town.js';
 import { structureStyle } from './out-structures.js';
@@ -86,16 +87,20 @@ function anchorOf(b, kitId) {
   return a;
 }
 
-/** The kit's structure paint, or a plain one for a kit its towns are not painted for. */
-function paintFor(kitId) {
+/** The kit's structure paint, or a plain one for a kit its towns are not painted for. `repoint`: a town's `paint`, a
+ * group at another of the kit's ramps (a geocube's look carries the cube's: era/geocube.js CUBE_STREET_PAINT); a ramp the
+ * kit lacks is passed over, so a street painted for a cube stands in another kit in that kit's own paint. */
+function paintFor(kitId, repoint) {
   const hex = (c) => (typeof c === 'string' ? c : `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('')}`);
-  try { const P = structurePaint(kitId); return (group, v) => hex(paintStop(P, group, v)); }
+  const has = (n) => { try { madeRamp(kitId, n); return true; } catch { return false; } };
+  const swatches = repoint ? Object.fromEntries(Object.entries(repoint).filter(([, n]) => has(n))) : undefined;
+  try { const P = structurePaint(kitId, swatches ? { swatches } : {}); return (group, v) => hex(paintStop(P, group, v)); }
   catch { const base = { 'str:plaster': [196, 186, 166], 'str:stone': [150, 146, 138], 'str:roof': [122, 72, 56] };
     return (group, v) => { const c = base[group] ?? base['str:stone'], k = 0.55 + 0.6 * v; return `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0')).join('')}`; }; }
 }
 
 /** The kit's structure paint at a group and value, as hex (the town's own groups: str:plaster, str:thatch …). */
-const paintRaw = (kitId) => paintFor(kitId);
+const paintRaw = (kitId, repoint) => paintFor(kitId, repoint);
 
 /**
  * A town's street: the civilization's town designed on the kit (era/out-town.js), its lots in the town's own order
@@ -107,8 +112,9 @@ const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 function townStreet(town, kitId, seed0) {
-  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe)`);
+  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint? }');
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint)`);
+  if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
   const anchor = typeof town.anchor === 'string' ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
@@ -217,7 +223,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // houses standing as shells; seated after the recipe's own buildings, on what land is left
   const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed) : [];
   const list = [...list0, ...street];
-  const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId);
+  const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);
   const seated = [], taken = [], reserved = [];
@@ -308,7 +314,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       // one collider round it
       const below0 = Math.max(0.3, floor - Math.min(...zs) + 0.3), Wl = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
       clearUnder(0.4, false);   // a shell has no floor: its land stays (its collider keeps a walker out)
-      const Pt = paintRaw(kitId), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+      const Pt = paintRaw(kitId, manifest.town?.paint), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
       const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; });
       const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return { ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }; });
       faces = [...faces, ...shellF, ...plinth];

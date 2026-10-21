@@ -680,7 +680,7 @@ export function geocubeTown(cube, D) {
   if (!D || D.settlement === undefined) return null;
   const t = typeof D.settlement === 'string' ? cube.settlements[D.settlement] : D.settlement, anchor = t.anchor ?? cubeBuildings(cube)?.anchor;
   return { ...(anchor !== undefined ? { anchor } : {}), ...(t.houses !== undefined ? { houses: t.houses } : {}), ...(t.enter !== undefined ? { enter: t.enter } : {}),
-    ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}) };
+    ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT } };
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -822,10 +822,20 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow }) {
   return outsideOf(cube, base, sw, land, lookCard);
 }
 
+// the cube's own made ramps, under names of their own so the kit's are untouched: what a street of houses in the cube's
+// look is painted from (CUBE_STREET_PAINT)
+const cubeMade = (cube) => { const shadow = shadeHue(cube), r = (hex) => rampFrom(rgbOf(hex), 5, { shadow });
+  return { 'cube-stone': r(cube.colour.stone), 'cube-trim': r(cube.colour.trim), 'cube-roof': r(cube.colour.floor), 'cube-accent': r(cube.colour.accent) }; };
+/** A street of houses painted by the cube (a stage town's `paint`, era/stage-buildings.js): its frames and boards the
+ * trim, its roofs the floor (terracotta, slate, flags), its shells the stone, its painted things the accent. The walls
+ * of plaster and stone are the land's soil and rock, already the cube's. */
+export const CUBE_STREET_PAINT = Object.freeze({ 'str:timber': 'cube-trim', 'str:thatch': 'cube-roof', 'str:tile': 'cube-roof', 'str:shingle': 'cube-roof', 'str:slate': 'cube-roof',
+  'str:shell': 'cube-stone', 'str:motif': 'cube-trim', 'str:paint': 'cube-accent' });
+
 function outsideOf(cube, base, sw, land, lookCard) {
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
-  registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
+  registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
   const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
