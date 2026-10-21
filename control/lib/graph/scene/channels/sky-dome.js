@@ -36,7 +36,26 @@ const SKY = ${safeJson(d)};
     dome.raycast = () => {};   // NEVER footing: the dome is a huge BackSide sphere; a ground probe that
     scene.add(dome);           // misses the terrain would otherwise hit its underside (~z -3460) and drop the unit into the abyss.
   }
-  if (SKY.stars > 0 && (SKY.space || SKY.day < 0.5)) {
+${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside the dome from the horizon to the band's top, u round the
+  // dome from +x toward +y, v up it. It writes depth (clear texels discarded), so the stars, the moon and the sun behind
+  // a cloud are hidden by it
+  {
+    const C = SKY.clouds, top = C.top * Math.PI / 180, N = 96, M = 16, rr = R * 0.96, pos = [], uv = [], idx = [];
+    for (let j = 0; j <= M; j++) for (let i = 0; i <= N; i++) {
+      const az = (i / N) * Math.PI * 2, e = (j / M) * top, ce = Math.cos(e);
+      pos.push(SKY.center[0] + rr * ce * Math.cos(az), SKY.center[1] + rr * ce * Math.sin(az), SKY.center[2] + rr * Math.sin(e));
+      uv.push(i / N, j / M);
+    }
+    for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) { const a = j * (N + 1) + i; idx.push(a, a + 1, a + N + 2, a, a + N + 2, a + N + 1); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    const tex = new THREE.TextureLoader().load(C.src);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping;
+    const band = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, fog: false }));
+    band.renderOrder = -1.5; band.frustumCulled = false; band.raycast = () => {};
+    scene.add(band);
+  }
+` : ''}  if (SKY.stars > 0 && (SKY.space || SKY.day < 0.5)) {
     const nightF = SKY.space ? 1 : Math.min(1, (0.5 - SKY.day) / 0.5);  // space stars are always on
     const N = Math.round((SKY.space ? 2000 : 900) * SKY.stars * nightF);
     let s = SKY.seed >>> 0 || 1; const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);

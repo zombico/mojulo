@@ -195,9 +195,22 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   the water darkens into the night. A moonlit hour draws the night on the dome: the moon where the key is, the stars
   out as far as the night has come. A cube's contrast is resolved against the hour's light. A room, a room's show and a
   trail in its own kit refuse an hour. Absent, the outside is byte for byte as it was.
-- Planned: a recipe's `weather` paints a cloud band round the dome by the old layered-noise recipe (clouds, difference
-  clouds, levels, stretch, emboss toward the sun, a gradient map through the hour's colours), banded to the register on
-  a quiet cube and soft on a gritty one.
+- **The painted sky** (`matte-paint/sky.js`). A geocube's outside takes `clouds`: `clear`, `fair`, `overcast`, `storm`,
+  `haze` or `high`, or `{ kind, cover, seed }`; or `'weather'`, the sky the recipe's live weather state is painted under
+  (rain and thunder under storm cloud, fog and mist under haze, drizzle and snow under overcast). A band round the dome
+  is painted once on the CPU by the old Photoshop recipe, nothing volumetric: each sheet is a flat deck overhead that a
+  pixel of the band looks up into, so the clouds crowd and stretch toward the horizon by perspective and wrap the dome
+  without a seam; on it, clouds (value fbm, billowed for cumulus) or difference clouds (a storm's churn), stretched along
+  the wind, levels cutting the cover (normalised, so a sheet's levels read as its cover), an emboss toward the sun (the
+  rims that face it lit, the bellies and thick cloud shaded), a gradient map from the belly's colour (the sky overhead,
+  darkened) to the top's (the key, the sun's or the moon's), a silver lining where the sun stands behind thin cloud,
+  far deck fading into the horizon's colour, a haze a veil thickest low; the octaves a pixel can hold, so the horizon
+  does not speckle. The sheets are laid high first. The clouds lean the light as their cloud would: under overcast and
+  storm the key weakens, the shade greys toward the sky, the air thickens and the sun's disc is gone; clouds that follow
+  a live weather lean only the disc (the live channel carries the air). The dome draws the band as a ring inside it that
+  hides the stars, the moon and the sun behind a cloud; a sky without one emits nothing new. Clouds without an hour are
+  at the cube's own. A level minted with a weather keeps its bare dome: following it is opt-in.
+- Planned: the clouds through the cube's ramps, banded to the register on a quiet cube and soft on a gritty one.
 
 ### Geocube styles: principles and the laws that check them
 

@@ -540,7 +540,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // body can't drag the bounds centroid — and the star sphere + sun direction — off the body);
       // otherwise fall back to the geometry bounds, unchanged for every existing scene.
       center: Array.isArray(sky.center) ? sky.center : mesh.center,
-      radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20) }
+      radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20),
+      // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
+      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
     : null;
   const skyBlock = skyDome ? skyDomeScript(skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material

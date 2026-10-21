@@ -20,6 +20,7 @@
  */
 import { lookOf } from '../era/style/looks.js';
 import { ISEKAI_STYLES, isekaiKeyOf, boulderFaces, nightSky } from '../era/isekai.js';
+import { cloudBand } from '../matte-paint/sky.js';
 import { bakeStageLight } from '../era/stage.js';
 import { makeSunShadow, makeSoftSunShadow, sunDir } from '../era/sun.js';
 import { lockFaces } from '../era/palette.js';
@@ -538,7 +539,9 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
       return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
     })() } : {}),
     // (a cube's outside at a moonlit hour, geocube-hours.js, draws its card's night: the moon where the key is, the stars)
-    sky: st.night && st.hour !== undefined ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
+    // (and under a cube's weather, matte-paint/sky.js, its clouds painted round the dome)
+    sky: { ...(st.night && st.hour !== undefined ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) }),
+      ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     pack: true,
     // the walk, and the climbs the walker can take: each climb anchor's foot, lip and way in (channels/walk.js CLIMB)
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4,

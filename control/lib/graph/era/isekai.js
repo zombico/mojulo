@@ -31,6 +31,7 @@ import { blobTris } from '../vegetation/tree-mesh.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
+import { cloudBand } from '../matte-paint/sky.js';
 import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
 import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
@@ -520,7 +521,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
+    sky: { ...(st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) }),
+      // (a geocube's weather: its clouds painted round the dome, matte-paint/sky.js)
+      ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
     pack: true,
     ...((manifest.wind || manifest.grass) && st.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
