@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { dressedTile } from './dressed.js';
 import { tileFamilyOf, normalizeTileSpec } from '../era/tile-specs.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
+import { assembleStageScene } from '../era/stage.js';
 
 // DRESSED STONE: ashlar painted from relief as a room's tile. Small repeats keep it quick: the laws are the same at 512.
 const CFG = { stone: [176, 168, 150], mortar: [120, 114, 102], metres: 1, rows: 3, cols: 2 };
@@ -42,5 +43,27 @@ describe('dressed stone as a tile spec', () => {
     const url = surfaceTexture(`${tileFamilyOf({ gen: 'dressed', stone: [176, 168, 150], mortar: [120, 114, 102], scale: 1, rows: 2 })}-a`);
     const png = Buffer.from(url.split(',')[1], 'base64');
     expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([512, 512]);
+  });
+});
+
+describe('a pillar is never coursed', () => {
+  it('fluted and plain shafts run up the pillar: a step down it changes the stone far less than a step across', () => {
+    for (const cut of ['fluted', 'shaft']) {
+      const T = dressedTile({ ...CFG, cut, metres: 1.5 }, { size: 128, seed: 3 });
+      let down = 0, across = 0;
+      for (let j = 0; j < T.H - 1; j++) for (let i = 0; i < T.W - 1; i++) { down += Math.abs(lum(T, i, j + 1) - lum(T, i, j)); across += Math.abs(lum(T, i + 1, j) - lum(T, i, j)); }
+      expect(down, cut).toBeLessThan(across * 0.8);
+    }
+  });
+
+  it('a recipe\'s pillars are a surface of their own: the nave\'s columns fluted, its grime and moss kept, the rest as it was', () => {
+    const rooms = [{ id: 'nave', x: 0, y: 0, w: 10, d: 16, h: 9 }], pillar = { gen: 'dressed', stone: [176, 168, 150], mortar: [120, 114, 102], cut: 'fluted' };
+    const plain = assembleStageScene({ kind: 'stage', kit: 'gothic-nave', rooms }), fluted = assembleStageScene({ kind: 'stage', kit: 'gothic-nave', rooms, tiles: { pillar } });
+    const by = (P, g) => P.faces.filter((f) => f.group === g).length;
+    expect(by(plain, 'stage:pillar')).toBe(0);
+    expect(by(fluted, 'stage:pillar')).toBeGreaterThan(0);
+    expect(fluted.faces.length).toBe(plain.faces.length);
+    expect(by(fluted, 'stage:moss')).toBe(by(plain, 'stage:moss'));
+    expect(by(fluted, 'stage:pillar') + by(fluted, 'stage:trim')).toBe(by(plain, 'stage:trim'));
   });
 });

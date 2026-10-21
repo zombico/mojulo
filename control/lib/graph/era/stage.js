@@ -286,17 +286,28 @@ const VARIANTS = ['a', 'b', 'c', 'd'];
  *  floor (the nave's runner and kerbs) keeps it. */
 function withRecipeTiles(kit, kitId, tiles) {
   if (!tiles || typeof tiles !== 'object' || Array.isArray(tiles)) throw new Error('stage: tiles is { <surface>: { gen, … } }');
-  const out = { ...kit.tiles }, tint = { ...kit.tint };
+  const out = { ...kit.tiles }, tint = { ...kit.tint }, cells = { ...kit.cells };
   for (const [part, spec] of Object.entries(tiles)) {
+    // the PILLARS (pilasters, engaged columns) are a surface of their own when a recipe names one: on a kit that draws
+    // them in its trim they take the trim's laying, cells and band, upright (a fluted shaft's flutes stand up it)
+    if (part === 'pillar' && !kit.tiles.pillar && kit.tiles.trim) {
+      const { key, ...was } = kit.tiles.trim, n = normalizeTileSpec(spec, 'stage: tiles.pillar');
+      const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
+      out.pillar = { ...was, family: tileFamilyOf(laid, 'stage: tiles.pillar'), scale: laid.scale ?? was.scale ?? 1, upright: true, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
+      if (tint.trim) { const v = r5(tint.trim.reduce((a, b) => a + b, 0) / 3); tint.pillar = [v, v, v]; }
+      cells.pillar = kit.cells.trim;
+      continue;
+    }
     if (!kit.tiles[part]) throw new Error(`stage: tiles.${part}: kit '${kitId}' has no ${part} surface (surfaces: ${Object.keys(kit.tiles).join(', ')})`);
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
     // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at)
     const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
-    out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1 };
+    // (a dressed family's every block is its own stone already: two variants, half the bytes, read as varied as four)
+    out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
     // the kit's tint sets the value band a surface lives in; the recipe's own colour is the hue, so keep the band, drop the cast
     if (tint[part]) { const v = r5(tint[part].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
   }
-  return { ...kit, tiles: out, tint };
+  return { ...kit, tiles: out, tint, cells };
 }
 
 // ── plan ─────────────────────────────────────────────────────────────────────
@@ -451,7 +462,7 @@ export function buildStageGeometry(plan) {
   const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
-    return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
+    return { key: t.family ? `${t.family}-${VARIANTS[variant % (t.variants ?? 4)]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part], ...(t.upright ? { upright: true } : {}) };
   };
   // the floor is paved in BAYS: one flagstone tile spans each structural bay (so its edge joints meet the
   // pilasters), each bay its own variant; a rectangle of floor is split at the bay lines so no face straddles two
@@ -528,7 +539,7 @@ export function buildStageGeometry(plan) {
     for (let k = 0; k <= n; k++) {
       const u = lines[k];
       if (cuts.some(([c0, c1]) => u > c0 - kit.door.frame - col.r && u < c1 + kit.door.frame + col.r)) continue;
-      engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim);
+      engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim, sf.pillar ?? sf.trim);
       if (k > 0 && k < n && (isPortal || (k - 1) % kit.torch.every === 0)) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
       columns.push({ F, side, u, top: h - kit.cornice.h });
     }
@@ -578,7 +589,8 @@ export function buildStageGeometry(plan) {
     ['-y', '+x', '+y', '-x'].forEach((s, si) => {
       if (r.open.includes(s)) return;
       const F = wallFrame(r, s), cuts = r.openings[s].map((op) => [...openingU(F, op), op.top]).sort((p, q) => p[0] - q[0]);
-      const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell;
+      // (the pillars, a recipe's own surface when it names one: pilasters and engaged columns, else the trim as ever)
+      const wallS = surf('wall', ri * 4 + si), trim = surf('trim'), cell = wallS.cell, pillar = kit.tiles.pillar ? surf('pillar', ri * 4 + si) : trim;
       // the wall: full-height solid spans + the lintel over each opening (a nave composes it per bay instead)
       const flatWall = (u0, u1) => {
         const inBay = cuts.map(([a, b, top]) => [Math.max(a, u0), Math.min(b, u1), top]).filter(([a, b]) => b > a);
@@ -586,7 +598,7 @@ export function buildStageGeometry(plan) {
         for (const [a, b, top] of inBay) panel(out, add(add(F.o, mul(F.U, a)), [0, 0, top]), F.U, b - a, [0, 0, 1], h - top, F.N, wallS, cell);
       };
       if (!nave) flatWall(0, F.len);
-      else naveWall(F, cuts, flatWall, { wall: wallS, trim }, h, s);
+      else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
       for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
       wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
@@ -647,9 +659,9 @@ export function buildStageGeometry(plan) {
         // the pilaster: its face lit in the trim's fine cells, its sides (seen edge-on) in metre cells; its top and foot
         // are hidden under the cornice and on the plinth
         const z0p = kit.plinth.h, hp = h - kit.cornice.h - z0p, po = kit.pilaster.out, base0 = add(add(F.o, mul(F.U, a)), [0, 0, z0p]);
-        panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, trim, cell);
-        panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), trim, 1);
-        panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, trim, 1);
+        panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, pillar, cell);
+        panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), pillar, 1);
+        panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, pillar, 1);
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }

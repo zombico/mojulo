@@ -103,6 +103,14 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   sky's and the lamps'), each block its own tone, mottle and weather. Seamless by construction (whole courses, blocks
   laid whole and wrapped, the light's march and cavity wrapped: `lightRelief`'s new `tile`). 512 texels a side; its
   scale is part of its family, and unset it is painted at the metres the kit lays it at. `stone-brick` is untouched.
+- **Pillars, never coursed.** A stage recipe (and a geocube's `surfaces.pillar`) names its pillars' own surface: the
+  pilasters and the engaged columns' shafts, which otherwise draw in the kit's trim. Group `stage:pillar`; the trim's
+  laying, cells and value band; the grime and the nave's moss as on trim; the column's base block and abacus stay trim.
+  A pillar is a shaft, never stacked like a wall: dressed stone's `cut` is `fluted` (vertical channels between narrow
+  fillets, `flutes` a repeat, the arrises nicked here and there) or `shaft` (a plain monolith, its grain up it), both
+  weathered in streaks running down and lit from the upper left so a flute is found. Laid upright: on an engaged column
+  the flutes stand up the shaft. A dressed family draws two variants, not four (every block is its own stone already),
+  halving its bytes. Without a pillar surface a room is byte for byte as it was.
 
 ### Geocube styles: principles and the laws that check them
 

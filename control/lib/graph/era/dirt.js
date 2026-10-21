@@ -94,8 +94,9 @@ export function makeDirt(plan, allLights, knobs = {}) {
       const v = 0.86 * (1 - 0.22 * vnoise(c[0] * 1.3, c[1] * 1.3, S + 23));
       return [v * 0.86, v * 0.96, v * 0.8];   // wet and a little green
     }
-    if (g === 'stage:ceiling' || (g === 'stage:trim' && n[2] < -0.5)) { const v = ceilingSoot(c); return [v, v, v]; }
-    if ((g === 'stage:wall' || g === 'stage:trim') && Math.abs(n[2]) < 0.5) {
+    // (a recipe's pillars are trim drawn in their own stone: they take the trim's soot and grime)
+    if (g === 'stage:ceiling' || ((g === 'stage:trim' || g === 'stage:pillar') && n[2] < -0.5)) { const v = ceilingSoot(c); return [v, v, v]; }
+    if ((g === 'stage:wall' || g === 'stage:trim' || g === 'stage:pillar') && Math.abs(n[2]) < 0.5) {
       const r = roomAt(c[0], c[1]), z = c[2];
       // water from below: a damp band, greener and darker toward the floor
       const damp = k.damp * (1 - smooth(0, 1.5, z));

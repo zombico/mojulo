@@ -108,7 +108,7 @@ export function blendsByCause(plan, shell, M, G, E = null) {
     if (!f.tint || f.corners.length !== 4) continue;
     const n = f.normal, g = f.group;
     let alpha = null, key, scale, tint, uv;
-    if (g === 'stage:gutter' || ((g === 'stage:wall' || g === 'stage:trim') && Math.abs(n[2]) < 0.5 && Math.min(...f.corners.map((c) => c[2])) < M.rise[1])) {
+    if (g === 'stage:gutter' || ((g === 'stage:wall' || g === 'stage:trim' || g === 'stage:pillar') && Math.abs(n[2]) < 0.5 && Math.min(...f.corners.map((c) => c[2])) < M.rise[1])) {
       // moss: thickest at the foot and in the gutter, climbing in tongues (the wander) and patches
       alpha = f.corners.map((c) => (g === 'stage:gutter' ? M.max : M.max * (1 - smooth(M.rise[0], M.rise[1], c[2] + (vnoise(c[0] * 0.9 + c[1] * 0.9, 1.5, 4101) - 0.5) * 2 * M.wander))) * mix(0.35, 1, patch(c, 4103, M.patch)));
       const t = Math.abs(n[2]) > 0.9 ? [1, 0, 0] : unit([-n[1], n[0], 0]);
