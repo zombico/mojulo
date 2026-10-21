@@ -11,7 +11,8 @@ import { assembleStageScene } from './stage.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 import { readLevel } from '../level/graph.js';
 import { sequentialLevel } from '../level/sequential.js';
-import { resolveLevel } from '../gameworld/world.js';
+import { resolveLevel, readGameworld } from '../gameworld/world.js';
+import { composeGameworld } from '../gameworld/compose.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { MEADOWMARK } from '../gameworld/examples.js';
 
@@ -191,5 +192,29 @@ describe('settlements, the towns a domain walks through', () => {
   it('the street stands on the trail', () => {
     const P = assembleStageScene(withGeocube({ kind: 'stage', seed: 4, geocube: TOWN, domain: 'harbour' }));
     expect(P.faces.some((f) => String(f.group).startsWith('town:'))).toBe(true);
+  });
+});
+
+describe('a game expands its one cube', () => {
+  it('a level asking for nothing, on a cube that names its levels, takes its heartbeat\'s, else the cube\'s first outside', () => {
+    const inFirst = { ...NAMED, domains: { crypt: { interior: 'crypt' }, ...NAMED.domains } };
+    const L = (more = {}) => sequentialLevel({ seed: 2, geocube: inFirst, nodes: { path: { trail: { run: 12 } } }, ...more });
+    expect(L().paint).toMatchObject({ domain: 'shore-night', from: 'cube' });
+    expect(L().stages[0].manifest.domain).toBe('shore-night');
+    // a cube that names none paints as it always did: by terrain
+    expect(sequentialLevel({ seed: 2, geocube: CUBE, nodes: { path: { trail: { run: 12 } } } }).paint).toMatchObject({ terrain: 'default', from: 'cube' });
+    expect(sequentialLevel({ seed: 2, geocube: CUBE, nodes: { path: { trail: { run: 12 } } } }).paint.domain).toBeUndefined();
+  });
+
+  it('compose lends the cube\'s levels to the walks, the ones the words name first, and writes one cube', () => {
+    const W = composeGameworld({ prompt: 'a limestone harbour at dusk', levels: 3, seed: 1 });
+    expect(W.brief.cube.id).toBe('limestone-crags');
+    expect(W.brief.domains.map((d) => [d.domain, d.word ?? null])).toEqual([['harbour-town', 'harbour'], ['cove-dusk', 'dusk'], ['crag-path', null]]);
+    expect(Object.values(W.levels).every((L) => L.style?.geocube === undefined)).toBe(true);
+    expect(W.brief.read.find((r) => r.word === 'harbour').decides).toContain('domain');
+    const lid = W.brief.domains[1].level, R = resolveLevel(readGameworld(W), lid);
+    expect(sequentialLevel(R.level).paint).toMatchObject({ geocube: expect.stringMatching(/^limestone-crags/), domain: 'cove-dusk', hour: 'dusk', terrain: 'cove' });
+    // a cube that names no levels: no domains, as before
+    expect(composeGameworld({ prompt: 'a gothic night', levels: 2, seed: 1 }).brief.domains).toBeUndefined();
   });
 });

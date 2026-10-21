@@ -16,7 +16,9 @@
  *                                         // terrains: the level's, else its heartbeat's, else the cube's own); a
  *                                         // node's own kit wins. Each stage says what it got (`painted`)
  *     domain?: <ask>,                     // or one of the levels the cube makes (era/geocube.js pickDomain: a name,
- *                                         // { from, …changes } or a composition), outside: its terrain at its hour
+ *                                         // { from, …changes } or a composition), outside: its terrain at its hour;
+ *                                         // asking neither, on a cube that names its domains: its heartbeat's, else
+ *                                         // the cube's first outside
  *   }
  *
  * A node's recipe is its section's own (era/out-trail.js `readOutTrail`, local-meru/plan.js `readLocalMeru`) less its
@@ -61,15 +63,17 @@ export function readLevel(L) {
   // its heartbeat says what it was made for; the cube offers), laid once on every node that names no kit of its own
   const ground = readLevelGround(L.ground);
   let paint = null;
-  if (L.geocube !== undefined && L.domain !== undefined) {
-    // a domain: the level the cube makes, its terrain at its hour (every section is outside)
+  const cube = L.geocube === undefined ? null : readGeocube(L.geocube);
+  if (cube && (L.domain !== undefined || (L.terrain === undefined && cube.domains))) {
+    // a domain: the level the cube makes, its terrain at its hour (every section is outside); asked, else (the cube naming
+    // its levels) its heartbeat's, else its first outside
     if (L.terrain !== undefined) throw new Error('level: domain or terrain, not both: a domain names its terrain');
-    const cube = readGeocube(L.geocube), domain = pickDomain(cube, L.domain), D = domain.domain;
+    const domain = pickDomain(cube, L.domain, ground?.heartbeat?.terrain, 'outside'), D = domain.domain;
     if (D.side !== 'outside') throw new Error(`level: the domain is inside (interior '${D.interior}'); a level's sections are outside, so ask an outside domain`);
     const terrain = { name: D.terrain, from: domain.from, offered: geocubeTerrains(cube).map((t) => t.name) };
-    paint = { cube, terrain, domain, ask: L.domain, kit: lowerGeocube(cube, 'outside', D.terrain, D.hour === undefined ? undefined : readHour(D.hour)).kit };
-  } else if (L.geocube !== undefined) {
-    const cube = readGeocube(L.geocube), terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
+    paint = { cube, terrain, domain, ask: L.domain ?? domain.name, kit: lowerGeocube(cube, 'outside', D.terrain, D.hour === undefined ? undefined : readHour(D.hour)).kit };
+  } else if (cube) {
+    const terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
     paint = { cube, terrain, kit: lowerGeocube(cube, 'outside', terrain.name).kit };
   } else if (L.terrain !== undefined || L.domain !== undefined) throw new Error(`level: ${L.terrain !== undefined ? 'terrain is one of a geocube\'s terrains' : 'domain is one of the levels a geocube makes'}: name the level's geocube`);
 

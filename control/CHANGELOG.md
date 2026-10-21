@@ -170,8 +170,15 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   the cube's look. A town domain standing alone walks a trail through its street (a town does not fit on the island); a
   level lays the street once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains
   `harbour-town`, a street up from the cove.
-- Planned: a game's levels expand domains of its one cube; compose picks each level's domain by its words. The geocube
-  routing card teaches domain expansion; no new tool.
+- **A game expands its one cube.** A level on a cube that names its domains, asking for neither a domain nor a
+  terrain, takes the first on its heartbeat's terrain, else the cube's first outside (a cube that names none paints by
+  terrain, as before). `composeGameworld` lends the cube's outside domains to its walks, the ones the prompt's words
+  name first (in the order they are said), then the rest in the cube's order, round again when the walks outnumber
+  them; `brief.domains` records each level's domain and the word that chose it, and the world keeps one cube.
+  `limestone` and `crag` now name `limestone-crags`.
+- **Domain expansion, taught.** The geocube routing card names domains and `domain` and points to a new sketch-vocab
+  card, `geocube` (`get_sketch_vocab({ id: 'geocube' })`): the style, the ingredients, the domains, the four doors
+  and how to choose. No new tool.
 
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 

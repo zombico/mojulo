@@ -689,15 +689,18 @@ export function geocubeDomains(cube) {
 /**
  * Which domain a level gets: the one it asks for (`ask`: one of the cube's by name; { from: <name>, …changes }; or a
  * composition of the cube's own ingredients), else the first on the terrain its heartbeat was made for (`hint`), else
- * the cube's first. → { name (null: composed), from: 'level' | 'heartbeat' | 'cube', offered, domain, changed?, wanted? }.
+ * the cube's first (on `side` when named: a level's sections are outside). → { name (null: composed), from: 'level' |
+ * 'heartbeat' | 'cube', offered, domain, changed?, wanted? }.
  */
-export function pickDomain(cube, ask, hint) {
+export function pickDomain(cube, ask, hint, side) {
   const menu = geocubeDomains(cube), offered = menu.map((d) => d.name);
   const strip = ({ name: _n, ...d }) => d;
   if (ask === undefined || ask === null) {
     const h = hint ? menu.find((d) => d.side === 'outside' && d.terrain === hint) : undefined;
     if (h) return { name: h.name, from: 'heartbeat', offered, domain: strip(h) };
-    return { name: menu[0].name, from: 'cube', offered, domain: strip(menu[0]), ...(hint ? { wanted: hint } : {}) };
+    const first = menu.find((d) => side === undefined || d.side === side);
+    if (!first) no(`${cube.id} makes no level ${side}: its domains are ${offered.join(', ')}`);
+    return { name: first.name, from: 'cube', offered, domain: strip(first), ...(hint ? { wanted: hint } : {}) };
   }
   if (typeof ask === 'string') {
     const d = menu.find((x) => x.name === ask);
