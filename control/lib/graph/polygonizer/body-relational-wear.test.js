@@ -3,7 +3,8 @@
 // buckle, the trims painted on the cloth; the jacket outside the shirt and clear of the belt; an open front each piece's own; all closed and wound once; a stride flinging nothing); a
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
 // (the casual tee's), its hem turned back in to the arm; a coat's skirt (the operative's) carried down from its body;
-// a tailored front (a V, notch lapels, the tie, the right front over the left, buttons; double-breasted).
+// a tailored front (a V, notch lapels, the tie, the right front over the left, buttons; double-breasted; a woman's,
+// left over right, over a skirt; open, its lapels to the hem).
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -105,7 +106,7 @@ describe('an outfit card worn by the tailor', () => {
     expect(r.parts.outerLapel_torso).toBeTruthy(); expect(r.parts.outerCollar_neck).toBeUndefined();
     expect(Object.keys(r.parts).filter((k) => /^outerButton\d_torso$/.test(k)).length).toBe(2);
     // (closed: the right front's edge down to the hem, the left's come out from under it below the last button)
-    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeL_torso).toBeTruthy();
+    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeUnder_torso).toBeTruthy();
     // (the tie on the shirt, the jacket over it below the V: at the waist the jacket's front farther out than the tie)
     const tie = r.parts.tie_torso; expect(tie).toBeTruthy();
     const tz = Math.min(...pointsOf(tie).map((q) => q[2])) + 0.06, J0 = r.parts.outer_body, jst = J0.stations.reduce((b, st) => (Math.abs(centre(J0, st)[2] - tz) < Math.abs(centre(J0, b)[2] - tz) ? st : b));
@@ -123,9 +124,28 @@ describe('an outfit card worn by the tailor', () => {
   it('a double-breasted front: two rows of buttons, the right front square to the hem, no quarters cut away', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'doublebreasted' } }) }).recipe;
     expect(Object.keys(r.parts).filter((k) => /^outerButton\d[RL]_torso$/.test(k)).length).toBe(6);
-    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeL_torso).toBeUndefined();
+    expect(r.parts.outerEdge_torso).toBeTruthy(); expect(r.parts.outerEdgeUnder_torso).toBeUndefined();
     // (the edge on the wearer's left, past the left row of buttons)
     expect(Math.max(...pointsOf(r.parts.outerEdge_torso).map((q) => q[0]))).toBeLessThan(0.02);
+  }, 300_000);
+
+  it('a woman\'s suit closes her way, left front over right; a skirt under the jacket, the jacket over its hips', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: { type: 'outfit', style: 'skirtsuit' } }) }).recipe;
+    // (at the button the left front's edge past the middle on her right; below it the quarter curves back to her left)
+    const E = pointsOf(r.parts.outerEdge_torso), top = Math.max(...E.map((q) => q[2])), atTop = E.filter((q) => q[2] > top - 0.02);
+    expect(atTop.reduce((t, q) => t + q[0], 0) / atTop.length).toBeGreaterThan(0);
+    const J = r.parts.outer_body, K = r.parts.skirt_pelvis; expect(K).toBeTruthy();
+    const zH = Math.min(...J.stations.map((st) => centre(J, st)[2])) + 0.03, reach = (P) => { const st = P.stations.reduce((b, x) => (Math.abs(centre(P, x)[2] - zH) < Math.abs(centre(P, b)[2] - zH) ? x : b)); const c = centre(P, st); return Math.max(...Object.values(st.points).map((p) => Math.hypot(p[0] - c[0], p[1] - c[1]))); };
+    expect(reach(J)).toBeGreaterThan(reach(K));
+    const A = auditLayered(compileLayered(r));
+    for (const k of Object.keys(r.parts).filter((k) => /^(outer|skirt)/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
+  }, 300_000);
+
+  it('an open jacket: its lapels on down the fronts\' edges to the hem', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: { id: 'open', language: { top: { family: 'knit', sleeve: 'long', hem: 'hip', fit: 'fitted' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic', open: true, lapel: 'notch' }, feet: 'shoes', tuck: true } } } }) }).recipe;
+    const J = r.parts.outer_body, L = pointsOf(r.parts.outerLapel_torso), zBot = Math.min(...J.stations.map((st) => centre(J, st)[2]));
+    expect(Math.min(...L.map((q) => q[2]))).toBeLessThan(zBot + 0.02);
+    expect(r.parts.outerEdge_torso).toBeUndefined();
   }, 300_000);
 
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {

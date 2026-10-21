@@ -174,6 +174,21 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "fit": "fitted" },
       "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 3 }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true },
     "tones": { "Outer": "#3a3d42", "Top": "#cfdcec", "Bottom": "#3a3d42", "Tie": "#1d2b4a", "Shoes": "#141110", "Button": "#22252a", "Leather": "#141110", "Buckle": "#b9b9b9", "Trim": "#3a3d42" }
+  },
+  // (a woman's: her jacket's left front over her right, as hers close; a pencil skirt or wide trousers)
+  skirtsuit: {
+    "id": "skirtsuit",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "kind": "skirt", "family": "woven", "leg": "knee", "cut": "pencil" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "single", "lapel": "notch", "buttons": 1 }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#1f2a44", "Top": "#f6f7f9", "Bottom": "#1f2a44", "Shoes": "#111111", "Button": "#15181f", "Leather": "#111111", "Buckle": "#c9a24a", "Trim": "#1f2a44" }
+  },
+  trousersuit: {
+    "id": "trousersuit",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "wide", "fit": "eased" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 2 }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#141416", "Top": "#f1ece1", "Bottom": "#141416", "Shoes": "#0b0b0b", "Button": "#c9a24a", "Leather": "#0b0b0b", "Buckle": "#c9a24a", "Trim": "#141416" }
   }
 });
 

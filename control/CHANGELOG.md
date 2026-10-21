@@ -79,6 +79,15 @@ by the tailor. Cards without them unchanged, byte for byte.
   tone, else a deep red.
 - Two business cards: `business` (navy, single-breasted, two buttons, notch lapels, a burgundy tie) and
   `doublebreasted` (charcoal, peak lapels, three rows of buttons, a navy tie over a pale blue shirt).
+- OPEN, THE LAPELS TO THE HEM: an unbuttoned jacket's fronts hang a little apart from the top button down, its lapels
+  carried on down each front's edge to the hem as the facing turned back (its buttons on the front under's edge).
+- A WOMAN'S SUIT closes her way, left front over right (the hero's sex handed to the tailor with the front's words),
+  every overlap, edge, crossing and button mirrored. A skirt's waistband is a layer under a jacket worn over it, and
+  the jacket is carried out over the skirt at its own height (the skirt's rings filled in between, so a ring reads the
+  skirt where it is, not 2 cm lower); every garment's trunk clears the trunks worn before it below the waist (close cloth
+  over a woman's hips had lain inside the trousers' seat, which bridges from hip to hip, showing them through a
+  jacket). Two cards: `skirtsuit` (navy, one button, notch lapels, a pencil skirt to the knee, a white blouse) and
+  `trousersuit` (black, double-breasted, peak lapels, gold buttons, wide trousers, an ivory blouse).
 
 ### The garment designer: silhouette principles over tailoring primitives
 

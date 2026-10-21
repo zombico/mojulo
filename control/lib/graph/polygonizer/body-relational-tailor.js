@@ -354,8 +354,9 @@ export function ribbon(path, near, { w, t, over = null }) {
  * over (`under(c)(direction)`, the skin's reach, 3 mm inside it), so the shirt shows in the V; on each ring the points
  * nearest each roll line (within `snap`), outside and inside, carried round to it, so the V's edge is the line and a
  * step down to the shirt; the faces it takes in painted `group` (the shirt's); nothing within `floor` above the apex
- * (the lapels close over it there). In place */
-export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.03, snap = 0.025, group = null, floor = 0 }) {
+ * (the lapels close over it there); the roll lines' feet `apexHalf` either side of the apex (an open front's, the
+ * width of its opening). In place */
+export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.03, snap = 0.025, group = null, floor = 0, apexHalf = 0 }) {
   const [xa, za] = apex, [[xr, zr], [xl, zl]] = necks, zTop = Math.max(zr, zl) + 0.01, side = [-front[1], front[0], 0], taken = [];
   // (side: the body's +x, the right, when the front is −y; its sign read off the right neck)
   const sgn = Math.sign(xr - xa) * Math.sign(side[0] || 1), S = scl(side, sgn || 1);
@@ -364,7 +365,7 @@ export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.
     for (const sl of P.slots) {
       const p = st.points[sl], d = unitv([p[0] - c[0], p[1] - c[1], 0]), z = p[2];
       if (d[0] * front[0] + d[1] * front[1] < 0.15 || z > zTop) continue;
-      const f = (zn) => Math.min(1, Math.max(0, (z - za) / (zn - za))), xR = xa + (xr - xa) * f(zr), xL = xa + (xl - xa) * f(zl);
+      const f = (zn) => Math.min(1, Math.max(0, (z - za) / (zn - za))), xR = xa + apexHalf + (xr - xa - apexHalf) * f(zr), xL = xa - apexHalf + (xl - xa + apexHalf) * f(zl);
       const inside = z > za ? z > za + floor && p[0] < xR && p[0] > xL : open && Math.abs(p[0] - xa) < openHalf;
       if (inside) {
         const R = Math.max(0.01, need(d) - 0.003); st.points[sl] = [c[0] + d[0] * R, c[1] + d[1] * R, z].map(r6); inV.add(sl);
@@ -455,11 +456,12 @@ export function cutOpening(P, under, inside, { front, group = null }) {
 }
 
 /** cloth CLEARED over what lies under it (a jacket over a tie): each point of `P` carried out to `gap` past `pts`' reach
- * in its direction, where they reach past it. In place */
-export function clearOver(P, pts, { gap = 0.0035 } = {}) {
+ * in its direction, where they reach past it, read within `band` (m) of each ring's height (narrower over what widens
+ * fast: a skirt from the waist to the hip). In place */
+export function clearOver(P, pts, { gap = 0.0035, band = 0.02 } = {}) {
   const need = clearanceOver(pts);
   for (const st of P.stations) {
-    const c = mean(P.slots.map((sl) => st.points[sl])), under = need(c);
+    const c = mean(P.slots.map((sl) => st.points[sl])), under = band >= 0.02 ? need(c) : clearanceOver(pts.filter((q) => Math.abs(q[2] - c[2]) < band))(c);
     for (const sl of P.slots) {
       const p = st.points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h), R = under([h[0] / (r || 1), h[1] / (r || 1), 0]) + gap;
       if (R > gap && R > r) st.points[sl] = [c[0] + (h[0] / (r || 1)) * R, c[1] + (h[1] / (r || 1)) * R, p[2]].map(r6);

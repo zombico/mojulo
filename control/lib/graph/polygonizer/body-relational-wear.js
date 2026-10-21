@@ -170,6 +170,12 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
         T.stations.forEach((st, i) => { if (i < from) st.u = (st.u ?? 0) - uMax('pelvis'); });
         made[`${G}_body`] = T; delete made[`${G}_pelvis`]; delete made[`${G}_torso`];
       }
+      // (its trunk clear of the trunks worn before it below the waist: close cloth over a woman's hips lies inside
+      // trousers' seat, which bridges out from hip to hip, and a jacket's tail would show them through; above the
+      // waist the layers' eases already hold, and the shirt's armholes would only catch it)
+      const zW = recipe.parts.torso ? mean(Object.values(recipe.parts.torso.stations[0].points))[2] + 0.02 : Infinity;
+      const earlier = Object.entries(parts).filter(([k, P]) => P.garment && /_(body|torso|pelvis)$/.test(k)).flatMap(([, P]) => P.stations.flatMap((st) => Object.values(st.points))).filter((q) => q[2] < zW);
+      if (earlier.length) for (const [k, P] of Object.entries(made)) if (/_(body|torso|pelvis)$/.test(k)) clearOver(P, earlier, { gap: LAYER * 0.5 });
       Object.assign(parts, made);
     }
     // (the garment's top ring: its body's, else its torso's)
@@ -206,8 +212,10 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
   for (const g of garments.filter((x) => x.fit === 'skirt' && !worn.has(x.id) && x.to)) {
     const G = garmentOf(g.id), limb = segPart(g.to.part);
     let host = [`${G}_body`, `${G}_torso`, `${G}_pelvis`].find((k) => parts[k]);
+    // (a skirt's waistband a layer out over the garments worn before it, under those after: a jacket over a skirt)
+    const gi = garments.indexOf(g), before = order.filter((H) => { const j = garments.findIndex((x) => garmentOf(x.id) === H); return j < gi; }).length;
     if (!host && pelvisSkin) {
-      const ease = wearEase(g.ease ?? 0.008, 'bottom') + LAYER * order.length;
+      const ease = wearEase(g.ease ?? 0.008, 'bottom') + LAYER * before;
       Object.assign(parts, fieldGarment(recipe, R, build, map, { id: G, ...FIELD_GARMENTS.fittedShirt, covers: null, limit: {}, stand: ease + 0.015, on: ['pelvis'], window: { pelvis: [uMax('pelvis') - 1.5, uMax('pelvis')] }, ease, group: g.group }).parts);
       host = parts[`${G}_pelvis`] ? `${G}_pelvis` : null;
     }
@@ -215,10 +223,16 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     const u = g.to.u ?? (g.to.run ?? 1) * uMax(g.to.part), st = limb.stations.reduce((b, x) => (Math.abs((x.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? x : b));
     const H = parts[host], z0 = mean(H.slots.map((sl) => H.stations[0].points[sl]))[2], zHem = mean(Object.values(st.points))[2];
     const zTurn = pelvisSkin ? mean(Object.values(pelvisSkin.stations[0].points))[2] + 0.01 : null;
-    const below = [...Object.entries(parts).filter(([k]) => !k.startsWith(`${G}_`) && /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL])$/.test(k)).map(([, P]) => P),
+    // (what it is worn over: the garments before it, never one worn over it)
+    const wornBefore = new Set(order.filter((H) => garments.findIndex((x) => garmentOf(x.id) === H) < gi));
+    const below = [...Object.entries(parts).filter(([k]) => !k.startsWith(`${G}_`) && wornBefore.has(k.split('_')[0]) && /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL])$/.test(k)).map(([, P]) => P),
       ...['pelvis', 'thighR', 'thighL', 'shankR', 'shankL'].map((k) => recipe.parts[k]).filter(Boolean)].flatMap((P) => P.stations.flatMap((x) => Object.values(x.points))).filter((q) => q[2] < z0 + 0.03);
     parts[host] = carrySkirt(H, { zHem, flare: skirtFlare(g.flare?.[1] ?? 0, z0 - zHem), clear: 0.008 + LAYER, needAt: clearanceOver(below), span: 11, zTurn });
     worn.add(g.id); skirtTop.set(g.id, { name: host, z: z0 });
+    // (and the garments worn over it carried out over it: a jacket's tail over a skirt's hips)
+    // (its rings filled in between, every 6 mm or so, so a ring of the garment over it reads the skirt at its own height)
+    const SK = parts[host], skirtPts = SK.stations.flatMap((st, i) => { const nx = SK.stations[i + 1]; return [0, 0.25, 0.5, 0.75].filter((f) => f === 0 || nx).flatMap((f) => SK.slots.map((sl) => st.points[sl].map((v, q) => v + ((nx?.points[sl][q] ?? v) - v) * f))); });
+    for (const H of order.filter((H) => garments.findIndex((x) => garmentOf(x.id) === H) > gi && H !== G)) for (const k of [`${H}_body`, `${H}_torso`, `${H}_pelvis`]) if (parts[k]) clearOver(parts[k], skirtPts, { gap: LAYER, band: 0.006 });
     alias.set(`${g.id}_skirt`, { part: host, du: H.stations[0].u ?? 0, k: -1, seg: 'skirt' });
   }
 
@@ -229,7 +243,7 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
   // front cut away below its last button, the quarters opening on the trousers; a double front square, its lapels
   // crossing above the buttons); its buttons at the stance, one row or two
   const torso = recipe.parts.torso, neckSkin = recipe.parts.neck, ctr = (st) => mean(Object.values(st.points));
-  const jackets = Object.entries(tailoring || {}).filter(([k, T]) => k !== 'tie' && T && T.lapel);
+  const jackets = Object.entries(tailoring || {}).filter(([k, T]) => k !== 'tie' && T && T.lapel), sgn = tailoring?.over === 'left' ? -1 : 1;
   if (torso && (jackets.length || tailoring?.tie)) {
     const ts = torso.stations[Math.floor(torso.stations.length / 2)], tc = ctr(ts), zWaist = ctr(torso.stations[0])[2];
     const front = (() => { const f = ts.points.front ?? ts.points[torso.slots[0]], d = [f[0] - tc[0], f[1] - tc[1], 0], l = Math.hypot(...d) || 1; return [d[0] / l, d[1] / l, 0]; })();
@@ -265,49 +279,55 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       // (closed over the tie: the jacket carried out over it before it is cut)
       if (tiePts) clearOver(J, tiePts, { gap: LAYER });
       const double = T.front === 'double', n = T.buttons, closed = !T.open;
-      // the STANCE: the top button's height (two a little above the waist, one under it, three higher); the right
-      // front's EDGE, closed, on the wearer's left of the middle (a double front's past its left row of buttons)
+      // the STANCE: the top button's height (two a little above the waist, one under it, three higher); the front
+      // worn over's EDGE, closed, past the middle on the other side (a man's right front over his left, `sgn` +1; a
+      // woman's left over her right, −1; a double front's past the far row of buttons); OPEN, the fronts `h` apart
       const zS = zWaist + (double ? 0.03 : { 1: -0.01, 2: 0.02, 3: 0.07 }[n] ?? 0.02), step = double ? 0.09 : 0.1, zB = zS - (n - 1) * step;
-      const xE = closed ? (double ? -0.085 : -0.02) : 0;
+      const xE = closed ? -sgn * (double ? 0.085 : 0.02) : 0, h = closed ? 0 : 0.035;
       // the jacket's SURFACE before the cut (and the neck above it, 6 mm out)
       const neckPts = neckSkin ? neckSkin.stations.flatMap((st) => { const c = ctr(st); return Object.values(st.points).map((p) => { const d = unitH(p, c); return [p[0] + d[0] * 0.006, p[1] + d[1] * 0.006, p[2]]; }); }) : [];
       const { cAt, surface, onFront, zTop, zBot } = surfaceOf(J, neckPts);
       // the ROLL LINES: from their feet at the stance up to where the collar meets them, at the side of the neck (a
       // double front's left lapel goes down under the right front to its own button, so the two cross above the stance)
       const zC = zTop + 0.012, cTop = cAt(zTop), NP = (deg) => surface([cTop[0] + dir(deg)[0], cTop[1] + dir(deg)[1], zC])[0], NR = NP(65), NL = NP(-65);
-      const footR = [xE, zS], footL = double && closed ? [-xE * 0.76, zS] : footR;
+      const footOver = [xE, zS], footUnder = double && closed ? [-xE * 0.76, zS] : footOver;
+      const footR = closed ? (sgn > 0 ? footOver : footUnder) : [h, zS], footL = closed ? (sgn > 0 ? footUnder : footOver) : [-h, zS];
       const tX = double && closed ? (footL[0] - footR[0]) / ((NR[0] - footR[0]) - (NL[0] - footL[0])) : 0, apex = [footR[0] + (NR[0] - footR[0]) * tX, zS + (zC - zS) * tX];
       const line = (from, N, t0 = 0) => zs(t0, 1, 15).map((t) => { const x = from[0] + (N[0] - from[0]) * t, z = from[1] + (N[2] - from[1]) * t; return onFront(x, z); });
       const shape = LAPELS[T.lapel];
       if (shape) {
-        cutV(J, under, { front, apex, necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: T.open, group: shirtGroup, floor: 0.02 });
+        cutV(J, under, { front, apex: closed ? apex : [0, zS], necks: [[NR[0], NR[2]], [NL[0], NL[2]]], open: T.open, openHalf: h, apexHalf: h, group: shirtGroup, floor: closed ? 0.02 : 0 });
         // the COLLAR round the back of the neck, right to left
         const collar = Array.from({ length: 23 }, (_, k) => surface([cTop[0] + dir(65 + (230 * (k + 1)) / 24)[0], cTop[1] + dir(65 + (230 * (k + 1)) / 24)[1], zC])[0]);
-        // (the right lapel from its foot; the left from where it comes out from under the right front, tapered in there)
-        const sR = zs(0, 1, 15), sL = zs(tX, 1, 15).reverse(), R = line(footR, NR), L = line(footL, NL, tX).reverse(), path = [...R, ...collar, ...L];
-        const width = [...sR.map((v) => shape(v)), ...collar.map(() => shape(1)), ...sL.map((v, k) => shape(v) * (tX ? ramp(L.length - 1 - k, 0, 3) : 1))];
+        // (the lapel over from its foot; the one under from where it comes out from under the front over it, tapered in
+        // there; OPEN, the lapels on down the fronts' edges to the hem, the facing turned back the whole way)
+        const tR = sgn > 0 ? 0 : tX, tL = sgn > 0 ? tX : 0, sR = zs(tR, 1, 15), sL = zs(tL, 1, 15).reverse(), R = line(footR, NR, tR), L = line(footL, NL, tL).reverse();
+        const down = (x, top) => { const Z = zs(zS, zBot + 0.004, Math.max(4, Math.round((zS - zBot) / 0.012))).slice(1).map((z) => onFront(x, z)); return top ? Z.reverse() : Z; };
+        const eR = closed ? [] : down(h, true), eL = closed ? [] : down(-h, false), path = [...eR, ...R, ...collar, ...L, ...eL];
+        const taper = (k, m, t) => (t ? ramp(k, 0, 3) : 1);
+        const width = [...eR.map(() => FOOT_W), ...sR.map((v, k) => shape(v) * taper(k, sR.length, tR)), ...collar.map(() => shape(1)), ...sL.map((v, k) => shape(v) * taper(sL.length - 1 - k, sL.length, tL)), ...eL.map(() => FOOT_W)];
         // (the lapel lies flat on the chest; from the gorge up it turns, and the collar falls down the back)
-        const fall = [...sR.map((v) => 0.75 * ramp(v, 0.78, 1)), ...collar.map(() => 0.75), ...sL.map((v) => 0.75 * ramp(v, 0.78, 1))];
+        const fall = [...eR.map(() => 0), ...sR.map((v) => 0.75 * ramp(v, 0.78, 1)), ...collar.map(() => 0.75), ...sL.map((v) => 0.75 * ramp(v, 0.78, 1)), ...eL.map(() => 0)];
         const band = lapelBand(path, width, surface, { out0: [1, 0, 0], fall, overhang: 0.008 });
         if (band) parts[`${G}Lapel_torso`] = { ...band, group: T.group ?? 'Lapel', bind: bindRibbon(band, J) };
       }
       if (closed) {
         // THE EDGE of the right front, standing on the left one from the stance down to the hem: a single front's curved
         // away below its last button (and the left front's edge come out from under it), a double front's square
-        const fq = (z) => Math.max(0, (zB - z) / Math.max(0.02, zB - zBot)), xR = (z) => (double ? xE : xE + 0.09 * fq(z) ** 1.5), xL = (z) => -xE - 0.09 * fq(z) ** 1.5;
-        const zQ = double ? null : zB - (zB - zBot) * (2 * -xE / 0.18) ** (2 / 3), edge = (fx, z0, out0, name) => {
+        const fq = (z) => Math.max(0, (zB - z) / Math.max(0.02, zB - zBot)), xO = (z) => (double ? xE : xE + sgn * 0.09 * fq(z) ** 1.5), xU = (z) => -xE - sgn * 0.09 * fq(z) ** 1.5;
+        const zQ = double ? null : zB - (zB - zBot) * ((2 * Math.abs(xE)) / 0.18) ** (2 / 3), edge = (fx, z0, out0, name) => {
           const Z = zs(z0, zBot + 0.004, Math.max(4, Math.round((z0 - zBot) / 0.012))), band = lapelBand(Z.map((z) => onFront(fx(z), z)), Z.map(() => 0.03), surface, { out0, overhang: 0.008 });
           if (band) parts[`${G}${name}_torso`] = { ...band, group: J.group ?? 'Outer', bind: bindRibbon(band, J) };
         };
         if (!double) {
           const bottomGroup = Object.keys(parts).some((k) => /^bottom_/.test(k)) ? 'Bottom' : 'Skin';
-          cutOpening(J, under, (p) => p[2] < zQ && p[0] > xL(p[2]) && p[0] < xR(p[2]), { front, group: bottomGroup });
-          edge(xL, zQ, [-1, 0, 0], 'EdgeL');
+          cutOpening(J, under, (p) => p[2] < zQ && p[0] > Math.min(xO(p[2]), xU(p[2])) && p[0] < Math.max(xO(p[2]), xU(p[2])), { front, group: bottomGroup });
+          edge(xU, zQ, [-sgn, 0, 0], 'EdgeUnder');
         }
-        edge(xR, zS, [1, 0, 0], 'Edge');
+        edge(xO, zS, [sgn, 0, 0], 'Edge');
       }
-      // the BUTTONS: down the right front from the stance (open, on its edge), or two rows
-      const cols = double ? [-0.065, 0.065] : [T.open ? 0.045 : xE + 0.02];
+      // the BUTTONS: down the front from the stance (open, on the front under's edge), or two rows
+      const cols = double ? [-0.065, 0.065] : [T.open ? -sgn * (h + 0.02) : xE + sgn * 0.02];
       for (let i = 0; i < n; i++) for (const [j, x] of cols.entries()) {
         const at = onFront(x, zS - i * step), nrm = unitH(at, cAt(at[2])), b = buttonOn(at.map((v, q) => v + nrm[q] * 0.0015), nrm);
         parts[`${G}Button${i}${cols.length > 1 ? 'RL'[j] : ''}_torso`] = { ...b, group: 'Button', bind: bindNearest(b, J) };

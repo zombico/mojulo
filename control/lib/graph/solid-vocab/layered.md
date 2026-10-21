@@ -555,7 +555,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the realistic body a TAILORED FRONT: `front: single | double`, `lapel: notch | peak | shawl | none`, `buttons: 1 | 2 | 3`
   give the jacket a V onto the shirt, its lapels and collar, its buttons; closed, the right front over the left; a suit
   jacket's length is `hem: 'tunic'`, over the seat; a card's `Lapel` tone its facing; `tie: true` a tie on the shirt,
-  its `Tie` tone; the cards `business` and `doublebreasted` are suits with ties); `panels: [{ at: back | front | sides
+  its `Tie` tone; open, the lapels run to the hem; a woman's closes left over right; the cards `business` and
+  `doublebreasted` are suits with ties, `skirtsuit` and `trousersuit` a woman's); `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose

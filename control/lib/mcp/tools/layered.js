@@ -317,8 +317,9 @@ function realisticExpand(plan, hero) {
   // kernel on the envelope
   let wear = null;
   if (plan.garments?.length || (Array.isArray(plan.paint) && plan.paint.some((x) => Array.isArray(x?.part)))) {
+    // (a jacket's fronts close as the figure's do: a man's right over his left, a woman's left over her right)
     const B = realisticBuild(hero), RS = validateRig(S.rig);
-    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring);
+    wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : [], plan.tailoring && { ...plan.tailoring, over: femaleOf(hero) ? 'left' : 'right' });
     // what the expander placed on a worn piece (a row of buttons, an embroidered emblem, a painted trim) moved to the cloth
     // it is now (its alias), its stations' `u` shifted where the piece was merged (and turned, `k`, on a skirt carried
     // down from its coat: its hem the lowest `u`) and a limb's `run` taken as its `u`; with no window of its own, the
