@@ -78,15 +78,19 @@ In progress (the library and the realistic body's adapter first; heels, laces an
 `lib/graph/footwear/`, on the armour and outfit pattern: footwear in THREE LAYERS (`principles.js`), the SOCK (the
 protosock, the shoe's close outer layer and its bottom colour: a height and a thickness, none for a sandal), the SOLE
 (its layers stacked from the floor up, each with its own thickness, welt and group: an outsole, a midsole, a stripe; a
-layer's `pod` an air window of another group at the heel, proud of its wall) and the ADORNMENT the solver lays over them
+layer's patterns: `pod` an air window at the heel, proud of its wall; `heel` a block under the print's rear, a dress
+heel on the still-flat foot; `lugs` tread round its edge) and the ADORNMENT the solver lays over them
 (`ADORN_PRIMS`: `strap` with a `buckle`, `band` (gilding), `cuff` at the sock's collar, `toeCap` (a quarter egg over the
-toes, mapped from the toe base to the frontmost toe, the leather under it tucked inside, `rivets` round its back edge);
+toes, mapped from the toe base to the frontmost toe with a toe allowance past it (`room`), the leather under it tucked
+inside, `rivets` round its back edge, small and dark a brogue's perforations; in the leather's own group a sleek toe);
 `panel`, a pattern piece on the upper as a cobbler cuts it (`cobbler.js` COBBLER_REGIONS in the sock's own
 coordinates, along the foot and round from the instep's centre line: the `tongue` (standing above the collar by its
 `rise`), the `eyestay`s, the `vamp`, the `quarter`s, the `counter`, the `foxing`; or an inline region), a MATCHING PAIR,
 lateral and medial, where the piece has two sides; `laces` criss-cross between the eyestays over the tongue; any of
 them in a `group` of its own). Composed by CARDS (`styles.js`, pure data: a new look is a card), each annotated
-with its `family` (shoe, boot, sandal, sneaker), by passes in a fixed order (`expand.js`: sock, sole, adorn, tone; tones
+with its `family` (shoe, boot, sandal, sneaker, dress); a card EXTENDS another (`from`: its sock merged, `adornPlus`
+appended, its tones merged), and wears any COLOURWAY (`skin`: `SKINS` tripleBlack, tripleWhite, volt, navy, oxblood,
+tan, or its own tones by group), the pieces' groups being roles (Overlay, Counter, Eyestay, Midsole …); by passes in a fixed order (`expand.js`: sock, sole, adorn, tone; tones
 only for the groups laid), refused by name (`validateFootwear`). Worn on any body through its FOOT ADAPTER (`adapters/`:
 which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the bare skin a sandal is worn
 on, the body's own way to lay the sock, and how a share along a segment names its stations): a card's places are shares
@@ -97,8 +101,13 @@ ankle; `shoe`: from a collar below the ankle; its `thick` the leather's ease). T
 `shoes` (new), `sandals` (new; on the authored body a low close shoe), `workBoots` (a steel toe, riveted),
 `adventurerBoots` (a thicker sock, a deep sole, a cuff, a gilt band, a buckled strap), `sneakers` (a court shoe: a white
 cupsole on a gum outsole, a rubber toe bumper) and `runners` (a foam midsole with an air pod, a contrast stripe), both
-cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the heel counter; on the
-authored body the four new words are its boot or its shoe for now. `boots`, `shoes` and `sandals` are pinned byte for
+cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the heel counter. SPORTS varieties over them:
+`highTops` (over the ankle, a padded collar, an ankle strap, a deep cupsole on air), `skateShoes` (a vulcanized sole, a
+suede vamp, a side stripe), `trailRunners` (a lugged outsole, a toe guard). DRESS shoes (a sleek sock, a leather sole on
+a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforated round the cap), `derbies` (open
+lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
+a pull tab). A card's or its skin's named tones stand over the palette's defaults, the operator's palette over all. On the
+authored body the library's other words are its boot, its sandal or its shoe by the card's family, for now. `boots`, `shoes` and `sandals` are pinned byte for
 byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
 segments it is `on`). body-study `--dress` colours each footwear group by its tone.
 

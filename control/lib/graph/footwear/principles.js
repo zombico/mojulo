@@ -17,5 +17,9 @@
 //      eyestays either side of it, the vamp over the forefoot, the quarters at the sides, the counter round the heel, the
 //      foxing along the sole. A piece with two sides comes as a MATCHING PAIR, lateral and medial; laces cross between the
 //      eyestays over the tongue. A sneaker reads as one by its cut, not by its colour.
-//   7. A CARD'S TONES ARE SUGGESTIONS. They fill only the groups the card uses, under the operator's own palette.
+//   7. A VARIETY IS ITS KIN AND A FEW KEYS. A card extends another (`from`): the high-top is the court shoe over the ankle,
+//      the brogue the oxford perforated. The pieces stay in their groups by ROLE (Overlay, Counter, Eyestay, Midsole …),
+//      so a COLOURWAY (`skin`) recolours any card, and every piece rides the rig by the weights of the layer under it.
+//   8. A CARD'S TONES ARE SUGGESTIONS. The ones it (or its skin) names stand over a palette's defaults; the operator's own
+//      palette over all.
 export const FOOTWEAR_LAWS_VERSION = 1;

@@ -27,6 +27,7 @@
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
 import { validatePaint } from './body-paint.js';
+import { FOOTWEAR, footwearCard } from '../footwear/index.js';
 import { validateGarments } from './body-garment.js';
 import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
 
@@ -219,13 +220,13 @@ export const OUTFIT_WORDS = Object.freeze({
   // lib/graph/footwear)
   shoes: ({ scale: k }) => [{ id: 'shoeFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (on the authored body a sandal is a low shoe, close; on the realistic body the sole and the straps alone)
-  // (the footwear library's cards, lib/graph/footwear: on the realistic body their own; on the authored body the boot or
-  // the shoe, under ids of their own)
-  workBoots: (c) => footAs('workBoots', OUTFIT_WORDS.boots(c)),
-  adventurerBoots: (c) => footAs('adventurerBoots', OUTFIT_WORDS.boots(c)),
-  sneakers: (c) => footAs('sneakers', OUTFIT_WORDS.shoes(c)),
-  runners: (c) => footAs('runners', OUTFIT_WORDS.shoes(c)),
   sandals: ({ scale: k }) => [{ id: 'shoeSandal', part: 'foot', fit: 'shoe', ease: 0.003 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
+  // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
+  // its sandal or its shoe by the card's family, under ids of their own)
+  ...Object.fromEntries(Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w)).map((w) => {
+    const fam = footwearCard(w).family, base = fam === 'boot' ? 'boots' : fam === 'sandal' ? 'sandals' : 'shoes';
+    return [w, (c) => footAs(w, OUTFIT_WORDS[base](c))];
+  })),
 });
 /** Error strings for the door's `outfit` (form; the plan grammar judges the pieces) */
 export function validateOutfit(outfit) {

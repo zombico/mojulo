@@ -28,6 +28,8 @@ export const COBBLER_REGIONS = Object.freeze({
   quarter: { along: [0.3, 0.88], around: [0.32, 0.68], sides: 'both', what: "the upper's sides behind the vamp: a sneaker's side overlay sits here" },
   counter: { along: [0, 0.4], around: [0.72, 1], sides: 'centre', what: 'the stiffened cup round the heel' },
   foxing: { along: [0.45, 1], around: [0.74, 0.9], sides: 'both', what: 'a strip along the sole round the forefoot' },
+  saddle: { along: [0.5, 0.66], around: [0, 0.45], sides: 'centre', what: "a strap of leather across the instep (a loafer's, its penny slot)" },
+  heelTab: { along: [0, 0.1], around: [0.84, 1], sides: 'centre', what: 'the pull tab at the top of the heel' },
 });
 export const REGION_SIDES = Object.freeze(['centre', 'both', 'lateral', 'medial']);
 

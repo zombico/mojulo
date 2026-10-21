@@ -358,7 +358,9 @@ function realisticExpand(plan, hero) {
       const seg = name.slice(name.indexOf('_') + 1);
       for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
     }
+    // (the tones the card or its colourway names stand over the palette's defaults; the operator's own palette over all)
     R.palette = { ...W.tones, ...(R.palette || {}) };
+    for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
   }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {

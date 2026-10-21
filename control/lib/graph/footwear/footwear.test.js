@@ -3,7 +3,7 @@
 // with a buckle on the outer side, a sandal with no upper, a part not asked for adding nothing, the same twice.
 import { describe, it, expect } from 'vitest';
 
-import { wearFootwear, validateFootwear } from './index.js';
+import { wearFootwear, validateFootwear, footwearCard, SKINS } from './index.js';
 import { compileLayered, auditLayered } from '../polygonizer/station-loft.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
@@ -103,9 +103,33 @@ describe('footwear on a foot adapter', () => {
     for (const k of ['t', 'q']) { expect(A[k].pass, k).toBe(true); expect(A[k].windingErrors, k).toBe(0); }
   });
 
+  it('a variety is its kin and a few keys; a colourway recolours any card; a heel and a tread are sole patterns', () => {
+    const kin = { family: 'sneaker', sock: { height: 'shoe', collar: 0.1 }, sole: { thick: 0.01, welt: 0.003 }, adorn: [{ prim: 'panel', region: 'quarter' }], tones: { Overlay: '#112233' } };
+    const C = footwearCard({ from: kin, sock: { thick: 0.006 }, adornPlus: [{ prim: 'panel', region: 'counter' }], skin: 'volt' });
+    expect(C.sock).toEqual({ height: 'shoe', collar: 0.1, thick: 0.006 });   // merged
+    expect(C.adorn.map((a) => a.region)).toEqual(['quarter', 'counter']);   // appended
+    expect(C.tones.Overlay).toBe(SKINS.volt.Overlay);   // the skin over the card's own
+    const W = wearFootwear(stub, { from: kin, skin: 'volt' }, { id: 'v' });
+    expect(W.named).toEqual(expect.arrayContaining(['Overlay', 'Shoes']));
+    expect(W.tones.Overlay).toBe(SKINS.volt.Overlay);
+    // the same parts as the card in its own colours: a skin is colour alone
+    const plain = wearFootwear(stub, kin, { id: 'v' });
+    expect(Object.keys(W.parts)).toEqual(Object.keys(plain.parts));
+    expect(JSON.stringify(W.parts)).toBe(JSON.stringify(plain.parts));
+    // a heel block under the print's rear, taller than its layer; lugs round the outsole
+    const D = wearFootwear(stub, { sock: { height: 'shoe' }, sole: { layers: [{ thick: 0.006, welt: 0.004, heel: { to: 0.3, thick: 0.024 }, lugs: { every: 4 } }] } }, { id: 'd' });
+    const hz = D.parts.dHeel0_footR.stations.map((st) => Object.values(st.points)[0][2]), ys = (P) => P.stations.flatMap((st) => Object.values(st.points)).map((p) => p[1]);
+    expect(hz[1] - hz[0]).toBeCloseTo(0.024, 6);
+    expect(Math.max(...ys(D.parts.dHeel0_footR))).toBeLessThan(Math.max(...ys(D.parts.dSole_footR)) - 0.02);
+    expect(D.parts.dHeel0_toesR).toBeUndefined();
+    expect(Object.keys(D.parts).filter((k) => k.startsWith('dLug')).length).toBeGreaterThan(2);
+  });
+
   it('refuses a card by name', () => {
-    expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'heelTab' }] })[0]).toMatch(/region: one of tongue, eyestay/);
-    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker',
+    expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'pullLoop' }] })[0]).toMatch(/region: one of tongue, eyestay/);
+    expect(validateFootwear({ from: 'runners', skin: 'neon' })[0]).toMatch(/skin: a colourway \(tripleBlack/);
+    expect(validateFootwear({ from: 'runners', colour: 'red' })[0]).toMatch(/not 'colour'/);
+    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);
     expect(validateFootwear({ sock: false, adorn: [{ prim: 'toeCap' }] })[0]).toMatch(/worn on the sock; this card has none/);
