@@ -73,6 +73,12 @@ only the parts it names (`--parts '^pelvis$'`), to see one shell whole.
 **The dress** (`--dress`): armour (`adorn.*`) in steel grey, garments (a field garment, or a segment piece `<id>_<body part>`) in cloth blue over
 the clay body, so how close a shirt lies and which grooves it spans read at a glance.
 
+**The dressed outline** (`--outline`): under each cast's sections, the front outline scanned every 5 mm, the bare body grey
+and the dressed figure blue, the landmarks ticked and each division a red line, and the read beside it
+(`polygonizer/dress-outline.js`, [docs/garment-principles.md](../../../docs/garment-principles.md)): the silhouette family
+against the bare body's, each half's fit, where loose cloth returns to the body, the flair pieces, and the advice in the
+western and the anime style.
+
 **The sections panel and the measures table** come at the bind, per cast:
 
 - the trunk cut level at the neck, the chest (six tenths of the way from the navel to the shoulder joints), the waist

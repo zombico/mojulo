@@ -18,12 +18,13 @@ const hash = (cast, outfit) => {
 };
 
 // (boots and sandals re-pinned once: a strap became the tailor's one band, `bandAt`, whose caps take their ring's mixed
-// weights, where the footwear's own copy had left them on the upper's bone; nothing else in their parts moved)
+// weights, where the footwear's own copy had left them on the upper's bone; nothing else in their parts moved; the
+// jacket's twice: the gi cinched 8 mm past its belt each side, so the belt is a band and not a cone up to the blouse)
 const PINS = {
   'gathered, male': { cast: 'male', outfit: ['martialPants'], hash: '29b724313540708d' },
   'to the floor, female': { cast: 'female', outfit: ['wideTrousers'], hash: '33172caef3f632a2' },
-  'jacket over, male': { cast: 'male', outfit: ['martialPants', 'gi'], hash: 'dcdcaa4c77004581' },
-  'jacket over, female': { cast: 'female', outfit: ['martialPants', 'gi'], hash: '6834076ae31295cc' },
+  'jacket over, male': { cast: 'male', outfit: ['martialPants', 'gi'], hash: 'a751dce1d22f1290' },
+  'jacket over, female': { cast: 'female', outfit: ['martialPants', 'gi'], hash: '6764b0b73238dfeb' },
   'boots, male': { cast: 'male', outfit: ['boots'], hash: '1f700a2bb84e1b5e' },
   'sandals, female': { cast: 'female', outfit: ['sandals'], hash: 'b677f82a7dd87c20' },
 };

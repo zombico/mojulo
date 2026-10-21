@@ -28,6 +28,8 @@
 //                   "physique":"jacked","outfit":["tee","trousers"]}' is the realistic hero dressed, as the door makes it)
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
 //                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
+//   --outline       the dressed outline panel (dress-outline.js) under each cast's sections: the bare and dressed front
+//                   outlines, the divisions, and the read in each style.
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
 //
 // Each cast gets a SECTIONS panel at the bind (the trunk cut level at the neck, the chest, the waist and the seat; the
@@ -50,6 +52,7 @@ const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js
 const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
+const { outlineMeasures, outlineCritic } = await import('@/lib/graph/polygonizer/dress-outline.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
 const { bodyPartMap, PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-map.js');
@@ -59,7 +62,7 @@ const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-rela
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false, outline = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -72,6 +75,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
   if (a === '--dress') { dress = true; continue; }
+  if (a === '--outline') { outline = true; continue; }
   if (a === '--map') { partMap = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--graft') { graft = true; continue; }
@@ -410,6 +414,27 @@ for (const cast of casts) {
   lines.forEach((t, i) => parts.push(`<text x="40" y="${y0 + 40 + ph + 34 + i * 17}" font-family="monospace" font-size="13" fill="#333">${esc(t)}</text>`));
   console.log(`\n${cast}${reg ? ` (${reg})` : ''}${laws ? ` laws ${laws}` : ''}:`); for (const t of lines) console.log(`  ${t}`);
   y0 += ph + 330;
+  if (outline) y0 = outlinePanel(hero(cast), cast, y0);
+}
+/** THE OUTLINE panel (`--outline`, dress-outline.js): the front outline scanned every 5 mm, the bare body grey under the
+ * dressed figure blue, the landmarks' heights ticked, each division a red line, and the read beside it (the family against
+ * the bare body's, each half's fit, the return points, the flair, the advice in each style) */
+function outlinePanel(H, cast, yTop) {
+  const M = outlineMeasures(H.mesh, H.m.recipe, { profile: true }), P = M.profile, SC = 300, ph = (P.top - P.ground) * SC, cx = 260, y = (z) => yTop + 40 + (P.top - z) * SC;
+  parts.push(`<rect x="0" y="${yTop}" width="${Math.max(sheetW, 1500)}" height="${ph + 80}" fill="#faf9f7"/>`);
+  label(0, yTop + 22, `${cast} · the dressed outline (dress-outline.js): the bare body grey, the dressed blue, ${SC / 100} px per cm; the divisions red`, 14);
+  for (const r of P.rows) {
+    for (const [a, b] of r.bare) parts.push(`<rect x="${cx + a * SC}" y="${y(r.z) - 0.8}" width="${(b - a) * SC}" height="1.6" fill="#b9b2a8"/>`);
+    for (const [a, b] of r.dressed) parts.push(`<rect x="${cx + a * SC}" y="${y(r.z) - 0.8}" width="${(b - a) * SC}" height="1.6" fill="#5678a8" fill-opacity="0.55"/>`);
+  }
+  for (const [k, z] of Object.entries(P.landmarks)) { parts.push(`<line x1="${cx - 150}" y1="${y(z)}" x2="${cx - 125}" y2="${y(z)}" stroke="#666"/>`); parts.push(`<text x="${cx - 155}" y="${y(z) + 4}" text-anchor="end" font-family="monospace" font-size="11" fill="#555">${k}</text>`); }
+  for (const d of M.divisions) { parts.push(`<line x1="${cx - 120}" y1="${y(d.z)}" x2="${cx + 120}" y2="${y(d.z)}" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="6 3"/>`); parts.push(`<text x="${cx + 125}" y="${y(d.z) + 4}" font-family="monospace" font-size="11" fill="#c0392b">${d.kind} ${d.f}${d.dL !== null ? ` ΔL* ${Math.round(d.dL)}` : ''}</text>`); }
+  const sex = cast === 'female' ? 'female' : 'male', text = [`family ${M.family} (bare ${M.bareFamily})`, `fit: top ${M.fit.top.class} (${M.fit.top.e}), bottom ${M.fit.bottom.class} (${M.fit.bottom.e})`, `returns: ${M.returns.join(', ') || 'none'}`, `flair: ${M.flair.of.join(', ') || 'none'} · body line ${M.flair.bodyLine}`, `leg line ${M.legLine} · mass above/below ×${M.rho}`,
+    ...Object.entries(M.ratios).map(([k, v]) => `${k} ${v} (bare ${M.bareRatios[k]})`)];
+  for (const st of ['western', 'anime']) { const c = outlineCritic(M, st, { sex }); text.push('', `${st}: ${c.reads.filter((x) => !x.in).map((x) => x.id).join(', ') || 'all in band'}`, ...c.advice.map((a) => `  · ${a}`)); }
+  text.forEach((t, i) => parts.push(`<text x="${cx + 330}" y="${yTop + 60 + i * 17}" font-family="monospace" font-size="12" fill="#333">${esc(t)}</text>`));
+  sheetW = Math.max(sheetW, 1900);
+  return yTop + Math.max(ph + 80, 80 + text.length * 17);
 }
 sheetW = Math.max(sheetW, 1500);
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${y0}" viewBox="0 0 ${sheetW} ${y0}"><rect width="100%" height="100%" fill="${BG}"/>${parts.join('')}</svg>`;

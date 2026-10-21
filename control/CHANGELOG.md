@@ -62,6 +62,18 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   (`bindNearest`, `bindRibbon`, `ringW`). The trousers, the gi and the footwear are each their choice of them. Moved byte
   for byte (`body-relational-tailored.char.test.js`, out of the critical tier: each case mints a realistic body), but
   for one fix: a strap is now the one band, its caps riding with their ring as a cuff's do.
+- THE PRINCIPLES (`docs/garment-principles.md`): what makes a dressed silhouette read, each as a measure of the dressed
+  figure with a starting band in two styles, western (fashion and tailoring) and anime/game (character costume):
+  silhouette families and their shift from the bare body, waist suppression, fit class, return points for loose cloth,
+  the dominant division on thirds and never at halves, the leg line, a hem off the limb's widest, the shoulder line,
+  fabric stiffness, the flair budget, readability at a thumbnail, and rules for dressing each body type. Every source
+  so far seen only in search results, and said so.
+- THE DRESSED OUTLINE READ (`polygonizer/dress-outline.js`): the realistic body's outline sliced off the compiled mesh
+  against the bare body under it (a tenth of a second): the family, each half's fit, where loose cloth returns to the
+  body (by its standoff each side, so layers at a belt count as a return), the divisions (only where a garment spans the
+  body and does not go on below), the leg line, a hem's place on the limb, the flair pieces, and advice in each style.
+  In the realistic hero's readout as `dress.outline`; `/body-study --outline` draws it. It found the gi's belt a cone up
+  to its blouse (the gi now cinched past the belt) and advises the gi's skirt off the thigh's widest.
 
 ### The gi: a wrapped jacket over the martial artist's trousers
 

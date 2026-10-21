@@ -42,6 +42,7 @@ import { compileLayered, resolveLayeredDials, pinFrame } from '@/lib/graph/polyg
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
 import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
+import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
 import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
@@ -872,6 +873,13 @@ export function dressReadout(hero, plan, mesh, recipe) {
   // the dress stays OUT of the body at every dial extreme (station-loft-clearance.js); the worst configuration is named
   // the dressed silhouette (dress-silhouette.js): the cloth's waist and taper against the body's, advice when it fills them
   if (recipe && hero.outfit !== undefined) { const S = dressSilhouette(recipe); if (S) out.silhouette = S; }
+  // the dressed OUTLINE on the realistic body (dress-outline.js; docs/garment-principles.md): its family against the bare
+  // body's, each half's fit, where loose cloth comes back to the body, the divisions, the flair, and the advice in each style
+  if (hero.form === 'realistic' && mesh?.provenance && recipe?.rig) {
+    const M = outlineMeasures(mesh, recipe), sex = femaleOf(hero) ? 'female' : 'male';
+    out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
+      advice: Object.fromEntries(['western', 'anime'].map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
+  }
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
   const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };
   if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking.filter((id) => !C.adornments[id] || !stitched(id, C.adornments[id])), worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }

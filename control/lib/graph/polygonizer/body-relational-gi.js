@@ -11,7 +11,8 @@
  *               - below it the FALL (each slot the larger of its own, and the `slack` eased in over 10 cm, and the
  *                 ring above's let down by `taper`), the
  *                 cloth hanging from the chest, BLOUSED out over the belt (`blouse` at most, gone `blouseLen` above it)
- *               - at the BELT (`belt` high, `beltDrop` under the pelvis's top ring) cinched to what is under it
+ *               - at the BELT (`belt` high, `beltDrop` under the pelvis's top ring) cinched to what is under it, 8 mm
+ *                 past the belt each side (so the belt's band is a band, not a cone up to the blouse)
  *               - below it the SKIRT carried straight down past the hip to `hem` under the crotch, every ring `clear` of
  *                 what is under it (the trousers' cloth, else the skin), folds deepening to the hem; its weights the
  *                 pelvis's, the thigh's shared in toward each side and down; its hem TURNED (the cloth folded back up
@@ -68,7 +69,7 @@ export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under 
   const zOf = (Q, st) => mean(Q.slots.map((sl) => st.points[sl]))[2];
   const zAtU = (Q, u) => { const S = Q.stations; for (let i = 1; i < S.length; i++) if (u <= S[i].u + 1e-9) { const a = S[i - 1].u, t = S[i].u > a ? (u - a) / (S[i].u - a) : 0; return zOf(Q, S[i - 1]) + (zOf(Q, S[i]) - zOf(Q, S[i - 1])) * Math.max(0, Math.min(1, t)); } return zOf(Q, S[S.length - 1]); };
   const zCrotch = zOf(skinP, skinP.stations[0]), zBelt = zOf(skinP, skinP.stations[skinP.stations.length - 1]) - F.beltDrop;
-  const zBeltTop = zBelt + F.belt / 2, zBeltBot = zBelt - F.belt / 2, zChest = zAtU(skinT, F.chestU), zV = zAtU(skinT, F.vU), zHem = zCrotch - F.hem;
+  const zBeltTop = zBelt + F.belt / 2 + 0.008, zBeltBot = zBelt - F.belt / 2 - 0.008, zChest = zAtU(skinT, F.chestU), zV = zAtU(skinT, F.vU), zHem = zCrotch - F.hem;
 
   // THE BODY: the pelvis's rings and the torso's one tube, each ring its points, its weights and (the torso's) its skin
   const M = oneTube(P, T), nT = T.stations.length, from = M.stations.length - nT;
