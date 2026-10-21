@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps } from './geocube.js';
+import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps, GEOCUBE_DOMAINS } from './geocube.js';
 import { readHour } from './geocube-hours.js';
 import { assembleStageScene } from './stage.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
@@ -30,7 +30,7 @@ describe('reading domains', () => {
     expect(geocubeDomains(readGeocube(CUBE)).map((d) => [d.name, d.side])).toEqual([['default', 'outside'], ['shore', 'outside'], ['room', 'inside'], ['crypt', 'inside']]);
     expect(geocubeDomains(readGeocube(NAMED)).map((d) => d.name)).toEqual(['shore-night', 'shore-dawn', 'crypt']);
     // a preset names its levels beside its own document, and reads them in when it is named
-    expect(geocubeDomains(readGeocube('limestone-crags')).map((d) => d.name)).toEqual(['crag-path', 'cove-dusk', 'temple-hall']);
+    expect(geocubeDomains(readGeocube('limestone-crags')).map((d) => d.name)).toEqual(Object.keys(GEOCUBE_DOMAINS['limestone-crags'].domains));
   });
 
   it('refuses a domain that changes the style, or names what the cube has not', () => {
@@ -80,7 +80,7 @@ describe('expanding a domain', () => {
 
   it('every domain is the cube\'s one style: the same palette and contrast, its own land and light', () => {
     const cube = 'limestone-crags', P = (domain) => geocubePaint({ geocube: cube, domain });
-    expect(new Set(['crag-path', 'cove-dusk', 'temple-hall'].map((d) => P(d).palette)).size).toBe(1);
+    expect(new Set(Object.keys(GEOCUBE_DOMAINS[cube].domains).map((d) => P(d).palette)).size).toBe(1);
     const crag = geocubeContrastOf({ kind: 'stage', geocube: cube, domain: 'crag-path' }), cove = geocubeContrastOf({ kind: 'stage', geocube: cube, domain: 'cove-dusk' });
     expect(cove).toMatchObject({ ground: crag.ground, shade: crag.shade });
     expect(cove.toLight).not.toEqual(crag.toLight);   // the cove is at dusk
@@ -155,5 +155,41 @@ describe('structures, the landmarks a domain raises', () => {
     expect(raised.length).toBeGreaterThan(20);
     const zs = raised.flatMap((f) => f.corners.map((c) => c[2]));
     expect(Math.min(...zs)).toBeGreaterThanOrEqual(geocubeStructures({ kind: 'geocube', cube: RAISED, domain: 'beacon-hill' }).list[0].at[2] - 1e-6);
+  });
+});
+
+describe('settlements, the towns a domain walks through', () => {
+  // the same cube with a harbour town in its builders' language, and a domain that walks its street
+  const TOWN = { ...NAMED, buildings: { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }] },
+    settlements: { harbour: { town: { length: 100, branches: 1 }, houses: 4, enter: 1 } },
+    domains: { ...NAMED.domains, harbour: { terrain: 'shore', settlement: 'harbour' } } };
+
+  it('a cube names its towns; a domain walks one, or writes its own; inside there are none', () => {
+    const c = readGeocube(TOWN), D = pickDomain(c, 'harbour').domain;
+    expect(D).toMatchObject({ side: 'outside', terrain: 'shore', settlement: 'harbour' });
+    expect(() => readGeocube({ ...TOWN, settlements: { harbour: { town: { length: 10 } } } })).toThrow(/settlements.harbour.town: length is a number 90–160/);
+    expect(() => readGeocube({ ...TOWN, settlements: { harbour: { houses: 40 } } })).toThrow(/houses is 1 to 12/);
+    expect(() => pickDomain(c, { interior: 'crypt', settlement: 'harbour' })).toThrow(/an interior takes none/);
+    expect(() => pickDomain(c, { settlement: 'port' })).toThrow(/settlement 'port' is not one of/);
+  });
+
+  it('a town domain alone walks a trail through its street, in the cube\'s builders\' language', () => {
+    const m = withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour' });
+    expect(m.trail).toEqual({});
+    expect(m.meru).toBeUndefined();
+    expect(m.town).toEqual({ anchor: 'tiered', houses: 4, enter: 1, recipe: { length: 100, branches: 1 } });
+    // the stage's own street wins
+    expect(withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour', trail: {}, town: { houses: 2 } }).town).toEqual({ houses: 2 });
+    expect(geocubePaint({ geocube: TOWN, domain: 'harbour' })).toMatchObject({ domain: 'harbour', settlement: 'harbour' });
+  });
+
+  it('a level lays the street once, on the first trail it paints', () => {
+    const L = sequentialLevel({ seed: 2, geocube: TOWN, domain: 'harbour', nodes: { a: { trail: { run: 12 } }, b: { trail: { run: 12 } }, top: { meru: true } } });
+    expect(L.stages.map((s) => s.manifest.town?.anchor ?? null)).toEqual(['tiered', null, null]);
+  });
+
+  it('the street stands on the trail', () => {
+    const P = assembleStageScene(withGeocube({ kind: 'stage', seed: 4, geocube: TOWN, domain: 'harbour' }));
+    expect(P.faces.some((f) => String(f.group).startsWith('town:'))).toBe(true);
   });
 });

@@ -149,10 +149,11 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   domain that names neither trail nor meru stands on the cube's island at the domain's hour (the stage's own hour
   wins); an inside one is the room. `painted`, the level's `paint` summary and the specimen's `geocube` payload name
   the domain; a specimen whose cube names more than its own room and land lists the levels it makes.
-- **`limestone-crags` makes three levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
-  not move): `crag-path` (its crags, a shrine on the top), `cove-dusk` (a sand cove under low crags, at dusk) and `temple-hall` (a tall nave).
+- **`limestone-crags` makes four levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
+  not move): `crag-path` (its crags, a shrine on the top), `cove-dusk` (a sand cove under low crags, at dusk),
+  `harbour-town` (a street up from the cove) and `temple-hall` (a tall nave).
   Every preset's room, land and dusk land, a stage on each and a painted level render byte for byte as before; the
-  limestone specimen's payload gains its list of domains. Only the automated checks have run; the three have not been
+  limestone specimen's payload gains its list of domains. Only the automated checks have run; none of them has been
   looked at.
 - **Structures, the landmarks a domain raises.** A cube's `structures: { <name>: [<structure>…] }` are the landmarks
   its builders raise: a fractal structure's words each, standing `at` [x, y, z?] or `on: 'summit'` (the climb's top
@@ -162,7 +163,13 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   the domain's hour. The structures channel raises them beside a recipe's own on a stage's climb or a specimen's land,
   never on a trail. `limestone-crags`'s `crag-path` stands a spire on its top. A domain without structures renders as
   before.
-- Planned: `settlements` as an ingredient, a town's street in the cube's building language, laid as the stage's `town`.
+- **Settlements, the towns a domain walks through.** A cube's `settlements: { <name>: { town?, houses?, enter?, doors?,
+  anchor? } }` are the towns its builders make: a town plan (`era/out-town.js`) and how much of its street stands and
+  is walked into. A domain names one or writes its own (`settlement`; an interior takes none). `geocubeTown` makes it a
+  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own; the houses take
+  the cube's look. A town domain standing alone walks a trail through its street (a town does not fit on the island); a
+  level lays the street once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains
+  `harbour-town`, a street up from the cove.
 - Planned: a game's levels expand domains of its one cube; compose picks each level's domain by its words. The geocube
   routing card teaches domain expansion; no new tool.
 

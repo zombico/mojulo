@@ -9,6 +9,7 @@
  */
 import { readLevel, styleOfKit } from './graph.js';
 import { compileLevelGround } from './ground.js';
+import { geocubeTown } from '../era/geocube.js';
 
 /** The walk from the root, or what stops the graph being one. */
 export function sequentialOrder(G) {
@@ -34,6 +35,8 @@ export function sequentialLevel(recipe) {
   // the level's own ground (ground.js), laid on its trails' recipes in their own metres before they are chained
   const laid = G.ground ? compileLevelGround(G, order) : null;
   let prev = null;   // the trail just walked: { node, recipe (its whole `after` chain), kit, seed }
+  // a domain's town (era/geocube.js geocubeTown): its street on the first trail it paints, once
+  let street = G.paint?.domain ? geocubeTown(G.paint.cube, G.paint.domain.domain) : null;
   for (const id of order) {
     const n = G.nodes[id];
     if (prev && prev.section !== 'trail') throw new Error(`level: sequential: '${id}' follows the ${prev.section} '${prev.node}'; a section follows a trail (nothing follows a ${prev.section} yet)`);
@@ -45,7 +48,8 @@ export function sequentialLevel(recipe) {
         if (styleOfKit(prev.kit) !== styleOfKit(n.kit)) throw new Error(`level: sequential: '${prev.node}' (${prev.kit}) to '${id}' (${n.kit}): two trails in a row are drawn in one look; a seam between looks is not drawn yet`);
         recipe.after = { ...prev.recipe, seed: prev.seed };
       }
-      manifest = { kind: 'stage', ...paintOf(G, n), seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) };
+      manifest = { kind: 'stage', ...paintOf(G, n), seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}), ...(street && n.painted ? { town: street } : {}) };
+      if (n.painted) street = null;
       prev = { node: id, section: 'trail', recipe, kit: n.kit, seed: n.seed };
     } else {
       const meru = { ...n.recipe, id };
