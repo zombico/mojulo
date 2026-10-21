@@ -138,6 +138,21 @@ authored body the library's other words are its boot, its sandal or its shoe by 
 byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
 segments it is `on`). body-study `--dress` colours each footwear group by its tone.
 
+### Plating: segment-paneled armour on the realistic body
+
+In progress (the realistic body first; joint caps, glow seams and the other bodies next). `lib/graph/plating/`, a module
+of its own beside the armour (it leaves `armor/` and the realistic fit untouched; the hard-suit can adopt it): a powered
+suit as TWO LAYERS, an undersuit (a close field garment over the trunk and the limbs) and PLATES over it, each a REGION
+of one segment in that segment's own coordinates (`regions.js` PLATE_REGIONS: along it, round from its front line;
+chest, abs, flank, back, lumbar, belt, hip, shoulder, bicep, triceps, gauntlet, thigh, thighOuter, hamstring, shin,
+calf; or an inline region), cut from the suit's own grid and standing off it by its `lift` (footwear/cobbler.js
+`panelOn`), never across a joint; split into `rows` whose gaps are the PANEL LINES; a matched pair where the region has
+two sides; a REACTOR disc on the sternum in a rim, its group rendered full-bright (`emissive`). Composed by SUIT cards
+(`styles.js`, pure data; `from`, `platesPlus`, a `skin` colourway), refused by name (`validatePlating`). Outfit words on
+the realistic body: `powerSuit` (red and gold), `stealthSuit` (black, wide panel lines), `heavySuit` (gunmetal, far
+standoff, more rows), `sleekSuit` (white, few plates); on the authored body none yet. body-study `--dress` paints a
+suit's groups in their own colours.
+
 ### The hero's skin: a part of the character, shown where it shows
 
 - `skin` on the hero door (`form: 'realistic'`): the dermis's dials (dermal-map.js DERMIS_DIALS but `sex`, the cast's:

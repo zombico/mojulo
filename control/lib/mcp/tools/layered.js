@@ -75,6 +75,8 @@ import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relat
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
 import { FOOTWEAR, readTones } from '@/lib/graph/footwear';
 import { footwear } from '@/lib/graph/footwear/adapters/realistic';
+import { SUITS } from '@/lib/graph/plating';
+import { plating } from '@/lib/graph/plating/adapters/realistic';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -305,7 +307,9 @@ function realisticExpand(plan, hero) {
   // (`boot…`, `shoe…`, `<word>…`)
   const footWords = words.filter((w) => FOOTWEAR[w]), footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
-  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length) return S;
+  // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
+  const suitWords = words.filter((w) => SUITS[w]);
+  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
@@ -351,6 +355,19 @@ function realisticExpand(plan, hero) {
     const s = S.dials?.[k], out = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((p) => R.parts[p]) } : {}) };
     return [k, s?.blend ? { ...out, blend: { ...(d.blend || {}), ...s.blend } } : out];
   }));
+  for (const w of suitWords) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), W = plating(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
+    for (const [name, part] of Object.entries(W.parts)) {
+      R.parts[name] = part;
+      // (it rides its segment's dials, as a garment does)
+      const seg = name.slice(name.indexOf('_') + 1);
+      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+    }
+    // (the suit's tones over the palette's defaults, the operator's own palette over all; its glow full-bright)
+    R.palette = { ...W.tones, ...(R.palette || {}) };
+    for (const g of W.named) if (!hero.palette?.[g] && W.tones[g]) R.palette[g] = W.tones[g];
+    if (W.emissive.length) R.emissive = [...new Set([...(R.emissive || []), ...W.emissive])];
+  }
   for (const w of footWords) {
     const B = realisticBuild(hero), RS = validateRig(S.rig), W = footwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
     for (const [name, part] of Object.entries(W.parts)) {
