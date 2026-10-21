@@ -115,11 +115,14 @@ before.
   Each line is written back with `ok` and `value` when the cube is read; a palette law on a cube whose colours are its
   own is `ok: null`, unmeasured. The readout rides the specimen's `geocube` payload and a painted stage's `painted`.
   It advises and never refuses.
-- **Two presets from published art direction.** `theatre-grey`: a grey, quiet world staged in pools of light, one
-  red for what matters (a `mono-accent` palette, quiet surfaces, thick air, lab bones). `painted-haze`: a hazy town
-  painted in warm and cool masses (three value groups, a jaundiced sky, a deep rust accent, `contrast: 'wii'`, quiet
-  surfaces). Each carries its avoid list, and every line holds under its own palette. Only the automated checks have
-  run; neither preset has been looked at.
+- **A preset from published art direction.** `theatre-grey`: a grey, quiet world staged in pools of light, one red
+  for what matters (a `mono-accent` palette, quiet surfaces, thick air, lab bones). It carries its avoid list, and
+  every line holds under its own palette. Only the automated checks have run; it has not been looked at.
+- **`limestone-crags`, the first terrain past the sixth generation.** Pale limestone crags over a deep blue sea, the
+  rock drawn near in its own beds: `grit` 0.7, the land's `skin` the limestone formation, edges broken and stones
+  strewn. Its palette is the color theorist's, solved round a locked stone and a locked clear sky (a role's hue alone
+  is a pull the solve overrides), with the sky written, since the solve's horizon read lavender. The flagstone and the
+  sandstone stay one override away: `skin` and a palette on the same cube.
 
 ### Epidermis cube: skin and hair as a recipe
 

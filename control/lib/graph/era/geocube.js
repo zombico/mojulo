@@ -199,27 +199,30 @@ export const GEOCUBE_PRESETS = Object.freeze({
       { line: 'Bright colours unrelated to what matters.', law: 'accent-unique' },
     ],
   },
-  'painted-haze': {
-    id: 'painted-haze', title: 'Painted haze', reads: 'A hazy town painted in warm and cool masses',
-    light: { reference: 'desert-dusk', outsideFog: 2 },
-    colour: { stone: '#a69a78', floor: '#6e6448', trim: '#c8bc94', accent: '#8a3020', grass: '#7a7a44', foliage: '#4e5432', water: '#4a6660', sand: '#b0a27a', shade: 195 },
-    register: { steps: 0, key: 0.48 },
+  // the first terrain past the sixth generation: the rock drawn as erosion leaves it (a formation, near the eye), its
+  // edges broken and its stones strewn (grit), under a palette solved round the stone and a clear sky
+  'limestone-crags': {
+    id: 'limestone-crags', title: 'Limestone crags', reads: 'Pale limestone crags over a deep blue sea, the rock drawn near in its own beds',
+    light: { reference: 'island-noon', outsideFog: 0.8, sky: { zenith: '#5a8cc8', horizon: '#cfe1ec', fog: '#c9d8df' } },
+    colour: { stone: '#c4b69c', floor: '#a9867c', trim: '#bda09f', accent: '#f49a74', grass: '#aa8957', foliage: '#554700', water: '#365d84', sand: '#b2968d', shade: 270 },
+    register: { steps: 0, key: 0.62 },
     contrast: 'wii',
-    surfaces: { wall: QUIET_STONE, floor: QUIET_FLAGS, accent: ROCK },
+    grit: 0.7,
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: { ...LAND, skin: 'limestone' } },
     why: [
-      'Forms are simplified on purpose: broad planes, and detail only where the eye lands.',
-      'The light is a warm, jaundiced haze and the shade a cool teal: every plane is warm or cool, never neutral.',
-      'Three masses of value: the sky and the stone light, the ground and what is made mid, the leaves dark.',
-      'Surfaces are broad material and quiet: no glossy physical detail, no brush noise.',
-      'One accent, a rust red; the rest stays in the haze\'s family.',
-      'Distance goes warm and pale into the haze.',
+      'The rock is drawn as erosion leaves it: beds of their own hardness, joints, fallen blocks and their scars.',
+      'Far, the polygons carry the crags; nearer, the rock refines, down to its grain, and never sooner than it can be seen.',
+      'Pale stone in a hard clear light: the lit faces warm and bright, the shade cool and readable.',
+      'No edge is a ruled line against the sky: boulders and rims break.',
+      'Small stones lie where they would: on the boulders, along the paths, at the foot of the cliffs.',
+      'The sea is deep, the sky clear, the scrub a dry olive: the sky and the stone light, the scrub mid, the shade dark.',
     ],
     avoid: [
-      { line: 'Random brush noise, or a painting filter over realistic surfaces.', law: 'quiet-surfaces' },
-      { line: 'Muddy values with no clear masses.', law: 'value-groups' },
       { line: 'Values that only read in colour.', law: 'greyscale-read' },
+      { line: 'Flat black where nothing can be read.', law: 'shade-is-colour' },
+      { line: 'Muddy values with no clear masses.', law: 'value-groups' },
     ],
   },
 });
@@ -238,7 +241,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'upland-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'guardhouse', enter: 'door' }] },
   'theatre-grey': { anchor: 'tiered', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
-  'painted-haze': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'guardhouse', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
+  'limestone-crags': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
 });
 /**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
@@ -253,10 +256,10 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
   'upland-morning': { intent: 'limestone, red roofs and a rocky green upland in the morning', key: 'high', heat: 0.3, weight: 0, activity: 0.25, scheme: 'complementary', hues: { sky: 222, rock: 50, soil: 34, ground: 108, foliage: 126, accent: '#b8442c' } },
   'theatre-grey': { intent: 'a grey, quiet world staged in pools of light, one red for what matters', key: 'mid', heat: -0.25, weight: 0.35, activity: -0.8, scheme: 'mono-accent', hues: { rock: 230 }, lock: { accent: '#b8261e' } },
-  'painted-haze': { intent: 'a hazy town painted in warm and cool masses under a jaundiced sky', key: 'mid', heat: 0.35, weight: 0.45, activity: -0.35, scheme: 'analogous', hue: '#8a8a52', hues: { sky: 95 }, lock: { accent: '#8a3020' }, values: { groups: 3 } },
+  'limestone-crags': { intent: 'pale limestone crags, dry olive scrub and a high clear sky', key: 'high', heat: 0.3, weight: 0.1, activity: -0.2, scheme: 'complementary', hues: { soil: 36, ground: 78, foliage: 96 }, lock: { rock: '#c4b69c', sky: '#8db8e4' }, values: { groups: 3 } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'painted-haze': [1, 4] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
