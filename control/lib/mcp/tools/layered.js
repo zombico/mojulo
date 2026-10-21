@@ -301,10 +301,10 @@ function realisticExpand(plan, hero) {
   const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
   const fieldWords = words.filter((w) => FIELD_GARMENTS[w]);
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
-  // FOOTWEAR: a word with a footwear spec (lib/graph/footwear FOOTWEAR: boots, shoes, sandals) is the primitive's, in place
-  // of its segment pieces (`boot…`, `shoe…`)
-  const footWords = words.filter((w) => FOOTWEAR[w]);
-  if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !/^(boot|shoe)[A-Z]/.test(g.id)) };
+  // FOOTWEAR: a word with a footwear card (lib/graph/footwear FOOTWEAR) is the library's, in place of its segment pieces
+  // (`boot…`, `shoe…`, `<word>…`)
+  const footWords = words.filter((w) => FOOTWEAR[w]), footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
+  if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)

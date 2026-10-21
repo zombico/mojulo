@@ -75,19 +75,27 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
 ### Footwear: a solver library, an adapter per body's foot
 
 In progress (the library and the realistic body's adapter first; heels, laces and the other bodies' feet next).
-`lib/graph/footwear/`: footwear composed from body-agnostic PARTS (`parts.js`: a sole, a strap, a buckle, each bound by
-the nearest weights of the surface it is worn on) by a SPEC (`presets.js` names the words), worn on a body through its
-FOOT ADAPTER (`adapters/`: which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the
-bare skin a sandal is worn on, the body's own way to lay an upper, and how a share along a segment names its stations).
-`wearFootwear(adapter, spec)`. A spec's places are shares of a segment, so a preset reads on any body.
-The realistic body (`adapters/realistic.js`, `polygonizer/body-relational-footwear.js` re-exports it): an UPPER (leather
-close over the foot and its toes, a field garment; `upper: false` none, a sandal) at a HEIGHT (`boot`: carried up the
-shank as a shaft, the foot's leather tucked under it round the ankle; `shoe`: from a collar below the ankle), and
-ADORNMENTS: a SOLE under the foot and under the toes (split at the toe base so it bends with them; the footprint's
-outline grown by a welt, from the floor up), STRAPS round the upper (or the bare foot) and a BUCKLE on each one's outer
-side. New groups `Sole`, `Strap`, `Brass` (their tones added to a palette that names none). The words on the realistic
-body: `boots`, `shoes` (new), `sandals` (new; on the authored body a low close shoe). Its output is pinned
-(`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the segments it is `on`).
+`lib/graph/footwear/`, on the armour and outfit pattern: footwear in THREE LAYERS (`principles.js`), the SOCK (the
+protosock, the shoe's close outer layer and its bottom colour: a height and a thickness, none for a sandal), the SOLE
+(its layers stacked from the floor up, each with its own thickness, welt and group: an outsole, a midsole, a stripe; a
+layer's `pod` an air window of another group at the heel, proud of its wall) and the ADORNMENT the solver lays over them
+(`ADORN_PRIMS`: `strap` with a `buckle`, `band` (gilding), `cuff` at the sock's collar, `toeCap` (a quarter egg over the
+toes, mapped from the toe base to the frontmost toe, the leather under it tucked inside, `rivets` round its back edge);
+any of them in a `group` of its own). Composed by CARDS (`styles.js`, pure data: a new look is a card), each annotated
+with its `family` (shoe, boot, sandal, sneaker), by passes in a fixed order (`expand.js`: sock, sole, adorn, tone; tones
+only for the groups laid), refused by name (`validateFootwear`). Worn on any body through its FOOT ADAPTER (`adapters/`:
+which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the bare skin a sandal is worn
+on, the body's own way to lay the sock, and how a share along a segment names its stations): a card's places are shares
+of a segment, so it reads on any body. `wearFootwear(adapter, card)`.
+The realistic body (`adapters/realistic.js`; `polygonizer/body-relational-footwear.js` re-exports it): the sock a field
+garment, close over the foot's forms (`boot`: up the shank as a shaft, the foot's leather tucked under it round the
+ankle; `shoe`: from a collar below the ankle; its `thick` the leather's ease). The words on the realistic body: `boots`,
+`shoes` (new), `sandals` (new; on the authored body a low close shoe), `workBoots` (a steel toe, riveted),
+`adventurerBoots` (a thicker sock, a deep sole, a cuff, a gilt band, a buckled strap), `sneakers` (a court shoe: a white
+cupsole on a gum outsole, a rubber toe bumper) and `runners` (a foam midsole with an air pod, a contrast stripe); on the
+authored body the four new words are its boot or its shoe for now. `boots`, `shoes` and `sandals` are pinned byte for
+byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
+segments it is `on`). body-study `--dress` colours each footwear group by its tone.
 
 ### The hero's skin: a part of the character, shown where it shows
 

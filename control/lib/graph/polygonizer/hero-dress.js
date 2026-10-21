@@ -200,6 +200,8 @@ export function lowerPaint(paint, plan) {
 const CHEST_UNDER = ['pectoral', 'bust', 'navel'];
 const torsoPiece = (id, g, k, sleeve, ease = 0.008) => [{ id, part: 'torso', ease: ease * k, over: CHEST_UNDER, group: g }, ...sleeve];   // up to the collar ring: the neck rises out of it
 const hem = (id, g, k, { structured }, ease = 0.012) => (structured ? [{ id: `${id}Hem`, part: 'pelvis', u: [4, 6], ease: ease * k, group: g }] : []);
+/** a footwear card's segment pieces on the authored body: another word's, each id led by the card's word */
+const footAs = (w, pieces) => pieces.map((p) => ({ ...p, id: `${w}${p.id[0].toUpperCase()}${p.id.slice(1)}` }));
 export const OUTFIT_WORDS = Object.freeze({
   tee: ({ scale: k, ...c }) => [...torsoPiece('tee', 'Top', k, [{ id: 'teeSleeve', part: 'upperArm', run: [0, 0.45], ease: 0.01 * k, flare: [0, 0.006 * k], group: 'Top' }]), ...hem('tee', 'Top', k, c)],
   shirt: ({ scale: k, ...c }) => [...torsoPiece('shirt', 'Top', k, [{ id: 'shirtSleeve', part: 'upperArm', ease: 0.01 * k, group: 'Top' }, { id: 'shirtCuff', part: 'foreArm', run: [0, 0.92], ease: 0.01 * k, group: 'Top' }]), ...hem('shirt', 'Top', k, c)],
@@ -217,6 +219,12 @@ export const OUTFIT_WORDS = Object.freeze({
   // lib/graph/footwear)
   shoes: ({ scale: k }) => [{ id: 'shoeFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (on the authored body a sandal is a low shoe, close; on the realistic body the sole and the straps alone)
+  // (the footwear library's cards, lib/graph/footwear: on the realistic body their own; on the authored body the boot or
+  // the shoe, under ids of their own)
+  workBoots: (c) => footAs('workBoots', OUTFIT_WORDS.boots(c)),
+  adventurerBoots: (c) => footAs('adventurerBoots', OUTFIT_WORDS.boots(c)),
+  sneakers: (c) => footAs('sneakers', OUTFIT_WORDS.shoes(c)),
+  runners: (c) => footAs('runners', OUTFIT_WORDS.shoes(c)),
   sandals: ({ scale: k }) => [{ id: 'shoeSandal', part: 'foot', fit: 'shoe', ease: 0.003 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
 });
 /** Error strings for the door's `outfit` (form; the plan grammar judges the pieces) */

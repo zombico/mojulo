@@ -5,6 +5,8 @@
  *   soleSlab(print, { floor, thick, welt })   a sole: the footprint's outline grown by the welt, from the floor up
  *   strapBand(P, u, { lift, width })          a band round the surface `P` at its station `u`
  *   buckleOn(band, side)                      a small block on a strap's outer side
+ *   quarterEgg({ o, fwd, side, L, W, H })     a quarter egg over the toes, toe base to toe tip (a toe cap)
+ *   studsOn(ring, mid, { every, minZ })       small blocks round a ring's upper half (rivets)
  *   bindNearest(piece, P)                     a piece's bind copied from the surface it is worn on
  *
  * Pure and deterministic.
@@ -61,9 +63,55 @@ export function strapBand(P, u, { lift, width = 0.015 }) {
 export function buckleOn(band, side, { w = 0.016, h = 0.012, thick = 0.004 } = {}) {
   const [A, B] = band.stations, sl = band.slots.reduce((best, s) => ((A.points[s][0] + B.points[s][0]) * side > (A.points[best][0] + B.points[best][0]) * side ? s : best), band.slots[0]);
   const P = mean([A.points[sl], B.points[sl]]), C = mean([mean(Object.values(A.points)), mean(Object.values(B.points))]);
-  const n = unitv([P[0] - C[0], P[1] - C[1], P[2] - C[2]]), t = unitv(B.points[sl].map((x, q) => x - A.points[sl][q])), b = unitv(cross(n, t));
-  const names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
+  return block(P, unitv([P[0] - C[0], P[1] - C[1], P[2] - C[2]]), unitv(B.points[sl].map((x, q) => x - A.points[sl][q])), { w, h, thick });
+}
+
+/** a small block standing on `P` along the normal `n`, `h` along `t` and `w` across it, `thick` proud */
+function block(P, n, t, { w, h, thick }) {
+  const b = unitv(cross(n, t)), names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
   const face = (off) => Object.fromEntries(names.map((nm, j) => [nm, [0, 1, 2].map((q) => r6(P[q] + n[q] * off + t[q] * corner[j][0] * h / 2 + b[q] * corner[j][1] * w / 2))]));
   return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: face(0.0005) }, { id: 'st1', u: 1, points: face(thick) }],
     caps: { back: P.map((x, q) => r6(x - n[q] * 0.0005)), tip: P.map((x, q) => r6(x + n[q] * (thick + 0.0005))) } };
+}
+
+/** a QUARTER EGG over the toes, mapped toe to toe: from the toe base (`o`, t 0) along the foot's forward `fwd` to past
+ * the toe tip (`L`), its front and top quarter of an egg (each ring's arch shrinking as √(1 − (t/L)^p), blunt at `p` > 2),
+ * `W` wide each side of its centre across (along `side`: `c` at the toe base, running to `cTip` at the tip, the toe line
+ * being oblique) and `H` high over its flat bottom at `minZ` (inside the sole),
+ * closed at the tip. A toe cap: the half teacup */
+export function quarterEgg({ o, fwd, side, c = 0, cTip = c, L, W, H, minZ, p = 2.5, rings = 10, n = 24 }) {
+  const cAt = (t) => c + (cTip - c) * (t / L);
+  const names = ringSlots(n), world = (t, sd, z) => [o[0] + fwd[0] * t + side[0] * sd, o[1] + fwd[1] * t + side[1] * sd, z].map(r6);
+  const k = (t) => Math.sqrt(Math.max(0, 1 - (t / L) ** p)), last = rings - 1;
+  // (the rings spaced closer toward the tip, where the egg turns; the last a little short of it)
+  const ts = Array.from({ length: rings }, (_, i) => L * 0.97 * Math.sin((Math.PI / 2) * (i / last)));
+  const stations = ts.map((t, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(names.map((nm, j) => { const a = (2 * Math.PI * j) / n, s = k(t);
+    return [nm, world(t, cAt(t) + W * s * Math.cos(a), Math.sin(a) > 0 ? minZ + H * s * Math.sin(a) : minZ)]; })) }));
+  return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: world(-0.001, c, minZ + H / 2), tip: world(L, cTip, minZ + H * 0.3) } };
+}
+
+/** the leather under a quarter egg tucked inside it: each point of the part `P` over the egg's floor and ahead of the toe
+ * base that reaches past `keep` of the egg's arch there is drawn in toward the egg's axis to it (its weights kept: the
+ * cap hides it, so it must not poke through) */
+export function tuckUnderEgg(P, { o, fwd, side, c = 0, cTip = c, L, W, H, minZ, p = 2.5, keep = 0.92 }) {
+  const stations = P.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, q]) => {
+    const d = [q[0] - o[0], q[1] - o[1]], t0 = d[0] * fwd[0] + d[1] * fwd[1], sd = d[0] * side[0] + d[1] * side[1];
+    if (t0 < 0 || q[2] <= minZ) return [sl, q];
+    const t = Math.min(t0, L * 0.95), k = Math.sqrt(Math.max(0, 1 - (t / L) ** p)), m = c + (cTip - c) * (t / L), e = Math.hypot((sd - m) / (W * k), (q[2] - minZ) / (H * k));
+    if (e <= keep && t === t0) return [sl, q];
+    const f = Math.min(1, keep / e), sd2 = m + (sd - m) * f, z2 = minZ + (q[2] - minZ) * f;
+    return [sl, [o[0] + fwd[0] * t + side[0] * sd2, o[1] + fwd[1] * t + side[1] * sd2, z2].map(r6)]; })) }));
+  return { ...P, stations };
+}
+
+/** rivets: a small block on every `every`-th point of a ring (a shell's first) over its middle's height + `over`,
+ * standing along the point's ray from the middle */
+export function studsOn(ring, { every = 4, over = 0, size = 0.005 } = {}) {
+  const ps = Object.values(ring), mid = mean(ps), out = [];
+  ps.forEach((p, j) => {
+    if (j % every || p[2] < mid[2] + over) return;
+    const q = ps[(j + 1) % ps.length], n = unitv(p.map((x, k) => x - mid[k])), t0 = q.map((x, k) => x - p[k]), dn = t0.reduce((s, x, k) => s + x * n[k], 0);
+    out.push(block(p, n, unitv(t0.map((x, k) => x - dn * n[k])), { w: size, h: size, thick: size * 0.5 }));
+  });
+  return out;
 }
