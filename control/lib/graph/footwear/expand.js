@@ -20,7 +20,7 @@
 import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, block, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv, mean } from './parts.js';
 import { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 import { COBBLER_REGIONS, REGION_SIDES, arcOf, panelOn, laceBars } from './cobbler.js';
-import { toeSpike, ribbon, helixOn, flareTop, rowel } from './fantasy.js';
+import { toeSpike, ribbon, helixOn, flareTop, rowel, furRing } from './fantasy.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
@@ -38,6 +38,7 @@ export const ADORN_PRIMS = Object.freeze({
   spur: { keys: ['length', 'size', 'group'], group: 'Steel', what: "a spur: a neck from the heel's back and a star rowel" },
   wings: { keys: ['feathers', 'span', 'group'], group: 'Wing', what: "a fan of feathers at each side of the ankle (Hermes' talaria)" },
   jewel: { keys: ['at', 'size', 'group'], group: 'Gem', what: 'a stone set on the toe, the instep or the ankle' },
+  fur: { keys: ['on', 'at', 'length', 'droop', 'seed', 'group'], group: 'Fur', what: "a shaggy ruff of fur round the sock's collar (or a ring at `at` along `on`), tufted and fringed" },
   toeCap: { keys: ['lift', 'room', 'rivets', 'stud', 'group'], group: 'Steel', what: 'a quarter egg over the toes, toe base to tip (the half teacup), rivets round its back edge (`stud`: { size, group }, small and dark: broguing)' },
 });
 /** the families a card is annotated with (what kind of footwear it is: a shelf to browse, a word to ask by) */
@@ -152,7 +153,7 @@ export function validateFootwear(spec, label = 'footwear') {
     if (!P) { errs.push(`${at}.prim: one of ${Object.keys(ADORN_PRIMS).join(', ')}`); return; }
     for (const k of Object.keys(a)) if (k !== 'prim' && !P.keys.includes(k)) errs.push(`${at}: ${a.prim} takes ${P.keys.join(', ')}, not '${k}'`);
     if (a.shaftRows !== undefined && !(Number.isInteger(a.shaftRows) && a.shaftRows >= 0 && a.shaftRows <= 16)) errs.push(`${at}.shaftRows: a whole number of rows up a boot's shaft, 0 … 16`);
-    if (P.keys.includes('on') && !['panel', 'wrap'].includes(a.prim) && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    if (P.keys.includes('on') && !['panel', 'wrap', 'fur'].includes(a.prim) && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
     if (a.prim !== 'jewel' && a.at !== undefined && !share(a.at)) errs.push(`${at}.at: a share, 0 to 1`);
     if (a.prim === 'panel') {
       const R = a.region;
@@ -171,7 +172,9 @@ export function validateFootwear(spec, label = 'footwear') {
     for (const k of ['from', 'to']) if (a.prim !== 'panel' && a[k] !== undefined && !share(a[k])) errs.push(`${at}.${k}: a share, 0 to 1`);
     if (a.side !== undefined && !['lateral', 'medial'].includes(a.side)) errs.push(`${at}.side: lateral or medial`);
     if (a.prim === 'jewel' && !['toe', 'instep', 'ankle'].includes(a.at)) errs.push(`${at}.at: toe, instep or ankle`);
-    if (a.prim === 'wrap' && a.on !== undefined && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    if ((a.prim === 'wrap' || a.prim === 'fur') && a.on !== undefined && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    num('droop', 0, 2, 'times its length'); if (a.seed !== undefined && !Number.isInteger(a.seed)) errs.push(`${at}.seed: a whole number`);
+    if (a.prim === 'fur' && a.at !== undefined && a.on === undefined) errs.push(`${at}: give the fur's \`on\` with its \`at\` (else it sits at the collar)`);
     if ((a.prim === 'flare' || a.prim === 'buttons') && sock?.height !== 'boot') errs.push(`${at}: a ${a.prim} is a boot's; this card's sock is no boot`);
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
     if (['cuff', 'toeCap', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
@@ -388,6 +391,18 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
         }
         const b = block(p.map((x, q) => x + d[q] * 0.002), d, fwd, { w: sz, h: sz, thick: sz * 0.6 });
         put(`${id}Jewel_${seg}`, { ...b, group: a.group ?? 'Gem', bind: bindNearest(b, P) });
+      } else if (a.prim === 'fur') {
+        // FUR round the sock's collar (its top ring), or round the ring at `at` along `on` (the bare leg where no sock is)
+        let seg, ring, P;
+        if (a.on) {
+          // (the leather's ring there if it reaches there, else the bare leg's)
+          seg = A.seg(a.on, S); const u = A.u(a.on, a.at ?? 0.5), ringAt = (Q) => Q?.stations.find((x, i) => Math.abs((x.u ?? i) - u) <= 0.06);
+          const st = ringAt(on(seg)) ?? ringAt(A.bare(seg)); P = st && ringAt(on(seg)) ? on(seg) : A.bare(seg); ring = st?.points;
+        }
+        else if (collar) { seg = A.seg(collar.on, S); P = on(seg); ring = P?.stations[0]?.points; }
+        if (!ring) continue;
+        const f = furRing(ring, { length: a.length ?? 0.03, droop: a.droop ?? 0.8, seed: (a.seed ?? 1) * 2 + (S === 'R' ? 0 : 1) });
+        put(`${id}Fur_${seg}`, { ...f, group: a.group ?? 'Fur', bind: bindNearest(f, P) });
       } else if (a.prim === 'toeCap') {
         // the half teacup: a quarter egg over the toes, mapped toe to toe (the toe base to past the tip, with `room` beyond
         // it: a shoe's toe allowance), as wide and as high as the toes and `lift` more, its bottom inside the sole, carried

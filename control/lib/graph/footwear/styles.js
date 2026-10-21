@@ -31,6 +31,7 @@
 //             spur     { length, size } a neck from the heel and a star rowel
 //             wings    { feathers, span } a fan of feathers at each side of the ankle
 //             jewel    { at: toe | instep | ankle, size } a stone set there
+//             fur      { on?, at?, length, droop, seed } a shaggy ruff round the collar (or a ring along a segment)
 //           any of them `group` (its colour's name) over its own
 //   tones   { <group>: '#hex' | { of: <group>, shade: −1 … 1 } } over FOOTWEAR_TONES, for the groups the card uses; a tone
 //           OF another group is that group's colour darkened (−) or lightened (+), read after the palette, so recolouring
@@ -183,6 +184,12 @@ export const FOOTWEAR = Object.freeze({
   talaria: { family: 'fantasy', sock: false, sole: { thick: 0.01, welt: 0.003 },
     adorn: [{ prim: 'strap', on: 'foot', at: 0.65, width: 0.018, buckle: true }, { prim: 'wrap', from: 0.8, to: 1, turns: 1.5, cross: true, w: 0.01, group: 'Strap' }, { prim: 'wings', feathers: 5, span: 0.08 }],
     tones: { Sole: '#a8843f', Strap: '#a8843f', Wing: '#f4f1e6' } },
+  // the fur boot: a soft tall boot, a shaggy ruff round its top, a buckled strap at the ankle
+  furBoots: { family: 'fantasy', sock: { height: 'boot', shaft: 0.42, thick: 0.007 }, sole: { thick: 0.012, welt: 0.004 },
+    adorn: [{ prim: 'fur', length: 0.034, droop: 0.9 }, { prim: 'strap', on: 'shank', at: 0.88, width: 0.016, lift: 0.004, buckle: true }, { prim: 'toeCap', lift: 0.002, group: 'Shoes' }],
+    tones: { Shoes: '#4a3524', Fur: '#cdbb9a', Strap: LEATHER(-0.3) } },
+  // the barbarian's: the Viking turnshoe and wraps, a ruff of fur round the shin over them
+  barbarianBoots: { from: 'vikingWraps', family: 'fantasy', adornPlus: [{ prim: 'fur', on: 'shank', at: 0.34, length: 0.04, droop: 1, seed: 3 }], tones: { Fur: '#6b5b4a' } },
   // ── HEELS: the body stands in them ──
   // the pump: a low-cut sleek shoe on a stiletto
   pumps: { family: 'dress', sock: { height: 'shoe', collar: 0.22, thick: 0.0025 }, sole: { welt: 0.002 }, heels: { height: 0.085, toe: 0.006, kind: 'stiletto' },
@@ -209,4 +216,4 @@ export const SKINS = Object.freeze({
 /** the colours of the groups footwear adds, for a palette that names none (a card's own tones over these) */
 export const FOOTWEAR_TONES = Object.freeze({ Sole: '#2a2420', Strap: '#4b3324', Brass: '#a8843f', Steel: '#8d9299', Gilt: '#c9a646', Cuff: '#4b3324',
   Midsole: '#f2f1ec', Outsole: '#2b2b2b', Stripe: '#c8402a', Air: '#a8d8e8', Tongue: '#d9d6cf', Eyestay: '#c9c5bd', Overlay: '#b9b4ab', Counter: '#b9b4ab', Lace: '#f4f3ef',
-  Foxing: '#f2f1ec', Suede: '#55555a', Stitch: '#e8d9b5', Wrap: '#8d7a5a', Button: '#d8d2c0', Wing: '#f4f1e6', Gem: '#2b8fb3', Bell: '#e3c040', Wood: '#b88a55', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });
+  Foxing: '#f2f1ec', Suede: '#55555a', Stitch: '#e8d9b5', Wrap: '#8d7a5a', Fur: '#bfae8f', Button: '#d8d2c0', Wing: '#f4f1e6', Gem: '#2b8fb3', Bell: '#e3c040', Wood: '#b88a55', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });

@@ -8,10 +8,13 @@
 //   helixOn(P, stations, { turns, phase, lift })         a path spiralling round a surface's rings (cross-gartering)
 //   flareTop(ring, { height, spread })                   a funnel rising from a ring and opening out (a bucket top)
 //   rowel(c, axis, up, { r, points, thick })             a star disc (a spur's rowel)
+//   furRing(ring, { length, droop, seed })               a shaggy ruff of fur round a ring, its tufts and fringe of
+//                                                        seeded lengths (a trim at a boot's top)
 //
 // Pure and deterministic.
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 import { mean, unitv } from './parts.js';
+import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
@@ -78,4 +81,21 @@ export function rowel(c, axis, up, { r = 0.016, points = 8, thick = 0.002 }) {
   const a = unitv(axis), u = unitv(up), v = unitv(cross(a, u)), n = points * 2, names = ringSlots(n);
   const face = (off) => Object.fromEntries(names.map((nm, j) => { const t = (2 * Math.PI * j) / n, rr = j % 2 ? r * 0.35 : r; return [nm, add(add(add(c, a, off), u, rr * Math.cos(t)), v, rr * Math.sin(t)).map(r6)]; }));
   return closed([face(-thick / 2), face(thick / 2)], add(c, a, -thick), add(c, a, thick));
+}
+
+/** a FUR RUFF round `ring` (a boot's top, its points in ring order): a lip on the leather, a ruff standing out `length`,
+ * a fringe drooping `droop` of it below, its tips of seeded lengths (every other one longer: tufts); its caps sunk into
+ * the leg. Seeded dice (`seed`), never the clock */
+export function furRing(ring, { length = 0.03, droop = 0.8, seed = 1 }) {
+  const names = Object.keys(ring), c = mean(Object.values(ring)), rnd = mulberry32(seed), up = [0, 0, 1];
+  const jit = names.map(() => [rnd(), rnd(), rnd(), rnd()]);
+  const st = (f) => Object.fromEntries(names.map((nm, j) => { const p = ring[nm], d = unitv([p[0] - c[0], p[1] - c[1], 0]); return [nm, f(p, d, jit[j], j).map(r6)]; }));
+  const L = length;
+  const rings = [
+    st((p, d) => add(add(p, d, 0.002), up, 0.006)),
+    st((p, d, J) => add(add(p, d, L * 0.55 * (0.75 + 0.5 * J[0])), up, L * 0.15)),
+    st((p, d, J) => add(add(p, d, L * (0.6 + 0.45 * J[1])), up, -L * droop * 0.45 * (0.6 + 0.8 * J[2]))),
+    st((p, d, J, j) => add(add(p, d, L * (j % 2 ? 0.35 : 0.6)), up, -L * droop * (j % 2 ? 0.7 : 1.1) * (0.7 + 0.6 * J[3]))),
+  ];
+  return closed(rings, add(c, up, 0.004), add(c, up, -L * droop));
 }

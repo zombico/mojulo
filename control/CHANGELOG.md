@@ -118,9 +118,10 @@ other: `toePoint` (the toe drawn out past the toes, tapering, curled up by its d
 ribbon spiralled up the leg, on the leather or the bare leg above a short boot; `cross` a second the other way),
 `flare` (a funnel rising from a boot's top and opening out), `buttons` (a row up a boot's side), `spur` (a neck from the
 heel and a star rowel), `wings` (a fan of feathers at each side of the ankle), `jewel` (a stone on the toe, the instep or
-the ankle); the heel kind `teeth` (a board on two teeth, the foot raised level when the toes stand as high as the heel).
+the ankle), `fur` (a shaggy ruff round the collar, or round the leg at a share: tufts and a drooping fringe of seeded
+lengths); the heel kind `teeth` (a board on two teeth, the foot raised level when the toes stand as high as the heel).
 Families `historic` and `fantasy`. Cards `poulaines`, `jesterShoes`, `persianSlippers`, `romanCaligae` (hobnailed),
-`gladiatorSandals`, `vikingWraps`, `cavalierBoots`, `buttonBoots`, `geta`, `elvenBoots`, `talaria`. On the authored body
+`gladiatorSandals`, `vikingWraps`, `cavalierBoots`, `buttonBoots`, `geta`, `elvenBoots`, `talaria`, `furBoots`, `barbarianBoots`. On the authored body
 a card wears its boot, sandal or shoe by its sock. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
 tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
 `station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its

@@ -202,6 +202,17 @@ describe('footwear on a foot adapter', () => {
     expect(Object.keys(G.parts).filter((k) => /^gTooth(Front|Back)_footR$/.test(k)).length).toBe(2);
   });
 
+  it('a shaggy ruff of fur round the collar, seeded: the same twice, another seed another shag', () => {
+    const card = (seed) => ({ family: 'fantasy', sock: { height: 'boot', shaft: 0.4 }, adorn: [{ prim: 'fur', length: 0.03, seed }] });
+    const W = wearFootwear(stub, card(1), { id: 'f' }), F = W.parts.f_shankR && W.parts.fFur_shankR;
+    expect(F.group).toBe('Fur');
+    // out from the collar and drooping below it
+    const top = W.parts.f_shankR.stations[0].points, tz = Math.min(...Object.values(top).map((p) => p[2])), last = F.stations[F.stations.length - 1].points;
+    expect(Math.min(...Object.values(last).map((p) => p[2]))).toBeLessThan(tz - 0.01);
+    expect(JSON.stringify(wearFootwear(stub, card(1), { id: 'f' }).parts.fFur_shankR)).toBe(JSON.stringify(F));
+    expect(JSON.stringify(wearFootwear(stub, card(2), { id: 'f' }).parts.fFur_shankR)).not.toBe(JSON.stringify(F));
+  });
+
   it('refuses a card by name', () => {
     expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'pullLoop' }] })[0]).toMatch(/region: one of tongue, eyestay/);
     expect(validateFootwear({ from: 'runners', skin: 'neon' })[0]).toMatch(/skin: a colourway \(tripleBlack/);
