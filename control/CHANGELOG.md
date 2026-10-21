@@ -14,6 +14,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Face harmony: the female differentiated, the look standard, the lips' grain
+
+- The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune
+  solved for each relation set), so a spike's relation sets read side by side, textured and lit; `--lineup-crop face`
+  frames the face from the brow to the chin. The first study: the relational head's female pole differs from the male
+  in the jaw's width and little else (the nose's root and dorsum, the chin's shape, the eyes' size are the male's), and
+  relations alone move the eyes, the lips and the brow but cannot reach the nose's width, the chin's point or the lower
+  face's taper.
+
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

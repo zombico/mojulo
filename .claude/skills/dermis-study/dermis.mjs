@@ -18,7 +18,9 @@
 //                   (african, european, east-asian, south-asian …; dermal-looks.js readAncestry); --game carves the
 //                   creator's face over them
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases); --lineup-crop eyes frames
-//                   the eyes close (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
+//                   the eyes close (face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
+//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…}}]' (the head's
+//                   relations replaced as given, the wave's tune solved for them): a spike's sets side by side
 //   --look          creator looks (dermal-looks.js LOOKS: warrior, shieldmaiden, scholar, rogue, elder), comma-separated:
 //                   the game face's relations, the dermis, the groom and the brows as the look sets them (the flags over it)
 //   --body          the REALISTIC BODY (docs/realistic-body.md) in its dermis (epidermis/dermal-body.js) instead of the head
@@ -55,7 +57,7 @@ const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-m
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], lineup = false, game = false, lineupCrop = null;
+let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -64,6 +66,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--epidermis') { const v = args[++i]; epiSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--cells') { cells = Number(args[++i]); continue; }
   if (a === '--look') { looks.push(...args[++i].split(',')); continue; }
+  if (a === '--faces') { faces.push(...JSON.parse(args[++i])); continue; }
   if (a === '--ancestry') { ancestries.push(...args[++i].split(',')); continue; }
   if (a === '--lineup') { lineup = true; continue; }
   if (a === '--lineup-crop') { lineup = true; lineupCrop = args[++i]; continue; }
@@ -76,7 +79,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
   throw new Error(`dermis-study: unknown argument ${a}`);
 }
-if (!sexes.length && !looks.length && !ancestries.length) sexes.push('male', 'female');
+if (!sexes.length && !looks.length && !ancestries.length && !faces.length) sexes.push('male', 'female');
 for (const l of looks) if (!LOOKS[l]) throw new Error(`dermis-study: unknown look '${l}' (have ${Object.keys(LOOKS).join(', ')})`);
 mkdirSync(out, { recursive: true });
 
@@ -98,8 +101,8 @@ function camera(az, elev, box, W, H) {
 }
 
 // ─── the head and its skin ───
-function headOf(sex, look = null, anc = null) {
-  const t0 = Date.now(), Lk = anc ? readAncestry({ ...anc, game }) : look ? readLook(look) : null;
+function headOf(sex, look = null, anc = null, face = null) {
+  const t0 = Date.now(), Lk = face ? { sex: face.sex || 'female', relations: face.relations || {}, eyes: face.eyes || {}, dermis: { from: face.sex || 'female', ...face.dermis }, scalp: face.scalp ?? (face.sex === 'male' ? 'short' : 'shoulder'), epidermis: { hair: {} } } : anc ? readAncestry({ ...anc, game }) : look ? readLook(look) : null;
   if (Lk) sex = Lk.sex;
   const head = relationalHead({ sex, tune: true, ...(Lk ? { relations: Lk.relations } : {}), ...(Lk?.eyes && Object.keys(Lk.eyes).length ? { eyes: Lk.eyes } : {}) }), chart = relationalHeadChart(head, { cells });
   const D = readDermis({ ...(Lk ? Lk.dermis : { from: sex }), ...dermisSpec });
@@ -255,7 +258,7 @@ const boxAt = (c, r) => ({ min: c.map((v) => v - r), max: c.map((v) => v + r) })
 const m3 = (p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M];
 
 const ancOf = (t) => { const [id, sx = 'male', sd = '1', eyeShape = null] = t.split(':'); return { id, sex: sx, seed: Number(sd), eyeShape }; };
-const subjects = [...sexes.map((x) => [x, null, null]), ...looks.map((l) => [l, l, null]), ...ancestries.map((t) => [t.replace(/:/g, '-'), null, ancOf(t)])];
+const subjects = [...sexes.map((x) => [x, null, null]), ...looks.map((l) => [l, l, null]), ...ancestries.map((t) => [t.replace(/:/g, '-'), null, ancOf(t)]), ...faces.map((f, i) => [f.label || `face${i}`, null, null, f])];
 // ─── THE BODY (`--body`): the realistic hero's body (docs/realistic-body.md) wearing its dermis (dermal-body.js), the
 // relational head grafted on it with its own atlas, as /body-study fits it (vertex to menton, the ear's depth) ───
 const HERO_HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face)/;
@@ -340,13 +343,13 @@ if (body) {
 // THE LINEUP: each subject at the front and the front ¾ only, lit with its hair, four subjects to a row, what each was
 // rolled to under it
 if (lineup) {
-  const W = 260, Hh = 330, per = 4;
+  const W = lineupCrop === 'face' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : 330, per = 4;
   for (let k = 0; k < subjects.length; k++) {
-    const [who, look, anc] = subjects[k], H = headOf(who, look, anc), V = H.chart.vertices;
+    const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
     const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
-    const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
+    const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
     const col0 = (k % per) * 2 * W, y = Math.floor(k / per) * (Hh + 60);
     for (const [c, v] of VIEWS.slice(0, 2).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
