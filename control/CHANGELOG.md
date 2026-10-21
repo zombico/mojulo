@@ -166,10 +166,11 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
 - **Settlements, the towns a domain walks through.** A cube's `settlements: { <name>: { town?, houses?, enter?, doors?,
   anchor? } }` are the towns its builders make: a town plan (`era/out-town.js`) and how much of its street stands and
   is walked into. A domain names one or writes its own (`settlement`; an interior takes none). `geocubeTown` makes it a
-  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own; the houses take
-  the cube's look. A town domain standing alone walks a trail through its street (a town does not fit on the island); a
-  level lays the street once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains
-  `harbour-town`, a street up from the cove.
+  stage's `town`, in the cube's builders' language (its buildings' anchor) unless it names its own. The houses keep
+  the base kit's structure paint, not yet the cube's colours: two cubes on one base paint their houses alike. A town
+  domain standing alone walks a trail through its street (a town does not fit on the island); a level lays the street
+  once, on the first trail it paints; a stage's own `town` wins. `limestone-crags` gains `harbour-town`, a street up
+  from the cove.
 - **A game expands its one cube.** A level on a cube that names its domains, asking for neither a domain nor a
   terrain, takes the first on its heartbeat's terrain, else the cube's first outside (a cube that names none paints by
   terrain, as before). `composeGameworld` lends the cube's outside domains to its walks, the ones the prompt's words
@@ -201,7 +202,10 @@ hero, nothing to export.
   was. The dummy walks it round at `1 / CITY_METERS_PER_UNIT` (`attachDummy`'s `scale`, opt-in: a trail's walker is
   as it was), a person's height among the city's buildings. Under a second warm.
 - A domain with a town shown on its land is a street on a trail, so it raises no summit structures; nor do a
-  micro-town or a micro-city. Only the automated checks have run; neither has been looked at.
+  micro-town or a micro-city.
+- Rendered once each in headless Chromium (no page errors), not reviewed: the dummy walks the town's trail and its
+  door spurs and stands a person's height on the city's sidewalk. What the shots show: the town's houses are the base
+  kit's paint, not the cube's, and the city's buildings read dark beside the cube's pale ground.
 
 ### Geocube trail: the cube's island, walked by a dummy
 
