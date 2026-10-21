@@ -118,6 +118,7 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *   skin    (with grit) true or a skin's name (matte-paint/fabric.js ROCK_SKINS): the rock drawn near in its chunks,
  *           Voronoi regions laid in its fabric's frame, rather than in its joints' grooves alone
  *           or a formation's (ROCK_FORMATIONS): the cliff and its boulders as erosion leaves them, beds and fallen blocks
+ *   rocks   (with skin) the boulders' own skin, any skin's or formation's name: a second rock beside the cliff's
  */
 /** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
 export const GRIT_PIXELS = 0.35;
@@ -126,8 +127,10 @@ function readShading(v) {
   if (v === undefined || v === false) return null;
   if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade, sun, mix, facet, valley }');
   const o = v === true ? {} : v;
-  for (const k of Object.keys(o)) if (!(k in SHADING) && k !== 'grit' && k !== 'skin') throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')}, grit, skin)`);
+  for (const k of Object.keys(o)) if (!(k in SHADING) && k !== 'grit' && k !== 'skin' && k !== 'rocks') throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')}, grit, skin, rocks)`);
   if (o.skin !== undefined && !(o.skin === true || o.skin === false || ROCK_SKIN_IDS.includes(o.skin))) throw new Error(`local-meru: shading.skin is true (the rock's own, by its pattern) or one of ${ROCK_SKIN_IDS.join(', ')}: the chunks a gritty style's rock is drawn in near the eye`);
+  if (o.rocks !== undefined && !ROCK_SKIN_IDS.includes(o.rocks)) throw new Error(`local-meru: shading.rocks is one of ${ROCK_SKIN_IDS.join(', ')}: the boulders' own skin, beside the cliff's`);
+  if (o.rocks !== undefined && (o.skin === undefined || o.skin === false)) throw new Error('local-meru: shading.rocks names the boulders\' skin beside the cliff\'s: it wants a skin');
   if (o.grit !== undefined && !(typeof o.grit === 'number' && o.grit >= 0 && o.grit <= 1)) throw new Error('local-meru: shading.grit is 0..1, how gritty the style is (rock takes pixels from GRIT_PIXELS)');
   const S = { ...SHADING, ...o };
   if (typeof S.smooth !== 'boolean') throw new Error('local-meru: shading.smooth is true (ground smoothed across the grid) or false (every quad its own facet)');

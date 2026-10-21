@@ -92,5 +92,10 @@ describe('the page\'s fabric channel', () => {
     const form = emitThreeWorld({ faces: [face], fabric: rockFabric({ rock: 'granite', sun, skin: 'sandstone' }) });
     expect(form).toMatch(/fmR/); expect(form).not.toMatch(/skinH/);
     expect(withF).not.toMatch(/fmR/);
+    // a second rock: its own program (another cache key), the first's left as it is
+    const two = { ...rockFabric({ rock: 'granite', sun, skin: 'limestone', groups: ['isekai:cliff'] }), also: rockFabric({ rock: 'granite', sun, skin: 'sculpted', groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
+    const page = emitThreeWorld({ faces: [face], fabric: two });
+    expect(page).toMatch(/'rock-fabric'/); expect(page).toMatch(/"rock-fabric-rocks"/);
+    expect(page).toMatch(/fmR/); expect(page).toMatch(/skinH/);
   });
 });

@@ -146,7 +146,7 @@ const SKIN_UNIFORMS = `
 // face is broken small by terraced noise (ledges along the beds, steps up the joints), shadowed by a few samples toward
 // the sun, and weathered. Spliced only when the fabric names a formation: without one, not a byte of it.
 const FORM_HEAD = `uniform vec4 uFmU; uniform vec4 uFmH; uniform vec4 uFmS; uniform vec4 uFmJ0; uniform vec4 uFmJ1; uniform vec4 uFmG; uniform vec4 uFmF; uniform vec4 uFmM;
-uniform vec4 uFmC; uniform vec4 uFmW; uniform vec3 uFmFresh; uniform vec3 uFmGreen; uniform vec3 uFmRock; uniform vec2 uFmDip;
+uniform vec4 uFmC; uniform vec4 uFmW; uniform vec3 uFmFresh; uniform vec3 uFmGreen; uniform vec3 uFmRock; uniform vec2 uFmDip; uniform vec2 uFmD;
 float fmN(vec3 p) { return fabNoise(p) * 2.0 - 1.0; }
 float fmTer(float h) { float k = h * 3.0, f = floor(k), t = k - f; return (f + smoothstep(0.75, 1.0, t)) / 3.0; }
 // a unit's lower boundary (its height in the beds' own frame), jittered within a third of a unit: never crossing
@@ -173,31 +173,50 @@ vec4 fmR(float u, vec3 p) {
   return vec4(r, own, c);
 }
 // the structure's height at p (metres out of the face): masses, the block's retreat, its scar, a soft bed's hollow
-float fmS(vec3 p) {
+float fmP(vec3 p) {
   float zz = fmZ(p), u = fmUnit(zz); vec4 R = fmR(u, p);
   float sz = clamp(min(uFmJ0.w, uFmJ1.w) * 0.5, 0.8, 4.0), scar = R.y > 0.0 ? smoothstep(0.47, 0.53, fabNoise(p / sz + vec3(R.zw, u)) + 0.15 * (fabHash(vec3(R.zw, u + 6.5)) - 0.3)) : 0.0;
-  return uFmM.x * fmN(vec3(p.xy / uFmM.y, p.z / (uFmM.y * 1.5))) * 0.5 - R.x - R.y * scar - fmSoft(u) * 0.5;
+  return -R.x - R.y * scar - fmSoft(u) * 0.5;
 }
+// (the structure's depth alone is what the eye marches into; the masses only bend the light)
+float fmS(vec3 p) { return uFmM.x * fmN(vec3(p.xy / uFmM.y, p.z / (uFmM.y * 1.5))) * 0.5 + fmP(p); }
 `;
 const FORM_MAIN = `    {
       // (the formation reads where the joints do: on the steep faces; the soft slopes keep their soil)
       float lodF = smoothstep(uFabPx, uFabPx * 3.0, uFmU.y / foot) * steepJ;
       dbM = lodF;
       if (lodF > 0.0) {
-        float zz = fmZ(fp), u = fmUnit(zz), b0 = fmUB(u), b1 = fmUB(u + 1.0), T = b1 - b0, t = clamp((zz - b0) / T, 0.0, 1.0);
-        vec4 R = fmR(u, fp); vec2 q = fmQ(u, fp), fq = fract(q);
+        // UP CLOSE THE ROCK HAS DEPTH: the view ray marched into its structure (the blocks' retreat, the soft beds' wear),
+        // so a recess is seen into, its far wall hiding its floor, not only shaded. Where a pixel spans under uFmD.x m,
+        // faded in over twice that; the whole relief sampled at the plane point under the hit
+        vec3 P = vFabP;
+        float par = (1.0 - smoothstep(uFmD.x, uFmD.x * 2.0, foot)) * lodF;
+        vec3 V = normalize(vFabP - cameraPosition); float vn = dot(V, Ng);
+        if (par > 0.0 && vn < -0.12) {
+          float tMax = uFmD.y / -vn, t0 = 0.0, t1 = tMax; bool hit = false;
+          for (int k = 1; k <= 14; k++) {
+            float t = tMax * float(k) / 14.0, d = t * vn;
+            if (d <= fmP(vFabP + V * t - Ng * d)) { t1 = t; hit = true; break; }
+            t0 = t;
+          }
+          if (hit) for (int k = 0; k < 5; k++) { float tm = 0.5 * (t0 + t1), d = tm * vn; if (d <= fmP(vFabP + V * tm - Ng * d)) t1 = tm; else t0 = tm; }
+          float d = t1 * vn;
+          P = mix(vFabP, vFabP + V * t1 - Ng * d, par * (1.0 - smoothstep(-0.3, -0.12, vn)));
+        }
+        float zz = fmZ(P), u = fmUnit(zz), b0 = fmUB(u), b1 = fmUB(u + 1.0), T = b1 - b0, t = clamp((zz - b0) / T, 0.0, 1.0);
+        vec4 R = fmR(u, P); vec2 q = fmQ(u, P), fq = fract(q);
         float e = max(uFmS.w, 2.5 * foot), sz = clamp(min(uFmJ0.w, uFmJ1.w) * 0.5, 0.8, 4.0);
-        float scar = R.y > 0.0 ? smoothstep(0.5 - foot / sz, 0.5 + foot / sz, fabNoise(fp / sz + vec3(R.zw, u)) + 0.15 * (fabHash(vec3(R.zw, u + 6.5)) - 0.3)) : 0.0;
+        float scar = R.y > 0.0 ? smoothstep(0.5 - foot / sz, 0.5 + foot / sz, fabNoise(P / sz + vec3(R.zw, u)) + 0.15 * (fabHash(vec3(R.zw, u + 6.5)) - 0.3)) : 0.0;
         // the block's neighbours across its nearest joints and beds: the step to each blended over e
         float d0 = min(fq.x, 1.0 - fq.x) * uFmJ0.w, d1 = min(fq.y, 1.0 - fq.y) * uFmJ1.w, dB = min(zz - b0, b1 - zz);
-        vec3 n0 = fp + uFmJ0.xyz * (fq.x < 0.5 ? -1.0 : 1.0) * (d0 + 0.02), n1 = fp + uFmJ1.xyz * (fq.y < 0.5 ? -1.0 : 1.0) * (d1 + 0.02);
+        vec3 n0 = P + uFmJ0.xyz * (fq.x < 0.5 ? -1.0 : 1.0) * (d0 + 0.02), n1 = P + uFmJ1.xyz * (fq.y < 0.5 ? -1.0 : 1.0) * (d1 + 0.02);
         float uN = t < 0.5 ? u - 1.0 : u + 1.0;
         float r0 = R.x + R.y * scar, h = r0 * -1.0;
         h += 0.5 * (1.0 - smoothstep(0.0, e, d0)) * (r0 - fmR(u, n0).x);
         h += 0.5 * (1.0 - smoothstep(0.0, e, d1)) * (r0 - fmR(u, n1).x);
-        h += 0.5 * (1.0 - smoothstep(0.0, e, dB)) * (r0 - fmR(uN, fp).x - (fmSoft(uN) - fmSoft(u)) * 0.5);
+        h += 0.5 * (1.0 - smoothstep(0.0, e, dB)) * (r0 - fmR(uN, P).x - (fmSoft(uN) - fmSoft(u)) * 0.5);
         // the masses; a soft bed's hollow (a packet of thin beds: each its own, the hard ones proud)
-        h += uFmM.x * fmN(vec3(fp.xy / uFmM.y, fp.z / (uFmM.y * 1.5))) * 0.5 - fmSoft(u) * 0.5;
+        h += uFmM.x * fmN(vec3(P.xy / uFmM.y, P.z / (uFmM.y * 1.5))) * 0.5 - fmSoft(u) * 0.5;
         bool thick = fabHash(vec3(u, 5.0, 11.0)) < uFmU.z;
         // (a packet's thin beds: their partings jittered, so no two are one thickness)
         float nb = thick ? 1.0 : max(2.0, floor(T / uFmU.y + 0.5)), tb = t * nb, sb = floor(tb);
@@ -214,13 +233,13 @@ const FORM_MAIN = `    {
         float jw = max(uFmG.x, 1.5 * foot), gs = smoothstep(uFabPx, uFabPx * 3.0, uFmG.x / foot);
         h -= uFmG.y * gs * (pow(1.0 - smoothstep(0.0, jw, d0), 2.0) + pow(1.0 - smoothstep(0.0, jw, d1), 2.0) * 0.7);
         // broken small: terraced noise, long along the beds (ledges) and long up the joints (steps), an octave at a time
-        float broken = (0.3 + 0.7 * smoothstep(0.35, 0.65, fabNoise(vec3(fp.xy / 5.0, fp.z / 7.0) + 9.1))) * (1.0 - 0.6 * scar);
+        float broken = (0.3 + 0.7 * smoothstep(0.35, 0.65, fabNoise(vec3(P.xy / 5.0, P.z / 7.0) + 9.1))) * (1.0 - 0.6 * scar);
         float sx = uFmF.x, sy = uFmF.y, dd = uFmF.z * broken;
-        for (int o = 0; o < 4; o++) {
+        for (int o = 0; o < 7; o++) {
           float lo = smoothstep(uFabPx, uFabPx * 3.0, min(sx, sy) * 0.3 / foot);
           if (lo <= 0.0) break;
-          float h1 = fmN(vec3(fp.xy / (sx * 2.2), fp.z / (sy * 0.7)) + float(o) * 3.7) * 0.7 + 0.3 * fmN(vec3(fp.xy / (sx * 1.1), fp.z / (sy * 0.35)) + float(o) * 5.3);
-          float h2 = fmN(vec3(fp.xy / (sx * 0.6), fp.z / (sy * 2.4)) + float(o) * 7.1) * 0.7 + 0.3 * fmN(vec3(fp.xy / (sx * 0.3), fp.z / (sy * 1.2)) + float(o) * 2.9);
+          float h1 = fmN(vec3(P.xy / (sx * 2.2), P.z / (sy * 0.7)) + float(o) * 3.7) * 0.7 + 0.3 * fmN(vec3(P.xy / (sx * 1.1), P.z / (sy * 0.35)) + float(o) * 5.3);
+          float h2 = fmN(vec3(P.xy / (sx * 0.6), P.z / (sy * 2.4)) + float(o) * 7.1) * 0.7 + 0.3 * fmN(vec3(P.xy / (sx * 0.3), P.z / (sy * 1.2)) + float(o) * 2.9);
           h += lo * dd * (uFmF.w * fmTer(h1) + uFmM.z * fmTer(h2)) * 2.0;
           sx *= 0.45; sy *= 0.45; dd *= 0.5;
         }
@@ -232,11 +251,11 @@ const FORM_MAIN = `    {
         // cast shadow: the structure toward the sun standing above the ray to it, at a few reaches (each once it is seen)
         vec3 st = uFabSun - Ng * dot(uFabSun, Ng); float sl = length(st), sh = 0.0;
         if (sl > 1e-3) {
-          st /= sl; float hs = fmS(fp), rise = dot(uFabSun, Ng) / sl;
+          st /= sl; float hs = fmS(P), rise = dot(uFabSun, Ng) / sl;
           for (int k = 0; k < 4; k++) {
             float d = 0.2 * pow(2.6, float(k));
             if (d < 3.0 * foot) continue;
-            sh = max(sh, smoothstep(0.0, 0.04 + 0.08 * d, fmS(fp + st * d) - hs - d * rise));
+            sh = max(sh, smoothstep(0.0, 0.04 + 0.08 * d, fmS(P + st * d) - hs - d * rise));
           }
         }
         float l0 = uFabAmb + (1.0 - uFabAmb) * max(dot(Ng, uFabSun), 0.0);
@@ -244,18 +263,21 @@ const FORM_MAIN = `    {
         cav = max(cav, lodF * 0.35 * smoothstep(0.05, 0.6, -h - R.x));
         // weathered: a bed's tint, the soft beds darker, the stone's mottle; fresh scars warm; lichen near
         float bid = thick ? u : u * 16.0 + sb;
-        alb *= 1.0 + lodF * (uFmC.x * (fabHash(vec3(bid, 8.0, 17.0)) - 0.5) * 2.0 - uFmC.y * (1.0 - Hb) * see + 0.06 * fmN(fp / 1.3) + 0.05 * smoothstep(uFabPx, uFabPx * 3.0, 0.15 / foot) * fmN(fp / 0.15));
+        alb *= 1.0 + lodF * (uFmC.x * (fabHash(vec3(bid, 8.0, 17.0)) - 0.5) * 2.0 - uFmC.y * (1.0 - Hb) * see + 0.06 * fmN(P / 1.3) + 0.05 * smoothstep(uFabPx, uFabPx * 3.0, 0.15 / foot) * fmN(P / 0.15));
+        // the stone's grain near the eye: its crystals and pores, a speckle under a centimetre, once it can be seen
+        float lodN = smoothstep(uFabPx, uFabPx * 3.0, 0.008 / foot);
+        alb *= 1.0 + lodN * (0.16 * (fabHash(floor(P / 0.004)) - 0.5) + 0.08 * fmN(P / 0.02));
         float fm = fabHash(vec3(R.zw, u + 7.5)) < uFmC.z ? scar * lodF : 0.0;
         gl_FragColor.rgb *= mix(vec3(1.0), uFmFresh, fm * 0.8);
-        float ln = smoothstep(0.5, 0.75, fabNoise(fp / 0.3)) * uFmC.w * (1.0 - fm) * smoothstep(uFabPx, uFabPx * 3.0, 0.12 / foot);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * (fabNoise(fp / 1.5) > 0.5 ? 1.35 : 0.7), ln * 0.35);
+        float ln = smoothstep(0.5, 0.75, fabNoise(P / 0.3)) * uFmC.w * (1.0 - fm) * smoothstep(uFabPx, uFabPx * 3.0, 0.12 / foot);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * (fabNoise(P / 1.5) > 0.5 ? 1.35 : 0.7), ln * 0.35);
         // water: under a block that stands proud of this one, dark streaks run down from its foot, fading as they go
-        vec4 Ra = fmR(u + 1.0, fp); float proud = smoothstep(0.05, 0.3, R.x - Ra.x), below = b1 - zz;
-        float sm = smoothstep(0.45, 0.75, fabNoise(vec3(fp.xy / 0.45, fp.z / 8.0)) + 0.3 * (fabNoise(vec3(fp.xy / 4.0, 2.0)) - 0.5));
+        vec4 Ra = fmR(u + 1.0, P); float proud = smoothstep(0.05, 0.3, R.x - Ra.x), below = b1 - zz;
+        float sm = smoothstep(0.45, 0.75, fabNoise(vec3(P.xy / 0.45, P.z / 8.0)) + 0.3 * (fabNoise(vec3(P.xy / 4.0, 2.0)) - 0.5));
         alb *= 1.0 - uFmW.x * lodF * sm * (proud * exp(-below / uFmW.y) + 0.25);
         // green: hung over a ledge (the top of a block standing proud of the one above), in patches
         if (uFmW.z > 0.0) {
-          float gm = proud * smoothstep(uFmW.w, 0.0, below - 0.02) * smoothstep(0.4, 0.6, fabNoise(fp / 0.4)) * uFmW.z * lodF;
+          float gm = proud * (1.0 - smoothstep(0.0, uFmW.w, below - 0.02)) * smoothstep(0.4, 0.6, fabNoise(P / 0.4)) * uFmW.z * lodF;
           float lr = dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)) / max(dot(uFmRock, vec3(0.3, 0.59, 0.11)), 0.05);
           gl_FragColor.rgb = mix(gl_FragColor.rgb, uFmGreen * lr, clamp(gm, 0.0, 1.0));
         }
@@ -270,11 +292,13 @@ const FORM_UNIFORMS = `
           uFmG: { value: V4(M.groove[0], M.groove[1], M.run, M.jitter) }, uFmF: { value: V4(M.frac[0], M.frac[1], M.frac[2], M.frac[3]) }, uFmM: { value: V4(M.masses[0], M.masses[1], M.frac[4], 0) },
           uFmC: { value: V4(C.tint, C.soft, C.freshShare, C.lichen) }, uFmW: { value: V4(C.streak[0], C.streak[1], gr[0], gr[1]) },
           uFmFresh: { value: new THREE.Vector3(C.fresh[0], C.fresh[1], C.fresh[2]) }, uFmGreen: { value: new THREE.Vector3(...(C.greenRgb || [0, 0, 0])) }, uFmRock: { value: new THREE.Vector3(...(C.rockRgb || [1, 1, 1])) },
-          uFmDip: { value: new THREE.Vector2(M.dip[0], M.dip[1]) }, uFabSets: { value: 0 }, uFabBeds: { value: 0 } });
+          uFmDip: { value: new THREE.Vector2(M.dip[0], M.dip[1]) }, uFmD: { value: new THREE.Vector2(M.near[0], M.near[1]) }, uFabSets: { value: 0 }, uFabBeds: { value: 0 } });
       }`;
 
-export function fabricScript(cfg) {
-  const skin = !!cfg.skin, form = !!cfg.formation;
+export function fabricScript(cfgIn) {
+  // (a second rock beside the first, `also`: its own groups, its own program)
+  if (cfgIn.also) { const { also, ...own } = cfgIn; return fabricScript(own) + fabricScript(also); }
+  const cfg = cfgIn, skin = !!cfg.skin, form = !!cfg.formation;
   const FH = FRAG_HEAD + (skin ? SKIN_HEAD : '') + (form ? FORM_HEAD : '');
   // (a formation's ledges are steep: its light against the facet's is held closer, so a lit ledge is a highlight, not a glare)
   const FM0 = skin || form ? FRAG_MAIN.replace('    float lodG', (skin ? SKIN_MAIN : '') + (form ? FORM_MAIN : '') + '    float lodG') : FRAG_MAIN;
@@ -300,7 +324,7 @@ export function fabricScript(cfg) {
       sh.vertexShader = VH + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n' + VM);
       sh.fragmentShader = FH + sh.fragmentShader.replace('#include <fog_fragment>', FM + '#include <fog_fragment>');
     };
-    mat.customProgramCacheKey = () => 'rock-fabric';
+    mat.customProgramCacheKey = () => ${cfg.key ? safeJson(cfg.key) : "'rock-fabric'"};
     mat.needsUpdate = true;
   };
   scene.traverse((o) => { if (o.isMesh && o.material && groups.has(o.userData.g)) patch(o.material); });

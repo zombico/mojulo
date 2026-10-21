@@ -42,4 +42,18 @@ describe('rock takes pixels in a gritty style', () => {
     expect(() => readLocalMeru({ shading: { grit: 0.7, skin: 'moss' } })).toThrow(/shading\.skin is true/);
     expect(build({ grit: 0.7, skin: true }).fabric.skin.id).toBe('sculpted');
   });
+
+  it('a formation takes the boulders too, unless they are named a rock of their own', () => {
+    const one = build({ grit: 0.7, skin: 'limestone' }).fabric;
+    expect(one.formation.id).toBe('limestone');
+    expect(one.groups).toEqual(['isekai:cliff', 'isekai:rock']);
+    expect(one.also).toBeUndefined();
+    const two = build({ grit: 0.7, skin: 'limestone', rocks: 'sculpted' }).fabric;
+    expect(two.groups).toEqual(['isekai:cliff']);
+    expect(two.also.groups).toEqual(['isekai:rock']);
+    expect(two.also.skin.id).toBe('sculpted');
+    expect(two.also.key).not.toBe(two.key);
+    expect(() => readLocalMeru({ shading: { grit: 0.7, skin: 'limestone', rocks: 'moss' } })).toThrow(/shading\.rocks is one of/);
+    expect(() => readLocalMeru({ shading: { grit: 0.7, rocks: 'sandstone' } })).toThrow(/it wants a skin/);
+  });
 });

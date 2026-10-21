@@ -60,18 +60,19 @@ export const ROCK_SKINS = Object.freeze({
  *   hard        [thin, thick] mean hardness, `spread` about it;  recess: a soft bed's wear (m);  lens: the beds' wander
  *   slab, hold, fall   a fallen slab's depth (m); the overhang a hard 1 m unit bears (m); a block's own chance to fall
  *   round       the edges' radius (m);  joint: [spacing × the landform's, units a joint runs through];  groove: [w, d] m
+ *   near        [m a pixel, depth m]: from where the eye sees INTO the rock (parallax), and how deep it marches
  *   jitter      each block's own step (m);  frac: [along m, up m, depth m, ledges, steps];  masses: [amp m, scale m]
  *   colour      tint, soft (darker), fresh (a scar's ratio), freshShare, lichen, streak [amount, run m], green [amount, hang m]
  */
 const fz = (o) => Object.freeze(o);
 export const ROCK_FORMATIONS = fz({
-  flagstone: fz({ unit: 1.2, thin: 0.22, thickShare: 0.2, hard: [0.45, 0.85], spread: 0.35, lens: 0.15, recess: 0.3, slab: 0.45, hold: 0.35, fall: 0.12, round: 0.04,
+  flagstone: fz({ near: [0.015, 1.2], unit: 1.2, thin: 0.22, thickShare: 0.2, hard: [0.45, 0.85], spread: 0.35, lens: 0.15, recess: 0.3, slab: 0.45, hold: 0.35, fall: 0.12, round: 0.04,
     joint: [1, 3], groove: [0.04, 0.05], jitter: 0.04, frac: [0.8, 0.4, 0.05, 1.2, 0.3], masses: [1, 9],
     colour: fz({ tint: 0.07, soft: 0.25, fresh: [1.06, 1.02, 0.96], freshShare: 0.35, lichen: 0.3, streak: [0.18, 3], green: [0.35, 0.2] }) }),
-  limestone: fz({ unit: 4, thin: 0.6, thickShare: 0.55, hard: [0.6, 0.95], spread: 0.15, lens: 0.1, recess: 0.5, slab: 0.9, hold: 1, fall: 0.3, round: 0.09,
+  limestone: fz({ near: [0.015, 2.5], unit: 4, thin: 0.6, thickShare: 0.55, hard: [0.6, 0.95], spread: 0.15, lens: 0.1, recess: 0.5, slab: 0.9, hold: 1, fall: 0.3, round: 0.09,
     joint: [1.2, 5], groove: [0.1, 0.12], jitter: 0.2, frac: [1.6, 1.1, 0.12, 1, 0.6], masses: [2.2, 8],
     colour: fz({ tint: 0.05, soft: 0.2, fresh: [1.2, 1, 0.8], freshShare: 0.5, lichen: 0.45, streak: [0.35, 9], green: null }) }),
-  sandstone: fz({ unit: 2.5, thin: 0.5, thickShare: 0.5, hard: [0.5, 0.75], spread: 0.2, lens: 0.2, recess: 0.45, slab: 0.65, hold: 1, fall: 0.15, round: 0.16,
+  sandstone: fz({ near: [0.015, 2], unit: 2.5, thin: 0.5, thickShare: 0.5, hard: [0.5, 0.75], spread: 0.2, lens: 0.2, recess: 0.45, slab: 0.65, hold: 1, fall: 0.15, round: 0.16,
     joint: [2, 4], groove: [0.08, 0.1], jitter: 0.15, frac: [1.4, 0.8, 0.07, 1, 0.6], masses: [1.8, 10],
     colour: fz({ tint: 0.06, soft: 0.15, fresh: [1.1, 1, 0.9], freshShare: 0.3, lichen: 0.05, streak: [0.3, 14], green: null }) }),
 });
@@ -98,7 +99,7 @@ function setsOf(J) {
   return [{ n: [c, s, 0], s: J.spacing * cell[0] }, { n: [-s, c, 0], s: J.spacing * cell[1] }];
 }
 
-export function rockFabric({ joints = null, strata = null, rock = 'granite', grit = 0.6, sun, ambient = 0.35, seed = 1, skin = undefined, rockColour = null, green = null } = {}) {
+export function rockFabric({ joints = null, strata = null, rock = 'granite', grit = 0.6, sun, ambient = 0.35, seed = 1, skin = undefined, rockColour = null, green = null, groups = null, key = null } = {}) {
   if (!sun) throw new Error('fabric: sun is the direction toward the key light');
   const pattern = joints?.pattern ?? ROCK_JOINTS[typeof rock === 'string' ? rock : ''] ?? 'blocky';
   const J = { pattern, strike: joints?.strike ?? Math.round(hash01(seed, 3, 7) * 180), spacing: joints?.spacing ?? 3, cell: joints?.cell, dip: joints?.dip };
@@ -127,7 +128,7 @@ export function rockFabric({ joints = null, strata = null, rock = 'granite', gri
   const skinOut = K ? { skin: { id: skinId, frame: skinFrame(pattern, masters).map((r) => r.map(r4)), cell: K.cell, warp: K.warp, warpScale: K.warpScale, bevel: K.bevel, gap: K.gap,
     gapDepth: r4(K.gapDepth * g), proud: r4(K.proud * g), rough: r4(K.rough * g), flute: [r4(K.flute[0] * g), K.flute[1], K.flute[2]], ...(K.beds ? { beds: K.beds } : {}) } } : {};
   return {
-    groups: [...(Fm ? FORMATION_GROUPS : FABRIC_GROUPS)], sun: sun.map(r4), ambient: r4(ambient), sets,
+    groups: [...(groups ?? (Fm ? FORMATION_GROUPS : FABRIC_GROUPS))], ...(key ? { key } : {}), sun: sun.map(r4), ambient: r4(ambient), sets,
     ...(beds ? { beds, recess: r4(0.08 * g) } : {}),
     // a joint's trace wanders (`wave`, in spacings) and steps sideways segment by segment (`echelon`): never a ruled line
     tilt: r4(0.12 * grit), cavity: 0.35, wave: 0.14, echelon: 0.12,
@@ -146,7 +147,7 @@ function formationOf(id, Fm, J, beds, g, rockColour, green) {
   const c = Math.cos(J.strike * D2R), s = Math.sin(J.strike * D2R), P = JOINT_PATTERNS[J.pattern] ?? JOINT_PATTERNS.blocky, cell = J.cell ?? P.cell ?? [1, 1];
   const C = Fm.colour, sp = (k) => r4(J.spacing * cell[k] * Fm.joint[0]);
   return {
-    id, unit: Fm.unit, thin: Fm.thin, thickShare: Fm.thickShare, hard: Fm.hard, spread: Fm.spread, lens: Fm.lens, recess: r4(Fm.recess * g),
+    id, near: Fm.near, unit: Fm.unit, thin: Fm.thin, thickShare: Fm.thickShare, hard: Fm.hard, spread: Fm.spread, lens: Fm.lens, recess: r4(Fm.recess * g),
     slab: Fm.slab, hold: Fm.hold, fall: Fm.fall, round: Fm.round, joints: [[r4(c), r4(s), 0, sp(0)], [r4(-s), r4(c), 0, sp(1)]], run: Fm.joint[1],
     groove: [Fm.groove[0], r4(Fm.groove[1] * g)], jitter: Fm.jitter, frac: [Fm.frac[0], Fm.frac[1], r4(Fm.frac[2] * g), Fm.frac[3], Fm.frac[4]], masses: [r4(Fm.masses[0] * g), Fm.masses[1]],
     dip: beds ? beds.dip : [0, 0],

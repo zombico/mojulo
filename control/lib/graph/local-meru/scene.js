@@ -33,7 +33,7 @@ import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
-import { rockFabric } from '../matte-paint/fabric.js';
+import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
 
 const TAU = Math.PI * 2;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -521,7 +521,13 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     haze: { color: st.air.fog.color, density: st.air.fog.density },
     // a GRITTY style's rock (shading.grit ≥ GRIT_PIXELS): its faces are the quiet style's, and the page draws its own
     // fabric on them where they are near (matte-paint/fabric.js): the island's landform joints, else the card's
-    ...(SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? { fabric: rockFabric({ joints: S && S.geo ? S.geo.joints : { spacing: st.landform.joint }, strata: S && S.geo ? S.geo.strata : null, grit: SH.grit, sun: dir, seed, ...(SH.skin !== undefined ? { skin: SH.skin, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) } : {}) }) } : {}),
+    // (and with `rocks`, the boulders their own skin beside the cliff's: a second rock)
+    ...(SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? { fabric: (() => {
+      const base = { joints: S && S.geo ? S.geo.joints : { spacing: st.landform.joint }, strata: S && S.geo ? S.geo.strata : null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
+      if (SH.skin === undefined) return rockFabric({ ...base, rockColour: null, green: null });
+      if (SH.rocks === undefined) return rockFabric({ ...base, skin: SH.skin });
+      return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
+    })() } : {}),
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     pack: true,
     // the walk, and the climbs the walker can take: each climb anchor's foot, lip and way in (channels/walk.js CLIMB)
