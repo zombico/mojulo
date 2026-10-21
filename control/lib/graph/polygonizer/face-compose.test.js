@@ -31,9 +31,9 @@ describe('the face composer', () => {
   });
 
   it('sets a bucket\'s base before its rolls, and keeps the rolls within it', () => {
-    const B = FACE_BUCKETS.asian.base, pole = RELATION_POLES.female;
+    const B = FACE_BUCKETS['east-asian'].base, pole = RELATION_POLES.female;
     for (let seed = 1; seed <= 12; seed++) {
-      const f = composeFace({ bucket: 'asian', seed });
+      const f = composeFace({ bucket: 'east-asian', seed });
       // (a relation only the base moves lands on the pole plus the base; one the proportions roll stays within their reach)
       expect(f.relations.forehead).toBeCloseTo(pole.forehead + B.forehead, 9);
       expect(Math.abs(f.relations.cephalic - (pole.cephalic + B.cephalic))).toBeLessThanOrEqual(FACE_PROPORTIONS.cephalic + 1e-9);
@@ -41,9 +41,9 @@ describe('the face composer', () => {
     }
   });
   it('rolls a lid cover where the bucket has one, and the cover owns the fold', () => {
-    const lids = FACE_BUCKETS.asian.lids;
+    const lids = FACE_BUCKETS['east-asian'].lids;
     for (let seed = 1; seed <= 16; seed++) {
-      const f = composeFace({ bucket: 'asian', seed });
+      const f = composeFace({ bucket: 'east-asian', seed });
       expect(Object.keys(lids)).toContain(f.picks.lid);
       expect(['deep', 'hooded']).not.toContain(f.picks.eyes);
       for (const ch of LID_FOLD) if (EYE_SHAPES[f.picks.lid][ch] !== undefined) expect(f.eyes[ch]).toBe(EYE_SHAPES[f.picks.lid][ch]);
@@ -68,7 +68,7 @@ describe('the face composer', () => {
   it('rolls the nose\'s axis per face, each bucket leaning its own way and reaching both ends', () => {
     const rolls = (bucket) => Array.from({ length: 60 }, (_, i) => composeFace({ bucket, seed: i + 1 }).proportions.nose);
     const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-    const west = rolls('western'), asia = rolls('asian');
+    const west = rolls('western'), asia = rolls('east-asian');
     expect(mean(asia)).toBeLessThan(mean(west) - 0.3);
     for (const r of [west, asia]) { expect(Math.min(...r)).toBeLessThan(0); expect(Math.max(...r)).toBeGreaterThan(0); }
     // (the ends move the nose the way they name: shorter and less projected, or longer and more)
@@ -76,5 +76,45 @@ describe('the face composer', () => {
     expect(short.noseProjection).toBeLessThan(long.noseProjection);
     expect(short.nasionDrop).toBeGreaterThan(long.nasionDrop);
     expect(Math.sign(FACE_NOSE.short.noseSize)).toBe(-1);
+  });
+
+  it('composes every bucket inside the head\'s working range, a blend as one of its buckets\' own faces', () => {
+    for (const bucket of Object.keys(FACE_BUCKETS)) for (let seed = 1; seed <= 6; seed++) {
+      const f = composeFace({ bucket, seed });
+      for (const [k, [lo, hi]] of Object.entries(FACE_LIMITS)) { expect(f.relations[k]).toBeGreaterThanOrEqual(lo); expect(f.relations[k]).toBeLessThanOrEqual(hi); }
+      if (FACE_BUCKETS[bucket].blend) {
+        expect(Object.keys(FACE_BUCKETS[bucket].blend)).toContain(f.bucket);
+        const { blend: _b, ...own } = f;
+        expect(own).toEqual(composeFace({ bucket: f.bucket, seed }));
+      }
+    }
+  });
+  it('lets a lid roll name the rig\'s own lid, which lays no cover', () => {
+    const plain = Array.from({ length: 30 }, (_, i) => composeFace({ bucket: 'african', seed: i + 1 })).filter((f) => f.picks.lid === 'none');
+    expect(plain.length).toBeGreaterThan(10);
+    for (const f of plain) for (const ch of LID_FOLD) expect(f.eyes[ch] === undefined || FACE_SHAPES.eyes[f.picks.eyes].eyes?.[ch] !== undefined).toBe(true);
+  });
+
+  it('mixes: each face one of its buckets, or that one with a share of a second, the bases between theirs', () => {
+    const M = FACE_BUCKETS.equatorial.mix, faces = Array.from({ length: 40 }, (_, i) => composeFace({ bucket: 'equatorial', seed: i + 1 }));
+    const pairs = faces.filter((f) => f.mixed.with);
+    expect(pairs.length).toBeGreaterThan(10); expect(pairs.length).toBeLessThan(30);
+    for (const f of faces) {
+      expect(Object.keys(M.buckets)).toContain(f.mixed.of);
+      if (!f.mixed.with) continue;
+      expect(f.mixed.with).not.toBe(f.mixed.of);
+      expect(f.mixed.share).toBeGreaterThanOrEqual(M.share[0]); expect(f.mixed.share).toBeLessThanOrEqual(M.share[1]);
+      // (the forehead: a base's own, rolled by nothing else — between the two bases', at the share)
+      const a = FACE_BUCKETS[f.mixed.of].base.forehead ?? 0, c = FACE_BUCKETS[f.mixed.with].base.forehead ?? 0, pole = RELATION_POLES.female.forehead;
+      expect(f.relations.forehead).toBeCloseTo(pole + a + (c - a) * f.mixed.share, 2);
+    }
+  });
+
+  it('holds a bucket\'s tones to its intent, within its ancestries', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const f = composeFace({ bucket: 'equatorial', seed }), [lo, hi] = FACE_BUCKETS[f.mixed.of].tones;
+      expect(f.dermis.tone).toBeGreaterThanOrEqual(lo); expect(f.dermis.tone).toBeLessThanOrEqual(hi);
+      expect(composeFace({ bucket: 'western', seed }).dermis).toBeUndefined();
+    }
   });
 });

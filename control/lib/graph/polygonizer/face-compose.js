@@ -135,10 +135,20 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   weights      its shapes' weights (× 1 absent; 0 never)
  *   nose         where its people sit on the nose's axis (`FACE_NOSE`): { mean, spread }
  *   proportions  its proportions' reaches (`FACE_PROPORTIONS` absent)
+ *   grooms       its brows' and lashes' ranges (`FACE_GROOMS` absent)
+ *   tones        [lo, hi] on the Monk scale: the intent's tones within its ancestries' (`equatorial` is brown); the
+ *                ancestry still gives the hair, the undertone and the eyes' colour (absent, the ancestry's own roll)
+ *   blend        { bucket: weight }: a BLEND of buckets, each face one of them (rolled by weight), composed as that
+ *                bucket's own face at the same seed; the face names it (`bucket`)
+ *   mix          { buckets: { bucket: weight }, pairs, share: [lo, hi] }: a MIX, each face one bucket (by weight) or, at the
+ *                chance `pairs`, that one with a `share` of a second: the bases mixed by the share, the nose's leaning
+ *                too, the lid's odds pooled; its ancestry, shapes' weights and grooms the first's (the face names both,
+ *                `mixed: { of, with, share }`)
+ * A lid roll may name `none`: the rig's own lid (a crease and a lid space, no cover).
  */
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 } },
-  asian: {
+  'east-asian': {
     note: 'East and Southeast Asian ancestry (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian', 'east-asian', 'southeast-asian'],
     // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
@@ -156,6 +166,76 @@ export const FACE_BUCKETS = Object.freeze({
     lids: { 'inner-fold': 2, monolid: 1, parallel: 1, hooded: 1 },
     weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
   },
+  'south-asian': {
+    note: 'South Asian ancestry (the base after published Indian anthropometry)',
+    ancestry: ['south-asian'],
+    tones: [4, 9],
+    // a longer vault and a narrower face than the East Asian; the root higher than the East Asian (none of its flattening),
+    // the base moderately wide; the eyes a little larger, a touch wider set; the brow a little stronger; the lips a little
+    // fuller. The lid is the rig's creased lid, sometimes hooded (no epicanthic fold)
+    base: {
+      cephalic: -0.01, headLength: 0.01, faceWidth: -0.01, intercanthal: 0.04, nasalIndex: 0.05, dorsum: 0.05,
+      fissure: 0.002, browProjection: 0.002, upperVermilion: 0.002, lowerVermilion: 0.003,
+    },
+    nose: { mean: 0.05, spread: 0.65 },
+    lids: { none: 3, hooded: 1 },
+    weights: { eyes: { large: 1.4, deep: 1.3 }, nose: { classical: 1.2 }, lips: { full: 1.2 } },
+    // (the brows and the lashes fuller and darker on the whole: their rolls lean heavier)
+    grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
+  },
+  african: {
+    note: 'sub-Saharan African ancestry (the base after published West and Central African and African-diaspora anthropometry)',
+    ancestry: ['african'],
+    // a longer vault; a fuller, rounder forehead; the nose's base much wider, its root low and broad, its bridge broad (its
+    // length and projection the axis's, leaning short and flat); the lips fuller, taller and more forward, the mouth
+    // wider; the cheekbones forward; the eyes a little wider set. The lid is the rig's creased lid, sometimes hooded
+    base: {
+      cephalic: -0.03, headLength: 0.01, intercanthal: 0.06, nasalIndex: 0.25, radix: -0.008, nasionDepth: -0.003, dorsum: 0.3,
+      lipFullness: 0.2, upperVermilion: 0.006, lowerVermilion: 0.008, lipProjection: 0.006, mouthWidth: 0.08,
+      malarDepth: -0.004, forehead: 0.008, browProjection: -0.002,
+    },
+    nose: { mean: -0.45, spread: 0.55 },
+    lids: { none: 4, hooded: 1 },
+    weights: { nose: { classical: 0.4, soft: 1.5, button: 1.2 }, lips: { fine: 0.3, full: 1.5, lower: 1.3 }, eyes: { deep: 0.7 } },
+  },
+  'southeast-asian': {
+    note: 'Filipino and maritime Southeast Asian ancestry (Austronesian)',
+    ancestry: ['southeast-asian'],
+    tones: [4, 8],
+    // a rounder vault; the inner canthi wider apart; the root low and broad, the base wider, the bridge broad (the nose
+    // leaning short and flat); the lips fuller and a little forward; the cheekbones forward; a lighter brow ridge. The lid
+    // a parallel crease or the rig's, sometimes an in-fold or hooded, now and then a monolid
+    base: {
+      cephalic: 0.02, headLength: -0.01, faceWidth: 0.01, intercanthal: 0.09, nasalIndex: 0.18, radix: -0.01, nasionDepth: -0.003, dorsum: 0.25,
+      lipFullness: 0.1, upperVermilion: 0.003, lowerVermilion: 0.005, lipProjection: 0.004, malarDepth: -0.004, browProjection: -0.003, forehead: 0.004,
+    },
+    nose: { mean: -0.5, spread: 0.55 },
+    lids: { parallel: 2, none: 2, 'inner-fold': 1, hooded: 1, monolid: 0.5 },
+    weights: { nose: { classical: 0.5, soft: 1.4, button: 1.2 }, lips: { full: 1.3 } },
+  },
+  latin: {
+    note: 'Mexican and mestizo Latin American ancestry (Indigenous American and European)',
+    ancestry: ['latin-american', 'indigenous-american', 'latin-american'],
+    tones: [4, 8],
+    // a broader face with high, forward cheekbones and a fuller jaw; the base moderately wide, the bridge a little broad;
+    // the lips a little fuller; the eyes a little wider set. The nose spread wide on its axis (the Indigenous American
+    // aquiline long nose and the short broad one both). The lid the rig's, sometimes hooded, now and then an in-fold
+    base: {
+      cephalic: 0.01, faceWidth: 0.015, malarDepth: -0.006, jaw: 0.02, intercanthal: 0.05, nasalIndex: 0.08, radix: -0.002, dorsum: 0.1,
+      lipFullness: 0.05, upperVermilion: 0.002, lowerVermilion: 0.004,
+    },
+    nose: { mean: 0, spread: 0.75 },
+    lids: { none: 3, hooded: 1.5, 'inner-fold': 0.5 },
+    weights: { nose: { classical: 1.2 }, cheeks: { sculpted: 1.3 } },
+  },
+  // a BLEND: a face of one of its buckets, rolled by weight (each face its bucket's own, at the same seed)
+  asian: { note: 'East or South Asian: a face of either bucket', blend: { 'east-asian': 2, 'south-asian': 1 } },
+  // a MIX: the brown belt of the equator (Mexican, South Asian, Filipino) and the faces between them: each face one of
+  // its buckets, or (at `pairs`) that one with a share of a second, their bases and leanings mixed by the share
+  equatorial: {
+    note: 'the equatorial belt: South Asian, Southeast Asian (Filipino), Mexican, and their mixes',
+    mix: { buckets: { 'south-asian': 1, 'southeast-asian': 1, latin: 1 }, pairs: 0.5, share: [0.2, 0.5] },
+  },
 });
 /**
  * THE HEAD'S WORKING RANGE: the relations a composed face is held inside, measured by the tune's solve (where the skin
@@ -166,6 +246,23 @@ export const FACE_BUCKETS = Object.freeze({
  * not a population's: a face asked past it is drawn at it.
  */
 export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], cephalic: [-Infinity, 0.83] });
+/** a MIX's face: its first bucket, and at `pairs` a share of a second (distinct), as one bucket of the two mixed */
+function mixOf(M, d) {
+  const names = Object.keys(M.buckets), byWeight = (list) => { const sum = list.reduce((a, n) => a + M.buckets[n], 0); let r = d() * sum; return list.find((n) => (r -= M.buckets[n]) <= 0) || list.at(-1); };
+  const first = byWeight(names), A = FACE_BUCKETS[first];
+  if (!(d() < M.pairs)) return { bucket: A, read: { of: first, with: null, share: 0 } };
+  const second = byWeight(names.filter((n) => n !== first)), C = FACE_BUCKETS[second];
+  const t = M.share[0] + d() * (M.share[1] - M.share[0]), lerp = (a = 0, c = 0) => a + (c - a) * t;
+  const keys = (a = {}, c = {}) => [...new Set([...Object.keys(a), ...Object.keys(c)])];
+  const base = Object.fromEntries(keys(A.base, C.base).map((k) => [k, lerp(A.base?.[k], C.base?.[k])]));
+  const NA = A.nose || NOSE_DEFAULT, NC = C.nose || NOSE_DEFAULT;
+  const lidsOf = (X) => X.lids || { none: 1 }, LA = lidsOf(A), LC = lidsOf(C), sa = Object.values(LA).reduce((x, y) => x + y, 0), sc = Object.values(LC).reduce((x, y) => x + y, 0);
+  const lids = Object.fromEntries(keys(LA, LC).map((k) => [k, (1 - t) * (LA[k] || 0) / sa + t * (LC[k] || 0) / sc]));
+  return {
+    bucket: { ...A, base, nose: { mean: lerp(NA.mean, NC.mean), spread: lerp(NA.spread, NC.spread) }, lids },
+    read: { of: first, with: second, share: Math.round(t * 100) / 100 },
+  };
+}
 /** the lid cover's channels: the fold's, owned by the cover where a bucket rolls one */
 export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'creaseShape', 'epicanthus', 'fullness']);
 
@@ -175,9 +272,17 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
 export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null } = {}) {
-  const B = FACE_BUCKETS[bucket];
+  let B = FACE_BUCKETS[bucket];
   if (!B) throw new Error(`face: the bucket is one of ${Object.keys(FACE_BUCKETS).join(', ')}`);
+  if (B.blend) {
+    const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
+    let r = b() * sum;
+    const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt }), blend: bucket };
+  }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
+  const mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
+  if (mixed) B = mixed.bucket;
   if (accent !== undefined && accent !== false && !FACE_SHAPES[accent]) throw new Error(`face: accent is false or one of ${FACE_FEATURES.join(', ')}`);
   const d = streamOf(seed, 'face-compose', `${bucket}/${sex}`), roll = () => d() * 2 - 1;
   const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : [roll(), roll()];
@@ -216,7 +321,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const names = Object.keys(B.lids), sum = names.reduce((a, n) => a + B.lids[n], 0);
     let r = d() * sum;
     lid = names.find((n) => (r -= B.lids[n]) <= 0) || names.at(-1);
-    const { note: _n, ...cover } = EYE_SHAPES[lid];
+    const { note: _n, ...cover } = lid === 'none' ? {} : EYE_SHAPES[lid];
     for (const ch of LID_FOLD) if (cover[ch] !== undefined) eyes[ch] = cover[ch];
     if (cover.open !== undefined) eyes.open = Math.round(cover.open * (eyes.open ?? 1) * 1000) / 1000;
     picks.lid = lid;
@@ -229,6 +334,8 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     grooms[g][k] = Math.round(groomShape[g][k] * share * 1000) / 1000;
     proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
   }
+  // the tone, where the bucket holds its own range (rolled before the nose, after the rest)
+  const tone = B.tones ? B.tones[0] + Math.floor(d() * (B.tones[1] - B.tones[0] + 1)) : null;
   // the nose's axis, last (a seed keeps the rest of its face)
   const NA = B.nose || NOSE_DEFAULT, rolled = NA.mean + NA.spread * (d() + d() - 1), nose = Math.max(-1, Math.min(1, noseAt ?? rolled));
   for (const [key, v] of Object.entries(nose < 0 ? FACE_NOSE.short : FACE_NOSE.long)) off[key] = (off[key] || 0) + v * Math.abs(nose);
@@ -236,5 +343,5 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(tone != null ? { dermis: { tone } } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

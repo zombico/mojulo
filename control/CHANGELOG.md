@@ -67,6 +67,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   subnasale lift to the poles' own range (chased further, the nose's base rose ~18 mm and drew the upper lip into a snout;
   the miss is reported instead). Both poles' heads and tunes are unchanged; the head's floor on the nose's projection
   falls from ~0.265 to 0.2.
+- MORE BUCKETS, from the same principles: `east-asian` (the bucket first built as `asian`), `south-asian` (a longer
+  vault and a narrower face, the root higher than the East Asian, the base moderately wide, the eyes a little larger, the
+  rig's creased lid or a hooded one, the brows and lashes rolled heavier), `southeast-asian` (Filipino and maritime
+  Southeast Asian: a rounder vault, a low broad root and a wider base, the nose leaning short and flat, fuller lips, the
+  lid a parallel crease or the rig's), `latin` (Mexican mestizo: a broader face, high forward cheekbones, the nose spread
+  wide on its axis), `african` (sub-Saharan: a longer vault, a rounder forehead, a much wider base on a low broad root,
+  fuller, taller, more forward lips). A BLEND bucket is one of its buckets per face (`asian`: East or South Asian); a MIX
+  bucket is one, or one with a share of a second, their bases and leanings mixed by the share (`equatorial`: South Asian,
+  Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
+  the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
+  (`tones`, on the Monk scale: `equatorial` is brown), the ancestry still giving the hair, the undertone and the eyes.
 
 ### Body-part map: dress tailored to the body, not the segment
 
