@@ -18,7 +18,7 @@
 //                   (african, european, east-asian, south-asian …; dermal-looks.js readAncestry); --game carves the
 //                   creator's face over them
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases); --lineup-crop eyes frames
-//                   the eyes close (face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
+//                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
 //   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"tune"?}]'
 //                   (the head's relations replaced as given, the wave's tune solved for them; an ancestry rolls the
 //                   tone and the hair as --ancestry does, at the seed): a spike's sets side by side
@@ -344,13 +344,13 @@ if (body) {
 // THE LINEUP: each subject at the front and the front ¾ only, lit with its hair, four subjects to a row, what each was
 // rolled to under it
 if (lineup) {
-  const W = lineupCrop === 'face' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : 330, per = 4;
+  const W = lineupCrop === 'face' || lineupCrop === 'eye' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' ? 340 : 330, per = 4;
   for (let k = 0; k < subjects.length; k++) {
     const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
     const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
-    const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
+    const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'eye' ? boxAt(m3(Le.eyeR), 0.024) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
     const col0 = (k % per) * 2 * W, y = Math.floor(k / per) * (Hh + 60);
     for (const [c, v] of VIEWS.slice(0, 2).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
