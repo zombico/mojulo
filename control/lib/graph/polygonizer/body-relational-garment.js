@@ -38,7 +38,7 @@ const TRUNK = new Set(['torso', 'neck', 'pelvis']);
 
 /** the parts of a garment `id` on the realistic body (`recipe`, sliced; `map`, its body-part map), as layer-1 parts named
  * `<id>_<segment>`: { parts } */
-export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null }) {
+export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
   const want = new Set(covers), arm = limbField(R, B1, 'upperArm');
   // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
@@ -58,6 +58,9 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     });
     let i0 = covered.indexOf(true), i1 = covered.lastIndexOf(true); if (i0 < 0) continue;
     if (limit[base] !== undefined) i1 = Math.min(i1, Math.round(limit[base] * (P.stations.length - 1)));
+    // (`window`: { <segment>: [u0, u1] }, the rings between two of the segment's stations by their `u`: an armour's
+    // window, which its style sets)
+    if (window?.[base]) { const [u0, u1] = window[base], U = P.stations.map((st, i) => st.u ?? i); i0 = Math.max(i0, U.findIndex((u) => u >= u0 - 1e-9)); i1 = Math.min(i1, U.findLastIndex((u) => u <= u1 + 1e-9)); }
     // (`floor`: a trunk piece starts where its rings rise, past those lying flat, widening at one height: a band of
     // cloth laid flat has no outside to wind by)
     if (floor && TRUNK.has(seg)) {

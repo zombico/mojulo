@@ -51,6 +51,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### Armour fitted to the realistic body
+
+In progress. An armour build (`adorn: { type: 'armor', style }`) on `form: 'realistic'` was the authored body's kit baked
+on the realistic body's envelope: plates sampled 6 × 4, the breast and back windows open at the flanks, the fauld two
+coarse wraps crumpling over the belly, the pauldron's anchor folding over the shoulder's turns. Now
+(`polygonizer/body-relational-armour.js`, the style still naming every piece, its window and its ornament):
+
+- Every plate sampled as densely as the realistic skin under it and made the kit's own hollow plate (a wall rolled at
+  its edges, faired over the forms beneath: `fitPlates`).
+- The CUIRASS (the kit's breast and back plates) and the FAULD made field shells round the trunk over their windows
+  (a field garment at a plate's clearance, taut over the forms; `fieldGarment` takes a `window` in the segment's
+  stations), worn on the body the rest of the kit is baked over, so a tasset or a strap stacks over them.
+- The PAULDRONS a JOINT CAP each (`jointCap`): a dome over the shoulder from a centre deep in it, the farthest of the
+  skin and the cuirass under each direction faired and held clear, its outer and inner walls rolled at the rim,
+  carried by the clavicle; the kit's lames down the arm under it.
+- The GORGET optional: the realistic body wears it only when the build names it (`wear: ['gorget']`, armor/expand.js
+  validates the word). The authored body's armour byte for byte.
+
 ### The hero's skin: a part of the character, shown where it shows
 
 - `skin` on the hero door (`form: 'realistic'`): the dermis's dials (dermal-map.js DERMIS_DIALS but `sex`, the cast's:

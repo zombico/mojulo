@@ -72,6 +72,7 @@ import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from 
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
+import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -309,7 +310,13 @@ function realisticExpand(plan, hero) {
   // hollows as cloth and plate would lie), then the skin put back under it, with whatever the dress wrote on those parts
   // beside their points (the paint's groups)
   const env = { ...S, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
-  const R = expandPlan({ ...plan, ...(plan.adorn ? { adorn: onBody(plan.adorn) } : {}), ...(plan.garments ? { garments: onBody(plan.garments) } : {}), ...(plan.paint ? { paint: painted(plan.paint) } : {}) }, { body: env });
+  // (an armour's plates fitted: each a hollow shell over the realistic skin, sampled as densely as it; its cuirass and
+  // its fauld field shells round the trunk, worn on the body the rest of the kit is baked over, so a strap, a tasset and
+  // the pauldron stack over them: body-relational-armour.js)
+  let kit = plan.adorn ? fitPlates(isArmorBuild(hero.adorn) ? wornPieces(onBody(plan.adorn), hero.adorn.wear) : onBody(plan.adorn), env.parts) : null;
+  const shells = kit && isArmorBuild(hero.adorn) ? (() => { const B = realisticBuild(hero), RS = validateRig(S.rig); return fieldPlates(kit, S, RS, B, bodyPartMap(S, RS, B)); })() : null;
+  if (shells) { kit = shells.kit; Object.assign(env.parts, shells.parts); }
+  const R = expandPlan({ ...plan, ...(kit ? { adorn: kit } : {}), ...(plan.garments ? { garments: onBody(plan.garments) } : {}), ...(plan.paint ? { paint: painted(plan.paint) } : {}) }, { body: env });
   const onEnvelope = { ...R.parts };
   for (const k of Object.keys(env.parts)) if (ENVELOPED.test(k) && R.parts[k]) {
     const E = env.parts[k], D = R.parts[k], wrote = Object.keys(D).filter((f) => f !== 'stations' && JSON.stringify(D[f]) !== JSON.stringify(E[f]));

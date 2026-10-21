@@ -1,11 +1,12 @@
 // armor/expand — an ARMOUR BUILD on the hero's `adorn`, expanded into an adornment kit on every read.
 //
-//   adorn: { type: 'armor', style, dials?, language?, theme?, laws? }
+//   adorn: { type: 'armor', style, dials?, language?, theme?, wear?, laws? }
 //     style     a seeded sample name (styles.js) or an inline card
 //     dials     { stylize 0–1, mass, coverage 0–1, ornament 0–3 } over the card's own
 //     language  slot words over the card's (plate: pauldron, focalSide, fnSide; lamellar: crest)
 //     theme     a theme name (themes/themes.js) or an inline card: the motifs carried down the suit (laws 13–16),
 //               leaning the dials and language between the style's and the build's own
+//     wear      the optional pieces the realistic body wears only when named (['gorget']); the authored body wears its own
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
 //
 // The hero record stores these words; `hero-dress.dressPlan` calls `expandArmor` with the register's ring halves, and
@@ -24,6 +25,9 @@ export function isArmorBuild(adorn) {
   return !!(adorn && typeof adorn === 'object' && !Array.isArray(adorn) && adorn.type === 'armor');
 }
 
+/** the pieces a build's `wear` may name (the realistic body's optional ones) */
+const WEARABLE = Object.freeze(['gorget']);
+
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_ARMOR[style] : style);
 
 /** Validate a build → an array of error strings, each naming the choices. */
@@ -41,6 +45,8 @@ export function validateArmor(build) {
   if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push('adorn.dials.ornament: an integer 0–3');
   const card = cardOf(style);
   if (build.language !== undefined && card && !validateArmorCard(card).length) errs.push(...validateArmorCard({ ...card, language: { ...card.language, ...build.language } }, 'adorn').filter((e) => e.includes('language')));
+  // `wear`: the pieces the realistic body leaves off unless named (polygonizer/body-relational-armour.js OPTIONAL_PIECES)
+  if (build.wear !== undefined && !(Array.isArray(build.wear) && build.wear.every((w) => WEARABLE.includes(w)))) errs.push(`adorn.wear: a list of the optional pieces the realistic body wears only when named (${WEARABLE.join(', ')})`);
   if (build.theme !== undefined) { if (typeof build.theme === 'string') { if (!Object.hasOwn(THEMES, build.theme)) errs.push(`adorn.theme: '${build.theme}' is not a theme (${Object.keys(THEMES).join(', ')}); or pass an inline card`); } else errs.push(...validateTheme(build.theme, 'adorn.theme')); }
   // a theme's language leans the style's family words: the same choices as the card's own
   const TL = card && !validateArmorCard(card).length ? themeOf(build.theme)?.language?.[card.family] : undefined;
