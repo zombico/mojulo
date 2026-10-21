@@ -28,6 +28,7 @@
 //                   "physique":"jacked","outfit":["tee","trousers"]}' is the realistic hero dressed, as the door makes it)
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
 //                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
+//   --palette       each face in its palette colour (the face's group: trims painted on cloth show).
 //   --outline       the dressed outline panel (dress-outline.js) under each cast's sections: the bare and dressed front
 //                   outlines, the divisions, and the read in each style.
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
@@ -62,7 +63,7 @@ const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-rela
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false, outline = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false, outline = false, palette = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -76,6 +77,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--tint') { tint = true; continue; }
   if (a === '--dress') { dress = true; continue; }
   if (a === '--outline') { outline = true; continue; }
+  if (a === '--palette') { palette = true; continue; }
   if (a === '--map') { partMap = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--graft') { graft = true; continue; }
@@ -381,7 +383,7 @@ for (const cast of casts) {
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
-    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; const g = P?.group; return g === 'Sole' ? [52, 46, 42] : g === 'Strap' ? [120, 82, 56] : g === 'Brass' ? [196, 160, 80] : g === 'Sash' || g === 'Cuff' ? [40, 60, 110] : g === 'TopFold' ? [70, 100, 146] : nm.startsWith('adorn.') ? [150, 156, 166] : P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
+    const box = frameBox(V, nodes, which), hue = palette ? faces.map((tri, k) => { const g = H.mesh.groups[pick ? pick[k] : k] ?? H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]?.group, hex = H.m.recipe.palette?.[g]; return /^#[0-9a-f]{6}$/i.test(hex ?? '') ? [1, 3, 5].map((o) => parseInt(hex.slice(o, o + 2), 16) * 1.15) : [205, 196, 186]; }) : partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; const g = P?.group; return g === 'Sole' ? [52, 46, 42] : g === 'Strap' ? [120, 82, 56] : g === 'Brass' ? [196, 160, 80] : g === 'Sash' || g === 'Cuff' ? [40, 60, 110] : g === 'TopFold' ? [70, 100, 146] : nm.startsWith('adorn.') ? [150, 156, 166] : P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);

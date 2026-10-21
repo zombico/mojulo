@@ -81,9 +81,13 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   off the one under it, a limb's two pieces one tube faired over the elbow or the knee, a top's tail and body one; a
   knit or fitted top's second-skin paint made close cloth worn first; a sleeve or leg stopping short of the hand or the
   foot turned back in to the limb; a collar a stand collar up the neck (`collarOn`); boots and shoes the footwear
-  primitive; the belt a band with its buckle at the front; the trims (hem bindings, a waistband) thin bands where they
-  were painted. Still the authored kernel's: skirt hulls, hanging panels, capes, hoods; buttons are not placed yet.
-  New tailor primitives: `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
+  primitive; the belt a band with its buckle at the front. Each authored part name a worn piece had is an ALIAS for the
+  cloth it became (its `u` shifted where pieces were merged), and the cloth is in the body the dress is made on, so
+  what the expander placed on a piece lands on it: trims and an open front painted on its faces, rows of buttons,
+  embroidered emblems, pauldrons. Still the authored kernel's: skirt hulls, hanging panels, capes, hoods. New tailor
+  primitives: `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
+- STYLISM ON THE REALISTIC BODY: no longer refused. A genre, a register and a target outline lower to an outfit build,
+  worn as above. `/body-study --palette` shows a figure in its palette's colours, face by face.
 
 ### The gi: a wrapped jacket over the martial artist's trousers
 

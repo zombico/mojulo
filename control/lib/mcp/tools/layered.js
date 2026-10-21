@@ -318,10 +318,18 @@ function realisticExpand(plan, hero) {
   if (plan.garments?.length || (Array.isArray(plan.paint) && plan.paint.some((x) => Array.isArray(x?.part)))) {
     const B = realisticBuild(hero), RS = validateRig(S.rig);
     wear = wearPieces(S, RS, B, bodyPartMap(S, RS, B), plan.garments || [], plan.adorn || [], Array.isArray(plan.paint) ? plan.paint : []);
-    // (a row of buttons on a piece worn here is not placed yet: the tailor's cloth has no row primitive)
-    const onWorn = (x) => typeof x?.part === 'string' && wear.worn.has(x.part.split('_')[0]);
-    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)) } : {}),
-      ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.filter((x) => !onWorn(x)) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !onWorn(x) && !wear.painted.has(i)) } : {}) };
+    // what the expander placed on a worn piece (a row of buttons, an embroidered emblem, a painted trim) moved to the cloth
+    // it is now (its alias), its stations' `u` shifted where the piece was merged and a limb's `run` taken as its `u`; a
+    // side-less limb name for both sides; what has no cloth to land on is left off
+    const uOf = (sg) => { const P = S.parts[sg] ?? S.parts[`${sg}R`]; return P ? P.stations[P.stations.length - 1].u ?? 1 : 1; };
+    const moved = (x) => {
+      if (typeof x?.part !== 'string' || !wear.worn.has(x.part.split('_')[0])) return [x];
+      const hits = [wear.alias.get(x.part), wear.alias.get(`${x.part}R`), wear.alias.get(`${x.part}L`)].filter(Boolean); if (!hits.length) return [];
+      return hits.map((a) => { const sh = (r) => r.map((v) => v + a.du), run = x.run && !x.u ? x.run.map((v) => v * uOf(a.seg)) : null;
+        const { run: _r, ...rest } = x; return { ...(run ? rest : x), part: a.part, ...(x.s ? { s: sh(x.s) } : {}), ...(x.u ? { u: sh(x.u) } : {}), ...(run ? { u: sh(run) } : {}), ...(Array.isArray(x.over) ? { over: x.over.map((o) => wear.alias.get(o)?.part ?? o) } : {}) }; });
+    };
+    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
+      ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
@@ -329,11 +337,13 @@ function realisticExpand(plan, hero) {
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
   const onBody = (xs) => (Array.isArray(xs) ? xs.map((x) => (x && x.over !== undefined ? { ...x, over: kept(x.over) } : x)) : xs);
   // (and paint addressed to a part the slice removed is the torso's there, which its own entries paint)
-  const painted = (xs) => (Array.isArray(xs) ? xs.filter((x) => !x?.part || S.parts[x.part] || S.parts[`${x.part}R`] || S.parts[`${x.part}L`]) : xs);
+  const painted = (xs) => (Array.isArray(xs) ? xs.filter((x) => !x?.part || S.parts[x.part] || S.parts[`${x.part}R`] || S.parts[`${x.part}L`] || wear?.parts[x.part]) : xs);
   // the dress made on the body's ENVELOPE (body-relational-envelope.js: the skin's grid, each ring carried out over its
   // hollows as cloth and plate would lie), then the skin put back under it, with whatever the dress wrote on those parts
   // beside their points (the paint's groups)
   const env = { ...S, parts: envelopeParts(S.parts, Object.keys(S.parts).filter((k) => ENVELOPED.test(k))) };
+  // (the tailor's cloth in the body the dress is made on, so a button, an emblem or a trim placed on a worn piece finds it)
+  if (wear) Object.assign(env.parts, wear.parts);
   // (an armour's plates fitted: each a hollow shell over the realistic skin, sampled as densely as it; its cuirass and
   // its fauld field shells round the trunk, worn on the body the rest of the kit is baked over, so a strap, a tasset and
   // the pauldron stack over them: body-relational-armour.js)
@@ -371,7 +381,8 @@ function realisticExpand(plan, hero) {
   }));
   if (wear) {
     for (const [name, part] of Object.entries(wear.parts)) {
-      R.parts[name] = part;
+      // (the cloth went through the dress's expansion in the body, which painted its trims: that is the part kept)
+      R.parts[name] = R.parts[name] ?? part;
       const seg = name.slice(name.indexOf('_') + 1);
       for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
     }
@@ -686,7 +697,7 @@ function realisticErrors(spec) {
   if (spec.head !== undefined && !['landmark', 'none', 'relational'].includes(spec.head)) errs.push("head: the realistic body wears the landmark head, the relational head or none (head: 'landmark' | 'relational' | 'none')");
   if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
   if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
-  for (const k of ['detail', 'statue', 'stylism']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
+  for (const k of ['detail', 'statue']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
   for (const k of ['body', 'girth']) if (spec[k] !== undefined && spec[k] !== null) errs.push(`${k}: the realistic body's girths are its field's; dial them with physique: { bulk, tone, weight, height }`);
   return errs;
 }

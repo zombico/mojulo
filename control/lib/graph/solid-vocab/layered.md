@@ -794,7 +794,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
   the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
-  the other words, `adorn` and `paint` are worn over the skin's envelope; an outfit takes off the body's suit (its
+  an OUTFIT CARD (`outfit: { type: 'outfit', style }`), the other words and a `stylism` are worn on its parts by
+  the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
+  sleeves turned in; its trims, buttons and emblems where the card puts them), a skirt, a panel, a cape and a hood
+  still over the skin's envelope; `adorn` and `paint` are worn over the envelope too; an outfit takes off the body's suit (its
   Top and Bottom paint), so what it leaves bare is skin. Its SKIN is the character's: `skin: { tone, undertone, age,
   flush, freckles, oil, lines, dirt, paint, hairColour, … }` (tone an MST swatch 1–10 or a hex; `palette.Skin` is the
   tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it
@@ -806,7 +809,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (a welted sole, straps and buckles). LOOSE words: `martialPants` (wide, falling, bloused over a cuffed ankle, a sash),
   `wideTrousers` (falling open to the floor), and `gi` (a wrapped jacket over them: a V, a standing collar, wide sleeves,
   a skirt, the belt; worn with `martialPants` it takes their sash); the authored body wears them as wide segment pieces.
-  Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
+  Refused by name: `detail`, `statue`, `body`, `girth` (the physique
   dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped

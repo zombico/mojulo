@@ -14,8 +14,10 @@
  *   FLARE        each piece's `flare` [a, b] (m) along its run (`flareRun`), before its tubes are joined
  *   HEMS         a sleeve or a leg ending short of the hand or the foot turned back in to the limb (`turnHemIn`), so it
  *                opens as cloth does, no lid
- *   TRIMS        the paint a worn piece takes in another group (a hem's or a cuff's binding, a waistband): a thin band
- *                of the tailor's at the same place on the body
+ *   ALIASES      each authored part name a worn piece had (`topSleeve_upperArmR`, `outer_torso` …) the part it is now,
+ *                and the shift its `u` takes there (a merged tube's second piece runs on from its first's end; a
+ *                body's pelvis rings run up to the torso's 0), so what the expander placed on a piece (a row of
+ *                buttons, an embroidered emblem, a trim painted on a hem or an opening) lands on its cloth here
  *   the NECK     a collar or a rib a stand collar (`collarOn`) from the garment's top ring up the neck its share of
  *                the neck's length, at its own ease
  *   a SECOND SKIN the paint a knit or a fitted top lies as on the authored body (a body segment's window in a cloth
@@ -23,10 +25,10 @@
  *   FOOTWEAR     `boot` (its `bootShaft`'s share of the shank) and `shoe`: the footwear primitive
  *   a BELT       the kit's band on a worn piece: the tailor's band at the height of the piece's `s`, its buckle at the front
  *
- *   wearPieces(recipe, R, build, map, garments, kit, paint) → { parts, worn, belts, painted, tones }   parts named by
- *                garment; `worn` the piece ids made here (the rest — a skirt hull, a panel, a cape, a hood — left to the
- *                authored kernel); `belts` the kit ids made here; `painted` the paint entries made cloth here; `tones`
- *                the footwear's for a palette that names none
+ *   wearPieces(recipe, R, build, map, garments, kit, paint) → { parts, worn, belts, painted, alias, tones }   parts
+ *                named by garment; `worn` the piece ids made here (the rest — a skirt hull, a panel, a cape, a hood —
+ *                left to the authored kernel); `belts` the kit ids made here; `painted` the paint entries made cloth
+ *                here; `alias` authored part name → { part, du }; `tones` the footwear's for a palette that names none
  * Pure and deterministic.
  */
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
@@ -43,7 +45,7 @@ const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.
 
 /** The pieces worn (see the head of this file). */
 export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint = []) {
-  const parts = {}, worn = new Set(), belts = new Set(), painted = new Set(), turned = new Set(), tones = {};
+  const parts = {}, worn = new Set(), belts = new Set(), painted = new Set(), turned = new Set(), alias = new Map(), tones = {};
   const seg = (P) => (Array.isArray(P.part) && P.part.length === 1 ? P.part[0] : null);
   const segPart = (s) => recipe.parts[s] ?? recipe.parts[`${s}R`];
   const uMax = (s) => { const P = segPart(s); return P ? P.stations[P.stations.length - 1].u ?? P.stations.length - 1 : 1; };
@@ -84,7 +86,12 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       const short = (s) => { const g = body.find((x) => seg(x) === s); return g && windowOf(g)[1] < uMax(s) - 0.05; };
       for (const S of ['R', 'L']) for (const [a, b, name] of [['upperArm', 'foreArm', 'arm'], ['thigh', 'shank', 'leg']]) {
         const A = made[`${G}_${a}${S}`], Bp = made[`${G}_${b}${S}`];
-        if (A && Bp) { made[`${G}_${name}${S}`] = fairRun({ ...oneTube(A, Bp), garment: true, group }); delete made[`${G}_${a}${S}`]; delete made[`${G}_${b}${S}`]; }
+        if (A && Bp) {
+          const T = fairRun({ ...oneTube(A, Bp), garment: true, group }), from = T.stations.length - Bp.stations.length;
+          // (the second piece's rings run on from the first's end: its `u` shifted by the first segment's length in u)
+          T.stations.forEach((st, i) => { if (i >= from) st.u = (st.u ?? 0) + uMax(a); });
+          made[`${G}_${name}${S}`] = T; delete made[`${G}_${a}${S}`]; delete made[`${G}_${b}${S}`];
+        }
         // THE HEM turned in where the cloth stops short: the lower piece's end, or the upper's when it is alone
         const low = made[`${G}_${name}${S}`] ? b : made[`${G}_${a}${S}`] ? a : null, tube = made[`${G}_${name}${S}`] ?? made[`${G}_${a}${S}`];
         // (folded back to the limb itself: the skin's ring nearest the hem, 2 mm out, so no lid shows inside a loose sleeve)
@@ -95,7 +102,12 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
           turnHemIn(tube, { ...at.points }, limb.slots, { inset: -0.002 }); turned.add(made[`${G}_${name}${S}`] ? `${G}_${name}${S}` : `${G}_${a}${S}`);
         }
       }
-      if (!legs && made[`${G}_pelvis`] && made[`${G}_torso`]) { made[`${G}_body`] = { ...oneTube(made[`${G}_pelvis`], made[`${G}_torso`]), garment: true, group }; delete made[`${G}_pelvis`]; delete made[`${G}_torso`]; }
+      if (!legs && made[`${G}_pelvis`] && made[`${G}_torso`]) {
+        const T = { ...oneTube(made[`${G}_pelvis`], made[`${G}_torso`]), garment: true, group }, from = T.stations.length - made[`${G}_torso`].stations.length;
+        // (the pelvis's rings run up to the torso's 0: their `u` less the pelvis's length in u)
+        T.stations.forEach((st, i) => { if (i < from) st.u = (st.u ?? 0) - uMax('pelvis'); });
+        made[`${G}_body`] = T; delete made[`${G}_pelvis`]; delete made[`${G}_torso`];
+      }
       Object.assign(parts, made);
     }
     // (the garment's top ring: its body's, else its torso's)
@@ -105,6 +117,16 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       parts[`${g.id}_neck`] = { ...collarOn(topOf, neckSkin, { height: Math.max(0.015, (r1 - r0) * (Math.max(...zs) - Math.min(...zs))), ease: (g.ease ?? 0.008) + lift }), garment: true, group: g.group };
     }
     for (const g of pieces) if (!g.skin) worn.add(g.id);
+    // THE ALIASES: each piece's authored part name, the part it is now and its `u`'s shift there
+    for (const g of pieces) {
+      if (g.skin) continue;
+      const s = seg(g), limb = /^(upperArm|foreArm|thigh|shank)$/.test(s);
+      for (const S of limb ? ['R', 'L'] : ['']) {
+        const merged = limb ? `${G}_${/^(upperArm|foreArm)$/.test(s) ? 'arm' : 'leg'}${S}` : `${G}_body`;
+        const to = s === 'neck' ? (parts[`${g.id}_neck`] ? [`${g.id}_neck`, 0] : null) : parts[`${G}_${s}${S}`] ? [`${G}_${s}${S}`, 0] : parts[merged] ? [merged, s === 'foreArm' ? uMax('upperArm') : s === 'shank' ? uMax('thigh') : s === 'pelvis' ? -uMax('pelvis') : 0] : null;
+        if (to) alias.set(`${g.id}_${s}${S}`, { part: to[0], du: to[1], seg: s });
+      }
+    }
   });
 
   // A BELT on a worn piece: the band at the height of its `s` on the skin there, its buckle at the front
@@ -120,24 +142,5 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     if (sig?.kind === 'buckle' && band.slots.includes('front')) { const b = buckleOn(band, 'front', { w: sig.w ?? 0.03, h: sig.h ?? 0.024 }); parts[`${A.id}Buckle_${G}`] = { ...b, group: sig.group ?? 'Buckle', bind: bindNearest(b, on) }; }
     belts.add(A.id);
   }
-  // THE TRIMS: a worn piece's paint in another group, a thin band at the same place on the body (its height on the
-  // skin's segment, the nearest ring of what the piece became); an opening's band (`t`) not yet
-  paint.forEach((x, i) => {
-    if (typeof x?.part !== 'string' || x.t || !x.group || CLOTH.test(x.group)) return;
-    const [pid, s] = x.part.split('_'); if (!worn.has(pid) || !SEGS.has(s)) return;
-    const G = garmentOf(pid), win = x.u ?? (x.run ? [x.run[0] * uMax(s), x.run[1] * uMax(s)] : null); if (!win) return;
-    for (const S of /^(upperArm|foreArm|thigh|shank)$/.test(s) ? ['R', 'L'] : ['']) {
-      const skin = recipe.parts[`${s}${S}`], name = [`${pid}_${s}${S}`, `${G}_${s}${S}`, `${G}_${/^(upperArm|foreArm)$/.test(s) ? 'arm' : /^(thigh|shank)$/.test(s) ? 'leg' : 'body'}${S}`].find((n) => parts[n]), on = parts[name];
-      if (!skin || !on) continue;
-      const at = (u) => mean(Object.values(skin.stations.reduce((b, q) => (Math.abs((q.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? q : b)).points));
-      const a = at(win[0]), b = at(win[1]), m = a.map((v, q) => (v + b[q]) / 2), d = (P) => mean(Object.values(P.points)).reduce((t, v, q) => t + (v - m[q]) ** 2, 0);
-      // (a ring of the piece's own, never its turned hem's lining)
-      const cands = on.stations.map((st, k) => k).filter((k) => !(turned.has(name) && k === on.stations.length - 1));
-      const k = cands.reduce((best, q) => (d(on.stations[q]) < d(on.stations[best]) ? q : best), cands[0]);
-      const band = bandAt(on, k, { width: Math.max(0.012, Math.hypot(...a.map((v, q) => v - b[q]))), lift: 0.0015 }); if (!band) continue;
-      parts[`${pid}${x.group}${i}_${s}${S}`] = { ...band, group: x.group };
-    }
-    painted.add(i);
-  });
-  return { parts, worn, belts, painted, tones };
+  return { parts, worn, belts, painted, alias, tones };
 }

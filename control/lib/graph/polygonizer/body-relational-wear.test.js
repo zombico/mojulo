@@ -1,6 +1,6 @@
 // An outfit card on the realistic body, its pieces worn by the tailor (body-relational-wear.js), one case per concept:
 // a layered card (the suit: a shirt under a jacket, each a body and two sleeves, a stand collar, shoes, a belt with its
-// buckle, the trims as bands; the jacket outside the shirt; all closed and wound once; a stride flinging nothing); a
+// buckle, the trims painted on the cloth; the jacket outside the shirt; all closed and wound once; a stride flinging nothing); a
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
 // (the casual tee's), its hem turned back in to the arm.
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
@@ -19,10 +19,12 @@ describe('an outfit card worn by the tailor', () => {
   let suit, mesh;
   beforeAll(() => { suit = card('suit'); mesh = compileLayered(suit); }, 300_000);
 
-  it('the suit: a shirt and a jacket each a body and two sleeves, stand collars, shoes, a belt and its buckle, the trims; the authored pieces gone', () => {
+  it('the suit: a shirt and a jacket each a body and two sleeves, stand collars, shoes, a belt and its buckle, the trims painted on; the authored pieces gone', () => {
     for (const k of ['top_body', 'top_armR', 'outer_body', 'outer_armL', 'topCollar_neck', 'outerCollar_neck', 'shoes_footR', 'belt_bottom', 'beltBuckle_bottom', 'bottom_pelvis', 'bottom_legR']) expect(suit.parts[k], k).toBeTruthy();
     expect(Object.keys(suit.parts).some((k) => /^(topSleeve|topCuff|outerSleeve|bottomSeat|bottomLeg)_/.test(k))).toBe(false);
-    expect(Object.keys(suit.parts).some((k) => /Trim\d+_|Waistband\d+_/.test(k))).toBe(true);
+    // (the expander's trims painted on the cloth's faces, moved there by the pieces' aliases)
+    const trimmed = new Set(mesh.faces.map((t, fi) => (/^(top|outer|bottom)/.test(mesh.provenance[t[0]].part) ? mesh.groups[fi] : null)).filter(Boolean));
+    expect([...trimmed].some((g) => /^(Trim|Waistband|Collar)$/.test(g)), [...trimmed].join(',')).toBe(true);
     const A = auditLayered(mesh);
     for (const k of Object.keys(suit.parts).filter((k) => /^(top|outer|bottom|belt|shoes)/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].nonManifold, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
   });
@@ -49,6 +51,12 @@ describe('an outfit card worn by the tailor', () => {
     const belly = T.stations.map((st) => st.points.front).filter((p) => p[2] > 1.06 && p[2] < 1.2);
     expect(belly.length).toBeGreaterThan(2);
     for (const p of belly) expect(cloth.some((q) => Math.abs(q[0] - p[0]) < 0.02 && Math.abs(q[2] - p[2]) < 0.02 && q[1] > p[1]), `${p}`).toBe(true);
+  }, 300_000);
+
+  it('a stylism on the realistic body: lowered to an outfit build, worn by the tailor, its pauldrons on the cloth', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', stylism: { genre: 'fantasy', silhouette: 'wedge', register: 'heroic' } }) }).recipe;
+    expect(Object.keys(r.parts).some((k) => /^outer_(body|torso)$/.test(k))).toBe(true);
+    expect(Object.keys(r.parts).some((k) => /^adorn\./.test(k))).toBe(true);
   }, 300_000);
 
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {
