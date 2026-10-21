@@ -180,6 +180,24 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   card, `geocube` (`get_sketch_vocab({ id: 'geocube' })`): the style, the ingredients, the domains, the four doors
   and how to choose. No new tool.
 
+### Geocube trail: the cube's island, walked by a dummy
+
+The first recipe expansion: a geocube shown one step further in. `show: 'land'` is where a cube's look is judged;
+`show: 'trail'` is the same island laid fresh with every way up drawn and a plain stand-in figure walking it, where
+the walk and the runtime cost are read. A showcase, not a level: no goal, no hero, nothing to export.
+
+- **`show: 'trail'`** on the geocube kind (`era/geocube.js`): the island and its land as `land` lowers them, with
+  every way up drawn (the island's `walk: 'all'` in place of the specimen's `'base'`), walkable from the seam. It takes
+  `hour` and `clouds` as `land` does, and `seed`, which lays the island (its relief, ground and geology); the same seed
+  gives the same bytes. `room` and `land` refuse a `seed` and emit the same bytes as before. With a `domain` (Geocube
+  domains, above) it walks that domain's island: its terrain at its hour, its structures on the top.
+- Planned: a trail minted without a seed takes one from its new ref, so no two mints show the same island and a row
+  re-renders byte for byte; the seed also rolls the way up within the cube's own tiers.
+- Planned: a dummy (an unpainted rig figure on the walkers channel) walks the route, the camera chasing it; the walk
+  hands the operator the camera.
+- Planned: a readout, never a gate: the payload's counts (triangles, draw groups, textures and their bytes, page bytes)
+  and, on the page while the dummy walks, frame time and draw calls. `room` and `land` emit the same bytes.
+
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 
 - **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`

@@ -82,7 +82,7 @@ describe('a recipe\'s hour', () => {
 
   it('is the outside\'s: refused on a room, a room\'s show, and a trail in its own kit', () => {
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, hour: 'noon' })).toThrow(/hour is the outside/);
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, hour: 'noon' }, {}, assembleStageScene)).toThrow(/hour is the land/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, hour: 'noon' }, {}, assembleStageScene)).toThrow(/hour is the outside's/);
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, hour: 'noon', trail: {}, kit: 'isekai-meadow' })).toThrow(/own kit/);
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, hour: 'teatime', meru: true })).toThrow(/hour is a number/);
   });
@@ -109,7 +109,7 @@ describe('a recipe\'s clouds', () => {
 
   it('are the outside\'s, as the hour is', () => {
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, clouds: 'fair' })).toThrow(/clouds are the outside/);
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, clouds: 'fair' }, {}, assembleStageScene)).toThrow(/clouds are the land/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, clouds: 'fair' }, {}, assembleStageScene)).toThrow(/clouds are the outside's/);
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, clouds: 'drizzle', meru: true })).toThrow(/clouds is one of/);
   });
 

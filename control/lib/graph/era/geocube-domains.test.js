@@ -94,6 +94,10 @@ describe('expanding a domain', () => {
     expect(P.geocube.domains.map((d) => d.name)).toEqual(['shore-night', 'shore-dawn', 'crypt']);
     expect(P.faces.some((f) => f.group === 'stage:accent')).toBe(true);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'crypt', show: 'land' }, {})).toThrow(/the domain is inside: show 'room'/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'shore-dawn', show: 'room' }, {})).toThrow(/the domain is outside: show 'land' or 'trail'/);
+    // an outside domain walked: its island, every way up drawn, at its hour
+    const T = WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'shore-dawn', show: 'trail', seed: 3 }, {});
+    expect(T.geocube).toMatchObject({ show: 'trail', domain: { name: 'shore-dawn', terrain: 'shore', hour: 'dawn' } });
     // a cube that names no more than its own room and land reads out as it always did
     expect(WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night' }, {}).geocube.domains).toBeUndefined();
   });
