@@ -222,7 +222,7 @@ describe('footwear on a foot adapter', () => {
     expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress, historic, fantasy',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);
-    expect(validateFootwear({ sock: false, adorn: [{ prim: 'toeCap' }] })[0]).toMatch(/worn on the sock; this card has none/);
+    expect(validateFootwear({ sock: false, adorn: [{ prim: 'cuff' }] })[0]).toMatch(/worn on the sock; this card has none/);
     expect(validateFootwear({ sock: { height: 'boot' }, adorn: [{ prim: 'strap', on: 'hand', at: 2, colour: 1 }] })).toEqual([
       "footwear.adorn[0]: strap takes on, at, width, lift, buckle, group, not 'colour'", 'footwear.adorn[0].on: foot or shank', 'footwear.adorn[0].at: a share, 0 to 1']);
     expect(() => wearFootwear(stub, 'clogs')).toThrow(/clogs/);

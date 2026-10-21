@@ -177,7 +177,8 @@ export function validateFootwear(spec, label = 'footwear') {
     if (a.prim === 'fur' && a.at !== undefined && a.on === undefined) errs.push(`${at}: give the fur's \`on\` with its \`at\` (else it sits at the collar)`);
     if ((a.prim === 'flare' || a.prim === 'buttons') && sock?.height !== 'boot') errs.push(`${at}: a ${a.prim} is a boot's; this card's sock is no boot`);
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
-    if (['cuff', 'toeCap', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
+    // (a toe cap is a quarter egg over the toes, bare or sheathed: the rest are worn on the sock)
+    if (['cuff', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
   });
   for (const [g, c] of Object.entries(spec.tones || {})) if (!isTone(c)) errs.push(`${label}.tones.${g}: '#rrggbb', or { of: <group>, shade: −1 … 1 } (that group's colour darkened or lightened)`);
   return errs;

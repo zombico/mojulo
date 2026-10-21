@@ -13,4 +13,6 @@
 export { wearPlating, validatePlating, suitCard } from './expand.js';
 export { SUITS, SKINS, PLATING_TONES } from './styles.js';
 export { PLATE_REGIONS, PLATE_SIDES } from './regions.js';
+export { LAYOUTS, LAYERS } from './layouts.js';
+export { fairShell, shellPanel } from './shell.js';
 export { PLATING_LAWS_VERSION } from './principles.js';

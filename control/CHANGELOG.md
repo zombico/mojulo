@@ -152,6 +152,14 @@ two sides; a REACTOR disc on the sternum in a rim, its group rendered full-brigh
 the realistic body: `powerSuit` (red and gold), `stealthSuit` (black, wide panel lines), `heavySuit` (gunmetal, far
 standoff, more rows), `sleekSuit` (white, few plates); on the authored body none yet. body-study `--dress` paints a
 suit's groups in their own colours.
+FITTED SHELLS (the layout of a powered suit as a supercar's body is laid out, `shell.js`, `layouts.js`): a segment faired
+into one smooth shell (`fairShell`: its grooves bridged), cut along DESIGN LINES in its own coordinates (`t` down it,
+`s` round it, + its lateral side) into panels (`shellPanel`) fitted across narrow seams, bevelled down into them, domed
+where they cap, stacked by LAYER (an underplate, a trim strip, the overplate, a cap, a light), so the overplates'
+windows show the metal beneath; a mirrored panel's pair on the other side. Layouts `greave` (a chevron shin plate, side
+plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
+suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
+its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.
 
 ### The hero's skin: a part of the character, shown where it shows
 

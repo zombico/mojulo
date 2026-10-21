@@ -5,6 +5,8 @@
 //   2 PLATES   each card plate on its region of its segment (regions.js), split into its rows, a matched pair where the
 //              region has two sides, on both limbs: a thin slab over the suit's rings (footwear/cobbler.js `panelOn`),
 //              carried by the suit's weights under it
+//   2b SHELLS  each layout's panels (layouts.js) cut from a segment's FAIR SHELL (shell.js) along design lines, fitted
+//              across narrow seams, bevelled, stacked by layer (under, mid, over, cap, light); the feet a footwear card
 //   3 GLOW     the reactor on the sternum: a disc in its rim
 //   4 TONE     the groups laid, the card's tones (and its skin's) over PLATING_TONES; its emissive groups
 //
@@ -15,9 +17,12 @@ import { bindNearest, mean, unitv } from '../footwear/parts.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 import { PLATE_REGIONS, PLATE_SIDES, TRUNK } from './regions.js';
 import { SUITS, SKINS, PLATING_TONES } from './styles.js';
+import { LAYOUTS, LAYERS } from './layouts.js';
+import { fairShell, shellPanel, slotOf } from './shell.js';
+import { validateFootwear } from '../footwear/index.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
-const SEGS = ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank'];
+const SEGS = ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'];
 const share = (x) => typeof x === 'number' && x >= 0 && x <= 1, pair = (x) => Array.isArray(x) && x.length === 2 && x.every(share) && x[0] <= x[1];
 const GROUP = /^[A-Z][A-Za-z0-9]*$/, HEX = /^#[0-9a-f]{6}$/i;
 
@@ -38,13 +43,21 @@ export function validatePlating(spec, label = 'suit') {
   if (typeof spec === 'string') return Object.hasOwn(SUITS, spec) ? [] : [`${label}: '${spec}' is not a suit (${Object.keys(SUITS).join(', ')}), or give a card { suit, plates, reactor }`];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: a word or a card { suit, plates, reactor }`];
   const errs = [];
-  for (const k of Object.keys(spec)) if (!['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'reactor', 'tones', 'emissive'].includes(k)) errs.push(`${label}: a suit takes family, from, skin, suit, plates, platesPlus, reactor, tones, emissive, not '${k}'`);
+  const KEYS = ['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'shells', 'feet', 'reactor', 'tones', 'emissive'];
+  for (const k of Object.keys(spec)) if (!KEYS.includes(k)) errs.push(`${label}: a suit takes ${KEYS.join(', ')}, not '${k}'`);
   if (spec.from !== undefined && !(typeof spec.from === 'string' ? Object.hasOwn(SUITS, spec.from) : spec.from && typeof spec.from === 'object')) errs.push(`${label}.from: a suit (${Object.keys(SUITS).join(', ')}) or a card`);
   if (spec.skin !== undefined && !(typeof spec.skin === 'string' ? Object.hasOwn(SKINS, spec.skin) : spec.skin && typeof spec.skin === 'object')) errs.push(`${label}.skin: a colourway (${Object.keys(SKINS).join(', ')}) or { <group>: '#rrggbb' }`);
   if (errs.length) return errs;
   const C = suitCard(spec);
   if (C.family !== undefined && C.family !== 'powered') errs.push(`${label}.family: 'powered'`);
-  if (C.suit !== undefined && C.suit !== false && !(C.suit && typeof C.suit === 'object' && (C.suit.ease === undefined || (C.suit.ease >= 0 && C.suit.ease <= 0.02)))) errs.push(`${label}.suit: { ease? (0 … 0.02 m) }, or false`);
+  if (C.suit !== undefined && C.suit !== false && !(C.suit && typeof C.suit === 'object' && (C.suit.ease === undefined || (C.suit.ease >= 0 && C.suit.ease <= 0.02)) && (C.suit.on === undefined || (Array.isArray(C.suit.on) && C.suit.on.every((g) => SEGS.includes(g)))))) errs.push(`${label}.suit: { ease? (0 … 0.02 m), on? [${SEGS.join(', ')}] }, or false`);
+  if (C.shells !== undefined) {
+    if (!Array.isArray(C.shells)) errs.push(`${label}.shells: a list of layouts (${Object.keys(LAYOUTS).join(', ')}) or { layout, bulk? }`);
+    else C.shells.forEach((x, i) => { const L = typeof x === 'string' ? x : x?.layout;
+      if (!Object.hasOwn(LAYOUTS, L ?? '')) errs.push(`${label}.shells[${i}]: one of ${Object.keys(LAYOUTS).join(', ')}, or { layout, bulk? }`);
+      else if (typeof x === 'object' && x.bulk !== undefined && !(x.bulk >= 0.5 && x.bulk <= 3)) errs.push(`${label}.shells[${i}].bulk: 0.5 … 3 (times the layers' heights)`); });
+  }
+  if (C.feet !== undefined) errs.push(...validateFootwear(C.feet, `${label}.feet`));
   if (!Array.isArray(C.plates ?? [])) errs.push(`${label}.plates: a list of { region, lift?, thick?, rows?, gap?, group? }`);
   else (C.plates ?? []).forEach((p, i) => {
     const at = `${label}.plates[${i}]`;
@@ -98,6 +111,23 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
       }
     }
   }
+  // 2b SHELLS: each layout's panels cut from the fair shell of their segment (shell.js), on both limbs, a mirrored panel's
+  // copy on the other side; stacked by their layers, so an overplate's window shows the underplate
+  const fair = {};
+  for (const x of C.shells ?? []) {
+    const name = typeof x === 'string' ? x : x.layout, bulk = (typeof x === 'object' && x.bulk) || 1, Name = name[0].toUpperCase() + name.slice(1);
+    for (const pn of LAYOUTS[name]) for (const S of A.sides) {
+      const seg = `${pn.seg}${S}`, P = on(seg); if (!P) continue;
+      const F = (fair[seg] ??= fairShell(P)), fOf = slotOf(P.slots.length, S), uOf = (t) => A.u(pn.seg, t), Ly = LAYERS[pn.layer];
+      const copies = pn.mirror ? [['Lat', pn.left, pn.right], ['Med', pn.right.map(([t, v]) => [t, -v]), pn.left.map(([t, v]) => [t, -v])]] : [['', pn.left, pn.right]];
+      for (const [tag, left, right] of copies) {
+        const pc = shellPanel(F, { t0: pn.t[0], t1: pn.t[1], left, right, lift: (pn.lift ?? Ly.lift) * bulk, thick: Ly.thick, bevel: Ly.bevel, dome: pn.dome ?? 0, uOf, fOf }); if (!pc) continue;
+        put(`${id}${Name}${pn.id}${tag}_${seg}`, { ...pc, group: pn.role ?? Ly.role, bind: bindNearest(pc, P) });
+      }
+    }
+  }
+  // (the FEET: a footwear card, the footwear library's: its sole, its toe cap)
+  if (C.feet && A.feet) { const W = A.feet(C.feet, { id }); for (const [name, part] of Object.entries(W.parts)) put(name, part); }
   // 3 GLOW: the reactor on the sternum, in its rim
   if (C.reactor) {
     const P = on('torso'), u = A.u('torso', C.reactor.at ?? 0.78), st = P && P.stations.reduce((b, x, i) => (Math.abs((x.u ?? i) - u) < Math.abs((b.u ?? 0) - u) ? x : b), P.stations[0]);

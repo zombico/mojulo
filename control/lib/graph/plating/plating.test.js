@@ -3,7 +3,8 @@
 // a limb's plate on both limbs, the reactor glowing, plates on the bare skin without a suit, refusals, the same twice.
 import { describe, it, expect } from 'vitest';
 
-import { wearPlating, validatePlating, suitCard, SKINS } from './index.js';
+import { wearPlating, validatePlating, suitCard, SKINS, fairShell, shellPanel } from './index.js';
+import { slotOf } from './shell.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
 const SL = ringSlots(16);
@@ -49,6 +50,31 @@ describe('a plated suit on a body adapter', () => {
     const C = suitCard({ from: 'powerSuit', platesPlus: [{ region: 'calf' }], skin: 'midnight' });
     expect(C.plates[C.plates.length - 1].region).toBe('calf');
     expect(C.tones.Plate).toBe(SKINS.midnight.Plate);
+  });
+
+  it('a fitted shell: the segment faired, panels cut from it along design lines, bevelled, parted by seams, stacked by layer', () => {
+    const P = body.shankR, F = fairShell(P), fOf = slotOf(16, 'R'), uOf = (t) => 2 * t, rad = (p) => Math.hypot(p[0] - 0.09, p[1]);
+    // a cylinder's shell is the cylinder
+    expect(rad(F.at(1, 3.3).p)).toBeCloseTo(0.05, 4);
+    const panel = (o) => shellPanel(F, { t0: 0.2, t1: 0.8, left: [[0, -0.3]], right: [[1, 0.3]], lift: 0.01, thick: 0.004, bevel: 0.003, uOf, fOf, ...o });
+    const A = panel({}), mid = A.stations[5].points, top = Object.values(mid).slice(0, 9);
+    // its middle at its lift, its edges bevelled down toward the seam
+    expect(rad(top[4])).toBeCloseTo(0.06, 4);
+    expect(rad(top[0])).toBeLessThan(rad(top[4]) - 0.002);
+    // two panels on a shared line part by the seam
+    const left = panel({ right: [[0, 0]] }), right = panel({ left: [[0, 0]] }), xs = (Q) => Q.stations.flatMap((st) => Object.values(st.points)).map((p) => p[0] - 0.09);
+    expect(Math.min(...xs(right)) - Math.max(...xs(left))).toBeGreaterThan(0.001);
+    // on the lateral side of the right leg (+x); a cap domed over its middle
+    expect(rad(Object.values(panel({ dome: 0.008 }).stations[5].points)[4])).toBeCloseTo(0.068, 3);
+    const W = wearPlating(stub, { family: 'powered', shells: ['greave', 'kneeCap'], emissive: ['Light'] }, { id: 'm' });
+    expect(Math.min(...xs(W.parts.mGreaveSideLat_shankR))).toBeGreaterThan(0);
+    expect(Math.max(...xs(W.parts.mGreaveSideMed_shankR))).toBeLessThan(0);
+    // stacked: the calf plate (cap) over the side plate (over) over the underplate (under)
+    const r = (k) => Math.max(...W.parts[k].stations.flatMap((st) => Object.values(st.points)).map(rad));
+    expect(r('mGreaveCalfLat_shankR')).toBeGreaterThan(r('mGreaveSideLat_shankR'));
+    expect(r('mGreaveSideLat_shankR')).toBeGreaterThan(r('mGreaveUnder_shankR'));
+    expect([W.parts.mGreaveUnder_shankL.group, W.parts.mGreaveShin_shankL.group, W.parts.mKneeCapCap_shankL.group]).toEqual(['Alloy', 'Plate', 'Plate']);
+    expect(W.emissive).toEqual(['Light']);
   });
 
   it('refuses a suit by name', () => {

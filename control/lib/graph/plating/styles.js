@@ -4,9 +4,12 @@
 //   family   'powered'
 //   from     a card it extends (its plates replaced where given, `platesPlus` appended, its tones merged); `skin` a
 //            colourway (SKINS, or { <group>: '#hex' }) over its tones
-//   suit     { ease? (m off the skin, 0.002) } the undersuit, or false: plates on the bare skin
+//   suit     { ease? (m off the skin, 0.002), on? [segments] } the undersuit, or false: plates on the bare skin
 //   plates   [{ region (regions.js PLATE_REGIONS, or { seg, along, around, sides, rows?, gap? }), lift? (m, the
 //            standoff: bulk), thick?, rows?, gap?, group? }]
+//   shells   [layout | { layout, bulk? }] FITTED SHELLS (layouts.js: greave, kneeCap, sabaton): a segment's shell cut along
+//            design lines into bevelled panels fitted across narrow seams, stacked by layer
+//   feet     a footwear card (the footwear library's: its sole, its toe cap) worn with the suit
 //   reactor  { at? (a share up the torso, 0.78; the sternum about 0.64), r? (m), group? } a disc on the sternum, its rim in Rim
 //   tones    { <group>: '#hex' }; emissive [<group>] (rendered full-bright)
 export const SUITS = Object.freeze({
@@ -29,6 +32,11 @@ export const SUITS = Object.freeze({
   // the sleek suit: few plates, white over grey, close to the body
   sleekSuit: { from: 'powerSuit', plates: [{ region: 'chest', lift: 0.004 }, { region: 'shoulder', lift: 0.005 }, { region: 'gauntlet', lift: 0.004, rows: 1 }, { region: 'thigh', lift: 0.004, rows: 1 }, { region: 'shin', lift: 0.004, rows: 1 }],
     reactor: { at: 0.64, r: 0.018 }, tones: { Plate: '#e9eaee', Trim: '#9aa3ad', Suit: '#3a3f47', Reactor: '#9fe8ff' } },
+  // MARK BOOTS: the fitted shell's first layouts (a supercar's lines, not a grid of plates): greaves under domed knee caps,
+  // sabatons, on an undersuit over the legs and feet; red over a silver underplate, gold strips, lit vents
+  markBoots: { family: 'powered', suit: { ease: 0.002, on: ['shank', 'foot', 'toes'] }, shells: ['greave', 'kneeCap', 'sabaton'],
+    feet: { sock: false, sole: { thick: 0.012, welt: 0.004 }, adorn: [{ prim: 'toeCap', lift: 0.012, room: 0.01, group: 'Plate' }] },
+    tones: { Plate: '#8e1a1f', Alloy: '#b7b9bd', Trim: '#c9a23a', Suit: '#1e1f24', Light: '#e8f6ff', Sole: '#2a2b2e' }, emissive: ['Light'] },
 });
 for (const c of Object.values(SUITS)) Object.freeze(c);
 /** COLOURWAYS over any suit, by role */
@@ -39,4 +47,4 @@ export const SKINS = Object.freeze({
   midnight: Object.freeze({ Plate: '#1b2340', Trim: '#c0c6d6', Reactor: '#7fd8ff' }),
 });
 /** the colours of the groups a suit lays, for a palette that names none */
-export const PLATING_TONES = Object.freeze({ Plate: '#8d9299', Trim: '#c9a23a', Suit: '#1e1f24', Reactor: '#c8f4ff', Rim: '#8d9299' });
+export const PLATING_TONES = Object.freeze({ Plate: '#8d9299', Trim: '#c9a23a', Suit: '#1e1f24', Reactor: '#c8f4ff', Rim: '#8d9299', Alloy: '#b7b9bd', Light: '#e8f6ff' });

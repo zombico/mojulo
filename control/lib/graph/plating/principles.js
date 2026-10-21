@@ -10,6 +10,11 @@
 //   4. MATCHED PAIRS. A region with two sides comes as a pair (left and right on the trunk, lateral and medial on a limb),
 //      and a limb's plates on both limbs.
 //   5. THE GLOW SPENDS ON THE FOCAL. The reactor on the sternum (and what a card names) in groups rendered full-bright.
-//   6. GROUPS ARE ROLES (Plate, Trim, Suit, Reactor, Glow), so a COLOURWAY recolours any suit; every plate rides the rig by
+//   6. A FITTED SHELL IS CUT, NOT GRIDDED (shell.js, layouts.js: a supercar's body, a jet's skin). The segment is first
+//      faired into one smooth shell (its grooves bridged, never a muscle's bump), then cut along DESIGN LINES (diagonals
+//      sweeping down and forward, chevrons narrowing down the front) into panels that FIT their neighbours across a narrow
+//      seam, each BEVELLED down into it; panels STACK by layer (an underplate, a trim, the overplate, a cap over a joint),
+//      so an overplate's window shows the metal beneath. Caps dome over the joints they guard.
+//   7. GROUPS ARE ROLES (Plate, Trim, Alloy, Suit, Reactor, Light), so a COLOURWAY recolours any suit; every plate rides the rig by
 //      the weights of the suit under it.
 export const PLATING_LAWS_VERSION = 1;
