@@ -152,7 +152,9 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   const firstAbove = [...divisions].reverse().find((d) => d.z > LM.midThigh[0] && ((d.dL ?? 0) >= 20 || Math.abs(width(d.z + 0.015, dressed(TRUNK)).W / Math.max(1e-6, width(d.z - 0.015, dressed(TRUNK)).W) - 1) >= 0.1));
   const legLine = r3(((firstAbove?.z ?? zSh) - ground) / S);
   // a hem on a leg between the crotch and the ankle: its place on the leg's bare profile there (0 its narrowest, 1 its widest)
+  // (a hem just under the knee, or at it, lands where the leg narrows below the kneecap: by the principle, a good landing)
   const hems = [...new Set(pieces.filter(([, I]) => TRUNK.includes(I.limb)).map(([p]) => r3(lowOf(p))))].filter((z) => z > zAnk + 0.04 && z < zCr - 0.01).map((z) => {
+    if (z > zKnee - 0.05 && z < zKnee + 0.03) return { z: r3(z), on: 'knee', pos: 0 };
     // (the shank's profile below the knee, the knee itself not counted: a hem just under the knee slims)
     const [lo, hi, on] = z > zKnee ? [zKnee, zCr, 'thigh'] : [zAnk + 0.02, zKnee - 0.04, 'shank'], prof = [];
     const legB = (I, p) => I.body && side(['leg'], 1)(I, p);
@@ -189,16 +191,18 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
     returns, returnGap: Object.fromEntries(Object.entries(ret).map(([k, g]) => [k, r3(g)])), rho: r3(rho), divisions, dominant, legLine, hems, flair };
 }
 
-/** the silhouette family by its outline's ratios (docs/garment-principles.md), the first rule that holds */
+/** the silhouette family by its outline's ratios (docs/garment-principles.md), the first rule that holds. The cut-offs
+ * are the research's, re-centred on this body as it is read: the shoulder deltoid to deltoid with the arms hanging in the
+ * A pose (wider against the hip than a fashion figure's), so a bare athletic woman reads X and a bare man V; calibrated
+ * on cards, stylisms and the loose words across both casts and two physiques */
 function familyOf(R, at, k) {
-  const hipSh = R.hipOverShoulder, shHip = 1 / hipSh, hemSh = R.hemOverShoulder, waistMax = at.waist[k] / Math.max(at.shoulder[k], at.hip[k]);
+  const hipSh = R.hipOverShoulder, shHip = 1 / hipSh, hemSh = R.hemOverShoulder, hemHip = at.hem[k] / at.hip[k], waistMax = at.waist[k] / Math.max(at.shoulder[k], at.hip[k]), hipWaist = at.hip[k] / at.waist[k];
   if (at.waist[k] >= Math.max(at.shoulder[k], at.hip[k]) && at.hem[k] / at.waist[k] <= 0.9) return 'O';
-  if (R.waistOverShoulder <= 0.8 && R.waistOverHip <= 0.8 && hipSh >= 0.9 && hipSh <= 1.1) return 'X';
-  if (hemSh >= 1.4 && waistMax >= 0.85) return 'trapeze';
-  if (hemSh >= 1.2) return 'A';
-  if (shHip >= 1.3 && at.hem[k] <= at.hip[k]) return 'T';
+  if (R.waistOverShoulder <= 0.8 && R.waistOverHip <= 0.8 && hipSh >= 0.8) return 'X';
+  if (hemHip >= 1.15 && hemSh >= 0.9) return waistMax >= 0.85 && hemSh >= 1.1 ? 'trapeze' : 'A';
+  if (shHip >= 1.3 && hipWaist >= 0.92 && hipWaist <= 1.08) return 'T';
   if (shHip >= 1.2 && at.hem[k] <= at.hip[k]) return 'V';
-  if (waistMax >= 0.85 && hipSh >= 0.9 && hipSh <= 1.1) return 'H';
+  if (waistMax >= 0.85 && hipSh >= 0.75 && hemSh >= 0.75 && hemSh <= 1.1) return 'H';
   return hipSh >= 1.1 ? 'triangle' : 'between';
 }
 

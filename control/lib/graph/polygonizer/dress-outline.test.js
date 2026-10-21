@@ -17,6 +17,7 @@ describe('the dressed outline', () => {
   it('the bare figure: its own family, nothing moved, nothing dividing it, the body line whole', () => {
     const m = outlineMeasures(bare.mesh, bare.r);
     expect(m.family).toBe(m.bareFamily);
+    expect(m.bareFamily).toBe('V');
     expect(Object.values(m.shift).every((d) => Math.abs(d) < 1e-9)).toBe(true);
     expect(m.divisions).toEqual([]);
     expect(m.flair.pieces).toBe(0);
@@ -42,6 +43,8 @@ describe('the dressed outline', () => {
     // (the body line is not asked of a loose outfit that returns: the rule's escape)
     expect(c.reads.some((x) => x.id === 'bodyLine')).toBe(false);
     expect(m.flair.of).toEqual(['gi', 'martialPants']);
+    // (a box over wide legs: the waist unmarked, the hem near the shoulders' width)
+    expect(m.family).toBe('H');
     // the jacket's skirt ends at the thigh's widest, halving the figure: advised, in both styles
     for (const style of ['western', 'anime']) expect(outlineCritic(m, style).advice.join(' ')).toMatch(/thigh's widest/);
   });

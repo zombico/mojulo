@@ -53,7 +53,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### The garment designer: silhouette principles over tailoring primitives
 
-In progress. Garments on the realistic body as data over a small set of construction primitives, and the principles
+Garments on the realistic body as data over a small set of construction primitives, and the principles
 that make a silhouette read as measures with bands, so a garment is chosen and checked rather than designed by hand.
 
 - THE TAILOR (`polygonizer/body-relational-tailor.js`): the realistic body's construction in one place, each a pure
@@ -97,6 +97,16 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   outline the figure is dressed toward by the canon's rules for its cast and physique (a jacked western male a column, no
   padding; a heavy figure one long vertical run; a drawn female an X), with why. The outline read's calf is the bare
   leg's now, the knee not counted.
+- THE PROOF, by data alone: a long coat, a gown, a structured jacket and `balance`, each a stylism with a canon, on
+  male and female, athletic and heavyset; every one made without new garment code. What the run found and fixed: a waist
+  wrap built for the authored body's girth cut through a heavy figure's coat (now a band, or a sash, made by the tailor
+  on the outermost cloth at its height); loose sleeves swelled into balloons (loose cloth past 14 mm of ease now hangs,
+  the tailor's fall down the limb, a sleeve narrowing to its cuff); the read judged a hem just under the knee as on the
+  calf (now a good landing, as the stage holds); the family cut-offs re-centred on this body as it is read (a gi and a
+  straight coat H, a long coat and a gown A, a cinched bodice over a flared skirt X).
+- `/garment-design <brief>`: the designer as a skill. The brief in stylism words or a card, the rationale principle by
+  principle, the mint and the read, the words adjusted at most three times, the sheet shown; the eyes gate the
+  operator's.
 
 ### The gi: a wrapped jacket over the martial artist's trousers
 

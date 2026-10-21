@@ -35,16 +35,21 @@ V; what the clothes did is the difference).
 widths [snippet: Dior's H, A and Y lines, the V&A and the Met; the cut-offs derived from FFIT and the suit drop, not
 from any fashion text]:
 
-| family | rule | note |
-|---|---|---|
-| X, hourglass | `Wwa/Wsh ≤ 0.80`, `Wwa/Whp ≤ 0.80`, `0.9 ≤ Whp/Wsh ≤ 1.1` | anime ≤ 0.70 |
-| H, rectangle | `Wwa/max(Wsh, Whp) ≥ 0.85`, `Whp/Wsh` and `Whem/Wsh` in 0.9–1.1 | the waist unmarked |
-| I, column | H with every `e ≤ 0.10`, `Whem/Wsh ≤ 0.9`, the hem at or below the knee | long, narrow |
-| A | `Whem/Wsh ≥ 1.2`, widening from the waist down | |
-| trapeze | A with no waist marked, `Whem/Wsh ≥ 1.4` | widens from the shoulder |
-| V, Y | `Wsh/Whp ≥ 1.2`, the hem no wider than the hip | |
-| T | `Wsh/Whp ≥ 1.3`, straight below the chest | |
-| O, cocoon | `Wwa ≥ max(Wsh, Whp)`, `Whem/Wwa ≤ 0.9` | the hem returns |
+| family | rule (the research's) | as read on the realistic body | note |
+|---|---|---|---|
+| X, hourglass | `Wwa/Wsh ≤ 0.80`, `Wwa/Whp ≤ 0.80`, `0.9 ≤ Whp/Wsh ≤ 1.1` | the same, `Whp/Wsh ≥ 0.8` | anime ≤ 0.70 |
+| H, rectangle | `Wwa/max(Wsh, Whp) ≥ 0.85`, `Whp/Wsh` and `Whem/Wsh` in 0.9–1.1 | `Whp/Wsh ≥ 0.75`, `Whem/Wsh` in 0.75–1.1 | the waist unmarked |
+| I, column | H with every `e ≤ 0.10`, `Whem/Wsh ≤ 0.9`, the hem at or below the knee | not read yet | long, narrow |
+| A | `Whem/Wsh ≥ 1.2`, widening from the waist down | `Whem/Whp ≥ 1.15`, `Whem/Wsh ≥ 0.9` | |
+| trapeze | A with no waist marked, `Whem/Wsh ≥ 1.4` | A, the waist unmarked, `Whem/Wsh ≥ 1.1` | widens from the shoulder |
+| V, Y | `Wsh/Whp ≥ 1.2`, the hem no wider than the hip | the same | |
+| T | `Wsh/Whp ≥ 1.3`, straight below the chest | the same, `Whp/Wwa` in 0.92–1.08 | |
+| O, cocoon | `Wwa ≥ max(Wsh, Whp)`, `Whem/Wwa ≤ 0.9` | the same | the hem returns |
+
+The read measures the shoulder deltoid to deltoid with the arms hanging in the A pose, wider against the hip than a
+fashion figure's (a bare athletic man reads 0.79 hip over shoulder, a woman 0.83), so the cut-offs were moved to where
+this body's dressed figures fall: a gi and a straight coat read H, a long coat and a gown A, a cinched bodice over a
+flared skirt X, the bare man V and the bare woman X.
 
 A deliberate shift is `|Δ| ≥ 0.10` on a ratio; following the body is `|Δ| ≤ 0.05`; between reads as neither
 [practice]. FFIT's classes are unreliable at the margins (Parker et al. 2021 [snippet]) and leave out the shoulder, so the

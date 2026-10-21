@@ -23,7 +23,8 @@
  *   a SECOND SKIN the paint a knit or a fitted top lies as on the authored body (a body segment's window in a cloth
  *                group): a close block (the fitted shirt's cloth), worn first, under every garment
  *   FOOTWEAR     `boot` (its `bootShaft`'s share of the shank) and `shoe`: the footwear primitive
- *   a BELT       the kit's band on a worn piece: the tailor's band at the height of the piece's `s`, its buckle at the front
+ *   a BELT, a SASH the kit's band (or a shell wrapped round the trunk) at its height: the tailor's band on the piece it
+ *                names, or the outermost cloth there when worn on top or named on the skin; its buckle or boss at the front
  *
  *   wearPieces(recipe, R, build, map, garments, kit, paint) → { parts, worn, belts, painted, alias, tones }   parts
  *                named by garment; `worn` the piece ids made here (the rest — a skirt hull, a panel, a cape, a hood —
@@ -32,7 +33,7 @@
  * Pure and deterministic.
  */
 import { fieldGarment, FIELD_GARMENTS } from './body-relational-garment.js';
-import { oneTube, flareRun, fairRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest } from './body-relational-tailor.js';
+import { oneTube, drapeRun, flareRun, fairRun, turnHemIn, collarOn, bandAt, buckleOn, bindNearest } from './body-relational-tailor.js';
 import { footwear, FOOTWEAR, FOOTWEAR_TONES } from './body-relational-footwear.js';
 
 /** a piece's role after its garment's name */
@@ -40,6 +41,8 @@ const ROLE = /(Tail|Sleeve|Cuff|Collar|Rib|Seat|Leg|Shin|Hem|Shaft)$/;
 const SEGS = new Set(['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shank']);
 /** a layer over the one before it */
 const LAYER = 0.0035;
+/** the ease past which cloth hangs rather than swells (m) */
+const LOOSE = 0.014;
 const garmentOf = (id) => id.replace(ROLE, '') || id;
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 
@@ -79,7 +82,18 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       // (trousers: the seat and the legs handed over as the field trousers' are; a top: a second skin's or a knit's
       // close cloth (the fitted shirt's) under 6 mm of ease, a woven's over it, blended half again closer than the tee)
       const cloth = legs && on.includes('pelvis') ? { ...FIELD_GARMENTS.trousers, limit: {} } : ease < 0.006 ? { ...FIELD_GARMENTS.fittedShirt, covers: null, limit: {} } : { covers: null, looser: 2, reach: 0.04, taut: true };
-      const made = fieldGarment(recipe, R, build, map, { id: G, ...cloth, on, window, ease, group }).parts;
+      // (LOOSE cloth hangs: past `LOOSE` of ease the limbs' field is cut at it and the rest is the tailor's fall down the
+      // run, so a loose sleeve or leg falls straight from the shoulder or the hip instead of swelling round the limb)
+      // (a top's trunk keeps its full ease, its sleeves cut at LOOSE; trousers' seat and legs one block, handed over)
+      const loose = ease > LOOSE, limbs = on.filter((x) => /^(upperArm|foreArm|thigh|shank)$/.test(x)), trunk = on.filter((x) => !limbs.includes(x));
+      const made = !loose ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on, window, ease, group }).parts
+        : legs ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on, window, ease: LOOSE, group }).parts
+          : { ...(trunk.length ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on: trunk, window, ease, group }).parts : {}), ...(limbs.length ? fieldGarment(recipe, R, build, map, { id: G, ...cloth, on: limbs, window, ease: LOOSE, group }).parts : {}) };
+      if (loose) for (const S of ['R', 'L']) for (const [a, b] of [['upperArm', 'foreArm'], ['thigh', 'shank']]) {
+        const run = [made[`${G}_${a}${S}`], made[`${G}_${b}${S}`]].filter(Boolean);
+        // (a sleeve narrows toward its cuff, a trouser leg falls nearly straight)
+        if (run.length) drapeRun(run, S === 'R' ? 1 : -1, { slack: ease - LOOSE, taper: a === 'upperArm' ? 0.12 : 0.03, margin: 0.004, folds: 6, fold: 0.003, hem: 'fall' });
+      }
       // each piece's flare along its own run
       for (const g of body) if (g.flare) for (const S of ['', 'R', 'L']) if (made[`${G}_${seg(g)}${S}`]) flareRun(made[`${G}_${seg(g)}${S}`], g.flare);
       // (the last piece down each limb, and whether it stops short of the limb's end)
@@ -129,17 +143,28 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
     }
   });
 
-  // A BELT on a worn piece: the band at the height of its `s` on the skin there, its buckle at the front
+  // A BELT or a SASH: a band round the trunk (an adornment's `band`, or a `shell` wrapped round it) made by the tailor at
+  // the height of its `s` on the skin, on the cloth of the piece it names, or on the outermost cloth there when it is
+  // worn on top or names the skin itself (a sash built for the authored body's girth would cut through a heavy figure's
+  // coat); its buckle or its boss at the front
+  const trunkParts = () => Object.entries(parts).filter(([k, P]) => P.garment && /_(body|torso|pelvis)$/.test(k));
+  const radiusAt = (P, z) => { const st = P.stations.reduce((b, x) => (Math.abs(mean(Object.values(x.points))[2] - z) < Math.abs(mean(Object.values(b.points))[2] - z) ? x : b)); const c = mean(Object.values(st.points)); return Math.abs(c[2] - z) > 0.03 ? -1 : Object.values(st.points).reduce((t, q) => t + Math.hypot(q[0] - c[0], q[1] - c[1]), 0) / P.slots.length; };
   for (const A of kit) {
-    if (A?.mode !== 'band' || typeof A.part !== 'string') continue;
-    const [pid, s] = A.part.split('_'), G = garmentOf(pid), on = parts[`${G}_${s}`] ?? (/^(pelvis|torso)$/.test(s) ? parts[`${G}_body`] : null), skin = segPart(s);
-    if (!on || !skin || !worn.has(pid) || !Array.isArray(A.s)) continue;
+    const wrap = A?.mode === 'band' || (A?.mode === 'shell' && A.t === 'wrap');
+    if (!wrap || typeof A.part !== 'string' || !Array.isArray(A.s)) continue;
+    const named = A.part.includes('_'), [pid, s] = named ? A.part.split('_') : [null, A.part], skin = segPart(s);
+    if (!skin || !/^(torso|pelvis)$/.test(s) || (named && !worn.has(pid))) continue;
     const u = (A.s[0] + A.s[1]) / 2, st = skin.stations.reduce((b, x) => (Math.abs((x.u ?? 0) - u) < Math.abs((b.u ?? 0) - u) ? x : b)), z = mean(Object.values(st.points))[2];
-    const at = on.stations.reduce((b, x, i) => (Math.abs(mean(Object.values(x.points))[2] - z) < Math.abs(mean(Object.values(on.stations[b].points))[2] - z) ? i : b), 0);
-    const band = bandAt(on, at, { width: 0.035, lift: (A.thick ?? 0.008) * 0.6 }); if (!band) continue;
-    parts[`${A.id}_${G}`] = { ...band, group: A.group ?? 'Leather' };
+    const G = named ? garmentOf(pid) : null, own = G ? parts[`${G}_${s}`] ?? parts[`${G}_body`] : null;
+    const outer = trunkParts().map(([k, P]) => [k, P, radiusAt(P, z)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2])[0];
+    const [onName, on] = A.onTop || !own ? (outer ? [outer[0], outer[1]] : [null, null]) : [`${G}_${s}`, own];
+    if (!on) continue;
+    const at = on.stations.reduce((b, x, k) => (Math.abs(mean(Object.values(x.points))[2] - z) < Math.abs(mean(Object.values(on.stations[b].points))[2] - z) ? k : b), 0);
+    const band = bandAt(on, at, { width: A.mode === 'shell' ? 0.05 : 0.035, lift: Math.min(0.008, (A.thick ?? 0.008) * 0.6) }); if (!band) continue;
+    const tag = onName.split('_')[0];
+    parts[`${A.id}_${tag}`] = { ...band, group: A.group ?? 'Leather' };
     const sig = A.signature;
-    if (sig?.kind === 'buckle' && band.slots.includes('front')) { const b = buckleOn(band, 'front', { w: sig.w ?? 0.03, h: sig.h ?? 0.024 }); parts[`${A.id}Buckle_${G}`] = { ...b, group: sig.group ?? 'Buckle', bind: bindNearest(b, on) }; }
+    if ((sig?.kind === 'buckle' || sig?.kind === 'boss') && band.slots.includes('front')) { const b = buckleOn(band, 'front', { w: sig.w ?? (sig.r ?? 0.015) * 2, h: sig.h ?? (sig.r ?? 0.012) * 2 }); parts[`${A.id}Buckle_${tag}`] = { ...b, group: sig.group ?? 'Buckle', bind: bindNearest(b, on) }; }
     belts.add(A.id);
   }
   return { parts, worn, belts, painted, alias, tones };

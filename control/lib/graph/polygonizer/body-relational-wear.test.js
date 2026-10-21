@@ -59,6 +59,15 @@ describe('an outfit card worn by the tailor', () => {
     expect(Object.keys(r.parts).some((k) => /^adorn\./.test(k))).toBe(true);
   }, 300_000);
 
+  it('a waist wrap on a heavy figure under a long coat: a band on the coat\'s own girth, never through it', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', physique: 'heavyset', stylism: { genre: 'modern', silhouette: 'bell', canon: 'western' } }) }).recipe;
+    const coat = Object.entries(r.parts).find(([k]) => /^outer_(body|torso)$/.test(k))?.[1], sash = Object.entries(r.parts).find(([k]) => /^sash_/.test(k))?.[1];
+    expect(coat).toBeTruthy(); expect(sash).toBeTruthy();
+    expect(sash.stations.length).toBe(2);
+    const z = centre(sash, sash.stations[0])[2], ring = coat.stations.reduce((b, st) => (Math.abs(centre(coat, st)[2] - z) < Math.abs(centre(coat, b)[2] - z) ? st : b));
+    expect(radius(sash, sash.stations[0])).toBeGreaterThan(radius(coat, ring) - 0.004);
+  }, 300_000);
+
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {
     const r = card('casual'), S = r.parts.top_upperArmR; expect(S).toBeTruthy();
     const n = S.stations.length;
