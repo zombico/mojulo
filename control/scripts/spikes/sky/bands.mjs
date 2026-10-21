@@ -24,7 +24,7 @@ const cube = readGeocube(process.argv[2] || 'limestone-crags'), rows = [];
 for (const hour of [12, 17.5, 23]) {
   const L = hourLight(cube, hour), sun = sunDir(L.key.elevation, L.key.azimuth);
   for (const kind of Object.keys(WEATHERS)) {
-    const t0 = Date.now(), B = paintCloudBand({ weather: { kind, cover: 0.5, seed: 1 }, sun, key: L.key.color, zenith: L.dome.zenith, horizon: L.dome.horizon, night: L.night });
+    const t0 = Date.now(), B = paintCloudBand({ clouds: { kind, cover: 0.5, seed: 1 }, sun, key: L.key.color, zenith: L.dome.zenith, horizon: L.dome.horizon, night: L.night });
     const ms = Date.now() - t0, png = encodePngRgba(B.rgba, B.W, B.H);
     rows.push({ cap: `${hour}h · ${kind} · ${ms} ms · ${(png.length / 1024).toFixed(0)} KB · sun az ${L.key.azimuth}`, src: `data:image/png;base64,${png.toString('base64')}`, zen: L.dome.zenith, hor: L.dome.horizon });
   }
