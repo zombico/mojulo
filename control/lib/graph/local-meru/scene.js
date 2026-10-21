@@ -446,15 +446,17 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S), walk = walkFaces(st, p, heightAt, made, !!S && S.walk === 'base');
   const built = [...p.tiers.filter((t) => t.form === 'tower').flatMap((t) => towerFaces(t, made, seed)), ...p.links.filter((L) => L.via === 'climb').flatMap((L) => ladderFaces(L.climb, made))];
   // a few boulders round the first tier's foot, off the approach
+  // (a gritty style's boulders break at their edges: their silhouettes a broken rock's, not ruled lines; isekai.js)
+  const GR = p.recipe.shading && p.recipe.shading.grit, broken = GR !== undefined && GR >= GRIT_PIXELS ? GR : 0;
   const t0 = p.tiers[0], c = t0.centre, foot = t0.form === 'mound' ? t0.foot : t0.half * 2, rocks = [];
   for (let i = 0; i < 9; i++) {
     const a = TAU * hash3(i, 3, seed + 401), r = foot * planFactor(t0.sides, t0.turnAt, a) + 1.5 + 6 * hash3(i, 5, seed + 403), x = c[0] + Math.cos(a) * r, y = c[1] + Math.sin(a) * r;
     const toSeam = Math.abs((x - p.join.at[0]) * -p.join.N[1] + (y - p.join.at[1]) * p.join.N[0]);
     if (toSeam < 3 || (p.join.site && y < p.join.site.D + 2)) continue;
-    rocks.push(boulderFaces(st, { x: r5(x), y: r5(y), z0: heightAt(x, y), size: 2 + Math.floor(3 * hash3(i, 7, seed + 405)), v: i }, seed));
+    rocks.push(boulderFaces(st, { x: r5(x), y: r5(y), z0: heightAt(x, y), size: 2 + Math.floor(3 * hash3(i, 7, seed + 405)), v: i }, seed, broken));
   }
   // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
-  if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed)));
+  if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed, broken)));
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), soft = p.recipe.shading ? p.recipe.shading.sun : 0;
   const shadow = soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });

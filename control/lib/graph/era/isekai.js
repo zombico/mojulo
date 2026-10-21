@@ -111,7 +111,7 @@ export function isekaiGround(st, site) {
  * style's rings — [height share, radius share] from the sunk foot to the flat top — leaning a little, the top tilted.
  * → { sides: faces (cel 'rock'), cap: faces, rim: [{ a, b, s }] } (the rim edges with the shoulder point below each).
  */
-export function boulderFaces(st, it, seed) {
+export function boulderFaces(st, it, seed, broken = 0) {
   const B = st.boulder, R = st.rubble, s = it.size * R.unit, k = Math.round(it.x * 13 + it.y * 7) + it.v * 101, S = seed | 0;
   const n = B.sides[0] + Math.floor(hash3(k, 1, S + 701) * (B.sides[1] - B.sides[0] + 1));
   const h = s * mix(B.height[0], B.height[1], hash3(k, 2, S + 703)) * (it.tall || 1), sink = B.sink * s;   // a landmark stands `tall`
@@ -128,6 +128,7 @@ export function boulderFaces(st, it, seed) {
     return P([it.x + x * w + lean[0] * t, it.y + y * w + lean[1] * t, z]);
   }));
   const centre = [it.x, it.y, it.z0 + h * 0.4], sc = st.tiles.rock.scale, sides = [], cap = [], rim = [];
+  if (broken > 0) return brokenBoulder(st, rings, centre, k, S, s, broken);
   // u runs round the belly, so a side's tile is continuous from facet to facet
   const belly = rings[1], arc = [0]; for (let i = 0; i < n; i++) arc.push(arc[i] + Math.hypot(belly[(i + 1) % n][0] - belly[i][0], belly[(i + 1) % n][1] - belly[i][1]));
   for (let r = 0; r + 1 < rings.length; r++) for (let i = 0; i < n; i++) {
@@ -141,6 +142,77 @@ export function boulderFaces(st, it, seed) {
     cap.push({ corners: cs, normal: nn.map(r5), outNormal: nn.map(r5), uv: cs.map((p) => [r5(p[0] / hs), r5(p[1] / hs)]), group: 'isekai:rock', size: s });
     rim.push({ a: top[i], b: top[i1], a2: sh[i], b2: sh[i1], s });
   }
+  return { sides, cap, rim, s };
+}
+
+/**
+ * BROKEN EDGES (`broken`, 0..1: a gritty style's): the same boulder with its edges broken, so no long edge reads as a
+ * ruled line against the sky. Its side quads and cap triangles are refined into ONE grid of shared vertices (each a few
+ * tenths of the boulder apart), so an edge vertex is one vertex and the rock stays closed. Each vertex is pushed into the
+ * rock toward its centre by a chip field: stepped dice in 3D cells at two sizes, so the breaks are blocky, never a
+ * wobble. It is strongest on the polytope's real edges (the rim, the corners between sides, and a ring's bend by its
+ * angle) and fades over a band inside them. The flats only undulate a little, and the sunk foot is left as it is.
+ */
+const BREAK_SEG = 0.15, BREAK_DEPTH = 0.075, BREAK_BAND = 0.2, BREAK_FLAT = 0.012;
+function brokenBoulder(st, rings, centre, k, S, s, broken) {
+  const n = rings[0].length, R = rings.length, sc = st.tiles.rock.scale, hs = st.tiles.hat.scale, seg = Math.max(0.1, s * BREAK_SEG), D2R = Math.PI / 180;
+  const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  let around = 0; for (const ring of rings) for (let i = 0; i < n; i++) around = Math.max(around, len(ring[i], ring[(i + 1) % n]));
+  const nu = Math.max(1, Math.min(6, Math.ceil(around / seg)));
+  const nv = []; for (let r = 0; r + 1 < R; r++) { let up = 0; for (let i = 0; i < n; i++) up = Math.max(up, len(rings[r][i], rings[r + 1][i])); nv.push(Math.max(1, Math.min(4, Math.ceil(up / seg)))); }
+  // the polytope's own facets and how sharply each edge bends (0 a flat continuation, 1 a real arris)
+  const qn = rings.slice(0, -1).map((_, r) => Array.from({ length: n }, (_, i) => { const cs = [rings[r][i], rings[r][(i + 1) % n], rings[r + 1][(i + 1) % n], rings[r + 1][i]]; return facet(cs, sub(mean(cs), centre)); }));
+  const bend = (a, b) => smooth(8, 35, Math.acos(Math.max(-1, Math.min(1, dot(a, b)))) / D2R);
+  const wV = (r, i) => bend(qn[r][(i + n - 1) % n], qn[r][i]);                       // the corner at column i, row r
+  const wH = (r, i) => (r <= 0 ? 0 : r >= R - 1 ? 1 : bend(qn[r - 1][i], qn[r][i]));  // ring r: the foot none, the rim whole
+  const band = BREAK_BAND * s, fall = (d) => 1 - smooth(0, band, d);
+  // the chip field: blocky dice in 3D cells (two sizes, warped), and a soft undulation everywhere
+  const chip = (p) => {
+    let c = 0;
+    for (const [cs, wt, o] of [[0.17 * s, 1, 0], [0.07 * s, 0.45, 1]]) {
+      const w = (vnoise(p[0] / cs + 3.1, p[1] / cs, S + 731 + o) - 0.5) * 0.6, q = [Math.floor(p[0] / cs + w), Math.floor(p[1] / cs - w), Math.floor(p[2] / cs + w)];
+      const v = hash3(q[0] * 7919 + q[2] * 131, q[1], S + 733 + o);
+      c += wt * (v < 0.3 ? 0.1 : v < 0.7 ? 0.55 : 1);
+    }
+    return c / 1.45;
+  };
+  const seen = new Map();
+  const vert = (p0, prox) => {
+    const key = P(p0).join(',');
+    if (seen.has(key)) return seen.get(key);
+    const into = unit(sub(centre, p0)), flat = BREAK_FLAT * s * (vnoise(p0[0] / (0.5 * s), p0[1] / (0.5 * s) + p0[2] / (0.5 * s), S + 739) - 0.5) * 2;
+    const p = P(addv(p0, into.map((v) => v * broken * (BREAK_DEPTH * s * chip(p0) * prox + flat))));
+    seen.set(key, p);
+    return p;
+  };
+  // the sides: levels up the rows (a row's own count), columns round the rings (nu a side)
+  const sides = [], levels = []; for (let r = 0; r + 1 < R; r++) for (let b = 0; b < nv[r]; b++) levels.push([r, b / nv[r]]); levels.push([R - 1, 0]);
+  const belly = rings[Math.min(1, R - 1)], arc = [0]; for (let i = 0; i < n; i++) arc.push(arc[i] + Math.hypot(belly[(i + 1) % n][0] - belly[i][0], belly[(i + 1) % n][1] - belly[i][1]));
+  const C = n * nu, grid = levels.map(([r, b]) => Array.from({ length: C }, (_, c) => {
+    const i = Math.floor(c / nu), a = (c % nu) / nu, i1 = (i + 1) % n;
+    const lo = lerp3(rings[r][i], rings[r][i1], a), p0 = r >= R - 1 ? lo : lerp3(lo, lerp3(rings[r + 1][i], rings[r + 1][i1], a), b);
+    const rowLen = r >= R - 1 ? 1 : len(rings[r][i], rings[r + 1][i]), alongLen = len(rings[Math.min(r, R - 1)][i], rings[Math.min(r, R - 1)][i1]);
+    const prox = Math.max(wV(Math.min(r, R - 2), a < 0.5 ? i : i1) * fall(Math.min(a, 1 - a) * alongLen),
+      wH(r, i) * fall(b * rowLen), r < R - 1 ? wH(r + 1, i) * fall((1 - b) * rowLen) : 0);
+    return { p: vert(p0, r === 0 && b === 0 ? 0 : prox), u: arc[i] + (arc[i + 1] - arc[i]) * a };
+  }));
+  for (let L = 0; L + 1 < grid.length; L++) for (let c = 0; c < C; c++) {
+    const c1 = (c + 1) % C, A = grid[L][c], B = grid[L][c1], Cc = grid[L + 1][c1], Dd = grid[L + 1][c], u1 = c1 === 0 ? arc[n] : B.u;
+    const cs = [A.p, B.p, Cc.p, Dd.p], nn = facet(cs, sub(mean(cs), centre));
+    sides.push({ corners: cs, normal: nn.map(r5), outNormal: nn.map(r5), cel: 'rock', uv: [[A.u, cs[0][2]], [u1, cs[1][2]], [u1, cs[2][2]], [Dd.u, cs[3][2]]].map(([u, v]) => [r5(u / sc), r5(v / sc)]), group: 'isekai:rock', size: s });
+  }
+  // the cap: a fan of triangles, each refined to the rim's count; a vertex's break by how near the rim it lies
+  const top = rings[R - 1], c0 = P(mean(top)), rad = top.reduce((a, q) => a + len(q, c0), 0) / n, cap = [];
+  for (let i = 0; i < n; i++) {
+    // (a rim point is taken exactly as the sides take it, so the two meet in one vertex)
+    const i1 = (i + 1) % n, at = (ia, ib) => vert(ia + ib === nu ? lerp3(top[i], top[i1], ib / nu) : P([0, 1, 2].map((d) => c0[d] + (top[i][d] - c0[d]) * (ia / nu) + (top[i1][d] - c0[d]) * (ib / nu))), fall((1 - (ia + ib) / nu) * rad));
+    for (let ia = 0; ia < nu; ia++) for (let ib = 0; ia + ib < nu; ib++) {
+      const tris = [[at(ia, ib), at(ia + 1, ib), at(ia, ib + 1)]];
+      if (ia + ib + 2 <= nu) tris.push([at(ia + 1, ib), at(ia + 1, ib + 1), at(ia, ib + 1)]);
+      for (const [a, b, c] of tris) { const cs = [a, b, c, c], nn = facet(cs, [0, 0, 1]); cap.push({ corners: cs, normal: nn.map(r5), outNormal: nn.map(r5), uv: cs.map((q) => [r5(q[0] / hs), r5(q[1] / hs)]), group: 'isekai:rock', size: s }); }
+    }
+  }
+  const rim = []; for (let i = 0; i < n; i++) rim.push({ a: top[i], b: top[(i + 1) % n], a2: rings[R - 2][i], b2: rings[R - 2][(i + 1) % n], s });
   return { sides, cap, rim, s };
 }
 

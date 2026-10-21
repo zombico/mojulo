@@ -80,6 +80,13 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   retreat and the soft beds' wear), so a recess is seen into and its far wall hides its floor. The broken small detail
   goes on in finer octaves down to a few centimetres, with a mineral grain under a centimetre, each layer drawn once
   it can be seen. Without a formation, the page's fabric is byte for byte as pinned.
+- **Broken edges.** A gritty style's boulders break at their edges, so no long edge reads as a ruled line against the
+  sky. Each boulder's sides and cap are refined into one grid of shared vertices, so it stays closed, open only at its
+  sunk foot. Each vertex is pushed into the rock by a chip field of stepped dice in 3D cells at two sizes: blocky
+  breaks, never a wobble. The chips are strongest on the real edges (the rim, the corners between sides, a ring's bend
+  by its angle) and fade inside them, and the flats undulate a little. The land's shape is otherwise the quiet
+  style's; its baked light differs only where the broken boulders cast their shadows. `boulderFaces` takes `broken`;
+  without it a boulder is byte for byte as it was.
 - **A second rock.** The land's shading takes `rocks` (with `skin`): the boulders' own skin or formation, beside the
   cliff's, drawn by a program of its own. Without `rocks`, a formation takes the boulders too.
 

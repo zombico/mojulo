@@ -9,6 +9,7 @@ import { readLocalMeru, GRIT_PIXELS } from './plan.js';
 import { assembleStageScene } from '../era/stage.js';
 import { readGeocube, lowerGeocube } from '../era/geocube.js';
 import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
+import { boulderFaces } from '../era/isekai.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const build = (shading) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, island: { geology: true, walk: 'base' }, shading } }, {});
@@ -20,8 +21,27 @@ describe('rock takes pixels in a gritty style', () => {
     expect(base.fabric).toBeUndefined();
   });
 
-  it('a gritty style\'s faces are the quiet style\'s: the far view is the polygons\'', () => {
-    expect(JSON.stringify(gritty.faces)).toBe(JSON.stringify(base.faces));
+  it('a gritty style\'s faces are the quiet style\'s but its boulders: the far view is the polygons\'', () => {
+    // (the land's shape is the quiet style's; its baked light differs only where the broken boulders cast their shadows)
+    const notRock = (P) => JSON.stringify(P.faces.filter((f) => f.group !== 'isekai:rock').map(({ corners, normal, group }) => ({ corners, normal, group })));
+    expect(notRock(gritty)).toBe(notRock(base));
+    expect(JSON.stringify(build({ grit: 0.7 }).faces)).toBe(JSON.stringify(gritty.faces));
+  });
+
+  it('and its boulders break at their edges, each still a closed rock open only at its sunk foot', () => {
+    const st = ISEKAI_STYLES['isekai-meadow'], it0 = { x: 3, y: 4, z0: 1, size: 3, v: 2 };
+    const plain = boulderFaces(st, it0, 7), broken = boulderFaces(st, it0, 7, 0.7), faces = [...broken.sides, ...broken.cap];
+    expect(faces.length).toBeGreaterThan(plain.sides.length + plain.cap.length);
+    expect(JSON.stringify(boulderFaces(st, it0, 7, 0))).toBe(JSON.stringify(plain));
+    const E = new Map(), key = (c) => c.join(',');
+    for (const f of faces) {
+      const cs = f.corners.filter((c, i, a) => i === 0 || key(c) !== key(a[i - 1]));
+      for (let i = 0; i < cs.length; i++) { const a = key(cs[i]), b = key(cs[(i + 1) % cs.length]); if (a === b) continue; const k = a < b ? `${a}|${b}` : `${b}|${a}`; E.set(k, (E.get(k) || 0) + 1); }
+    }
+    const zmin = Math.min(...faces.flatMap((f) => f.corners.map((c) => c[2])));
+    const open = [...E.entries()].filter(([, n]) => n !== 2).map(([k]) => k.split('|').map((p) => Number(p.split(',')[2])));
+    expect(open.length).toBeGreaterThan(0);
+    for (const zs of open) for (const z of zs) expect(z).toBeLessThan(zmin + 0.2);
   });
 
   it('and the page is handed the island\'s own joint fabric for its cliffs', () => {

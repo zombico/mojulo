@@ -146,7 +146,7 @@ const SKIN_UNIFORMS = `
 // face is broken small by terraced noise (ledges along the beds, steps up the joints), shadowed by a few samples toward
 // the sun, and weathered. Spliced only when the fabric names a formation: without one, not a byte of it.
 const FORM_HEAD = `uniform vec4 uFmU; uniform vec4 uFmH; uniform vec4 uFmS; uniform vec4 uFmJ0; uniform vec4 uFmJ1; uniform vec4 uFmG; uniform vec4 uFmF; uniform vec4 uFmM;
-uniform vec4 uFmC; uniform vec4 uFmW; uniform vec3 uFmFresh; uniform vec3 uFmGreen; uniform vec3 uFmRock; uniform vec2 uFmDip; uniform vec2 uFmD;
+uniform vec4 uFmC; uniform vec4 uFmW; uniform vec3 uFmFresh; uniform vec3 uFmGreen; uniform vec3 uFmRock; uniform vec2 uFmDip; uniform vec2 uFmD; uniform vec2 uFmD2;
 float fmN(vec3 p) { return fabNoise(p) * 2.0 - 1.0; }
 float fmTer(float h) { float k = h * 3.0, f = floor(k), t = k - f; return (f + smoothstep(0.75, 1.0, t)) / 3.0; }
 // a unit's lower boundary (its height in the beds' own frame), jittered within a third of a unit: never crossing
@@ -212,9 +212,14 @@ const FORM_MAIN = `    {
         vec3 n0 = P + uFmJ0.xyz * (fq.x < 0.5 ? -1.0 : 1.0) * (d0 + 0.02), n1 = P + uFmJ1.xyz * (fq.y < 0.5 ? -1.0 : 1.0) * (d1 + 0.02);
         float uN = t < 0.5 ? u - 1.0 : u + 1.0;
         float r0 = R.x + R.y * scar, h = r0 * -1.0;
-        h += 0.5 * (1.0 - smoothstep(0.0, e, d0)) * (r0 - fmR(u, n0).x);
-        h += 0.5 * (1.0 - smoothstep(0.0, e, d1)) * (r0 - fmR(u, n1).x);
-        h += 0.5 * (1.0 - smoothstep(0.0, e, dB)) * (r0 - fmR(uN, P).x - (fmSoft(uN) - fmSoft(u)) * 0.5);
+        float s0 = r0 - fmR(u, n0).x, s1 = r0 - fmR(u, n1).x, sB = r0 - fmR(uN, P).x - (fmSoft(uN) - fmSoft(u)) * 0.5;
+        h += 0.5 * (1.0 - smoothstep(0.0, e, d0)) * s0 + 0.5 * (1.0 - smoothstep(0.0, e, d1)) * s1 + 0.5 * (1.0 - smoothstep(0.0, e, dB)) * sB;
+        // occlusion is LOCAL: how far this block sits back from the neighbour across each edge, felt within about that
+        // depth of the edge (the inside corner of a step), never the face's absolute depth (the masses bend the light only)
+        float occ = 0.0;
+        occ = max(occ, smoothstep(0.03, 0.5, s0) * (1.0 - smoothstep(0.0, max(s0, 0.05) * 1.2, d0)));
+        occ = max(occ, smoothstep(0.03, 0.5, s1) * (1.0 - smoothstep(0.0, max(s1, 0.05) * 1.2, d1)));
+        occ = max(occ, smoothstep(0.03, 0.5, sB) * (1.0 - smoothstep(0.0, max(sB, 0.05) * 1.2, dB)));
         // the masses; a soft bed's hollow (a packet of thin beds: each its own, the hard ones proud)
         h += uFmM.x * fmN(vec3(P.xy / uFmM.y, P.z / (uFmM.y * 1.5))) * 0.5 - fmSoft(u) * 0.5;
         bool thick = fabHash(vec3(u, 5.0, 11.0)) < uFmU.z;
@@ -228,19 +233,21 @@ const FORM_MAIN = `    {
         // a soft bed's hollow: flat in its depth, its lips rounded over the footprint (never a step thinner than a pixel)
         float see = smoothstep(uFabPx, uFabPx * 3.0, Tb / foot), lip = max(0.03, 2.0 * foot) / max(Tb, 1e-3);
         float prof = smoothstep(0.0, lip, ft) * smoothstep(0.0, lip, 1.0 - ft);
-        if (Hb < 0.75) h -= uFmH.w * (1.0 - Hb) * (see * prof + (1.0 - see) * 0.75) * 0.6;
+        if (Hb < 0.75) { float hol = uFmH.w * (1.0 - Hb) * (see * prof + (1.0 - see) * 0.75) * 0.6; h -= hol; occ = max(occ, smoothstep(0.02, 0.25, hol) * (see * (1.0 - 0.5 * prof) + (1.0 - see) * 0.6)); }
         // the joints' grooves, weathered open
         float jw = max(uFmG.x, 1.5 * foot), gs = smoothstep(uFabPx, uFabPx * 3.0, uFmG.x / foot);
-        h -= uFmG.y * gs * (pow(1.0 - smoothstep(0.0, jw, d0), 2.0) + pow(1.0 - smoothstep(0.0, jw, d1), 2.0) * 0.7);
+        float gr = uFmG.y * gs * (pow(1.0 - smoothstep(0.0, jw, d0), 2.0) + pow(1.0 - smoothstep(0.0, jw, d1), 2.0) * 0.7);
+        h -= gr; occ = max(occ, smoothstep(0.0, 0.1, gr));
         // broken small: terraced noise, long along the beds (ledges) and long up the joints (steps), an octave at a time
         float broken = (0.3 + 0.7 * smoothstep(0.35, 0.65, fabNoise(vec3(P.xy / 5.0, P.z / 7.0) + 9.1))) * (1.0 - 0.6 * scar);
-        float sx = uFmF.x, sy = uFmF.y, dd = uFmF.z * broken;
+        float sx = uFmF.x, sy = uFmF.y, dd = uFmF.z * broken, ht = 0.0;
         for (int o = 0; o < 7; o++) {
           float lo = smoothstep(uFabPx, uFabPx * 3.0, min(sx, sy) * 0.3 / foot);
           if (lo <= 0.0) break;
           float h1 = fmN(vec3(P.xy / (sx * 2.2), P.z / (sy * 0.7)) + float(o) * 3.7) * 0.7 + 0.3 * fmN(vec3(P.xy / (sx * 1.1), P.z / (sy * 0.35)) + float(o) * 5.3);
           float h2 = fmN(vec3(P.xy / (sx * 0.6), P.z / (sy * 2.4)) + float(o) * 7.1) * 0.7 + 0.3 * fmN(vec3(P.xy / (sx * 0.3), P.z / (sy * 1.2)) + float(o) * 2.9);
-          h += lo * dd * (uFmF.w * fmTer(h1) + uFmM.z * fmTer(h2)) * 2.0;
+          float dt = lo * dd * (uFmF.w * fmTer(h1) + uFmM.z * fmTer(h2)) * 2.0;
+          h += dt; if (o > 0) ht += dt;
           sx *= 0.45; sy *= 0.45; dd *= 0.5;
         }
         // (a face turned from the sun reads by the sky alone: its relief is soft, never a sunlit bump on a shaded face)
@@ -260,12 +267,14 @@ const FORM_MAIN = `    {
         }
         float l0 = uFabAmb + (1.0 - uFabAmb) * max(dot(Ng, uFabSun), 0.0);
         alb *= 1.0 - sh * (1.0 - uFabAmb / max(l0, 0.05)) * 0.85 * lodF;
-        cav = max(cav, lodF * 0.35 * smoothstep(0.05, 0.6, -h - R.x));
+        // (the small ledges' own hollows: the finer octaves' deeper ones only; the first octave is shape, not a crevice)
+        occ = max(occ, 0.5 * smoothstep(0.15, 0.5, -ht / (uFmF.z * broken + 1e-3)));
+        cav = max(cav, lodF * uFmD2.x * occ);
         // weathered: a bed's tint, the soft beds darker, the stone's mottle; fresh scars warm; lichen near
         float bid = thick ? u : u * 16.0 + sb;
         alb *= 1.0 + lodF * (uFmC.x * (fabHash(vec3(bid, 8.0, 17.0)) - 0.5) * 2.0 - uFmC.y * (1.0 - Hb) * see + 0.06 * fmN(P / 1.3) + 0.05 * smoothstep(uFabPx, uFabPx * 3.0, 0.15 / foot) * fmN(P / 0.15));
         // the stone's grain near the eye: its crystals and pores, a speckle under a centimetre, once it can be seen
-        float lodN = smoothstep(uFabPx, uFabPx * 3.0, 0.008 / foot);
+        float lodN = smoothstep(uFabPx, uFabPx * 3.0, 0.004 / foot);
         alb *= 1.0 + lodN * (0.16 * (fabHash(floor(P / 0.004)) - 0.5) + 0.08 * fmN(P / 0.02));
         float fm = fabHash(vec3(R.zw, u + 7.5)) < uFmC.z ? scar * lodF : 0.0;
         gl_FragColor.rgb *= mix(vec3(1.0), uFmFresh, fm * 0.8);
@@ -292,7 +301,7 @@ const FORM_UNIFORMS = `
           uFmG: { value: V4(M.groove[0], M.groove[1], M.run, M.jitter) }, uFmF: { value: V4(M.frac[0], M.frac[1], M.frac[2], M.frac[3]) }, uFmM: { value: V4(M.masses[0], M.masses[1], M.frac[4], 0) },
           uFmC: { value: V4(C.tint, C.soft, C.freshShare, C.lichen) }, uFmW: { value: V4(C.streak[0], C.streak[1], gr[0], gr[1]) },
           uFmFresh: { value: new THREE.Vector3(C.fresh[0], C.fresh[1], C.fresh[2]) }, uFmGreen: { value: new THREE.Vector3(...(C.greenRgb || [0, 0, 0])) }, uFmRock: { value: new THREE.Vector3(...(C.rockRgb || [1, 1, 1])) },
-          uFmDip: { value: new THREE.Vector2(M.dip[0], M.dip[1]) }, uFmD: { value: new THREE.Vector2(M.near[0], M.near[1]) }, uFabSets: { value: 0 }, uFabBeds: { value: 0 } });
+          uFmDip: { value: new THREE.Vector2(M.dip[0], M.dip[1]) }, uFabCav: { value: 1 }, uFmD: { value: new THREE.Vector2(M.near[0], M.near[1]) }, uFmD2: { value: new THREE.Vector2(M.dark ?? 0.45, 0) }, uFabSets: { value: 0 }, uFabBeds: { value: 0 } });
       }`;
 
 export function fabricScript(cfgIn) {
