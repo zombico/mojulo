@@ -1,8 +1,9 @@
 // plating/layouts — FITTED-SHELL LAYOUTS: how a segment's shell is cut (shell.js), panel by panel, in the segment's design
 // coordinates (`t` 0 … 1 down it: the shank from the knee to the ankle, the foot from over the ankle to past the toe base,
 // the toes to their tips; `s` −1 … 1 round it: 0 its front line, + its lateral side, ±1 its back). The lines are a
-// supercar's: diagonals sweeping down and forward, chevrons narrowing down the front, an underplate showing through the
-// windows the overplates leave.
+// supercar's: lines that run STRAIGHT and JOG (shell.js `stepped`: | |, \ \, | |, / /), sharing their jogs so the panels
+// either side fit along them; chevrons narrowing down the front; an underplate showing through the windows the overplates
+// leave.
 //
 // A panel: { id, seg, layer: under | mid | over | cap | light, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
 //            mirror? (a copy on the other side: s negated), dome? (m), lift? (m, over the layer's: a light set on a cap),
@@ -16,7 +17,11 @@ export const LAYERS = Object.freeze({
   light: Object.freeze({ lift: 0.012, thick: 0.002, bevel: 0.0005, role: 'Light' }),
 });
 
+import { stepped } from './shell.js';
+
 const line = (s, t0 = 0, t1 = 1) => [[t0, s], [t1, s]];
+/** a pair of jogs a whole layout shares (a seam that steps out, runs on, steps back), so its neighbours fit along it */
+const J = { a: [0.3, 0.36], b: [0.58, 0.64] };
 
 export const LAYOUTS = Object.freeze({
   // the GREAVE: an underplate all round to a back seam; a shin plate narrowing down the front in a chevron; side plates
@@ -24,12 +29,17 @@ export const LAYOUTS = Object.freeze({
   // plates a layer higher, overlapping the sides; a cuff over the ankle; vents
   greave: [
     { id: 'Under', seg: 'shank', layer: 'under', t: [0.03, 0.97], left: line(-0.995), right: line(0.995) },
-    { id: 'Shin', seg: 'shank', layer: 'over', t: [0.15, 0.84], left: [[0.15, -0.3], [0.55, -0.22], [0.84, -0.08]], right: [[0.15, 0.3], [0.55, 0.22], [0.84, 0.08]] },
-    { id: 'Side', seg: 'shank', layer: 'over', mirror: true, t: [0.08, 0.84], left: [[0.08, 0.5], [0.45, 0.44], [0.84, 0.28]], right: [[0.08, 0.8], [0.84, 0.86]] },
-    { id: 'Strip', seg: 'shank', layer: 'mid', mirror: true, t: [0.22, 0.8], left: [[0.22, 0.36], [0.8, 0.17]], right: [[0.22, 0.42], [0.8, 0.23]] },
-    { id: 'Calf', seg: 'shank', layer: 'cap', mirror: true, t: [0.1, 0.72], left: [[0.1, 0.74], [0.45, 0.7], [0.72, 0.9]], right: line(0.99, 0.1, 0.72) },
-    { id: 'Cuff', seg: 'shank', layer: 'over', t: [0.87, 0.98], left: line(-0.99), right: line(0.99) },
-    { id: 'Vent', seg: 'shank', layer: 'light', lift: 0.016, mirror: true, t: [0.12, 0.16], left: line(0.82), right: line(0.92) },
+    // the shin plate: straight down, a jog in, straight, a jog in, then narrowing to the ankle
+    { id: 'Shin', seg: 'shank', layer: 'over', t: [0.15, 0.86], left: stepped(-0.32, [[...J.a, 0.1], [...J.b, 0.08], [0.78, 0.86, 0.08]], 0.15, 0.86), right: stepped(0.32, [[...J.a, -0.1], [...J.b, -0.08], [0.78, 0.86, -0.08]], 0.15, 0.86) },
+    // the trim strip: two parallel lines jogging together (| |, \ \, | |, / /)
+    { id: 'Strip', seg: 'shank', layer: 'mid', mirror: true, t: [0.18, 0.84], left: stepped(0.37, [[...J.a, -0.12], [...J.b, 0.12], [0.76, 0.84, -0.14]], 0.18, 0.84), right: stepped(0.43, [[...J.a, -0.12], [...J.b, 0.12], [0.76, 0.84, -0.14]], 0.18, 0.84) },
+    // the side plate, its front edge stepping with the strip's, its back edge straight then jogging back under the calf
+    { id: 'Side', seg: 'shank', layer: 'over', mirror: true, t: [0.08, 0.86], left: stepped(0.48, [[...J.a, -0.12], [...J.b, 0.12], [0.76, 0.84, -0.14]], 0.08, 0.86), right: stepped(0.78, [[0.44, 0.5, 0.06], [0.66, 0.72, 0.08]], 0.08, 0.86) },
+    // the calf plate, a layer up: its front edge straight, a jog in, straight, a jog back out
+    { id: 'Calf', seg: 'shank', layer: 'cap', mirror: true, t: [0.1, 0.74], left: stepped(0.7, [[0.36, 0.42, -0.1], [0.62, 0.68, 0.16]], 0.1, 0.74), right: line(0.99, 0.1, 0.74) },
+    // the cuff over the ankle: its top edge stepping down at the sides
+    { id: 'Cuff', seg: 'shank', layer: 'over', t: [0.86, 0.98], left: line(-0.99, 0.86, 0.98), right: line(0.99, 0.86, 0.98) },
+    { id: 'Vent', seg: 'shank', layer: 'light', lift: 0.016, mirror: true, t: [0.13, 0.17], left: line(0.82), right: line(0.92) },
   ],
   // the KNEE CAP: a domed cap over the top of the shank, chevroned below
   kneeCap: [
@@ -39,8 +49,8 @@ export const LAYOUTS = Object.freeze({
   // (the toe and the sole are the footwear library's: a card's `feet`)
   sabaton: [
     { id: 'Under', seg: 'foot', layer: 'under', t: [0.14, 0.92], left: line(-0.74), right: line(0.74) },
-    { id: 'Instep', seg: 'foot', layer: 'over', t: [0.3, 0.78], left: [[0.3, -0.24], [0.78, -0.34]], right: [[0.3, 0.24], [0.78, 0.34]] },
-    { id: 'Side', seg: 'foot', layer: 'over', mirror: true, t: [0.18, 0.9], left: [[0.18, 0.38], [0.9, 0.46]], right: line(0.72, 0.18, 0.9) },
-    { id: 'Heel', seg: 'foot', layer: 'cap', mirror: true, t: [0.04, 0.34], left: line(0.76, 0.04, 0.34), right: line(0.995, 0.04, 0.34) },
+    { id: 'Instep', seg: 'foot', layer: 'over', t: [0.28, 0.8], left: stepped(-0.22, [[0.48, 0.54, -0.08], [0.7, 0.76, -0.04]], 0.28, 0.8), right: stepped(0.22, [[0.48, 0.54, 0.08], [0.7, 0.76, 0.04]], 0.28, 0.8) },
+    { id: 'Side', seg: 'foot', layer: 'over', mirror: true, t: [0.18, 0.9], left: stepped(0.36, [[0.48, 0.54, 0.1], [0.7, 0.76, 0.02]], 0.18, 0.9), right: line(0.72, 0.18, 0.9) },
+    { id: 'Heel', seg: 'foot', layer: 'cap', mirror: true, t: [0.04, 0.34], left: stepped(0.78, [[0.18, 0.24, -0.06]], 0.04, 0.34), right: line(0.995, 0.04, 0.34) },
   ],
 });

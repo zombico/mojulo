@@ -6,6 +6,7 @@
 //
 //   fairShell(P)                             the segment's shell: at(u, f) → { p, n } (a ring station's `u`, a fractional
 //                                            slot `f` round its ring), perimeter(u), length
+//   stepped(s0, steps, t0, t1)               a line that runs straight and jogs: [[t, s], …]
 //   shellPanel(shell, spec)                  a panel cut from it: a closed slab whose sections run across it at levels
 //                                            down it, its top lifted, bevelled at its edges, its bottom under it
 //
@@ -49,9 +50,13 @@ export function shellPanel(S, { t0, t1, left, right, lift, thick = 0.004, bevel 
   const L = curve(left), R = curve(right), names = ringSlots(2 * cols), len = S.length || 0.3;
   const dt = seam / 2 / len, a0 = t0 + dt, a1 = t1 - dt;
   if (!(a1 > a0)) return null;
+  // (its sections at even steps down it AND at every kink of its edges, so a line that jogs turns a sharp corner)
+  const knots = [...left, ...right].map(([t]) => t).filter((t) => t > a0 + 1e-4 && t < a1 - 1e-4);
+  const levels = [...new Set([...Array.from({ length: rows + 1 }, (_, i) => a0 + ((a1 - a0) * i) / rows), ...knots].map((t) => Math.round(t * 1e6) / 1e6))].sort((x, y) => x - y)
+    .filter((t, i, A) => i === 0 || t - A[i - 1] > 1e-4);
   const sections = [];
-  for (let i = 0; i <= rows; i++) {
-    const t = a0 + ((a1 - a0) * i) / rows, u = uOf(t), per = S.perimeter(u) || 0.3, ds = seam / per;
+  for (const t of levels) {
+    const u = uOf(t), per = S.perimeter(u) || 0.3, ds = seam / per;
     let sl = L(t) + ds, sr = R(t) - ds; if (sr - sl < 0.004) { const c = (sl + sr) / 2; sl = c - 0.002; sr = c + 0.002; }
     const top = [], bot = [];
     for (let j = 0; j < cols; j++) {
@@ -71,4 +76,13 @@ export function shellPanel(S, { t0, t1, left, right, lift, thick = 0.004, bevel 
 
 /** a segment's design `s` (−1 … 1, + its lateral side) as a fractional slot of its ring (ring order: `front` first, the R
  * side, `back`, the L side), on side `S` (a trunk segment reads as the right: + its right side) */
+/** a STEPPED line: straight at `s0` from `t0` to `t1`, jogging at each step [tA, tB, ds] (straight before tA, shifted by
+ * `ds` from tB on, a straight diagonal between): a line that bends yet stays straight */
+export function stepped(s0, steps = [], t0 = 0, t1 = 1) {
+  const pts = [[t0, s0]]; let s = s0;
+  for (const [a, b, ds] of steps) { pts.push([a, s]); s += ds; pts.push([b, s]); }
+  pts.push([t1, s]);
+  return pts;
+}
+
 export const slotOf = (n, S) => (s) => { const h = n / 2, lat = S === 'L' ? -1 : 1, x = s * lat; return x >= 0 ? x * h : n + x * h; };

@@ -156,7 +156,9 @@ FITTED SHELLS (the layout of a powered suit as a supercar's body is laid out, `s
 into one smooth shell (`fairShell`: its grooves bridged), cut along DESIGN LINES in its own coordinates (`t` down it,
 `s` round it, + its lateral side) into panels (`shellPanel`) fitted across narrow seams, bevelled down into them, domed
 where they cap, stacked by LAYER (an underplate, a trim strip, the overplate, a cap, a light), so the overplates'
-windows show the metal beneath; a mirrored panel's pair on the other side. Layouts `greave` (a chevron shin plate, side
+windows show the metal beneath; a mirrored panel's pair on the other side. Its lines run STRAIGHT and JOG (`stepped`:
+straight runs joined by short straight diagonals, neighbours sharing their jogs so they fit along them), each kink a
+sharp corner (a panel takes a section at every kink of its edges). Layouts `greave` (a chevron shin plate, side
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
 suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
 its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.

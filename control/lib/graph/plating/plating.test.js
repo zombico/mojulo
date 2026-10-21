@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { wearPlating, validatePlating, suitCard, SKINS, fairShell, shellPanel } from './index.js';
-import { slotOf } from './shell.js';
+import { slotOf, stepped } from './shell.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
 const SL = ringSlots(16);
@@ -75,6 +75,14 @@ describe('a plated suit on a body adapter', () => {
     expect(r('mGreaveSideLat_shankR')).toBeGreaterThan(r('mGreaveUnder_shankR'));
     expect([W.parts.mGreaveUnder_shankL.group, W.parts.mGreaveShin_shankL.group, W.parts.mKneeCapCap_shankL.group]).toEqual(['Alloy', 'Plate', 'Plate']);
     expect(W.emissive).toEqual(['Light']);
+  });
+
+  it('a line that bends yet stays straight: straight runs and diagonal jogs, each jog a sharp corner of the panel', () => {
+    stepped(0.3, [[0.4, 0.5, -0.1]], 0.1, 0.9).forEach(([t, v], i) => { const [et, ev] = [[0.1, 0.3], [0.4, 0.3], [0.5, 0.2], [0.9, 0.2]][i]; expect(t).toBeCloseTo(et, 9); expect(v).toBeCloseTo(ev, 9); });
+    const F = fairShell(body.shankR), pc = shellPanel(F, { t0: 0.1, t1: 0.9, left: [[0, -0.3]], right: stepped(0.3, [[0.437, 0.511, -0.1]], 0.1, 0.9), lift: 0.01, uOf: (t) => 2 * t, fOf: slotOf(16, 'R') });
+    // a section at each kink (off the even steps), so the jog is a corner, not a curve
+    const z = pc.stations.map((st) => Object.values(st.points)[0][2]), zAt = (t) => 0.48 + (0.05 - 0.48) * t;
+    for (const t of [0.437, 0.511]) expect(z.some((x) => Math.abs(x - zAt(t)) < 2e-3)).toBe(true);
   });
 
   it('refuses a suit by name', () => {
