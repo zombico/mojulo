@@ -74,6 +74,20 @@ const BASE = {
     { id: 'Codpiece', seg: 'pelvis', layer: 'cap', t: [0.04, 0.44], left: [[0.04, -0.12], [0.3, -0.2], [0.44, -0.2]], right: [[0.04, 0.12], [0.3, 0.2], [0.44, 0.2]] },
     { id: 'LowAbs', seg: 'pelvis', layer: 'over', role: 'Trim', t: [0.52, 0.92], left: stepped(-0.2, [[0.7, 0.76, -0.04]], 0.52, 0.92), right: stepped(0.2, [[0.7, 0.76, 0.04]], 0.52, 0.92) },
   ],
+  // the THIGHS (the thigh by design, where its muscles' labels run noisy toward the groin): an underplate between the joint
+  // bands; a quadriceps plate down the front narrowing to the knee in a chevron; a trim strip down the outside (the iliotibial
+  // band's line) jogging with the side plate's front edge; the side plate behind it; an adductor plate inside, narrowing as
+  // the adductors do, and a teardrop over the vastus medialis above the knee; hamstring plates a layer up, either side of a
+  // back seam
+  thighs: [
+    { id: 'Under', seg: 'thigh', layer: 'under', t: [0.13, 0.86], left: line(-0.995), right: line(0.995) },
+    { id: 'Quad', seg: 'thigh', layer: 'cap', t: [0.15, 0.84], left: stepped(-0.3, [[...J.a, 0.06], [...J.b, 0.06], [0.74, 0.82, 0.1]], 0.15, 0.84), right: stepped(0.32, [[...J.a, -0.06], [...J.b, -0.06], [0.74, 0.82, -0.1]], 0.15, 0.84) },
+    { id: 'Strip', seg: 'thigh', layer: 'mid', t: [0.17, 0.82], left: stepped(0.38, [[...J.a, -0.06], [...J.b, 0.08], [0.72, 0.8, -0.1]], 0.17, 0.82), right: stepped(0.44, [[...J.a, -0.06], [...J.b, 0.08], [0.72, 0.8, -0.1]], 0.17, 0.82) },
+    { id: 'Side', seg: 'thigh', layer: 'over', t: [0.15, 0.84], left: stepped(0.49, [[...J.a, -0.06], [...J.b, 0.08], [0.72, 0.8, -0.1]], 0.15, 0.84), right: stepped(0.8, [[0.44, 0.5, 0.05], [0.68, 0.74, -0.06]], 0.15, 0.84) },
+    { id: 'Adductor', seg: 'thigh', layer: 'over', role: 'Alloy', t: [0.2, 0.62], left: stepped(-0.78, [[0.4, 0.46, 0.08]], 0.2, 0.62), right: stepped(-0.38, [[...J.a, -0.04], [0.52, 0.58, -0.06]], 0.2, 0.62) },
+    { id: 'Medialis', seg: 'thigh', layer: 'over', t: [0.66, 0.84], left: [[0.66, -0.62], [0.76, -0.66], [0.84, -0.5]], right: [[0.66, -0.4], [0.76, -0.36], [0.84, -0.3]] },
+    { id: 'Hamstring', seg: 'thigh', layer: 'cap', mirror: true, t: [0.18, 0.8], left: stepped(0.84, [[0.42, 0.48, -0.04], [0.64, 0.7, 0.06]], 0.18, 0.8), right: line(0.99, 0.18, 0.8) },
+  ],
   // the SERVOS: a hub at the outer and the inner side of each knee and elbow, a mechanical joint's: a disc, a domed core,
   // a light at its middle (a panel `circle`: { t, s, r (m) } on its segment, mirrored to the other side)
   servos: [

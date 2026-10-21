@@ -118,6 +118,16 @@ describe('a plated suit on a body adapter', () => {
     expect(span(2) / span(1)).toBeLessThan(1.6);
   });
 
+  it('the thighs by design: the quad down the front, the adductor inside each leg, the hamstrings behind', () => {
+    const W = wearPlating(stub, { family: 'powered', shells: ['thighs'] }, { id: 't' });
+    const P = (k) => pts(W.parts[k]), my = (k) => P(k).reduce((a, p) => a + p[1], 0) / P(k).length, mx = (k) => P(k).reduce((a, p) => a + p[0], 0) / P(k).length;
+    expect(my('tThighsQuad_thighR')).toBeGreaterThan(0.05);
+    expect(my('tThighsHamstringLat_thighL')).toBeLessThan(-0.03);
+    // the adductor on the inner side: toward the body's middle on both legs
+    expect(mx('tThighsAdductor_thighR')).toBeLessThan(0.09);
+    expect(mx('tThighsAdductor_thighL')).toBeGreaterThan(-0.09);
+  });
+
   it('refuses a suit by name', () => {
     expect(validatePlating('ironSuit')[0]).toMatch(/'ironSuit' is not a suit/);
     const E = validatePlating({ plates: [{ region: 'wing', colour: 1 }] });

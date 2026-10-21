@@ -173,9 +173,11 @@ group), the grooves wider (14 mm), the calf cut by its muscles (the gastrocnemiu
 greave's front, `greaveFront`); the labels eased before the cut (a point takes the group most of its neighbours share);
 a point inside another part's skin (`hidden`) left out, and each segment's underplate and joint bands kept to the stretch
 of it that shows, so the inner of two overlapping skins does not poke through. Where the muscles interleave too finely
-to cut by (the lower back, the pelvis), a DESIGNED cut instead: `spine` (a dark channel down the back, a column of
+to cut by (the lower back, the pelvis, the thigh toward the groin), a DESIGNED cut instead: `spine` (a dark channel down the back, a column of
 vertebrae, a sacrum ending in a chevron; a design line may run through the back, `s` past ±1), `lumbar` (stepped plates
-either side of the spine), `hips` (seat and hip plates, a codpiece, a low-abdominal plate); and SERVOS (`servos`: a hub at
+either side of the spine), `hips` (seat and hip plates, a codpiece, a low-abdominal plate), `thighs` (a quadriceps plate narrowing to the knee in a chevron, a
+trim strip down the outside, a side plate, an adductor plate inside, a teardrop over the vastus medialis, hamstring plates
+either side of a back seam); and SERVOS (`servos`: a hub at
 the outer and the inner side of each knee and elbow, a disc, a domed core and a light; a panel may be a `circle` sized in
 metres). `markSuit` cut by its muscles where they are clear and by design where they are not. Layouts `greave` (a chevron shin plate, side
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A

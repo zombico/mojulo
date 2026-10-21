@@ -45,9 +45,9 @@ export const SUITS = Object.freeze({
   // caps and sabatons below, articulated bands at every joint, servos at the knees and the elbows, a reactor on the
   // sternum; red over silver, gold strips, lit vents
   markSuit: { from: 'markBoots', suit: { ease: 0.002, on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'] },
-    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints', 'spine', 'lumbar', 'hips', 'servos'],
-    muscles: { on: ['torso', 'upperArm', 'foreArm', 'thigh', 'shank'], only: ['Pec', 'Sternum', 'Collar', 'Abs1', 'Abs2', 'Abs3', 'Oblique', 'Lat', 'Trap', 'Armpit',
-      'Deltoid', 'Biceps', 'Triceps', 'Brachioradialis', 'Extensors', 'Flexors', 'RectusFemoris', 'VastusLateralis', 'VastusMedialis', 'Adductors', 'Hamstrings', 'Tensor', 'Knee',
+    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints', 'spine', 'lumbar', 'hips', 'thighs', 'servos'],
+    muscles: { on: ['torso', 'upperArm', 'foreArm', 'shank'], only: ['Pec', 'Sternum', 'Collar', 'Abs1', 'Abs2', 'Abs3', 'Oblique', 'Lat', 'Trap', 'Armpit',
+      'Deltoid', 'Biceps', 'Triceps', 'Brachioradialis', 'Extensors', 'Flexors',
       'GastrocMedial', 'GastrocLateral', 'Soleus'] },
     reactor: { at: 0.64, r: 0.026 }, emissive: ['Light', 'Reactor'], tones: { Reactor: '#c8f4ff', Rim: '#b7b9bd', Joint: '#4a4d53' } },
 });
