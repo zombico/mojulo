@@ -45,7 +45,7 @@
  *             by the cube takes its era and its target unless it names its own target
  *
  *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
- *   lowerGeocube(cube, side)   'inside' | 'outside' → a stage manifest
+ *   lowerGeocube(cube, side, terrain?, hour?)   'inside' | 'outside' → a stage manifest (the outside at `hour`: geocube-hours.js)
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
@@ -73,6 +73,7 @@ import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
+import { hourLight, readHour } from './geocube-hours.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -508,11 +509,13 @@ function onTerrain(cube, name) {
     outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land, ...(t.relief !== undefined ? { relief: t.relief } : {}), ...(t.ground !== undefined ? { ground: t.ground } : {}) } };
 }
 
-function lowerOutside(cube0, terrain) {
+function lowerOutside(cube0, terrain, hour) {
   const cube = onTerrain(cube0, terrain);
   const base = cube.outside.base, card = ISEKAI_STYLES[base], sw = SWATCHES[base], land0 = sw.land;
   const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], shadow = shadeHue(cube);
   const fit = (hex, name) => resample(rampFrom(rgbOf(hex), 7, { shadow }), land0[name].length);
+  // at an hour, its light (geocube-hours.js); absent, the cube's own, as it always was
+  if (hour !== undefined) return outsideAt(cube, hour, { base, card, sw, land0, fit, shadow });
   // the sky: the cube's own (a solved cube's is its palette's), else the reference's dome
   const S = cube.light.sky, dome = S ? { zenith: rgbOf(S.zenith), horizon: rgbOf(S.horizon) } : ref.air.dome, sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
   const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
@@ -522,6 +525,31 @@ function lowerOutside(cube0, terrain) {
   const light = { ...card.light, key, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
   const air = { ...card.air, fog: { color: S?.fog ?? ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
   const lookCard = { ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why };
+  return outsideOf(cube, base, sw, land, lookCard);
+}
+
+/**
+ * The outside at an hour: the land's ramps the cube's own (the bake relights them), the sky and the far layers the
+ * hour's dome, the key the hour's sun or the moon at its gain, the ambient and the fog's colour the hour's (its density
+ * the cube's), the water darkened into the night. A moonlit hour draws the card's night: the moon where the key is, the
+ * stars out as far as the night has come.
+ */
+function outsideAt(cube, hour, { base, card, sw, land0, fit, shadow }) {
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], H = hourLight(cube, hour), dome = H.dome;
+  const sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
+  const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
+    foliage: fit(cube.colour.foliage, 'foliage'), far: resample(sky.slice(1).concat([dome.horizon]), land0.far.length), sky: resample(sky, land0.sky.length),
+    ...(cube.colour.sand ? { sand: resample(rampFrom(rgbOf(cube.colour.sand), 7, { shadow }), land0.soil.length) } : {}) };
+  const moonGain = cube.light.moon?.gain ?? 0.8;
+  const light = { ...card.light, key: H.key, ambient: H.ambient, sunGain: Math.round((H.moonlit ? moonGain : card.light.sunGain) * H.gainK * 1000) / 1000 };
+  const air = { ...card.air, fog: { color: H.fog, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
+  const water = geocubeRamps(H.water ? { ...cube, colour: { ...cube.colour, water: H.water } } : cube).water[2];
+  const night = H.moonlit ? { night: { day: Math.round(Math.min(1, Math.max(0, 1.25 * (1 - H.night))) * 1000) / 1000, stars: 1, moon: { phase: 0.62, size: 1.3 } } } : {};
+  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night };
+  return outsideOf(cube, base, sw, land, lookCard);
+}
+
+function outsideOf(cube, base, sw, land, lookCard) {
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
@@ -538,14 +566,14 @@ function lowerOutside(cube0, terrain) {
  * the moon with none), the key's direction, a seed from the cube's id, and the mode (`value` under a tone: only value
  * moves). null when the cube has none. `side`: 'inside' (the ground is the floor) or 'outside' (the grass).
  */
-export function cubeContrast(cube, side, { terrain, value = false } = {}) {
+export function cubeContrast(cube, side, { terrain, value = false, hour } = {}) {
   const C = readContrast(cube.contrast);
   if (!C) return null;
   const k = side === 'outside' && terrain !== undefined ? onTerrain(cube, terrain) : cube;
-  // the sky: the cube's own (a solved palette's), else the reference's dome
-  const ref = SIXTH_GEN_REFERENCES[resolveLook(k.light.reference)], sun = ref.light.key;
-  const dome = k.light.sky ? { zenith: rgbOf(k.light.sky.zenith), horizon: rgbOf(k.light.sky.horizon) } : ref.air.dome;
-  const lit = sun ?? k.light.moon;
+  // the sky: the cube's own (a solved palette's), else the reference's dome; at an hour (the outside's), the hour's
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(k.light.reference)], sun = ref.light.key, H = side === 'outside' && hour !== undefined ? hourLight(k, hour) : null;
+  const dome = H ? H.dome : k.light.sky ? { zenith: rgbOf(k.light.sky.zenith), horizon: rgbOf(k.light.sky.horizon) } : ref.air.dome;
+  const lit = H ? H.key : sun ?? k.light.moon;
   let seed = 2166136261;
   for (const ch of k.id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
   return { ...C, sky: hexOf(dome.zenith.map((v, j) => (v + dome.horizon[j]) / 2)), ground: side === 'outside' ? k.colour.grass : k.colour.floor,
@@ -573,13 +601,15 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (!readContrast(cube.contrast)) return null;
   const side = m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
-  return cubeContrast(cube, side, { terrain, value });
+  return cubeContrast(cube, side, { terrain, value, ...(m.hour !== undefined && side === 'outside' ? { hour: readHour(m.hour) } : {}) });
 }
 
+const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };
+
 /** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform, on one of its terrains). */
-export function lowerGeocube(cube, side, terrain) {
+export function lowerGeocube(cube, side, terrain, hour) {
   if (side === 'inside') return lowerInside(cube);
-  if (side === 'outside') return lowerOutside(cube, terrain);
+  if (side === 'outside') return lowerOutside(cube, terrain, hour);
   return no(`side is 'inside' or 'outside', not '${side}'`);
 }
 
@@ -589,16 +619,19 @@ export function lowerGeocube(cube, side, terrain) {
  * the inside (the bones, reference, tone and tiles; the recipe's rooms, and the kit's dress unless the recipe says).
  */
 export function withGeocube(manifest) {
-  const { geocube, terrain, ...m } = manifest, cube = readGeocube(geocube);
+  const { geocube, terrain, hour, ...m } = manifest, cube = readGeocube(geocube);
   const T = terrain === undefined ? undefined : readTerrainAsk(cube, terrain);
+  // `hour` (geocube-hours.js): the outside lit at that hour, its sky and air the hour's
+  const H = hour === undefined ? undefined : readHourOf(hour);
   // a trail: the cube paints it once, the outside's look on its open ground; the recipe's own kit, if it names one,
   // wins (a painted level is a starting point, not a lock)
   if (m.trail !== undefined) {
-    const low = lowerGeocube(cube, 'outside', T?.name);
+    if (H !== undefined && m.kit !== undefined) no('hour lights the cube\'s look; a trail in its own kit takes none (drop kit or hour)');
+    const low = lowerGeocube(cube, 'outside', T?.name, H);
     return { ...m, kit: m.kit ?? low.kit };
   }
   if (m.meru !== undefined) {
-    const low = lowerGeocube(cube, 'outside', T?.name);
+    const low = lowerGeocube(cube, 'outside', T?.name, H);
     if (m.kit !== undefined) no('a stage on a geocube takes its kit from the cube; drop kit');
     // a climb that names its own preset or tiers keeps them; the cube's tiers stand where it names none. A climb that
     // follows a trail stands on it, not on the cube's island
@@ -607,6 +640,7 @@ export function withGeocube(manifest) {
     return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own } };
   }
   if (T) no('terrain is the outside\'s: a stage on a geocube takes it with trail or meru');
+  if (H !== undefined) no('hour is the outside\'s: a stage on a geocube takes it with trail or meru');
   const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside');
   if (m.kit !== undefined && m.kit !== low.kit) no(`a stage on a geocube takes its kit from the cube's bones ('${low.kit}'); drop kit`);
   return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles };
@@ -662,11 +696,12 @@ export function geocubeDensity(cube) {
 const SHOW = ['room', 'land'];
 /** The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene. */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), show = manifest.show ?? 'room';
   if (!SHOW.includes(show)) no(`show is ${SHOW.map((s) => `'${s}'`).join(' or ')}`);
+  if (manifest.hour !== undefined && show !== 'land') no('hour is the land\'s: show \'land\' to see the cube at an hour');
   const title = ctx.title || `${cube.title} · ${show === 'room' ? 'room' : 'landform'}`;
-  const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside');
+  const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', undefined, manifest.hour === undefined ? undefined : readHourOf(manifest.hour));
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);

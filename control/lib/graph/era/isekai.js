@@ -552,7 +552,7 @@ function voidSky(st, dir) {
   return { zenith: sky[0], horizon: sky[sky.length - 1], day: 0, stars: V.stars ?? 1, seed: 1,
     sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: { ...domeAt(V.companion), ...(V.companion.color ? { color: V.companion.color } : {}) } } : {}) };
 }
-function nightSky(st, dir) {
+export function nightSky(st, dir) {
   const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));
   return { zenith: sky[0], horizon: sky[sky.length - 1], day: N.day, stars: N.stars, seed: 1,
     moon: { u: r5((az + Math.PI / 2) / Math.PI + 0.5), h: r5(el / (Math.PI / 2)), phase: N.moon.phase, size: N.moon.size },

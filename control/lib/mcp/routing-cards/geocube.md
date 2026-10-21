@@ -8,9 +8,9 @@
   "form": "world"
 }
 ---
-→ `create_sketch` kind `geocube`: `{ cube: <preset | document | { from: <preset>, …changes } >, show: 'room' | 'land' }`. The cube holds the look, nothing placed: light, key colours, register, surface patterns, inside bones, outside base and `relief` (rolling, craggy, eroded, terraced, dune), principles. `room` shows its bare room, `land` its polygon-lit island. Revise with `update_sketch` until both read right.
+→ `create_sketch` kind `geocube`: `{ cube: <preset | document | { from: <preset>, …changes } >, show: 'room' | 'land' }`. The cube holds the look, nothing placed: light, key colours, register, surface patterns, inside bones, outside base and `relief` (rolling, craggy, eroded, terraced, dune), principles. `room` shows its bare room, `land` its polygon-lit island; `hour` (0–24, `dawn`…`night`) lights the land then. Revise with `update_sketch` until both read right.
 
-Then build the level on it: a `stage` recipe with `geocube` and your own rooms (the inside) or `meru` (the outside). Your keys win: vary the cube, never restyle the level. A level copies its cube: re-create it by hand from a new one. Manual: `get_view_vocab({id:'geocube'})`; presets gothic-night, island-noon, jungle-haze.
+Then build the level on it: a `stage` recipe with `geocube` and your own rooms (the inside) or `meru` (the outside). Your keys win: vary the cube, never restyle the level. A level copies its cube: re-create it by hand from a new one. A `stage` with `meru` takes `hour` too.
 
 A building in it (a tavern, keep, crypt, temple, shop): the cube recommends its world's buildings; a `stage` with `program: { use }` lays one in its bones and its builders' language (card `game-building`).
 

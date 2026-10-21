@@ -127,13 +127,22 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
 
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 
-- Planned: a geocube recipe's `hour` (0–24, or `dawn` … `night` on the clock's dial) moves the sun along one arc
-  through the cube's own reference (at the reference's hour the light is the reference's), warms and dims the key
-  toward the horizon, hands it to the cube's moon through the dial's dusk, and carries the sky, ambient and fog between
-  the references' day, golden and night domes in the cube's own hue. A recipe's `weather` paints a cloud band round the
-  dome by the old layered-noise recipe (clouds, difference clouds, levels, stretch, emboss toward the sun, a gradient
-  map through the hour's colours), banded to the register on a quiet cube and soft on a gritty one. Absent, a recipe
-  is byte for byte as it was.
+- **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`
+  or a `trail` (in the cube's look), and the geocube kind's `show: 'land'`; a number from 0 up to 24, or a word on the
+  clock's dial (`dawn`, `morning`, `noon`, `afternoon`, `golden`, `dusk`, `night`). The sixth-gen references are the
+  keyframes (sunshine's noon, colosseum's sunset, dmc3's night, and a twilight between golden and night that no
+  reference paints, so the sky never passes through brown), and the cube's own reference is one of them: its sun on
+  one arc that rises at 6 and sets at 18 (`weather/clock-dial.js`), peaking at the reference's elevation or 58°, turning
+  15° an hour, so at the reference's own hour the light is the reference's. The key warms and dims toward the horizon,
+  then hands over to the cube's moon (or a pale one) past the dial's dusk; the sky, the ambient and the fog's colour
+  move between the keyframes in the cube's own hue, the golden horizon kept the sun's, and the day's sky is back by the
+  time the sun is well up. The air keeps its thickness and the cube its colours (the bake relights the same paint);
+  the water darkens into the night. A moonlit hour draws the night on the dome: the moon where the key is, the stars
+  out as far as the night has come. A cube's contrast is resolved against the hour's light. A room, a room's show and a
+  trail in its own kit refuse an hour. Absent, the outside is byte for byte as it was.
+- Planned: a recipe's `weather` paints a cloud band round the dome by the old layered-noise recipe (clouds, difference
+  clouds, levels, stretch, emboss toward the sun, a gradient map through the hour's colours), banded to the register on
+  a quiet cube and soft on a gritty one.
 
 ### Geocube styles: principles and the laws that check them
 
