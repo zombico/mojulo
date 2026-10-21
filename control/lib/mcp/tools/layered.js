@@ -74,6 +74,8 @@ import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
+import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
+import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
 import { WINGBEATS } from '@/lib/graph/bugs/gait';
@@ -273,6 +275,20 @@ function statueRecipeOf(recipe, plan, hero) {
  * taking its body point's correctives. Undressed, the slice itself */
 const DRESS_KEYS = ['garments', 'paint', 'details', 'body', 'adorn'];
 const ENVELOPED = /^(torso|neck|pelvis|(upperArm|foreArm|thigh|shank)[RL])$/;
+/** The realistic hero's SKIN on its recipe: the resolved dermis (`dermis`, epidermis/dermal-hero.js heroDermisSpec: the
+ * cast's preset, the palette's Skin as its tone, the door's `skin`), which an export paints, and the palette's Skin its
+ * base colour, so the page, a face no texture covers and the texture agree. */
+function withSkin(R, hero) {
+  const { spec, base } = heroDermisSpec(hero);
+  // an OUTFIT takes the body's suit off (the trunk and the limbs painted Top and Bottom): its garments are the clothes, the
+  // body under them skin (a face they cover on the base colour, one they leave bare textured); the feet keep their shoes
+  const dressed = Array.isArray(hero.outfit) ? hero.outfit.length > 0 : !!hero.outfit && hero.outfit !== 'none';
+  const parts = dressed ? Object.fromEntries(Object.entries(R.parts).map(([k, p]) => [k, SUITED.test(k) && p.group !== 'Skin' && !p.garment ? { ...p, group: 'Skin' } : p])) : R.parts;
+  return { ...R, parts, dermis: spec, palette: { ...(R.palette || {}), Skin: base } };
+}
+/** the realistic body's parts the suit paints */
+const SUITED = /^(torso|pelvis|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL])$/;
+
 function realisticExpand(plan, hero) {
   const has = (v) => v !== undefined && v !== null && !(Array.isArray(v) && !v.length);
   const bare = Object.fromEntries(Object.entries(plan).filter(([k]) => !DRESS_KEYS.includes(k)));
@@ -356,7 +372,7 @@ function garmentCorrectives(C, parts) {
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? realisticExpand(full, hero) : expandPlan(full); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : expandPlan(full); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -410,7 +426,7 @@ export const HERO_FORMS = Object.freeze(['tiered', 'realistic']);
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero */
 export const REALISTIC_LAWS_VERSION = 1;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'painterly', 'stylism', 'laws'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
 /** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
@@ -421,7 +437,7 @@ const KEY_HOMES = Object.freeze({
   pole: "the pole is the cast's: cast: { pole: 'female' | 'male', build? }",
   age: "a child is the cast's child build: cast: { pole, build: 'child' }",
   height: 'height is a tune: tune: { stature: <ratio to the cast> }', stature: 'stature is a tune: tune: { stature }',
-  skin: 'colours are the palette: palette: { Skin, Top, Bottom, Shoes, Hair }', colour: 'colours are the palette: palette: { … }', color: 'colours are the palette: palette: { … }', colors: 'colours are the palette: palette: { … }', colours: 'colours are the palette: palette: { … }',
+  colour: 'colours are the palette: palette: { … }', color: 'colours are the palette: palette: { … }', colors: 'colours are the palette: palette: { … }', colours: 'colours are the palette: palette: { … }',
   clothes: 'clothes are detail (a word) or outfit (garments that follow the body)', clothing: 'clothes are detail (a word) or outfit', dress: 'clothes are detail (a word) or outfit', armor: "armour is an adorn build: adorn: { type: 'armor', style }", armour: "armour is an adorn build: adorn: { type: 'armor', style }",
   weapon: "held things are gear: gear: { right: { item: 'sword' } }", item: "held things are gear: gear: { right: { item } }", items: 'held things are gear: gear: { right, left, back, hip }',
   pose: 'the stand is gesture', stance: 'the stand is gesture (or a ready stance in motion)', animation: 'moves are motion (gaits and moves by word) or clips (your own keys)', animations: 'moves are motion or clips', walk: 'a walk is motion: motion: { walk }',
@@ -587,7 +603,15 @@ function realisticErrors(spec) {
   const errs = [], R = spec.form === 'realistic';
   if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
   if (spec.head === 'relational' && !R) errs.push("head: the relational head is worn by the realistic body; add form: 'realistic'");
+  if (spec.skin !== undefined && spec.skin !== null && !R) errs.push("skin: the realistic body's skin (its tone, its look, its makeup); add form: 'realistic' (another form's skin colour is palette: { Skin })");
   if (!R) return errs;
+  if (spec.skin !== undefined && spec.skin !== null) {
+    const k = spec.skin;
+    if (typeof k !== 'object' || Array.isArray(k)) errs.push(`skin: { ${Object.keys(DERMIS_DIALS).filter((d) => d !== 'sex').join(', ')} } (each as get_solid_vocab({ id: 'layered' }) names it)`);
+    else if (k.sex !== undefined) errs.push("skin.sex: the skin's sex is the cast's; drop it");
+    else if (k.tone !== undefined && spec.palette?.Skin && String(k.tone).toLowerCase() !== spec.palette.Skin.toLowerCase()) errs.push('skin.tone and palette.Skin both name the skin\'s colour; give one');
+    else try { heroDermisSpec({ cast: spec.cast, palette: spec.palette, skin: k }); } catch (e) { errs.push(`skin: ${e.message.replace(/^dermis: /, '')}`); }
+  }
   if (spec.physique !== undefined && spec.physique !== null) {
     const p = spec.physique, { laws, ...dials } = typeof p === 'object' && !Array.isArray(p) ? p : {};
     if (typeof p !== 'string' && (typeof p !== 'object' || Array.isArray(p))) errs.push(`physique: a word (${Object.keys(PHYSIQUES).join(' | ')}) or { from?, ${PHYSIQUE_DIALS.join(', ')} } (each −1 to 1, 0 the athletic base)`);
@@ -637,7 +661,7 @@ export function heroRecord(spec, { staleScale = false } = {}) {
     if (spec.painterly === true) hero.painterly = true;
     else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
   if (spec.form === 'realistic') { const p = spec.physique ?? 'athletic', o = typeof p === 'string' ? { from: p } : { ...p }; hero.physique = o.laws === undefined ? { ...o, laws: REALISTIC_LAWS_VERSION } : o; }
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)

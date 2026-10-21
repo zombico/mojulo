@@ -792,7 +792,7 @@ export const WORLD_KINDS = {
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, under the lit export: its body's and its head's dermal maps
         // on one atlas, the GLB's base colour; absent the lit export or a head's fit, as before)
-        const heroSkin = light.flat && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe) : null;
+        const heroSkin = light.flat && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe, m.recipe.dermis ? { dermis: m.recipe.dermis } : {}) : null;
         const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)

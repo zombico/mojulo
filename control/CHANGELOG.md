@@ -51,6 +51,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### The hero's skin: a part of the character, shown where it shows
+
+In progress.
+
 ### The realistic hero at the door
 
 - `form: 'realistic'` on the hero door (`create_character`, `mint_solid` via 'hero'): the hero's body re-sampled onto

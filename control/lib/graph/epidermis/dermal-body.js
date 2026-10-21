@@ -62,7 +62,7 @@ const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a
  * end is proximal) is read from the cage's geometric chart (dermal-chart.js `heroChart`); the re-sampled parts' slots
  * (ringSlots: front, s01R … back … s01L) are exact: 'front' anterior, a turn of the ring a slot's share.
  */
-export function bodyChart(mesh, recipe, { partMap = null } = {}) {
+export function bodyChart(mesh, recipe, { partMap = null, shown = null } = {}) {
   const ids = mesh.pointIds || [], index = new Map(ids.map((id, i) => [id, i])), geo = heroChart(mesh);
   const vertices = mesh.vertices, faces = mesh.faces, normals = vertexNormals(vertices, faces);
   const samples = vertices.map(() => null), where = vertices.map(() => null), islands = {}, parts = {};
@@ -109,18 +109,27 @@ export function bodyChart(mesh, recipe, { partMap = null } = {}) {
     for (let k = 0; k < N; k++) turns.push(turns[k] + steps[k] / tot);
     // each ring's arcs in seam order (k = 0 … N)
     const arcK = arc.map((a, i) => [...Array.from({ length: N }, (_, k) => a[(s + k) % N]), G[i]]);
-    const I = { key: name, part, side, N, M, s, dir, seamAround: slotAround[s], turns, arcK, grid, arc, G, y, L, capB, capT, poles };
-    islands[name] = I;
+    const I = { key: name, id: name, part, side, N, M, s, dir, seamAround: slotAround[s], turns, arcK, grid, arc, G, y, L, capB, capT, poles, a: 0, b: M - 1, y0: 0 };
+    // SHOWN (`shown(vi)`: a garment's or an armour's cover off, dermal-hero.js `coveredSkin`): the part's islands are its
+    // runs of rings that show (a ring either side), each its own (`<part>~<k>`), none if none shows; a cap on its end's
+    // run. The address stays the whole part's (each ring's `along` of its length), the run offset by its first ring's.
+    let runs = [[0, M - 1]];
+    if (shown) {
+      const on = grid.map((row) => row.some((v) => shown(v))), keep = on.map((_, i) => on[i] || on[i - 1] || on[i + 1]);
+      runs = []; for (let i = 0; i < M; i++) if (keep[i]) { if (runs.length && runs.at(-1)[1] === i - 1) runs.at(-1)[1] = i; else runs.push([i, i]); }
+    }
     for (let i = 0; i < M; i++) for (let j = 0; j < N; j++) {
       const v = grid[i][j], c = C[i], r = sub(vertices[v], c);
       const bodyPart = partMap?.part?.[ids[v]];
       samples[v] = { key: name, part, side, along: y[i] / L, around: wrap(I.seamAround + dir * turns[(j - s + N) % N]), length: L, girth: G[i], n: normals[v], radius: Math.hypot(...r), ...(bodyPart ? { bodyPart } : {}) };
-      where[v] = { key: name, i, j };
     }
-    for (const [v, p] of Object.entries(poles)) {
-      samples[v] = { key: name, part, side, along: p.end ? 1 : 0, around: I.seamAround, length: L, girth: G[p.end], n: normals[v], radius: 0, pole: true };
-      where[v] = { key: name, pole: p.end };
-    }
+    for (const [v, p] of Object.entries(poles)) samples[v] = { key: name, part, side, along: p.end ? 1 : 0, around: I.seamAround, length: L, girth: G[p.end], n: normals[v], radius: 0, pole: true };
+    runs.forEach(([a, b], k) => {
+      const J = runs.length === 1 && a === 0 && b === M - 1 ? I : { ...I, id: `${name}~${k}`, a, b, y0: y[a], capB: a === 0 ? capB : 0, capT: b === M - 1 ? capT : 0 };
+      islands[J.id] = J;
+      for (let i = a; i <= b; i++) for (let j = 0; j < N; j++) where[grid[i][j]] = { key: J.id, i, j };
+      for (const [v, p] of Object.entries(poles)) if ((p.end === 0 && a === 0) || (p.end === M - 1 && b === M - 1)) where[v] = { key: J.id, pole: p.end };
+    });
     parts[name] = { part, side, length: L, girth: Math.max(...G), girths: G, axis: C };
   }
   const chart = { vertices, faces, normals, samples, parts, islands, where, frame: { up: [0, 0, 1], forward: [0, 1, 0] } };
@@ -128,7 +137,7 @@ export function bodyChart(mesh, recipe, { partMap = null } = {}) {
   // would print its shadow on the flank, which a pose takes away), broad and gentle, then eased over each point's
   // neighbours: the cage is coarse, and a fold read face by face prints a saw's edge under a breast or a buttock
   let ao = new Array(vertices.length).fill(1);
-  for (const key of Object.keys(islands)) {
+  for (const key of new Set(Object.values(islands).map((I) => I.key))) {
     const own = (vi) => samples[vi]?.key === key, part = meshOcclusion(vertices, normals, { radius: 0.05, strength: 0.7, skin: own });
     part.forEach((a, vi) => { if (own(vi)) ao[vi] = a; });
   }
@@ -141,20 +150,22 @@ export function bodyChart(mesh, recipe, { partMap = null } = {}) {
 
 /** The islands packed: one texel density over the body (the hands' and feet's the same: a game sees them close). */
 export function layoutBody(chart, { page = 2048 } = {}) {
+  // (an island's widest ring and its run's length: the whole part's, or its run of rings shown, bodyChart)
+  const wide = (I) => Math.max(...I.G.slice(I.a, I.b + 1)), tall = (I) => I.y[I.b] - I.y0 + I.capB + I.capT;
   const rects = Object.values(chart.islands).map((I) => ({
-    key: I.key, part: I.part, side: I.side, wmm: Math.max(...I.G) * 1000, hmm: (I.L + I.capB + I.capT) * 1000, extra: 0, density: 1,
+    key: I.id, part: I.part, side: I.side, wmm: wide(I) * 1000, hmm: tall(I) * 1000, extra: 0, density: 1,
   })).sort((a, b) => b.hmm - a.hmm || (a.key < b.key ? -1 : 1));
   // (then a margin each side, in texels at the density that packs, so the seam's texels have a neighbour to read)
   const L = packRects(rects, { page });
   for (let k = 0; k < 3; k++) {
-    for (const r of rects) r.wmm = Math.max(...chart.islands[r.key].G) * 1000 + 2 * MARGIN * L.mmPerTexel;
+    for (const r of rects) r.wmm = wide(chart.islands[r.key]) * 1000 + 2 * MARGIN * L.mmPerTexel;
     Object.assign(L, packRects(rects, { page }));
   }
   return { page: L.page, pageH: L.pageH, mmPerTexel: L.mmPerTexel, rects };
 }
 
 /** a point of an island (x the arc from its centre line, y down from its proximal ring; metres) on the page */
-const onPage = (r, I, mpt, N, NH, x, y) => [(r.x + r.w / 2 + (x * 1000) / mpt) / N, 1 - (r.y + ((y + I.capB) * 1000) / mpt) / NH];
+const onPage = (r, I, mpt, N, NH, x, y) => [(r.x + r.w / 2 + (x * 1000) / mpt) / N, 1 - (r.y + ((y - I.y0 + I.capB) * 1000) / mpt) / NH];
 
 /**
  * Each face's three UVs. A face whose corners straddle the seam (a corner on the seam's slot beside one on the slot
@@ -166,7 +177,7 @@ export function bodyFaceUVs(chart, layout) {
   const out = chart.faces.map((tri) => {
     const w = tri.map((v) => chart.where[v]);
     if (w.some((x) => !x) || w.some((x) => x.key !== w[0].key)) return null;
-    const I = chart.islands[w[0].key], r = byKey.get(I.key); if (!r) return null;
+    const I = chart.islands[w[0].key], r = byKey.get(I.id); if (!r) return null;
     const ks = w.map((x) => (x.pole === undefined ? (x.j - I.s + I.N) % I.N : null)), grid = ks.filter((k) => k !== null);
     const across = grid.includes(0) && grid.some((k) => k > I.N / 2);
     const xy = w.map((x, q) => {
@@ -190,7 +201,7 @@ function islandAddress(I, r, mpt) {
   const rows = new Map();
   const rowOf = (py) => {
     let hit = rows.get(py); if (hit) return hit;
-    const yy = ((py + 0.5) * mpt) / 1000 - I.capB, Y = I.y;
+    const yy = ((py + 0.5) * mpt) / 1000 - I.capB + I.y0, Y = I.y;
     let i = 0; while (i < I.M - 2 && yy > Y[i + 1]) i++;
     const f = Math.max(0, Math.min(1, (yy - Y[i]) / (Y[i + 1] - Y[i] || 1e-9)));
     const arcs = I.arcK[i].map((a, k) => a + (I.arcK[i + 1][k] - a) * f);
@@ -257,13 +268,14 @@ export function unweldSeams(faces, corners) {
 /**
  * The realistic body's dermis: its chart, its layout and its maps, and the UVs an export carries. `opts.dermis` a
  * dermis spec (dermal-map.js `readDermis`) or a resolved one (default the pole's, `sex`, with BODY_DERMIS over it),
- * `opts.page` the atlas's width (texels), `opts.neck` the head's tone (`neckTone`), `opts.partMap` the body-part map. `uv.corners` the faces' UVs (six a
+ * `opts.page` the atlas's width (texels), `opts.neck` the head's tone (`neckTone`), `opts.partMap` the body-part map, `opts.shown`
+ * which points show (vi → bool; the islands cropped to them, bodyChart). `uv.corners` the faces' UVs (six a
  * face, the white texel off the skin), `uv.vertex` each vertex's (two a vertex: the seam's on the island's near edge,
  * NaN off the skin): an exporter splits the seams with `unweldSeams(mesh.faces, uv.corners)`.
  */
-export function bodyDermis(mesh, recipe, { dermis = null, sex = 'male', page = 2048, neck = null, partMap = null } = {}) {
+export function bodyDermis(mesh, recipe, { dermis = null, sex = 'male', page = 2048, neck = null, partMap = null, shown = null } = {}) {
   const D = dermis && Object.isFrozen(dermis) && 'seed' in dermis ? dermis : readDermis(typeof dermis === 'string' ? { from: dermis, ...BODY_DERMIS[dermis] } : dermis || { from: sex, ...BODY_DERMIS[sex] });
-  const chart = bodyChart(mesh, recipe, { partMap }), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck });
+  const chart = bodyChart(mesh, recipe, { partMap, shown }), layout = layoutBody(chart, { page }), maps = paintBody(chart, D, layout, { neck });
   const F = mesh.faces.length, corners = new Float32Array(F * 6), vertex = new Float32Array(mesh.vertices.length * 2).fill(NaN);
   for (let fi = 0; fi < F; fi++) { const uv = maps.faceUV(fi); for (let q = 0; q < 3; q++) { corners[fi * 6 + q * 2] = uv[q][0]; corners[fi * 6 + q * 2 + 1] = uv[q][1]; } }
   // each grid point's own UV (a seam point's on the island's near edge), a pole's at its island's centre line past the end

@@ -141,7 +141,7 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
-    const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
+    const det = A.marks && (D.lines > 0 || D.paint || D.makeup) ? dermalDetail(A, D) : null;
     if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
     if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);

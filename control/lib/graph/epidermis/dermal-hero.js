@@ -17,12 +17,23 @@
  */
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { HEAD_TUNES } from '../polygonizer/hero-relational-head.js';
-import { readDermis } from './dermal-map.js';
+import { readDermis, skinBase } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
 import { layoutDermis, paintDermis } from './dermal-texture.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
+
+/**
+ * The hero's DERMIS spec (the door's `skin`, layered.js): the cast's preset with the body's own over it (BODY_DERMIS),
+ * `palette.Skin` its tone when `skin.tone` is not given, then `skin`. → { spec, base } (`base` the skin's flat colour,
+ * dermal-map.js `skinBase`: the palette's Skin on the realistic recipe). Throws a dermis refusal (dermal-map.js).
+ */
+export function heroDermisSpec(hero) {
+  const sex = hero.cast === 'female' ? 'female' : 'male', skin = hero.skin ?? {};
+  const spec = { from: sex, ...BODY_DERMIS[sex], ...(hero.palette?.Skin && skin.tone === undefined ? { tone: hero.palette.Skin.toLowerCase() } : {}), ...skin };
+  return { spec, base: skinBase(readDermis(spec)) };
+}
 
 /** the relational head's parts on the hero */
 const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/;
@@ -36,15 +47,60 @@ export function heroDermis(mesh, recipe, { sex = recipe.headFit?.sex ?? 'male', 
   const D = dermis && Object.isFrozen(dermis) && 'seed' in dermis ? dermis : readDermis(dermis || { from: sex, ...BODY_DERMIS[sex] });
   const partOf = (vi) => mesh.provenance[vi].part, groupOf = (fi) => mesh.groups[fi];
   const head = recipe.headFit ? headSkin(mesh, recipe, D, headPage) : null;
-  const body = bodyDermis(mesh, recipe, { dermis: D, sex, page, ...(head ? { neck: neckTone(head.chart, D) } : {}) });
+  const covered = coveredSkin(mesh, recipe);
+  const body = bodyDermis(mesh, recipe, { dermis: D, sex, page, ...(head ? { neck: neckTone(head.chart, D) } : {}), ...(covered ? { shown: (vi) => !covered[vi] } : {}) });
   const faceOf = (fi) => {
     if (groupOf(fi) !== 'Skin') return null;
-    const part = partOf(mesh.faces[fi][0]);
+    const tri = mesh.faces[fi], part = partOf(tri[0]);
     if (head && HEAD.test(part)) { const l = head.local.get(fi); return l === undefined || !head.skinFace[l] ? null : { page: 'head', uv: head.maps.faceUV(l) }; }
-    if (BODY.test(part)) return { page: 'body', uv: body.maps.faceUV(fi) };
+    // (a face off the body's islands, under a garment or an armour, keeps the base colour: no texel)
+    if (BODY.test(part)) return tri.every((v) => body.chart.where[v]) ? { page: 'body', uv: body.maps.faceUV(fi) } : null;
     return null;
   };
-  return { pages: { body: body.maps, ...(head ? { head: head.maps } : {}) }, faceOf, dermis: D };
+  return { pages: { body: body.maps, ...(head ? { head: head.maps } : {}) }, faceOf, dermis: D, covered };
+}
+
+/**
+ * The body's skin COVERED by what it wears (→ a flag per mesh vertex, or null when it wears nothing): a skin point is
+ * covered when a ray out along its normal meets, within `reach` (m), a face of a garment or an armour (a part neither
+ * the body's nor the head's, not Skin) carried by the point's own bone or one within two joints of it (the flank under
+ * the arm is covered by the sleeve), so a hand at the thigh is not covered by the trousers. The covering faces in a grid of `cell`; pure geometry.
+ */
+export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
+  const V = mesh.vertices, F = mesh.faces, partOf = (vi) => mesh.provenance[vi].part, boneOf = (part) => recipe.parts[part]?.bind?.bone;
+  const cover = []; F.forEach((t, fi) => { const p = partOf(t[0]); if (!HEAD.test(p) && !BODY.test(p) && mesh.groups[fi] !== 'Skin') cover.push(fi); });
+  if (!cover.length) return null;
+  // the bones beside each bone: those sharing a joint (a head or a tail)
+  const bones = recipe.rig?.bones || [], ends = new Map(bones.map((b) => [b.id, [b.head, b.tail].filter(Boolean)])), beside = new Map();
+  const touch = new Map(bones.map((a) => [a.id, bones.filter((b) => b.id === a.id || ends.get(b.id).some((j) => ends.get(a.id).includes(j))).map((b) => b.id)]));
+  for (const a of bones) beside.set(a.id, new Set(touch.get(a.id).flatMap((b) => touch.get(b))));
+  const key = (x, y, z) => `${x},${y},${z}`, grid = new Map(), ci = (v) => Math.floor(v / cell);
+  for (const fi of cover) {
+    const [a, b, c] = F[fi].map((v) => V[v]), lo = [0, 1, 2].map((k) => ci(Math.min(a[k], b[k], c[k]))), hi = [0, 1, 2].map((k) => ci(Math.max(a[k], b[k], c[k])));
+    for (let x = lo[0]; x <= hi[0]; x++) for (let y = lo[1]; y <= hi[1]; y++) for (let z = lo[2]; z <= hi[2]; z++) { const k = key(x, y, z); let l = grid.get(k); if (!l) grid.set(k, (l = [])); l.push(fi); }
+  }
+  const coverBone = new Map(cover.map((fi) => [fi, boneOf(partOf(F[fi][0]))]));
+  const normals = vertexNormals(V, F), out = new Uint8Array(V.length), seen = new Int32Array(F.length).fill(-1);
+  // (Möller–Trumbore: the distance along the ray to the triangle, or Infinity)
+  const hit = (o, d, fi) => {
+    const [a, b, c] = F[fi].map((v) => V[v]), e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]], det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
+    if (Math.abs(det) < 1e-12) return Infinity;
+    const s = [o[0] - a[0], o[1] - a[1], o[2] - a[2]], u = (s[0] * p[0] + s[1] * p[1] + s[2] * p[2]) / det; if (u < 0 || u > 1) return Infinity;
+    const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]], w = (d[0] * q[0] + d[1] * q[1] + d[2] * q[2]) / det; if (w < 0 || u + w > 1) return Infinity;
+    const t = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det; return t > 0 ? t : Infinity;
+  };
+  for (let vi = 0; vi < V.length; vi++) {
+    const part = partOf(vi); if (!BODY.test(part)) continue;
+    const near = beside.get(boneOf(part)) ?? new Set([boneOf(part)]), n = normals[vi], o = V[vi];
+    let found = false;
+    for (let t = 0; t <= reach && !found; t += cell / 2) {
+      const l = grid.get(key(ci(o[0] + n[0] * t), ci(o[1] + n[1] * t), ci(o[2] + n[2] * t))); if (!l) continue;
+      for (const fi of l) { if (seen[fi] === vi) continue; seen[fi] = vi; if (near.has(coverBone.get(fi)) && hit(o, n, fi) <= reach) { found = true; break; } }
+    }
+    if (found) out[vi] = 1;
+  }
+  return out;
 }
 
 /** the grid head's chart, layout and maps, its faces indexed locally (`local`: mesh face → chart face) */
