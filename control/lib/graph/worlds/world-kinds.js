@@ -57,6 +57,7 @@ import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
+import { heroSkinPaint } from '@/lib/graph/epidermis/dermal-hero';
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
 import { planHeight } from '@/lib/graph/era/cast-density';
 /** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
@@ -789,7 +790,10 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? null);
+        // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, under the lit export: its body's and its head's dermal maps
+        // on one atlas, the GLB's base colour; absent the lit export or a head's fit, as before)
+        const heroSkin = light.flat && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe) : null;
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));

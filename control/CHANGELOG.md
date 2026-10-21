@@ -89,7 +89,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The whole loop under test (export-model.realistic.test.js, the E2E tier): a realistic hero minted by the character
   door with the fitted shirt and the trousers, exported as the lit skinned GLB, read back by glTF-Transform: one skinned
   mesh on the rig's joints, the idle, walk and wave clips, the correctives as morph targets by name, the normals, the
-  weights summing to one. The skin's maps are not in it yet.
+  weights summing to one, and the skin: a texture coordinate on every corner and the dermis's atlas as the base colour,
+  the head's page in it.
+- Fixed: a DRESSED realistic hero lost its face. The plan's body hook (station-loft-plan.js) took in only the parts the
+  plan had a name for, so the relational head's visage and nose (the face's own parts) were dropped and the cranium,
+  let down under them, showed as a smoothed mask. The hook now takes every part the body brings. An undressed hero is
+  byte for byte as it was.
+- The relational head's FIT on the recipe (`recipe.headFit`: `{ sex, k, ty, men }`, the scale and the offsets that seat
+  the head on the neck), so an export can read the hero's head back into the head's own frame and chart it.
 
 ### Realistic body: correctives posed and exported
 
@@ -152,7 +159,8 @@ In progress. The realistic body's correctives (`recipe.correctives`, docs/realis
 
 ### Realistic body: the dermal skin on the body
 
-In progress (a dev path: no minted hero changes, no tool surface; the export pack and the GLB do not carry it yet).
+The lit GLB of a realistic hero (`export_model`, `format: 'glb'`, `lit: true`) carries its albedo as the base colour;
+the other maps (roughness, translucency, hair) stay on the dev path.
 The dermal texturizer's maps on the realistic body (`form: 'realistic'`, docs/realistic-body.md), so its head and its body
 wear one skin. `epidermis/dermal-body.js`:
 
@@ -177,6 +185,13 @@ wear one skin. `epidermis/dermal-body.js`:
   the cut is where nothing shows; the study draws the parts on the skin.
 - For the export: `bodyDermis(mesh, recipe, { dermis, sex, page, neck, partMap })` → `{ chart, layout, uv: { faceUV, corners,
   vertex }, maps, dermis }`, and `unweldSeams(faces, corners)` to split the seams into one UV a vertex.
+- In the export (`epidermis/dermal-hero.js`): `heroDermis(mesh, recipe)` charts the hero's whole skin, the body's
+  page and the head's, the minted head read back by `recipe.headFit` and charted on its sphere with its marks
+  (`dermal-head.js` `headChartOf`, whose `shownAt` keeps the layers let down under the face from casting occlusion);
+  `heroSkinPaint` composes the two albedos on one atlas, the body's over the head's, and hands the figure's pack the
+  paint skin-paint.js hands it (each skin face's corners on the atlas, every other face on a white texel, its colour as
+  before). The world kind wears it on the realistic hero's lit pack. A garment, an eye's globe and the mouth keep their
+  colours.
 - The eyes lane: `/dermis-study --body [male] [female] [--physique <word|json>] [--body-page N]`: the realistic body
   textured and lit with the relational head grafted on it (its own atlas and hair), its map's kinds, its channels on the
   shape, the neck close, and the body's atlas pages.

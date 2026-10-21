@@ -459,6 +459,9 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   if (earR) { const fE = inHead(earR.field); parts.earR = withNormals(parts.earR, fE); parts.earL = withNormals(parts.earL, (q) => fE([-q[0], q[1], q[2]])); }
 
 
+  // THE FIT kept on the recipe: the head's pole and its scale and offsets into the hero's frame, so its skin can be read
+  // back in the head's own frame (its sphere's addresses, its landmarks' marks: epidermis/dermal-hero.js)
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men) };
   // the rig's jaw on the head's own joint: the hinge between the condyles, the tip at the gnathion
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));

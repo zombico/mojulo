@@ -356,7 +356,9 @@ export function expandPlan(plan, { body = null } = {}) {
     // (its parts, all of them: a part it dropped (the pectorals; a head it swapped, and that head's pinned features) left
     // out, its own in place of the plan's; its dials only, and its creases)
     for (const k of Object.keys(parts)) if (!body.parts[k]) delete parts[k];
-    for (const [k, p] of Object.entries(body.parts)) if (parts[k]) parts[k] = JSON.parse(JSON.stringify(p));
+    // (and a part the plan has no name for, the relational head's visage and nose, taken in with the rest: kept to the
+    // plan's names, the dressed hero lost its face's parts and wore the cranium let down under them)
+    for (const [k, p] of Object.entries(body.parts)) parts[k] = JSON.parse(JSON.stringify(p));
     for (const k of Object.keys(dials)) if (body.dials && !body.dials[k]) delete dials[k];
     for (const k of Object.keys(creases)) delete creases[k]; Object.assign(creases, JSON.parse(JSON.stringify(body.creases || {})));
     // (its dials: the parts it dropped left out, its blends over its own stations)

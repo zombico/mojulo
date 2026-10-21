@@ -225,13 +225,13 @@ function relationalHeadOn(S, sex) {
     const r = relationalHeadRecipe(S, { sex });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
-      removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints,
+      removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
     };
     HEADS.set(key, d); if (HEADS.size > SLICES_KEPT) HEADS.delete(HEADS.keys().next().value);
   }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k))) : S.dials;
-  return { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints } };
+  return { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}) };
 }
 /** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
  * the slice's frame finds the build's tune where it laid its masses out */
@@ -315,6 +315,7 @@ function realisticExpand(plan, hero) {
     }
   }
   R.rig = S.rig;
+  if (S.headFit) R.headFit = S.headFit;
   // the dials: the dressed expansion's (a garment rides its body part's), the slice's blends over the new stations, a
   // part the slice removed left out
   R.dials = Object.fromEntries(Object.entries(R.dials || {}).map(([k, d]) => {

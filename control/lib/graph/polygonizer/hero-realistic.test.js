@@ -49,4 +49,11 @@ describe('the realistic hero at the door', () => {
     const front = (r) => Math.max(...r.parts.torso.stations.map((s) => s.points.front[1]));
     expect(front(heavy.recipe)).toBeGreaterThan(front(m.recipe) + 0.02);
   }, 120_000);
+
+  it('dressed, wears its whole head: the parts of the face the plan has no name for kept, the fit its skin maps back by', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt'] }) }).recipe;
+    for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL']) expect(r.parts[k], k).toBeTruthy();
+    expect(r.headFit).toMatchObject({ sex: 'female' });
+    for (const k of ['k', 'ty', 'men']) expect(Number.isFinite(r.headFit[k]), k).toBe(true);
+  }, 120_000);
 });

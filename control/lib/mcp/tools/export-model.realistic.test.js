@@ -37,5 +37,16 @@ describe('the realistic hero, minted and exported', () => {
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }
+    // the skin: the dermis's atlas (the body's page over the head's) as the base colour, each skin corner on it
+    const uv = prim.getAttribute('TEXCOORD_0'), tex = prim.getMaterial()?.getBaseColorTexture();
+    expect(uv).toBeTruthy();
+    expect(tex?.getMimeType()).toBe('image/png');
+    const [tw, th] = tex.getSize();
+    expect(tw).toBeGreaterThanOrEqual(1024);
+    expect(th).toBeGreaterThan(tw);
+    // the head's page is the atlas's lower part: some corners (the face's) land there
+    const t = [0, 0]; let onHead = 0;
+    for (let i = 0; i < uv.getCount(); i += 13) { uv.getElement(i, t); if (t[1] > 2 / 3) onHead++; }
+    expect(onHead).toBeGreaterThan(0);
   }, 600_000);
 });

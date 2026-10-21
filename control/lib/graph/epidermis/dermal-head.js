@@ -13,6 +13,7 @@
  * the skin's layout with it.
  *
  *   relationalHeadChart(head, { cells })  → a chart (one part, `head`, its `marks`; the ear's points its `ear` feature)
+ *   headChartOf(head, mesh, skinAt, shutAt) → the same, of a head mesh given in the head's frame
  *   headSphere(head)                      → { c, R, length, of(p) → { along, around, el } }
  *   headMarks(head)                       → { r0, length, cy, points: { name: { X, Y, Z } } } (mm)
  *
@@ -84,10 +85,21 @@ export function relationalHeadChart(head, { cells = 110 } = {}) {
     if (a !== b && b !== c && a !== c) faces.push([a, b, c]);
     if (a !== c && c !== d && a !== d) faces.push([a, c, d]);
   }
+  return headChartOf(head, { vertices, faces, normals }, (vi) => skin[vi], (vi) => shut[vi]);
+}
+
+/**
+ * The chart of a head MESH in the head's own frame (metres, z up, +y the face; its `normals` unit, one a vertex):
+ * `skinAt(vi)` whether a vertex is skin (else no sample: a globe, a point the skin closes over), `shutAt(vi)` whether
+ * the skin closes over it (`enclosed`), `shownAt(vi)` (default: the skin) whether it is seen, so a layer let down under
+ * another casts and takes no occlusion. Addressed on the head's sphere with its marks, as `relationalHeadChart`'s: the
+ * surface net's, or the realistic hero's grid head read back into the head's frame (epidermis/dermal-hero.js).
+ */
+export function headChartOf(head, { vertices, faces, normals }, skinAt, shutAt = () => false, { shownAt = null } = {}) {
   const M = headMarks(head), sp = headSphere(head);
   const axis = [[0, M.cy, 0], [0, M.cy, L_HEAD(head)]];
   const ear = earTest(head);
-  const chart = chartFromMesh({ vertices, faces, normals }, (vi) => (skin[vi] ? 'head' : null), { head: { part: 'head', side: '', axis, marks: M, feature: (vi) => (ear(vertices[vi]) ? 'ear' : undefined) } });
+  const chart = chartFromMesh({ vertices, faces, normals }, (vi) => (skinAt(vi) ? 'head' : null), { head: { part: 'head', side: '', axis, marks: M, feature: (vi) => (ear(vertices[vi]) ? 'ear' : undefined) } });
   // re-addressed on the sphere: `along` the elevation, `ta` up the meridian; the girth by the sphere's own rings
   const bins = Array.from({ length: 12 }, () => [0, 0]);
   chart.samples.forEach((s, vi) => {
@@ -102,10 +114,10 @@ export function relationalHeadChart(head, { cells = 110 } = {}) {
   for (let i = 0; i < 12; i++) if (!girths[i]) girths[i] = gmax * Math.sin((Math.PI * (i + 0.5)) / 12);
   chart.parts.head = { ...chart.parts.head, length: sp.length, girths, girth: gmax };
   chart.samples.forEach((s) => { if (s) s.girth = girths[Math.min(11, Math.floor(s.along * 12))]; });
-  chart.samples.forEach((s, vi) => { if (s && shut[vi]) s.enclosed = true; });
+  chart.samples.forEach((s, vi) => { if (s && shutAt(vi)) s.enclosed = true; });
   // the occlusion each skin point sits in, read from the mesh (a game bakes it into the skin's colour: the sockets, the
   // nostrils, the lips' line, the ear's folds, under the jaw)
-  chart.ao = meshOcclusion(vertices, normals, { skin: (vi) => !!chart.samples[vi] });
+  chart.ao = meshOcclusion(vertices, normals, { skin: shownAt ? (vi) => !!chart.samples[vi] && shownAt(vi) : (vi) => !!chart.samples[vi] });
   return chart;
 }
 
