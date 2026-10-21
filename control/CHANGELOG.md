@@ -47,6 +47,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The composer's PROPORTIONS (`FACE_PROPORTIONS`): what differs person to person whatever the character, rolled after the
   shapes about the face's own values: the skull's length and breadth, the vault's height (the face's share of the head),
   the face's, the jaw's and the mouth's widths.
+- The composer's EYE REGION: the eyes' shapes carry the lids (the eye rig's channels: open, large, almond, deep, hooded,
+  soft), a brows feature takes the epidermis cube's groom words (natural, straight, arched, thick, thin), and the eyes'
+  spacing, height, size and tilt are rolled per face; `composeFace` returns `eyes` and `epidermis` with its relations.
 
 ### Body-part map: dress tailored to the body, not the segment
 
