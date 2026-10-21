@@ -15,6 +15,10 @@
 //      sweeping down and forward, chevrons narrowing down the front) into panels that FIT their neighbours across a narrow
 //      seam, each BEVELLED down into it; panels STACK by layer (an underplate, a trim, the overplate, a cap over a joint),
 //      so an overplate's window shows the metal beneath. Caps dome over the joints they guard.
-//   7. GROUPS ARE ROLES (Plate, Trim, Alloy, Suit, Reactor, Light), so a COLOURWAY recolours any suit; every plate rides the rig by
+//   7. THE BODY DRAWS THE LINES (muscles.js). On a muscled segment the seams fall in the grooves between the muscles (the
+//      body's muscle map), a plate per muscle group (the pectoral's heads one plate, each row of the rectus its own, the
+//      deltoid's heads a cap), its edges straightened into the stepped lines of law 6; the bone between masses is left to
+//      the underplate. Where a segment is bone (the shin's face), a designed layout cuts it instead.
+//   8. GROUPS ARE ROLES (Plate, Trim, Alloy, Suit, Reactor, Light), so a COLOURWAY recolours any suit; every plate rides the rig by
 //      the weights of the suit under it.
 export const PLATING_LAWS_VERSION = 1;

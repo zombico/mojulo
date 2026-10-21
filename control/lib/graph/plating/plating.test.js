@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 
 import { wearPlating, validatePlating, suitCard, SKINS, fairShell, shellPanel } from './index.js';
 import { slotOf, stepped } from './shell.js';
+import { straighten, muscleLayout } from './muscles.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
 const SL = ringSlots(16);
@@ -83,6 +84,24 @@ describe('a plated suit on a body adapter', () => {
     // a section at each kink (off the even steps), so the jog is a corner, not a curve
     const z = pc.stations.map((st) => Object.values(st.points)[0][2]), zAt = (t) => 0.48 + (0.05 - 0.48) * t;
     for (const t of [0.437, 0.511]) expect(z.some((x) => Math.abs(x - zAt(t)) < 2e-3)).toBe(true);
+  });
+
+  it('a muscle-mapped layout: each plate a muscle group, its edges at the grooves, straightened, neighbours jogging together', () => {
+    // straight until the groove moves and holds; a blip does not jog
+    expect(straighten([[0, 0.2], [0.1, 0.21], [0.2, 0.2], [0.3, 0.35], [0.4, 0.2], [0.5, 0.36], [0.6, 0.36], [0.7, 0.37]], { step: 0.1, hold: 0.03 }))
+      .toEqual([[0, 0.2], [0.4, 0.2], [0.5, 0.36], [0.7, 0.36]]);
+    // a stub thigh: the front quarter rectusFemoris, beside it vastusLateralis, its boundary stepping out halfway down
+    const P = body.thighR, n = 16, lab = (st, sl) => { const k = +st.slice(2), j = SL.indexOf(sl), edge = k < 6 ? 2 : 4;
+      return j <= edge || j >= n - 2 ? 'rectusFemoris' : j <= 7 ? 'vastusLateralis' : null; };
+    const groups = [{ id: 'Rf', muscles: ['rectusFemoris'], layer: 'cap' }, { id: 'Vl', muscles: ['vastusLateralis'], layer: 'over' }];
+    const L = Object.fromEntries(muscleLayout(P, lab, 'R', { groups, uMax: 4 }).map((p) => [p.id, p]));
+    // the two share the groove: the one's right edge is the other's left, jog for jog
+    expect(L.Rf.right).toEqual(L.VlLat.left);
+    expect(L.Rf.right.length).toBe(4);   // straight, a jog, straight
+    expect(L.Rf.layer).toBe('cap');
+    const W = wearPlating({ ...stub, muscle: (seg, st, sl) => (seg === 'thighR' || seg === 'thighL' ? lab(st, sl) : null) }, { family: 'powered', muscles: { on: ['thigh'] } }, { id: 'q' });
+    expect(W.parts.qThighRectusFemoris_thighR).toBeTruthy();
+    expect(W.parts.qThighUnder_thighL.group).toBe('Alloy');
   });
 
   it('refuses a suit by name', () => {

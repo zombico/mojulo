@@ -9,6 +9,8 @@
 //            standoff: bulk), thick?, rows?, gap?, group? }]
 //   shells   [layout | { layout, bulk? }] FITTED SHELLS (layouts.js: greave, kneeCap, sabaton): a segment's shell cut along
 //            design lines into bevelled panels fitted across narrow seams, stacked by layer
+//   muscles  { on: [segments], only?: [plate groups], bulk?, seam? (m, the grooves' width, 0.009) } MUSCLE-MAPPED SHELLS (muscles.js): each segment cut where its
+//            grooves run, a plate per muscle group, its edges straightened into stepped lines, an underplate under all
 //   feet     a footwear card (the footwear library's: its sole, its toe cap) worn with the suit
 //   reactor  { at? (a share up the torso, 0.78; the sternum about 0.64), r? (m), group? } a disc on the sternum, its rim in Rim
 //   tones    { <group>: '#hex' }; emissive [<group>] (rendered full-bright)
@@ -37,6 +39,11 @@ export const SUITS = Object.freeze({
   markBoots: { family: 'powered', suit: { ease: 0.002, on: ['shank', 'foot', 'toes'] }, shells: ['greave', 'kneeCap', 'sabaton'],
     feet: { sock: false, sole: { thick: 0.012, welt: 0.004 }, adorn: [{ prim: 'toeCap', lift: 0.012, room: 0.01, group: 'Plate' }] },
     tones: { Plate: '#8e1a1f', Alloy: '#b7b9bd', Trim: '#c9a23a', Suit: '#1e1f24', Light: '#e8f6ff', Sole: '#2a2b2e' }, emissive: ['Light'] },
+  // the MARK SUIT: the whole body cut where its muscles part (the trunk, the arms, the thighs), the greaves, knee caps and
+  // sabatons below, a reactor on the sternum; red over silver, gold strips, lit vents
+  markSuit: { from: 'markBoots', suit: { ease: 0.002, on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'] },
+    muscles: { on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh'] }, reactor: { at: 0.64, r: 0.026 }, emissive: ['Light', 'Reactor'],
+    tones: { Reactor: '#c8f4ff', Rim: '#b7b9bd' } },
 });
 for (const c of Object.values(SUITS)) Object.freeze(c);
 /** COLOURWAYS over any suit, by role */

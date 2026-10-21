@@ -158,7 +158,16 @@ into one smooth shell (`fairShell`: its grooves bridged), cut along DESIGN LINES
 where they cap, stacked by LAYER (an underplate, a trim strip, the overplate, a cap, a light), so the overplates'
 windows show the metal beneath; a mirrored panel's pair on the other side. Its lines run STRAIGHT and JOG (`stepped`:
 straight runs joined by short straight diagonals, neighbours sharing their jogs so they fit along them), each kink a
-sharp corner (a panel takes a section at every kink of its edges). Layouts `greave` (a chevron shin plate, side
+sharp corner (a panel takes a section at every kink of its edges).
+MUSCLE-MAPPED SHELLS (`muscles.js`): on a muscled segment the body draws the lines. The realistic body's muscle map
+(body-relational-map.js) gathered into PLATE GROUPS per segment (`MUSCLE_GROUPS`: the pectoral, the sternum, the collar,
+each row of the rectus, the oblique, the lat, the trapezius, the spine; the deltoid, the biceps, the triceps; the
+brachioradialis, the extensors, the flexors; the rectus femoris, the vasti, the adductors, the hamstrings, the knee),
+each plate's edges the boundaries between its muscle and its neighbours' (at the half-slot between them, so neighbours
+share them), STRAIGHTENED (`straighten`: held straight, jogging only where the groove moves and holds), so the seams fall
+in the grooves in the stepped style; each group its layer and colour role, an underplate under each segment. A suit's
+`muscles: { on, only?, bulk?, seam? }`. The suit `markSuit`: the trunk, the arms and the thighs cut by their muscles, the
+greaves, knee caps and sabatons below, a reactor on the sternum. Layouts `greave` (a chevron shin plate, side
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
 suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
 its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.

@@ -7,6 +7,8 @@
 //              carried by the suit's weights under it
 //   2b SHELLS  each layout's panels (layouts.js) cut from a segment's FAIR SHELL (shell.js) along design lines, fitted
 //              across narrow seams, bevelled, stacked by layer (under, mid, over, cap, light); the feet a footwear card
+//   2c MUSCLES the segments a card names cut where their grooves run (muscles.js: the body's muscle map, each plate a
+//              muscle group, its edges straightened into the suit's stepped lines), an underplate under each
 //   3 GLOW     the reactor on the sternum: a disc in its rim
 //   4 TONE     the groups laid, the card's tones (and its skin's) over PLATING_TONES; its emissive groups
 //
@@ -20,6 +22,7 @@ import { SUITS, SKINS, PLATING_TONES } from './styles.js';
 import { LAYOUTS, LAYERS } from './layouts.js';
 import { fairShell, shellPanel, slotOf } from './shell.js';
 import { validateFootwear } from '../footwear/index.js';
+import { MUSCLE_GROUPS, muscleLayout } from './muscles.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const SEGS = ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'];
@@ -43,7 +46,7 @@ export function validatePlating(spec, label = 'suit') {
   if (typeof spec === 'string') return Object.hasOwn(SUITS, spec) ? [] : [`${label}: '${spec}' is not a suit (${Object.keys(SUITS).join(', ')}), or give a card { suit, plates, reactor }`];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: a word or a card { suit, plates, reactor }`];
   const errs = [];
-  const KEYS = ['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'shells', 'feet', 'reactor', 'tones', 'emissive'];
+  const KEYS = ['family', 'from', 'skin', 'suit', 'plates', 'platesPlus', 'shells', 'muscles', 'feet', 'reactor', 'tones', 'emissive'];
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) errs.push(`${label}: a suit takes ${KEYS.join(', ')}, not '${k}'`);
   if (spec.from !== undefined && !(typeof spec.from === 'string' ? Object.hasOwn(SUITS, spec.from) : spec.from && typeof spec.from === 'object')) errs.push(`${label}.from: a suit (${Object.keys(SUITS).join(', ')}) or a card`);
   if (spec.skin !== undefined && !(typeof spec.skin === 'string' ? Object.hasOwn(SKINS, spec.skin) : spec.skin && typeof spec.skin === 'object')) errs.push(`${label}.skin: a colourway (${Object.keys(SKINS).join(', ')}) or { <group>: '#rrggbb' }`);
@@ -58,6 +61,16 @@ export function validatePlating(spec, label = 'suit') {
       else if (typeof x === 'object' && x.bulk !== undefined && !(x.bulk >= 0.5 && x.bulk <= 3)) errs.push(`${label}.shells[${i}].bulk: 0.5 … 3 (times the layers' heights)`); });
   }
   if (C.feet !== undefined) errs.push(...validateFootwear(C.feet, `${label}.feet`));
+  if (C.muscles !== undefined) {
+    const M = C.muscles, all = Object.keys(MUSCLE_GROUPS), ids = new Set(Object.values(MUSCLE_GROUPS).flatMap((gs) => gs.map((g) => g.id)));
+    if (!M || typeof M !== 'object' || !Array.isArray(M.on) || !M.on.every((g) => all.includes(g))) errs.push(`${label}.muscles: { on: [${all.join(', ')}], only?: [plate groups], bulk? }`);
+    else {
+      if (M.only !== undefined && !(Array.isArray(M.only) && M.only.every((g) => ids.has(g)))) errs.push(`${label}.muscles.only: plate groups (${[...ids].join(', ')})`);
+      if (M.bulk !== undefined && !(M.bulk >= 0.5 && M.bulk <= 3)) errs.push(`${label}.muscles.bulk: 0.5 … 3 (times the layers' heights)`);
+      if (M.seam !== undefined && !(M.seam >= 0.002 && M.seam <= 0.03)) errs.push(`${label}.muscles.seam: 0.002 … 0.03 (m, the groove's width)`);
+      for (const k of Object.keys(M)) if (!['on', 'only', 'bulk', 'seam'].includes(k)) errs.push(`${label}.muscles: takes on, only, bulk, seam, not '${k}'`);
+    }
+  }
   if (!Array.isArray(C.plates ?? [])) errs.push(`${label}.plates: a list of { region, lift?, thick?, rows?, gap?, group? }`);
   else (C.plates ?? []).forEach((p, i) => {
     const at = `${label}.plates[${i}]`;
@@ -126,13 +139,30 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
       }
     }
   }
+  // 2c MUSCLES: each named segment cut where its grooves run (muscles.js), an underplate under all
+  if (C.muscles && A.muscle) {
+    const M = C.muscles, bulk = M.bulk ?? 1, only = M.only ? new Set(M.only) : null;
+    for (const kind of M.on) {
+      const trunk = TRUNK.includes(kind), uMax = A.u(kind, 1), groups = MUSCLE_GROUPS[kind].filter((g) => !only || only.has(g.id));
+      for (const S of trunk ? ['R'] : A.sides) {
+        const seg = trunk ? kind : `${kind}${S}`, P = on(seg); if (!P) continue;
+        const F = (fair[seg] ??= fairShell(P)), fOf = slotOf(P.slots.length, S), uOf = (t) => A.u(kind, t), Name = kind[0].toUpperCase() + kind.slice(1);
+        const panels = [{ id: 'Under', layer: 'under', t: [0.02, 0.98], left: [[0, -0.995], [1, -0.995]], right: [[0, 0.995], [1, 0.995]] },
+          ...muscleLayout(P, (st, sl) => A.muscle(seg, st, sl), S, { groups, uMax, trunk })];
+        for (const pn of panels) {
+          const Ly = LAYERS[pn.layer], pc = shellPanel(F, { t0: pn.t[0], t1: pn.t[1], left: pn.left, right: pn.right, lift: Ly.lift * bulk, thick: Ly.thick, bevel: Ly.bevel, seam: M.seam ?? 0.009, uOf, fOf });
+          if (pc) put(`${id}${Name}${pn.id}_${seg}`, { ...pc, group: pn.role ?? Ly.role, bind: bindNearest(pc, P) });
+        }
+      }
+    }
+  }
   // (the FEET: a footwear card, the footwear library's: its sole, its toe cap)
   if (C.feet && A.feet) { const W = A.feet(C.feet, { id }); for (const [name, part] of Object.entries(W.parts)) put(name, part); }
   // 3 GLOW: the reactor on the sternum, in its rim
   if (C.reactor) {
     const P = on('torso'), u = A.u('torso', C.reactor.at ?? 0.78), st = P && P.stations.reduce((b, x, i) => (Math.abs((x.u ?? i) - u) < Math.abs((b.u ?? 0) - u) ? x : b), P.stations[0]);
     if (st) {
-      const m = mean(Object.values(st.points)), f = st.points[P.slots[0]], n = unitv(f.map((x, q) => x - m[q])), r = C.reactor.r ?? 0.025, lift = Math.max(...(C.plates ?? []).map((q) => q.lift ?? 0.006), 0.004);
+      const m = mean(Object.values(st.points)), f = st.points[P.slots[0]], n = unitv(f.map((x, q) => x - m[q])), r = C.reactor.r ?? 0.025, lift = Math.max(...(C.plates ?? []).map((q) => q.lift ?? 0.006), C.muscles ? LAYERS.cap.lift * (C.muscles.bulk ?? 1) : 0, 0.004);
       const rim = disc(f, n, r * 1.3, { thick: lift, proud: 0 }), core = disc(f, n, r, { thick: 0.003, proud: lift });
       put(`${id}ReactorRim_torso`, { ...rim, group: 'Rim', bind: bindNearest(rim, P) });
       put(`${id}Reactor_torso`, { ...core, group: C.reactor.group ?? 'Reactor', bind: bindNearest(core, P) });

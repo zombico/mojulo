@@ -27,6 +27,8 @@ export function realisticBody(recipe, R, build, map) {
     part: (name) => recipe.parts[name],
     u: (kind, share) => (U_MAX[kind] ?? 2) * share,
     suit: (suit, { id, group }) => fieldGarment(recipe, R, build, map, { id, covers: null, on: suit.on ?? SUITED, ...SUIT, ease: suit.ease ?? 0.002, group }).parts,
+    // (the muscle most under a skin point: the body-part map's, which a garment on the skin's grid shares)
+    muscle: (seg, st, sl) => map.muscle?.[`${seg}/${st}.${sl}`] ?? null,
     // (the feet: a footwear card, the footwear library's)
     feet: (card, { id }) => wearFootwear(realisticFoot(recipe, R, build, map), card, { id }),
   };
