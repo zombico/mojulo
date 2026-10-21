@@ -37,6 +37,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   narrower jaw and a narrower, pointed chin that no longer recedes, the cheeks fuller and the lower cheek bowed out (a
   soft outline). Its tune re-solved; the female head re-pinned, the male's unmoved. The hero's eye part closes its
   outer rings in where they would cast past the face's side (a wider eye on a narrower face), eased over its neighbours.
+- THE FACE COMPOSER (face-compose.js `composeFace({ sex, bucket, seed, character?, accent? })`): many faces that each
+  hold together, never one face under different hair. Per harmonic feature (the chin, the nose, the lips, the cheeks,
+  the outline, the eyes) a few named shapes (`FACE_SHAPES`), each offsets to the relations over the sex's pole and a
+  point on two character axes (soft ↔ angular, delicate ↔ strong); a face rolls its point and takes the shapes near it,
+  each pushed a seeded share, and may carry one accent taken from far off (a strong jaw under fine features). A bucket
+  (`FACE_BUCKETS`) names the egocube ancestries its tone and hair are rolled from; `western` first. The dermis study's
+  `--faces` subjects may name an ancestry and a seed.
 
 ### Body-part map: dress tailored to the body, not the segment
 
