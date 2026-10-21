@@ -161,6 +161,7 @@ export const PAGE_MARKS = Object.freeze({
   weather: m(P, 'fog, colour and light (kernel/weather.gd); falls, landings and lightning are the web\'s'),
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
+  resample: m(A, 'the page reads its painted detail tiles again at seeded shifts (scene/channels/resample.js) so they do not repeat at scale; a Godot surface tiles the detail as painted'),
   fabric: m(A, 'a gritty style\'s rock fabric (scene/channels/fabric.js) is the page\'s own near-surface shader: the rock keeps its baked faces'),
   versus: m(A, 'the side-on fighter (versus/versus-core.js, scene/channels/versus.js) is the page\'s own frame simulation: nothing in the kernel fights it'),
   board: m(A, 'the strategy board (board/*: tactics, a maze defence, a skirmish) is the page\'s own: nothing in the kernel plays it'),

@@ -183,6 +183,18 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   material keeps its own colour (a brick red, concrete grey), the cube's tint kept a third; the roads are asphalt (or
   setts, ancient). The dice cells snap to the repeat (a cell that did not divide it left a seam), and a crack ends at
   its slab's joint.
+- **The resampler: painted tiles that do not repeat at scale** (`scene/channels/resample.js`, `matte-paint/detail.js`
+  `resamplePlan`). No AI and no new texels: the page reads a detail tile again at seeded shifts as it draws it, by a plan
+  read off how the tile was built. Coursed work (ashlar, brick, setts, tile, slate) in bands a few courses deep, each
+  read at its own shift down by whole bond periods (so every cut falls on a bed joint and an exact bond holds across it)
+  and along by whole units (or any amount where the head joints are free); boards in upright strips shifted by whole
+  boards; a grid (slabs, panels) in cells of whole units shifted both ways; free work (a render, stucco, asphalt) as
+  three readings at seeded shifts blended on a hexagonal grid, sharpened, the blend's contrast held round the detail's
+  known mean so it neither repeats nor washes out (a render's readings shift down by whole courses, so the stone under
+  its coat runs on across a blend). Over all of it a broad wash of tone, so a street is not one swatch. Every reading
+  takes its gradients from the unshifted uv (no mip seam at a cut); the dice are an integer hash of the cell and the
+  plan's seed. The world sends a plan for each detail tile a page draws (`payload.resample`); the patch replaces the map's
+  read in those meshes' shader; a page with no plan emits nothing of it. Godot and Roblox tile the detail as painted.
 - **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
   `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
   are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,

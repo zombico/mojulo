@@ -55,6 +55,7 @@ import {
   strokeOverlayChannelScript, versusChannelScript, boardChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
+import { resampleScript } from './channels/resample.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
@@ -214,7 +215,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, fabric = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, fabric = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, resample = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -454,6 +455,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
+  // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
+  const resampled = resample && hasTextures ? (() => { const r = Object.fromEntries(Object.entries(resample).filter(([k]) => textures[k]).sort(([a], [b]) => (a < b ? -1 : 1))); return Object.keys(r).length ? r : null; })() : null;
   // a textured group a mover moves carries its texture sub-meshes as children, so the wood goes with the part (a
   // teardown's members, a labelled lid on a hinge); no mover on a textured group → not emitted, byte-identical
   const movedGroups = new Set((movers || []).map((mv) => mv && mv.group).filter((g) => typeof g === 'string'));
@@ -986,7 +989,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const GROUPS = ${safeJson(groups)};
 const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
-const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
+const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${resampled ? resampleScript(resampled) : ''}${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
@@ -1044,7 +1047,8 @@ for (const grp of GROUPS) {
     const tex = new THREE.TextureLoader().load(url);
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
-    tm.renderOrder = 0.6; // over the form, under additive glow
+    tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
+    if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
     ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }

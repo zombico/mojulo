@@ -33,6 +33,7 @@ import { WORLD_KINDS, ROOM_FALLBACK, resolveWrapTextures } from '@/lib/graph/wor
 import { bookWorldKind } from '@/lib/graph/views/recipe-book/registry';
 import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
+import { resamplePlans } from '@/lib/graph/matte-paint/detail';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -480,6 +481,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;
     }
     if (Object.keys(textures).length) payload.textures = textures;
+    // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
+    const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')));
+    if (Object.keys(plans).length) payload.resample = plans;
   }
 
   // generic, opt-in INSTANCED REPEATS (renderer-ladder P4): a manifest may carry `repeats` —

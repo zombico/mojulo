@@ -11,6 +11,9 @@
  *   layDetail(face, { key, metres, unit, as })   the face dressed (`as`: 'wall' | 'roof' | 'floor'; `unit` the world's
  *                                         metres a unit), or the face itself when it is not that kind of face
  *   DETAIL_MEAN                           the mean a detail is set to (linear)
+ *   resamplePlan(key)                     how the page may resample the tile so it does not repeat at scale, read off
+ *                                         how the tile is built (scene/channels/resample.js), or null
+ *   resamplePlans(keys)                   → { key: plan } for the detail tiles among `keys`
  *
  * The tiles are served by a texture resolver (`detail:`), painted once a key. Pure.
  */
@@ -67,4 +70,37 @@ export function layDetail(face, { key, metres, unit = 1, as = 'wall' }) {
   const t = h > 1e-9 ? [-n[1] / h, n[0] / h] : [1, 0], up = as === 'roof' ? 1 / h : 1, m = (v) => r4((v * unit) / metres);
   const uv = face.corners.map((p) => (as === 'floor' ? [m(p[0]), m(p[1])] : [m(p[0] * t[0] + p[1] * t[1]), m(p[2] * up)]));
   return { ...face, texture: key, textureLit: true, uv, fill: lift(face.fill), ...(face.cornerFills ? { cornerFills: face.cornerFills.map(lift) } : {}) };
+}
+
+/**
+ * How a tile may be read again without repeating (the page's resampler, scene/channels/resample.js), from how it is
+ * built, in the tile's own repeats:
+ *   'courses'   coursed work (ashlar, brick, setts, tile, slate): bands a few courses deep, each read at a shift down the
+ *               wall by whole bond periods (`stepV`) and along it by `stepU` (0: any), its cut a bed joint
+ *   'strips'    upright work (boards): strips a few boards wide, each read at a shift along by whole boards, up any
+ *   'grid'      a regular grid (slabs, panels): cells of whole units, each read at a shift of whole units both ways
+ *   'hex'       free-form work (a render, stucco, asphalt): three readings at seeded shifts blended on a hexagonal grid,
+ *               the blend holding the tile's contrast round its mean
+ * Every plan also lays a broad wash of tone over the surface (`macro`), so a street does not read as one swatch.
+ */
+export function resamplePlan(key) {
+  const S = SPECS.get(key);
+  if (!S) return null;
+  const c = S.cfg, cut = c.cut ?? 'ashlar', rows = c.rows ?? 4, cols = c.cols ?? 2, seed = (S.seed % 9973) + 1, macro = { amp: 0.07, scale: 6 };
+  const r4 = (v) => Math.round(v * 1e5) / 1e5;
+  if (cut === 'ashlar' || cut === 'setts' || cut === 'tile') return { kind: 'courses', stepU: 0, stepV: r4(1 / rows), bandV: r4(3 / rows), bandU: 0, seed, macro };
+  if (cut === 'brick' || cut === 'slate') return { kind: 'courses', stepU: r4(1 / cols), stepV: r4(2 / rows), bandV: r4(4 / rows), bandU: 0, seed, macro };
+  if (cut === 'boards') return { kind: 'strips', stepU: r4(1 / cols), stepV: 0, bandV: 0, bandU: r4(3 / cols), seed, macro };
+  if (cut === 'pavement') return { kind: 'grid', stepU: r4(1 / cols), stepV: r4(1 / cols), bandV: r4(1 / cols), bandU: r4(1 / cols), seed, macro };
+  if (cut === 'precast' || cut === 'concrete') return { kind: 'grid', stepU: r4(1 / cols), stepV: r4(1 / rows), bandV: r4(1 / rows), bandU: r4(1 / cols), seed, macro };
+  // (a render's coat lies over coursed stone: its readings shift down by whole courses, so the stone's beds run on across
+  // a blend, and blend sharply, so little of the coat is seen twice)
+  if (cut === 'render') return { kind: 'hex', cell: 1, sharp: 14, stepV: r4(1 / rows), mean: DETAIL_MEAN, seed, macro };
+  if (cut === 'stucco' || cut === 'asphalt') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
+  return null;
+}
+export function resamplePlans(keys) {
+  const out = {};
+  for (const k of [...keys].sort()) { const p = resamplePlan(k); if (p) out[k] = p; }
+  return out;
 }
