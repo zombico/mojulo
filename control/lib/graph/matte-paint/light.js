@@ -13,16 +13,20 @@
  *   lightRelief(field, light) → { value, up, cavity, convex } (Float32Array each; `up` is how far the normal faces the
  *                               top of the face, the side moss and dust settle on)
  *
+ * `tile` (opt-in): the field is one repeat of a seamless tile, so the shadow march and the cavity's window wrap round its
+ * edges instead of stopping at them (a dressed wall's tile, dressed.js). Absent, every texel is as it was.
+ *
  * Pure. The light's vector is rounded to 1e-6 so its few trigonometric calls cannot move a texel between engines.
  */
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 
-/** A box blur of `r` texels (separable, clamped at the border). */
-function blur(src, W, H, r) {
+/** A box blur of `r` texels (separable, clamped at the border, or wrapped round it on a tile). */
+function blur(src, W, H, r, tile = false) {
   const tmp = new Float32Array(W * H), out = new Float32Array(W * H), n = 2 * r + 1;
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let s = 0; for (let a = -r; a <= r; a++) s += src[j * W + clamp(i + a, 0, W - 1)]; tmp[j * W + i] = s / n; }
-  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let s = 0; for (let b = -r; b <= r; b++) s += tmp[clamp(j + b, 0, H - 1) * W + i]; out[j * W + i] = s / n; }
+  const ix = tile ? (i) => ((i % W) + W) % W : (i) => clamp(i, 0, W - 1), jx = tile ? (j) => ((j % H) + H) % H : (j) => clamp(j, 0, H - 1);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let s = 0; for (let a = -r; a <= r; a++) s += src[j * W + ix(i + a)]; tmp[j * W + i] = s / n; }
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { let s = 0; for (let b = -r; b <= r; b++) s += tmp[jx(j + b) * W + i]; out[j * W + i] = s / n; }
   return out;
 }
 
@@ -31,8 +35,8 @@ export function lightRelief({ W, H, px, height, inside }, S) {
   const L = [r6(Math.cos(az) * Math.cos(el)), r6(-Math.sin(az) * Math.cos(el)), r6(Math.sin(el))];
   const lxy = Math.sqrt(L[0] * L[0] + L[1] * L[1]), sx = lxy ? L[0] / lxy : 0, sy = lxy ? L[1] / lxy : 0;
   const rise = lxy ? (L[2] / lxy) * px : 0, steps = lxy ? Math.max(1, Math.round(S.reach / px)) : 0;
-  const at = (i, j) => height[clamp(j, 0, H - 1) * W + clamp(i, 0, W - 1)];
-  const mean = blur(height, W, H, Math.max(1, Math.round(S.radius / px)));
+  const at = S.tile ? (i, j) => height[(((j % H) + H) % H) * W + (((i % W) + W) % W)] : (i, j) => height[clamp(j, 0, H - 1) * W + clamp(i, 0, W - 1)];
+  const mean = blur(height, W, H, Math.max(1, Math.round(S.radius / px)), !!S.tile);
   const value = new Float32Array(W * H), up = new Float32Array(W * H), cavity = new Float32Array(W * H), convex = new Float32Array(W * H);
   let sum = 0, n = 0;
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {

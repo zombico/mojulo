@@ -34,6 +34,10 @@ export const TILE_RAILS = Object.freeze({
   rock: { required: ['base'], keys: {
     style: { of: ROCK_STYLES }, base: RGB, amp: num(10, 120), crackFreq: num(2, 20), crackWidth: num(0.005, 0.1), crackDepth: num(0, 0.8),
     bands: int(0, 16), bandAmp: num(0, 30), speckle: num(0, 0.4), seed: int(1, 99999) } },
+  // dressed stone (matte-paint/dressed.js): ashlar painted from relief, lit from above, at the metres it is laid at
+  dressed: { required: ['stone', 'mortar'], keys: {
+    stone: RGB, mortar: RGB, rows: int(2, 8), cols: int(1, 6), joint: num(0.004, 0.04), recess: num(0, 0.03), tool: { of: ['tooled', 'pitched', 'none'] },
+    chamfer: num(0, 0.06), pillow: num(0, 0.02), spall: num(0, 1), pit: num(0, 1), vary: num(0, 40), grit: num(0, 1), seed: int(1, 99999) } },
 });
 /** How a tile lies on its face (not a painting setting): metres per repeat. */
 const PLACEMENT = { scale: num(0.25, 8) };
@@ -70,9 +74,10 @@ const hash = (s) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt
 
 /** Register the spec's four variants and return the family name they share. */
 export function tileFamilyOf(spec, at) {
-  const { gen, params } = normalizeTileSpec(spec, at);
-  const name = `gen:${gen}-${hash(JSON.stringify([gen, params]))}`;
-  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : gen === 'wood' ? { ...WOOD_DNA, ...params } : params;
+  const { gen, params, scale } = normalizeTileSpec(spec, at);
+  // (dressed stone is painted at the metres it is laid at: its scale is part of what it is)
+  const name = `gen:${gen}-${hash(JSON.stringify(gen === 'dressed' ? [gen, params, scale ?? 2] : [gen, params]))}`;
+  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : gen === 'wood' ? { ...WOOD_DNA, ...params } : gen === 'dressed' ? { ...params, metres: scale ?? 2 } : params;
   defineGeneratedFamily(name, gen, cfg);
   return name;
 }

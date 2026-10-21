@@ -95,6 +95,15 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
 - **A second rock.** The land's shading takes `rocks` (with `skin`): the boulders' own skin or formation, beside the
   cliff's, drawn by a program of its own. Without `rocks`, a formation takes the boulders too.
 
+### Dressed rooms: the room's stone painted from relief
+
+- **A dressed-stone tile** (`gen: 'dressed'`, `matte-paint/dressed.js`). Ashlar painted by the matte painter as a room
+  tile: courses of big blocks in a running bond, each block its own relief (a pillowed, chamfered form, a tooled face or
+  a pitched rock face, spalls at its arrises, pits), set in recessed mortar, lit from above (a wall's light is the
+  sky's and the lamps'), each block its own tone, mottle and weather. Seamless by construction (whole courses, blocks
+  laid whole and wrapped, the light's march and cavity wrapped: `lightRelief`'s new `tile`). 512 texels a side; its
+  scale is part of its family, and unset it is painted at the metres the kit lays it at. `stone-brick` is untouched.
+
 ### Geocube styles: principles and the laws that check them
 
 A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's

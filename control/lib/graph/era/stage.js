@@ -290,7 +290,9 @@ function withRecipeTiles(kit, kitId, tiles) {
   for (const [part, spec] of Object.entries(tiles)) {
     if (!kit.tiles[part]) throw new Error(`stage: tiles.${part}: kit '${kitId}' has no ${part} surface (surfaces: ${Object.keys(kit.tiles).join(', ')})`);
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
-    out[part] = { ...was, family: tileFamilyOf(spec, `stage: tiles.${part}`), scale: n.scale ?? was.scale ?? 1 };
+    // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at)
+    const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
+    out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1 };
     // the kit's tint sets the value band a surface lives in; the recipe's own colour is the hue, so keep the band, drop the cast
     if (tint[part]) { const v = r5(tint[part].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
   }
