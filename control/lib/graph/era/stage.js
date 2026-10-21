@@ -866,8 +866,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
   if (manifest.geocube !== undefined) {
     const P = assembleStageScene(withGeocube(manifest), ctx);
-    // a trail or a terrain asked for: the answer says what the cube painted, on which terrain, and from whom
-    if (manifest.trail !== undefined || manifest.terrain !== undefined) P.painted = geocubePaint(manifest);
+    // a trail, a terrain or a domain asked for: the answer says what the cube painted, on which terrain, and from whom
+    if (manifest.trail !== undefined || manifest.terrain !== undefined || manifest.domain !== undefined) P.painted = geocubePaint(manifest);
     return P;
   }
   const kit = stageKit(resolveKitId(manifest.kit));

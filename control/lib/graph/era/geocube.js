@@ -22,7 +22,9 @@
  *             steel, kanamono as gold, leather as leather, by the armour's family and each metal group's own tone),
  *             or { age?, <group>: <material> } over that (`age`: new, worn, old or ancient: copper alloys tarnish
  *             and turn green, steel dulls and blackens); a hero takes it through its `geocube`. Absent: tones, as always
- *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
+ *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall; and its INTERIORS: the cube's own
+ *             room is one (named by `interior`, 'room' unless named), `interiors` the others, each a few changes to it
+ *             ({ reads?, bones?, size?, accentWall? }: a hall, a cellar)
  *   outside   the base (an isekai card), the landform's tiers and island, `land`: the polygon land's rules (with
  *             `mix`, `facet` and `valley`, local-meru/plan.js SHADING), `relief` (optional): the plain's own ground, a
  *             relief card or { from, …changes } (noise/relief.js), `ground` (optional): a terrain world's field
@@ -30,8 +32,14 @@
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
  *             count?, size?, glow?, seed? }, local-meru/crystals.js); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
- *             the others, each a few changes to it ({ reads?, base?, land?, relief?, ground?, colour? }: a shore, a highland). A level
- *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
+ *             the others, each a few changes to it, up to a whole land of its own ({ reads?, base?, tiers?, island?, land?,
+ *             relief?, ground?, crystals?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
+ *             one it was made for, and the answer says which it got
+ *   domains   (optional) the levels the cube makes, each a composition of its ingredients in its one style:
+ *             { <name>: { reads?, terrain? | interior?, hour? } } (outside on a terrain at an hour, or inside an
+ *             interior). A cube that names none offers one per terrain and one per interior. Expanding a domain lowers
+ *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
+ *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
  *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
  *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
@@ -45,10 +53,14 @@
  *             by the cube takes its era and its target unless it names its own target
  *
  *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
- *   lowerGeocube(cube, side, terrain?, hour?)   'inside' | 'outside' → a stage manifest (the outside at `hour`: geocube-hours.js)
- *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
- *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
+ *   lowerGeocube(cube, side, place?, hour?)   'inside' | 'outside' → a stage manifest (`place`: the interior or the
+ *                              terrain; the outside at `hour`: geocube-hours.js)
+ *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land', domain? } → its specimen
+ *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys (its `domain`
+ *                              expanded: an outside domain alone stands on the cube's island)
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
+ *   pickDomain(cube, ask, hint)    which domain a level gets, and from whom: → { name, from, offered, domain, wanted? }
+ *   expandGeocube(cube, ask, hint) domain expansion: the domain picked and lowered → { manifest, pick }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  */
@@ -246,6 +258,25 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'limestone-crags': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
 });
 /**
+ * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
+ * compose them (`domains` on the cube). Read into the preset when it is named (an id or `from`), so a preset's own
+ * bytes do not move and its own room and land lower as they always did; a cube document carries its own.
+ */
+export const GEOCUBE_DOMAINS = Object.freeze({
+  'limestone-crags': {
+    outside: { terrains: { cove: { reads: 'A sand cove under low crags, the sea come in close',
+      tiers: [{ form: 'mound', height: 3.5, foot: 12, summit: 7 }], island: { ...ISLE, beach: 16, high: { azimuth: null, height: 6, span: 150 } } } } },
+    inside: { interiors: { hall: { reads: 'A tall pale temple hall, cool out of the light', bones: 'gothic-nave', size: [12, 20, 11] } } },
+    domains: {
+      'crag-path': { reads: 'The crags in the hard clear light, the way up through the beds' },
+      'cove-dusk': { reads: 'The cove at dusk, the stone gone gold and the sea blue', terrain: 'cove', hour: 'dusk' },
+      'temple-hall': { reads: 'Into the temple hall, tall and cool out of the light', interior: 'hall' },
+    },
+  },
+});
+// a preset as it is read: its own document with the levels it makes (GEOCUBE_DOMAINS) laid over it
+const presetOf = (id) => merge(structuredClone(GEOCUBE_PRESETS[id]), structuredClone(GEOCUBE_DOMAINS[id] ?? {}));
+/**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
  * the preset at authoring time, with its seed, so a stored cube carries the spec it is solved from and a change here
  * never moves it. The preset's own hex stays as what an unseeded cube reads, so a recipe minted before keeps its
@@ -275,13 +306,16 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
 const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.message.replace(/^local-meru: ground/, '')}`); } };
+const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
+const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'colour'];
+const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour'];
 const LAND_WORDS = ['smooth', 'crevice', 'ridge', 'blend', 'sun', 'mix', 'facet', 'valley', 'skin', 'rocks'];
 const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) no(`${at}.${k} is not a setting (${at}: ${keys.join(', ')})`); };
 
@@ -289,13 +323,13 @@ const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includ
 export function readGeocube(spec) {
   if (typeof spec === 'string') {
     if (!GEOCUBE_PRESETS[spec]) no(`'${spec}' is not a preset (presets: ${Object.keys(GEOCUBE_PRESETS).join(', ')}); or write the cube`);
-    return readGeocube({ ...GEOCUBE_PRESETS[spec] });
+    return readGeocube(presetOf(spec));
   }
   if (!isObj(spec)) no('a cube is a preset id or a document { light, colour, register, surfaces, inside, outside, why }');
   if (spec.from !== undefined) {
     const { from, ...rest } = spec;
     if (!GEOCUBE_PRESETS[from]) no(`from: '${from}' is not a preset (presets: ${Object.keys(GEOCUBE_PRESETS).join(', ')})`);
-    const base = structuredClone(GEOCUBE_PRESETS[from]);
+    const base = presetOf(from);
     // solved: the preset's own colours, tone key, moon colour and colour principles give way to the palette (the
     // stamp writes the preset's character into it, GEOCUBE_PALETTES); what the variant writes still wins
     if (seededPalette(rest.palette)) {
@@ -362,11 +396,25 @@ export function readGeocube(spec) {
   // (the pillars and the plinth, optional: pilasters, engaged columns and the baseboard in surfaces of their own)
   for (const k of ['pillar', 'plinth']) if (c.surfaces[k] !== undefined) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
   // inside
-  only(c.inside, ['bones', 'size', 'accentWall'], 'inside');
-  if (!STAGE_KITS[c.inside.bones] || isGroundKit(c.inside.bones)) no(`inside.bones '${c.inside.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !isGroundKit(k)).join(', ')})`);
+  only(c.inside, ['bones', 'size', 'accentWall', 'interior', 'interiors'], 'inside');
+  const roomOrNo = (r, at, own = false) => {
+    if ((own || r.bones !== undefined) && (!STAGE_KITS[r.bones] || isGroundKit(r.bones))) no(`${at}.bones '${r.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !isGroundKit(k)).join(', ')})`);
+    if (r.size !== undefined && !(Array.isArray(r.size) && r.size.length === 3 && r.size.every((v) => v >= 3 && v <= 40))) no(`${at}.size is [w, d, h] metres, each 3..40`);
+    if (r.accentWall !== undefined && !WALLS.includes(r.accentWall)) no(`${at}.accentWall is one of ${WALLS.join(', ')}`);
+  };
+  roomOrNo(c.inside, 'inside', true);
   c.inside.size ??= [12, 12, 6]; c.inside.accentWall ??= '+y';
-  if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
-  if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);
+  if (c.inside.interior !== undefined && !(typeof c.inside.interior === 'string' && SLUG.test(c.inside.interior))) no('inside.interior is the name of the cube\'s own room, a lowercase slug');
+  if (c.inside.interiors !== undefined) {
+    if (!isObj(c.inside.interiors)) no('inside.interiors is { <name>: { reads?, bones?, size?, accentWall? } }: the cube\'s other rooms');
+    for (const [name, r] of Object.entries(c.inside.interiors)) {
+      const at = `inside.interiors.${name}`;
+      if (!SLUG.test(name) || name === (c.inside.interior ?? 'room')) no(`${at}: an interior's name is a lowercase slug, not the cube's own ('${c.inside.interior ?? 'room'}')`);
+      if (!isObj(r)) no(`${at} is { reads?, bones?, size?, accentWall? }`);
+      only(r, ['reads', 'bones', 'size', 'accentWall'], at);
+      roomOrNo(r, at);
+    }
+  }
   // outside
   only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'terrain', 'terrains'], 'outside');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
@@ -374,12 +422,15 @@ export function readGeocube(spec) {
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
-    if (!isObj(c.outside.terrains)) no('outside.terrains is { <name>: { reads?, base?, land?, relief?, ground?, colour? } }: the cube\'s other terrains');
+    if (!isObj(c.outside.terrains)) no(`outside.terrains is { <name>: { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the cube's other terrains`);
     for (const [name, t] of Object.entries(c.outside.terrains)) {
       const at = `outside.terrains.${name}`;
       if (!/^[a-z][a-z0-9-]{0,31}$/.test(name) || name === (c.outside.terrain ?? 'default')) no(`${at}: a terrain's name is a lowercase slug, not the cube's own ('${c.outside.terrain ?? 'default'}')`);
-      if (!isObj(t)) no(`${at} is { reads?, base?, land?, relief?, ground?, colour? }`);
-      only(t, ['reads', 'base', 'land', 'relief', 'ground', 'colour'], at);
+      if (!isObj(t)) no(`${at} is { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} }`);
+      only(t, TERRAIN_KEYS, at);
+      if (t.tiers !== undefined && (!Array.isArray(t.tiers) || !t.tiers.length)) no(`${at}.tiers is the landform's tiers (local meru), one or more`);
+      if (t.island !== undefined && t.island !== true && !isObj(t.island)) no(`${at}.island is true or { shore, beach, sea, depth, high, … } (local meru)`);
+      if (t.crystals !== undefined && t.crystals !== false) { try { readCrystals(t.crystals); } catch (e) { no(`${at}${e.message.replace(/^local-meru: /, '.')}`); } }
       if (t.relief !== undefined && t.relief !== false) reliefOrNo(t.relief, `${at}.relief`);
       if (t.ground !== undefined && t.ground !== false) groundOrNo(t.ground, `${at}.ground`);
       if (t.base !== undefined && (!ISEKAI_STYLES[t.base] || !SWATCHES[t.base])) no(`${at}.base '${t.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
@@ -399,6 +450,16 @@ export function readGeocube(spec) {
     if (!isObj(c.buildings)) no('buildings is { anchor?, uses: [{ use, enter }] }');
     only(c.buildings, ['anchor', 'uses'], 'buildings');
     if (!Array.isArray(c.buildings.uses) || !c.buildings.uses.every((u) => isObj(u) && typeof u.use === 'string' && ['door', 'walk', false].includes(u.enter ?? 'door'))) no("buildings.uses is [{ use, enter: 'door' | 'walk' | false }]");
+  }
+  // domains (optional): the levels the cube makes; terrains and interiors share their names when the cube names none
+  const places = [...geocubeTerrains(c), ...geocubeInteriors(c)].map((p) => p.name), twice = places.find((n, i) => places.indexOf(n) !== i);
+  if (twice) no(`'${twice}' names a terrain and an interior: they share the cube's domain names, so name one of them again`);
+  if (c.domains !== undefined) {
+    if (!isObj(c.domains) || !Object.keys(c.domains).length) no(`domains is { <name>: { ${DOMAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the levels the cube makes, one or more`);
+    for (const [name, d] of Object.entries(c.domains)) {
+      if (!SLUG.test(name)) no(`domains.${name}: a domain's name is a lowercase slug`);
+      composeDomain(c, d, `domains.${name}`);
+    }
   }
   // why
   if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
@@ -500,13 +561,105 @@ export function pickTerrain(cube, ask, hint) {
   if (hint && offered.includes(hint)) return { name: hint, from: 'heartbeat', offered };
   return { name: offered[0], from: 'cube', offered, ...(hint ? { wanted: hint } : {}) };
 }
-// the cube as one of its terrains: the cube's own outside, or a terrain's changes over it
+// the cube as one of its terrains: the cube's own outside, or a terrain's changes over it (up to a land of its own)
 function onTerrain(cube, name) {
   if (name === undefined || name === (cube.outside.terrain ?? 'default')) return cube;
   const t = cube.outside.terrains?.[name];
   if (!t) no(`terrain '${name}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((x) => x.name).join(', ')})`);
   return { ...cube, id: `${cube.id}-${name}`, reads: t.reads ?? cube.reads, colour: { ...cube.colour, ...(t.colour ?? {}) },
-    outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land, ...(t.relief !== undefined ? { relief: t.relief } : {}), ...(t.ground !== undefined ? { ground: t.ground } : {}) } };
+    outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land, ...(t.relief !== undefined ? { relief: t.relief } : {}), ...(t.ground !== undefined ? { ground: t.ground } : {}),
+      ...(t.tiers !== undefined ? { tiers: t.tiers } : {}), ...(t.island !== undefined ? { island: t.island } : {}), ...(t.crystals !== undefined ? { crystals: t.crystals } : {}) } };
+}
+
+/** The cube's interiors by name: its own room first. → [{ name, reads, own }]. */
+export function geocubeInteriors(cube) {
+  return [{ name: cube.inside.interior ?? 'room', reads: cube.reads ? `${cube.reads}, indoors` : 'indoors', own: true },
+    ...Object.entries(cube.inside.interiors ?? {}).map(([name, r]) => ({ name, reads: r.reads ?? '', own: false }))];
+}
+// the cube as one of its interiors: the cube's own room, or an interior's changes over it
+function onInterior(cube, name) {
+  if (name === undefined || name === (cube.inside.interior ?? 'room')) return cube;
+  const r = cube.inside.interiors?.[name];
+  if (!r) no(`interior '${name}' is not one of ${cube.id}'s (interiors: ${geocubeInteriors(cube).map((x) => x.name).join(', ')})`);
+  return { ...cube, id: `${cube.id}-${name}`, inside: { ...cube.inside, bones: r.bones ?? cube.inside.bones, size: r.size ?? cube.inside.size, accentWall: r.accentWall ?? cube.inside.accentWall } };
+}
+
+// the keys of a cube that are its style or its ingredients: never a domain's to change
+const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'why', 'avoid', 'buildings'];
+/** A domain read against the cube: outside on one of its terrains (at an hour), or inside one of its interiors. */
+function composeDomain(cube, d, at) {
+  if (!isObj(d)) no(`${at} is { ${DOMAIN_KEYS.map((k) => `${k}?`).join(', ')} }: outside on a terrain (at an hour), or inside an interior`);
+  for (const k of Object.keys(d)) {
+    if (STYLE_WORDS.includes(k)) no(`${at}.${k}: a domain composes the cube's ingredients in the cube's one style; a different ${k} is a different cube ({ from: '${cube.id}', ${k}: … })`);
+    if (k === 'inside' || k === 'outside') no(`${at}.${k}: a domain names the cube's own ${k === 'inside' ? 'interiors' : 'terrains'}; add one to the cube's ${k}.${k === 'inside' ? 'interiors' : 'terrains'}`);
+    if (!DOMAIN_KEYS.includes(k)) no(`${at}.${k} is not a setting (${at}: ${DOMAIN_KEYS.join(', ')})`);
+  }
+  if (d.reads !== undefined && !(typeof d.reads === 'string' && d.reads.length <= 200)) no(`${at}.reads is a line (200 characters at most)`);
+  if (d.terrain !== undefined && d.interior !== undefined) no(`${at}: a domain is outside on a terrain or inside an interior, not both`);
+  if (d.interior !== undefined) {
+    const I = geocubeInteriors(cube).find((r) => r.name === d.interior);
+    if (!I) no(`${at}.interior '${d.interior}' is not one of ${cube.id}'s (interiors: ${geocubeInteriors(cube).map((r) => r.name).join(', ')})`);
+    if (d.hour !== undefined) no(`${at}.hour is the outside's: an interior takes none`);
+    return { side: 'inside', interior: d.interior, reads: d.reads ?? I.reads };
+  }
+  const T = d.terrain === undefined ? geocubeTerrains(cube)[0] : geocubeTerrains(cube).find((t) => t.name === d.terrain);
+  if (!T) no(`${at}.terrain '${d.terrain}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((t) => t.name).join(', ')})`);
+  if (d.hour !== undefined) { try { readHour(d.hour); } catch (e) { no(`${at}.${e.message}`); } }
+  return { side: 'outside', terrain: T.name, ...(d.hour !== undefined ? { hour: d.hour } : {}), reads: d.reads ?? T.reads };
+}
+/**
+ * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
+ * (inside). → [{ name, side, terrain? | interior?, hour?, reads }].
+ */
+export function geocubeDomains(cube) {
+  if (cube.domains) return Object.entries(cube.domains).map(([name, d]) => ({ name, ...composeDomain(cube, d, `domains.${name}`) }));
+  return [...geocubeTerrains(cube).map((t) => ({ name: t.name, side: 'outside', terrain: t.name, reads: t.reads })),
+    ...geocubeInteriors(cube).map((r) => ({ name: r.name, side: 'inside', interior: r.name, reads: r.reads }))];
+}
+/**
+ * Which domain a level gets: the one it asks for (`ask`: one of the cube's by name; { from: <name>, …changes }; or a
+ * composition of the cube's own ingredients), else the first on the terrain its heartbeat was made for (`hint`), else
+ * the cube's first. → { name (null: composed), from: 'level' | 'heartbeat' | 'cube', offered, domain, changed?, wanted? }.
+ */
+export function pickDomain(cube, ask, hint) {
+  const menu = geocubeDomains(cube), offered = menu.map((d) => d.name);
+  const strip = ({ name: _n, ...d }) => d;
+  if (ask === undefined || ask === null) {
+    const h = hint ? menu.find((d) => d.side === 'outside' && d.terrain === hint) : undefined;
+    if (h) return { name: h.name, from: 'heartbeat', offered, domain: strip(h) };
+    return { name: menu[0].name, from: 'cube', offered, domain: strip(menu[0]), ...(hint ? { wanted: hint } : {}) };
+  }
+  if (typeof ask === 'string') {
+    const d = menu.find((x) => x.name === ask);
+    if (!d) no(`domain '${ask}' is not one of ${cube.id}'s (domains: ${offered.join(', ')}); or compose one of its ingredients ({ terrain?, hour? } or { interior })`);
+    return { name: ask, from: 'level', offered, domain: strip(d) };
+  }
+  if (!isObj(ask)) no('domain is the name of one of the cube\'s domains, { from: <name>, …changes }, or a composition { terrain?, hour? } | { interior }');
+  const { from, ...changes } = ask;
+  let base = {};
+  if (from !== undefined) {
+    const d = menu.find((x) => x.name === from);
+    if (!d) no(`domain.from '${from}' is not one of ${cube.id}'s (domains: ${offered.join(', ')})`);
+    // what a domain was written as, its reads aside (a changed domain reads as its changes say, else as composed)
+    const { name: _n, side: _s, reads: _r, ...was } = d;
+    base = was;
+  }
+  // a change of side takes the other side's ingredients with it
+  const d = { ...base, ...changes };
+  if (changes.terrain !== undefined) delete d.interior;
+  if (changes.interior !== undefined) { delete d.terrain; delete d.hour; }
+  return { name: from ?? null, from: 'level', offered, domain: composeDomain(cube, d, 'domain'), ...(from !== undefined ? { changed: Object.keys(changes) } : {}) };
+}
+/** A recipe's `domain`: a name, { from, …changes } or a composition (pickDomain's ask), or { ask?, hint? }. */
+export function readDomainAsk(cube, domain) {
+  if (isObj(domain) && Object.keys(domain).every((k) => k === 'ask' || k === 'hint')) return pickDomain(cube, domain.ask, domain.hint);
+  return pickDomain(cube, domain);
+}
+/** Domain expansion: the domain a level asks for (pickDomain), lowered. → { manifest: a stage manifest, pick }. */
+export function expandGeocube(cube, ask, hint) {
+  const pick = pickDomain(cube, ask, hint), D = pick.domain;
+  const manifest = D.side === 'inside' ? lowerGeocube(cube, 'inside', D.interior) : lowerGeocube(cube, 'outside', D.terrain, D.hour === undefined ? undefined : readHourOf(D.hour));
+  return { manifest, pick };
 }
 
 function lowerOutside(cube0, terrain, hour) {
@@ -599,17 +752,21 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (spec === undefined || spec === null) return null;
   const cube = readGeocube(spec);
   if (!readContrast(cube.contrast)) return null;
-  const side = m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
-  const terrain = side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
-  return cubeContrast(cube, side, { terrain, value, ...(m.hour !== undefined && side === 'outside' ? { hour: readHour(m.hour) } : {}) });
+  // a stage's or a specimen's domain says its side, its terrain and its hour (the recipe's own hour over it)
+  const D = (m.kind === 'stage' || m.kind === 'geocube') && m.domain !== undefined ? readDomainAsk(cube, m.domain).domain : null;
+  const side = D ? D.side : m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const terrain = D ? D.terrain : side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
+  const hour = m.hour ?? D?.hour;
+  return cubeContrast(cube, side, { terrain, value, ...(hour !== undefined && side === 'outside' ? { hour: readHour(hour) } : {}) });
 }
 
 const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };
 
-/** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform, on one of its terrains). */
-export function lowerGeocube(cube, side, terrain, hour) {
-  if (side === 'inside') return lowerInside(cube);
-  if (side === 'outside') return lowerOutside(cube, terrain, hour);
+/** The cube lowered into one side: 'inside' (the bare room, in one of its interiors) or 'outside' (the landform, on one
+ * of its terrains). `place` names the interior or the terrain; absent, the cube's own. */
+export function lowerGeocube(cube, side, place, hour) {
+  if (side === 'inside') return lowerInside(onInterior(cube, place));
+  if (side === 'outside') return lowerOutside(cube, place, hour);
   return no(`side is 'inside' or 'outside', not '${side}'`);
 }
 
@@ -619,10 +776,16 @@ export function lowerGeocube(cube, side, terrain, hour) {
  * the inside (the bones, reference, tone and tiles; the recipe's rooms, and the kit's dress unless the recipe says).
  */
 export function withGeocube(manifest) {
-  const { geocube, terrain, hour, ...m } = manifest, cube = readGeocube(geocube);
-  const T = terrain === undefined ? undefined : readTerrainAsk(cube, terrain);
-  // `hour` (geocube-hours.js): the outside lit at that hour, its sky and air the hour's
-  const H = hour === undefined ? undefined : readHourOf(hour);
+  const { geocube, terrain, domain, hour, ...m } = manifest, cube = readGeocube(geocube);
+  // `domain`: one of the levels the cube makes (or one composed of its ingredients), expanded: its terrain and hour on
+  // the outside (a stage that names neither trail nor meru stands on the cube's island), or its interior
+  if (domain !== undefined && terrain !== undefined) no('domain or terrain, not both: a domain names its terrain');
+  const D = domain === undefined ? undefined : readDomainAsk(cube, domain).domain;
+  if (D?.side === 'inside' && (m.meru !== undefined || m.trail !== undefined)) no(`the domain is inside (interior '${D.interior}'): a stage with ${m.meru !== undefined ? 'meru' : 'a trail'} is outside, so ask an outside domain`);
+  if (D?.side === 'outside' && m.meru === undefined && m.trail === undefined) m.meru = true;
+  const T = D ? (D.side === 'outside' ? { name: D.terrain } : undefined) : terrain === undefined ? undefined : readTerrainAsk(cube, terrain);
+  // `hour` (geocube-hours.js): the outside lit at that hour, its sky and air the hour's; the recipe's own over its domain's
+  const H = hour !== undefined ? readHourOf(hour) : D?.hour !== undefined ? readHourOf(D.hour) : undefined;
   // a trail: the cube paints it once, the outside's look on its open ground; the recipe's own kit, if it names one,
   // wins (a painted level is a starting point, not a lock)
   if (m.trail !== undefined) {
@@ -641,7 +804,7 @@ export function withGeocube(manifest) {
   }
   if (T) no('terrain is the outside\'s: a stage on a geocube takes it with trail or meru');
   if (H !== undefined) no('hour is the outside\'s: a stage on a geocube takes it with trail or meru');
-  const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside');
+  const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside', D?.interior);
   if (m.kit !== undefined && m.kit !== low.kit) no(`a stage on a geocube takes its kit from the cube's bones ('${low.kit}'); drop kit`);
   return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles };
 }
@@ -653,9 +816,17 @@ export function readTerrainAsk(cube, terrain) {
   only(terrain, ['ask', 'hint'], 'terrain');
   return pickTerrain(cube, terrain.ask, terrain.hint);
 }
-/** What a stage painted by a cube got: the cube, the terrain, from whom, and what the cube offered. */
+/** What a stage painted by a cube got: the cube, the terrain (or the domain), from whom, and what the cube offered. */
 export function geocubePaint(manifest) {
-  const cube = readGeocube(manifest.geocube), T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
+  const cube = readGeocube(manifest.geocube);
+  if (manifest.domain !== undefined) {
+    const P = readDomainAsk(cube, manifest.domain), D = P.domain, hour = manifest.hour ?? D.hour;
+    return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), domain: P.name, from: P.from, offered: P.offered, ...(P.changed ? { changed: P.changed } : {}), ...(P.wanted ? { wanted: P.wanted } : {}),
+      ...(D.side === 'outside' ? { terrain: D.terrain, ...(hour !== undefined ? { hour } : {}) } : { interior: D.interior }), reads: D.reads,
+      ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}),
+      ...(cube.avoid ? { avoid: cube.avoid.map(({ law, ok }) => ({ law, ok })) } : {}) };
+  }
+  const T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
   return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}),
     ...(cube.avoid ? { avoid: cube.avoid.map(({ law, ok }) => ({ law, ok })) } : {}) };
 }
@@ -696,17 +867,26 @@ export function geocubeDensity(cube) {
 const SHOW = ['room', 'land'];
 /** The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene. */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour); build a level on a cube with a stage recipe's geocube`);
-  const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), show = manifest.show ?? 'room';
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'domain'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, domain); build a level on a cube with a stage recipe's geocube`);
+  const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
+  // a domain shows the level it makes: its room or its land, at its hour unless the recipe names one
+  const P = manifest.domain === undefined ? null : readDomainAsk(cube, manifest.domain), D = P?.domain;
+  const own = D ? (D.side === 'inside' ? 'room' : 'land') : null;
+  if (own && manifest.show !== undefined && manifest.show !== own) no(`the domain is ${own === 'room' ? 'inside' : 'outside'}: show '${own}' (or leave show out)`);
+  const show = own ?? manifest.show ?? 'room';
   if (!SHOW.includes(show)) no(`show is ${SHOW.map((s) => `'${s}'`).join(' or ')}`);
   if (manifest.hour !== undefined && show !== 'land') no('hour is the land\'s: show \'land\' to see the cube at an hour');
-  const title = ctx.title || `${cube.title} · ${show === 'room' ? 'room' : 'landform'}`;
-  const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', undefined, manifest.hour === undefined ? undefined : readHourOf(manifest.hour));
+  const hour = manifest.hour ?? D?.hour;
+  const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : show === 'room' ? 'room' : 'landform'}`;
+  const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour));
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
-  if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
+  if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
+  // the levels it makes: read out where it names more than its own room and land, or a domain was asked for
+  const menu = P || cube.domains || cube.outside.terrains || cube.inside.interiors ? geocubeDomains(cube).map(({ name, side, reads }) => ({ name, side, reads })) : null;
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
     ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
-    ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}), ...(cube.avoid ? { avoid: cube.avoid } : {}) };
+    ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}), ...(cube.avoid ? { avoid: cube.avoid } : {}),
+    ...(menu ? { domains: menu } : {}), ...(P ? { domain: { name: P.name, from: P.from, ...D, ...(manifest.hour !== undefined ? { hour: manifest.hour } : {}), ...(P.changed ? { changed: P.changed } : {}) } } : {}) };
   return payload;
 }

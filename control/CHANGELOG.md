@@ -133,18 +133,32 @@ structures, settlements), and its `domains` are its level configs, each a compos
 Expanding a domain lowers it into a level, in the cube's style. The cube offers its domains with a line each, and the
 model picks the one that fits. A cube without domains lowers byte for byte as before.
 
-- Planned: terrains self-contained (an outside's every land key), `interiors` beside them, and `domains` on a cube.
-  Every cube offers one domain per terrain and its room when it names none, so `terrain: 'x'` is shorthand for
-  `domain: { terrain: 'x' }`.
-- Planned: `domain` on the `geocube` kind, a `stage`, a level and a world's style, as a name, `{ from, …changes }`, or
-  an ad hoc composition of the cube's own ingredients (style keys refuse). The pick is recorded as a terrain's is
-  (`from`: level, heartbeat or cube, and what was offered), and `painted` names it.
+- **Ingredients apart from the level** (`era/geocube.js`). A terrain in `outside.terrains` may now be a whole land of
+  its own (`tiers`, `island` and `crystals` beside base, land, relief, ground and colour). The inside gains the same
+  shape: `inside.interiors` are the cube's other rooms (`bones`, `size`, `accentWall`), its own named by
+  `inside.interior` (`room` unless named). Terrains and interiors share one set of names.
+- **Domains.** A cube's `domains: { <name>: { reads?, terrain? | interior?, hour? } }` are the levels it makes:
+  outside on one of its terrains at an hour, or inside one of its interiors. A domain never touches the style: light,
+  colour, palette and the rest refuse, with a pointer to `from` on the cube. A cube that names none offers one per
+  terrain and one per interior, so `domain: { terrain: 'x' }` is `terrain: 'x'`, byte for byte.
+- **Domain expansion.** `domain` on a `stage`, the `geocube` kind, a level and a world's style (`style.domain`, the
+  level's own over the world's terrain and the other way round) asks for one: by name, as `{ from: <name>, …changes }`
+  (a change of side takes the other side's ingredients with it), or composed from the cube's own ingredients.
+  `pickDomain` answers as `pickTerrain` does: the level's ask, else the first domain on its heartbeat's terrain, else
+  the cube's first, with what was offered and what was wanted. `expandGeocube` lowers the pick. A stage on an outside
+  domain that names neither trail nor meru stands on the cube's island at the domain's hour (the stage's own hour
+  wins); an inside one is the room. `painted`, the level's `paint` summary and the specimen's `geocube` payload name
+  the domain; a specimen whose cube names more than its own room and land lists the levels it makes.
+- **`limestone-crags` makes three levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
+  not move): `crag-path` (its crags), `cove-dusk` (a sand cove under low crags, at dusk) and `temple-hall` (a tall nave).
+  Every preset's room, land and dusk land, a stage on each and a painted level render byte for byte as before; the
+  limestone specimen's payload gains its list of domains. Only the automated checks have run; the three have not been
+  looked at.
 - Planned: `structures` as an ingredient, fractal-structure landmarks painted from the cube's ramps unless they name
   their own palette.
 - Planned: `settlements` as an ingredient, a town's street in the cube's building language, laid as the stage's `town`.
 - Planned: a game's levels expand domains of its one cube; compose picks each level's domain by its words. The geocube
   routing card teaches domain expansion; no new tool.
-- Planned: one preset offers domains through a side table beside its buildings, so its own bytes do not move.
 
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 
