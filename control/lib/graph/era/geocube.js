@@ -88,6 +88,7 @@ import { readContrast } from './vertex-contrast.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
+import { rollTiers } from '../local-meru/roll.js';
 import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
@@ -744,7 +745,8 @@ export function geocubeStructures(manifest) {
   const list = typeof D.structures === 'string' ? cube.structures[D.structures] : D.structures;
   const hourAsked = m.hour ?? D.hour, H = hourAsked === undefined ? undefined : readHourOf(hourAsked);
   // where it stands: the climb as the stage plans it (a level's climb follows its trail: its kit and seed are the trail's)
-  const low = m.kind === 'geocube' ? lowerGeocube(cube, 'outside', D.terrain, H) : withGeocube(m), M = low.meru === true ? {} : low.meru;
+  const low = m.kind === 'geocube' ? lowerGeocube(cube, 'outside', D.terrain, H) : withGeocube(m);
+  const M = m.kind === 'geocube' && m.show === 'trail' ? trailMeru(low.meru, m.seed ?? 1) : low.meru === true ? {} : low.meru;
   const plan = planLocalMeru({ ...M, after: M.after ? { seed: Number.isFinite(low.seed) ? low.seed : 1, ...M.after } : null });
   const top = plan.tiers[plan.tiers.length - 1], anchors = { summit: [top.centre[0], top.centre[1], top.base + top.height] };
   const R = geocubeRamps(onTerrain(cube, D.terrain)), paint = { body: R.stone[2], band: R.trim[1], crown: R.accent[3], plinth: R.floor[1] };
@@ -993,6 +995,8 @@ export function geocubeDensity(cube) {
     texelsPerMetre: { wanted: r1(ppm), painted: [...SIXTH_GEN.texture.texelsPerMetre] }, shadowCellPx: r1(cube.light.shadows.cells * ppm) };
 }
 
+// the trail's climb: every way up the island drawn, the way up rolled from the seed
+const trailMeru = (meru, seed) => rollTiers({ ...meru, ...(meru.island ? { island: { ...meru.island, walk: 'all' } } : {}) }, seed);
 const SHOW = ['room', 'land', 'trail'];
 const SHOWN = { room: 'room', land: 'landform', trail: 'trail' };
 /**
@@ -1016,12 +1020,12 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
   const low0 = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
     show !== 'room' ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
-  // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, and
-  // the island laid from the seed (an island-less cube's ways are all drawn)
-  const town = show === 'land' ? geocubeTown(cube, D) : null;
-  const low = town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, ...(manifest.seed !== undefined ? { seed: manifest.seed } : {}),
-    meru: { ...low0.meru, ...(low0.meru.island ? { island: { ...low0.meru.island, walk: 'all' } } : {}) } };
-  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
+  // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, the
+  // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
+  const town = show === 'land' ? geocubeTown(cube, D) : null, seed = manifest.seed ?? 1;
+  const low = town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js)
+  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   // the levels it makes: read out where it names more than its own room and land, or a domain was asked for

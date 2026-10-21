@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps, GEOCUBE_DOMAINS } from './geocube.js';
 import { readHour } from './geocube-hours.js';
+import { rollTiers } from '../local-meru/roll.js';
 import { assembleStageScene } from './stage.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 import { readLevel } from '../level/graph.js';
@@ -88,7 +89,7 @@ describe('expanding a domain', () => {
     expect(withGeocube({ kind: 'stage', geocube: cube, domain: 'cove-dusk' }).meru.shading).toEqual(withGeocube({ kind: 'stage', geocube: cube, domain: 'crag-path' }).meru.shading);
   });
 
-  it('the specimen shows a domain: its room in its interior, and the levels the cube makes', () => {
+  it('the specimen shows a domain: its room in its interior, and the levels the cube makes', async () => {
     const P = WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'crypt' }, {});
     expect(P.geocube).toMatchObject({ show: 'room', domain: { name: 'crypt', side: 'inside', interior: 'crypt' } });
     expect(P.geocube.domains.map((d) => d.name)).toEqual(['shore-night', 'shore-dawn', 'crypt']);
@@ -96,7 +97,7 @@ describe('expanding a domain', () => {
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'crypt', show: 'land' }, {})).toThrow(/the domain is inside: show 'room'/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'shore-dawn', show: 'room' }, {})).toThrow(/the domain is outside: show 'land' or 'trail'/);
     // an outside domain walked: its island, every way up drawn, at its hour
-    const T = WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'shore-dawn', show: 'trail', seed: 3 }, {});
+    const T = await WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: NAMED, domain: 'shore-dawn', show: 'trail', seed: 3 }, {});
     expect(T.geocube).toMatchObject({ show: 'trail', domain: { name: 'shore-dawn', terrain: 'shore', hour: 'dawn' } });
     // a cube that names no more than its own room and land reads out as it always did
     expect(WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night' }, {}).geocube.domains).toBeUndefined();
@@ -148,6 +149,10 @@ describe('structures, the landmarks a domain raises', () => {
     const noon = geocubeStructures({ ...m, domain: { from: 'beacon-hill', hour: 'noon' } });
     expect(noon.list).toEqual(S.list);
     expect(noon.light.toLight).not.toEqual(S.light.toLight);
+    // walked as a trail, the climb is rolled from the seed: the beacon stands on the rolled top
+    const walked = geocubeStructures({ kind: 'geocube', cube: RAISED, domain: 'beacon-hill', show: 'trail', seed: 5 });
+    const rolled = rollTiers({ ...lowerGeocube(readGeocube(RAISED), 'outside').meru }, 5).tiers.reduce((z, t) => z + t.height, 0);
+    expect(walked.list[0].at[2]).toBeCloseTo(rolled, 6);
     // none where the domain raises none, where it is inside, or on a trail
     expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'shore-night' })).toBeNull();
     expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'crypt' })).toBeNull();
