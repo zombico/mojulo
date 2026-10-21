@@ -90,6 +90,9 @@ export const RELATIONS = Object.freeze({
   chinWidth: 0,         // the mental tubercles' spread, added to the canon's 0.35 of the gonions' (− a narrower chin)
   chinRound: 0,         // the chin's mass about the pogonion, its radius × (1 + this) (− a pointier, finer chin; its front kept)
   dorsum: 0,            // the nose's bridge and root, their width × (1 + this) (− a finer bridge; the ridge's front kept)
+  noseSize: 0,          // the nose's own parts (the tip's mass, the wings, the columella, the septum, the walls) and their
+                        // places about the tip, the wings and the subnasale × (1 + this): a small nose is a smaller nose,
+                        // not the canon's parts crowded into less room (− smaller)
   gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
   cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
   lowerCheek: 0,        // the lower cheek over the jaw's body: the balloon's lower arm bowed down and out and filled
@@ -160,7 +163,8 @@ export function corePoints(rel = RELATIONS) {
   // the profile, hung off the nasion
   const n = { x: 0, y: g.y - R.nasionDepth, z: zN };
   const sn = { x: 0, y: n.y + 0.01, z: zSn };
-  const prn = { x: 0, y: sn.y + R.noseProjection * (zN - zSn), z: zSn + 0.03 };
+  const ns = 1 + R.noseSize;
+  const prn = { x: 0, y: sn.y + R.noseProjection * (zN - zSn), z: zSn + 0.03 * ns };
   const pg = { x: 0, y: n.y + R.chin, z: 0.06 };
   const P = {
     vertex: { x: 0, y: (g.y + op.y) / 2 - 0.02, z: 1 }, trichion: { x: 0, y: g.y - 0.035, z: zTr },
@@ -184,7 +188,7 @@ export function corePoints(rel = RELATIONS) {
   side('en', enX, eyeY + 0.025, zEye);
   side('ex', exX, eyeY - 0.02, zEye + R.canthalTilt);
   side('eye', (enX + exX) / 2, eyeY, zEye);
-  side('al', alX, sn.y + R.nostrilSet, zSn + R.nostrilRise);
+  side('al', alX, sn.y + R.nostrilSet * ns, zSn + R.nostrilRise * ns);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
   // THE MODIOLUS — where the muscles of the cheek meet beside the mouth's corner: authored at the corner, set back by
   // the tune (`mod`) so the summed waves of everything that ends there put the skin ON the corner, not proud of it
@@ -288,7 +292,8 @@ export function tunedPoints(P, tune = ZERO_TUNE) {
  */
 export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance = 0.5, damping = 0.9 } = {}) {
   // a channel that OVERSHOOTS (its error changes sign) halves its gain, and earns it back otherwise — an error that
-  // grows on the same side was a neighbour's push, not the channel's own step; no point moves further than LIMIT
+  // grows on the same side was a neighbour's push, not the channel's own step; no point moves further than LIMIT, nor a
+  // channel past its own (`TUNE_LIMITS`)
   const LIMIT = 0.08;
   let tune = { ...ZERO_TUNE }, residual = null, last = null, n = 0;
   const gain = Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, damping]));
@@ -306,7 +311,7 @@ export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance 
       if (e == null || Math.abs(e) <= tolerance) continue;
       if (last && last[k] != null) gain[k] = Math.sign(e) !== Math.sign(last[k]) && Math.abs(e) > tolerance ? gain[k] / 2 : Math.min(damping, gain[k] * 1.5);
       const step = (gain[k] * e * MM_V) / (c.pair ? 2 : 1);
-      next[k] = clampTo(c.point || c.probe ? tune[k] - step : tune[k] + step, LIMIT);
+      next[k] = clampTo(c.point || c.probe ? tune[k] - step : tune[k] + step, TUNE_LIMITS[k] ?? LIMIT);
     }
     last = residual;
     tune = next;
@@ -314,6 +319,13 @@ export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance 
   return { tune, steps: n, residual };
 }
 const clampTo = (v, lim) => Math.max(-lim, Math.min(lim, v));
+/**
+ * a channel's own reach, where the solve chasing its relation further bends the face more than the miss costs: the
+ * subnasale's lift, held to the poles' own range (a short, unprojected nose's skin dips ~2–4 mm under its relation; lifted
+ * to the shared limit, the nose's base rose ~18 mm and drew the upper lip into a long swollen snout). The miss is
+ * reported (`residual`), the face kept.
+ */
+export const TUNE_LIMITS = Object.freeze({ sn: 0.03 });
 /** a skin point the calipers do not read, found for the tune: `ch`, the front of the skin at the mouth's corner (the
  * front-most over a few heights about it, so the lip line's slot is not taken for the corner) */
 function probeOf(head, name) {
@@ -517,8 +529,9 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE NOSE — nasion → rhinion → tip
   // (`dorsum`: the bridge's radii, at the root and the rhinion, their centres forward by what they lose: the ridge's
   // front stays, the bridge narrows)
-  const dd = R.dorsum, D = 1 + dd;
-  v('nose', at(P.n, { y: -0.02 - 0.018 * dd }), at(P.rhinion, { y: -0.018 - 0.02 * dd }), at(P.prn, { y: -0.03 }), [0.018 * D, 0.02 * D, 0.03], 'nose');
+  // (`noseSize`: the parts' radii and their places about the tip, the wings and the subnasale, × k)
+  const dd = R.dorsum, D = 1 + dd, k = 1 + R.noseSize;
+  v('nose', at(P.n, { y: -0.02 - 0.018 * dd }), at(P.rhinion, { y: -0.018 - 0.02 * dd }), at(P.prn, { y: -0.03 * k }), [0.018 * D, 0.02 * D, 0.03 * k], 'nose');
   // THE NOSTRILS — one vajra each, placed from the nose's bottom (`nostrilRise`, `nostrilSet` put the alare over the
   // subnasale): the wing's base where it inserts into the lip → the alar lobule (its outer side IS the alare) → the
   // soft triangle beside the tip. Mirrored, with the columella between them; the space between a lobule and the
@@ -527,40 +540,40 @@ export function coreVajras(P, rel = RELATIONS) {
   const lobule = {}, soft3 = {};
   for (const s of ['L', 'R']) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
-    lobule[s] = at(al, { x: -sg * 0.018, y: -0.006 });
-    soft3[s] = { x: sg * 0.024, y: P.prn.y - 0.036, z: P.prn.z - 0.008 };
-    v(`nostril${s}`, at(al, { x: -sg * 0.014, y: -0.03, z: -0.006 }), lobule[s], soft3[s], [0.012, 0.018, 0.012], 'nose');
+    lobule[s] = at(al, { x: -sg * 0.018 * k, y: -0.006 * k });
+    soft3[s] = { x: sg * 0.024 * k, y: P.prn.y - 0.036 * k, z: P.prn.z - 0.008 * k };
+    v(`nostril${s}`, at(al, { x: -sg * 0.014 * k, y: -0.03 * k, z: -0.006 * k }), lobule[s], soft3[s], [0.012 * k, 0.018 * k, 0.012 * k], 'nose');
   }
   // THE ALAR BAR — lobule → under the subnasale → lobule: the nose's base, joining the nostrils. Its ends are the
   // lobules (the same bead and radius), so the wing's outer side stays the alare (ended at the alare itself, the bar
   // stood 5 mm outside each wing)
-  v('alae', lobule.L, at(P.sn, { y: -0.02, z: 0.005 }), lobule.R, [0.018, 0.018, 0.018], 'nose');
+  v('alae', lobule.L, at(P.sn, { y: -0.02 * k, z: 0.005 * k }), lobule.R, [0.018 * k, 0.018 * k, 0.018 * k], 'nose');
   // THE SEPTUM — the nose's midline wall, from the columella's base up behind the bridge, inside the nose: it fills the
   // air the walls and the ridge close round (a pocket there showed in the profile, and opened to a line seen through
   // from the side as the cheek moved)
-  v('septum', at(P.sn, { y: -0.004, z: 0.012 }), at(mid(P.sn, P.rhinion, 0.5), { y: -0.02 }), at(P.rhinion, { y: -0.03 }), [0.01, 0.012, 0.01], 'nose');
+  v('septum', at(P.sn, { y: -0.004 * k, z: 0.012 * k }), at(mid(P.sn, P.rhinion, 0.5), { y: -0.02 * k }), at(P.rhinion, { y: -0.03 * k }), [0.01 * k, 0.012 * k, 0.01 * k], 'nose');
   // THE COLUMELLA — the strip under the tip from the subnasale to the tip's underside, so the nose is closed beneath
   // (without it the air under the tip showed through from the side)
-  v('columella', at(P.sn, { y: -0.004, z: 0.006 }), at(mid(P.sn, P.prn, 0.55), { y: -0.012, z: -0.008 }), at(P.prn, { y: -0.032, z: -0.012 }), [0.01, 0.011, 0.014], 'nose');
+  v('columella', at(P.sn, { y: -0.004 * k, z: 0.006 * k }), at(mid(P.sn, P.prn, 0.55), { y: -0.012 * k, z: -0.008 * k }), at(P.prn, { y: -0.032 * k, z: -0.012 * k }), [0.01 * k, 0.011 * k, 0.014 * k], 'nose');
   // THE SEPTUM — the midline wall filling the triangle between the mid-bridge, the subnasale and the tip, so the nose
   // is solid between its nostrils (without it the air inside the nose showed through from the side)
-  { const tri = { x: 0, y: (P.rhinion.y + P.sn.y + P.prn.y) / 3 - 0.012, z: (P.rhinion.z + P.sn.z + P.prn.z) / 3 };
-    v('septumUp', at(P.rhinion, { y: -0.024 }), tri, at(P.sn, { y: -0.008, z: 0.01 }), [0.016, 0.02, 0.012], 'nose');
-    v('septumTip', tri, mid(tri, at(P.prn, { y: -0.03 })), at(P.prn, { y: -0.034, z: -0.006 }), [0.02, 0.018, 0.016], 'nose'); }
+  { const tri = { x: 0, y: (P.rhinion.y + P.sn.y + P.prn.y) / 3 - 0.012 * k, z: (P.rhinion.z + P.sn.z + P.prn.z) / 3 };
+    v('septumUp', at(P.rhinion, { y: -0.024 * k }), tri, at(P.sn, { y: -0.008 * k, z: 0.01 * k }), [0.016 * k, 0.02 * k, 0.012 * k], 'nose');
+    v('septumTip', tri, mid(tri, at(P.prn, { y: -0.03 * k })), at(P.prn, { y: -0.034 * k, z: -0.006 * k }), [0.02 * k, 0.018 * k, 0.016 * k], 'nose'); }
   // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
   // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
   // (rooted in the lobule, a little above its centre and thinner than it, so the lobule is the wing's widest)
   const wallMid = {};
   for (const s of ['L', 'R']) {
-    wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016, y: -0.022 });
-    v(`noseWall${s}`, at(lobule[s], { y: -0.004, z: 0.008 }), wallMid[s], at(P.rhinion, { y: -0.022 - 0.012 * dd }), [0.015, 0.014, 0.012 * D], 'nose');
+    wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016 * k, y: -0.022 * k });
+    v(`noseWall${s}`, at(lobule[s], { y: -0.004 * k, z: 0.008 * k }), wallMid[s], at(P.rhinion, { y: -0.022 - 0.012 * dd }), [0.015 * k, 0.014 * k, 0.012 * D], 'nose');
   }
   // THE NOSE'S FLESH — one cone down the middle, narrow at the bridge and widening to the base over the wings: the
   // soft tissue over the cartilages, closing the grooves beside the ridge and the windows between each wing, its wall
   // and the tip. Its radius at the base is `noseFat` (thin and pinched to full and fleshy); the base sits on the
   // lobules' tops (it roofs the nostrils, never fills them) and behind the tip by its own radius, so a fatter nose is
   // wider and fuller but no longer: the tip's projection stays its own relation, and al-al the wings'
-  const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018;
+  const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018 * k;
   const base = { x: 0, y: P.prn.y - 0.009 - fat, z: wingTop + 0.6 * fat };
   v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 - 0.012 * dd }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012 * D, 0.6 * fat, fat], 'nose');
   // and across it, low and forward beside the tip where the cone (set back by its radius) does not reach: a cone from

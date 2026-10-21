@@ -59,6 +59,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (the nose's projection, the cephalic index): a face asked past it is drawn at it.
 - The composer's GROOMS (`FACE_GROOMS`): the brows' thickness and density and the lashes' density and length rolled per
   face as shares of their shape's numbers, after its face (a seed keeps its relations); a bucket may carry its own.
+- THE NOSE'S AXIS (`FACE_NOSE`): one roll per face from a short, flat nose (less projected, shorter, smaller, its root
+  lower, its base wider) to a long, pointed one, each bucket setting where its people sit on it and how widely they spread
+  (`nose: { mean, spread }`: the western a little toward long, the asian toward short and flat, both reaching both
+  ends); `composeFace`'s `nose` sets it. The relational head's `noseSize` (0 the canon's) scales the nose's own parts and
+  their places with it, so a small nose is a smaller nose, not the canon's parts crowded; `TUNE_LIMITS` holds the tune's
+  subnasale lift to the poles' own range (chased further, the nose's base rose ~18 mm and drew the upper lip into a snout;
+  the miss is reported instead). Both poles' heads and tunes are unchanged; the head's floor on the nose's projection
+  falls from ~0.265 to 0.2.
 
 ### Body-part map: dress tailored to the body, not the segment
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 
 describe('the face composer', () => {
@@ -35,7 +35,7 @@ describe('the face composer', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const f = composeFace({ bucket: 'asian', seed });
       // (a relation only the base moves lands on the pole plus the base; one the proportions roll stays within their reach)
-      expect(f.relations.radix ?? 0).toBeCloseTo((pole.radix ?? 0.048) + B.radix, 9);
+      expect(f.relations.forehead).toBeCloseTo(pole.forehead + B.forehead, 9);
       expect(Math.abs(f.relations.cephalic - (pole.cephalic + B.cephalic))).toBeLessThanOrEqual(FACE_PROPORTIONS.cephalic + 1e-9);
       for (const [k, [lo, hi]] of Object.entries(FACE_LIMITS)) { expect(f.relations[k]).toBeGreaterThanOrEqual(lo); expect(f.relations[k]).toBeLessThanOrEqual(hi); }
     }
@@ -63,5 +63,18 @@ describe('the face composer', () => {
       }
     }
     for (const g of Object.keys(shares)) expect(new Set(shares[g]).size).toBeGreaterThan(8);
+  });
+
+  it('rolls the nose\'s axis per face, each bucket leaning its own way and reaching both ends', () => {
+    const rolls = (bucket) => Array.from({ length: 60 }, (_, i) => composeFace({ bucket, seed: i + 1 }).proportions.nose);
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    const west = rolls('western'), asia = rolls('asian');
+    expect(mean(asia)).toBeLessThan(mean(west) - 0.3);
+    for (const r of [west, asia]) { expect(Math.min(...r)).toBeLessThan(0); expect(Math.max(...r)).toBeGreaterThan(0); }
+    // (the ends move the nose the way they name: shorter and less projected, or longer and more)
+    const short = composeFace({ seed: 5, nose: -1 }).relations, long = composeFace({ seed: 5, nose: 1 }).relations;
+    expect(short.noseProjection).toBeLessThan(long.noseProjection);
+    expect(short.nasionDrop).toBeGreaterThan(long.nasionDrop);
+    expect(Math.sign(FACE_NOSE.short.noseSize)).toBe(-1);
   });
 });

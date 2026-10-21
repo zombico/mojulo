@@ -104,6 +104,19 @@ export const FACE_GROOMS = Object.freeze({
   brows: { thickness: [0.75, 1.3], density: [0.8, 1.25] },
   lashes: { density: [0.7, 1.4], length: [0.85, 1.2] },
 });
+/**
+ * THE NOSE'S AXIS — one roll per face, −1 … 1, from a SHORT, FLAT nose (less projected, shorter, its parts smaller, its
+ * root lower, its base wider, its bridge broader) to a LONG, POINTED one (more projected, longer, a finer bridge and a
+ * narrower base, a pointier tip, a defined root): the offsets at either end, scaled by the roll's distance toward it. A
+ * bucket sets where its people sit on it and how widely they spread (`nose: { mean, spread }`), so a population leans
+ * one way and still reaches the other. The character's nose shape composes over it.
+ */
+export const FACE_NOSE = Object.freeze({
+  short: { noseProjection: -0.06, nasionDrop: 0.012, noseSize: -0.3, radix: -0.006, nasalIndex: 0.06, dorsum: 0.15 },
+  long: { noseProjection: 0.05, nasionDrop: -0.01, noseSize: 0.1, dorsum: -0.15, nasalIndex: -0.04, noseFat: -0.004, nasionDepth: 0.004 },
+});
+/** where a bucket's people sit on the nose's axis when it names none */
+const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
 export const FACE_SPREAD = Object.freeze([0.6, 1.2]);
 /** how far a shape's pull reaches on the character plane (the nearer shapes the likelier) */
@@ -120,10 +133,11 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   lids         the lid COVER, rolled per face by weight (epidermis/dermal-looks.js EYE_SHAPES): morphology, not
  *                character, so it owns the fold's channels (`LID_FOLD`) over the eye shape's; absent, the rig's lid
  *   weights      its shapes' weights (× 1 absent; 0 never)
+ *   nose         where its people sit on the nose's axis (`FACE_NOSE`): { mean, spread }
  *   proportions  its proportions' reaches (`FACE_PROPORTIONS` absent)
  */
 export const FACE_BUCKETS = Object.freeze({
-  western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {} },
+  western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 } },
   asian: {
     note: 'East and Southeast Asian ancestry (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian', 'east-asian', 'southeast-asian'],
@@ -132,10 +146,12 @@ export const FACE_BUCKETS = Object.freeze({
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
     // female pole's refined nose already projects ~15–16 mm (sn-prn), about the population's mean, so the tip moves
     // little (a −0.04 here, the canon's difference, counted it twice: ~12 mm, below the population and the head's floor)
+    // (the nose's length and projection are its axis's: `nose`, the people leaning short and flat)
     base: {
-      cephalic: 0.02, headLength: -0.01, intercanthal: 0.12, nasalIndex: 0.1, noseProjection: -0.01, radix: -0.008,
+      cephalic: 0.02, headLength: -0.01, intercanthal: 0.12, nasalIndex: 0.1,
       nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004, brow: -0.05, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
     },
+    nose: { mean: -0.4, spread: 0.6 },
     // (the egocube's East Asian lid derive's own weights: the in-fold the likeliest)
     lids: { 'inner-fold': 2, monolid: 1, parallel: 1, hooded: 1 },
     weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
@@ -143,20 +159,22 @@ export const FACE_BUCKETS = Object.freeze({
 });
 /**
  * THE HEAD'S WORKING RANGE: the relations a composed face is held inside, measured by the tune's solve (where the skin
- * stops meeting its relations): under ~0.265 the nose's tip stands too little ahead of its own wings and columella for
- * the profile to keep a subnasale (the solve chased it ~4 mm and pulled the lip up into a snout); over ~0.83 the vault,
+ * stops meeting its relations): under ~0.2 the nose's tip stands too little ahead of the lip (with its parts scaled by
+ * `noseSize` and the subnasale's lift held, head-relational.js TUNE_LIMITS; without those the floor was ~0.265, the solve
+ * lifting the nose's base into a snout); over ~0.83 the vault,
  * whose parietal takes its radius from the breadth, cannot also be short (the head reads 2–5 mm long). A model's limit,
  * not a population's: a face asked past it is drawn at it.
  */
-export const FACE_LIMITS = Object.freeze({ noseProjection: [0.265, Infinity], cephalic: [-Infinity, 0.83] });
+export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], cephalic: [-Infinity, 0.83] });
 /** the lid cover's channels: the fold's, owned by the cover where a bucket rolls one */
 export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'creaseShape', 'epicanthus', 'fullness']);
 
 /**
- * Compose a face: { sex, bucket, seed, character?: [soft↔angular, delicate↔strong], accent?: false | a feature } →
+ * Compose a face: { sex, bucket, seed, character?: [soft↔angular, delicate↔strong], accent?: false | a feature, nose?: the
+ * nose's axis, −1 … 1, over the bucket's roll } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null } = {}) {
   const B = FACE_BUCKETS[bucket];
   if (!B) throw new Error(`face: the bucket is one of ${Object.keys(FACE_BUCKETS).join(', ')}`);
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
@@ -211,6 +229,10 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     grooms[g][k] = Math.round(groomShape[g][k] * share * 1000) / 1000;
     proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
   }
+  // the nose's axis, last (a seed keeps the rest of its face)
+  const NA = B.nose || NOSE_DEFAULT, rolled = NA.mean + NA.spread * (d() + d() - 1), nose = Math.max(-1, Math.min(1, noseAt ?? rolled));
+  for (const [key, v] of Object.entries(nose < 0 ? FACE_NOSE.short : FACE_NOSE.long)) off[key] = (off[key] || 0) + v * Math.abs(nose);
+  proportions.nose = Math.round(nose * 100) / 100;
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
