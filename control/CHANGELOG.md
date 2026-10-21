@@ -86,6 +86,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `'none'` still name theirs; a record stores its head, so a hero minted before keeps its own). The hero routing card
   names the realistic form (`form: 'realistic'`, `physique`, the fitted outfit words) and a phrasing that reaches it;
   the layered vocab card's paragraph says what the realistic body now wears.
+- The whole loop under test (export-model.realistic.test.js, the E2E tier): a realistic hero minted by the character
+  door with the fitted shirt and the trousers, exported as the lit skinned GLB, read back by glTF-Transform: one skinned
+  mesh on the rig's joints, the idle, walk and wave clips, the correctives as morph targets by name, the normals, the
+  weights summing to one. The skin's maps are not in it yet.
 
 ### Realistic body: correctives posed and exported
 

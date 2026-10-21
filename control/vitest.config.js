@@ -17,6 +17,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
   'lib/graph/car-designer/racer-live.test.js',
+  'lib/mcp/tools/export-model.realistic.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).
