@@ -21,9 +21,9 @@ const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u
 export const pointsOf = (P) => P.stations.flatMap((st) => Object.values(st.points));
 
 /** a piece's bind copied from the upper `P` it is worn on: each of its points (and its caps) takes the weights of the
- * upper's nearest point, so it moves as the leather under it does (the foot's ankle blend, the toe base's hinge) */
-export function bindNearest(piece, P) {
-  const own = { [P.bind.bone]: 1 }, src = P.stations.flatMap((st) => Object.entries(st.points).map(([sl, p]) => [p, P.bind.blend?.[`${st.id}.${sl}`] ?? own]));
+ * upper's nearest point (`rings`: or its ring's, where the surface blends by ring, a digit's), so it moves as the leather under it does (the foot's ankle blend, the toe base's hinge) */
+export function bindNearest(piece, P, { rings = false } = {}) {
+  const own = { [P.bind.bone]: 1 }, src = P.stations.flatMap((st) => Object.entries(st.points).map(([sl, p]) => [p, P.bind.blend?.[`${st.id}.${sl}`] ?? (rings ? P.bind.blend?.[st.id] : undefined) ?? own]));
   const nearest = (q) => { let best = src[0], d0 = Infinity; for (const s of src) { const d = (s[0][0] - q[0]) ** 2 + (s[0][1] - q[1]) ** 2 + (s[0][2] - q[2]) ** 2; if (d < d0) { d0 = d; best = s; } } return best[1]; };
   const blend = {};
   for (const st of piece.stations) for (const [sl, q] of Object.entries(st.points)) { const w = nearest(q); if (!(w === own)) blend[`${st.id}.${sl}`] = w; }

@@ -138,6 +138,14 @@ authored body the library's other words are its boot, its sandal or its shoe by 
 byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
 segments it is `on`). body-study `--dress` colours each footwear group by its tone.
 
+### Handwear: a solver library, an adapter per body's hand
+
+The footwear library's sibling for the hands (lib/graph/handwear): a CARD (pure data, a family, `from` its kin, `skin` a
+colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws. Its first layer is the PROTOGLOVE: the palm's
+and the digits' own rings stood off by the leather's thickness, a digit cut at its middle joint or at its knuckle where
+the card's `fingers` say (its end closed inside the finger), the cuff up the forearm by its share (the realistic
+adapter's close leather, a field garment). Words `gloves`, `suitGloves`, `fingerless`, `mitts`.
+
 ### Plating: segment-paneled armour on the realistic body
 
 In progress (the realistic body first; joint caps, glow seams and the other bodies next). `lib/graph/plating/`, a module
@@ -183,6 +191,16 @@ metres). `markSuit` cut by its muscles where they are clear and by design where 
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
 suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
 its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.
+GAUNTLETS: the hand and its digits are plating segments (a layout panel's `seg: 'fingers'` lays it on the four), and a
+suit names its `hands` (a handwear card: the glove the hand's plates are laid on, in the suit's group). Layouts
+`vambrace` (the forearm by design: a top plate over the extensors with a vent, a trim strip down the radius, a flexor
+plate, an ulnar plate across the back line, a cuff proud over the wrist), `gauntlet` (an underplate, a stepped back
+plate, a blade down the little finger's edge, a domed knuckle cap, a repulsor in the palm, a lame a phalanx on each
+finger and the thumb, low), `gauntletHeavy` (a studded knuckle bar, a thumb guard), `gauntletSleek` (one plate with a
+light line), `vambraceHeavy` (a ridge, a flared cuff). A shell may be laid on some of its segments (`{ layout, on }`).
+Suits `markGauntlets`, `heavyGauntlets`, `sleekGauntlets`, `bracers`; `markSuit` wears the vambraces and the gauntlets.
+A plate takes the weights of its surface's nearest point or, where the surface blends by ring (a digit's), its ring's,
+so a finger's lames curl with it.
 
 ### The hero's skin: a part of the character, shown where it shows
 

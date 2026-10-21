@@ -5,7 +5,7 @@
 // either side fit along them; chevrons narrowing down the front; an underplate showing through the windows the overplates
 // leave.
 //
-// A panel: { id, seg, layer: under | mid | over | cap | light | joint, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
+// A panel: { id, seg (a segment, or 'fingers': the four), layer: under | mid | over | cap | light | joint, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
 //            mirror? (a copy on the other side: s negated), dome? (m), lift? (m, over the layer's: a light set on a cap),
 //            circle? { t, s, r (m) } (a round panel, a servo's, in place of t, left and right; its shape in metres),
 //            s past ±1 (a line through the back, carrying on round to the other side),
@@ -87,6 +87,60 @@ const BASE = {
     { id: 'Adductor', seg: 'thigh', layer: 'over', role: 'Alloy', t: [0.2, 0.62], left: stepped(-0.78, [[0.4, 0.46, 0.08]], 0.2, 0.62), right: stepped(-0.38, [[...J.a, -0.04], [0.52, 0.58, -0.06]], 0.2, 0.62) },
     { id: 'Medialis', seg: 'thigh', layer: 'over', t: [0.66, 0.84], left: [[0.66, -0.62], [0.76, -0.66], [0.84, -0.5]], right: [[0.66, -0.4], [0.76, -0.36], [0.84, -0.3]] },
     { id: 'Hamstring', seg: 'thigh', layer: 'cap', mirror: true, t: [0.18, 0.8], left: stepped(0.84, [[0.42, 0.48, -0.04], [0.64, 0.7, 0.06]], 0.18, 0.8), right: line(0.99, 0.18, 0.8) },
+  ],
+  // the VAMBRACE (the forearm by design; t 0 the elbow … 1 the wrist; s 0 its front, the radius's side as the arm hangs,
+  // + its lateral side, the back of the forearm, the extensors'): an underplate between the joint bands; a top plate over
+  // the extensors narrowing to the wrist, a vent in it; a trim strip down the radius jogging with it; a flexor plate on the
+  // inner side; an ulnar plate down the back across the line; a cuff standing proud over the wrist
+  vambrace: [
+    { id: 'Under', seg: 'foreArm', layer: 'under', t: [0.15, 0.88], left: line(-0.995), right: line(0.995) },
+    { id: 'Top', seg: 'foreArm', layer: 'cap', t: [0.17, 0.8], left: stepped(0.22, [[...J.a, 0.06], [...J.b, 0.06]], 0.17, 0.8), right: stepped(0.84, [[...J.a, -0.04], [...J.b, -0.08]], 0.17, 0.8) },
+    { id: 'Vent', seg: 'foreArm', layer: 'light', lift: 0.016, t: [0.21, 0.31], left: line(0.47, 0.21, 0.31), right: line(0.56, 0.21, 0.31) },
+    { id: 'Strip', seg: 'foreArm', layer: 'mid', t: [0.18, 0.79], left: stepped(0.08, [[...J.a, 0.06], [...J.b, 0.06]], 0.18, 0.79), right: stepped(0.15, [[...J.a, 0.06], [...J.b, 0.06]], 0.18, 0.79) },
+    { id: 'Flexor', seg: 'foreArm', layer: 'over', t: [0.17, 0.8], left: stepped(-0.8, [[0.5, 0.56, 0.08]], 0.17, 0.8), right: stepped(-0.1, [[...J.a, -0.04], [...J.b, 0.04]], 0.17, 0.8) },
+    { id: 'Ulnar', seg: 'foreArm', layer: 'over', role: 'Alloy', t: [0.2, 0.78], left: stepped(0.9, [[...J.b, -0.06]], 0.2, 0.78), right: line(1.14, 0.2, 0.78) },
+    { id: 'Cuff', seg: 'foreArm', layer: 'cap', lift: 0.015, t: [0.81, 0.875], left: line(-0.995), right: line(0.995) },
+  ],
+  // the GAUNTLET (the hand by design; t 0 the wrist … 1 the knuckles' arc; s 0 the back of the hand, + the thumb's side,
+  // ±1 the palm): an underplate over the back and the sides; a back plate stepped; a blade down the little finger's
+  // edge; a knuckle cap domed; a repulsor in the palm (a hub and its light); the thumb's and each finger's lames, one a
+  // phalanx, low (a finger is thin)
+  gauntlet: [
+    { id: 'Under', seg: 'hand', layer: 'under', lift: 0.0025, t: [0.06, 0.98], left: line(-0.72), right: line(0.72) },
+    { id: 'Back', seg: 'hand', layer: 'over', lift: 0.0055, t: [0.12, 0.72], left: stepped(-0.5, [[0.4, 0.46, 0.08]], 0.12, 0.72), right: stepped(0.42, [[0.4, 0.46, -0.06]], 0.12, 0.72) },
+    { id: 'Blade', seg: 'hand', layer: 'mid', role: 'Trim', lift: 0.004, t: [0.14, 0.9], left: stepped(-0.68, [[0.4, 0.46, 0.08]], 0.14, 0.9), right: stepped(-0.58, [[0.4, 0.46, 0.08]], 0.14, 0.9) },
+    { id: 'Knuckle', seg: 'hand', layer: 'cap', lift: 0.0065, dome: 0.003, t: [0.76, 0.99], left: line(-0.56, 0.76, 0.99), right: line(0.5, 0.76, 0.99) },
+    { id: 'Repulsor', seg: 'hand', layer: 'cap', role: 'Alloy', lift: 0.005, circle: { t: 0.5, s: 1, r: 0.016 } },
+    { id: 'RepulsorLight', seg: 'hand', layer: 'light', lift: 0.0075, circle: { t: 0.5, s: 1, r: 0.011 } },
+    ...[[0.22, 0.48], [0.52, 0.73], [0.77, 0.98]].map((t, i) => ({ id: `Thumb${i}`, seg: 'thumb', layer: 'over', lift: 0.002, t, left: line(-0.46), right: line(0.46) })),
+    ...[[0.28, 0.48], [0.53, 0.73], [0.77, 0.98]].map((t, i) => ({ id: `Lame${i}`, seg: 'fingers', layer: 'over', lift: 0.002, t, left: line(-0.46), right: line(0.46) })),
+  ],
+  // the HEAVY VAMBRACE: the vambrace with a ridge down its top plate and a cuff flaring wide over the wrist
+  vambraceHeavy: [
+    { id: 'Ridge', seg: 'foreArm', layer: 'cap', role: 'Alloy', lift: 0.019, t: [0.2, 0.78], left: stepped(0.47, [[...J.b, -0.02]], 0.2, 0.78), right: stepped(0.55, [[...J.b, -0.02]], 0.2, 0.78) },
+    { id: 'Flare', seg: 'foreArm', layer: 'cap', lift: 0.022, t: [0.8, 0.88], left: line(-0.995), right: line(0.995) },
+  ],
+  // the HEAVY GAUNTLET: a back plate a layer up reaching the knuckle bar; the bar wide and domed, a stud over each
+  // knuckle; a guard over the thumb's root; the lames wider
+  gauntletHeavy: [
+    { id: 'Under', seg: 'hand', layer: 'under', lift: 0.0025, t: [0.06, 0.98], left: line(-0.76), right: line(0.76) },
+    { id: 'Back', seg: 'hand', layer: 'cap', lift: 0.007, t: [0.12, 0.74], left: stepped(-0.6, [[0.4, 0.46, 0.06]], 0.12, 0.74), right: stepped(0.52, [[0.4, 0.46, -0.06]], 0.12, 0.74) },
+    { id: 'Bar', seg: 'hand', layer: 'cap', lift: 0.0078, dome: 0.004, t: [0.77, 0.99], left: line(-0.58, 0.77, 0.99), right: line(0.52, 0.77, 0.99) },
+    ...[0.36, 0.12, -0.12, -0.36].map((sc, i) => ({ id: `Stud${i}`, seg: 'hand', layer: 'cap', role: 'Alloy', lift: 0.011, dome: 0.002, circle: { t: 0.88, s: sc, r: 0.0065 } })),
+    { id: 'Repulsor', seg: 'hand', layer: 'cap', role: 'Alloy', lift: 0.005, circle: { t: 0.5, s: 1, r: 0.017 } },
+    { id: 'RepulsorLight', seg: 'hand', layer: 'light', lift: 0.0075, circle: { t: 0.5, s: 1, r: 0.012 } },
+    { id: 'ThumbGuard', seg: 'thumb', layer: 'cap', lift: 0.0045, t: [0.12, 0.5], left: line(-0.7), right: line(0.7) },
+    ...[[0.53, 0.73], [0.77, 0.98]].map((t, i) => ({ id: `Thumb${i}`, seg: 'thumb', layer: 'over', lift: 0.003, t, left: line(-0.56), right: line(0.56) })),
+    ...[[0.27, 0.48], [0.52, 0.73], [0.77, 0.99]].map((t, i) => ({ id: `Lame${i}`, seg: 'fingers', layer: 'over', lift: 0.003, t, left: line(-0.58), right: line(0.58) })),
+  ],
+  // the SLEEK GAUNTLET: one plate over the back of the hand to the knuckles, a light line down it; narrow lames
+  gauntletSleek: [
+    { id: 'Under', seg: 'hand', layer: 'under', lift: 0.002, t: [0.06, 0.98], left: line(-0.66), right: line(0.66) },
+    { id: 'Back', seg: 'hand', layer: 'over', lift: 0.0045, t: [0.12, 0.98], left: stepped(-0.52, [[0.62, 0.7, 0.06]], 0.12, 0.98), right: stepped(0.46, [[0.62, 0.7, -0.04]], 0.12, 0.98) },
+    { id: 'Line', seg: 'hand', layer: 'light', lift: 0.0058, t: [0.2, 0.62], left: line(-0.035, 0.2, 0.62), right: line(0.035, 0.2, 0.62) },
+    { id: 'RepulsorLight', seg: 'hand', layer: 'light', lift: 0.004, circle: { t: 0.5, s: 1, r: 0.012 } },
+    ...[[0.52, 0.73], [0.77, 0.98]].map((t, i) => ({ id: `Thumb${i}`, seg: 'thumb', layer: 'over', lift: 0.0016, t, left: line(-0.38), right: line(0.38) })),
+    ...[[0.28, 0.48], [0.53, 0.73], [0.77, 0.98]].map((t, i) => ({ id: `Lame${i}`, seg: 'fingers', layer: 'over', lift: 0.0016, t, left: line(-0.38), right: line(0.38) })),
   ],
   // the SERVOS: a hub at the outer and the inner side of each knee and elbow, a mechanical joint's: a disc, a domed core,
   // a light at its middle (a panel `circle`: { t, s, r (m) } on its segment, mirrored to the other side)

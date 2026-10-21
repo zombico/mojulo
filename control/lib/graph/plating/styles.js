@@ -7,12 +7,12 @@
 //   suit     { ease? (m off the skin, 0.002), on? [segments] } the undersuit, or false: plates on the bare skin
 //   plates   [{ region (regions.js PLATE_REGIONS, or { seg, along, around, sides, rows?, gap? }), lift? (m, the
 //            standoff: bulk), thick?, rows?, gap?, group? }]
-//   shells   [layout | { layout, bulk? }] FITTED SHELLS (layouts.js: greave, greaveFront, kneeCap, sabaton, joints, spine,
-//            lumbar, hips, servos): a segment's shell cut along
+//   shells   [layout | { layout, bulk?, on? [segments] }] FITTED SHELLS (layouts.js LAYOUTS, by name): a segment's shell cut along
 //            design lines into bevelled panels fitted across narrow seams, stacked by layer
 //   muscles  { on: [segments], only?: [plate groups], bulk?, seam? (m, the grooves' width, 0.014) } MUSCLE-MAPPED SHELLS (muscles.js): each segment cut where its
 //            grooves run, a plate per muscle group, its edges straightened into stepped lines, an underplate under all
 //   feet     a footwear card (the footwear library's: its sole, its toe cap) worn with the suit
+//   hands    a handwear card (the handwear library's: the glove the hand's plates are laid on) worn with the suit
 //   reactor  { at? (a share up the torso, 0.78; the sternum about 0.64), r? (m), group? } a disc on the sternum, its rim in Rim
 //   tones    { <group>: '#hex' }; emissive [<group>] (rendered full-bright)
 export const SUITS = Object.freeze({
@@ -45,11 +45,24 @@ export const SUITS = Object.freeze({
   // caps and sabatons below, articulated bands at every joint, servos at the knees and the elbows, a reactor on the
   // sternum; red over silver, gold strips, lit vents
   markSuit: { from: 'markBoots', suit: { ease: 0.002, on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'] },
-    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints', 'spine', 'lumbar', 'hips', 'thighs', 'servos'],
-    muscles: { on: ['torso', 'upperArm', 'foreArm', 'shank'], only: ['Pec', 'Sternum', 'Collar', 'Abs1', 'Abs2', 'Abs3', 'Oblique', 'Lat', 'Trap', 'Armpit',
-      'Deltoid', 'Biceps', 'Triceps', 'Brachioradialis', 'Extensors', 'Flexors',
+    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints', 'spine', 'lumbar', 'hips', 'thighs', 'vambrace', 'gauntlet', 'servos'], hands: 'suitGloves',
+    muscles: { on: ['torso', 'upperArm', 'shank'], only: ['Pec', 'Sternum', 'Collar', 'Abs1', 'Abs2', 'Abs3', 'Oblique', 'Lat', 'Trap', 'Armpit',
+      'Deltoid', 'Biceps', 'Triceps',
       'GastrocMedial', 'GastrocLateral', 'Soleus'] },
     reactor: { at: 0.64, r: 0.026 }, emissive: ['Light', 'Reactor'], tones: { Reactor: '#c8f4ff', Rim: '#b7b9bd', Joint: '#4a4d53' } },
+  // MARK GAUNTLETS: the forearms and the hands alone: vambraces over an undersuit to the elbow, gauntlets over its glove,
+  // the bands at the wrist and the elbow
+  markGauntlets: { family: 'powered', suit: { ease: 0.002, on: ['foreArm'] }, hands: 'suitGloves', shells: ['vambrace', 'gauntlet', { layout: 'joints', on: ['foreArm'] }],
+    tones: { Plate: '#8e1a1f', Alloy: '#b7b9bd', Trim: '#c9a23a', Suit: '#1e1f24', Light: '#e8f6ff', Joint: '#4a4d53' }, emissive: ['Light'] },
+  // the HEAVY GAUNTLETS: a ridged vambrace flaring over the wrist, a studded knuckle bar, a thumb guard; gunmetal
+  heavyGauntlets: { from: 'markGauntlets', shells: ['vambrace', 'vambraceHeavy', 'gauntletHeavy', { layout: 'joints', on: ['foreArm'] }],
+    tones: { Plate: '#55595f', Alloy: '#8d9299', Trim: '#2f3236', Light: '#ffd27a' } },
+  // the SLEEK GAUNTLETS: one plate over the back of the hand, a light line down it, narrow lames; white over grey
+  sleekGauntlets: { from: 'markGauntlets', shells: ['vambrace', 'gauntletSleek', { layout: 'joints', on: ['foreArm'] }],
+    tones: { Plate: '#e9eaee', Alloy: '#9aa3ad', Trim: '#7fa6c9', Suit: '#3a3f47', Light: '#9fe8ff' } },
+  // BRACERS: the vambraces alone, on an undersuit over the forearms, the hands bare
+  bracers: { family: 'powered', suit: { ease: 0.002, on: ['foreArm'] }, shells: ['vambrace', { layout: 'joints', on: ['foreArm'] }],
+    tones: { Plate: '#8e1a1f', Alloy: '#b7b9bd', Trim: '#c9a23a', Suit: '#1e1f24', Light: '#e8f6ff', Joint: '#4a4d53' }, emissive: ['Light'] },
 });
 for (const c of Object.values(SUITS)) Object.freeze(c);
 /** COLOURWAYS over any suit, by role */

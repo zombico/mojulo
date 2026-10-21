@@ -128,6 +128,23 @@ describe('a plated suit on a body adapter', () => {
     expect(mx('tThighsAdductor_thighL')).toBeGreaterThan(-0.09);
   });
 
+  it('a gauntlet: the hand\'s plates over its glove, a lame a phalanx on each finger riding its ring\'s weights', () => {
+    // (a hand and two digits under the forearm, their rings blended by ring, as the hero's are)
+    const hand = { ...seg('handR', 0.24, 0.85, 0.78, 0.03, 3, 4), layer: 1 }, dig = (d, x) => ({ ...seg(`${d}1R`, x, 0.78, 0.7, 0.008, 4, 5), layer: 1, bind: { bone: `${d}1R`, blend: { st3: { [`${d}2R`]: 0.5, [`${d}3R`]: 0.5 }, st4: { [`${d}3R`]: 1 } } } });
+    const hb = { handR: hand, indexR: dig('index', 0.25), thumbR: dig('thumb', 0.23) };
+    const A = { ...stub, sides: ['R'], part: (n) => hb[n] ?? body[n], u: (k, s) => ({ hand: 3, index: 4, thumb: 4 }[k] ?? U[k]) * s,
+      hands: (card, { id, group }) => ({ parts: Object.fromEntries(Object.entries(hb).map(([n, P]) => [`${id}_${n}`, { ...P, group }])) }) };
+    const W = wearPlating(A, 'markGauntlets', { id: 'm' });
+    // (the glove in the suit's group, the plates over it, the repulsor in the palm)
+    expect(W.parts.m_handR.group).toBe('Suit');
+    for (const k of ['mGauntletBack_handR', 'mGauntletKnuckle_handR', 'mGauntletRepulsorLight_handR', 'mGauntletLame2_indexR', 'mGauntletThumb0_thumbR', 'mVambraceTop_foreArmR']) expect(W.parts[k], k).toBeTruthy();
+    expect(W.parts.mGauntletLame0_middleR).toBeUndefined();
+    // (the last lame rides the last phalanx: its ring's weights, not the digit's first bone)
+    expect(Object.values(W.parts.mGauntletLame2_indexR.bind.blend).some((w) => w.index3R)).toBe(true);
+    expect(validatePlating({ shells: [{ layout: 'joints', on: ['wing'] }] })[0]).toMatch(/shells\[0\]\.on: the segments/);
+    expect(validatePlating({ hands: 'mittens' })[0]).toMatch(/suit\.hands: 'mittens' is not a handwear word/);
+  });
+
   it('refuses a suit by name', () => {
     expect(validatePlating('ironSuit')[0]).toMatch(/'ironSuit' is not a suit/);
     const E = validatePlating({ plates: [{ region: 'wing', colour: 1 }] });
