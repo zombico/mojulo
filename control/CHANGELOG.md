@@ -125,6 +125,27 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Geocube domains: one cube, many levels
+
+A geocube made one level: its style fused with one room and one island. A cube is now its style (light, palette,
+register, contrast, grit, surfaces, era, target, materials, principles) plus named ingredients (terrains, interiors,
+structures, settlements), and its `domains` are its level configs, each a composition of those ingredients at an hour.
+Expanding a domain lowers it into a level, in the cube's style. The cube offers its domains with a line each, and the
+model picks the one that fits. A cube without domains lowers byte for byte as before.
+
+- Planned: terrains self-contained (an outside's every land key), `interiors` beside them, and `domains` on a cube.
+  Every cube offers one domain per terrain and its room when it names none, so `terrain: 'x'` is shorthand for
+  `domain: { terrain: 'x' }`.
+- Planned: `domain` on the `geocube` kind, a `stage`, a level and a world's style, as a name, `{ from, …changes }`, or
+  an ad hoc composition of the cube's own ingredients (style keys refuse). The pick is recorded as a terrain's is
+  (`from`: level, heartbeat or cube, and what was offered), and `painted` names it.
+- Planned: `structures` as an ingredient, fractal-structure landmarks painted from the cube's ramps unless they name
+  their own palette.
+- Planned: `settlements` as an ingredient, a town's street in the cube's building language, laid as the stage's `town`.
+- Planned: a game's levels expand domains of its one cube; compose picks each level's domain by its words. The geocube
+  routing card teaches domain expansion; no new tool.
+- Planned: one preset offers domains through a side table beside its buildings, so its own bytes do not move.
+
 ### Geocube hours: one cube at any hour, under a sky painted to match its ground
 
 - **The hour** (`era/geocube-hours.js`). A geocube's outside takes an `hour`: a stage recipe with `geocube` and `meru`
