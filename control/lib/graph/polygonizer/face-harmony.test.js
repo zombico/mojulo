@@ -22,9 +22,9 @@ describe('the sex axis', () => {
 
 describe('the harmony calipers', () => {
   it('read the chin, the bridge and the lower face, and a narrower chin reads narrower and pointier', () => {
-    const base = harmonyMeasures(relationalHead({ sex: 'female', tune: HEAD_TUNES.female }));
+    const base = harmonyMeasures(relationalHead({ sex: 'male', tune: HEAD_TUNES.male }));
     for (const v of Object.values(base)) expect(Number.isFinite(v)).toBe(true);
-    const fine = harmonyMeasures(relationalHead({ sex: 'female', tune: HEAD_TUNES.female, relations: { chinWidth: -0.12, dorsum: -0.4 } }));
+    const fine = harmonyMeasures(relationalHead({ sex: 'male', tune: HEAD_TUNES.male, relations: { chinWidth: -0.12, dorsum: -0.4 } }));
     expect(fine['chin width']).toBeLessThan(base['chin width'] - 5);
     expect(fine['chin fall 10']).toBeGreaterThan(base['chin fall 10']);
     expect(fine['root width']).toBeLessThan(base['root width']);

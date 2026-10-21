@@ -37,7 +37,7 @@ export const RELATIONAL_HEAD = Object.freeze({
   // the eyes: their look's tilt, slots, the rings out past the opening's edge (m) and in toward the cornea (shares of the
   // edge), where the visage under them comes back up (m past the edge), and how far it is let down there
   eyeTilt: 5, eyeSlots: 64, eyeOut: [0.02, 0.017, 0.0145, 0.0123, 0.0104, 0.0088, 0.0074, 0.0062, 0.0051, 0.0042, 0.0034, 0.0027, 0.0021, 0.0016, 0.0011, 0.0007, 0.0003, 0],
-  eyeIn: [0.85, 0.7, 0.55, 0.4, 0.28, 0.17, 0.08], eyeUnder: 0.01, eyeRise: 0.01, eyeShortIn: 0.6, noseShortDown: 0.45,
+  eyeIn: [0.85, 0.7, 0.55, 0.4, 0.28, 0.17, 0.08], eyeUnder: 0.01, eyeRise: 0.01, eyeShortIn: 0.6, eyeRoomEase: 6, noseShortDown: 0.45,
   noseSlots: 96, noseMost: 0.04, noseBase: 0.002, noseOut: [0.02, 0.017, 0.0145, 0.0123, 0.0104, 0.0088, 0.0074, 0.0062, 0.0051, 0.0042, 0.0034, 0.0027, 0.0021, 0.0016, 0.0011, 0.0007, 0.0003, 0],
   noseIn: [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.31, 0.23, 0.16, 0.1, 0.05], eyeSink: 0.002, eyeKeep: 0.015, eyeRimSink: 0.0005,
   // the ears: slots round a section, sections up the ear
@@ -49,7 +49,7 @@ export const RELATIONAL_HEAD = Object.freeze({
  * the solver; re-pin with the solver's output in the commit that moves it) */
 export const HEAD_TUNES = Object.freeze({
   male: Object.freeze({ eu: 0.006847826086956521, zy: 0.034043478260869564, go: 0.06143478260869566, op: 0.019760869565217394, g: 0.01643478260869565, gn: 0.008706521739130432, n: 0.03071739130434783, sn: 0.014086956521739132, prn: -0.01291304347826087, al: 0.0033260869565217392, mod: -0.07786956521739131 }),
-  female: Object.freeze({ eu: 0.007630434782608695, zy: 0.03384782608695652, go: 0.063, op: 0.013402173913043484, g: 0.02347826086956522, gn: 0.011250000000000003, n: 0.011054347826086955, sn: 0.014478260869565218, prn: -0.013304347826086957, al: 0.0062608695652173925, mod: -0.08 }),
+  female: Object.freeze({ eu: 0.007434782608695652, zy: 0.034043478260869564, go: 0.07552173913043479, op: 0.009489130434782611, g: 0.030521739130434784, gn: 0.017070652173913046, n: -0.005771739130434786, sn: 0.02465217391304348, prn: -0.01682608695652174, al: 0.004206521739130434, mod: -0.08 }),
 });
 
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
@@ -213,7 +213,24 @@ function eyeFrame(fF, paintAt, c, C) {
   const O = lookup(hullOf(open));
   // (its reach shorter toward the nose, so the bridge is the nose's)
   const scale = (th) => 1 - C.eyeShortIn * Math.max(0, -Math.sin(th)) ** 2;
-  return { ...F, O, scale, beyond: (q) => { const p = F.at(q); return (p.r - O(p.th)) / scale(p.th); } };
+  // the ROOM out past the edge, per direction: where the outer ring would cast past the face's side (a wide eye on a
+  // narrow face, the skin there turned away from the eye's look), the rings out there close in to the furthest that
+  // still meets the skin; elsewhere 1 (the rings as drawn)
+  const room = Array.from({ length: N }, (_, j) => {
+    const th = (2 * Math.PI * j) / N, o = O(th), out = C.eyeOut[0] * scale(th);
+    if (F.cast(fF, F.inPlane(th, o + out))) return 1;
+    let r = o;
+    while (r + 0.0005 < o + out && F.cast(fF, F.inPlane(th, r + 0.0005))) r += 0.0005;
+    return Math.max(0, r - o - 0.0005) / out;
+  });
+  // (eased into its neighbours over `eyeRoomEase` slots, a slope from each closed-in direction back up to 1: a lone
+  // direction closed in beside open ones stood its rings as a spike at the eye's corner)
+  const W = C.eyeRoomEase, eased = room.map((_, j) => {
+    let m = 1;
+    for (let k = -W; k <= W; k++) { const q = room[(j + k + N) % N]; m = Math.min(m, q + (Math.abs(k) / W) * (1 - q)); }
+    return m;
+  });
+  return { ...F, O, scale, room: lookup(eased), beyond: (q) => { const p = F.at(q); return (p.r - O(p.th)) / scale(p.th); } };
 }
 
 /** a RELIEF part: rings about its frame's middle, ring `i` (0 the rim, inward) at `radius(th, i)`, each point cast
@@ -419,7 +436,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', opts = {} } = {}) {
   // its rim let down there, the visage let down under it inside `eyeUnder` of the edge
   const E = eyeFrame(fV, paintAt, toHero(head.points.eyeR), C);
   const OFF = C.eyeOut, IN = C.eyeIn;
-  const eyeRadius = (th, i) => (i < OFF.length ? E.O(th) + OFF[i] * E.scale(th) : E.O(th) * IN[i - OFF.length]);
+  const eyeRadius = (th, i) => (i < OFF.length ? E.O(th) + OFF[i] * E.scale(th) * E.room(th) : E.O(th) * IN[i - OFF.length]);
   const eye = reliefPart(E, fV, { slots: C.eyeSlots, rings: OFF.length + IN.length, radius: eyeRadius, sym: false, sink: (q, i) => (i < OFF.length ? C.eyeRimSink * ramp((OFF[i] - C.eyeKeep) / (OFF[0] - C.eyeKeep)) : 0), depth: 0.006, paintAt, name: 'eye' });
   const beyond = (q) => Math.min(E.beyond(q), E.beyond([-q[0], q[1], q[2]]));
   // THE NOSE, its rings following its outline (the wings' creases and the sidewalls run along them), the visage let

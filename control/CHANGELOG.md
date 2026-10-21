@@ -32,6 +32,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   −0.25 … 1.5 (a Nordic heroine's bone part of the way, her features the female's); `harmonyMeasures(head)`, calipers
   on the skin for the chin's width and its fall 10 mm out, the bridge's and the root's width, and the lower face's
   taper (the width at the mouth and at the gonions over the zygions'). A reading, never a refusal.
+- THE FEMALE POLE moved (approved on the eyes gate): beyond the canon's sex cues, a shorter, less projected nose with a
+  finer bridge and a narrower base, larger eyes, fuller and more forward lips over a finer philtrum, a lighter brow, a
+  narrower jaw and a narrower, pointed chin that no longer recedes, the cheeks fuller and the lower cheek bowed out (a
+  soft outline). Its tune re-solved; the female head re-pinned, the male's unmoved. The hero's eye part closes its
+  outer rings in where they would cast past the face's side (a wider eye on a narrower face), eased over its neighbours.
 
 ### Body-part map: dress tailored to the body, not the segment
 
