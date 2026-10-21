@@ -60,8 +60,23 @@ describe('geocube: the two specimens share one style', () => {
     expect(groups(land).has('isekai:grass')).toBe(false);
     expect(land.geocube).toMatchObject({ id: 'gothic-night', show: 'land' });
   });
+  it('shows the trail: the same island with every way up drawn, laid from its seed', () => {
+    const at = (seed) => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', ...(seed !== undefined ? { seed } : {}) }, {});
+    const land = show('gothic-night', 'land'), trail = at(), seeded = at(7);
+    expect(trail.cameras[0].name).toBe('island');
+    expect(trail.walk).toBeTruthy();
+    expect(trail.geocube).toMatchObject({ id: 'gothic-night', show: 'trail' });
+    // the ways up: walked faces the land (walk 'base') leaves off
+    expect(trail.faces.length).toBeGreaterThan(land.faces.length);
+    // the seed lays the island: another seed, another island; the same seed, the same bytes
+    expect(JSON.stringify(seeded.faces)).not.toBe(JSON.stringify(trail.faces));
+    expect(JSON.stringify(at(7).faces)).toBe(JSON.stringify(seeded.faces));
+  });
   it('refuses keys the kind does not take', () => {
-    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room' or 'land'/);
+    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land' or 'trail'/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 7 }, {})).toThrow(/seed is the trail's/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);
   });
 });

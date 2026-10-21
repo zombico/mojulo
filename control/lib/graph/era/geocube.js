@@ -46,7 +46,7 @@
  *
  *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
  *   lowerGeocube(cube, side, terrain?, hour?)   'inside' | 'outside' → a stage manifest (the outside at `hour`: geocube-hours.js)
- *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
+ *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' } → its specimen
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
@@ -599,7 +599,7 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (spec === undefined || spec === null) return null;
   const cube = readGeocube(spec);
   if (!readContrast(cube.contrast)) return null;
-  const side = m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const side = m.kind === 'geocube' ? (m.show === 'land' || m.show === 'trail' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
   return cubeContrast(cube, side, { terrain, value, ...(m.hour !== undefined && side === 'outside' ? { hour: readHour(m.hour) } : {}) });
 }
@@ -693,16 +693,25 @@ export function geocubeDensity(cube) {
     texelsPerMetre: { wanted: r1(ppm), painted: [...SIXTH_GEN.texture.texelsPerMetre] }, shadowCellPx: r1(cube.light.shadows.cells * ppm) };
 }
 
-const SHOW = ['room', 'land'];
-/** The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene. */
+const SHOW = ['room', 'land', 'trail'];
+const SHOWN = { room: 'room', land: 'landform', trail: 'trail' };
+/**
+ * The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene.
+ * `trail` is the land walked: the same island with every way up drawn (island.walk 'all'), laid from its `seed`.
+ */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'seed'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, seed); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), show = manifest.show ?? 'room';
-  if (!SHOW.includes(show)) no(`show is ${SHOW.map((s) => `'${s}'`).join(' or ')}`);
-  if (manifest.hour !== undefined && show !== 'land') no('hour is the land\'s: show \'land\' to see the cube at an hour');
-  const title = ctx.title || `${cube.title} · ${show === 'room' ? 'room' : 'landform'}`;
+  if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
+  if (manifest.hour !== undefined && show === 'room') no('hour is the outside\'s: show \'land\' or \'trail\' to see the cube at an hour');
+  if (manifest.seed !== undefined && show !== 'trail') no('seed is the trail\'s: show \'trail\' to lay the island from a seed');
+  if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
+  const title = ctx.title || `${cube.title} · ${SHOWN[show]}`;
   const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', undefined, manifest.hour === undefined ? undefined : readHourOf(manifest.hour));
-  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
+  // the trail: every way up the island drawn, and the island laid from the seed (an island-less cube's ways are all drawn)
+  const laid = show !== 'trail' ? low : { ...low, ...(manifest.seed !== undefined ? { seed: manifest.seed } : {}),
+    meru: { ...low.meru, ...(low.meru.island ? { island: { ...low.meru.island, walk: 'all' } } : {}) } };
+  const payload = assemble({ ...laid, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
