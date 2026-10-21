@@ -4,20 +4,20 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { WEATHERS, readWeather, paintCloudBand, cloudBand } from './sky.js';
+import { WEATHERS, readClouds, paintCloudBand, cloudBand } from './sky.js';
 import { skyDomeScript } from '../scene/channels/sky-dome.js';
 
 const SIZE = { W: 256, H: 48 };
-const spec = (weather, more = {}) => ({ weather: readWeather(weather), sun: [-0.37, -0.37, 0.85], key: '#fff4d8', zenith: [90, 140, 200], horizon: [207, 225, 236], night: 0, ...more });
+const spec = (clouds, more = {}) => ({ clouds: readClouds(clouds), sun: [-0.37, -0.37, 0.85], key: '#fff4d8', zenith: [90, 140, 200], horizon: [207, 225, 236], night: 0, ...more });
 const alpha = (B) => { let s = 0; for (let k = 3; k < B.rgba.length; k += 4) s += B.rgba[k]; return s / (B.W * B.H * 255); };
 // the mean lit value of the cloud a band holds (weighted by its alpha)
 const cloudLum = (B) => { let s = 0, w = 0; for (let k = 0; k < B.rgba.length; k += 4) { const a = B.rgba[k + 3]; s += a * (B.rgba[k] + B.rgba[k + 1] + B.rgba[k + 2]) / 3; w += a; } return s / w; };
 
-describe('a weather', () => {
+describe('a recipe\'s clouds', () => {
   it('is a word, or { kind, cover, seed }; anything else is refused', () => {
-    expect(readWeather('fair')).toEqual({ kind: 'fair', cover: 0.5, seed: 1 });
-    expect(readWeather({ kind: 'storm', cover: 0.8, seed: 3 })).toEqual({ kind: 'storm', cover: 0.8, seed: 3 });
-    for (const bad of ['drizzle', { kind: 'fair', cover: 2 }, { kind: 'fair', wind: 1 }, { cover: 0.5 }, { kind: 'fair', seed: 1.5 }]) expect(() => readWeather(bad)).toThrow(/weather/);
+    expect(readClouds('fair')).toEqual({ kind: 'fair', cover: 0.5, seed: 1 });
+    expect(readClouds({ kind: 'storm', cover: 0.8, seed: 3 })).toEqual({ kind: 'storm', cover: 0.8, seed: 3 });
+    for (const bad of ['drizzle', { kind: 'fair', cover: 2 }, { kind: 'fair', wind: 1 }, { cover: 0.5 }, { kind: 'fair', seed: 1.5 }]) expect(() => readClouds(bad)).toThrow(/clouds/);
   });
 });
 

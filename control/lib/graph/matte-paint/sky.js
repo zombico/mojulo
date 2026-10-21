@@ -17,8 +17,10 @@
  *
  * The sheets are laid high first, each over the last. Only the dice are seeded; the light and colours are the hour's.
  *
- *   WEATHERS                      the weathers: their sheets, and how each leans the light
- *   readWeather(v)                'fair' | { kind, cover?, seed? } → { kind, cover, seed }, or throws
+ *   WEATHERS                      the skies by weather: their sheets, and how each leans the light
+ *   readClouds(v)                 a recipe's `clouds`: 'fair' | { kind, cover?, seed? } → { kind, cover, seed }, or throws
+ *   CLOUDS_OF_WEATHER             the sky a live weather state (weather/weather.js) is painted under: a recipe's
+ *                                 `clouds: 'weather'`
  *   paintCloudBand(spec, opts)    → { rgba, W, H, top } (top: the band's upper edge, degrees over the horizon)
  *   cloudBand(spec)               → { src, top }: the band as the dome draws it (a PNG data URL), painted once a spec
  *
@@ -56,17 +58,21 @@ export const WEATHERS = Object.freeze({
 });
 const KINDS = Object.keys(WEATHERS);
 
-/** A recipe's weather → { kind, cover (0…1, the weather's own at 0.5), seed }. */
-export function readWeather(v) {
-  const bad = () => { throw new Error(`weather is one of ${KINDS.join(', ')}, or { kind, cover?: 0–1, seed? }; got ${JSON.stringify(v)}`); };
+/** A recipe's clouds → { kind, cover (0…1, the weather's own at 0.5), seed }. */
+export function readClouds(v) {
+  const bad = () => { throw new Error(`clouds is one of ${KINDS.join(', ')}, or { kind, cover?: 0–1, seed? }; got ${JSON.stringify(v)}`); };
   if (typeof v === 'string') return KINDS.includes(v) ? { kind: v, cover: 0.5, seed: 1 } : bad();
   if (!v || typeof v !== 'object' || Array.isArray(v) || !KINDS.includes(v.kind)) return bad();
-  for (const k of Object.keys(v)) if (!['kind', 'cover', 'seed'].includes(k)) throw new Error(`weather.${k} is not a weather setting (kind, cover, seed)`);
+  for (const k of Object.keys(v)) if (!['kind', 'cover', 'seed'].includes(k)) throw new Error(`clouds.${k} is not a clouds setting (kind, cover, seed)`);
   const cover = v.cover ?? 0.5, seed = v.seed ?? 1;
-  if (typeof cover !== 'number' || !(cover >= 0 && cover <= 1)) throw new Error(`weather.cover is 0–1, got ${JSON.stringify(cover)}`);
-  if (!Number.isInteger(seed) || seed < 0) throw new Error(`weather.seed is a whole number, got ${JSON.stringify(seed)}`);
+  if (typeof cover !== 'number' || !(cover >= 0 && cover <= 1)) throw new Error(`clouds.cover is 0–1, got ${JSON.stringify(cover)}`);
+  if (!Number.isInteger(seed) || seed < 0) throw new Error(`clouds.seed is a whole number, got ${JSON.stringify(seed)}`);
   return { kind: v.kind, cover, seed };
 }
+
+/** The sky a live weather state is painted under (its rain, fog and air are the live channel's own). */
+export const CLOUDS_OF_WEATHER = Object.freeze({ clear: 'clear', haze: 'haze', mist: 'haze', fog: 'haze', dust: 'haze', overcast: 'overcast', drizzle: 'overcast',
+  snow: 'overcast', rain: 'storm', downpour: 'storm', thunderstorm: 'storm', blizzard: 'storm', duststorm: 'storm', petals: 'fair', leaves: 'fair' });
 
 // the render, 0…1: fbm (or its billow) over `octaves`, or the difference of two
 function render(x, y, S, sd, octaves = S.octaves) {
@@ -81,11 +87,11 @@ function render(x, y, S, sd, octaves = S.octaves) {
 }
 
 /**
- * The band. `spec`: { weather: { kind, cover, seed }, sun (toward it, z-up), key, zenith, horizon, belly? (hex or
+ * The band. `spec`: { clouds: { kind, cover, seed }, sun (toward it, z-up), key, zenith, horizon, belly? (hex or
  * rgb) , night (0…1) }. `W` round the dome (u = azimuth from +x toward +y over 2π), `H` up it (row 0 at `top`).
  */
 export function paintCloudBand(spec, { W = 1536, H = 192, top = 62 } = {}) {
-  const Wx = WEATHERS[spec.weather.kind], cover = spec.weather.cover, sd0 = (spec.weather.seed | 0) * 7919 + 17;
+  const Wx = WEATHERS[spec.clouds.kind], cover = spec.clouds.cover, sd0 = (spec.clouds.seed | 0) * 7919 + 17;
   const key = rgbOf(spec.key), zen = rgbOf(spec.zenith), hor = rgbOf(spec.horizon), night = spec.night ?? 0;
   const sl = Math.hypot(spec.sun[0], spec.sun[1]) || 1, sunH = [spec.sun[0] / sl, spec.sun[1] / sl], sun = spec.sun;
   // the tops: the key lit toward white by day, dimmed at night; the bellies: the sky overhead, darkened

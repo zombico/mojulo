@@ -31,7 +31,7 @@ const shoot = async (P, cam) => {
 };
 try {
   for (const [hour, weather] of SETS) {
-    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'weather', manifest: { kind: 'geocube', cube, show: 'land', walk: false, ...(hour ? { hour } : {}), ...(weather ? { weather } : {}) } });
+    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'weather', manifest: { kind: 'geocube', cube, show: 'land', walk: false, ...(hour ? { hour } : {}), ...(weather ? { clouds: weather } : {}) } });
     const seam = P.cameras.find((c) => c.name === 'seam'), cells = [{ cap: 'island', src: await shoot(P, P.cameras[0]) }, { cap: 'walker', src: await shoot(P, seam) }];
     const kb = P.sky.clouds ? (P.sky.clouds.src.length * 0.75 / 1024).toFixed(0) : 0;
     rows.push({ cube: `${hour ?? 'own hour'} · ${weather ?? 'no weather'} · band ${kb} KB · ${Date.now() - t0} ms`, cells });

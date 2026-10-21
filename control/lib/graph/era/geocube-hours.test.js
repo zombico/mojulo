@@ -10,7 +10,7 @@ import { HOUR_WORDS, readHour, referenceHour, hourLight } from './geocube-hours.
 import { SIXTH_GEN_REFERENCES, resolveLook } from './sixth-gen.js';
 import { lookOf } from './style/looks.js';
 import { assembleStageScene } from './stage.js';
-import { readWeather } from '../matte-paint/sky.js';
+import { readClouds } from '../matte-paint/sky.js';
 
 const refOf = (cube) => SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)];
 // one cube lit by a sun and one by the moon, picked from the presets
@@ -88,28 +88,39 @@ describe('a recipe\'s hour', () => {
   });
 
   it('a moonlit hour draws the night on the island\'s dome: the moon where the key is, the stars out; a weather its clouds', () => {
-    const P = assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, show: 'land', walk: false, hour: 'night', weather: 'fair' }, {}, assembleStageScene);
+    const P = assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, show: 'land', walk: false, hour: 'night', clouds: 'fair' }, {}, assembleStageScene);
     expect(P.sky.day).toBeLessThan(0.5); expect(P.sky.stars).toBeGreaterThan(0); expect(P.sky.moon).toBeDefined();
     expect(P.sky.sun).toBeUndefined();
     expect(P.sky.clouds.src).toMatch(/^data:image\/png/);
   });
 });
 
-describe('a recipe\'s weather', () => {
+describe('a recipe\'s clouds', () => {
   it('leans the light as its cloud would, at the cube\'s own hour unless it names one; absent, no clouds', () => {
     const own = lookOf(lowerGeocube(DAY, 'outside', undefined, readHour(referenceHour(refOf(DAY))) ).kit).card;
-    const fair = lookOf(lowerGeocube(DAY, 'outside', undefined, undefined, readWeather('fair')).kit).card;
-    const grey = lookOf(lowerGeocube(DAY, 'outside', undefined, undefined, readWeather('overcast')).kit).card;
-    expect(fair.light).toEqual(own.light); expect(fair.cloudBand.weather.kind).toBe('fair');
+    const fair = lookOf(lowerGeocube(DAY, 'outside', undefined, undefined, readClouds('fair')).kit).card;
+    const grey = lookOf(lowerGeocube(DAY, 'outside', undefined, undefined, readClouds('overcast')).kit).card;
+    expect(fair.light).toEqual(own.light); expect(fair.cloudBand.clouds.kind).toBe('fair');
     expect(grey.light.sunGain).toBeLessThan(own.light.sunGain);
     expect(grey.air.fog.density).toBeGreaterThan(own.air.fog.density);
     expect(grey.sun).toBeUndefined();
     expect(own.cloudBand).toBeUndefined(); expect(lookOf(lowerGeocube(DAY, 'outside').kit).card.cloudBand).toBeUndefined();
   });
 
-  it('is the outside\'s, as the hour is', () => {
-    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, weather: 'fair' })).toThrow(/weather is the outside/);
-    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, weather: 'fair' }, {}, assembleStageScene)).toThrow(/weather is the land/);
-    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, weather: 'drizzle', meru: true })).toThrow(/weather is one of/);
+  it('are the outside\'s, as the hour is', () => {
+    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, clouds: 'fair' })).toThrow(/clouds are the outside/);
+    expect(() => assembleGeocubeScene({ kind: 'geocube', cube: DAY.id, clouds: 'fair' }, {}, assembleStageScene)).toThrow(/clouds are the land/);
+    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, clouds: 'drizzle', meru: true })).toThrow(/clouds is one of/);
+  });
+
+  it('\'weather\' paints the sky of the recipe\'s live weather state, leaning only the sun\'s disc; a weather alone paints none', () => {
+    const rain = withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, weather: 'rain', clouds: 'weather' }), card = lookOf(rain.kit).card;
+    expect(card.cloudBand.clouds.kind).toBe('storm'); expect(card.sun).toBeUndefined();
+    expect(card.light).toEqual(lookOf(lowerGeocube(DAY, 'outside', undefined, readHour(referenceHour(refOf(DAY)))).kit).card.light);
+    expect(rain.weather).toBe('rain');
+    expect(withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, weather: 'rain' })).toEqual(withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, weather: 'rain' }));
+    expect(lookOf(withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, weather: 'rain' }).kit).card.cloudBand).toBeUndefined();
+    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, clouds: 'weather' })).toThrow(/names none/);
+    expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, clouds: 'weather', weather: { climate: { rain: 1 } } })).toThrow(/climate/);
   });
 });
