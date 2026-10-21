@@ -3,6 +3,7 @@
  * bind: an upper's leather, or the bare foot's skin) a body's foot adapter hands over (adapters/).
  *
  *   soleSlab(print, { floor, thick, welt })   a sole: the footprint's outline grown by the welt, from the floor up
+ *   slabBetween(print, { welt, bottom, top }) the same between two surfaces, its foot drawn in (a heel, a wedge)
  *   strapBand(P, u, { lift, width })          a band round the surface `P` at its station `u`
  *   buckleOn(band, side)                      a small block on a strap's outer side
  *   quarterEgg({ o, fwd, side, L, W, H })     a quarter egg over the toes, toe base to toe tip (a toe cap)
@@ -33,14 +34,34 @@ export function bindNearest(piece, P) {
 /** a sole slab: the footprint's outline round its middle (the farthest point in each of 48 directions, a gap filled from
  * its neighbours, eased round), grown by the welt, from the floor up `thick`; its caps a hair beyond its two faces */
 export function soleSlab(print, { floor, thick, welt, n = 48 }) {
+  const O = outlineOf(print, welt, n); if (!O) return null;
+  const { c, R, names } = O;
+  const ring = (z, inset) => Object.fromEntries(names.map((nm, j) => { const a = (2 * Math.PI * j) / n; return [nm, [r6(c[0] + Math.cos(a) * (R[j] - inset)), r6(c[1] + Math.sin(a) * (R[j] - inset)), r6(z)]]; }));
+  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: ring(floor, 0.001) }, { id: 'st1', u: 1, points: ring(floor + thick, 0) }],
+    caps: { back: [r6(c[0]), r6(c[1]), r6(floor - 0.001)], tip: [r6(c[0]), r6(c[1]), r6(floor + thick + 0.001)] } };
+}
+
+/** a footprint's outline round its middle: the farthest point in each of `n` directions, a gap filled from its
+ * neighbours, eased round, grown by the welt → { c, R (each direction's reach), names } */
+function outlineOf(print, welt, n) {
   if (print.length < 8) return null;
   const c = mean(print), r = new Array(n).fill(0);
   for (const p of print) { const a = Math.atan2(p[1] - c[1], p[0] - c[0]), j = ((Math.round((a / (2 * Math.PI)) * n) % n) + n) % n, d = Math.hypot(p[0] - c[0], p[1] - c[1]); if (d > r[j]) r[j] = d; }
   for (let it = 0; it < n && r.some((x) => x === 0); it++) for (let j = 0; j < n; j++) if (!r[j]) { const a = r[(j + n - 1) % n], b = r[(j + 1) % n]; if (a || b) r[j] = a && b ? (a + b) / 2 : a || b; }
-  const R = r.map((x, j) => (r[(j + n - 1) % n] + 2 * x + r[(j + 1) % n]) / 4 + welt), names = ringSlots(n);
-  const ring = (z, inset) => Object.fromEntries(names.map((nm, j) => { const a = (2 * Math.PI * j) / n; return [nm, [r6(c[0] + Math.cos(a) * (R[j] - inset)), r6(c[1] + Math.sin(a) * (R[j] - inset)), r6(z)]]; }));
-  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: ring(floor, 0.001) }, { id: 'st1', u: 1, points: ring(floor + thick, 0) }],
-    caps: { back: [r6(c[0]), r6(c[1]), r6(floor - 0.001)], tip: [r6(c[0]), r6(c[1]), r6(floor + thick + 0.001)] } };
+  return { c, R: r.map((x, j) => (r[(j + n - 1) % n] + 2 * x + r[(j + 1) % n]) / 4 + welt), names: ringSlots(n) };
+}
+
+/** a slab on a footprint's outline (grown by the welt) between two surfaces, `bottom(x, y)` and `top(x, y)` (each a
+ * height at a place), its bottom ring drawn in `taper` (0 … 1) toward `toward` [x, y] (a heel's foot: a stiletto's tip)
+ * and moved by `shift` [dx, dy] (a heel leaned so it stands plumb once the foot is tipped) */
+export function slabBetween(print, { welt, bottom, top, taper = 1, toward = null, shift = [0, 0], n = 48 }) {
+  const O = outlineOf(print, welt, n); if (!O) return null;
+  const { c, R, names } = O, t = toward ?? c;
+  const xy = (j, k, d) => { const a = (2 * Math.PI * j) / n, x = c[0] + Math.cos(a) * R[j], y = c[1] + Math.sin(a) * R[j]; return [t[0] + (x - t[0]) * k + d[0], t[1] + (y - t[1]) * k + d[1]]; };
+  const ring = (f, k, d = [0, 0]) => Object.fromEntries(names.map((nm, j) => { const [x, y] = xy(j, k, d); return [nm, [r6(x), r6(y), r6(f(x, y))]]; }));
+  const b = [t[0] + (c[0] - t[0]) * taper + shift[0], t[1] + (c[1] - t[1]) * taper + shift[1]];
+  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: ring(bottom, taper, shift) }, { id: 'st1', u: 1, points: ring(top, 1) }],
+    caps: { back: [r6(b[0]), r6(b[1]), r6(bottom(b[0], b[1]) - 0.001)], tip: [r6(c[0]), r6(c[1]), r6(top(c[0], c[1]) + 0.001)] } };
 }
 
 /** a strap: the upper's rings about `u`, `width` (m) apart along it, each point lifted off its ring's middle, carried by

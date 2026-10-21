@@ -24,6 +24,10 @@
  *   about the toe base with a targeted foot, about +x; absent level), seat (degrees, 0 … 60: the free legs
  *   turned further forward about the hips, a seated statue's thighs level; seatL/seatR one leg's alone, added), and every
  *   rig chain channel.
+ * STANCE (`rig.stance: { rise, toe, pitch }`, a heeled shoe's: lib/graph/footwear): every pose stands in it — the root
+ *   `rise` metres higher, each planted foot's toes `toe` metres up (on the shoe's forepart sole) and its metatarsus turned
+ *   `pitch` degrees heel-up about the toe base, or the pose's own `heel<S>` where it lifts the heel further (a free foot's
+ *   toes turned down about the ankle by the pitch). Absent ⇒ nothing changes.
  * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
  * links about its hinge axis by the digit's curl × the link's weight (a link's turn carrying the later links' own axes) (`fingers<S>`: degrees, + closing, or { <digit>:
  * deg }, or a word of `poses`; a number curls the thumb at half), then the whole hand about the wrist joint
@@ -143,6 +147,12 @@ export function validateRig(rig) {
   const legs = {};
   for (const [S, l] of Object.entries(rig.legs || {})) { for (const k of ['hip', 'knee', 'hock', 'toeBase', 'toeTip']) if (!joints[l?.[k]]) throw new Error(`station-loft-rig: legs.${S}.${k} is not a joint`); if (!fin3(l.pole)) throw new Error(`station-loft-rig: legs.${S}.pole must be a direction`); legs[S] = { ...l, pole: [...l.pole] }; }
   const reach = rig.reach ?? 'reject'; if (reach !== 'reject' && reach !== 'clamp') throw new Error("station-loft-rig: reach must be 'reject' or 'clamp'");
+  let stance = null;
+  if (rig.stance !== undefined) {
+    const t = rig.stance, ok = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+    if (!t || !ok(t.rise, 0, 0.3) || !ok(t.toe, 0, 0.1) || !ok(t.pitch, 0, 70)) throw new Error('station-loft-rig: stance is { rise (0 … 0.3 m), toe (0 … 0.1 m), pitch (0 … 70°) }');
+    stance = { rise: t.rise, toe: t.toe, pitch: t.pitch };
+  }
   const hands = {};
   for (const [S, h] of Object.entries(rig.hands || {})) {
     const at = `station-loft-rig: hands.${S}`;
@@ -171,7 +181,7 @@ export function validateRig(rig) {
   // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
   // not a field of the bone)
   for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}) };
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}) };
 }
 
 /**
@@ -294,6 +304,9 @@ export function rigNodesAt(R, pose = {}) {
   const sink = Number.isFinite(pose.sink) ? Math.max(0, pose.sink) : 0;
   const drop = crouch * 0.45 * (hipZ - toeZ) + sink;
   for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
+  // (the STANCE: the root risen on the shoes)
+  const ST = R.stance;
+  if (ST) for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] + ST.rise];
   // `shift: { x, y }` (metres: an action's, hero-strike.js) carries the core over the floor — the weight moving over
   // planted feet, the legs reaching them from where the hips now are. Absent ⇒ nothing moves.
   const sx = Number.isFinite(pose.shift?.x) ? pose.shift.x : 0, sy = Number.isFinite(pose.shift?.y) ? pose.shift.y : 0;
@@ -321,7 +334,9 @@ export function rigNodesAt(R, pose = {}) {
     if (planted) {
       const toeTurn = Number(pose[`toeTurn${S}`]) || 0, toeVec = sub(rest[L.toeTip], rest[L.toeBase]);
       const foot = target ? { toeBase: [...target], toeTip: add(target, toeTurn ? rotAxis(toeVec, [0, 0, 0], 0, toeTurn) : toeVec) } : plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
-      let metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
+      // (the STANCE: the toes on the forepart sole, the heel up by its pitch)
+      if (ST) { nodes[L.toeBase] = add(nodes[L.toeBase], [0, 0, ST.toe]); nodes[L.toeTip] = add(nodes[L.toeTip], [0, 0, ST.toe]); }
+      let metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, ST ? Math.min(pose[`heel${S}`] || 0, -ST.pitch) : (pose[`heel${S}`] || 0));
       // `splay<S>` (degrees, + the toe outward: a stance's) turns the planted foot about the vertical through its ball —
       // the toe and the heel round it — and the knee's pole with it, so the knee tracks over the toes. Absent ⇒ none.
       const splay = Number.isFinite(pose[`splay${S}`]) ? pose[`splay${S}`] * (rest[L.hip][0] < 0 ? 1 : -1) : 0;
@@ -351,6 +366,8 @@ export function rigNodesAt(R, pose = {}) {
       }
       const shin = boneFrame({ id: 'shin', head: L.knee, tail: L.hock }, rest, nodes);
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
+      // (the STANCE: a foot in heels stays tipped off the ground too, its toes turned down about the ankle by the pitch)
+      if (ST) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -ST.pitch);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };
     }
   }

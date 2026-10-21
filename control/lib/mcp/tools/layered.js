@@ -363,6 +363,8 @@ function realisticExpand(plan, hero) {
     for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
     // (a tone of another group, the leather's shade, read against the palette as it now stands)
     R.palette = readTones(R.palette);
+    // (heeled shoes: the rig stands every pose in them)
+    if (W.stance) R.rig = { ...R.rig, stance: W.stance };
   }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {

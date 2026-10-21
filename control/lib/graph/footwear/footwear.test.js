@@ -133,10 +133,30 @@ describe('footwear on a foot adapter', () => {
     expect(validateFootwear({ sock: { height: 'shoe' }, tones: { Cap: { of: 'Shoes', shade: -2 } } })[0]).toMatch(/tones.Cap: '#rrggbb', or \{ of/);
   });
 
+  it('on heels: the stance the rig stands in, the heel and the soles under the floor of the bind, rigid on their bones', () => {
+    const W = wearFootwear(stub, { family: 'dress', sock: { height: 'shoe' }, heels: { height: 0.08, toe: 0.006, kind: 'stiletto' } }, { id: 'p' });
+    expect(W.stance.toe).toBe(0.006);
+    expect(W.stance.pitch).toBeGreaterThan(20);
+    expect(W.stance.rise).toBeGreaterThan(0.006);
+    const zs = (P) => P.stations.flatMap((st) => Object.values(st.points)).map((p) => p[2]);
+    expect(Math.min(...zs(W.parts.pHeel_footR))).toBeLessThan(-0.04);   // the heel reaches down to where the ground will be
+    expect(Math.min(...zs(W.parts.pSole_toesR))).toBeCloseTo(-0.006, 6);   // the toes on their sole
+    for (const k of ['pHeel_footR', 'pSole_footR']) expect(W.parts[k].bind).toEqual({ bone: 'footR', blend: {} });
+    // the stiletto's foot drawn in: its bottom ring far smaller than its top
+    const span = (pts) => Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
+    const H = W.parts.pHeel_footR; expect(span(Object.values(H.stations[0].points))).toBeLessThan(0.4 * span(Object.values(H.stations[1].points)));
+    // a wedge fills the sole down under the arch, no heel of its own; no heels, no stance
+    const Wd = wearFootwear(stub, { sock: { height: 'shoe' }, heels: { height: 0.07, toe: 0.01, kind: 'wedge' } }, { id: 'w' });
+    expect(Wd.parts.wHeel_footR).toBeUndefined();
+    expect(Math.min(...zs(Wd.parts.wSole_footR))).toBeLessThan(-0.04);
+    expect(wearFootwear(stub, { sock: { height: 'shoe' } }, { id: 'f' }).stance).toBeUndefined();
+  });
+
   it('refuses a card by name', () => {
     expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'pullLoop' }] })[0]).toMatch(/region: one of tongue, eyestay/);
     expect(validateFootwear({ from: 'runners', skin: 'neon' })[0]).toMatch(/skin: a colourway \(tripleBlack/);
     expect(validateFootwear({ from: 'runners', colour: 'red' })[0]).toMatch(/not 'colour'/);
+    expect(validateFootwear({ sock: { height: 'shoe' }, heels: { height: 0.05, toe: 0.06 } })).toContain('footwear.heels: the heel must stand higher than the toes\' sole');
     expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);

@@ -8,6 +8,9 @@
 //   family  what kind of footwear it is (expand.js FOOTWEAR_FAMILIES: shoe, boot, sandal, sneaker, dress)
 //   sock    { height: 'shoe' | 'boot', collar? (a share of the foot, a shoe's), shaft? (a share of the shank from the
 //           ankle, a boot's), thick? (m, how far the leather stands off the foot; 0.004) }, or false: none (a sandal)
+//   heels   { height (m the heel stands), toe? (m of sole under the toes: a platform), shank?, kind? (stiletto, kitten, block,
+//           wedge), to?, group? }: the foot tipped about the toe base and the body risen on them (the rig's stance), the
+//           soles and the heel cut against the ground under that pose
 //   sole    { thick (m), welt (m) } (one layer), or { layers: [{ thick, welt?, group?, pod? }] } stacked from the floor up
 //           (an outsole, a midsole, a stripe …), each with a pattern (expand.js SOLE_PATTERNS): `pod` an air window at the
 //           heel, `heel` a block under the heel (a dress heel), `lugs` tread round its edge
@@ -91,11 +94,20 @@ export const FOOTWEAR = Object.freeze({
   monkStraps: { from: 'oxfords', adorn: [{ prim: 'strap', on: 'foot', at: 0.5, width: 0.012, lift: 0.002, buckle: true, group: 'Shoes' }, { prim: 'strap', on: 'foot', at: 0.6, width: 0.012, lift: 0.002, buckle: true, group: 'Shoes' },
     { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap' }], tones: { Brass: '#b9b9bd' } },
   // the chelsea boot: a sleek boot, an elastic gusset on each side of the ankle, a pull tab at the back
-  chelseaBoots: { from: 'oxfords', sock: { height: 'boot', shaft: 0.24, thick: 0.0035 },
+  chelseaBoots: { from: 'oxfords', sock: { height: 'boot', shaft: 0.24, thick: 0.0035 }, heels: { height: 0.04, toe: 0.009, kind: 'block' },
     adorn: [{ prim: 'panel', on: 'shank', region: { along: [0.78, 0.98], around: [0.38, 0.62], sides: 'both' }, lift: 0.0015, group: 'Elastic' },
       { prim: 'panel', on: 'shank', region: { along: [0.76, 0.86], around: [0.86, 1], sides: 'centre' }, lift: 0.002, rise: 0.016, group: 'Tab' },
       { prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0018, group: 'Cap' }],
     tones: { Elastic: '#1b1b1d', Tab: '#1b1b1d' } },
+  // ── HEELS: the body stands in them ──
+  // the pump: a low-cut sleek shoe on a stiletto
+  pumps: { family: 'dress', sock: { height: 'shoe', collar: 0.22, thick: 0.0025 }, sole: { welt: 0.002 }, heels: { height: 0.085, toe: 0.006, kind: 'stiletto' },
+    adorn: [{ prim: 'panel', region: 'counter', lift: 0.001 }, { prim: 'toeCap', lift: 0.0015, room: 0.012, group: 'Shoes' }],
+    tones: { Shoes: '#141414', Counter: LEATHER(-0.05), Heel: LEATHER(-0.1), Sole: '#3a1d1d' } },
+  // the block heel, lower and steadier; the wedge, the sole filled down under the arch; the platform, the toes on a thick sole
+  blockHeels: { from: 'pumps', heels: { height: 0.06, toe: 0.008, kind: 'block' }, tones: { Shoes: '#7a2430' } },
+  wedges: { from: 'pumps', heels: { height: 0.07, toe: 0.012, kind: 'wedge' }, tones: { Shoes: '#c9a27a', Sole: '#e9dfcf' } },
+  platforms: { from: 'pumps', heels: { height: 0.12, toe: 0.035, kind: 'block' }, tones: { Shoes: '#1d1d22' } },
 });
 for (const c of Object.values(FOOTWEAR)) Object.freeze(c);
 /** a tone of the leather: the shoes' own colour, darkened (−) or lightened (+) */

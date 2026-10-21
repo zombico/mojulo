@@ -3,7 +3,9 @@
 //
 //   1 SOCK   the protosock: the body's own close upper at the card's height and thickness (none: a sandal, worn on the
 //            bare foot)
-//   2 SOLE   per side, under the foot and under the toes (split at the toe base): its LAYERS stacked from the floor up
+//   2 SOLE   on HEELS (`heels`): the foot tipped about the toe base and the body risen (the `stance` it returns, which
+//            the rig stands every pose in), the soles and the heel cut against the ground under that pose; else
+//            per side, under the foot and under the toes (split at the toe base): its LAYERS stacked from the floor up
 //            (the outsole, a midsole, a stripe …), each the footprint's outline grown by its own welt, in its own group; a
 //            layer's `pod` a window of another group at the heel, proud of the layer's wall (an air sole)
 //   3 ADORN  per side, the card's primitives in order (ADORN_PRIMS), each on the layer under it, carried by its weights;
@@ -15,9 +17,11 @@
 // `<id>Buckle<k>_<segment>` (k counting the straps), `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
 // `<id><Region><Lat|Med>_…` (an inline region's `<id>Panel<k>…`), `<id>Lace<k>_…`.
 // Pure and deterministic: no dice, fixed order.
-import { soleSlab, strapBand, buckleOn, bindNearest, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv } from './parts.js';
+import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv } from './parts.js';
 import { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 import { COBBLER_REGIONS, REGION_SIDES, arcOf, panelOn, laceBars } from './cobbler.js';
+
+const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
 /** THE ADORNMENT PRIMITIVES: each one's keys, its group, and what it is */
 export const ADORN_PRIMS = Object.freeze({
@@ -36,6 +40,9 @@ export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneak
  * every `every`-th point of its outline, `size` (m) */
 export const SOLE_PATTERNS = Object.freeze({ pod: ['from', 'to', 'welt', 'group'], heel: ['to', 'thick', 'group'], lugs: ['every', 'size', 'group'] });
 const GROUP = /^[A-Z][A-Za-z0-9]*$/;
+/** HEELS: how the heel stands (`kind`): its foot drawn in to a point (stiletto), a little (kitten), hardly (block), or
+ * the sole filled down to the ground under the arch (wedge) */
+export const HEEL_KINDS = Object.freeze({ stiletto: 0.22, kitten: 0.35, block: 0.85, wedge: 1 });
 /** a tone: '#rrggbb', or { of: <group>, shade } (that group's colour darkened (−) or lightened (+)) */
 const isTone = (c) => (typeof c === 'string' ? /^#[0-9a-f]{6}$/i.test(c) : !!c && typeof c === 'object' && GROUP.test(c.of ?? '') && c.shade >= -1 && c.shade <= 1 && Object.keys(c).length === 2);
 /** A palette with its tones OF other groups read (each that group's colour, darkened or lightened; a group it names
@@ -79,7 +86,7 @@ export function validateFootwear(spec, label = 'footwear') {
   if (spec.from !== undefined && !(typeof spec.from === 'string' ? Object.hasOwn(FOOTWEAR, spec.from) : spec.from && typeof spec.from === 'object')) pre.push(`${label}.from: a footwear word (${Object.keys(FOOTWEAR).join(', ')}) or a card`);
   if (spec.skin !== undefined && !(typeof spec.skin === 'string' ? Object.hasOwn(SKINS, spec.skin) : spec.skin && typeof spec.skin === 'object' && !Array.isArray(spec.skin))) pre.push(`${label}.skin: a colourway (${Object.keys(SKINS).join(', ')}) or { <group>: '#rrggbb' }`);
   if (spec.adornPlus !== undefined && !Array.isArray(spec.adornPlus)) pre.push(`${label}.adornPlus: a list of { prim, … }, laid after the adornment`);
-  for (const k of Object.keys(spec)) if (!['family', 'sock', 'sole', 'adorn', 'adornPlus', 'tones', 'from', 'skin'].includes(k)) pre.push(`${label}: a card takes family, sock, sole, adorn, adornPlus, tones, from, skin, not '${k}'`);
+  for (const k of Object.keys(spec)) if (!['family', 'sock', 'sole', 'heels', 'adorn', 'adornPlus', 'tones', 'from', 'skin'].includes(k)) pre.push(`${label}: a card takes family, sock, sole, heels, adorn, adornPlus, tones, from, skin, not '${k}'`);
   if (pre.length) return pre;
   if (spec.from !== undefined || spec.skin !== undefined || spec.adornPlus !== undefined) {
     const sub = typeof spec.from === 'object' ? validateFootwear(spec.from, `${label}.from`) : [];
@@ -116,6 +123,20 @@ export function validateFootwear(spec, label = 'footwear') {
     });
     if (sole.thick !== undefined || sole.welt !== undefined) errs.push(`${label}.sole: layers, or thick and welt (one layer), not both`);
   } else if (sole !== undefined) for (const k of ['thick', 'welt']) if (!metres(sole?.[k])) errs.push(`${label}.sole.${k}: metres, 0 to 0.1`);
+  if (spec.heels !== undefined) {
+    const H = spec.heels, at = `${label}.heels`;
+    if (!H || typeof H !== 'object') errs.push(`${at}: { height, toe?, shank?, kind?, to?, group? } (the foot raised on them: the body stands in them)`);
+    else {
+      if (!(H.height >= 0.01 && H.height <= 0.2)) errs.push(`${at}.height: metres the heel stands, 0.01 … 0.2`);
+      if (H.toe !== undefined && !(H.toe >= 0 && H.toe <= 0.08)) errs.push(`${at}.toe: metres of sole under the toes (a platform's), 0 … 0.08`);
+      if (H.toe !== undefined && H.height !== undefined && !(H.height > H.toe)) errs.push(`${at}: the heel must stand higher than the toes' sole`);
+      if (H.shank !== undefined && !(H.shank > 0 && H.shank <= 0.03)) errs.push(`${at}.shank: metres of sole under the arch, over 0 and at most 0.03`);
+      if (H.kind !== undefined && !Object.hasOwn(HEEL_KINDS, H.kind)) errs.push(`${at}.kind: one of ${Object.keys(HEEL_KINDS).join(', ')}`);
+      if (H.to !== undefined && !(H.to > 0 && H.to <= 0.5)) errs.push(`${at}.to: the share of the footprint from the heel the heel stands under, over 0 and at most 0.5`);
+      if (H.group !== undefined && !GROUP.test(H.group)) errs.push(`${at}.group: a group name`);
+      for (const k of Object.keys(H)) if (!['height', 'toe', 'shank', 'kind', 'to', 'group'].includes(k)) errs.push(`${at}: takes height, toe, shank, kind, to, group, not '${k}'`);
+    }
+  }
   if (!Array.isArray(adorn)) errs.push(`${label}.adorn: a list of { prim, … }`);
   else adorn.forEach((a, i) => {
     const P = ADORN_PRIMS[a?.prim], at = `${label}.adorn[${i}]`;
@@ -142,7 +163,8 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
   if (errs.length) throw new Error(errs.join('; '));
   const sock = C.sock || null, used = new Set();
   // (the sole's layers from the floor up; `{ thick, welt }` is one)
-  const layers = C.sole?.layers ?? [{ thick: C.sole?.thick ?? 0.008, welt: C.sole?.welt ?? 0.003 }], soleThick = layers.reduce((t, L) => t + L.thick, 0);
+  const layers = C.sole?.layers ?? [{ thick: C.sole?.thick ?? 0.008, welt: C.sole?.welt ?? 0.003 }], HL = C.heels ?? null, soleThick = HL ? 0 : layers.reduce((t, L) => t + L.thick, 0);
+  let stance = null;
   // 1 SOCK (none: the sole and the straps on the bare foot, the skin's own parts)
   const parts = sock ? A.upper(sock, { id, group }) : {};
   const on = (seg) => (seg ? (sock ? parts[`${id}_${seg}`] : A.bare(seg)) : undefined);
@@ -157,7 +179,41 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
     const ahead = (p) => (tb ? (p[0] - tb[0]) * fwd[0] + (p[1] - tb[1]) * fwd[1] : 0);
     const floor = Math.min(...[foot, toes].filter(Boolean).flatMap(pointsOf).map((p) => p[2]));
     const n = { strap: 0, band: 0, rivet: 0, panel: 0, lace: 0, lug: 0 };
-    for (const [seg, P, keep] of [[fn, foot, (p) => ahead(p) < 0.004], [tn, toes, (p) => ahead(p) > -0.004]]) {
+    if (HL) {
+      // 2 SOLE ON HEELS: the foot tipped about the toe base (the rig's stance: lib/graph/polygonizer/station-loft-rig.js),
+      // so each piece is cut against where the ground will be under that pose: the toes on their sole (`toe`), the foot's
+      // sole thinning from the ball to the arch (`shank`; a wedge filled down to the ground), the heel standing from the
+      // heel's seat to the ground, drawn in to its foot by its kind
+      const t = HL.toe ?? 0.008, sh = HL.shank ?? 0.004, kind = HL.kind ?? 'block', welt = C.sole?.welt ?? layers[0].welt ?? 0.003, sg = layers[0].group ?? 'Sole';
+      const near = (P, keep) => pointsOf(P).filter((p) => p[2] < floor + 0.015 && keep(p));
+      const fp = near(foot, (p) => ahead(p) < 0.004), back = Math.max(0.05, ...fp.map((p) => -ahead(p)));
+      const pitch = Math.asin(Math.min(0.95, Math.max(0, (HL.height - t) / back))) * 180 / Math.PI, a = (-pitch * Math.PI) / 180, sa = Math.sin(a), ca = Math.cos(a);
+      // (the bind height a place on the foot must have to stand on the floor once the foot is tipped and raised)
+      const groundAt = (x, y) => tb[2] + (floor - tb[2] - t - (y - tb[1]) * sa) / ca;
+      const lerp = (x, y) => Math.min(1, Math.max(0, -ahead([x, y, 0]) / 0.06));
+      const toeSole = toes && slabBetween(near(toes, (p) => ahead(p) > -0.004), { welt, bottom: () => floor - t, top: () => floor + 0.002 });
+      const footSole = slabBetween(fp, { welt, top: () => floor + 0.002,
+        bottom: kind === 'wedge' ? (x, y) => Math.min(floor - t, groundAt(x, y)) : (x, y) => floor - (t + (sh - t) * lerp(x, y)) });
+      // (rigid on the foot's bone and the toes', as a shoe's sole and heel are: the leather's blend round the ankle would
+      // turn them with the shin)
+      const rigid = (P) => ({ bone: P.bind.bone, blend: {} });
+      if (footSole) put(`${id}Sole_${fn}`, { ...footSole, group: sg, bind: rigid(foot) });
+      if (toeSole) put(`${id}Sole_${tn}`, { ...toeSole, group: sg, bind: rigid(toes) });
+      if (kind !== 'wedge') {
+        const seat = fp.filter((p) => -ahead(p) >= back * (1 - (HL.to ?? 0.28))), c = seat.length ? seat.reduce((m, p) => [m[0] + p[0] / seat.length, m[1] + p[1] / seat.length], [0, 0]) : null;
+        // (leaned forward by the pitch in the bind, so it stands plumb under the tipped foot)
+        const tall = c ? floor - sh - groundAt(c[0], c[1]) : 0, lean = tall * Math.tan(-a), shift = [fwd[0] * lean, fwd[1] * lean];
+        // (a slender heel's foot under the back of the seat, a block's under its middle)
+        const rear = seat.reduce((m, p) => (ahead(p) < ahead(m) ? p : m), seat[0] ?? [0, 0, 0]), k = HEEL_KINDS[kind] < 0.5 ? 0.45 : 0;
+        const toward = c && [c[0] + (rear[0] - c[0]) * k, c[1] + (rear[1] - c[1]) * k];
+        const heel = c && slabBetween(seat, { welt, top: () => floor - sh + 0.002, bottom: groundAt, taper: HEEL_KINDS[kind], toward, shift });
+        if (heel) put(`${id}Heel_${fn}`, { ...heel, group: HL.group ?? 'Heel', bind: rigid(foot) });
+      }
+      // (the stance the rig stands every pose in: the toes up on their sole, the heel up by the pitch, the root risen so
+      // the legs keep their length: the toes' rise and the ankle's under the turn)
+      if (!stance) { const an = A.joints(S).ankle ?? tb, vy = an[1] - tb[1], vz = an[2] - tb[2];
+        stance = { rise: r6(t + (vy * sa + vz * ca) - vz), toe: r6(t), pitch: r6(pitch) }; }
+    } else for (const [seg, P, keep] of [[fn, foot, (p) => ahead(p) < 0.004], [tn, toes, (p) => ahead(p) > -0.004]]) {
       if (!P) continue;
       const print = pointsOf(P).filter((p) => p[2] < floor + Math.max(0.015, soleThick + 0.008) && keep(p));
       let z = floor;
@@ -237,5 +293,5 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
   // 4 TONE: the groups laid
   // (`named`: the groups the card or its skin names a tone for, over a palette's defaults; the operator's own over all)
   const tones = { ...FOOTWEAR_TONES, ...(C.tones || {}) };
-  return { parts, tones: Object.fromEntries(Object.entries(tones).filter(([g]) => used.has(g) || (C.tones && Object.hasOwn(C.tones, g)))), named: Object.keys(C.tones || {}) };
+  return { parts, tones: Object.fromEntries(Object.entries(tones).filter(([g]) => used.has(g) || (C.tones && Object.hasOwn(C.tones, g)))), named: Object.keys(C.tones || {}), ...(stance ? { stance } : {}) };
 }

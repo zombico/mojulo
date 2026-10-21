@@ -197,7 +197,8 @@ function rowNodes(cast, H, row) {
   if (row.gait) { const ph = row.phase ?? 0; return { nodes: rigNodesAt(H.R, gaitPose(H.R, row.gait)(ph)).nodes, label: `${row.gait} ${ph}` }; }
   if (row.gesture) { const g = hero(cast, { gesture: row.gesture }); const pose = standPose(g.m.recipe, g.R); return { nodes: rigNodesAt(H.R, pose || {}).nodes, label: `gesture ${row.gesture}` }; }
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
-  return { nodes: H.R.joints, label: 'bind' };
+  // (a rig with a stance, heeled shoes', stands the bind in it: lib/graph/polygonizer/station-loft-rig.js)
+  return H.R.stance ? { nodes: rigNodesAt(H.R, {}).nodes, label: 'bind, in the stance' } : { nodes: H.R.joints, label: 'bind' };
 }
 // the hero's own head (its shell and what sits on it), hidden where the relational head is grafted
 const HERO_HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face)/;

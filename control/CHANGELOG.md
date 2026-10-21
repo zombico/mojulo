@@ -106,7 +106,18 @@ cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the hee
 suede vamp, a side stripe), `trailRunners` (a lugged outsole, a toe guard). DRESS shoes (a sleek sock, a leather sole on
 a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforated round the cap), `derbies` (open
 lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
-a pull tab). A card's or its skin's named tones stand over the palette's defaults, the operator's palette over all. On the
+a pull tab). HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
+tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
+`station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
+metatarsus `pitch` degrees heel-up, or the pose's own heel where it lifts further, a free foot's toes turned down by the
+pitch; absent, nothing changes), solved from the foot's own heel-to-ball length so the legs keep their length; the soles
+and the heel cut against where the ground will be under that pose, rigid on the foot's and the toes' bones, the heel
+leaned in the bind so it stands plumb when worn, a slender heel's foot under the back of the seat. Cards `pumps`,
+`blockHeels`, `wedges`, `platforms`; `chelseaBoots` on a low block heel. A tone may be `{ of: <group>, shade }` (that
+group's colour darkened or lightened, read after the palette: `readTones`), so recolouring `Shoes` carries the pieces
+cut from it; the dress cards use it. A card's or its skin's named tones stand over the palette's defaults, the
+operator's palette over all. body-study `--dress` paints the shoes in their own colours; a rig with a stance stands the
+bind in it. On the
 authored body the library's other words are its boot, its sandal or its shoe by the card's family, for now. `boots`, `shoes` and `sandals` are pinned byte for
 byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
 segments it is `on`). body-study `--dress` colours each footwear group by its tone.
