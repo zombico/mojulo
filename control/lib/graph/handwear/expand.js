@@ -28,6 +28,8 @@ export const FINGERS = Object.freeze({ full: 5, half: 3, none: 2 });
 export const ADORN_PRIMS = Object.freeze({
   panel: { keys: ['region', 'lift', 'thick', 'group'], group: 'Overlay', what: "a glover's piece laid over the glove on a region (cutter.js GLOVE_REGIONS: back, palm, heel, knuckles, fingerBacks, fingerPads, thumb, or { seg, t: [t0, t1], s: [s0, s1] })" },
   points: { keys: ['lines', 'lift', 'group'], group: 'Stitch', what: 'the raised lines of stitching down the back of a dress glove (three, or `lines`)' },
+  buttons: { keys: ['count', 'size', 'group'], group: 'Button', what: "a row of buttons at the wrist's opening: on the palm's side of the wrist, or up the inner forearm along a long cuff (an opera glove's)" },
+  perf: { keys: ['region', 'rows', 'cols', 'size', 'group'], group: 'Perf', what: "perforation: a grid of small holes over a region (a driving glove's, a golfer's), `rows` along it and `cols` across, on each digit of a digits region" },
   cuff: { keys: ['width', 'lift', 'group'], group: 'Cuff', what: "a turned band at the glove's top" },
   strap: { keys: ['at', 'width', 'lift', 'buckle', 'group'], group: 'Strap', what: 'a band round the wrist (`at` 0) or up the forearm (a share of it); `buckle` true a buckle on its back, false a snap' },
   flare: { keys: ['height', 'spread', 'group'], group: 'Cuff', what: "a gauntlet cuff: a funnel from the wrist up the forearm, opening out (a cavalier's, a falconer's, a welder's)" },
@@ -94,9 +96,10 @@ export function validateHandwear(spec, label = 'handwear') {
     num('lift', 0, 0.02, 'metres'); num('thick', 0.0005, 0.01, 'metres'); num('width', 0.002, 0.08, 'metres'); num('height', 0.01, 0.25, 'metres'); num('spread', 1, 3, 'times the top');
     num('size', 0.002, 0.03, 'metres'); num('length', 0.005, 0.15, 'metres'); num('curl', 0, 180, 'degrees'); num('turns', 0.5, 12, 'turns'); num('w', 0.002, 0.04, 'metres');
     num('lines', 1, 5, 'lines'); num('droop', 0, 2, 'times its length');
+    for (const [k, hi] of [['count', 8], ['rows', 8], ['cols', 6]]) if (a[k] !== undefined && !(Number.isInteger(a[k]) && a[k] >= 1 && a[k] <= hi)) errs.push(`${at}.${k}: a whole number, 1 … ${hi}`);
     if (a.seed !== undefined && !Number.isInteger(a.seed)) errs.push(`${at}.seed: a whole number`);
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
-    if (a.prim === 'panel') {
+    if (a.prim === 'panel' || (a.prim === 'perf' && a.region !== undefined)) {
       const R = a.region, pair = (x, lo, hi) => Array.isArray(x) && x.length === 2 && x.every((v) => typeof v === 'number' && v >= lo && v <= hi) && x[0] < x[1];
       if (typeof R === 'string') { if (!GLOVE_REGIONS[R]) errs.push(`${at}.region: one of ${Object.keys(GLOVE_REGIONS).join(', ')}, or { seg, t, s }`); }
       else if (!R || !['hand', 'thumb', 'fingers', 'digits', ...FINGER_KINDS].includes(R.seg) || !pair(R.t, 0, 1) || !pair(R.s, -2, 2) || Object.keys(R).some((k) => !['seg', 't', 's'].includes(k))) errs.push(`${at}.region: a glover's piece by name, or { seg: hand | thumb | fingers | digits | <a finger>, t: [t0, t1] (0 … 1), s: [s0, s1] (−2 … 2, 0 the back of the hand, ±1 the palm) }`);
@@ -109,7 +112,7 @@ export function validateHandwear(spec, label = 'handwear') {
     }
     if (a.prim === 'claws' && a.on !== undefined && !(Array.isArray(a.on) && a.on.length && a.on.every((d) => DIGITS.includes(d)))) errs.push(`${at}.on: digits (${DIGITS.join(', ')})`);
     if (a.prim === 'jewel' && a.at !== undefined && !['back', 'knuckles'].includes(a.at)) errs.push(`${at}.at: back or knuckles`);
-    if (['cuff', 'flare', 'fur', 'points'].includes(a.prim) && G === false) errs.push(`${at}: a ${a.prim} is the glove's; this card wears none`);
+    if (['cuff', 'flare', 'fur', 'points', 'buttons', 'perf'].includes(a.prim) && G === false) errs.push(`${at}: a ${a.prim} is the glove's; this card wears none`);
     if (a.prim === 'strap' && (a.at ?? 0) > 0 && !((G?.cuff ?? 0) >= a.at)) errs.push(`${at}.at: up the forearm past the glove's cuff (${G?.cuff ?? 0}); a strap there wants the cuff that far`);
   }
   for (const [g, c] of Object.entries(C.tones || {})) if (!isTone(c)) errs.push(`${label}.tones.${g}: '#rrggbb', or { of: <group>, shade: −1 … 1 }`);
@@ -152,6 +155,25 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
         // (raised lines down the back, from over the wrist toward the knuckles, each a narrow piece)
         const [seg, P] = on('hand'), k = a.lines ?? 3, base = name('Points');
         if (P) for (let i = 0; i < k; i++) { const sc = (i - (k - 1) / 2) * 0.22; lay(`${base}${i}`, seg, P, cutPiece(P, S, 'hand', A, { t: [0.3, 0.78], s: [sc - 0.022, sc + 0.022] }, { lift: lift ?? 0.0009, thick: 0.0012 }), grp); }
+      } else if (a.prim === 'buttons') {
+        // (domed buttons a couple of centimetres apart: up the inner forearm from the wrist along a cuff that reaches, else
+        // on the inside of the wrist toward the thumb, where a dress glove's opening is)
+        const k = a.count ?? 1, r = (a.size ?? 0.006) / 2, base = name('Buttons'), up = cuffed && k > 1;
+        const where = up ? { kind: 'foreArm', seg: fs, P: cuffP } : (() => { const [hs, HP] = on('hand'); return HP ? { kind: 'hand', seg: hs, P: HP } : null; })();
+        if (!where?.P) continue;
+        const [e0, e1] = extentOf(where.P, where.kind, A), len = (shellOf(where.P).length || 0.05) / Math.max(0.05, e1 - e0), step = 0.022 / len;
+        for (let i = 0; i < k; i++) {
+          const t = up ? e1 - 0.02 / len - i * step : 0.08 + i * step; if (t < e0 + 0.02 || t > e1 - 0.02) continue;
+          lay(`${base}${i}`, where.seg, where.P, cutPiece(where.P, S, where.kind, A, { circle: { t, s: up ? -0.25 : 0.7, r } }, { lift: lift ?? 0.0012, thick: 0.003, dome: r * 0.6 }), grp);
+        }
+      } else if (a.prim === 'perf') {
+        // (a grid of small dark holes inside the region, on each of its digits)
+        const R = typeof a.region === 'string' ? GLOVE_REGIONS[a.region] : a.region ?? GLOVE_REGIONS.back, rows = a.rows ?? 4, cols = a.cols ?? 3, r = (a.size ?? 0.0024) / 2, base = name('Perf');
+        for (const kind of kindsOf(R.seg)) { const [seg, P] = on(kind); if (!P) continue;
+          for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+            const t = R.t[0] + ((R.t[1] - R.t[0]) * (i + 0.5)) / rows, sc = R.s[0] + ((R.s[1] - R.s[0]) * (j + 0.5)) / cols;
+            lay(`${base}${i * cols + j}`, seg, P, cutPiece(P, S, kind, A, { circle: { t, s: sc, r } }, { lift: 0.0004, thick: 0.0012 }), grp);
+          } }
       } else if (a.prim === 'cuff' || a.prim === 'strap') {
         // (a band round the glove's top, or round the wrist or up the forearm, its width in metres along the segment)
         const up = a.prim === 'strap' && (a.at ?? 0) > 0, where = a.prim === 'cuff' ? top : up ? { kind: 'foreArm', seg: fs, P: cuffP, t: 1 - a.at } : (() => { const [hs, HP] = on('hand'); return HP ? { kind: 'hand', seg: hs, P: HP, t: 0.04 } : null; })();

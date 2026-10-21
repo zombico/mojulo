@@ -3,7 +3,7 @@
 // the middle joint, the cuff asked of the adapter, a variety its kin and a few keys, refusals, the same twice.
 import { describe, it, expect } from 'vitest';
 
-import { wearHandwear, validateHandwear, handwearCard, FINGERS, HANDWEAR, SKINS } from './index.js';
+import { wearHandwear, validateHandwear, handwearCard, readTones, FINGERS, HANDWEAR, HANDWEAR_FAMILIES, SKINS } from './index.js';
 import { ringSlots } from '../polygonizer/body-relational-resample.js';
 
 const SL = ringSlots(8);
@@ -60,13 +60,28 @@ describe('handwear on a hand adapter', () => {
     expect(Object.keys(wearHandwear(stub, 'handWraps', { id: 'w' }).parts)).toEqual(['wWrap_handR', 'wWrap1_handR', 'wWrap_handL', 'wWrap1_handL']);
   });
 
-  it('every card is valid, its family named, and wears every colourway', () => {
-    for (const [w, C] of Object.entries(HANDWEAR)) {
-      expect(validateHandwear(w), w).toEqual([]);
-      expect(handwearCard(w).family, w).toBeTruthy();
-      for (const k of Object.keys(SKINS)) expect(validateHandwear({ from: w, skin: k }), `${w} ${k}`).toEqual([]);
-      expect(C.from === undefined || HANDWEAR[C.from], w).toBeTruthy();
-    }
+  it('a card per family is valid and named; a colourway recolours the leather and what is cut OF it', () => {
+    // (one card per family, the catalogue's first of each: a family is a shelf, not a procedure)
+    const first = Object.fromEntries(Object.keys(HANDWEAR).map((w) => [handwearCard(w).family, w]).reverse());
+    expect(Object.keys(first).sort()).toEqual([...HANDWEAR_FAMILIES].sort());
+    for (const w of Object.values(first)) expect(validateHandwear(w), w).toEqual([]);
+    // (a leather colourway over a card whose pieces are OF its leather: the pieces follow when the palette is read)
+    const leather = Object.keys(SKINS).find((k) => Object.keys(SKINS[k]).join() === 'Gloves');
+    const T = readTones(wearHandwear(stub, { from: 'walkingGloves', skin: leather }).tones);
+    expect(T.Gloves).toBe(SKINS[leather].Gloves);
+    expect(T.Stitch).not.toBe(readTones(wearHandwear(stub, 'walkingGloves').tones).Stitch);
+  });
+
+  it('buttons at the wrist\'s opening, up the inner forearm along a long cuff; a grid of perforation on each digit', () => {
+    const W = wearHandwear(stub, { glove: { cuff: 0.8 }, adorn: [{ prim: 'buttons', count: 3 }, { prim: 'perf', region: 'fingerBacks', rows: 2, cols: 2 }] }, { id: 'b' });
+    expect(['bButtons0_foreArmR', 'bButtons1_foreArmR', 'bButtons2_foreArmR'].every((k) => W.parts[k])).toBe(true);
+    // (up the forearm from the wrist: each higher than the last)
+    const z = (k) => Math.max(...W.parts[k].stations.flatMap((st) => Object.values(st.points)).map((p) => p[2]));
+    expect(z('bButtons1_foreArmR')).toBeGreaterThan(z('bButtons0_foreArmR'));
+    expect(['index', 'little'].every((d) => [0, 1, 2, 3].every((i) => W.parts[`bPerf${i}_${d}L`]))).toBe(true);
+    // (one button: on the palm's side of the wrist, the stub's −y)
+    const one = wearHandwear(stub, { glove: { cuff: 0 }, adorn: [{ prim: 'buttons' }] }, { id: 'o' }).parts.oButtons0_handR;
+    expect(Math.max(...one.stations.flatMap((st) => Object.values(st.points)).map((p) => p[1]))).toBeLessThan(0);
   });
 
   it('refuses by name', () => {

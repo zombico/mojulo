@@ -158,6 +158,15 @@ colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gl
   `goalkeeperGloves`, `fightGloves`, `skiGloves`, `handWraps`), historic (`cavalierGloves`, `falconryGlove`,
   `knightGauntlets`, `bishopGloves`), fantasy (`clawGloves`, `sorcererGloves`, `furGloves`, `gemGauntlet`); colourways in
   `SKINS`; a piece's tone may be OF the leather's.
+- SPORT AND DRESS VARIETIES, skinnable as the shoes are: sport `battingGloves`, `golfGloves`, `liftingGloves`,
+  `receiverGloves`, `racingGloves`, `hockeyGloves`, `tacticalGloves`, `boxingGloves` (a puffed glove, not yet a
+  rounded fist); dress `kidGloves`, `walkingGloves`, `winterGloves`, `eveningGloves`, `mousquetaireGloves`,
+  `bridalGloves`, `ceremonialGloves`, `perforatedDrivers`, most a variety of their kin (`from`). Primitives `buttons`
+  (a row at the wrist's opening, up the inner forearm along a long cuff) and `perf` (a grid of perforation over a
+  region, on each digit of a digits one). Colourways for sport (`tripleWhite`, `infrared`, `royal`, `hiVis`, with
+  `volt`, `navy`) and for leather (`cognac`, `chocolate`, `dove`, `burgundy`, `ivory`, with `tan`, `oxblood`): a
+  leather colourway carries every piece whose tone is OF the leather. The knight's and the stone gauntlet are the
+  `gauntlet` family's.
 - Every card is an outfit word: on the realistic body the library's (its parts riding their segments' dials, its tones
   under the operator's palette); on the authored body nothing yet. body-study paints its groups, a palette's colour
   first.
