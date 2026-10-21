@@ -64,7 +64,7 @@ export function loosePants(recipe, R, build, map, spec = 'martialPants', { id = 
 }
 
 /** the FALL, the MIDLINE, the FOLDS and the HEM down one leg's pieces (the thigh's, the shank's), in place */
-function drapeLeg(pieces, side, F) {
+export function drapeLeg(pieces, side, F) {
   const rings = pieces.flatMap((P) => P.stations.map((st) => ({ P, st })));
   // (each ring's middle and its run down the leg; the hem's run from the leg's end)
   const C = rings.map(({ P, st }) => mean(P.slots.map((sl) => st.points[sl]))), L = [0];
@@ -88,6 +88,8 @@ function drapeLeg(pieces, side, F) {
       // the folds, round the ring, deeper toward the hem (none in the cuff)
       const deep = (0.35 + 0.65 * ease3(L[i] / end)) * (1 - cuff);
       Rj += F.fold * deep * Math.sin((2 * Math.PI * F.folds * j) / N + 0.7 * side);
+      // (a sleeve's FLARE: wider toward its hem)
+      if (F.flare) Rj += F.flare * ease3(L[i] / end);
       // the midline: the inner side held off the body's middle plane, never inside the skin; at the crotch, where the
       // thigh's own skin reaches the plane, the plane wins (the cloth tucks under skin hidden between the legs)
       if (d[0] * side < -1e-6) {
@@ -112,7 +114,7 @@ function drapeLeg(pieces, side, F) {
 /** ONE LEG: the thigh's draped rings down to where the shank's begin, then the shank's, taken round at the thigh's slots
  * (a shank ring's point at the same share of the turn, between its two slots there); every point's weights its own
  * piece's (a station's or a point's blend, else its bone), mixed between the two slots it lies between */
-function oneLeg(thigh, shank) {
+export function oneLeg(thigh, shank) {
   const slots = thigh.slots, N = slots.length, M = shank.slots.length;
   const mid = (P, st) => mean(P.slots.map((sl) => st.points[sl])), start = mid(shank, shank.stations[0]);
   const t0 = mid(thigh, thigh.stations[0]), reach = len(sub(start, t0));
@@ -159,7 +161,7 @@ function fallToFloor(leg, recipe, S, F) {
 
 /** a band: the piece's rings about station `i`, `width` (m) apart along it, each point lifted off its ring's middle,
  * carried by the piece's bind there */
-function bandAt(P, i, { width, lift }) {
+export function bandAt(P, i, { width, lift }) {
   const mid = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl])));
   let a = i, b = i; const far = () => len(sub(mid[b], mid[a]));
   while (far() < width && (a > 0 || b < mid.length - 1)) { if (a > 0) a--; if (far() < width && b < mid.length - 1) b++; }
@@ -177,7 +179,7 @@ function bandAt(P, i, { width, lift }) {
 }
 
 /** a piece's bind copied from `P`: each point takes the weights of P's nearest point */
-function bindNearest(piece, P) {
+export function bindNearest(piece, P) {
   const own = { [P.bind.bone]: 1 }, src = P.stations.flatMap((st) => Object.entries(st.points).map(([sl, p]) => [p, P.bind.blend?.[`${st.id}.${sl}`] ?? own]));
   const nearest = (q) => { let best = src[0], d0 = Infinity; for (const s of src) { const d = (s[0][0] - q[0]) ** 2 + (s[0][1] - q[1]) ** 2 + (s[0][2] - q[2]) ** 2; if (d < d0) { d0 = d; best = s; } } return best[1]; };
   const blend = {};
@@ -187,19 +189,20 @@ function bindNearest(piece, P) {
 }
 
 /** a box-section strip through `centres` (top first), `w` across (x) and `t` deep (y), its caps a hair past its ends */
-function strip(centres, { w, t }) {
+export function strip(centres, { w, t }) {
   const names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
   const stations = centres.map((c, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(names.map((nm, j) => [nm, [r6(c[0] + (corner[j][0] * w) / 2), r6(c[1] + (corner[j][1] * t) / 2), r6(c[2])]])) }));
   const dir = unitv(sub(centres[centres.length - 1], centres[0]));
   return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: centres[0].map((x, k) => r6(x - dir[k] * 0.001)), tip: centres[centres.length - 1].map((x, k) => r6(x + dir[k] * 0.001)) } };
 }
 
-/** the SASH: a wide band round the trousers' waist, lifted off it; a knot at its front; two tails hanging from the knot
- * over the trousers (each station a little in front of the cloth under it), all carried by the trousers' weights */
-function sashOn(pelvis, parts, id) {
-  const top = pelvis.stations.map((st, i) => [i, mean(pelvis.slots.map((sl) => st.points[sl]))[2]]).sort((a, b) => b[1] - a[1])[0][0];
-  const band = bandAt(pelvis, top, { width: 0.06, lift: 0.006 }); if (!band) return {};
-  const out = { [`${id}Sash_pelvis`]: { ...band, group: 'Sash' } };
+/** the SASH: a wide band round the trousers' waist (their highest ring, or station `at`; `width` high), lifted off it; a
+ * knot at its front; two tails hanging from the knot over the cloth (each station a little in front of the cloth under
+ * it), all carried by the piece's weights: `<id>Sash_<seg>`, `<id>Knot`, `<id>Tail<R|L>` */
+export function sashOn(pelvis, parts, id, { at = null, seg = 'pelvis', width = 0.06 } = {}) {
+  const top = at ?? pelvis.stations.map((st, i) => [i, mean(pelvis.slots.map((sl) => st.points[sl]))[2]]).sort((a, b) => b[1] - a[1])[0][0];
+  const band = bandAt(pelvis, top, { width, lift: 0.006 }); if (!band) return {};
+  const out = { [`${id}Sash_${seg}`]: { ...band, group: 'Sash' } };
   // the knot at the band's front
   const front = band.stations.map((st) => st.points.front ?? st.points[band.slots[0]]), k = mean(front);
   const knot = strip([[k[0], k[1] + 0.012, k[2] + 0.022], [k[0], k[1] + 0.016, k[2] - 0.022]], { w: 0.05, t: 0.022 });

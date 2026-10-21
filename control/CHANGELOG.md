@@ -51,6 +51,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### The gi: a wrapped jacket over the martial artist's trousers
+
+A jacket that goes over the wide trousers, on the outfit word `gi` (`polygonizer/body-relational-gi.js`; the authored
+body wears a wide top, sleeves to the forearm and a hem over the hips):
+
+- The BODY one tube from the collar to its hem: close over the shoulders, hanging below the chest (the slack eased in,
+  so the back has no step), BLOUSED over the belt it is cinched under, then a SKIRT carried straight down past the hip,
+  every ring clear of the trousers under it; the skirt's weights the pelvis's, the thigh's shared in toward each side.
+- The WRAP: a V from the collar to the crossing, the cloth inside it taken under the skin, which shows; one COLLAR band
+  lying on the cloth, up the right edge, standing round the back of the neck, down the left edge and over the crossing to
+  the right waist (left over right); the over-panel's edge on down the skirt. Both in `TopFold`, the jacket's own shade.
+- WIDE SLEEVES draped as the trousers' legs are, one tube from the shoulder to the forearm, flaring to the hem.
+- TURNED HEMS: the skirt's and the sleeves' cloth folded back up inside, so they open as cloth does instead of closing
+  with a lid (the loft winds such a tube only from the collar down, its cap's pole back toward the opening).
+- The BELT is the jacket's (band, knot, tails); the trousers' sash is left off under a gi. The drape's sash takes a
+  station and a name, and its legs an optional `flare` (absent, the trousers are unchanged).
+- Machine gate (`body-relational-gi.test.js`): closed and wound once, the skirt outside the trousers from the belt to the
+  hem, no jacket over the chest's middle in the V, each sleeve wider than the arm and its hem turned in, no edge grown
+  more than 3 cm in a stride or a sprint (a ribbon's corners take one station's weights).
+
 ### Loose cloth that falls: the martial artist's wide trousers
 
 Everything the realistic body wore was FITTED: the cloth field close over the forms. Loose cloth now hangs

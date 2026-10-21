@@ -75,6 +75,7 @@ import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relat
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
 import { footwear, FOOTWEAR } from '@/lib/graph/polygonizer/body-relational-footwear';
 import { loosePants, LOOSE_GARMENTS } from '@/lib/graph/polygonizer/body-relational-drape';
+import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -305,8 +306,9 @@ function realisticExpand(plan, hero) {
   // of its segment pieces (`boot…`, `shoe…`)
   const footWords = words.filter((w) => FOOTWEAR[w]);
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !/^(boot|shoe)[A-Z]/.test(g.id)) };
-  // LOOSE garments (body-relational-drape.js LOOSE_GARMENTS: martialPants): the drape's, in place of their segment pieces
-  const looseWords = words.filter((w) => LOOSE_GARMENTS[w]);
+  // LOOSE garments (body-relational-drape.js LOOSE_GARMENTS: martialPants; body-relational-gi.js LOOSE_TOPS: gi): the
+  // drape's, in place of their segment pieces
+  const looseWords = words.filter((w) => LOOSE_GARMENTS[w] || LOOSE_TOPS[w]);
   if (looseWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !looseWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !looseWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
@@ -354,8 +356,12 @@ function realisticExpand(plan, hero) {
     const s = S.dials?.[k], out = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((p) => R.parts[p]) } : {}) };
     return [k, s?.blend ? { ...out, blend: { ...(d.blend || {}), ...s.blend } } : out];
   }));
-  for (const w of looseWords) {
-    const B = realisticBuild(hero), RS = validateRig(S.rig), W = loosePants(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
+  // (the trousers first, a jacket over them: its belt theirs, their sash left off, its skirt clear of them)
+  const topWorn = looseWords.some((w) => LOOSE_TOPS[w]);
+  for (const w of [...looseWords.filter((x) => LOOSE_GARMENTS[x]), ...looseWords.filter((x) => LOOSE_TOPS[x])]) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), map = bodyPartMap(S, RS, B);
+    const W = LOOSE_TOPS[w] ? giJacket(S, RS, B, map, w, { id: w, under: Object.fromEntries(Object.entries(R.parts).filter(([, p]) => p.garment)) })
+      : loosePants(S, RS, B, map, topWorn ? { ...LOOSE_GARMENTS[w], sash: false } : w, { id: w });
     for (const [name, part] of Object.entries(W.parts)) {
       R.parts[name] = part;
       const seg = name.slice(name.indexOf('_') + 1);
