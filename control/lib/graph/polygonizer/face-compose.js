@@ -112,8 +112,8 @@ export const FACE_GROOMS = Object.freeze({
  * one way and still reaches the other. The character's nose shape composes over it.
  */
 export const FACE_NOSE = Object.freeze({
-  short: { noseProjection: -0.06, nasionDrop: 0.012, noseSize: -0.3, radix: -0.006, nasalIndex: 0.06, dorsum: 0.15 },
-  long: { noseProjection: 0.05, nasionDrop: -0.01, noseSize: 0.1, dorsum: -0.15, nasalIndex: -0.04, noseFat: -0.004, nasionDepth: 0.004 },
+  short: { noseProjection: -0.09, nasionDrop: 0.018, noseSize: -0.4, radix: -0.01, nasalIndex: 0.09, dorsum: 0.25 },
+  long: { noseProjection: 0.08, nasionDrop: -0.016, noseSize: 0.15, dorsum: -0.25, nasalIndex: -0.06, noseFat: -0.006, nasionDepth: 0.007 },
 });
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
