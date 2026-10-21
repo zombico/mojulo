@@ -125,6 +125,16 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Geocube hours: one cube at any hour, under a sky painted to match its ground
+
+- Planned: a geocube recipe's `hour` (0–24, or `dawn` … `night` on the clock's dial) moves the sun along one arc
+  through the cube's own reference (at the reference's hour the light is the reference's), warms and dims the key
+  toward the horizon, hands it to the cube's moon through the dial's dusk, and carries the sky, ambient and fog between
+  the references' day, golden and night domes in the cube's own hue. A recipe's `weather` paints a cloud band round the
+  dome by the old layered-noise recipe (clouds, difference clouds, levels, stretch, emboss toward the sun, a gradient
+  map through the hour's colours), banded to the register on a quiet cube and soft on a gritty one. Absent, a recipe
+  is byte for byte as it was.
+
 ### Geocube styles: principles and the laws that check them
 
 A style is its principles plus the mistakes it avoids, and each mistake is a law the machine gate measures. A cube's
