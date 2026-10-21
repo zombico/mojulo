@@ -51,6 +51,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### The garment designer: silhouette principles over tailoring primitives
+
+In progress. Garments on the realistic body as data over a small set of construction primitives, and the principles
+that make a silhouette read as measures with bands, so a garment is chosen and checked rather than designed by hand.
+
+- THE TAILOR (`polygonizer/body-relational-tailor.js`): the realistic body's construction in one place, each a pure
+  function that knows no garment: runs (`oneTube`), profiles (`drapeRun`, `clearanceOver`), edges (`fallToFloor`,
+  `turnHemIn`), trims (`bandAt`, `strapBand`, `sashOn`, `strip`, `ribbon`, `soleSlab`, `buckleOn`) and binds
+  (`bindNearest`, `bindRibbon`, `ringW`). The trousers, the gi and the footwear are each their choice of them. Moved byte
+  for byte (`body-relational-tailored.char.test.js`, out of the critical tier: each case mints a realistic body), but
+  for one fix: a strap is now the one band, its caps riding with their ring as a cuff's do.
+
 ### The gi: a wrapped jacket over the martial artist's trousers
 
 A jacket that goes over the wide trousers, on the outfit word `gi` (`polygonizer/body-relational-gi.js`; the authored

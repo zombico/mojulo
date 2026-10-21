@@ -6,7 +6,7 @@
  *   the base    the tee's cloth field (body-relational-garment.js `fieldGarment`) over the torso, the pelvis from the
  *               hips up (`hipU`) and the arms down the forearm (`sleeve.limit`), so every ring keeps the skin's station,
  *               slot and weights
- *   the BODY    the pelvis's piece and the torso's one tube (the drape's `oneLeg`), from its hem to the collar:
+ *   the BODY    the pelvis's piece and the torso's one tube (the tailor's `oneTube`), from its hem to the collar:
  *               - above the chest (`chestU`) the field's own cloth, close over the shoulders
  *               - below it the FALL (each slot the larger of its own, and the `slack` eased in over 10 cm, and the
  *                 ring above's let down by `taper`), the
@@ -28,11 +28,13 @@
  *               over, the trousers, cleared below the belt)
  *   LOOSE_TOPS  the words: `gi`
  *
- * The drape is the REST shape, carried by the bones as the skin is (no cloth simulation). Pure; deterministic.
+ * The construction is the tailor's (body-relational-tailor.js); this file the jacket's choice of it. The drape is the
+ * REST shape, carried by the bones as the skin is (no cloth simulation). Pure; deterministic.
  */
 import { fieldGarment } from './body-relational-garment.js';
-import { drapeLeg, oneLeg, sashOn, LOOSE_TONES } from './body-relational-drape.js';
-import { ringSlots, mixW, four } from './body-relational-resample.js';
+import { LOOSE_TONES } from './body-relational-drape.js';
+import { drapeRun, oneTube, clearanceOver, turnHemIn, sashOn, ribbon, bindRibbon, ringW } from './body-relational-tailor.js';
+import { mixW, four } from './body-relational-resample.js';
 
 export const LOOSE_TOPS = Object.freeze({
   gi: Object.freeze({
@@ -51,15 +53,9 @@ const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const len = (v) => Math.hypot(...v);
 const unitv = (v) => { const l = len(v) || 1; return v.map((x) => x / l); };
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const ease3 = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
 const pts = (P) => P.stations.flatMap((st) => Object.values(st.points));
 
-/** a ring's weights mixed (each slot's), held to four bones: a cap's, so it rides with its ring */
-function ringW(w) {
-  const m = {}; for (const x of Object.values(w)) for (const [b, v] of Object.entries(x)) m[b] = (m[b] ?? 0) + v;
-  const n = Object.keys(w).length; return four(mixW(Object.fromEntries(Object.entries(m).map(([b, v]) => [b, v / n])), {}, 0));
-}
 
 /** The gi's jacket (see the head of this file). */
 export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under = {} } = {}) {
@@ -75,7 +71,7 @@ export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under 
   const zBeltTop = zBelt + F.belt / 2, zBeltBot = zBelt - F.belt / 2, zChest = zAtU(skinT, F.chestU), zV = zAtU(skinT, F.vU), zHem = zCrotch - F.hem;
 
   // THE BODY: the pelvis's rings and the torso's one tube, each ring its points, its weights and (the torso's) its skin
-  const M = oneLeg(P, T), nT = T.stations.length, from = M.stations.length - nT;
+  const M = oneTube(P, T), nT = T.stations.length, from = M.stations.length - nT;
   const wOf = (st, sl) => M.bind.blend[`${st.id}.${sl}`] ?? M.bind.blend[st.id] ?? { [M.bind.bone]: 1 };
   const skinSt = (sid) => skinT.stations.find((s) => s.id === sid) ?? null;
   let rings = M.stations.map((st, i) => ({ points: { ...st.points }, w: Object.fromEntries(slots.map((sl) => [sl, wOf(st, sl)])), skin: i >= from ? skinSt(T.stations[i - from].id) : null, skirt: 0 }));
@@ -90,7 +86,7 @@ export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under 
 
   // what the jacket is worn over (the trousers' cloth, the skin of the hips and the thighs), for the belt and the skirt
   const below = [...Object.values(under), ...['pelvis', 'thighR', 'thighL'].map((k) => recipe.parts[k]).filter(Boolean)].flatMap(pts).filter((q) => q[2] < zBeltTop + 0.03);
-  const needAt = (c) => { const near = below.filter((q) => Math.abs(q[2] - c[2]) < 0.02); return (dh) => { let m = 0; for (const q of near) { const vx = q[0] - c[0], vy = q[1] - c[1], pr = vx * dh[0] + vy * dh[1]; if (pr > m && Math.abs(vx * dh[1] - vy * dh[0]) < 0.025) m = pr; } return m; }; };
+  const needAt = clearanceOver(below);
   // (the blouse's profile over the belt: its overhang just above the belt, gone `blouseLen` up)
   const bump = (h) => (h < 0 ? 0 : h < 0.02 ? 0.6 + 0.4 * ease3(h / 0.02) : 1 - ease3((h - 0.02) / (F.blouseLen - 0.02)));
 
@@ -161,18 +157,9 @@ export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under 
   // THE SLEEVES: draped as a leg is, one tube, the hem turned back in to the arm
   for (const S of ['R', 'L']) {
     const U = parts[`${id}_upperArm${S}`], A = parts[`${id}_foreArm${S}`]; if (!U || !A) continue;
-    const rest = { ...A.stations[A.stations.length - 1].points }, restC = mean(Object.values(rest));
-    drapeLeg([U, A], S === 'R' ? 1 : -1, F.sleeve);
-    const sv = oneLeg(U, A), last = sv.stations[sv.stations.length - 1], lc = mean(sv.slots.map((sl) => last.points[sl])), prevC = mean(sv.slots.map((sl) => sv.stations[sv.stations.length - 2].points[sl]));
-    const axis = unitv(sub(lc, prevC)), linC = sub(lc, scl(axis, 0.03));
-    // (the arm's slots on the forearm's ring: the sleeve's taken round at the upper arm's, so each found by its share of the turn)
-    const rs = A.slots, at = (j) => rest[rs[Math.round((j * rs.length) / sv.slots.length) % rs.length]];
-    const linPts = Object.fromEntries(sv.slots.map((sl, j) => { const q = at(j), d = unitv(sub(q, restC)); return [sl, add(linC, scl(d, Math.max(0.01, len(sub(q, restC)) - 0.004))).map(r6)]; }));
-    const id2 = `st${sv.stations.length}`, lw = {}; for (const sl of sv.slots) { lw[sl] = sv.bind.blend[`${last.id}.${sl}`] ?? { [sv.bind.bone]: 1 }; sv.bind.blend[`${id2}.${sl}`] = lw[sl]; }
-    const linR = sv.slots.reduce((s, sl) => s + len(sub(linPts[sl], linC)), 0) / sv.slots.length;
-    sv.stations = [...sv.stations, { id: id2, u: (last.u ?? 0) + 0.01, points: linPts }];
-    sv.caps = { ...sv.caps, tip: add(linC, scl(axis, linR / 3)).map(r6) };
-    sv.bind.blend.tip = ringW(lw);
+    const rest = { ...A.stations[A.stations.length - 1].points };
+    drapeRun([U, A], S === 'R' ? 1 : -1, F.sleeve);
+    const sv = turnHemIn(oneTube(U, A), rest, A.slots);
     out[`${id}_sleeve${S}`] = { ...sv, garment: true, group: 'Top' };
   }
 
@@ -188,34 +175,4 @@ export function giJacket(recipe, R, build, map, spec = 'gi', { id = 'gi', under 
   return { parts: out, tones: { Sash: LOOSE_TONES.Sash } };
 }
 
-/** a ribbon's bind off the cloth under it: each station (and each cap) the weights of the cloth's point nearest its
- * middle, all four of its corners alike (each corner its own nearest had parted a thin ribbon's faces in a stride) */
-function bindRibbon(rib, P) {
-  const own = { [P.bind.bone]: 1 }, src = P.stations.flatMap((st) => Object.entries(st.points).map(([sl, p]) => [p, P.bind.blend?.[`${st.id}.${sl}`] ?? own]));
-  const nearest = (q) => src.reduce((b, s) => { const d = (s[0][0] - q[0]) ** 2 + (s[0][1] - q[1]) ** 2 + (s[0][2] - q[2]) ** 2; return d < b[0] ? [d, s[1]] : b; }, [Infinity, own])[1];
-  const blend = {};
-  for (const st of rib.stations) { const w = nearest(mean(Object.values(st.points))); for (const sl of rib.slots) blend[`${st.id}.${sl}`] = w; }
-  for (const [k, q] of Object.entries(rib.caps)) blend[k] = nearest(q);
-  return { bone: P.bind.bone, blend };
-}
 
-/** a RIBBON along `path` lying on the cloth (`w` across it, `t` thick, its centre `t`/2 off the surface, and `over.by`
- * more from the path's point `over.from` on, so a panel's edge lies over the one it crosses; its outside the horizontal
- * out from the trunk's middle `near(p)` there): the path resampled every 12 mm and smoothed; a box section on
- * ringSlots(4), its caps a hair past its ends */
-function ribbon(path, near, { w, t, over = null }) {
-  if (path.length < 2) return null;
-  // (resampled by length, every 12 mm, then smoothed twice, its ends kept)
-  const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + len(sub(path[i], path[i - 1])));
-  const total = cum[cum.length - 1], K = Math.max(2, Math.round(total / 0.012)), along = [];
-  for (let k = 0; k <= K; k++) { const s = (total * k) / K; let i = 1; while (i < cum.length - 1 && cum[i] < s) i++; const f = cum[i] > cum[i - 1] ? (s - cum[i - 1]) / (cum[i] - cum[i - 1]) : 0; along.push(path[i - 1].map((x, q) => x + (path[i][q] - x) * f)); }
-  let P = along; for (let it = 0; it < 2; it++) P = P.map((p, i) => (i === 0 || i === P.length - 1 ? p : p.map((x, q) => 0.25 * P[i - 1][q] + 0.5 * x + 0.25 * P[i + 1][q])));
-  const names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]], overAt = over ? (cum[over.from] ?? total) / total : 2;
-  const stations = P.map((p, i) => {
-    const tn = unitv(sub(P[Math.min(i + 1, P.length - 1)], P[Math.max(i - 1, 0)])), c = near(p), nn = unitv([p[0] - c[0], p[1] - c[1], 0]), a = unitv(cross(tn, nn));
-    const m = add(p, scl(nn, t / 2 + 0.002 + (over ? over.by * ease3((i / K - overAt) / 0.08) : 0)));
-    return { id: `st${i}`, u: i, points: Object.fromEntries(names.map((nm, j) => [nm, add(m, add(scl(a, (corner[j][0] * w) / 2), scl(nn, (corner[j][1] * t) / 2))).map(r6)])) };
-  });
-  const mid = (st) => mean(Object.values(st.points)), d0 = unitv(sub(mid(stations[1]), mid(stations[0]))), d1 = unitv(sub(mid(stations[stations.length - 1]), mid(stations[stations.length - 2])));
-  return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: sub(mid(stations[0]), scl(d0, 0.001)).map(r6), tip: add(mid(stations[stations.length - 1]), scl(d1, 0.001)).map(r6) } };
-}

@@ -35,6 +35,8 @@ export default defineConfig({
       'lib/mcp/tools/compose-world.*.test.js',
       'lib/db/repositories/manji-program-embedding.test.js',
       'lib/graph/vegetation/plants.char.test.js',
+      // (each case mints a realistic body)
+      'lib/graph/polygonizer/body-relational-tailored.char.test.js',
     ],
   },
 });
