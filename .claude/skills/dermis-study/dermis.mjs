@@ -17,7 +17,8 @@
 //   --ancestry      people of the egocube's ancestries, rolled in their ranges: id[:sex[:seed]], comma-separated
 //                   (african, european, east-asian, south-asian …; dermal-looks.js readAncestry); --game carves the
 //                   creator's face over them
-//   --lineup        the subjects side by side at the front and the front ¾ (no atlases); --lineup-crop eyes frames
+//   --lineup        the subjects side by side at the front and the front ¾ (no atlases; --lineup-all adds the lateral and
+//                   the back, two subjects to a row); --lineup-crop eyes frames
 //                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
 //   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"tune"?}]'
 //                   (the head's relations replaced as given, the wave's tune solved for them; an ancestry rolls the
@@ -58,7 +59,7 @@ const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-m
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null;
+let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null, lineupAll = false;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -70,6 +71,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--faces') { faces.push(...JSON.parse(args[++i])); continue; }
   if (a === '--ancestry') { ancestries.push(...args[++i].split(',')); continue; }
   if (a === '--lineup') { lineup = true; continue; }
+  if (a === '--lineup-all') { lineup = true; lineupAll = true; continue; }
   if (a === '--lineup-crop') { lineup = true; lineupCrop = args[++i]; continue; }
   if (a === '--game') { game = true; continue; }
   if (a === '--body') { body = true; continue; }
@@ -344,15 +346,15 @@ if (body) {
 // THE LINEUP: each subject at the front and the front ¾ only, lit with its hair, four subjects to a row, what each was
 // rolled to under it
 if (lineup) {
-  const W = lineupCrop === 'face' || lineupCrop === 'eye' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' ? 340 : 330, per = 4;
+  const W = lineupCrop === 'face' || lineupCrop === 'eye' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' ? 340 : 330, nv = lineupAll ? 4 : 2, per = lineupAll ? 2 : 4;
   for (let k = 0; k < subjects.length; k++) {
     const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
     const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
     const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'eye' ? boxAt(m3(Le.eyeR), 0.024) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
-    const col0 = (k % per) * 2 * W, y = Math.floor(k / per) * (Hh + 60);
-    for (const [c, v] of VIEWS.slice(0, 2).entries()) {
+    const col0 = (k % per) * nv * W, y = Math.floor(k / per) * (Hh + 60);
+    for (const [c, v] of VIEWS.slice(0, nv).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
       drawStrands(R, cam, W, Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * 0.75 : 0));
       drawBands(R, cam, W, Hh, H.scalp?.bands, shade);
@@ -364,7 +366,7 @@ if (lineup) {
     label(col0, y + Hh + 32, r ? `${r.texture} ${r.hair} · ${H.S ? `${H.S.style}${H.S.type !== 'straight' ? ` (${H.S.type})` : ''}` : 'shaven'}${r.eyes ? ` · eyes: ${r.eyes}` : ''}` : `${H.S?.style ?? ''}`, 11);
     report[who] = { rolled: r, dermis: H.D, scalp: H.S, ms: H.ms };
     console.log(`${who}: ${JSON.stringify(r)} ${H.S?.style} ${H.ms} ms`);
-    sheetW = Math.max(sheetW, Math.min(per, subjects.length) * 2 * W); y0 = Math.max(y0, y + Hh + 60);
+    sheetW = Math.max(sheetW, Math.min(per, subjects.length) * nv * W); y0 = Math.max(y0, y + Hh + 60);
   }
 }
 for (const [who, look, anc] of lineup || body ? [] : subjects) {

@@ -78,6 +78,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
   the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
   (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
+- THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
+  rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
+  behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the
+  front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
+  hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
+  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. The dermis
+  study's `--lineup-all` adds the lateral and the back.
 
 ### Body-part map: dress tailored to the body, not the segment
 

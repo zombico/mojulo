@@ -51,6 +51,12 @@ export const DERMIS_DIALS = Object.freeze({
   freckles: '0 … 1',
   oil: '0 … 1 (the T-zone\'s sheen)',
   hairline: '0.8 … 1.2 (the scalp\'s front edge; 1 the natural)',
+  round: '−1 … 1 (the hairline\'s front between the middle and the temples: − straight across, + rounded; absent 0)',
+  temples: 'mm, −8 … 40 (the temples\' corners receded past the natural; − fuller; absent 0)',
+  peak: 'mm, 0 … 10 (a widow\'s peak: the hairline dipping at the middle; absent 0)',
+  sideburn: 'mm, −12 … 15 (the sideburn\'s foot lower; − shorter; absent 0)',
+  nape: 'mm, −15 … 20 (the nape\'s line lower; − higher; absent 0)',
+  bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
   body: '0 … 1.5 (the body\'s terminal hair: the limbs, the chest)',
@@ -61,6 +67,8 @@ export const DERMIS_DIALS = Object.freeze({
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
+/** the dials a map may name or not (absent, they add nothing): checked only when given */
+const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
 const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
 
 export const DERMIS_PRESETS = Object.freeze({
@@ -78,6 +86,7 @@ export function readDermis(spec = 'male') {
   for (const k of Object.keys(rest)) if (!(k in DERMIS_DIALS)) throw new Error(`dermis: unknown dial '${k}' (have ${Object.keys(DERMIS_DIALS).join(', ')})`);
   const D = { ...base, ...rest };
   for (const [k, [lo, hi]] of Object.entries(RANGES)) if (!(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
+  for (const [k, [lo, hi]] of Object.entries(OPTIONAL_RANGES)) if (D[k] !== undefined && !(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
   if (!(typeof D.tone === 'string' ? /^#[0-9a-f]{6}$/i.test(D.tone) : Number.isInteger(D.tone) && D.tone >= 1 && D.tone <= 10)) throw new Error(`dermis: tone ${D.tone} (${DERMIS_DIALS.tone})`);
   if (!UNDERTONES.includes(D.undertone)) throw new Error(`dermis: undertone '${D.undertone}' (have ${UNDERTONES.join(', ')})`);
   if (D.sex !== 'male' && D.sex !== 'female') throw new Error(`dermis: sex '${D.sex}' (male | female)`);
@@ -234,11 +243,33 @@ function relationalHeadRegions(A, D, put, R) {
   // the hairline over |X|: the trichion's height at the middle (the dial lifts or lowers its front), the temple's
   // corner, the sideburn's foot, over the ear, behind it, the nape
   const Ht = M.g.Y + (tr.Y - M.g.Y) * D.hairline, sideX = Math.abs(por.X) - 16;
-  const hl = pwl([[0, Ht], [Math.abs(fz.X) * 0.7, Ht - 3], [Math.abs(fz.X) + 6, Ht - (male ? 18 : 10)], [sideX - 6, M.g.Y - 8], [sideX, por.Y + (male ? -4 : 14)],
-    [sideX + 2, por.Y + 34], [Math.abs(por.X) + 30, por.Y + 34], [Math.abs(por.X) + 42, por.Y - 6], [back * 0.85, por.Y - 38], [back, por.Y - 42]], x);
+  // (the hairline's own dials, each absent 0, the line as it was: `round` its front's fall toward the temples, `temples`
+  // the corners' recession, `sideburn` its foot, `nape` the line behind; `bald` a man's loss recedes the temples and then
+  // the front, below)
+  const bald = D.bald ?? 0, mBald = male ? bald : 0, front = mBald ? 50 * smooth(0.45, 1, mBald) : 0;
+  const rnd = D.round ?? 0, tmp = (D.temples ?? 0) + (mBald ? 38 * smooth(0, 0.6, mBald) : 0), sb = D.sideburn ?? 0, nape = D.nape ?? 0;
+  const Hf = Ht + front;
+  const hl0 = pwl([[0, Hf], [Math.abs(fz.X) * 0.7, Hf - 3 - 6 * rnd + 0.3 * tmp], [Math.abs(fz.X) + 6, Ht - (male ? 18 : 10) + tmp], [sideX - 6, M.g.Y - 8], [sideX, por.Y + (male ? -4 : 14) - sb],
+    [sideX + 2, por.Y + 34], [Math.abs(por.X) + 30, por.Y + 34], [Math.abs(por.X) + 42, por.Y - 6 - nape], [back * 0.85, por.Y - 38 - nape], [back, por.Y - 42 - nape]], x);
+  // (a widow's peak: the line dips at the middle, over ~12 mm either side)
+  const hl = D.peak ? hl0 - D.peak * Math.max(0, 1 - x / 12) ** 2 : hl0;
   // the edge broken as a hairline is (no hairline is a drawn line): a few millimetres of wander along it, soft over 5 mm
   const wander = 4 * (vnoise(q.X / 7, 0.5, D.seed + 41) - 0.5) + 2 * (vnoise(q.X / 2.2, 3.5, D.seed + 43) - 0.5);
-  const scalp = smooth(hl + wander - 5, hl + wander + 3, q.Y);
+  let scalp = smooth(hl + wander - 5, hl + wander + 3, q.Y);
+  // HAIR LOSS on the crown, as an angle on the head's sphere from a centre (the chart's X loses its meaning up there):
+  // a man's from the back of the crown, growing and riding up toward the vertex until it meets the receding front (the
+  // horseshoe); a woman's about the vertex and the part, thinned rather than cleared (the front line kept)
+  if (bald > 0) {
+    const el = A.along * Math.PI - Math.PI / 2, az = A.around * 2 * Math.PI;
+    const crown = (el0, az0) => Math.acos(Math.max(-1, Math.min(1, Math.sin(el) * Math.sin(el0) + Math.cos(el) * Math.cos(el0) * Math.cos(az - az0))));
+    if (male) {
+      const r = 1.2 * smooth(0.2, 1.1, bald), d = crown((55 + 25 * bald) * Math.PI / 180, Math.PI);
+      scalp *= smooth(r - 0.12, r + 0.04, d);
+    } else {
+      const r = 0.6 * bald, d = crown(80 * Math.PI / 180, 0), n = vnoise(q.X / 3, q.Y / 3, D.seed + 47);
+      scalp *= 1 - bald * (1 - smooth(r - 0.1, r + 0.1, d)) * (0.55 + 0.6 * n);
+    }
+  }
   put('scalp', scalp);
   const faceW = Math.abs(P('zy').X) + 4, face = (1 - scalp) * (1 - smooth(faceW - 8, faceW + 4, x)) * smooth(-12, 0, q.Y);
   const blobQ = (c, r, sy = 1) => Math.exp(-(((q.X - c.X) ** 2) + ((q.Y - c.Y) / sy) ** 2) / (r * r));

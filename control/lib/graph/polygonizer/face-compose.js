@@ -115,6 +115,20 @@ export const FACE_NOSE = Object.freeze({
   short: { noseProjection: -0.09, nasionDrop: 0.018, noseSize: -0.4, radix: -0.01, nasalIndex: 0.09, dorsum: 0.25 },
   long: { noseProjection: 0.08, nasionDrop: -0.016, noseSize: 0.15, dorsum: -0.25, nasalIndex: -0.06, noseFat: -0.006, nasionDepth: 0.007 },
 });
+/**
+ * THE HAIRLINE — where the scalp's hair starts and ends, person to person (epidermis/dermal-map.js's hairline dials):
+ * the front's height, its shape (straight across … rounded), the temples' corners (fuller … receded), a widow's peak
+ * (on some), the sideburn's foot, the nape's line; each the mean of two dice in its range. HAIR LOSS (`bald`, 0 … 1, by
+ * the sex's pattern): rolled on some faces, a man's far more often than a woman's (her front kept, her crown thinned),
+ * scaled by the bucket's prevalence (`bald`: men of European descent bald the most; East Asian, African and others
+ * less, by published prevalence at like ages). Rolled last of all: a seed keeps its face. `composeFace`'s `bald` sets it.
+ */
+export const FACE_HAIRLINE = Object.freeze({
+  hairline: [0.92, 1.08], round: [-0.8, 0.8], sideburn: [-8, 10], nape: [-10, 15],
+  temples: { female: [-6, 12], male: [-4, 20] },
+  peak: { chance: 0.3, mm: [2, 8] },
+  bald: { female: { chance: 0.08, amount: [0.1, 0.5] }, male: { chance: 0.45, amount: [0.1, 1] } },
+});
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
@@ -136,6 +150,7 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   nose         where its people sit on the nose's axis (`FACE_NOSE`): { mean, spread }
  *   proportions  its proportions' reaches (`FACE_PROPORTIONS` absent)
  *   grooms       its brows' and lashes' ranges (`FACE_GROOMS` absent)
+ *   bald         its men's prevalence of hair loss against the western (1): a scale on the chance (`FACE_HAIRLINE`)
  *   tones        [lo, hi] on the Monk scale: the intent's tones within its ancestries' (`equatorial` is brown); the
  *                ancestry still gives the hair, the undertone and the eyes' colour (absent, the ancestry's own roll)
  *   blend        { bucket: weight }: a BLEND of buckets, each face one of them (rolled by weight), composed as that
@@ -147,7 +162,7 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  * A lid roll may name `none`: the rig's own lid (a crease and a lid space, no cover).
  */
 export const FACE_BUCKETS = Object.freeze({
-  western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 } },
+  western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'east-asian': {
     note: 'East and Southeast Asian ancestry (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian', 'east-asian', 'southeast-asian'],
@@ -164,6 +179,7 @@ export const FACE_BUCKETS = Object.freeze({
     nose: { mean: -0.4, spread: 0.6 },
     // (the egocube's East Asian lid derive's own weights: the in-fold the likeliest)
     lids: { 'inner-fold': 2, monolid: 1, parallel: 1, hooded: 1 },
+    bald: 0.55,
     weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
   },
   'south-asian': {
@@ -179,6 +195,7 @@ export const FACE_BUCKETS = Object.freeze({
     },
     nose: { mean: 0.05, spread: 0.65 },
     lids: { none: 3, hooded: 1 },
+    bald: 0.8,
     weights: { eyes: { large: 1.4, deep: 1.3 }, nose: { classical: 1.2 }, lips: { full: 1.2 } },
     // (the brows and the lashes fuller and darker on the whole: their rolls lean heavier)
     grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
@@ -196,6 +213,7 @@ export const FACE_BUCKETS = Object.freeze({
     },
     nose: { mean: -0.45, spread: 0.55 },
     lids: { none: 4, hooded: 1 },
+    bald: 0.6,
     weights: { nose: { classical: 0.4, soft: 1.5, button: 1.2 }, lips: { fine: 0.3, full: 1.5, lower: 1.3 }, eyes: { deep: 0.7 } },
   },
   'southeast-asian': {
@@ -211,6 +229,7 @@ export const FACE_BUCKETS = Object.freeze({
     },
     nose: { mean: -0.5, spread: 0.55 },
     lids: { parallel: 2, none: 2, 'inner-fold': 1, hooded: 1, monolid: 0.5 },
+    bald: 0.6,
     weights: { nose: { classical: 0.5, soft: 1.4, button: 1.2 }, lips: { full: 1.3 } },
   },
   latin: {
@@ -226,6 +245,7 @@ export const FACE_BUCKETS = Object.freeze({
     },
     nose: { mean: 0, spread: 0.75 },
     lids: { none: 3, hooded: 1.5, 'inner-fold': 0.5 },
+    bald: 0.8,
     weights: { nose: { classical: 1.2 }, cheeks: { sculpted: 1.3 } },
   },
   // a BLEND: a face of one of its buckets, rolled by weight (each face its bucket's own, at the same seed)
@@ -271,14 +291,14 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * nose's axis, −1 … 1, over the bucket's roll } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null } = {}) {
   let B = FACE_BUCKETS[bucket];
   if (!B) throw new Error(`face: the bucket is one of ${Object.keys(FACE_BUCKETS).join(', ')}`);
   if (B.blend) {
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
     let r = b() * sum;
     const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
-    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt }), blend: bucket };
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
@@ -340,8 +360,15 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const NA = B.nose || NOSE_DEFAULT, rolled = NA.mean + NA.spread * (d() + d() - 1), nose = Math.max(-1, Math.min(1, noseAt ?? rolled));
   for (const [key, v] of Object.entries(nose < 0 ? FACE_NOSE.short : FACE_NOSE.long)) off[key] = (off[key] || 0) + v * Math.abs(nose);
   proportions.nose = Math.round(nose * 100) / 100;
+  // the hairline and the hair's loss, last of all
+  const H = FACE_HAIRLINE, mid = ([lo, hi]) => lo + ((d() + d()) / 2) * (hi - lo), r1 = (v) => Math.round(v * 10) / 10;
+  const hair = { hairline: Math.round(mid(H.hairline) * 1000) / 1000, round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
+  if (d() < H.peak.chance) hair.peak = r1(mid(H.peak.mm)); else d();
+  const BL = H.bald[sex], hasLoss = d() < BL.chance * (B.bald ?? 1), loss = BL.amount[0] + d() * (BL.amount[1] - BL.amount[0]);
+  const bald = baldAt ?? (hasLoss ? Math.round(loss * 100) / 100 : 0);
+  if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(tone != null ? { dermis: { tone } } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

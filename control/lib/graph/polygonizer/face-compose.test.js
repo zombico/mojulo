@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
+import { readDermis } from '../epidermis/dermal-map.js';
 
 describe('the face composer', () => {
   it('is deterministic: the same seed composes the same face', () => {
@@ -114,7 +115,23 @@ describe('the face composer', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const f = composeFace({ bucket: 'equatorial', seed }), [lo, hi] = FACE_BUCKETS[f.mixed.of].tones;
       expect(f.dermis.tone).toBeGreaterThanOrEqual(lo); expect(f.dermis.tone).toBeLessThanOrEqual(hi);
-      expect(composeFace({ bucket: 'western', seed }).dermis).toBeUndefined();
+      expect(composeFace({ bucket: 'western', seed }).dermis.tone).toBeUndefined();
     }
+  });
+
+  it('rolls the hairline per face, a dermis the map reads, and the hair\'s loss by sex and by the bucket\'s prevalence', () => {
+    const lossOf = (bucket, sex) => Array.from({ length: 200 }, (_, i) => composeFace({ bucket, sex, seed: i + 1 }).dermis.bald ?? 0);
+    for (let seed = 1; seed <= 12; seed++) {
+      const f = composeFace({ seed }), D = f.dermis;
+      expect(() => readDermis({ from: 'female', ...D })).not.toThrow();
+      expect(D.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline[0]); expect(D.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline[1]);
+    }
+    const share = (a) => a.filter((b) => b > 0).length / a.length;
+    expect(share(lossOf('western', 'male'))).toBeGreaterThan(0.3);
+    expect(share(lossOf('western', 'female'))).toBeLessThan(0.15);
+    expect(share(lossOf('east-asian', 'male'))).toBeLessThan(share(lossOf('western', 'male')));
+    // (an open dial: set it, and the face keeps everything else)
+    const a = composeFace({ sex: 'male', seed: 4 }), b = composeFace({ sex: 'male', seed: 4, bald: 0.8 });
+    expect(b.dermis.bald).toBe(0.8); expect(b.relations).toEqual(a.relations);
   });
 });
