@@ -22,12 +22,16 @@
  *   readHour(v)           a number in [0, 24) or one of the words → the hour, or throws
  *   referenceHour(ref)    the hour a reference card is lit at
  *   hourLight(cube, h)    → { hour, s, moonlit, key, gainK, ambient, dome, fog, water, night }
+ *   hourAir(cube, h, clouds?)   the hour's light and air under the clouds, as an outside (the island, a city) takes them:
+ *                         → { H, gain, ambient, fog, disc, band, dome }
  *
  * Pure.
  */
 import { SIXTH_GEN_REFERENCES, resolveLook } from './sixth-gen.js';
 import { nightAt } from '../weather/clock-dial.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
+import { sunDir } from './sun.js';
+import { WEATHERS } from '../matte-paint/sky.js';
 
 export const HOUR_WORDS = Object.freeze({ dawn: 6, morning: 9, noon: 12, afternoon: 15, golden: 17.5, dusk: 19, night: 23 });
 const DAY = SIXTH_GEN_REFERENCES.sunshine, GOLD = SIXTH_GEN_REFERENCES.colosseum, NIGHT = SIXTH_GEN_REFERENCES.dmc3;
@@ -121,4 +125,19 @@ export function hourLight(cube, h) {
   const water = ref.light.key && cube.colour.water && s < 0 ? mixHex(cube.colour.water, atValueOf(cube.colour.water, sky.zenith), clamp(-s, 0, 1)) : null;
   return { hour: h, s: r3(s), moonlit, key, gainK: r3(gainK), ambient, dome: { zenith: sky.zenith.map(Math.round), horizon: sky.horizon.map(Math.round) }, fog: sky.fog, water,
     night: r3(clamp(-s, 0, 1)) };
+}
+
+/**
+ * The hour's light and air under `clouds` (matte-paint/sky.js readClouds, or none): under cloud the key weakens, the shade
+ * fills toward the sky's grey, the air thickens and greys, and the sun's disc is gone; clouds that follow a live weather
+ * (`live`) lean only the disc, the live channel carrying the air (weather/weather.js). → { H (hourLight), gain (on the
+ * key's own gain), ambient, fog: { color, density }, disc, band (the cloud band's spec, or null), dome }.
+ */
+export function hourAir(cube, hour, clouds) {
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], H = hourLight(cube, hour), dome = H.dome;
+  const W0 = clouds ? WEATHERS[clouds.kind].light : null, Wl = !W0 ? { gain: 1, ambient: 0, fog: 1, disc: true } : clouds.live ? { gain: 1, ambient: 0, fog: 1, disc: W0.disc } : W0;
+  const grey = (() => { const m = dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), y = (m[0] + m[1] + m[2]) / 3; return m.map((v) => (v + 2 * y) / 3); })();
+  const lean = (hex, t) => (t ? hexOf(rgbOf(hex).map((v, k) => v + (grey[k] - v) * t)) : hex);
+  const band = clouds ? { clouds: { kind: clouds.kind, cover: clouds.cover, seed: clouds.seed }, sun: sunDir(H.key.elevation, H.key.azimuth).map((v) => Math.round(v * 1e5) / 1e5), key: H.key.color, zenith: dome.zenith, horizon: dome.horizon, night: H.night } : null;
+  return { H, gain: H.gainK * Wl.gain, ambient: lean(H.ambient, Wl.ambient), fog: { color: lean(H.fog, Wl.ambient), density: +(ref.air.fog.density * cube.light.outsideFog * Wl.fog).toFixed(5) }, disc: Wl.disc, band, dome };
 }

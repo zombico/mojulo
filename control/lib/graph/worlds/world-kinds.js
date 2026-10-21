@@ -26,7 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
-import { geocubeCity } from '@/lib/graph/era/geocube-city';
+import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
@@ -500,7 +500,7 @@ export const WORLD_KINDS = {
     // (era/geocube-city.js) is the city plan's, in its units: the dummy stands a person's height in them
     resolve: (m, ctx) => {
       if (m.show === 'city') {
-        const { city, cube, pick } = geocubeCity(m), p = assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true });
+        const { city, cube, pick } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true }), { metersPerUnit: CITY_METERS_PER_UNIT });
         return attachDummy({ ...p, geocube: geocubeReadout(cube, 'city', pick, m) }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene);

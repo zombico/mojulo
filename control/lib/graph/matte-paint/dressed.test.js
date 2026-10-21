@@ -117,3 +117,21 @@ describe('a gritty cube dresses its room', () => {
     expect(lowerGeocube(readGeocube({ from: 'valley-morning', grit: 0.7, surfaces: { pillar: own } }), 'inside').tiles.pillar).toEqual(own);
   });
 });
+
+describe('a wall of lime render', () => {
+  const R = (more) => dressedTile({ ...CFG, cut: 'render', render: [214, 204, 186], metres: 2, rows: 4, ...more }, { size: 128, seed: 5 });
+  it('is seamless and the same bytes for the same numbers, and loses more of its coat the more it is asked to', () => {
+    const T = R({ loss: 0.5 });
+    let edgeX = 0, inX = 0;
+    for (let j = 0; j < T.H; j++) { edgeX += Math.abs(lum(T, T.W - 1, j) - lum(T, 0, j)); inX += Math.abs(lum(T, T.W / 2, j) - lum(T, T.W / 2 - 1, j)); }
+    expect(edgeX).toBeLessThan(2 * inX + T.H * 2);
+    expect(Buffer.compare(R({ loss: 0.5 }).rgb, T.rgb)).toBe(0);
+    // (the coat is paler than the stone under it: more loss, a darker wall)
+    const mean = (X) => { let s = 0; for (let j = 0; j < X.H; j++) for (let i = 0; i < X.W; i++) s += lum(X, i, j); return s / (X.W * X.H); };
+    expect(mean(R({ loss: 0.9 }))).toBeLessThan(mean(R({ loss: 0.1 })));
+  });
+  it('is a cut on the rails, its coat and its loss with it', () => {
+    expect(normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut: 'render', render: [9, 9, 9], loss: 0.4 }).params).toMatchObject({ cut: 'render', loss: 0.4 });
+    expect(() => normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut: 'render', loss: 2 })).toThrow(/loss/);
+  });
+});

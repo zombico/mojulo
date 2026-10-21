@@ -29,6 +29,9 @@ describe('the micro-town', () => {
     }
     // the same seed lays the same street
     expect(JSON.stringify(town({ seed: 3 }).route)).toBe(JSON.stringify(P.route));
+    // seen first for its architecture: a person's eye before the first house's front, then down the street
+    expect(P.cameras.slice(0, 2).map((c) => c.name)).toEqual(['house', 'street']);
+    expect(P.cameras[0].worldFraming.cameraPosition[2]).toBeCloseTo(houses[0].floor + 1.7, 2);
   });
 
   it('takes the domain\'s street and land; seed is the trail\'s and the town\'s alone', () => {
@@ -41,13 +44,32 @@ describe('the micro-town', () => {
 });
 
 describe('the micro-city', () => {
-  it('lays the smallest city in the cube\'s builders\' language, painted by the cube; it is lit by the cube, never an hour', () => {
+  it('lays the smallest city in the cube\'s builders\' language, painted by the cube', () => {
     const { city, anchor } = geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 });
     expect(city).toMatchObject({ kind: 'city', seed: 3, board: MICRO_CITY.board, paint: { geocube: 'gothic-night', amount: 1 }, cars: false, people: 0 });
     expect(anchor).toBe('tiered');
     expect(geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', domain: 'harbour-town' }).pick.name).toBe('harbour-town');
-    expect(() => geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', hour: 'dusk' })).toThrow(/a city is lit by its cube's look/);
+    expect(() => geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', weather: 'rain' })).toThrow(/takes its sky as clouds/);
     expect(() => geocubeCity({ kind: 'geocube', cube: { from: 'limestone-crags' }, show: 'city', domain: 'temple-hall' })).toThrow(/the domain is inside/);
+  });
+
+  it('is lit at the cube\'s hour under its clouds, as its land is: past dusk the moon, the stars and the windows; without, as it was', () => {
+    const at = (more) => assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', seed: 3, ...more }).city, { route: true });
+    const plain = geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', seed: 3 }).city;
+    expect(plain.paint).toEqual({ geocube: 'limestone-crags', amount: 1 });
+    const day = at({}), noon = at({ hour: 'noon' }), night = at({ hour: 'night', clouds: 'fair' });
+    // (at its reference's own hour the city is lit as it was; a night is darker, its windows lit, its sky starred)
+    expect(noon.light).toEqual(day.light);
+    expect(night.sky.stars).toBeGreaterThan(0); expect(night.sky.moon).toBeDefined(); expect(night.sky.clouds.src).toMatch(/^data:image\/png/);
+    expect(night.faces.length).toBeGreaterThan(day.faces.length);
+    expect(day.sky.clouds).toBeUndefined();
+  });
+
+  it('is seen first from its sidewalk, a person\'s eye looking down the block', async () => {
+    const { withSidewalkCamera } = await import('./geocube-city.js');
+    const P = withSidewalkCamera(assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 }).city, { route: true }), { metersPerUnit: CITY_METERS_PER_UNIT });
+    expect(P.cameras[0].name).toBe('sidewalk');
+    expect(P.cameras[0].worldFraming.cameraPosition[2] * CITY_METERS_PER_UNIT).toBeCloseTo(1.7, 2);
   });
 
   it('walks the sidewalk round one block, closed, at a person\'s height; a city without a route is as it was', () => {

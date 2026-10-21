@@ -19,6 +19,11 @@
  * running up it; both weathered in streaks running down, their arrises chipped here and there, lit from the upper left
  * (a flute varies across the shaft, so light from straight above would not find it) with the channels' hollows deep.
  *
+ * `cut: 'render'`: a WALL OF LIME RENDER over the ashlar (the Dust map): the render a smooth coat proud of the stone,
+ * trowelled and blotched with damp, fallen away in patches (`loss`, 0–1, the grit's by default) to the coursed blocks
+ * behind it; each patch's edge a broken lip that casts its shadow onto the stone, the stone in the hollow dirtier than
+ * the coat. `render` is the coat's colour (the stone's, lifted, by default).
+ *
  * SEAMLESS by construction: whole courses and whole blocks a repeat (a course's breaks wrap round its length), every
  * block painted in its own coordinates and laid whole, wrapping round the edge it crosses, and the light's march and
  * cavity wrapped (light.js `tile`). Pure: the seed's dice only; the same cfg and seed paint the same bytes.
@@ -41,8 +46,35 @@ const rampOf = (c) => [0.42, 0.68, 0.9, 1.08, 1.22].map((k) => c.map((v) => clam
 const rampAt = (R, t) => { const x = clamp(t, 0, 1) * (R.length - 1), i = Math.min(R.length - 2, Math.floor(x)), f = x - i; return R[i].map((v, k) => v + (R[i + 1][k] - v) * f); };
 
 export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
-  if ((cfgIn.cut ?? 'ashlar') !== 'ashlar') return shaftTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
-  const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, ppm = size / M, g = c.grit;
+  const cut = cfgIn.cut ?? 'ashlar';
+  if (cut === 'fluted' || cut === 'shaft') return shaftTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+  const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, g = c.grit;
+  const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
+  if (cut === 'render') return renderTile(c, { W, H, px, height, owner, lx, ly, blocks }, seed);
+  const floor = c.face === 'floor';
+  // (a floor is worn where it is walked: each slab's face dished a little and polished on its crests)
+  if (floor) for (let k = 0; k < W * H; k++) if (owner[k] >= 0) { const B = blocks[owner[k]], u = lx[k] / B.w - 0.5, v = ly[k] / B.h - 0.5; height[k] -= 0.003 * (0.4 + g) * (1 - 4 * (u * u + v * v)); }
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, floor ? FLOOR_LIGHT : LIGHT);
+  const stone = rampOf(c.stone), mortar = rampOf(c.mortar), rgb = Buffer.alloc(W * H * 3);
+  for (let k = 0; k < W * H; k++) {
+    const col = ashlarColour(c, k, lit, owner, blocks, lx, ly, stone, mortar, floor);
+    rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
+  }
+  return { rgb, W, H };
+}
+
+// a block's own tone, a mottle across its face at two scales, the weather darker toward its foot, dirt in the hollows
+function ashlarColour(c, k, lit, owner, blocks, lx, ly, stone, mortar, floor) {
+  const v = lit.value[k], o = owner[k], g = c.grit;
+  if (o < 0) return rampAt(mortar, 0.3 + (v - 1) * 0.7);
+  const B = blocks[o], mot = 0.07 * fractal2(lx[k] / 0.4, ly[k] / 0.4, { seed: B.seed + 3, octaves: 3 })[0] + 0.035 * gnoise2(lx[k] / 0.06, ly[k] / 0.06, B.seed + 5);
+  const foot = floor ? -0.04 * lit.convex[k] : 0.06 * (0.3 + g) * clamp(ly[k] / B.h, 0, 1) ** 2;
+  return rampAt(stone, 0.55 + (v - 1) * 1.25 + B.tone + mot - foot - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
+}
+
+/** The coursed blocks' relief, laid whole and wrapped: → { height, owner (a texel's block, −1 the mortar), lx, ly, blocks }. */
+function ashlarField(c, W, H, seed) {
+  const M = c.metres, px = M / W, ppm = W / M, g = c.grit;
   const height = new Float32Array(W * H).fill(-c.recess), owner = new Int32Array(W * H).fill(-1), lx = new Float32Array(W * H), ly = new Float32Array(W * H);
   const relief = {
     form: { chamfer: c.chamfer, depth: Math.min(0.03, c.chamfer * 0.6), pillow: c.pillow, rag: 0.004 + 0.006 * g },
@@ -82,20 +114,41 @@ export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   }
   // the mortar: a rough bed, sunk; (texel dice wrap with the tile)
   for (let k = 0; k < W * H; k++) if (owner[k] < 0) height[k] = -c.recess + 0.0015 * (hash01(k % W, Math.floor(k / W), seed + 11) - 0.5);
-  const floor = c.face === 'floor';
-  // (a floor is worn where it is walked: each slab's face dished a little and polished on its crests)
-  if (floor) for (let k = 0; k < W * H; k++) if (owner[k] >= 0) { const B = blocks[owner[k]], u = lx[k] / B.w - 0.5, v = ly[k] / B.h - 0.5; height[k] -= 0.003 * (0.4 + g) * (1 - 4 * (u * u + v * v)); }
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, floor ? FLOOR_LIGHT : LIGHT);
-  const stone = rampOf(c.stone), mortar = rampOf(c.mortar), rgb = Buffer.alloc(W * H * 3);
-  for (let k = 0; k < W * H; k++) {
-    const v = lit.value[k], o = owner[k];
+  return { height, owner, lx, ly, blocks };
+}
+
+/** Lime render over the ashlar, fallen away in patches to it (`cut: 'render'`). */
+function renderTile(c, F, seed) {
+  const { W, H, px, height, owner, lx, ly, blocks } = F, M = c.metres, g = c.grit;
+  const loss = c.loss ?? clamp(0.12 + 0.5 * g, 0, 1), coat = c.render ?? c.stone.map((v) => clamp(v * 1.12 + 14, 0, 255));
+  // where the coat has gone: broad patches (wider than tall, as render falls in sheets), their edges broken finer
+  const T = 0.5 - 0.62 * loss, thick = 0.012 + 0.006 * g, on = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
+    const L = 0.8 * sfbm(x, y, M, 0.7, 0.45, 4, seed + 51) + 0.2 * sfbm(x, y, M, 0.07, 0.07, 2, seed + 53);
+    // the coat's cover: whole well below the threshold, gone above it, its lip a few centimetres (it thins, then breaks)
+    const w = clamp((T - L * 2.2) / 0.06, 0, 1);
+    on[k] = w;
+    if (w > 0) {
+      // the coat: proud of the stone, trowelled in soft swells, a fine grain; at its lip it thins to a broken edge
+      const z = thick * (0.35 + 0.65 * w) + 0.0022 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 55) + 0.0004 * sfbm(x, y, M, 0.015, 0.015, 2, seed + 57);
+      height[k] = Math.max(height[k], z * (w > 0.02 ? 1 : 0));
+    }
+  }
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, LIGHT);
+  const stone = rampOf(c.stone), mortar = rampOf(c.mortar), plaster = rampOf(coat), rgb = Buffer.alloc(W * H * 3);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = (i + 0.5) * px, y = (j + 0.5) * px, k = j * W + i;
     let col;
-    if (o >= 0) {
-      // a block's own tone, a mottle across its face at two scales, the weather darker toward its foot, dirt in the hollows
-      const B = blocks[o], mot = 0.07 * fractal2(lx[k] / 0.4, ly[k] / 0.4, { seed: B.seed + 3, octaves: 3 })[0] + 0.035 * gnoise2(lx[k] / 0.06, ly[k] / 0.06, B.seed + 5);
-      const foot = floor ? -0.04 * lit.convex[k] : 0.06 * (0.3 + g) * clamp(ly[k] / B.h, 0, 1) ** 2;
-      col = rampAt(stone, 0.55 + (v - 1) * 1.25 + B.tone + mot - foot - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
-    } else col = rampAt(mortar, 0.3 + (v - 1) * 0.7);
+    if (on[k] > 0.02) {
+      // the coat: damp blotches and a fine mottle, dirt where it is hollow, a little dark at its broken lip
+      // (and streaks of weather run down it from above, long and narrow)
+      const damp = 0.14 * sfbm(x, y, M, 0.5, 0.8, 3, seed + 61) + 0.04 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 63), streak = Math.max(0, sfbm(x, y, M, 0.12, 1, 2, seed + 65) - 0.1) * (0.08 + 0.12 * g);
+      col = rampAt(plaster, 0.6 + (lit.value[k] - 1) * 1.1 + damp - streak - 0.25 * lit.cavity[k] * (0.4 + 0.6 * g) - 0.1 * (1 - on[k]));
+    } else {
+      // the stone behind it: the ashlar's own colour, dirtier for having been under the coat
+      col = ashlarColour(c, k, lit, owner, blocks, lx, ly, stone, mortar, false).map((v) => v * (0.88 - 0.06 * g));
+    }
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);
   }
   return { rgb, W, H };
@@ -112,6 +165,17 @@ function pnoise(u, v, nu, nv, seed) {
 function pfbm(x, y, M, cellX, cellY, oct, seed) {
   let s = 0, a = 1, n = 0;
   for (let o = 0; o < oct; o++) { const nu = Math.max(1, Math.round(M / cellX)) << o, nv = Math.max(1, Math.round(M / cellY)) << o; s += a * pnoise((x / M) * nu, (y / M) * nv, nu, nv, seed + o * 31); n += a; a *= 0.5; }
+  return s / n;
+}
+// the same, each octave's lattice slid by whole cells of its own (still periodic), so the octaves do not all peak at the
+// repeat's origin (pfbm's octaves share it: a field thresholded hard shows them lined up there)
+function sfbm(x, y, M, cellX, cellY, oct, seed) {
+  let s = 0, a = 1, n = 0;
+  for (let o = 0; o < oct; o++) {
+    const nu = Math.max(1, Math.round(M / cellX)) << o, nv = Math.max(1, Math.round(M / cellY)) << o;
+    const du = Math.floor(hash01(o, 3, seed) * nu), dv = Math.floor(hash01(o, 5, seed) * nv);
+    s += a * pnoise((x / M) * nu + du + 0.37, (y / M) * nv + dv + 0.61, nu, nv, seed + o * 31); n += a; a *= 0.5;
+  }
   return s / n;
 }
 const SHAFT_LIGHT = { az: 110, el: 62, ambient: 0.42, wrap: 0.4, reach: 0.03, soft: 0.003, floor: 0.5, radius: 0.02, cavity: 0.6, edge: 0.14, tile: true };

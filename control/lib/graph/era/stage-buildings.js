@@ -29,6 +29,7 @@ import { madeRamp } from './style/swatches.js';
 import { decompileAnchor, ANCHOR_STRUCTURES, ANCHOR_IDS } from './out-anchor-structure.js';
 import { designTown } from './out-town.js';
 import { structureStyle } from './out-structures.js';
+import { dressTownFace } from './town-dress.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -113,7 +114,7 @@ const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'cryp
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 function townStreet(town, kitId, seed0) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress)`);
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
@@ -315,8 +316,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const below0 = Math.max(0.3, floor - Math.min(...zs) + 0.3), Wl = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
       clearUnder(0.4, false);   // a shell has no floor: its land stays (its collider keeps a walker out)
       const Pt = paintRaw(kitId, manifest.town?.paint), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
-      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; });
-      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return { ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }; });
+      // (a cube's street dressed: its walls painted from relief, town-dress.js; absent, the paint alone)
+      const Dr = manifest.town?.dress, dressed = (face, grp) => (Dr ? dressTownFace(face, grp, Dr) : face);
+      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return dressed({ ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }, f.group); });
+      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return dressed({ ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }, 'plinth'); });
       faces = [...faces, ...shellF, ...plinth];
       const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
       colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
@@ -335,7 +338,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const L0 = decompileAnchor(typeof anchor === 'string' ? ANCHOR_STRUCTURES[anchor] : anchor, typeof anchor === 'string' ? anchor : null);
       const massD = L0.anchor.pieces.find((p) => p.role === 'mass') ?? {}, capD = L0.anchor.pieces.find((p) => p.role === 'cap') ?? null;
       const lam = (nn) => Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
-      const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))); return { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; };
+      const DrD = manifest.town?.dress;
+      const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), F0 = { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; return DrD && group !== 'building:door' ? dressTownFace(F0, grp, DrD) : F0; };
       const shellD = shellOf(inner, waysD, 0.5, L0.vocab.cap, L0.proportions.pitch, belowD).map((sf) => paintFace(sf.corners.map(Wd), `building:${sf.group}`, sf.group === 'roof' ? (capD?.group ?? 'str:plaster') : (massD.group ?? 'str:plaster'), sf.group === 'roof' ? (capD?.value ?? 0.5) : (massD.value ?? 0.7)));
       // the door, shut: a leaf filling the way in, set a hand's width inside the outer face
       const wy = waysD[0], y = entry.y - t + 0.08, leaf = [[wy.lo, y, 0], [wy.hi, y, 0], [wy.hi, y, wy.top], [wy.lo, y, wy.top]].map(Wd);
@@ -373,7 +377,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const shell = shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
-      return { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
+      const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
+      return manifest.town?.dress ? dressTownFace(F0, roof ? roofGroup : wallGroup, manifest.town.dress) : F0;
     });
     // the stoop: a ramp down from the threshold to the land in front of the door, as wide as the way out, so a walker
     // (and a hero, who steps only so high) comes in off the land
@@ -381,7 +386,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const stoop = drop > 0.05 ? (() => {
       const a = wy.lo - 0.2, c = wy.hi + 0.2, y0 = entry.y - t, y1 = y0 - run, zt = 0, zb = -drop - 0.15;
       const top = [[a, y1, zb], [c, y1, zb], [c, y0, zt], [a, y0, zt]].map(W), sides = [[[a, y0, zt], [a, y1, zb], [a, y0, zb]], [[c, y1, zb], [c, y0, zt], [c, y0, zb]]].map((tri) => tri.map(W));
-      return [top, ...sides].map((cs) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lit = 0.35 + 0.65 * Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]); return { ...quad(cs, 'building:stoop', paint('str:stone', Math.min(1, 0.5 * lit))), normal: P3(nn), outNormal: P3(nn) }; });
+      return [top, ...sides].map((cs) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lit = 0.35 + 0.65 * Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]); const F0 = { ...quad(cs, 'building:stoop', paint('str:stone', Math.min(1, 0.5 * lit))), normal: P3(nn), outNormal: P3(nn) }; return manifest.town?.dress ? dressTownFace(F0, 'plinth', manifest.town.dress) : F0; });
     })() : [];
     faces = [...faces, ...moved, ...shell, ...stoop];
     for (const c of P.cutouts || []) cutouts.add(c);

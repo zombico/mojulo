@@ -97,8 +97,9 @@ import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
-import { hourLight, readHour, referenceHour } from './geocube-hours.js';
-import { readClouds, WEATHERS, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
+import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
+import { townDressOf } from './town-dress.js';
+import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
 import { validateStructures } from '../fractal-structure/read.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { planLocalMeru } from '../local-meru/plan.js';
@@ -285,7 +286,9 @@ export const GEOCUBE_DOMAINS = Object.freeze({
       tiers: [{ form: 'mound', height: 3.5, foot: 12, summit: 7 }], island: { ...ISLE, beach: 16, high: { azimuth: null, height: 6, span: 150 } } } } },
     inside: { interiors: { hall: { reads: 'A tall pale temple hall, cool out of the light', bones: 'gothic-nave', size: [12, 20, 11] } } },
     structures: { shrine: [{ id: 'summit-shrine', preset: 'spire', on: 'summit', size: 2.4, seed: 7 }] },
-    settlements: { harbour: { town: { length: 100, branches: 1, levels: 1, farms: 0.2 }, houses: 6, enter: 2 } },
+    // (the harbour's builders build in stone and lime render under tile, the timber hall's language: the street's walls
+    // are what its grit dresses, town-dress.js)
+    settlements: { harbour: { town: { length: 100, branches: 1, levels: 1, farms: 0.2 }, houses: 6, enter: 2, anchor: 'timber-hall' } },
     domains: {
       'crag-path': { reads: 'The crags in the hard clear light, the way up through the beds, a shrine on the top', structures: 'shrine' },
       'cove-dusk': { reads: 'The cove at dusk, the stone gone gold and the sea blue', terrain: 'cove', hour: 'dusk' },
@@ -680,7 +683,9 @@ export function geocubeTown(cube, D) {
   if (!D || D.settlement === undefined) return null;
   const t = typeof D.settlement === 'string' ? cube.settlements[D.settlement] : D.settlement, anchor = t.anchor ?? cubeBuildings(cube)?.anchor;
   return { ...(anchor !== undefined ? { anchor } : {}), ...(t.houses !== undefined ? { houses: t.houses } : {}), ...(t.enter !== undefined ? { enter: t.enter } : {}),
-    ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT } };
+    ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT },
+    // (a gritty cube's street dressed from relief, as its island's rock is: town-dress.js)
+    ...(townDressOf(cube) ? { dress: townDressOf(cube) } : {}) };
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -798,27 +803,22 @@ function lowerOutside(cube0, terrain, hour, clouds) {
  * stars out as far as the night has come.
  */
 function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow }) {
-  const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], H = hourLight(cube, hour), dome = H.dome;
+  const A = hourAir(cube, hour, clouds), H = A.H, dome = A.dome;
   const sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
   const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
     foliage: fit(cube.colour.foliage, 'foliage'), far: resample(sky.slice(1).concat([dome.horizon]), land0.far.length), sky: resample(sky, land0.sky.length),
     ...(cube.colour.sand ? { sand: resample(rampFrom(rgbOf(cube.colour.sand), 7, { shadow }), land0.soil.length) } : {}) };
-  // clouds lean the light: under cloud the key weakens, the shade fills toward the sky's grey, the air thickens and
-  // greys, and the sun's disc is gone. Clouds that follow a live weather lean only the disc: the live channel carries
-  // the air (weather/weather.js)
-  const W0 = clouds ? WEATHERS[clouds.kind].light : null, Wl = !W0 ? { gain: 1, ambient: 0, fog: 1, disc: true } : clouds.live ? { gain: 1, ambient: 0, fog: 1, disc: W0.disc } : W0;
-  const grey = (() => { const m = dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), y = (m[0] + m[1] + m[2]) / 3; return m.map((v) => (v + 2 * y) / 3); })();
-  const lean = (hex, t) => (t ? hexOf(rgbOf(hex).map((v, k) => v + (grey[k] - v) * t)) : hex);
+  // the hour's light and air under the clouds (geocube-hours.js hourAir)
   const moonGain = cube.light.moon?.gain ?? 0.8;
-  const light = { ...card.light, key: H.key, ambient: lean(H.ambient, Wl.ambient), sunGain: Math.round((H.moonlit ? moonGain : card.light.sunGain) * H.gainK * Wl.gain * 1000) / 1000 };
-  const air = { ...card.air, fog: { color: lean(H.fog, Wl.ambient), density: +(ref.air.fog.density * cube.light.outsideFog * Wl.fog).toFixed(5) } };
+  const light = { ...card.light, key: H.key, ambient: A.ambient, sunGain: Math.round((H.moonlit ? moonGain : card.light.sunGain) * A.gain * 1000) / 1000 };
+  const air = { ...card.air, fog: A.fog };
   const water = geocubeRamps(H.water ? { ...cube, colour: { ...cube.colour, water: H.water } } : cube).water[2];
   const night = H.moonlit ? { night: { day: Math.round(Math.min(1, Math.max(0, 1.25 * (1 - H.night))) * 1000) / 1000, stars: 1, moon: { phase: 0.62, size: 1.3 } } } : {};
   // the cloud band the dome draws: the sky's sheets in the hour's light
-  const band = clouds ? { cloudBand: { clouds: { kind: clouds.kind, cover: clouds.cover, seed: clouds.seed }, sun: sunDir(H.key.elevation, H.key.azimuth).map((v) => Math.round(v * 1e5) / 1e5), key: H.key.color, zenith: dome.zenith, horizon: dome.horizon, night: H.night } } : {};
+  const band = A.band ? { cloudBand: A.band } : {};
   // (the disc dropped where it stands: the card's keys keep their order, so its print, and the look's id, hold)
   const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band };
-  if (!Wl.disc) delete lookCard.sun;
+  if (!A.disc) delete lookCard.sun;
   return outsideOf(cube, base, sw, land, lookCard);
 }
 
@@ -1036,6 +1036,23 @@ function townRoute(stage, payload) {
   return line.flatMap((p, i) => [at(p), ...(spurs.get(i) ?? []).flatMap((f) => [at(f), at(p)])]);
 }
 /**
+ * The micro-town seen for its architecture, first: `house`, a person's eye nine metres before the first house's door,
+ * on its front; `street`, from the walk beside it down the street to the houses after it. The trail's own come after.
+ */
+function withTownCameras(payload) {
+  const H = (payload.anchors || []).filter((a) => a.kind === 'house');
+  if (!H.length) return;
+  const h = H[0], mid = [(h.box.min[0] + h.box.max[0]) / 2, (h.box.min[1] + h.box.max[1]) / 2], tall = h.box.max[2] - h.box.min[2];
+  const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from.map(r3), lookAt: to.map(r3), horizontalFov: fov } });
+  const eye = [h.at[0] + h.N[0] * 9, h.at[1] + h.N[1] * 9, h.floor + 1.7];
+  // the street: stood before the first house's door, looking toward the rest at their own floors (a terrace's below)
+  const rest = H.slice(1), mean = (k) => rest.reduce((a, q) => a + k(q), 0) / rest.length;
+  const far = rest.length ? [mean((q) => q.at[0]), mean((q) => q.at[1]), mean((q) => q.floor) + 2] : [mid[0], mid[1], h.floor + 2];
+  const side = [h.at[0] + h.N[0] * 3, h.at[1] + h.N[1] * 3];
+  payload.cameras = [cam('house', eye, [mid[0], mid[1], h.floor + 0.4 * tall], 70), cam('street', [side[0], side[1], h.floor + 1.7], far, 75), ...payload.cameras];
+}
+
+/**
  * The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene.
  * `trail` is the land walked: the same island with every way up drawn (island.walk 'all'), laid from its `seed`.
  */
@@ -1065,7 +1082,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
-  if (show === 'town') payload.route = townRoute(low, payload);
+  if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload); }
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest),

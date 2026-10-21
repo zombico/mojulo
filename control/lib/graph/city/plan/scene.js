@@ -27,8 +27,8 @@ import { cityTraffic, readCars } from './traffic.js';
 import { cityPedestrians, readPeople, blockRing } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
-import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
-import { resolveLookSpec } from '../../era/look.js';
+import { readCityLook, readPaint, lookLight, paintGround, paintSkin, cubeLookSpec, CITY_HAZE } from './look.js';
+import { cloudBand } from '../../matte-paint/sky.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
 import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
 
@@ -180,12 +180,24 @@ export function assembleCityScene(manifest, ctx = {}) {
   const W = seg ? seg.rect.x1 - seg.rect.x0 : d.frame.W, D = seg ? seg.rect.y1 - seg.rect.y0 : d.frame.D;
   // the look lights the city (the world-wide channel adds its air and sky after); with none, a paint's cube's look does,
   // and the city takes that look's air and sky itself
-  const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
+  const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? cubeLookSpec(paint) : null);
   const lit = spec ? lookLight(spec, paint) : null;
   LIT = lit ? lit.light : CITY_LIGHT;
   const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
   const crop = seg ? { x0: seg.rect.x0 - ring, y0: seg.rect.y0 - ring, x1: seg.rect.x1 + ring, y1: seg.rect.y1 + ring } : null;
   try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+}
+
+/** A cube's hour on the city's dome (look.js cubeLookSpec): the stars out as far as the night has come, the moon where its
+ *  key is, the clouds painted round it (matte-paint/sky.js). */
+function hourSky(A) {
+  const H = A.H, out = {};
+  if (H.moonlit) {
+    const a = (H.key.azimuth * Math.PI) / 180, az = Math.atan2(Math.sin(a), Math.cos(a));
+    Object.assign(out, { day: +Math.min(1, Math.max(0, 1.25 * (1 - H.night))).toFixed(3), stars: 1, moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(5), h: +(H.key.elevation / 90).toFixed(5), phase: 0.62, size: 1.3 } });
+  }
+  if (A.band) out.clouds = cloudBand(A.band);
+  return out;
 }
 
 function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title, walkFlag, ctx }) {
@@ -277,7 +289,7 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
     // by it: lookLit); a paint's cube's look is laid here
     ...(spec && !own ? { lookLit: true, lookHaze: CITY_HAZE } : {}),
-    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1 } } : {}),
+    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1, ...(spec.air ? hourSky(spec.air) : {}) } } : {}),
     walk: walkFlag === false ? false : { speed: r3(G.walk.speed * 1.1 / U), spawn: u(eye), minEye: r3(1.7 / U), gravity: r3(22 / U), radius: r3(0.4 / U) },
     metersPerUnit: U,
     city: { grammar: typeof d.plan.grammar === 'string' ? d.plan.grammar : `${d.plan.grammar.from}+`, label: G.label, ...(spec ? { look: spec.id } : {}), ...(paint ? { paint: paint.cube.id } : {}), play: d.plan.play, fidelity: d.plan.fidelity, stats: d.stats, laws: d.laws.map((l) => ({ id: l.id, ok: l.ok, findings: l.findings.length })) },

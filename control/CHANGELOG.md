@@ -125,6 +125,42 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Geocube town materials: a cube's town and city painted from relief, at its hours
+
+The island's know-how carried to the cube's architecture: its micro-town and micro-city seen at eye height, lit at its
+hours under its clouds, and a gritty cube's street painted from relief as its rock is.
+
+- **Seen for the architecture.** The micro-town's first cameras are a person's eye nine metres before its first house's
+  front (`house`) and down the street to the rest at their own floors (`street`); the micro-city's, a person's eye on its
+  sidewalk a step and a half out from the block, looking down its first side (`sidewalk`). The trail's and the city's
+  own cameras follow.
+- **The city at the cube's hours.** The micro-city takes `hour` (its domain's unless it names one) and `clouds`, and the
+  city kind's `paint` takes them too (`paint: { geocube, amount?, hour?, clouds? }`, city/plan/look.js `cubeLookSpec`):
+  the cube's reference card relit at that hour (its sun on the hour's arc, weakened by the hour's gain; past dusk none,
+  so the moon lights it and its windows and signs are lit, city/plan/night.js), its dome, ambient and air the hour's, its
+  stars out and its moon on the dome by night, its clouds painted round it. The hour's light and air under clouds are one
+  function for the land and the city (era/geocube-hours.js `hourAir`). A micro-city refuses the live `weather` (its sky is
+  its clouds). A paint without an hour or clouds lights the city as before.
+- **Lime render over stone** (`matte-paint/dressed.js` `cut: 'render'`, on the tile rails with `render`, its coat's
+  colour, and `loss`). The Dust map: the ashlar laid as ever, a smooth coat proud of it, trowelled in soft swells,
+  blotched with damp and streaked by the weather from above, fallen away in broad patches wider than tall (their edges
+  broken finer) to the coursed blocks behind; each patch's lip thins and breaks and casts its shadow onto the stone, and
+  the stone in the hollow is dirtier for having been under the coat. The ashlar's own paint was factored out to share
+  with it, byte for byte. Its noise slides each octave's lattice by whole cells of its own (still periodic): thresholded
+  hard, the shared lattice showed every patch at the repeat's origin.
+- **A gritty cube's street dressed** (`era/town-dress.js`). At `grit` from `GRIT_PIXELS`, a cube's street (`geocubeTown`)
+  carries a `dress`: its plaster walls the lime render (a 3 m repeat, loss from its grit), its stone walls ashlar
+  (rock-faced from 0.85), its plinths and stoops a course of long blocks, in the cube's stone and floor colours. A stage
+  town's `dress` lays each on the walls, gables, socles, quoins, sills and plinths of its standing houses and of the
+  buildings walked into (era/stage-buildings.js), as a DETAIL: the painted tile divided by its own mean in linear light
+  and set to 0.8, the face's own colour and baked light lifted by the inverse (the page multiplies them, `textureLit`),
+  so each wall keeps the cube's paint and the sun, and the stone's relief, its patches and joints ride on them; laid
+  world-locked (u along the wall, v up it, a metre a metre), its two variants by where the wall stands, served by a
+  `detail:` texture resolver painted once a spec. Openings, frames, doors and roofs are as they were. `limestone-crags`'s
+  harbour is built in the timber hall's language (a coursed stone ground storey, lime render above, tile over it): its
+  houses are what its grit dresses. A quiet cube's street, and any town without a dress, is as it was.
+- Planned: roofs in courses, timber's boards, and the city's masonry facades in the same detail.
+
 ### Geocube domains: one cube, many levels
 
 A geocube made one level: its style fused with one room and one island. A cube is now its style (light, palette,
