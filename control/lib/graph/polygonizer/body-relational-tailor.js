@@ -6,8 +6,9 @@
  *   RUNS          `oneTube` two pieces one tube along a run, each point's weights its own piece's
  *   PROFILES      `drapeRun` down a limb's run: the FALL (`slack`, `taper`), the FOLDS, a FLARE, the BLOUSE over a
  *                 gathered CUFF, the MIDLINE; `flareRun` a piece widened from one end to the other; `fairRun` a
- *                 run's radii smoothed along it; `bridgeRun` its hollows bridged; `carrySkirt` a skirt carried down from a trunk tube's lowest ring; `clearanceOver` how far
- *                 out what is under the cloth reaches, ray by ray
+ *                 run's radii smoothed along it; `bridgeRun` its hollows bridged; `carrySkirt` a skirt carried down
+ *                 from a trunk tube's lowest ring; `clearanceOver` how far out what is under the cloth reaches, ray by ray
+ *   FRONTS        `cutV` a jacket's V onto the shirt, `lapelBand` its lapels and collar as one band, `buttonOn`
  *   EDGES         `fallToFloor` an open hem carried down over the foot; `turnHemIn` a tube's hem folded back in to the
  *                 limb (so it opens, no lid)
  *   TRIMS         `collarOn` (a stand collar up the neck from a garment's top ring), `bandAt` (a belt, a cuff: caps
@@ -342,6 +343,94 @@ export function ribbon(path, near, { w, t, over = null }) {
   });
   const mid = (st) => mean(Object.values(st.points)), d0 = unitv(sub(mid(stations[1]), mid(stations[0]))), d1 = unitv(sub(mid(stations[stations.length - 1]), mid(stations[stations.length - 2])));
   return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: sub(mid(stations[0]), scl(d0, 0.001)).map(r6), tip: add(mid(stations[stations.length - 1]), scl(d1, 0.001)).map(r6) } };
+}
+
+// FRONTS
+
+/** the V of a tailored jacket's front: each point of the tube `P` facing the front (`front`, a horizontal unit) inside
+ * the V from `apex` ([x, z], the top button) up to `necks` ([[x, z] right, [x, z] left], where the roll lines meet the
+ * collar), and with `open` within `openHalf` of the apex's x on down to the hem, taken in under what the jacket is worn
+ * over (`under(c)(direction)`, the skin's reach, 3 mm inside it), so the shirt shows in the V; on each ring the points
+ * nearest each roll line (within `snap`), outside and inside, carried round to it, so the V's edge is the line and a
+ * step down to the shirt; the faces it takes in painted `group` (the shirt's). In place */
+export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.03, snap = 0.025, group = null }) {
+  const [xa, za] = apex, [[xr, zr], [xl, zl]] = necks, zTop = Math.max(zr, zl) + 0.01, side = [-front[1], front[0], 0], taken = [];
+  // (side: the body's +x, the right, when the front is −y; its sign read off the right neck)
+  const sgn = Math.sign(xr - xa) * Math.sign(side[0] || 1), S = scl(side, sgn || 1);
+  for (const st of P.stations) {
+    const c = mean(P.slots.map((sl) => st.points[sl])), need = under(c), near = { R: null, L: null, Ri: null, Li: null }, inV = new Set(); taken.push(inV);
+    for (const sl of P.slots) {
+      const p = st.points[sl], d = unitv([p[0] - c[0], p[1] - c[1], 0]), z = p[2];
+      if (d[0] * front[0] + d[1] * front[1] < 0.15 || z > zTop) continue;
+      const f = (zn) => Math.min(1, Math.max(0, (z - za) / (zn - za))), xR = xa + (xr - xa) * f(zr), xL = xa + (xl - xa) * f(zl);
+      const inside = z > za ? p[0] < xR && p[0] > xL : open && Math.abs(p[0] - xa) < openHalf;
+      if (inside) {
+        const R = Math.max(0.01, need(d) - 0.003); st.points[sl] = [c[0] + d[0] * R, c[1] + d[1] * R, z].map(r6); inV.add(sl);
+        if (z > za) for (const [k, x, gap] of [['Ri', xR, xR - p[0]], ['Li', xL, p[0] - xL]]) if (gap < snap && (!near[k] || gap < near[k].gap)) near[k] = { sl, x, gap, inset: k === 'Ri' ? -0.002 : 0.002 };
+        continue;
+      }
+      // (the nearest point outside each roll line, to be set on it)
+      if (z > za) for (const [k, x, gap] of [['R', xR, p[0] - xR], ['L', xL, xL - p[0]]]) if (gap > 0 && gap < snap && (!near[k] || gap < near[k].gap)) near[k] = { sl, x, gap };
+    }
+    // THE EDGE ON THE LINE: that point carried round its ring to the roll line, so the V's edge is the line the lapel
+    // lies along and not the ring's slots (a cut by slots alone is a ragged slit where the V narrows)
+    // (and the nearest inside it, under the shirt, carried there too: the V's edge a step down, not a slope of cloth)
+    for (const k of ['R', 'L', 'Ri', 'Li']) {
+      const q = near[k]; if (!q) continue;
+      const p = st.points[q.sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h), s1 = Math.max(-0.999, Math.min(0.999, ((q.x + (q.inset ?? 0) - c[0]) * (S[0] || 1)) / r));
+      const fc = Math.sqrt(1 - s1 * s1), dn = [front[0] * fc + S[0] * s1, front[1] * fc + S[1] * s1];
+      st.points[q.sl] = [c[0] + dn[0] * r, c[1] + dn[1] * r, p[2]].map(r6);
+    }
+  }
+  // THE CUT'S WALLS in `group` (what is worn under: the shirt's): every face of the cloth with a corner taken in, so
+  // where the V is narrower than the cloth's points are apart its sides read as the shirt, not as a slope of the jacket
+  if (group) {
+    const n = P.slots.length, half = n / 2, idx = (sl) => { const j = P.slots.indexOf(sl); return j <= half ? j : n - j; }, bands = { ...(P.bandGroups || {}) };
+    for (let i = 0; i + 1 < P.stations.length; i++) {
+      const hit = new Set([...taken[i], ...taken[i + 1]].map(idx)); if (!hit.size) continue;
+      const key = `${P.stations[i].id}-${P.stations[i + 1].id}`, row = bands[key] ? [...bands[key]] : Array(half).fill(P.group ?? 'Body');
+      for (let k = 0; k < half; k++) if (hit.has(k) || hit.has(k + 1)) row[k] = group;
+      bands[key] = row;
+    }
+    P.bandGroups = bands; if (group !== 'Skin' && group !== (P.group ?? 'Body')) P.painted = [...new Set([...(P.painted || []), group])];
+  }
+  return P;
+}
+
+/** a LAPEL and its COLLAR, one band lying on the jacket along `path` (up the right roll line from its button, round the
+ * back of the neck, down the left roll line): at each point the band's inner edge on the path and its outer edge
+ * `width[k]` (m) out across the cloth from it (the lapel's shape: the notch, the peak, the shawl's curve), away from the
+ * V on the lapels and down over the shoulders on the collar (`out0`, the first point's side; `fall[k]` 0 … 1 how far a
+ * point's turns down, the collar's; `overhang` its inner edge on over the V); lying `lift` off the
+ * surface (`surface(p)` → [the point on it, its outward normal]), `t` thick. A box section on ringSlots(4), its ends a
+ * hair past its first and last points */
+export function lapelBand(path, width, surface, { out0, t = 0.003, lift = 0.002, fall = null, overhang = 0 }) {
+  if (path.length < 3) return null;
+  let P = path; for (let it = 0; it < 2; it++) P = P.map((p, i) => (i === 0 || i === P.length - 1 ? p : p.map((x, q) => 0.25 * P[i - 1][q] + 0.5 * x + 0.25 * P[i + 1][q])));
+  const names = ringSlots(4); let prev = null;
+  const stations = P.map((p, i) => {
+    const tn = unitv(sub(P[Math.min(i + 1, P.length - 1)], P[Math.max(i - 1, 0)])), [s0, n0] = surface(p);
+    let a = unitv(cross(tn, n0));
+    // (the band's side kept the same along it: the first point's toward `out0`, each after toward the one before)
+    if (prev ? a[0] * prev[0] + a[1] * prev[1] + a[2] * prev[2] < 0 : a[0] * out0[0] + a[1] * out0[1] + a[2] * out0[2] < 0) a = scl(a, -1);
+    prev = a;
+    // (the collar falls: its outer edge turned down over the shoulders and the back by `fall[k]`)
+    const f = fall?.[i] ?? 0, out = f ? unitv(add(scl(a, 1 - f), [0, 0, -f])) : a;
+    // (its inner edge `overhang` on over the V, as a lapel rolls over the opening's edge, hiding the cut's step)
+    const [s1, n1] = surface(add(s0, scl(out, Math.max(0.004, width[i])))), inner = add(add(s0, scl(n0, lift)), scl(a, -overhang * (1 - f))), outer = add(s1, scl(n1, lift));
+    const pts = [add(outer, scl(n1, t)), outer, inner, add(inner, scl(n0, t))];
+    return { id: `st${i}`, u: i, points: Object.fromEntries(names.map((nm, j) => [nm, pts[j].map(r6)])) };
+  });
+  const mid = (st) => mean(Object.values(st.points)), n = stations.length, d0 = unitv(sub(mid(stations[1]), mid(stations[0]))), d1 = unitv(sub(mid(stations[n - 1]), mid(stations[n - 2])));
+  return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: sub(mid(stations[0]), scl(d0, 0.001)).map(r6), tip: add(mid(stations[n - 1]), scl(d1, 0.001)).map(r6) } };
+}
+
+/** a BUTTON: a disc `r` round and `thick` deep lying on the cloth at `at`, its face turned to `normal` */
+export function buttonOn(at, normal, { r = 0.0085, thick = 0.0035 } = {}) {
+  const n = unitv(normal), u = unitv(Math.abs(n[2]) > 0.9 ? cross(n, [1, 0, 0]) : cross(n, [0, 0, 1])), v = cross(n, u), names = ringSlots(8);
+  const face = (off) => Object.fromEntries(names.map((nm, j) => { const a = (2 * Math.PI * j) / 8; return [nm, [0, 1, 2].map((q) => r6(at[q] + n[q] * off + (u[q] * Math.cos(a) + v[q] * Math.sin(a)) * r))]; }));
+  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: face(0.0005) }, { id: 'st1', u: 1, points: face(thick) }],
+    caps: { back: at.map((x, q) => r6(x - n[q] * 0.0005)), tip: at.map((x, q) => r6(x + n[q] * (thick + 0.0005))) } };
 }
 
 /** a sole slab: the footprint's outline round its middle (the farthest point in each of 48 directions, a gap filled from

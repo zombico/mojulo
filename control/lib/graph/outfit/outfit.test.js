@@ -157,6 +157,19 @@ describe('the passes', () => {
 describe('the outer layer, fit by zone, and the detail on the garment\'s roles', () => {
   const ctx = { have: STRUCT, scale: 1 };
   const coat = { type: 'outfit', style: { id: 'x', dials: { ornament: 2 }, language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', fit: 'skin' }, bottom: { family: 'woven', leg: 'long', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'long', hem: 'knee', open: true }, feet: 'boots', tuck: true, focal: 'belt' } } };
+  it('a jacket\'s FRONT words: refused by name, carried as tailoring with their defaults, absent nothing', () => {
+    const jacket = (o) => ({ type: 'outfit', style: { id: 'j', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic', ...o }, feet: 'shoes', tuck: true } } });
+    expect(validateOutfitBuild(jacket({ front: 'triple' })).join(' ')).toMatch(/outer\.front: 'triple'/);
+    expect(validateOutfitBuild(jacket({ lapel: 'wide' })).join(' ')).toMatch(/outer\.lapel: 'wide'/);
+    expect(validateOutfitBuild(jacket({ buttons: 4 })).join(' ')).toMatch(/outer\.buttons/);
+    expect(expandOutfit(jacket({}), ctx).tailoring).toBeUndefined();
+    expect(expandOutfit(jacket({}), ctx).tones.Lapel).toBeUndefined();
+    expect(expandOutfit(jacket({ front: 'double' }), ctx).tailoring.outer).toEqual({ front: 'double', lapel: 'peak', buttons: 3, open: false });
+    const sb = expandOutfit(jacket({ lapel: 'shawl', buttons: 1, open: true }), ctx);
+    expect(sb.tailoring.outer).toEqual({ front: 'single', lapel: 'shawl', buttons: 1, open: true });
+    expect(sb.tones.Lapel).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
   it('an outer layer over a second skin: the coat its skirt and sleeves, the undershirt paint, the trousers fitted without a hang', () => {
     const out = expandOutfit(coat, ctx), ids = out.garments.map((E) => E.id);
     expect(ids).toEqual(expect.arrayContaining(['outer', 'outerSkirt', 'outerSleeve', 'outerCuff', 'bottomLeg']));

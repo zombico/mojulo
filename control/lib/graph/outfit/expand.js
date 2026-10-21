@@ -310,7 +310,12 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // ── 7 LEDGER
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
     ...(drawn ? { drawn, fits: Object.fromEntries(['top', 'bottom', 'outer'].filter((s) => lang[s] && lang[s].kind !== 'skirt').map((s) => [s, lang[s].fit ?? 'eased'])) } : {}), pieces: garments.map((E) => E.id), ...(panels.length ? { panels: panels.map((Q) => Q.id) } : {}), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(detailed ? { roles: Object.keys(roles), detail: seatedDetail } : {}), ...(warnings.length ? { warnings } : {}) };
-  return { garments, paint, rows, kit, tones, trace };
+  // the jacket's FRONT words, for the tailor on the realistic body (body-relational-wear.js): absent, nothing
+  const tailored = outer && worn.has('outer') && (outer.front !== undefined || outer.lapel !== undefined || outer.buttons !== undefined);
+  // (its lapels the jacket's facing: the card's `Lapel` tone, else a shade off the jacket's own)
+  const tailoring = tailored ? { outer: { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } } : null;
+  if (tailoring) tones.Lapel = card.tones?.Lapel ?? shade(T.Outer ?? tones.Outer ?? '#444444', 1.12);
+  return { garments, paint, rows, kit, tones, trace, ...(tailoring ? { tailoring } : {}) };
 }
 
 /** The palette a build suggests beneath the operator's own */

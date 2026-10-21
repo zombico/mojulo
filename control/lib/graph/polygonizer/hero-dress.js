@@ -305,6 +305,8 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
     // detail rows and its belt as the last adornment, all from the words on every read
     built = expandOutfit(outfit, { have: new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), scale, drawn: figure.anime ? 'anime' : null }, { ...plan.palette, ...outfitTones(outfit), ...operatorPalette });
     plan.garments = built.garments;
+    // (a jacket's front words, the tailor's on the realistic body: layered.js hands them to the wear adapter)
+    if (built.tailoring) plan.tailoring = built.tailoring;
     if (built.paint.length) plan.paint = [...(plan.paint || []), ...built.paint];
     if (built.rows.length) plan.body = { ...(plan.body || {}), rows: [...(plan.body?.rows || []), ...built.rows] };
     // one belt: a kit that already wears one (the ranger's) keeps it, and the outfit's is not added twice

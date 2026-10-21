@@ -551,7 +551,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   woven, sleeve, hem, collar, fit, girth }`; `bottom { family, leg, cut: skinny | tapered (default) | straight | wide, fit, girth }`
   or a skirt `{ kind: 'skirt', leg: micro … maxi, cut: pencil | aline | full, rigidity? }` (one hull round the hips and
   both legs, never narrowing below them, open beneath, skinned by nearness), `dress: true` (the skirt the top's own
-  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth }` over both; `panels: [{ at: back | front | sides
+  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth, front?, lapel?, buttons? }` over both (on
+  the realistic body a TAILORED FRONT: `front: single | double`, `lapel: notch | peak | shawl | none`, `buttons: 1 | 2 | 3`
+  give the jacket a V onto the shirt, its lapels and collar, its buttons; a suit jacket's length is `hem: 'tunic'`, over
+  the seat; a card's `Lapel` tone its facing); `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose

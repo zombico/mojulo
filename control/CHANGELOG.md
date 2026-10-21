@@ -51,6 +51,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### The tailored suit: a jacket's front and lapels
+
+A suit read as a suit on the realistic body: its front, its lapels and its buttons as words on the outfit card, made
+by the tailor. Cards without them unchanged, byte for byte.
+
+- THE WORDS (`outfit/styles.js`): `outer.front` `single` | `double`, `outer.lapel` `notch` | `peak` | `shawl` | `none`,
+  `outer.buttons` 1–3; any of them gives the jacket a tailored front (single with a notch lapel and two buttons, double
+  with a peak and three rows, unless named). The expander carries them as the build's `tailoring`, beside its pieces;
+  the lapel's facing a `Lapel` tone (the card's, else a shade off the jacket's). The authored game body's jacket is
+  unchanged by them.
+- THE FRONT (`body-relational-tailor.js`): `cutV`, the jacket's V from its top button up to the collar, taken in under
+  the shirt, its edge carried onto the roll lines and its walls painted as the shirt (on cloth whose points sit 2 cm
+  apart a V cut by them alone is a ragged slit); `lapelBand`, the lapels and the collar one band along the roll lines
+  and round the back of the neck, its width the lapel's shape (the notch's step at the gorge, the peak's corner carried
+  up and out, the shawl's one curve), the collar falling down over the shoulders, its inner edge rolled over the V's;
+  `buttonOn`, a disc on the cloth. The wear adapter places them: the stance by the button count (two a little above the
+  waist, one under it, three higher), the roll lines to the side of the neck, one row of buttons or two; a lapelled
+  jacket wears no stand collar. Each part closed and wound once; a stride stretches no edge of it past 5 mm.
+
 ### The garment designer: silhouette principles over tailoring primitives
 
 Garments on the realistic body as data over a small set of construction primitives, and the principles

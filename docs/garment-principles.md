@@ -153,7 +153,11 @@ body volume reads at a distance and on few polygons; on the realistic body volum
 - a trench or a long coat is fitted through the body and an A from the waist: it falls from the hips' widest, never
   back in round the legs, and its sweep is modest (a few centimetres past the hip each side at the knee, more on a long
   coat);
-- a sleeve tapers to its cuff and the shoulder is the body's own, unpadded unless the design names a shoulder.
+- a sleeve tapers to its cuff and the shoulder is the body's own, unpadded unless the design names a shoulder;
+- a suit is read by its FRONT first: the V onto the shirt from the top button to the collar, the lapels lying along it
+  (a notch for day, a peak for a double-breasted or a stronger line, a shawl for evening), the buttons at the stance
+  (two a little above the waist; one lower, which lengthens the V; three higher, which shortens it), and its jacket
+  long enough to cover the seat.
 
 Measured as the dressed outline's standoff per side over the bare body (`dress-outline.js`): close cloth at the chest
 within its ease and 1.5 cm, a waist within a few centimetres, a coat's knee well under 10 cm. The game body keeps its
