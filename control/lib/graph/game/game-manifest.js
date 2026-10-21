@@ -26,6 +26,7 @@
  *     front?: { cover?, layout?, tagline?, press?, menu?, credits?, end? }   // the light shell's title over a cover,
  *                                          // its start menu, options, credits and end (play-front.js)
  *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // the screen it is made for (screen.js)
+ *     languages?: { source, locales, default?, strings? },   // the languages it is played in (game-languages.js)
  *     run?: { length },                    // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
  *     final?: <level ref> }                // THE END (the play shell): that level's first win completes the game (the
@@ -85,6 +86,7 @@ import { readScreen } from './screen.js';
 import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
 import { readFront } from './play-front.js';
+import { readLanguages } from './game-languages.js';
 
 const K = buildGameStoreKernel();
 
@@ -313,6 +315,10 @@ export function validateGameManifest(manifest) {
   if (manifest.screen !== undefined && manifest.screen !== null) {
     try { readScreen(manifest.screen); } catch (e) { errors.push(e.message); }
   }
+
+  // LANGUAGES (game-languages.js): the languages the game is played in and its translations, keyed by source text;
+  // each export carries them into its engine's own localization. A missing word plays in the source: never gates play
+  if (manifest.languages !== undefined) readLanguages(manifest.languages).forEach((e) => errors.push(e));
 
   if (manifest.theme !== undefined) {
     const theme = manifest.theme;

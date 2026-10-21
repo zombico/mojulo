@@ -14,6 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Game languages: one declaration, every engine's own localization (spike)
+
+- A game manifest takes `languages: { source, locales, default?, strings? }`: the languages it is played in and its
+  translations, keyed by the source text itself, set through `update_sketch` on the game row. It is validated with
+  teaching errors and never gates play: a word with no translation plays in the source language.
+- `lib/graph/game/game-languages.js` gathers the game's player-facing words (and the fixed words the runtimes write),
+  reports coverage per language with the words still owed and the stale ones a re-wording orphaned, folds a
+  translator's lines in with their placeholders held equal, and writes the one table in each engine's own format:
+  Godot's translation CSV and `[internationalization]`, a Roblox LocalizationTable CSV, an Unreal string table and a
+  PO per culture, a JSON table Unity's JsonUtility reads, and the web's baked dictionary with the run-time pick.
+- The Godot game pack carries it: `i18n/strings.csv` registered in `project.godot`, so the game title and level
+  titles translate as Godot's menu sets them. A level's own words (scene lines, quests, HUD) are not in the table
+  yet, and words the kernel composes stay in the source language; the ledger says both. The other engines' writers are not yet wired into their packs. A game without `languages` exports exactly
+  as before.
+
 ### Science worlds: a demo composed from laws, not authored per experiment
 
 - `create_view` gains three kinds that compose a demo from a closed table of laws instead of
