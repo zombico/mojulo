@@ -11,6 +11,9 @@
  * joint (m), recess (m), tool ('tooled' | 'pitched' | 'none'), chamfer (m), pillow (m), spall (0–1), pit (0–1),
  * vary (a block's tone, 0–40), grit (0–1), metres (the repeat's size: it is painted at the metres it is laid at) }.
  *
+ * `face` (default 'wall'): a 'floor' is lit from nearly overhead (a floor has no up), each slab dished a little where it
+ * is walked and polished on its crests, the dirt in its joints: floor blocks, a runner, a path.
+ *
  * `cut` (default 'ashlar'): the coursed blocks above, for a wall. A PILLAR is never coursed like a wall: 'fluted' is one
  * shaft cut into vertical channels between narrow fillets (`flutes` a repeat), 'shaft' a plain monolith with its grain
  * running up it; both weathered in streaks running down, their arrises chipped here and there, lit from the upper left
@@ -28,8 +31,10 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // (a pitched face is not the painter's faceted tool here: cells with visible borders read as crazy paving, and terraces
 // as contour rings; it is a rock face bulged and lumped, billowed noise in the block's own frame, to a dressed margin)
 const TOOL = { tooled: { kind: 'tooled', spacing: 0.012, angle: 70, amp: 0.0007 } };
-export const DRESSED_DEFAULTS = Object.freeze({ cut: 'ashlar', flutes: 12, rows: 4, cols: 2, joint: 0.012, recess: 0.008, tool: 'tooled', chamfer: 0.02, pillow: 0.003, spall: 0.5, pit: 0.3, vary: 30, grit: 0.5, metres: 2 });
+export const DRESSED_DEFAULTS = Object.freeze({ cut: 'ashlar', face: 'wall', flutes: 12, rows: 4, cols: 2, joint: 0.012, recess: 0.008, tool: 'tooled', chamfer: 0.02, pillow: 0.003, spall: 0.5, pit: 0.3, vary: 30, grit: 0.5, metres: 2 });
 const LIGHT = { az: 90, el: 40, ambient: 0.36, wrap: 0.2, reach: 0.05, soft: 0.002, floor: 0.35, radius: 0.012, cavity: 0.4, edge: 0.1, tile: true };
+// a FLOOR has no up: lit from nearly overhead, read by its hollows (the joints, the pits, the worn dips) and its crests
+const FLOOR_LIGHT = { az: 90, el: 78, ambient: 0.4, wrap: 0.3, reach: 0.03, soft: 0.003, floor: 0.45, radius: 0.015, cavity: 0.55, edge: 0.16, tile: true };
 
 /** A ramp of five stops round a colour, dark to light (the material). */
 const rampOf = (c) => [0.42, 0.68, 0.9, 1.08, 1.22].map((k) => c.map((v) => clamp(v * k, 0, 255)));
@@ -77,7 +82,10 @@ export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   }
   // the mortar: a rough bed, sunk; (texel dice wrap with the tile)
   for (let k = 0; k < W * H; k++) if (owner[k] < 0) height[k] = -c.recess + 0.0015 * (hash01(k % W, Math.floor(k / W), seed + 11) - 0.5);
-  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, LIGHT);
+  const floor = c.face === 'floor';
+  // (a floor is worn where it is walked: each slab's face dished a little and polished on its crests)
+  if (floor) for (let k = 0; k < W * H; k++) if (owner[k] >= 0) { const B = blocks[owner[k]], u = lx[k] / B.w - 0.5, v = ly[k] / B.h - 0.5; height[k] -= 0.003 * (0.4 + g) * (1 - 4 * (u * u + v * v)); }
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, floor ? FLOOR_LIGHT : LIGHT);
   const stone = rampOf(c.stone), mortar = rampOf(c.mortar), rgb = Buffer.alloc(W * H * 3);
   for (let k = 0; k < W * H; k++) {
     const v = lit.value[k], o = owner[k];
@@ -85,7 +93,7 @@ export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
     if (o >= 0) {
       // a block's own tone, a mottle across its face at two scales, the weather darker toward its foot, dirt in the hollows
       const B = blocks[o], mot = 0.07 * fractal2(lx[k] / 0.4, ly[k] / 0.4, { seed: B.seed + 3, octaves: 3 })[0] + 0.035 * gnoise2(lx[k] / 0.06, ly[k] / 0.06, B.seed + 5);
-      const foot = 0.06 * (0.3 + g) * clamp(ly[k] / B.h, 0, 1) ** 2;
+      const foot = floor ? -0.04 * lit.convex[k] : 0.06 * (0.3 + g) * clamp(ly[k] / B.h, 0, 1) ** 2;
       col = rampAt(stone, 0.55 + (v - 1) * 1.25 + B.tone + mot - foot - 0.3 * lit.cavity[k] * (0.4 + 0.6 * g));
     } else col = rampAt(mortar, 0.3 + (v - 1) * 0.7);
     rgb[k * 3] = Math.round(col[0]); rgb[k * 3 + 1] = Math.round(col[1]); rgb[k * 3 + 2] = Math.round(col[2]);

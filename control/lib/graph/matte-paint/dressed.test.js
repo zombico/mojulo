@@ -67,3 +67,33 @@ describe('a pillar is never coursed', () => {
     expect(by(fluted, 'stage:pillar') + by(fluted, 'stage:trim')).toBe(by(plain, 'stage:trim'));
   });
 });
+
+describe('floors, paths and baseboards', () => {
+  const rooms = [{ id: 'nave', x: 0, y: 0, w: 10, d: 16, h: 9 }], D = (more) => ({ gen: 'dressed', stone: [150, 140, 124], mortar: [90, 84, 74], ...more });
+  const by = (P, g) => P.faces.filter((f) => f.group === g).length;
+
+  it('a floor face is lit from overhead and worn, not a wall\'s light turned flat', () => {
+    const wall = dressedTile({ ...CFG }, { size: 128, seed: 4 }), floor = dressedTile({ ...CFG, face: 'floor' }, { size: 128, seed: 4 });
+    expect(Buffer.compare(wall.rgb, floor.rgb)).not.toBe(0);
+    expect(() => normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], face: 'ceiling' })).toThrow(/face/);
+  });
+
+  it('the plinth and the nave\'s runner are surfaces of their own; the room\'s faces, moss and grime as they were', () => {
+    const plain = assembleStageScene({ kind: 'stage', kit: 'gothic-nave', rooms });
+    const dressed = assembleStageScene({ kind: 'stage', kit: 'gothic-nave', rooms, tiles: { plinth: D({ rows: 2 }), path: D({ face: 'floor', scale: 2 }) } });
+    expect(dressed.faces.length).toBe(plain.faces.length);
+    expect(by(dressed, 'stage:plinth')).toBeGreaterThan(0);
+    expect(by(dressed, 'stage:plinth') + by(dressed, 'stage:trim')).toBe(by(plain, 'stage:trim'));
+    expect(by(dressed, 'stage:moss')).toBe(by(plain, 'stage:moss'));
+    // the runner is floor still (its tone, its dirt), drawn in the path's own stone
+    expect(by(dressed, 'stage:floor')).toBe(by(plain, 'stage:floor'));
+    expect(dressed.faces.some((f) => f.group === 'stage:floor' && /^gen:dressed-/.test(f.texture || ''))).toBe(true);
+  });
+
+  it('a dressed floor laid a tile a bay is painted at the bay\'s metres', () => {
+    const P = assembleStageScene({ kind: 'stage', kit: 'gothic-stone', rooms: [{ id: 'r', x: 0, y: 0, w: 12, d: 12, h: 6 }], tiles: { floor: D({ face: 'floor' }) } });
+    const keys = new Set(P.faces.filter((f) => f.group === 'stage:floor').map((f) => f.texture));
+    expect([...keys].every((k) => /^gen:dressed-.*-[ab]$/.test(k))).toBe(true);
+    expect(tileFamilyOf({ ...D({ face: 'floor' }), scale: 4 })).toBe([...keys][0].replace(/-[ab]$/, ''));
+  });
+});

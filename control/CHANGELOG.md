@@ -111,6 +111,12 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   weathered in streaks running down and lit from the upper left so a flute is found. Laid upright: on an engaged column
   the flutes stand up the shaft. A dressed family draws two variants, not four (every block is its own stone already),
   halving its bytes. Without a pillar surface a room is byte for byte as it was.
+- **Floors, paths and baseboards.** Dressed stone's `face: 'floor'`: lit from nearly overhead (a floor has no up), each
+  slab dished a little where it is walked and polished on its crests, the dirt in its joints. A floor laid a tile a bay
+  is painted at the bay's metres. Two more surfaces of their own, as the pillars are: the `plinth` (the baseboard along
+  the walls' feet, in the trim's laying; a course of long blocks with no bed joint across it) and the `path` (the nave's
+  runner, in the floor's laying, still floor to the tone and the dirt). A geocube's `surfaces.plinth` reaches the room.
+  Without them a room is byte for byte as it was.
 
 ### Geocube styles: principles and the laws that check them
 

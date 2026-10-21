@@ -355,10 +355,10 @@ export function readGeocube(spec) {
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
   // surfaces
-  only(c.surfaces, ['wall', 'floor', 'accent', 'pillar'], 'surfaces');
+  only(c.surfaces, ['wall', 'floor', 'accent', 'pillar', 'plinth'], 'surfaces');
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
-  // (the pillars, optional: pilasters and engaged columns in a surface of their own)
-  if (c.surfaces.pillar !== undefined) tileFamilyOf(c.surfaces.pillar, 'geocube surfaces.pillar');
+  // (the pillars and the plinth, optional: pilasters, engaged columns and the baseboard in surfaces of their own)
+  for (const k of ['pillar', 'plinth']) if (c.surfaces[k] !== undefined) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
   // inside
   only(c.inside, ['bones', 'size', 'accentWall'], 'inside');
   if (!STAGE_KITS[c.inside.bones] || isGroundKit(c.inside.bones)) no(`inside.bones '${c.inside.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !isGroundKit(k)).join(', ')})`);
@@ -455,7 +455,7 @@ function lowerInside(cube) {
     keep: ['stage:fixture', 'stage:lamp'],
   };
   return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
-    tiles: { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}) }, tone,
+    tiles: { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
 

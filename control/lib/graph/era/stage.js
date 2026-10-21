@@ -284,24 +284,29 @@ const VARIANTS = ['a', 'b', 'c', 'd'];
 /** The recipe's own tiles (`tiles: { wall: { gen, … } }`, tile-specs.js) over the kit's, surface by surface: each spec
  *  becomes a four-variant family named from its numbers, laid where the kit laid its own. A dressing that paves its own
  *  floor (the nave's runner and kerbs) keeps it. */
+const DERIVED_PARTS = Object.freeze({ pillar: 'trim', plinth: 'trim', path: 'floor' });
 function withRecipeTiles(kit, kitId, tiles) {
   if (!tiles || typeof tiles !== 'object' || Array.isArray(tiles)) throw new Error('stage: tiles is { <surface>: { gen, … } }');
   const out = { ...kit.tiles }, tint = { ...kit.tint }, cells = { ...kit.cells };
   for (const [part, spec] of Object.entries(tiles)) {
-    // the PILLARS (pilasters, engaged columns) are a surface of their own when a recipe names one: on a kit that draws
-    // them in its trim they take the trim's laying, cells and band, upright (a fluted shaft's flutes stand up it)
-    if (part === 'pillar' && !kit.tiles.pillar && kit.tiles.trim) {
-      const { key, ...was } = kit.tiles.trim, n = normalizeTileSpec(spec, 'stage: tiles.pillar');
+    // a part a kit draws in another's tile, a surface of its own when a recipe names one: the PILLARS (pilasters, engaged
+    // columns) and the PLINTH (the baseboard along the walls' feet) in the trim's laying, cells and band, the PATH (the
+    // nave's runner) in the floor's; a pillar upright (a fluted shaft's flutes stand up it)
+    const from = !kit.tiles[part] && DERIVED_PARTS[part];
+    if (from && kit.tiles[from]) {
+      const { key, ...was } = kit.tiles[from], n = normalizeTileSpec(spec, `stage: tiles.${part}`);
       const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
-      out.pillar = { ...was, family: tileFamilyOf(laid, 'stage: tiles.pillar'), scale: laid.scale ?? was.scale ?? 1, upright: true, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
-      if (tint.trim) { const v = r5(tint.trim.reduce((a, b) => a + b, 0) / 3); tint.pillar = [v, v, v]; }
-      cells.pillar = kit.cells.trim;
+      out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(part === 'pillar' ? { upright: true } : {}), ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
+      if (tint[from]) { const v = r5(tint[from].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
+      cells[part] = kit.cells[from];
       continue;
     }
     if (!kit.tiles[part]) throw new Error(`stage: tiles.${part}: kit '${kitId}' has no ${part} surface (surfaces: ${Object.keys(kit.tiles).join(', ')})`);
     const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
-    // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at)
-    const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: was.scale ?? 2 } : spec;
+    // (dressed stone with no scale of its own is painted at the metres the kit lays this surface at: a floor laid a tile a
+    // bay, at the bay's)
+    const bayFloor = part === 'floor' && kit.bay && kit.shell !== 'lab';
+    const laid = n.gen === 'dressed' && n.scale === undefined ? { ...spec, scale: bayFloor ? kit.bay : was.scale ?? 2 } : spec;
     // (a dressed family's every block is its own stone already: two variants, half the bytes, read as varied as four)
     out[part] = { ...was, family: tileFamilyOf(laid, `stage: tiles.${part}`), scale: laid.scale ?? was.scale ?? 1, ...(n.gen === 'dressed' ? { variants: 2 } : {}) };
     // the kit's tint sets the value band a surface lives in; the recipe's own colour is the hue, so keep the band, drop the cast
@@ -476,7 +481,8 @@ export function buildStageGeometry(plan) {
     const zones = [[-Infinity, c - w - Fd.kerb, Fd.field], [c - w - Fd.kerb, c - w, null], [c - w, c + w, Fd.hex], [c + w, c + w + Fd.kerb, null], [c + w + Fd.kerb, Infinity, Fd.field]];
     for (const [z0, z1, tile] of zones) {
       const a0 = Math.max(alongY ? X0 : Y0, z0), a1 = Math.min(alongY ? X1 : Y1, z1); if (a1 - a0 < 1e-6) continue;
-      const sf = tile ? { ...base, key: tile.key, scale: tile.scale } : { ...trimS, tint: Fd.kerbTint, group: 'stage:floor', cell: base.cell };
+      // (the runner in a recipe's own path when it names one, laid and dirtied as floor)
+      const sf = tile === Fd.hex && kit.tiles.path ? { ...surf('path'), group: 'stage:floor', cell: base.cell } : tile ? { ...base, key: tile.key, scale: tile.scale } : { ...trimS, tint: Fd.kerbTint, group: 'stage:floor', cell: base.cell };
       const o = alongY ? [a0, Y0, 0] : [X0, a0, 0], A = alongY ? [1, 0, 0] : [0, 1, 0], B = alongY ? [0, 1, 0] : [1, 0, 0];
       const la = a1 - a0, lb = alongY ? Y1 - Y0 : X1 - X0;
       panel(out, o, alongY ? A : B, alongY ? la : lb, alongY ? B : A, alongY ? lb : la, [0, 0, 1], { ...sf, uvOf: (p) => [p[0] / sf.scale, p[1] / sf.scale] }, base.cell);
@@ -489,7 +495,7 @@ export function buildStageGeometry(plan) {
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
       const a0 = Math.max(X0, r.x0 + i * bx), a1 = Math.min(X1, r.x0 + (i + 1) * bx), b0 = Math.max(Y0, r.y0 + j * by), b1 = Math.min(Y1, r.y0 + (j + 1) * by);
       if (a1 - a0 < 1e-6 || b1 - b0 < 1e-6) continue;
-      const key = `${ft.family}-${VARIANTS[Math.floor(hash3(ri * 97 + i, j, 103) * 4)]}`;
+      const key = `${ft.family}-${VARIANTS[Math.floor(hash3(ri * 97 + i, j, 103) * (ft.variants ?? 4))]}`;
       panel(out, [a0, b0, 0], [1, 0, 0], a1 - a0, [0, 1, 0], b1 - b0, [0, 0, 1], { ...base, key, uvOf: (p) => [(p[0] - r.x0) / bx, (p[1] - r.y0) / by] }, base.cell);
     }
   };
@@ -600,7 +606,7 @@ export function buildStageGeometry(plan) {
       if (!nave) flatWall(0, F.len);
       else naveWall(F, cuts, flatWall, { wall: wallS, trim, pillar }, h, s);
       // plinth + cornice runs, broken at doorways (by the frame's width)
-      for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
+      for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, kit.tiles.plinth ? surf('plinth', ri * 4 + si) : trim, cell);
       wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
       // the MOTIF (kit.motif: a frieze tile, art-direction.js): a small pattern carved along the plinth's face, the
       // cornice's, or both — a band a hair proud of the stone it is cut in, its motifs square to the band's height
