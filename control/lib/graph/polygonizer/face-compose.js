@@ -169,7 +169,7 @@ export const FACE_BUCKETS = Object.freeze({
   'south-asian': {
     note: 'South Asian ancestry (the base after published Indian anthropometry)',
     ancestry: ['south-asian'],
-    tones: [4, 9],
+    tones: [6, 8],
     // a longer vault and a narrower face than the East Asian; the root higher than the East Asian (none of its flattening),
     // the base moderately wide; the eyes a little larger, a touch wider set; the brow a little stronger; the lips a little
     // fuller. The lid is the rig's creased lid, sometimes hooded (no epicanthic fold)
@@ -201,7 +201,7 @@ export const FACE_BUCKETS = Object.freeze({
   'southeast-asian': {
     note: 'Filipino and maritime Southeast Asian ancestry (Austronesian)',
     ancestry: ['southeast-asian'],
-    tones: [4, 8],
+    tones: [6, 8],
     // a rounder vault; the inner canthi wider apart; the root low and broad, the base wider, the bridge broad (the nose
     // leaning short and flat); the lips fuller and a little forward; the cheekbones forward; a lighter brow ridge. The lid
     // a parallel crease or the rig's, sometimes an in-fold or hooded, now and then a monolid
@@ -216,7 +216,7 @@ export const FACE_BUCKETS = Object.freeze({
   latin: {
     note: 'Mexican and mestizo Latin American ancestry (Indigenous American and European)',
     ancestry: ['latin-american', 'indigenous-american', 'latin-american'],
-    tones: [4, 8],
+    tones: [6, 8],
     // a broader face with high, forward cheekbones and a fuller jaw; the base moderately wide, the bridge a little broad;
     // the lips a little fuller; the eyes a little wider set. The nose spread wide on its axis (the Indigenous American
     // aquiline long nose and the short broad one both). The lid the rig's, sometimes hooded, now and then an in-fold

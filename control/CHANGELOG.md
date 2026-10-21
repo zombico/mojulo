@@ -77,7 +77,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   bucket is one, or one with a share of a second, their bases and leanings mixed by the share (`equatorial`: South Asian,
   Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
   the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
-  (`tones`, on the Monk scale: `equatorial` is brown), the ancestry still giving the hair, the undertone and the eyes.
+  (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
 
 ### Body-part map: dress tailored to the body, not the segment
 
