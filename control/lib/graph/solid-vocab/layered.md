@@ -803,7 +803,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and the head), then is kept. ARMOUR (`adorn: { type: 'armor', style }`, any family) is fitted to it by role: the
   trunk's plates one cuirass, its wraps hoops, the shoulders domed caps, the feet boots; the gorget only with
   `wear: ['gorget']`; a helm is left off (not fitted to its head yet). FOOTWEAR words: `boots`, `shoes`, `sandals`
-  (a welted sole, straps and buckles). Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
+  (a welted sole, straps and buckles). LOOSE words: `martialPants` (wide, falling, bloused over a cuffed ankle, a sash),
+  `wideTrousers` (falling open to the floor); the authored body wears them as wide segment trousers. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
   dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped

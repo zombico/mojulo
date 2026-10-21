@@ -51,6 +51,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
 
+### Loose cloth that falls: the martial artist's wide trousers
+
+Everything the realistic body wore was FITTED: the cloth field close over the forms. Loose cloth now hangs
+(`polygonizer/body-relational-drape.js`), on the outfit words `martialPants` and `wideTrousers`:
+
+- The DRAPE: the trousers' leg rings re-made hanging, each slot's radius the widest of its own (and a slack) and the
+  ring above's let down slowly (`taper`), so the cloth falls from the seat and the thigh past the knee instead of
+  following it in; vertical folds round the ring, deeper toward the hem.
+- ONE TUBE A LEG: the thigh's and the shank's rings one piece (no edge across the knee), the shank's taken round at the
+  thigh's slots, every point's weights mixed from its own piece's, so a stride carries the cloth with the leg.
+- The MIDLINE: each leg's inner side held off the body's middle plane, so the two legs never cross (at the crotch,
+  where the thigh's skin reaches the plane, the plane wins).
+- The HEM: `martialPants` blouses over a cuff gathered at the ankle (a wrapped band, its caps weighted as its rings,
+  so a bent knee carries the whole cuff); `wideTrousers` falls open to just above the ground, over the foot.
+- A SASH at the waist, a knot at the front and two tails hanging. Tones `Sash` and `Cuff`.
+- Machine gate: closed and wound once, the legs apart at the midline, wider than the calf, the cuff with the ankle in a
+  stride and whole on its ring, the open hem never under the ground (`body-relational-drape.test.js`).
+
 ### Armour fitted to the realistic body
 
 In progress. An armour build (`adorn: { type: 'armor', style }`) on `form: 'realistic'` was the authored body's kit baked

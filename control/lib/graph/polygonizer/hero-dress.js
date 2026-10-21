@@ -211,6 +211,11 @@ export const OUTFIT_WORDS = Object.freeze({
     { id: 'trousersLeg', part: 'thigh', ease: 0.01 * k, group: 'Bottom' }, { id: 'trousersShin', part: 'shank', run: [0, 0.94], ease: 0.01 * k, group: 'Bottom' }],   // whole above the knee: its overshoot ring meets the shin's
   shorts: ({ scale: k, structured }) => [...(structured ? [{ id: 'shortsSeat', part: 'pelvis', ease: 0.012 * k, group: 'Bottom' }] : []),
     { id: 'shortsLeg', part: 'thigh', run: [0, 0.5], ease: 0.014 * k, flare: [0, 0.01 * k], group: 'Bottom' }],
+  // MARTIAL ARTIST'S trousers: wide, falling from the hip (on the realistic body the drape: body-relational-drape.js)
+  martialPants: ({ scale: k, structured }) => [...(structured ? [{ id: 'martialPantsSeat', part: 'pelvis', ease: 0.02 * k, group: 'Bottom' }] : []),
+    { id: 'martialPantsLeg', part: 'thigh', ease: 0.03 * k, flare: [0, 0.01 * k], group: 'Bottom' }, { id: 'martialPantsShin', part: 'shank', run: [0, 0.94], ease: 0.035 * k, flare: [0.005 * k, -0.01 * k], group: 'Bottom' }],
+  wideTrousers: ({ scale: k, structured }) => [...(structured ? [{ id: 'wideTrousersSeat', part: 'pelvis', ease: 0.02 * k, group: 'Bottom' }] : []),
+    { id: 'wideTrousersLeg', part: 'thigh', ease: 0.03 * k, flare: [0, 0.012 * k], group: 'Bottom' }, { id: 'wideTrousersShin', part: 'shank', ease: 0.04 * k, flare: [0.008 * k, 0.012 * k], group: 'Bottom' }],
   boots: ({ scale: k }) => [{ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' },
     { id: 'bootFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (the boot's foot alone, below the ankle; on the realistic body both are the footwear primitive's,
