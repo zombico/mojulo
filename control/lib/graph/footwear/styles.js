@@ -5,7 +5,7 @@
 //   from    a card it extends (a word or a card): its sock merged, its sole, adorn and family replaced where given,
 //           `adornPlus` appended to its adornment, its tones merged. So a variety is a few keys over its kin
 //   skin    a COLOURWAY (SKINS, or { <group>: '#hex' }) over the card's tones: any card in any colours
-//   family  what kind of footwear it is (expand.js FOOTWEAR_FAMILIES: shoe, boot, sandal, sneaker, dress)
+//   family  what kind of footwear it is (expand.js FOOTWEAR_FAMILIES: shoe, boot, sandal, sneaker, dress, historic, fantasy)
 //   sock    { height: 'shoe' | 'boot', collar? (a share of the foot, a shoe's), shaft? (a share of the shank from the
 //           ankle, a boot's), thick? (m, how far the leather stands off the foot; 0.004) }, or false: none (a sandal)
 //   heels   { height (m the heel stands), toe? (m of sole under the toes: a platform), shank?, kind? (stiletto, kitten, block,
@@ -22,7 +22,15 @@
 //                     egg, toe base to tip (tiny dark studs: a brogue's perforations)
 //             panel   { region (cobbler.js COBBLER_REGIONS, or { along, around, sides }), on?, lift?, thick?, rise? } a
 //                     pattern piece on the sock, a matching pair where the region has two sides
-//             laces   { rows?, lift?, w? } criss-cross between the eyestays
+//             laces   { rows?, shaftRows?, lift?, w? } criss-cross between the eyestays
+//           and the pieces of fantasy, drama and history (fantasy.js):
+//             toePoint { length, curl (degrees), taper, bell } a toe drawn out past the toes and curled up
+//             wrap     { on?, from, to (shares), turns, cross, w } a ribbon spiralled up the leg (cross-gartering)
+//             flare    { height, spread } a funnel rising from a boot's top (a bucket top)
+//             buttons  { count, side, around, from, to, size } a row of buttons up a boot's side
+//             spur     { length, size } a neck from the heel and a star rowel
+//             wings    { feathers, span } a fan of feathers at each side of the ankle
+//             jewel    { at: toe | instep | ankle, size } a stone set there
 //           any of them `group` (its colour's name) over its own
 //   tones   { <group>: '#hex' | { of: <group>, shade: −1 … 1 } } over FOOTWEAR_TONES, for the groups the card uses; a tone
 //           OF another group is that group's colour darkened (−) or lightened (+), read after the palette, so recolouring
@@ -132,6 +140,49 @@ export const FOOTWEAR = Object.freeze({
   ridingBoots: { family: 'boot', sock: { height: 'boot', shaft: 0.78, thick: 0.0035 }, sole: { welt: 0.003 }, heels: { height: 0.03, toe: 0.008, kind: 'block' },
     adorn: [{ prim: 'panel', region: 'counter', lift: 0.0012 }, { prim: 'toeCap', lift: 0.0016, room: 0.012, group: 'Shoes' }],
     tones: { Shoes: '#161414', Counter: LEATHER(0.04), Heel: LEATHER(0.05), Sole: '#2a2220' } },
+  // ── HISTORIC, FANTASY, DRAMA: the cobbler's pieces and fantasy.js's ──
+  // the poulaine (crakow): a medieval shoe whose toe runs on far past the foot to a point
+  poulaines: { family: 'historic', sock: { height: 'shoe', collar: 0.14, thick: 0.003 }, sole: { thick: 0.004, welt: 0.002 },
+    adorn: [{ prim: 'toeCap', lift: 0.0012, group: 'Shoes' }, { prim: 'toePoint', length: 0.12, curl: 12, taper: 0.06 }, { prim: 'strap', on: 'foot', at: 0.35, width: 0.008, lift: 0.0015, buckle: true }],
+    tones: { Shoes: '#5a1a22', Strap: LEATHER(-0.3) } },
+  // the jester's: the toe curled right over to a bell
+  jesterShoes: { family: 'fantasy', sock: { height: 'shoe', collar: 0.14, thick: 0.004 }, sole: { thick: 0.004, welt: 0.002 },
+    adorn: [{ prim: 'toeCap', lift: 0.0015, group: 'Shoes' }, { prim: 'toePoint', length: 0.08, curl: 150, taper: 0.2, bell: true }, { prim: 'cuff', width: 0.016, lift: 0.004 }],
+    tones: { Shoes: '#2f7d32', Cuff: '#c8302e', Bell: '#e3c040' } },
+  // the Persian slipper: a low slipper, its toe turned up, a stone on the instep
+  persianSlippers: { family: 'historic', sock: { height: 'shoe', collar: 0.3, thick: 0.003 }, sole: { thick: 0.005, welt: 0.002 },
+    adorn: [{ prim: 'toeCap', lift: 0.0012, group: 'Shoes' }, { prim: 'toePoint', length: 0.045, curl: 75, taper: 0.12 }, { prim: 'jewel', at: 'instep', size: 0.011 }, { prim: 'band', on: 'foot', at: 0.35, width: 0.005, lift: 0.0015 }],
+    tones: { Shoes: '#6e1f5a', Gem: '#2bb3a0', Gilt: '#d8b44a' } },
+  // the Roman caliga: an open sandal, hobnailed, laced in a lattice up the ankle
+  romanCaligae: { family: 'historic', sock: false, sole: { layers: [{ thick: 0.012, welt: 0.004, lugs: { every: 2, size: 0.003, group: 'Steel' } }] },
+    adorn: [{ prim: 'strap', on: 'foot', at: 0.65, width: 0.022 }, { prim: 'strap', on: 'foot', at: 0.4, width: 0.018 }, { prim: 'wrap', from: 0.7, to: 1, turns: 2, cross: true, w: 0.012, group: 'Strap' }],
+    tones: { Sole: '#5b3a22', Strap: '#7a4f2c' } },
+  // the gladiator sandal: straps crossed up the shin to below the knee
+  gladiatorSandals: { family: 'historic', sock: false, sole: { thick: 0.01, welt: 0.003 },
+    adorn: [{ prim: 'strap', on: 'foot', at: 0.6, width: 0.016 }, { prim: 'wrap', from: 0.15, to: 1, turns: 5, cross: true, w: 0.01, group: 'Strap' }],
+    tones: { Sole: '#6b4a2a', Strap: '#8a5a32' } },
+  // the Viking's: a low turnshoe, wool wrapped round the shin above it (winingas)
+  vikingWraps: { family: 'historic', sock: { height: 'boot', shaft: 0.14, thick: 0.005 }, sole: { thick: 0.005, welt: 0.002 },
+    adorn: [{ prim: 'wrap', from: 0.35, to: 0.86, turns: 6, w: 0.032, lift: 0.004 }, { prim: 'strap', on: 'shank', at: 0.33, width: 0.008, lift: 0.006, group: 'Strap' }],
+    tones: { Shoes: '#5a4330', Wrap: '#8d7a5a', Strap: '#3a2a1c' } },
+  // the cavalier's: a tall riding boot under a bucket top, spurred
+  cavalierBoots: { from: 'ridingBoots', family: 'historic', sock: { shaft: 0.82, thick: 0.004 },
+    adornPlus: [{ prim: 'flare', height: 0.09, spread: 1.7 }, { prim: 'spur' }], tones: { Shoes: '#3a2617', Steel: '#b9b9bd' } },
+  // the Victorian button boot: a buttoned side, a cap toe, a louis heel the body stands on
+  buttonBoots: { family: 'historic', sock: { height: 'boot', shaft: 0.36, thick: 0.0035 }, sole: { welt: 0.002 }, heels: { height: 0.05, toe: 0.007, kind: 'kitten' },
+    adorn: [{ prim: 'buttons', count: 8, side: 'lateral', around: 0.3, size: 0.006 }, { prim: 'panel', region: 'counter', lift: 0.001 }, { prim: 'toeCap', lift: 0.0015, room: 0.014, group: 'Cap' }],
+    tones: { Shoes: '#1a1a1a', Cap: LEATHER(0.1), Counter: LEATHER(0.06), Button: '#d8d2c0', Heel: LEATHER(0.08) } },
+  // the geta: a wooden board on two teeth, the foot raised level on it, a thong strap
+  geta: { family: 'historic', sock: false, sole: { welt: 0.006, group: 'Wood' }, heels: { height: 0.065, toe: 0.065, shank: 0.018, kind: 'teeth', group: 'Wood' },
+    adorn: [{ prim: 'strap', on: 'foot', at: 0.75, width: 0.016, lift: 0.003 }], tones: { Wood: '#b88a55', Strap: '#1f1f2a' } },
+  // the elf's: a soft tall boot, its toe drawn to a point and lifted, a vine wound up the shaft
+  elvenBoots: { family: 'fantasy', sock: { height: 'boot', shaft: 0.6, thick: 0.004 }, sole: { thick: 0.004, welt: 0.002 },
+    adorn: [{ prim: 'toeCap', lift: 0.0015, group: 'Shoes' }, { prim: 'toePoint', length: 0.05, curl: 30, taper: 0.1 }, { prim: 'wrap', from: 0.45, to: 0.95, turns: 3, w: 0.006, lift: 0.0025, group: 'Gilt' }, { prim: 'cuff', width: 0.022, lift: 0.004 }],
+    tones: { Shoes: '#4a6b3a', Cuff: LEATHER(-0.25), Gilt: '#c9b37a' } },
+  // Hermes' talaria: a sandal winged at the ankle
+  talaria: { family: 'fantasy', sock: false, sole: { thick: 0.01, welt: 0.003 },
+    adorn: [{ prim: 'strap', on: 'foot', at: 0.65, width: 0.018, buckle: true }, { prim: 'wrap', from: 0.8, to: 1, turns: 1.5, cross: true, w: 0.01, group: 'Strap' }, { prim: 'wings', feathers: 5, span: 0.08 }],
+    tones: { Sole: '#a8843f', Strap: '#a8843f', Wing: '#f4f1e6' } },
   // ── HEELS: the body stands in them ──
   // the pump: a low-cut sleek shoe on a stiletto
   pumps: { family: 'dress', sock: { height: 'shoe', collar: 0.22, thick: 0.0025 }, sole: { welt: 0.002 }, heels: { height: 0.085, toe: 0.006, kind: 'stiletto' },
@@ -158,4 +209,4 @@ export const SKINS = Object.freeze({
 /** the colours of the groups footwear adds, for a palette that names none (a card's own tones over these) */
 export const FOOTWEAR_TONES = Object.freeze({ Sole: '#2a2420', Strap: '#4b3324', Brass: '#a8843f', Steel: '#8d9299', Gilt: '#c9a646', Cuff: '#4b3324',
   Midsole: '#f2f1ec', Outsole: '#2b2b2b', Stripe: '#c8402a', Air: '#a8d8e8', Tongue: '#d9d6cf', Eyestay: '#c9c5bd', Overlay: '#b9b4ab', Counter: '#b9b4ab', Lace: '#f4f3ef',
-  Foxing: '#f2f1ec', Suede: '#55555a', Stitch: '#e8d9b5', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });
+  Foxing: '#f2f1ec', Suede: '#55555a', Stitch: '#e8d9b5', Wrap: '#8d7a5a', Button: '#d8d2c0', Wing: '#f4f1e6', Gem: '#2b8fb3', Bell: '#e3c040', Wood: '#b88a55', Heel: '#3a2a20', Welt: '#4a3628', Cap: '#2a1c16', Broguing: '#1a120c', Saddle: '#4c2216', Elastic: '#1b1b1d', Tab: '#1b1b1d' });

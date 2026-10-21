@@ -10,6 +10,7 @@ import { ringSlots } from '../polygonizer/body-relational-resample.js';
 // a ring of 8 round `c` in ring order (ringSlots: `front` first, the R side on +x): level (the shank's, its front +y), or
 // square to y (the foot's and the toes', `rz` its half height, its front on top)
 const SL = ringSlots(8);
+const mean8 = (ring) => { const ps = Object.values(ring); return [0, 1, 2].map((q) => ps.reduce((t, p) => t + p[q], 0) / ps.length); };
 const ring = (c, rx, rz, level) => Object.fromEntries(SL.map((nm, j) => { const a = (2 * Math.PI * j) / 8;
   return [nm, level ? [c[0] + rx * Math.sin(a), c[1] + rz * Math.cos(a), c[2]] : [c[0] + rx * Math.sin(a), c[1], c[2] + rz * Math.cos(a)]]; }));
 // a segment from `from` to `to`, 9 stations, u 0 … 2
@@ -176,12 +177,38 @@ describe('footwear on a foot adapter', () => {
     expect(Object.keys(shoe.parts).filter((k) => k.endsWith('_shankR'))).toEqual([]);
   });
 
+  it('fantasy, drama, history: a curled point, crossed wraps, a bucket top, a geta standing level, wings, buttons, a spur, a jewel', () => {
+    const pts = (P) => P.stations.flatMap((st) => Object.values(st.points));
+    const W = wearFootwear(stub, { family: 'fantasy', sock: { height: 'boot', shaft: 0.6 }, sole: { thick: 0.008 },
+      adorn: [{ prim: 'toePoint', length: 0.06, curl: 120, bell: true }, { prim: 'wrap', from: 0.45, to: 0.95, turns: 2, cross: true }, { prim: 'flare', height: 0.06, spread: 1.8 },
+        { prim: 'buttons', count: 4 }, { prim: 'spur' }, { prim: 'wings', feathers: 3 }, { prim: 'jewel', at: 'instep' }] }, { id: 'x' });
+    // the point curls up: its last ring's middle far over its first's
+    const T = W.parts.xToePoint_toesR, c0 = mean8(T.stations[0].points), c1 = mean8(T.stations[T.stations.length - 1].points);
+    expect(c1[2] - c0[2]).toBeGreaterThan(0.02);
+    expect(W.parts.xBell_toesR.group).toBe('Bell');
+    // crossed: two ribbons, one each way round
+    expect([W.parts.xWrap0_shankR.group, W.parts.xWrap1_shankR.group]).toEqual(['Wrap', 'Wrap']);
+    // the bucket top opens out past the boot's top and rises over it
+    const top = W.parts.x_shankR.stations[0].points, F = W.parts.xFlare_shankR, reach = (ring) => { const m = mean8(ring); return Math.max(...Object.values(ring).map((p) => Math.hypot(p[0] - m[0], p[1] - m[1]))); };
+    expect(reach(F.stations[F.stations.length - 1].points)).toBeGreaterThan(1.5 * reach(top));
+    expect(Math.max(...pts(F).map((p) => p[2]))).toBeGreaterThan(Math.max(...Object.values(top).map((p) => p[2])) + 0.05);
+    expect(Object.keys(W.parts).filter((k) => /^xButton\d+_shankR$/.test(k)).length).toBe(4);
+    expect([W.parts.xRowel_footR.group, W.parts.xRowel_footR.bind]).toEqual(['Steel', { bone: 'footR', blend: {} }]);
+    expect(Object.keys(W.parts).filter((k) => /^xWing(Lat|Med)\d_shankR$/.test(k)).length).toBe(6);
+    expect(W.parts.xJewel_footR.group).toBe('Gem');
+    // the geta: the foot raised level (no pitch), the body risen by the whole height, two teeth
+    const G = wearFootwear(stub, { family: 'historic', sock: false, heels: { height: 0.06, toe: 0.06, shank: 0.015, kind: 'teeth' } }, { id: 'g' });
+    expect(G.stance).toEqual({ rise: 0.06, toe: 0.06, pitch: 0 });
+    expect(Object.keys(G.parts).filter((k) => /^gTooth(Front|Back)_footR$/.test(k)).length).toBe(2);
+  });
+
   it('refuses a card by name', () => {
     expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'panel', region: 'pullLoop' }] })[0]).toMatch(/region: one of tongue, eyestay/);
     expect(validateFootwear({ from: 'runners', skin: 'neon' })[0]).toMatch(/skin: a colourway \(tripleBlack/);
     expect(validateFootwear({ from: 'runners', colour: 'red' })[0]).toMatch(/not 'colour'/);
-    expect(validateFootwear({ sock: { height: 'shoe' }, heels: { height: 0.05, toe: 0.06 } })).toContain('footwear.heels: the heel must stand higher than the toes\' sole');
-    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress',
+    expect(validateFootwear({ sock: { height: 'shoe' }, adorn: [{ prim: 'flare' }, { prim: 'jewel', at: 'knee' }] })).toEqual(['footwear.adorn[0]: a flare is a boot\'s; this card\'s sock is no boot', 'footwear.adorn[1].at: toe, instep or ankle']);
+    expect(validateFootwear({ sock: { height: 'shoe' }, heels: { height: 0.05, toe: 0.06 } })).toContain('footwear.heels: the heel must stand at least as high as the toes\' sole');
+    expect(validateFootwear({ family: 'clog', sole: { thick: 0.01, layers: [{ thick: 0 }] } })).toEqual(['footwear.family: one of shoe, boot, sandal, sneaker, dress, historic, fantasy',
       'footwear.sole.layers[0].thick: metres, over 0 and at most 0.1', 'footwear.sole: layers, or thick and welt (one layer), not both']);
     expect(validateFootwear('clogs')[0]).toMatch(/'clogs' is not a footwear word/);
     expect(validateFootwear({ sock: false, adorn: [{ prim: 'toeCap' }] })[0]).toMatch(/worn on the sock; this card has none/);

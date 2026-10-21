@@ -17,9 +17,10 @@
 // `<id>Buckle<k>_<segment>` (k counting the straps), a boot's ankle bridge `<id><Region>Ankle<Lat|Med>_<foot>`, `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
 // `<id><Region><Lat|Med>_…` (an inline region's `<id>Panel<k>…`), `<id>Lace<k>_…`.
 // Pure and deterministic: no dice, fixed order.
-import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv } from './parts.js';
+import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, block, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv, mean } from './parts.js';
 import { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 import { COBBLER_REGIONS, REGION_SIDES, arcOf, panelOn, laceBars } from './cobbler.js';
+import { toeSpike, ribbon, helixOn, flareTop, rowel } from './fantasy.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 
@@ -30,19 +31,27 @@ export const ADORN_PRIMS = Object.freeze({
   cuff: { keys: ['width', 'lift', 'group'], group: 'Cuff', what: "a turned band at the sock's collar" },
   panel: { keys: ['region', 'on', 'lift', 'thick', 'rise', 'group'], group: 'Overlay', what: 'a pattern piece laid over the sock on a cobbler region (cobbler.js COBBLER_REGIONS: tongue, eyestay, quarter …, or { along, around, sides, shaft? }), a matching pair on both sides where the region has two; on a boot carried up the shaft where the region has one' },
   laces: { keys: ['rows', 'shaftRows', 'lift', 'w', 'group'], group: 'Lace', what: "criss-cross laces between the eyestays' inner edges, over the tongue (on a boot on up the shaft: `shaftRows`)" },
+  toePoint: { keys: ['length', 'curl', 'taper', 'bell', 'group'], group: 'Shoes', what: "the toe drawn out past the toes, tapering, curled up by `curl` degrees (a poulaine's, a jester's with a `bell` on its tip, a Persian slipper's)" },
+  wrap: { keys: ['on', 'from', 'to', 'turns', 'cross', 'w', 'lift', 'group'], group: 'Wrap', what: 'a ribbon spiralled up the leg, `cross` a second the other way (cross-gartering, a gladiator\'s straps, leg wraps)' },
+  flare: { keys: ['height', 'spread', 'group'], group: 'Shoes', what: "a funnel rising from a boot's top and opening out (a cavalier's bucket top)" },
+  buttons: { keys: ['count', 'side', 'around', 'from', 'to', 'size', 'group'], group: 'Button', what: "a row of buttons up a boot's side (a button boot's, a spat's)" },
+  spur: { keys: ['length', 'size', 'group'], group: 'Steel', what: "a spur: a neck from the heel's back and a star rowel" },
+  wings: { keys: ['feathers', 'span', 'group'], group: 'Wing', what: "a fan of feathers at each side of the ankle (Hermes' talaria)" },
+  jewel: { keys: ['at', 'size', 'group'], group: 'Gem', what: 'a stone set on the toe, the instep or the ankle' },
   toeCap: { keys: ['lift', 'room', 'rivets', 'stud', 'group'], group: 'Steel', what: 'a quarter egg over the toes, toe base to tip (the half teacup), rivets round its back edge (`stud`: { size, group }, small and dark: broguing)' },
 });
 /** the families a card is annotated with (what kind of footwear it is: a shelf to browse, a word to ask by) */
-export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneaker', 'dress']);
+export const FOOTWEAR_FAMILIES = Object.freeze(['shoe', 'boot', 'sandal', 'sneaker', 'dress', 'historic', 'fantasy']);
 /** a sole layer's PATTERNS: `pod` a window of another group at the heel, `from` … `to` shares of the foot's print from
  * the heel, proud of the layer's wall (an air sole); `heel` a block under the print's rear (`to` of it from the heel),
  * `thick` tall from the layer's floor (a dress heel, the foot still flat); `lugs` tread blocks round the layer's edge,
  * every `every`-th point of its outline, `size` (m) */
 export const SOLE_PATTERNS = Object.freeze({ pod: ['from', 'to', 'welt', 'group'], heel: ['to', 'thick', 'group'], lugs: ['every', 'size', 'group'] });
 const GROUP = /^[A-Z][A-Za-z0-9]*$/;
-/** HEELS: how the heel stands (`kind`): its foot drawn in to a point (stiletto), a little (kitten), hardly (block), or
- * the sole filled down to the ground under the arch (wedge) */
-export const HEEL_KINDS = Object.freeze({ stiletto: 0.22, kitten: 0.35, block: 0.85, wedge: 1 });
+/** HEELS: how the heel stands (`kind`): its foot drawn in to a point (stiletto), a little (kitten), hardly (block), the
+ * sole filled down to the ground under the arch (wedge), or a board on two teeth across the foot (teeth: a geta's, the
+ * foot raised level when the toes stand as high as the heel) */
+export const HEEL_KINDS = Object.freeze({ stiletto: 0.22, kitten: 0.35, block: 0.85, wedge: 1, teeth: 1 });
 /** a tone: '#rrggbb', or { of: <group>, shade } (that group's colour darkened (−) or lightened (+)) */
 const isTone = (c) => (typeof c === 'string' ? /^#[0-9a-f]{6}$/i.test(c) : !!c && typeof c === 'object' && GROUP.test(c.of ?? '') && c.shade >= -1 && c.shade <= 1 && Object.keys(c).length === 2);
 /** A palette with its tones OF other groups read (each that group's colour, darkened or lightened; a group it names
@@ -129,7 +138,7 @@ export function validateFootwear(spec, label = 'footwear') {
     else {
       if (!(H.height >= 0.01 && H.height <= 0.2)) errs.push(`${at}.height: metres the heel stands, 0.01 … 0.2`);
       if (H.toe !== undefined && !(H.toe >= 0 && H.toe <= 0.08)) errs.push(`${at}.toe: metres of sole under the toes (a platform's), 0 … 0.08`);
-      if (H.toe !== undefined && H.height !== undefined && !(H.height > H.toe)) errs.push(`${at}: the heel must stand higher than the toes' sole`);
+      if (H.toe !== undefined && H.height !== undefined && !(H.height >= H.toe)) errs.push(`${at}: the heel must stand at least as high as the toes' sole`);
       if (H.shank !== undefined && !(H.shank > 0 && H.shank <= 0.03)) errs.push(`${at}.shank: metres of sole under the arch, over 0 and at most 0.03`);
       if (H.kind !== undefined && !Object.hasOwn(HEEL_KINDS, H.kind)) errs.push(`${at}.kind: one of ${Object.keys(HEEL_KINDS).join(', ')}`);
       if (H.to !== undefined && !(H.to > 0 && H.to <= 0.5)) errs.push(`${at}.to: the share of the footprint from the heel the heel stands under, over 0 and at most 0.5`);
@@ -143,8 +152,8 @@ export function validateFootwear(spec, label = 'footwear') {
     if (!P) { errs.push(`${at}.prim: one of ${Object.keys(ADORN_PRIMS).join(', ')}`); return; }
     for (const k of Object.keys(a)) if (k !== 'prim' && !P.keys.includes(k)) errs.push(`${at}: ${a.prim} takes ${P.keys.join(', ')}, not '${k}'`);
     if (a.shaftRows !== undefined && !(Number.isInteger(a.shaftRows) && a.shaftRows >= 0 && a.shaftRows <= 16)) errs.push(`${at}.shaftRows: a whole number of rows up a boot's shaft, 0 … 16`);
-    if (P.keys.includes('on') && a.prim !== 'panel' && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
-    for (const k of ['at']) if (a[k] !== undefined && !share(a[k])) errs.push(`${at}.${k}: a share, 0 to 1`);
+    if (P.keys.includes('on') && !['panel', 'wrap'].includes(a.prim) && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    if (a.prim !== 'jewel' && a.at !== undefined && !share(a.at)) errs.push(`${at}.at: a share, 0 to 1`);
     if (a.prim === 'panel') {
       const R = a.region;
       if (typeof R === 'string') { if (!COBBLER_REGIONS[R]) errs.push(`${at}.region: one of ${Object.keys(COBBLER_REGIONS).join(', ')}, or { along, around, sides }`); }
@@ -155,6 +164,15 @@ export function validateFootwear(spec, label = 'footwear') {
       }
       if (a.on !== undefined && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
     }
+    const num = (k, lo, hi, what) => { if (a[k] !== undefined && !(typeof a[k] === 'number' && a[k] >= lo && a[k] <= hi)) errs.push(`${at}.${k}: ${what}, ${lo} … ${hi}`); };
+    num('length', 0.005, 0.25, 'metres'); num('curl', 0, 270, 'degrees'); num('taper', 0, 1, 'a share'); num('turns', 0.5, 12, 'turns round the leg');
+    num('height', 0.01, 0.3, 'metres'); num('spread', 1, 3, 'times the top'); num('count', 1, 20, 'buttons'); num('around', 0, 1, 'a share round');
+    num('span', 0.01, 0.2, 'metres'); num('feathers', 1, 12, 'feathers'); num('size', 0.002, 0.04, 'metres'); num('w', 0.001, 0.05, 'metres');
+    for (const k of ['from', 'to']) if (a.prim !== 'panel' && a[k] !== undefined && !share(a[k])) errs.push(`${at}.${k}: a share, 0 to 1`);
+    if (a.side !== undefined && !['lateral', 'medial'].includes(a.side)) errs.push(`${at}.side: lateral or medial`);
+    if (a.prim === 'jewel' && !['toe', 'instep', 'ankle'].includes(a.at)) errs.push(`${at}.at: toe, instep or ankle`);
+    if (a.prim === 'wrap' && a.on !== undefined && !SEGS.includes(a.on)) errs.push(`${at}.on: ${SEGS.join(' or ')}`);
+    if ((a.prim === 'flare' || a.prim === 'buttons') && sock?.height !== 'boot') errs.push(`${at}: a ${a.prim} is a boot's; this card's sock is no boot`);
     if (a.group !== undefined && !GROUP.test(a.group)) errs.push(`${at}.group: a group name (Steel, Gilt …)`);
     if (['cuff', 'toeCap', 'panel', 'laces'].includes(a.prim) && sock === false) errs.push(`${at}: a ${a.prim} is worn on the sock; this card has none`);
   });
@@ -183,7 +201,7 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
     const { toeBase: tb, toeTip: tt } = A.joints(S), fwd = tb && tt ? unitv([tt[0] - tb[0], tt[1] - tb[1], 0]) : [0, 1, 0];
     const ahead = (p) => (tb ? (p[0] - tb[0]) * fwd[0] + (p[1] - tb[1]) * fwd[1] : 0);
     const floor = Math.min(...[foot, toes].filter(Boolean).flatMap(pointsOf).map((p) => p[2]));
-    const n = { strap: 0, band: 0, rivet: 0, panel: 0, lace: 0, lug: 0 };
+    const n = { strap: 0, band: 0, rivet: 0, panel: 0, lace: 0, lug: 0, wrap: 0, button: 0 };
     if (HL) {
       // 2 SOLE ON HEELS: the foot tipped about the toe base (the rig's stance: lib/graph/polygonizer/station-loft-rig.js),
       // so each piece is cut against where the ground will be under that pose: the toes on their sole (`toe`), the foot's
@@ -196,15 +214,24 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
       // (the bind height a place on the foot must have to stand on the floor once the foot is tipped and raised)
       const groundAt = (x, y) => tb[2] + (floor - tb[2] - t - (y - tb[1]) * sa) / ca;
       const lerp = (x, y) => Math.min(1, Math.max(0, -ahead([x, y, 0]) / 0.06));
-      const toeSole = toes && slabBetween(near(toes, (p) => ahead(p) > -0.004), { welt, bottom: () => floor - t, top: () => floor + 0.002 });
+      const teeth = kind === 'teeth', toeSole = toes && slabBetween(near(toes, (p) => ahead(p) > -0.004), { welt, bottom: () => floor - (teeth ? sh : t), top: () => floor + 0.002 });
       const footSole = slabBetween(fp, { welt, top: () => floor + 0.002,
-        bottom: kind === 'wedge' ? (x, y) => Math.min(floor - t, groundAt(x, y)) : (x, y) => floor - (t + (sh - t) * lerp(x, y)) });
+        bottom: kind === 'wedge' ? (x, y) => Math.min(floor - t, groundAt(x, y)) : teeth ? () => floor - sh : (x, y) => floor - (t + (sh - t) * lerp(x, y)) });
       // (rigid on the foot's bone and the toes', as a shoe's sole and heel are: the leather's blend round the ankle would
       // turn them with the shin)
       const rigid = (P) => ({ bone: P.bind.bone, blend: {} });
       if (footSole) put(`${id}Sole_${fn}`, { ...footSole, group: sg, bind: rigid(foot) });
       if (toeSole) put(`${id}Sole_${tn}`, { ...toeSole, group: sg, bind: rigid(toes) });
-      if (kind !== 'wedge') {
+      if (kind === 'teeth') {
+        // (a GETA: a board under the whole foot, `shank` thick, on two teeth across it, one under the ball, one under the heel)
+        for (const [name, [b0, b1]] of [['ToothFront', [0, 0.3]], ['ToothBack', [0.62, 0.86]]]) {
+          // (its strip of the footprint, or on a coarse foot the eight points nearest the strip's middle)
+          const strip = fp.filter((p) => -ahead(p) >= back * b0 && -ahead(p) <= back * b1), m = back * (b0 + b1) / 2;
+          const print = strip.length >= 8 ? strip : [...fp].sort((p, q) => Math.abs(-ahead(p) - m) - Math.abs(-ahead(q) - m)).slice(0, 8);
+          const tooth = slabBetween(print, { welt: welt * 0.5, top: () => floor - sh + 0.002, bottom: groundAt });
+          if (tooth) put(`${id}${name}_${fn}`, { ...tooth, group: HL.group ?? 'Heel', bind: rigid(foot) });
+        }
+      } else if (kind !== 'wedge') {
         const seat = fp.filter((p) => -ahead(p) >= back * (1 - (HL.to ?? 0.28))), c = seat.length ? seat.reduce((m, p) => [m[0] + p[0] / seat.length, m[1] + p[1] / seat.length], [0, 0]) : null;
         // (leaned forward by the pitch in the bind, so it stands plumb under the tipped foot)
         const tall = c ? floor - sh - groundAt(c[0], c[1]) : 0, lean = tall * Math.tan(-a), shift = [fwd[0] * lean, fwd[1] * lean];
@@ -286,6 +313,81 @@ export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' 
           laceBars(P, sts, inner('lateral'), inner('medial'), { rows, lift: a.lift ?? 0.0055, w: a.w ?? 0.003 })
             .forEach((b) => put(`${id}Lace${n.lace++}_${seg}`, { ...b, group: a.group ?? 'Lace', bind: bindNearest(b, P) }));
         }
+      } else if (a.prim === 'toePoint') {
+        // a TOE drawn out past the toes, from inside their front at their middle height, tapering, curled up; a bell on its tip
+        const P = toes ?? foot; if (!tb || !tt || !P) continue;
+        const side = [fwd[1], -fwd[0], 0], pts = pointsOf(P).filter((p) => ahead(p) >= -0.002 && p[2] > floor + 0.002); if (!pts.length) continue;
+        const front = Math.max(...pts.map(ahead)), lowZ = floor + soleThick / 2, hi = Math.max(...pts.map((p) => p[2]));
+        const nearFront = pts.filter((p) => ahead(p) > front - 0.02), across = nearFront.map((p) => (p[0] - tb[0]) * side[0] + (p[1] - tb[1]) * side[1]);
+        const c = across.reduce((m, x) => m + x, 0) / across.length, half = (Math.max(...across) - Math.min(...across)) / 2, back = front - 0.012;
+        const o = [tb[0] + fwd[0] * back + side[0] * c, tb[1] + fwd[1] * back + side[1] * c, lowZ + (hi - lowZ) * 0.42];
+        const r0 = Math.max(0.006, Math.min(half, (hi - lowZ) / 2) * 0.85), spike = toeSpike(o, fwd, side, { length: (a.length ?? 0.06) + 0.012, curl: a.curl ?? 0, r0, taper: a.taper ?? 0.15 });
+        const seg = toes ? tn : fn, rig = { bone: P.bind.bone, blend: {} };
+        put(`${id}ToePoint_${seg}`, { ...spike, group: a.group ?? 'Shoes', bind: rig });
+        if (a.bell) { const tip = spike.caps.tip, last = spike.stations[spike.stations.length - 1].points, m = mean(Object.values(last)), d = unitv(tip.map((x, q) => x - m[q]));
+          put(`${id}Bell_${seg}`, { ...block(tip, d, unitv([fwd[1], -fwd[0], 0]), { w: 0.014, h: 0.014, thick: 0.014 }), group: 'Bell', bind: rig }); }
+      } else if (a.prim === 'wrap') {
+        // a RIBBON spiralled up the leg over the stations between its shares, a second the other way when crossed
+        // (on the leather where it runs there, else on the bare leg above a short boot)
+        const kind = a.on ?? 'shank', seg = A.seg(kind, S), lo = A.u(kind, a.from ?? 0.3), hi = A.u(kind, a.to ?? 1);
+        const within = (Q) => (Q ? Q.stations.filter((st, i) => { const u = st.u ?? i; return u >= Math.min(lo, hi) - 1e-9 && u <= Math.max(lo, hi) + 1e-9; }) : []);
+        let P = on(seg), sts = within(P);
+        if (sts.length < 2) { P = A.bare(seg); sts = within(P); }
+        if (sts.length < 2) continue;
+        const k0 = n.wrap; n.wrap += a.cross ? 2 : 1;
+        [1, ...(a.cross ? [-1] : [])].forEach((sign, j) => {
+          const H = helixOn(P, sts, { turns: a.turns ?? 3, phase: j * 0.5, lift: a.lift ?? 0.003, sign }), rb = ribbon(H.path, H.normals, { w: a.w ?? 0.012 });
+          if (rb) put(`${id}Wrap${k0 + j}_${seg}`, { ...rb, group: a.group ?? 'Wrap', bind: bindNearest(rb, P) });
+        });
+      } else if (a.prim === 'flare') {
+        // a FUNNEL from the boot's top, rising and opening out
+        const seg = A.seg('shank', S), P = on(seg); if (!P || !sock) continue;
+        const f = flareTop(P.stations[0].points, { height: a.height ?? 0.08, spread: a.spread ?? 1.6 });
+        put(`${id}Flare_${seg}`, { ...f, group: a.group ?? 'Shoes', bind: bindNearest(f, P) });
+      } else if (a.prim === 'buttons') {
+        // BUTTONS up the boot's side: `count` of them spread over the shaft between its shares, round at `around`
+        const seg = A.seg('shank', S), P = on(seg); if (!P) continue;
+        const lo = A.u('shank', a.from ?? 0), hi = A.u('shank', a.to ?? 1), sts = P.stations.filter((st, i) => { const u = st.u ?? i; return u >= lo - 1e-9 && u <= hi + 1e-9; });
+        const arc = arcOf(P.slots, { around: [a.around ?? 0.3, a.around ?? 0.3] }, a.side ?? 'lateral', S), sl = arc[0], cnt = Math.min(a.count ?? 6, sts.length);
+        for (let i = 0; i < cnt; i++) {
+          const st = sts[Math.round((i * (sts.length - 1)) / Math.max(1, cnt - 1))], m = mean(Object.values(st.points)), p = st.points[sl], d = unitv(p.map((x, q) => x - m[q])), sz = a.size ?? 0.007;
+          const b = block(p.map((x, q) => x + d[q] * 0.002), d, [0, 0, 1], { w: sz, h: sz, thick: sz * 0.5 });
+          put(`${id}Button${n.button++}_${seg}`, { ...b, group: a.group ?? 'Button', bind: bindNearest(b, P) });
+        }
+      } else if (a.prim === 'spur') {
+        // a SPUR: a neck back from the heel at the ankle's height, a star rowel on its end, rigid on the foot
+        if (!tb || !foot) continue;
+        const z0 = floor + 0.025, ring = pointsOf(foot).filter((p) => p[2] > z0 && p[2] < z0 + 0.03); if (!ring.length) continue;
+        const heel = ring.reduce((m, p) => (ahead(p) < ahead(m) ? p : m), ring[0]), len = a.length ?? 0.035, back = [-fwd[0], -fwd[1], 0];
+        const path = [0, 0.5, 1].map((s) => [heel[0] + back[0] * len * s, heel[1] + back[1] * len * s, heel[2] + 0.004 * s]);
+        const neck = ribbon(path, path.map(() => [0, 0, 1]), { w: 0.004, thick: 0.003 }), side = [fwd[1], -fwd[0], 0], rig = { bone: foot.bind.bone, blend: {} };
+        if (neck) put(`${id}SpurNeck_${fn}`, { ...neck, group: a.group ?? 'Steel', bind: rig });
+        put(`${id}Rowel_${fn}`, { ...rowel(path[2].map((x, q) => x + back[q] * (a.size ?? 0.012)), side, [0, 0, 1], { r: a.size ?? 0.012 }), group: a.group ?? 'Steel', bind: rig });
+      } else if (a.prim === 'wings') {
+        // WINGS: a fan of feathers at each side of the ankle, swept back and up, the longest first
+        const seg = A.seg('shank', S), P = on(seg); if (!P) continue;
+        const st = P.stations[Math.max(0, P.stations.length - 3)], m = mean(Object.values(st.points)), up = [0, 0, 1], back = [-fwd[0], -fwd[1], 0];
+        for (const [side, tag] of [['lateral', 'Lat'], ['medial', 'Med']]) {
+          const sl = arcOf(P.slots, { around: [0.5, 0.5] }, side, S)[0], p0 = st.points[sl], nrm = unitv(p0.map((x, q) => x - m[q])), F = a.feathers ?? 5, span = a.span ?? 0.07;
+          for (let i = 0; i < F; i++) {
+            const ang = ((20 + (60 * i) / Math.max(1, F - 1)) * Math.PI) / 180, dir = unitv(back.map((x, q) => x * Math.cos(ang) + up[q] * Math.sin(ang))), L = span * (1 - 0.12 * i);
+            const path = [0, 0.33, 0.66, 1].map((s) => p0.map((x, q) => x + nrm[q] * (0.004 + 0.012 * Math.sin(Math.PI * s * 0.8)) + dir[q] * L * s));
+            const f = ribbon(path, path.map(() => nrm), { w: 0.01, thick: 0.0015, widths: [0.006, 0.012, 0.01, 0.002] });
+            if (f) put(`${id}Wing${tag}${i}_${seg}`, { ...f, group: a.group ?? 'Wing', bind: bindNearest(f, P) });
+          }
+        }
+      } else if (a.prim === 'jewel') {
+        // a JEWEL set on the toe (the toes' top front), the instep (the foot's centre line) or the ankle (its outer side)
+        const where = a.at, sz = a.size ?? 0.009;
+        const P = where === 'toe' ? toes ?? foot : where === 'instep' ? foot : on(A.seg('shank', S)), seg = where === 'toe' ? (toes ? tn : fn) : where === 'instep' ? fn : A.seg('shank', S); if (!P) continue;
+        let p, d;
+        if (where === 'ankle') { const st = P.stations[P.stations.length - 2] ?? P.stations[0], m = mean(Object.values(st.points)); p = st.points[arcOf(P.slots, { around: [0.5, 0.5] }, 'lateral', S)[0]]; d = unitv(p.map((x, q) => x - m[q])); }
+        else {
+          const st = where === 'instep' ? P.stations.find((x, i) => (x.u ?? i) >= A.u('foot', 0.62)) ?? P.stations[P.stations.length - 1] : P.stations.reduce((b, x) => (ahead(mean(Object.values(x.points))) > ahead(mean(Object.values(b.points))) - 0.01 && x !== P.stations[P.stations.length - 1] ? x : b), P.stations[0]);
+          const m = mean(Object.values(st.points)); p = Object.values(st.points).reduce((b, x) => (x[2] > b[2] ? x : b)); d = unitv(p.map((x, q) => x - m[q]));
+        }
+        const b = block(p.map((x, q) => x + d[q] * 0.002), d, fwd, { w: sz, h: sz, thick: sz * 0.6 });
+        put(`${id}Jewel_${seg}`, { ...b, group: a.group ?? 'Gem', bind: bindNearest(b, P) });
       } else if (a.prim === 'toeCap') {
         // the half teacup: a quarter egg over the toes, mapped toe to toe (the toe base to past the tip, with `room` beyond
         // it: a shoe's toe allowance), as wide and as high as the toes and `lift` more, its bottom inside the sole, carried

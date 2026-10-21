@@ -20,6 +20,9 @@
 //   7. A VARIETY IS ITS KIN AND A FEW KEYS. A card extends another (`from`): the high-top is the court shoe over the ankle,
 //      the brogue the oxford perforated. The pieces stay in their groups by ROLE (Overlay, Counter, Eyestay, Midsole …),
 //      so a COLOURWAY (`skin`) recolours any card, and every piece rides the rig by the weights of the layer under it.
-//   8. A CARD'S TONES ARE SUGGESTIONS. The ones it (or its skin) names stand over a palette's defaults; the operator's own
+//   8. WHAT A COBBLER DOES NOT CUT, A PRIMITIVE MAKES (fantasy.js): a toe drawn out and curled, a ribbon wound up the leg,
+//      a bucket top, a row of buttons, a spur, wings, a set stone, a geta's teeth. Each rides the bone or the leather it is
+//      laid on, so history and fantasy compose as freely as the rest.
+//   9. A CARD'S TONES ARE SUGGESTIONS. The ones it (or its skin) names stand over a palette's defaults; the operator's own
 //      palette over all.
 export const FOOTWEAR_LAWS_VERSION = 1;

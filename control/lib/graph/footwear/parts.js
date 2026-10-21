@@ -88,7 +88,7 @@ export function buckleOn(band, side, { w = 0.016, h = 0.012, thick = 0.004 } = {
 }
 
 /** a small block standing on `P` along the normal `n`, `h` along `t` and `w` across it, `thick` proud */
-function block(P, n, t, { w, h, thick }) {
+export function block(P, n, t, { w, h, thick }) {
   const b = unitv(cross(n, t)), names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
   const face = (off) => Object.fromEntries(names.map((nm, j) => [nm, [0, 1, 2].map((q) => r6(P[q] + n[q] * off + t[q] * corner[j][0] * h / 2 + b[q] * corner[j][1] * w / 2))]));
   return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: face(0.0005) }, { id: 'st1', u: 1, points: face(thick) }],

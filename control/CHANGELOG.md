@@ -113,7 +113,15 @@ leather cut round as the shaft's, so no plain leather shows between them), so an
 and a shoe is not. Cards
 `hikingBoots` (lugged, a padded collar, a toe guard), `combatBoots` (laced to mid-calf), `chukkas` (suede, a crepe
 sole), `cowboyBoots` (pull tabs, a stitched band, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
-plain shaft, a low heel); `workBoots` laced. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
+plain shaft, a low heel); `workBoots` laced. FANTASY, DRAMA AND HISTORY (`fantasy.js`): primitives the cobbler's pieces do not make, composed by cards like any
+other: `toePoint` (the toe drawn out past the toes, tapering, curled up by its degrees, a `bell` on its tip), `wrap` (a
+ribbon spiralled up the leg, on the leather or the bare leg above a short boot; `cross` a second the other way),
+`flare` (a funnel rising from a boot's top and opening out), `buttons` (a row up a boot's side), `spur` (a neck from the
+heel and a star rowel), `wings` (a fan of feathers at each side of the ankle), `jewel` (a stone on the toe, the instep or
+the ankle); the heel kind `teeth` (a board on two teeth, the foot raised level when the toes stand as high as the heel).
+Families `historic` and `fantasy`. Cards `poulaines`, `jesterShoes`, `persianSlippers`, `romanCaligae` (hobnailed),
+`gladiatorSandals`, `vikingWraps`, `cavalierBoots`, `buttonBoots`, `geta`, `elvenBoots`, `talaria`. On the authored body
+a card wears its boot, sandal or shoe by its sock. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
 tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
 `station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
 metatarsus `pitch` degrees heel-up, or the pose's own heel where it lifts further, a free foot's toes turned down by the

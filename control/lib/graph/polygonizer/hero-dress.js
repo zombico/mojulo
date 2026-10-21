@@ -222,9 +222,9 @@ export const OUTFIT_WORDS = Object.freeze({
   // (on the authored body a sandal is a low shoe, close; on the realistic body the sole and the straps alone)
   sandals: ({ scale: k }) => [{ id: 'shoeSandal', part: 'foot', fit: 'shoe', ease: 0.003 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
   // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
-  // its sandal or its shoe by the card's family, under ids of their own)
+  // its sandal or its shoe by the card's sock, under ids of their own)
   ...Object.fromEntries(Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w)).map((w) => {
-    const fam = footwearCard(w).family, base = fam === 'boot' ? 'boots' : fam === 'sandal' ? 'sandals' : 'shoes';
+    const C = footwearCard(w), base = C.sock === false ? 'sandals' : C.sock?.height === 'boot' ? 'boots' : 'shoes';
     return [w, (c) => footAs(w, OUTFIT_WORDS[base](c))];
   })),
 });
