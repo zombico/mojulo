@@ -17,7 +17,8 @@
  * read by dermal-looks.js readAncestry) and its own shapes' weights and ranges where they differ. `western` first
  * (European ancestry); the next buckets are new tables, not new code.
  *
- *   composeFace({ sex, bucket, seed, character?, accent? }) → { relations, picks, character, accent, ancestry }
+ *   composeFace({ sex, bucket, seed, character?, accent? }) → { relations, picks, proportions (each −1 … 1 of its
+ *                   reach), character, accent, ancestry }
  *
  * Pure and deterministic: seeded dice (`streamOf`), no clock.
  */
@@ -67,6 +68,13 @@ export const FACE_SHAPES = Object.freeze({
   },
 });
 export const FACE_FEATURES = Object.freeze(Object.keys(FACE_SHAPES));
+/**
+ * THE PROPORTIONS — what differs person to person whatever the character: the skull's length and breadth, the vault's
+ * height (the face's share of the head: a smaller share, a taller skull), the face's and the jaw's widths, the mouth's
+ * width. Each rolled about the face's own value within ± its reach, the mean of two dice (the middle likelier than
+ * the ends), after the shapes (so a seed keeps its shapes when these change).
+ */
+export const FACE_PROPORTIONS = Object.freeze({ headLength: 0.03, cephalic: 0.04, third: 0.008, faceWidth: 0.02, jaw: 0.04, mouthWidth: 0.15 });
 /** a shape's offsets are scaled by a seeded share in this range */
 export const FACE_SPREAD = Object.freeze([0.6, 1.2]);
 /** how far a shape's pull reaches on the character plane (the nearer shapes the likelier) */
@@ -74,7 +82,8 @@ const REACH = 0.5;
 /** the chance a face carries an accent, and how far from its point an accent's shape must sit */
 const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
 
-/** the populations a face is rolled for: the ancestries its tone and hair come from, its shapes' weights (× 1 absent) */
+/** the populations a face is rolled for: the ancestries its tone and hair come from, its shapes' weights (× 1 absent),
+ * its proportions' reaches (`FACE_PROPORTIONS` absent) */
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {} },
 });
@@ -109,7 +118,14 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     picks[f] = name;
     for (const [key, v] of Object.entries(FACE_SHAPES[f][name].rel)) off[key] = (off[key] || 0) + v * k;
   }
+  const ancestry = B.ancestry[Math.floor(d() * B.ancestry.length) % B.ancestry.length];
+  const proportions = {};
+  for (const [key, reach] of Object.entries(B.proportions || FACE_PROPORTIONS)) {
+    const v = ((d() + d()) - 1) * reach;
+    proportions[key] = Math.round((v / reach) * 100) / 100;
+    off[key] = (off[key] || 0) + v;
+  }
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, base[key] + v])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { relations, picks, character: at.map(r3), accent: acc, ancestry: B.ancestry[Math.floor(d() * B.ancestry.length) % B.ancestry.length] };
+  return { relations, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

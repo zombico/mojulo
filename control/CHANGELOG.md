@@ -44,6 +44,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   each pushed a seeded share, and may carry one accent taken from far off (a strong jaw under fine features). A bucket
   (`FACE_BUCKETS`) names the egocube ancestries its tone and hair are rolled from; `western` first. The dermis study's
   `--faces` subjects may name an ancestry and a seed.
+- The composer's PROPORTIONS (`FACE_PROPORTIONS`): what differs person to person whatever the character, rolled after the
+  shapes about the face's own values: the skull's length and breadth, the vault's height (the face's share of the head),
+  the face's, the jaw's and the mouth's widths.
 
 ### Body-part map: dress tailored to the body, not the segment
 
