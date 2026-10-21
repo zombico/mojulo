@@ -68,6 +68,21 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
   carried by the clavicle; the kit's lames down the arm under it.
 - The GORGET optional: the realistic body wears it only when the build names it (`wear: ['gorget']`, armor/expand.js
   validates the word). The authored body's armour byte for byte.
+- The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
+  primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
+  made for the authored foot lands on the same share of the realistic one.
+
+### Footwear: a composable primitive
+
+In progress (on the realistic body first; a solver library with an adapter per body's foot next).
+`polygonizer/body-relational-footwear.js` `footwear(recipe, R, build, map, spec)`: an UPPER (leather close over the foot
+and its toes, a field garment; `upper: false` none, a sandal) at a HEIGHT (`boot`: carried up the shank as a shaft, the
+foot's leather tucked under it round the ankle; `shoe`: from a collar below the ankle), and ADORNMENTS: a SOLE under the
+foot and under the toes (split at the toe base so it bends with them; the footprint's outline grown by a welt, from the
+floor up), STRAPS round the upper (or the bare foot) and a BUCKLE on each one's outer side, each carried by the weights
+of the upper's nearest point. New groups `Sole`, `Strap`, `Brass` (their tones added to a palette that names none). The
+words on the realistic body: `boots`, `shoes` (new), `sandals` (new; on the authored body a low close shoe).
+`fieldGarment` takes `covers: null` (every ring of the segments it is `on`).
 
 ### The hero's skin: a part of the character, shown where it shows
 

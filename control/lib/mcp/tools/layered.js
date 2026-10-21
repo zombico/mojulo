@@ -73,6 +73,7 @@ import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope'
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
+import { footwear, FOOTWEAR } from '@/lib/graph/polygonizer/body-relational-footwear';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -299,7 +300,11 @@ function realisticExpand(plan, hero) {
   const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
   const fieldWords = words.filter((w) => FIELD_GARMENTS[w]);
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
-  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length) return S;
+  // FOOTWEAR: a word with a footwear spec (body-relational-footwear.js FOOTWEAR: boots, shoes) is the primitive's, in place
+  // of its segment pieces (`boot…`, `shoe…`)
+  const footWords = words.filter((w) => FOOTWEAR[w]);
+  if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !/^(boot|shoe)[A-Z]/.test(g.id)) };
+  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
@@ -345,6 +350,16 @@ function realisticExpand(plan, hero) {
     const s = S.dials?.[k], out = { ...d, ...(Array.isArray(d.parts) ? { parts: d.parts.filter((p) => R.parts[p]) } : {}) };
     return [k, s?.blend ? { ...out, blend: { ...(d.blend || {}), ...s.blend } } : out];
   }));
+  for (const w of footWords) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), W = footwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
+    for (const [name, part] of Object.entries(W.parts)) {
+      R.parts[name] = part;
+      const seg = name.slice(name.indexOf('_') + 1);
+      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+    }
+    R.palette = { ...W.tones, ...(R.palette || {}) };
+  }
+  if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {
     const B = realisticBuild(hero), RS = validateRig(S.rig), map = bodyPartMap(S, RS, B);
     for (const w of fieldWords) for (const [name, part] of Object.entries(fieldGarment(S, RS, B, map, { id: w, ...FIELD_GARMENTS[w] }).parts)) {

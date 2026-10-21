@@ -8,11 +8,12 @@
  *
  *   fitPlates(kit, parts, { density }) → the kit, each plate's sampling raised to its carrier's (`density` of it)
  *   wornPieces(kit, wear)                → the kit without the OPTIONAL pieces the build's `wear` does not name
- *   fieldPlates(kit, recipe, R, build, map) → { kit, parts } | null: the CUIRASS (the kit's breast and back plates)
+ *   fieldPlates(kit, recipe, R, build, map) → { kit, parts, tones } | null: the CUIRASS (the kit's breast and back plates)
  *                                            and the FAULD made field shells round the trunk over their rings (a field
  *                                            garment at a plate's clearance, taut over the forms: body-relational-
  *                                            garment.js), the kit without them; a piece worn over them (a strap, a
- *                                            tasset) stacks over them; the PAULDRONS caps over the shoulders (`jointCap`)
+ *                                            tasset) stacks over them; the SABATONS close boots over the feet; the
+ *                                            PAULDRONS caps over the shoulders (`jointCap`)
  *   jointCap(pts, { at, axis, cone, … })   → a closed plate domed over a joint
  *
  * A strap, a signature or a piece that is not plate keeps its own. Pure data; deterministic.
@@ -20,6 +21,7 @@
 
 import { fieldGarment } from './body-relational-garment.js';
 import { ringSlots } from './body-relational-resample.js';
+import { footwear } from './body-relational-footwear.js';
 
 /** the groups a plate is worn in (station-loft-adorn.js kits: the armour cards' metal and lacquer) */
 const PLATE = /^(Plate|Iron|Steel|Silver|Lacquer|Metal|Helm)/;
@@ -57,23 +59,27 @@ export function fitPlates(kit, parts, { density = 0.75 } = {}) {
 const FIELD_PLATES = [
   { id: 'cuirass', of: /^torso-(breast|back)[RL]?$/, covers: ['collar', 'shoulderTop', 'chest', 'breast', 'armpit', 'flank', 'abdomen', 'upperBack', 'back', 'lowerBack'], on: ['torso'] },
   { id: 'fauld', of: /^(torso|pelvis)-fauld$/, covers: ['flank', 'abdomen', 'lowerBack', 'back', 'hip', 'seat', 'groin'], on: ['torso', 'pelvis'], over: 'cuirass', tuck: 0.12 },
+  // the SABATONS BOOTS on the realistic foot (its turn from the ankle to the sole folds a plate): the footwear
+  // primitive's (body-relational-footwear.js)
+  { id: 'boots', of: /^foot[RL]-sabaton$/, on: ['foot'], footwear: 'boots' },
 ];
 const PLATE_CLOTH = { looser: 4, reach: 0.08, taut: true, span: 0.2, along: 2 };
 
 /** The plates the kit names made as field shells (see the head of this file): → { kit (without them), parts } | null */
 export function fieldPlates(kit, recipe, R, build, map) {
   if (!Array.isArray(kit)) return null;
-  let rest = kit; const parts = {}, ease = {};
+  let rest = kit, tones = {}; const parts = {}, ease = {};
   for (const F of FIELD_PLATES) {
-    const plates = rest.filter((A) => A && F.of.test(A.id) && Array.isArray(A.s) && F.on.includes(A.part));
+    const plates = rest.filter((A) => A && F.of.test(A.id) && Array.isArray(A.s) && F.on.includes(A.part.replace(/[RL]$/, '')));
     if (!plates.length) continue;
     // its window on each part it rides: the kit's own, the fauld's top tucked up under the cuirass's lower edge
     const window = {};
     for (const A of plates) { const w = window[A.part] ?? [Infinity, -Infinity]; window[A.part] = [Math.min(w[0], ...A.s), Math.max(w[1], ...A.s)]; }
     if (F.tuck && window.torso && ease[F.over] !== undefined) window.torso[1] += F.tuck;
+    rest = rest.filter((A) => !plates.includes(A));
+    if (F.footwear) { const W = footwear(recipe, R, build, map, F.footwear, { id: F.id }); Object.assign(parts, W.parts); tones = { ...tones, ...W.tones }; continue; }
     ease[F.id] = Math.max(0.008, ...plates.map((A) => A.mugen ?? 0), F.over && ease[F.over] !== undefined ? ease[F.over] + 0.004 : 0);
     Object.assign(parts, fieldGarment(recipe, R, build, map, { id: F.id, covers: F.covers, on: F.on, ...PLATE_CLOTH, ease: ease[F.id], group: plates[0].group ?? 'Plate', window }).parts);
-    rest = rest.filter((A) => !plates.includes(A));
   }
   // THE PAULDRONS: each side's anchor (the kit's `torso-pauldron<S>` and its trim) a cap domed over the shoulder, over
   // the skin of the torso and the upper arm and the cuirass, carried by the clavicle (it rises as the shoulder does); the
@@ -86,7 +92,7 @@ export function fieldPlates(kit, recipe, R, build, map) {
     parts[`adorn.pauldron${S}`] = jointCap(beneath, { at: J, axis: [S === 'R' ? 1 : -1, 0, 0.55], clearance: (ease.cuirass ?? 0.01) + 0.006, bone: `clavicle${S}`, group: anchors.find((A) => !/trim/.test(A.id))?.group ?? 'Plate' });
     rest = rest.filter((A) => !anchors.includes(A));
   }
-  return Object.keys(parts).length ? { kit: rest, parts } : null;
+  return Object.keys(parts).length ? { kit: rest, parts, tones } : null;
 }
 
 /**

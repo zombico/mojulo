@@ -100,6 +100,9 @@ export function footPart(P, sd, { R, B, limb, frame, W, shank, shankSd }) {
     const pole = crossing(sd, ends[1][0], N, 0.05);
     out.caps = { back: sub(ends[0][0], scl(N, ends[0][1] / 3)).map(r6), tip: (pole ?? add(ends[1][0], scl(N, ends[1][1] / 3))).map(r6) };
   }
+  // (each ring's `u` the authored part's span shared over the rings, as a re-sampled limb's is: an address made for the
+  // authored foot, a sabaton's window, lands on the same share of this one)
+  out = { ...out, stations: out.stations.map((st, i, all) => ({ ...st, u: r6(((P.stations.length - 1) * i) / (all.length - 1)) })) };
   return bindFoot(out, { limb, frame, W, shank, shankSd });
 }
 

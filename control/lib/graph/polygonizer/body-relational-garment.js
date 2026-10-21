@@ -40,7 +40,8 @@ const TRUNK = new Set(['torso', 'neck', 'pelvis']);
  * `<id>_<segment>`: { parts } */
 export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ease = 0.008, looser = 3, group = 'Top', reach = 0.04, taut = true, span = 0, along = 2, soft = false, floor = false, join = null, on = null, window = null }) {
   const B = typeof build === 'string' ? BODY_BUILDS[build] : build, B1 = { ...B, kMuscle: B.kMuscle * looser, kLimb: B.kLimb * looser };
-  const want = new Set(covers), arm = limbField(R, B1, 'upperArm');
+  // (`covers` null: every ring of the segments `on` names, a boot over the whole foot)
+  const want = covers ? new Set(covers) : null, arm = limbField(R, B1, 'upperArm');
   // the CLOTH FIELD: the body's own, blended looser (the shoulder's cap with it), eased out; a limb's the limb's
   const trunk = bodyField(R, B1, { extra: arm.prims.filter((p) => /^deltoid/.test(p.id)) });
   // (`join`: a limb taken into the trunk's cloth, both sides, so a trunk piece wraps the limb's top)
@@ -52,7 +53,7 @@ export function fieldGarment(recipe, R, build, map, { id, covers, limit = {}, ea
     const base = seg.replace(/[RL]$/, '');
     if (on && !on.includes(base)) continue;
     // the rings the piece's parts mostly cover (of the points any part shows), in one run from the first to the last
-    const covered = P.stations.map((st) => {
+    const covered = !want ? P.stations.map(() => true) : P.stations.map((st) => {
       const seen = P.slots.map((sl) => map.part[`${seg}/${st.id}.${sl}`]).filter((p) => p && p !== 'hidden');
       return seen.length > 0 && seen.filter((p) => want.has(p)).length >= seen.length / 2;
     });
