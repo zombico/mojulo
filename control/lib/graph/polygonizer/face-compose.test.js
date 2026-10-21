@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, LID_FOLD } from './face-compose.js';
+import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 
 describe('the face composer', () => {
   it('is deterministic: the same seed composes the same face', () => {
@@ -27,5 +28,26 @@ describe('the face composer', () => {
     expect(FACE_BUCKETS.western.ancestry).toContain(composeFace({ seed: 2 }).ancestry);
     expect(() => composeFace({ bucket: 'nowhere' })).toThrow(/bucket/);
     expect(() => composeFace({ accent: 'ears' })).toThrow(/accent/);
+  });
+
+  it('sets a bucket\'s base before its rolls, and keeps the rolls within it', () => {
+    const B = FACE_BUCKETS.asian.base, pole = RELATION_POLES.female;
+    for (let seed = 1; seed <= 12; seed++) {
+      const f = composeFace({ bucket: 'asian', seed });
+      // (a relation only the base moves lands on the pole plus the base; one the proportions roll stays within their reach)
+      expect(f.relations.radix ?? 0).toBeCloseTo((pole.radix ?? 0.048) + B.radix, 9);
+      expect(Math.abs(f.relations.cephalic - (pole.cephalic + B.cephalic))).toBeLessThanOrEqual(FACE_PROPORTIONS.cephalic + 1e-9);
+      for (const [k, [lo, hi]] of Object.entries(FACE_LIMITS)) { expect(f.relations[k]).toBeGreaterThanOrEqual(lo); expect(f.relations[k]).toBeLessThanOrEqual(hi); }
+    }
+  });
+  it('rolls a lid cover where the bucket has one, and the cover owns the fold', () => {
+    const lids = FACE_BUCKETS.asian.lids;
+    for (let seed = 1; seed <= 16; seed++) {
+      const f = composeFace({ bucket: 'asian', seed });
+      expect(Object.keys(lids)).toContain(f.picks.lid);
+      expect(['deep', 'hooded']).not.toContain(f.picks.eyes);
+      for (const ch of LID_FOLD) if (EYE_SHAPES[f.picks.lid][ch] !== undefined) expect(f.eyes[ch]).toBe(EYE_SHAPES[f.picks.lid][ch]);
+      expect(composeFace({ bucket: 'western', seed }).picks.lid).toBeUndefined();
+    }
   });
 });

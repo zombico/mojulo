@@ -50,6 +50,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The composer's EYE REGION: the eyes' shapes carry the lids (the eye rig's channels: open, large, almond, deep, hooded,
   soft), a brows feature takes the epidermis cube's groom words (natural, straight, arched, thick, thin), and the eyes'
   spacing, height, size and tilt are rolled per face; `composeFace` returns `eyes` and `epidermis` with its relations.
+- THE ASIAN BUCKET (East and Southeast Asian ancestry): a bucket's `base` is the population's mean morphology, set before
+  the rolls and measured against what the pole already does (after published East Asian anthropometry: a rounder vault,
+  the inner canthi wider apart, a wider nasal base, a lower and flatter root, a broader bridge, a lighter brow ridge, a
+  rounder forehead, the cheekbones forward). Its LID COVER is rolled per face (monolid, in-fold, parallel, hooded, by the
+  egocube's weights) and owns the fold's channels (`LID_FOLD`) over the character's eye shape; never a slant. Shapes
+  weigh per bucket. `FACE_LIMITS` holds a composed face inside the head's working range, measured by the tune's solve
+  (the nose's projection, the cephalic index): a face asked past it is drawn at it.
 
 ### Body-part map: dress tailored to the body, not the segment
 
