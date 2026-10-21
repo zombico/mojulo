@@ -24,7 +24,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   face's taper.
 - The relational head's HARMONIC SHAPES, relations the canon's ratios did not reach (head-relational.js `RELATIONS`):
   `chinWidth` and `chinRound` (the chin's width and its point), `dorsum` (the nose's bridge and root), `gonionDrop`
-  (the jaw's corner), `cheeks` (the cheek's fullness), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
+  (the jaw's corner), `cheeks` (the cheek's fullness), `lowerCheek` (the lower cheek bowed out over the jaw's body: a softer outline from
+  the cheekbone to the chin), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
   Each is an offset from the canon, 0 the canon's own: a face moves from a natural one and never starts from a carved
   one (no hollowed cheek by default), and both poles' heads are byte for byte as pinned.
 - face-harmony.js: `dimorphRelations(d)`, the relations `d` of the way from the male canon (0) to the female pole (1),

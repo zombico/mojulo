@@ -92,6 +92,8 @@ export const RELATIONS = Object.freeze({
   dorsum: 0,            // the nose's bridge and root, their width × (1 + this) (− a finer bridge; the ridge's front kept)
   gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
   cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
+  lowerCheek: 0,        // the lower cheek over the jaw's body: the balloon's lower arm bowed down and out and filled
+                        // (+ a softer, rounder outline from the cheekbone to the chin; − a sharper V)
   masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
   forehead: 0,          // the frontal bulb forward of its canon place / v-me (+ a more upright, rounder forehead)
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
@@ -422,7 +424,9 @@ export function coreVajras(P, rel = RELATIONS) {
     // balloon is one closed mass, not a loop with a hole through it)
     const endUp = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
     V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04 * bk, 0.055 * bk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
-    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { z: -0.035, y: -0.01 }), b: endLo, r: [0.04 * bk, 0.055 * bk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
+    // (`lowerCheek`: the lower arm's middle bowed out and down, and fuller, so the outline under the cheekbone rounds)
+    const lc = R.lowerCheek, lk = bk * (1 + 0.25 * lc);
+    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { x: Math.sign(ch.x) * 0.02 * lc, z: -0.035 - 0.025 * lc, y: -0.01 }), b: endLo, r: [0.04 * bk, 0.055 * lk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
     // the BELLY: the arms bend up through the bulge, so the triangle between the anchor, the bulge and the corner
     // would be empty — a third vajra through its centre fills it, and the balloon is solid
     const belly = { x: (anchor.x + bulge.x + ch.x) / 3, y: (anchor.y + bulge.y + ch.y) / 3 - 0.01, z: (anchor.z + bulge.z + ch.z) / 3 };
