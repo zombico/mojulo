@@ -2,7 +2,8 @@
  * THE DUMMY — a plain stand-in figure walking a meru's route, so a cube's trail (era/geocube.js show 'trail') is seen
  * walked: the protoform in plain clothes, unpainted (its baked colours greyed by their own light: a mannequin), on the
  * walkers channel (scene/channels/walkers.js), up the route to the top and back down to the seam, round and round, the
- * camera following it (`follow`) until the operator takes the walk.
+ * camera following it (`follow`) until the operator takes the walk. A geocube's micro-town and micro-city (show 'town',
+ * 'city') are walked by it too: a street with a spur to each door, a city block's sidewalk round.
  *
  *   dummyWalker(route)     → the walker: the route out and back as one closed loop
  *   attachDummy(payload)   → the payload with its `route` (local-meru/scene.js, ctx.route) walked by the dummy
@@ -43,13 +44,16 @@ function dummyRig() {
   return _rig;
 }
 
-/** The dummy's walk: the route to its top and back down, one closed loop (the channel's 'bumble'). */
-export function dummyWalker(route) {
-  return { figure: 'dummy', path: [...route, ...route.slice(0, -1).reverse()], style: 'bumble', speed: DUMMY.speed, follow: true };
+/** The dummy's walk: the route to its top and back down, one closed loop (the channel's 'bumble'). `scale`: a world in
+ * other units than metres (a city's) stands it a person's height; absent, the walker is as it was. */
+export function dummyWalker(route, { scale } = {}) {
+  // (a closed route, a city block's sidewalk, is walked round as it is)
+  const [a, z] = [route[0], route[route.length - 1]], closed = a.every((v, i) => v === z[i]);
+  return { figure: 'dummy', path: closed ? route : [...route, ...route.slice(0, -1).reverse()], style: 'bumble', speed: scale ? DUMMY.speed * scale : DUMMY.speed, follow: true, ...(scale ? { scale } : {}) };
 }
 
-export async function attachDummy(payload) {
+export async function attachDummy(payload, { scale } = {}) {
   if (!Array.isArray(payload.route) || payload.route.length < 2) return payload;
   const { route, ...rest } = payload;
-  return { ...rest, walkers: [dummyWalker(route)], figures: { ...(rest.figures || {}), dummy: await dummyRig() } };
+  return { ...rest, walkers: [dummyWalker(route, { scale })], figures: { ...(rest.figures || {}), dummy: await dummyRig() } };
 }

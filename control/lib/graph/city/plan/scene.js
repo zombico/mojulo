@@ -24,7 +24,7 @@ import { readSeason, seasonFaces, seasonPool } from './foliage.js';
 import { plantBoxToFaces } from '../../polygonizer/plant-faces.js';
 import { plantPool, plantRepeats } from '../../vegetation/pool.js';
 import { cityTraffic, readCars } from './traffic.js';
-import { cityPedestrians, readPeople } from './pedestrians.js';
+import { cityPedestrians, readPeople, blockRing } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
@@ -161,6 +161,13 @@ export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
   return boxes;
 }
 
+// the sidewalk round the block nearest the city's core (where its walker starts), in units
+function blockRoute(d) {
+  const blocks = d.blocks.filter((b) => b.rect), mid = (r) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+  const b = blocks.reduce((best, x) => (!best || Math.hypot(...mid(x.rect).map((v, i) => v - [d.field.cx, d.field.cy][i])) < Math.hypot(...mid(best.rect).map((v, i) => v - [d.field.cx, d.field.cy][i])) ? x : best), null);
+  return b ? blockRing(b.rect).map(([x, y]) => [r3(x / U), r3(y / U), 0]) : [];
+}
+
 /** The `city` world kind: the recipe → the city in its facades (or its massing), walkable, the design's readout attached. */
 export function assembleCityScene(manifest, ctx = {}) {
   // a level's lowered channels (level.js) are the world's, not the plan's
@@ -263,6 +270,9 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     ...scene,
     ...traffic,
     ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
+    // a walk round one block for a stand-in to take (ctx.route: a geocube's micro-city, era/geocube-city.js): the sidewalk
+    // of the block nearest the city's core, in the world's units
+    ...(ctx.route ? { route: blockRoute(d) } : {}),
     bg: '#cfd6dc',
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
     // by it: lookLit); a paint's cube's look is laid here

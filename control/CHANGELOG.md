@@ -180,6 +180,29 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   card, `geocube` (`get_sketch_vocab({ id: 'geocube' })`): the style, the ingredients, the domains, the four doors
   and how to choose. No new tool.
 
+### Geocube micro worlds: a town and a city up close
+
+The trail's stand-in, walked through architecture: two more specimens on the geocube kind, each a tiny world that
+builds in seconds, so a cube's town and city can be reviewed at eye height. Showcases, like the trail: no goal, no
+hero, nothing to export.
+
+- **`show: 'town'`, a micro-town** (`era/geocube.js`). A few houses of a town's street on a 12 s trail, in the
+  domain's land and light (its terrain at its hour, `clouds`) and the cube's builders' language: the domain's
+  settlement, else the cube's first, else `MICRO_TOWN` (the smallest town the rails allow, a hamlet on one lane, four
+  houses standing, none entered). The dummy walks the trail's spine a point a metre at the ground's height, and at
+  each house a spur out to a metre and a half before its door and back. `seed` lays the street; a town minted without
+  one draws its own from its ref, as a trail does. `payload.geocube.town` names the settlement, its builders and how
+  many houses stand. About four seconds to build.
+- **`show: 'city'`, a micro-city** (`era/geocube-city.js`). A city plan on a 2 × 2 board (the smallest that makes
+  blocks round a crossing) in the cube's builders' language (its domain's town's, else its buildings', on its base kit
+  when that kit has structure rails, else the meadow's), painted by the cube, no cars, no people; a new city every
+  mint. `hour` and `clouds` refuse: a city is lit by its cube's look. The city kind takes `route` (`ctx`): the sidewalk
+  round the block nearest its core, in its units (`city/plan/pedestrians.js` `blockRing`); a city without it is as it
+  was. The dummy walks it round at `1 / CITY_METERS_PER_UNIT` (`attachDummy`'s `scale`, opt-in: a trail's walker is
+  as it was), a person's height among the city's buildings. Under a second warm.
+- A domain with a town shown on its land is a street on a trail, so it raises no summit structures; nor do a
+  micro-town or a micro-city. Only the automated checks have run; neither has been looked at.
+
 ### Geocube trail: the cube's island, walked by a dummy
 
 The first recipe expansion: a geocube shown one step further in. `show: 'land'` is where a cube's look is judged;

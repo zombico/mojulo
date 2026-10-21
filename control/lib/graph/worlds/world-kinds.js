@@ -16,7 +16,7 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { assembleFractalCityScene, planFractalCity, CITY_METERS_PER_UNIT } from '@/lib/graph/city/fractal-city';
 import { assembleRoadwayScene } from '@/lib/graph/roads/roadway';
 import { pairLanes, laneCapacity, laneTurns, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
@@ -25,7 +25,8 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
-import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
+import { geocubeCity } from '@/lib/graph/era/geocube-city';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
@@ -495,8 +496,16 @@ export const WORLD_KINDS = {
     title: 'mojulo geocube',
     walk: true,
     ao: true,
-    // (a trail is walked by its dummy, local-meru/dummy.js: the one specimen that waits on a bake)
-    resolve: (m, ctx) => { const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene); return p.route ? attachDummy(p) : p; },
+    // (a trail, a town or a city is walked by its dummy, local-meru/dummy.js: the specimens that wait on a bake). A city
+    // (era/geocube-city.js) is the city plan's, in its units: the dummy stands a person's height in them
+    resolve: (m, ctx) => {
+      if (m.show === 'city') {
+        const { city, cube, pick } = geocubeCity(m), p = assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true });
+        return attachDummy({ ...p, geocube: geocubeReadout(cube, 'city', pick, m) }, { scale: 1 / CITY_METERS_PER_UNIT });
+      }
+      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene);
+      return p.route ? attachDummy(p) : p;
+    },
   },
   // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
   // them, played with the tactical camera. Not walked: the board owns the camera and the keys

@@ -62,7 +62,8 @@
  *   lowerGeocube(cube, side, place?, hour?, clouds?)   'inside' | 'outside' → a stage manifest (`place`: the interior or
  *                              the terrain; the outside at `hour`: geocube-hours.js; under `clouds`, painted round the
  *                              dome: matte-paint/sky.js)
- *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail', domain? } → its specimen
+ *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' | 'town', domain? } → its
+ *                              specimen (`town`: a micro-town's street walked by the dummy)
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys (its `domain`
  *                              expanded: an outside domain alone stands on the cube's island)
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
@@ -89,6 +90,7 @@ import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
 import { rollTiers } from '../local-meru/roll.js';
+import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
@@ -742,6 +744,9 @@ export function geocubeStructures(manifest) {
   if (m.domain === undefined || spec === undefined || m.trail !== undefined) return null;
   const cube = readGeocube(spec), D = readDomainAsk(cube, m.domain).domain;
   if (D.side !== 'outside' || D.structures === undefined) return null;
+  // a specimen raises them on its land or its walked island: a town's street, a city or a domain's street on its land
+  // stands on no climb
+  if (m.kind === 'geocube' && (m.show === 'town' || m.show === 'city' || ((m.show ?? 'land') === 'land' && D.settlement !== undefined))) return null;
   const list = typeof D.structures === 'string' ? cube.structures[D.structures] : D.structures;
   const hourAsked = m.hour ?? D.hour, H = hourAsked === undefined ? undefined : readHourOf(hourAsked);
   // where it stands: the climb as the stage plans it (a level's climb follows its trail: its kit and seed are the trail's)
@@ -869,7 +874,7 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
   if (!readContrast(cube.contrast)) return null;
   // a stage's or a specimen's domain says its side, its terrain and its hour (the recipe's own hour over it)
   const D = (m.kind === 'stage' || m.kind === 'geocube') && m.domain !== undefined ? readDomainAsk(cube, m.domain).domain : null;
-  const side = D ? D.side : m.kind === 'geocube' ? (m.show === 'land' || m.show === 'trail' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const side = D ? D.side : m.kind === 'geocube' ? (['land', 'trail', 'town', 'city'].includes(m.show) ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = D ? D.terrain : side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
   const hour = m.hour ?? D?.hour;
   return cubeContrast(cube, side, { terrain, value, ...(hour !== undefined && side === 'outside' ? { hour: readHour(hour) } : {}) });
@@ -997,8 +1002,29 @@ export function geocubeDensity(cube) {
 
 // the trail's climb: every way up the island drawn, the way up rolled from the seed
 const trailMeru = (meru, seed) => rollTiers({ ...meru, ...(meru.island ? { island: { ...meru.island, walk: 'all' } } : {}) }, seed);
-const SHOW = ['room', 'land', 'trail'];
-const SHOWN = { room: 'room', land: 'landform', trail: 'trail' };
+const SHOW = ['room', 'land', 'trail', 'town'];
+const SHOWN = { room: 'room', land: 'landform', trail: 'trail', town: 'town' };
+const r3 = (v) => Math.round(v * 1000) / 1000;
+// the micro-town's street where neither the domain nor the cube names a town: the smallest town the rails allow (a
+// hamlet on one lane), four of its houses standing, none entered, so it builds in seconds
+export const MICRO_TOWN = Object.freeze({ town: { length: 90, branches: 0, levels: 0, back: false, farms: 0, heartbeat: 'hamlet', secondary: 0 }, houses: 4, enter: 0 });
+/**
+ * The micro-town's walk: the trail's spine a point a metre at the ground's height (outTrailOf, as a side camera's lane
+ * is laid: gameworld/levels.js stageLane), and at each house of the street a spur out to a metre and a half before its
+ * door and back, so the dummy passes every front close.
+ */
+function townRoute(stage, payload) {
+  const { site } = outTrailOf(stage), line = [], at = ([x, y]) => [r3(x), r3(y), r3(site.ground(x, y))];
+  for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([site.trailX(y), y]);
+  const spurs = new Map();
+  for (const h of (payload.anchors || []).filter((a) => a.kind === 'house')) {
+    const front = [h.at[0] + h.N[0] * 1.5, h.at[1] + h.N[1] * 1.5];
+    let best = 0, bd = Infinity;
+    line.forEach(([x, y], i) => { const d = Math.hypot(x - front[0], y - front[1]); if (d < bd) { bd = d; best = i; } });
+    spurs.set(best, [...(spurs.get(best) ?? []), front]);
+  }
+  return line.flatMap((p, i) => [at(p), ...(spurs.get(i) ?? []).flatMap((f) => [at(f), at(p)])]);
+}
 /**
  * The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene.
  * `trail` is the land walked: the same island with every way up drawn (island.walk 'all'), laid from its `seed`.
@@ -1010,11 +1036,12 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // recipe names one
   const P = manifest.domain === undefined ? null : readDomainAsk(cube, manifest.domain), D = P?.domain;
   if (D?.side === 'inside' && manifest.show !== undefined && manifest.show !== 'room') no('the domain is inside: show \'room\' (or leave show out)');
-  if (D?.side === 'outside' && manifest.show === 'room') no('the domain is outside: show \'land\' or \'trail\' (or leave show out)');
+  if (D?.side === 'outside' && manifest.show === 'room') no('the domain is outside: show \'land\', \'trail\' or \'town\' (or leave show out)');
   const show = manifest.show ?? (D ? (D.side === 'inside' ? 'room' : 'land') : 'room');
+  if (show === 'city') no('show \'city\' is the kind\'s micro-city, built by the city plan: resolve it through the geocube kind (era/geocube-city.js)');
   if (!SHOW.includes(show)) no(`show is ${SHOW.slice(0, -1).map((s) => `'${s}'`).join(', ')} or '${SHOW[SHOW.length - 1]}'`);
-  for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && show === 'room') no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land' or 'trail' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
-  if (manifest.seed !== undefined && show !== 'trail') no('seed is the trail\'s: show \'trail\' to lay the island from a seed');
+  for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && show === 'room') no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
+  if (manifest.seed !== undefined && show !== 'trail' && show !== 'town') no('seed is the trail\'s and the town\'s: show \'trail\' to lay the island from a seed, or \'town\' its street');
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
   const hour = manifest.hour ?? D?.hour;
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
@@ -1022,17 +1049,26 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
     show !== 'room' ? cloudsOf(manifest.clouds, manifest.weather) : undefined);
   // a domain with a town shows its street, on a trail in the land's look; the trail: every way up the island drawn, the
   // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
-  const town = show === 'land' ? geocubeTown(cube, D) : null, seed = manifest.seed ?? 1;
-  const low = town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
-  // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js)
+  // the micro-town: the domain's street, else the cube's first, else a hamlet's, on a short trail laid from the seed
+  const firstTown = Object.keys(cube.settlements ?? {})[0];
+  const town = show === 'land' ? geocubeTown(cube, D) : show === 'town' ? geocubeTown(cube, D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : null, seed = manifest.seed ?? 1;
+  const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
+  if (show === 'town') payload.route = townRoute(low, payload);
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
-  // the levels it makes: read out where it names more than its own room and land, or a domain was asked for
+  payload.geocube = { ...geocubeReadout(cube, show, P, manifest),
+    ...(show === 'town' ? { town: { settlement: D?.settlement !== undefined ? (typeof D.settlement === 'string' ? D.settlement : 'written') : firstTown ?? 'micro', anchor: town.anchor ?? null,
+      houses: (payload.anchors || []).filter((a) => a.kind === 'house').length } } : {}) };
+  return payload;
+}
+/** What a specimen says of its cube (`payload.geocube`): the look, the levels it makes where it names more than its own
+ * room and land (or a domain was asked for), and the domain it shows. `P`: pickDomain's answer, or null. */
+export function geocubeReadout(cube, show, P, manifest) {
   const menu = P || cube.domains || cube.outside.terrains || cube.inside.interiors ? geocubeDomains(cube).map(({ name, side, reads }) => ({ name, side, reads })) : null;
-  payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
+  return { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
     ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
     ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}), ...(cube.avoid ? { avoid: cube.avoid } : {}),
-    ...(menu ? { domains: menu } : {}), ...(P ? { domain: { name: P.name, from: P.from, ...D, ...(manifest.hour !== undefined ? { hour: manifest.hour } : {}), ...(P.changed ? { changed: P.changed } : {}) } } : {}) };
-  return payload;
+    ...(menu ? { domains: menu } : {}), ...(P ? { domain: { name: P.name, from: P.from, ...P.domain, ...(manifest.hour !== undefined ? { hour: manifest.hour } : {}), ...(P.changed ? { changed: P.changed } : {}) } } : {}) };
 }

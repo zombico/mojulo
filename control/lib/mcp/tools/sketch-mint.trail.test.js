@@ -24,5 +24,7 @@ describe('a geocube trail at mint', () => {
     expect(a.seed).not.toBe(b.seed);
     expect((await mint('sk_trail_given', { show: 'trail', seed: 7 })).seed).toBe(7);
     expect((await mint('sk_trail_land', { show: 'land' })).seed).toBeUndefined();
+    // a micro-town draws its own too: a new street every mint
+    expect(Number.isInteger((await mint('sk_town_a', { show: 'town' })).seed)).toBe(true);
   }, 120_000);
 });

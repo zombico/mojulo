@@ -44,7 +44,9 @@ A cube that names no domains offers one per terrain and one per interior.
 `domain` is one key on the doors that take a cube:
 
 - the `geocube` kind: `{ cube, domain }` shows the domain (its room, its land, or its street); `show: 'trail'` walks
-  an outside domain's island, every way up drawn; `hour` and `clouds` set an outside's sky;
+  an outside domain's island, every way up drawn; `show: 'town'` a micro-town (a few houses of its street, or a
+  hamlet's) and `show: 'city'` a micro-city (the smallest city plan, in the cube's paint and builders' language),
+  each walked by a stand-in at eye height to review the architecture; `hour` and `clouds` set an outside's sky;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

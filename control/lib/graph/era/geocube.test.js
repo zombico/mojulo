@@ -82,7 +82,7 @@ describe('geocube: the two specimens share one style', () => {
     expect(JSON.stringify((await at(7)).faces)).toBe(JSON.stringify(seeded.faces));
   });
   it('refuses keys the kind does not take', () => {
-    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land' or 'trail'/);
+    expect(() => show('gothic-night', 'hall')).toThrow(/show is 'room', 'land', 'trail' or 'town'/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'land', seed: 7 }, {})).toThrow(/seed is the trail's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);

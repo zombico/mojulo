@@ -322,11 +322,12 @@ function newSeedOf(ref) {
   return randomInt(1, 2147483647);
 }
 
-/** A geocube's trail draws its own seed as a new house does, so no two mints lay the same island (era/geocube.js). A
- * seed written is kept, and a row already a trail keeps what it renders from. */
+/** A geocube's trail (or micro-town, or micro-city) draws its own seed as a new house does, so no two mints lay the same island or
+ * street (era/geocube.js). A seed written is kept, and a row already one keeps what it renders from. */
+const SEEDED_SHOWS = ['trail', 'town', 'city'];
 function newTrailSeed(m, ref, existing) {
-  if (m?.kind !== 'geocube' || m.show !== 'trail' || m.seed !== undefined) return m;
-  if (existing?.kind === 'geocube' && existing.show === 'trail') return m;
+  if (m?.kind !== 'geocube' || !SEEDED_SHOWS.includes(m.show) || m.seed !== undefined) return m;
+  if (existing?.kind === 'geocube' && existing.show === m.show) return m;
   return { ...m, seed: newSeedOf(ref) };
 }
 
