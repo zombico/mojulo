@@ -68,6 +68,15 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
   carried by the clavicle; the kit's lames down the arm under it.
 - The GORGET optional: the realistic body wears it only when the build names it (`wear: ['gorget']`, armor/expand.js
   validates the word). The authored body's armour byte for byte.
+- By ROLE, not by name (`roleOf`: a piece's carrier, its window, whether it wraps, what it spans), so every family is
+  fitted alike and a style the fit has never seen is fitted by what its pieces cover: the trunk's panels front and
+  back one CUIRASS (the knight's breast and back, the hardsuit's chest, back and abdomen plates); every wrap round the
+  trunk a field HOOP over its window, each over the one before in the kit's stacking (a fauld's lames, a belt, the
+  lamellar rows), the lowest carried down to a skirt's hanging plates when no cuirass meets them; a pinned panel hangs
+  (the lamellar skirt) and keeps its kit shape; a shoulder's anchor a CAP; a foot's wrap a BOOT; a neck's wrap the
+  optional gorget; the HEAD's pieces (a helm, a neck guard hung from it) left off, not fitted to the relational head
+  yet. A strap hugs what lies under it (its lift read within 2 cm). Plate, lamellar and hardsuit styles mint on the
+  realistic body (a lamellar suit refused before: its neck guard's address fell off the realistic neck).
 - The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.

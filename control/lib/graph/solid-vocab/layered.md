@@ -800,8 +800,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it
   wears keeps the flat base colour. `bake: true` pre-bakes light into its corners (the unlit export): the head's layers
   and the eyes' globes cast no shadow, the eyes wear the `eye` finish. A first mint takes about 40 s (the body's slice
-  and the head), then is kept. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique dials
-  those).
+  and the head), then is kept. ARMOUR (`adorn: { type: 'armor', style }`, any family) is fitted to it by role: the
+  trunk's plates one cuirass, its wraps hoops, the shoulders domed caps, the feet boots; the gorget only with
+  `wear: ['gorget']`; a helm is left off (not fitted to its head yet). FOOTWEAR words: `boots`, `shoes`, `sandals`
+  (a welted sole, straps and buckles). Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique
+  dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or
