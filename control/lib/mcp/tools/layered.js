@@ -907,9 +907,9 @@ export function dressReadout(hero, plan, mesh, recipe) {
   // the dressed OUTLINE on the realistic body (dress-outline.js; docs/garment-principles.md): its family against the bare
   // body's, each half's fit, where loose cloth comes back to the body, the divisions, the flair, and the advice in each style
   if (hero.form === 'realistic' && mesh?.provenance && recipe?.rig) {
-    const M = outlineMeasures(mesh, recipe), sex = femaleOf(hero) ? 'female' : 'male';
+    const M = outlineMeasures(mesh, recipe), sex = femaleOf(hero) ? 'female' : 'male', canons = hero.stylism?.canon ? [hero.stylism.canon] : ['western', 'anime'];
     out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
-      advice: Object.fromEntries(['western', 'anime'].map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
+      advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
   const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };

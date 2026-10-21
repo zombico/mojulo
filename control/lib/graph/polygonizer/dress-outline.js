@@ -104,7 +104,7 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   const pel = parts.pelvis, zCr = pel ? Math.min(...pel.stations[0] ? Object.values(pel.stations[0].points).map((p) => p[2]) : [zHip - 0.08]) : zHip - 0.08;
   // (the calf's widest: the bare right shank's widest between the knee and the ankle)
   let zCalf = (zKnee + zAnk) / 2, best = 0;
-  for (let z = zKnee - 0.03; z > zAnk + 0.05; z -= 0.01) { const w = width(z, side(['leg'], 1)).W; if (w > best) { best = w; zCalf = z; } }
+  for (let z = zKnee - 0.03; z > zAnk + 0.05; z -= 0.01) { const w = width(z, (I, p) => I.body && side(['leg'], 1)(I, p)).W; if (w > best) { best = w; zCalf = z; } }
   const TRUNK = ['trunk', 'leg'], WITH_ARMS = ['trunk', 'leg', 'upperArm'];
   // (the outer trunk garment's hem: the lowest edge of what the trunk wears; else the legs' garments')
   const worn = [...info.entries()].filter(([, I]) => !I.body), lowOf = (p) => Math.min(...parts[p].stations.flatMap((st) => Object.values(st.points).map((q) => q[2])));
@@ -153,10 +153,12 @@ export function outlineMeasures(mesh, recipe, { profile = false } = {}) {
   const legLine = r3(((firstAbove?.z ?? zSh) - ground) / S);
   // a hem on a leg between the crotch and the ankle: its place on the leg's bare profile there (0 its narrowest, 1 its widest)
   const hems = [...new Set(pieces.filter(([, I]) => TRUNK.includes(I.limb)).map(([p]) => r3(lowOf(p))))].filter((z) => z > zAnk + 0.04 && z < zCr - 0.01).map((z) => {
-    const [lo, hi, on] = z > zKnee ? [zKnee, zCr, 'thigh'] : [zAnk + 0.02, zKnee, 'shank'], prof = [];
-    for (let h = lo; h <= hi; h += 0.01) prof.push(width(h, side(['leg'], 1)).W);
-    const w = width(z, side(['leg'], 1)).W, mn = Math.min(...prof), mx = Math.max(...prof);
-    return { z: r3(z), on, pos: mx > mn ? r3((w - mn) / (mx - mn)) : null };
+    // (the shank's profile below the knee, the knee itself not counted: a hem just under the knee slims)
+    const [lo, hi, on] = z > zKnee ? [zKnee, zCr, 'thigh'] : [zAnk + 0.02, zKnee - 0.04, 'shank'], prof = [];
+    const legB = (I, p) => I.body && side(['leg'], 1)(I, p);
+    for (let h = lo; h <= hi; h += 0.01) prof.push(width(h, legB).W);
+    const w = width(z, legB).W, mn = Math.min(...prof), mx = Math.max(...prof);
+    return { z: r3(z), on, pos: mx > mn ? r3(Math.max(0, Math.min(1, (w - mn) / (mx - mn)))) : null };
   });
   // the flair: runs of e > 0.25 down the trunk (shoulder to hem), the right arm (shoulder to wrist) and the right leg
   // (crotch to ankle), and the share of the samples at e ≤ 0.10

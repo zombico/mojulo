@@ -88,6 +88,15 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   primitives: `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
 - STYLISM ON THE REALISTIC BODY: no longer refused. A genre, a register and a target outline lower to an outfit build,
   worn as above. `/body-study --palette` shows a figure in its palette's colours, face by face.
+- THE DESIGNER: the stylism given the principles (`stylism/proportion.js`), opt-in, nothing moving without it.
+  `stylism.canon: 'western' | 'anime'` names the principles an outfit is designed to: the lengths the solver chose (a
+  coat's, a top worn out, a skirt's, a trouser leg's) are judged where they land on the figure, measured on the
+  realistic body for each length word, and moved to the nearest word that lands well (never at halves, never on the
+  thigh's top or the calf's belly, the leg line kept), the hero's own lengths and a card it named standing; each move a
+  note in the stylism's ledger, and the outline read advises in that canon. `stylism.silhouette: 'balance'` picks the
+  outline the figure is dressed toward by the canon's rules for its cast and physique (a jacked western male a column, no
+  padding; a heavy figure one long vertical run; a drawn female an X), with why. The outline read's calf is the bare
+  leg's now, the knee not counted.
 
 ### The gi: a wrapped jacket over the martial artist's trousers
 

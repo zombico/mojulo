@@ -564,7 +564,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the cloth fills the waist or erases the taper (advice; the eyes gate is a person's). Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/bottom/cut`, `/hero/outfit/language/panels`.
 
-  STYLISM. `stylism: { genre?, register?, detail?, silhouette? }` dresses the hero the way a character designer works:
+  STYLISM. `stylism: { genre?, register?, detail?, silhouette?, canon? }` dresses the hero the way a character designer works:
   the silhouette first, then detail, each a solver over principles that lowers to the outfit build above and writes down
   why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` | `alien` — what makes each big shape there (a
   mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring); every genre but `alien`
@@ -577,7 +577,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   an outline with its signature: `operative` (spy), `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`,
   `lolita`, `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler` (any cast wears any; a
   signature still drawn with a stand-in — a sailor collar, pleats, slits, puff sleeves — is listed in
-  `silhouette.approximated`). `detail` (`plain` | `considered` | `rich` | `ornate`) is the detail budget, spent from the FOCAL out (the outline's,
+  `silhouette.approximated`), or `balance`: the outline the FIGURE is dressed toward by the canon's rules (its cast and
+  physique: a jacked western male a column, no padding; a heavy figure one long vertical run; a drawn female an X).
+  `canon` (`western` | `anime`) names the principles the outfit is designed to (docs/garment-principles.md): with it,
+  the lengths the solver chose move off bad landings (a coat or a top worn out ending at halves, a hem on the thigh's
+  top or the calf's belly, a short leg line) to the nearest good word, the hero's own and a named card's standing, each
+  move a note; the readout's `dress.outline` advises in that canon alone. `detail` (`plain` | `considered` | `rich` | `ornate`) is the detail budget, spent from the FOCAL out (the outline's,
   or `focal`: neck | chest | back | waist | arms | wrists | hem) in one `motif` family (the genre's, or a MOTIFS name):
   emblem, border, echo, bindings, a metal fitting from heroic up; on what shows (a robe's own `trim` where it covers). The designed pieces get colour roles from a
   STAND-IN palette (a style guide's palette will replace it): each role a clear value step from what it sits on, the
