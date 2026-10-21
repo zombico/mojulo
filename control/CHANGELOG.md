@@ -74,6 +74,16 @@ that make a silhouette read as measures with bands, so a garment is chosen and c
   body and does not go on below), the leg line, a hem's place on the limb, the flair pieces, and advice in each style.
   In the realistic hero's readout as `dress.outline`; `/body-study --outline` draws it. It found the gi's belt a cone up
   to its blouse (the gi now cinched past the belt) and advises the gi's skirt off the thigh's widest.
+- OUTFIT CARDS ON THE REALISTIC BODY (`polygonizer/body-relational-wear.js`): the outfit expander's pieces (a card's,
+  a stylism's, an outfit word's) worn by the tailor instead of the authored body's ring copies baked on the realistic
+  envelope (a cropped top, rippled shoulders, belt shards). The expander still makes every design choice; the adapter
+  only makes them: each garment one cloth block over its windows (the trunk's `u`, a limb's `run`), each layer standing
+  off the one under it, a limb's two pieces one tube faired over the elbow or the knee, a top's tail and body one; a
+  knit or fitted top's second-skin paint made close cloth worn first; a sleeve or leg stopping short of the hand or the
+  foot turned back in to the limb; a collar a stand collar up the neck (`collarOn`); boots and shoes the footwear
+  primitive; the belt a band with its buckle at the front; the trims (hem bindings, a waistband) thin bands where they
+  were painted. Still the authored kernel's: skirt hulls, hanging panels, capes, hoods; buttons are not placed yet.
+  New tailor primitives: `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
 
 ### The gi: a wrapped jacket over the martial artist's trousers
 
