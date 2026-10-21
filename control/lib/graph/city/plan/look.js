@@ -10,7 +10,8 @@
  *                                        sun is lit by the cube's moon. With `hour` or `clouds` (and no look of the
  *                                        recipe's own), the cube lights it at that hour under those clouds, as it does
  *                                        its land (era/geocube-hours.js): its sun on the hour's arc or its moon past dusk
- *                                        (the windows lit), its dome, air and clouds the hour's.
+ *                                        (the windows lit), its dome, air and clouds the hour's. `materials` ('modern', a
+ *                                        city's by default, or 'ancient') the class a gritty cube dresses it in (dress.js).
  *
  * The same city under another look and paint is the same streets, lots and facades: another place and hour. Pure.
  */
@@ -39,7 +40,8 @@ export function readCityLook(look) {
 export function readPaint(paint) {
   if (paint === undefined || paint === null) return null;
   if (!isObj(paint)) no(`paint is { geocube: <${Object.keys(GEOCUBE_PRESETS).join(' | ')} | a cube | { from, … }>, amount? }`);
-  for (const k of Object.keys(paint)) if (!['geocube', 'amount', 'hour', 'clouds'].includes(k)) no(`paint.${k} is not a paint setting (geocube, amount, hour, clouds)`);
+  for (const k of Object.keys(paint)) if (!['geocube', 'amount', 'hour', 'clouds', 'materials'].includes(k)) no(`paint.${k} is not a paint setting (geocube, amount, hour, clouds, materials)`);
+  if (paint.materials !== undefined && !['ancient', 'modern'].includes(paint.materials)) no(`paint.materials is 'ancient' (hand-worked, lime-bound) or 'modern' (machine-made, cement-bound), got ${JSON.stringify(paint.materials)}`);
   if (paint.geocube === undefined) no('paint.geocube is a geocube preset, a cube, or { from, …changes }');
   let cube;
   try { cube = readGeocube(paint.geocube); } catch (err) { no(`paint.geocube: ${err.message.replace(/^geocube: /, '')}`); }
@@ -47,7 +49,7 @@ export function readPaint(paint) {
   if (!(typeof amount === 'number' && amount >= 0 && amount <= 1)) no('paint.amount is how far the cube\'s colours lean the city, 0 (none) to 1 (all the way)');
   let hour, clouds;
   try { hour = paint.hour === undefined ? undefined : readHour(paint.hour); clouds = paint.clouds === undefined ? undefined : readClouds(paint.clouds); } catch (err) { no(`paint.${err.message}`); }
-  return { cube, amount, ...(hour !== undefined ? { hour } : {}), ...(clouds ? { clouds } : {}) };
+  return { cube, amount, ...(hour !== undefined ? { hour } : {}), ...(clouds ? { clouds } : {}), ...(paint.materials !== undefined ? { materials: paint.materials } : {}) };
 }
 
 /**

@@ -167,6 +167,22 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
   lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
   walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
+- **Two classes of built material** (`matte-paint/dressed.js`, `city/plan/dress.js`). ANCIENT, hand-worked and
+  lime-bound, worn by loss, spalling and lichen (the render over stone, tooled ashlar, clay tile, slate, boards, flags,
+  and `setts`, a road of small stones in courses, crowned and worn smooth, set in sand); MODERN, machine-made and
+  cement-bound, worn by the weather and never by loss (`brick`, wire-cut in an exact stretcher bond with thin struck
+  joints, a burnt brick now and then, a white bloom low at grit; `concrete`, board-formed in form panels, the boards'
+  grain pressed in, the panels' joints standing as fins, tie holes in rows and a streak run down below each, bug holes;
+  `precast`, chamfered panels with dark sealant joints and the dirt washed down from each; `stucco`, a floated coat with
+  a control joint, hairline cracks and a soft repaint; sawn stone, ashlar with hairline joints and no chips; `pavement`,
+  a sidewalk scored into slabs with a broom finish, a straight crack across a slab or two and round stains; `asphalt`,
+  aggregate in its binder, squares of repair, cracks sealed in tar, oil). A town builds ancient; a city builds modern
+  unless its paint says `materials: 'ancient'` (the micro-city takes `materials`). In a modern city each rhythm offers
+  its materials (punched: brick or stucco; pier: sawn stone or precast; banded: precast or board-formed concrete) and
+  each building takes one by its own dice (its card's frame, body, floors and bays), so a street mixes them; a modern
+  material keeps its own colour (a brick red, concrete grey), the cube's tint kept a third; the roads are asphalt (or
+  setts, ancient). The dice cells snap to the repeat (a cell that did not divide it left a seam), and a crack ends at
+  its slab's joint.
 - **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
   `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
   are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,
@@ -177,7 +193,8 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   with the payload (a card's facets are realized on the page, after the scene's textures are gathered). The laying is one
   module for the town and the city (`matte-paint/detail.js`: the tile, its mean held, the face's paint lifted by it,
   world-locked as a wall, a roof or a floor); the town's bytes are as they were. A quiet cube's city, and a city no cube
-  paints, is byte for byte as before.
+  paints, is byte for byte as before. (The engines' marks now name the page's `fabric` input: absent in Godot and
+  Roblox, the rock keeping its baked faces.)
 
 ### Geocube domains: one cube, many levels
 

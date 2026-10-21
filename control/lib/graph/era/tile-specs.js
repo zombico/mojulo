@@ -37,7 +37,7 @@ export const TILE_RAILS = Object.freeze({
   // dressed stone (matte-paint/dressed.js): ashlar painted from relief, lit from above, at the metres it is laid at; a
   // pillar's `cut` fluted or a plain shaft, never coursed
   dressed: { required: ['stone', 'mortar'], keys: {
-    stone: RGB, mortar: RGB, cut: { of: ['ashlar', 'fluted', 'shaft', 'render', 'tile', 'slate', 'boards'] }, face: { of: ['wall', 'floor'] }, flutes: int(4, 32), rows: int(2, 16), cols: int(1, 12), joint: num(0.004, 0.04), recess: num(0, 0.03), tool: { of: ['tooled', 'pitched', 'none'] },
+    stone: RGB, mortar: RGB, cut: { of: ['ashlar', 'fluted', 'shaft', 'render', 'tile', 'slate', 'boards', 'brick', 'concrete', 'precast', 'stucco', 'pavement', 'asphalt', 'setts'] }, face: { of: ['wall', 'floor'] }, flutes: int(4, 32), rows: int(1, 16), cols: int(1, 12), joint: num(0.004, 0.04), recess: num(0, 0.03), tool: { of: ['tooled', 'pitched', 'none'] },
     chamfer: num(0, 0.06), pillow: num(0, 0.02), spall: num(0, 1), pit: num(0, 1), vary: num(0, 40), grit: num(0, 1), seed: int(1, 99999),
     // (a lime render over the ashlar, `cut: 'render'`: its colour, and how much of it has fallen away)
     render: RGB, loss: num(0, 1) } },

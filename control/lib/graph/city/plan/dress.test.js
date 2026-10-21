@@ -18,21 +18,38 @@ describe('a city\'s dress', () => {
     expect(cityDressOf(readPaint({ geocube: 'valley-morning' }), U)).toBeNull();
     const D = cityDressOf(readPaint({ geocube: 'limestone-crags' }), U);
     expect(Object.keys(D.walls).sort()).toEqual(['banded', 'pier', 'punched']);
-    expect(D.walls.pier.unit).toBe(U);
+    expect(D.walls.pier[0].unit).toBe(U);
     const quiet = city('valley-morning');
     expect(quiet.faces.some((f) => f.texture || f.card?.dress)).toBe(false);
     expect(dressCity(quiet.faces, readPaint({ geocube: 'valley-morning' }), U)).toBeNull();
   });
 
-  it('dresses the wall a facade\'s windows are cut through, and the sidewalks; a curtain wall and the roads keep theirs', () => {
+  it('dresses the wall a facade\'s windows are cut through, and the sidewalks; a curtain wall keeps its glass', () => {
     const P = city('limestone-crags'), cards = P.faces.filter((f) => f.card);
     expect(cards.filter((f) => ['punched', 'pier', 'banded'].includes(f.card.rhythm)).every((f) => f.card.dress)).toBe(true);
     expect(cards.filter((f) => ['curtain', 'grid'].includes(f.card.rhythm)).some((f) => f.card.dress)).toBe(false);
     expect(P.faces.filter((f) => f.group === 'city:walk').every((f) => /^detail:/.test(f.texture || ''))).toBe(true);
-    expect(P.faces.some((f) => f.group === 'city:road' && f.texture)).toBe(false);
     // every tile a face or a card names is served with the payload
     const keys = new Set([...P.faces.map((f) => f.texture).filter(Boolean), ...cards.flatMap((f) => f.card.dress?.keys ?? [])].filter((k) => k.startsWith('detail:')));
     for (const k of keys) expect(P.textures[k], k).toMatch(/^data:image\/png/);
+  });
+});
+
+describe('the classes of a city\'s materials', () => {
+  it('a city is modern unless its paint says ancient: machine-made walls in their own colours and an asphalt road, or lime and stone and setts', () => {
+    const modern = cityDressOf(readPaint({ geocube: 'limestone-crags' }), U), ancient = cityDressOf(readPaint({ geocube: 'limestone-crags', materials: 'ancient' }), U);
+    expect(modern.class).toBe('modern'); expect(ancient.class).toBe('ancient');
+    expect(modern.walls.punched.length).toBe(2);
+    expect(modern.ground['city:road'].colour).toMatch(/^#/);
+    expect(ancient.ground['city:road'].colour).toBeUndefined();
+    expect(() => readPaint({ geocube: 'limestone-crags', materials: 'victorian' })).toThrow(/materials/);
+    expect(modern.ground['city:road'].keys[0]).not.toBe(ancient.ground['city:road'].keys[0]);
+  });
+  it('a street mixes them: each building one material, its neighbours their own', () => {
+    const P = city('limestone-crags'), picks = new Map();
+    for (const f of P.faces) if (f.card?.dress && f.card.rhythm === 'punched') { const s = [f.card.bays, f.card.floors].join(); picks.set(f.card.dress.keys[0], (picks.get(f.card.dress.keys[0]) || 0) + 1); }
+    expect(picks.size).toBe(2);
+    expect(P.faces.filter((f) => f.group === 'city:road').every((f) => /^detail:/.test(f.texture || ''))).toBe(true);
   });
 });
 

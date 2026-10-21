@@ -31,6 +31,19 @@
  * with gaps between them, a grain running up each, knots, and the weather streaked down. Tile space is the roof's: v up
  * the slope, so the light from above (up the slope) finds each lap's edge.
  *
+ * MODERN materials, the industrial class (machine-made, cement-bound, regular; weathered by rain streaks, stains and
+ * efflorescence, never by loss): `cut: 'brick'` wire-cut brick in an exact stretcher bond (`rows` courses and `cols`
+ * bricks a repeat), crisp, thin struck joints, a burnt brick here and there, a white bloom low at grit; `'concrete'`
+ * board-formed concrete cast in form panels (`cols` × `rows` a repeat), each board's grain pressed into it, the panels'
+ * joints standing as thin fins, tie holes in rows, bug holes, a dark streak run down below each tie hole; `'precast'`
+ * large panels (`cols` × `rows`) with chamfered edges and dark sealant joints, a sandblasted face, dirt washed down from
+ * each joint; `'stucco'` a smooth floated coat over the wall, its control joints a groove at the repeat's edge, hairline
+ * cracks at grit, a patchy repaint and the weather streaked down; `'pavement'` (a floor) concrete slabs scored into
+ * squares (`cols` a repeat), a broom finish across them, a crack or two, chips at their arrises, spots and stains;
+ * `'asphalt'` (a floor) a road's dense aggregate in its binder, patched where it was dug (squares a shade apart, their
+ * edges proud), its cracks sealed in tar, an oil stain here and there. And an ANCIENT road: `'setts'` (a floor) small
+ * stones in courses (`rows` × `cols` a repeat, their lengths their own), crowned and worn smooth on top, set in sand.
+ *
  * SEAMLESS by construction: whole courses and whole blocks a repeat (a course's breaks wrap round its length), every
  * block painted in its own coordinates and laid whole, wrapping round the edge it crosses, and the light's march and
  * cavity wrapped (light.js `tile`). Pure: the seed's dice only; the same cfg and seed paint the same bytes.
@@ -40,6 +53,7 @@ import { lightRelief } from './light.js';
 import { gnoise2, fractal2 } from '../noise/noise.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a || 1e-9), 0, 1); return t * t * (3 - 2 * t); };
 // (a pitched face is not the painter's faceted tool here: cells with visible borders read as crazy paving, and terraces
 // as contour rings; it is a rock face bulged and lumped, billowed noise in the block's own frame, to a dressed margin)
 const TOOL = { tooled: { kind: 'tooled', spacing: 0.012, angle: 70, amp: 0.0007 } };
@@ -57,6 +71,7 @@ export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   if (cut === 'fluted' || cut === 'shaft') return shaftTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   if (cut === 'tile' || cut === 'slate') return roofTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   if (cut === 'boards') return boardsTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+  if (MODERN[cut]) return MODERN[cut]({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, g = c.grit;
   const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
   if (cut === 'render') return renderTile(c, { W, H, px, height, owner, lx, ly, blocks }, seed);
@@ -283,3 +298,174 @@ function boardsTile(c, size, seed) {
   }
   return { rgb, W, H };
 }
+
+// ── the modern class ────────────────────────────────────────────────────────────────────────────────────────────────
+// a texel loop with its own height and paint passes: `shape(x, y, k)` sets the height (and any per-texel facts), `colour`
+// paints from the lit value; lit by `light`
+function paintedTile(c, size, light, shape, colour) {
+  const W = size, H = size, M = c.metres, px = M / size, height = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) height[j * W + i] = shape((i + 0.5) * px, (j + 0.5) * px, j * W + i);
+  const lit = lightRelief({ W, H, px, height, inside: new Float32Array(W * H).fill(1) }, light), rgb = Buffer.alloc(W * H * 3);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const k = j * W + i, col = colour((i + 0.5) * px, (j + 0.5) * px, k, lit);
+    rgb[k * 3] = Math.round(clamp(col[0], 0, 255)); rgb[k * 3 + 1] = Math.round(clamp(col[1], 0, 255)); rgb[k * 3 + 2] = Math.round(clamp(col[2], 0, 255));
+  }
+  return { rgb, W, H };
+}
+// a wrapped grid's cell dice (cells of about `cell` metres, snapped to a whole number round a repeat of M, so the grid
+// wraps with it)
+const snapCell = (M, cell) => M / Math.max(1, Math.round(M / cell));
+const cellHash = (x, y, M, cell, seed) => { const n = Math.max(1, Math.round(M / cell)), cs = M / n, i = Math.floor(x / cs), j = Math.floor(y / cs); return hash01(((i % n) + n) % n, ((j % n) + n) % n, seed); };
+const white = [236, 234, 226];
+
+const MODERN = {
+  // a road's asphalt: aggregate in its binder, repairs patched in squares, cracks sealed in tar, oil stains
+  asphalt(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), tar = [24, 24, 26], patch = new Float32Array(size * size), seal = new Float32Array(size * size), oil = new Float32Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      // the aggregate: a stone in most cells of a fine wrapped grid, its crown standing out of the binder
+      const ac = snapCell(M, 0.007), h = cellHash(x, y, M, ac, seed + 3), ax = (Math.floor(x / ac) + 0.3 + 0.4 * h) * ac, ay = (Math.floor(y / ac) + 0.3 + 0.4 * cellHash(x, y, M, ac, seed + 4)) * ac, d = Math.hypot(x - ax, y - ay) / (0.5 * ac);
+      let z = (h < 0.8 ? 0.0012 * clamp(1 - d * d, 0, 1) : 0) + 0.0005 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 5);
+      // a repair: a square cut and filled a shade apart in a few cells of a coarse grid, its edge a hair proud
+      const pc = M / 2, ph = cellHash(x, y, M, pc, seed + 7), fx = x / pc - Math.floor(x / pc), fy = y / pc - Math.floor(y / pc);
+      const inP = ph < 0.25 + 0.3 * g && fx > 0.15 && fx < 0.15 + 0.5 * (0.6 + ph) && fy > 0.2 && fy < 0.75;
+      patch[k] = inP ? (ph < 0.15 ? -1 : 1) : 0;
+      if (inP && Math.min(fx - 0.15, 0.15 + 0.5 * (0.6 + ph) - fx, fy - 0.2, 0.75 - fy) * pc < 0.01) z += 0.0015;
+      // a crack sealed in tar: the long wandering contour of a broad field, a band of sealant over it
+      const cl = Math.abs(sfbm(x, y, M, 2, 2, 2, seed + 11));
+      seal[k] = g > 0.2 ? 1 - smoothstep(0.004, 0.012, cl) : 0;
+      oil[k] = clamp((sfbm(x, y, M, 0.7, 0.9, 3, seed + 13) - 0.35) * 3, 0, 1);
+      return z + 0.0006 * seal[k];
+    }, (x, y, k, lit) => {
+      let col = rampAt(body, 0.55 + (lit.value[k] - 1) * 1.3 + 0.06 * patch[k] + 0.03 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 15) - 0.12 * oil[k] * (0.4 + g) - 0.25 * lit.cavity[k]);
+      if (seal[k] > 0) col = col.map((v, q) => v + (tar[q] - v) * 0.8 * seal[k]);
+      return col;
+    });
+  },
+  // an ancient road's setts: small stones in courses, each its own length, crowned and worn smooth, set in sand
+  setts(c, size, seed) {
+    const M = c.metres, g = c.grit, hc = M / c.rows, body = rampOf(c.stone), sand = rampOf(c.mortar), jt = 0.012, tone = new Float32Array(size * size), joint = new Uint8Array(size * size);
+    // each course's cuts: `cols` setts, their lengths jittered, the course slid (they wrap round the repeat)
+    const cuts = Array.from({ length: c.rows }, (_, r) => { const w = M / c.cols, slide = hash01(r, 1, seed) * w; return Array.from({ length: c.cols }, (_, q) => slide + (q + 0.3 * (hash01(r, q + 2, seed) - 0.5)) * w); });
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const r = Math.floor(y / hc) % c.rows, C = cuts[r], fy = y / hc - Math.floor(y / hc);
+      let q = -1, a = 0, b = 0;
+      for (let i = 0; i < c.cols; i++) { const lo = C[i], hi = i + 1 < c.cols ? C[i + 1] : C[0] + M; for (const off of [0, -M, M]) if (x >= lo + off && x < hi + off) { q = i; a = lo + off; b = hi + off; } }
+      const fx = (x - a) / (b - a || 1), dx = Math.min(x - a, b - x), dy = Math.min(fy, 1 - fy) * hc;
+      tone[k] = (hash01(r, q, seed + 5) - 0.5) * 2 * c.vary / 255;
+      if (Math.min(dx, dy) < jt / 2) { joint[k] = 1; return -0.01; }
+      // crowned: highest in its middle, worn flat on top and polished there
+      const u = 2 * fx - 1, v = 2 * fy - 1, crown = (1 - u * u * u * u) * (1 - v * v * v * v);
+      return -0.006 + 0.008 * crown + 0.0005 * sfbm(x, y, M, 0.03, 0.03, 2, seed + 7);
+    }, (x, y, k, lit) => {
+      if (joint[k]) return rampAt(sand, 0.4 + (lit.value[k] - 1) * 0.8);
+      return rampAt(body, 0.55 + (lit.value[k] - 1) * 1.25 + tone[k] + 0.06 * lit.convex[k] * (0.4 + g) + 0.03 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 9) - 0.3 * lit.cavity[k]);
+    });
+  },
+  // wire-cut brick: an exact half bond, crisp arrises, thin struck joints, its tone a little each, a burnt one now and then
+  brick(c, size, seed) {
+    const M = c.metres, g = c.grit, hc = M / c.rows, bw = M / c.cols, jt = 0.009, tone = new Float32Array(size * size), mort = new Uint8Array(size * size);
+    const body = rampOf(c.stone), mortar = rampOf(c.mortar);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const r = Math.floor(y / hc), xi = x + (r % 2) * bw / 2, b = ((Math.floor(xi / bw) % c.cols) + c.cols) % c.cols;
+      const fx = xi / bw - Math.floor(xi / bw), fy = y / hc - r, dx = Math.min(fx, 1 - fx) * bw, dy = Math.min(fy, 1 - fy) * hc, d = Math.min(dx, dy);
+      const h = hash01(r % c.rows, b, seed + 3);
+      tone[k] = (h - 0.5) * 2 * c.vary / 255 - (h > 0.94 ? 0.12 : 0);
+      if (d < jt / 2) { mort[k] = 1; return -0.004 + 0.002 * (d / (jt / 2)) ** 2; }
+      // (an arris eased a millimetre or two; the face's fine sand)
+      return -0.001 * clamp(1 - (d - jt / 2) / 0.004, 0, 1) + 0.00025 * sfbm(x, y, M, 0.004, 0.004, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      if (mort[k]) return rampAt(mortar, 0.62 + (lit.value[k] - 1) * 0.8);
+      let col = rampAt(body, 0.56 + (lit.value[k] - 1) * 1.2 + tone[k] + 0.03 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 7) - 0.2 * lit.cavity[k]);
+      // efflorescence: a white bloom low on the wall at grit
+      const bloom = clamp((sfbm(x, y, M, 0.3, 0.2, 3, seed + 9) - 0.25) * 3, 0, 1) * clamp(y / M - 0.55, 0, 1) * g;
+      return col.map((v, q) => v + (white[q] - v) * 0.5 * bloom);
+    });
+  },
+  // board-formed concrete: form panels, the boards' grain pressed in, tie holes in rows, bug holes, a streak under each hole
+  concrete(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, board = 0.15, tieX = pw / 4, tieY = ph / 4;
+    const body = rampOf(c.stone), panelTone = new Float32Array(size * size), streak = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), pj = Math.floor(y / ph), fx = x - pi * pw, fy = y - pj * ph;
+      panelTone[k] = (hash01(pi % c.cols, pj % c.rows, seed + 3) - 0.5) * 2 * c.vary / 255;
+      // the boards: their grain along them, each a hair proud or shy of the next
+      const bi = Math.floor(y / board), lip = (hash01(bi % Math.round(M / board), pi % c.cols, seed + 5) - 0.5) * 0.0012;
+      let z = lip + 0.0005 * sfbm(x, y, M, 0.35, 0.008, 3, seed + 7 + (bi % 4)) + 0.0002 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 9);
+      // the panel joint stands as a thin fin where the forms met
+      if (Math.min(fx, pw - fx) < 0.006 || Math.min(fy, ph - fy) < 0.006) z += 0.0025;
+      // the tie holes, in rows; a streak run down below each
+      const tx = Math.round(fx / tieX - 0.5) + 0.5, ty = Math.round(fy / tieY - 0.5) + 0.5, dx = fx - tx * tieX, dy = fy - ty * tieY, rr = Math.hypot(dx, dy);
+      if (rr < 0.014) z -= 0.008 * (1 - (rr / 0.014) ** 2);
+      streak[k] = Math.abs(dx) < 0.012 && dy > 0 && dy < 0.35 * tieY * (0.6 + g) ? (1 - Math.abs(dx) / 0.012) * (1 - dy / (0.35 * tieY * (0.6 + g))) : 0;
+      // bug holes: the air the pour trapped against the form
+      if (cellHash(x, y, M, 0.018, seed + 11) < 0.035) { const bc = snapCell(M, 0.018), cx = (Math.floor(x / bc) + 0.5) * bc, cy = (Math.floor(y / bc) + 0.5) * bc, d = Math.hypot(x - cx, y - cy); if (d < 0.004) z -= 0.002 * (1 - d / 0.004); }
+      return z;
+    }, (x, y, k, lit) => {
+      const mot = 0.05 * sfbm(x, y, M, 0.5, 0.5, 3, seed + 13) + 0.025 * sfbm(x, y, M, 0.04, 0.04, 2, seed + 15);
+      const rain = Math.max(0, sfbm(x, y, M, 0.2, 1.4, 2, seed + 17) - 0.1) * (0.08 + 0.15 * g);
+      return rampAt(body, 0.58 + (lit.value[k] - 1) * 1.15 + panelTone[k] + mot - rain - (0.08 + 0.1 * g) * streak[k] - 0.28 * lit.cavity[k]);
+    });
+  },
+  // precast panels: chamfered, a sandblasted face, dark sealant joints, the dirt washed down from each joint
+  precast(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, ph = M / c.rows, jt = 0.016, body = rampOf(c.stone), seal = [52, 52, 54];
+    const tone = new Float32Array(size * size), joint = new Uint8Array(size * size), below = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const pi = Math.floor(x / pw), pj = Math.floor(y / ph), fx = x - pi * pw, fy = y - pj * ph, d = Math.min(fx, pw - fx, fy, ph - fy);
+      tone[k] = (hash01(pi % c.cols, pj % c.rows, seed + 3) - 0.5) * 2 * c.vary / 255; below[k] = fy / ph;
+      if (d < jt / 2) { joint[k] = 1; return -0.012; }
+      return -0.006 * clamp(1 - (d - jt / 2) / 0.012, 0, 1) + 0.0003 * sfbm(x, y, M, 0.005, 0.005, 2, seed + 5) + 0.0006 * sfbm(x, y, M, 0.6, 0.6, 2, seed + 7);
+    }, (x, y, k, lit) => {
+      if (joint[k]) return seal.map((v) => v * (0.8 + 0.4 * lit.value[k]));
+      // (the joint above each panel feeds a wash of dirt down its face, heaviest just under it)
+      const wash = Math.max(0, sfbm(x, y, M, 0.15, 1, 2, seed + 9) + 0.2) * (1 - below[k]) ** 2 * (0.06 + 0.14 * g);
+      return rampAt(body, 0.6 + (lit.value[k] - 1) * 1.1 + tone[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 11) - wash - 0.25 * lit.cavity[k]);
+    });
+  },
+  // stucco: a floated coat, its control joint a groove at the repeat's edge, hairline cracks, a patchy repaint, the rain
+  stucco(c, size, seed) {
+    const M = c.metres, g = c.grit, coat = rampOf(c.render ?? c.stone), crack = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      let z = 0.0014 * sfbm(x, y, M, 0.45, 0.3, 3, seed + 3) + 0.0003 * sfbm(x, y, M, 0.004, 0.004, 2, seed + 5);
+      if (Math.min(x, M - x) < 0.007 || Math.min(y, M - y) < 0.007) z -= 0.004;
+      // hairline cracks: a ridge of noise thin as a line, kept where a broader mask says the coat has moved
+      const line = Math.abs(sfbm(x, y, M, 0.75, 0.75, 2, seed + 7)), keep = sfbm(x, y, M, 1, 1, 2, seed + 9) > 0.45 - 0.3 * g;
+      crack[k] = keep ? 1 - smoothstep(0.0015, 0.005, line) : 0;
+      return z - 0.0006 * crack[k];
+    }, (x, y, k, lit) => {
+      // (a repaint's patches soft-edged and faint: a hard edge thresholded broad reads as camouflage)
+      const repaint = 0.03 * clamp(sfbm(x, y, M, 0.8, 0.6, 2, seed + 11) * 2.5, -1, 1);
+      const rain = Math.max(0, sfbm(x, y, M, 0.15, 1.2, 2, seed + 13) - 0.05) * (0.06 + 0.16 * g);
+      return rampAt(coat, 0.62 + (lit.value[k] - 1) * 1.1 + repaint + 0.02 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 15) - rain - 0.18 * crack[k] - 0.25 * lit.cavity[k]);
+    });
+  },
+  // a concrete sidewalk: slabs scored into squares, a broom finish across them, a crack or two, chipped arrises, stains
+  pavement(c, size, seed) {
+    const M = c.metres, g = c.grit, sw = M / c.cols, body = rampOf(c.stone), stain = new Float32Array(size * size), crack = new Float32Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fx = x / sw - Math.floor(x / sw), fy = y / sw - Math.floor(y / sw), d = Math.min(fx, 1 - fx, fy, 1 - fy) * sw;
+      // the broom: fine striations across the walk (along x), each slab's own
+      let z = 0.0002 * Math.sin((y / snapCell(M, 0.003)) * Math.PI * 2 + 3 * sfbm(x, y, M, 0.08, 0.5, 2, seed + 3)) + 0.0003 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 5);
+      if (d < 0.006) z -= 0.004 * (1 - d / 0.006);
+      // a chip out of an arris here and there; a crack or two across a slab
+      if (d < 0.02 && cellHash(x, y, M, 0.08, seed + 7) < 0.15 * (0.3 + g)) z -= 0.003;
+      // (a crack runs across a slab along a line, wobbling a little: in a few slabs, each its own angle; the noise's own
+      // zero-crossings would loop)
+      const si = Math.floor(x / sw), sj = Math.floor(y / sw), nS = c.cols, sh = (q) => hash01(((si % nS) + nS) % nS, ((sj % nS) + nS) % nS, seed + q);
+      if (sh(11) < 0.15 + 0.35 * g) {
+        const a = sh(12) * Math.PI, nx = Math.cos(a), ny = Math.sin(a), cx = (si + 0.3 + 0.4 * sh(13)) * sw, cy = (sj + 0.3 + 0.4 * sh(14)) * sw;
+        const t = (x - cx) * -ny + (y - cy) * nx, dist = Math.abs((x - cx) * nx + (y - cy) * ny + 0.006 * gnoise2(t / 0.07, sh(15) * 97, seed + 16));
+        // (a crack ends at the slab's joint: it is not drawn in the joint's groove)
+        crack[k] = d < 0.006 ? 0 : 1 - smoothstep(0.0012, 0.004, dist);
+      } else crack[k] = 0;
+      // the spots and stains a walk collects: round spots on a wrapped grid, broad damp patches at grit
+      const sc = snapCell(M, 0.05), scx = (Math.floor(x / sc) + 0.5) * sc, scy = (Math.floor(y / sc) + 0.5) * sc, sr = Math.hypot(x - scx, y - scy) / (0.35 * sc);
+      stain[k] = (cellHash(x, y, M, sc, seed + 13) < 0.04 * (0.4 + g) ? clamp(1 - sr, 0, 1) : 0) * 0.6 + clamp((sfbm(x, y, M, 0.6, 0.6, 3, seed + 15) - 0.3) * 2, 0, 1) * 0.5 * g;
+      return z - 0.002 * crack[k];
+    }, (x, y, k, lit) => {
+      const tone = (cellHash(x, y, M, sw, seed + 17) - 0.5) * 2 * c.vary / 255;
+      return rampAt(body, 0.6 + (lit.value[k] - 1) * 1.1 + tone + 0.03 * sfbm(x, y, M, 0.1, 0.1, 2, seed + 19) - 0.18 * stain[k] - 0.3 * crack[k] - 0.3 * lit.cavity[k]);
+    });
+  },
+};

@@ -158,3 +158,22 @@ describe('roofs and timber', () => {
     expect(down).toBeLessThan(across);
   });
 });
+
+describe('the modern class and the roads', () => {
+  it('each cut is seamless and its own bytes; a modern cut on the rails', () => {
+    for (const cut of ['brick', 'concrete', 'precast', 'stucco', 'pavement', 'asphalt', 'setts']) {
+      // (192 texels a metre: a modern joint is under a centimetre, finer than a coarser sampling holds in every row; the
+      // repeat's own first and last rows lie in a joint for a gridded cut, its V-groove lit on one side)
+      const T = dressedTile({ ...CFG, cut, rows: 8, cols: 4, metres: 1 }, { size: 192, seed: 3 });
+      let over = 0;
+      for (let j = 1; j < T.H - 1; j++) {
+        let most = 0;
+        for (let i = 1; i < T.W; i++) most = Math.max(most, Math.abs(lum(T, i, j) - lum(T, i - 1, j)));
+        if (Math.abs(lum(T, T.W - 1, j) - lum(T, 0, j)) > 1.25 * most + 4) over++;
+      }
+      expect(over, cut).toBe(0);
+      expect(Buffer.compare(dressedTile({ ...CFG, cut, rows: 8, cols: 4, metres: 1 }, { size: 192, seed: 3 }).rgb, T.rgb), cut).toBe(0);
+      expect(normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut }).params.cut).toBe(cut);
+    }
+  });
+});

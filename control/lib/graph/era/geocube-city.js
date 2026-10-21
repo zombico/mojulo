@@ -19,14 +19,14 @@ import { civilizationGrammar } from '../city/plan/civilization.js';
 // (the paint all the way: a city's skins wholly the cube's stone, trim and accent, so its architecture is reviewed in the
 // cube's colours; a game's city level leans halfway, city/plan/look.js)
 export const MICRO_CITY = Object.freeze({ board: Object.freeze({ cols: 2, rows: 2 }), cars: false, people: 0, amount: 1 });
-const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds'];
+const KEYS = ['kind', 'cube', 'show', 'title', 'walk', 'seed', 'domain', 'hour', 'clouds', 'materials'];
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 
 /** The micro-city a geocube's `show: 'city'` builds: its city manifest, and what it was built from. */
 export function geocubeCity(manifest) {
   for (const k of Object.keys(manifest)) {
     if (k === 'weather') no('weather is the land\'s live channel; a micro-city takes its sky as clouds (clear, fair, overcast, storm, haze, high)');
-    if (!KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's city (cube, seed, domain, hour, clouds)`);
+    if (!KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's city (cube, seed, domain, hour, clouds, materials)`);
   }
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), seed = manifest.seed ?? 1;
@@ -37,7 +37,7 @@ export function geocubeCity(manifest) {
   const kit = hasStructureRails(cube.outside.base) ? cube.outside.base : 'isekai-meadow';
   // the hour: the recipe's, else its domain's
   const hour = manifest.hour ?? pick?.domain.hour;
-  const paint = { geocube: manifest.cube, amount: MICRO_CITY.amount, ...(hour !== undefined ? { hour } : {}), ...(manifest.clouds !== undefined ? { clouds: manifest.clouds } : {}) };
+  const paint = { geocube: manifest.cube, amount: MICRO_CITY.amount, ...(hour !== undefined ? { hour } : {}), ...(manifest.clouds !== undefined ? { clouds: manifest.clouds } : {}), ...(manifest.materials !== undefined ? { materials: manifest.materials } : {}) };
   const city = { kind: 'city', seed, board: { ...MICRO_CITY.board }, grammar: civilizationGrammar(anchor, kit, seed), paint, cars: MICRO_CITY.cars, people: MICRO_CITY.people };
   return { city, cube, pick, anchor };
 }
