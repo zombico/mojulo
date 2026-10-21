@@ -330,6 +330,11 @@ const turnAbout = (v, n, a) => { const c = Math.cos(a), sn = Math.sin(a), nv = c
 export const SCALP_MOVES = Object.freeze({
   sleek: { note: 'close to the head, no frizz: combed flat', volume: 0.02, frizz: 0 },
   voluminous: { note: 'lifted off the head at the roots, a fuller crown', volume: 0.18 },
+  // a BLOW-DRY: the roots lifted well off the scalp (the crown fullest, by the lift's own weighting), the sides held
+  // out from the head at the temples, the ends turned out, the frizz brushed smooth. (The crown's clumps are left to the
+  // volume: lifted on their own, those either side of a centre part stood up as two horns)
+  blowout: { note: 'blow-dried: lifted at the roots, a full crown, the sides held out, the ends turned out, smooth', volume: 0.38, flip: 0.6, frizz: 0.0008,
+    locks: Object.fromEntries(['left', 'right'].flatMap((side) => [0, 1, 2].map((j) => [`${side}-temple-${j}`, { lift: 1.4, stand: 0.15 }]))) },
   messy: { note: 'tousled: the comb wanders over the head, each lock still combed with its neighbours', tousle: 1 },
   'heavy-bangs': { note: 'a full fringe combed down over the brow, cut level at the brow', fringe: true, cut: { fringe: { at: 'brow' } } },
   'short-bangs': { note: 'a fringe cut high on the forehead, opening the brow', fringe: true, cut: { fringe: { at: 'forehead' } } },
