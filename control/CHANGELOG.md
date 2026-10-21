@@ -72,17 +72,22 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
 
-### Footwear: a composable primitive
+### Footwear: a solver library, an adapter per body's foot
 
-In progress (on the realistic body first; a solver library with an adapter per body's foot next).
-`polygonizer/body-relational-footwear.js` `footwear(recipe, R, build, map, spec)`: an UPPER (leather close over the foot
-and its toes, a field garment; `upper: false` none, a sandal) at a HEIGHT (`boot`: carried up the shank as a shaft, the
-foot's leather tucked under it round the ankle; `shoe`: from a collar below the ankle), and ADORNMENTS: a SOLE under the
-foot and under the toes (split at the toe base so it bends with them; the footprint's outline grown by a welt, from the
-floor up), STRAPS round the upper (or the bare foot) and a BUCKLE on each one's outer side, each carried by the weights
-of the upper's nearest point. New groups `Sole`, `Strap`, `Brass` (their tones added to a palette that names none). The
-words on the realistic body: `boots`, `shoes` (new), `sandals` (new; on the authored body a low close shoe).
-`fieldGarment` takes `covers: null` (every ring of the segments it is `on`).
+In progress (the library and the realistic body's adapter first; heels, laces and the other bodies' feet next).
+`lib/graph/footwear/`: footwear composed from body-agnostic PARTS (`parts.js`: a sole, a strap, a buckle, each bound by
+the nearest weights of the surface it is worn on) by a SPEC (`presets.js` names the words), worn on a body through its
+FOOT ADAPTER (`adapters/`: which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the
+bare skin a sandal is worn on, the body's own way to lay an upper, and how a share along a segment names its stations).
+`wearFootwear(adapter, spec)`. A spec's places are shares of a segment, so a preset reads on any body.
+The realistic body (`adapters/realistic.js`, `polygonizer/body-relational-footwear.js` re-exports it): an UPPER (leather
+close over the foot and its toes, a field garment; `upper: false` none, a sandal) at a HEIGHT (`boot`: carried up the
+shank as a shaft, the foot's leather tucked under it round the ankle; `shoe`: from a collar below the ankle), and
+ADORNMENTS: a SOLE under the foot and under the toes (split at the toe base so it bends with them; the footprint's
+outline grown by a welt, from the floor up), STRAPS round the upper (or the bare foot) and a BUCKLE on each one's outer
+side. New groups `Sole`, `Strap`, `Brass` (their tones added to a palette that names none). The words on the realistic
+body: `boots`, `shoes` (new), `sandals` (new; on the authored body a low close shoe). Its output is pinned
+(`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the segments it is `on`).
 
 ### The hero's skin: a part of the character, shown where it shows
 

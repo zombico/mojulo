@@ -73,7 +73,8 @@ import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope'
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
-import { footwear, FOOTWEAR } from '@/lib/graph/polygonizer/body-relational-footwear';
+import { FOOTWEAR } from '@/lib/graph/footwear';
+import { footwear } from '@/lib/graph/footwear/adapters/realistic';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -300,7 +301,7 @@ function realisticExpand(plan, hero) {
   const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
   const fieldWords = words.filter((w) => FIELD_GARMENTS[w]);
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
-  // FOOTWEAR: a word with a footwear spec (body-relational-footwear.js FOOTWEAR: boots, shoes) is the primitive's, in place
+  // FOOTWEAR: a word with a footwear spec (lib/graph/footwear FOOTWEAR: boots, shoes, sandals) is the primitive's, in place
   // of its segment pieces (`boot…`, `shoe…`)
   const footWords = words.filter((w) => FOOTWEAR[w]);
   if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !/^(boot|shoe)[A-Z]/.test(g.id)) };

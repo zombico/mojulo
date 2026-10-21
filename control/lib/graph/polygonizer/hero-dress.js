@@ -214,7 +214,7 @@ export const OUTFIT_WORDS = Object.freeze({
   boots: ({ scale: k }) => [{ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' },
     { id: 'bootFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (the boot's foot alone, below the ankle; on the realistic body both are the footwear primitive's,
-  // body-relational-footwear.js)
+  // lib/graph/footwear)
   shoes: ({ scale: k }) => [{ id: 'shoeFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (on the authored body a sandal is a low shoe, close; on the realistic body the sole and the straps alone)
   sandals: ({ scale: k }) => [{ id: 'shoeSandal', part: 'foot', fit: 'shoe', ease: 0.003 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
