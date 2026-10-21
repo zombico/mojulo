@@ -71,6 +71,7 @@ import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
+import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
@@ -446,16 +447,36 @@ export function geocubeRamps(cube, n = 5) {
   return Object.fromEntries(Object.entries(cube.colour).filter(([k]) => k !== 'shade').map(([k, h]) => [k, rampFrom(rgbOf(h), n, { shadow }).map(hexOf)]));
 }
 
+/**
+ * A GRITTY cube's room (grit ≥ GRIT_PIXELS): its stone dressed from relief (matte-paint/dressed.js), as its outside's rock
+ * is drawn near in its own beds. The stock pixel maps give way: the wall's stone-brick becomes ashlar, the floor's
+ * flagstone worn slabs, in the colours they named; the pillars fluted and the plinth a course of long blocks, unless the
+ * cube names its own. Grit tunes them: how much is broken, pitted and worn, a rock face from 0.85. A surface the cube
+ * names in another generator, or already dressed, is kept. Quiet cubes are as they were.
+ */
+function dressedSurfaces(cube) {
+  const S = cube.surfaces, g = cube.grit, W = S.wall, F = S.floor;
+  const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 };
+  const dark = (c, k) => c.map((v) => Math.round(v * k));
+  const wall = W.gen === 'stone-brick' ? { gen: 'dressed', stone: W.stone, mortar: W.mortar, rows: 4, cols: 2, tool: g >= 0.85 ? 'pitched' : 'tooled', ...wear, seed: W.seed ?? 13 } : W;
+  const floor = F.gen === 'flagstone' ? { gen: 'dressed', face: 'floor', stone: F.stone, mortar: F.mortar, rows: 4, cols: 3, tool: 'none', ...wear, seed: F.seed ?? 17 } : F;
+  const stone = wall.stone ?? W.stone ?? [150, 150, 150], mortar = wall.mortar ?? W.mortar ?? [88, 88, 88];
+  return { wall, floor,
+    pillar: S.pillar ?? { gen: 'dressed', cut: 'fluted', stone, mortar, ...wear, seed: 5 },
+    plinth: S.plinth ?? { gen: 'dressed', stone: dark(stone, 0.92), mortar, rows: 2, cols: 2, ...wear, seed: 9 } };
+}
+
 function lowerInside(cube) {
-  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size;
+  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size, gritty = cube.grit !== undefined && cube.grit >= GRIT_PIXELS;
+  // (a gritty room's tone lets its stone's own light and dark through further: the grit is how much texture reads)
   const tone = {
-    texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: 0.45, default: 'stone',
+    texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: gritty ? Math.round((0.45 + 0.45 * cube.grit) * 100) / 100 : 0.45, default: 'stone',
     ramps: { stone: R.stone, floor: R.floor, trim: R.trim, accent: R.accent },
     groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
     keep: ['stage:fixture', 'stage:lamp'],
   };
   return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
-    tiles: { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
+    tiles: gritty ? dressedSurfaces(cube) : { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
 

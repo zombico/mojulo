@@ -117,6 +117,13 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   the walls' feet, in the trim's laying; a course of long blocks with no bed joint across it) and the `path` (the nave's
   runner, in the floor's laying, still floor to the tone and the dirt). A geocube's `surfaces.plinth` reaches the room.
   Without them a room is byte for byte as it was.
+- **A gritty cube dresses its room.** At `grit` from `GRIT_PIXELS` (the island's own threshold, now in
+  `matte-paint/fabric.js`), a geocube's room is dressed as its outside's rock is drawn near: the wall's stock
+  stone-brick becomes ashlar and the floor's flagstone worn slabs, in the colours they named; the pillars fluted and the
+  plinth a course of long blocks unless the cube names its own; grit sets how much is broken, pitted and worn (a rock
+  face from 0.85). Its tone's `detail` rises with grit (0.45 + 0.45 × grit), so the stone's own light and dark read
+  through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
+  is the first.
 
 ### Geocube styles: principles and the laws that check them
 

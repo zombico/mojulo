@@ -97,3 +97,23 @@ describe('floors, paths and baseboards', () => {
     expect(tileFamilyOf({ ...D({ face: 'floor' }), scale: 4 })).toBe([...keys][0].replace(/-[ab]$/, ''));
   });
 });
+
+describe('a gritty cube dresses its room', () => {
+  it('its stone from relief, its tone letting it read; a quiet cube as it was; a surface it names kept', async () => {
+    const { lowerGeocube, readGeocube } = await import('../era/geocube.js');
+    const { GRIT_PIXELS } = await import('../local-meru/plan.js');
+    const quiet = lowerGeocube(readGeocube('valley-morning'), 'inside');
+    expect(quiet.tiles.wall.gen).toBe('stone-brick'); expect(quiet.tiles.pillar).toBeUndefined(); expect(quiet.tone.detail).toBe(0.45);
+    expect(lowerGeocube(readGeocube({ from: 'valley-morning', grit: GRIT_PIXELS - 0.05 }), 'inside')).toEqual(quiet);
+    const gritty = lowerGeocube(readGeocube({ from: 'valley-morning', grit: 0.7 }), 'inside');
+    expect(gritty.tiles.wall).toMatchObject({ gen: 'dressed', grit: 0.7 });
+    expect(gritty.tiles.floor).toMatchObject({ gen: 'dressed', face: 'floor' });
+    expect(gritty.tiles.pillar).toMatchObject({ gen: 'dressed', cut: 'fluted' });
+    expect(gritty.tiles.plinth).toMatchObject({ gen: 'dressed' });
+    expect(gritty.tone.detail).toBeGreaterThan(quiet.tone.detail);
+    expect(lowerGeocube(readGeocube('limestone-crags'), 'inside').tiles.wall.gen).toBe('dressed');
+    // (a cube that names its pillar in another stone keeps it)
+    const own = { gen: 'stone-brick', stone: [120, 120, 120], mortar: [60, 60, 60] };
+    expect(lowerGeocube(readGeocube({ from: 'valley-morning', grit: 0.7, surfaces: { pillar: own } }), 'inside').tiles.pillar).toEqual(own);
+  });
+});

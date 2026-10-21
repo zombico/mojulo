@@ -28,6 +28,8 @@ const D2R = Math.PI / 180, cosD = (a) => Math.cos(a * D2R);
 // how a joint reads, by pattern: its groove as a share of the set's spacing, and how much of its length it holds
 const READ = { blocky: { width: 0.025, hold: 0.75 }, columnar: { width: 0.022, hold: 0.95 }, slabby: { width: 0.04, hold: 0.9 } };
 export const FABRIC_GROUPS = Object.freeze(['isekai:cliff']);
+/** How gritty a style must be before its stone takes pixels: the island's rock (local-meru), a cube's room (geocube). */
+export const GRIT_PIXELS = 0.35;
 // a formation is the rock itself: the boulders that came off the cliff are drawn in it too
 export const FORMATION_GROUPS = Object.freeze([...FABRIC_GROUPS, 'isekai:rock']);
 
