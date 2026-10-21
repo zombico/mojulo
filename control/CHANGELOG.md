@@ -172,7 +172,12 @@ bands at the shoulder, the elbow, the wrist, the waist, the hip and the groin, t
 group), the grooves wider (14 mm), the calf cut by its muscles (the gastrocnemius's two heads and the soleus, under the
 greave's front, `greaveFront`); the labels eased before the cut (a point takes the group most of its neighbours share);
 a point inside another part's skin (`hidden`) left out, and each segment's underplate and joint bands kept to the stretch
-of it that shows, so the inner of two overlapping skins does not poke through. Layouts `greave` (a chevron shin plate, side
+of it that shows, so the inner of two overlapping skins does not poke through. Where the muscles interleave too finely
+to cut by (the lower back, the pelvis), a DESIGNED cut instead: `spine` (a dark channel down the back, a column of
+vertebrae, a sacrum ending in a chevron; a design line may run through the back, `s` past ±1), `lumbar` (stepped plates
+either side of the spine), `hips` (seat and hip plates, a codpiece, a low-abdominal plate); and SERVOS (`servos`: a hub at
+the outer and the inner side of each knee and elbow, a disc, a domed core and a light; a panel may be a `circle` sized in
+metres). `markSuit` cut by its muscles where they are clear and by design where they are not. Layouts `greave` (a chevron shin plate, side
 plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
 suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
 its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.

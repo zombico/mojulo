@@ -144,7 +144,15 @@ export function wearPlating(A, spec = 'powerSuit', { id = 'suit', group = 'Suit'
       // (an underplate or a joint band kept to the stretch of its segment that shows)
       let t = pn.t;
       if (pn.layer === 'under' || pn.layer === 'joint') { const v = showing(seg, pn.seg, P); if (!v) continue; t = [Math.max(t[0], v[0]), Math.min(t[1], v[1])]; if (t[1] - t[0] < 0.02) continue; }
-      const copies = pn.mirror ? [['Lat', pn.left, pn.right], ['Med', pn.right.map(([t, v]) => [t, -v]), pn.left.map(([t, v]) => [t, -v])]] : [['', pn.left, pn.right]];
+      // (a CIRCLE: its edges the circle's, in the segment's t and s, sized in metres by the segment's length and girth there)
+      let edges = [pn.left, pn.right];
+      if (pn.circle) {
+        const { t: tc, s: sc, r } = pn.circle, rt = r / (F.length || 0.3), rs = (2 * r) / (F.perimeter(uOf(tc)) || 0.3), K = 8;
+        const half = (t) => rs * Math.sqrt(Math.max(0, 1 - ((t - tc) / rt) ** 2)), ts = Array.from({ length: K + 1 }, (_, i) => tc - rt + (2 * rt * i) / K);
+        edges = [ts.map((tt) => [tt, sc - Math.max(half(tt), rs * 0.15)]), ts.map((tt) => [tt, sc + Math.max(half(tt), rs * 0.15)])];
+        t = [tc - rt, tc + rt];
+      }
+      const copies = pn.mirror ? [['Lat', edges[0], edges[1]], ['Med', edges[1].map(([tt, v]) => [tt, -v]), edges[0].map(([tt, v]) => [tt, -v])]] : [['', edges[0], edges[1]]];
       for (const [tag, left, right] of copies) {
         const pc = shellPanel(F, { t0: t[0], t1: t[1], left, right, lift: (pn.lift ?? Ly.lift) * bulk, thick: Ly.thick, bevel: Ly.bevel, dome: pn.dome ?? 0, uOf, fOf }); if (!pc) continue;
         put(`${id}${Name}${pn.id}${tag}_${seg}`, { ...pc, group: pn.role ?? Ly.role, bind: bindNearest(pc, P) });

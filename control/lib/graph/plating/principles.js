@@ -18,7 +18,9 @@
 //   7. THE BODY DRAWS THE LINES (muscles.js). On a muscled segment the seams fall in the grooves between the muscles (the
 //      body's muscle map), a plate per muscle group (the pectoral's heads one plate, each row of the rectus its own, the
 //      deltoid's heads a cap), its edges straightened into the stepped lines of law 6; the bone between masses is left to
-//      the underplate. Where a segment is bone (the shin's face), a designed layout cuts it instead.
+//      the underplate. Where a segment is bone (the shin's face) or its muscles interleave too finely to cut by (the lower
+//      back, the pelvis), a designed layout cuts it instead; a mechanical joint shows its SERVO (a hub at the knee's and the
+//      elbow's sides).
 //   8. GROUPS ARE ROLES (Plate, Trim, Alloy, Suit, Reactor, Light), so a COLOURWAY recolours any suit; every plate rides the rig by
 //      the weights of the suit under it.
 export const PLATING_LAWS_VERSION = 1;

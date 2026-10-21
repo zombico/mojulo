@@ -104,6 +104,20 @@ describe('a plated suit on a body adapter', () => {
     expect(W.parts.qThighUnder_thighL.group).toBe('Alloy');
   });
 
+  it('a line through the back: the spine\'s pieces span it whole; a servo is round', () => {
+    const W = wearPlating(stub, { family: 'powered', shells: ['spine', 'servos'] }, { id: 'x' });
+    // a vertebra on the trunk's back (−y), across its centre line (x either side of 0)
+    const V = W.parts.xSpineVertebra4_torso.stations.flatMap((st) => Object.values(st.points));
+    expect(Math.max(...V.map((p) => p[1]))).toBeLessThan(-0.1);
+    expect(Math.min(...V.map((p) => p[0]))).toBeLessThan(-0.005);
+    expect(Math.max(...V.map((p) => p[0]))).toBeGreaterThan(0.005);
+    // a servo's hub on the thigh's outer side, about as tall as it is wide
+    const H = W.parts.xServosThighHubLat_thighR.stations.flatMap((st) => Object.values(st.points)), span = (q) => Math.max(...H.map((p) => p[q])) - Math.min(...H.map((p) => p[q]));
+    expect(Math.min(...H.map((p) => p[0]))).toBeGreaterThan(0.09);
+    expect(span(2) / span(1)).toBeGreaterThan(0.6);
+    expect(span(2) / span(1)).toBeLessThan(1.6);
+  });
+
   it('refuses a suit by name', () => {
     expect(validatePlating('ironSuit')[0]).toMatch(/'ironSuit' is not a suit/);
     const E = validatePlating({ plates: [{ region: 'wing', colour: 1 }] });

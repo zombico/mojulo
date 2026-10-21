@@ -7,7 +7,8 @@
 //   suit     { ease? (m off the skin, 0.002), on? [segments] } the undersuit, or false: plates on the bare skin
 //   plates   [{ region (regions.js PLATE_REGIONS, or { seg, along, around, sides, rows?, gap? }), lift? (m, the
 //            standoff: bulk), thick?, rows?, gap?, group? }]
-//   shells   [layout | { layout, bulk? }] FITTED SHELLS (layouts.js: greave, greaveFront, kneeCap, sabaton, joints): a segment's shell cut along
+//   shells   [layout | { layout, bulk? }] FITTED SHELLS (layouts.js: greave, greaveFront, kneeCap, sabaton, joints, spine,
+//            lumbar, hips, servos): a segment's shell cut along
 //            design lines into bevelled panels fitted across narrow seams, stacked by layer
 //   muscles  { on: [segments], only?: [plate groups], bulk?, seam? (m, the grooves' width, 0.014) } MUSCLE-MAPPED SHELLS (muscles.js): each segment cut where its
 //            grooves run, a plate per muscle group, its edges straightened into stepped lines, an underplate under all
@@ -39,11 +40,15 @@ export const SUITS = Object.freeze({
   markBoots: { family: 'powered', suit: { ease: 0.002, on: ['shank', 'foot', 'toes'] }, shells: ['greave', 'kneeCap', 'sabaton'],
     feet: { sock: false, sole: { thick: 0.012, welt: 0.004 }, adorn: [{ prim: 'toeCap', lift: 0.012, room: 0.01, group: 'Plate' }] },
     tones: { Plate: '#8e1a1f', Alloy: '#b7b9bd', Trim: '#c9a23a', Suit: '#1e1f24', Light: '#e8f6ff', Sole: '#2a2b2e' }, emissive: ['Light'] },
-  // the MARK SUIT: the whole body cut where its muscles part (the trunk, the arms, the thighs, the calves), the greaves'
-  // fronts, knee caps and sabatons below, articulated bands at every joint, a reactor on the sternum; red over silver,
-  // gold strips, lit vents
+  // the MARK SUIT: the body cut where its muscles part (the chest and the upper back, the arms, the thighs, the calves),
+  // by design where they interleave (the spine and its vertebrae, the lumbar plates, the hips), the greaves' fronts, knee
+  // caps and sabatons below, articulated bands at every joint, servos at the knees and the elbows, a reactor on the
+  // sternum; red over silver, gold strips, lit vents
   markSuit: { from: 'markBoots', suit: { ease: 0.002, on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'toes'] },
-    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints'], muscles: { on: ['torso', 'pelvis', 'upperArm', 'foreArm', 'thigh', 'shank'] },
+    shells: ['greaveFront', 'kneeCap', 'sabaton', 'joints', 'spine', 'lumbar', 'hips', 'servos'],
+    muscles: { on: ['torso', 'upperArm', 'foreArm', 'thigh', 'shank'], only: ['Pec', 'Sternum', 'Collar', 'Abs1', 'Abs2', 'Abs3', 'Oblique', 'Lat', 'Trap', 'Armpit',
+      'Deltoid', 'Biceps', 'Triceps', 'Brachioradialis', 'Extensors', 'Flexors', 'RectusFemoris', 'VastusLateralis', 'VastusMedialis', 'Adductors', 'Hamstrings', 'Tensor', 'Knee',
+      'GastrocMedial', 'GastrocLateral', 'Soleus'] },
     reactor: { at: 0.64, r: 0.026 }, emissive: ['Light', 'Reactor'], tones: { Reactor: '#c8f4ff', Rim: '#b7b9bd', Joint: '#4a4d53' } },
 });
 for (const c of Object.values(SUITS)) Object.freeze(c);

@@ -7,6 +7,8 @@
 //
 // A panel: { id, seg, layer: under | mid | over | cap | light | joint, t: [t0, t1], left: [[t, s], …], right: [[t, s], …],
 //            mirror? (a copy on the other side: s negated), dome? (m), lift? (m, over the layer's: a light set on a cap),
+//            circle? { t, s, r (m) } (a round panel, a servo's, in place of t, left and right; its shape in metres),
+//            s past ±1 (a line through the back, carrying on round to the other side),
 //            role? (its colour's role over the layer's) }
 // LAYERS set each layer's height off the shell, its depth and its bevel (a card's `bulk` scales the heights).
 export const LAYERS = Object.freeze({
@@ -49,6 +51,37 @@ const BASE = {
       ['torso', [[0.005, 0.05], [0.065, 0.11]]], ['pelvis', [[0.9, 0.945], [0.955, 0.995]]], ['pelvis', [[0.01, 0.08], [0.1, 0.17]]],
       ['thigh', [[0.01, 0.06], [0.075, 0.125]]], ['thigh', [[0.86, 0.915], [0.935, 0.995]]]]
       .flatMap(([seg, bands], k) => bands.map((t, i) => ({ id: `${seg[0].toUpperCase()}${seg.slice(1)}${k}${i}`, seg, layer: 'joint', t, left: line(-0.995), right: line(0.995) }))),
+  ],
+  // the SPINE: a dark channel down the back, a column of vertebrae on it (each a little wider at its top), a sacrum plate
+  // ending in a chevron on the pelvis. Its lines run through the back (s past 1 carries on round to the other side)
+  spine: [
+    { id: 'Channel', seg: 'torso', layer: 'mid', role: 'Joint', t: [0.08, 0.95], left: line(0.9), right: line(1.1) },
+    ...Array.from({ length: 9 }, (_, i) => { const t0 = 0.11 + i * 0.092, t1 = t0 + 0.07;
+      return { id: `Vertebra${i}`, seg: 'torso', layer: 'cap', role: 'Alloy', t: [t0, t1], left: [[t0, 0.935], [t1, 0.92]], right: [[t0, 1.065], [t1, 1.08]] }; }),
+    { id: 'Sacrum', seg: 'pelvis', layer: 'cap', role: 'Alloy', t: [0.5, 0.94], left: [[0.5, 0.97], [0.72, 0.9], [0.94, 0.9]], right: [[0.5, 1.03], [0.72, 1.1], [0.94, 1.1]] },
+  ],
+  // the LUMBAR plates either side of the spine over the small of the back, stepped, a layer over the lats
+  lumbar: [
+    { id: 'Plate', seg: 'torso', layer: 'cap', mirror: true, t: [0.1, 0.44], left: stepped(0.6, [[0.24, 0.29, 0.06]], 0.1, 0.44), right: stepped(0.86, [[0.3, 0.35, -0.03]], 0.1, 0.44) },
+    { id: 'Kidney', seg: 'torso', layer: 'over', mirror: true, t: [0.12, 0.3], left: line(0.44, 0.12, 0.3), right: line(0.57, 0.12, 0.3), role: 'Trim' },
+  ],
+  // the HIPS (the pelvis by design, where its muscles interleave too finely to cut by): an underplate, seat plates and hip
+  // plates stepped, a codpiece and a low-abdominal plate at the front
+  hips: [
+    { id: 'Under', seg: 'pelvis', layer: 'under', t: [0.03, 0.97], left: line(-0.995), right: line(0.995) },
+    { id: 'Seat', seg: 'pelvis', layer: 'over', mirror: true, t: [0.22, 0.86], left: stepped(0.6, [[0.5, 0.56, -0.05]], 0.22, 0.86), right: stepped(0.86, [[0.4, 0.46, 0.02]], 0.22, 0.86) },
+    { id: 'Side', seg: 'pelvis', layer: 'over', mirror: true, t: [0.3, 0.9], left: stepped(0.28, [[0.55, 0.61, 0.05]], 0.3, 0.9), right: stepped(0.54, [[0.62, 0.68, -0.05]], 0.3, 0.9) },
+    { id: 'Codpiece', seg: 'pelvis', layer: 'cap', t: [0.04, 0.44], left: [[0.04, -0.12], [0.3, -0.2], [0.44, -0.2]], right: [[0.04, 0.12], [0.3, 0.2], [0.44, 0.2]] },
+    { id: 'LowAbs', seg: 'pelvis', layer: 'over', role: 'Trim', t: [0.52, 0.92], left: stepped(-0.2, [[0.7, 0.76, -0.04]], 0.52, 0.92), right: stepped(0.2, [[0.7, 0.76, 0.04]], 0.52, 0.92) },
+  ],
+  // the SERVOS: a hub at the outer and the inner side of each knee and elbow, a mechanical joint's: a disc, a domed core,
+  // a light at its middle (a panel `circle`: { t, s, r (m) } on its segment, mirrored to the other side)
+  servos: [
+    ...[['thigh', 0.95, 0.03], ['upperArm', 0.94, 0.024]].flatMap(([seg, t, r]) => [
+      { id: `${seg[0].toUpperCase()}${seg.slice(1)}Hub`, seg, layer: 'cap', role: 'Alloy', mirror: true, circle: { t, s: 0.5, r }, lift: 0.016 },
+      { id: `${seg[0].toUpperCase()}${seg.slice(1)}Core`, seg, layer: 'cap', role: 'Joint', mirror: true, circle: { t, s: 0.5, r: r * 0.6 }, lift: 0.019, dome: 0.004 },
+      { id: `${seg[0].toUpperCase()}${seg.slice(1)}Light`, seg, layer: 'light', mirror: true, circle: { t, s: 0.5, r: r * 0.2 }, lift: 0.0245 },
+    ]),
   ],
   // the KNEE CAP: a domed cap over the top of the shank, chevroned below
   kneeCap: [
