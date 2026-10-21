@@ -5,13 +5,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf } from './geocube.js';
+import { readGeocube, pickDomain, geocubeDomains, expandGeocube, withGeocube, geocubePaint, lowerGeocube, geocubeContrastOf, geocubeStructures, geocubeRamps } from './geocube.js';
 import { readHour } from './geocube-hours.js';
 import { assembleStageScene } from './stage.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 import { readLevel } from '../level/graph.js';
 import { sequentialLevel } from '../level/sequential.js';
 import { resolveLevel } from '../gameworld/world.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 import { MEADOWMARK } from '../gameworld/examples.js';
 
 // a cube with a second terrain of its own land and a second room, and no domains: it offers one per place
@@ -20,6 +21,9 @@ const CUBE = { from: 'gothic-night', outside: { terrains: { shore: { reads: 'A c
 // the same cube naming its levels
 const NAMED = { ...CUBE, domains: { 'shore-night': { reads: 'The beach by moonlight', terrain: 'shore' }, 'shore-dawn': { terrain: 'shore', hour: 'dawn' }, crypt: { interior: 'crypt' } } };
 const strip = ({ painted: _p, ...rest }) => rest;
+// the same cube raising a beacon on its top, and a domain that stands it there
+const RAISED = { ...NAMED, structures: { beacon: [{ id: 'beacon', preset: 'needle', on: 'summit', size: 2, palette: { crown: '#ffcc66' } }] },
+  domains: { ...NAMED.domains, 'beacon-hill': { terrain: 'default', structures: 'beacon' } } };
 
 describe('reading domains', () => {
   it('a cube without domains offers one per terrain, then one per interior; a cube with them offers those', () => {
@@ -116,5 +120,40 @@ describe('a level on a domain', () => {
     const lv = resolveLevel(W, 'meadow-ascent');
     expect(sequentialLevel(lv.level).paint).toMatchObject({ domain: 'shore-dawn', terrain: 'shore', from: 'level' });
     expect(lv.ledger).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'domain', local: 'shore-dawn' })]));
+  });
+});
+
+describe('structures, the landmarks a domain raises', () => {
+  it('a cube names its sets; a domain stands one, or lists its own; inside there are none', () => {
+    expect(geocubeDomains(readGeocube(RAISED)).find((d) => d.name === 'beacon-hill')).toMatchObject({ side: 'outside', structures: 'beacon' });
+    expect(() => readGeocube({ ...RAISED, structures: { beacon: [{ preset: 'needle', on: 'shore' }] } })).toThrow(/on is 'summit'/);
+    expect(() => readGeocube({ ...RAISED, structures: { beacon: [{ preset: 'needle' }] } })).toThrow(/stands at \[x, y, z\?\], or on: 'summit'/);
+    expect(() => readGeocube({ ...RAISED, structures: { beacon: [{ preset: 'nope', at: [0, 0] }] } })).toThrow(/structures.beacon\[0\]/);
+    expect(() => pickDomain(readGeocube(RAISED), { interior: 'crypt', structures: 'beacon' })).toThrow(/an interior takes none/);
+    expect(() => pickDomain(readGeocube(RAISED), { structures: 'tower' })).toThrow(/structures 'tower' is not one of/);
+  });
+
+  it('stands on the climb\'s top, painted from the cube (its own colours over), lit by the cube\'s key at the hour', () => {
+    const m = { kind: 'stage', geocube: RAISED, domain: 'beacon-hill' }, S = geocubeStructures(m);
+    const top = withGeocube(m).meru.tiers.reduce((z, t) => z + t.height, 0);
+    expect(S.list[0].at[2]).toBe(top);
+    const R = geocubeRamps(readGeocube(RAISED));
+    expect(S.list[0].palette).toEqual({ body: R.stone[2], band: R.trim[1], crown: '#ffcc66', plinth: R.floor[1] });
+    // (the night cube's key is its moon; at noon, the sun)
+    const noon = geocubeStructures({ ...m, domain: { from: 'beacon-hill', hour: 'noon' } });
+    expect(noon.list).toEqual(S.list);
+    expect(noon.light.toLight).not.toEqual(S.light.toLight);
+    // none where the domain raises none, where it is inside, or on a trail
+    expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'shore-night' })).toBeNull();
+    expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'crypt' })).toBeNull();
+    expect(geocubeStructures({ kind: 'stage', geocube: RAISED, domain: 'beacon-hill', trail: { run: 12 } })).toBeNull();
+  });
+
+  it('the world raises them on the domain\'s land, beside the recipe\'s own', async () => {
+    const { payload: W } = await resolveWorldScene({ title: 't', manifest: { kind: 'geocube', cube: RAISED, domain: 'beacon-hill' } });
+    const raised = W.faces.filter((f) => String(f.group).startsWith('structure:beacon:'));
+    expect(raised.length).toBeGreaterThan(20);
+    const zs = raised.flatMap((f) => f.corners.map((c) => c[2]));
+    expect(Math.min(...zs)).toBeGreaterThanOrEqual(geocubeStructures({ kind: 'geocube', cube: RAISED, domain: 'beacon-hill' }).list[0].at[2] - 1e-6);
   });
 });

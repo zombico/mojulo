@@ -150,12 +150,18 @@ model picks the one that fits. A cube without domains lowers byte for byte as be
   wins); an inside one is the room. `painted`, the level's `paint` summary and the specimen's `geocube` payload name
   the domain; a specimen whose cube names more than its own room and land lists the levels it makes.
 - **`limestone-crags` makes three levels** (`GEOCUBE_DOMAINS`, beside its buildings, so the preset's own document does
-  not move): `crag-path` (its crags), `cove-dusk` (a sand cove under low crags, at dusk) and `temple-hall` (a tall nave).
+  not move): `crag-path` (its crags, a shrine on the top), `cove-dusk` (a sand cove under low crags, at dusk) and `temple-hall` (a tall nave).
   Every preset's room, land and dusk land, a stage on each and a painted level render byte for byte as before; the
   limestone specimen's payload gains its list of domains. Only the automated checks have run; the three have not been
   looked at.
-- Planned: `structures` as an ingredient, fractal-structure landmarks painted from the cube's ramps unless they name
-  their own palette.
+- **Structures, the landmarks a domain raises.** A cube's `structures: { <name>: [<structure>…] }` are the landmarks
+  its builders raise: a fractal structure's words each, standing `at` [x, y, z?] or `on: 'summit'` (the climb's top
+  tier, `at` then an offset). A domain stands a set by name or lists its own (`structures`; an interior takes none).
+  `geocubeStructures` paints them from the cube's ramps on the domain's terrain (body the stone, band the trim, crown
+  the accent, plinth the floor; a structure's own palette over them, key by key) and lights them by the cube's key at
+  the domain's hour. The structures channel raises them beside a recipe's own on a stage's climb or a specimen's land,
+  never on a trail. `limestone-crags`'s `crag-path` stands a spire on its top. A domain without structures renders as
+  before.
 - Planned: `settlements` as an ingredient, a town's street in the cube's building language, laid as the stage's `town`.
 - Planned: a game's levels expand domains of its one cube; compose picks each level's domain by its words. The geocube
   routing card teaches domain expansion; no new tool.

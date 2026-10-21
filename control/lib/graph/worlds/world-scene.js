@@ -43,7 +43,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeStructures } from '@/lib/graph/era/geocube';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -406,6 +406,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const S = structureFaces(sketch.manifest.structures, ctx.light ? { light: ctx.light } : {});
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
     structureColliders = S.colliders;
+  }
+  // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
+  // key (unshaded, the view's light), standing on the domain's land
+  const domainStructures = payload && (kind === 'stage' || kind === 'geocube') && sketch.manifest.domain !== undefined ? geocubeStructures(sketch.manifest) : null;
+  if (domainStructures) {
+    const { structureFaces } = await import('@/lib/graph/fractal-structure/index.js');
+    const S = structureFaces(domainStructures.list, { light: unshaded ? ctx.light : domainStructures.light });
+    payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
+    structureColliders = [...structureColliders, ...S.colliders];
   }
 
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face

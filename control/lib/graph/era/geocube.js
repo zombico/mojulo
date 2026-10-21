@@ -35,9 +35,12 @@
  *             the others, each a few changes to it, up to a whole land of its own ({ reads?, base?, tiers?, island?, land?,
  *             relief?, ground?, crystals?, colour? }: a shore, a highland). A level asks for one, or its heartbeat names the
  *             one it was made for, and the answer says which it got
+ *   structures (optional) landmarks its builders raise, by name: { <name>: [<structure>…] }, each a fractal structure's
+ *             words (fractal-structure/read.js) standing `at` [x, y, z?] or `on: 'summit'` (the top tier's top, `at` then
+ *             an offset), painted from the cube's ramps unless it names its own palette, lit by the cube's key
  *   domains   (optional) the levels the cube makes, each a composition of its ingredients in its one style:
- *             { <name>: { reads?, terrain? | interior?, hour? } } (outside on a terrain at an hour, or inside an
- *             interior). A cube that names none offers one per terrain and one per interior. Expanding a domain lowers
+ *             { <name>: { reads?, terrain? | interior?, hour?, structures? } } (outside on a terrain at an hour, with
+ *             its structures: a set's name or a list, or inside an interior). A cube that names none offers one per terrain and one per interior. Expanding a domain lowers
  *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
  *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
@@ -61,6 +64,7 @@
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
  *   pickDomain(cube, ask, hint)    which domain a level gets, and from whom: → { name, from, offered, domain, wanted? }
  *   expandGeocube(cube, ask, hint) domain expansion: the domain picked and lowered → { manifest, pick }
+ *   geocubeStructures(manifest)    a stage's or a specimen's domain's structures, painted and placed → { list, light } | null
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  */
@@ -86,6 +90,9 @@ import { cubeColours } from '../color-theorist/adapters.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, readHour } from './geocube-hours.js';
+import { validateStructures } from '../fractal-structure/read.js';
+import { makeLight } from '../polygonizer/vexar.js';
+import { planLocalMeru } from '../local-meru/plan.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -267,8 +274,9 @@ export const GEOCUBE_DOMAINS = Object.freeze({
     outside: { terrains: { cove: { reads: 'A sand cove under low crags, the sea come in close',
       tiers: [{ form: 'mound', height: 3.5, foot: 12, summit: 7 }], island: { ...ISLE, beach: 16, high: { azimuth: null, height: 6, span: 150 } } } } },
     inside: { interiors: { hall: { reads: 'A tall pale temple hall, cool out of the light', bones: 'gothic-nave', size: [12, 20, 11] } } },
+    structures: { shrine: [{ id: 'summit-shrine', preset: 'spire', on: 'summit', size: 2.4, seed: 7 }] },
     domains: {
-      'crag-path': { reads: 'The crags in the hard clear light, the way up through the beds' },
+      'crag-path': { reads: 'The crags in the hard clear light, the way up through the beds, a shrine on the top', structures: 'shrine' },
       'cove-dusk': { reads: 'The cove at dusk, the stone gone gold and the sea blue', terrain: 'cove', hour: 'dusk' },
       'temple-hall': { reads: 'Into the temple hall, tall and cool out of the light', interior: 'hall' },
     },
@@ -306,7 +314,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, structures: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -315,7 +323,8 @@ const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${
 const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.message.replace(/^local-meru: ground/, '')}`); } };
 const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
 const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'colour'];
-const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour'];
+const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour', 'structures'];
+const STRUCTURE_ON = ['summit'];
 const LAND_WORDS = ['smooth', 'crevice', 'ridge', 'blend', 'sun', 'mix', 'facet', 'valley', 'skin', 'rocks'];
 const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) no(`${at}.${k} is not a setting (${at}: ${keys.join(', ')})`); };
 
@@ -450,6 +459,14 @@ export function readGeocube(spec) {
     if (!isObj(c.buildings)) no('buildings is { anchor?, uses: [{ use, enter }] }');
     only(c.buildings, ['anchor', 'uses'], 'buildings');
     if (!Array.isArray(c.buildings.uses) || !c.buildings.uses.every((u) => isObj(u) && typeof u.use === 'string' && ['door', 'walk', false].includes(u.enter ?? 'door'))) no("buildings.uses is [{ use, enter: 'door' | 'walk' | false }]");
+  }
+  // structures (optional): the landmarks its builders raise, each set by name
+  if (c.structures !== undefined) {
+    if (!isObj(c.structures) || !Object.keys(c.structures).length) no('structures is { <name>: [<structure>…] }: the landmarks the cube\'s builders raise, by name');
+    for (const [name, list] of Object.entries(c.structures)) {
+      if (!SLUG.test(name)) no(`structures.${name}: a set's name is a lowercase slug`);
+      structuresOrNo(list, `structures.${name}`);
+    }
   }
   // domains (optional): the levels the cube makes; terrains and interiors share their names when the cube names none
   const places = [...geocubeTerrains(c), ...geocubeInteriors(c)].map((p) => p.name), twice = places.find((n, i) => places.indexOf(n) !== i);
@@ -600,12 +617,28 @@ function composeDomain(cube, d, at) {
     const I = geocubeInteriors(cube).find((r) => r.name === d.interior);
     if (!I) no(`${at}.interior '${d.interior}' is not one of ${cube.id}'s (interiors: ${geocubeInteriors(cube).map((r) => r.name).join(', ')})`);
     if (d.hour !== undefined) no(`${at}.hour is the outside's: an interior takes none`);
+    if (d.structures !== undefined) no(`${at}.structures stand outside: an interior takes none`);
     return { side: 'inside', interior: d.interior, reads: d.reads ?? I.reads };
   }
   const T = d.terrain === undefined ? geocubeTerrains(cube)[0] : geocubeTerrains(cube).find((t) => t.name === d.terrain);
   if (!T) no(`${at}.terrain '${d.terrain}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((t) => t.name).join(', ')})`);
   if (d.hour !== undefined) { try { readHour(d.hour); } catch (e) { no(`${at}.${e.message}`); } }
-  return { side: 'outside', terrain: T.name, ...(d.hour !== undefined ? { hour: d.hour } : {}), reads: d.reads ?? T.reads };
+  if (typeof d.structures === 'string' && !cube.structures?.[d.structures]) no(`${at}.structures '${d.structures}' is not one of ${cube.id}'s (structures: ${Object.keys(cube.structures ?? {}).join(', ') || 'none'}); or list them`);
+  if (d.structures !== undefined && typeof d.structures !== 'string') structuresOrNo(d.structures, `${at}.structures`);
+  return { side: 'outside', terrain: T.name, ...(d.hour !== undefined ? { hour: d.hour } : {}), ...(d.structures !== undefined ? { structures: d.structures } : {}), reads: d.reads ?? T.reads };
+}
+// a set of structures as a cube names them: a fractal structure's words each, standing `at` or `on` an anchor
+function structuresOrNo(list, at) {
+  if (!Array.isArray(list) || !list.length) no(`${at} is [<structure>…]: a fractal structure's words each, standing at [x, y, z?] or on: 'summit'`);
+  list.forEach((sp, i) => {
+    if (!isObj(sp)) no(`${at}[${i}] is a structure's words`);
+    const { on, ...words } = sp;
+    if (on !== undefined && !STRUCTURE_ON.includes(on)) no(`${at}[${i}].on is ${STRUCTURE_ON.map((w) => `'${w}'`).join(' or ')}: where on the land it stands`);
+    if (on === undefined && words.at === undefined) no(`${at}[${i}] stands at [x, y, z?], or on: 'summit'`);
+    if (on !== undefined && words.at !== undefined && !(Array.isArray(words.at) && words.at.length >= 2 && words.at.length <= 3 && words.at.every(Number.isFinite))) no(`${at}[${i}].at is an offset from its anchor, [dx, dy] or [dx, dy, dz]`);
+    const errs = validateStructures([{ ...words, at: on === undefined ? words.at : [0, 0] }]);
+    if (errs.length) no(`${at}[${i}]: ${errs.map((e) => e.replace(/^structures\[0\]\.?/, '')).join('; ')}`);
+  });
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -654,6 +687,33 @@ export function pickDomain(cube, ask, hint) {
 export function readDomainAsk(cube, domain) {
   if (isObj(domain) && Object.keys(domain).every((k) => k === 'ask' || k === 'hint')) return pickDomain(cube, domain.ask, domain.hint);
   return pickDomain(cube, domain);
+}
+/**
+ * The structures a stage's or a specimen's domain raises (the stage's land: a climb, or a domain standing alone), each
+ * painted from the cube's ramps on the domain's terrain (its own palette over them) and placed: `at`, or `on` an anchor of
+ * the climb's plan (`at` an offset from it). Lit by the cube's key at the domain's hour, as the structures channel's
+ * light. → { list, light } | null (no domain, an inside one, one with none, or a trail).
+ */
+export function geocubeStructures(manifest) {
+  const m = manifest ?? {}, spec = m.kind === 'geocube' ? m.cube : m.geocube;
+  if (m.domain === undefined || spec === undefined || m.trail !== undefined) return null;
+  const cube = readGeocube(spec), D = readDomainAsk(cube, m.domain).domain;
+  if (D.side !== 'outside' || D.structures === undefined) return null;
+  const list = typeof D.structures === 'string' ? cube.structures[D.structures] : D.structures;
+  const hourAsked = m.hour ?? D.hour, H = hourAsked === undefined ? undefined : readHourOf(hourAsked);
+  // where it stands: the climb as the stage plans it (a level's climb follows its trail: its kit and seed are the trail's)
+  const low = m.kind === 'geocube' ? lowerGeocube(cube, 'outside', D.terrain, H) : withGeocube(m), M = low.meru === true ? {} : low.meru;
+  const plan = planLocalMeru({ ...M, after: M.after ? { seed: Number.isFinite(low.seed) ? low.seed : 1, ...M.after } : null });
+  const top = plan.tiers[plan.tiers.length - 1], anchors = { summit: [top.centre[0], top.centre[1], top.base + top.height] };
+  const R = geocubeRamps(onTerrain(cube, D.terrain)), paint = { body: R.stone[2], band: R.trim[1], crown: R.accent[3], plinth: R.floor[1] };
+  const placed = list.map(({ on, ...words }) => {
+    const a = on === undefined ? null : anchors[on], d = words.at ?? [0, 0];
+    return { ...words, at: a ? [a[0] + d[0], a[1] + d[1], a[2] + (d[2] ?? 0)] : words.at, palette: { ...paint, ...(words.palette ?? {}) } };
+  });
+  // the cube's key (the hour's, or its sun, or its moon), as the structures' light: the channel's own ambient and fill
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], key = H !== undefined ? hourLight(cube, H).key : ref.light.key ?? cube.light.moon;
+  const toKey = sunDir(key.elevation, key.azimuth ?? 225);
+  return { list: placed, light: makeLight({ direction: toKey.map((v) => -v), ambient: 0.5, diffuse: 0.55, fill: { diffuse: 0.16 } }) };
 }
 /** Domain expansion: the domain a level asks for (pickDomain), lowered. → { manifest: a stage manifest, pick }. */
 export function expandGeocube(cube, ask, hint) {

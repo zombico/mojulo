@@ -128,7 +128,7 @@ export const WORLD_STYLE = Object.freeze({
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
   geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
-  domain: 'or which of the levels the geocube makes (a name, { from, …changes }, or its terrain and hour composed)',
+  domain: 'or one of the levels the geocube makes (its domains)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
