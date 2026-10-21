@@ -168,6 +168,7 @@ export const PAGE_MARKS = Object.freeze({
   screen: m(P, 'project.godot\'s [display] holds the frame the game is made for (its viewport, stretch and handheld orientation) and an upright screen\'s cameras hold its width (kernel/level.gd); the touch pad and the safe-area zones are the page\'s'),
   runner: m(A, 'the endless run (its lanes, rows, hurdles and crash: worlds/controllable/runner.js) is the page\'s'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
+  lang: m(A, 'the page\'s language tag, direction and script typesetting (a game\'s languages, game/game-languages.js) are the page\'s; the localized words ride the payload'),
   science: m(A, 'a science world\'s readout, honesty panel and body labels (scene/channels/science.js) are the page\'s; no engine leg plays a science world'),
 });
 

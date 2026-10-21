@@ -21,6 +21,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { etagFor, pickFlags, renderCacheKey } from '@/lib/graph/sketch/render-etag';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
+import { pageLocale } from '@/lib/graph/game/game-languages';
+import { localizePayload } from '@/lib/graph/game/level-words';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { cityStreamPayload, cityStreamRecipe, streamDropped, streamStandDown } from '@/lib/graph/city/city-tiles';
 
@@ -51,11 +53,19 @@ const WORLD_CACHE_BUDGET = (Number(process.env.MOJULO_WORLD_CACHE_MB) > 0
 // release and browsers should drop the pages they hold; a release bump does it on its own.
 const WORLD_CACHE_VERSION = 'v1';
 // `stream` (world streaming, fractal-city): a streamed page and the whole page are different bakes.
-const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream'];
+const WORLD_FLAGS = ['view', 'render', 'wire', 'walk', 'spin', 'decollide', 'download', 'hud', 'livery', 'xr', 'stream', 'lang', 'game'];
 
-function worldCacheKey(ref, manifest, search) {
+function worldCacheKey(ref, manifest, search, locale = null) {
   const deps = worldDeps(manifest);
-  return renderCacheKey({ ref, manifest: deps ? { manifest, deps } : manifest, flags: pickFlags(search, WORLD_FLAGS), version: WORLD_CACHE_VERSION });
+  return renderCacheKey({ ref, manifest: deps || locale ? { manifest, ...(deps ? { deps } : {}), ...(locale ? { locale } : {}) } : manifest, flags: pickFlags(search, WORLD_FLAGS), version: WORLD_CACHE_VERSION });
+}
+// ?lang=<tag>&game=<game ref>: the level as that game localizes it (game/game-languages.js pageLocale): its words from
+// the game's table for the language, its page in the language's tag and typesetting. The table joins the cache key, so a
+// word localized since is never answered with the old page. A game, or a language, it does not declare: the page as ever.
+function worldLocale(search) {
+  const lang = search.get('lang'), game = search.get('game');
+  if (!lang || !game) return null;
+  return pageLocale(SketchRepository.getByRef(game)?.manifest, lang);
 }
 // A terrain world resolves `from: { ref }`, `cities[].ref` and `place[].ref` when it renders, so its bake follows
 // those sketches: their manifests join the key (and so the ETag), or an edit to a promoted painting was answered with
@@ -290,8 +300,9 @@ export async function GET(request, { params }) {
     // whole resolve → emit → serialize bake. Keyed before any of that work runs, so a hit is
     // near-instant. `?nocache=1` forces a rebake.
     const search = request.nextUrl.searchParams;
+    const locale = worldLocale(search);
     const cacheKey = ['1', 'true'].includes(search.get('nocache'))
-      ? null : worldCacheKey(ref, sketch.manifest, search);
+      ? null : worldCacheKey(ref, sketch.manifest, search, locale);
     const etag = cacheKey ? etagFor('w', cacheKey) : null;
     if (etag && request.headers.get('if-none-match') === etag) {
       // browser already holds THIS bake (same manifest + flags) — revalidate without resolving.
@@ -378,6 +389,7 @@ export async function GET(request, { params }) {
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
     const xrParam = request.nextUrl.searchParams.get('xr');
     const xr = ['0', 'false'].includes(xrParam) ? null : (['1', 'true'].includes(xrParam) ? (payload.xr || true) : (payload.xr || null));
+    if (locale) payload = { ...localizePayload(payload, locale.strings), lang: locale.lang };
     const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);

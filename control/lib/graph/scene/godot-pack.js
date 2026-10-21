@@ -15,7 +15,6 @@ import path from 'node:path';
 import { renderBed, renderSound } from './engine-audio.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
-import { languageTable, coverage } from '../game/game-languages.js';
 import { bakeFps, bakeImport } from './godot-bake.js';
 import { isHumanoidRig, humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 import { withProfileJoints } from '../figures/rig-tpose.js';
@@ -271,7 +270,6 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     shellExtras: shellExtras(manifest),
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, portability,
     ...(manifest.screen != null ? { screen: manifest.screen } : {}),
-    ...(manifest.languages != null ? { languages: { ...languageTable(manifest), coverage: coverage(manifest) } } : {}),
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {

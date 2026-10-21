@@ -39,6 +39,7 @@ import path from 'node:path';
 
 import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, collectShadowDecals, collectWaterMesh } from '../figures/face-mesh.js';
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
+import { localeProfile, localeCss } from '../game/locale-conventions.js';
 import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
 import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP } from './view-cube-contract.js';
@@ -236,7 +237,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, lang = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -244,6 +245,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // — the world's solids composite over the photo (the hangar-bay read). Re-guarded so a
   // hand-poked value can never break out of the CSS url() context; absent → byte-identical.
   const backdropUrl = typeof backdrop === 'string' && backdrop.trim() && !/["'()\s\\]/.test(backdrop.trim()) ? backdrop.trim() : null;
+  // the page's LANGUAGE (a game's languages: game/game-languages.js pageLocale, its words already swapped in the payload):
+  // its tag and direction on <html>, so the browser picks the script's glyphs and shapes it, and the script's typesetting
+  // (game/locale-conventions.js localeCss). Absent → lang="en" as ever, not a byte more.
+  const langTag = typeof lang === 'string' && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(lang) ? lang : null;
+  const langCss = langTag ? localeCss(langTag) : '';
   // effects-layer fog overlay (effects-occluder.js): a transparent volumetric pass composited over
   // the rasterized world. `fog` = { frag, customUniforms, dataTextures }. Built as a fullscreen quad
   // added to the scene with depthTest off + premultiplied blending, so three's transparent pass
@@ -958,10 +964,11 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   };
 
   return `<!doctype html>
-<html lang="en"${screen ? ` data-screen="${escapeHtml(String(screen.pole))}" data-orientation="${screen.portrait ? 'portrait' : 'landscape'}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
+<html lang="${langTag ? escapeHtml(langTag) : 'en'}"${langTag && localeProfile(langTag).dir === 'rtl' ? ' dir="rtl"' : ''}${screen ? ` data-screen="${escapeHtml(String(screen.pole))}" data-orientation="${screen.portrait ? 'portrait' : 'landscape'}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
 <title>${escapeHtml(title)}</title>
 <style>
-  :root{color-scheme:dark}
+  :root{color-scheme:dark}${langCss ? `
+  ${langCss.split('\n').join('\n  ')}` : ''}
   body{margin:0;background:#0b1220;color:#cfe3ff;font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}${backdropUrl ? `
   body{background:#04070d url("${backdropUrl}") center/cover no-repeat fixed}
   #wrap{background:transparent}` : ''}

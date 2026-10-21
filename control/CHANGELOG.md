@@ -14,20 +14,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Game languages: one declaration, every engine's own localization (spike)
+### Game languages: a game localized, not translated (web first)
 
 - A game manifest takes `languages: { source, locales, default?, strings? }`: the languages it is played in and its
-  translations, keyed by the source text itself, set through `update_sketch` on the game row. It is validated with
-  teaching errors and never gates play: a word with no translation plays in the source language.
-- `lib/graph/game/game-languages.js` gathers the game's player-facing words (and the fixed words the runtimes write),
-  reports coverage per language with the words still owed and the stale ones a re-wording orphaned, folds a
-  translator's lines in with their placeholders held equal, and writes the one table in each engine's own format:
-  Godot's translation CSV and `[internationalization]`, a Roblox LocalizationTable CSV, an Unreal string table and a
-  PO per culture, a JSON table Unity's JsonUtility reads, and the web's baked dictionary with the run-time pick.
-- The Godot game pack carries it: `i18n/strings.csv` registered in `project.godot`, so the game title and level
-  titles translate as Godot's menu sets them. A level's own words (scene lines, quests, HUD) are not in the table
-  yet, and words the kernel composes stay in the source language; the ledger says both. The other engines' writers are not yet wired into their packs. A game without `languages` exports exactly
-  as before.
+  localized words, keyed by the source text itself, set through `update_sketch` on the game row. It is validated with
+  teaching errors and never gates play: a word not yet localized plays in the source language.
+- **The words, with what each one is.** `game/game-languages.js` tables the game manifest's words and every level's
+  (`game/level-words.js`), found where the World page reads them: on the resolved payload, after the mechanics, the
+  play block and the signs have lowered into it. Each channel names its word fields, so a scene beat's actor id is
+  never taken for words while a talk menu's speaker is. Each word carries its role (a HUD label, a line and who says
+  it, a choice, a prompt, a quest step, an item name), every place it appears, and the room it has when its box does
+  not grow. Coverage names the words owed and the entries a re-wording orphaned.
+- **The conventions players expect.** `game/locale-conventions.js` holds, per language: its script and direction,
+  case and line breaking, number separators, quotes and punctuation, plural forms, the register a game's system text
+  takes, how proper names cross into its script, its keyboard and its units; and the words its players already use in
+  games (HP as PV in French, a stage as ステージ, the two Japanese continues), including the ones kept in English. A
+  localization brief (`localizationBrief`) hands the operator's agent all of it beside each word owed; mojulo stores
+  and checks what comes back (placeholders held equal), it never translates.
+- **The page in the player's language.** `GET /api/sketches/<level>/world?lang=<tag>&game=<game>` serves a level as
+  its game localizes it: the words swapped in the payload before the page is drawn (no page code changes), `<html
+  lang dir>` set so the browser picks the script's glyphs and shapes it, and the script's typesetting (no forced
+  upper case on a caseless script, no letter-spacing through Arabic joins, CJK and Korean line breaking). The game's
+  table joins the page cache key. Without both parameters, for a language the game does not declare, or for its source
+  language, the page is byte for byte as before. The shell does not ask for a language yet.
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 
