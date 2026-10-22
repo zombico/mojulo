@@ -479,7 +479,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              pelvis part, converged legs) or 'streamlined' (the hero before it)
  *   bare       the torso shown bare (the swimsuit's, hero-dress.js): the structured core adds the navel (CHEST_FORM)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, laws = 1 } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1 } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
@@ -853,7 +853,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     thigh.bind = { bone: 'thighR', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, thighR: 0.5 }, st2: { pelvis: 0.1, thighR: 0.9 }, st4: { thighR: 0.5, shankR: 0.5 }, tip: { shankR: 1 } } };
   }
   // the BARE structured hero's feet (hero-foot.js); footwear replaces the foot, so a shod hero keeps the shoe
-  const foot = structured && bare ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
+  // (`feet: 'bare'`: the bare foot under a clothed figure too, for a footwear library card to be worn over: footwear/
+  // adapters/authored.js)
+  const foot = structured && (bare || feet === 'bare') ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
   const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: preset?.handWidth ?? 1, female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),

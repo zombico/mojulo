@@ -71,7 +71,9 @@ describe('the dressed outline', () => {
     expect(dressReadout(suit, heroPlanOf(suit), null, sm.recipe).realisticOnly.join(' ')).toMatch(/tailoring \(.*outer.*tie/);
     const words = heroRecord({ cast: 'male', outfit: ['powerSuit', 'oxfords'] });
     const said = dressReadout(words, heroPlanOf(words), null, null).realisticOnly.join(' ');
-    expect(said).toMatch(/powerSuit: plated suits are worn on the realistic body/); expect(said).toMatch(/oxfords: worn as plain/);
+    expect(said).toMatch(/powerSuit: plated suits are worn on the realistic body/); expect(said).not.toMatch(/oxfords/);
+    const lean = heroRecord({ cast: 'male', core: 'streamlined', outfit: ['oxfords'] });
+    expect(dressReadout(lean, heroPlanOf(lean), null, null).realisticOnly.join(' ')).toMatch(/oxfords: worn as plain .* streamlined core/);
   }, 300_000);
 
   it('the value gradient, the anime/game canon\'s: dark shoes under a light chest in band, light shoes under a dark chest advised', () => {

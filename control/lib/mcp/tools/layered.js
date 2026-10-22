@@ -51,7 +51,7 @@ import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FA
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
-import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
+import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
@@ -74,7 +74,8 @@ import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope'
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
-import { FOOTWEAR, readTones } from '@/lib/graph/footwear';
+import { FOOTWEAR, FOOTWEAR_TONES, readTones } from '@/lib/graph/footwear';
+import { footwearAuthored } from '@/lib/graph/footwear/adapters/authored';
 import { footwear } from '@/lib/graph/footwear/adapters/realistic';
 import { SUITS } from '@/lib/graph/plating';
 import { plating } from '@/lib/graph/plating/adapters/realistic';
@@ -514,9 +515,30 @@ function wearHands(R, hero, W) {
 function authoredWear(R, hero) {
   const words = Array.isArray(hero?.outfit) ? hero.outfit : typeof hero?.outfit === 'string' ? [hero.outfit] : [];
   const handWords = words.filter((w) => HANDWEAR[w]);
-  if (!handWords.length || !R.rig?.hands) return R;
-  for (const w of handWords) wearHands(R, hero, handwearAuthored(R, validateRig(R.rig), w, { id: w }));
+  if (handWords.length && R.rig?.hands) for (const w of handWords) wearHands(R, hero, handwearAuthored(R, validateRig(R.rig), w, { id: w }));
+  // the FOOTWEAR library's cards on the bare foot the plan kept for them (lib/graph/footwear, the authored adapter)
+  for (const w of libraryFeet(hero?.outfit)) { const W = footwearAuthored(R, validateRig(R.rig), w, { id: w }); if (W) wearFeet(R, hero, W, w); }
   return R;
+}
+/** a footwear card's pieces into the authored recipe, as the realistic body's are: its parts beside the foot's (in the
+ * foot's dials), its tones over the palette's defaults and under the operator's, and a heeled card's stance on the rig */
+function wearFeet(R, hero, W, id) {
+  // (a closed shoe's foot is not drawn: the leather is made and weighted off it first, and the game foot's boxy sections
+  // stood past the toe cap the library tucks the leather under; a sandal's foot stays, the straps and the sole on it)
+  for (const S of ['R', 'L']) if (W.parts[`${id}_foot${S}`]) {
+    const gone = new Set([`foot${S}`, ...['hallux', 'toe2', 'toe3', 'toe4', 'toe5'].map((t) => `${t}${S}`)]);
+    for (const n of gone) delete R.parts[n];
+    for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts)) d.parts = d.parts.filter((n) => !gone.has(n));
+  }
+  for (const [name, part] of Object.entries(W.parts)) {
+    R.parts[name] = part;
+    const seg = name.slice(name.indexOf('_') + 1);
+    for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+  }
+  R.palette = { ...FOOTWEAR_TONES, ...W.tones, ...(R.palette || {}) };
+  for (const g of W.named || []) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+  R.palette = readTones(R.palette);
+  if (W.stance) R.rig = { ...R.rig, stance: W.stance };
 }
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
@@ -965,7 +987,10 @@ function heroFormPlan(hero) {
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
-  const common = { register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
+  // (a footwear library card on the game body keeps its foot bare under it, for the card to be worn over: the library's
+  // authored adapter, after the plan; the realistic body re-samples its own foot)
+  const feet = hero.form !== 'realistic' && libraryFeet(hero.outfit).length ? { feet: 'bare' } : {};
+  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
   if (hero.head === 'relational') return humanoidPlan({ preset: hero.cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
@@ -1009,12 +1034,14 @@ export function dressReadout(hero, plan, mesh, recipe) {
       advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }
   // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the tailoring is the realistic body's
-  // tailor's; the plating suits its library's realistic adapter's; a footwear card past boots, shoes and sandals its base
+  // tailor's; the plating suits its library's realistic adapter's; a footwear card on the streamlined core its base
   if (hero.form !== 'realistic') {
     const words = (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).filter((w) => typeof w === 'string'), only = [];
     if (plan.tailoring) only.push(`tailoring (${Object.keys(plan.tailoring).join(', ')}): a jacket's front and lapels, its shoulder and waist, a tie and a waistcoat's V are made on the realistic body; the game body wears the pieces plain`);
     const suits = words.filter((w) => Object.hasOwn(SUITS, w)); if (suits.length) only.push(`${suits.join(', ')}: plated suits are worn on the realistic body; the game body wears none (its armour is an armour build, adorn: { type: 'armor' })`);
-    const shoes = words.filter((w) => Object.hasOwn(FOOTWEAR, w) && !['boots', 'shoes', 'sandals'].includes(w)); if (shoes.length) only.push(`${shoes.join(', ')}: worn as plain boots, shoes or sandals on the game body; the card's cut, sole and adornment are the realistic body's`);
+    // (a footwear card is the library's on the structured core, through its authored adapter; the streamlined core's feet
+    // are boxes it has no foot for)
+    const shoes = hero.core === 'streamlined' ? libraryFeet(words) : []; if (shoes.length) only.push(`${shoes.join(', ')}: worn as plain boots, shoes or sandals on the streamlined core; the card's cut, sole and adornment need the structured core's foot`);
     if (only.length) out.realisticOnly = only;
   }
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)

@@ -69,6 +69,16 @@ body catches up to what the authored one wears, and its principles are shared ba
   footwear card as plain boots, shoes or sandals; the tailoring words, the plated suits and the footwear cards' own cut
   are the realistic body's. The hero readout now says so (`realisticOnly`) where it had worn them plain or dropped them
   in silence; nothing refused.
+- FOOTWEAR CARDS ON THE GAME BODY: every footwear library card past the plain boots, shoes and sandals is the library's
+  on the authored body's structured core too, through an authored foot adapter (`footwear/adapters/authored.js`). The
+  plan keeps the bare foot (hero-foot.js, the same proportions) under the card (`heroPlan({ feet: 'bare' })`); the
+  library reads it up to the toe base, the five toes as one block from that ring on, the leather stood off past the bare
+  foot near each ring; a heeled card stands the rig in its stance, as on the realistic body. A closed shoe's foot is not
+  drawn (the game foot's boxy sections stood past the toe cap the library tucks the leather under); a sandal's straps and
+  sole are on the bare foot. The library takes an adapter's `facets` (a share of its reference resolution: sole and
+  heel outlines, the toe cap, the wraps), the game body's half; absent, as drawn, the realistic pins unchanged. The
+  plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
+  base, said in the readout.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

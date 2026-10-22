@@ -34,6 +34,10 @@ import { validateGarments } from './body-garment.js';
 import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
 
 export const DETAIL_WORDS = ['clothed', 'swimsuit', 'none'];
+/** the footwear library's cards past the plain boots, shoes and sandals: worn by the library itself on either body */
+const LIBRARY_FEET = Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w));
+/** the footwear library cards an outfit word list names (they keep the authored body's foot bare under them) */
+export const libraryFeet = (outfit) => (Array.isArray(outfit) ? outfit : typeof outfit === 'string' ? [outfit] : []).filter((w) => typeof w === 'string' && LIBRARY_FEET.includes(w));
 export const KIT_WORDS = ['ranger', 'none'];
 const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')] : [n]));
 
@@ -240,9 +244,11 @@ export const OUTFIT_WORDS = Object.freeze({
   ...Object.fromEntries(Object.keys(HANDWEAR).map((w) => [w, () => []])),
   // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
   // its sandal or its shoe by the card's sock, under ids of their own)
-  ...Object.fromEntries(Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w)).map((w) => {
+  // on the structured core nothing in the plan: the library's authored adapter wears the card itself over the bare foot
+  // the plan then keeps (libraryFeet)
+  ...Object.fromEntries(LIBRARY_FEET.map((w) => {
     const C = footwearCard(w), base = C.sock === false ? 'sandals' : C.sock?.height === 'boot' ? 'boots' : 'shoes';
-    return [w, (c) => footAs(w, OUTFIT_WORDS[base](c))];
+    return [w, (c) => (c.structured ? [] : footAs(w, OUTFIT_WORDS[base](c)))];
   })),
 });
 /** Error strings for the door's `outfit` (form; the plan grammar judges the pieces) */
