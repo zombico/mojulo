@@ -151,6 +151,54 @@ for (const id of FEEL_IDS) {
   if (LD.step) check(`${id}: a jump pressed in the air touching a body is an enemy step: a fresh jump on the press`, stepEv.length === 1 && offEv.length >= 2 && offEv[1].f === 14, { stepEv: stepEv.map((e) => e.f), takeoffs: offEv.map((e) => e.f) });
   else check(`${id}: no enemy step: a jump pressed in the air beside a body does not jump there`, !stepEv.length && !offEv.some((e, i) => i > 0 && e.f === 14), { takeoffs: offEv.map((e) => e.f) });
 
+  // ─── the stomp attack: an attack in the air turned downward ───
+  const PD = C.pound, SKY = { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] };
+  const aloft = (z = 3) => (S) => { S.hero.p[2] = z; S.hero.grounded = false; };
+  const back = [0, -127, 0], at1 = (f) => (f === 1 ? AT : 0);
+  if (!PD) {
+    const r = track(run(C, at1, 60, { arena: SKY, setup: aloft() }));
+    check(`${id}: no stomp attack: an attack in the air does nothing here, and says why`, !ev(r, 'pound').length && ev(r, 'dropped').some((e) => e.button === 'attack'), ev(r, 'dropped').map((e) => e.why));
+  } else {
+    const padOf = PD.stick === 'back' ? (f) => (f === 1 ? [back[0], back[1], AT] : back) : at1;
+    const r = track(run(C, padOf, 240, { arena: SKY, setup: aloft() })), go = ev(r, 'pound')[0], land = ev(r, 'land')[0];
+    // (frame 0 falls under gravity before the press on frame 1: the hang holds frame 0's height)
+    const z = (f) => r.states[f].hero.p[2], held = Array.from({ length: PD.hang }, (_, k) => z(1 + k)).every((v) => v === z(0));
+    const drop = z(1 + PD.hang) - z(PD.hang), straight = Math.abs(drop + PD.speed / FPS) < 1e-9;
+    row['stomp attack'] = `${PD.kind}: hang ${PD.hang} f, ${PD.speed} m/s`;
+    check(`${id}: an attack in the air is the ${PD.kind}: held still ${PD.hang} f, then straight down at ${PD.speed} m/s`, go?.f === 1 && held && straight, { pressed: go?.f, held, drop: +drop.toFixed(6) });
+    if (PD.kind === 'bounce') {
+      const ap = r.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > land.f);
+      check(`${id}: the bounce attack bounces back up off the floor, ${PD.bounce} m`, ev(r, 'pound-bounce').length >= 1 && Math.abs(ap.height - PD.bounce) < 1e-3, { apex: ap?.height });
+    } else {
+      const lagEnd = r.events.find((e) => e.type === 'end' && e.what === 'poundLag');
+      // (the lag counts the landing frame: it ends on its last frame, and a press the frame after acts)
+      check(`${id}: the ${PD.kind} lands into ${PD.lag} f of lag`, lagEnd && lagEnd.f - land.f === PD.lag - 1, { land: land?.f, lagEnd: lagEnd?.f });
+      if (PD.jump) {
+        const jr = track(run(C, (f) => (f === 1 ? AT : f >= land.f + 3 && f < land.f + 80 ? J : 0), 240, { arena: SKY, setup: aloft() }));
+        const pj = ev(jr, 'pound-jump')[0], ap = jr.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > pj?.f);
+        check(`${id}: a jump in the pound's lag is the ground-pound jump: ${PD.jump}× the jump's height`, pj && Math.abs(ap.height - C.jump.height * PD.jump) < 1e-3, { apex: ap?.height, want: +(C.jump.height * PD.jump).toFixed(4) });
+      }
+    }
+    // onto a body
+    const onto = track(run(C, (f) => (PD.stick === 'back' ? (f === 1 ? [0, -127, AT] : [0, -127, 0]) : at1(f)), 200, { arena: PERCH, dummyHeight: 0.8, setup: (S) => { S.hero.p = [0.1, 0, 3]; S.hero.grounded = false; } }));
+    const meet = onto.events.find((e) => e.who === 'hero' && e.pound) ?? onto.events.find((e) => e.who === 'dummy' && e.type === 'hit');
+    if (PD.kind === 'pound') {
+      const ap = onto.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > meet?.f), D0 = onto.states[meet.f].dummy;
+      // (the stun counts the stomp's frame, so the state after it reads one less)
+      check(`${id}: the ground pound on a body is a harder stomp (stunned ${PD.stun} f) and always the high bounce (${LD.high} m), the jump not held`, meet?.type === 'stomp' && D0.stun === PD.stun - 1 && Math.abs(ap.height - LD.high) < 1e-3, { stun: D0.stun + 1, apex: ap?.height });
+    } else if (PD.kind === 'bounce') {
+      const ap = onto.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > meet?.f);
+      check(`${id}: the bounce attack on a body bounces off (${PD.bounce} m) and the body ricochets`, meet?.type === 'bounce-off' && Math.abs(ap.height - PD.bounce) < 1e-3 && Math.hypot(...onto.states[meet.f + 1].dummy.v.slice(0, 2)) > 5, { apex: ap?.height });
+    } else {
+      check(`${id}: the plunge on a body is a launching blow (the finisher's force)`, meet?.type === 'hit' && meet.pound === 'plunge' && meet.finisher && onto.states[meet.f + meet.hitstop + 1].dummy.v[2] > 0, meet);
+      const near = track(run(C, (f) => (f === 1 ? [0, -127, AT] : [0, -127, 0]), 200, { arena: { half: 400, blocks: [], hero: [0, 0], dummy: [0, 0.9] }, setup: aloft() }));
+      const sh = ev(near, 'hit', 'dummy')[0];
+      check(`${id}: the plunge beside a body (inside ${PD.radius} m) hits it with its shockwave on landing`, sh?.pound === 'plunge' && sh.f === ev(near, 'land')[0]?.f, { hit: sh?.f, land: ev(near, 'land')[0]?.f });
+      const air = track(run(C, at1, 60, { arena: SKY, setup: aloft() }));
+      check(`${id}: the attack alone in the air stays the air jab, not the plunge`, ev(air, 'move').length === 1 && !ev(air, 'pound').length);
+    }
+  }
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));

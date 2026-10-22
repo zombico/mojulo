@@ -37,6 +37,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **The stomp attack, in the lab** (the card's `pound`): an attack in the air turned downward, dropped in a straight
+  line. Action's plunge (back + attack) launches a body it lands on or hits one beside it with a shockwave, then lags.
+  Platformer's ground pound flips in place, drops, stomps harder and always bounces high, and a jump in its lag is the
+  higher ground-pound jump. Pinball's bounce attack rebounds off the floor or a body. Realistic has none. The gate
+  holds 92 laws on both casts. The page's spin poses (the flip, pinball's spin jump) drew nothing until now: they
+  turned about a joint the drawing does not carry.
 - **Ground acceleration in the platform rule** (`rules-platform.js`, opt-in `accel` and `decel`). The first of the
   lab's pieces in the live rules. The body carries a planar drive that builds toward the stick at `accel` and sheds
   at `decel` (default `accel`). In the air both rates scale by `airControl`, and an unpushed body keeps its drive, so

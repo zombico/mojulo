@@ -98,6 +98,8 @@ function catOf(who) {
     return f < m.startup ? 'startup' : f < m.startup + m.active ? 'active' : 'recovery';
   }
   if (a?.kind === 'gather') return 'gather';
+  if (a?.kind === 'pound') return (a.shown ?? a.f) < (S.card.pound?.hang ?? 0) ? 'gather' : 'active';
+  if (a?.kind === 'poundLag') return 'recovery';
   if (a?.kind === 'dodge') { const I = S.card.dodge.iframes, f = a.shown ?? a.f; return I && f >= I[0] && f < I[1] ? 'inv' : 'recovery'; }
   if (a?.kind === 'guard') return 'guard';
   if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') return 'stun';
@@ -115,14 +117,16 @@ const say = {
   takeoff: () => 'take-off', apex: (e) => `apex ${e.height.toFixed(2)} m`, land: (e) => `land at ${e.fall.toFixed(1)} m/s`,
   edge: () => 'walked off an edge', coyote: (e) => `coyote jump (${e.left} f were left)`, cut: () => 'jump cut on release',
   move: (e) => (e.who === 'dummy' ? `dummy telegraphs a jab (${e.telegraph} f)` : `move ${e.i + 1}: ${e.take}`),
-  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
+  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
   blocked: (e) => `blocked (a free dummy that saw it coming), hitstop ${e.hitstop} f`, immune: (e) => `immune: mercy ${e.mercy} f left`,
   whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
   wall: (e) => `wall: ${e.response} at ${e.into.toFixed(1)} m/s${e.out != null ? ` → ${e.out.toFixed(1)}` : ''}`,
   free: (e) => `${e.who} free to act`, end: () => null, dodge: (e) => `${e.kind}`,
   stomp: (e) => (e.immune ? 'stomped, but the dummy is in its mercy: a bounce only' : `stomp: the dummy squashed, the bounce ${e.held ? 'high (jump held)' : 'low'} at ${e.vz.toFixed(1)} m/s`),
   'bounce-off': (e) => (e.immune ? 'bounced off (the dummy is in its mercy)' : `bounced off the dummy at ${e.vz.toFixed(1)} m/s (fell at ${e.fell.toFixed(1)}), the dummy ricochets`),
-  slide: () => 'on its head: slid off (its top is no floor)', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
+  slide: () => 'on its head: slid off (its top is no floor)',
+  pound: (e) => ({ plunge: 'plunge: straight down', pound: 'ground pound: the flip, then the drop', bounce: 'bounce attack: straight down' })[e.kind],
+  'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
 function onEvent(e) {
   const line = say[e.type]?.(e);
@@ -138,7 +142,7 @@ function onEvent(e) {
     const p = open('attack', 'effect'); if (p) { p.effect = e.f; p.out = e.type === 'hit' ? `hit${e.advantage != null ? ` (linked +${e.advantage})` : ''}` : e.type; }
     sparks.push({ p: [S.dummy.p[0], S.dummy.p[1], S.dummy.p[2] + 1.3], t: 0, big: e.finisher || e.hitstop > 6 });
   }
-  if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
+  if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step' || e.type === 'pound-bounce')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
   dirty.log = true;
@@ -195,7 +199,8 @@ function poseFrames(who) {
 function toWorld(d, a) {
   const D = DATA[cast], n = D.names.length, out = new Array(n);
   const sc = d.scale ?? [1, 1, 1], c = Math.cos(d.yaw), s = Math.sin(d.yaw);
-  const pel = D.names.indexOf('pelvisHub'), pz = a[pel * 3 + 2] / 1000;
+  // a spin turns about the pose's own centre (the drawn joints carry no pelvis hub of their own)
+  let pz = 0; for (let k = 0; k < n; k++) pz += a[k * 3 + 2] / 1000; pz /= n;
   const sp = d.clip === 'spin' ? d.spin : 0, cs = Math.cos(sp), ss = Math.sin(sp);
   for (let k = 0; k < n; k++) {
     let x = a[k * 3] / 1000, y = a[k * 3 + 1] / 1000, z = a[k * 3 + 2] / 1000;
@@ -412,5 +417,7 @@ function frame(now) {
   if (rec || replay) renderRec();
   requestAnimationFrame(frame);
 }
+// a read-only window for headless checks (the lab's own scripts drive the page and read what it shows)
+window.__lab = { state: () => S, pose: (who) => { const r = poseFrames(who); return { d: r.d, world: toWorld(r.d, r.a) }; } };
 fit(); reset(); renderRec();
 requestAnimationFrame(frame);

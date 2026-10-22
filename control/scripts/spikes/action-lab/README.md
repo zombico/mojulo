@@ -81,6 +81,21 @@ start, not rising) is the card's call:
 The standing dummy (1.7 m) is taller than every jump but the platformer's, so the page's **Critter** (H) swaps in a
 short one (0.8 m) that every feel can land on.
 
+## The stomp attack
+
+The card's `pound` is an attack in the air turned downward. It drops in a straight line (no gravity's curve), after
+an optional hang:
+
+| feel | the press | the drop | on a body | on the floor |
+|---|---|---|---|---|
+| **realistic** | none: an attack in the air is dropped with its reason | | | |
+| **action** | back + attack (attack alone stays the air jab): the **plunge** (Devil May Cry's Helm Breaker) | 4 f hang, 22 m/s | a launching blow (the finisher's ×12, lifted 35°), then it slides off | a shockwave hits a body within 1.2 m; 14 f of lag |
+| **platformer** | attack: Mario's **ground pound** | a 12 f flip in place, then 20 m/s | a harder stomp (stunned 150 f) and always the high bounce, the jump not held | 10 f of lag; a jump in it is the **ground-pound jump**, 1.35× the jump's height (Mario Odyssey) |
+| **pinball** | attack: the **bounce attack** (Sonic Adventure 2's bounce bracelet) | no hang, 25 m/s, balled up | bounces off 1.6 m, the body ricochets | bounces back up 1.6 m |
+
+The Mario bounce has two layers. A plain stomp bounces low, or high with the jump held, so the player chooses. A
+ground pound always bounces high: the commitment the flip cost buys the height.
+
 ## The feels
 
 | | ground | jump | the light | hit | dodge | wall |
@@ -92,7 +107,7 @@ short one (0.8 m) that every feel can land on.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 79 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 92 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -125,6 +140,15 @@ short one (0.8 m) that every feel can land on.
   - An idle pad moves nothing.
   - The same pad gives the same trace, byte for byte, and the four feels play it four different ways.
   - Realistic's fitted jab is the take.
+- **The stomp attack.**
+  - Realistic has none, and the dropped press says why.
+  - Each other feel's air attack holds still for its hang to the frame, then drops at exactly its speed.
+  - The plunge and the pound land into their lag to the frame. The ground-pound jump reaches 1.35× the jump
+    (2.438 m) to the millimetre.
+  - The pound on a body stuns it 150 frames and bounces the full 1.806 m without the jump held.
+  - The bounce attack rebounds 1.6 m off the floor and off a body, which ricochets.
+  - The plunge launches a body it lands on and hits one beside it with its shockwave on the landing frame. Action's
+    attack alone in the air stays the air jab.
 - **Fixtures.** Each `fixtures/*.json` (the page's recorder writes them) is replayed in the page's arena on its own
   cast, with its expected events.
 
@@ -132,7 +156,8 @@ short one (0.8 m) that every feel can land on.
 
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
-- **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack, K dodge. A standard
+- **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (in the air, the stomp
+  attack; action's is S + J, back and attack), K dodge. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
 - **Feel and settings.** 1–4 switch the feel; C switches the cast (the same card on the other body). T toggles a

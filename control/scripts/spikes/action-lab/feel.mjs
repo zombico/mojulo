@@ -26,6 +26,12 @@
  * STOMPS (the body is squashed, the stomper bounces, higher with the jump held); pinball's spinning body BOUNCES off it
  * like a bumper and the body ricochets. Bodies never pass into each other: walking into one stops at its side.
  *
+ * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
+ * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
+ * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
+ * always bounces high; on the floor its lag takes a jump as the higher ground-pound jump. Pinball's BOUNCE ATTACK drops
+ * with no hang and bounces back up off the floor or a body. Realistic has none.
+ *
  * THE LAWS every card keeps (verify.mjs): the same pad gives the same trace; an idle pad moves nothing; every press ends
  * acted on or dropped with its reason; a ground jump leaves on press + commit; a buffered or coyote jump within its
  * window jumps and one frame past it does not; a held jump rises monotonic in the hold and the full hold reaches the
@@ -72,6 +78,10 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            (momentum { gain, lift deg } | boop { push, bounce, hop } | ricochet { restitution, floor }), mercy (frames
  *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next)
  *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap }
+ *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
+ *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
+ *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
+ *            a jump in the pound's lag), bounce (m: the bounce attack's rebound)
  *   land     what coming down on a body does: slide { slide m/s, step { cooldown } } (off its top; `step` the enemy
  *            step) | stomp { low, high (m: the bounce, the jump held for high), stun (frames squashed) } | bounce { min (m:
  *            the least rebound), restitution, floor (the body's ricochet, as hit.force) }
@@ -94,6 +104,7 @@ export const FEELS = Object.freeze({
     hit: { hitstop: null, stun: { model: 'body' }, force: { model: 'momentum', gain: 1, lift: 0 }, mercy: 0, alert: 60 },
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
+    pound: null,
     look: { squash: 0, smear: null },
   },
   action: {
@@ -112,6 +123,7 @@ export const FEELS = Object.freeze({
     hit: { hitstop: { base: 4, perMs: 0.6, max: 14 }, stun: { model: 'rule', base: 0.5, decay: 0.85, min: 0.12 }, force: { model: 'momentum', gain: 2, lift: 0 }, mercy: 0, alert: 60 },
     wall: { model: 'stop', stagger: null },
     land: { model: 'slide', slide: 3, step: { cooldown: 12 } },
+    pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
     look: { squash: 0.06, smear: 0.09 },
   },
   platformer: {
@@ -126,6 +138,7 @@ export const FEELS = Object.freeze({
     hit: { hitstop: { base: 2, perMs: 0, max: 2 }, stun: { model: 'none' }, force: { model: 'boop', push: 2.5, bounce: 3, hop: 0.3 }, mercy: 60, alert: 0 },
     wall: { model: 'bonk', above: 4.5, rebound: 3, hop: 0.5 },
     land: { model: 'stomp', low: 0.6, high: 1.806, stun: 90 },
+    pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
     look: { squash: 0.22, smear: null },
   },
   pinball: {
@@ -140,6 +153,7 @@ export const FEELS = Object.freeze({
     hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'ricochet', restitution: 1.3, floor: 6 }, mercy: 20, alert: 0 },
     wall: { model: 'bounce', e: 1.3, cap: 20 },
     land: { model: 'bounce', min: 1.0, restitution: 1.3, floor: 6 },
+    pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
     look: { squash: 0.1, smear: 0.05 },
   },
 });
@@ -222,7 +236,7 @@ function stickOf(px, py) {
 // ─── presses: acted, queued, dropped ─────────────────────────────────────
 function press(S, name, stick) {
   S.events.push({ f: S.f, who: 'hero', type: 'press', button: name });
-  const why = S.hero.stop ? { reason: 'hitstop', queue: true } : can(S, name);
+  const why = S.hero.stop ? { reason: 'hitstop', queue: true } : can(S, name, stick);
   if (why === true) return act(S, name, stick, 0);
   const buf = name === 'jump' ? S.card.jump.buffer : name === 'attack' ? S.card.moves.buffer : 0;
   if (buf > 0 && why.queue) { S.queue.push({ button: name, f: S.f, age: 0, buffer: buf, why: why.reason }); S.events.push({ f: S.f, who: 'hero', type: 'buffered', button: name, why: why.reason }); return; }
@@ -232,18 +246,20 @@ function tryQueue(S, stick) {
   if (S.hero.stop) return;
   S.queue = S.queue.filter((q) => {
     if (q.age > q.buffer) { S.events.push({ f: S.f, who: 'hero', type: 'dropped', button: q.button, why: `buffer ran out (${q.buffer} f): ${q.why}`, pressedAt: q.f }); return false; }
-    if (can(S, q.button) !== true) return true;
+    if (can(S, q.button, stick) !== true) return true;
     act(S, q.button, stick, q.age); return false;
   });
 }
 /** can the hero act on a press now: true, or { reason, queue (may it wait for its buffer) } */
-function can(S, name) {
+function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   const H = S.hero, C = S.card, a = H.act;
   if (H.stun > 0) return { reason: 'in hitstun', queue: true };
   if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt')) return { reason: `in ${a.kind}`, queue: true };
   if (H.lag > 0) return { reason: 'landing lag', queue: true };
   if (name === 'jump') {
     if (a?.kind === 'gather') return { reason: 'already gathering', queue: false };
+    if (a?.kind === 'poundLag' && C.pound?.jump) return true;   // the ground-pound jump
+    if (a?.kind === 'pound') return { reason: 'in a stomp attack', queue: true };
     if (a && a.kind !== 'move' && a.kind !== 'dodge') return { reason: `in ${a.kind}`, queue: true };
     if (a?.kind === 'move' && !cancelOpen(S, a)) return { reason: 'in a move\'s startup or active frames', queue: true };
     if (a?.kind === 'dodge') return { reason: 'in a dodge', queue: true };
@@ -252,6 +268,8 @@ function can(S, name) {
     return { reason: 'in the air', queue: true };
   }
   if (name === 'attack') {
+    if (a?.kind === 'pound' || a?.kind === 'poundLag') return { reason: 'in a stomp attack', queue: true };
+    if (poundAsked(S, stick) && (!a || a.kind === 'move')) return true;
     if (!H.grounded && !C.moves.air) return { reason: 'no moves in the air in this feel', queue: true };
     if (a?.kind === 'move') {
       if (a.i + 1 >= C.moves.string.length) return { reason: 'the string is spent', queue: true };
@@ -285,11 +303,13 @@ function act(S, name, stick, waited) {
       else { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; }
       takeOff(S, H, 'hero'); return;
     }
+    if (H.act?.kind === 'poundLag') { S.events.push({ f: S.f, who: 'hero', type: 'pound-jump' }); takeOff(S, H, 'hero', C.pound.jump); return; }
     H.act = null;
     if (C.jump.commit > 0) { H.act = { kind: 'gather', f: 0, of: C.jump.commit }; return; }
     takeOff(S, H, 'hero'); return;
   }
   if (name === 'attack') {
+    if (poundAsked(S, stick)) { H.act = { kind: 'pound', f: 0, hit: false }; H.jumped = true; S.events.push({ f: S.f, who: 'hero', type: 'pound', kind: C.pound.kind }); return; }
     const i = H.act?.kind === 'move' ? H.act.i + 1 : 0;
     if (stick.m > 0) H.yaw = Math.atan2(stick.x, stick.y);   // the swing's direction from the held stick
     H.act = { kind: 'move', i, f: 0, hit: false }; S.events.push({ f: S.f, who: 'hero', type: 'move', i, take: C.moves.string[i].take }); return;
@@ -299,9 +319,9 @@ function act(S, name, stick, waited) {
     H.act = { kind: 'dodge', f: 0, of: C.dodge.frames, dir, from: len2(H.v[0], H.v[1]) }; S.events.push({ f: S.f, who: 'hero', type: 'dodge', kind: C.dodge.kind });
   }
 }
-function takeOff(S, B, who) {
+function takeOff(S, B, who, mult = 1) {
   const J = S.card.jump; B.act = null; B.grounded = false; B.coyote = 0; B.jumped = true; B.cut = false; B.hang = J.hang; B.apex = null;
-  B.v[2] = Math.sqrt(2 * J.gRise * J.height); B.tookOff = S.f; B.from = B.p[2];
+  B.v[2] = Math.sqrt(2 * J.gRise * J.height * mult); B.tookOff = S.f; B.from = B.p[2];
   S.events.push({ f: S.f, who, type: 'takeoff', z: r4(B.p[2]) });
 }
 function cutJump(S, B) {
@@ -321,7 +341,9 @@ function moveBody(S, B, who, stick, buttons) {
     want = { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top };
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
-  if (a?.kind === 'dodge') dodgeVelocity(S, B);
+  if (a?.kind === 'pound') { B.v[0] = 0; B.v[1] = 0; B.v[2] = a.f < C.pound.hang ? 0 : -C.pound.speed; }
+  else if (a?.kind === 'poundLag') { B.v[0] = 0; B.v[1] = 0; }
+  else if (a?.kind === 'dodge') dodgeVelocity(S, B);
   else if (rooted) { const m = C.moves.string[a.i]; const speed = a.f < m.startup ? m.lunge / (m.startup * DT) : 0; B.v[0] = Math.sin(B.yaw) * speed; B.v[1] = Math.cos(B.yaw) * speed; }
   else if (B.grounded && (!stick || !free)) slide(B);
   else if (B.grounded || want) control(B, want, Gd, B.grounded ? 1 : C.jump.air);
@@ -330,7 +352,8 @@ function moveBody(S, B, who, stick, buttons) {
   // the gather: the body waits on the ground for its take-off
   if (a?.kind === 'gather' && a.f >= a.of && B.grounded) takeOff(S, B, who);
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
-  if (!B.grounded && !(a?.kind === 'dodge' && C.dodge.kind === 'dash')) fall(S, B, who);
+  if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
+  else if (!B.grounded && !(a?.kind === 'dodge' && C.dodge.kind === 'dash')) fall(S, B, who);
   // the floor plane: substeps no longer than 8 cm against the walls
   const sp = len2(B.v[0], B.v[1]); const n = Math.max(1, Math.ceil((sp * DT) / 0.08));
   let wallHit = null;
@@ -395,6 +418,7 @@ function ground(S, B, who) {
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
+    if (B.act?.kind === 'pound') poundFloor(S, B, who);
   }
 }
 /** push a body out of the arena's walls and every block taller than a step above its feet; the first wall's normal */
@@ -465,6 +489,7 @@ function bodies(S) {
 }
 function landOn(S, H, D, top, nx, ny) {
   const C = S.card, L = C.land, J = C.jump, falling = -H.v[2];
+  if (H.act?.kind === 'pound' && !H.act.hit) return poundBody(S, H, D, top, nx, ny);
   const spun = L.model === 'bounce' && J.spin && H.jumped;
   if (L.model === 'stomp' || spun) {
     H.p[2] = top; H.grounded = false; H.jumped = true; H.cut = false; H.apex = null; H.from = top; H.hang = J.hang; H.coyote = 0; H.onHead = false;
@@ -488,6 +513,43 @@ function landOn(S, H, D, top, nx, ny) {
   if (!H.onHead) S.events.push({ f: S.f, who: 'hero', type: 'slide', on: 'dummy', fell: r4(falling) });
   H.onHead = true;
 }
+// ─── the stomp attack ─────────────────────────────────────────────────
+/** does this attack press ask for the card's stomp attack: in the air, high enough to drop, the stick as it wants */
+function poundAsked(S, stick) {
+  const P = S.card.pound, H = S.hero; if (!P || H.grounded) return false;
+  if (H.p[2] - groundAt(S, H.p[0], H.p[1]) < 0.3) return false;
+  if (P.stick === 'back') return stick.m > 0 && stick.x * Math.sin(H.yaw) + stick.y * Math.cos(H.yaw) < -0.5 * stick.m;
+  return true;
+}
+/** the stomp attack meets the floor: a plunge's shockwave and lag, a pound's lag (a jump in it goes higher), a bounce */
+function poundFloor(S, B, who) {
+  const P = S.card.pound, D = S.dummy;
+  if (P.kind === 'bounce') {
+    B.act = null; B.grounded = false; B.jumped = true; B.cut = true; B.apex = null; B.from = B.p[2]; B.hang = 0;
+    B.v[2] = Math.sqrt(2 * S.card.jump.gRise * P.bounce); S.events.push({ f: S.f, who, type: 'pound-bounce', off: 'floor' }); return;
+  }
+  const hit = B.act.hit; B.act = { kind: 'poundLag', f: 0, of: P.lag };
+  if (P.kind === 'plunge' && !hit && P.radius && len2(D.p[0] - B.p[0], D.p[1] - B.p[1]) <= P.radius && Math.abs(D.p[2] - B.p[2]) < 0.5) {
+    const d = len2(D.p[0] - B.p[0], D.p[1] - B.p[1]), dir = d > 1e-6 ? [(D.p[0] - B.p[0]) / d, (D.p[1] - B.p[1]) / d] : [Math.sin(B.yaw), Math.cos(B.yaw)];
+    strike(S, B, D, who, { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true, shock: true }, dir);
+  }
+}
+/** the stomp attack comes down on a body: a plunge's blow (then it slides off, and lags on the floor), a pound's stomp
+ * (harder, always the high bounce), a bounce attack's rebound off it with the ricochet */
+function poundBody(S, H, D, top, nx, ny) {
+  const P = S.card.pound, L = S.card.land, J = S.card.jump; H.act.hit = true;
+  if (P.kind === 'plunge') { H.p[2] = top; H.v[2] = 0; strike(S, H, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true }, [-nx, -ny]); return; }   // the feet on its top; it slides off below
+  H.p[2] = top; H.grounded = false; H.jumped = true; H.cut = false; H.apex = null; H.from = top; H.hang = J.hang; H.coyote = 0; H.act = null; H.spin = 0;
+  H.v[2] = Math.sqrt(2 * J.gRise * (P.kind === 'pound' ? L.high : P.bounce));
+  const type = P.kind === 'pound' ? 'stomp' : 'bounce-off';
+  if (D.mercy > 0) { S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', pound: true, vz: r4(H.v[2]), immune: true }); S.events.push({ f: S.f, who: 'dummy', type: 'immune', mercy: D.mercy }); return; }
+  const stop = hitstop(S, 0) + (P.kind === 'pound' ? 2 : 0); H.stop = D.stop = stop; H.fresh = D.fresh = stop > 0;
+  D.mercy = S.card.hit.mercy; D.lastHit = { take: 'cross', f: S.f, finisher: false }; D.combo = 0;
+  if (P.kind === 'pound') { D.squash = P.stun; D.stun = P.stun; D.act = null; }
+  else { const sp = L.floor * L.restitution; D.v[0] = -nx * sp; D.v[1] = -ny * sp; D.v[2] = 2; D.grounded = false; D.jumped = false; D.from = D.p[2]; }
+  S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', pound: true, vz: r4(H.v[2]), hitstop: stop });
+}
+
 /** the enemy step: a jump in the air off a body the hero touches (beside it or on it), if the card has one */
 function canStep(S) {
   const H = S.hero, D = S.dummy, st = S.card.land.step;
@@ -517,13 +579,17 @@ function testHit(S, A, V, who) {
   const ahead = dx * fx + dy * fy, side = Math.abs(dx * fy - dy * fx), up = Math.abs(V.p[2] - A.p[2]);
   if (ahead < 0 || ahead > m.reach + RADIUS || side > 0.45 || up > 0.9) { if (A.act.f === m.startup + m.active - 1) S.events.push({ f: S.f, who, type: 'whiff', i: A.act.i ?? null, short: r4(Math.max(0, ahead - m.reach - RADIUS)) }); return; }
   A.act.hit = true;
+  strike(S, A, V, who, m, [fx, fy]);
+}
+/** a blow landed by A on V (a move's, a plunge's): evaded, immune, guarded, or a hit pushing V along `dir` */
+function strike(S, A, V, who, m, [fx, fy]) {
   const vic = who === 'hero' ? 'dummy' : 'hero', inv = vic === 'hero' ? iframed(S, V) : false;
   if (inv) { S.events.push({ f: S.f, who: vic, type: 'evaded', by: S.card.dodge.kind }); return; }
   if (V.mercy > 0) { S.events.push({ f: S.f, who: vic, type: 'immune', mercy: V.mercy }); return; }
   const free = V.stun === 0;
   if (vic === 'dummy' && S.guard && free && V.alert > 0 && !V.act) {
     V.alert = S.card.hit.alert; V.combo = 0; const stop = hitstop(S, m.dv * 0.5); A.stop = V.stop = stop; A.fresh = V.fresh = stop > 0;
-    V.act = { kind: 'guard', f: 0, of: 12 }; S.events.push({ f: S.f, who: vic, type: 'blocked', i: A.act.i ?? null, hitstop: stop }); return;
+    V.act = { kind: 'guard', f: 0, of: 12 }; S.events.push({ f: S.f, who: vic, type: 'blocked', i: A.act?.i ?? null, hitstop: stop }); return;
   }
   const advantage = free ? null : V.stun;
   V.combo = free ? 1 : V.combo + 1;
@@ -539,7 +605,7 @@ function testHit(S, A, V, who) {
   if (F.model === 'ricochet') { A.v[0] *= 0.1; A.v[1] *= 0.1; }
   V.stun = stunOf(S, m, dv, V.combo); V.mercy = S.card.hit.mercy; V.alert = S.card.hit.alert; V.lastHit = { take: m.take, f: S.f, finisher: !!m.finisher };
   V.act = vic === 'hero' ? { kind: 'hurt', f: 0, of: Math.max(12, V.stun) } : null;
-  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act.i ?? null, take: m.take, dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
+  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
 }
 function iframed(S, B) { const I = S.card.dodge.iframes; return !!(I && B.act?.kind === 'dodge' && B.act.f >= I[0] && B.act.f < I[1]); }
 function hitstop(S, dv) { const h = S.card.hit.hitstop; return h ? Math.min(h.max, Math.round(h.base + h.perMs * dv)) : 0; }
@@ -571,6 +637,8 @@ export function poseOf(S, who) {
   if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f };
   if (a?.kind === 'spar') return { ...base, clip: 'spar', at: a.f };
   if (a?.kind === 'gather') return { ...base, clip: 'gather', at: a.f, of: a.of };
+  if (a?.kind === 'pound') return { ...base, clip: C.pound.kind === 'plunge' ? 'air' : 'spin', u: 1, spin: C.pound.kind === 'bounce' ? (S.f % 8) * (Math.PI / 4) : B.spin };
+  if (a?.kind === 'poundLag') return { ...base, clip: 'land', at: Math.min(a.f, Math.max(0, (C.jump.land || 1) - 1)), of: a.of };
   if (a?.kind === 'dodge') return { ...base, clip: 'dodge', kind: C.dodge.kind, at: a.f, of: a.of, speed: v, iframes: iframed(S, B) };
   if (a?.kind === 'guard') return { ...base, clip: 'guard', at: a.f };
   if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') {
