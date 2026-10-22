@@ -127,7 +127,7 @@ function draw(ctx,body,k,col,W,H){const fr=body.frames[Math.max(0,Math.min(body.
  for(const s of body.smears.filter(s=>s.frame===k)){ctx.strokeStyle=col;ctx.globalAlpha=.35;ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(ox+s.line[0]*sc,oy-s.line[1]*sc);ctx.lineTo(ox+s.line[2]*sc,oy-s.line[3]*sc);ctx.stroke();ctx.globalAlpha=1;}
  ctx.strokeStyle=col;ctx.lineWidth=5;ctx.lineCap='round';for(const s of fr.sticks){ctx.beginPath();ctx.moveTo(ox+s[0]*sc,oy-s[1]*sc);ctx.lineTo(ox+s[2]*sc,oy-s[3]*sc);ctx.stroke();}
  return fr.held;}
-function frame(now){const dt=(now-last)/1000;last=now;clockT+=dt*(document.getElementById('slow').checked?0.25:1);
+function frame(now){requestAnimationFrame(frame);const dt=Math.max(0,(now-last)/1000);last=now;clockT+=dt*(document.getElementById('slow').checked?0.25:1);
  const longest=Math.max(...panes.map(p=>entry(p).seconds))+0.6;if(clockT>longest)clockT=0;
  document.getElementById('clock').textContent=clockT.toFixed(2)+' s';
  for(const p of panes){const e=entry(p),ctx=p.cv.getContext('2d'),W=p.cv.width,H=p.cv.height;ctx.clearRect(0,0,W,H);
@@ -136,7 +136,7 @@ function frame(now){const dt=(now-last)/1000;last=now;clockT+=dt*(document.getEl
   if(e.v){held=draw(ctx,e.v,k-e.offset,'#888',W,H)||held;}
   if(held&&k<e.a.frames.length+(e.v?e.offset+e.v.frames.length:0)){ctx.fillStyle='#f0a020';ctx.font='bold 20px system-ui';ctx.fillText('HOLD',12,28);}
   if(clockT>e.seconds){ctx.fillStyle=getComputedStyle(document.body).color;ctx.globalAlpha=.4;ctx.font='14px system-ui';ctx.fillText('done',W-50,24);ctx.globalAlpha=1;}}
- requestAnimationFrame(frame);}
+ }
 sel.onchange=()=>{clockT=0;table();};document.getElementById('spd').onchange=()=>{clockT=0;table();};document.getElementById('restart').onclick=()=>{clockT=0;};
 table();requestAnimationFrame(frame);
 </script></body></html>`;

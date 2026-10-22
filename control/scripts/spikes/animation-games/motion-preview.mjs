@@ -70,20 +70,19 @@ const COL={realistic:'#5b8def',action:'#e5533d',platformer:'#2fa66a',pinball:'#b
 const host=document.getElementById('panes');
 const panes=D.runs.map(r=>{const d=document.createElement('div');d.className='pane';const s=r.sig;d.innerHTML='<h2 style="color:'+COL[r.f]+'">'+r.f+'<span>top '+(s.toTop90==null?'not reached':'90% in '+s.toTop90+' s')+' · take-off '+s.takeoffSpeed.toFixed(1)+' m/s · '+s.framesPerStride.toFixed(1)+' frames a stride · jump '+s.length.toFixed(1)+' m long, '+s.height.toFixed(2)+' m high, '+s.air.toFixed(2)+' s air</span></h2><canvas width="1200" height="300"></canvas>';host.appendChild(d);return {r,cv:d.querySelector('canvas')};});
 let clockT=0,last=performance.now();
-function frame(now){const dt=(now-last)/1000;last=now;clockT+=dt*(document.getElementById('slow').checked?0.25:1);
+function frame(now){requestAnimationFrame(frame);const dt=Math.max(0,(now-last)/1000);last=now;clockT+=dt*(document.getElementById('slow').checked?0.25:1);
  const longest=Math.max(...D.runs.map(r=>r.frames.length/D.fps))+0.5;if(clockT>longest)clockT=0;
  document.getElementById('clock').textContent=clockT.toFixed(2)+' s';
  const fg=getComputedStyle(document.body).color;
  for(const p of panes){const ctx=p.cv.getContext('2d'),W=p.cv.width,H=p.cv.height,r=p.r;ctx.clearRect(0,0,W,H);
-  const k=Math.min(r.frames.length-1,Math.floor(clockT*D.fps)),fr=r.frames[k];const sc=H/3.2,cx=W*0.35,oy=H*0.88,cam=fr.x;
+  const k=Math.max(0,Math.min(r.frames.length-1,Math.floor(clockT*D.fps))),fr=r.frames[k];const sc=H/3.2,cx=W*0.35,oy=H*0.88,cam=fr.x;
   ctx.strokeStyle=fg;ctx.globalAlpha=.3;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,oy);ctx.lineTo(W,oy);ctx.stroke();
   for(let m=Math.floor(cam-cx/sc)-1;m<cam+(W-cx)/sc+1;m++){const x=cx+(m-cam)*sc;ctx.beginPath();ctx.moveTo(x,oy);ctx.lineTo(x,oy+(m%5?6:14));ctx.stroke();}
   const tk=r.frames[r.beats.takeoff].x,ld=r.frames[r.beats.land].x;ctx.globalAlpha=.5;ctx.fillStyle=COL[r.f];for(const m of [tk,ld])ctx.fillRect(cx+(m-cam)*sc-2,oy-2,4,10);ctx.globalAlpha=1;
   ctx.strokeStyle=COL[r.f];ctx.lineWidth=4;ctx.lineCap='round';
   for(let j=0;j<fr.s.length;j+=4){ctx.beginPath();ctx.moveTo(cx+(fr.s[j]-cam)*sc,oy-(fr.s[j+1]-r.floor)*sc);ctx.lineTo(cx+(fr.s[j+2]-cam)*sc,oy-(fr.s[j+3]-r.floor)*sc);ctx.stroke();}
   ctx.fillStyle=fg;ctx.font='14px system-ui';ctx.fillText(fr.v.toFixed(1)+' m/s · '+fr.p+(fr.h?' · HOLD':''),12,22);
- }
- requestAnimationFrame(frame);}
+ }}
 document.getElementById('restart').onclick=()=>{clockT=0;};requestAnimationFrame(frame);
 </script></body></html>`;
 writeFileSync(join(out, 'motion.html'), html);
