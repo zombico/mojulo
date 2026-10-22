@@ -36,7 +36,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lang dir>` set so the browser picks the script's glyphs and shapes it, and the script's typesetting (no forced
   upper case on a caseless script, no letter-spacing through Arabic joins, CJK and Korean line breaking). The game's
   table joins the page cache key. Without both parameters, for a language the game does not declare, or for its source
-  language, the page is byte for byte as before. The shell does not ask for a language yet.
+  language, the page is byte for byte as before.
+- **The shell in the player's language.** The light shell picks the language on the page: the browser's first that the
+  game offers, else its default, then whatever the player chooses, kept with the settings. The choice is in the
+  front's options, or a link on the title and the level list, each language named in itself and set in its own
+  script. The shell sets its page in the language (tag, direction, typesetting), shows its own words and the game's
+  through one lookup, and asks for each level in it from the game's table (the `/game` and `/playtest` routes name the
+  game). The shell's words are read from its own code (each one it shows is a `T('…')`, a sentence a template with
+  named slots), join the game's table and its brief beside the glossary (continue as つづきから, new game as はじめから).
+  A kept number's label is shown localized and remembered as written, so a best is not split by language. A game
+  without languages carries no language key or code.
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 

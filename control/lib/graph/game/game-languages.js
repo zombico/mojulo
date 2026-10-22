@@ -22,10 +22,16 @@
  *   coverage(manifest, levelWords)      → { <loc>: { done, total, missing: [text], stale: [text] } }  advisory only
  *   localizationBrief(manifest, levelWords, loc) → what a localizer needs: the profile, rules, glossary, words owed
  *   mergeTranslations(languages, loc, [{ source, translation }]) → { languages, errors } placeholders held equal
+ *   shellWords()                        → [text] the light shell's own words (play-shell.js, play-front.js), as written
+ *   shellLanguage(manifest, gameRef)    → the shell page's cfg.lang: the languages by their own names, each one's
+ *                                          direction, typesetting and words, and the game the levels are asked from
  *   pickLanguage(declared, wanted, fallback) the run-time choice (pure; inlined with toString())
  */
 
-import { localeProfile, glossaryFor } from './locale-conventions.js';
+import { localeProfile, glossaryFor, localeCss } from './locale-conventions.js';
+// the shell's runtime source is where its words are (each one a T('…') literal): read from it, never listed by hand
+import { playShellRuntime } from './play-shell.js';
+import { playFrontRuntime, FRONT_WORDS } from './play-front.js';
 
 const TAG = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?$/;   // BCP 47: language, script?, region?
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -88,6 +94,7 @@ export function languageTable(manifest, levelWords = {}) {
     if (w.speaker && !r.speakers.includes(w.speaker)) r.speakers.push(w.speaker);
   };
   for (const w of gameWords(manifest)) add(w, `game: ${w.at}`);
+  if (manifest.shell === 'play') for (const text of shellWords()) add({ text, role: 'shell' }, 'shell');
   for (const lv of manifest.levels ?? []) for (const w of levelWords[lv.ref] ?? []) add(w, `${lv.ref}: ${w.at}`);
   return {
     source: lang.source, locales: lang.locales, default: lang.default ?? lang.source,
@@ -110,7 +117,7 @@ export function coverage(manifest, levelWords = {}) {
 }
 
 // the roles that sit in a box that does not grow: a budget rides beside them, in Latin-letter widths
-const TIGHT = new Set(['hud-label', 'hud-text', 'choice', 'prompt', 'menu-title', 'menu-entry', 'item-name', 'speaker', 'quest', 'option', 'level-title']);
+const TIGHT = new Set(['hud-label', 'hud-text', 'choice', 'prompt', 'menu-title', 'menu-entry', 'item-name', 'speaker', 'quest', 'option', 'level-title', 'shell', 'kept']);
 const ROLE_SAYS = {
   'game-title': 'the game\'s title: a name; localize it as a publisher would (keep, adapt, or subtitle it)',
   'level-title': 'a level\'s name on the level list',
@@ -124,6 +131,8 @@ const ROLE_SAYS = {
   'item-name': 'an item\'s name', 'item-about': 'the line under an item', sign: 'a sign in the world',
   option: 'a difficulty or setup option', 'option-sub': 'the line under an option', label: 'a label',
   prose: 'prose on an about or credits screen', 'credit-role': 'a role in the credits roll', title: 'a title',
+  shell: 'the game shell\'s own words: a menu entry, a button, a status, a message; {slots} are filled by the shell',
+  kept: 'the name of a number the game keeps between plays (a score, a time), shown beside its best',
 };
 
 // the rules every localizer gets: what localizing a game means beyond its words
@@ -194,4 +203,33 @@ export function pageLocale(gameManifest, lang) {
   const L = gameManifest && gameManifest.kind === 'game' ? gameManifest.languages : null;
   if (!L || !Array.isArray(L.locales) || !L.locales.includes(lang)) return null;
   return { lang, strings: lang === L.source ? null : (L.strings?.[lang] ?? {}) };
+}
+
+// a T('…') literal in the shell's code: its words, as written (an escaped quote unescaped)
+const T_CALL = /\bT\('((?:[^'\\]|\\.)*)'/g;
+let SHELL_WORDS = null;
+
+/** The light shell's own words: every T('…') in its runtime and its front's, and the words the front writes in. */
+export function shellWords() {
+  if (!SHELL_WORDS) {
+    const out = new Set();
+    for (const src of [playShellRuntime.toString(), playFrontRuntime.toString()]) for (const m of src.matchAll(T_CALL)) out.add(m[1].replace(/\\(.)/g, '$1'));
+    for (const w of Object.values(FRONT_WORDS)) out.add(w);
+    SHELL_WORDS = Object.freeze([...out]);
+  }
+  return SHELL_WORDS;
+}
+
+/** The shell page's language config: each declared language by its own name, the right-to-left ones, each one's script
+ * typesetting, each one's words (the whole table: the shell shows the game's words, its levels' kept numbers and items
+ * too), the fallback, and the game whose table the World route reads when the shell asks for a level in a language. */
+export function shellLanguage(manifest, gameRef = null) {
+  const L = manifest.languages, css = {};
+  for (const tag of L.locales) { const c = localeCss(tag); if (c) css[tag] = c; }
+  return {
+    game: gameRef, source: L.source, fallback: L.default ?? L.source, locales: L.locales.slice(),
+    names: Object.fromEntries(L.locales.map((tag) => [tag, localeProfile(tag).name])),
+    rtl: L.locales.filter((tag) => localeProfile(tag).dir === 'rtl'), css,
+    t: Object.fromEntries(L.locales.filter((tag) => tag !== L.source).map((tag) => [tag, L.strings?.[tag] ?? {}])),
+  };
 }

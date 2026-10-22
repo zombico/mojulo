@@ -8,7 +8,8 @@
  * name in a talk menu and the actor's id in a scene beat), so each channel says which of its fields a player reads,
  * and what each one is (its ROLE): a localizer writes a HUD label, a line of dialogue and a menu choice differently.
  *
- *   eachLevelWord(payload, visit)        visit(holder, key, { role, at, speaker? }) for every word field present
+ *   eachLevelWord(payload, visit)        visit(holder, key, { role, at, speaker?, keep? }) for every word field present
+ *                                          (keep: a word the shell localizes as it shows it; the payload keeps it)
  *   payloadWords(payload)                → [{ text, role, at, speaker? }] in page order (repeats kept: one per place)
  *   localizePayload(payload, strings)    → a payload whose words are swapped by `strings` ({ '<source>': '<target>' });
  *                                          a word with no entry stays; the input is not touched
@@ -74,6 +75,9 @@ export function eachLevelWord(payload, visit) {
     each(s.body, (_, k) => v(s.body, k, { role: 'sign', at: `signs[${i}].body[${k}]` }));
   });
   each(payload.tutorial?.steps, (s, i) => v(s, 'prompt', { role: 'prompt', at: `tutorial.steps[${i}]` }));
+  // a number the level keeps (game.keep: a score, a time), shown by the shell beside its best: the shell localizes it
+  // as it shows it, the label itself stays (the best is remembered by it), so it is never swapped here (`keep`)
+  each(payload.game?.keep, (k, i) => v(k, 'label', { role: 'kept', at: `game.keep[${i}]`, keep: true }));
 }
 
 /** The level's words, one entry a place, in page order. */
@@ -89,7 +93,7 @@ export function localizePayload(payload, strings) {
   if (!payload || !strings || !Object.keys(strings).length) return payload;
   const out = { ...payload };
   for (const k of ['events', 'signs', 'tutorial']) if (out[k] != null) out[k] = structuredClone(out[k]);
-  eachLevelWord(out, (h, k) => { const t = strings[h[k]]; if (typeof t === 'string' && t.length) h[k] = t; });
+  eachLevelWord(out, (h, k, { keep }) => { const t = strings[h[k]]; if (!keep && typeof t === 'string' && t.length) h[k] = t; });
   return out;
 }
 

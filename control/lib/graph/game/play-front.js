@@ -24,6 +24,8 @@
  */
 
 export const FRONT_ENTRIES = Object.freeze(['continue', 'play', 'levels', 'options', 'credits']);
+// the words the front writes in when the game leaves them out (frontConfig): the shell's words, localized as its own are
+export const FRONT_WORDS = Object.freeze({ press: 'press start', end: 'The end' });
 export const FRONT_LAYOUTS = Object.freeze(['center', 'lower-third', 'left', 'right']);
 const KEYS = ['cover', 'layout', 'tagline', 'press', 'menu', 'credits', 'end'];
 const REF = /^[A-Za-z0-9_-]{1,64}$/;
@@ -91,12 +93,12 @@ export function frontConfig(front, art, { levels = 1, run = false } = {}) {
   const menu = front.menu ? front.menu.slice() : [
     ...(run ? [] : ['continue']), 'play', ...(!run && levels > 1 ? ['levels'] : []), 'options', ...(credits ? ['credits'] : []),
   ];
-  const end = run ? null : { text: (front.end && front.end.text) || 'The end', credits: !!credits && !(front.end && front.end.credits === false) };
+  const end = run ? null : { text: (front.end && front.end.text) || FRONT_WORDS.end, credits: !!credits && !(front.end && front.end.credits === false) };
   return {
     art: art || null,
     layout: front.layout || 'center',
     ...(front.tagline ? { tagline: front.tagline } : {}),
-    ...(front.press ? { press: front.press === true ? 'press start' : front.press } : {}),
+    ...(front.press ? { press: front.press === true ? FRONT_WORDS.press : front.press } : {}),
     menu, credits, end,
   };
 }
@@ -142,7 +144,7 @@ export const FRONT_CSS = [
  * startRun, renderLevels, progress, cleared, isOpen, settings, saveSettings, pushPrefs, reset, playtest, title }.
  */
 export function playFrontRuntime(cfg, api) {
-  const F = cfg.front, el = api.el;
+  const F = cfg.front, el = api.el, T = api.T;
   const root = document.getElementById('front');
   let pressed = !F.press, focus = 0, items = [], view = null;
 
@@ -156,11 +158,11 @@ export function playFrontRuntime(cfg, api) {
     return after || firstUncleared() || api.levels.find((l) => l.ref === last) || null;
   }
   const ENTRY = {
-    continue: () => { const lv = continueTo(); return lv ? { label: 'continue', go: () => { close(); api.launch(lv); } } : null; },
-    play: () => ({ label: api.progress() ? 'new game' : 'start', go: () => { close(); if (api.run) api.startRun(); else api.launch(api.levels[0]); } }),
-    levels: () => ({ label: 'levels', go: () => { close(); api.renderLevels(); } }),
-    options: () => ({ label: 'options', go: () => options() }),
-    credits: () => (F.credits ? { label: 'credits', go: () => roll(title) } : null),
+    continue: () => { const lv = continueTo(); return lv ? { label: T('continue'), go: () => { close(); api.launch(lv); } } : null; },
+    play: () => ({ label: api.progress() ? T('new game') : T('start'), go: () => { close(); if (api.run) api.startRun(); else api.launch(api.levels[0]); } }),
+    levels: () => ({ label: T('levels'), go: () => { close(); api.renderLevels(); } }),
+    options: () => ({ label: T('options'), go: () => options() }),
+    credits: () => (F.credits ? { label: T('credits'), go: () => roll(title) } : null),
   };
 
   function open() { root.style.display = 'block'; api.app.style.display = 'none'; }
@@ -188,15 +190,15 @@ export function playFrontRuntime(cfg, api) {
     root.appendChild(s);
     const a = F.art, titled = a && a.titled;
     const head = [
-      el('h1', { cls: 'fx-title' + (titled ? ' fx-hide' : ''), text: api.title }),
-      F.tagline && !titled ? el('div', { cls: 'fx-tag', text: F.tagline }) : null,
+      el('h1', { cls: 'fx-title' + (titled ? ' fx-hide' : ''), text: T(api.title) }),
+      F.tagline && !titled ? el('div', { cls: 'fx-tag', text: T(F.tagline) }) : null,
       api.playtest ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
     ];
     items = F.menu.map((k) => ENTRY[k]()).filter(Boolean);
     focus = Math.min(focus, items.length - 1);
     const body = pressed
       ? el('div', { cls: 'fx-menu', role: 'menu' }, items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', role: 'menuitem', text: it.label, on: it.go })))
-      : el('div', { cls: 'fx-press', text: F.press });
+      : el('div', { cls: 'fx-press', text: T(F.press) });
     // a cover's menu zone (its own percentages, in the stage the cover fills), else a column by the layout
     if (a && a.zone) {
       const z = el('div', { cls: 'fx-zone' }, [body]);
@@ -212,16 +214,30 @@ export function playFrontRuntime(cfg, api) {
     let armed = false;
     const draw = () => {
       p.textContent = '';
-      const reset = el('button', { cls: 'link', text: armed ? 'tap again to reset' : 'reset progress', on: () => { if (!armed) { armed = true; draw(); return; } api.reset(); armed = false; title(); } });
+      const reset = el('button', { cls: 'link', text: armed ? T('tap again to reset') : T('reset progress'), on: () => { if (!armed) { armed = true; draw(); return; } api.reset(); armed = false; title(); } });
+      const L = api.lang;
       items = [
-        { label: 'sound: ' + (api.settings().sfxOn ? 'on' : 'off'), go: () => { api.settings().sfxOn = !api.settings().sfxOn; api.saveSettings(); api.pushPrefs(); draw(); } },
-        { label: 'back', go: title },
-      ];
+        { label: api.settings().sfxOn ? T('sound: on') : T('sound: off'), go: () => { api.settings().sfxOn = !api.settings().sfxOn; api.saveSettings(); api.pushPrefs(); draw(); } },
+        // the language row (a game with languages): the word localized, the language in its own name
+        L ? { label: T('language') + ': ' + L.list.find((x) => x.tag === L.current()).name, go: () => { p.remove(); languages(); } } : null,
+        { label: T('back'), go: title },
+      ].filter(Boolean);
       focus = Math.min(focus, items.length - 1);
-      p.appendChild(el('div', { cls: 'screen' }, [el('h2', { text: 'options' })].concat(items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', text: it.label, on: it.go })), [api.playtest ? null : reset])));
+      p.appendChild(el('div', { cls: 'screen' }, [el('h2', { text: T('options') })].concat(items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', text: it.label, on: it.go })), [api.playtest ? null : reset])));
     };
     focus = 0;
     draw();
+    root.appendChild(p);
+  }
+
+  // the languages (a game with languages): each in its own name and its own script; picking one sets the page in it and
+  // goes back to the options, now in that language
+  function languages() {
+    view = 'options';
+    const L = api.lang, p = el('div', { cls: 'fx-panel' });
+    items = L.list.map((x) => ({ tag: x.tag, label: x.name, go: () => { L.choose(x.tag); p.remove(); title(); options(); } })).concat([{ label: T('back'), go: () => { p.remove(); options(); } }]);
+    focus = Math.max(0, L.list.findIndex((x) => x.tag === L.current()));
+    p.appendChild(el('div', { cls: 'screen' }, [el('h2', { text: T('language') })].concat(items.map((it, i) => el('button', { cls: i === focus ? 'on' : '', lang: it.tag || null, text: it.label, on: it.go })))));
     root.appendChild(p);
   }
 
@@ -230,17 +246,18 @@ export function playFrontRuntime(cfg, api) {
     open();
     view = 'roll';
     const C = F.credits || { roll: [], attribution: true };
-    const kids = [el('h2', { text: api.title })];
-    for (const r of C.roll) kids.push(el('div', null, [el('div', { cls: 'fx-role', text: r.role }), el('div', { cls: 'fx-names' }, r.names.map((n) => el('span', { text: n })))]));
-    if (C.thanks) kids.push(el('div', null, [el('div', { cls: 'fx-role', text: 'thanks' }), el('div', { cls: 'fx-names', text: C.thanks })]));
-    if (C.closing) kids.push(el('div', { cls: 'fx-names', text: C.closing }));
-    if (C.attribution) kids.push(el('div', { cls: 'fx-made', text: 'made with mojulo · github.com/zombico/mojulo' }));
+    const kids = [el('h2', { text: T(api.title) })];
+    // people keep their names in every language; their roles are words
+    for (const r of C.roll) kids.push(el('div', null, [el('div', { cls: 'fx-role', text: T(r.role) }), el('div', { cls: 'fx-names' }, r.names.map((n) => el('span', { text: n })))]));
+    if (C.thanks) kids.push(el('div', null, [el('div', { cls: 'fx-role', text: T('thanks') }), el('div', { cls: 'fx-names', text: T(C.thanks) })]));
+    if (C.closing) kids.push(el('div', { cls: 'fx-names', text: T(C.closing) }));
+    if (C.attribution) kids.push(el('div', { cls: 'fx-made', text: T('made with mojulo · github.com/zombico/mojulo') }));
     const crawl = el('div', { cls: 'fx-crawl' }, kids);
     crawl.style.setProperty('--fx-dur', Math.max(14, 6 + kids.length * 2.4) + 's');
     const done = () => { if (view === 'roll') { view = null; after(); } };
     crawl.addEventListener('animationend', done);
-    const wrap = el('div', { cls: 'fx-roll' }, [crawl, el('button', { cls: 'fx-skip', text: 'skip', on: done })]);
-    items = [{ label: 'skip', go: done }];
+    const wrap = el('div', { cls: 'fx-roll' }, [crawl, el('button', { cls: 'fx-skip', text: T('skip'), on: done })]);
+    items = [{ label: T('skip'), go: done }];
     root.textContent = '';
     root.appendChild(wrap);
   }
@@ -253,11 +270,11 @@ export function playFrontRuntime(cfg, api) {
     view = 'end';
     root.textContent = '';
     const next = () => (F.end.credits ? roll(title) : title());
-    items = [{ label: F.end.credits ? 'credits' : 'title', go: next }];
+    items = [{ label: F.end.credits ? T('credits') : T('title'), go: next }];
     root.appendChild(el('div', { cls: 'fx-end' }, [el('div', { cls: 'screen center' }, [
-      el('div', { cls: 'result-mark', text: 'game complete' }),
-      el('h1', { text: F.end.text }),
-      el('div', { cls: 'muted', text: api.title }),
+      el('div', { cls: 'result-mark', text: T('game complete') }),
+      el('h1', { text: T(F.end.text) }),
+      el('div', { cls: 'muted', text: T(api.title) }),
       el('div', { cls: 'row' }, [el('button', { cls: 'primary on', text: items[0].label, on: next })]),
     ])]));
     return true;

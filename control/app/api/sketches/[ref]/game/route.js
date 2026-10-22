@@ -93,7 +93,7 @@ export async function GET(request, { params }) {
       // A level was deleted or its contract drifted after the game was minted — teach, don't 500.
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
-    const html = emitShellFor(resolved);   // the play shell when the manifest says shell: 'play', else the arena's
+    const html = emitShellFor(resolved, { gameRef: ref });   // the play shell when the manifest says shell: 'play', else the arena's
     return new Response(html, {
       status: 200,
       headers: {

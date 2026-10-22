@@ -2,7 +2,7 @@
  * play-shell — the light game shell: one self-contained page that runs a game whose levels are worlds, for
  * quick games end to end and as the playtester of the big design loop (design_game's levels).
  *
- * `emitPlayShell(manifest, levels, { playtest?, startLevel?, stingers? })` → one dependency-free html page. It speaks the
+ * `emitPlayShell(manifest, levels, { playtest?, startLevel?, stingers?, frontArt?, gameRef? })` → one dependency-free html page. It speaks the
  * same wire as the arena shell (level-contract.js) and inlines the same store kernel (store-kernel.js), so a
  * level and a save behave the same under either; what it leaves out is everything the arena grew for itself
  * (hangar picks, liveries, map carousels, difficulty, battle music, AI switches, menus).
@@ -34,6 +34,7 @@ import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen } from './screen.js';
+import { shellLanguage, pickLanguage } from './game-languages.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -62,7 +63,7 @@ const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(saf
 
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
-export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
+export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null, gameRef = null } = {}) {
   if (!manifest || manifest.kind !== 'game') throw new Error("emitPlayShell needs a validated game manifest (kind: 'game')");
   const byRef = new Map(levels.map((l) => [l.ref, l]));
   for (const lv of manifest.levels) {
@@ -98,9 +99,14 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   const links = Array.isArray(manifest.links) && manifest.links.length
     ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
     : null;
+  // LANGUAGES (game-languages.js): the player's language picked on the page among the game's, the shell's words and the
+  // game's own in each, each level asked for in it (`gameRef`: the game the World route reads the table from). The table
+  // rides cfg.lang alone, not the manifest. Absent: no key, no code
+  const lang = manifest.languages ? shellLanguage(manifest, gameRef) : null;
   const cfg = {
-    manifest,
+    manifest: lang ? { ...manifest, languages: undefined } : manifest,
     levels: levelTable,
+    ...(lang ? { lang } : {}),
     ...(links ? { links } : {}),
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
@@ -188,7 +194,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
 <details id="debug"><summary>debug</summary><div class="body" id="debugBody"></div></details>
 <div id="toast" role="status"></div>
 <script>${front ? `
-const __mojFront = (${playFrontRuntime.toString()});` : ''}
+const __mojFront = (${playFrontRuntime.toString()});` : ''}${lang ? `
+const __mojPick = (${pickLanguage.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
 </script>
@@ -219,6 +226,14 @@ export function playShellRuntime(cfg, K) {
     return n;
   }
   const clone = (v) => JSON.parse(JSON.stringify(v));
+  // every word the shell shows goes through T: the shell's own (a template, its {slots} filled) and the game's (its
+  // title, its levels' names), looked up in the player's language when the game has languages (cfg.lang), else as written
+  let words = null;
+  function T(s, args) {
+    let out = (words && typeof s === 'string' && words[s]) || s;
+    if (args) out = String(out).replace(/\{(\w+)\}/g, (m, k) => (k in args ? String(args[k]) : m));
+    return out;
+  }
   let toastTimer = 0;
   function toast(msg) {
     const t = $('toast');
@@ -257,9 +272,9 @@ export function playShellRuntime(cfg, K) {
   // A playtest opens every level to pick from; travel inside the game still follows the game's own exits and keys.
   const MAP = K.isMap(LEVELS);
   const isOpen = (lv) => PLAYTEST || (MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
-  const needs = (g) => (g.completed ? 'clear ' + levelTitle(g.completed) + ' first' : g.has ? 'needs ' + (g.count > 1 ? g.count + ' × ' : 'a ') + g.has : 'locked');
+  const needs = (g) => (g.completed ? T('clear {level} first', { level: levelTitle(g.completed) }) : g.has ? (g.count > 1 ? T('needs {count} × {item}', { count: g.count, item: T(g.has) }) : T('needs a {item}', { item: T(g.has) })) : T('locked'));
   const sliceKind = (name) => (SCHEMA.slices.find((s) => s.name === name) || {}).kind;
-  const levelTitle = (ref) => (LEVELS.find((l) => l.ref === ref) || {}).title || ref;
+  const levelTitle = (ref) => T((LEVELS.find((l) => l.ref === ref) || {}).title || ref);
 
   // ---- debug drawer: the raw store, what was sent, what came back ----
   let lastParams = null, lastEnvelope = null, lastErrors = null;
@@ -294,7 +309,8 @@ export function playShellRuntime(cfg, K) {
   }
   const home = () => (front ? front.title() : RUN ? renderRunTitle() : LEVELS.length > 1 ? renderLevels() : renderTitle());
   // where the result and the pause send the player back to: the front's title, else the levels or the title
-  const homeWord = () => (front ? 'title' : LEVELS.length > 1 ? 'levels' : 'title');
+  const homeWord = () => (front ? T('title') : LEVELS.length > 1 ? T('levels') : T('title'));
+  const quitWord = () => (front ? T('quit to title') : LEVELS.length > 1 ? T('quit to levels') : T('quit to title'));
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
@@ -321,11 +337,12 @@ export function playShellRuntime(cfg, K) {
     app.textContent = '';
     app.appendChild(el('div', { cls: 'screen center' }, [
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
-      el('h1', { text: M.title }),
-      el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
-      runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: startRun })]),
+      el('h1', { text: T(M.title) }),
+      el('div', { cls: 'muted', text: T('a run: {length} of {levels} levels, drawn anew each time; fall, and it ends', { length: RUN.length, levels: LEVELS.length }) }),
+      runs ? el('div', { cls: 'badge', text: runs === 1 ? T('deepest: {deep} of {length} · {runs} run', { deep, length: RUN.length, runs }) : T('deepest: {deep} of {length} · {runs} runs', { deep, length: RUN.length, runs }) }) : null,
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? T('new run') : T('start a run'), on: startRun })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
+      langLink(),
     ]));
   }
   // a level of the run ended: on to the next, or the run's end
@@ -333,18 +350,18 @@ export function playShellRuntime(cfg, K) {
     if (env.result === 'success') run.at += 1;
     const deep = num(DEEP_KEY), won = run.at >= run.order.length;
     if (run.at > deep) keep(DEEP_KEY, run.at);
-    if (env.result === 'success' && !won) { toast('cleared ' + run.at + ' of ' + run.order.length); launch(run.order[run.at]); return; }
+    if (env.result === 'success' && !won) { toast(T('cleared {at} of {of}', { at: run.at, of: run.order.length })); launch(run.order[run.at]); return; }
     const r = run, gains = applied ? gainsOf(env.events || []) : [];
     run = null; session = null;
     show('result');
     app.textContent = '';
     app.appendChild(el('div', { cls: 'screen center' }, [
-      el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? 'run complete' : 'run over' }),
-      el('h1', { text: 'run ' + r.n + ': ' + r.at + ' of ' + r.order.length }),
-      el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
+      el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? T('run complete') : T('run over') }),
+      el('h1', { text: T('run {n}: {at} of {of}', { n: r.n, at: r.at, of: r.order.length }) }),
+      el('div', { cls: 'muted', text: r.at > deep ? T('the deepest yet') : T('deepest: {deep}', { deep: Math.max(deep, r.at) }) }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: startRun }), el('button', { text: 'title', on: home }), front && cfg.front.credits ? el('button', { text: 'credits', on: () => front.rollFromRun() }) : null]),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: T('new run'), on: startRun }), el('button', { text: T('title'), on: home }), front && cfg.front.credits ? el('button', { text: T('credits'), on: () => front.rollFromRun() }) : null]),
     ]));
   }
 
@@ -353,10 +370,11 @@ export function playShellRuntime(cfg, K) {
     const first = LEVELS[0];
     const kids = [
       PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
-      el('h1', { text: M.title }),
-      LEVELS.length > 1 ? el('div', { cls: 'muted', text: LEVELS.length + ' levels' }) : (cleared(first.ref) ? el('div', { cls: 'badge', text: 'cleared' }) : null),
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: 'play', on: () => (LEVELS.length > 1 ? renderLevels() : launch(first)) })]),
+      el('h1', { text: T(M.title) }),
+      LEVELS.length > 1 ? el('div', { cls: 'muted', text: T('{n} levels', { n: LEVELS.length }) }) : (cleared(first.ref) ? el('div', { cls: 'badge', text: T('cleared') }) : null),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: T('play'), on: () => (LEVELS.length > 1 ? renderLevels() : launch(first)) })]),
       !PLAYTEST && runLog.length ? resetLink() : null,
+      langLink(),
     ];
     app.textContent = '';
     app.appendChild(el('div', { cls: 'screen center' }, kids));
@@ -364,9 +382,9 @@ export function playShellRuntime(cfg, K) {
 
   function resetLink() {
     let armed = false;
-    const b = el('button', { cls: 'link', text: 'reset progress' });
+    const b = el('button', { cls: 'link', text: T('reset progress') });
     b.addEventListener('click', () => {
-      if (!armed) { armed = true; b.textContent = 'tap again to reset'; return; }
+      if (!armed) { armed = true; b.textContent = T('tap again to reset'); return; }
       freshStore(); persist(); home();
     });
     return b;
@@ -375,25 +393,26 @@ export function playShellRuntime(cfg, K) {
   function renderLevels() {
     show('levels');
     const s = el('div', { cls: 'screen' }, [
-      el('div', { cls: 'center screen' }, [PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null, el('h1', { text: M.title })]),
+      el('div', { cls: 'center screen' }, [PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null, el('h1', { text: T(M.title) })]),
     ]);
     const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
     LEVELS.forEach((lv, i) => {
       const open = isOpen(lv);
       const gated = lv.gate && !K.evalGate(SCHEMA, state, lv.gate);
-      const lock = open ? null : (gated ? needs(lv.gate) : 'not found yet');
+      const lock = open ? null : (gated ? needs(lv.gate) : T('not found yet'));
       // a map's rows say where their exits lead, and what locks them
       const ways = MAP && open && lv.exits ? lv.exits.map((x) => '→ ' + levelTitle(x.to) + (x.gate && !K.evalGate(SCHEMA, state, x.gate) ? ' (' + needs(x.gate) + ')' : '')).join('  ·  ') : null;
       s.appendChild(el('div', { cls: 'card' }, [
         el('div', { cls: 'muted', text: String(i + 1) }),
-        el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: lv.title }), lock ? el('div', { cls: 'muted', text: lock }) : null, ways ? el('div', { cls: 'muted', text: ways }) : null]),
-        lastAt === lv.ref ? el('span', { cls: 'badge', text: 'last here' }) : null,
-        cleared(lv.ref) ? el('span', { cls: 'badge', text: 'cleared' }) : null,
-        el('button', { cls: open ? 'primary' : '', text: 'play', disabled: open ? null : 'disabled', on: () => { if (open) launch(lv); } }),
+        el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: T(lv.title) }), lock ? el('div', { cls: 'muted', text: lock }) : null, ways ? el('div', { cls: 'muted', text: ways }) : null]),
+        lastAt === lv.ref ? el('span', { cls: 'badge', text: T('last here') }) : null,
+        cleared(lv.ref) ? el('span', { cls: 'badge', text: T('cleared') }) : null,
+        el('button', { cls: open ? 'primary' : '', text: T('play'), disabled: open ? null : 'disabled', on: () => { if (open) launch(lv); } }),
       ]));
     });
     if (!PLAYTEST && runLog.length) s.appendChild(el('div', { cls: 'row' }, [resetLink()]));
-    if (front) s.appendChild(el('div', { cls: 'row' }, [el('button', { cls: 'link', text: 'title', on: home })]));
+    if (LANG && !front) s.appendChild(el('div', { cls: 'row' }, [langLink()]));
+    if (front) s.appendChild(el('div', { cls: 'row' }, [el('button', { cls: 'link', text: T('title'), on: home })]));
     app.textContent = '';
     app.appendChild(s);
   }
@@ -441,11 +460,11 @@ export function playShellRuntime(cfg, K) {
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
-    $('veilText').textContent = lv.title;
+    $('veilText').textContent = T(lv.title);
     veil.style.display = 'flex';
     clearTimeout(veilCap);
     veilCap = setTimeout(() => { veil.style.display = 'none'; }, 45000);   // a level without the bridge still shows
-    frame.src = lv.src;
+    frame.src = LANG ? langSrc(lv.src) : lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
   const pushPrefs = () => {
@@ -460,7 +479,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     if (d.moj === W.ready) {
       clearTimeout(veilCap); veil.style.display = 'none';
-      if (d.contractVersion !== W.version) { toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
+      if (d.contractVersion !== W.version) { toast(T('This level speaks a newer contract (v{v}); re-make the game.', { v: d.contractVersion })); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();
       return;
@@ -469,13 +488,13 @@ export function playShellRuntime(cfg, K) {
     // the door opens into loads, entered by its own door
     if (W.door && d.moj === W.door && !session.ended) {
       const r = K.applyTransit(SCHEMA, state, session.level.contract, d.envelope || {});
-      if (!r.ok) { lastErrors = r.errors; toast('The door could not be taken; nothing changed.'); return; }
+      if (!r.ok) { lastErrors = r.errors; toast(T('The door could not be taken; nothing changed.')); return; }
       state = r.state;
       if ((d.envelope && d.envelope.events || []).length) runLog.push(d.envelope);
       persist();
       const to = (cfg.links[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
-      if (!lv) { toast('That door leads nowhere.'); return; }
-      if (!PLAYTEST && lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked.'); return; }
+      if (!lv) { toast(T('That door leads nowhere.')); return; }
+      if (!PLAYTEST && lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) { toast(T('{level} is locked.', { level: T(lv.title) })); return; }
       const carry = JSON.parse(JSON.stringify(session.params || {}));
       carry.__entry = { door: to.door, from: session.level.ref };
       launch(lv, null, carry);
@@ -488,7 +507,7 @@ export function playShellRuntime(cfg, K) {
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
-      if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
+      if (!r.ok) { lastErrors = r.errors; toast(T('The level sent an outcome the game could not apply; nothing changed.')); }
       else {
         state = r.state;
         if (env.result === 'success' && progression && !state[progression].completed[session.level.ref]) {
@@ -505,7 +524,7 @@ export function playShellRuntime(cfg, K) {
       // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
       const to = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       const onward = to && LEVELS.find((l) => l.ref === to);
-      if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
+      if (onward) { toast(T(session.level.title) + ' → ' + T(onward.title)); launch(onward, session.level.ref); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       const sess = session;
       // the last level first cleared: the front's end (its card, then the roll) in place of the result
@@ -527,18 +546,18 @@ export function playShellRuntime(cfg, K) {
     const s = el('div', { cls: 'screen' });
     if (view === 'controls') {
       const dl = el('dl', { cls: 'keys' });
-      const rows = ctlRows || [['W A S D / arrows', 'move'], ['mouse', 'look'], ['Space', 'jump']];
+      const rows = ctlRows || [[T('W A S D / arrows'), T('move')], [T('mouse'), T('look')], [T('Space'), T('jump')]];
       for (const r of rows) { dl.appendChild(el('dt', { text: r[0] })); dl.appendChild(el('dd', { text: r[1] })); }
-      s.appendChild(el('h2', { text: 'controls' }));
+      s.appendChild(el('h2', { text: T('controls') }));
       s.appendChild(dl);
-      s.appendChild(el('button', { text: 'back', on: () => renderPause() }));
+      s.appendChild(el('button', { text: T('back'), on: () => renderPause() }));
     } else {
-      s.appendChild(el('h2', { text: 'paused' }));
-      s.appendChild(el('button', { cls: 'primary', text: 'resume', on: () => setPaused(false) }));
-      s.appendChild(el('button', { text: 'restart', on: () => launch(session.level) }));
-      s.appendChild(el('button', { text: 'controls', on: () => renderPause('controls') }));
-      s.appendChild(el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderPause(); } }));
-      s.appendChild(el('button', { cls: 'link', text: 'quit to ' + homeWord(), on: () => { session = null; home(); } }));
+      s.appendChild(el('h2', { text: T('paused') }));
+      s.appendChild(el('button', { cls: 'primary', text: T('resume'), on: () => setPaused(false) }));
+      s.appendChild(el('button', { text: T('restart'), on: () => launch(session.level) }));
+      s.appendChild(el('button', { text: T('controls'), on: () => renderPause('controls') }));
+      s.appendChild(el('button', { text: settings.sfxOn ? T('sound: on') : T('sound: off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderPause(); } }));
+      s.appendChild(el('button', { cls: 'link', text: quitWord(), on: () => { session = null; home(); } }));
     }
     pauseEl.appendChild(s);
   }
@@ -572,7 +591,7 @@ export function playShellRuntime(cfg, K) {
     for (const k of order) {
       if (!net[k]) continue;
       const [sl, item] = k.split('\u0001');
-      out.push((net[k] > 0 ? '+' : '−') + Math.abs(net[k]) + ' ' + item + (named ? ' · ' + sl : ''));
+      out.push(T('{delta} {item}', { delta: (net[k] > 0 ? '+' : '−') + Math.abs(net[k]), item: T(item) }) + (named ? ' · ' + sl : ''));
     }
     for (const ev of events) {
       if (ev.type === 'grant' || ev.type === 'consume') continue;
@@ -584,13 +603,13 @@ export function playShellRuntime(cfg, K) {
   }
   function eventWords(ev) {
     const n = ev.count === undefined ? 1 : ev.count;
-    if (ev.type === 'grant') return '+' + n + ' ' + ev.item;
-    if (ev.type === 'consume') return '−' + n + ' ' + ev.item;
-    if (ev.type === 'setStat') return ev.stat + (ev.delta !== undefined ? (ev.delta >= 0 ? ' +' : ' ') + ev.delta : ' ' + ev.value);
-    if (ev.type === 'levelUp') return 'level up';
-    if (ev.type === 'setFlag') return typeof ev.key === 'string' ? ev.key.replace(/[-_:]+/g, ' ') : 'flag set';
-    if (ev.type === 'recruit') return ((ev.member && ev.member.name) || ev.id || 'someone') + ' joined';
-    if (ev.type === 'dismiss') return (ev.id || 'someone') + ' left';
+    if (ev.type === 'grant') return T('{delta} {item}', { delta: '+' + n, item: T(ev.item) });
+    if (ev.type === 'consume') return T('{delta} {item}', { delta: '−' + n, item: T(ev.item) });
+    if (ev.type === 'setStat') return T(ev.stat) + (ev.delta !== undefined ? (ev.delta >= 0 ? ' +' : ' ') + ev.delta : ' ' + ev.value);
+    if (ev.type === 'levelUp') return T('level up');
+    if (ev.type === 'setFlag') return typeof ev.key === 'string' ? ev.key.replace(/[-_:]+/g, ' ') : T('flag set');
+    if (ev.type === 'recruit') return T('{who} joined', { who: T((ev.member && ev.member.name) || ev.id || T('someone')) });
+    if (ev.type === 'dismiss') return T('{who} left', { who: T(ev.id || T('someone')) });
     return null;   // promote: the result already says it
   }
   function statsTable(stats) {
@@ -616,35 +635,66 @@ export function playShellRuntime(cfg, K) {
       const counts = Number.isFinite(v) && (k.best === 'high' || env.result === 'success');
       const better = counts && (prior === null || (k.best === 'high' ? v > prior : v < prior));
       if (better) { try { storage.setItem(key, String(v)); } catch (e) { /* session only */ } }
-      const tail = better ? (prior === null ? '' : ' · new best!') : prior !== null ? ' · best ' + fmt(k, prior) : '';
-      return el('li', { text: k.label + ' ' + fmt(k, v) + tail });
+      // the label as the level keeps it (the best is remembered by it), shown in the player's language
+      const said = { label: T(k.label), value: fmt(k, v) };
+      return el('li', { text: better && prior !== null ? T('{label} {value} · new best!', said) : !better && prior !== null ? T('{label} {value} · best {best}', { ...said, best: fmt(k, prior) }) : T('{label} {value}', said) });
     }));
   }
   function renderResult(lv, env, applied, done) {
     session = null;
     show('result');
-    const res = env.result === 'success' ? 'cleared' : env.result === 'fail' ? 'failed' : 'left';
+    const res = env.result === 'success' ? T('cleared') : env.result === 'fail' ? T('failed') : T('left');
     const idx = LEVELS.indexOf(lv), next = MAP ? null : LEVELS[idx + 1];   // a map goes on by its exits, not by order
     const shut = MAP && env.result === 'success' && env.exit ? (lv.exits || []).find((x) => x.id === env.exit) : null;
     const gains = applied ? gainsOf(env.events || []) : [];
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
-      el('h1', { text: lv.title }),
+      el('h1', { text: T(lv.title) }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
-      applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
-      done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
-      shut && shut.gate ? el('div', { cls: 'muted', text: 'The way to ' + levelTitle(shut.to) + ' is shut: ' + needs(shut.gate) + '.' }) : null,
+      applied ? null : el('div', { cls: 'muted', text: T('The level\'s outcome could not be applied, so nothing was saved from this run.') }),
+      done && M.final ? el('div', { cls: 'badge', text: T('the game is complete') }) : null,
+      shut && shut.gate ? el('div', { cls: 'muted', text: T('The way to {level} is shut: {needs}.', { level: levelTitle(shut.to), needs: needs(shut.gate) }) }) : null,
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(lv, env) : null,
       el('div', { cls: 'row' }, [
-        env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => launch(next) }) : null,
-        el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? 'play again' : 'try again', on: () => launch(lv) }),
+        env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: T('next: {level}', { level: T(next.title) }), on: () => launch(next) }) : null,
+        el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? T('play again') : T('try again'), on: () => launch(lv) }),
         el('button', { text: homeWord(), on: home }),
       ]),
     ];
     app.textContent = '';
     app.appendChild(el('div', { cls: 'screen center' }, kids));
   }
+
+  // ---- the LANGUAGE (cfg.lang, a game with languages: game-languages.js shellLanguage) ----
+  // picked once among the game's, the player's browser's first that it offers, then kept with the settings; the page set
+  // in it (its tag, direction and script typesetting), the shell's words and the game's looked up in its table, and each
+  // level asked for in it (the World route serves the level's words localized). Absent: none of this runs.
+  const LANG = cfg.lang || null;
+  let lang = null, langCss = null;
+  function setLanguage(tag) {
+    lang = tag;
+    words = LANG.t[tag] || null;
+    document.documentElement.lang = tag;
+    if (LANG.rtl.indexOf(tag) >= 0) document.documentElement.dir = 'rtl'; else document.documentElement.removeAttribute('dir');
+    if (!langCss) { langCss = document.createElement('style'); document.head.appendChild(langCss); }
+    langCss.textContent = LANG.css[tag] || '';
+    document.title = T(M.title);
+  }
+  function chooseLanguage(tag) { settings.lang = tag; saveSettings(); setLanguage(tag); }
+  const langName = (tag) => LANG.names[tag] || tag;
+  // the language's own name on the link, never translated: someone lost in a language finds theirs by its name
+  const langLink = () => (LANG && !front ? el('button', { cls: 'link', text: T('language') + ': ' + langName(lang), on: renderLanguages }) : null);
+  function renderLanguages() {
+    const back = screen;
+    show('languages');
+    app.textContent = '';
+    app.appendChild(el('div', { cls: 'screen center' }, [el('h2', { text: T('language') })].concat(LANG.locales.map((tag) => el('button', {
+      cls: tag === lang ? 'primary' : '', lang: tag, text: langName(tag), on: () => { chooseLanguage(tag); home(); },
+    })), [el('button', { cls: 'link', text: T('back'), on: () => (back === 'levels' ? renderLevels() : home()) })])));
+  }
+  const langSrc = (src) => src + (src.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + encodeURIComponent(lang) + (LANG.game ? '&game=' + encodeURIComponent(LANG.game) : '');
+  if (LANG) setLanguage(LANG.locales.indexOf(settings.lang) >= 0 ? settings.lang : __mojPick(LANG.locales, navigator.languages || [navigator.language], LANG.fallback));
 
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
   const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));
@@ -654,6 +704,8 @@ export function playShellRuntime(cfg, K) {
     progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
     settings: () => settings,
     reset: () => { freshStore(); persist(); },
+    T,
+    ...(LANG ? { lang: { list: LANG.locales.map((tag) => ({ tag, name: langName(tag) })), current: () => lang, choose: chooseLanguage } } : {}),
   }) : null;
 
   // ---- go ----

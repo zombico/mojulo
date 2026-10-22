@@ -14,7 +14,7 @@
  * typesetting, under the page's lang). Determinism: nothing here reads Intl or the host; a tag the table lacks reads
  * as a plain left-to-right Latin language with no glossary, and says so.
  *
- *   localeProfile(tag)            → { tag, known, script, dir, caseless, joined, wrap, number, quotes, punct, plural,
+ *   localeProfile(tag)            → { tag, known, script, name (its own name for itself), dir, caseless, joined, wrap, number, quotes, punct, plural,
  *                                     address, expansion, keys, units, names, glossary: { <term>: { use, note? } } }
  *   glossaryFor(tag, texts)       → [{ term, use, note? }] the entries whose English the given words say
  *   localeCss(tag)                → the page's typesetting for the script ('' for a Latin or Cyrillic language)
@@ -63,6 +63,19 @@ const LANGS = {
   zh: { script: 'Hans', number: [',', '.'], quotes: ['“', '”'], plural: ['other'], expansion: 0.55,
     punct: 'full-width ，。！？：; the ellipsis is ……; no spaces between words', address: '你 in system text (您 reads formal)' },
 };
+
+// each language in its own name: a language list is read by someone who may not read the language it is in
+const AUTONYMS = {
+  en: 'English', 'en-US': 'English (US)', 'en-GB': 'English (UK)', fr: 'Français', 'fr-CA': 'Français (Canada)', de: 'Deutsch',
+  es: 'Español', 'es-ES': 'Español (España)', 'es-419': 'Español (Latinoamérica)', 'es-MX': 'Español (México)', it: 'Italiano',
+  pt: 'Português', 'pt-BR': 'Português (Brasil)', 'pt-PT': 'Português (Portugal)', nl: 'Nederlands', sv: 'Svenska', da: 'Dansk',
+  pl: 'Polski', tr: 'Türkçe', ru: 'Русский', uk: 'Українська', ar: 'العربية', he: 'עברית', fa: 'فارسی', hi: 'हिन्दी', th: 'ไทย',
+  vi: 'Tiếng Việt', id: 'Bahasa Indonesia', ja: '日本語', ko: '한국어', zh: '中文', 'zh-Hans': '简体中文', 'zh-Hant': '繁體中文',
+  'zh-CN': '简体中文', 'zh-TW': '繁體中文', 'zh-HK': '繁體中文 (香港)',
+};
+
+// a tag the list does not name: its language's name and its region as written ('Español (AR)'), else the tag itself
+const autonym = (tag) => AUTONYMS[tag] ?? (AUTONYMS[lang(tag)] ? `${AUTONYMS[lang(tag)]} (${tag.split('-').slice(1).join('-')})` : tag);
 
 // a region or script that changes what a player expects (the rest falls back to its language)
 const REGIONS = {
@@ -149,7 +162,7 @@ export function localeProfile(tag) {
     glossary[t.term] = { use: t.use[hit], ...(note ? { note } : {}) };
   }
   return {
-    tag, known: !!base, script,
+    tag, known: !!base, script, name: autonym(tag),
     dir: script === 'Arab' || script === 'Hebr' ? 'rtl' : 'ltr',
     caseless: !CASED.has(script),
     joined: script === 'Arab' || script === 'Deva',   // letter-spacing breaks the joins (and a Devanagari conjunct)
