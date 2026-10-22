@@ -198,6 +198,42 @@ for (const id of FEEL_IDS) {
     check(`${id}: no wall slide: against a wall with the stick into it, the body falls free`, !ev(sl, 'cling').length && sl.states[30].hero.v[2] < -3);
   }
 
+  // ─── the dashes (Mega Man X): the air dash, the dash jump, the held dash, the dash wall jump ───
+  const DD = C.dodge, fwdP = [0, 127, 0], hspeed = (st) => Math.hypot(st.hero.v[0], st.hero.v[1]);
+  const nA = DD.air?.frames ?? 10;   // the air dash held through, let go, pressed again while still in the air
+  const ad = track(run(C, (f) => (f >= 1 && f < nA + 1 ? [0, 127, DG] : f === nA + 3 ? [0, 127, DG] : fwdP), 120, { arena: { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] }, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
+  const adE = ev(ad, 'air-dash');
+  if (DD.air) {
+    const a0 = adE[0], n = DD.air.frames, flatZ = Array.from({ length: n - 1 }, (_, k) => ad.states[1 + k].hero.p[2]).every((z) => z === ad.states[0].hero.p[2]);
+    const sp = hspeed(ad.states[2]), spOk = DD.kind === 'boost' ? sp >= C.ground.run - 1e-9 : Math.abs(sp - DD.air.speed) < 1e-9;
+    const spentD = ad.events.some((e) => e.type === 'dropped' && e.button === 'dodge' && /spent/.test(e.why));
+    row['air dash'] = `${DD.air.count} × ${DD.air.frames} f`;
+    check(`${id}: a dodge in the air is an air dash: no fall for its ${n} f, at ${DD.kind === 'boost' ? 'a boost' : `${DD.air.speed} m/s`}; a second in the same airtime is spent`, a0?.f === 1 && flatZ && spOk && spentD, { at: a0?.f, flat: flatZ, speed: +sp.toFixed(3), spent: spentD });
+    check(`${id}: landing gives the air dash back`, ad.end.hero.grounded && ad.end.hero.airDashes === DD.air.count, { left: ad.end.hero.airDashes });
+  } else check(`${id}: no air dash: a dodge in the air is dropped, and says why`, !adE.length && ad.events.some((e) => e.type === 'dropped' && e.button === 'dodge'));
+  // the dash jump: a dodge on the ground, a jump inside it
+  const djPads = (f) => (f >= 10 && f < 18 ? [0, 127, DG | (f >= 14 ? J : 0)] : f >= 18 && f < 60 ? [0, 127, J] : fwdP);
+  const dj = track(run(C, djPads, 140, { arena: OPEN })), djE = ev(dj, 'dash-jump')[0];
+  const plainJ = track(run(C, (f) => (f >= 14 && f < 60 ? [0, 127, J] : fwdP), 140, { arena: OPEN }));
+  if (DD.jump) {
+    const off2 = ev(dj, 'takeoff')[0], land2 = dj.events.find((e) => e.type === 'land' && e.who === 'hero' && e.f > off2.f);
+    const airSp = dj.states.slice(off2.f + 1, land2.f).map(hspeed), carriedV = airSp.every((v) => v >= djE.speed - 1e-4)   // (the event rounds the speed to 1e-4);
+    const off3 = ev(plainJ, 'takeoff')[0], land3 = plainJ.events.find((e) => e.type === 'land' && e.who === 'hero' && e.f > off3.f);
+    const plainTop = Math.max(...plainJ.states.slice(off3.f + 1, land3.f).map(hspeed));
+    row['dash jump'] = `${djE.speed.toFixed(1)} m/s`;
+    check(`${id}: a jump inside a ground dodge is a dash jump: it leaves on the press, and the air keeps the dodge's speed (${djE.speed.toFixed(2)} m/s, a plain jump ${plainTop.toFixed(2)})`, djE.f === 14 && off2.f === 14 && carriedV && djE.speed > plainTop + 0.5, { left: off2.f, carried: carriedV, plainTop: +plainTop.toFixed(3) });
+  } else check(`${id}: no dash jump: a jump in a dodge waits for it to end`, !djE && (ev(dj, 'takeoff')[0]?.f ?? 99) > 14);
+  if (DD.hold) {
+    const relD = track(run(C, (f) => (f >= 10 && f < 14 ? DG : 0), 80, { arena: OPEN })), helD = track(run(C, (f) => (f >= 10 && f < 70 ? DG : 0), 80, { arena: OPEN }));
+    const endR = relD.events.find((e) => e.type === 'end' && e.what === 'dodge'), endH = helD.events.find((e) => e.type === 'end' && e.what === 'dodge');
+    check(`${id}: the dash lasts while it is held (${DD.frames} f at most, ${DD.hold.min} f at least)`, endR.f - 10 === DD.hold.min - 1 && endR.released && endH.f - 10 === DD.frames - 1, { tapped: endR.f - 10 + 1, held: endH.f - 10 + 1 });
+  }
+  if (DD.wall && CL) {
+    const k0 = ev(sl, 'cling')[0].f + 10, dw = track(run(C, (f) => (f < k0 - 2 ? into : f < k0 ? [127, 0, DG] : f < k0 + 40 ? [-127, 0, DG | J] : [-127, 0, 0]), 140, { arena: CLIFF, setup: onWall() }));
+    const wd = ev(dw, 'wall-jump')[0], awayD = DD.kind === 'boost' ? C.ground.run : DD.speed, afterK = hspeed(dw.states[k0 + CL.lock + 4]);
+    check(`${id}: a wall jump with the dash held kicks at the dash's speed (${awayD} m/s) and the air keeps it`, wd?.dash && Math.abs(dw.states[k0].hero.v[0] + awayD) < 1e-9 && afterK >= awayD - 1e-9, { dash: wd?.dash, kick: +dw.states[k0].hero.v[0].toFixed(3), after: +afterK.toFixed(3) });
+  }
+
   // ─── the stomp attack: an attack in the air turned downward ───
   const PD = C.pound, SKY = { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] };
   const aloft = (z = 3) => (S) => { S.hero.p[2] = z; S.hero.grounded = false; };

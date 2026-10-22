@@ -105,6 +105,25 @@ The card's `air` and `cling`, on the three non-realistic feels:
 - **Pinball's walls** are bumpers above 3 m/s; slower than that in the air they are plain walls, so a body can come to
   rest on one and slide.
 
+## The dashes (Mega Man X)
+
+The card's `dodge` grows X's dashes on the three non-realistic feels:
+
+| feel | the ground dodge | air dash | dash jump | X's held dash | dash wall jump |
+|---|---|---|---|---|---|
+| **realistic** | a sidestep | none | none | no | no |
+| **action** | the roll (invincible 2–15) | 1, 9 m/s, 14 f | out of the roll, at its speed | no | yes, 8.5 m/s |
+| **platformer** | X's dash, 9 m/s | 1, 9 m/s, 24 f at most | yes, 9 m/s | yes: 30 f at most, 6 at least | yes, 9 m/s |
+| **pinball** | the boost | 1, a boost in the air | yes, at the boost's speed | no | yes, at the run's 12 m/s |
+
+- **The air dash** switches gravity off for its frames and goes at the air dash's speed, once an airtime. Landing and
+  a wall give it back, and out of it the air keeps its speed.
+- **The dash jump** is a jump pressed inside a ground dodge. It leaves on the press (action's 3-frame gather is
+  skipped) and the air keeps the dodge's speed until landing. A plain running jump's air tops out at the run.
+- **X's held dash** lasts while the button is held, up to its frames, and a tap gives the minimum.
+- **The dash wall jump** is a wall jump with the dash held. It kicks at the dash's speed and the air keeps it. A dash
+  pressed while on the wall is held for the kick, not spent as an air dash.
+
 ## The stomp attack
 
 The card's `pound` is an attack in the air turned downward. It drops in a straight line (no gravity's curve), after
@@ -131,7 +150,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 112 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 127 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -175,6 +194,14 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     the wall, rising its share of the jump. A jump inside the wall's coyote time still kicks.
   - Action and platformer climb one wall by held kicks (each kick higher than the last); pinball does not. Touching a
     wall gives the air jump back. Realistic has none of it.
+- **The dashes.**
+  - Each non-realistic feel's air dash holds its height exactly for its frames at its speed. A second in the same
+    airtime is refused, saying it is spent, and landing gives it back.
+  - The dash jump leaves on the press and every air frame keeps the dodge's speed: 7.76 m/s against a plain jump's
+    6.5 in action, 9 against 6 in platformer, 18.8 against 3.1 in pinball.
+  - The platformer's dash ends at 6 frames when tapped and at 30 held.
+  - The dash wall jump kicks at the dash's speed and still has it after the kick.
+  - Realistic has none of it.
 - **The stomp attack.**
   - Realistic has none, and the dropped press says why.
   - Each other feel's air attack holds still for its hang to the frame, then drops at exactly its speed.

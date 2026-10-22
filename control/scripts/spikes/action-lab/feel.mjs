@@ -33,6 +33,10 @@
  * holding back toward the wall carries the body back to it: a single wall climbed by repeated wall jumps. The
  * non-realistic feels have both; realistic neither.
  *
+ * THE DASHES (the card's `dodge`), Mega Man X's too: the AIR DASH (gravity off, once an airtime, given back by landing
+ * and by a wall), the DASH JUMP (a jump in a ground dodge leaves at once and the air keeps the dodge's speed), the
+ * DASH WALL JUMP (the kick at the dash's speed, kept), and X's dash lasting as long as the button is held.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -73,8 +77,11 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            apex while the button is held), coyote (frames after walking off an edge a jump still takes), buffer
  *            (frames a press in the air waits for the landing), air (the share of ground control in the air), maxFall,
  *            land (frames the landing shows standing), heavy { fall (m/s), lag (frames without control) }
- *   dodge    kind (sidestep | roll | dash | boost), frames, speed, iframes [from, to) or null, air (allowed off the
- *            ground), cancel (out of a move's recovery)
+ *   dodge    kind (sidestep | roll | dash | boost), frames, speed, iframes [from, to) or null, hold ({ min }: the dash
+ *            lasts while the button is held, `frames` at most, `min` at least), jump (a jump in a ground dodge is a DASH
+ *            JUMP: it leaves at once and the air keeps the dodge's speed), wall (a wall jump with the button held kicks
+ *            at the dash's speed and keeps it), air ({ count, speed, frames }: the AIR DASH, gravity off, `count` an
+ *            airtime, given back by landing and by a wall; null: none), cancel (out of a move's recovery)
  *   moves    string: the moves a press chains through, each { take, startup, snap (load → contact, inside startup),
  *            active, recovery, wings { wind, after } (how far the wind-up and follow-through go from ready: the clip's,
  *            takes.mjs), lunge (m stepped through startup), finisher, force (over the card's) }; cancel ('none',
@@ -104,7 +111,7 @@ export const FEELS = Object.freeze({
     says: 'the body on earth: momentum builds and costs, a jump waits for its gather, no holds, real momentum',
     ground: { walk: 1.4, run: 3.5, sprint: 6.5, accel: 6, decel: 9, turn: 540 },
     jump: { commit: 12, height: 0.45, gRise: G, gFall: G, cut: 1, hang: 0, coyote: 3, buffer: 6, air: 0.1, maxFall: 30, land: 10, heavy: { fall: 5.5, lag: 12 } },
-    dodge: { kind: 'sidestep', frames: 22, speed: 3.2, iframes: null, air: false, cancel: false },
+    dodge: { kind: 'sidestep', frames: 22, speed: 3.2, iframes: null, air: null, cancel: false, hold: null, jump: false, wall: false },
     moves: {
       string: [
         { take: 'jab', startup: 11, snap: 6, active: 2, recovery: 12, wings: { wind: 1, after: 1 }, lunge: 0.08 },
@@ -125,7 +132,7 @@ export const FEELS = Object.freeze({
     says: 'force made visible: top speed at once, a quick gather and a hang, a light that snaps, both bodies frozen on the blow',
     ground: { walk: 2, run: 6.5, sprint: 9, accel: 45, decel: 60, turn: 1440 },
     jump: { commit: 3, height: 1.3, gRise: 28, gFall: 40, cut: 0.45, hang: 5, coyote: 6, buffer: 8, air: 0.85, maxFall: 25, land: 4, heavy: null },
-    dodge: { kind: 'roll', frames: 24, speed: 8.5, iframes: [2, 15], air: false, cancel: true },
+    dodge: { kind: 'roll', frames: 24, speed: 8.5, iframes: [2, 15], air: { count: 1, speed: 9, frames: 14 }, cancel: true, hold: null, jump: true, wall: true },
     moves: {
       string: [
         { take: 'jab', startup: 6, snap: 2, active: 3, recovery: 14, wings: { wind: 1.6, after: 1.4 }, lunge: 0.3 },
@@ -146,7 +153,7 @@ export const FEELS = Object.freeze({
     says: 'movement first: no gather, the platform rule\'s arc, a cut jump, coyote and buffer, an air dash, a hit is a boop',
     ground: { walk: 2.5, run: 6, sprint: 8, accel: 75, decel: 75, turn: Infinity },
     jump: { commit: 0, height: 1.806, gRise: 20, gFall: 34, cut: 0.5, hang: 0, coyote: 6, buffer: 6, air: 0.7, maxFall: 18, land: 4, heavy: null },
-    dodge: { kind: 'dash', frames: 12, speed: 11, iframes: null, air: true, cancel: false },
+    dodge: { kind: 'dash', frames: 30, speed: 9, iframes: null, air: { count: 1, speed: 9, frames: 24 }, cancel: false, hold: { min: 6 }, jump: true, wall: true },
     moves: {
       string: [{ take: 'jab', startup: 4, snap: 2, active: 4, recovery: 10, wings: { wind: 1.25, after: 1.2 }, lunge: 0 }],
       cancel: 'none', buffer: 6, root: 'keep', air: true,
@@ -163,7 +170,7 @@ export const FEELS = Object.freeze({
     says: 'speed: momentum that builds long and keeps, steering not turning, every wall a bumper, a hit ricochets',
     ground: { walk: 3, run: 12, sprint: 20, accel: 7, decel: 2.5, turn: 720, steer: 200 },
     jump: { commit: 0, height: 1.0, gRise: 15.7, gFall: 15.7, cut: 0.6, hang: 0, coyote: 6, buffer: 6, air: 0.3, maxFall: 30, land: 0, heavy: null, spin: true },
-    dodge: { kind: 'boost', frames: 20, speed: 8, iframes: [0, 20], air: true, cancel: true },
+    dodge: { kind: 'boost', frames: 20, speed: 8, iframes: [0, 20], air: { count: 1, speed: 8, frames: 16 }, cancel: true, hold: null, jump: true, wall: true },
     moves: {
       string: [{ take: 'jab', startup: 3, snap: 1, active: 3, recovery: 6, wings: { wind: 1, after: 1 }, lunge: 0 }],
       cancel: 'none', buffer: 6, root: 'keep', air: true,
@@ -194,7 +201,7 @@ export const ARENA = Object.freeze({
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
-  return { h, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+  return { h, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
@@ -207,7 +214,7 @@ function bodyAt(xy, yaw, h = HEIGHT) {
 export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT } = {}) {
   const S = { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
-  S.hero.airLeft = card.air?.jumps ?? 0;
+  S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dodge.air?.count ?? 0;
   return S;
 }
 
@@ -287,7 +294,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a?.kind === 'pound') return { reason: 'in a stomp attack', queue: true };
     if (a && a.kind !== 'move' && a.kind !== 'dodge') return { reason: `in ${a.kind}`, queue: true };
     if (a?.kind === 'move' && !cancelOpen(S, a)) return { reason: 'in a move\'s startup or active frames', queue: true };
-    if (a?.kind === 'dodge') return { reason: 'in a dodge', queue: true };
+    if (a?.kind === 'dodge') return C.dodge.jump && !a.air && H.grounded ? true : { reason: a.air ? 'in an air dash' : 'in a dodge', queue: true };
     if (H.grounded || H.coyote > 0) return true;
     if (canWallJump(S) || canStep(S)) return true;
     if (C.air && H.airLeft > 0) return true;
@@ -308,6 +315,8 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   }
   if (name === 'dodge') {
     if (!H.grounded && !C.dodge.air) return { reason: 'no dodge in the air in this feel', queue: false };
+    if (!H.grounded && H.airDashes <= 0) return { reason: 'the air dash is spent', queue: false };
+    if (H.cling && D_WALL(S)) return { reason: 'on the wall: dash is held for a dash wall jump', queue: false };
     if (a?.kind === 'move') return C.dodge.cancel && a.f >= C.moves.string[a.i].startup + C.moves.string[a.i].active ? true : { reason: 'a move commits until its active frames end', queue: false };
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
@@ -330,6 +339,10 @@ function act(S, name, stick, waited) {
       if (canStep(S)) { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; takeOff(S, H, 'hero'); return; }
       H.airLeft--; S.events.push({ f: S.f, who: 'hero', type: 'air-jump', left: H.airLeft }); takeOff(S, H, 'hero', C.air.mult); return;
     }
+    if (H.act?.kind === 'dodge') {   // the dash jump: it leaves at once, and the air keeps the dodge's speed
+      const sp = len2(H.v[0], H.v[1]); S.events.push({ f: S.f, who: 'hero', type: 'dash-jump', speed: r4(sp) });
+      takeOff(S, H, 'hero'); H.carry = sp; return;
+    }
     if (H.act?.kind === 'poundLag') { S.events.push({ f: S.f, who: 'hero', type: 'pound-jump' }); takeOff(S, H, 'hero', C.pound.jump); return; }
     H.act = null;
     if (C.jump.commit > 0) { H.act = { kind: 'gather', f: 0, of: C.jump.commit }; return; }
@@ -343,6 +356,10 @@ function act(S, name, stick, waited) {
   }
   if (name === 'dodge') {
     const dir = stick.m > 0 ? Math.atan2(stick.x, stick.y) : H.yaw;
+    if (!H.grounded) {   // the air dash: gravity off, at the air dash's speed, once an airtime
+      H.airDashes--; H.act = { kind: 'dodge', f: 0, of: C.dodge.air.frames, dir, from: len2(H.v[0], H.v[1]), air: true }; H.v[2] = 0; H.yaw = dir;
+      S.events.push({ f: S.f, who: 'hero', type: 'air-dash', left: H.airDashes }); return;
+    }
     H.act = { kind: 'dodge', f: 0, of: C.dodge.frames, dir, from: len2(H.v[0], H.v[1]) }; S.events.push({ f: S.f, who: 'hero', type: 'dodge', kind: C.dodge.kind });
   }
 }
@@ -364,7 +381,8 @@ function moveBody(S, B, who, stick, buttons) {
   // the stick's ask: a speed toward a heading
   let want = null;
   if (stick && free && stick.m > 0) {
-    const top = (buttons & BTN.SPRINT) ? Gd.sprint : Gd.run;
+    let top = (buttons & BTN.SPRINT) ? Gd.sprint : Gd.run;
+    if (!B.grounded && B.carry > top) top = B.carry;   // a dash jump's air holds the dash's speed
     want = { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top };
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
@@ -389,7 +407,7 @@ function moveBody(S, B, who, stick, buttons) {
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
   if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
   else if (clung) { B.v[2] = -CL.slide; B.p[2] -= CL.slide * DT; }   // down the wall at a constant speed
-  else if (!B.grounded && !(a?.kind === 'dodge' && C.dodge.kind === 'dash')) fall(S, B, who);
+  else if (!B.grounded && !(a?.kind === 'dodge' && (a.air || C.dodge.kind === 'dash'))) fall(S, B, who);
   // the floor plane: substeps no longer than 8 cm against the walls
   const sp = len2(B.v[0], B.v[1]); const n = Math.max(1, Math.ceil((sp * DT) / 0.08));
   let wallHit = null;
@@ -401,7 +419,7 @@ function moveBody(S, B, who, stick, buttons) {
   if (clung && !B.grounded) {
     if (!B.cling) S.events.push({ f: S.f, who, type: 'cling', n: clung.map(r4), z: r4(B.p[2]) });
     B.cling = clung; B.wallN = clung; B.wallCoyote = CL.coyote; B.yaw = Math.atan2(clung[0], clung[1]);   // faces out, as X does
-    B.v[0] = 0; B.v[1] = 0; if (C.air) B.airLeft = C.air.jumps;
+    B.v[0] = 0; B.v[1] = 0; if (C.air) B.airLeft = C.air.jumps; B.airDashes = C.dodge.air?.count ?? 0; B.carry = 0;
   } else if (B.cling) { B.cling = null; B.leftWall = S.f; }
   // the stride: a cycle at the ground's rate (strides a second = speed ÷ the travel of a stride at that speed)
   if (B.grounded) B.stride = (B.stride + strideRate(S, len2(B.v[0], B.v[1])) * DT) % 1;
@@ -427,7 +445,8 @@ function slide(B) { const s = len2(B.v[0], B.v[1]); if (s < 1e-9) return; const 
 function dodgeVelocity(S, B) {
   const D = S.card.dodge, a = B.act, t = a.f / a.of;
   let speed;
-  if (D.kind === 'boost') speed = Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.speed * (1 - t));
+  if (a.air) { speed = D.kind === 'boost' ? Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.air.speed * (1 - t)) : D.air.speed; B.v[2] = 0; }
+  else if (D.kind === 'boost') speed = Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.speed * (1 - t));
   else if (D.kind === 'dash') { speed = D.speed; B.v[2] = 0; }
   else speed = D.speed * (1 - 0.7 * t);
   B.v[0] = Math.sin(a.dir) * speed; B.v[1] = Math.cos(a.dir) * speed; if (D.kind !== 'sidestep') B.yaw = D.kind === 'boost' ? a.dir : B.yaw;
@@ -455,7 +474,7 @@ function ground(S, B, who) {
   }
   if (B.coyote > 0) B.coyote--;
   if (B.p[2] <= g && B.v[2] <= 0) {
-    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps;
+    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps; if (who === 'hero') { B.airDashes = S.card.dodge.air?.count ?? 0; B.carry = 0; }
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
@@ -499,7 +518,12 @@ function endAct(S, B, who) {
   const a = B.act; if (!a) return;
   if (a.kind === 'move') { const m = S.card.moves.string[a.i]; if (a.f >= m.startup + m.active + m.recovery) { B.act = null; S.events.push({ f: S.f, who, type: 'end', what: 'move' }); } return; }
   if (a.kind === 'spar') { if (a.f >= SPAR.startup + SPAR.active + SPAR.recovery) B.act = null; return; }
-  if (a.of != null && a.f >= a.of && a.kind !== 'gather') { B.act = null; S.events.push({ f: S.f, who, type: 'end', what: a.kind }); }
+  const D = S.card.dodge;
+  const letGo = a.kind === 'dodge' && who === 'hero' && D.hold && !(S.held & BTN.DODGE) && a.f >= D.hold.min;   // X's dash: as long as it is held
+  if ((a.of != null && a.f >= a.of && a.kind !== 'gather') || letGo) {
+    if (a.kind === 'dodge' && a.air) B.carry = Math.max(B.carry, len2(B.v[0], B.v[1]));   // out of an air dash the air keeps its speed
+    B.act = null; S.events.push({ f: S.f, who, type: 'end', what: a.kind, ...(letGo ? { released: true } : {}) });
+  }
 }
 function strideRate(S, speed) {
   const g = S.body.strides; if (speed < 0.05) return 0;
@@ -603,13 +627,15 @@ function wallNear(S, B) {
   }
   return null;
 }
+const D_WALL = (S) => !!(S.card.dodge.wall && S.card.cling);
 function canWallJump(S) { const H = S.hero; return !!(S.card.cling && !H.grounded && H.wallN && (H.cling || H.wallCoyote > 0)); }
 /** the kick: up (the card's share of the jump) and away from the wall, the stick locked out for `lock` frames */
 function wallJump(S, H) {
-  const CL = S.card.cling, n = H.wallN;
-  S.events.push({ f: S.f, who: 'hero', type: 'wall-jump', n: n.map(r4), z: r4(H.p[2]), coyote: !H.cling });
+  const CL = S.card.cling, D = S.card.dodge, n = H.wallN;
+  const dash = !!(D.wall && (S.held & BTN.DODGE)), away = dash ? (D.kind === 'boost' ? S.card.ground.run : D.speed) : CL.away;   // the dash wall jump
+  S.events.push({ f: S.f, who: 'hero', type: 'wall-jump', n: n.map(r4), z: r4(H.p[2]), coyote: !H.cling, dash });
   takeOff(S, H, 'hero', CL.up);
-  H.v[0] = n[0] * CL.away; H.v[1] = n[1] * CL.away; H.yaw = Math.atan2(n[0], n[1]);
+  H.v[0] = n[0] * away; H.v[1] = n[1] * away; H.yaw = Math.atan2(n[0], n[1]); H.carry = dash ? away : 0;
   H.wallLock = CL.lock; H.cling = null; H.wallCoyote = 0;
 }
 
@@ -702,7 +728,7 @@ export function poseOf(S, who) {
   if (a?.kind === 'gather') return { ...base, clip: 'gather', at: a.f, of: a.of };
   if (a?.kind === 'pound') return { ...base, clip: C.pound.kind === 'plunge' ? 'air' : 'spin', u: 1, spin: C.pound.kind === 'bounce' ? (S.f % 8) * (Math.PI / 4) : B.spin };
   if (a?.kind === 'poundLag') return { ...base, clip: 'land', at: Math.min(a.f, Math.max(0, (C.jump.land || 1) - 1)), of: a.of };
-  if (a?.kind === 'dodge') return { ...base, clip: 'dodge', kind: C.dodge.kind, at: a.f, of: a.of, speed: v, iframes: iframed(S, B) };
+  if (a?.kind === 'dodge') return { ...base, clip: 'dodge', kind: a.air ? 'dash' : C.dodge.kind, air: !!a.air, at: a.f, of: a.of, speed: v, iframes: iframed(S, B) };
   if (a?.kind === 'guard') return { ...base, clip: 'guard', at: a.f };
   if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') {
     const at = B.lastHit && (B.stun > 0 || a?.kind === 'hurt') ? S.f - B.lastHit.f : a?.f ?? 0;

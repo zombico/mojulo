@@ -37,6 +37,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **The dashes, in the lab** (Mega Man X; the card's `dodge`). On the three non-realistic feels: an air dash with
+  gravity off, once an airtime (landing and walls give it back); the dash jump, a jump inside a ground dodge that
+  leaves on the press and keeps the dodge's speed through the air; and the dash wall jump, which kicks at the dash's
+  speed and keeps it. The platformer's dash is X's, lasting while the button is held. The gate holds 127 laws on both
+  casts.
 - **The air jump and the wall, in the lab** (Mega Man X; the card's `air` and `cling`). On the three non-realistic
   feels, a jump in the air is an air jump while one is left, and falling against a wall with the stick into it slides
   down it at a constant speed. A jump on the wall kicks off it up and away, the stick locked out for the kick's frames,

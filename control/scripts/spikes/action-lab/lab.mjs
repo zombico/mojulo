@@ -126,7 +126,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
           <div class="tbtns"><button type="button" data-tbtn="DODGE">Dodge</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
