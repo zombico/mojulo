@@ -136,7 +136,7 @@ The card's `charge`, on every feel. The attack's press still acts at once: **the
 never delayed**, whether the button is let go or held. Holding on charges, counted from the press (frozen frames do not
 count). **The release is the beat** of the charged attack: it fires on the release frame at the level the hold reached.
 Let go short of the first level and a charge that was showing fizzles; let go sooner than that and it was only a tap.
-A hit taken loses the charge.
+A hit taken loses the charge, unless the card keeps it (`hurt.charge`: the platformer does).
 
 | feel | what it charges | levels (held from the press) | while charging |
 |---|---|---|---|
@@ -174,6 +174,36 @@ hyper armor), and the frame data has an armor column.
 
 Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
 stomper off without being squashed.
+
+## Ranged attacks: the enemy's patterns, by genre
+
+Y turns the dummy into a shooter (again: the card's next set; T sparring and the shooter take turns). It telegraphs
+(the aim drawn as a line, a laser for a sight) and fires the patterns its genre uses, one a volley:
+
+| feel | the genre | patterns | how a body avoids them |
+|---|---|---|---|
+| **realistic** | the FPS | **rifle** (a 3-round burst), **marksman** (one heavy shot) | not by reaction: they are **hitscan**, no flight to see. Break the line (cover: a block between), or keep moving across the aim: the rifle's aim trails the target by a reaction (10 f), the marksman's locks 12 f before the shot (the glint, drawn as a flash) |
+| **action: arena** | the character-action arena | **orb**, **fan** (5 across 60°), **ring** (12 all round, low), **homing** (turns 100°/s) | the roll's invincible frames (a perfect dodge on its first frames starts Witch Time), stepping off the line, jumping the low ring, out-turning the homing orb |
+| **action: brawler** | the beat 'em up | **knife** (low and slow), **gun** (a long aim, then fast; it knocks down) | step off the knife's line or jump it; the gun's long aim is the warning |
+| **platformer** | the run-and-gun platformer | **pellet** (3 slow, 50° spread), **aimed** (one at the hero), **lob** (a grenade at where the hero stood, bursting on the floor), **wave** (weaving 0.8 m) | they are slow and cross the room at their own speeds: a sidestep as it leaves clears an aimed shot; move off a lob's landing |
+| **pinball** | the speed platformer | **buzz** (one slow shot), **burst** (8 slow, all round), **bouncer** (a ball that bounces on) | slow; outrun them, or run through them on maneuver armor |
+
+A guard from the front stops a blockable shot (hitscan is not blockable).
+
+## What a hit does: stun, knock, mercy, life, and maneuver armor
+
+The card's `hurt`, `life` and `maneuver`:
+
+| feel | a hit | mercy (invincible after) | life | maneuver armor |
+|---|---|---|---|---|
+| **realistic** | a **flinch**: control kept, the run slowed to ×0.5 for 24 f | none: a burst lands every round | 100 health | none |
+| **action** | stopped: knocked back 3 m/s, stunned 24 f (the gun knocks down for 60 f); out of a charge | 40 f | 100 health | dashing or sprinting: no stun (hyper armor while moving), a quarter of the knock |
+| **platformer** | stopped: knocked back 2 m/s and up, stunned 20 f; the charge kept (the card's call) | 90 f, the body blinking | 28 health | dashing: half the stun, half the knock |
+| **pinball** | stopped: knocked back 4 m/s and up, stunned 30 f | 120 f | **rings**: a hit scatters all 10 and is survived; a hit with none is the end | running past 9 m/s: no stun, no knock, the speed kept (the rings still scatter) |
+
+Out of life the body is down for 90 f, then up again full. **O** (`life.oneHit`) makes any hit the end, the one-hit
+games. Maneuver armor cuts a hit's stun and knock while the body moves in the card's ways, but never its damage; melee
+hits on the hero read it too, and the dummy's melee blows now carry damage (jab 8, hook 15, perilous 40).
 
 ## Lock-on
 
@@ -247,7 +277,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 212 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 247 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -316,7 +346,22 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   - Pinball's stick aims the spin dash, which leaves along the aim at the level's speed. The platformer keeps the charge
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
-  - A hit taken loses the charge.
+  - A hit taken loses the charge; the platformer's card keeps it and the release still fires.
+- **Ranged attacks.**
+  - The rifle and the marksman are hitscan: a still body is hit on the fire frame, every round of the burst. A body
+    running across is missed (the rifle's aim trails it, the marksman's locks early). Cover stops them.
+  - A travelling shot reaches a still body when its speed says, and a sidestep started as it leaves clears it.
+  - The spreads fan evenly (or all round), one shot at the hero. A jump clears the low ring and knife. The homing orb
+    turns after a body walking aside and meets it. The lob lands where the hero stood (standing is hit, moving off is
+    not). The bouncer bounces on. The wave weaves its amplitude either side. The gun knocks down for the card's frames.
+- **What a hit does.**
+  - Realistic's hit is a flinch (control kept, the run slowed); the others knock back (and up) and stun for the card's
+    frames.
+  - Mercy: a shot inside it passes through, one after it hurts (realistic: every shot hurts).
+  - Maneuver armor: action dashing or sprinting takes no stun and goes on; the platformer's dash halves the stun;
+    pinball running past 9 m/s takes no stun and keeps its speed. Life is still taken.
+  - Out of life: down for the card's frames, then up again full; one-hit makes any hit the end; pinball's rings
+    scatter on the first hit and the next is the end.
 - **Offense armor.**
   - The dummy's jab stops at the tap and never lands; the hook and the perilous blow clank off it (no stun, no push)
     and land.
@@ -359,7 +404,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (hold to charge, release to
-  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard. Gamepad: A jump, X attack, B roll,
+  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
   RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.

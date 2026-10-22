@@ -19,8 +19,8 @@ const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOC
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
  * block taller than a step over its feet, none past the arena). Returns the events and the per-tick states.
  */
-function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null } = {}) {
-  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves }); if (setup) setup(S);
+function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null, shooter = null } = {}) {
+  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves, shooter }); if (setup) setup(S);
   const events = [], states = []; let breach = null;
   for (let f = 0; f < n; f++) {
     if (mid) mid(S, f);   // a test may move a body mid-run (between ticks), to put it where the law needs it
@@ -407,7 +407,9 @@ for (const id of FEEL_IDS) {
     }
     // the hero faces away (its tap whiffs) and holds on; the dummy's jab lands from behind mid-charge
     const hurt = track(run(C, (f) => (f >= 1 && f < 80 ? AT : 0), 100, { arena: { half: 400, blocks: [], hero: [0, -0.8], dummy: [0, 0] }, spar: true, sparMoves: ['jab'], setup: (S) => { S.hero.yaw = Math.PI; } })), hh = ev(hurt, 'hit', 'hero')[0];
-    check(`${id}: a hit taken loses the charge: the release fires nothing`, hh && hurt.states[hh.f - 1].hero.charge && !hurt.states[hh.f].hero.charge && !ev(hurt, 'release').length, { hit: hh?.f, lost: ev(hurt, 'charge-lost').map((e) => [e.f, e.why]) });
+    const keeps = C.hurt?.charge === 'keep' && !CH.stance;
+    if (keeps) check(`${id}: the card keeps the charge through a hit (hurt.charge: keep): the release still fires`, hh && hurt.states[hh.f].hero.charge && ev(hurt, 'release').length === 1, { hit: hh?.f, release: ev(hurt, 'release').map((e) => [e.f, e.lv]) });
+    else check(`${id}: a hit taken loses the charge: the release fires nothing`, hh && hurt.states[hh.f - 1].hero.charge && !hurt.states[hh.f].hero.charge && !ev(hurt, 'release').length, { hit: hh?.f, lost: ev(hurt, 'charge-lost').map((e) => [e.f, e.why]) });
   }
 
   // ─── offense armor: what it takes to interrupt an attack ───
@@ -445,6 +447,87 @@ for (const id of FEEL_IDS) {
     }
   }
 
+  // ─── ranged attacks: the dummy as a shooter, what a hit does, maneuver armor, life ───
+  {
+    const SH = { half: 400, blocks: [], hero: [0, -6], dummy: [0, 0] }, names = Object.values(C.ranged.sets).flat(), RP = util.rangedOf, HU = C.hurt;
+    const shoot = (name, pads, n, o = {}) => track(run(o.card ?? C, pads, n, { arena: o.arena ?? SH, shooter: [name], guard: false, setup: o.setup, mid: o.mid }));
+    const hurts = (r) => ev(r, 'hurt'), deg = (q) => (Math.atan2(q.v[0], q.v[1]) * 180) / Math.PI;
+    // an orb set beside the hero, flying into it (a shot on demand, the shooter off)
+    const orbAt = (S, ahead = 0.8, side = 0) => { const H = S.hero, fx = Math.sin(H.yaw), fy = Math.cos(H.yaw), p = [H.p[0] + fx * ahead + fy * side, H.p[1] + fy * ahead - fx * side, H.p[2] + 1.1]; S.foes.push({ id: 900 + S.f, name: 'orb', f: 0, life: 60, size: 0.25, g: 0, b: p.slice(), p, v: [-fx * 9, -fy * 9, 0] }); };
+    const inject = (pads, n, at, o = {}) => track(run(o.card ?? C, pads, n, { arena: { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] }, guard: false, setup: o.setup, mid: (S, f) => { for (const [g, ahead] of at) if (f === g) orbAt(S, ahead ?? 0.8); } }));
+    row['ranged'] = Object.entries(C.ranged.sets).map(([k, v]) => `${k}: ${v.join(' ')}`).join(' · ');
+    for (const name of names.filter((n) => RP(n).speed === Infinity)) {
+      const P = RP(name), n = P.telegraph + (P.burst - 1) * P.gap + 20, still = shoot(name, () => 0, n), fires = ev(still, 'fire', 'dummy');
+      const across = shoot(name, () => pad(127, 0, 0), n), cover = shoot(name, () => 0, n, { arena: { ...SH, blocks: [{ id: 'c', x: [-1, 1], y: [-3.4, -3], h: 2 }] } });
+      check(`${id}: the ${name} is hitscan: a still body is hit on the fire frame${P.burst > 1 ? ', every shot of the burst' : ''}; a body running across is missed (${P.lock ? `the aim locks ${P.lock} f before the shot` : `the aim trails it by ${P.lag} f`}); cover stops it`, fires.length === P.burst && fires.every((e, k) => e.f === P.telegraph + k * P.gap && e.result === 'hit') && hurts(still).length === P.burst && ev(across, 'fire', 'dummy').every((e) => e.result !== 'hit') && !hurts(across).length && ev(cover, 'fire', 'dummy').every((e) => e.result === 'cover') && !hurts(cover).length, { still: fires.map((e) => [e.f, e.result]), across: ev(across, 'fire', 'dummy').map((e) => e.result), cover: ev(cover, 'fire', 'dummy').map((e) => e.result) });
+    }
+    const one = names.find((n) => { const P = RP(n); return P.speed !== Infinity && !P.count && !P.lob && !P.home && !P.wave; });
+    if (one) {
+      const P = RP(one), want = P.telegraph + Math.ceil((6 - 0.4 - util.RADIUS - P.size) / (P.speed / FPS)) - 1;
+      const still = shoot(one, () => 0, want + 40), h = hurts(still)[0], side = shoot(one, (f) => pad(f > P.telegraph ? 127 : 0, 0, 0), want + 40);
+      check(`${id}: the ${one} flies at ${P.speed} m/s: it reaches a still body when its flight says, and a sidestep started as it leaves clears it`, h && Math.abs(h.f - want) <= 1 && !hurts(side).length, { hit: h?.f, want, side: hurts(side).length });
+    }
+    for (const name of names.filter((n) => (RP(n).count ?? 1) > 1)) {
+      const P = RP(name), r = shoot(name, () => 0, P.telegraph + 2), fs = r.states[P.telegraph].foes, rel = fs.map((q) => util.angDiff((deg(q) * Math.PI) / 180, Math.PI) * 180 / Math.PI).sort((a, b) => a - b);
+      const step = P.spread >= 360 ? 360 / P.count : P.spread / (P.count - 1), even = rel.slice(1).every((x, k) => Math.abs(x - rel[k] - step) < 1e-6);
+      check(`${id}: the ${name} is ${P.count} shots ${P.spread >= 360 ? 'evenly all round' : `fanned evenly across ${P.spread}°`}, one at the hero`, fs.length === P.count && even && rel.some((x) => Math.abs(x) < 1e-6), rel.map((x) => +x.toFixed(1)));
+    }
+    for (const name of names.filter((n) => RP(n).speed !== Infinity && !RP(n).lob && (RP(n).z ?? 1.1) < 1)) {
+      const P = RP(name), still = shoot(name, () => 0, 200), h0 = hurts(still)[0]?.f, at = h0 - 15 - C.jump.commit;
+      const hop = shoot(name, (f) => (f >= at && f < at + 30 ? J : 0), h0 + 25);   // one volley: the next would meet the landing
+      check(`${id}: the ${name} flies low (${P.z} m): a jump over it clears it`, h0 != null && !hurts(hop).length, { hit: h0, jumped: hurts(hop).map((e) => e.f) });
+    }
+    for (const name of names.filter((n) => RP(n).home)) {
+      const P = RP(name), walk = shoot(name, (f) => pad(f > P.telegraph ? 40 : 0, 0, 0), P.telegraph + 200), h = hurts(walk)[0];
+      const q0 = walk.states[P.telegraph].foes[0], heading = (r, f) => (r.states[f].foes[0] ? deg(r.states[f].foes[0]) : null);
+      const turned = q0 && h ? (util.angDiff((heading(walk, h.f - 1) * Math.PI) / 180, (deg(q0) * Math.PI) / 180) * 180) / Math.PI : null;
+      check(`${id}: the ${name} turns after the hero (${P.home}°/s): a body walking aside is still met`, h && q0 && Math.abs(turned) > 5, { hit: h?.f, turned: turned == null ? null : +turned.toFixed(1) });
+    }
+    for (const name of names.filter((n) => RP(n).lob && RP(n).blast)) {
+      const P = RP(name), land = P.telegraph + Math.round(P.lob.flight * FPS), still = shoot(name, () => 0, land + 20), away = shoot(name, (f) => pad(f > P.telegraph ? 127 : 0, 0, 0), land + 20), h = hurts(still)[0];
+      check(`${id}: the ${name} is lobbed at where the hero stood, landing ${P.lob.flight} s on (on the body or bursting at its feet), so standing is hit and moving off is not`, h && h.f >= land - 8 && h.f <= land + 2 && hurts(still).length === 1 && !hurts(away).length, { hit: h?.f, land, away: hurts(away).length });
+    }
+    for (const name of names.filter((n) => RP(n).lob && RP(n).bounce)) {
+      const P = RP(name), r = shoot(name, (f) => pad(f > P.telegraph ? 127 : 0, 0, 0), P.telegraph + 160), z = r.states.slice(P.telegraph).map((x) => x.foes[0]?.p[2]).filter((v) => v != null);
+      const bounces = z.filter((v, k) => k > 0 && k < z.length - 1 && v < z[k - 1] && v <= z[k + 1]).length;
+      check(`${id}: the ${name} bounces on along the floor (restitution ${P.bounce})`, bounces >= 2, { bounces });
+    }
+    for (const name of names.filter((n) => RP(n).wave)) {
+      const P = RP(name), r = shoot(name, (f) => pad(f > P.telegraph ? 127 : 0, 0, 0), P.telegraph + 200), xs = r.states.slice(P.telegraph).map((x) => x.foes[0]?.p[0]).filter((v) => v != null), amp = Math.max(...xs.map(Math.abs));
+      check(`${id}: the ${name} weaves ${P.wave.amp} m either side of its line`, Math.abs(amp - P.wave.amp) < 0.03 && xs.some((x) => x > 0.5) && xs.some((x) => x < -0.5), { amp: +amp.toFixed(3) });
+    }
+    for (const name of names.filter((n) => RP(n).down)) {
+      const P = RP(name), h = hurts(shoot(name, () => 0, P.telegraph + 40))[0];
+      check(`${id}: the ${name} knocks down: ${HU.down} f on the floor`, h?.down && h.stun === HU.down, { stun: h?.stun });
+    }
+    // what a hit does, the card's: a flinch (control kept, the run slowed), or knocked back and stunned
+    const first = inject(() => 0, 30, [[5]]), h1 = hurts(first)[0], st = h1 && first.states[h1.f].hero;
+    row['hurt'] = HU.stun ? `stun ${HU.stun} f, knock ${HU.knock} m/s, mercy ${HU.mercy} f` : `flinch: run ×${HU.slow.share} for ${HU.slow.frames} f`;
+    if (!HU.stun) check(`${id}: a hit is a flinch: control kept, the run slowed ${HU.slow.frames} f to ×${HU.slow.share}`, st && st.act?.kind !== 'hurt' && st.stun === 0 && st.slowed === HU.slow.frames - 1, { slowed: st?.slowed });
+    else check(`${id}: a hit stops the body: knocked back at ${HU.knock} m/s${HU.hop ? ` and up` : ''}, stunned ${HU.stun} f`, st && st.act?.kind === 'hurt' && st.stun === HU.stun - 1 && Math.abs(Math.hypot(st.v[0], st.v[1]) - HU.knock) < 1e-6 && (!HU.hop || st.v[2] > 0), { stun: st && st.stun + 1, knock: st && +Math.hypot(st.v[0], st.v[1]).toFixed(3) });
+    const g2 = 5 + Math.max(4, Math.floor(HU.mercy / 2)), g3 = 5 + HU.mercy + 30, merc = inject(() => 0, g3 + 20, [[5], [g2], [g3]]);
+    check(`${id}: ${HU.mercy ? `mercy: a shot inside the ${HU.mercy} f after a hit passes through, one after them hurts` : 'no mercy: every shot hurts'}`, hurts(merc).length === (HU.mercy ? 2 : 3), { hurts: hurts(merc).map((e) => e.f) });
+    // maneuver armor: moving in one of the card's ways, a hit's stun and knock cut to its shares
+    const MA = C.maneuver;
+    if (MA) for (const w of MA.on) {
+      const setup = { dash: [(f) => (f >= 5 && f < 30 ? DS : 0), 8, 1.5], sprint: [(f) => pad(0, 127, f > 0 ? BTN.SPRINT : 0), 60, 1.5], run: [(f) => pad(0, 127, 0), 120, 2.5] }[w];
+      if (!setup) continue;
+      const [pads, at, ahead] = setup, r = inject(pads, at + 30, [[at, ahead]]), h = hurts(r)[0], before = r.states[at - 1]?.hero, after = h && r.states[h.f].hero;
+      const want = Math.round(HU.stun * MA.stun), keepsGoing = MA.stun === 0 ? (w === 'dash' ? after?.act?.kind === 'dash' : Math.hypot(after.v[0], after.v[1]) >= Math.hypot(before.v[0], before.v[1]) - HU.knock * MA.knock - 1e-6) : true;   // only the knock's share comes off the speed
+      check(`${id}: maneuver armor ${w === 'run' ? `running past ${MA.speed} m/s` : `in a ${w}`}: the hit's stun is ${MA.stun ? `cut to ×${MA.stun}` : 'gone (hyper armor while moving), the body goes on'}, its life still taken`, h?.maneuver && h.stun === want && keepsGoing && (C.life.kind === 'rings' ? ev(r, 'rings').length === 1 : after.hp < C.life.hp), { stun: h?.stun, want, act: after?.act?.kind ?? null });
+    }
+    // life: down at its end, up again full; one-hit; rings
+    const L = C.life;
+    if (L.kind === 'rings') {
+      const r = inject(() => 0, 5 + HU.mercy + 40, [[5], [5 + HU.mercy + 10]]);
+      check(`${id}: rings: a hit scatters every ring (${L.hp}) and is survived; a hit with none is the end`, ev(r, 'rings')[0]?.lost === L.hp && ev(r, 'ko').length === 1 && ev(r, 'ko')[0].f > ev(r, 'rings')[0].f, { rings: ev(r, 'rings').map((e) => [e.f, e.lost]), ko: ev(r, 'ko').map((e) => e.f) });
+    } else {
+      const low = inject(() => 0, 5 + L.ko + 20, [[5]], { setup: (S) => { S.hero.hp = 1; } }), ko = ev(low, 'ko')[0], up = ev(low, 'up')[0];
+      const oh = inject(() => 0, 20, [[5]], { card: { ...C, life: { ...L, oneHit: true } } });
+      check(`${id}: out of life the body is down ${L.ko} f, then up again full (${L.hp}); with oneHit any hit is the end`, ko && up && Math.abs(up.f - ko.f - L.ko) <= 1 && up.hp === L.hp && low.states[ko.f].hero.act?.kind === 'ko' && ev(oh, 'ko').length === 1, { ko: ko?.f, up: up?.f, oneHit: ev(oh, 'ko').map((e) => e.f) });
+    }
+  }
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));
@@ -478,7 +561,7 @@ check('realistic\'s card is the take\'s own time: its fitted jab is the take fra
 const FIX = new URL('./fixtures/', import.meta.url);
 if (existsSync(FIX)) for (const file of readdirSync(FIX).filter((f) => f.endsWith('.json'))) {
   const fx = JSON.parse(readFileSync(new URL(file, FIX), 'utf8'));
-  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
+  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, shooter: fx.shooter ?? null, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
   const got = r.events.filter((e) => fx.expect?.types?.includes(e.type)).map((e) => `${e.f}:${e.who}:${e.type}`);
   check(`fixture ${file}: ${fx.says ?? ''}`, !fx.expect?.events || JSON.stringify(got) === JSON.stringify(fx.expect.events), got.slice(0, 6));
 }

@@ -37,6 +37,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Ranged attacks, in the lab: the enemy's patterns by genre, what a hit does, maneuver armor.** The dummy turns
+  shooter and fires its genre's patterns after a telegraph: realistic's are the FPS's, hitscan (a rifle burst whose
+  aim trails the target by a reaction, a marksman whose aim locks before the shot), denied by cover or by moving
+  across the aim rather than dodged; action's arena fires orbs, fans, a low ring and homing shots, its brawler set a
+  low knife and a gun that knocks down; the platformer's and pinball's shots are slow (spreads, aimed shots, a lob
+  that bursts, a weaving shot, a bouncing ball). What a hit does is the card's: realistic flinches (control kept, the
+  run slowed), the others are knocked back and stunned, then invincible for a mercy (none in the FPS), out of the
+  charge or not as the card says. A hit takes life: health, or pinball's rings (all scattered, the next hit the end),
+  or one-hit; out of life the body is down, then up again. Maneuver armor cuts a hit's stun and knock while the body
+  moves in the card's ways: action's dash and sprint shrug the stun off, the platformer's dash halves it, pinball at
+  speed keeps going. The gate holds 247 laws on both casts, with recorded runs of a rifle burst and a marksman's miss,
+  a perfect-dodged orb and a shot passing through the mercy among its fixtures.
 - **Offense armor, in the lab: what it takes to interrupt an attack.** Every hit is tagged (light or heavy, and its
   kind: shot, stomp, launcher) and every attack may carry armor through its startup and active frames: none (any hit
   interrupts it), interrupted only by hits with certain tags (heavy attacks only, or a trigger such as a shot), by its

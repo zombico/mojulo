@@ -72,6 +72,22 @@
  * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
  * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
  *
+ * RANGED ATTACKS (the card's `ranged`, the patterns in RANGED): the dummy turned shooter telegraphs, then fires a
+ * pattern its genre uses. Realistic is the FPS's: HITSCAN, a bullet with no flight to react to, so it is not dodged
+ * but denied (cover breaks the line, and the aim trails the target by a reaction, so a body that keeps moving across it
+ * is missed; the marksman's aim locks a beat before the shot). Action splits: the ARENA's orbs, fans, rings and homing
+ * shots, dodged by the roll's invincible frames or out-run, and the BRAWLER's knife (low and slow: step off its line or
+ * jump it) and gun (a long aim, then fast; it knocks down). The platformer's and pinball's shots are slow and cross
+ * the room at their own speeds: spreads, aimed shots, lobs that burst, weaving shots, bouncing balls.
+ *
+ * WHAT A HIT DOES (the card's `hurt` and `life`): the FPS's flinch keeps control and slows the run for a moment; the
+ * others stop it, knock the body back (pinball's up and away) and stun it, and then give MERCY frames, invincible, so
+ * nobody dies too fast (none in the FPS). A hit takes life: health; pinball's rings (a hit scatters them all, a hit
+ * with none is the end); `oneHit` the games where any hit is death. Out of life the body is down, then up again full.
+ * Whether a hit knocks the body out of its charge is the card's (`hurt.charge`). MANEUVER ARMOR (the card's
+ * `maneuver`): moving in one of its ways (dashing, sprinting, rolling, running past a speed), a hit's stun and knock
+ * are cut to the card's shares (0: hyper armor while moving, the body runs on through it), its damage still taken.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -153,6 +169,15 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            heavy and the rest light) and `armor` ({ by: [tags that interrupt it], hits (the hit that interrupts it
  *            whatever its tags; absent: none), frames [from, to) (absent: through startup + active) } or absent: any
  *            hit interrupts it)
+ *   ranged   the dummy as a shooter: sets ({ name: [RANGED pattern names] }: the patterns a genre uses, cycled one a
+ *            volley), every (frames between volleys)
+ *   hurt     what a hit does to the hero: stun (frames; 0: a flinch that keeps control), knock (m/s away), hop (m up),
+ *            down (frames: a knockdown pattern's stun), slow ({ frames, share }: a flinch's slowed run), mercy (frames
+ *            invincible after a ranged hit), charge (lose | keep: does a stunning hit knock out of the charge)
+ *   life     hp, kind (hp | rings: a hit scatters every ring, a hit with none is the end), oneHit (any hit is the
+ *            end), ko (frames down before up again, full)
+ *   maneuver maneuver armor, or null: on (dash | roll | sprint | run | air: the moving ways it covers), speed (m/s: the
+ *            run's threshold), stun and knock (the shares a hit keeps while moving; 0 hyper)
  *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
  *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
  *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
@@ -183,6 +208,10 @@ export const FEELS = Object.freeze({
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
     pound: null,
+    ranged: { sets: { fps: ['rifle', 'marksman'] }, every: 120 },
+    hurt: { stun: 0, knock: 0, slow: { frames: 24, share: 0.5 }, mercy: 0, charge: 'keep' },
+    life: { hp: 100, ko: 90 },
+    maneuver: null,
     charge: { kind: 'heavy', levels: [40], show: 30, stance: true, move: 0.3, air: false, at: [
       { take: 'cross', startup: 14, snap: 8, active: 3, recovery: 24, wings: { wind: 1.35, after: 1.25 }, lunge: 0.35, force: { gain: 1.8 }, tags: ['heavy'], armor: { by: ['heavy'], hits: 2 } },
     ] },
@@ -212,6 +241,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.8 },
     cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
+    ranged: { sets: { arena: ['orb', 'fan', 'ring', 'homing'], brawler: ['knife', 'gun'] }, every: 120 },
+    hurt: { stun: 24, knock: 3, down: 60, mercy: 40, charge: 'lose' },
+    life: { hp: 100, ko: 90 },
+    maneuver: { on: ['dash', 'sprint'], stun: 0, knock: 0.25 },
     charge: { kind: 'heavy', levels: [30, 70], show: 26, stance: true, move: 0.4, air: false, at: [
       { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 20, wings: { wind: 2.1, after: 1.6 }, lunge: 0.6, force: { gain: 16, lift: 8 }, tags: ['heavy'], armor: { by: ['heavy'] } },
       { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 26, wings: { wind: 2.4, after: 1.8 }, lunge: 0.9, finisher: true, force: { gain: 20, lift: 42 }, tags: ['heavy', 'launcher'], armor: { by: [] } },
@@ -236,6 +269,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.9 },
     cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
+    ranged: { sets: { platformer: ['pellet', 'aimed', 'lob', 'wave'] }, every: 100 },
+    hurt: { stun: 20, knock: 2, hop: 0.2, mercy: 90, charge: 'keep' },
+    life: { hp: 28, oneHit: false, ko: 90 },
+    maneuver: { on: ['dash'], stun: 0.5, knock: 0.5 },
     charge: { kind: 'shot', levels: [24, 66], show: 16, stance: false, air: true, at: [
       { speed: 14, size: 0.15, life: 50, force: { push: 4 }, tags: ['light', 'shot'] },
       { speed: 16, size: 0.4, life: 60, force: { push: 7, hop: 0.7 }, tags: ['heavy', 'shot'] },
@@ -260,6 +297,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.7 },
     cling: { slide: 4, toward: 0.3, up: 0.8, away: 8, lock: 6, coyote: 4 },
     pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
+    ranged: { sets: { pinball: ['buzz', 'burst', 'bouncer'] }, every: 120 },
+    hurt: { stun: 30, knock: 4, hop: 0.6, mercy: 120, charge: 'lose' },
+    life: { kind: 'rings', hp: 10, ko: 90 },
+    maneuver: { on: ['run'], speed: 9, stun: 0, knock: 0 },
     charge: { kind: 'spin', levels: [20, 50], show: 14, stance: true, move: 0, air: false, at: [{ speed: 14, frames: 20 }, { speed: 20, frames: 28 }] },
     look: { squash: 0.1, smear: 0.05 },
   },
@@ -281,7 +322,7 @@ export const ARENA = Object.freeze({
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
-  return { h, charge: null, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+  return { h, charge: null, slowed: 0, hp: null, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
@@ -289,12 +330,13 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * A new lab: the card (copied: dials edit the state's own), the body (takes.mjs `bodyOf`: reach and real blow speed
  * per take, strides, mass), the arena. `spar`: the dummy throws a telegraphed jab at a hero in range. `guard`: a free
  * dummy that saw a hit coming guards the next one. `dummyHeight` (m): a short critter (0.8) can be jumped on by
- * every feel's jump; the standing dummy (1.7) is taller than most.
+ * every feel's jump; the standing dummy (1.7) is taller than most. `shooter`: the dummy fires these RANGED patterns
+ * instead of sparring (one a volley, every `ranged.every` frames).
  */
-export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null } = {}) {
-  const S = { f: 0, card: copy(card), body, arena, spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, held: 0, lock: null, witch: 0,
+export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null } = {}) {
+  const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, shooter, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
-  S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null;
+  S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null; S.hero.hp = card.life?.hp ?? null;
   return S;
 }
 
@@ -324,8 +366,8 @@ export function step(S0, pad) {
   if (!H.stop) bodies(S);
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
-  if (!D.stop && !slow) { sparThink(S); testHit(S, D, H, 'dummy'); }
-  flyShots(S);
+  if (!D.stop && !slow) { sparThink(S); shooterThink(S); testHit(S, D, H, 'dummy'); }
+  flyShots(S); if (!slow) flyFoes(S);
   for (const [w, B] of [['hero', H], ['dummy', D]]) {
     if (w === 'dummy' && slow) continue;
     // a frozen body changes nothing; the tick that struck (or was struck) still shows its own frame and runs on
@@ -341,10 +383,12 @@ export function step(S0, pad) {
     if (B.wallCoyote > 0 && !B.cling && B.leftWall !== S.f) B.wallCoyote--;   // counted from the frame after leaving, as the ground's
     if (B.squash > 0) B.squash--;
     if (B.blockstun > 0) B.blockstun--;
+    if (B.slowed > 0) B.slowed--;
     const ST = S.card.guard?.stamina; if (ST && w === 'hero' && B.act?.kind !== 'block') B.stamina = Math.min(ST.max, B.stamina + ST.regen * DT);
     if (w === 'hero' && B.charge) meter(S, B);
   }
   for (const q of S.queue) if (!H.stop) q.age++;
+  S.trail.unshift([H.p[0], H.p[1], H.p[2]]); if (S.trail.length > 40) S.trail.length = 40;   // where the hero was: a shooter's aim trails it
   S.f++;
   return S;
 }
@@ -378,7 +422,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   const H = S.hero, C = S.card, a = H.act;
   if (H.stun > 0) return { reason: 'in hitstun', queue: true };
   if (H.blockstun > 0) return { reason: 'in blockstun', queue: true };
-  if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt')) return { reason: `in ${a.kind}`, queue: true };
+  if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt' || a.kind === 'ko')) return { reason: a.kind === 'ko' ? 'down (out of life)' : `in ${a.kind}`, queue: a.kind !== 'ko' };
   if (H.lag > 0) return { reason: 'landing lag', queue: true };
   if (a?.kind === 'charge' && name !== 'dodge' && name !== 'guard' && name !== 'lock') return { reason: 'charging: release the attack to strike', queue: false };
   if (name === 'jump') {
@@ -515,7 +559,7 @@ function cutJump(S, B) {
 function moveBody(S, B, who, stick, buttons) {
   const C = S.card, Gd = C.ground, a = B.act;
   B.z0 = B.p[2];   // the feet at the frame's start: a fast fall crosses a body's top in one frame
-  const free = !(a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt')) && B.stun === 0;
+  const free = !(a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt' || a.kind === 'ko')) && B.stun === 0;
   // the stick's ask: a speed toward a heading
   let want = null;
   if (stick && free && stick.m > 0) {
@@ -524,6 +568,7 @@ function moveBody(S, B, who, stick, buttons) {
     if (who === 'hero' && S.lock && B.grounded) top *= C.lock.strafe;   // locked: a strafe
     if (a?.kind === 'block') top *= C.guard.move;   // guarding: a walk, or rooted
     if (a?.kind === 'charge') top *= C.charge.move;   // the charging stance: a slow walk, or rooted
+    if (B.slowed > 0) top *= C.hurt.slow.share;   // a flinch: the run slowed a moment
     want = top > 0 ? { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top } : null;
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
@@ -692,6 +737,7 @@ function endAct(S, B, who) {
     return;
   }
   if (a.kind === 'spar') { const m = sparMove(a); if (a.f >= m.startup + m.active + m.recovery) B.act = null; return; }
+  if (a.kind === 'ko') { if (a.f >= a.of) { B.act = null; B.hp = S.card.life.hp; B.mercy = Math.max(60, S.card.hurt?.mercy ?? 0); S.events.push({ f: S.f, who, type: 'up', hp: B.hp }); } return; }
   if (a.kind === 'block') { if (!(S.held & BTN.GUARD) && !B.blockstun) { B.act = null; S.events.push({ f: S.f, who, type: 'end', what: 'block' }); } return; }
   const D = S.card.dash;
   const letGo = a.kind === 'dash' && who === 'hero' && D?.hold && !(S.held & BTN.DASH) && a.f >= D.hold.min;   // X's dash: as long as it is held
@@ -879,6 +925,168 @@ function flyShots(S) {
   });
 }
 
+// ─── ranged attacks: the dummy as a shooter ────────────────────────────
+/**
+ * The enemy's patterns, by the genre that uses them. telegraph (frames aiming before the first shot), speed (m/s;
+ * Infinity: hitscan), burst / gap (shots, frames apart), lag (frames the aim trails the target: a reaction), lock
+ * (frames before the shot the aim freezes: the glint), count / spread (deg; 360 all round), z (m above the feet it
+ * flies at; 1.1), size (m), life (frames), home (deg/s it turns after the target), lob ({ flight s, g }: a ballistic
+ * throw at where the target stood), blast (m: it bursts on the floor), bounce (restitution: it bounces on), wave
+ * ({ amp m, hz }: it weaves), damage, down (it knocks down), sight (a laser shows the aim), blockable (false: a guard
+ * does not stop it).
+ */
+export const RANGED = Object.freeze({
+  rifle: { genre: 'fps', says: 'a rifle burst: hitscan, the aim a reaction behind; keep moving across it, or break the line', telegraph: 36, speed: Infinity, burst: 3, gap: 6, lag: 10, damage: 12, sight: true, blockable: false },
+  marksman: { genre: 'fps', says: 'a marksman: hitscan, the aim locks a beat before the shot (the glint): move then', telegraph: 90, speed: Infinity, lock: 12, damage: 60, sight: true, blockable: false },
+  orb: { genre: 'arena', says: 'an orb at the hero', telegraph: 24, speed: 9, size: 0.25, damage: 10 },
+  fan: { genre: 'arena', says: 'a fan of five', telegraph: 30, speed: 7, size: 0.2, count: 5, spread: 60, damage: 8 },
+  ring: { genre: 'arena', says: 'a ring of twelve, low: jump it, or roll through it', telegraph: 40, speed: 5, size: 0.25, count: 12, spread: 360, z: 0.6, damage: 8 },
+  homing: { genre: 'arena', says: 'a homing orb: it turns after the hero; out-turn it', telegraph: 30, speed: 5, size: 0.25, home: 100, life: 240, damage: 12 },
+  knife: { genre: 'brawler', says: 'a thrown knife, low and slow: step off its line or jump it', telegraph: 20, speed: 8, size: 0.12, z: 0.8, damage: 10 },
+  gun: { genre: 'brawler', says: 'a gunshot: a long aim, then fast; it knocks down', telegraph: 45, speed: 20, size: 0.1, damage: 20, down: true, sight: true },
+  pellet: { genre: 'platformer', says: 'a three-way spread of slow pellets', telegraph: 24, speed: 4.5, size: 0.15, count: 3, spread: 50, damage: 3 },
+  aimed: { genre: 'platformer', says: 'one shot at where the hero is', telegraph: 20, speed: 6, size: 0.15, damage: 3 },
+  lob: { genre: 'platformer', says: 'a grenade lobbed at where the hero stood: it bursts on the floor', telegraph: 30, lob: { flight: 1, g: 20 }, blast: 0.9, size: 0.2, damage: 4 },
+  wave: { genre: 'platformer', says: 'a slow shot that weaves', telegraph: 24, speed: 3.5, size: 0.2, wave: { amp: 0.8, hz: 1.2 }, life: 300, damage: 3 },
+  buzz: { genre: 'pinball', says: 'a slow shot at the hero', telegraph: 40, speed: 3.5, size: 0.25, damage: 1 },
+  burst: { genre: 'pinball', says: 'eight slow shots all round', telegraph: 40, speed: 3, size: 0.2, count: 8, spread: 360, damage: 1 },
+  bouncer: { genre: 'pinball', says: 'a spiked ball bounced at the hero: it keeps bouncing', telegraph: 30, lob: { flight: 0.8, g: 15 }, bounce: 0.75, size: 0.3, life: 300, damage: 1 },
+});
+const rangedOf = (name) => ({ name, burst: 1, gap: 0, ...RANGED[name] });
+/** where the hero was `k` frames ago (the aim's reaction) */
+function trailAt(S, k) { return k > 0 && S.trail.length ? S.trail[Math.min(k - 1, S.trail.length - 1)] : S.hero.p; }
+function shooterThink(S) {
+  const D = S.dummy, H = S.hero; if (!S.shooter) return;
+  if (D.act?.kind === 'aim') {
+    const a = D.act, P = rangedOf(a.name);
+    if (!(P.lock && a.f >= P.telegraph - P.lock)) { const t = trailAt(S, P.lag ?? 0); a.aim = [t[0], t[1], t[2] + 1.2]; }   // tracking, until the lock
+    D.yaw = Math.atan2(a.aim[0] - D.p[0], a.aim[1] - D.p[1]);
+    for (let k = 0; k < P.burst; k++) if (a.f === P.telegraph + k * P.gap) fire(S, D, P, a);
+    return;
+  }
+  if (D.act || D.stun || !D.grounded || S.f % S.card.ranged.every) return;
+  const name = S.shooter[S.volleyN++ % S.shooter.length], P = rangedOf(name);
+  D.act = { kind: 'aim', f: 0, of: P.telegraph + (P.burst - 1) * P.gap + 12, name, aim: [H.p[0], H.p[1], H.p[2] + 1.2] };
+  D.yaw = Math.atan2(H.p[0] - D.p[0], H.p[1] - D.p[1]);
+  S.events.push({ f: S.f, who: 'dummy', type: 'aim', name, telegraph: P.telegraph, genre: P.genre, hitscan: P.speed === Infinity });
+}
+function fire(S, D, P, a) {
+  if (P.speed === Infinity) return hitscan(S, D, P, a.aim);
+  const z = D.p[2] + (P.z ?? 1.1), mk = (dir, v) => ({ id: S.foeN++, name: P.name, f: 0, life: P.life ?? 240, size: P.size, g: P.lob?.g ?? 0, b: [D.p[0] + dir[0] * 0.4, D.p[1] + dir[1] * 0.4, z], p: [D.p[0] + dir[0] * 0.4, D.p[1] + dir[1] * 0.4, z], v });
+  const dx = a.aim[0] - D.p[0], dy = a.aim[1] - D.p[1], d = len2(dx, dy) || 1e-9, base = Math.atan2(dx, dy);
+  if (P.lob) {   // a ballistic throw landing where the target stood, `flight` seconds on
+    const T = P.lob.flight, g = P.lob.g, tz = groundAt(S, a.aim[0], a.aim[1]) + P.size, dir = [dx / d, dy / d];
+    S.foes.push(mk(dir, [(dx - dir[0] * 0.4) / T, (dy - dir[1] * 0.4) / T, (tz - z + 0.5 * g * T * T) / T]));
+  } else {
+    const n = P.count ?? 1, sp = (P.spread ?? 0) * DEG;
+    for (let k = 0; k < n; k++) {
+      const ang = n === 1 ? base : P.spread >= 360 ? base + (k * 2 * Math.PI) / n : base + (k / (n - 1) - 0.5) * sp, dir = [Math.sin(ang), Math.cos(ang)];
+      S.foes.push(mk(dir, [dir[0] * P.speed, dir[1] * P.speed, 0]));
+    }
+  }
+  S.events.push({ f: S.f, who: 'dummy', type: 'fire', name: P.name, count: P.lob ? 1 : P.count ?? 1, speed: P.speed ?? null });
+}
+/** a hitscan shot: the ray walked in 5 cm steps, a block above its height is cover, the hero's body a hit */
+function hitscan(S, D, P, aim) {
+  const H = S.hero, o = [D.p[0] + Math.sin(D.yaw) * 0.35, D.p[1] + Math.cos(D.yaw) * 0.35, D.p[2] + 1.3];
+  const d = [aim[0] - o[0], aim[1] - o[1], aim[2] - o[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, u = d.map((x) => x / L), half = S.arena.half;
+  let result = 'out', at = o;
+  for (let t = 0; t < 80; t += 0.05) {
+    const p = [o[0] + u[0] * t, o[1] + u[1] * t, o[2] + u[2] * t]; at = p;
+    if (S.arena.blocks.some((k) => k.h > p[2] && p[0] >= k.x[0] && p[0] <= k.x[1] && p[1] >= k.y[0] && p[1] <= k.y[1])) { result = 'cover'; break; }
+    if (Math.abs(p[0]) > half || Math.abs(p[1]) > half || p[2] < 0) break;
+    if (len2(p[0] - H.p[0], p[1] - H.p[1]) <= RADIUS && p[2] >= H.p[2] && p[2] <= H.p[2] + H.h) { result = 'hit'; break; }
+  }
+  S.events.push({ f: S.f, who: 'dummy', type: 'fire', name: P.name, hitscan: true, result, from: o.map(r4), to: at.map(r4) });
+  if (result === 'hit') { const k = len2(u[0], u[1]) || 1; meet(S, P, [u[0] / k, u[1] / k], o); }
+}
+/** the enemy's shots in flight: homing turns, gravity on a lob, the weave about its line, the floor (a burst, a
+ * bounce), the walls, the hero's body (8 cm substeps) */
+function flyFoes(S) {
+  if (!S.foes.length) return;
+  const H = S.hero, A = S.arena;
+  S.foes = S.foes.filter((q) => {
+    const P = rangedOf(q.name);
+    if (P.home) { const h = Math.atan2(q.v[0], q.v[1]), sp = len2(q.v[0], q.v[1]), nh = turnToward(h, Math.atan2(H.p[0] - q.b[0], H.p[1] - q.b[1]), P.home * DEG * DT); q.v[0] = Math.sin(nh) * sp; q.v[1] = Math.cos(nh) * sp; }
+    if (q.g) q.v[2] -= q.g * DT;
+    const n = Math.max(1, Math.ceil((Math.hypot(q.v[0], q.v[1], q.v[2]) * DT) / 0.08));
+    for (let i = 0; i < n; i++) {
+      for (const k of [0, 1, 2]) q.b[k] += (q.v[k] * DT) / n;
+      q.p = q.b.slice();
+      if (P.wave) { const t = (q.f + (i + 1) / n) / FPS, off = P.wave.amp * Math.sin(2 * Math.PI * P.wave.hz * t), sp = len2(q.v[0], q.v[1]) || 1; q.p[0] += (q.v[1] / sp) * off; q.p[1] += (-q.v[0] / sp) * off; }
+      const g0 = groundAt(S, q.p[0], q.p[1]);
+      if (q.p[2] - q.size <= g0 && q.v[2] < 0) {
+        if (P.bounce) { q.b[2] = g0 + q.size; q.v[2] = -q.v[2] * P.bounce; if (q.v[2] < 1.5) { q.v[2] = 0; q.g = 0; } }
+        else {
+          if (P.blast && len2(H.p[0] - q.p[0], H.p[1] - q.p[1]) <= P.blast + RADIUS && H.p[2] - g0 < 0.6) { const dd = len2(H.p[0] - q.p[0], H.p[1] - q.p[1]) || 1; S.events.push({ f: S.f, who: 'dummy', type: 'burst', name: q.name }); meet(S, P, [(H.p[0] - q.p[0]) / dd, (H.p[1] - q.p[1]) / dd], q.p); }
+          return false;
+        }
+      }
+      if (Math.abs(q.p[0]) > A.half || Math.abs(q.p[1]) > A.half || A.blocks.some((k) => k.h > q.p[2] - q.size && q.p[0] >= k.x[0] && q.p[0] <= k.x[1] && q.p[1] >= k.y[0] && q.p[1] <= k.y[1])) return false;
+      if (!q.passed && len2(q.p[0] - H.p[0], q.p[1] - H.p[1]) <= RADIUS + q.size && q.p[2] >= H.p[2] - q.size && q.p[2] <= H.p[2] + H.h + q.size) {
+        const sp = len2(q.v[0], q.v[1]) || 1;
+        if (meet(S, P, [q.v[0] / sp, q.v[1] / sp], q.p) !== 'pass') return false;
+        q.passed = true;   // through it, on the invincible frames or the mercy: it flies on past
+      }
+    }
+    q.f++; return q.f < q.life;
+  });
+}
+/** a ranged hit meets the hero: through invincible frames (a perfect dodge's witch time too) or mercy it passes;
+ * a guard from the front stops a blockable one; else it hurts */
+function meet(S, P, dir, from) {
+  const H = S.hero, C = S.card;
+  if (iframed(S, H)) {
+    S.events.push({ f: S.f, who: 'hero', type: 'evaded', by: H.act.kind === 'dash' ? C.dash.kind : C.dodge.kind, ranged: P.name });
+    const PF = C.guard?.perfect; if (PF && H.act.f < PF.window && !S.witch) { S.witch = PF.witch; S.events.push({ f: S.f, who: 'hero', type: 'perfect', witch: PF.witch, at: H.act.f }); }
+    return 'pass';
+  }
+  if (H.mercy > 0 || H.act?.kind === 'ko') return 'pass';
+  const G = C.guard;
+  if (H.act?.kind === 'block' && G && P.blockable !== false && (from[0] - H.p[0]) * Math.sin(H.yaw) + (from[1] - H.p[1]) * Math.cos(H.yaw) > 0) {
+    H.blockstun = G.block.stun; H.v[0] = dir[0] * G.block.push; H.v[1] = dir[1] * G.block.push;
+    if (G.stamina) { H.stamina -= G.stamina.cost; if (H.stamina < 0) { H.stamina = 0; H.blockstun = 0; H.act = { kind: 'stagger', f: 0, of: G.stamina.break }; S.events.push({ f: S.f, who: 'hero', type: 'guard-break', by: 'dummy', stagger: G.stamina.break }); return 'hit'; } }
+    S.events.push({ f: S.f, who: 'hero', type: 'block', by: 'dummy', ranged: P.name, blockstun: G.block.stun, stamina: H.stamina }); return 'hit';
+  }
+  hurtHero(S, P, dir);
+  return 'hit';
+}
+/** what a ranged hit does, the card's `hurt`: a flinch (control kept, the run slowed) or a stop (knocked back, up,
+ * stunned, out of the charge if the card says), maneuver armor cutting the stun and the knock, mercy after, life taken */
+function hurtHero(S, P, dir) {
+  const H = S.hero, C = S.card, HU = C.hurt, MA = maneuverOf(S, H);
+  const stun = Math.round((P.down ? HU.down : HU.stun) * (MA ? MA.stun : 1)), knock = HU.knock * (MA ? MA.knock : 1);
+  H.mercy = HU.mercy;
+  S.events.push({ f: S.f, who: 'hero', type: 'hurt', by: P.name, damage: P.damage, stun, maneuver: !!MA, down: !!P.down && stun > 0 });
+  if (stun > 0) {
+    H.stun = stun; H.act = { kind: 'hurt', f: 0, of: stun }; H.lastHit = { take: P.down ? 'cross' : 'jab', f: S.f, finisher: false };
+    H.v[0] = dir[0] * knock; H.v[1] = dir[1] * knock;
+    if (HU.hop) { H.v[2] = Math.sqrt(2 * C.jump.gRise * HU.hop); H.grounded = false; H.jumped = false; H.from = H.p[2]; H.apex = null; }
+    if (H.charge && HU.charge !== 'keep') loseCharge(S, H, 'hit');
+  } else {
+    H.v[0] += dir[0] * knock; H.v[1] += dir[1] * knock;
+    if (!MA && HU.slow) H.slowed = HU.slow.frames;
+  }
+  loseLife(S, H, P.damage);
+}
+/** maneuver armor: is the body moving in one of the card's ways (then a hit's stun and knock are cut to its shares) */
+function maneuverOf(S, B) {
+  const M = S.card.maneuver; if (!M) return null;
+  const a = B.act, sp = len2(B.v[0], B.v[1]);
+  const on = (w) => (w === 'dash' ? a?.kind === 'dash' : w === 'roll' ? a?.kind === 'dodge' : w === 'sprint' ? B.grounded && !a && !!(S.held & BTN.SPRINT) && sp > S.card.ground.run : w === 'run' ? B.grounded && !a && sp >= (M.speed ?? S.card.ground.run * 0.9) : w === 'air' ? !B.grounded : false);
+  return M.on.some(on) ? M : null;
+}
+/** life taken: health down (any hit the end with `oneHit`); rings all scattered, or the end with none; the end is down
+ * for `ko` frames, then up again full */
+function loseLife(S, B, dmg) {
+  const L = S.card.life; if (!L || !(dmg > 0) || B.act?.kind === 'ko') return false;
+  if (L.kind === 'rings') { if (B.hp > 0) { S.events.push({ f: S.f, who: 'hero', type: 'rings', lost: B.hp }); B.hp = 0; return false; } }
+  else { B.hp = L.oneHit ? 0 : Math.max(0, B.hp - dmg); if (B.hp > 0) return false; }
+  B.hp = 0; B.act = { kind: 'ko', f: 0, of: L.ko ?? 90 }; B.stun = 0; B.mercy = 0; B.v[0] = 0; B.v[1] = 0; B.charge = null; S.queue = [];
+  S.events.push({ f: S.f, who: 'hero', type: 'ko', oneHit: !!L.oneHit });
+  return true;
+}
+
 // ─── hits ───────────────────────────────────────────────────────────────
 /** the dummy's sparring jab: a telegraph (its startup is long so the hero can read it and dodge) */
 /**
@@ -892,9 +1100,9 @@ function flyShots(S) {
 export const SPAR = Object.freeze({
   every: 90, range: 2.2,
   moves: Object.freeze([
-    Object.freeze({ name: 'jab', take: 'jab', startup: 30, active: 4, recovery: 20, reach: 1.0, arc: [-10, 10], sweep: false, zone: 'orange', tags: ['light'] }),
-    Object.freeze({ name: 'hook', take: 'cross', startup: 36, active: 10, recovery: 24, reach: 1.1, arc: [-70, 70], sweep: true, orange: [0.35, 0.65], tags: ['heavy'], armor: { by: ['heavy', 'shot'] } }),
-    Object.freeze({ name: 'perilous', take: 'cross', startup: 48, active: 6, recovery: 30, reach: 1.3, arc: [-30, 30], sweep: false, zone: 'red', unblockable: true, tags: ['heavy'], armor: { by: [] } }),
+    Object.freeze({ name: 'jab', take: 'jab', startup: 30, active: 4, recovery: 20, reach: 1.0, arc: [-10, 10], sweep: false, zone: 'orange', tags: ['light'], damage: 8 }),
+    Object.freeze({ name: 'hook', take: 'cross', startup: 36, active: 10, recovery: 24, reach: 1.1, arc: [-70, 70], sweep: true, orange: [0.35, 0.65], tags: ['heavy'], armor: { by: ['heavy', 'shot'] }, damage: 15 }),
+    Object.freeze({ name: 'perilous', take: 'cross', startup: 48, active: 6, recovery: 30, reach: 1.3, arc: [-30, 30], sweep: false, zone: 'red', unblockable: true, tags: ['heavy'], armor: { by: [] }, damage: 40 }),
   ]),
 });
 export const sparMove = (a) => SPAR.moves.find((m) => m.name === a?.name) ?? SPAR.moves[0];
@@ -970,6 +1178,7 @@ function strike(S, A, V, who, m, [fx, fy]) {
     V.act = { kind: 'guard', f: 0, of: 12 }; S.events.push({ f: S.f, who: vic, type: 'blocked', i: A.act?.i ?? null, hitstop: stop }); return;
   }
   const advantage = free ? null : V.stun;
+  const MA = vic === 'hero' ? maneuverOf(S, V) : null, v0 = V.v.slice();   // maneuver armor: read before the hit moves the body
   V.combo = free ? 1 : V.combo + 1;
   const F = { ...S.card.hit.force, ...(m.force ?? {}) };
   const fx2 = fx, fy2 = fy; let dv, lift = 0;
@@ -982,9 +1191,12 @@ function strike(S, A, V, who, m, [fx, fy]) {
   if (F.model === 'boop') { A.v[0] = -fx * F.bounce; A.v[1] = -fy * F.bounce; V.v[2] = Math.sqrt(2 * S.card.jump.gRise * F.hop); V.grounded = false; V.jumped = false; V.from = V.p[2]; }
   if (F.model === 'ricochet') { A.v[0] *= 0.1; A.v[1] *= 0.1; }
   V.stun = stunOf(S, m, dv, V.combo); V.mercy = S.card.hit.mercy; V.alert = S.card.hit.alert; V.lastHit = { take: m.take, f: S.f, finisher: !!m.finisher };
-  V.act = vic === 'hero' ? { kind: 'hurt', f: 0, of: Math.max(12, V.stun) } : null;
-  if (V.charge) loseCharge(S, V, 'hit');
-  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, ...(A.act?.lv ? { charged: A.act.lv } : {}), ...(m.shot ? { shot: m.shot } : {}), ...(m.spar ? { attack: m.name, zone: m.zone, unblockable: !!m.unblockable, guarding } : {}), dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
+  if (MA) { V.stun = Math.round(V.stun * MA.stun); V.v[0] = v0[0] + (V.v[0] - v0[0]) * MA.knock; V.v[1] = v0[1] + (V.v[1] - v0[1]) * MA.knock; if (!MA.knock) V.v[2] = v0[2]; }
+  const shrugged = MA && V.stun === 0;   // hyper armor while moving: the body goes on with what it was doing
+  if (!shrugged) V.act = vic === 'hero' ? { kind: 'hurt', f: 0, of: Math.max(12, V.stun) } : null;
+  if (V.charge && !shrugged && (vic !== 'hero' || S.card.hurt?.charge !== 'keep')) loseCharge(S, V, 'hit');
+  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, ...(A.act?.lv ? { charged: A.act.lv } : {}), ...(m.shot ? { shot: m.shot } : {}), ...(m.spar ? { attack: m.name, zone: m.zone, unblockable: !!m.unblockable, guarding } : {}), dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher, ...(MA ? { maneuver: true } : {}), ...(vic === 'hero' && m.damage ? { damage: m.damage } : {}) });
+  if (vic === 'hero') loseLife(S, V, m.damage ?? 0);
 }
 /** a hit's tags: its own, or a finisher heavy and the rest light */
 function tagsOf(m) { return m.tags ?? (m.finisher ? ['heavy'] : ['light']); }
@@ -1040,6 +1252,7 @@ export function poseOf(S, who) {
   if (a?.kind === 'charge') return C.charge.kind === 'spin' ? { ...base, clip: 'spin', spin: B.spin, crouch: true } : { ...base, clip: 'charge', at: a.f };
   if (a?.kind === 'dash' && a.spin) return { ...base, clip: 'spin', spin: B.spin, iframes: iframed(S, B) };
   if (a?.kind === 'spar') return { ...base, clip: 'spar', name: a.name, at: a.f };
+  if (a?.kind === 'aim') return { ...base, clip: 'aim', name: a.name, at: a.f };
   if (a?.kind === 'gather') return { ...base, clip: 'gather', at: a.f, of: a.of };
   if (a?.kind === 'pound') return { ...base, clip: C.pound.kind === 'plunge' ? 'air' : 'spin', u: 1, spin: C.pound.kind === 'bounce' ? (S.f % 8) * (Math.PI / 4) : B.spin };
   if (a?.kind === 'poundLag') return { ...base, clip: 'land', at: Math.min(a.f, Math.max(0, (C.jump.land || 1) - 1)), of: a.of };
@@ -1047,9 +1260,9 @@ export function poseOf(S, who) {
   if (a?.kind === 'dash') return { ...base, clip: 'dash', kind: a.air ? 'dash' : C.dash.kind, air: !!a.air, at: a.f, of: a.of, speed: v, iframes: iframed(S, B) };
   if (a?.kind === 'guard') return { ...base, clip: 'guard', at: a.f };
   if (a?.kind === 'block') return { ...base, clip: 'guard', at: B.blockstun > 0 ? C.guard.block.stun - B.blockstun : 0, block: true };
-  if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') {
+  if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk' || a?.kind === 'ko') {
     const at = B.lastHit && (B.stun > 0 || a?.kind === 'hurt') ? S.f - B.lastHit.f : a?.f ?? 0;
-    return { ...base, clip: 'react', take: a?.kind === 'stagger' || a?.kind === 'bonk' ? 'cross' : B.lastHit?.take ?? 'jab', at, air: !B.grounded };
+    return { ...base, clip: 'react', take: a?.kind === 'stagger' || a?.kind === 'bonk' || a?.kind === 'ko' ? 'cross' : B.lastHit?.take ?? 'jab', at, air: !B.grounded, ko: a?.kind === 'ko' };
   }
   if (B.cling) return { ...base, clip: 'air', u: 0.85, cling: true };
   if (!B.grounded) {
@@ -1092,7 +1305,7 @@ export function frameData(card, body) {
 /** an attack's armor in words: none, heavy (what breaks it), hyper; ×n its poise */
 function armorText(m) { const A = m.armor; if (!A) return 'none'; const by = A.by.length ? A.by.join(' / ') : 'hyper'; return A.hits ? `${by}, or hit ${A.hits}` : by; }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }
