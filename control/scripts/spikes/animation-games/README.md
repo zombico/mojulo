@@ -13,6 +13,8 @@ node scripts/spikes/animation-games/motion-verify.mjs [cast=male]   # motion: ru
 node scripts/spikes/animation-games/motion-preview.mjs /abs/out/dir [cast]   # motion.html (follow cameras) + motion-strobe.svg
 node scripts/spikes/animation-games/collision-verify.mjs [cast=male]   # collision: walking or running into a wall or a body (below)
 node scripts/spikes/animation-games/collision-preview.mjs /abs/out/dir [cast]   # collision.html + collision-<gait>-<target>.svg
+node scripts/spikes/animation-games/weapon-verify.mjs [cast=male]  # weapons: a strike with a held weapon (below)
+node scripts/spikes/animation-games/weapon-preview.mjs /abs/out/dir [cast]  # weapon.html + weapon-<verb>-<item>.svg
 node scripts/spikes/animation-games/viewer.mjs /abs/out/dir [cast]  # every part on one review page: index.html + players + PNG strips
 ```
 
@@ -274,3 +276,64 @@ behind the body and raised 30°, like a third-person game camera, over a floor g
 all three players share). The strobes and filmstrips stay side views. The ¾ view shows what the side view hides: the
 guard's stance width, the jab crossing the body, a stride's feet passing each other, and a climb's hands and feet spread
 on the wall.
+
+## Weapons: a strike with a held weapon
+
+`weapon.mjs` takes the hero library's swings (`hero-swing.js`: chop, thrust, rising, and the two-handed cleave) at an
+item's class, by the library's own law 8: a light item drops the coil, and a heavy one adds a held load. The swing's
+keys are resolved by the rig's own clip player (`layeredClip`) and played the way that player plays them, each key
+smoothstepped into the next. So the realistic register *is* the rig's swing, every joint within 0.5 mm of it.
+
+The flavor lens (`flavor.mjs`) needed four hooks for this, so a take can bring its own pieces:
+
+- `clip`: its own player
+- `point`: its own contact point, the blade's tip rather than the wrist
+- `effective`: its own striking mass, the weapon plus 1.5 kg of forearm (3 kg for two hands)
+- `windHold`: its own wind-up hold, a charged heavy weapon's
+
+Without the hooks, the swing played through the hero key timeline (which applies `elbowsDown`) put the wrist 15 cm off.
+
+| register | how the weight shows (length = the sword's × (the class's ÷ the sword's)^spread) | charge | trail | the blow |
+|---|---|---|---|---|
+| **realistic** | as weighed: dagger 0.5 s, sword 0.75, greatsword 1.1 | none | none | the tip's speed × the weapon and arm: Δv 0.16 / 0.31 / 0.40 m/s, two hands 0.64 |
+| **action** | spread 1.6: greatsword ÷ dagger 4.25× | normal 4 frames, heavy 18 | where the tip sweeps > 12 cm a frame | ×12; the freeze 5 / 6 / 7 frames, cleave 9 |
+| **platformer** | spread 0.3: 1.23× (one snappy swing whatever the weight) | none | none | a boop |
+| **pinball** | as weighed, at the body's speed | none | > 8 cm a frame | off the tip × 1.3 |
+
+**The promise.** At contact the blade's tip is where the swing puts it, every swing in every register, to 0 mm. The
+blade is drawn along the forearm from the wrist. Hero-gear mounts the real item; the grip's own angle is left out here.
+
+**What the machine gate measured** (`weapon-verify.mjs`; all 11 checks hold on male and female; nobody has looked yet).
+A heavier weapon hands on more though it swings slower (dagger < sword < greatsword < two-handed cleave). The tip's
+speed into contact is the body's real swing in every register (dagger 6.3 m/s, sword 8.5, greatsword 7.3, cleave 8.9,
+thrust 4.0). A register that slows the swing to show its weight does not weaken the blow.
+
+### Weapon findings
+
+1. **The swing's strike is reported at one phase and played at another.** `swingKeys` reports the strike at
+   (keys − 3) ÷ (keys + 1), counting the loop's return to ready as a key. The rig's player spaces the keys over
+   *keys* segments, so the strike key plays later:
+
+   | class | reported | played |
+   |---|---|---|
+   | light | 0.333 | 0.400 |
+   | normal | 0.429 | 0.500 |
+   | heavy | 0.500 | 0.571 |
+
+   The contact window a game reads is computed from the reported numbers. It still contains the played strike for every
+   class, but the moment it calls the impact is about 7 % of the cycle early. This is a library bug; the spike reports it
+   and does not fix it.
+2. **The force is the body's, not the register's.** A first pass computed the tip's speed on the register's own clock.
+   Action's slowed greatsword then handed on *less* than its sword, the opposite of what slowing it was for. The blow now
+   reads the realistic swing's speed (`bodySeconds`) whatever the register shows. The same rule was already true of the
+   fist, whose take did not change length between registers.
+3. **Weight is a register dial.** One number (`spread`) says how much an item's mass shows in the swing's time. 1.6
+   reads as heavy, and 0.3 reads as a platformer's weapon, where the greatsword and the dagger are nearly the same
+   button. The charge (the hold at the cock) is the second dial, and only action uses it.
+4. **The trail is the action game's weapon depiction.** The tip's sweep per frame decides whether a trail shows. Action's
+   threshold leaves a trail through the drive into contact, and pinball's catches more of the swing. Realistic and
+   platformer never draw one. Like the fist's smears, a trail is a mark for a renderer to draw, measured from the
+   motion, never authored.
+5. **There is no pinball weapon.** A standing swing has no travel to scale its rate by, so pinball's swing plays at its
+   default speed and ricochets off the tip. A racing or Sonic-like game with a weapon would want the swing tied to the
+   body's speed, like the spin. That is untested here.
