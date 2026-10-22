@@ -162,6 +162,9 @@ describe('the outer layer, fit by zone, and the detail on the garment\'s roles',
     expect(validateOutfitBuild(jacket({ front: 'triple' })).join(' ')).toMatch(/outer\.front: 'triple'/);
     expect(validateOutfitBuild(jacket({ lapel: 'wide' })).join(' ')).toMatch(/outer\.lapel: 'wide'/);
     expect(validateOutfitBuild(jacket({ buttons: 4 })).join(' ')).toMatch(/outer\.buttons/);
+    expect(validateOutfitBuild(jacket({ shoulder: 'padded' })).join(' ')).toMatch(/outer\.shoulder: 'padded'/);
+    expect(validateOutfitBuild(jacket({ waist: 'tight' })).join(' ')).toMatch(/outer\.waist: 'tight'/);
+    expect(expandOutfit(jacket({ shoulder: 'structured', waist: 'straight' }), ctx).tailoring.outer).toEqual({ shoulder: 'structured', waist: 'straight' });
     expect(expandOutfit(jacket({}), ctx).tailoring).toBeUndefined();
     expect(expandOutfit(jacket({}), ctx).tones.Lapel).toBeUndefined();
     expect(expandOutfit(jacket({ front: 'double' }), ctx).tailoring.outer).toEqual({ front: 'double', lapel: 'peak', buttons: 3, open: false });

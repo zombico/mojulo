@@ -88,6 +88,14 @@ by the tailor. Cards without them unchanged, byte for byte.
   over a woman's hips had lain inside the trousers' seat, which bridges from hip to hip, showing them through a
   jacket). Two cards: `skirtsuit` (navy, one button, notch lapels, a pencil skirt to the knee, a white blouse) and
   `trousersuit` (black, double-breasted, peak lapels, gold buttons, wide trousers, an ivory blouse).
+- THE SHOULDER AND THE WAIST: `outer.shoulder` `natural` | `structured` and `outer.waist` `suppressed` | `straight`,
+  alone or beside the front's words. Structured, the jacket's shoulders squared on a pad (`squareShoulders`: above its
+  widest ring each ring's reach to the side carried out to the straight line from the neck's point at 18°, 4 mm past
+  the widest, square from there down to it; a centimetre had stood the shoulder out past the sleeve's head). Suppressed,
+  the waist drawn in toward what the jacket is worn over (`takeIn`, eased over 11 cm either side); straight, a sack's
+  fall from the chest to the hip, the waist's hollow bridged (`fallStraight`). The collar now falls at the back and
+  not at the sides of the neck, where over a squared shoulder it had stood out as wings, and is a little narrower. The
+  suits wear them: `business`, `doublebreasted` and `trousersuit` structured, `skirtsuit` natural, all suppressed.
 
 ### The garment designer: silhouette principles over tailoring primitives
 

@@ -4,7 +4,7 @@
 // second skin (the traveler's knit top, paint on the authored body, made a close cloth under the jacket); a short sleeve
 // (the casual tee's), its hem turned back in to the arm; a coat's skirt (the operative's) carried down from its body;
 // a tailored front (a V, notch lapels, the tie, the right front over the left, buttons; double-breasted; a woman's,
-// left over right, over a skirt; open, its lapels to the hem).
+// left over right, over a skirt; open, its lapels to the hem; its shape, the shoulder and the waist).
 // (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -139,6 +139,20 @@ describe('an outfit card worn by the tailor', () => {
     expect(reach(J)).toBeGreaterThan(reach(K));
     const A = auditLayered(compileLayered(r));
     for (const k of Object.keys(r.parts).filter((k) => /^(outer|skirt)/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
+  }, 300_000);
+
+  it('a jacket\'s shape: structured shoulders squared out above the widest ring, a suppressed waist drawn in against a straight one', () => {
+    const outer = { family: 'woven', sleeve: 'long', hem: 'tunic', open: false, fit: 'fitted', collar: true, front: 'single', lapel: 'notch', buttons: 2 };
+    const mint = (o) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'business', language: { outer: { ...outer, ...o } } } }) }).recipe.parts.outer_body;
+    const A = mint({ shoulder: 'structured', waist: 'suppressed' }), B = mint({ shoulder: 'natural', waist: 'straight' });
+    const ring = (P, z) => P.stations.reduce((b, st) => (Math.abs(centre(P, st)[2] - z) < Math.abs(centre(P, b)[2] - z) ? st : b));
+    const side = (P, z) => Math.max(...Object.values(ring(P, z).points).map((p) => Math.abs(p[0])));
+    const zs = B.stations.map((st) => centre(B, st)[2]), zTop = Math.max(...zs), zWide = zs.filter((z) => z > zTop - 0.2).reduce((b, z) => (side(B, z) > side(B, b) ? z : b));
+    // (between the widest ring and the neck the structured shoulder reaches farther to the side)
+    expect(side(A, zWide + 0.04)).toBeGreaterThan(side(B, zWide + 0.04) + 0.01);
+    // (at the waist the suppressed jacket stands closer than the straight one)
+    const zWaist = centre(B, ring(B, 1.04))[2];
+    expect(radius(A, ring(A, zWaist))).toBeLessThan(radius(B, ring(B, zWaist)) - 0.002);
   }, 300_000);
 
   it('an open jacket: its lapels on down the fronts\' edges to the hem', () => {

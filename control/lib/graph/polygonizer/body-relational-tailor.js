@@ -8,6 +8,7 @@
  *                 gathered CUFF, the MIDLINE; `flareRun` a piece widened from one end to the other; `fairRun` a
  *                 run's radii smoothed along it; `bridgeRun` its hollows bridged; `carrySkirt` a skirt carried down
  *                 from a trunk tube's lowest ring; `clearanceOver` how far out what is under the cloth reaches, ray by ray
+ *   SHAPE         `squareShoulders` a pad's straight line, `takeIn` a waist suppressed, `fallStraight` a sack's
  *   FRONTS        `cutV` a jacket's V onto the shirt, `cutOpening` its quarters, `lapelBand` its lapels and collar
  *                 as one band (and a front's edge), `buttonOn`, `bladeOn` a tie, `clearOver` cloth carried over it
  *   EDGES         `fallToFloor` an open hem carried down over the foot; `turnHemIn` a tube's hem folded back in to the
@@ -484,6 +485,51 @@ export function bladeOn(path, width, thick, surface, { lift = 0.0015 } = {}) {
   });
   const mid = (st) => mean(Object.values(st.points)), n = stations.length, d0 = unitv(sub(mid(stations[1]), mid(stations[0]))), d1 = unitv(sub(mid(stations[n - 1]), mid(stations[n - 2])));
   return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: sub(mid(stations[0]), scl(d0, 0.001)).map(r6), tip: add(mid(stations[n - 1]), scl(d1, 0.001)).map(r6) } };
+}
+
+// SHAPE
+
+/** a jacket's SHOULDERS SQUARED, as a pad and a roped sleeve head make them: above its widest ring (`zA`) each ring's
+ * reach to the side carried out to the straight line from the neck's point (`xN`, `zN`) at `slope` (rise over run) down
+ * to the pad's (`xA`), square from there down to `zA` and eased back to its own line `below` (m) under it; the front and
+ * the back left as they are (a point moved by the square of its share of the side). In place */
+export function squareShoulders(P, { xN, zN, xA, zA, slope = 0.27, below = 0.03 }) {
+  for (const st of P.stations) {
+    const c = mean(P.slots.map((sl) => st.points[sl])), z = c[2]; if (z > zN || z < zA - below) continue;
+    const w = Math.max(...P.slots.map((sl) => Math.abs(st.points[sl][0] - c[0]))) || 1;
+    const line = Math.min(xA, xN + (zN - z) / slope), k = z >= zA ? 1 : 1 - ease3((zA - z) / below), target = w + (Math.max(w, line) - w) * k;
+    if (target <= w) continue;
+    for (const sl of P.slots) { const p = st.points[sl], dx = p[0] - c[0], f = (Math.abs(dx) / w) ** 2; st.points[sl] = [c[0] + dx * (1 + (target / w - 1) * f), p[1], p[2]].map(r6); }
+  }
+  return P;
+}
+
+/** a jacket's WAIST TAKEN IN (suppressed): each ring within `span` (m) of `z` drawn toward what it is worn over
+ * (`under(c)(direction)` and `gap`) by `depth` at the waist, eased out to nothing at `span`. In place */
+export function takeIn(P, under, { z, span = 0.1, depth = 0.6, gap = 0.0035 }) {
+  for (const st of P.stations) {
+    const c = mean(P.slots.map((sl) => st.points[sl])), t = Math.abs(c[2] - z) / span; if (t >= 1) continue;
+    const k = depth * 0.5 * (1 + Math.cos(Math.PI * t)), need = under(c);
+    for (const sl of P.slots) {
+      const p = st.points[sl], h = [p[0] - c[0], p[1] - c[1]], r = Math.hypot(...h), d = [h[0] / (r || 1), h[1] / (r || 1)], floor = need([d[0], d[1], 0]) + gap;
+      if (r > floor) { const R = r - (r - floor) * k; st.points[sl] = [c[0] + d[0] * R, c[1] + d[1] * R, p[2]].map(r6); }
+    }
+  }
+  return P;
+}
+
+/** a jacket falling STRAIGHT from the chest to the hip (a sack cut): each slot between the rings nearest `z0` (the
+ * chest) and `z1` (the hip) carried out to the straight line between its reach on those two, wherever it falls inside
+ * it (the waist's hollow bridged); never in. In place */
+export function fallStraight(P, { z0, z1 }) {
+  const C = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl]))), near = (z) => C.reduce((b, c, i) => (Math.abs(c[2] - z) < Math.abs(C[b][2] - z) ? i : b), 0);
+  const a = near(z0), b = near(z1), za = C[a][2], zb = C[b][2], reach = (i, sl) => len(sub(P.stations[i].points[sl], C[i]));
+  P.stations.forEach((st, i) => {
+    const z = C[i][2]; if (!((z - za) * (z - zb) < 0)) return;
+    const f = (z - za) / (zb - za);
+    for (const sl of P.slots) { const p = st.points[sl], r = len(sub(p, C[i])), R = reach(a, sl) + (reach(b, sl) - reach(a, sl)) * f; if (R > r) st.points[sl] = add(C[i], scl(unitv(sub(p, C[i])), R)).map(r6); }
+  });
+  return P;
 }
 
 /** a BUTTON: a disc `r` round and `thick` deep lying on the cloth at `at`, its face turned to `normal` */

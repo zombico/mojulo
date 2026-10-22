@@ -315,7 +315,9 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // (its lapels the jacket's facing: the card's `Lapel` tone, else a shade off the jacket's own)
   // (and a tie on the shirt, the card's `Tie` tone, else a deep red)
   const tie = lang.tie === true && worn.has('top');
-  const tailoring = tailored || tie ? { ...(tailored ? { outer: { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
+  // (its shape words, the shoulder and the waist, beside them or alone)
+  const shaped = outer && worn.has('outer') && (outer.shoulder !== undefined || outer.waist !== undefined), shape = shaped ? { ...(outer.shoulder ? { shoulder: outer.shoulder } : {}), ...(outer.waist ? { waist: outer.waist } : {}) } : {};
+  const tailoring = tailored || shaped || tie ? { ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
   if (tailored) tones.Lapel = card.tones?.Lapel ?? shade(T.Outer ?? tones.Outer ?? '#444444', 1.12);
   if (tie) tones.Tie = card.tones?.Tie ?? '#5b1f2b';
   return { garments, paint, rows, kit, tones, trace, ...(tailoring ? { tailoring } : {}) };

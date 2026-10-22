@@ -553,7 +553,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   both legs, never narrowing below them, open beneath, skinned by nearness), `dress: true` (the skirt the top's own
   cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth, front?, lapel?, buttons? }` over both (on
   the realistic body a TAILORED FRONT: `front: single | double`, `lapel: notch | peak | shawl | none`, `buttons: 1 | 2 | 3`
-  give the jacket a V onto the shirt, its lapels and collar, its buttons; closed, the right front over the left; a suit
+  give the jacket a V onto the shirt, its lapels and collar, its buttons; `shoulder: natural | structured`, `waist:
+  suppressed | straight` its shape; closed, the right front over the left; a suit
   jacket's length is `hem: 'tunic'`, over the seat; a card's `Lapel` tone its facing; `tie: true` a tie on the shirt,
   its `Tie` tone; open, the lapels run to the hem; a woman's closes left over right; the cards `business` and
   `doublebreasted` are suits with ties, `skirtsuit` and `trousersuit` a woman's); `panels: [{ at: back | front | sides
