@@ -34,6 +34,7 @@ export const ADORN_PRIMS = Object.freeze({
   panel: { keys: ['region', 'lift', 'thick', 'group'], group: 'Overlay', what: "a glover's piece laid over the glove on a region (cutter.js GLOVE_REGIONS: back, palm, heel, knuckles, fingerBacks, fingerPads, thumb, or { seg, t: [t0, t1], s: [s0, s1] })" },
   points: { keys: ['lines', 'lift', 'group'], group: 'Stitch', what: 'the raised lines of stitching down the back of a dress glove (three, or `lines`)' },
   buttons: { keys: ['count', 'size', 'group'], group: 'Button', what: "a row of buttons at the wrist's opening: on the palm's side of the wrist, or up the inner forearm along a long cuff (an opera glove's)" },
+  ribs: { keys: ['count', 'from', 'to', 'around', 'width', 'lift', 'group'], group: 'Overlay', what: "bands laid across a mitten's shell (a mitten gauntlet's lames, a beast's scales, a stone fist's cracks): `count` of them between `from` and `to` of its length from the wrist, over its back `around` (a share round, 0.65), each `width` (m) along it" },
   perf: { keys: ['region', 'rows', 'cols', 'size', 'group'], group: 'Perf', what: "perforation: a grid of small holes over a region (a driving glove's, a golfer's), `rows` along it and `cols` across, on each digit of a digits region" },
   cuff: { keys: ['width', 'lift', 'group'], group: 'Cuff', what: "a turned band at the glove's top" },
   strap: { keys: ['at', 'width', 'lift', 'buckle', 'group'], group: 'Strap', what: 'a band round the wrist (`at` 0) or up the forearm (a share of it); `buckle` true a buckle on its back, false a snap' },
@@ -47,6 +48,8 @@ export const ADORN_PRIMS = Object.freeze({
   fur: { keys: ['length', 'droop', 'seed', 'group'], group: 'Fur', what: "a shaggy ruff of fur round the glove's top" },
   wrap: { keys: ['turns', 'cross', 'w', 'lift', 'group'], group: 'Wrap', what: "a strip wound round the palm and the wrist, `cross` a second the other way (a fighter's hand wraps)" },
 });
+/** a segment inside a card's mitten shell: the palm, and each digit it does not leave free in its own sheath */
+const inShell = (C, kind) => !!C.mitten && (kind === 'hand' || (DIGITS.includes(kind) && !(C.mitten.free ?? []).includes(kind) && !(kind === 'thumb' && C.mitten.thumb === 'apart')));
 /** the families a card is annotated with (a shelf to browse, a word to ask by) */
 export const HANDWEAR_FAMILIES = Object.freeze(['glove', 'gauntlet', 'dress', 'work', 'sport', 'historic', 'fantasy']);
 const GROUP = /^[A-Z][A-Za-z0-9]*$/;
@@ -96,12 +99,13 @@ export function validateHandwear(spec, label = 'handwear') {
   }
   if (C.mitten !== undefined) {
     const M = C.mitten, at = `${label}.mitten`;
-    if (!M || typeof M !== 'object' || Array.isArray(M)) errs.push(`${at}: { pad?, grip?, thumb? }, or false`);
+    if (!M || typeof M !== 'object' || Array.isArray(M)) errs.push(`${at}: { pad?, grip?, thumb?, free? }, or false`);
     else {
       if (M.pad !== undefined && !(M.pad >= 0.002 && M.pad <= 0.03)) errs.push(`${at}.pad: metres of padding round the hand, 0.002 … 0.03`);
       if (M.grip !== undefined && !Object.hasOwn(HAND_POSES, M.grip)) errs.push(`${at}.grip: a hand word the hand is held in (${Object.keys(HAND_POSES).join(', ')})`);
       if (M.thumb !== undefined && !['joined', 'apart'].includes(M.thumb)) errs.push(`${at}.thumb: joined (inside the shell) or apart (its own sheath)`);
-      for (const k of Object.keys(M)) if (!['pad', 'grip', 'thumb'].includes(k)) errs.push(`${at}: takes pad, grip, thumb, not '${k}'`);
+      if (M.free !== undefined && !(Array.isArray(M.free) && M.free.every((d) => DIGITS.includes(d)) && M.free.length < DIGITS.length)) errs.push(`${at}.free: digits that stand outside the shell in their own sheath (${DIGITS.join(', ')}), not all of them`);
+      for (const k of Object.keys(M)) if (!['pad', 'grip', 'thumb', 'free'].includes(k)) errs.push(`${at}: takes pad, grip, thumb, free, not '${k}'`);
       if (G === false) errs.push(`${at}: a mitten is the glove's; this card wears none`);
     }
   }
@@ -128,6 +132,12 @@ export function validateHandwear(spec, label = 'handwear') {
       if (a.at !== undefined && !(a.at >= 0.25 && a.at <= 0.95)) errs.push(`${at}.at: a share along the digit, 0.25 (its knuckle) … 0.95`);
       if (a.gem !== undefined && typeof a.gem !== 'boolean' && !(a.gem && typeof a.gem === 'object' && Object.keys(a.gem).every((k) => ['size', 'group'].includes(k)))) errs.push(`${at}.gem: true, or { size?, group? }`);
     }
+    if (a.prim === 'ribs') {
+      if (!C.mitten) errs.push(`${at}: ribs are laid on a mitten's shell; this card has none`);
+      for (const k of ['from', 'to']) if (a[k] !== undefined && !share(a[k])) errs.push(`${at}.${k}: a share of the shell's length from the wrist, 0 … 1`);
+      if ((a.from ?? 0.2) >= (a.to ?? 0.95)) errs.push(`${at}: from before to`);
+      if (a.around !== undefined && !(a.around > 0 && a.around <= 1)) errs.push(`${at}.around: a share round the shell from its back, over 0 and at most 1 (all round)`);
+    }
     if (a.prim === 'claws' && a.on !== undefined && !(Array.isArray(a.on) && a.on.length && a.on.every((d) => DIGITS.includes(d)))) errs.push(`${at}.on: digits (${DIGITS.join(', ')})`);
     if (a.prim === 'jewel' && a.at !== undefined && !['back', 'knuckles'].includes(a.at)) errs.push(`${at}.at: back or knuckles`);
     if (['cuff', 'flare', 'fur', 'points', 'buttons', 'perf'].includes(a.prim) && G === false) errs.push(`${at}: a ${a.prim} is the glove's; this card wears none`);
@@ -146,9 +156,9 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
   // 1 GLOVE: the cuff up the forearm (the adapter's leather), the palm and the digits stood off
   if (G) {
     if ((G.cuff ?? 0) > 0 && A.cuff) for (const [name, part] of Object.entries(A.cuff(G, { id, group: g0 }))) put(name, part);
-    const thick = G.thick ?? 0.0018, M = C.mitten ?? null, inShell = (kind) => M && (kind !== 'thumb' || M.thumb !== 'apart');
+    const thick = G.thick ?? 0.0018;
     for (const S of A.sides) for (const kind of ['hand', ...DIGITS]) {
-      const seg = A.seg(kind, S), P = seg && A.bare(seg); if (!P || inShell(kind)) continue;
+      const seg = A.seg(kind, S), P = seg && A.bare(seg); if (!P || inShell(C, kind)) continue;
       const keep = kind === 'hand' ? P.stations.length : FINGERS[(kind === 'thumb' ? G.thumb : null) ?? G.fingers ?? 'full'];
       put(`${id}_${seg}`, standOff(P, thick, { keep, tuck: kind === 'hand' && !parts[`${id}_${A.seg('foreArm', S)}`], group: g0 }));
     }
@@ -165,14 +175,14 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
       const F = shellOf(H), U = H.stations.length - 1, cloud = [];
       for (let i = 0; i <= 12; i++) for (let j = 0; j < 16; j++) cloud.push({ p: F.at((U * i) / 12, (H.slots.length * j) / 16).p, r: thick });
       for (const d of DIGITS) {
-        if (d === 'thumb' && M.thumb === 'apart') continue;
+        if (!inShell(C, d)) continue;
         const ds = A.seg(d, S), P = ds && A.bare(ds), chain = (d === 'thumb' ? ['Cmc', 'Mcp', 'Ip', 'Tip'] : ['Mcp', 'Pip', 'Dip', 'Tip']).map((j) => J[`${d}${j}`]); if (!P || chain.some((q) => !q)) continue;
         const st = P.stations[Math.min(2, P.stations.length - 1)], c = mid(st), r = P.slots.reduce((t, sl) => t + Math.hypot(...st.points[sl].map((x, q) => x - c[q])), 0) / P.slots.length + thick;
         for (let k = 0; k < 3; k++) { const a = chain[k], b = chain[k + 1], steps = Math.max(2, Math.ceil(Math.hypot(...b.map((x, q) => x - a[q])) / 0.005)); for (let i = 0; i <= steps; i++) cloud.push({ p: a.map((x, q) => x + (b[q] - x) * (i / steps)), r }); }
       }
       const shell = mittenShell(cloud, { o: J.wrist, A: Ax, D, V }, { pad });
       // (a gripped shell rigid on the hand, a stiff pad's; a soft one bending with the palm and the fingers inside it)
-      const inside = [H, ...DIGITS.filter((d) => d !== 'thumb' || M.thumb !== 'apart').map((d) => A.seg(d, S) && A.bare(A.seg(d, S))).filter(Boolean)];
+      const inside = [H, ...DIGITS.filter((d) => inShell(C, d)).map((d) => A.seg(d, S) && A.bare(A.seg(d, S))).filter(Boolean)];
       put(`${id}Mitten_${hs}`, { ...shell, group: g0, bind: M.grip ? { bone: H.bind.bone, blend: {} } : bindAmong(shell, inside) });
     }
   }
@@ -182,7 +192,8 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
     // (a piece's name: its prim's or its region's, counted where the card lays it twice)
     const n = {}, name = (base) => { const k = (n[base] = (n[base] ?? -1) + 1); return k ? `${base}${k}` : base; };
     // (the surface under a piece: the glove where it covers, else the bare skin)
-    const on = (kind) => { const seg = A.seg(kind, S); return seg ? [seg, (G && parts[`${id}_${seg}`]) || A.bare(seg)] : [null, null]; };
+    // (a segment inside a mitten's shell takes no piece: the shell is its surface)
+    const on = (kind) => { const seg = A.seg(kind, S); return seg && !(G && inShell(C, kind)) ? [seg, (G && parts[`${id}_${seg}`]) || A.bare(seg)] : [seg, null]; };
     const lay = (base, seg, P, piece, grp) => { if (piece) put(`${id}${base}_${seg}`, { ...piece, group: grp, bind: bindNearest(piece, P, { rings: true }) }); };
     // (the glove's TOP: the cuff's first ring up the forearm, or the wrist's; its surface, its kind and its `t` there)
     const [fs, cuffP] = on('foreArm'), cuffed = G && (G.cuff ?? 0) > 0 && cuffP && parts[`${id}_${fs}`];
@@ -207,6 +218,14 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
           const t = up ? e1 - 0.02 / len - i * step : 0.08 + i * step; if (t < e0 + 0.02 || t > e1 - 0.02) continue;
           lay(`${base}${i}`, where.seg, where.P, cutPiece(where.P, S, where.kind, A, { circle: { t, s: up ? -0.25 : 0.7, r } }, { lift: lift ?? 0.0012, thick: 0.003, dome: r * 0.6 }), grp);
         }
+      } else if (a.prim === 'ribs') {
+        // (bands across the shell, its own coordinates: `t` its slices from the wrist to the front, `s` 0 its back)
+        const hs = A.seg('hand', S), P = hs && parts[`${id}Mitten_${hs}`]; if (!P) continue;
+        // (a share of its length to its slices' index: they crowd toward the front)
+        const mids = P.stations.map((st) => mean(Object.values(st.points))), cum = mids.reduce((c, m, i) => [...c, i ? c[i - 1] + Math.hypot(...m.map((x, q) => x - mids[i - 1][q])) : 0], []), L = cum[cum.length - 1] || 1;
+        const idx = (t) => { const d = t * L; let i = 1; while (i < cum.length - 1 && cum[i] < d) i++; return i - 1 + Math.min(1, Math.max(0, (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1))); };
+        const k = a.count ?? 5, t0 = a.from ?? 0.2, t1 = a.to ?? 0.95, sh = { u: (_k, t) => idx(t) }, len = L, w = (a.width ?? 0.007) / len, base = name('Ribs'), r = a.around ?? 0.65;
+        for (let i = 0; i < k; i++) { const tc = t0 + ((t1 - t0) * (i + 0.5)) / k; lay(`${base}${i}`, hs, P, cutPiece(P, S, 'mitten', sh, { t: [tc - w / 2, tc + w / 2], s: [-r, r] }, { lift: lift ?? 0.0025, thick: 0.004 }), grp); }
       } else if (a.prim === 'perf') {
         // (a grid of small dark holes inside the region, on each of its digits)
         const R = typeof a.region === 'string' ? GLOVE_REGIONS[a.region] : a.region ?? GLOVE_REGIONS.back, rows = a.rows ?? 4, cols = a.cols ?? 3, r = (a.size ?? 0.0024) / 2, base = name('Perf');
@@ -262,7 +281,8 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
         }
       } else if (a.prim === 'claws') {
         const base = name('Claws');
-        for (const kind of a.on ?? DIGITS) { const [seg, P] = on(kind); if (!P || P.stations.length < 5) continue;
+        // (inside a mitten's shell from the bare tip, through it)
+        for (const kind of a.on ?? DIGITS) { const [seg, P0] = on(kind), P = P0 ?? (seg && A.bare(seg)); if (!P || P.stations.length < 5) continue;
           // (from the pad on past the tip, curled toward the palm; rigid on the last phalanx)
           const sts = P.stations, e = sts.length - 1, m1 = mean(Object.values(sts[e].points)), m0 = mean(Object.values(sts[e - 1].points)), d = unitv(m1.map((x, q) => x - m0[q]));
           const palm = unitv(sts[e].points.back.map((x, q) => x - m1[q])), side = unitv([d[1] * palm[2] - d[2] * palm[1], d[2] * palm[0] - d[0] * palm[2], d[0] * palm[1] - d[1] * palm[0]]);

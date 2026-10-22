@@ -9,7 +9,8 @@
 //           0.0018), fingers? / thumb? (full | half: cut at the middle joint | none: at the knuckle), group? }, or false:
 //           the adornment on the bare hand
 //   mitten  { pad? (m; 0.008), grip? (a hand word the hand is held in: a boxing glove's fist), thumb? (joined | apart:
-//           its own sheath) }: one closed padded shell over the palm and the four fingers in place of the glove's
+//           its own sheath), free? ([digits] outside the shell, each in its own sheath: a trigger finger) }: one closed
+//           padded shell over the palm and the fingers in place of the glove's
 //   adorn   [{ prim, … }] the adornment, in order (expand.js ADORN_PRIMS)
 //   tones   { <group>: '#hex' | { of: <group>, shade: −1 … 1 } } over HANDWEAR_TONES, for the groups the card uses; a tone
 //           OF another group is that group's colour darkened (−) or lightened (+), so recolouring the leather (`Gloves`)
@@ -117,6 +118,25 @@ export const HANDWEAR = Object.freeze({
   // the bishop's: red silk, a jewel on the back, a gilt band, a ring
   bishopGloves: { family: 'historic', glove: { cuff: 0.18, thick: 0.0012 }, adorn: [{ prim: 'jewel', at: 'back', size: 0.016 }, { prim: 'cuff', width: 0.012, group: 'Gilt' }, { prim: 'rings', on: ['ring'], gem: true }],
     tones: { Gloves: '#8a1c2b', Gilt: '#c9a646', Gem: '#2b8fb3' } },
+  // ── HISTORIC MITTENS: the mitten shell ──
+  // the mail muffler: a mitten of mail at the end of a hauberk's sleeve, the thumb apart, a leather band at the wrist
+  mailMittens: { family: 'historic', glove: { cuff: 0.45, thick: 0.003, group: 'Mail' }, mitten: { pad: 0.007, thumb: 'apart' }, adorn: [{ prim: 'strap', at: 0.06, width: 0.016, lift: 0.002 }],
+    tones: { Mail: '#6d6f73', Strap: '#4b3324' } },
+  // the Gothic mitten gauntlet: a steel shell over the fingers in lames, the thumb in its own, a flared steel cuff
+  mittenGauntlets: { family: 'historic', glove: { cuff: 0.22, thick: 0.002, group: 'Steel' }, mitten: { pad: 0.007, thumb: 'apart' },
+    adorn: [{ prim: 'ribs', count: 5, from: 0.5, to: 0.96, group: 'Steel' }, { prim: 'lames' }, { prim: 'flare', height: 0.08, spread: 1.6, group: 'Steel' }],
+    tones: { Steel: '#a9adb3' } },
+  // the lobster gauntlet: lames from the back of the hand to the fingertips, blued, the cuff edged in gilt
+  lobsterGauntlets: { family: 'historic', glove: { cuff: 0.22, thick: 0.002, group: 'Steel' }, mitten: { pad: 0.008, thumb: 'apart' },
+    adorn: [{ prim: 'ribs', count: 9, from: 0.22, to: 0.97, width: 0.006, group: 'Steel' }, { prim: 'lames' }, { prim: 'flare', height: 0.07, spread: 1.5, group: 'Steel' }, { prim: 'cuff', width: 0.008, lift: 0.0035, group: 'Gilt' }],
+    tones: { Steel: '#3c4a5e', Gilt: '#c9a646' } },
+  // the trigger-finger mitten: wool, the thumb and the index each in their own sheath, a knit cuff
+  triggerMittens: { family: 'historic', glove: { cuff: 0.25, thick: 0.003 }, mitten: { pad: 0.006, free: ['thumb', 'index'] }, adorn: [{ prim: 'cuff', width: 0.03, lift: 0.002 }],
+    tones: { Gloves: '#5b5a3a', Cuff: OF(-0.2) } },
+  // the arctic mitten: sealskin, the thumb apart, two bands of trim, fur round the cuff
+  arcticMittens: { family: 'historic', glove: { cuff: 0.35, thick: 0.004 }, mitten: { pad: 0.009, thumb: 'apart' },
+    adorn: [{ prim: 'ribs', count: 2, from: 0.06, to: 0.3, around: 1, width: 0.008, lift: 0.0015, group: 'Trim' }, { prim: 'fur', length: 0.034 }],
+    tones: { Gloves: '#6b5a48', Trim: '#e8dcc0', Fur: '#d8cdb8' } },
   // ── FANTASY ──
   // the beast's: black, claws from every digit
   clawGloves: { family: 'fantasy', glove: { cuff: 0.08, thick: 0.0018 }, adorn: [{ prim: 'claws', length: 0.032, curl: 55 }], tones: { Gloves: '#151518', Claw: '#e8e2d0' } },
@@ -125,6 +145,21 @@ export const HANDWEAR = Object.freeze({
     tones: { Gloves: '#2c1d3d', Gilt: '#c9a646', Gem: '#7f3fbf' } },
   // the trapper's: fur round the cuff
   furGloves: { family: 'fantasy', glove: { cuff: 0.14, thick: 0.0028 }, adorn: [{ prim: 'fur', length: 0.026 }], tones: { Gloves: '#5a3a26', Fur: '#bfae8f' } },
+  // ── FANTASY MITTENS: the mitten shell ──
+  // the bear's paw: a furred shell, claws through it, fur at the cuff
+  bearPaws: { family: 'fantasy', glove: { cuff: 0.25, thick: 0.003 }, mitten: { pad: 0.01 }, adorn: [{ prim: 'claws', length: 0.052, curl: 60 }, { prim: 'fur', length: 0.03 }],
+    tones: { Gloves: '#5b3f2a', Claw: '#2a2622', Fur: OF(0.12) } },
+  // the crab's pincer: a chitin shell banded, the thumb apart, a jaw's point at the middle finger and the thumb
+  pincerGauntlets: { family: 'fantasy', glove: { cuff: 0.2, thick: 0.0025 }, mitten: { pad: 0.011, thumb: 'apart' }, adorn: [{ prim: 'ribs', count: 6, from: 0.25, to: 0.92, group: 'Shell' }, { prim: 'claws', on: ['thumb', 'middle'], length: 0.045, curl: 25 }],
+    tones: { Gloves: '#9c3a22', Shell: OF(-0.25), Claw: OF(-0.45) } },
+  // the golem's fist: stone, closed, banded with cracks, a stone cuff
+  golemFists: { family: 'fantasy', glove: { cuff: 0.3, thick: 0.003, group: 'Stone' }, mitten: { pad: 0.026, grip: 'fist' },
+    adorn: [{ prim: 'ribs', count: 4, from: 0.15, to: 0.85, around: 1, width: 0.004, lift: 0.0012, group: 'Crack' }, { prim: 'flare', height: 0.05, spread: 1.4, group: 'Stone' }],
+    tones: { Stone: '#7d786f', Crack: '#3a3632' } },
+  // the dragon's claw: a scaled shell, the thumb apart, long curled claws, a flared scale cuff
+  dragonClaws: { family: 'fantasy', glove: { cuff: 0.2, thick: 0.0025 }, mitten: { pad: 0.006, thumb: 'apart' },
+    adorn: [{ prim: 'ribs', count: 7, from: 0.1, to: 0.86, around: 0.55, group: 'Scale' }, { prim: 'claws', length: 0.042, curl: 65 }, { prim: 'flare', height: 0.05, spread: 1.5, group: 'Scale' }],
+    tones: { Gloves: '#2f5a3a', Scale: OF(-0.25), Claw: '#ece5d2' } },
   // the stone gauntlet: gold, a stone on each knuckle and one on the back
   gemGauntlet: { family: 'gauntlet', glove: { cuff: 0.2, thick: 0.003 }, adorn: [{ prim: 'knuckles', lift: 0.004, group: 'Gilt' }, { prim: 'jewel', at: 'knuckles', size: 0.008 }, { prim: 'jewel', at: 'back', size: 0.016 }, { prim: 'flare', height: 0.06, spread: 1.5, group: 'Gloves' }],
     tones: { Gloves: '#b8902e', Gilt: '#d8b44a', Gem: '#c23a3a' } },
@@ -153,4 +188,5 @@ export const SKINS = Object.freeze({
 /** the colours of the groups handwear lays, for a palette that names none (a card's own tones over these) */
 export const HANDWEAR_TONES = Object.freeze({ Gloves: '#3b2a20', Overlay: '#2a1e17', Stitch: '#d8c9a8', Cuff: '#2f2a26', Strap: '#2a1e17', Brass: '#a8843f', Steel: '#8d9299',
   Guard: '#26272a', Gilt: '#c9a646', Gem: '#2b8fb3', Claw: '#e8e2d0', Fur: '#bfae8f', Wrap: '#efe9dc', Pad: '#202022', Latex: '#f2f1ec', Mail: '#6d6f73',
-  Button: '#e9e4d8', Perf: '#141010', Pearl: '#f7f3ea' });
+  Button: '#e9e4d8', Perf: '#141010', Pearl: '#f7f3ea',
+  Trim: '#e8dcc0', Shell: '#6e2a18', Stone: '#7d786f', Crack: '#3a3632', Scale: '#244a2e' });

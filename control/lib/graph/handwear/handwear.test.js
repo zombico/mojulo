@@ -103,6 +103,20 @@ describe('handwear on a hand adapter', () => {
     expect(M.parts.m_thumbL).toBeTruthy();
     expect(Object.values(M.parts.mMitten_handR.bind.blend).some((w) => w.index1R)).toBe(true);
     expect(M.grip).toBeUndefined();
+    // (a free digit in its own sheath; ribs across the shell spaced by its length; claws through it from the bare tips; a
+    // piece aimed at a digit inside the shell skips it)
+    const R = wearHandwear(A, { glove: { cuff: 0.2 }, mitten: { free: ['index'] }, adorn: [{ prim: 'ribs', count: 3, from: 0.2, to: 0.8 }, { prim: 'claws', on: ['middle'] }, { prim: 'lames' }] }, { id: 'r' });
+    expect(R.parts.r_indexR).toBeTruthy();
+    expect(R.parts.r_middleR).toBeUndefined();
+    expect(R.parts.rClaws_middleR).toBeTruthy();
+    expect(R.parts.rLames0_indexR).toBeTruthy();
+    expect(R.parts.rLames0_middleR).toBeUndefined();
+    const zc = (k) => { const ps = R.parts[k].stations.flatMap((st) => Object.values(st.points)); return ps.reduce((t, p) => t + p[2], 0) / ps.length; };
+    const gaps = [zc('rRibs0_handR') - zc('rRibs1_handR'), zc('rRibs1_handR') - zc('rRibs2_handR')];
+    expect(gaps[0]).toBeGreaterThan(0);
+    expect(gaps[1] / gaps[0]).toBeCloseTo(1, 0);
+    expect(validateHandwear({ glove: {}, adorn: [{ prim: 'ribs' }] })[0]).toMatch(/ribs are laid on a mitten's shell/);
+    expect(validateHandwear({ glove: {}, mitten: { free: ['thumb', 'index', 'middle', 'ring', 'little'] } })[0]).toMatch(/mitten\.free: digits/);
     expect(validateHandwear({ glove: {}, mitten: { grip: 'claw' } })[0]).toMatch(/mitten\.grip: a hand word/);
     expect(validateHandwear({ glove: false, mitten: {} })[0]).toMatch(/a mitten is the glove's/);
   });

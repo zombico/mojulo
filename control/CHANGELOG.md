@@ -175,6 +175,12 @@ colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gl
   fist inside it; without one the shell bends with the fingers inside it, each point taking its nearest skin's
   weights. `thumb: 'apart'` keeps the thumb in its own sheath. Words `boxingGloves` and `sparringGloves` (a fist, its
   thumb sewn to its side), `mittens` (knit, the thumb apart).
+- FANTASY AND HISTORIC MITTENS on the shell. `mitten.free` leaves any digits outside it in their own sheaths (a
+  trigger finger); a piece aimed at a digit inside the shell skips it, and claws grow from the bare tips through it. The
+  primitive `ribs` lays bands across the shell, spaced by its length (lames, scales, trim, cracks). Historic
+  `mailMittens` (a mail muffler), `mittenGauntlets` (Gothic, steel lames to the fingertips, the thumb's own),
+  `lobsterGauntlets` (blued, lames from the back of the hand), `triggerMittens`, `arcticMittens` (sealskin, trim, fur);
+  fantasy `bearPaws`, `pincerGauntlets`, `golemFists` (a stone fist held closed), `dragonClaws`.
 - Every card is an outfit word: on the realistic body the library's (its parts riding their segments' dials, its tones
   under the operator's palette); on the authored body nothing yet. body-study paints its groups, a palette's colour
   first.
