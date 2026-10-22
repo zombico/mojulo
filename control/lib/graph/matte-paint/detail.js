@@ -9,6 +9,7 @@
  *   detailKey(params, seed, metres, v)    the tile's key (`detail:dressed-<hash>-a|b`), registered for the resolver:
  *                                         `params` the dressed tile's (on its rails), painted at `metres` a repeat; with
  *                                         `gen: 'stone-brick'` and a bond, the rooms' bonded brick tile instead
+ *   detailTexels(key)                     the key's tile as painted (before its mean), { rgb, W, H } | null
  *   layDetail(face, { key, metres, unit, as })   the face dressed (`as`: 'wall' | 'roof' | 'floor'; `unit` the world's
  *                                         metres a unit), or the face itself when it is not that kind of face
  *   DETAIL_MEAN                           the mean a detail is set to (linear)
@@ -36,12 +37,18 @@ export function detailKey(params, seed, metres, v) {
   if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres }, seed: seed * 1009 + 7 + v * 13 });
   return key;
 }
-registerTextureResolver('detail:', (key) => {
-  if (PAINTED.has(key)) return PAINTED.get(key);
+/** A detail key's tile as painted, before it is set to its mean: { rgb, W, H }, or null for a key never made. */
+export function detailTexels(key) {
   const S = SPECS.get(key);
   if (!S) return null;
   // (a brick floor's tile, landscape/surface-textures.js stone-brick in a bond, as the rooms lay it; else dressed stone)
-  const T = S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed }), n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
+  return S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed });
+}
+registerTextureResolver('detail:', (key) => {
+  if (PAINTED.has(key)) return PAINTED.get(key);
+  const T0 = detailTexels(key);
+  if (!T0) return null;
+  const T = T0, n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
   for (let k = 0; k < n * 3; k++) { L[k] = lin(T.rgb[k]); m[k % 3] += L[k]; }
   for (let c = 0; c < 3; c++) m[c] = m[c] / n || 1;
   const out = Buffer.alloc(n * 3);

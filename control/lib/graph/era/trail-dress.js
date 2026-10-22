@@ -21,14 +21,15 @@ import { kept } from './reserve.js';
 import { normalizeTileSpec } from './tile-specs.js';
 import { detailKey, layDetail } from '../matte-paint/detail.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { sandKey } from './sand-tiles.js';
 
 export const TRAIL_SURFACES = Object.freeze(Object.keys(MATERIAL_WORDS).filter((w) => MATERIAL_WORDS[w].on === 'ground'));
 export const PATCH_KINDS = Object.freeze(['worn', 'damp', 'gravel', 'crown', 'puddle']);
 export const PATCH_DEFAULT = Object.freeze(['worn', 'damp', 'gravel']);
 export const TRAIL_DRESS_KEYS = Object.freeze(['surface', 'rubble', 'patches']);
-// the outdoor surfaces, laid in the dirt: how far each leans from the dirt toward its own colour, and how far in from the
-// edge the dirt covers it (m)
-export const IN_DIRT = Object.freeze({ 'stone-road': Object.freeze({ share: 0.45, inward: 0.3 }), gravel: Object.freeze({ share: 0.5, inward: 0.15 }) });
+// the outdoor surfaces, laid in the dirt: how far each leans from the dirt toward its own colour; the dirt spilled over
+// its edge at `spill` of a dirt trail's width (the rest of its border is sand worked into it: SAND_BANDS)
+export const IN_DIRT = Object.freeze({ 'stone-road': Object.freeze({ share: 0.45, spill: 0.45 }), gravel: Object.freeze({ share: 0.5, spill: 0.45 }) });
 
 /** A trail recipe's dress, checked: the defaults where it says nothing. */
 export function readTrailDress(trail) {
@@ -167,6 +168,17 @@ export function surfaceDress(word, { grit = 0, rock = null } = {}) {
 }
 
 // ── the edge ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// the colour under a point: the nearest corner's of the trail's and the fringe's lanes (a 1 m grid of them)
+function colourUnder(lanes) {
+  const cells = new Map(), C = 1, cell = (x, y) => `${Math.floor(x / C)},${Math.floor(y / C)}`;
+  for (const f of lanes) if ((f.cls === 'trail' || f.cls === 'fringe') && typeof f.fill === 'string') f.corners.forEach((c, k) => { const q = cell(c[0], c[1]); if (!cells.has(q)) cells.set(q, []); cells.get(q).push([c[0], c[1], f.cornerFills?.[k] ?? f.fill]); });
+  return (x, y) => {
+    let best = null, d = Infinity;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const p of cells.get(`${Math.floor(x / C) + i},${Math.floor(y / C) + j}`) || []) { const e = Math.hypot(p[0] - x, p[1] - y); if (e < d) { d = e; best = p[2]; } }
+    return best;
+  };
+}
+
 /**
  * The edge of a gritty dirt trail spilled over: blobs of the trail's own dirt, its own relief (the path's tile, `key(v)`),
  * straddling the edge every `every` metres or so a side and reaching out over the verge, each feathered to whatever
@@ -176,26 +188,18 @@ export const SPILL = Object.freeze({ every: 0.9, len: [0.8, 2.2], wid: [0.14, 0.
 
 /**
  * { site, lanes (the ribbon's lanes as the land coloured them, each its `cls`), grit, seed, keep, key (v → the trail's
- * path tile), metres, inward (m: how far in a surface laid in the dirt is covered at its edge) } → faces in group
- * 'isekai:trail'.
+ * path tile), metres, scale (the blobs' width, a share of a dirt trail's) } → faces in group 'isekai:trail'.
  */
-export function edgeSpill({ site, lanes, grit, seed, keep = null, key, metres, inward = 0 }) {
+export function edgeSpill({ site, lanes, grit, seed, keep = null, key, metres, scale = 1 }) {
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), H = (a, b, s) => hash3(a, b, seed + 1301 + s);
   const { xyAt, ribbonZ } = ribbonOf(site);
-  // the colour under a point: the nearest corner's of the trail's and the fringe's lanes (a 1 m grid of them)
-  const cells = new Map(), C = 1, cell = (x, y) => `${Math.floor(x / C)},${Math.floor(y / C)}`;
-  for (const f of lanes) if ((f.cls === 'trail' || f.cls === 'fringe') && typeof f.fill === 'string') f.corners.forEach((c, k) => { const q = cell(c[0], c[1]); if (!cells.has(q)) cells.set(q, []); cells.get(q).push([c[0], c[1], f.cornerFills?.[k] ?? f.fill]); });
-  const under = (x, y) => {
-    let best = null, d = Infinity;
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const p of cells.get(`${Math.floor(x / C) + i},${Math.floor(y / C) + j}`) || []) { const e = Math.hypot(p[0] - x, p[1] - y); if (e < d) { d = e; best = p[2]; } }
-    return best;
-  };
+  const under = colourUnder(lanes);
   const out = [];
   let n = 0;
   for (const side of [-1, 1]) for (let y = 0.6 + SPILL.every * H(side, 0, 0); y < site.D - 0.6; y += (SPILL.every * (0.5 + H(side, n, 1))) / (0.6 + 0.4 * t), n++) {
     if (site.gapAt && site.gapAt(y)) continue;
-    const hw = site.halfWAt(y), len = SPILL.len[0] + (SPILL.len[1] - SPILL.len[0]) * H(side, n, 2), b = SPILL.wid[0] + (SPILL.wid[1] - SPILL.wid[0]) * H(side, n, 3) + inward * 0.5;
-    const tc = side * (hw - inward * (0.5 + H(side, n, 5)) + SPILL.out[0] + (SPILL.out[1] - SPILL.out[0]) * H(side, n, 4)), [cx, cy] = xyAt(y, tc), [ex, ey] = xyAt(y, side * hw);
+    const hw = site.halfWAt(y), len = SPILL.len[0] + (SPILL.len[1] - SPILL.len[0]) * H(side, n, 2), b = (SPILL.wid[0] + (SPILL.wid[1] - SPILL.wid[0]) * H(side, n, 3)) * scale;
+    const tc = side * (hw + SPILL.out[0] + (SPILL.out[1] - SPILL.out[0]) * H(side, n, 4)), [cx, cy] = xyAt(y, tc), [ex, ey] = xyAt(y, side * hw);
     if (!kept(keep, cx, cy, len / 2 + 0.5)) continue;
     const fill = under(ex, ey), rise = SPILL.rise + 0.0004 * (n % 8);
     if (!fill) continue;
@@ -224,4 +228,33 @@ export function verged(land, lane) {
   const key = (c) => `${c[0].toFixed(3)},${c[1].toFixed(3)}`, at = new Map();
   land.forEach((f, i) => { if (lane(i) === 'trail') f.corners.forEach((c, k) => at.set(key(c), f.cornerFills?.[k] ?? f.fill)); });
   return land.map((f, i) => (lane(i) === 'fringe' ? { ...f, cornerFills: f.corners.map((c, k) => at.get(key(c)) ?? f.cornerFills?.[k] ?? f.fill) } : f));
+}
+
+/**
+ * The border of a road laid in the dirt, sand worked into it: bands along each edge, from `from` m in from it to the
+ * next band's, each a cutout of the road's own tile at its sand `level` (era/sand-tiles.js: its cracks, then broken
+ * patches): the cracks alone furthest in, the stones mostly sanded over at the edge, so the road shows through beneath
+ * the sand and reads its whole width. Each band's inner line wanders along the trail. In the dirt's colour.
+ */
+export const SAND_BANDS = Object.freeze([{ from: 0.55, level: 0 }, { from: 0.3, level: 0.35 }, { from: 0.13, level: 0.7 }]);
+
+/** { site, lanes (as the land coloured them, each its `cls`: the dirt's colours), roadKey, metres, seed, keep } → faces. */
+export function sandBands({ site, lanes, roadKey, metres, seed, keep = null }) {
+  const { xyAt, ribbonZ } = ribbonOf(site), under = colourUnder(lanes), out = [], step = 0.375, r4 = (v) => Math.round(v * 1e4) / 1e4;
+  // (a band's inner line at station y: its `from`, wandering a third either way; the outermost band's outer line a hair
+  // past the edge)
+  const line = (k, y, side) => (k === SAND_BANDS.length ? -0.03 : SAND_BANDS[k].from * (0.7 + 0.6 * vnoise(y * 0.55 + k * 3.7, side * 5.3, seed + 1409 + k)));
+  for (const side of [-1, 1]) for (let y = 0; y < site.D - 1e-6; y += step) {
+    const y1 = Math.min(site.D, y + step);
+    if (site.gapAt && (site.gapAt(y) || site.gapAt(y1))) continue;
+    for (let k = 0; k < SAND_BANDS.length; k++) {
+      const P = (yy, d) => { const off = side * (site.halfWAt(yy) - d), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + 0.006 + 0.001 * k)]; };
+      const cs = [P(y, line(k, y, side)), P(y, line(k + 1, y, side)), P(y1, line(k + 1, y1, side)), P(y1, line(k, y1, side))];
+      if (cs.some((c) => !kept(keep, c[0], c[1], 0.3))) continue;
+      const n = upOf(cs), C = n[2] < 0 ? cs.reverse() : cs, fills = C.map((c) => under(c[0], c[1]));
+      if (fills.some((f) => !f)) continue;
+      out.push({ corners: C, normal: upOf(C), group: 'isekai:trail', fill: fills[0], cornerFills: fills, texture: sandKey(roadKey, SAND_BANDS[k].level), textureLit: true, uv: C.map((c) => [r4(c[0] / metres), r4(c[1] / metres)]), sand: true });
+    }
+  }
+  return out;
 }

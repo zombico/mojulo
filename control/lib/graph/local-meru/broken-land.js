@@ -12,8 +12,8 @@
  *   strewEdge(st, { site, heightAt, seed, grit, keep })  → the same stones along a dirt trail's two edges (an isekai
  *                                          stage's site: trailX, halfWAt, fringeAt, D): thickest at the edge, thinning
  *                                          out across the fringe onto the land (kicked aside, the larger), a few just in
- *                                          on the trail, in clumps along it; as many as the grit says, none on ground a
- *                                          town has claimed (`keep`, era/reserve.js).
+ *                                          on the trail (`inShare` of them, `inReach` in), in clumps along it; as many as
+ *                                          the grit says, none on ground a town has claimed (`keep`, era/reserve.js).
  *
  * Pure: hashed dice only. Absent grit, neither is called and the land is the quiet style's, byte for byte.
  */
@@ -112,7 +112,7 @@ export function strewStones(st, { faces, rocks, heightAt, seed, grit, sea = -Inf
 // and the pebbles' between; on the trail, half)
 export const EDGE = Object.freeze({ step: 0.4, heap: 4, out: 1.25, in: 0.22, size: [0.1, 0.42], most: 700 });
 
-export function strewEdge(st, { site, heightAt, seed, grit, keep = null }) {
+export function strewEdge(st, { site, heightAt, seed, grit, keep = null, inShare = 0.15, inReach = EDGE.in }) {
   const S = { ...st, boulder: STONE, rubble: { ...st.rubble, unit: 1 } }, out = [], H = (a, b) => hash3(a, b, seed + 907);
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), lerp = (a, b, u) => a + (b - a) * u;
   let i = 0;
@@ -124,9 +124,10 @@ export function strewEdge(st, { site, heightAt, seed, grit, keep = null }) {
       // (heaped in clumps along the trail: a slow noise a side lets a stretch go bare and heaps another)
       const clump = Math.max(0, Math.min(1, 1.8 * (vnoise(y * 0.3, side * 7.3, seed + 911) - 0.35))), count = Math.floor(EDGE.heap * (0.35 + 0.65 * t) * clump + H(i, 1));
       for (let j = 0; j < count && out.length < EDGE.most; j++) {
-        const k = i * 8 + j, u = H(k, 2), inward = u < 0.15;
-        // where across: mostly at the edge, a few in on the trail, the rest out across the fringe (squared: near the edge)
-        const off = inward ? site.halfWAt(y) - EDGE.in * H(k, 3) : site.halfWAt(y) + site.fringeAt(y) * EDGE.out * H(k, 3) ** 2;
+        const k = i * 8 + j, u = H(k, 2), inward = u < inShare;
+        // where across: mostly at the edge, a few in on the trail (`inShare` of them, `inReach` in), the rest out across
+        // the fringe (squared: near the edge)
+        const off = inward ? site.halfWAt(y) - inReach * H(k, 3) : site.halfWAt(y) + site.fringeAt(y) * EDGE.out * H(k, 3) ** 2;
         const x = c[0] + side * n[0] * off, yy = c[1] + side * n[1] * off + (H(k, 4) - 0.5) * EDGE.step * 1.5;
         if (!kept(keep, x, yy, 0.3)) continue;
         const sz = lerp(EDGE.size[0], EDGE.size[1], H(k, 5) ** 1.6) * (inward ? 0.5 : 1);

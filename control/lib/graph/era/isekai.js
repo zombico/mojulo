@@ -56,7 +56,8 @@ import { readBiocube, withFlora } from './biocube.js';
 import { withGrittyFlora, withGrittyGround, trailKey, GROUND_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
-import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, IN_DIRT } from './trail-dress.js';
+import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, IN_DIRT } from './trail-dress.js';
+import { detailKey } from '../matte-paint/detail.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
@@ -409,7 +410,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     // (a made trail takes no pebbles off its corners: it is kept)
     strewn.push(...strewStones(st, { faces: [...ground.faces, ...(inDirt ? ribbon : ribbon.filter((f) => f.cls !== 'trail'))], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
     // (and the same stones along a dirt trail's edges, thinning out onto the land)
-    if (inDirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep }));
+    // (a road laid in the dirt: more of the stones in on its border)
+    if (inDirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep, ...(dirt ? {} : { inShare: 0.35, inReach: 0.5 }) }));
   }
   // (the strewn stones are drawn and lit but cast nothing: a pebble's shadow is a few centimetres, and each would be one
   // more set of triangles every lit point is tested against)
@@ -583,7 +585,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const landD = broken ? withGrittyGround(landP, broken, { verge: (i) => inDirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}) }) : landP;
   // (a gritty dirt trail's patches, worn, damp, gravel…, on its ribbon: era/trail-dress.js)
   const lanes = broken && inDirt ? landV.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })) : null;
-  const patches = broken && inDirt ? [...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, inward: IN_DIRT[TD.surface]?.inward ?? 0 }),
+  // (a road laid in the dirt: its border sand worked into its cracks, the road showing through beneath)
+  const sand = broken && SD?.dirt && SD.tile ? sandBands({ site, lanes, roadKey: detailKey(SD.tile.params, SD.tile.seed, SD.tile.metres, 0), metres: SD.tile.metres, seed, keep }) : [];
+  const patches = broken && inDirt ? [...sand, ...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, scale: IN_DIRT[TD.surface]?.spill ?? 1 }),
     ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
   const faces = [...landD, ...patches, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
@@ -593,7 +597,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // clouds' cards drawn hi-def in their own stops, isekai-tiles.js `+hd`)
   const hdCloud = (k) => (broken && /:cumulus-/.test(k || '') ? `${k}+hd` : k);
   const drawnFaces = broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces;
-  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-/.test(f.texture || '')).map((f) => hdCloud(f.texture)))].sort();
+  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-|^sand:/.test(f.texture || '')).map((f) => hdCloud(f.texture)))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];

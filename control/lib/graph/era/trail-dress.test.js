@@ -1,7 +1,8 @@
 // Trail dress (trail-dress.js): a gritty dirt trail strewn at its edges and worn in patches in its own colours; a paved
 // trail in the street's ground words; a quiet trail as it came.
 import { describe, expect, it } from 'vitest';
-import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES, IN_DIRT } from './trail-dress.js';
+import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES, IN_DIRT, SAND_BANDS } from './trail-dress.js';
+import { sandKey, sandTexels } from './sand-tiles.js';
 import { readOutTrail, outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { assembleGeocubeScene } from './geocube.js';
@@ -96,15 +97,23 @@ describe('a trail dressed on a stage', () => {
   it('an outdoor surface is laid in the dirt: its stones leant part way, one tile running on, its edge the dirt trail\'s', () => {
     const R = assembleStageScene({ ...M, trail: { surface: 'stone-road' }, shading: { grit: 0.7 } });
     const D = assembleStageScene({ ...M, trail: { patches: false }, shading: { grit: 0.7 } });
-    const laid = trail(R).filter((f) => !f.spill);
+    const laid = trail(R).filter((f) => !f.spill && !f.sand);
     expect(new Set(laid.map((f) => f.texture)).size).toBe(1);
     // (its edge: the dirt spilled over it with the dirt's own relief, the verge laid across, the rubble beside it)
     const dirtTex = new Set(trail(D).filter((f) => !f.spill).map((f) => f.texture));
     expect(R.faces.filter((f) => f.spill).every((f) => dirtTex.has(f.texture))).toBe(true);
     expect(R.faces.filter((f) => f.spill).length).toBeGreaterThan(0);
     expect(R.faces.some((f) => f.group === 'isekai:ground' && f.uv && f.uv.every((q) => q[1] === 0 || q[1] === 0.999))).toBe(true);
-    expect(rocks(R)).toBe(rocks(D));
+    expect(rocks(R)).toBeGreaterThan(rocks(D));
     expect(patches(R)).toHaveLength(0);
+    // (its border sand worked into its cracks: cutouts of its own tile, in bands from the cracks alone to mostly sand)
+    const sand = R.faces.filter((f) => f.sand), road = [...new Set(laid.filter((f) => !f.sand).map((f) => f.texture))][0];
+    expect(sand.length).toBeGreaterThan(0);
+    expect(new Set(sand.map((f) => f.texture))).toEqual(new Set(SAND_BANDS.map((b) => sandKey(road, b.level))));
+    expect(sand.every((f) => R.cutouts.includes(f.texture) && f.uv.length === f.corners.length)).toBe(true);
+    const T = SAND_BANDS.map((b) => sandTexels(sandKey(road, b.level))), cover = (t) => t.a.reduce((n, v) => n + (v ? 1 : 0), 0) / t.a.length;
+    expect(T.every((t, i) => i === 0 || cover(t) > cover(T[i - 1]))).toBe(true);
+    expect(cover(T[T.length - 1])).toBeLessThan(1);
   }, 90000);
 
   it('a geocube\'s street hands its `path` to the trail it lies on; no stone or patch on ground a town has claimed', () => {
