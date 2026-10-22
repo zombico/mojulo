@@ -3,7 +3,7 @@
 //   node scripts/spikes/action-lab/verify.mjs [cast=male]
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, POLES, POLE_IDS, VIEWS, STAGES, poleCard, blendPoles, newState, step, frameData, util, KATA, versusPad, newVsWatch, vsWatch, vsCat, OBSTACLES, CUTS, STYLES, PRODUCE, variantsOf } from './feel.mjs';
+import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, POLES, POLE_IDS, VIEWS, STAGES, poleCard, blendPoles, newState, step, frameData, util, KATA, versusPad, newVsWatch, vsWatch, vsCat, OBSTACLES, variantsOf } from './feel.mjs';
 const T = await import('./takes.mjs');
 const A = await import('../animation-games/flavor.mjs');
 
@@ -863,34 +863,6 @@ check('no body passes a wall or a block, and the hero never enters the dummy, at
   const rows = (c) => { const r = run(c, () => 0, 1, { arena, setup: (S) => { S.card.runner.ahead = 3000; S.hero.mercy = 1e9; } }); return r.end.run.obs; };
   const ra = rows(C), rb = rows(C), apart = ra.every((o, i) => i === 0 || o.y - OBSTACLES[o.kind].len / 2 >= ra[i - 1].y + OBSTACLES[ra[i - 1].kind].len / 2), kinds = new Set(ra.map((o) => o.kind));
   check(`${POLES[rid].name}: the track is seeded (the same rows twice), one obstacle a row with room between (a lane always open), every kind its weights name`, JSON.stringify(ra) === JSON.stringify(rb) && apart && Object.entries(R.kinds).every(([k, w]) => !w || kinds.has(k)), { rows: ra.length, kinds: [...kinds] });
-}
-
-// ─── Sukuna Kitchen: the cutter, Cleave and Dismantle, by mojulo's cuts ───
-{
-  const { CUT_PRESETS } = await import('../../../lib/graph/playscape/destruct/cuts.js');
-  const kid = POLE_IDS.find((id) => POLES[id].set?.kitchen), C = poleCard(kid), K = C.kitchen, arena = STAGES[POLES[kid].stage];
-  check(`${POLES[kid].name}: its cuts are mojulo's (playscape/destruct/cuts.js CUT_PRESETS): ${Object.keys(CUTS).join(', ')}`, Object.entries(CUTS).every(([k, v]) => JSON.stringify(v) === JSON.stringify({ ...CUT_PRESETS[k] })), Object.keys(CUTS));
-  const still = (...items) => (S) => { S.card.kitchen.every = 1e9; S.kitchen.t = 1; S.kitchen.items = items.map((it, i) => ({ id: `t${i}`, v: [0, 0, 0], ...it })); };
-  const handAt = (S, dy = 0, dz = 0) => [0, S.hero.p[1] + K.hand + dy, S.hero.p[2] + 1.15 + dz];
-  const swing = (kind, pads = (f) => (f === 2 ? AT : 0), extra = {}) => run(C, pads, 40, { arena, setup: (S) => { still({ kind, p: handAt(S), v: [0, 0, 6] })(S); }, ...extra });
-  const cutOf = (r) => ev(r, 'cut')[0];
-  const mel = cutOf(swing('watermelon')), app = cutOf(swing('apple'));
-  const chg = run(C, (f) => (f < C.charge.levels[0] + 30 ? AT : 0), C.charge.levels[0] + 80, { arena, setup: (S) => { still()(S); }, mid: (S, f) => { if (f === C.charge.levels[0] + 30) S.kitchen.items = [{ id: 'c', kind: 'apple', p: handAt(S), v: [0, 0, 1] }]; } }), cc = cutOf(chg);
-  check(`${POLES[kid].name}: Cleave adapts to toughness: a melon takes 3 planes (8 pieces), an apple 1 (2), a charged Cleave one more (4), in the ${CUTS[K.cleave].style} style`, mel?.count === 3 && mel.pieces === 8 && app?.count === 1 && app.pieces === 2 && cc?.count === 2 && cc.pieces === 4 && mel.style === CUTS[K.cleave].style, { melon: mel && [mel.count, mel.pieces], apple: app && [app.count, app.pieces], charged: cc && [cc.count, cc.pieces] });
-  const far = (S) => [0, S.hero.p[1] + 3, S.hero.p[2] + 1.15];
-  const dis = run(C, (f) => (f === 2 || f === 10 ? SH : 0), 30, { arena, setup: (S) => still({ kind: 'grapes', p: far(S) }, { kind: 'orange', p: [0, S.hero.p[1] + 5, S.hero.p[2] + 1.15] }, { kind: 'bomb', p: [0, S.hero.p[1] + 4, S.hero.p[2] + 3.5] })(S) });
-  const dcuts = ev(dis, 'cut'), dd = ev(dis, 'dismantle')[0], cool = ev(dis, 'dropped').find((e) => e.button === 'shoot');
-  check(`${POLES[kid].name}: Dismantle slashes at range along its line, aimed at the nearest thing in front: the grapes severed at their joints (${PRODUCE.grapes.parts} pieces, mojulo's dismantle), the orange behind on the line slashed in two, the bomb off the line spared; again within ${K.cool} f is dropped (cooling)`, dd?.cut === 2 && dd.aimed === 'grapes' && dcuts.some((e) => e.kind === 'grapes' && e.pattern === 'dismantle' && e.pieces === PRODUCE.grapes.parts) && dcuts.some((e) => e.kind === 'orange' && e.cut === 'slash' && e.pieces === 2) && !ev(dis, 'bomb').length && /cooling/.test(cool?.why ?? ''), { cut: dd?.cut, aimed: dd?.aimed, cuts: dcuts.map((e) => `${e.kind}:${e.pattern}×${e.pieces}`) });
-  const pc = (r, f) => r.states[f].kitchen.pieces, beat = STYLES[CUTS[K.cleave].style].beat;
-  const mr = swing('apple'), cf = ev(mr, 'cut')[0].f, held = pc(mr, cf + beat - 1).every((q) => q.p[1] === pc(mr, cf)[0].p[1]), moved = pc(mr, cf + beat + 2).some((q) => q.p[1] !== pc(mr, cf)[0].p[1]);
-  const bl = run(C, (f) => (f === 2 ? SH : 0), 20, { arena, setup: (S) => still({ kind: 'apple', p: far(S) })(S) }), bf = ev(bl, 'cut')[0].f, blade = pc(bl, bf + 1).some((q) => q.p[1] !== pc(bl, bf)[0].p[1]);
-  check(`${POLES[kid].name}: the pieces part the style's way: ${CUTS[K.cleave].style} holds them ${beat} frames (the beat), then they slip; a blade slash parts them at once`, held && moved && blade, { held, moved, blade });
-  const miss = run(C, () => 0, 200, { arena, setup: (S) => still(...Array.from({ length: K.misses }, (_, i) => ({ kind: 'apple', p: [0, S.hero.p[1] + 2 + i, 0.5], v: [0, 0, 1] })))(S) });
-  const boom = swing('bomb', (f) => (f === 2 || f === 30 ? AT : 0));
-  check(`${POLES[kid].name}: ${K.misses} falls uncut end the shift; a cut bomb ends it; presses after are dropped: the shift is over`, ev(miss, 'miss').length === K.misses && miss.end.kitchen.over && ev(boom, 'bomb').length === 1 && boom.end.kitchen.over && ev(boom, 'dropped').some((e) => /shift is over/.test(e.why)), { misses: ev(miss, 'miss').length, bomb: ev(boom, 'bomb').length });
-  const kh = (r) => createHash('sha256').update(JSON.stringify(r.states.map((x) => [x.kitchen.items, x.kitchen.score]))).digest('hex');
-  const waves = (c) => run(c, (f) => (f % 23 === 0 ? AT : 0) | (f % 47 === 5 ? SH : 0), 600, { arena });
-  check(`${POLES[kid].name}: the waves are seeded: the same pad, the same shift, byte for byte`, kh(waves(C)) === kh(waves(C)) && waves(C).events.some((e) => e.type === 'cut'));
 }
 
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));

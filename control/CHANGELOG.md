@@ -56,16 +56,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   versus's boxes. The bodies are the lab's sticks on versus's rig, side or ¾. Blended toward another template it
   becomes a lab card made from Kata's own numbers (held equal to `compileFighter`), which leaves the floor, peaks and
   lands its light on versus's frames. `stepMatch` takes the pads a host read itself (`versus-runtime.client.js`).
-- **Three more templates in the lab: Galaxy Boy, Commuter Rail Runner, Sukuna Kitchen.** Galaxy Boy (Mega Man X) is the
-  platformer's X movement with a run-and-gun's buster: the attack's tap is a small shot from anything but a hurt, a
-  few out at most, and the same press charges. Commuter Rail Runner is the infinite runner on pinball's body, a new
-  `runner` rule: the track comes at the hero faster and faster, seeded rows of barriers to jump, overheads to roll
-  under, trains to dodge and coins to gather, a stumble and then the end; its variants are the rails (three lanes)
-  and the slope (the ball steering free), and any template may now carry variants. Sukuna Kitchen is the cutter, a
-  new `kitchen` rule: produce tossed up in waves, Cleave (the attack) cutting what the hand reaches with mojulo's
-  cleave, as many planes as the thing is tough, Dismantle (shoot) slashing at range along a line and severing a bunch
-  at its joints, the pieces parting by the cut's style; the cuts are mojulo's own (`playscape/destruct/cuts.js`).
-  Each draws in its own viewer: a scrolling track to the horizon, a kitchen counter with produce and pieces.
+- **Two more templates in the lab: Galaxy Boy and Commuter Rail Runner.** Galaxy Boy (Mega Man X) is the platformer's
+  X movement with a run-and-gun's buster: the attack's tap is a small shot from anything but a hurt, a few out at
+  most, and the same press charges. Commuter Rail Runner is the infinite runner on pinball's body, a new `runner`
+  rule: the track comes at the hero faster and faster, seeded rows of barriers to jump, overheads to roll under,
+  trains to dodge and coins to gather, a stumble and then the end; its variants are the rails (three lanes) and the
+  slope (the ball steering free), and any template may now carry variants. The runner draws as a scrolling track to
+  the horizon behind the hero.
 - **Supers that lock, in versus** (`lib/graph/versus`: a super's `lock`). The first blow that lands catches; the rest
   is a script: a blow every few frames, each its share of the super's damage scaled once by the combo it caught, both
   bodies untouchable and unthrowable, then the finish, a knockdown or a launch. Two kinds: the **hit-combo super**

@@ -200,7 +200,6 @@ toward** and its slider tune it toward another.
 | **Mojulo Fighter** | the 2D fighter | mojulo's versus loop itself (blended: Kata's numbers as a lab card) | side or ¾ | versus's stage | the lab's takes on the versus bodies; a dropped press reported by versus itself; hold-release charge moves; offense-armor tags on versus moves; a ¾ camera that turns with the fighters |
 | **Galaxy Boy** | Mega Man X | platformer, on a lane: the buster's tap shot and charge | side | highway | ladders; a boss's weapon got; sub-tanks and heart tanks; armor parts |
 | **Commuter Rail Runner** | the infinite runner | pinball, on the runner's treadmill; variants rails and slope | third person | rail | the chaser; ramps onto the trains; power-ups; the track's turns |
-| **Sukuna Kitchen** | Fruit Ninja, cut by Jujutsu Kaisen's Cleave and Dismantle | action, on a lane, the kitchen | side | kitchen | the swipe; the pieces as the produce's geometry; Malevolent Shrine; critical fruit and frenzy |
 
 **Mojulo Fighter is mojulo's versus loop** (`lib/graph/versus`), not a lab card on a lane. Picked, the page inlines
 the loop (`versus-page.js`'s modules and its runtime, in a closure of their own) and steps a real match: you are P1 on
@@ -238,14 +237,6 @@ gathered. A hit stumbles (slowed, a moment to get clear) and a second within its
 once, by the card's `crash`. A template may carry **variants** (`variants`, `poleCard(id, variant)`, the page's
 **Variant** picker): Commuter Rail Runner's rails (three lanes, stumbles) and slope (the ball steering free between
 rocks and pillars, one hit and it is over).
-
-**The kitchen** (the card's `kitchen`): the cutter, by mojulo's cuts (`playscape/destruct/cuts.js`, held equal as
-`CUTS`). Produce comes up in seeded waves. **Cleave** is the attack: its live frames cut whatever the hand reaches, a
-slice whose planes adapt to the thing's toughness (a melon three, eight pieces; an apple one, two; charged, one more).
-**Dismantle** is shoot: a ranged slash on a cooldown, aimed at the nearest produce in front, cutting everything on its
-line; a thing with parts (grapes, a banana bunch, a pineapple's crown) is dismantled, its joints giving, a whole one
-slashed. The pieces part by the cut's style (`STYLES`: anime holds them a beat and slips them along the cut; blade
-spreads them; impact bursts). A fall uncut is a miss, three end the shift; a cut bomb ends it.
 
 **The viewers** follow mojulo's gameworld cameras (`lib/graph/gameworld/cameras.js`: third-person, first-person,
 side, top-down) and add three: the **¾ follow** (the lab's first), **isometric** and **overhead** are orthographic;
@@ -512,10 +503,6 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   jump, an overhead cleared by a roll and hit standing or jumping, a train dodged only from another lane; a second
   hit within the window ends the run and the presses after are dropped; a coin in the lane is gathered, one in
   another passes; the slope steers by its card and one hit ends it; the rows are seeded, apart, and every kind comes.
-- **Sukuna Kitchen.** Its cuts are mojulo's; Cleave adapts to toughness (melon 8 pieces, apple 2, charged 4); Dismantle
-  aims at the nearest produce, severs the grapes at their joints and slashes the orange behind on its line, spares a
-  bomb off the line, and is dropped while cooling; the anime style holds its pieces a beat, a blade parts them at once;
-  misses and a cut bomb end the shift; the waves are seeded, the same twice.
 - **Mojulo Fighter.** The lab's Kata is versus's (`compileFighter`). On the lab's keys a press in neutral starts
   versus's move that frame and lands on its startup (the heavy's 12, the light's 4, counting the press); every press
   is acted or dropped with its reason (in the intro: the round is not on; in the heavy's recovery: the move it met);

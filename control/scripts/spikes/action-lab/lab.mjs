@@ -40,7 +40,7 @@ const html = `<meta charset="utf-8">
   --ink: #eef1f5; --dim: #8e9aab; --line: #2a3240;
   --hero: #5fd0c8; --dummy: #e8a35a; --shadow: #000000;
   --startup: #3fbf6b; --active: #e5484d; --recovery: #4a86e8; --stop: #f4f1de; --stun: #f08a4b; --air: #3a4658;
-  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --flame: #ffb02e; --wing: #cfe8ff; --sky: #1b2633; --cut: #7ee8ff; --spark: #fff3b0; --smear: #5fd0c8;
+  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --flame: #ffb02e; --wing: #cfe8ff; --sky: #1b2633; --spark: #fff3b0; --smear: #5fd0c8;
   --good: #3fbf6b; --bad: #e5484d;
   --display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
   --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;

@@ -1,12 +1,12 @@
 // action-lab page: the playable half. lab.mjs inlines feel.mjs (the kernel, its exports stripped) above this file and
 // DATA (takes.mjs bake, per cast) above that, so the page steps the very code the gate runs.
-/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles, variantsOf, OBSTACLES, PRODUCE, CUTS, STYLES,
+/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles, variantsOf, OBSTACLES,
    VS, VS_DATA, versusPad, newVsWatch, vsWatch, vsCat */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life', 'flame', 'wing', 'sky', 'cut']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life', 'flame', 'wing', 'sky']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -139,7 +139,7 @@ const say = {
   move: (e) => (e.who === 'dummy' ? `dummy telegraphs a ${e.name} (${e.telegraph} f): ${e.unblockable ? 'red, unblockable: dodge it' : e.zone === 'orange' ? 'all orange: parryable' : 'red with an orange middle: parry it there'}; ${({ jab: 'any hit interrupts it', hook: 'armored: only a heavy or a shot interrupts it', perilous: 'hyper armor: nothing interrupts it' })[e.name] ?? ''}` : `move ${e.i + 1}: ${e.take}`),
   hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.shot ? `the ${typeof e.shot === 'string' ? e.shot : e.shot > 1 ? 'full charge shot' : 'charge shot'}` : e.charged ? `the charged ${e.charged > 1 ? 'launcher' : 'heavy'}` : e.attack ? `the ${e.attack}${e.unblockable && e.guarding ? ', through the guard (unblockable)' : ''}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
   blocked: (e) => `blocked (a free dummy that saw it coming), hitstop ${e.hitstop} f`, immune: (e) => `immune: mercy ${e.mercy} f left`,
-  whiff: (e) => (S.kitchen ? null : e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
+  whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
   wall: (e) => `wall: ${e.response} at ${e.into.toFixed(1)} m/s${e.out != null ? ` → ${e.out.toFixed(1)}` : ''}`,
   free: (e) => `${e.who} free to act`, end: (e) => (e.what === 'dash' && e.released ? 'dash let go' : null),
   dodge: (e) => (e.neutral ? `backstep (the stick at rest)` : `${e.kind} ${({ fwd: 'forward', back: 'back', left: 'to the left', right: 'to the right' })[e.rel]}`), dash: (e) => (e.kind === 'boost' ? 'boost' : 'dash'),
@@ -171,7 +171,6 @@ const say = {
   switch: (e) => `switched to the ${e.to}${e.ready ? `: ready in ${e.ready} f` : ''}`, reload: (e) => `the ${e.weapon} reloads (${e.frames} f)`, reloaded: (e) => `the ${e.weapon} reloaded (${e.ammo})`,
   overheat: (e) => `the ${e.weapon} overheats: locked until its energy is back`, unlock: (e) => `the ${e.weapon} cools: unlocked`, 'w-charged': (e) => `the ${e.weapon} is charged: release`, blast: (e) => `the ${e.weapon} bursts${e.hit ? ', catching the dummy' : ''}`,
   'tap-shot': (e) => `the buster (${e.out} out)`, shift: (e) => `lane ${e.lane + 1}`, 'shift-edge': () => 'the edge lane: no further', coin: (e) => `a ${e.kind} (${e.coins})`, cleared: (e) => `${e.by} the ${e.kind}`, stumble: (e) => `stumbled on the ${e.kind} at ${e.d.toFixed(0)} m: slowed`, crash: (e) => `crashed into the ${e.kind} at ${e.d.toFixed(0)} m${e.again ? ' (a second hit)' : ''}: the run is over`,
-  cut: (e) => `${e.by === 'cleave' ? 'Cleave' : 'Dismantle'}: the ${e.kind} ${e.pattern === 'dismantle' ? `severed at its joints (${e.pieces})` : `cut by ${e.count} plane${e.count > 1 ? 's' : ''} into ${e.pieces}`} (${e.cut}, ${e.style})`, dismantle: (e) => (e.cut ? null : 'Dismantle: nothing on its line'), combo: (e) => `${e.n} at once: a combo`, miss: (e) => `missed the ${e.kind} (${e.misses})`, bomb: () => 'cut a bomb', 'shift-over': (e) => `the shift is over: score ${e.score}`,
   rings: (e) => `the rings scattered (${e.lost}): one more hit is the end`, ko: (e) => (e.oneHit ? 'down: one hit is the end in this game' : 'down: out of life'), up: (e) => `up again, life ${e.hp}`,
   armor: (e) => `${e.who === 'dummy' ? 'the dummy\'s attack' : 'your attack'} shrugs off a ${e.tags.join(' ')} hit${e.of ? ` (${e.hits} of ${e.of}: the next one interrupts)` : ''}: ${e.breaks.length ? `only ${e.breaks.join(' or ')} interrupts it` : 'hyper armor, nothing interrupts it'}`,
   'armor-break': (e) => `${e.who === 'dummy' ? 'the dummy\'s' : 'your'} armor broken by a ${e.tags.join(' ')} hit${e.hits > 1 ? ` (hit ${e.hits})` : ''}: interrupted`,
@@ -461,7 +460,7 @@ function draw() {
   if (shakeT > 0.2) { ctx.translate(0, ((S.f % 2) * 2 - 1) * shakeT * 0.5); if (!paused) shakeT *= 0.75; }   // a footfall or a hard landing shakes the camera
   const k = 0.12, fy = S.card.lane?.face ? (S.hero.p[1] + S.dummy.p[1]) / 2 : S.hero.p[1];   // a fighter's camera frames both fighters
   cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (fy - cam.y) * k;
-  cam.z += (Math.max(S.kitchen ? 0.9 : 0, S.hero.p[2] - 2) - cam.z) * 0.08;   // a high flight lifts the camera with it (a jump's height does not); the kitchen frames the tosses
+  cam.z += (Math.max(0, S.hero.p[2] - 2) - cam.z) * 0.08;   // a high flight lifts the camera with it (a jump's height does not)
   // locked, the ¾ camera swings behind the hero to look at the target; let go, it swings back north. The isometric and
   // overhead viewers hold their own yaw; the perspective cameras follow the hero
   if (view === 'iso') cam.yaw = Math.PI / 4; else if (view === 'overhead') cam.yaw = 0;
@@ -473,7 +472,7 @@ function draw() {
   const blocks = [...S.arena.blocks].sort((a, b) => far(b) - far(a));
   for (const b of blocks) drawBlock(b);
   drawArc(); drawLock();
-  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].filter(([who]) => !(view === 'first-person' && who === 'hero') && !(who === 'dummy' && (S.run || S.kitchen))).sort((a, b) => (isOrtho() || isPersp() ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
+  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].filter(([who]) => !(view === 'first-person' && who === 'hero') && !(who === 'dummy' && S.run)).sort((a, b) => (isOrtho() || isPersp() ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
   for (const [who, col] of bodies) {
     drawShadow(S[who]); drawBody(who, col);
     // a block standing between the camera and a body below its top covers it
@@ -483,7 +482,7 @@ function draw() {
       if (bx > Math.min(...xs) - 20 && bx < Math.max(...xs) + 20 && dB - near(b) < 3) drawBlock(b);
     }
   }
-  drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawThrust(); drawLife(); if (S.kitchen) drawKitchen();
+  drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawThrust(); drawLife();
   drawSparks();
   if (view === 'first-person') drawViewmodel();
   drawStrip();
@@ -623,40 +622,6 @@ function drawRun() {
   ctx.fillText(`${run.d.toFixed(0)} m · ${run.v.toFixed(1)} m/s · coins ${run.coins}${run.stumbles.length ? ` · stumbled ${run.stumbles.length}` : ''}`, W - 14, 18);
   ctx.textAlign = 'start';
   if (run.over) { ctx.fillStyle = COL.bad; ctx.font = `700 ${Math.round(Math.min(W / 12, 54))}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.fillText('RUN OVER', W / 2, H * 0.32); ctx.font = `600 14px ${css('--mono')}`; ctx.fillStyle = COL.ink; ctx.fillText(`${run.d.toFixed(0)} m, ${run.coins} coins · R runs again`, W / 2, H * 0.32 + 36); ctx.textAlign = 'start'; }
-}
-
-// ─── the kitchen: the produce in the air, the pieces parting the style's way, Dismantle's lines, the shift's count ───
-const PRODUCE_COL = { watermelon: ['#3f9a4a', '#e5484d'], apple: ['#d8343b', '#f4e3c0'], orange: ['#f39a2b', '#ffd59a'], pineapple: ['#e0b43a', '#f7e7a0'], banana: ['#f2d544', '#fff5c4'], grapes: ['#7d4bc2', '#c9a8ef'], bomb: ['#22252b', '#e5484d'] };
-function drawKitchen() {
-  const k = S.kitchen, ppm = scale();
-  // a counter along the floor the produce comes up from behind
-  const a = P(0, -S.arena.half, 0.9), b = P(0, S.arena.half, 0); ctx.fillStyle = COL.block; ctx.globalAlpha = 0.5; ctx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); ctx.globalAlpha = 1;
-  for (const it of k.items) {
-    const c = P(...it.p), r = Math.max(4, PRODUCE[it.kind].r * ppm), [skin, inner] = PRODUCE_COL[it.kind];
-    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, Math.PI * 2); ctx.fill();
-    if (it.kind === 'bomb') { ctx.strokeStyle = inner; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c[0], c[1] - r); ctx.lineTo(c[0] + r * 0.5, c[1] - r * 1.5); ctx.stroke(); }
-    else if (PRODUCE[it.kind].parts > 1) { ctx.fillStyle = inner; for (let j = 0; j < PRODUCE[it.kind].parts; j++) { const t = (j / PRODUCE[it.kind].parts) * Math.PI * 2; ctx.beginPath(); ctx.arc(c[0] + Math.cos(t) * r * 0.55, c[1] + Math.sin(t) * r * 0.55, r * 0.22, 0, Math.PI * 2); ctx.fill(); } }
-  }
-  for (const pc of k.pieces) {
-    const c = P(...pc.p), r = Math.max(3, pc.r * ppm), [skin, inner] = PRODUCE_COL[pc.of];
-    if (pc.pattern === 'dismantle') { ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(c[0], c[1], Math.max(3, r / Math.sqrt(pc.n) * 1.3), 0, Math.PI * 2); ctx.fill(); continue; }
-    // a wedge of the whole: the cut faces the inside's colour
-    const mid = -(pc.angle + ((pc.k + 0.5) * 2 * Math.PI) / pc.n), half = Math.PI / pc.n;
-    ctx.fillStyle = inner; ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.arc(c[0], c[1], r, mid - half, mid + half); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = skin; ctx.lineWidth = Math.max(2, r * 0.18); ctx.beginPath(); ctx.arc(c[0], c[1], r, mid - half, mid + half); ctx.stroke();
-    // the beat: the score across the whole, the anime crescent, before anything parts
-    if (pc.hold > 0 && pc.k === 0) { ctx.strokeStyle = COL.cut; ctx.lineWidth = 3; ctx.globalAlpha = 0.9; ctx.beginPath(); const t = -pc.angle; ctx.moveTo(c[0] - Math.cos(t) * r * 1.6, c[1] - Math.sin(t) * r * 1.6); ctx.lineTo(c[0] + Math.cos(t) * r * 1.6, c[1] + Math.sin(t) * r * 1.6); ctx.stroke(); ctx.globalAlpha = 1; }
-  }
-  for (const sl of k.slashes) {
-    const p0 = P(0, sl.from[0], sl.from[1]), p1 = P(0, sl.to[0], sl.to[1]);
-    ctx.strokeStyle = COL.ink; ctx.globalAlpha = 1 - sl.t / 12; ctx.lineWidth = Math.max(1, 5 - sl.t * 0.4); ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); ctx.globalAlpha = 1;
-  }
-  const K = S.card.kitchen;
-  ctx.font = `600 12px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillStyle = COL.ink; ctx.textAlign = 'right';
-  ctx.fillText(`score ${k.score} · cut ${k.cut} · best ${k.best} at once · ${'✕'.repeat(k.misses)}${'·'.repeat(Math.max(0, K.misses - k.misses))}`, W - 14, 18);
-  ctx.fillText(k.cool > 0 ? `DISMANTLE ${k.cool} f` : 'DISMANTLE ready (F)', W - 14, 36);
-  ctx.textAlign = 'start';
-  if (k.over) { ctx.fillStyle = COL.bad; ctx.font = `700 ${Math.round(Math.min(W / 12, 54))}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.fillText('SHIFT OVER', W / 2, H * 0.3); ctx.font = `600 14px ${css('--mono')}`; ctx.fillStyle = COL.ink; ctx.fillText(`score ${k.score} · R starts another`, W / 2, H * 0.3 + 36); ctx.textAlign = 'start'; }
 }
 
 // ─── the frame strip: the training mode's bar ───

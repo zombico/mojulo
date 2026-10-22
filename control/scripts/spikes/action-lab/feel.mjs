@@ -82,8 +82,7 @@
  * Vigilante Justice (the superhero game), Mech Battle Kai (MSA's mech), Jumping Giuseppe (the mascot platformer),
  * Isekai Party (the RPG that resolves without collision), Mojulo Fighter (the 2D fighter: mojulo's versus loop itself,
  * below; its card the blend's), Galaxy Boy (Mega Man X: the platformer and the buster's tap, the charge's `tap`),
- * Commuter Rail Runner (the infinite runner: `runner`, below; its variants the rails and the slope) and Sukuna
- * Kitchen (the cutter: `kitchen`, below). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
+ * and Commuter Rail Runner (the infinite runner: `runner`, below; its variants the rails and the slope). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
  * `variants`: a pole's alternatives, each the fields it changes over the pole's own (`poleCard(id, variant)`).
  *
  * THE HEAVY-ROBOT RULES, mobile-suit-arena's movement (mojulo's controllable rules-platform.js and maneuvers.js) split
@@ -462,7 +461,6 @@ export const STAGES = Object.freeze({
   stage: { half: 9, blocks: [], hero: [0, -2], dummy: [0, 2] },
   highway: { half: 14, blocks: [{ id: 'wall', x: [-1, 1], y: [6, 6.6], h: 4.5 }, { id: 'ledge', x: [-1, 1], y: [-12, -8], h: 1.4 }, { id: 'pillar', x: [-1, 1], y: [11, 11.6], h: 3 }], hero: [0, -1], dummy: [0, 3.5] },
   rail: { half: 14, blocks: [], hero: [0, 0], dummy: [12, -12] },
-  kitchen: { half: 7, blocks: [], hero: [0, 0], dummy: [0, -6.4] },
 });
 /**
  * MOJULO FIGHTER: the template is mojulo's versus loop (lib/graph/versus: versus-core.js stepVersus, its compiled
@@ -615,13 +613,6 @@ export const POLES = Object.freeze({
       slope: { runner: { lanes: null, speed: 11, max: 22, kinds: { barrier: 0, overhead: 0, train: 0, coin: 0, rock: 3, pillar: 2, ring: 4 }, crash: 'end', every: 12 } },
     },
     needs: ['the chaser (the guard who catches a second stumble)', 'ramps onto the trains\' roofs', 'power-ups (the magnet, the jetpack, the super sneakers)', 'the track\'s turns (the free runner\'s corners)'] },
-  'sukuna-kitchen': { name: 'Sukuna Kitchen', after: 'Fruit Ninja, cut by Jujutsu Kaisen\'s two techniques', base: 'action', view: { camera: 'side' }, stage: 'kitchen',
-    says: 'the cutter: produce tossed up in waves; Cleave (the attack) cuts what the hand reaches with mojulo\'s cleave, as many planes as the thing is tough; Dismantle (shoot) slashes at range along a line, a bunch severed at its joints; a fall uncut is a miss, a bomb ends the shift',
-    set: {
-      kitchen: { every: 70, batch: 3, bombs: 0.1, seed: 5, spread: 3.5, rise: [6.2, 8.4], g: 12, reach: 0.75, hand: 0.55, range: 7, cool: 40, cleave: 'cleave', dismantle: 'sever', adapt: true, misses: 3 },
-      loadout: null, ranged: null, lock: null, life: null, lane: { x: 0, face: false },
-    },
-    needs: ['the swipe (a pointer or a touch drawn as the cut)', 'the pieces as the produce\'s own geometry (cleave.js on its mesh)', 'Domain Expansion: Malevolent Shrine (everything in reach, cut)', 'critical fruit and frenzy'] },
 });
 export const POLE_IDS = Object.freeze(Object.keys(POLES));
 /** a pole's variants (its first the default): each the fields it changes over the pole's own */
@@ -672,7 +663,6 @@ export function newState(card, body, { arena = ARENA, spar = false, guard = true
   if (card.quickBoost) { S.hero.qb = 0; S.hero.qbCd = 0; }
   S.hero.arms = card.loadout?.slots?.length ? { slot: 0, readyT: 0, readyMax: 0, w: card.loadout.slots.map((sl) => initWeapon(sl.weapon)) } : null;
   if (card.runner) S.run = newRun(card.runner);
-  if (card.kitchen) S.kitchen = newKitchen();
   return S;
 }
 
@@ -704,7 +694,6 @@ export function step(S0, pad) {
   if (!H.stop) bodies(S);
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
-  if (S.kitchen && !H.stop) kitchenStep(S, H);
   if (!D.stop && !slow) { sparThink(S); shooterThink(S); testHit(S, D, H, 'dummy'); }
   flyShots(S); flyRounds(S); if (!slow) flyFoes(S);
   for (const [w, B] of [['hero', H], ['dummy', D]]) {
@@ -767,7 +756,6 @@ function tryQueue(S, stick) {
 function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   const H = S.hero, C = S.card, a = H.act;
   if (S.run?.over) return { reason: 'the run is over (R runs again)', queue: false };
-  if (S.kitchen?.over) return { reason: 'the shift is over (R starts another)', queue: false };
   if (H.stun > 0) return { reason: 'in hitstun', queue: true };
   if (H.blockstun > 0) return { reason: 'in blockstun', queue: true };
   if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt' || a.kind === 'ko')) return { reason: a.kind === 'ko' ? 'down (out of life)' : `in ${a.kind}`, queue: a.kind !== 'ko' };
@@ -836,7 +824,6 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
-  if (name === 'shoot' && C.kitchen) return S.kitchen.cool > 0 ? { reason: `Dismantle is cooling (${S.kitchen.cool} f)`, queue: false } : true;
   if (name === 'shoot') { const why = fireGate(S, true); return why ? { reason: why, queue: false } : true; }
   if (name === 'switch') {
     if (!H.arms) return { reason: 'no weapons in this feel', queue: false };
@@ -892,7 +879,6 @@ function act(S, name, stick, waited) {
     if (i === 0 && C.charge && (S.held & BTN.ATTACK)) { H.charge = { held: 0, lv: 0, from: S.f }; H.act.charging = true; }
     return;
   }
-  if (name === 'shoot' && C.kitchen) return dismantle(S, H);
   if (name === 'shoot') return;   // the trigger: armsStep reads it this tick (the press was let through by the same gates)
   if (name === 'switch') return switchWeapon(S, H);
   if (name === 'guard') { H.act = { kind: 'block', f: 0, pressed: S.f }; S.events.push({ f: S.f, who: 'hero', type: 'guard' }); return; }
@@ -1848,112 +1834,6 @@ function runnerStep(S, H, stick) {
     S.events.push({ f: S.f, who: 'hero', type: 'crash', kind: o.kind, d: r4(run.d), coins: run.coins, again: !!again });
     return;
   }
-}
-
-/**
- * THE KITCHEN (the card's `kitchen`): the cutter, Sukuna's two techniques on produce tossed into the air, cut by
- * mojulo's own cuts (playscape/destruct/cuts.js CUT_PRESETS, held equal by verify.mjs as `CUTS`: a pattern, a count,
- * a style). Produce comes up in waves every `every` frames (one to `batch`, seeded, `bombs` the share that are bombs)
- * from below the counter. CLEAVE is the attack: the move's active frames cut whatever is within `reach` of the hand,
- * by `cleave` (a slice whose count adapts to the thing's toughness, Cleave's own rule: a melon takes three planes, an
- * apple one; a charged Cleave one more). DISMANTLE is the shoot button: a ranged slash on a `cool` cooldown, aimed at
- * the nearest produce in front within `range` (never a bomb), cutting everything on its line; a thing with parts (a bunch, a crown) is
- * `dismantle`d (mojulo's concept cut: its joints give, nothing is sliced), a whole one slashed. Pieces: a slice's
- * 2^count, a grid's or voronoi's count, a dismantle's parts; they part the style's way (`STYLES`: anime holds them a
- * beat, then slips them along the cut; blade spreads them; impact bursts; laser barely parts). A thing that falls back
- * uncut is a miss, `misses` end the shift; a cut bomb ends it.
- */
-export const CUTS = Object.freeze({
-  slash: { pattern: 'slice', count: 1, style: 'blade' }, cleave: { pattern: 'slice', count: 2, style: 'anime' },
-  dice: { pattern: 'grid', count: 8, style: 'blade' }, sever: { pattern: 'dismantle', style: 'impact' },
-});
-export const STYLES = Object.freeze({ blade: { beat: 0, part: 2.4 }, laser: { beat: 0, part: 0.6 }, anime: { beat: 9, part: 1.4 }, impact: { beat: 0, part: 4 } });
-export const PRODUCE = Object.freeze({
-  watermelon: { r: 0.2, tough: 3, parts: 1 }, apple: { r: 0.08, tough: 1, parts: 1 }, orange: { r: 0.09, tough: 1, parts: 1 },
-  pineapple: { r: 0.13, tough: 2, parts: 2 }, banana: { r: 0.12, tough: 1, parts: 3 }, grapes: { r: 0.12, tough: 1, parts: 8 }, bomb: { r: 0.11, bomb: true },
-});
-function newKitchen() { return { t: 0, n: 0, items: [], pieces: [], slashes: [], score: 0, cut: 0, misses: 0, best: 0, cool: 0, over: false }; }
-function tossWave(S) {
-  const K = S.card.kitchen, k = S.kitchen, w = k.n++, r = (j) => hash01(K.seed, w * 31 + j);
-  const ids = Object.keys(PRODUCE).filter((id) => !PRODUCE[id].bomb), n = 1 + Math.floor(r(0) * K.batch);
-  for (let i = 0; i < n; i++) {
-    const bomb = r(10 + i) < K.bombs, kind = bomb ? 'bomb' : ids[Math.floor(r(20 + i) * ids.length)], y0 = r4(S.hero.p[1] + (r(30 + i) * 2 - 1) * K.spread);
-    k.items.push({ id: `${w}.${i}`, kind, p: [0, y0, -0.3], v: [0, r4((S.hero.p[1] - y0) * 0.22 + (r(40 + i) * 2 - 1) * 0.8), r4(K.rise[0] + r(50 + i) * (K.rise[1] - K.rise[0]))] });
-  }
-}
-/** cut one thing: its pieces by the cut's pattern, parting the style's way about the cut's angle; a bomb ends the shift */
-function cutItem(S, it, by, cutName, angle, extra = 0) {
-  const K = S.card.kitchen, k = S.kitchen, P = PRODUCE[it.kind], C = CUTS[cutName];
-  if (P.bomb) { k.over = true; S.events.push({ f: S.f, who: 'hero', type: 'bomb', by }); return 0; }
-  const count = C.pattern === 'slice' && by === 'cleave' && K.adapt ? clamp((P.tough ?? 1) + extra, 1, 3) : C.count;
-  const n = C.pattern === 'slice' ? 2 ** count : C.pattern === 'dismantle' ? P.parts : count, ST = STYLES[C.style];
-  for (let j = 0; j < n; j++) {
-    const ang = angle + ((j + 0.5) * 2 * Math.PI) / n, sp = ST.part * (0.7 + 0.3 * hash01(k.n + j, it.id.length + j));
-    k.pieces.push({ of: it.kind, k: j, n, pattern: C.pattern, p: it.p.slice(), v: [0, r4(it.v[1] + Math.cos(ang) * sp), r4(it.v[2] + Math.sin(ang) * sp)], r: P.r, angle: r4(angle), hold: ST.beat, life: 0 });
-  }
-  S.events.push({ f: S.f, who: 'hero', type: 'cut', kind: it.kind, by, cut: cutName, pattern: C.pattern, style: C.style, count, pieces: n });
-  return n;
-}
-function kitchenStep(S, H) {
-  const K = S.card.kitchen, k = S.kitchen, a = H.act, fy = Math.cos(H.yaw) >= 0 ? 1 : -1;
-  if (k.cool > 0) k.cool--;
-  for (const sl of k.slashes) sl.t++;
-  k.slashes = k.slashes.filter((sl) => sl.t < 12);
-  for (const pc of k.pieces) { if (pc.hold > 0) { pc.hold--; continue; } pc.v[2] -= K.g * DT; pc.p[1] += pc.v[1] * DT; pc.p[2] += pc.v[2] * DT; pc.life++; }
-  k.pieces = k.pieces.filter((pc) => pc.p[2] > -1 && pc.life < 240);
-  if (k.over) return;
-  if (k.t++ % K.every === 0) tossWave(S);
-  // the things in the air; one that falls back uncut is a miss
-  k.items = k.items.filter((it) => {
-    it.v[2] -= K.g * DT; it.p[1] += it.v[1] * DT; it.p[2] += it.v[2] * DT;
-    if (it.p[2] < -0.4 && it.v[2] < 0) {
-      if (!PRODUCE[it.kind].bomb) { k.misses++; S.events.push({ f: S.f, who: 'hero', type: 'miss', kind: it.kind, misses: k.misses }); if (k.misses >= K.misses) { k.over = true; S.events.push({ f: S.f, who: 'hero', type: 'shift-over', score: k.score }); } }
-      return false;
-    }
-    return true;
-  });
-  // CLEAVE: the move's live frames cut what the hand reaches (each thing once a swing; together, a combo)
-  if (a?.kind === 'move') {
-    const m = a.lv ? S.card.charge.at[a.lv - 1] : S.card.moves.string[a.i];
-    if (a.f >= m.startup && a.f < m.startup + m.active) {
-      const hy = H.p[1] + fy * K.hand, hz = H.p[2] + 1.15, got = [];
-      k.items = k.items.filter((it) => {
-        const d = len2(it.p[1] - hy, it.p[2] - hz);
-        if (d > K.reach + PRODUCE[it.kind].r) return true;
-        got.push(it); return false;
-      });
-      const swing = (a.i % 2 ? -1 : 1) * 0.6 + (fy < 0 ? Math.PI : 0);
-      for (const it of got) cutItem(S, it, 'cleave', K.cleave, swing + Math.PI / 2, a.lv ? 1 : 0);
-      score(S, got, 'cleave');
-    }
-  }
-}
-/** DISMANTLE: the ranged slash, aimed at the nearest thing in front, cutting all on its line */
-function dismantle(S, H) {
-  const K = S.card.kitchen, k = S.kitchen, fy = Math.cos(H.yaw) >= 0 ? 1 : -1, hy = H.p[1] + fy * K.hand, hz = H.p[2] + 1.15;
-  k.cool = K.cool;
-  // aimed at produce only (never a bomb); with none in front it runs level, and a bomb on its line is still cut
-  const ahead = k.items.filter((it) => !PRODUCE[it.kind].bomb && (it.p[1] - hy) * fy > 0 && len2(it.p[1] - hy, it.p[2] - hz) <= K.range).sort((p, q) => len2(p.p[1] - hy, p.p[2] - hz) - len2(q.p[1] - hy, q.p[2] - hz));
-  const aim = ahead[0], ang = aim ? Math.atan2(aim.p[2] - hz, (aim.p[1] - hy) * fy) : 0, dy = Math.cos(ang) * fy, dz = Math.sin(ang);
-  const to = [r4(hy + dy * K.range), r4(hz + dz * K.range)], got = [];
-  k.items = k.items.filter((it) => {
-    const ry = it.p[1] - hy, rz = it.p[2] - hz, along = ry * dy + rz * dz, off = Math.abs(ry * dz - rz * dy);
-    if (along < 0 || along > K.range || off > PRODUCE[it.kind].r + 0.06) return true;
-    got.push(it); return false;
-  });
-  k.slashes.push({ from: [r4(hy), r4(hz)], to, t: 0 });
-  S.events.push({ f: S.f, who: 'hero', type: 'dismantle', cut: got.length, aimed: aim?.kind ?? null });
-  const line = Math.atan2(dz, dy);
-  for (const it of got) cutItem(S, it, 'dismantle', PRODUCE[it.kind].parts > 1 ? K.dismantle : 'slash', line);
-  score(S, got, 'dismantle');
-}
-/** what a blow cut scores: one a thing, and three or more at once a combo worth as much again (a bomb scores nothing) */
-function score(S, got, by) {
-  const k = S.kitchen, real = got.filter((it) => !PRODUCE[it.kind].bomb).length;
-  if (got.length > real) S.events.push({ f: S.f, who: 'hero', type: 'shift-over', score: k.score, by: 'bomb' });
-  if (!real) return;
-  k.cut += real; k.score += real + (real >= 3 ? real : 0); k.best = Math.max(k.best, real);
-  if (real >= 3) S.events.push({ f: S.f, who: 'hero', type: 'combo', by, n: real });
 }
 
 export const SPAR = Object.freeze({
