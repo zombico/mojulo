@@ -85,6 +85,7 @@ nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pill{font:600 11px var(--mono);padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--held) 15%,transparent);color:var(--held)}
 .pill.bad{background:color-mix(in srgb,var(--fail) 15%,transparent);color:var(--fail)}
 section{display:grid;gap:16px}
+[hidden]{display:none!important}   /* (the host's skeleton says so too; offline, this page must: section's grid would show every tab) */
 .lede{max-width:72ch;margin:0;color:var(--fg)}
 .gates{display:flex;flex-wrap:wrap;gap:10px;font-size:13px}
 .gate{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:flex;gap:8px;align-items:baseline}
