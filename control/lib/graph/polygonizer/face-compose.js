@@ -87,6 +87,11 @@ export const FACE_SHAPES = Object.freeze({
   },
 });
 export const FACE_FEATURES = Object.freeze(Object.keys(FACE_SHAPES));
+/** the sex's own weights over the shapes (× the bucket's; absent × 1): on a man the plucked and the refined shapes rarer
+ * (a thin or a high-arched brow, large eyes, a heart's chin and outline), never gone */
+export const FACE_SEX_WEIGHTS = Object.freeze({
+  male: { brows: { thin: 0.15, arched: 0.25 }, eyes: { large: 0.35 }, chin: { heart: 0.35, pointed: 0.6 }, outline: { heart: 0.35 } },
+});
 /**
  * THE PROPORTIONS — what differs person to person whatever the character: the skull's length and breadth, the vault's
  * height (the face's share of the head: a smaller share, a taller skull), the face's and the jaw's widths, the mouth's
@@ -109,7 +114,7 @@ export const FACE_GROOMS = Object.freeze({
 });
 /** the sex's own weight over the rolled grooms (× the rolled share; absent × 1): a man's brows taller and fuller (the male
  * pole's, 2026-10-22, the operator's eyes) */
-export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 } } });
+export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 }, lashes: { length: 0.85 } } });
 /**
  * THE NOSE'S AXIS — one roll per face, −1 … 1, from a SHORT, FLAT nose (less projected, shorter, its parts smaller, its
  * root lower, its base wider, its bridge broader) to a LONG, POINTED one (more projected, longer, a finer bridge and a
@@ -170,6 +175,46 @@ export const FACE_HAIR = Object.freeze({
     coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'high-bun' }, { style: 'braid', type: 'coily' }, { style: 'bun', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'afro' }],
   },
 });
+/**
+ * THE MEN'S CUTS by region, as a barber there cuts each texture (`FACE_HAIR`'s women's): `default` for a bucket that names
+ * no pool of its own, and for a texture a regional pool leaves out. Rolled as the women's.
+ */
+export const FACE_HAIR_MALE = Object.freeze({
+  default: {
+    straight: [{ style: 'short' }, { style: 'short' }, { style: 'undercut' }, { style: 'crop' }, { style: 'buzz' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'short', type: 'curly' }, { style: 'crop', type: 'curly' }],
+    coily: [{ style: 'twa' }, { style: 'curly-crop', type: 'coily' }, { style: 'buzz', type: 'coily' }, { style: 'crop', type: 'coily' }],
+  },
+  mena: {
+    straight: [{ style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'curly-crop', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'crop', type: 'curly' }],
+  },
+  'south-asian': {
+    straight: [{ style: 'short' }, { style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'short', type: 'curly' }],
+  },
+  latin: {
+    straight: [{ style: 'short' }, { style: 'undercut' }, { style: 'crop' }, { style: 'buzz' }],
+    curly: [{ style: 'curly-crop' }, { style: 'crop', type: 'curly' }],
+  },
+  african: {
+    curly: [{ style: 'curly-crop' }, { style: 'twa', type: 'curly' }, { style: 'buzz', type: 'curly' }],
+    coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'buzz', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'crop', type: 'coily' }],
+  },
+});
+/**
+ * THE MEN'S FACIAL HAIR (dermal-map.js `beardStyle` and the tract's `beard`): a style by its weight (`clean`: the shaven
+ * shadow, no style) and the tract's fullness in a range; a bucket's `beard` { styles, fullness } over the default (East
+ * and Southeast Asian beards sparser, after published density; the styles a population's common grooming, every one
+ * reachable). Rolled last of all, for men only: a seed keeps its face.
+ */
+export const FACE_BEARD = Object.freeze({
+  styles: { clean: 3, stubble: 3, 'short-boxed': 2, full: 1, goatee: 1, 'van-dyke': 0.5, moustache: 0.6, 'chin-strap': 0.4 },
+  fullness: [0.8, 1.2],
+});
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
@@ -209,6 +254,7 @@ export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'north-asian': {
     note: 'Northeast Asian ancestry: Mongolia, Korea, northern China, the Siberian peoples (the asiatic look\'s centre)',
+    beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     ancestry: ['east-asian'],
     // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the inner canthi
     // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
@@ -225,6 +271,7 @@ export const FACE_BUCKETS = Object.freeze({
   'east-asian': {
     note: 'East Asian ancestry, China\'s centre and south and Japan (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian'],
+    beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
     // a little less projected, its bridge broader; a lighter brow ridge and a rounder forehead; the cheekbones further
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
@@ -245,6 +292,7 @@ export const FACE_BUCKETS = Object.freeze({
   'indo-aryan': {
     hair: 'south-asian',
     note: 'Indo-Aryan South Asian ancestry: northern India and Pakistan (Punjab, Kashmir, Rajasthan, the Gangetic plain)',
+    beard: { styles: { clean: 2.5, stubble: 2, 'short-boxed': 2.5, full: 1.2, moustache: 1.5, goatee: 0.8 }, fullness: [0.9, 1.3] },
     ancestry: ['south-asian'],
     tones: [3, 7],
     // a long vault and a narrow, long face; the root high, the bridge narrow, the nose leaning long and often aquiline;
@@ -264,6 +312,7 @@ export const FACE_BUCKETS = Object.freeze({
   dravidian: {
     hair: 'south-asian',
     note: 'Dravidian South Asian ancestry: southern India and Sri Lanka (Tamil, Telugu, Kannada, Malayali, Sinhala)',
+    beard: { styles: { clean: 2.5, stubble: 2, 'short-boxed': 2.5, full: 1, moustache: 1.8, goatee: 0.8 }, fullness: [0.85, 1.25] },
     ancestry: ['south-asian'],
     tones: [5, 9],
     // a longer vault and a narrower face than the East Asian; the root higher than the East Asian, the base wider than the
@@ -282,6 +331,7 @@ export const FACE_BUCKETS = Object.freeze({
     hair: 'african',
     note: 'sub-Saharan African ancestry (the base after published West and Central African and African-diaspora anthropometry)',
     ancestry: ['african'],
+    beard: { styles: { clean: 3, stubble: 2, 'short-boxed': 2.5, goatee: 1.5, 'chin-strap': 1, full: 0.6, moustache: 0.6 }, fullness: [0.6, 1.1] },
     // a longer vault; a fuller, rounder forehead; the nose's base much wider, its root low and broad, its bridge broad (its
     // length and projection the axis's, leaning short and flat); the lips fuller, taller and more forward, the mouth
     // wider; the cheekbones forward; the eyes a little wider set. The lid is the rig's creased lid, sometimes hooded
@@ -298,6 +348,7 @@ export const FACE_BUCKETS = Object.freeze({
   'southeast-asian': {
     note: 'Filipino and maritime Southeast Asian ancestry (Austronesian)',
     ancestry: ['southeast-asian'],
+    beard: { styles: { clean: 5, stubble: 2.5, goatee: 1.2, moustache: 1, 'short-boxed': 0.6, full: 0.2, 'van-dyke': 0.4, 'chin-strap': 0.4 }, fullness: [0.35, 0.8] },
     // a rounder vault; the inner canthi wider apart; the root low and broad, the base wider, the bridge broad (the nose
     // leaning short and flat); the lips fuller and a little forward; the cheekbones forward; a lighter brow ridge. The lid
     // a parallel crease or the rig's, sometimes an in-fold or hooded, now and then a monolid
@@ -314,6 +365,7 @@ export const FACE_BUCKETS = Object.freeze({
     hair: 'latin',
     note: 'Mexican and mestizo Latin American ancestry (Indigenous American and European)',
     ancestry: ['latin-american', 'indigenous-american', 'latin-american'],
+    beard: { styles: { clean: 3, stubble: 3, goatee: 1.5, moustache: 1.5, 'short-boxed': 1.5, full: 0.6 }, fullness: [0.7, 1.15] },
     // a broader face with high, forward cheekbones and a fuller jaw; the base moderately wide, the bridge a little broad;
     // the lips a little fuller; the eyes a little wider set. The nose spread wide on its axis (the Indigenous American
     // aquiline long nose and the short broad one both). The lid the rig's, sometimes hooded, now and then an in-fold
@@ -329,6 +381,7 @@ export const FACE_BUCKETS = Object.freeze({
   levantine: {
     hair: 'mena',
     note: 'Levantine ancestry: Lebanon, Syria, Palestine, Jordan',
+    beard: { styles: { clean: 2, stubble: 3, 'short-boxed': 3, full: 2, goatee: 1, moustache: 1 }, fullness: [0.95, 1.35] },
     ancestry: ['middle-eastern-north-african'],
     tones: [2, 6],
     // a moderately long vault; a long, oval face; the nose leaning long and high-bridged, often convex; the eyes large
@@ -346,6 +399,7 @@ export const FACE_BUCKETS = Object.freeze({
     hair: 'mena',
     note: 'the southern Mediterranean shore: the Maghreb (Morocco, Algeria, Tunisia, Libya) and coastal Egypt',
     ancestry: ['middle-eastern-north-african'],
+    beard: { styles: { clean: 2, stubble: 3, 'short-boxed': 3, full: 1.6, goatee: 1, moustache: 1 }, fullness: [0.95, 1.35] },
     tones: [3, 7],
     // a long vault and a long, narrow face; the nose straight to aquiline, its base a little wider than the Levant's;
     // almond eyes under a defined brow; fuller lips. The lid the rig's creased lid, sometimes hooded
@@ -478,10 +532,10 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : [roll(), roll()];
   const acc = accent !== undefined ? accent : d() < ACCENT.chance ? FACE_FEATURES[Math.floor(d() * FACE_FEATURES.length) % FACE_FEATURES.length] : false;
   const pick = (feature, far) => {
-    const shapes = Object.entries(FACE_SHAPES[feature]), wt = B.weights[feature] || {};
+    const shapes = Object.entries(FACE_SHAPES[feature]), wt = B.weights[feature] || {}, sw = FACE_SEX_WEIGHTS[sex]?.[feature] || {};
     const w = shapes.map(([name, s]) => {
       const dd = Math.hypot(s.at[0] - at[0], s.at[1] - at[1]), near = Math.exp(-(dd * dd) / (REACH * REACH));
-      return (far ? (dd >= ACCENT.far ? 1 : 0) : near + 1e-6) * (wt[name] ?? 1);
+      return (far ? (dd >= ACCENT.far ? 1 : 0) : near + 1e-6) * (wt[name] ?? 1) * (sw[name] ?? 1);
     });
     const sum = w.reduce((a, b) => a + b, 0);
     if (!(sum > 0)) return pick(feature, false);
@@ -540,7 +594,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));
   // the CUT: the texture from the ancestry's, the cut from the bucket's pool for it (a woman's; the man's are to come)
   let cut = null;
-  const textures = HUMAN_ANCESTRIES[ancestry]?.textures, texture = textures ? textures[Math.floor(d() * textures.length) % textures.length] : null, pool = sex === 'female' && B.hair ? FACE_HAIR[B.hair]?.[texture] : null;
+  const textures = HUMAN_ANCESTRIES[ancestry]?.textures, texture = textures ? textures[Math.floor(d() * textures.length) % textures.length] : null, pool = sex === 'female' ? (B.hair ? FACE_HAIR[B.hair]?.[texture] : null) : texture ? FACE_HAIR_MALE[B.hair]?.[texture] ?? FACE_HAIR_MALE.default[texture] ?? null : null;
   const pickCut = d();
   if (pool) cut = { ...pool[Math.floor(pickCut * pool.length) % pool.length] };
   // (a widow's peak's hint over a cut it suits: a part, no ties, at least to the shoulder; a cut of its own replaces the
@@ -548,8 +602,17 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const suits = (c) => { const g = readScalp(c); return g.part !== 'none' && !g.ties.length && g.length >= 0.25; };
   if (cut && scalpHint) cut = suits(cut) ? { ...cut, ...scalpHint } : cut;
   if (cut) scalpHint = cut;
+  // FACIAL HAIR, a man's, last of all: a style by the bucket's weights (clean the shaven shadow), the tract's fullness
+  let beard = null;
+  if (sex === 'male') {
+    const FB = B.beard || {}, st = { ...FACE_BEARD.styles, ...(FB.styles || {}) }, names = Object.keys(st), sum = names.reduce((a, n) => a + st[n], 0);
+    let r = d() * sum;
+    const style = names.find((n) => (r -= st[n]) <= 0) || names.at(-1), [lo, hi] = FB.fullness || FACE_BEARD.fullness;
+    beard = { style, fullness: Math.round((lo + ((d() + d()) / 2) * (hi - lo)) * 100) / 100 };
+    picks.beard = style;
+  }
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

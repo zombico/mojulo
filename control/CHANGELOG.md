@@ -167,6 +167,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   style's edge): the gaps between locks foreshortened toward the eye read as beard, not as the shaven shadow's grey. The
   dermis study shades a beard matte and darker within (coarse hair), and sizes its views with a loop (a head's hair now
   runs to more points than a call's arguments hold).
+- THE MEN'S PARITY across the buckets (face-compose.js): a man draws his cut from his region's barbers
+  (`FACE_HAIR_MALE`: a default pool for every texture, the MENA, South Asian, Latin and African pools; a curly-haired
+  western man no longer rolls a TWA), his facial hair (`FACE_BEARD`: a style by the bucket's weights, clean the shaven
+  shadow, and the tract's fullness in the bucket's range; East and Southeast Asian beards sparser and more often shaven,
+  after published density; every style reachable everywhere), and the shapes by his sex's weights
+  (`FACE_SEX_WEIGHTS`: the thin and high-arched brow, large eyes, the heart's chin and outline rarer on a man) with
+  shorter lashes. A woman's every roll is byte for byte as it was.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

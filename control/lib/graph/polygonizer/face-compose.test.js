@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
 import { BROW_SHAPES } from '../epidermis/epidermis.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, FACE_HAIR_MALE, FACE_BEARD, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
@@ -149,6 +149,27 @@ describe('the face composer', () => {
       wb += w.epidermis.hair.brows.thickness; mb += m.epidermis.hair.brows.thickness;
     }
     expect(peaks).toBeGreaterThan(12); expect(mb).toBeGreaterThan(wb * 1.3);
+  });
+
+  it('gives a man his cut and his facial hair by his bucket, a dermis and a groom the maps read; a woman neither', () => {
+    const men = (bucket) => Array.from({ length: 40 }, (_, i) => composeFace({ sex: 'male', bucket, seed: i + 1 }));
+    for (const f of men('western')) {
+      expect(() => readDermis({ from: 'male', ...f.dermis })).not.toThrow();
+      if (f.scalp) expect(() => readScalp({ ...f.scalp })).not.toThrow();
+      expect(Object.keys(FACE_BEARD.styles)).toContain(f.picks.beard);
+      expect(f.dermis.beardStyle === undefined).toBe(f.picks.beard === 'clean');
+    }
+    // (every pool's cut is a groom the hair reads)
+    for (const P of Object.values(FACE_HAIR_MALE)) for (const cuts of Object.values(P)) for (const c of cuts) expect(() => readScalp(c)).not.toThrow();
+    // (East Asian beards sparser and more often shaven than the West's)
+    const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(mean(men('north-asian').map((f) => f.dermis.beard))).toBeLessThan(mean(men('western').map((f) => f.dermis.beard)));
+    expect(men('north-asian').filter((f) => f.picks.beard === 'clean').length).toBeGreaterThan(men('levantine').filter((f) => f.picks.beard === 'clean').length);
+    // (the plucked shapes rarer on a man)
+    const thin = (sex) => Array.from({ length: 120 }, (_, i) => composeFace({ sex, seed: i + 1 }).picks.brows).filter((b) => b === 'thin' || b === 'arched').length;
+    expect(thin('male')).toBeLessThan(thin('female'));
+    const w = composeFace({ sex: 'female', seed: 3 });
+    expect(w.dermis.beardStyle).toBeUndefined(); expect(w.picks.beard).toBeUndefined();
   });
 
   it('cuts the hair from its bucket\'s pool for the rolled texture, a groom the hair reads', () => {
