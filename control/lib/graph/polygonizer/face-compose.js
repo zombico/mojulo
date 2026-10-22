@@ -228,6 +228,28 @@ export const FACE_BEARD = Object.freeze({
   styles: { clean: 3, stubble: 3, 'short-boxed': 2, full: 1, goatee: 1, 'van-dyke': 0.5, moustache: 0.6, 'chin-strap': 0.4 },
   fullness: [0.8, 1.2],
 });
+/**
+ * BEAUTY (`composeFace`'s `beauty`, 0 … 1): what the research on attractive faces keeps finding: AVERAGENESS (a face near
+ * its population's mean reads the more attractive; Langlois & Roggman 1990), SYMMETRY (Rhodes et al.), and the sex's own
+ * pole. It draws the rolls toward the bucket's mean (the proportions' and the nose's reach, the shapes' spread, each
+ * narrowed by its share here at 1) and the asymmetry toward slight. The default leans to it: most faces typical, the
+ * population's median rather than its extremes; 0 gives the full variety back.
+ */
+export const FACE_BEAUTY = Object.freeze({ default: 0.5, proportions: 0.45, shapes: 0.3, asymmetry: 0.65 });
+/** the ASYMMETRY's reaches (head-relational.js's asym relations): the left eye, brow and mouth corner ~1–1.5 mm, the nose's
+ * lean ~1.5 mm, the jaw's and the cheekbone's width a few percent; rolled as the proportions are, every face its own */
+export const FACE_ASYMMETRY = Object.freeze({ asymEye: 0.0045, asymBrow: 0.006, asymMouth: 0.0045, asymNose: 0.006, asymJaw: 0.03, asymCheek: 0.022 });
+/**
+ * THE SKIN'S MARKS (dermal-map.js `marks`): up to `moles` moles in the face's zones (the cheeks, the jaw, the temples, the
+ * forehead, beside the mouth, the chin), a BEAUTY MARK at the chance `beauty` in its classic places (above the lip's
+ * corner, on the cheekbone, under the eye's outer corner), a BIRTHMARK at the chance `birthmark` (a café-au-lait patch,
+ * now and then a port-wine stain). In mm on the head (X out from the middle, the figure's right +; Y up from the menton).
+ */
+export const FACE_MARKS = Object.freeze({
+  moles: 3, beauty: 0.22, birthmark: 0.05,
+  moleZones: [[40, 140], [-40, 140], [62, 92], [-62, 92], [68, 175], [-68, 175], [24, 205], [-24, 205], [30, 108], [-30, 108], [10, 76], [-10, 76], [52, 120], [-52, 120]],
+  beautyZones: [[22, 113], [-22, 113], [40, 150], [-40, 150], [36, 165], [-36, 165]],
+});
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
@@ -525,7 +547,8 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * nose's axis, −1 … 1, over the bucket's roll } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default } = {}) {
+  if (!(beauty >= 0 && beauty <= 1)) throw new Error('face: beauty 0 … 1 (0 every roll at its full reach; 1 drawn to the population\'s mean, the asymmetry slight)');
   // (named parents make the face a hybrid of them, whatever the bucket)
   if (parents) bucket = `hybrid:${Object.keys(parents).sort().join('+')}`;
   let B = parents ? { hybrid: { parents, share: share || HYBRID_SHARE } } : FACE_BUCKETS[bucket];
@@ -534,7 +557,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
     let r = b() * sum;
     const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
-    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt }), blend: bucket };
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const own = B, mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
@@ -560,7 +583,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const base = { ...RELATIONS, ...RELATION_POLES[sex] }, off = { ...(B.base || {}) }, picks = {}, eyes = {};
   let brows = null;
   for (const f of FACE_FEATURES) {
-    const name = pick(f, f === acc), k = FACE_SPREAD[0] + d() * (FACE_SPREAD[1] - FACE_SPREAD[0]), S = FACE_SHAPES[f][name];
+    const name = pick(f, f === acc), k = (FACE_SPREAD[0] + d() * (FACE_SPREAD[1] - FACE_SPREAD[0])) * (1 - FACE_BEAUTY.shapes * beauty), S = FACE_SHAPES[f][name];
     picks[f] = name;
     for (const [key, v] of Object.entries(S.rel || {})) off[key] = (off[key] || 0) + v * k;
     for (const [ch, v] of Object.entries(S.eyes || {})) { const rest = EYE_CHANNELS[ch][0]; eyes[ch] = Math.round((rest + (v - rest) * k) * 1000) / 1000; }
@@ -569,7 +592,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const ancestry = B.ancestry[Math.floor(d() * B.ancestry.length) % B.ancestry.length];
   const proportions = {};
   for (const [key, reach] of Object.entries(B.proportions || FACE_PROPORTIONS)) {
-    const v = ((d() + d()) - 1) * reach;
+    const v = ((d() + d()) - 1) * reach * (1 - FACE_BEAUTY.proportions * beauty);
     proportions[key] = Math.round((v / reach) * 100) / 100;
     off[key] = (off[key] || 0) + v;
   }
@@ -595,7 +618,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   // the tone, where the bucket holds its own range (rolled before the nose, after the rest)
   const tone = B.tones ? B.tones[0] + Math.floor(d() * (B.tones[1] - B.tones[0] + 1)) : null;
   // the nose's axis, last (a seed keeps the rest of its face)
-  const NA = B.nose || NOSE_DEFAULT, rolled = NA.mean + NA.spread * (d() + d() - 1), nose = Math.max(-1, Math.min(1, noseAt ?? rolled));
+  const NA = B.nose || NOSE_DEFAULT, rolled = NA.mean + NA.spread * (1 - FACE_BEAUTY.proportions * beauty) * (d() + d() - 1), nose = Math.max(-1, Math.min(1, noseAt ?? rolled));
   for (const [key, v] of Object.entries(nose < 0 ? FACE_NOSE.short : FACE_NOSE.long)) off[key] = (off[key] || 0) + v * Math.abs(nose);
   proportions.nose = Math.round(nose * 100) / 100;
   // the hairline and the hair's loss, last of all
@@ -625,8 +648,17 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     beard = { style, fullness: Math.round((lo + ((d() + d()) / 2) * (hi - lo)) * 100) / 100 };
     picks.beard = style;
   }
+  // ASYMMETRY, every face's own, smaller the nearer the beauty (never none: a mirror reads uncanny), and the skin's MARKS:
+  // moles, now and then a beauty mark, rarely a birthmark, placed in the face's zones; drawn last of all
+  for (const [key, reach] of Object.entries(FACE_ASYMMETRY)) { const v = ((d() + d()) - 1) * reach * (1 - FACE_BEAUTY.asymmetry * beauty); off[key] = (off[key] || 0) + Math.round(v * 1e5) / 1e5; }
+  const marks = [], spot = (zones, j) => { const [X, Y] = zones[Math.floor(d() * zones.length) % zones.length]; return [Math.round((X + j * (2 * d() - 1)) * 10) / 10, Math.round((Y + j * (2 * d() - 1)) * 10) / 10]; };
+  const nMoles = Math.floor(d() * (FACE_MARKS.moles + 1));
+  for (let i = 0; i < nMoles; i++) marks.push({ kind: 'mole', at: spot(FACE_MARKS.moleZones, 12), size: Math.round((1.4 + 2.2 * d()) * 10) / 10 });
+  if (d() < FACE_MARKS.beauty) marks.push({ kind: 'beauty', at: spot(FACE_MARKS.beautyZones, 4), size: Math.round((1.6 + 1 * d()) * 10) / 10 });
+  if (d() < FACE_MARKS.birthmark) marks.push({ kind: d() < 0.7 ? 'cafe' : 'wine', at: spot(FACE_MARKS.moleZones, 10), size: Math.round((12 + 22 * d()) * 10) / 10 });
+  if (marks.length) picks.marks = marks.map((m) => m.kind).join('+');
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

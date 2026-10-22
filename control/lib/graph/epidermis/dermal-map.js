@@ -56,6 +56,7 @@ export const DERMIS_DIALS = Object.freeze({
   peak: 'mm, 0 … 10 (a widow\'s peak: the hairline dipping at the middle; absent 0)',
   sideburn: 'mm, −12 … 15 (the sideburn\'s foot lower; − shorter; absent 0)',
   nape: 'mm, −15 … 20 (the nape\'s line lower; − higher; absent 0)',
+  marks: 'the skin\'s MARKS on the face: [{ kind: mole | beauty | cafe | wine, at: [X, Y] (mm on the head: X out from the middle, the figure\'s right +, round the head; Y up from the menton), size: mm }] (a mole a raised brown dot, a beauty mark a small dark one, a café-au-lait patch a light brown stain, a port-wine stain a red-violet one; absent, none)',
   shade: '0 … 1, or { amount 0 … 1, colour?: a hex (the shade\'s hue: an art direction\'s shadow), steps?: 0 smooth | 2 … 8 hard bands (a cel look), curve?: \'linear\' | \'deep\' (a near-black, only where the skin is enclosed deepest) } (the broad SHADING painted into the colour, as a game paints its light in: the sockets, under the cheekbone, beside the nose, under the lip and the jaw; absent 0, the colour as it was)',
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
@@ -124,6 +125,32 @@ export function beardStyleAt(A, D) {
 }
 /** a style word or { style, lengths } → the style, its lengths over the word's */
 export const beardStyleOf = (s) => (typeof s === 'string' ? BEARD_STYLES[s] : { ...BEARD_STYLES[s.style], lengths: { ...BEARD_STYLES[s.style].lengths, ...(s.lengths || {}) } });
+/**
+ * THE SKIN'S MARKS: each its colour over the skin's (linear, multiplied), how hard its edge is, how irregular (a stain's
+ * outline wanders; a mole is round), how much it lies on top (a mole's, a little lighter at its middle where it rises).
+ */
+export const MARK_KINDS = Object.freeze({
+  mole: { tint: [0.42, 0.3, 0.24], edge: 0.25, wander: 0.08, depth: 0.9 },
+  beauty: { tint: [0.28, 0.2, 0.17], edge: 0.2, wander: 0.04, depth: 1 },
+  cafe: { tint: [0.86, 0.74, 0.62], edge: 0.6, wander: 0.35, depth: 0.85 },
+  wine: { tint: [0.92, 0.55, 0.62], edge: 0.45, wander: 0.3, depth: 0.85 },
+});
+/** the marks' cover at an address on the head: the tint the skin's colour is multiplied by, 1 where none lies */
+function marksAt(A, D) {
+  if (!D.marks?.length || A.part !== 'head' || !A.marks) return null;
+  const q = headXY(A);
+  let out = null;
+  D.marks.forEach((m, i) => {
+    const K = MARK_KINDS[m.kind], r = m.size / 2, dx = q.X - m.at[0], dy = q.Y - m.at[1], d = Math.hypot(dx, dy);
+    if (d > r * (1.6 + K.wander)) return;
+    // (a stain's edge wanders by the angle round it, a seeded noise: never a disc)
+    const ang = Math.atan2(dy, dx), rr = r * (1 + K.wander * (2 * vnoise(Math.cos(ang) * 1.7 + i * 3.1, Math.sin(ang) * 1.7, D.seed + 97 + i) - 1));
+    const w = K.depth * (1 - smooth(rr * (1 - K.edge), rr, d));
+    if (w <= 0) return;
+    out = (out || [1, 1, 1]).map((v, k) => v * (1 + (K.tint[k] - 1) * w));
+  });
+  return out;
+}
 /** the shade's curves: `linear` as deep as the occlusion; `deep` the same until the skin is enclosed deepest, then a near-black */
 export const SHADE_CURVES = Object.freeze(['linear', 'deep']);
 /** the dials a map may name or not (absent, they add nothing): checked only when given */
@@ -147,6 +174,10 @@ export function readDermis(spec = 'male') {
   const D = { ...base, ...rest };
   for (const [k, [lo, hi]] of Object.entries(RANGES)) if (!(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
   for (const [k, [lo, hi]] of Object.entries(OPTIONAL_RANGES)) if (D[k] !== undefined && !(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
+  if (D.marks !== undefined) {
+    if (!Array.isArray(D.marks) || D.marks.length > 24 || D.marks.some((m) => !m || !MARK_KINDS[m.kind] || !Array.isArray(m.at) || m.at.length !== 2 || !m.at.every(Number.isFinite) || !(m.size > 0 && m.size <= 60)))
+      throw new Error(`dermis: marks ${JSON.stringify(D.marks).slice(0, 120)} (${DERMIS_DIALS.marks})`);
+  }
   if (D.beardStyle !== undefined) {
     const s = D.beardStyle, word = typeof s === 'string' ? s : s?.style;
     if (!BEARD_STYLES[word] || (typeof s === 'object' && (Object.keys(s).some((k) => !['style', 'lengths'].includes(k)) || (s.lengths && Object.entries(s.lengths).some(([k, v]) => !['moustache', 'chin', 'cheek'].includes(k) || !(v >= 0 && v <= 120))))))
@@ -443,6 +474,9 @@ export function dermisAt(A, D, { detail = true } = {}) {
   const sun = Math.max(w('nose'), w('cheek'), w('shoulder') * 0.8, A.part === 'forearm' ? near(ad(A.around, 0.5), 0.3) * 0.6 : 0, w('forehead') * 0.3);
   const freckleMask = D.freckles > 0 ? sun * D.freckles * (1 - 0.7 * mel) : 0;
   if (detail && freckleMask > 0) c = tint(c, FRECKLE, freckle(A, seed) * freckleMask);
+  // the marks: a mole, a beauty mark, a birthmark's stain (the dermis's `marks`; absent, none)
+  const mk = D.marks ? marksAt(A, D) : null;
+  if (mk) c = c.map((v, k) => v * mk[k]);
   // ── sheen ──
   let rough = 0.52 + 0.06 * D.age;
   const tzone = Math.max(w('nose'), w('forehead') * near(ad(A.around, 0), 0.08), w('chin') * 0.8);

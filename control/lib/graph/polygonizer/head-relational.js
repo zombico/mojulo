@@ -99,6 +99,13 @@ export const RELATIONS = Object.freeze({
                         // (+ a softer, rounder outline from the cheekbone to the chin; − a sharper V)
   masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
   forehead: 0,          // the frontal bulb forward of its canon place / v-me (+ a more upright, rounder forehead)
+  // ── ASYMMETRY, the left side's own (no face is a mirror; a perfect one reads uncanny), each an offset, 0 the mirror
+  asymEye: 0,           // the left eye (its corners and its centre) higher / v-me (+ up; ~1 mm is 0.004)
+  asymBrow: 0,          // the left brow's outer end higher / v-me
+  asymMouth: 0,         // the left mouth corner higher / v-me
+  asymNose: 0,          // the nose's tip and base leaning to the figure's left / v-me (the bridge's root stays)
+  asymJaw: 0,           // the left jaw's corner wider, a share (+ wider)
+  asymCheek: 0,         // the left cheekbone wider, a share
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
   jawOpen: 0.17,        // the incisors' opening at full / v-me (~39 mm: a full, comfortable opening; the anatomical
                         // maximum is ~50 mm)
@@ -210,6 +217,17 @@ export function corePoints(rel = RELATIONS) {
   side('bow', 0.2 * chX, sn.y + R.lipProjection - 0.004, zSto + R.upperVermilion);
   side('loMid', 0.45 * chX, sn.y + R.lipProjection - 0.012, zSto - 0.5 * R.lowerVermilion);
   P.porionL = { ...P.porionR, x: -P.porionR.x };
+  // ASYMMETRY: the left side's points moved by its own relations (absent, the mirror as it was)
+  if (R.asymEye || R.asymBrow || R.asymMouth || R.asymNose || R.asymJaw || R.asymCheek) {
+    const up = (k, dz) => { if (dz && P[k]) P[k] = { ...P[k], z: P[k].z + dz }; };
+    const wide = (k, f) => { if (f && P[k]) P[k] = { ...P[k], x: P[k].x * (1 + f) }; };
+    for (const k of ['eyeL', 'enL', 'exL', 'cheekL']) up(k, R.asymEye);
+    up('fzL', R.asymBrow);
+    for (const k of ['chL', 'modL', 'loMidL']) up(k, R.asymMouth);
+    for (const k of ['goL', 'mentL']) wide(k, R.asymJaw);
+    for (const k of ['malarL', 'zyL']) wide(k, R.asymCheek);
+    if (R.asymNose) { const lean = (k, f) => { P[k] = { ...P[k], x: P[k].x - R.asymNose * f }; }; lean('prn', 1); lean('sn', 0.7); lean('rhinion', 0.4); lean('alL', 0.7); lean('alR', 0.7); }
+  }
   return P;
 }
 

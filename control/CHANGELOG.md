@@ -203,6 +203,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   normal toward that ridge, not fanned out); `spiky` its whole-top variation (a Kisame's), and the SPIKED FADE family:
   the spiked fade, the high one, the spiked quiff fade and the burst fade's band of spikes. The bowl is clipped short
   beneath (a root a shelf or a strip clips stays clipped under a line cut).
+- ASYMMETRY (head-relational.js, 0-centred, absent byte-identical): the left eye's, brow's and mouth corner's height, the
+  nose's lean, the left jaw's and cheekbone's width. The composer rolls each face its own (`FACE_ASYMMETRY`, ~1–1.5 mm),
+  never none: a mirror reads uncanny.
+- BEAUTY (face-compose.js `composeFace`'s `beauty`, 0 … 1, `FACE_BEAUTY`): averageness and symmetry, the attractiveness
+  research's steadiest findings: the proportions' and the nose's reach and the shapes' spread drawn toward the bucket's
+  mean, the asymmetry toward slight. The default (0.5) leans to it: most faces typical, the median rather than the
+  extremes; every composed face, women's and men's, changes with it.
+- THE SKIN'S MARKS (dermal-map.js `marks`, `MARK_KINDS`): moles, a beauty mark, birthmarks (a café-au-lait patch, a
+  port-wine stain) at mm on the head, painted into the skin's colour, a stain's edge wandering; the composer rolls up to
+  three moles a face, a beauty mark in its classic places now and then, a birthmark rarely (`FACE_MARKS`).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

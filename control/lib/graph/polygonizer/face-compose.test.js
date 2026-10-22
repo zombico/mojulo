@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
 import { BROW_SHAPES } from '../epidermis/epidermis.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, FACE_HAIR_MALE, FACE_BEARD, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, FACE_HAIR_MALE, FACE_BEARD, FACE_BEAUTY, FACE_ASYMMETRY, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
@@ -69,7 +69,8 @@ describe('the face composer', () => {
   });
 
   it('rolls the nose\'s axis per face, each bucket leaning its own way and reaching both ends', () => {
-    const rolls = (bucket) => Array.from({ length: 60 }, (_, i) => composeFace({ bucket, seed: i + 1 }).proportions.nose);
+    // (the bucket's reach, at the full variety: beauty draws it toward the mean)
+    const rolls = (bucket) => Array.from({ length: 60 }, (_, i) => composeFace({ bucket, seed: i + 1, beauty: 0 }).proportions.nose);
     const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
     const west = rolls('western'), asia = rolls('east-asian');
     expect(mean(asia)).toBeLessThan(mean(west) - 0.3);
@@ -209,5 +210,21 @@ describe('the face composer', () => {
     const f = composeFace({ parents: { western: 1, 'north-asian': 1 }, seed: 2 });
     expect(['western', 'north-asian']).toContain(f.hybrid.of);
     expect(() => composeFace({ parents: { western: 1, asian: 1 } })).toThrow(/base buckets/);
+  });
+});
+
+describe('beauty, asymmetry and the skin\'s marks', () => {
+  const spread = (beauty, key) => { const xs = Array.from({ length: 60 }, (_, i) => composeFace({ seed: i + 1, beauty }).relations[key]); const m = xs.reduce((a, b) => a + b, 0) / xs.length; return Math.sqrt(xs.reduce((a, x) => a + (x - m) ** 2, 0) / xs.length); };
+  it('draws the faces toward the population\'s mean as the beauty rises, the asymmetry slight but never none', () => {
+    expect(spread(1, 'headLength')).toBeLessThan(spread(0, 'headLength'));
+    expect(spread(1, 'asymJaw')).toBeLessThan(spread(0, 'asymJaw'));
+    for (let seed = 1; seed <= 10; seed++) { const f = composeFace({ seed }); expect(Object.keys(FACE_ASYMMETRY).some((k) => f.relations[k] !== 0)).toBe(true); }
+    expect(() => composeFace({ beauty: 2 })).toThrow(/beauty/);
+  });
+  it('rolls marks a dermis reads: moles on most faces, now and then a beauty mark or a birthmark', () => {
+    const fs = Array.from({ length: 80 }, (_, i) => composeFace({ seed: i + 1 }));
+    for (const f of fs) expect(() => readDermis({ from: 'female', ...f.dermis })).not.toThrow();
+    expect(fs.filter((f) => f.dermis.marks?.some((m) => m.kind === 'mole')).length).toBeGreaterThan(30);
+    expect(fs.some((f) => f.dermis.marks?.some((m) => m.kind === 'beauty'))).toBe(true);
   });
 });
