@@ -65,17 +65,17 @@ export const MOTION_FLAVORS = Object.freeze({
   pinball: { top: 20, tau: 1.4, cadence: 0.8, ground: 'speed', wings: { load: 1, absorb: 1 }, flight: { height: 1.0, g: 1.6 * G }, spin: true, keep: 1, landHold: 0, squash: 0.12, smear: 0.06 },
 });
 const ENDS = ['wristL', 'wristR', 'toeTipL', 'toeTipR', 'headTop'];
-const SPIN_FRAMES = 8, TUCK_IN = 0.12, TUCK_OUT = 0.8;   // a turn's fewest frames; the air's shares the tuck closes by and opens from
-const ss = (x) => { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); };
+export const SPIN_FRAMES = 8, TUCK_IN = 0.12, TUCK_OUT = 0.8;   // a turn's fewest frames; the air's shares the tuck closes by and opens from
+export const ss = (x) => { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); };
 /** the tuck: the forward roll's middle key, square (no shoulder tilt), in the air (no foot planted) */
-function tuckOf(R) {
+export function tuckOf(R) {
   const key = JUMPS.rollForward.keys.find((k) => k.t === 0.5); const { rollBody, pitchBody, ...k } = key;
   const n = rigNodesAt(R, keyedClip({ seconds: 1, keys: [{ ...k, t: 0, ground: 0, sink: 0 }, { ...k, t: 1, ground: 0, sink: 0 }] }, R).fn(0.5)).nodes;
   return { nodes: n, diameter: Math.max(...Object.values(n).map((p) => p[2])) - Math.min(...Object.values(n).map((p) => p[2])) };
 }
 /** every node turned forward by `deg` about the side axis through `at` (the head goes forward and down) */
-const pitched = (n, deg, at) => { const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return Object.fromEntries(Object.entries(n).map(([k, p]) => { const y = p[1] - at[1], z = p[2] - at[2]; return [k, [p[0], at[1] + y * c + z * s, at[2] - y * s + z * c]]; })); };
-const mixNodes = (a, b, w) => (w <= 0 ? a : w >= 1 ? b : Object.fromEntries(Object.keys(a).map((k) => [k, [0, 1, 2].map((i) => lerp(a[k][i], b[k][i], w))])));
+export const pitched = (n, deg, at) => { const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return Object.fromEntries(Object.entries(n).map(([k, p]) => { const y = p[1] - at[1], z = p[2] - at[2]; return [k, [p[0], at[1] + y * c + z * s, at[2] - y * s + z * c]]; })); };
+export const mixNodes = (a, b, w) => (w <= 0 ? a : w >= 1 ? b : Object.fromEntries(Object.keys(a).map((k) => [k, [0, 1, 2].map((i) => lerp(a[k][i], b[k][i], w))])));
 const floorOf = (R) => Math.min(...Object.values(R.legs).flatMap((L) => [R.joints[L.toeBase][2], R.joints[L.toeTip][2]]));
 
 /** the flight a flavor flies: { up (s), hang (s), down (s), height (m), z(t) } */
