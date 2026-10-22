@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
+
+The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic
+body catches up to what the authored one wears, and its principles are shared back.
+
+- ADULTS ONLY: a child-coded hero asked of the realistic body (a child or chibi figure cast, or the anime 'kid' look)
+  is that cast's stylized western figure instead (`adultsOnly`, the first step of `validateHeroSpec` and `heroRecord`):
+  its colours keyed the same (the realistic skin's colour, as the dermis reads its tone, the palette's `Skin` unless the
+  palette names one; every palette key as given), the realistic body's own keys left off, its dress as asked.
+- ONE SET OF PRIMITIVES: the tailor re-exports the footwear library's `soleSlab`, `strapBand`, `buckleOn` and
+  `bindNearest` (its own copies had drifted from them; the library's are the superset, its `buckleOn` now taking a
+  slot's name as the tailor's did); both byte pins unchanged.
+- docs/realistic-body.md says what the body wears and still refuses as the tree has it.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

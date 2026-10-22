@@ -637,10 +637,24 @@ function childCoding(spec) {
   return kid ? `the '${kid}' look` : null;
 }
 
+/** THE REALISTIC BODY DEPICTS ADULTS. A child-coded hero asked of it (`childCoding`: a child or chibi figure cast, or
+ * the anime 'kid' look) is that cast's stylized western figure instead, the authored body, its colours keyed the same:
+ * the realistic skin's colour (its tone, as the dermis reads it) the palette's `Skin` unless the palette names one, every
+ * palette key as given; the realistic body's own keys (the form, the physique, the skin, its relational head) left off.
+ * The dress words carry over as they are: both bodies read the same outfit language. Any other spec as it is. */
+export function adultsOnly(spec) {
+  if (!spec || typeof spec !== 'object' || spec.form !== 'realistic' || !childCoding(spec)) return spec;
+  const { form: _f, physique: _p, skin, head, ...rest } = spec;
+  let Skin = rest.palette?.Skin ?? null;
+  if (!Skin && skin && typeof skin === 'object') try { Skin = heroDermisSpec({ cast: castPole(rest.cast) ?? 'male', palette: rest.palette, skin }).base; } catch { Skin = null; }
+  return { ...rest, ...(head !== undefined && head !== 'relational' ? { head } : {}), ...(rest.palette || Skin ? { palette: { ...(rest.palette || {}), ...(Skin ? { Skin } : {}) } } : {}) };
+}
+
 /** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge.
  * `staleScale` tolerates a `scale` on a worn head (which the worn heads never read): a spec re-recorded on every render
  * (a world's inline hero) was written before the refusal and must keep rendering. */
 export function validateHeroSpec(spec, { staleScale = false } = {}) {
+  spec = adultsOnly(spec);
   const errs = [];
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
@@ -750,7 +764,7 @@ function realisticErrors(spec) {
       if (laws !== undefined && !(Number.isInteger(laws) && laws >= 1 && laws <= REALISTIC_LAWS_VERSION)) errs.push(`physique.laws: ${laws} is unknown — this kernel carries the realistic laws 1 … ${REALISTIC_LAWS_VERSION} (stamped at mint; leave it out)`);
     }
   }
-  if (spec.cast !== undefined && spec.cast !== 'male' && spec.cast !== 'female') errs.push("cast: the realistic body is built for 'male' or 'female' (its builds, norrin and shalla); dial it with physique");
+  if (spec.cast !== undefined && spec.cast !== 'male' && spec.cast !== 'female') errs.push("cast: the realistic body is built for 'male' or 'female' (its builds, norrin and shalla); dial it with physique (it depicts adults: a child or chibi cast asked of it is that cast's stylized figure, its colours kept)");
   if (spec.head !== undefined && !['landmark', 'none', 'relational'].includes(spec.head)) errs.push("head: the realistic body wears the landmark head, the relational head or none (head: 'landmark' | 'relational' | 'none')");
   if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
   if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
@@ -764,6 +778,8 @@ function realisticErrors(spec) {
  * the operator gave. Stored resolved for the same reason casts are: a later re-tuning of a move never changes a stored
  * row's meaning. */
 export function heroRecord(spec, { staleScale = false } = {}) {
+  // (a realistic child is the stylized figure: the realistic body depicts adults)
+  spec = adultsOnly(spec);
   const errs = validateHeroSpec(spec, { staleScale });
   if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast | { pole: 'male' | 'female', build: ${HERO_BUILD_NAMES.join(' | ')} }, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), painterly?: true (the anime head's painterly look: the face painted, a soft edge), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime or the landmark head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds }, <a pose, stance or strike (hairToss, jotaroPoint, guard, jab …, <name>Left its mirror)>?: true | { seconds } }, blink?: false, target?: ${Object.keys(RESOLUTIONS).join(' | ')} | { resolution, framing?: ${Object.keys(FRAMINGS).join(' | ')}, error? }, geocube?: a cube (its light, era and target unless target is named) }`);
   const { from, ...resolved } = resolveTune(spec.tune), tune = storedTune(resolved);   // a sparse control at 1 stores nothing

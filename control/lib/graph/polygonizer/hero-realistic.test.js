@@ -4,6 +4,7 @@
 // realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
 
+import { heroDermisSpec } from '../epidermis/dermal-hero.js';
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION } from '../../mcp/tools/layered.js';
 import { readDermis, skinBase } from '../epidermis/dermal-map.js';
 
@@ -26,6 +27,21 @@ describe('the realistic hero at the door', () => {
     expect(refused({ cast: 'male', form: 'realistic', detail: 'clothed' })).toMatch(/detail: not worn on the realistic body yet/);
     expect(refused({ cast: 'male', form: 'realistic', body: { waist: 0.2 } })).toMatch(/body: the realistic body's girths/);
     expect(refused({ cast: { pole: 'male', build: 'brute' }, form: 'realistic' })).toMatch(/cast: the realistic body/);
+  });
+
+  it('depicts adults: a child asked of it is the stylized western figure of that cast, its colours keyed the same', () => {
+    const r = heroRecord({ cast: 'child', form: 'realistic', physique: 'lean', skin: { tone: 7 }, palette: { Hair: '#2a1d14' }, outfit: ['tee', 'trousers'] });
+    expect(r.form).toBeUndefined(); expect(r.physique).toBeUndefined(); expect(r.skin).toBeUndefined();
+    expect(r.cast).toBe('child'); expect(r.head).toBe('landmark');
+    // (the skin's colour as the dermis reads its tone, the palette's own keys as given, the dress as asked)
+    expect(r.palette).toEqual({ Hair: '#2a1d14', Skin: heroDermisSpec({ cast: 'male', skin: { tone: 7 } }).base });
+    expect(r.outfit).toEqual(['tee', 'trousers']);
+    // (the build form too, and a palette's own Skin stands)
+    const b = heroRecord({ cast: { pole: 'female', build: 'child' }, form: 'realistic', skin: { tone: 3 }, palette: { Skin: '#e0b090' } });
+    expect(b.form).toBeUndefined(); expect(b.palette.Skin).toBe('#e0b090');
+    // (an adult stays realistic, and a cast the realistic body does not build is still refused by name)
+    expect(heroRecord({ cast: 'female', form: 'realistic' }).form).toBe('realistic');
+    expect(refused({ cast: 'brute', form: 'realistic' })).toMatch(/cast: the realistic body/);
   });
 
   it('mints: the body re-sampled (no pectoral parts, the correctives carried) and gated; a new physique re-slices', () => {

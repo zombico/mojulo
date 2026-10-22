@@ -798,7 +798,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the muscle masses placed from the rig's joints, summed into one skin, denser than authored (the torso 48 round, 64 on
   the female, with the bust in the field), the shoulder girdle with a blade, and morph-like correctives a raised arm
   wears (the pauldron, the shoulder's blend; `recipe.correctives`). The build is the cast's pole's (`cast: 'male'` or
-  `'female'`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
+  `'female'`: it depicts ADULTS, and a child or chibi cast asked of it is that cast's stylized figure instead, its colours
+  keyed the same, the skin's colour its palette's `Skin`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
   `{ from?, bulk, tone, weight, height }`, each −1 to 1 (bulk the muscles across, tone their definition, weight a layer
   of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
   `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. Its head is the RELATIONAL head unless `head` says
@@ -807,8 +808,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
   an OUTFIT CARD (`outfit: { type: 'outfit', style }`), the other words and a `stylism` are worn on its parts by
   the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
-  sleeves turned in; its trims, buttons and emblems where the card puts them), a skirt, a panel, a cape and a hood
-  still over the skin's envelope; `adorn` and `paint` are worn over the envelope too; an outfit takes off the body's suit (its
+  sleeves turned in; its trims, buttons and emblems where the card puts them; a skirt carried down from its body), a
+  panel, a cape and a hood still over the skin's envelope; `adorn` and `paint` are worn over the envelope too; an outfit takes off the body's suit (its
   Top and Bottom paint), so what it leaves bare is skin. Its SKIN is the character's: `skin: { tone, undertone, age,
   flush, freckles, oil, lines, dirt, paint, hairColour, … }` (tone an MST swatch 1–10 or a hex; `palette.Skin` is the
   tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it

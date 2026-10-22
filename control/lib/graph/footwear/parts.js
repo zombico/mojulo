@@ -84,7 +84,8 @@ export function strapBand(P, u, { lift, width = 0.015 }) {
 
 /** a buckle: a small block on the strap's outer side (`side` +1 the right, −1 the left), across it */
 export function buckleOn(band, side, { w = 0.016, h = 0.012, thick = 0.004 } = {}) {
-  const [A, B] = band.stations, sl = band.slots.reduce((best, s) => ((A.points[s][0] + B.points[s][0]) * side > (A.points[best][0] + B.points[best][0]) * side ? s : best), band.slots[0]);
+  // (`side` +1 the right, −1 the left, or a slot's name: a belt's at 'front')
+  const [A, B] = band.stations, sl = typeof side === 'string' ? side : band.slots.reduce((best, s) => ((A.points[s][0] + B.points[s][0]) * side > (A.points[best][0] + B.points[best][0]) * side ? s : best), band.slots[0]);
   const P = mean([A.points[sl], B.points[sl]]), C = mean([mean(Object.values(A.points)), mean(Object.values(B.points))]);
   return block(P, unitv([P[0] - C[0], P[1] - C[1], P[2] - C[2]]), unitv(B.points[sl].map((x, q) => x - A.points[sl][q])), { w, h, thick });
 }

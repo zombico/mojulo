@@ -69,7 +69,11 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 ## Not yet
 
 Posing outside the body study and the stretch audit does not apply the correctives, and no exporter carries them. The
-dress, armour, kits, paint and details are refused on the realistic body. The body has no UVs.
+body has no UVs. It wears its dress (an outfit card, the words, a stylism, the loose words), armour, kits, paint, and
+the footwear, handwear and plating libraries (docs/garment-principles.md, docs/plating.md); `detail` and `statue` are
+still refused (each fitted to the authored body's rings), and a panel, a cape and a hood are still the authored
+kernel's, made over the skin's envelope. It depicts adults: a child or chibi cast asked of it is that cast's stylized
+figure instead, its colours keyed the same.
 
 The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own,
 each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's

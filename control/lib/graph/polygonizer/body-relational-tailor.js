@@ -17,13 +17,17 @@
  *                 weighted as their rings), `strapBand` (a strap at a station's `u`),
  *                 `sashOn` (a band, a knot, two tails), `strip` (a box section through centres), `ribbon` (a band lying
  *                 on the cloth along a path: a collar, a lapel, a panel's edge), `soleSlab`, `buckleOn`
- *   BINDS         `bindNearest` (each point the nearest's weights), `bindRibbon` (a station's corners one weight),
+ *   BINDS         `bindNearest` (each point the nearest's weights; with `soleSlab`, `strapBand`, `buckleOn` the footwear
+ *                 library's, lib/graph/footwear/parts.js, re-exported), `bindRibbon` (a station's corners one weight),
  *                 `ringW` (a ring's weights mixed: a cap's)
  *
  * The garments: body-relational-drape.js (the wide trousers), body-relational-gi.js (the gi's jacket),
  * body-relational-footwear.js (boots, shoes, sandals). Deterministic; no dice.
  */
 import { ringSlots, mixW, four } from './body-relational-resample.js';
+import { bindNearest } from '../footwear/parts.js';
+// (the binds and the footwear's pieces the wearable libraries share: one copy, the footwear library's)
+export { bindNearest, soleSlab, strapBand, buckleOn } from '../footwear/parts.js';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
@@ -289,12 +293,6 @@ export function bandAt(P, i, { width, lift }) {
     caps: { back: C[0].map((x, q) => r6(x - along[q] * 0.001)), tip: C[1].map((x, q) => r6(x + along[q] * 0.001)) }, bind: { ...P.bind, blend } };
 }
 
-/** a strap: `bandAt` about the first of the piece's stations at or past `u` (the segment's own `u`, as a style names a
- * place on the foot), `width` (m, 15 mm) apart, lifted `lift` off it */
-export function strapBand(P, u, { lift, width = 0.015 }) {
-  const i = P.stations.findIndex((st, k) => (st.u ?? k) >= u);
-  return i < 0 ? null : bandAt(P, i, { width, lift });
-}
 
 /** the SASH: a wide band round the trousers' waist (their highest ring, or station `at`; `width` high), lifted off it; a
  * knot at its front; two tails hanging from the knot over the cloth (each station a little in front of the cloth under
@@ -598,43 +596,10 @@ export function buttonOn(at, normal, { r = 0.0085, thick = 0.0035 } = {}) {
     caps: { back: at.map((x, q) => r6(x - n[q] * 0.0005)), tip: at.map((x, q) => r6(x + n[q] * (thick + 0.0005))) } };
 }
 
-/** a sole slab: the footprint's outline round its middle (the farthest point in each of 48 directions, a gap filled from
- * its neighbours, eased round), grown by the welt, from the floor up `thick`; its caps a hair beyond its two faces */
-export function soleSlab(print, { floor, thick, welt, n = 48 }) {
-  if (print.length < 8) return null;
-  const c = mean(print), r = new Array(n).fill(0);
-  for (const p of print) { const a = Math.atan2(p[1] - c[1], p[0] - c[0]), j = ((Math.round((a / (2 * Math.PI)) * n) % n) + n) % n, d = Math.hypot(p[0] - c[0], p[1] - c[1]); if (d > r[j]) r[j] = d; }
-  for (let it = 0; it < n && r.some((x) => x === 0); it++) for (let j = 0; j < n; j++) if (!r[j]) { const a = r[(j + n - 1) % n], b = r[(j + 1) % n]; if (a || b) r[j] = a && b ? (a + b) / 2 : a || b; }
-  const R = r.map((x, j) => (r[(j + n - 1) % n] + 2 * x + r[(j + 1) % n]) / 4 + welt), names = ringSlots(n);
-  const ring = (z, inset) => Object.fromEntries(names.map((nm, j) => { const a = (2 * Math.PI * j) / n; return [nm, [r6(c[0] + Math.cos(a) * (R[j] - inset)), r6(c[1] + Math.sin(a) * (R[j] - inset)), r6(z)]]; }));
-  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: ring(floor, 0.001) }, { id: 'st1', u: 1, points: ring(floor + thick, 0) }],
-    caps: { back: [r6(c[0]), r6(c[1]), r6(floor - 0.001)], tip: [r6(c[0]), r6(c[1]), r6(floor + thick + 0.001)] } };
-}
 
-/** a buckle: a small block on the strap's outer side (`side` +1 the right, −1 the left), or at the slot `side` names (a
- * belt's at 'front'), across it */
-export function buckleOn(band, side, { w = 0.016, h = 0.012, thick = 0.004 } = {}) {
-  const [A, B] = band.stations, sl = typeof side === 'string' ? side : band.slots.reduce((best, s) => ((A.points[s][0] + B.points[s][0]) * side > (A.points[best][0] + B.points[best][0]) * side ? s : best), band.slots[0]);
-  const P = mean([A.points[sl], B.points[sl]]), C = mean([mean(Object.values(A.points)), mean(Object.values(B.points))]);
-  const n = unitv([P[0] - C[0], P[1] - C[1], P[2] - C[2]]), t = unitv(B.points[sl].map((x, q) => x - A.points[sl][q])), b = unitv(cross(n, t));
-  const names = ringSlots(4), corner = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
-  const face = (off) => Object.fromEntries(names.map((nm, j) => [nm, [0, 1, 2].map((q) => r6(P[q] + n[q] * off + t[q] * corner[j][0] * h / 2 + b[q] * corner[j][1] * w / 2))]));
-  return { layer: 1, closure: 'closed', slots: names, stations: [{ id: 'st0', u: 0, points: face(0.0005) }, { id: 'st1', u: 1, points: face(thick) }],
-    caps: { back: P.map((x, q) => r6(x - n[q] * 0.0005)), tip: P.map((x, q) => r6(x + n[q] * (thick + 0.0005))) } };
-}
 
 // BINDS
 
-/** a piece's bind copied from the cloth or the leather `P` it is worn on: each of its points (and its caps) takes the
- * weights of P's nearest point, so it moves as what is under it does */
-export function bindNearest(piece, P) {
-  const own = { [P.bind.bone]: 1 }, src = P.stations.flatMap((st) => Object.entries(st.points).map(([sl, p]) => [p, P.bind.blend?.[`${st.id}.${sl}`] ?? own]));
-  const nearest = (q) => { let best = src[0], d0 = Infinity; for (const s of src) { const d = (s[0][0] - q[0]) ** 2 + (s[0][1] - q[1]) ** 2 + (s[0][2] - q[2]) ** 2; if (d < d0) { d0 = d; best = s; } } return best[1]; };
-  const blend = {};
-  for (const st of piece.stations) for (const [sl, q] of Object.entries(st.points)) { const w = nearest(q); if (w !== own) blend[`${st.id}.${sl}`] = w; }
-  for (const [k, q] of Object.entries(piece.caps)) { const w = nearest(q); if (w !== own) blend[k] = w; }
-  return { bone: P.bind.bone, blend };
-}
 
 /** a ribbon's bind off the cloth under it: each station (and each cap) the weights of the cloth's point nearest its
  * middle, all four of its corners alike (each corner its own nearest had parted a thin ribbon's faces in a stride) */
