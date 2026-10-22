@@ -26,6 +26,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE SHOULDER WEB (hero laws 8, tiered-form.js `SHOULDER_WEB`): a sleeve of skin in the arm's own colour group (the
+  top's tone under a shirt, the skin on a bare arm) over the tiered shoulder's ball, from inside the torso's shoulder
+  through the ball's equator to the arm's own belly ring, where it ends on the arm's points and welds into one surface
+  with it. It rides the collarbone, the shoulder's fold and the arm by ring, so it stretches as the arm swings, and it
+  splits with the arm's chain at a target that splits the arm. The ball reads as the deltoid's swell instead of a knob;
+  a tiered hero stamped before keeps its ball bare.
 - THE TIERED LIMB END (hero laws 7, tiered-form.js `tieredJoints` `respace`): a lofted limb stopped short of its bridge
   (the thigh, at the knee) carries its shaping rings with its end, each by its share of the run, so its last span keeps
   its length. Laws 1 to 6 left them, and the man's thigh ended in a centimetre-long span: a knight's knee guard built

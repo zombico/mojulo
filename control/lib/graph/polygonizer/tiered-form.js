@@ -171,8 +171,10 @@ function chainsOf(joints) {
 /** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one.
  * `list`: the joints to look for (the hero's by default; a creature's from its own chains, creature-drawn.js). */
 export function bridgedChains(plan, list = TIERED_JOINTS) {
-  const names = new Set((plan.segments || []).map((s) => s.name));
-  return chainsOf(list.filter((J) => names.has(J.bridge)));
+  const names = new Set((plan.segments || []).map((s) => s.name)), of = chainsOf(list.filter((J) => names.has(J.bridge)));
+  // (a shoulder web ends on its arm's ring: it splits with the arm's chain, or it would end on half the arm's points)
+  for (const n of names) { if (!n.startsWith('shoulderWeb') || !n.endsWith('R')) continue; const arm = of.get(n.replace(/^shoulderWeb/, 'upperArm')); if (arm && !arm.includes(n)) { arm.push(n); of.set(n, arm); } }
+  return of;
 }
 
 /** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was.
@@ -252,7 +254,21 @@ export const TIERED_SOCKETS = Object.freeze([
 ]);
 
 /** The plan with its sockets' folds: a fold the rig lacks is added (its rest line the limb's), the limb's root rings bound. */
-export function tieredSockets(plan) {
+/** THE SHOULDER WEB (hero laws 8, `web`): a sleeve of skin in the arm's own colour group over the ball, from inside the
+ * torso's shoulder through the ball's equator to the arm's own `st1` ring (its belly), so the ball reads as the
+ * deltoid's swell instead of a knob, and the web stretches as the arm swings. It ENDS ON the arm's ring, the same points
+ * riding the arm alone, so the two weld into one surface there (an overlap would show its crossing as a crease). Each
+ * ring before it at `at` (shares of the ball's radius along the arm from the ball's centre) with its radius `r` (of the
+ * ball's), or `toArm` (that share of the way from the equator to the arm's ring, swelled by `swell`), and its weights by
+ * role: the trunk's bone (the collarbone), the fold (the ball's), the limb. */
+export const SHOULDER_WEB = Object.freeze([
+  Object.freeze({ at: -1.25, r: 0.7, w: { trunk: 0.2, fold: 0.8 } }),
+  Object.freeze({ at: -0.6, r: 0.92, w: { fold: 1 } }),
+  Object.freeze({ at: 0, r: 1.06, w: { fold: 1 } }),
+  Object.freeze({ toArm: 0.5, swell: 1.04, w: { fold: 0.5, limb: 0.5 } }),
+]);
+
+export function tieredSockets(plan, { web = false } = {}) {
   const folds = plan.rig?.folds; if (!folds || !plan.rig.joints) return plan;
   const J = plan.joints, newFolds = { ...folds }; let any = false;
   const segments = plan.segments.map((seg) => {
@@ -284,6 +300,24 @@ export function tieredSockets(plan) {
     balls.push({ name: K.ball && K.limb.replace(/^upperArm/, 'shoulderBall'), kind: 'rings', slots: 'ring8', stations, caps: { back: c.map((x, k) => r6(x - d[k] * r)), tip: c.map((x, k) => r6(x + d[k] * r)) },
       group: seg.group, mirror: 'name', bind: K.fold });
   }
+  // (`web`: each ball's web, on the ball's axis and ring family, ending on its arm's own st1 ring)
+  if (web) for (const b of [...balls]) {
+    const K = TIERED_SOCKETS.find((x) => x.limb === b.name.replace(/^shoulderBall/, 'upperArm')), seg = segments.find((g) => g.name === K.limb), slots = SLOT_FAMILIES.ring8;
+    const arm = familyOf(plan, seg) === 'ring8' ? partRings({ ...plan, segments }, seg).stations.find((st) => st.id === 'st1') : null; if (!arm) continue;
+    const c = centre(b.stations[2].points), d = unit3(sub3(J[K.to], J[K.joint])), r = r6(K.ball * rad(seg.rMid ?? seg.rA)), role = (x) => (x === 'trunk' ? K.trunk : x === 'limb' ? K.limb : K.fold);
+    const rings = [];
+    for (const W of SHOULDER_WEB) {
+      if (W.toArm === undefined) { rings.push(ringPoints(c.map((x, k) => x + d[k] * r * W.at), d, r * W.r, slots)); continue; }
+      const e = rings[rings.length - 1], P = Object.fromEntries(slots.map((sl) => [sl, e[sl].map((x, k) => x + (arm.points[sl][k] - x) * W.toArm)])), m = centre(P);
+      rings.push(Object.fromEntries(slots.map((sl) => [sl, P[sl].map((x, k) => m[k] + (x - m[k]) * W.swell)])));
+    }
+    rings.push(arm.points);
+    const stations = rings.map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) }));
+    const wOf = (w) => Object.fromEntries(Object.entries(w).map(([k, x]) => [role(k), x])), last = { limb: 1 }, mid = centre(arm.points);
+    balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderWeb'), kind: 'rings', slots: 'ring8', stations,
+      caps: { back: c.map((x, k) => r6(x + d[k] * r * (SHOULDER_WEB[0].at - 0.15))), tip: mid.map((x, k) => r6(x - d[k] * r * 0.15)) },
+      group: seg.group, mirror: 'name', bind: { bone: K.fold, blend: { back: wOf(SHOULDER_WEB[0].w), ...Object.fromEntries(SHOULDER_WEB.map((W, i) => [`st${i}`, wOf(W.w)])), [`st${SHOULDER_WEB.length}`]: wOf(last), tip: wOf(last) } } });
+  }
   if (balls.length) { const i = segments.findIndex((g) => g.name === balls[0].name.replace(/^shoulderBall/, 'upperArm')); segments.splice(i + 1, 0, ...balls); }
   // the SHELL round a socket (the torso's shoulder): a point that shares the trunk bone's lift (the collarbone's) keeps
   // half of that share and gives the fold as much again from the torso's, so the shoulder's corner goes up with a raised
@@ -301,7 +335,7 @@ export function tieredSockets(plan) {
   const gained = Object.keys(newFolds).filter((ft) => !folds[ft]).map((ft) => ({ id: ft, head: newFolds[ft].head, tail: newFolds[ft].tail, aux: [newFolds[ft].head, newFolds[ft].aim] }));
   const bones = [...plan.rig.bones, ...(gained.length ? [{ perSide: gained }] : [])];
   // a ball takes the dials and the splits its arm takes
-  const withBall = (parts) => { const out = [...parts]; for (const b of balls) for (const S of ['R', 'L', '$S']) { const arm = b.name.replace(/^shoulderBall/, 'upperArm').replace(/R$/, S), n = b.name.replace(/R$/, S); if (out.includes(arm) && !out.includes(n)) out.push(n); } return out; };
+  const withBall = (parts) => { const out = [...parts]; for (const b of balls) for (const S of ['R', 'L', '$S']) { const arm = b.name.replace(/^shoulder(Ball|Web)/, 'upperArm').replace(/R$/, S), n = b.name.replace(/R$/, S); if (out.includes(arm) && !out.includes(n)) out.push(n); } return out; };
   const dials = plan.dials && Object.fromEntries(Object.entries(plan.dials).map(([k, x]) => [k, Array.isArray(x.parts) ? { ...x, parts: withBall(x.parts) } : x]));
   const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withBall(e.parts) } : e));
   return { ...plan, segments, rig: { ...plan.rig, folds: newFolds, bones }, ...(dials ? { dials } : {}), ...(refine ? { body: { ...plan.body, refine } } : {}) };
@@ -435,7 +469,7 @@ export function tieredKit(kit, plan) {
       B = { ...B, over: [...new Set([...(B.over || []), `${bridge}${S}`])], ...(A.rigid && !A.pin && t != null ? { pin: [mid, t, A.side || S, `${bridge}${S}`] } : {}) };
     }
     // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them
-    if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL'])] };
+    if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL', ...(seg('shoulderWebR') ? ['shoulderWebR', 'shoulderWebL'] : [])])] };
     return B;
   });
 }

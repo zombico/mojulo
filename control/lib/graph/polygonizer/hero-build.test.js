@@ -148,10 +148,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(7);
+    expect(HERO_LAWS_VERSION).toBe(8);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 7/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 8/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -229,6 +229,22 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     expect(share(seven)).toBeCloseTo(share(whole), 2);
     expect(at({ cast: 'male', form: 'classic' }, 7)).toEqual(at({ cast: 'male', form: 'classic' }, 6));
   });
+  it('laws 8, the shoulder web: over the ball in the arm\'s group, ending on the arm\'s own ring, closed, split with its arm; laws 7 has none', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const tiered = { cast: 'male', form: 'tiered' }, R = at(tiered, 8);
+    expect(at(tiered, 7).parts.shoulderWebR).toBeUndefined();
+    for (const S of ['R', 'L']) {
+      const w = R.parts[`shoulderWeb${S}`], arm = R.parts[`upperArm${S}`], st1 = arm.stations.find((st) => st.id === 'st1');
+      expect(w.group).toBe(arm.group);
+      expect(w.stations.at(-1).points).toEqual(st1.points);   // one surface with the arm there: the same points
+      const A = auditLayered(compileLayered(R)); expect(A[`shoulderWeb${S}`]).toMatchObject({ windingErrors: 0, boundaryEdges: 0, degenerate: 0 });
+    }
+    // (a bare arm's web is skin, as the arm is; a target that splits the arm splits the web with it)
+    expect(at({ ...tiered, detail: 'swimsuit' }, 8).parts.shoulderWebR.group).toBe('Skin');
+    const big = at({ ...tiered, target: '4k' }, 8); expect(big.parts.shoulderWebR.slots.length).toBe(big.parts.upperArmR.slots.length);
+    // the classic body has no ball and so no web
+    expect(at({ cast: 'male', form: 'classic' }, 8).parts.shoulderWebR).toBeUndefined();
+  }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk
     const off = (c) => Object.values(CAST_PRESETS[c].dials).reduce((t, v) => t + Math.abs(v - 1), 0);

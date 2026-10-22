@@ -77,8 +77,9 @@ describe('update_character revises what update_sketch revises', () => {
     await twin('readout');
     const a = await updateCharacterHandler({ ref: 'uc_readout_door', target: '1080p', readout: 'full' });
     // (the scale re-pinned for hero laws 4: the leg length moved the figure's height by a millimetre; the triangles for
-    // the tiered game body, the door's default since it was promoted: its bridges and shoulder balls)
-    expect(JSON.stringify(a)).toMatch(/"density":\{"target":\{"resolution":"1080p","framing":"third-person","error":1,"figurePx":360\},"pxPerMetre":217\.65,"triangles":7808/);
+    // the tiered game body, the door's default since it was promoted: its bridges and shoulder balls; hero laws 8 the
+    // webs over the balls)
+    expect(JSON.stringify(a)).toMatch(/"density":\{"target":\{"resolution":"1080p","framing":"third-person","error":1,"figurePx":360\},"pxPerMetre":217\.65,"triangles":7968/);
     await updateCharacterHandler({ ref: 'uc_readout_door', target: null });
     expect(SketchRepository.getByRef('uc_readout_door').manifest.hero.target).toBeUndefined();
   }, 240_000);

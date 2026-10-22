@@ -799,7 +799,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   becomes painted rim, and a row of rivets under 2 px one rivet. A held item's lathes, sweeps and gems follow the pixels
   it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
   bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
-  balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
+  balls and the web of skin over each (the arm's colour, from inside the torso to the arm's belly, stretching as it swings). `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
 - **The realistic body (`form: 'realistic'`).** The hero's body re-sampled onto the form field: bone where it shows and
   the muscle masses placed from the rig's joints, summed into one skin, denser than authored (the torso 48 round, 64 on
   the female, with the bust in the field), the shoulder girdle with a blade, and morph-like correctives a raised arm
