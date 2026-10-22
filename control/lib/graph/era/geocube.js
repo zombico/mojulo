@@ -13,7 +13,8 @@
  *             its own is a lock the solve fits the rest round, and the other written keys win. A preset's palette is
  *             its character (GEOCUBE_PALETTES); without a seed (a recipe minted before, or 'auto' not yet stamped)
  *             the cube's own colours stand, as they always did
- *   register  the tone's bands (`steps`, 0 continuous) and its key
+ *   register  the tone's bands (`steps`, 0 continuous) and its key; or a NAME (colour-register.js: cel, ink-wash, wii),
+ *             the terms that render the world as a drawing: the outline, the creases inked, the contrast it brings
  *   contrast  how the light is shaped in the vertex across the whole world (vertex-contrast.js: `'wii'`, the terms, or
  *             absent for none): the sky over, the ground under, the foot of a wall, crease and contact in the shade's
  *             colour, warm lit against cool shade, a slow drift of value. The land hands its crease and ridge to it
@@ -52,6 +53,7 @@
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
+ *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
  */
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
@@ -65,6 +67,7 @@ import { fingerprint } from '../gameworld/review.js';
 import { DEFAULT_ERA, eraError } from './eras.js';
 import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
+import { expandRegister, checkRegister, shadeHex, registerCreases } from './colour-register.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
@@ -305,6 +308,8 @@ export function readGeocube(spec) {
       if (base.light.moon) delete base.light.moon.color;
       base.why = base.why.filter((_, i) => !COLOUR_WHY[from]?.includes(i));
     }
+    // a named register (colour-register.js) is its terms over the preset's own register, its key kept
+    if (rest.register !== undefined) rest.register = expandRegister(rest.register, base.register, no);
     return readGeocube(merge(base, { id: `${from}-variant`, ...rest }));
   }
   only(spec, Object.keys(KEYS), 'cube');
@@ -320,6 +325,7 @@ export function readGeocube(spec) {
   const P = !solved && seededPalette(c.palette) ? c.palette : null;
   for (const k of ['light', 'surfaces', 'inside', 'outside', ...(P ? [] : ['colour', 'register', 'why'])]) if (c[k] === undefined) no(`${k} is missing${P ? '' : ['colour', 'register', 'why'].includes(k) ? ' (or a seeded palette to solve it from)' : ''}`);
   if (P) { c.colour ??= {}; c.register ??= { steps: 0 }; c.why ??= []; }
+  c.register = expandRegister(c.register, {}, no);
   if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
   c.title ??= c.id; c.reads ??= ''; c.era ??= DEFAULT_ERA; c.target ??= { ...DEFAULT_TARGET };
   if (eraError(c.era)) no(eraError(c.era));
@@ -349,13 +355,13 @@ export function readGeocube(spec) {
   for (const k of COLOURS) if (!HEX.test(c.colour[k] ?? '')) no(`colour.${k} is a #rrggbb colour`);
   if (c.colour.sand !== undefined && !HEX.test(c.colour.sand)) no('colour.sand is a #rrggbb colour');
   if (c.colour.shade !== undefined && !(Number.isFinite(c.colour.shade) && c.colour.shade >= 0 && c.colour.shade < 360)) no('colour.shade is a hue in degrees, 0..359');
-  // register
-  only(c.register, ['steps', 'key'], 'register');
-  if (!(Number.isInteger(c.register.steps) && c.register.steps >= 0 && c.register.steps <= 8)) no('register.steps is the tone\'s bands, 0 (continuous) to 8');
-  if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
+  // register (colour-register.js): the tone's bands and key, and the inks a named register draws
+  checkRegister(c.register, no);
   // grit (optional): how gritty the style is, 0..1; from GRIT_PIXELS its rock takes pixels (local-meru/plan.js)
   if (c.grit !== undefined && !(typeof c.grit === 'number' && c.grit >= 0 && c.grit <= 1)) no('grit is how gritty the style is, 0 (quiet) to 1; a gritty style\'s rock takes matte-painted pixels');
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
+  // (a register that brings a contrast lends it to a cube that names none of its own)
+  if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
   // surfaces
@@ -439,11 +445,6 @@ function solveInto(c, P, ref) {
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const shadeHue = (cube) => cube.colour.shade ?? 222;
-// the shade colour a crevice darkens toward: the cube's shade hue at a soft saturation
-function shadeHex(hue) {
-  const s = 0.4, l = 0.5, a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
-  return hexOf([f(0), f(8), f(4)].map((v) => v * 255));
-}
 /** Each key colour as a ramp of `n` stops, dark to light, every dark end leaning to the cube's shade hue. */
 export function geocubeRamps(cube, n = 5) {
   const shadow = shadeHue(cube);
@@ -607,13 +608,29 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
     const cube = readGeocube(m.hero.geocube), C = readContrast(cube.contrast);
     return C && C.metal > 0 ? { ...cubeContrast(cube, 'outside', { value }), only: 'metal' } : null;
   }
-  const spec = m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.geocube;
+  const spec = cubeSpecOf(m);
   if (spec === undefined || spec === null) return null;
   const cube = readGeocube(spec);
   if (!readContrast(cube.contrast)) return null;
   const side = m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
   const terrain = side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
   return cubeContrast(cube, side, { terrain, value, ...(m.hour !== undefined && side === 'outside' ? { hour: readHour(m.hour) } : {}) });
+}
+
+// the cube a world manifest is painted by: a stage's `geocube`, the geocube kind's `cube`, a city's `paint.geocube`
+const cubeSpecOf = (m) => (m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.geocube);
+
+/**
+ * The crease pass's terms (scene/channels/creases.js) the REGISTER of the cube a world manifest is painted by asks for:
+ * its creases and its outline, inked by the colour theorist (colour-register.js). null when no cube paints it, or its
+ * register names no ink. A hero's cube lights the hero only: none.
+ */
+export function geocubeRegisterOf(manifest) {
+  const m = manifest ?? {};
+  if (m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  return registerCreases(readGeocube(spec));
 }
 
 const readHourOf = (v) => { try { return readHour(v); } catch (err) { return no(err.message); } };

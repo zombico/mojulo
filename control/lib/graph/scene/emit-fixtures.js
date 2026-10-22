@@ -349,6 +349,12 @@ export const EMIT_FIXTURES = [
     repeats: [{ template: [quad('#666666')], transforms: [{ pos: [6, 0, 0] }, { pos: [8, 0, 0] }], group: 'furniture:post' }],
     creases: { ink: '#1b1d3e', wash: 0.5 }, metersPerUnit: 3.66,
   }],
+  // the cel register's outline and the land class (a cube's island): land inked only against the angular, the outline
+  // round every silhouette
+  ['creases-outline', {
+    faces: [quad('#8a7a5c'), floor('#6a9a42', { organic: 'land' }), quad('#3a6a32', { organic: true })],
+    creases: { line: 0.9, wash: 0.25, outline: { ink: '#0d070d', width: 2 } },
+  }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

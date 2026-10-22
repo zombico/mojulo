@@ -72,6 +72,13 @@ describe('contrast: each term moves what it should', () => {
     expect(wallAt(out, [4, 1, 3])).toBe(GREY);   // past the gradient's height
     expect(floorAt(out, [1, 1, 0])).toBe(GREY);
   });
+  it('unit: in a world not measured in metres the foot rises its metres, not its units', () => {
+    // the same room built in units of 2 m: the foot (2 m) reaches the wall's first unit only, as it reaches 2 m above
+    const half = room().map((f) => ({ ...f, corners: f.corners.map((p) => p.map((v) => v / 2)) }));
+    const out = contrastFaces(half, vc({ foot: { height: 2, depth: 0.5 }, unit: 2 }));
+    const metres = contrastFaces(room(), vc({ foot: { height: 2, depth: 0.5 } }));
+    for (const z of [0, 1, 1.5]) expect(wallAt(out, [2, 0.5, z])).toBe(wallAt(metres, [4, 1, z * 2]));
+  });
   it('crevice: the junction of wall and floor darkens; the open floor and wall do not', () => {
     const out = contrastFaces(room(), vc({ crevice: 1 }));
     expect(lum(floorAt(out, [4, 2, 0]))).toBeLessThan(lum(GREY) - 10);

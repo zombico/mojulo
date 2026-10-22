@@ -43,7 +43,8 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf } from '@/lib/graph/era/geocube';
+import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
@@ -234,10 +235,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
     toon: unshaded ? null : toon,
-    // CREASES (scene/channels/creases.js): `creases` on the manifest (or scene.creases), the vgl rule as a World pass.
-    // A kind whose trees are grown here tags them organic when it is on (fractal-city, city); the payload carries it
-    // below. Dropped under the unshaded export, as the other baked shading is. Absent ⇒ null ⇒ every byte identical.
-    creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases),
+    // CREASES (scene/channels/creases.js): `creases` on the manifest (or scene.creases), the vgl rule as a World pass,
+    // or the one the REGISTER of the cube that paints the world asks for (era/colour-register.js: cel, ink-wash, wii),
+    // the manifest's own winning (false turns the register's off). A kind whose trees are grown here tags them organic
+    // when it is on (fractal-city, city); the payload carries it below. Dropped under the unshaded export, as the other
+    // baked shading is. Absent ⇒ null ⇒ every byte identical.
+    creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases ?? geocubeRegisterOf(sketch.manifest) ?? undefined),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -449,14 +452,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && !unshaded && Array.isArray(payload.faces) && payload.faces.length) {
     const vc = geocubeContrastOf(sketch.manifest, { value: !!payload.tone });
     if (vc) {
-      payload.vertexContrast = vc;
+      // a world not measured in metres (the city plan's 3.66 m unit) carries its unit, so the contrast's metres read
+      const mpu = Number(payload.metersPerUnit ?? sketch.manifest.metersPerUnit);
+      payload.vertexContrast = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? { ...vc, unit: mpu } : vc;
       // (a hero's metal-only shaping asks no bake: its plate takes the foot and the crease, its body keeps its light)
       if (vc.contact > 0 && !vc.only && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
     }
   }
 
   // the crease pass (ctx.creases above): the World page reads the resolved terms; stills and exports ignore them
-  if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) payload.creases = ctx.creases;
+  // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
+  if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the

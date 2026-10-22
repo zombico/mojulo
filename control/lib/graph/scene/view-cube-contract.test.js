@@ -7,6 +7,7 @@ import {
   STATIC_GROUP,
   STATIC_METAL_GROUP,
   STATIC_ORGANIC_GROUP,
+  STATIC_LAND_GROUP,
   VIEW_DIRS,
   VIEW_PRESETS,
   focusMessage,
@@ -53,8 +54,8 @@ describe('view-cube contract', () => {
     expect(selectableGroups({ groups: [STATIC_GROUP, 'shell:northWall', 'repeat:0'] }))
       .toEqual(['shell:northWall', 'repeat:0']);
     expect(selectableGroups({ groups: [STATIC_GROUP] })).toEqual([]);
-    // the static group's splits (metal; organic, under creases) are static too
-    expect(selectableGroups({ groups: [STATIC_GROUP, STATIC_METAL_GROUP, STATIC_ORGANIC_GROUP, 'shell:roof'] })).toEqual(['shell:roof']);
+    // the static group's splits (metal; organic and land, under creases) are static too
+    expect(selectableGroups({ groups: [STATIC_GROUP, STATIC_METAL_GROUP, STATIC_ORGANIC_GROUP, STATIC_LAND_GROUP, 'shell:roof'] })).toEqual(['shell:roof']);
     expect(selectableGroups({})).toEqual([]);
     expect(selectableGroups(null)).toEqual([]);
     expect(selectableGroups({ groups: [null, 42, '', 'ok'] })).toEqual(['ok']);

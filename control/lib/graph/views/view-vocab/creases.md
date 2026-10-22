@@ -20,15 +20,22 @@ creases: true | {
   ink?:   '#rrggbb'   the shadow's colour (default '#2b2116', a warm umber; on a geocube world use its shade, darkened),
   line?:  0..1        the line at the corner (0.85),
   wash?:  0..1        the blend out across the face (0.6),
-  reach?: metres      how far the blend reaches (2; a room reads better at 0.5 to 1, a skyline at 3 to 5)
+  reach?: metres      how far the blend reaches (2; a room reads better at 0.5 to 1, a skyline at 3 to 5),
+  outline?: true | { ink, width }   a line round every silhouette (the cel look; width in css px, 1.5)
 }
 ```
 
+A world painted by a geocube can take all of it from the cube instead: its `register` (`cel`, `ink-wash`, `wii`) draws
+the creases and the outline in inks the colour theorist picks from the cube's own ramps (the geocube card). The
+world's own `creases` wins over the register's, and `creases: false` turns the register's off.
+
 ## What takes ink
 
-Only surfaces the builders mark angular: buildings, landmarks, kerbs, steps, street furniture, the ground under them. A
-tree is organic: neither it nor the ground at its foot is inked. Figures, walkers, cars, water and the sky never are.
-A gentle curve (a dome, a vault) stays clean; the joint where it meets a drum or a wall is inked.
+What is built: buildings, landmarks, kerbs, steps, street furniture, a city's ground. The land (a cube's island, a
+terrain, rocks) is inked only where something built meets it, so a building is grounded on a hillside and the hills'
+own folds stay clean. A tree is organic: neither it nor the ground at its foot is inked. Figures, walkers, cars, water
+and the sky never are. A gentle curve (a dome, a vault) stays clean; the joint where it meets a drum or a wall is inked.
+The outline goes round every form, the land's against what lies behind it, not against the sky at the world's edge.
 
 ## Where it is built for
 

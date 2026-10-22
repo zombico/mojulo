@@ -5,7 +5,7 @@ import { emitThreeWorld } from '../scene-three.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 
 const quad = (fill, extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
-const floor = (fill) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill });
+const floor = (fill, extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
 const GROUPS = (page) => JSON.parse(page.match(/const GROUPS = (\[.*?\]);\n/s)[1]);
 
 describe('creases: the setting', () => {
@@ -65,5 +65,40 @@ describe('creases: world-scene', () => {
     const trees = on.faces.filter((f) => f.organic).length;
     expect(trees).toBeGreaterThan(0);
     expect(on.faces.length).toBe(off.faces.length);   // the same geometry, only tagged
+  });
+});
+
+describe('creases: the roles a world\'s groups take (crease-roles.js)', () => {
+  it('the land is land, plant pools and the land\'s sprigs are organic, the built is angular', async () => {
+    const { creaseRole, tagCreaseRoles } = await import('../crease-roles.js');
+    for (const g of ['isekai:sand', 'isekai:cliff', 'isekai:rock', 'isekai:water', 'terrain-bake', 'rocks']) expect(creaseRole(g)).toBe('land');
+    for (const g of ['oak-L1', 'fir-L3', 'city:tree-oak-L2', 'isekai:sprig', 'isekai:petals']) expect(creaseRole(g)).toBe(true);
+    for (const g of ['isekai:wood', 'meru:stone', 'stage:wall', 'static', undefined, '']) expect(creaseRole(g)).toBeNull();
+    const p = tagCreaseRoles({ faces: [quad('#888888', { group: 'isekai:sand' }), quad('#888888', { group: 'stage:wall' }), quad('#888888', { group: 'oak-L1', organic: 'land' })],
+      repeats: [{ group: 'oak-L1', template: [quad('#3a6a32')], transforms: [] }] });
+    expect(p.faces.map((f) => f.organic)).toEqual(['land', undefined, 'land']);   // a face already tagged keeps its tag
+    expect(p.repeats[0].template[0].organic).toBe(true);
+  });
+
+  it('on the page: land and organic faces split off the static group, each with its class', () => {
+    const groups = GROUPS(emitThreeWorld({ faces: [quad('#888888'), floor('#b8b08a'), quad('#3a6a32', { organic: true }), floor('#aa9966', { organic: 'land' })], creases: true }));
+    const byName = Object.fromEntries(groups.map((g) => [g.name, g.crease]));
+    expect(byName).toEqual({ static: true, 'static:organic': undefined, 'static:land': 'land' });
+  });
+});
+
+describe('creases: a cube\'s register on the World (world-scene)', () => {
+  const sk = (manifest) => ({ manifest, title: 'test' });
+  it('the register\'s creases and outline reach the payload; the manifest\'s own creases win, and false turns them off', async () => {
+    const cube = { from: 'gothic-night', register: 'cel' };
+    const on = (await resolveWorldScene(sk({ kind: 'geocube', cube, show: 'room' }))).payload;
+    expect(on.creases).toMatchObject({ line: 0.9, wash: 0.25, outline: { width: 1.5 } });
+    expect(on.tone.steps).toBe(3);
+    expect((await resolveWorldScene(sk({ kind: 'geocube', cube: 'gothic-night', show: 'room' }))).payload.creases).toBeUndefined();
+    // the geocube kind takes only its own settings: a stage on the cube carries the manifest's own creases
+    const own = (await resolveWorldScene(sk({ kind: 'stage', geocube: cube, creases: { wash: 0 } }))).payload;
+    expect(own.creases).toMatchObject({ wash: 0, line: CREASE_DEFAULTS.line });
+    expect(own.creases.outline).toBeUndefined();
+    expect((await resolveWorldScene(sk({ kind: 'stage', geocube: cube, creases: false }))).payload.creases).toBeUndefined();
   });
 });

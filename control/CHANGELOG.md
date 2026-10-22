@@ -33,8 +33,25 @@ mark angular, with a falloff that blends from the corner out. Opt-in: a world th
   jitter out.
 - **Only angular surfaces take ink.** A face marked `organic` (the city's trees) is drawn black in the crease mask, so
   neither it nor the ground at its foot is inked; figures, walkers, cars, water and the sky are never inked.
-- Planned: a colour-theorist register that composes the creases, vertex contrast and the toon bands and ink into one
-  choice on the cube.
+- **The colour register** (`era/colour-register.js`). A geocube's `register` was the tone's bands and key; it can now be
+  a NAME that renders the world as a drawing: `cel` (three bands along each ramp, an outline round every form, crisp
+  creases), `ink-wash` (a broad wash pooling in every corner, a fine outline), `wii` (soft creases, the light shaped in
+  the vertex) and `continuous` (the light alone). `{ from, …changes }` varies one; its terms are `steps`, `key`,
+  `outline`, `creases` and `contrast`, and a name keeps the key the cube had or the palette solves. The colour theorist
+  inks it: the outline in the stone's hue and the creases in the shade's, both under every ramp's darkest stop, checked
+  by a cube law, `register-ink`. A world painted by the cube (a stage's `geocube`, the geocube kind, a city plan's
+  `paint.geocube`) draws the register's creases and outline; the world's own `creases` wins, and `false` turns them off.
+  A register's `contrast` is lent to a cube that names none of its own. A cube whose register is `{ steps, key }`
+  reads, lowers and renders as before.
+- **The outline** is a term of the crease pass (`creases.outline`): a line round every silhouette, where a pixel's
+  neighbours find the sky or a surface well behind it. The toon dial's ink hull stays the figures' outline.
+- **Land.** A face may be `organic: 'land'`: inked only where something built meets it, and outlined against what lies
+  behind it but not against the sky at the world's edge. When a world draws creases its land and plant pools take their
+  class from their groups (`scene/crease-roles.js`: the polygon land, a terrain's bake, rocks; the plant pools'
+  species), so nothing is threaded through the land's builders. A water sheet hides the bed under it from the pass, and
+  the sky dome is no surface behind anything. The scene's fog takes the ink as it takes the surface under it.
+- **Fixed: vertex contrast in a world not measured in metres.** The contrast's foot and its drift are metres; a city
+  plan's unit is 3.66 m, so the foot covered a whole storey. The payload now carries the world's unit to it.
 
 ### Micro matte painting: surfaces painted from relief
 
