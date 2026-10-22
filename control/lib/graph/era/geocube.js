@@ -48,16 +48,13 @@
  *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
  *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
- *   grit      (optional) a gen-7 cube's wear, 0 (quiet) to 1 (DEFAULT_WEAR when it names none): how broken, pitted
- *             and worn its texture-map layer is (era/cube-generation.js). A gen-6 cube is pure poly whatever its grit
- *             says, and its readout says so
+ *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
+ *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
+ *             polygon only
  *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
  *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
  *             as { ok, value }: advice, never a refusal
- *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution.
- *             gen-6 is pure poly; gen-7 is the texture-map layer (era/cube-generation.js): its palette solved at gen-7
- *             (its ramps the theorist's own where its colours are, and their relief: deeper shades and their light
- *             negatives, `geocubeRelief`), its walls, roofs and paving painted from relief, its rock drawn near
+ *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
  *   target    what the level is drawn for (target.js: resolution, framing, error; 1080p third-person by default): how
  *             many pixels a metre covers, so how dense its cast's rings and its surfaces' texels need to be. A hero lit
  *             by the cube takes its era and its target unless it names its own target
@@ -103,8 +100,6 @@ import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
 import { townDressOf } from './town-dress.js';
-import { isTextured, cubeTexture } from './cube-generation.js';
-import { reliefOf } from '../color-theorist/solve.js';
 import { readStyle, styleTownDress, styleReadout } from './arch-style.js';
 import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
 import { validateStructures } from '../fractal-structure/read.js';
@@ -246,8 +241,6 @@ export const GEOCUBE_PRESETS = Object.freeze({
     colour: { stone: '#c4b69c', floor: '#a9867c', trim: '#bda09f', accent: '#f49a74', grass: '#aa8957', foliage: '#554700', water: '#365d84', sand: '#b2968d', shade: 270 },
     register: { steps: 0, key: 0.62 },
     contrast: 'wii',
-    // (the texture-map layer: its walls, roofs and paving painted from relief, its rock drawn near: cube-generation.js)
-    era: 'gen-7',
     grit: 0.7,
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
@@ -389,8 +382,6 @@ export function readGeocube(spec) {
   if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
   c.title ??= c.id; c.reads ??= ''; c.era ??= DEFAULT_ERA; c.target ??= { ...DEFAULT_TARGET };
   if (eraError(c.era)) no(eraError(c.era));
-  // (a cube's palette is solved at the cube's generation: it names no other)
-  if (isObj(c.palette) && c.palette.era !== undefined && c.palette.era !== c.era) no(`palette.era is the cube's (${c.era}): set the cube's era, and its palette follows`);
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
   only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky'], 'light');
@@ -421,8 +412,8 @@ export function readGeocube(spec) {
   only(c.register, ['steps', 'key'], 'register');
   if (!(Number.isInteger(c.register.steps) && c.register.steps >= 0 && c.register.steps <= 8)) no('register.steps is the tone\'s bands, 0 (continuous) to 8');
   if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
-  // grit (optional): a gen-7 cube's wear, 0..1 (era/cube-generation.js)
-  if (c.grit !== undefined && !(typeof c.grit === 'number' && c.grit >= 0 && c.grit <= 1)) no('grit is a gen-7 cube\'s wear, 0 (quiet) to 1: how broken, pitted and worn its texture-map layer is');
+  // grit (optional): how gritty the style is, 0..1; from GRIT_PIXELS its rock takes pixels (local-meru/plan.js)
+  if (c.grit !== undefined && !(typeof c.grit === 'number' && c.grit >= 0 && c.grit <= 1)) no('grit is how gritty the style is, 0 (quiet) to 1; a gritty style\'s rock takes matte-painted pixels');
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
@@ -535,8 +526,7 @@ const atValueOf = (hex, rgb) => { const [, C, h] = lchOf(hexToRgb(hex)), [L] = l
  * written colour with a role of its own is locked in the solve. Writes into `c`; `P` is the seeded spec. */
 function solveInto(c, P, ref) {
   const locks = Object.fromEntries(Object.entries(c.colour).filter(([k, v]) => LOCK_ROLE[k] && HEX.test(v ?? '')).map(([k, v]) => [LOCK_ROLE[k], v]));
-  // (a gen-7 cube's palette solved at gen-7: the same colours, with their relief)
-  const spec = Object.keys(locks).length ? { ...P, lock: { ...locks, ...(P.lock ?? {}) } } : P, K = solveOnce(isTextured(c) ? { ...spec, era: 'gen-7' } : spec), S = cubeColours(K);
+  const K = solveOnce(Object.keys(locks).length ? { ...P, lock: { ...locks, ...(P.lock ?? {}) } } : P), S = cubeColours(K);
   const night = !ref.light.key, dome = ref.air.dome;
   const colour = { ...S.colour, ...(night ? { water: atValueOf(S.colour.water, dome.zenith) } : {}) };
   c.colour = { ...colour, ...c.colour };
@@ -545,8 +535,7 @@ function solveInto(c, P, ref) {
   c.light.sky ??= night ? { zenith: atValueOf(S.sky.zenith, dome.zenith), horizon: atValueOf(S.sky.horizon, dome.horizon), fog: atValueOf(S.sky.fog, hexToRgb(ref.air.fog.color)) } : S.sky;
   c.why = [...c.why, `Its colours are the color theorist's (${K.id}): ${K.read.says}, in a ${K.read.key} key.`,
     ...(K.read.moonlit ? ['The moon is the cool light and the dark is warm: a cold night inverts the palette.'] : [])];
-  // (a gen-7 cube keeps the spec it was solved from, its locks and era in it, so its ramps and relief are the solve's)
-  c.palette = isTextured(c) ? { ...spec, era: 'gen-7', id: K.id, reads: `${K.read.scheme}, a ${K.read.key} key` } : { ...P, id: K.id, reads: `${K.read.scheme}, a ${K.read.key} key` };
+  c.palette = { ...P, id: K.id, reads: `${K.read.scheme}, a ${K.read.key} key` };
   return K.checks;
 }
 
@@ -558,43 +547,21 @@ function shadeHex(hue) {
   const s = 0.4, l = 0.5, a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
   return hexOf([f(0), f(8), f(4)].map((v) => v * 255));
 }
-// a gen-7 cube's solved palette, again (its stored spec solves the same contract), or null
-function cubeContract(cube) {
-  if (!isTextured(cube) || !isObj(cube.palette) || cube.palette.id === undefined || !seededPalette(cube.palette)) return null;
-  const { id: _i, reads: _r, ...spec } = cube.palette;
-  return solveOnce(spec);
-}
-/** Each key colour as a ramp of `n` stops, dark to light, every dark end leaning to the cube's shade hue. A gen-7 cube
- *  solved from a palette keeps the theorist's own five-stop ramp for each colour that is still the theorist's (its role's
- *  middle stop): added to, never regrown. */
+/** Each key colour as a ramp of `n` stops, dark to light, every dark end leaning to the cube's shade hue. */
 export function geocubeRamps(cube, n = 5) {
-  const shadow = shadeHue(cube), K = n === 5 ? cubeContract(cube) : null;
-  const own = (k, h) => { const r = K && LOCK_ROLE[k] ? K.roles[LOCK_ROLE[k]] : null; return r && r[2].toLowerCase() === String(h).toLowerCase() ? r : null; };
-  return Object.fromEntries(Object.entries(cube.colour).filter(([k]) => k !== 'shade').map(([k, h]) => [k, own(k, h) ?? rampFrom(rgbOf(h), n, { shadow }).map(hexOf)]));
-}
-/**
- * A gen-7 cube's relief: each key colour's ramp with two deeper shades under it and their two light negatives over it
- * (color-theorist/solve.js `reliefOf`), the steps its texture-map layer's recesses and lit lips are drawn in: the
- * theorist's own where the ramp is, else off the cube's ramp, leaning to its shade and its light. Null for gen-6.
- */
-export function geocubeRelief(cube) {
-  if (!isTextured(cube)) return null;
-  const K = cubeContract(cube), R = geocubeRamps(cube), Hs = K ? K.params.Hs : shadeHue(cube), Hl = K ? K.params.Hl : 80;
-  return Object.fromEntries(Object.entries(R).map(([k, ramp]) => {
-    const role = LOCK_ROLE[k], own = K && role && K.roles[role] === ramp ? K.relief[role] : null;
-    return [k, own ?? reliefOf(ramp.map(rgbOf), Hl, Hs).map(hexOf)];
-  }));
+  const shadow = shadeHue(cube);
+  return Object.fromEntries(Object.entries(cube.colour).filter(([k]) => k !== 'shade').map(([k, h]) => [k, rampFrom(rgbOf(h), n, { shadow }).map(hexOf)]));
 }
 
 /**
- * A TEXTURED (gen-7) cube's room: its stone dressed from relief (matte-paint/dressed.js), as its outside's rock
+ * A GRITTY cube's room (grit ≥ GRIT_PIXELS): its stone dressed from relief (matte-paint/dressed.js), as its outside's rock
  * is drawn near in its own beds. The stock pixel maps give way: the wall's stone-brick becomes ashlar, the floor's
  * flagstone worn slabs, in the colours they named; the pillars fluted and the plinth a course of long blocks, unless the
  * cube names its own. Grit tunes them: how much is broken, pitted and worn, a rock face from 0.85. A surface the cube
  * names in another generator, or already dressed, is kept. Quiet cubes are as they were.
  */
 function dressedSurfaces(cube) {
-  const S = cube.surfaces, g = cubeTexture(cube), W = S.wall, F = S.floor;
+  const S = cube.surfaces, g = cube.grit, W = S.wall, F = S.floor;
   const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 };
   const dark = (c, k) => c.map((v) => Math.round(v * k));
   const wall = W.gen === 'stone-brick' ? { gen: 'dressed', stone: W.stone, mortar: W.mortar, rows: 4, cols: 2, tool: g >= 0.85 ? 'pitched' : 'tooled', ...wear, seed: W.seed ?? 13 } : W;
@@ -606,16 +573,16 @@ function dressedSurfaces(cube) {
 }
 
 function lowerInside(cube) {
-  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size, wear = cubeTexture(cube), textured = wear !== null;
-  // (a textured room's tone lets its stone's own light and dark through further: its wear is how much texture reads)
+  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size, gritty = cube.grit !== undefined && cube.grit >= GRIT_PIXELS;
+  // (a gritty room's tone lets its stone's own light and dark through further: the grit is how much texture reads)
   const tone = {
-    texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: textured ? Math.round((0.45 + 0.45 * wear) * 100) / 100 : 0.45, default: 'stone',
+    texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: gritty ? Math.round((0.45 + 0.45 * cube.grit) * 100) / 100 : 0.45, default: 'stone',
     ramps: { stone: R.stone, floor: R.floor, trim: R.trim, accent: R.accent },
     groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
     keep: ['stage:fixture', 'stage:lamp'],
   };
   return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
-    tiles: textured ? dressedSurfaces(cube) : { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
+    tiles: gritty ? dressedSurfaces(cube) : { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
 
@@ -736,7 +703,7 @@ export function settlementStyle(cube, t, over) {
 export function geocubeTown(cube, D, over) {
   if (!D || D.settlement === undefined) return null;
   const t = typeof D.settlement === 'string' ? cube.settlements[D.settlement] : D.settlement, { style, anchor } = settlementStyle(cube, t, over);
-  // (a gen-7 cube's street dressed from relief, as its island's rock is: town-dress.js; a style's words and colours over it)
+  // (a gritty cube's street dressed from relief, as its island's rock is: town-dress.js; a style's words and colours over it)
   const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
   return { ...(anchor !== undefined ? { anchor } : {}), ...(t.houses !== undefined ? { houses: t.houses } : {}), ...(t.enter !== undefined ? { enter: t.enter } : {}),
     ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT },
@@ -895,7 +862,7 @@ function outsideOf(cube, base, sw, land, lookCard) {
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
   const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
-    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(isTextured(cube) ? { grit: Math.max(cubeTexture(cube), GRIT_PIXELS) } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
+    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
     ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
 }
 
@@ -1154,10 +1121,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
  * room and land (or a domain was asked for), and the domain it shows. `P`: pickDomain's answer, or null. */
 export function geocubeReadout(cube, show, P, manifest) {
   const menu = P || cube.domains || cube.outside.terrains || cube.inside.interiors ? geocubeDomains(cube).map(({ name, side, reads }) => ({ name, side, reads })) : null;
-  // (the generation: a gen-7 cube's relief beside its ramps, its wear; a gen-6 cube naming grit told what it asks for)
-  const gen = isTextured(cube) ? { relief: geocubeRelief(cube), texture: { layer: 'texture-map', wear: cubeTexture(cube) } }
-    : cube.grit !== undefined ? { texture: { layer: 'pure poly', says: 'grit is a gen-7 cube\'s wear: set era \'gen-7\' for the texture-map layer' } } : {};
-  return { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), ...gen, era: cube.era, density: geocubeDensity(cube),
+  return { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
     ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
     ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}), ...(cube.avoid ? { avoid: cube.avoid } : {}),
     ...(menu ? { domains: menu } : {}), ...(P ? { domain: { name: P.name, from: P.from, ...P.domain, ...(manifest.hour !== undefined ? { hour: manifest.hour } : {}), ...(P.changed ? { changed: P.changed } : {}) } } : {}) };

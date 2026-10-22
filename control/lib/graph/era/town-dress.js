@@ -1,5 +1,5 @@
 /**
- * TOWN DRESS — a gen-7 cube's street painted from relief, as its island's rock is: the walls' plaster a lime render
+ * TOWN DRESS — a gritty cube's street painted from relief, as its island's rock is: the walls' plaster a lime render
  * fallen away here and there to the coursed stone under it (the Dust map), the stone walls ashlar, the plinths a course of
  * long blocks (matte-paint/dressed.js). Each is laid on a placed face as a DETAIL: the painted tile divided by its own
  * mean (per channel, in linear light) and set to `DETAIL_MEAN`; and its roofs' tiles and slates in lapped courses and its
@@ -8,7 +8,7 @@
  * relief, its patches and its joints ride on them. Laid world-locked (a metre is a metre on every wall: u along the
  * wall, v up it; on a roof u along the eave, v up the slope), the two variants by where the face stands.
  *
- *   townDressOf(cube)                        → the street's dress (a gen-7 cube's: era/cube-generation.js), or null
+ *   townDressOf(cube)                        → the street's dress (a cube's grit ≥ GRIT_PIXELS), or null
  *   dressTownFace(face, group, dress)        → the face dressed for its source group ('str:plaster', 'str:stone',
  *                                              'str:timber', 'plinth'; a roof's 'str:tile', 'str:slate', 'str:shingle'),
  *                                              or the face itself (no dress for it, or not a wall, or not a roof); a
@@ -24,7 +24,7 @@
  */
 import { detailKey, layDetail, DETAIL_MEAN } from '../matte-paint/detail.js';
 import { normalizeTileSpec } from './tile-specs.js';
-import { cubeTexture } from './cube-generation.js';
+import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 
 export { DETAIL_MEAN };
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -33,10 +33,10 @@ const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 
 const srgb = (c) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
 const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 
-/** A gen-7 cube's street dress: each source group's dressed stone, in the cube's own colours, tuned by its wear. */
+/** A gritty cube's street dress: each source group's dressed stone, in the cube's own colours, tuned by its grit. */
 export function townDressOf(cube) {
-  const g = cubeTexture(cube);
-  if (g === null) return null;
+  const g = cube.grit;
+  if (g === undefined || g < GRIT_PIXELS) return null;
   const stone = rgbOf(cube.colour.stone), mortar = stone.map((v) => Math.round(v * 0.68)), coat = rgbOf(cube.colour.floor).map((v) => Math.min(255, Math.round(v * 1.05 + 10)));
   const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 };
   return {

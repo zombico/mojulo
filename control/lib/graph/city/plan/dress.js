@@ -1,5 +1,5 @@
 /**
- * THE CITY DRESSED — a gen-7 cube's city (its `paint.geocube`, era/cube-generation.js) painted from relief, as its
+ * THE CITY DRESSED — a gritty cube's city (its `paint.geocube` at grit from GRIT_PIXELS) painted from relief, as its
  * island's rock and its town's walls are, in the class of materials its builders had: a city is MODERN by default
  * (machine-made and cement-bound: wire-cut brick or stucco where windows are punched through a wall, sawn stone or
  * precast panels between piers, precast or board-formed concrete in bands, a concrete sidewalk scored into slabs, each
@@ -20,7 +20,7 @@
  */
 import { detailKey, layDetail } from '../../matte-paint/detail.js';
 import { normalizeTileSpec } from '../../era/tile-specs.js';
-import { cubeTexture } from '../../era/cube-generation.js';
+import { GRIT_PIXELS } from '../../matte-paint/fabric.js';
 import { surfaceTexture } from '../../landscape/surface-textures.js';
 import { MATERIAL_WORDS, materialContext, wordTile } from '../../era/arch-style.js';
 
@@ -34,18 +34,18 @@ const MODERN_COLOUR = Object.freeze({ brick: '#9c5440', stucco: null, sawn: null
 const CUBE_SHARE = 0.35;
 
 /**
- * A gen-7 cube's city dress, in its class: ANCIENT (hand-worked, lime-bound: render over stone, tooled ashlar, flags)
+ * A gritty cube's city dress, in its class: ANCIENT (hand-worked, lime-bound: render over stone, tooled ashlar, flags)
  * or MODERN (machine-made, cement-bound: wire-cut brick, stucco, sawn stone, precast panels, board-formed concrete, a
  * concrete sidewalk), a city's by default (its paint's `materials`). Each rhythm offers one or two; a building takes
  * one by its own dice. → { class, walls: { <rhythm>: [dress…] }, ground: { <group>: dress } } or null.
  */
 export function cityDressOf(P, unit) {
-  const textured = P?.cube ? cubeTexture(P.cube) !== null : false;
-  if (!P?.style) return textured ? classDress(P, unit, P.materials ?? 'modern') : null;
-  // a style: its class's dress (on a gen-7 cube), its words over it
-  const S = P.style, cls = P.materials ?? S.class, D = textured ? classDress(P, unit, cls) : { class: cls, walls: {}, ground: {} }, X = materialContext(P.cube);
+  const g = P?.cube?.grit, gritty = g !== undefined && g >= GRIT_PIXELS;
+  if (!P?.style) return gritty ? classDress(P, unit, P.materials ?? 'modern') : null;
+  // a style: its class's dress (on a gritty cube), its words over it
+  const S = P.style, cls = P.materials ?? S.class, D = gritty ? classDress(P, unit, cls) : { class: cls, walls: {}, ground: {} }, X = materialContext(P.cube);
   const wordOf = (w, surface, i) => {
-    const T = textured ? wordTile(w, X, WORD_SEEDS[surface] + 3 * i) : null, c = S.palette[surface] ?? MATERIAL_WORDS[w].colour, colour = c ? mixHex(c, P.cube.colour.stone, CUBE_SHARE) : null;
+    const T = gritty ? wordTile(w, X, WORD_SEEDS[surface] + 3 * i) : null, c = S.palette[surface] ?? MATERIAL_WORDS[w].colour, colour = c ? mixHex(c, P.cube.colour.stone, CUBE_SHARE) : null;
     return T ? entry(T.spec, T.metres, unit, colour) : { ...(colour ? { colour } : {}) };
   };
   for (const r of ['punched', 'pier', 'banded', 'grid']) {
@@ -63,9 +63,9 @@ export function cityDressOf(P, unit) {
 // the seeds a style's words are painted at, by surface
 const WORD_SEEDS = { punched: 101, pier: 111, banded: 121, grid: 131, walk: 141, road: 151 };
 
-// a class's own dress on a gen-7 cube
+// a class's own dress on a gritty cube
 function classDress(P, unit, cls) {
-  const cube = P.cube, g = cubeTexture(cube);
+  const cube = P.cube, g = cube.grit;
   const stone = rgbOf(cube.colour.stone), mortar = stone.map((v) => Math.round(v * 0.68)), coat = rgbOf(cube.colour.trim);
   const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 }, loss = Math.round(Math.min(1, 0.1 + 0.6 * g) * 100) / 100;
   if (cls === 'ancient') {
@@ -94,7 +94,7 @@ function classDress(P, unit, cls) {
 // so a building's walls are one material and its neighbours their own
 const pickOf = (f, n) => { const C = f.card, s = [C.frameHex, C.bodyHex, C.floors, C.bays].join('|'); let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h % n; };
 
-/** The city's faces under a gen-7 cube's dress, and the tiles they use (a card's facets are realized on the page). */
+/** The city's faces under a gritty cube's dress, and the tiles they use (a card's facets are realized on the page). */
 export function dressCity(faces, P, unit) {
   const D = cityDressOf(P, unit);
   if (!D) return null;

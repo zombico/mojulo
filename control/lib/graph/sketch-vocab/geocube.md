@@ -10,12 +10,6 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 `light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `why`, `avoid`.
 
-The generation is the cube's, decided once: `era: 'gen-6'` (the default) is pure poly, flat facets in their ramps'
-stops; `era: 'gen-7'` is the texture-map layer: its palette solved at gen 7 (its ramps the color theorist's, with their
-relief: two deeper shades under each and their light negatives over it, in the readout as `relief`), its rooms' stone,
-its streets' walls, roofs and paving painted from relief, its rock drawn near. `grit` is a gen-7 cube's wear (0.4 when
-unnamed); a gen-6 cube draws no texture whatever its grit says.
-
 ## The ingredients
 
 - **Terrains** (`outside.terrains: { <name>: { reads?, base?, tiers?, island?, land?, relief?, ground?, crystals?, colour? } }`):
@@ -64,7 +58,7 @@ A cube that names no domains offers one per terrain and one per interior.
   an outside domain's island, every way up drawn; `show: 'town'` a micro-town (a few houses of its street, or a
   hamlet's) and `show: 'city'` a micro-city (the smallest city plan, in the cube's paint and builders' language),
   each walked by a stand-in at eye height to review the architecture, seen first from a person's eye before a house
-  or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gen-7
+  or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own;

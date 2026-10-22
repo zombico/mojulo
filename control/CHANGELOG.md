@@ -117,7 +117,8 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   the walls' feet, in the trim's laying; a course of long blocks with no bed joint across it) and the `path` (the nave's
   runner, in the floor's laying, still floor to the tone and the dirt). A geocube's `surfaces.plinth` reaches the room.
   Without them a room is byte for byte as it was.
-- **A gen-7 cube dresses its room.** A gen-7 geocube's room (era/cube-generation.js; its `grit` the wear) is dressed as its outside's rock is drawn near: the wall's stock
+- **A gritty cube dresses its room.** At `grit` from `GRIT_PIXELS` (the island's own threshold, now in
+  `matte-paint/fabric.js`), a geocube's room is dressed as its outside's rock is drawn near: the wall's stock
   stone-brick becomes ashlar and the floor's flagstone worn slabs, in the colours they named; the pillars fluted and the
   plinth a course of long blocks unless the cube names its own; grit sets how much is broken, pitted and worn (a rock
   face from 0.85). Its tone's `detail` rises with grit (0.45 + 0.45 × grit), so the stone's own light and dark read
@@ -140,16 +141,6 @@ they speak in). The line is drawn where the colours are solved, so it cascades.
   each other. `reliefOf(ramp, Hl, Hs)`. Its laws (`RELIEF_LAWS`, advice stamped after the palette's own): the steps a
   texture can read (ΔL ≥ 0.035), the deepest a colour, the pairs balanced, the land's lit lips about the sky's light
   end by day. `pick_palette` takes `era` and returns the relief. A gen-6 spec solves byte for byte as before.
-- **The cube is a generation** (`era/cube-generation.js`, `era/geocube.js`). A cube's `era: 'gen-7'` is its
-  texture-map layer, asked once (`isTextured`, `cubeTexture`) by everything that draws one: its room's dressed stone
-  and its tone's detail, its town's and city's dress and a style's words, its paving, its island's rock fabric. `grit`
-  is the layer's wear inside gen-7 (`DEFAULT_WEAR` 0.4 when unnamed, any amount, no threshold); a gen-6 cube is pure
-  poly whatever its grit says, and its readout says what grit asks for. Its palette is solved at the cube's generation
-  (a palette that names another is refused); a gen-7 cube solved from a palette keeps the spec it was solved from and
-  the theorist's own ramps for each colour still the theorist's, added to and never regrown (`geocubeRamps`), and every
-  gen-7 cube carries its relief beside its ramps in its readout (`geocubeRelief`: the theorist's where the ramp is, off
-  the cube's ramp otherwise), with its layer and wear. `limestone-crags` is gen-7. A gen-6 cube that names no grit is as
-  it was.
 
 ### Geotown structures: doors and windows, the street, the square, the gates
 
@@ -178,7 +169,7 @@ The geotown's buildings up close, and the town round them: its openings as archi
   footway, facing it, the seats nearest the town's heart first; a house left no free frontage is not built rather
   than stacked on another (before, a town's houses scattered over the land, one up a hill, and could stand in one
   another). The planning pass reserves the street's ground, so nothing grows on it; its trail and growth are cleared.
-  On a gen-7 cube its setts, flags and slabs are laid from relief (era/town-dress.js `street:*`), a style's `road`
+  On a gritty cube its setts, flags and slabs are laid from relief (era/town-dress.js `street:*`), a style's `road`
   and `walk` words over them. The micro-town's `house` camera stands on the road before the first house, its
   `street` camera on that house's walk looking down it. A stage town that does not ask for its street is as it was.
 
@@ -220,7 +211,7 @@ material words, and starters are examples on the rails, never the limit.
 ### Geocube town materials: a cube's town and city painted from relief, at its hours
 
 The island's know-how carried to the cube's architecture: its micro-town and micro-city seen at eye height, lit at its
-hours under its clouds, and a gen-7 cube's street painted from relief as its rock is.
+hours under its clouds, and a gritty cube's street painted from relief as its rock is.
 
 - **Seen for the architecture.** The micro-town's first cameras are a person's eye nine metres before its first house's
   front (`house`) and down the street to the rest at their own floors (`street`); the micro-city's, a person's eye on its
@@ -240,7 +231,7 @@ hours under its clouds, and a gen-7 cube's street painted from relief as its roc
   the stone in the hollow is dirtier for having been under the coat. The ashlar's own paint was factored out to share
   with it, byte for byte. Its noise slides each octave's lattice by whole cells of its own (still periodic): thresholded
   hard, the shared lattice showed every patch at the repeat's origin.
-- **A gen-7 cube's street dressed** (`era/town-dress.js`). A gen-7 cube's street (`geocubeTown`)
+- **A gritty cube's street dressed** (`era/town-dress.js`). At `grit` from `GRIT_PIXELS`, a cube's street (`geocubeTown`)
   carries a `dress`: its plaster walls the lime render (a 3 m repeat, loss from its grit), its stone walls ashlar
   (rock-faced from 0.85), its plinths and stoops a course of long blocks, in the cube's stone and floor colours. A stage
   town's `dress` lays each on the walls, gables, socles, quoins, sills and plinths of its standing houses and of the
@@ -256,7 +247,7 @@ hours under its clouds, and a gen-7 cube's street painted from relief as its roc
   below so its shadow falls down the slope, each tile rolled across like a pantile, its tone its own, the weather darker
   toward each course's exposed foot and lichen a fine speckle gathered there at grit (a broad thresholded blotch read as
   camouflage); slates the same, thin, flat, half-bonded and each laid a little askew; boards upright with gaps between
-  them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gen-7 cube's street dress
+  them, a cupped face, a grain in fine ridges up each, knots and the weather streaked down. A gritty cube's street dress
   lays its tile, slate and shingle roofs (u along the eave, v up the slope: a rise over the pitch's sine) and its timber
   walls, frames and trims (the tiered houses' boards) the same way; a flat roof is not laid. Thatch is as it was.
 - **Two classes of built material** (`matte-paint/dressed.js`, `city/plan/dress.js`). ANCIENT, hand-worked and
@@ -287,7 +278,7 @@ hours under its clouds, and a gen-7 cube's street painted from relief as its roc
   takes its gradients from the unshifted uv (no mip seam at a cut); the dice are an integer hash of the cell and the
   plan's seed. The world sends a plan for each detail tile a page draws (`payload.resample`); the patch replaces the map's
   read in those meshes' shader; a page with no plan emits nothing of it. Godot and Roblox tile the detail as painted.
-- **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gen-7 cube (its
+- **The city's facades and sidewalks dressed** (`city/plan/dress.js`). A city painted by a gritty cube (its
   `paint.geocube`, the micro-city's always) is painted from relief as the cube's town is: the wall a facade's windows
   are cut through (a card's shirt in the `punched`, `pier` and `banded` rhythms) a lime render broken to the stone, ashlar,
   or a coat that has weathered rather than fallen; its sidewalks and plazas in worn slabs. A card carries its wall's
