@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { withGrittyFlora, withGrittyGround, FLORA_CUTS } from './gritty-flora.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { assembleStageScene } from './stage.js';
+import { isekaiKey, isekaiTexels } from './isekai-tiles.js';
 
 const quad = (group, normal, z = 0) => ({ group, fill: '#506040', normal, corners: normal[2] > 0.7 ? [[0, 0, z], [1, 0, z], [1, 1, z], [0, 1, z]] : [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] });
 const faces = () => [quad('isekai:crown', [0, 0, 1], 5), quad('isekai:crown', [0, -1, 0]), quad('isekai:wood', [0, -1, 0]), quad('isekai:wood', [0, 0, 1]), quad('isekai:ground', [0, 0, 1])];
@@ -48,7 +49,24 @@ describe('gritty flora', () => {
     expect(of(Q, 'isekai:crown').some(detailed)).toBe(false);
     expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
     expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
+    // (its clouds hi-def, the cutouts with them; a quiet land's pixel-locked)
+    const clouds = (P) => P.faces.filter((f) => /:cumulus-/.test(f.texture || '')).map((f) => f.texture);
+    expect(clouds(G).length).toBeGreaterThan(0);
+    expect(clouds(G).every((k) => k.endsWith('+hd') && G.cutouts.includes(k))).toBe(true);
+    expect(clouds(Q).some((k) => k.endsWith('+hd'))).toBe(false);
   }, 60000);
+
+  it('a hi-def tile: the same drawing at twice the size, every texel between two neighbouring stops, a cutout whole', () => {
+    const key = 'isekai:isekai-meadow:cumulus-lit', K = isekaiKey(`${key}+hd`), px = isekaiTexels(key), hd = isekaiTexels(`${key}+hd`);
+    expect(K.hd).toBe(true);
+    expect([hd.W, hd.H]).toEqual([px.W * 2, px.H * 2]);
+    expect(new Set(hd.a)).toEqual(new Set([0, 255]));
+    const S = K.stops, inSpan = (c) => S.some((q, i) => i < S.length - 1 && [0, 1, 2].every((k) => c[k] >= Math.min(q[k], S[i + 1][k]) - 1 && c[k] <= Math.max(q[k], S[i + 1][k]) + 1));
+    let out = 0, between = 0;
+    for (let i = 0; i < hd.W * hd.H; i++) { const c = [hd.rgb[i * 3], hd.rgb[i * 3 + 1], hd.rgb[i * 3 + 2]]; if (!inSpan(c)) out++; if (!S.some((q) => q.every((v, k) => v === c[k]))) between++; }
+    expect(out).toBe(0);
+    expect(between).toBeGreaterThan(0);
+  });
 
   it('a gritty land\'s live grass takes the material light, its contrast the grit\'s, no dry hue', () => {
     const M = { kind: 'stage', kit: 'isekai-meadow', biocube: 'meadow' };

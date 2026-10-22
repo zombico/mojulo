@@ -555,9 +555,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
-  // (a gritty polygon land's flora in detail, as its rock: leaves on the crowns, bark up the trunks; gritty-flora.js)
-  const drawnFaces = broken ? withGrittyFlora(faces, broken) : faces;
-  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-/.test(f.texture || '')).map((f) => f.texture))].sort();
+  // (a gritty polygon land's flora in detail, as its rock: leaves on the crowns, bark up the trunks, gritty-flora.js; its
+  // clouds' cards drawn hi-def in their own stops, isekai-tiles.js `+hd`)
+  const hdCloud = (k) => (broken && /:cumulus-/.test(k || '') ? `${k}+hd` : k);
+  const drawnFaces = broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces;
+  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-/.test(f.texture || '')).map((f) => hdCloud(f.texture)))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];

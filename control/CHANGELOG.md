@@ -142,6 +142,9 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
 - **The grass's light.** A gritty land's live grass takes the material light (its ramp read smooth, not banded), the
   roots darker and the light through the blades stronger as the grit rises (`ao` 0.6 to 0.3, `back` 0.6 to 1); no dry
   tips, a hue the cube's ramps do not hold.
+- **The clouds.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the kit's
+  own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest stops, the
+  cutout's edge kept whole.
 
 ### The biocube: a level's flora as data
 
