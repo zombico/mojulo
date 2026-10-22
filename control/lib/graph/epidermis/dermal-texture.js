@@ -161,8 +161,11 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
 }
 
 /** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, how deep it paints at `shade: 1`,
- * and how far a shade's colour leans it to its hue */
-const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6 });
+ * how far a shade's colour leans it to its hue, and the `deep` curve's knee (the occlusion past which the skin falls toward
+ * a near-black, `near` of its colour: the nostrils, the mouth's line, the sockets' corners, the ear's folds) */
+const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6, knee: 0.8, near: 0.05 });
+/** the deep curve's fall past its knee (0 … 1, smooth) */
+const smoothKnee = (o) => { const t = Math.max(0, Math.min(1, (o - SHADE.knee) / (1 - SHADE.knee))); return t * t * (3 - 2 * t); };
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
 export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
@@ -191,7 +194,8 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
       let o = Math.max(0, Math.min(1, 1 - broad[i]));
       if (Sh.steps) o = Math.min(1, Math.floor(o * Sh.steps * 1.6) / Sh.steps);
       if (!(o > 0)) continue;
-      for (let c = 0; c < 3; c++) albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * (1 - Sh.amount * o * (1 - floor[c])))));
+      const deep = Sh.curve === 'deep' ? Sh.amount * smoothKnee(o) : 0;
+      for (let c = 0; c < 3; c++) { const m = 1 - Sh.amount * o * (1 - floor[c]), nb = SHADE.near * floor[c] / (1 - SHADE.depth); albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * (m + (nb - m) * deep)))); }
     }
   }
   return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };

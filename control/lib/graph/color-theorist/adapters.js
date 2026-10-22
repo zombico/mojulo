@@ -75,9 +75,10 @@ export function lightOf(K, light) {
  *   painted   smooth, as a painted texture carries its light
  *   cel       three hard bands (a toon's shade)
  *   graphic   two bands, deeper (a comic's ink-and-flat)
+ *   chiaroscuro  painted, and a near-black only where the skin is enclosed deepest (the `deep` curve)
  *   none      no shade painted (an engine that lights and occludes for itself)
  */
-export const SKIN_SHADINGS = Object.freeze({ painted: { steps: 0, k: 1 }, cel: { steps: 3, k: 1 }, graphic: { steps: 2, k: 1.25 }, none: null });
+export const SKIN_SHADINGS = Object.freeze({ painted: { steps: 0, k: 1 }, cel: { steps: 3, k: 1 }, graphic: { steps: 2, k: 1.25 }, chiaroscuro: { steps: 0, k: 1, curve: 'deep' }, none: null });
 const SHADE_BY_KEY = { high: 0.35, mid: 0.55, low: 0.75 }, EXPOSURE_BY_KEY = { high: 1.08, mid: 1, low: 0.82 };
 /** A character's skin and light in the palette (see the head of the file). → { shade?: { amount, colour, steps }, light } */
 export function skinDirection(K, shading = 'painted') {
@@ -85,7 +86,7 @@ export function skinDirection(K, shading = 'painted') {
   const S = SKIN_SHADINGS[shading], key = K.read.key || 'mid', w = K.read.weight || 0;
   const amount = S ? r3(Math.max(0.15, Math.min(1, (SHADE_BY_KEY[key] + 0.15 * w) * S.k))) : 0;
   return {
-    ...(S ? { shade: { amount, colour: fillOf(K, 0.5), steps: S.steps } } : {}),
+    ...(S ? { shade: { amount, colour: fillOf(K, 0.5), steps: S.steps, ...(S.curve ? { curve: S.curve } : {}) } } : {}),
     light: { key: K.light, fill: fillOf(K, 0.74), rim: K.roles.sky[3], exposure: EXPOSURE_BY_KEY[key] },
   };
 }

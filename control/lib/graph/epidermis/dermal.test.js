@@ -200,6 +200,12 @@ describe('the shading painted in', () => {
     const ch = (T, c) => T.albedo.reduce((a, v, i) => a + (i % 4 === c ? v : 0), 0);
     expect(ch(blue, 2) / ch(blue, 0)).toBeGreaterThan(ch(plain, 2) / ch(plain, 0));
     expect(cel.albedo).not.toEqual(plain.albedo);
+    // (the deep curve: the same shade until the knee, then a near-black only in the deepest few texels)
+    const deep = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, curve: 'deep' } }), L);
+    let moved = 0, black = 0, n = 0;
+    for (let i = 0; i < plain.albedo.length; i += 4) { if (plain.albedo[i + 3] === 0) continue; n++; if (deep.albedo[i] !== plain.albedo[i]) moved++; if (deep.albedo[i] < plain.albedo[i] * 0.6) black++; expect(deep.albedo[i]).toBeLessThanOrEqual(plain.albedo[i]); }
+    expect(black).toBeGreaterThan(0); expect(moved / n).toBeLessThan(0.1);
+    expect(() => readDermis({ from: 'male', shade: { amount: 1, curve: 'cliff' } })).toThrow(/shade/);
     for (const bad of [{ amount: 2 }, { amount: 1, steps: 1 }, { amount: 1, colour: 'blue' }, { amount: 1, gloss: 1 }]) expect(() => readDermis({ from: 'male', shade: bad })).toThrow(/shade/);
   });
 });

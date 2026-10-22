@@ -56,7 +56,7 @@ export const DERMIS_DIALS = Object.freeze({
   peak: 'mm, 0 … 10 (a widow\'s peak: the hairline dipping at the middle; absent 0)',
   sideburn: 'mm, −12 … 15 (the sideburn\'s foot lower; − shorter; absent 0)',
   nape: 'mm, −15 … 20 (the nape\'s line lower; − higher; absent 0)',
-  shade: '0 … 1, or { amount 0 … 1, colour?: a hex (the shade\'s hue: an art direction\'s shadow), steps?: 0 smooth | 2 … 8 hard bands (a cel look) } (the broad SHADING painted into the colour, as a game paints its light in: the sockets, under the cheekbone, beside the nose, under the lip and the jaw; absent 0, the colour as it was)',
+  shade: '0 … 1, or { amount 0 … 1, colour?: a hex (the shade\'s hue: an art direction\'s shadow), steps?: 0 smooth | 2 … 8 hard bands (a cel look), curve?: \'linear\' | \'deep\' (a near-black, only where the skin is enclosed deepest) } (the broad SHADING painted into the colour, as a game paints its light in: the sockets, under the cheekbone, beside the nose, under the lip and the jaw; absent 0, the colour as it was)',
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
@@ -68,6 +68,8 @@ export const DERMIS_DIALS = Object.freeze({
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
+/** the shade's curves: `linear` as deep as the occlusion; `deep` the same until the skin is enclosed deepest, then a near-black */
+export const SHADE_CURVES = Object.freeze(['linear', 'deep']);
 /** the dials a map may name or not (absent, they add nothing): checked only when given */
 const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
 const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
@@ -91,7 +93,7 @@ export function readDermis(spec = 'male') {
   for (const [k, [lo, hi]] of Object.entries(OPTIONAL_RANGES)) if (D[k] !== undefined && !(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
   if (D.shade !== undefined) {
     const Sh = typeof D.shade === 'number' ? { amount: D.shade } : D.shade, in01 = (v) => Number.isFinite(v) && v >= 0 && v <= 1;
-    if (!Sh || typeof Sh !== 'object' || !in01(Sh.amount) || Object.keys(Sh).some((k) => !['amount', 'colour', 'steps'].includes(k))
+    if (!Sh || typeof Sh !== 'object' || !in01(Sh.amount) || Object.keys(Sh).some((k) => !['amount', 'colour', 'steps', 'curve'].includes(k)) || (Sh.curve !== undefined && !SHADE_CURVES.includes(Sh.curve))
       || (Sh.colour !== undefined && !/^#[0-9a-f]{6}$/i.test(Sh.colour)) || (Sh.steps !== undefined && !(Sh.steps === 0 || (Number.isInteger(Sh.steps) && Sh.steps >= 2 && Sh.steps <= 8)))) throw new Error(`dermis: shade ${JSON.stringify(D.shade)} (${DERMIS_DIALS.shade})`);
   }
   if (!(typeof D.tone === 'string' ? /^#[0-9a-f]{6}$/i.test(D.tone) : Number.isInteger(D.tone) && D.tone >= 1 && D.tone <= 10)) throw new Error(`dermis: tone ${D.tone} (${DERMIS_DIALS.tone})`);
