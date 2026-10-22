@@ -12,6 +12,9 @@
  *   toneRamps(contract, names)       → a stage tone's ramps by the preset's own names, and where its middle light sits (era/tone.js)
  *   pixelPalette(contract, budget)   → a pixelizer palette at a register's budget (3 / 15 / 61 colours, darkest roles first)
   *   lookCard(card, contract)         → a sixth-gen reference card (era/sixth-gen.js) in the palette: its palette, light and air
+ *   skinDirection(contract, shading) → a character's skin and light in the game's art direction: the dermis's `shade`
+ *                                      (its depth by the key and the weight, its colour the palette's fill, its bands the
+ *                                      shading's) and the light { key, fill, rim, exposure } a preview or an engine lights it by
  *   natureColours(contract)          → a nature or jungle stage's `palette` data (color-theorist/recolour.js reads it)
  *   cubeColours(contract)            → a geocube's key colours, its tone's key, its moon and its sky (era/geocube.js)
  *
@@ -20,6 +23,7 @@
 import { rampOf, rampNear } from './solve.js';
 import { oklch, lchOf, hexToRgb, rgbToHex, mixHue } from './oklab.js';
 
+const r3 = (v) => Math.round(v * 1000) / 1000;
 export const gameTheme = (K) => ({ ...K.ui });
 
 /** A cover: the world's hue, dark (or light in a high key) behind; the accent; ink that reads on it. */
@@ -64,6 +68,26 @@ function fillOf(K, L) {
 /** The sun's colour the palette's light; the sky's fill between the sky and the palette's shadow. */
 export function lightOf(K, light) {
   return { ...light, key: { ...light.key, color: K.light }, ambient: fillOf(K, 0.74) };
+}
+
+/**
+ * THE SHADINGS a game designer names (with the palette, the art direction): how the skin's shade is painted.
+ *   painted   smooth, as a painted texture carries its light
+ *   cel       three hard bands (a toon's shade)
+ *   graphic   two bands, deeper (a comic's ink-and-flat)
+ *   none      no shade painted (an engine that lights and occludes for itself)
+ */
+export const SKIN_SHADINGS = Object.freeze({ painted: { steps: 0, k: 1 }, cel: { steps: 3, k: 1 }, graphic: { steps: 2, k: 1.25 }, none: null });
+const SHADE_BY_KEY = { high: 0.35, mid: 0.55, low: 0.75 }, EXPOSURE_BY_KEY = { high: 1.08, mid: 1, low: 0.82 };
+/** A character's skin and light in the palette (see the head of the file). → { shade?: { amount, colour, steps }, light } */
+export function skinDirection(K, shading = 'painted') {
+  if (!(shading in SKIN_SHADINGS)) throw new Error(`skinDirection: shading is one of ${Object.keys(SKIN_SHADINGS).join(', ')}`);
+  const S = SKIN_SHADINGS[shading], key = K.read.key || 'mid', w = K.read.weight || 0;
+  const amount = S ? r3(Math.max(0.15, Math.min(1, (SHADE_BY_KEY[key] + 0.15 * w) * S.k))) : 0;
+  return {
+    ...(S ? { shade: { amount, colour: fillOf(K, 0.5), steps: S.steps } } : {}),
+    light: { key: K.light, fill: fillOf(K, 0.74), rim: K.roles.sky[3], exposure: EXPOSURE_BY_KEY[key] },
+  };
 }
 
 // an interior's casework the card gives as a material (a wood, a metal, concrete) stays that material: the palette

@@ -124,6 +124,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   sockets, the hollow under the cheekbone, beside the nose, under the lip and the jaw), multiplied into the colour as a
   game paints its light in (dermal-texture.js `finishPages`; the head chart's `occlusionAt`). For targets without their
   own occlusion; an engine that adds its own wants it absent.
+- THE SKIN IN A GAME'S ART DIRECTION (color-theorist/adapters.js `skinDirection(contract, shading)`): the game's solved
+  palette and a shading word (`SKIN_SHADINGS`: painted, cel, graphic, none) read into the character's `shade` (as deep as
+  the key is low and the palette heavy, its colour the palette's fill, banded by the shading) and a light (the palette's
+  key, fill and rim, an exposure by the key). `shade` takes `{ amount, colour, steps }` as well as a number. The dermis
+  study lights a subject by its `light`, so one face reads in each game's light and shade.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

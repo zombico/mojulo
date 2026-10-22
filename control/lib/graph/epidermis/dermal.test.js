@@ -194,4 +194,12 @@ describe('the shading painted in', () => {
     for (let i = 0; i < plain.albedo.length; i++) expect(full.albedo[i]).toBeLessThanOrEqual(plain.albedo[i]);
     expect(() => readDermis({ from: 'male', shade: 1.2 })).toThrow(/shade/);
   });
+  it('takes an art direction\'s shade: its colour leans the shade to its hue, its steps band it', () => {
+    const L = layoutDermis(chart, { page: 128 }), plain = paintDermis(chart, readDermis({ from: 'male', shade: 1 }), L);
+    const blue = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, colour: '#3050a0' } }), L), cel = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, steps: 2 } }), L);
+    const ch = (T, c) => T.albedo.reduce((a, v, i) => a + (i % 4 === c ? v : 0), 0);
+    expect(ch(blue, 2) / ch(blue, 0)).toBeGreaterThan(ch(plain, 2) / ch(plain, 0));
+    expect(cel.albedo).not.toEqual(plain.albedo);
+    for (const bad of [{ amount: 2 }, { amount: 1, steps: 1 }, { amount: 1, colour: 'blue' }, { amount: 1, gloss: 1 }]) expect(() => readDermis({ from: 'male', shade: bad })).toThrow(/shade/);
+  });
 });

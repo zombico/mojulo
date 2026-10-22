@@ -160,8 +160,9 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
   }
 }
 
-/** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, and how deep it paints at `shade: 1` */
-const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75 });
+/** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, how deep it paints at `shade: 1`,
+ * and how far a shade's colour leans it to its hue */
+const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6 });
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
 export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
@@ -179,9 +180,19 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   // the SHADING (the dermis's `shade`, absent nothing): the occlusion at a face's reach, the sockets, the hollow under
   // the cheekbone, the folds beside the nose and under the lip, darkening the colour as a painted texture carries its
   // light (an engine that adds its own occlusion wants it absent)
-  if (D.shade > 0 && chart.occlusionAt) {
+  // (an art direction's shade: its hue, the shade's colour at its deepest; `steps` hard bands, a cel look)
+  const Sh = typeof D.shade === 'number' ? { amount: D.shade } : D.shade;
+  if (Sh?.amount > 0 && chart.occlusionAt) {
     const broad = bakeVertex(chart, uvOf, N, NH, chart.occlusionAt(SHADE.radius, SHADE.strength), 1);
-    for (let i = 0; i < N * NH; i++) { const k = 1 - D.shade * SHADE.depth * Math.max(0, Math.min(1, 1 - broad[i])); if (k >= 1) continue; for (let c = 0; c < 3; c++) albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * k))); }
+    const hue = Sh.colour ? [1, 3, 5].map((j) => srgbLin(parseInt(Sh.colour.slice(j, j + 2), 16) / 255)) : [1, 1, 1], hl = Math.max(1e-6, 0.2126 * hue[0] + 0.7152 * hue[1] + 0.0722 * hue[2]);
+    // (the multiplier at the deepest: as dark as the grey's, leaning to the hue)
+    const floor = hue.map((v) => Math.min(1, (1 - SHADE.depth) * (1 + SHADE.tint * (v / hl - 1))));
+    for (let i = 0; i < N * NH; i++) {
+      let o = Math.max(0, Math.min(1, 1 - broad[i]));
+      if (Sh.steps) o = Math.min(1, Math.floor(o * Sh.steps * 1.6) / Sh.steps);
+      if (!(o > 0)) continue;
+      for (let c = 0; c < 3; c++) albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * (1 - Sh.amount * o * (1 - floor[c])))));
+    }
   }
   return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }

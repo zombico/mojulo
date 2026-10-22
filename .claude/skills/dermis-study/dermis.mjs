@@ -20,7 +20,8 @@
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases; --lineup-all adds the lateral and
 //                   the back, two subjects to a row); --lineup-crop eyes frames
 //                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
-//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?}]'
+//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?,"light"?}]'
+//                   (`light`: { key, fill, rim: hexes, exposure }, an art direction's, color-theorist/adapters.js skinDirection)
 //                   (the head's relations replaced as given, the wave's tune solved for them; an ancestry rolls the
 //                   tone and the hair as --ancestry does, at the seed): a spike's sets side by side
 //   --look          creator looks (dermal-looks.js LOOKS: warrior, shieldmaiden, scholar, rogue, elder), comma-separated:
@@ -180,6 +181,11 @@ function raster(R, cam, W, Hh, V, faces, normalsOf, colour) {
     }
   });
 }
+// the study's light (a warm key, its fill, a cool rim); a subject's `light` (an art direction's: hexes, each read at a
+// luminance of one) replaces it
+const LIGHT_DEFAULT = { key: [1.04, 1, 0.95], fill: [1.04, 1, 0.95], rim: [0.75, 0.85, 1], exposure: 1 };
+let LIGHT = null;
+const lightOfHex = (L) => { const n = (h, s = 1) => { const c = hexLin(h), l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] || 1; return c.map((v) => (v / l) * s); }; return { key: L.key ? n(L.key) : LIGHT_DEFAULT.key, fill: L.fill ? n(L.fill) : LIGHT_DEFAULT.fill, rim: L.rim ? n(L.rim, 0.85) : LIGHT_DEFAULT.rim, exposure: L.exposure ?? 1 }; };
 /** a skin texel lit from its atlas: `mode` 'lit' (the skin's cheats), or one of the atlas's channels shown as grey on
  * the shape ('roughness', 'translucency', 'hair', 'ao'), lit flat */
 function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
@@ -196,7 +202,8 @@ function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
   const pw = 2 / Math.max(0.02, ro ** 4), spec = 0.04 * ((pw + 2) / 8) * NH ** pw * Math.max(0, NL), rim = 0.12 * fz * (1 - NV) ** 3;
   // and a cool RIM from behind (the creator's three-point light: a warm key, a cool rim that cuts the head out)
   const rimL = 0.16 * (1 - NV) ** 2.5 * Math.max(0, -(n[0] * cam.light[0] + n[1] * cam.light[1]) * 0.6 + 0.4);
-  return alb.map((c, k) => c * shut * (0.22 + 0.78 * Math.max(0, (NL + wrap[k]) / (1 + wrap[k]))) * [1.04, 1, 0.95][k] + spec * shut + rim * 0.9 + rimL * [0.75, 0.85, 1][k]);
+  const Lt = LIGHT || LIGHT_DEFAULT;
+  return alb.map((c, k) => (c * shut * (0.22 * Lt.fill[k] + 0.78 * Math.max(0, (NL + wrap[k]) / (1 + wrap[k])) * Lt.key[k]) + spec * shut * (LIGHT ? Lt.key[k] : 1) + rim * 0.9 + rimL * Lt.rim[k]) * Lt.exposure);
 }
 
 /** strands: each segment a line, depth-tested, its alpha the hairs it stands for over a pixel (a segment shorter than a
@@ -349,6 +356,7 @@ if (lineup) {
   const W = lineupCrop === 'face' || lineupCrop === 'eye' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' ? 340 : 330, nv = lineupAll ? 4 : 2, per = lineupAll ? 2 : 4;
   for (let k = 0; k < subjects.length; k++) {
     const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
+    LIGHT = face?.light ? lightOfHex(face.light) : null;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
     const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
