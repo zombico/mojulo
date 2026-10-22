@@ -37,6 +37,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   flight's ends in every flavor. `motion-verify.mjs` is the machine gate. `motion-preview.mjs` writes follow-camera players and a
   chronophotograph. The findings: the jog → sprint blend slides a planted foot (worse the faster speed builds), the
   platform rule has no acceleration on the ground, and the library has no start from standstill.
+- **Collision: walking or running into a wall or another body** (`collision.mjs`), in the same four flavors. The
+  flavor decides what the impact does to each body: real momentum, the change shown ×3 with the charger driving
+  through, a fixed bonk or boop, or a bumper that gives back more than it got. One shared ladder of the library's
+  responses (`hitHigh`, `stagger`, the `knockedOut` collapse, pinball's tuck) picks the reaction from the change shown.
+  No trunk passes the wall or the other body. `collision-verify.mjs` is the machine gate, and `collision-preview.mjs`
+  writes a player and strobes. The findings: the library has no clip that braces a hand against a surface (the forward
+  hand passes 11–26 cm through), and the charge is a flavor rule, not physics.
+- **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 

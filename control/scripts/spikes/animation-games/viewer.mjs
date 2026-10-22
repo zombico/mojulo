@@ -23,6 +23,9 @@ const PARTS = [
   { id: 'motion', name: 'Run and jump', script: 'motion-preview.mjs', verify: 'motion-verify.mjs', player: 'motion.html',
     strips: [['motion-strobe.svg', 'chronophotograph: the body 10 times a second where it is']],
     says: 'A run-up from a jog, the running jump, the landing and a run-out, the body travelling. Speed build-up, the stride against the ground, the arc and the landing differ; the clip\'s take-off and landing frames are the flight\'s ends in every flavor. Pinball flies a tucked spin.' },
+  { id: 'collision', name: 'Collisions', script: 'collision-preview.mjs', verify: 'collision-verify.mjs', player: 'collision.html',
+    strips: [['collision-run-wall.svg', 'run into a wall'], ['collision-run-unit.svg', 'run into a body'], ['collision-walk-wall.svg', 'walk into a wall'], ['collision-walk-unit.svg', 'walk into a body']],
+    says: 'Walking or running into a wall or a standing body of the same mass. The flavor decides what the impact does: the speed each body leaves with, how much of the change it shows, and which rung of one shared ladder it reaches (block, flinch, stagger, down, launched, bonk or boop, spin). No trunk passes the wall or the other body.' },
 ];
 
 const node = (args) => execFileSync(process.execPath, args, { cwd: control, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] });

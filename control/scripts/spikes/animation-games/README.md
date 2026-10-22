@@ -11,6 +11,8 @@ node scripts/spikes/animation-games/verify.mjs [cast=male]          # the machin
 node scripts/spikes/animation-games/preview.mjs /abs/out/dir [cast] # animation-games.html (a player) + filmstrip-<take>.svg
 node scripts/spikes/animation-games/motion-verify.mjs [cast=male]   # motion: running, then jumping (below)
 node scripts/spikes/animation-games/motion-preview.mjs /abs/out/dir [cast]   # motion.html (follow cameras) + motion-strobe.svg
+node scripts/spikes/animation-games/collision-verify.mjs [cast=male]   # collision: walking or running into a wall or a body (below)
+node scripts/spikes/animation-games/collision-preview.mjs /abs/out/dir [cast]   # collision.html + collision-<gait>-<target>.svg
 node scripts/spikes/animation-games/viewer.mjs /abs/out/dir [cast]  # every part on one review page: index.html + players + PNG strips
 ```
 
@@ -180,3 +182,55 @@ squash account for the difference).
    - **Rolling and reading disagree.** Rolling would give 6.8 turns in the 0.72 s air (7.3 on the female cast). The floor
      of 8 frames a turn caps it at 3, so the body reads as a turning body rather than a strobing one. Does pinball want
      the honest roll, accepting the strobe, or a smear-ball with no visible body?
+
+## Collision: walking or running into a wall or another body
+
+`collision.mjs` approaches at the gait's own speed: the hero walk's 0.70 m/s or the sprint's 5.30 m/s, with planted
+feet. The body hits a wall, or a standing body of the same mass facing it. The contact is the frame the trunk's front
+(its joints plus 10 cm of chest) reaches the surface. The flavor decides what the impact does to each body: its speed
+after, the change it takes, and the change it *shows*. One shared ladder of the library's responses turns the shown
+change into a rung:
+
+| rung | what plays |
+|---|---|
+| block | nothing: the body stops and settles into the stand |
+| bump | `hitHigh`, its peak scaled by the change |
+| stagger | `stagger`: blown back, swaying until it recovers |
+| down | `knockedOut` (hero-rise): the knees buckle, the body falls back about its feet as a rod under gravity |
+| launch | thrown off the feet at 15°, the collapse in the air |
+| bonk / boop | a fixed hop back, `hitHigh` |
+| spin | pinball's tuck, rolling away in whole turns, then the stand |
+
+| flavor | what an impact does | walk → wall | run → wall | run → body |
+|---|---|---|---|---|
+| **realistic** | momentum: a wall gives back 0.1; two bodies share it (restitution 0.2); flinch under 1 m/s of change, stagger under 3.5, down past it | flinch | down, 0.53 m/s back | both stagger (2.1 / 3.2 m/s on) |
+| **action** | springier (a wall gives back 0.4), shown ×3; the charger takes its own change unscaled; a walk is a block; a freeze of 4 + 0.4 f per m/s shown | block | launched, 4.5 m back, 13 f freeze | the charger staggers, the other is launched 10 m |
+| **platformer** | a walk is a block; a run bonks off a wall (3 m/s back, 0.5 m hop, whatever the speed) or boops off a body (both apart at 3 m/s); squashed to 0.75 deep on contact | block | bonk | boop, even |
+| **pinball** | every surface is a bumper (restitution 1.3); past 2 m/s a body balls up and spins | bounces back at 0.91 m/s | spins 4 turns, 6.1 m back | a Newton's cradle: the runner all but stops, the other spins away at 6.1 m/s |
+
+**The promise.** No trunk joint passes the wall or the other body's trunk, in any flavor, walking or running.
+
+**What the machine gate measured** (`collision-verify.mjs`; all 15 checks hold on male and female; nobody has looked yet).
+Realistic momentum sums exactly in body-on-body collisions, and a wall gives back exactly a tenth. Action's freeze holds
+both bodies still and is longer for the harder impact (13 frames off the wall, 8 off a body). Platformer's bonk is the
+same at 3, 5.3 or 9 m/s. Pinball leaves every wall at 1.3× the speed it came in.
+
+### Collision findings
+
+1. **The rung comes from the change shown.** The four flavors pick from the same responses. What differs is the speed
+   each body leaves with and the change the flavor shows: real, ×3, fixed, or more than came in. That number already
+   existed for blows in the first part (the powerscale); collisions reuse it, and it chooses the rung. So "how hard does
+   a wall hit" is one dial per flavor, not a new animation set.
+2. **No clip braces a hand.** The trunk stops on the surface, but the forward hand passes 11 cm (walking) to 26 cm
+   (running) through it. The walk and the sprint swing the hands ahead of the chest, and nothing in the library meets a
+   surface with a hand: a brace, a forearm fold, palms on a wall. A game showing walls needs that clip, or a hand IK onto
+   the surface for the frames around contact.
+3. **The charge is a flavor rule, not physics.** Equal masses share a collision's momentum, so physics says the charger
+   stops as hard as the body it hits. Action games show the charger driving through. The spike makes that explicit as
+   `charge` (the incoming body's change is shown unscaled while the other's is ×3). It is the same asymmetry as the first
+   part's striker and victim.
+4. **A block is the platformer's and the action game's walk.** Walking into a wall or a person does nothing in those
+   games. The spike makes that a threshold on the approach speed (`blockBelow` 1.5 m/s). It also takes the freeze away:
+   a block that froze 4 frames read as a hit.
+5. **The hero walk is a stroll.** At 0.70 m/s, every walking collision here is gentle. A brisk walk (1.4 m/s) would put
+   realistic's walk into a wall at 1.5 m/s of change, a stagger, which is closer to what walking into a glass door does.
