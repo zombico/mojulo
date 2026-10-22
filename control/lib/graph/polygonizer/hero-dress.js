@@ -39,6 +39,14 @@ const LIBRARY_FEET = Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sa
 /** the footwear library cards an outfit word list names (they keep the authored body's foot bare under them) */
 export const libraryFeet = (outfit) => (Array.isArray(outfit) ? outfit : typeof outfit === 'string' ? [outfit] : []).filter((w) => typeof w === 'string' && LIBRARY_FEET.includes(w));
 export const KIT_WORDS = ['ranger', 'none'];
+/** THE CHIBI'S DRESS (hero laws 12, on a plan whose style says `body: 'chibi'`: hero-form.js CHIBI_FORM): what it wears
+ * drawn for its body, a toy's, not a small adult's, and FEW: a body that small cannot carry every piece, so it wears
+ * only the pieces that say what it is (`kit`: the kit's ids; `armor.keep`: each armour family's pieces, by its own
+ * order's names; never a helm, which would hide the face the chibi is). A kit's straps, buckles and bosses `bold` (their widths and sizes) and `thick`; an armour build leaned
+ * (armor/expand.js) to fewer, larger lames (`stylize` at least), no ornament (`ornament` at most) and its readability
+ * floor measured on the chibi's own height (`height`, of an adult's). The build's own dials win. */
+export const CHIBI_DRESS = Object.freeze({ bold: 1.35, thick: 1.6, kit: Object.freeze(['belt', 'pauldron']),
+  armor: Object.freeze({ stylize: 0.5, ornament: 0, height: 0.7, keep: Object.freeze({ plate: Object.freeze(['pauldron', 'cuirass', 'greave']), lamellar: Object.freeze(['do', 'suneate']), hardsuit: Object.freeze(['cuirass', 'pauldron', 'boot']) }) }) });
 const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')] : [n]));
 
 /** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`). On a plan with the structured core's
@@ -53,6 +61,7 @@ export function dressContext(style = {}, scale = 1, plan = null) {
   if (segs.find((s) => s.name === 'torso')?.slotT) ctx.dense = true;
   const chest = segs.filter((s) => /^(pectoral|bust)R$/.test(s.name)).flatMap((s) => [s.name, s.name.replace(/R$/, 'L')]);
   if (chest.length) ctx.chest = chest;
+  if (style.body === 'chibi') ctx.chibi = CHIBI_DRESS;
   return ctx;
 }
 /** Every piece worn on the torso stands off the chest's layers too (hero-form.js CHEST_FORM: the pectorals, the breasts),
@@ -269,22 +278,25 @@ export function lowerOutfit(outfit, plan, scale = 1) {
 }
 
 /** the RANGER kit: belt, baldric, archer's bracer on the left, one pauldron on the right (the focal accent) */
-export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false }) {
+export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false, chibi = null }) {
   const cap = structured ? [2.55, 3.45] : [2.8, 3.8];   // the structured torso's shoulder ring over the arm's cap, a trapezius ring above (plate.js pauldron)
-  return [
-    { id: 'belt', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.12, 0.44], t: 'wrap', nt: 12, ns: 2, mugen: 0.004 * k, thick: 0.01 * k, rad: 0.05 * k, group: 'Leather',
-      signature: { kind: 'buckle', k: 0, j: 1, w: 0.028 * k, h: 0.022 * k, bar: 0.0055 * k, standoff: 0.006 * k, group: 'Iron' } },
+  // (the chibi's kit bolder and thicker, its standoffs as they are, and only its `kit` pieces: CHIBI_DRESS)
+  const kb = k * (chibi?.bold ?? 1), kt = k * (chibi?.thick ?? 1);
+  const kit = [
+    { id: 'belt', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.12, 0.44], t: 'wrap', nt: 12, ns: 2, mugen: 0.004 * k, thick: 0.01 * kt, rad: 0.05 * k, group: 'Leather',
+      signature: { kind: 'buckle', k: 0, j: 1, w: 0.028 * kb, h: 0.022 * kb, bar: 0.0055 * kb, standoff: 0.006 * k, group: 'Iron' } },
     { id: 'baldric', mode: 'strap', part: 'torso', path: [[3.55, 0.5 * Ht, 'R'], [3.1, 0.25 * Ht, 'R'], [2.55, 0.06 * Ht, 'R'], [2.05, 0.18 * Ht, 'L'], [1.5, 0.4 * Ht, 'L'], [1.0, 0.55 * Ht, 'L'], [0.6, 0.62 * Ht, 'L']],
-      width: 0.045 * k, thick: 0.007 * k, mugen: 0.004 * k, rad: 0.05 * k, group: 'Leather',
-      signature: { kind: 'buckle', w: 0.033 * k, h: 0.028 * k, bar: 0.007 * k, standoff: 0.006 * k, group: 'Iron' } },
-    { id: 'bracer', mode: 'shell', part: 'foreArmL', s: [0.72, 1.36], t: 'wrap', nt: 10, ns: 2, mugen: 0.003 * k, thick: 0.006 * k, rad: 0.03 * k, group: 'Leather', rigid: true,
-      signature: { kind: 'buckle', side: 'L', t: 0.5 * Hl, tol: 0.6, w: 0.027 * k, h: 0.023 * k, bar: 0.0065 * k, standoff: 0.004 * k, group: 'Iron' } },
+      width: 0.045 * kb, thick: 0.007 * kt, mugen: 0.004 * k, rad: 0.05 * k, group: 'Leather',
+      signature: { kind: 'buckle', w: 0.033 * kb, h: 0.028 * kb, bar: 0.007 * kb, standoff: 0.006 * k, group: 'Iron' } },
+    { id: 'bracer', mode: 'shell', part: 'foreArmL', s: [0.72, 1.36], t: 'wrap', nt: 10, ns: 2, mugen: 0.003 * k, thick: 0.006 * kt, rad: 0.03 * k, group: 'Leather', rigid: true,
+      signature: { kind: 'buckle', side: 'L', t: 0.5 * Hl, tol: 0.6, w: 0.027 * kb, h: 0.023 * kb, bar: 0.0065 * kb, standoff: 0.004 * k, group: 'Iron' } },
     // the pauldron caps the shoulder: the torso's slope from the yoke toward the neck, front to back round the side,
     // lifted over the arm's cap beneath it (`over`), snug at the top and flaring at its lower edge. It rides the torso,
     // so the arm moves beneath it: the dragon's rule on a human shoulder
-    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: cap, t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * k, rad: 0.05 * k, support: cap[1], ramp: 1.2, group: 'Iron', rigid: true,
-      signature: { kind: 'boss', k: 'mid', j: 1, r: 0.041 * k, h: 0.022 * k, m: 10, rim: 0.5, group: 'Bronze' } },
+    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: cap, t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * kt, rad: 0.05 * k, support: cap[1], ramp: 1.2, group: 'Iron', rigid: true,
+      signature: { kind: 'boss', k: 'mid', j: 1, r: 0.041 * kb, h: 0.022 * kb, m: 10, rim: 0.5, group: 'Bronze' } },
   ];
+  return chibi ? kit.filter((A) => chibi.kit.includes(A.id)) : kit;
 }
 const KIT_PALETTES = { ranger: { Top: '#56683f', Bottom: '#4a3f33', Shoes: '#3a2a1e' } };
 

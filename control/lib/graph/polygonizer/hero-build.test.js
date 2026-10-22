@@ -149,10 +149,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(11);
+    expect(HERO_LAWS_VERSION).toBe(12);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 11/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 12/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -298,6 +298,24 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     const deep = (S) => half(S.find((st) => st.id === 'st2'), 1) / half(S.find((st) => st.id === 'st1_st2_50'), 1);
     expect(deep(torso(chibi, 10))).toBeLessThan(0.8); expect(deep(torso(chibi, 11))).toBeGreaterThan(0.9);
     expect(torso(man, 11)).toEqual(torso(man, 10));
+  }, 120_000);
+  it('laws 12, the chibi form: limbs cylinders, no pectoral, a larger head on a shorter body, small hands and round shoes; another cast as it was', () => {
+    const R = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const chibi = { cast: 'chibi', form: 'tiered', head: 'anime' }, twelve = R(chibi, 12), eleven = R(chibi, 11);
+    // a limb's taper: its widest ring over its narrowest, across (the shank: the calf over the ankle)
+    const taper = (rc, name) => { const S = rc.parts[name].stations, w = S.map((st) => { const P = Object.values(st.points).map((p) => p[0]); return Math.max(...P) - Math.min(...P); }); return Math.max(...w) / Math.min(...w); };
+    for (const limb of ['shankR', 'upperArmR']) expect(taper(twelve, limb), limb).toBeLessThan(taper(eleven, limb));
+    expect(eleven.parts.pectoralR).toBeDefined(); expect(twelve.parts.pectoralR).toBeUndefined();
+    // the head a larger share of the height; the hand shorter
+    const share = (rc) => { const J = rc.rig.joints; return (J.headTop.at[2] - J.headBase.at[2]) / J.headTop.at[2]; };
+    expect(share(twelve)).toBeGreaterThan(share(eleven));
+    const len = (rc) => { const J = rc.rig.joints; return Math.hypot(...[0, 1, 2].map((k) => J.knucklesR.at[k] - J.wristR.at[k])); };
+    expect(len(twelve)).toBeLessThan(len(eleven));
+    const shoe = (rc) => { const J = rc.rig.joints; return J.toeTipR.at[1] - J.ankleR.at[1]; }, wide = (rc) => Math.max(...Object.values(rc.parts.footR.stations[0].points).map((p) => Math.abs(p[0] - rc.rig.joints.ankleR.at[0])));
+    expect(shoe(twelve)).toBeLessThan(shoe(eleven)); expect(wide(twelve)).toBeGreaterThan(wide(eleven));
+    // (a man is as he was; a stored chibi under laws 11 too)
+    const man = { cast: 'male', form: 'tiered' };
+    expect(R(man, 12)).toEqual(R(man, 11));
   }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

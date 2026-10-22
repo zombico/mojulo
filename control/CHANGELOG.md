@@ -26,6 +26,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE CHIBI FORM (hero laws 12, hero-form.js `CHIBI_FORM`): the chibi reads as simple solids, not a small adult.
+  Its limbs are cylinders: no muscle shaping, each limb's rings drawn most of the way to their mean radius, the ankle
+  as full as the calf and the knee as full as the thigh. Its chest has no pectoral layer. Its head is larger and its
+  legs, arms and neck shorter, so it stands about two and a half heads tall with its hands at its hips. Its hands are
+  small mittens and its shoes short and round. Another cast is as it was.
+- THE CHIBI'S DRESS (hero laws 12, hero-dress.js `CHIBI_DRESS`): a body that small cannot carry every piece, so the
+  chibi wears only the pieces that say what it is. The ranger kit is its belt and its bossed pauldron, drawn bolder
+  and thicker. An armour build keeps each family's own few pieces (plate: the pauldrons, the breastplate, the greaves;
+  lamellar: the dō and the greaves; the hard-suit: the cuirass, the pauldrons, the boots), never a helm over the face,
+  with fewer, larger lames and no ornament. The build's own dials still win. The plan says `style.body: 'chibi'`, so
+  what it wears reads it; no other plan says it, and every other kit and suit is as it was.
 - THE CHIBI'S CHEST (hero laws 11, hero-form.js `CHIBI_CHEST`): the chibi's chest is wider (×1.25 over the build's)
   and deeper (×1.3). It meets the shoulder's ring, which the shoulders' span sets, where laws 6 to 10 stepped out to
   it in a shelf two centimetres tall, front and back. It stands as deep as the belly under it, where it was pinched

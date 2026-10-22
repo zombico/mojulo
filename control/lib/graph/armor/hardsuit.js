@@ -87,6 +87,6 @@ export function hardSuit(dials, ctx, lang = {}) {
       signature: { kind: 'pack', group: 'Plate', w: r4(0.3 * k * Math.sqrt(bulk)), h: r4(0.36 * k * Math.sqrt(bulk)), d: r4(0.1 * k * bulk), lift: r4(mug(0.012) + thick), vents: 2, ventR: r4(0.026 * k * Math.sqrt(bulk)), ventH: r4(0.12 * k * law.focal ** 0.5), ventGroup: 'Trim' } }] : [],
   };
   const kit = [];
-  for (const [th, piece] of HARDSUIT_ORDER) if (c >= th - 1e-9) { const e = PIECES[piece](); if (e.length) { trace.worn.push(piece); kit.push(...e); } }
+  for (const [th, piece] of HARDSUIT_ORDER) if (c >= th - 1e-9 && (!ctx.keep || ctx.keep.includes(piece))) { const e = PIECES[piece](); if (e.length) { trace.worn.push(piece); kit.push(...e); } }
   return { kit, trace: { ...trace, pieces: trace.worn.length, focal: lang.focal ?? 'helm', segments: seg } };
 }
