@@ -222,7 +222,10 @@ function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
 function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null, ribbon = null) {
   const { img, zbuf } = R, root = hexLin(shade.root), tip = hexLin(shade.tip), tint = hexLin(shade.secondary.tint);
   const L = cam.light, Vw = cam.view, Hv = [L[0] + Vw[0], L[1] + Vw[1], L[2] + Vw[2]], hl = Math.hypot(...Hv), Hn = Hv.map((x) => x / hl);
+  // (a beard's hair is coarse and matte, its highlight broken by its own shadow: duller, darker within)
+  const beardShade = { ...shade, gloss: (shade.gloss ?? 1) * 0.3, selfShadow: 0.55 };
   for (const st of strands) {
+    const shade_ = st.groom === 'beard' ? beardShade : shade;
     // a strand that stands for a RIBBON of hair (the scalp's: the gap between strands) is drawn that wide, its alpha the
     // ribbon's cover; a lone hair one pixel wide, its alpha its share of the pixel
     const rw = ribbon?.(st) ?? 0, wpx = Math.max(1, Math.round((rw * 1000) / cam.pxMm)), n = st.pts.length - 1;
@@ -231,10 +234,10 @@ function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null, rib
     for (let k = 0; k < n; k++) {
       const p = st.pts[k], q = st.pts[k + 1], A = cam.project(p), B = cam.project(q);
       const t = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], tl = Math.hypot(...t) || 1, T = t.map((x) => x / tl);
-      const s = (k + 0.5) / n, inner = 1 - (shade.selfShadow ?? 0.25) * (1 - s), base = root.map((c, i) => (c + (tip[i] - c) * s) * inner);
+      const s = (k + 0.5) / n, inner = 1 - (shade_.selfShadow ?? 0.25) * (1 - s), base = root.map((c, i) => (c + (tip[i] - c) * s) * inner);
       const TL = T[0] * L[0] + T[1] * L[1] + T[2] * L[2], TH = T[0] * Hn[0] + T[1] * Hn[1] + T[2] * Hn[2];
-      const diff = Math.sqrt(Math.max(0, 1 - TL * TL)), s1 = Math.sqrt(Math.max(0, 1 - (TH + shade.primary.shift) ** 2)), s2 = Math.sqrt(Math.max(0, 1 - (TH + shade.secondary.shift) ** 2));
-      const g = shade.gloss ?? 1, sp1 = 0.35 * g * s1 ** (8 / shade.primary.roughness ** 2), sp2 = 0.3 * g * s2 ** (4 / shade.secondary.roughness ** 2);
+      const diff = Math.sqrt(Math.max(0, 1 - TL * TL)), s1 = Math.sqrt(Math.max(0, 1 - (TH + shade_.primary.shift) ** 2)), s2 = Math.sqrt(Math.max(0, 1 - (TH + shade_.secondary.shift) ** 2));
+      const g = shade_.gloss ?? 1, sp1 = 0.35 * g * s1 ** (8 / shade_.primary.roughness ** 2), sp2 = 0.3 * g * s2 ** (4 / shade_.secondary.roughness ** 2);
       const col = flat || base.map((c, i) => c * (0.25 + 0.75 * diff) + sp1 + sp2 * tint[i]);
       const lp = Math.hypot(B[0] - A[0], B[1] - A[1]), steps = Math.max(1, Math.ceil(lp)), as = a * Math.min(1, lp);
       const h0 = -Math.floor((wpx - 1) / 2), h1 = h0 + wpx - 1;
@@ -272,7 +275,8 @@ async function cellRaw(x, y, buf, W, Hh, ch = 4) {
   parts.push(`<image x="${x}" y="${y}" width="${W}" height="${Hh}" href="data:image/png;base64,${png.toString('base64')}"/>`);
 }
 const cellPng = (x, y, png, W, Hh) => parts.push(`<image x="${x}" y="${y}" width="${W}" height="${Hh}" href="data:image/png;base64,${png.toString('base64')}"/>`);
-const boxOf = (V) => ({ min: [0, 1, 2].map((k) => Math.min(...V.map((p) => p[k]))), max: [0, 1, 2].map((k) => Math.max(...V.map((p) => p[k]))) });
+// (a loop, not a spread: a head's hair runs to more points than a call's arguments hold)
+const boxOf = (V) => { const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity]; for (const p of V) for (let k = 0; k < 3; k++) { if (p[k] < min[k]) min[k] = p[k]; if (p[k] > max[k]) max[k] = p[k]; } return { min, max }; };
 /** a box about a mark's 3D point (metres), `r` across */
 const boxAt = (c, r) => ({ min: c.map((v) => v - r), max: c.map((v) => v + r) });
 const m3 = (p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M];

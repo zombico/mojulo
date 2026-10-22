@@ -6,7 +6,8 @@
  * shelf-packed onto a square page. The channels are painted from the address alone:
  *
  *   albedo         the map's colour, with the TRICKS a realistic skin is painted with: the SCALP PAINT (the scalp in the
- *                  hair's colour under a groom, so a gap between cards reads as hair, never as skin), the beard's
+ *                  hair's colour under a groom, so a gap between cards reads as hair, never as skin; a styled beard's
+ *                  skin too, under its locks), the beard's
  *                  STUBBLE (each follicle's dot of hair where it leaves the skin, its share of the texel by density and
  *                  length: the shadow a shaven face carries), the freckles, the mottle
  *   roughness      the sheen's map (grey: 0 glossy … 255 matte)
@@ -140,6 +141,9 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
+    // (under a styled beard of a lock's length, the skin in the hair's colour, as the scalp's under its groom: a gap between
+    // the locks, foreshortened where they point at the eye, reads as beard, never as the shaven shadow's grey)
+    if (D.beardStyle && beardD > 0.5) { const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)); if (bl > 4) col = mixc(col, hairLin.map((x) => x * 0.8), 0.8 * Math.min(1, (bl - 4) / 4) * Math.min(1, beardD / 55)); }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
     if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));

@@ -162,6 +162,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - A styled beard is fuller (dermal-map.js `BEARD_ZONES`, the operator's eyes): denser and lifted off the skin by zone, the
   moustache thickest (2.4 × the tract's hairs, lifted most), the chin and the cheeks full; its locks closer and a little
   wider where it is denser, and a style long anywhere grows all of itself as locks (its trimmed moustache among them).
+- Under a styled beard of a lock's length the skin is painted in the hair's colour (dermal-texture.js), as the scalp's is
+  under its groom: the gaps between locks foreshortened toward the eye read as beard, not as the shaven shadow's grey. The
+  dermis study shades a beard matte and darker within (coarse hair), and sizes its views with a loop (a head's hair now
+  runs to more points than a call's arguments hold).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
