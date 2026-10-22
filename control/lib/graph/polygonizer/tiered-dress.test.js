@@ -59,14 +59,14 @@ describe('tiered dress: a kit over the joints', () => {
     expect(pinned.pin).toEqual([0.4, 0.8, 'R', 'torso']);
   });
 
-  it('what the torso or the neck carries stands off the shoulders\' balls and their webs', () => {
+  it('what the torso or the neck carries stands off the shoulders\' balls, their webs and cones', () => {
     const [gorget, pauldron, greave] = tieredKit([
       { id: 'neck-gorget', part: 'neck', over: ['torso'] },
       { id: 'torso-pauldronR', part: 'torso', over: ['upperArmR'] },
       { id: 'shankR-greave', part: 'shankR' },
     ], plan);
-    expect(gorget.over).toEqual(['torso', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL']);
-    expect(pauldron.over).toEqual(['upperArmR', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL']);
+    expect(gorget.over).toEqual(['torso', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL', 'shoulderConeR', 'shoulderConeL']);
+    expect(pauldron.over).toEqual(['upperArmR', 'shoulderBallR', 'shoulderBallL', 'shoulderWebR', 'shoulderWebL', 'shoulderConeR', 'shoulderConeL']);
     expect(greave.over).toBeUndefined();
   });
 });

@@ -148,10 +148,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(8);
+    expect(HERO_LAWS_VERSION).toBe(9);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 8/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 9/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -244,6 +244,24 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     const big = at({ ...tiered, target: '4k' }, 8); expect(big.parts.shoulderWebR.slots.length).toBe(big.parts.upperArmR.slots.length);
     // the classic body has no ball and so no web
     expect(at({ cast: 'male', form: 'classic' }, 8).parts.shoulderWebR).toBeUndefined();
+  }, 120_000);
+  it('laws 9, the shoulder cone: the web\'s inner fairing in its group, closed, held in the torso at its base, split with the arm; the web hugs the arm; laws 8 as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe;
+    const tiered = { cast: 'male', form: 'tiered' }, R = at(tiered, 9), eight = at(tiered, 8);
+    expect(eight.parts.shoulderConeR).toBeUndefined();
+    const A = auditLayered(compileLayered(R));
+    for (const S of ['R', 'L']) { expect(R.parts[`shoulderCone${S}`].group).toBe(R.parts[`upperArm${S}`].group); expect(A[`shoulderCone${S}`]).toMatchObject({ windingErrors: 0, boundaryEdges: 0, degenerate: 0 }); }
+    // (its base ring wider than its ball end: a cone from the ball toward the trunk; its ball end inside the ball)
+    const ring = (st) => Object.values(st.points), span = (st) => { const P = ring(st); return Math.max(...P.map((p) => Math.hypot(p[1] - P[0][1], p[2] - P[0][2]))); };
+    const cone = R.parts.shoulderConeR.stations; expect(span(cone[0])).toBeGreaterThan(span(cone[cone.length - 1]));
+    // (it runs on into the arm, ending inside the arm's belly ring; the ball drawn in under it)
+    const mid = (st) => { const P = ring(st); return [0, 1, 2].map((k) => P.reduce((t, p) => t + p[k], 0) / P.length); }, belly = mid(R.parts.upperArmR.stations.find((st) => st.id === 'st1'));
+    expect(Math.hypot(...mid(cone[cone.length - 1]).map((x, k) => x - belly[k]))).toBeLessThan(1e-3);
+    expect(span(R.parts.shoulderBallR.stations[2])).toBeLessThan(span(eight.parts.shoulderBallR.stations[2]));
+    // (laws 9: the web's ring before the arm's lies on the arm's way down; laws 8's was halfway from the equator)
+    expect(R.parts.shoulderWebR.stations.at(-2).points).not.toEqual(eight.parts.shoulderWebR.stations.at(-2).points);
+    expect(R.parts.shoulderWebR.stations.at(-1).points).toEqual(eight.parts.shoulderWebR.stations.at(-1).points);
+    const big = at({ ...tiered, target: '4k' }, 9); expect(big.parts.shoulderConeR.slots.length).toBe(big.parts.upperArmR.slots.length);
   }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

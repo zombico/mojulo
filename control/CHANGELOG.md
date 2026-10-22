@@ -26,6 +26,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE SHOULDER CONE (hero laws 9, tiered-form.js `SHOULDER_CONE`): the web's inner fairing, in its group and skinned as
+  it is (the collarbone at its base, the fold at the ball), its rings square to the way from the ball toward the neck's
+  root: from one hidden in the ball to a wide, flattened base held inside the torso's own section. Its upper half rides
+  just over the torso's skin where it would sink under it, so the torso's faceted shoulder corner (the pectoral's top,
+  the trapezius' slope, the shoulder blade) runs into the ball closed; its sides stay under the skin and its underside
+  draws in toward its centre, so it never spans the armpit. Past the ball it runs on INTO THE ARM, round the arm's own
+  axis inside the web at rest, to inside the arm's belly ring, its weights handing the fold to the arm more slowly than
+  the web's: a raised arm's root, which pulled away from the torso's shoulder corner in a V, stays joined to it. The
+  ball is drawn in under the web and the cone (its centre kept), so a raised arm no longer shows it as a jagged band;
+  and the web hugs the arm before it ends (its last ring before the arm's on the arm's own way down) where it met the
+  arm at an angle and showed the meeting as a crease. A small fold remains behind a raised arm's armpit.
 - THE SHOULDER WEB (hero laws 8, tiered-form.js `SHOULDER_WEB`): a sleeve of skin in the arm's own colour group (the
   top's tone under a shirt, the skin on a bare arm) over the tiered shoulder's ball, from inside the torso's shoulder
   through the ball's equator to the arm's own belly ring, where it ends on the arm's points and welds into one surface
