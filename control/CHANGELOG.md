@@ -249,6 +249,8 @@ hours under its clouds, and a gritty cube's street painted from relief as its ro
   material keeps its own colour (a brick red, concrete grey), the cube's tint kept a third; the roads are asphalt (or
   setts, ancient). The dice cells snap to the repeat (a cell that did not divide it left a seam), and a crack ends at
   its slab's joint.
+- **One place asks whether a cube is gritty** (`matte-paint/fabric.js` `grittyOf`, beside `GRIT_PIXELS`): its room,
+  its town's and city's dress and a style's words read it, instead of each its own threshold. Byte for byte as before.
 - **The resampler: painted tiles that do not repeat at scale** (`scene/channels/resample.js`, `matte-paint/detail.js`
   `resamplePlan`). No AI and no new texels: the page reads a detail tile again at seeded shifts as it draws it, by a plan
   read off how the tile was built. Coursed work (ashlar, brick, setts, tile, slate) in bands a few courses deep, each

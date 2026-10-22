@@ -96,7 +96,7 @@ import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
-import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
 import { townDressOf } from './town-dress.js';
@@ -573,7 +573,7 @@ function dressedSurfaces(cube) {
 }
 
 function lowerInside(cube) {
-  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size, gritty = cube.grit !== undefined && cube.grit >= GRIT_PIXELS;
+  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size, gritty = grittyOf(cube) !== null;
   // (a gritty room's tone lets its stone's own light and dark through further: the grit is how much texture reads)
   const tone = {
     texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: gritty ? Math.round((0.45 + 0.45 * cube.grit) * 100) / 100 : 0.45, default: 'stone',

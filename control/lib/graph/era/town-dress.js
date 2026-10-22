@@ -24,7 +24,7 @@
  */
 import { detailKey, layDetail, DETAIL_MEAN } from '../matte-paint/detail.js';
 import { normalizeTileSpec } from './tile-specs.js';
-import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { grittyOf } from '../matte-paint/fabric.js';
 
 export { DETAIL_MEAN };
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -35,8 +35,8 @@ const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 
 /** A gritty cube's street dress: each source group's dressed stone, in the cube's own colours, tuned by its grit. */
 export function townDressOf(cube) {
-  const g = cube.grit;
-  if (g === undefined || g < GRIT_PIXELS) return null;
+  const g = grittyOf(cube);
+  if (g === null) return null;
   const stone = rgbOf(cube.colour.stone), mortar = stone.map((v) => Math.round(v * 0.68)), coat = rgbOf(cube.colour.floor).map((v) => Math.min(255, Math.round(v * 1.05 + 10)));
   const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 };
   return {

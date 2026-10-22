@@ -20,7 +20,7 @@
  */
 import { detailKey, layDetail } from '../../matte-paint/detail.js';
 import { normalizeTileSpec } from '../../era/tile-specs.js';
-import { GRIT_PIXELS } from '../../matte-paint/fabric.js';
+import { grittyOf } from '../../matte-paint/fabric.js';
 import { surfaceTexture } from '../../landscape/surface-textures.js';
 import { MATERIAL_WORDS, materialContext, wordTile } from '../../era/arch-style.js';
 
@@ -40,7 +40,7 @@ const CUBE_SHARE = 0.35;
  * one by its own dice. → { class, walls: { <rhythm>: [dress…] }, ground: { <group>: dress } } or null.
  */
 export function cityDressOf(P, unit) {
-  const g = P?.cube?.grit, gritty = g !== undefined && g >= GRIT_PIXELS;
+  const gritty = grittyOf(P?.cube) !== null;
   if (!P?.style) return gritty ? classDress(P, unit, P.materials ?? 'modern') : null;
   // a style: its class's dress (on a gritty cube), its words over it
   const S = P.style, cls = P.materials ?? S.class, D = gritty ? classDress(P, unit, cls) : { class: cls, walls: {}, ground: {} }, X = materialContext(P.cube);

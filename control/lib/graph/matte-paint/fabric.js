@@ -30,6 +30,9 @@ const READ = { blocky: { width: 0.025, hold: 0.75 }, columnar: { width: 0.022, h
 export const FABRIC_GROUPS = Object.freeze(['isekai:cliff']);
 /** How gritty a style must be before its stone takes pixels: the island's rock (local-meru), a cube's room (geocube). */
 export const GRIT_PIXELS = 0.35;
+/** A cube's grit when its surfaces take pixels (painted from relief: its room, its town, its city), else null: the one
+ *  place a cube is asked whether it is gritty. */
+export const grittyOf = (cube) => (cube?.grit !== undefined && cube.grit >= GRIT_PIXELS ? cube.grit : null);
 // a formation is the rock itself: the boulders that came off the cliff are drawn in it too
 export const FORMATION_GROUPS = Object.freeze([...FABRIC_GROUPS, 'isekai:rock']);
 

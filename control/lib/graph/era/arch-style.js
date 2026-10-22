@@ -33,7 +33,7 @@ import { ELEMENT_SETS, composeAnchor } from './out-anchor-elements.js';
 import { ANCHOR_IDS } from './out-anchor-structure.js';
 import { GRAMMAR_IDS, resolveGrammar } from '../city/plan/grammars.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
-import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { grittyOf } from '../matte-paint/fabric.js';
 
 const no = (msg) => { throw new Error(`style: ${msg}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -417,7 +417,7 @@ const TOWN_SEEDS = { 'str:plaster': 23, 'str:stone': 29, plinth: 31, 'str:shell'
  * metres?, roof?, colour? }: the colour a hue the lit face leans to (town-dress.js leanHue). Null when it says nothing.
  */
 export function styleTownDress(S, cube, dress) {
-  const X = materialContext(cube), gritty = (cube.grit ?? -1) >= GRIT_PIXELS, out = { ...(dress ?? {}) };
+  const X = materialContext(cube), gritty = grittyOf(cube) !== null, out = { ...(dress ?? {}) };
   for (const [surface, groups] of Object.entries(TOWN_GROUPS)) {
     const w = S.materials[surface], colour = S.palette[surface] ?? (w ? MATERIAL_WORDS[w].colour : null);
     if (!w && !colour) continue;
