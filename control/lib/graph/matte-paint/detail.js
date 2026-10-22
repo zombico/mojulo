@@ -13,7 +13,8 @@
  *   DETAIL_MEAN                           the mean a detail is set to (linear)
  *   resamplePlan(key)                     how the page may resample the tile so it does not repeat at scale, read off
  *                                         how the tile is built (scene/channels/resample.js), or null
- *   resamplePlans(keys)                   → { key: plan } for the detail tiles among `keys`
+ *   resamplePlans(keys, { plain })        → { key: plan } for the detail tiles among `keys`; `plain`: a tile with no plan
+ *                                         is read once as it is (kind 'plain'), so a stepped page steps it too
  *
  * The tiles are served by a texture resolver (`detail:`), painted once a key. Pure.
  */
@@ -99,8 +100,8 @@ export function resamplePlan(key) {
   if (cut === 'stucco' || cut === 'asphalt') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
   return null;
 }
-export function resamplePlans(keys) {
+export function resamplePlans(keys, { plain = false } = {}) {
   const out = {};
-  for (const k of [...keys].sort()) { const p = resamplePlan(k); if (p) out[k] = p; }
+  for (const k of [...keys].sort()) { const p = resamplePlan(k) ?? (plain && SPECS.has(k) ? { kind: 'plain' } : null); if (p) out[k] = p; }
   return out;
 }

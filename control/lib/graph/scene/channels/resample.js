@@ -15,12 +15,16 @@
  * reading takes its gradients from the unshifted uv, so no cut draws a mip seam. The dice are an integer hash of the
  * cell and the plan's seed: the same world draws the same everywhere.
  *
- *   resampleScript(plans)   the page's patch for { textureKey: plan }: the textured meshes whose key has a plan read
- *                           their map through it. Absent plans, the page emits nothing of it.
+ *   resampleScript(plans, steps)   the page's patch for { textureKey: plan }: the textured meshes whose key has a plan
+ *                           read their map through it. `steps` (a gen-7 world's relief, channels/relief-steps.js): each
+ *                           texel's value over the tile's mean cut into the relief's steps, its colour the step's (a
+ *                           plan of kind 'plain' reads its tile once, to be stepped). Absent plans, the page emits
+ *                           nothing of it.
  */
 import { safeJson } from '../emit-util.js';
+import { STEPS_GLSL, stepsUniforms } from './relief-steps.js';
 
-const KIND = { courses: 0, strips: 1, grid: 2, hex: 3 };
+const KIND = { courses: 0, strips: 1, grid: 2, hex: 3, plain: 4 };
 
 const GLSL = `
 uniform vec4 uRsA;   // kind, stepU, stepV, bandV
@@ -33,11 +37,12 @@ float rsNoise(vec2 q, uint s) {
   float a = rsR(i, s), b = rsR(i + ivec2(1, 0), s), c = rsR(i + ivec2(0, 1), s), d = rsR(i + ivec2(1, 1), s);
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
-vec4 rsRead(sampler2D m, vec2 uv) {
-  vec2 dx = dFdx(uv), dy = dFdy(uv);
+vec4 rsRead(sampler2D m, vec2 uv, float blur) {
+  vec2 dx = dFdx(uv) * blur, dy = dFdy(uv) * blur;
   uint s = uint(uRsC.z);
   vec4 c;
-  if (uRsA.x > 2.5) {
+  if (uRsA.x > 3.5) c = textureGrad(m, uv, dx, dy);
+  else if (uRsA.x > 2.5) {
     // hex: three readings at the corners of the triangle the point lies in, sharpened, contrast held round the mean
     vec2 p = uv / uRsB.y, sk = vec2(p.x - 0.57735027 * p.y, 1.15470054 * p.y);
     ivec2 b = ivec2(floor(sk)); vec2 f = fract(sk); float z = 1.0 - f.x - f.y;
@@ -66,22 +71,23 @@ vec4 rsRead(sampler2D m, vec2 uv) {
 }
 `;
 
-export function resampleScript(plans) {
+export function resampleScript(plans, steps = null) {
   const P = Object.fromEntries(Object.entries(plans).map(([k, p]) => [k, [
     KIND[p.kind], p.stepU ?? 0, p.stepV ?? 0, p.bandV ?? 0, p.bandU ?? 0, p.cell ?? 1, p.sharp ?? 6, p.mean ?? 0.8, p.macro?.amp ?? 0, p.macro?.scale ?? 6, p.seed ?? 1,
   ]]));
   return `
 // --- the resampler: painted detail tiles read again at seeded shifts, so they do not repeat at scale ---
-const __RESAMPLE = ${safeJson(P)}, __RS_GLSL = ${safeJson(GLSL)};
+const __RESAMPLE = ${safeJson(P)}, __RS_GLSL = ${safeJson(steps ? GLSL + STEPS_GLSL : GLSL)};
 const __resample = (mat, q) => {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uRsA = { value: new THREE.Vector4(q[0], q[1], q[2], q[3]) };
     sh.uniforms.uRsB = { value: new THREE.Vector4(q[4], q[5], q[6], q[7]) };
-    sh.uniforms.uRsC = { value: new THREE.Vector4(q[8], q[9], q[10], 0) };
+    sh.uniforms.uRsC = { value: new THREE.Vector4(q[8], q[9], q[10], 0) };${steps ? `
+    Object.assign(sh.uniforms, ${stepsUniforms(steps)});` : ''}
     // (at this point the shader's chunks are still includes: the map's own is replaced whole)
-    sh.fragmentShader = sh.fragmentShader.replace('void main() {', __RS_GLSL + '\\nvoid main() {').replace('#include <map_fragment>', '#ifdef USE_MAP\\n  diffuseColor *= rsRead( map, vMapUv );\\n#endif');
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', __RS_GLSL + '\\nvoid main() {').replace('#include <map_fragment>', ${steps ? `'#ifdef USE_MAP\\n  vec4 rsT = rsRead( map, vMapUv, 1.0 ), rsS = rsRead( map, vMapUv, 3.0 );\\n  diffuseColor *= vec4( relStep( dot( rsS.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) / uRsB.w ) * uRsB.w, rsT.a );\\n#endif'` : `'#ifdef USE_MAP\\n  diffuseColor *= rsRead( map, vMapUv, 1.0 );\\n#endif'`});
   };
-  mat.customProgramCacheKey = () => 'resample';
+  mat.customProgramCacheKey = () => '${steps ? 'resample-stepped' : 'resample'}';
   mat.needsUpdate = true;
 };
 `;

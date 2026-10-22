@@ -572,6 +572,25 @@ export function geocubeRamps(cube, n = 5) {
   const own = (k, h) => { const r = K && LOCK_ROLE[k] ? K.roles[LOCK_ROLE[k]] : null; return r && r[2].toLowerCase() === String(h).toLowerCase() ? r : null; };
   return Object.fromEntries(Object.entries(cube.colour).filter(([k]) => k !== 'shade').map(([k, h]) => [k, own(k, h) ?? rampFrom(rgbOf(h), n, { shadow }).map(hexOf)]));
 }
+// where a texture-map layer's relative value (1 the face's own) is cut into the relief's steps: the deeper shade, the
+// shade, the face, the lip, the highlight (scene/channels/relief-steps.js)
+export const RELIEF_AT = Object.freeze([0.48, 0.76, 1.2, 1.42]);
+const linC = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+/**
+ * A gen-7 cube's relief steps, as its texture-map layer draws them (scene/channels/relief-steps.js): each step a colour
+ * ratio to the face it falls on, in linear light: one and two stops down its relief and up it, from each of the
+ * ramp's middle three stops (so the ends reach into the deeper shades and the lights the relief added), averaged over
+ * those and over the ramps its layer paints (stone, floor, trim); each carries the relief's hue lean, a step's worth.
+ * → { d2, d1, l1, l2, at } or null (gen-6).
+ */
+export function geocubeSteps(cube) {
+  const V = geocubeRelief(cube);
+  if (!V) return null;
+  const keys = ['stone', 'floor', 'trim'].filter((k) => V[k]), r4 = (v) => Math.round(v * 1e4) / 1e4;
+  // (the relief's nine stops: the ramp's own five at 2…6; its middle three at 3, 4 and 5)
+  const ratio = (d) => [0, 1, 2].map((ch) => { let a = 0, n = 0; for (const k of keys) for (const c of [3, 4, 5]) { a += linC(rgbOf(V[k][c + d])[ch]) / Math.max(linC(rgbOf(V[k][c])[ch]), 1e-4); n++; } return r4(a / n); });
+  return { d2: ratio(-2), d1: ratio(-1), l1: ratio(1), l2: ratio(2), at: [...RELIEF_AT] };
+}
 /**
  * A gen-7 cube's relief: each key colour's ramp with two deeper shades under it and their two light negatives over it
  * (color-theorist/solve.js `reliefOf`), the steps its texture-map layer's recesses and lit lips are drawn in: the
@@ -1148,6 +1167,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (the style the street is built in, and its laws: era/arch-style.js)
   const TS = town ? settlementStyle(cube, typeof TD.settlement === 'string' ? cube.settlements?.[TD.settlement] : TD.settlement, manifest.style).style : null;
   if (TS) payload.geocube.style = styleReadout(TS);
+  // (a gen-7 cube's texture-map layer drawn in its relief's steps: scene/channels/relief-steps.js)
+  if (isTextured(cube)) payload.reliefSteps = geocubeSteps(cube);
   return payload;
 }
 /** What a specimen says of its cube (`payload.geocube`): the look, the levels it makes where it names more than its own

@@ -482,7 +482,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     if (Object.keys(textures).length) payload.textures = textures;
     // the painted detail tiles' resampling (matte-paint/detail.js, scene/channels/resample.js): only where a page draws one
-    const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')));
+    // (a gen-7 world's steps read every detail tile, the ones it does not shift once as they are)
+    const plans = resamplePlans(Object.keys(textures).filter((k) => k.startsWith('detail:')), { plain: !!payload.reliefSteps });
     if (Object.keys(plans).length) payload.resample = plans;
   }
 

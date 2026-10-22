@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { STEPS_GLSL, stepsUniforms } from './relief-steps.js';
 
 // In-page script: ROCK FABRIC (a gritty style's rock: matte-paint/fabric.js). The polygons carry the cliff from afar,
 // their light baked into the vertex; this refines what is NEAR. For each pixel of a rock group it finds where the rock's
@@ -19,7 +20,9 @@ import { safeJson } from '../emit-util.js';
 // Absent `fabric` ⇒ NOT emitted. `debug` (opt-in, for looking at it): 'relief' draws the rock as the relief map alone
 // (mid-grey: unchanged), 'domain' as the visual domain (red the master joints, green the minor, blue the grain).
 // `cfg`: { groups, sun, ambient, sets: [{ n, s, w, d, hold, phase }] (≤ 6), beds?: { b, t, hard, dip }, recess?, tilt, wave, echelon,
-//          cavity, grain: { size, amount }, px, maxFoot }
+//          cavity, grain: { size, amount }, px, maxFoot, steps? }
+// `steps` (a gen-7 world's relief, channels/relief-steps.js): the relief's ratio cut into the palette's relief steps, its
+// colour the step's, so the near rock speaks in the palette's values as the far polygons do
 const VERT_HEAD = 'varying vec3 vFabP;\n';
 const VERT_MAIN = 'vFabP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n';
 const FRAG_HEAD = `varying vec3 vFabP;
@@ -306,12 +309,13 @@ const FORM_UNIFORMS = `
 
 export function fabricScript(cfgIn) {
   // (a second rock beside the first, `also`: its own groups, its own program)
-  if (cfgIn.also) { const { also, ...own } = cfgIn; return fabricScript(own) + fabricScript(also); }
-  const cfg = cfgIn, skin = !!cfg.skin, form = !!cfg.formation;
-  const FH = FRAG_HEAD + (skin ? SKIN_HEAD : '') + (form ? FORM_HEAD : '');
+  if (cfgIn.also) { const { also, ...own } = cfgIn; return fabricScript(own) + fabricScript(cfgIn.steps ? { ...also, steps: cfgIn.steps } : also); }
+  const cfg = cfgIn, skin = !!cfg.skin, form = !!cfg.formation, steps = cfg.steps ?? null;
+  const FH = FRAG_HEAD + (skin ? SKIN_HEAD : '') + (form ? FORM_HEAD : '') + (steps ? STEPS_GLSL : '');
   // (a formation's ledges are steep: its light against the facet's is held closer, so a lit ledge is a highlight, not a glare)
   const FM0 = skin || form ? FRAG_MAIN.replace('    float lodG', (skin ? SKIN_MAIN : '') + (form ? FORM_MAIN : '') + '    float lodG') : FRAG_MAIN;
-  const FM = form ? FM0.replace('clamp(l1 / max(l0, 0.05), 0.35, 1.8)', 'clamp(l1 / max(l0, 0.05), 0.5, 1.3)') : FM0;
+  const FM1 = form ? FM0.replace('clamp(l1 / max(l0, 0.05), 0.35, 1.8)', 'clamp(l1 / max(l0, 0.05), 0.5, 1.3)') : FM0;
+  const FM = steps ? FM1.replace('else gl_FragColor.rgb *= fab;', 'else gl_FragColor.rgb *= relStep(fab);') : FM1;
   return `
 // --- rock fabric: what the rock's own joints and beds do to a face, drawn only where they can be seen ---
 (function () {
@@ -329,11 +333,12 @@ export function fabricScript(cfgIn) {
         uFabDip: { value: new THREE.Vector2(B ? B.dip[0] : 0, B ? B.dip[1] : 0) }, uFabRecess: { value: F.recess || 0 },
         uFabSteep: { value: new THREE.Vector2(F.steep ? F.steep[0] : 1, F.steep ? F.steep[1] : 0.9) }, uFabTilt: { value: F.tilt }, uFabCav: { value: F.cavity }, uFabGrain: { value: F.grain.size }, uFabGrainAmt: { value: F.grain.amount },
         uFabPx: { value: F.px }, uFabMaxFoot: { value: F.maxFoot }, uFabDebug: { value: F.debug === 'relief' ? 1 : F.debug === 'domain' ? 2 : 0 }, uFabMasters: { value: F.masters ?? Math.ceil(F.sets.length / 2) },
-      });${skin ? SKIN_UNIFORMS : ''}${form ? FORM_UNIFORMS : ''}
+      });${skin ? SKIN_UNIFORMS : ''}${form ? FORM_UNIFORMS : ''}${steps ? `
+      Object.assign(sh.uniforms, ${stepsUniforms(steps)});` : ''}
       sh.vertexShader = VH + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n' + VM);
       sh.fragmentShader = FH + sh.fragmentShader.replace('#include <fog_fragment>', FM + '#include <fog_fragment>');
     };
-    mat.customProgramCacheKey = () => ${cfg.key ? safeJson(cfg.key) : "'rock-fabric'"};
+    mat.customProgramCacheKey = () => ${steps ? safeJson(`${cfg.key ?? 'rock-fabric'}-stepped`) : cfg.key ? safeJson(cfg.key) : "'rock-fabric'"};
     mat.needsUpdate = true;
   };
   scene.traverse((o) => { if (o.isMesh && o.material && groups.has(o.userData.g)) patch(o.material); });
