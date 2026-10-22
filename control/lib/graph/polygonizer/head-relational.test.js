@@ -59,3 +59,16 @@ describe('the ear', () => {
     expect((L.exR.y - T.y) * 1800).toBeLessThan(82);
   });
 });
+
+describe('the forehead\'s furrows', () => {
+  it('cuts three shallow grooves across the forehead where its lines run, and nothing without them', () => {
+    const a = relationalHead({ sex: 'male' }), b = relationalHead({ sex: 'male', relations: { furrows: 1 } }), L = a.landmarks, mm = L.H / MM;
+    const front = (h, z) => { const q = rayIn(h.field, { x: 0.004, y: L.g.y - 0.1, z }, [0, 1, 0]); return q ? q.y : NaN; };
+    const cut = Array.from({ length: 30 }, (_, i) => (front(a, L.g.z + (8 + i) * mm) - front(b, L.g.z + (8 + i) * mm)) / mm);
+    expect(Math.max(...cut)).toBeGreaterThan(0.4); expect(Math.max(...cut)).toBeLessThan(1.6);
+    // (three: a groove, the skin between, the next)
+    const grooves = cut.filter((c, i) => c > 0.3 && !(cut[i - 1] > 0.3)).length;
+    expect(grooves).toBe(3);
+    expect(front(b, L.g.z - 4 * mm)).toBe(front(a, L.g.z - 4 * mm));
+  });
+});

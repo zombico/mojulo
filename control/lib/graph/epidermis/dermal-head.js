@@ -117,7 +117,11 @@ export function headChartOf(head, { vertices, faces, normals }, skinAt, shutAt =
   chart.samples.forEach((s, vi) => { if (s && shutAt(vi)) s.enclosed = true; });
   // the occlusion each skin point sits in, read from the mesh (a game bakes it into the skin's colour: the sockets, the
   // nostrils, the lips' line, the ear's folds, under the jaw)
-  chart.ao = meshOcclusion(vertices, normals, { skin: shownAt ? (vi) => !!chart.samples[vi] && shownAt(vi) : (vi) => !!chart.samples[vi] });
+  const onSkin = shownAt ? (vi) => !!chart.samples[vi] && shownAt(vi) : (vi) => !!chart.samples[vi];
+  chart.ao = meshOcclusion(vertices, normals, { skin: onSkin });
+  // (and at a wider reach, read only when a dermis asks for its shading: `occlusionAt(radius, strength)`, not enumerable,
+  // so the chart reads as it did)
+  Object.defineProperty(chart, 'occlusionAt', { value: (radius, strength) => meshOcclusion(vertices, normals, { radius, strength, skin: onSkin }) });
   return chart;
 }
 

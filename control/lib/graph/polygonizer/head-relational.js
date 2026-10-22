@@ -85,6 +85,29 @@ export const RELATIONS = Object.freeze({
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
+  // ── the harmonic shapes the ratios above do not reach: each an OFFSET from the canon, 0 the canon's own (the head as
+  // it was, byte for byte), so a face moves from a natural one and never starts from a carved one
+  chinWidth: 0,         // the mental tubercles' spread, added to the canon's 0.35 of the gonions' (− a narrower chin)
+  chinRound: 0,         // the chin's mass about the pogonion, its radius × (1 + this) (− a pointier, finer chin; its front kept)
+  dorsum: 0,            // the nose's bridge and root, their width × (1 + this) (− a finer bridge; the ridge's front kept)
+  noseSize: 0,          // the nose's own parts (the tip's mass, the wings, the columella, the septum, the walls) and their
+                        // places about the tip, the wings and the subnasale × (1 + this): a small nose is a smaller nose,
+                        // not the canon's parts crowded into less room (− smaller)
+  gonionDrop: 0,        // the jaw's corner lower than the canon's (0.03 under the stomion) / v-me (− a higher corner)
+  cheeks: 0,            // the cheek's fullness: its balloon's radii × (1 + this) (+ fuller, − hollower)
+  lowerCheek: 0,        // the lower cheek over the jaw's body: the balloon's lower arm bowed down and out and filled
+                        // (+ a softer, rounder outline from the cheekbone to the chin; − a sharper V)
+  masseter: 0,          // the jaw's muscle: the masseter's belly × (1 + this) (− a slimmer jaw's side, + a heavier one)
+  forehead: 0,          // the frontal bulb forward of its canon place / v-me (+ a more upright, rounder forehead)
+  // ── ASYMMETRY, the left side's own (no face is a mirror; a perfect one reads uncanny), each an offset, 0 the mirror
+  asymEye: 0,           // the left eye (its corners and its centre) higher / v-me (+ up; ~1 mm is 0.004)
+  asymBrow: 0,          // the left brow's outer end higher / v-me
+  asymMouth: 0,         // the left mouth corner higher / v-me
+  asymNose: 0,          // the nose's tip and base leaning to the figure's left / v-me (the bridge's root stays)
+  asymJaw: 0,           // the left jaw's corner wider, a share (+ wider)
+  asymCheek: 0,         // the left cheekbone wider, a share
+  // ── the years' deep folds, as shape (the fine lines are the skin's wrinkle map, dermal-texture.js's FOLD page)
+  furrows: 0,           // the forehead's furrows cut into the skin, 0 none … 1 an old face's (~0.8 mm deep, ~5 mm wide)
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
   jawOpen: 0.17,        // the incisors' opening at full / v-me (~39 mm: a full, comfortable opening; the anatomical
                         // maximum is ~50 mm)
@@ -112,10 +135,28 @@ export const RELATIONS = Object.freeze({
                         // need a shorter one, or the sum blurs their edges (1 = the same everywhere)
 });
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
-/** the sex poles: ratios the female canon moves (the rest are shared) */
+/** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
-  male: Object.freeze({}),
-  female: Object.freeze({ browProjection: 0.028, archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.0384, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.79, third: 0.28, eyeLine: 0.49, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  // the male pole (2026-10-22, the face-harmony study, approved by the operator's eyes): the female's principles at the
+  // male's character: the cheeks full and the lower cheek filled (volume, never a hollowed default); a broader, rounder
+  // chin that no longer recedes over a wider jaw and a heavier masseter; a shorter nose with a finer bridge and a wider
+  // base; fuller lips; the eyes a little more open
+  male: Object.freeze({
+    cheeks: 0.6, lowerCheek: 0.35, chinWidth: 0.04, chinRound: 0.1, masseter: 0.15, chin: 0.006, jaw: 0.75,
+    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.32, fissure: 0.039,
+  }),
+  // the female pole (2026-10-21, the face-harmony study, approved by the operator's eyes): beyond the canon's sex cues, a
+  // shorter, less projected nose with a finer bridge and a narrower base; larger eyes; fuller, taller, more forward lips
+  // over a finer philtrum; a lighter, flatter brow; a narrower jaw and a narrower, pointed chin that no longer recedes;
+  // the cheeks fuller and the lower cheek bowed out over the jaw (a soft outline, never a hollowed one)
+  female: Object.freeze({
+    third: 0.28, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
+    fifths: 0.232, fissure: 0.045, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.29, noseFat: 0.026, dorsum: -0.35,
+    nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.01,
+    lipFullness: 1.55, upperVermilion: 0.044, lowerVermilion: 0.054, lipProjection: 0.029, philtrumVolume: 0.02, jowl: 0.008,
+    chinWidth: -0.11, chinRound: -0.2, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
+    archWidth: 0.96, incisorShow: 0.028, jawOpen: 0.16,
+  }),
 });
 
 /**
@@ -138,7 +179,8 @@ export function corePoints(rel = RELATIONS) {
   // the profile, hung off the nasion
   const n = { x: 0, y: g.y - R.nasionDepth, z: zN };
   const sn = { x: 0, y: n.y + 0.01, z: zSn };
-  const prn = { x: 0, y: sn.y + R.noseProjection * (zN - zSn), z: zSn + 0.03 };
+  const ns = 1 + R.noseSize;
+  const prn = { x: 0, y: sn.y + R.noseProjection * (zN - zSn), z: zSn + 0.03 * ns };
   const pg = { x: 0, y: n.y + R.chin, z: 0.06 };
   const P = {
     vertex: { x: 0, y: (g.y + op.y) / 2 - 0.02, z: 1 }, trichion: { x: 0, y: g.y - 0.035, z: zTr },
@@ -157,12 +199,12 @@ export function corePoints(rel = RELATIONS) {
   side('malar', zyX * 0.78, eyeY - R.malarDepth, zEye - 0.09); // the cheekbone's front (the zygomatic prominence)
   side('fz', exX + 0.01, eyeY - R.orbitRim, zG - 0.01);      // frontozygomatic: the brow's outer end
   side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
-  side('go', goX, 0.07, zSto - 0.03);                        // the jaw's corner
-  side('ment', goX * 0.35, pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
+  side('go', goX, 0.07, zSto - (0.03 + R.gonionDrop));                        // the jaw's corner
+  side('ment', goX * (0.35 + R.chinWidth), pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
   side('en', enX, eyeY + 0.025, zEye);
   side('ex', exX, eyeY - 0.02, zEye + R.canthalTilt);
   side('eye', (enX + exX) / 2, eyeY, zEye);
-  side('al', alX, sn.y + R.nostrilSet, zSn + R.nostrilRise);
+  side('al', alX, sn.y + R.nostrilSet * ns, zSn + R.nostrilRise * ns);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
   // THE MODIOLUS — where the muscles of the cheek meet beside the mouth's corner: authored at the corner, set back by
   // the tune (`mod`) so the summed waves of everything that ends there put the skin ON the corner, not proud of it
@@ -177,6 +219,17 @@ export function corePoints(rel = RELATIONS) {
   side('bow', 0.2 * chX, sn.y + R.lipProjection - 0.004, zSto + R.upperVermilion);
   side('loMid', 0.45 * chX, sn.y + R.lipProjection - 0.012, zSto - 0.5 * R.lowerVermilion);
   P.porionL = { ...P.porionR, x: -P.porionR.x };
+  // ASYMMETRY: the left side's points moved by its own relations (absent, the mirror as it was)
+  if (R.asymEye || R.asymBrow || R.asymMouth || R.asymNose || R.asymJaw || R.asymCheek) {
+    const up = (k, dz) => { if (dz && P[k]) P[k] = { ...P[k], z: P[k].z + dz }; };
+    const wide = (k, f) => { if (f && P[k]) P[k] = { ...P[k], x: P[k].x * (1 + f) }; };
+    for (const k of ['eyeL', 'enL', 'exL', 'cheekL']) up(k, R.asymEye);
+    up('fzL', R.asymBrow);
+    for (const k of ['chL', 'modL', 'loMidL']) up(k, R.asymMouth);
+    for (const k of ['goL', 'mentL']) wide(k, R.asymJaw);
+    for (const k of ['malarL', 'zyL']) wide(k, R.asymCheek);
+    if (R.asymNose) { const lean = (k, f) => { P[k] = { ...P[k], x: P[k].x - R.asymNose * f }; }; lean('prn', 1); lean('sn', 0.7); lean('rhinion', 0.4); lean('alL', 0.7); lean('alR', 0.7); }
+  }
   return P;
 }
 
@@ -266,7 +319,8 @@ export function tunedPoints(P, tune = ZERO_TUNE) {
  */
 export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance = 0.5, damping = 0.9 } = {}) {
   // a channel that OVERSHOOTS (its error changes sign) halves its gain, and earns it back otherwise — an error that
-  // grows on the same side was a neighbour's push, not the channel's own step; no point moves further than LIMIT
+  // grows on the same side was a neighbour's push, not the channel's own step; no point moves further than LIMIT, nor a
+  // channel past its own (`TUNE_LIMITS`)
   const LIMIT = 0.08;
   let tune = { ...ZERO_TUNE }, residual = null, last = null, n = 0;
   const gain = Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, damping]));
@@ -284,7 +338,7 @@ export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance 
       if (e == null || Math.abs(e) <= tolerance) continue;
       if (last && last[k] != null) gain[k] = Math.sign(e) !== Math.sign(last[k]) && Math.abs(e) > tolerance ? gain[k] / 2 : Math.min(damping, gain[k] * 1.5);
       const step = (gain[k] * e * MM_V) / (c.pair ? 2 : 1);
-      next[k] = clampTo(c.point || c.probe ? tune[k] - step : tune[k] + step, LIMIT);
+      next[k] = clampTo(c.point || c.probe ? tune[k] - step : tune[k] + step, TUNE_LIMITS[k] ?? LIMIT);
     }
     last = residual;
     tune = next;
@@ -292,6 +346,13 @@ export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance 
   return { tune, steps: n, residual };
 }
 const clampTo = (v, lim) => Math.max(-lim, Math.min(lim, v));
+/**
+ * a channel's own reach, where the solve chasing its relation further bends the face more than the miss costs: the
+ * subnasale's lift, held to the poles' own range (a short, unprojected nose's skin dips ~2–4 mm under its relation; lifted
+ * to the shared limit, the nose's base rose ~18 mm and drew the upper lip into a long swollen snout). The miss is
+ * reported (`residual`), the face kept.
+ */
+export const TUNE_LIMITS = Object.freeze({ sn: 0.03 });
 /** a skin point the calipers do not read, found for the tune: `ch`, the front of the skin at the mouth's corner (the
  * front-most over a few heights about it, so the lip line's slot is not taken for the corner) */
 function probeOf(head, name) {
@@ -337,7 +398,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE VAULT — frontal, parietal and occipital bulbs along the sagittal line: the parietal's radius is the euryon's
   // bone, its top the vertex's; the frontal sits behind the brow; the occipital's back is the opisthocranion's bone
   const rP = euX - T('eu'), rF = rP * 0.82, rO = rP * 0.8;
-  const front = { x: 0, y: P.g.y - 0.035 - rF, z: P.g.z + 0.11 };
+  const front = { x: 0, y: P.g.y - 0.035 - rF + R.forehead, z: P.g.z + 0.11 };
   const crown = { x: 0, y: P.euR.y, z: 1 - T('vertex') - rP };
   const back = { x: 0, y: P.op.y + T('op') + rO, z: P.op.z + 0.02 };
   v('vault', front, crown, back, [rF, rP, rO]);
@@ -367,7 +428,9 @@ export function coreVajras(P, rel = RELATIONS) {
   // a third of the jaw's half-width out, low, and small (the mandible's front ends follow them in, at their size: made
   // smaller too, they thinned the floor of the mouth to a hole behind the lower incisors), so the chin's front rounds
   // off from the midline (out at 0.42 of it, higher and fuller, they held a flat plate 36 mm wide between two balls)
-  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05, 0.02], [J, J, J], { stepIn: true });
+  // (`chinRound`: the protuberance's radius, its centre moved forward by what it loses, so the pogonion stays put)
+  const cr = R.chinRound;
+  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05 - 0.05 * cr, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.02, 0.05 * (1 + cr), 0.02], [J, J, J], { stepIn: true });
   w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
   // THE BROW — an arch each side, the glabella → the supraorbital peak over the iris's outer edge → the
   // frontozygomatic: forward over the eye (`browProjection`), sweeping back to its outer end behind the eye
@@ -395,7 +458,9 @@ export function coreVajras(P, rel = RELATIONS) {
     const zy = P[`zy${s}`], go = P[`go${s}`], malar = P[`malar${s}`], ch = P[`ch${s}`], md = P[`mod${s}`], fz = P[`fz${s}`], eu = P[`eu${s}`], eye = P[`eye${s}`];
     // masseter: the arch's underside → the belly over the ramus → the jaw's corner (its insertion IS the gonion)
     const corner = [`corner${s}`];
-    soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05, 0.035], [null, ['jawHalf'], J]);
+    // (its belly's radius rides `masseter`, set in by what it gains so its inside stays put)
+    const mk = R.masseter;
+    soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05 - 0.05 * mk), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05 * (1 + mk), 0.035], [null, ['jawHalf'], J]);
     // temporalis: the temporal line on the vault → the fossa → under the arch (it fills the temple)
     soft(`temporalis${s}`, inX(at(mid(fz, eu, 0.5), { z: 0.06 }), 0.08), inX(at(mid(fz, zy, 0.55), { y: -0.03 }), 0.06), inX(at(zy, { y: 0.03, z: -0.02 }), 0.06), [0.05, 0.045, 0.025]);
     // THE CHEEK BALLOON — a water balloon of the cheek (the buccal fat and the malar pad as one mass): anchored at the
@@ -403,16 +468,19 @@ export function coreVajras(P, rel = RELATIONS) {
     // the back of the jaw and does not part from it), bulging at the cheek control point, tapering to the mouth's corner above and below it. Two vajras
     // sharing the bulge. `balloon` keeps its volume: when an action shortens it (a smile draws its ends toward the
     // cheek), its radii grow by √(rest length / length), so the cheek's lift in a smile comes from the relation.
-    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 });
+    // (`cheeks`: the balloon's fullness, its anchor's and bulge's radii)
+    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 }), bk = 1 + R.cheeks;
     // (the arms overlap end to end — their ends a corner's height apart, their radii wider than half of it — so the
     // balloon is one closed mass, not a loop with a hole through it)
     const endUp = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(md, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
-    V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
-    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { z: -0.035, y: -0.01 }), b: endLo, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
+    V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04 * bk, 0.055 * bk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
+    // (`lowerCheek`: the lower arm's middle bowed out and down, and fuller, so the outline under the cheekbone rounds)
+    const lc = R.lowerCheek, lk = bk * (1 + 0.25 * lc);
+    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { x: Math.sign(ch.x) * 0.02 * lc, z: -0.035 - 0.025 * lc, y: -0.01 }), b: endLo, r: [0.04 * bk, 0.055 * lk, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
     // the BELLY: the arms bend up through the bulge, so the triangle between the anchor, the bulge and the corner
     // would be empty — a third vajra through its centre fills it, and the balloon is solid
     const belly = { x: (anchor.x + bulge.x + ch.x) / 3, y: (anchor.y + bulge.y + ch.y) / 3 - 0.01, z: (anchor.z + bulge.z + ch.z) / 3 };
-    V.push({ name: `cheekBelly${s}`, a: anchor, c: inX(belly, 0.01), b: at(md, { x: -Math.sign(ch.x) * 0.008, y: -0.03 }), r: [0.04, 0.06, 0.026], group: 'soft', muscle: true, balloon: true, drive: [J, ['jawHalf'], corner] });
+    V.push({ name: `cheekBelly${s}`, a: anchor, c: inX(belly, 0.01), b: at(md, { x: -Math.sign(ch.x) * 0.008, y: -0.03 }), r: [0.04 * bk, 0.06 * bk, 0.026], group: 'soft', muscle: true, balloon: true, drive: [J, ['jawHalf'], corner] });
     // ZYGOMATICUS MAJOR — the smile's muscle: the cheekbone's side → the belly across the cheek → the mouth's corner
     // (the modiolus). At rest a thin strap under the balloon; `smile` pulls its insertion toward its origin, and as a
     // balloon it keeps its volume, so it thickens as it shortens.
@@ -486,7 +554,11 @@ export function coreVajras(P, rel = RELATIONS) {
     v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
   }
   // THE NOSE — nasion → rhinion → tip
-  v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
+  // (`dorsum`: the bridge's radii, at the root and the rhinion, their centres forward by what they lose: the ridge's
+  // front stays, the bridge narrows)
+  // (`noseSize`: the parts' radii and their places about the tip, the wings and the subnasale, × k)
+  const dd = R.dorsum, D = 1 + dd, k = 1 + R.noseSize;
+  v('nose', at(P.n, { y: -0.02 - 0.018 * dd }), at(P.rhinion, { y: -0.018 - 0.02 * dd }), at(P.prn, { y: -0.03 * k }), [0.018 * D, 0.02 * D, 0.03 * k], 'nose');
   // THE NOSTRILS — one vajra each, placed from the nose's bottom (`nostrilRise`, `nostrilSet` put the alare over the
   // subnasale): the wing's base where it inserts into the lip → the alar lobule (its outer side IS the alare) → the
   // soft triangle beside the tip. Mirrored, with the columella between them; the space between a lobule and the
@@ -495,42 +567,42 @@ export function coreVajras(P, rel = RELATIONS) {
   const lobule = {}, soft3 = {};
   for (const s of ['L', 'R']) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
-    lobule[s] = at(al, { x: -sg * 0.018, y: -0.006 });
-    soft3[s] = { x: sg * 0.024, y: P.prn.y - 0.036, z: P.prn.z - 0.008 };
-    v(`nostril${s}`, at(al, { x: -sg * 0.014, y: -0.03, z: -0.006 }), lobule[s], soft3[s], [0.012, 0.018, 0.012], 'nose');
+    lobule[s] = at(al, { x: -sg * 0.018 * k, y: -0.006 * k });
+    soft3[s] = { x: sg * 0.024 * k, y: P.prn.y - 0.036 * k, z: P.prn.z - 0.008 * k };
+    v(`nostril${s}`, at(al, { x: -sg * 0.014 * k, y: -0.03 * k, z: -0.006 * k }), lobule[s], soft3[s], [0.012 * k, 0.018 * k, 0.012 * k], 'nose');
   }
   // THE ALAR BAR — lobule → under the subnasale → lobule: the nose's base, joining the nostrils. Its ends are the
   // lobules (the same bead and radius), so the wing's outer side stays the alare (ended at the alare itself, the bar
   // stood 5 mm outside each wing)
-  v('alae', lobule.L, at(P.sn, { y: -0.02, z: 0.005 }), lobule.R, [0.018, 0.018, 0.018], 'nose');
+  v('alae', lobule.L, at(P.sn, { y: -0.02 * k, z: 0.005 * k }), lobule.R, [0.018 * k, 0.018 * k, 0.018 * k], 'nose');
   // THE SEPTUM — the nose's midline wall, from the columella's base up behind the bridge, inside the nose: it fills the
   // air the walls and the ridge close round (a pocket there showed in the profile, and opened to a line seen through
   // from the side as the cheek moved)
-  v('septum', at(P.sn, { y: -0.004, z: 0.012 }), at(mid(P.sn, P.rhinion, 0.5), { y: -0.02 }), at(P.rhinion, { y: -0.03 }), [0.01, 0.012, 0.01], 'nose');
+  v('septum', at(P.sn, { y: -0.004 * k, z: 0.012 * k }), at(mid(P.sn, P.rhinion, 0.5), { y: -0.02 * k }), at(P.rhinion, { y: -0.03 * k }), [0.01 * k, 0.012 * k, 0.01 * k], 'nose');
   // THE COLUMELLA — the strip under the tip from the subnasale to the tip's underside, so the nose is closed beneath
   // (without it the air under the tip showed through from the side)
-  v('columella', at(P.sn, { y: -0.004, z: 0.006 }), at(mid(P.sn, P.prn, 0.55), { y: -0.012, z: -0.008 }), at(P.prn, { y: -0.032, z: -0.012 }), [0.01, 0.011, 0.014], 'nose');
+  v('columella', at(P.sn, { y: -0.004 * k, z: 0.006 * k }), at(mid(P.sn, P.prn, 0.55), { y: -0.012 * k, z: -0.008 * k }), at(P.prn, { y: -0.032 * k, z: -0.012 * k }), [0.01 * k, 0.011 * k, 0.014 * k], 'nose');
   // THE SEPTUM — the midline wall filling the triangle between the mid-bridge, the subnasale and the tip, so the nose
   // is solid between its nostrils (without it the air inside the nose showed through from the side)
-  { const tri = { x: 0, y: (P.rhinion.y + P.sn.y + P.prn.y) / 3 - 0.012, z: (P.rhinion.z + P.sn.z + P.prn.z) / 3 };
-    v('septumUp', at(P.rhinion, { y: -0.024 }), tri, at(P.sn, { y: -0.008, z: 0.01 }), [0.016, 0.02, 0.012], 'nose');
-    v('septumTip', tri, mid(tri, at(P.prn, { y: -0.03 })), at(P.prn, { y: -0.034, z: -0.006 }), [0.02, 0.018, 0.016], 'nose'); }
+  { const tri = { x: 0, y: (P.rhinion.y + P.sn.y + P.prn.y) / 3 - 0.012 * k, z: (P.rhinion.z + P.sn.z + P.prn.z) / 3 };
+    v('septumUp', at(P.rhinion, { y: -0.024 * k }), tri, at(P.sn, { y: -0.008 * k, z: 0.01 * k }), [0.016 * k, 0.02 * k, 0.012 * k], 'nose');
+    v('septumTip', tri, mid(tri, at(P.prn, { y: -0.03 * k })), at(P.prn, { y: -0.034 * k, z: -0.006 * k }), [0.02 * k, 0.018 * k, 0.016 * k], 'nose'); }
   // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
   // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
   // (rooted in the lobule, a little above its centre and thinner than it, so the lobule is the wing's widest)
   const wallMid = {};
   for (const s of ['L', 'R']) {
-    wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016, y: -0.022 });
-    v(`noseWall${s}`, at(lobule[s], { y: -0.004, z: 0.008 }), wallMid[s], at(P.rhinion, { y: -0.022 }), [0.015, 0.014, 0.012], 'nose');
+    wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016 * k, y: -0.022 * k });
+    v(`noseWall${s}`, at(lobule[s], { y: -0.004 * k, z: 0.008 * k }), wallMid[s], at(P.rhinion, { y: -0.022 - 0.012 * dd }), [0.015 * k, 0.014 * k, 0.012 * D], 'nose');
   }
   // THE NOSE'S FLESH — one cone down the middle, narrow at the bridge and widening to the base over the wings: the
   // soft tissue over the cartilages, closing the grooves beside the ridge and the windows between each wing, its wall
   // and the tip. Its radius at the base is `noseFat` (thin and pinched to full and fleshy); the base sits on the
   // lobules' tops (it roofs the nostrils, never fills them) and behind the tip by its own radius, so a fatter nose is
   // wider and fuller but no longer: the tip's projection stays its own relation, and al-al the wings'
-  const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018;
+  const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018 * k;
   const base = { x: 0, y: P.prn.y - 0.009 - fat, z: wingTop + 0.6 * fat };
-  v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012, 0.6 * fat, fat], 'nose');
+  v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 - 0.012 * dd }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012 * D, 0.6 * fat, fat], 'nose');
   // and across it, low and forward beside the tip where the cone (set back by its radius) does not reach: a cone from
   // the window in one side (the triangle between the wing, its wall and the tip) to the other's, its ends at each
   // triangle's centre, its radius the same flesh
@@ -1072,8 +1144,33 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
+  // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
+  // them): three across the forehead where the skin's lines run (dermal-map.js dermalDetail), each a tube laid along the
+  // skin, probed from inside the head, sunk so a shallow sliver cuts, deepest at its middle and thinning to nothing at its
+  // ends, its edge blended soft. Absent, nothing.
+  // (placed by the landmarks, `P`: where the skin's own glabella and brow lie, as the skin's paint reads them; the tuned
+  // points are the masses' moved to put it there)
+  const furrows = skin && rel.furrows > 0 ? (() => {
+    const mm = MM_V * sc, half = Math.abs(P.fzR.x) * sc - 4 * mm, R = 2.6 * mm, tubes = [];
+    for (let k = 0; k < 3; k++) {
+      const z0 = P.g.z * sc + (13 + 8 * k) * mm, depth = rel.furrows * (k === 1 ? 0.8 : 0.6) * mm, pts = [];
+      for (let i = 0; i <= 10; i++) {
+        const x = -half + (2 * half * i) / 10, z = z0 + 1.4 * mm * Math.sin(Math.abs(x) / (9 * mm) + k * 1.7), hit = rayIn(skinField, { x, y: P.g.y * sc - 0.08 * sc, z }, [0, 1, 0]);
+        if (!hit) continue;
+        const t = Math.sin(Math.PI * (i / 10)) ** 0.7;
+        // (sunk along the skin's own normal there: a forehead slopes back, and a tube set straight forward cut above its line)
+        const e = 0.2 * mm, gn = ['x', 'y', 'z'].map((k) => skinField({ ...hit, [k]: hit[k] + e }) - skinField({ ...hit, [k]: hit[k] - e })), gl = Math.hypot(...gn) || 1, o = R - depth * t;
+        pts.push({ x: hit.x + (gn[0] / gl) * o, y: hit.y + (gn[1] / gl) * o, z: hit.z + (gn[2] / gl) * o });
+      }
+      if (pts.length > 2) tubes.push(pts);
+    }
+    const seg = (p, a, b) => { const bx = b.x - a.x, by = b.y - a.y, bz = b.z - a.z, l2 = bx * bx + by * by + bz * bz || 1e-12, u = Math.max(0, Math.min(1, ((p.x - a.x) * bx + (p.y - a.y) * by + (p.z - a.z) * bz) / l2)); return Math.hypot(p.x - a.x - bx * u, p.y - a.y - by * u, p.z - a.z - bz * u); };
+    const box = { lo: P.g.z * sc + 5 * mm, hi: P.g.z * sc + 40 * mm };
+    return { blend: 1.6 * mm, f: (p) => { if (p.z < box.lo || p.z > box.hi || p.y < P.g.y * sc - 0.08 * sc) return Infinity; let d = Infinity; for (const T of tubes) for (let i = 0; i + 1 < T.length; i++) d = Math.min(d, seg(p, T[i], T[i + 1])); return d - R; } };
+  })() : null;
   const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
+    if (furrows) { const c = furrows.f(p); if (c < furrows.blend * 4) d = smax(d, -c, furrows.blend); }
     for (const e of ears) { const ef = e.f(p); if (ef !== Infinity) d = smin(d, ef, JOIN.ear * sc); }
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
     for (const e of eyeRigs) {

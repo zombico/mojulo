@@ -186,7 +186,11 @@ export function spineFor(spine, region, lock) {
  * radius growing in over a tenth from `from`), and `k`, the axis's share of the coil's run (1 / k is how much longer
  * the curled hair is than where it falls). */
 export function coilOffsets(line, curl, L, out0 = null, planar = false, phase = 0) {
-  const n = line.length - 1, from = curl.from ?? 0, hand = curl.hand ?? 1, r = curl.radius, T = curl.turns;
+  const n = line.length - 1, from = curl.from ?? 0, hand = curl.hand ?? 1, r = curl.radius * (curl.scale ?? 1), T = curl.turns;
+  // (a KERATIN twist, when the curl names one: `flips` the places, 0 … 1 of the coil, where its hand reverses (a kink, as a
+  // phone cord's), `taper` the weight drawing the coil open toward the root (its radius smaller, its turns sparser there,
+  // the whole coil's turns kept); absent both, the coil as it was)
+  const twisted = (curl.flips?.length || curl.taper) ? twistOf(curl, n, from, T) : null;
   const k = 1 / Math.sqrt(1 + ((2 * Math.PI * r * T) / Math.max(L * (1 - from), 1e-9)) ** 2);
   const tan = (i) => norm([0, 1, 2].map((j) => line[Math.min(n, i + 1)][j] - line[Math.max(0, i - 1)][j])) ?? [0, 0, -1];
   // the coil's first reach: `out0` (a guide's outward direction, so neighbouring guides coil in step around the head), else any normal
@@ -194,13 +198,25 @@ export function coilOffsets(line, curl, L, out0 = null, planar = false, phase = 
   const out = [];
   for (let i = 0; i <= n; i++) {
     const t = tan(i); a = norm(plus(a, scale(t, -dot(a, t)))) ?? a;   // parallel transport: the frame turns only as the line does
-    const b = cross3(t, a), u = i / n, g = u <= from ? 0 : Math.min(1, (u - from) / 0.1), phi = hand * 2 * Math.PI * T * Math.max(0, u - from) / Math.max(1 - from, 1e-9) + (u > from ? phase : 0);
-    const R = r * g * g * (3 - 2 * g);
+    const b = cross3(t, a), u = i / n, g = u <= from ? 0 : Math.min(1, (u - from) / 0.1), phi = hand * (twisted ? twisted.phi[i] : 2 * Math.PI * T * Math.max(0, u - from) / Math.max(1 - from, 1e-9)) + (u > from ? phase : 0);
+    const R = r * g * g * (3 - 2 * g) * (twisted ? twisted.rk[i] : 1);
     // starts on the axis (no jump where the coil begins), coiling out toward `a`; `planar`: the coil's reach toward `a`
     // only (an S-wave), for a curtain whose neighbouring guides would shear past each other if they coiled sideways
     out.push(planar ? scale(a, R * (Math.sin(phi) - Math.sin(phase))) : plus(scale(a, R - R * Math.cos(phi)), scale(b, R * Math.sin(phi))));
   }
   return { offsets: out, k };
+}
+/** the twisted coil's angle and radius share at each sample: the rate by the taper (normalised, so the turns are kept),
+ * its sign reversed past each flip */
+function twistOf(curl, n, from, T) {
+  const tp = curl.taper ?? 0, flips = curl.flips ?? [], phi = [0], rk = [];
+  const v = (i) => Math.max(0, (i / n - from) / Math.max(1 - from, 1e-9)), rate = (x) => (1 - tp * (1 - x)) / (1 - tp / 2);
+  for (let i = 0; i <= n; i++) {
+    const x = v(i);
+    rk.push(1 - 0.5 * tp * (1 - x));
+    if (i) { const xm = (v(i - 1) + x) / 2, sign = flips.filter((f) => f < xm).length % 2 ? -1 : 1; phi.push(phi[i - 1] + sign * 2 * Math.PI * T * rate(xm) * (x - v(i - 1))); }
+  }
+  return { phi, rk };
 }
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 /** a spine coiled: each sample set off its axis by the coil (the axis, and so where the lock falls, unchanged) */

@@ -174,6 +174,260 @@ body catches up to what the authored one wears, and its principles are shared ba
   heel outlines, the toe cap, the wraps), the game body's half; absent, as drawn, the realistic pins unchanged. The
   plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
   base, said in the readout.
+
+### Face harmony: the female differentiated, the look standard, the lips' grain
+
+- The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune
+  solved for each relation set), so a spike's relation sets read side by side, textured and lit; `--lineup-crop face`
+  frames the face from the brow to the chin. The first study: the relational head's female pole differs from the male
+  in the jaw's width and little else (the nose's root and dorsum, the chin's shape, the eyes' size are the male's), and
+  relations alone move the eyes, the lips and the brow but cannot reach the nose's width, the chin's point or the lower
+  face's taper.
+- The relational head's HARMONIC SHAPES, relations the canon's ratios did not reach (head-relational.js `RELATIONS`):
+  `chinWidth` and `chinRound` (the chin's width and its point), `dorsum` (the nose's bridge and root), `gonionDrop`
+  (the jaw's corner), `cheeks` (the cheek's fullness), `lowerCheek` (the lower cheek bowed out over the jaw's body: a softer outline from
+  the cheekbone to the chin), `masseter` (the jaw's muscle), `forehead` (the frontal bulb).
+  Each is an offset from the canon, 0 the canon's own: a face moves from a natural one and never starts from a carved
+  one (no hollowed cheek by default), and both poles' heads are byte for byte as pinned.
+- face-harmony.js: `dimorphRelations(d)`, the relations `d` of the way from the male canon (0) to the female pole (1),
+  −0.25 … 1.5 (a Nordic heroine's bone part of the way, her features the female's); `harmonyMeasures(head)`, calipers
+  on the skin for the chin's width and its fall 10 mm out, the bridge's and the root's width, and the lower face's
+  taper (the width at the mouth and at the gonions over the zygions'). A reading, never a refusal.
+- THE FEMALE POLE moved (approved on the eyes gate): beyond the canon's sex cues, a shorter, less projected nose with a
+  finer bridge and a narrower base, larger eyes, fuller and more forward lips over a finer philtrum, a lighter brow, a
+  narrower jaw and a narrower, pointed chin that no longer recedes, the cheeks fuller and the lower cheek bowed out (a
+  soft outline). Its tune re-solved; the female head re-pinned, the male's unmoved. The hero's eye part closes its
+  outer rings in where they would cast past the face's side (a wider eye on a narrower face), eased over its neighbours.
+- THE FACE COMPOSER (face-compose.js `composeFace({ sex, bucket, seed, character?, accent? })`): many faces that each
+  hold together, never one face under different hair. Per harmonic feature (the chin, the nose, the lips, the cheeks,
+  the outline, the eyes) a few named shapes (`FACE_SHAPES`), each offsets to the relations over the sex's pole and a
+  point on two character axes (soft ↔ angular, delicate ↔ strong); a face rolls its point and takes the shapes near it,
+  each pushed a seeded share, and may carry one accent taken from far off (a strong jaw under fine features). A bucket
+  (`FACE_BUCKETS`) names the egocube ancestries its tone and hair are rolled from; `western` first. The dermis study's
+  `--faces` subjects may name an ancestry and a seed.
+- The composer's PROPORTIONS (`FACE_PROPORTIONS`): what differs person to person whatever the character, rolled after the
+  shapes about the face's own values: the skull's length and breadth, the vault's height (the face's share of the head),
+  the face's, the jaw's and the mouth's widths.
+- The composer's EYE REGION: the eyes' shapes carry the lids (the eye rig's channels: open, large, almond, deep, hooded,
+  soft), a brows feature takes the epidermis cube's groom words (natural, straight, arched, thick, thin), and the eyes'
+  spacing, height, size and tilt are rolled per face; `composeFace` returns `eyes` and `epidermis` with its relations.
+- THE ASIAN BUCKET (East and Southeast Asian ancestry): a bucket's `base` is the population's mean morphology, set before
+  the rolls and measured against what the pole already does (after published East Asian anthropometry: a rounder vault,
+  the inner canthi wider apart, a wider nasal base, a lower and flatter root, a broader bridge, a lighter brow ridge, a
+  rounder forehead, the cheekbones forward). Its LID COVER is rolled per face (monolid, in-fold, parallel, hooded, by the
+  egocube's weights) and owns the fold's channels (`LID_FOLD`) over the character's eye shape; never a slant. Shapes
+  weigh per bucket. `FACE_LIMITS` holds a composed face inside the head's working range, measured by the tune's solve
+  (the nose's projection, the cephalic index): a face asked past it is drawn at it.
+- The composer's GROOMS (`FACE_GROOMS`): the brows' thickness and density and the lashes' density and length rolled per
+  face as shares of their shape's numbers, after its face (a seed keeps its relations); a bucket may carry its own.
+- THE NOSE'S AXIS (`FACE_NOSE`): one roll per face from a short, flat nose (less projected, shorter, smaller, its root
+  lower, its base wider) to a long, pointed one, each bucket setting where its people sit on it and how widely they spread
+  (`nose: { mean, spread }`: the western a little toward long, the asian toward short and flat, both reaching both
+  ends); `composeFace`'s `nose` sets it. The relational head's `noseSize` (0 the canon's) scales the nose's own parts and
+  their places with it, so a small nose is a smaller nose, not the canon's parts crowded; `TUNE_LIMITS` holds the tune's
+  subnasale lift to the poles' own range (chased further, the nose's base rose ~18 mm and drew the upper lip into a snout;
+  the miss is reported instead). Both poles' heads and tunes are unchanged; the head's floor on the nose's projection
+  falls from ~0.265 to 0.2.
+- MORE BUCKETS, from the same principles: `east-asian` (the bucket first built as `asian`), `south-asian` (a longer
+  vault and a narrower face, the root higher than the East Asian, the base moderately wide, the eyes a little larger, the
+  rig's creased lid or a hooded one, the brows and lashes rolled heavier), `southeast-asian` (Filipino and maritime
+  Southeast Asian: a rounder vault, a low broad root and a wider base, the nose leaning short and flat, fuller lips, the
+  lid a parallel crease or the rig's), `latin` (Mexican mestizo: a broader face, high forward cheekbones, the nose spread
+  wide on its axis), `african` (sub-Saharan: a longer vault, a rounder forehead, a much wider base on a low broad root,
+  fuller, taller, more forward lips). A BLEND bucket is one of its buckets per face (`asian`: East or South Asian); a MIX
+  bucket is one, or one with a share of a second, their bases and leanings mixed by the share (`equatorial`: South Asian,
+  Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
+  the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
+  (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
+- THE GEO-ETHNIC CATALOGUE widened: `north-asian` (Mongolia, Korea, northern China, Siberia: a broad round short vault,
+  high flat forward cheekbones, the eyes wide apart under a low flat root, a light brow, thinner lips, the lid most often
+  a monolid or an in-fold), and `asian` the asiatic look pinned on it (North 2 : East 1); `east-asian` East Asian alone.
+  South Asia as its cline: `indo-aryan` (northern India and Pakistan: a long narrow face, a high root, the nose leaning
+  long and aquiline, large deep-set eyes, MST 3–7) and `dravidian` (southern India and Sri Lanka: a wider base, fuller
+  lips, MST 5–9), `south-asian` the mix along it. MENA: `levantine` (a long oval face, a long high-bridged nose, large
+  deep-set eyes, MST 2–6) and `south-mediterranean` (the Maghreb and coastal Egypt: a long narrow face, a straight to
+  aquiline nose, almond eyes, fuller lips, MST 3–7), `mena` the mix between them. A mix may hold its own tones over its
+  buckets' (the equatorial's brown is the mix's, its buckets keep their own).
+- THE HAIR'S CUTS by region (`FACE_HAIR`): a woman's hair texture is rolled from her ancestry's and cut from her bucket's
+  pool for it, as a stylist there would cut it (the Levant and the Maghreb: long blow-dried waves, long defined curls,
+  layered curls, half-up; South Asia: long hair, braided, put up; Mexico: layered curls, a curly crop, a high bun;
+  sub-Saharan Africa: the short afro, the high bun, braids, the bun, the curly crop, the big round afro rare); a texture a
+  pool leaves out keeps the ancestry's own style. The widow's peak's centre part goes only on cuts it suits (a part, no
+  ties, to the shoulder or longer). New cuts (dermal-hair.js): `curly-crop` (~9 cm on top, tapered at the nape and round the ears) and `high-bun` (the hair
+  smoothed up into a top-knot high on the crown).
+- HYBRIDS (`hybridOf`, `HYBRID_TRAITS`): a person of two lineages composed trait by trait, not averaged. Each trait group
+  (the skull, the eyes with their lid cover, the nose with its axis, the cheeks, the lips, the skin's tone, the hair's
+  ancestry and its region's cuts) comes from one parent (the likelier the larger its share) or is blended between them;
+  the face names its sources (`hybrid: { of, with, share, traits }`). `mixed` seeds one from any two base buckets;
+  `composeFace({ parents: { a: w, b: w } })` makes any face one. A cline (`mix`: the South Asian, the equatorial, MENA)
+  still interpolates its neighbours.
+- THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
+  rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
+  behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the
+  front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
+  hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
+  often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. A face rolled a
+  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part over any style that has a
+  part (the peak is where the hair parts of itself), with the groom's `framed-layers` move (dermal-hair.js, the
+  Rachel's principles): a smooth crown, the front cut shortest and layered longer toward the back, the ends flipped out so
+  the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
+  the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
+  well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
+- THE MALE POLE (head-relational.js `RELATION_POLES.male`, empty until now; approved by the operator's eyes): the
+  female's principles at the male's character. The cheeks full and the lower cheek filled (volume, never a hollowed
+  default), a broader, rounder chin that no longer recedes over a wider jaw and a heavier masseter, a shorter nose with a
+  finer bridge and a wider base, fuller lips, the eyes a little more open; `HEAD_TUNES.male` re-solved for it and the
+  male head re-pinned. The male dermis's hairline sits lower (0.88) with a widow's peak (5 mm). The sex axis
+  (`dimorphRelations`) now runs between the two poles. The composer rolls a man about his pole: his hairline lower, the
+  widow's peak more often and more marked and without the women's centre-parted groom, his brows taller and fuller
+  (`FACE_GROOM_SEX`); a woman's rolls are byte-identical.
+- PAINTED SHADING, opt-in (dermal-map.js `shade`, 0 … 1, absent nothing): the occlusion read at a face's reach (the
+  sockets, the hollow under the cheekbone, beside the nose, under the lip and the jaw), multiplied into the colour as a
+  game paints its light in (dermal-texture.js `finishPages`; the head chart's `occlusionAt`). For targets without their
+  own occlusion; an engine that adds its own wants it absent.
+- THE SKIN IN A GAME'S ART DIRECTION (color-theorist/adapters.js `skinDirection(contract, shading)`): the game's solved
+  palette and a shading word (`SKIN_SHADINGS`: painted, cel, graphic, none) read into the character's `shade` (as deep as
+  the key is low and the palette heavy, its colour the palette's fill, banded by the shading) and a light (the palette's
+  key, fill and rim, an exposure by the key). `shade` takes `{ amount, colour, steps }` as well as a number. The dermis
+  study lights a subject by its `light`, so one face reads in each game's light and shade.
+- THE DEEP CURVE (`shade.curve: 'deep'`, the `chiaroscuro` shading): the shade as before until the skin is enclosed
+  deepest, then a near-black in the shade's hue: the nostrils, the mouth's line, the sockets' inner corners, the ear's
+  folds (the knee at 0.9 of the occlusion, the darkest a tenth of the shade's colour: a tight band, tightened at the
+  operator's ask). A near-black only that deep, and only by asking for it.
+- THE WORLD'S SKIN, as data (gameworld/hero-looks.js `worldSkin`): a world with a palette hands its characters the shade
+  its art direction paints (`skinDirection`, the default light kept), `characters.direction.shading` naming how
+  (painted when absent). The composed hero carries it as `skin`; the mint takes it only on a realistic hero, under its
+  own shade, so every hero a world mints today mints as it did.
+- The dermis study's sheen reads the relief layer: each relief class's slopes (its pores and grain, finer than a pixel)
+  widen the highlight, Toksvig's way, so the skin reads satin rather than plastic (`--flat-sheen` for the old lobe).
+- THE SCALP'S STRANDS, finer (dermal-hair.js; the operator's eyes): a drawn strand stands for a ribbon `strandGap` wide,
+  `strandWidth` of it drawn; by the hair's type now (`HAIR_TYPES` `strand`): straight and wavy 1.5 mm and 0.4 (~4.5 hairs a
+  strand, between a lash and a card; were 3 mm and 0.75, ~18), curly 2 mm and 0.5, coily 2.5 mm and 0.6 (a curl keeps its
+  locks' weight). Every scalp's strands change; a groom's own `strandGap` / `strandWidth` still wins.
+- A CURL'S KERATIN (`HAIR_TYPES` `chiral`, hair-spine.js `coilOffsets` `flips` / `taper` / `scale`): curly and coily locks
+  twist each their own way: a share left-handed, the radius ± per lock, the twist reversing along the lock (a kink, as a
+  phone cord's: a few a metre in curls, many in coils), and the hair's weight drawing the coil open toward the root. A
+  coil that names none of these is as it was.
+- THE BEARD'S STYLES (dermal-map.js `beardStyle`, `BEARD_STYLES`: stubble, short-boxed, full, goatee, van-dyke,
+  chin-strap, moustache): a barber's lines over the beard tract (which zones grow: the moustache, the corners, the chin, a
+  soul patch, the cheeks or a strap along the jaw; the cheek line lowered; the neckline under the jaw) and a length a zone.
+  A beard of 6 mm and more grows as LOCKS (dermal-hair.js): ribbons of hair at the hair type's strand, a little coarser,
+  falling under their weight and curling by the man's hair type a step tighter (a coil curling back toward the skin), each
+  lock its own keratin twist (`growBodyHair`'s `type`). Absent, the tract and `stubble` as they were.
+- The beard grows on the whole upper lip (dermal-map.js): the nose's region, whose reach round the columella spans the
+  philtrum, cleared the beard there, so every moustache and every stubble bared the upper lip's middle; the nose now clears
+  the beard only on itself, above its base. Every male skin's upper lip changes.
+- The moustache is trimmed at the lip line, as it usually is: a hair above the upper lip grows no longer than its way down
+  to the lip's border, so none hangs over the lip (a beard of strands, 1.5 mm and longer; the painted shadow as it was);
+  a style may let it over (`overLip`, none does yet).
+- A styled beard is fuller (dermal-map.js `BEARD_ZONES`, the operator's eyes): denser and lifted off the skin by zone, the
+  moustache thickest (2.4 × the tract's hairs, lifted most), the chin and the cheeks full; its locks closer and a little
+  wider where it is denser, and a style long anywhere grows all of itself as locks (its trimmed moustache among them).
+- Under a styled beard the skin is painted in the hair's colour (dermal-texture.js), as the scalp's is under its groom, as
+  much as the hair covers it (the longer and the denser, the more; faded in with the beard's region, so no line marks the
+  style's edge): the gaps between locks foreshortened toward the eye read as beard, not as the shaven shadow's grey. The
+  dermis study shades a beard matte and darker within (coarse hair), and sizes its views with a loop (a head's hair now
+  runs to more points than a call's arguments hold).
+- THE MEN'S PARITY across the buckets (face-compose.js): a man draws his cut from his region's barbers
+  (`FACE_HAIR_MALE`: a default pool for every texture, the MENA, South Asian, Latin and African pools; a curly-haired
+  western man no longer rolls a TWA), his facial hair (`FACE_BEARD`: a style by the bucket's weights, clean the shaven
+  shadow, and the tract's fullness in the bucket's range; East and Southeast Asian beards sparser and more often shaven,
+  after published density; every style reachable everywhere), and the shapes by his sex's weights
+  (`FACE_SEX_WEIGHTS`: the thin and high-arched brow, large eyes, the heart's chin and outline rarer on a man) with
+  shorter lashes. A woman's every roll is byte for byte as it was.
+- A man's loss ends in a HORSESHOE (dermal-map.js): as the front's recession meets the crown's, what is left is a band round
+  the sides and the back, its top level about the parietal ridge and dipping to the sideburn in front; no wedge left at the
+  temple, and no island of hair left by a widow's peak once the front has receded. What the loss leaves a barber keeps
+  short (dermal-hair.js): no lock from the band's top laid over the bald crown. The MENA men's wavy pool crops instead of
+  standing in a curly crop's spikes.
+- THE MEN'S CUTS by culture (dermal-hair.js `SCALP_STYLES`, the cuts a barber in each place would name): the fade, the
+  Caesar, the French crop, the two-block, the pompadour, the slick-back, the high-top, the top-knot; drawn by region
+  (face-compose.js `FACE_HAIR_MALE`: East Asia's two-block and French crop, the Levant's slick-back, the Latin and the
+  Black barbershop's fade and Caesar, South Asia's neat side part; a bucket's `hairMale`). A cut from 2 cm is grown as a
+  cut (its taper, shelf and fringe shape it: a fade fades, a crop is no bowl; a buzz still lies as body hair), and a
+  style may carry its own lock edits.
+- THE BEARD'S GROWTH DIRECTION (dermal-map.js `beardFlow`): the sideburn straight down, the cheek down and toward the chin
+  (the more the lower), the chin down and gathering, the moustache out from the philtrum (flatter toward the corners),
+  under the jaw back toward the throat, the neck down toward its middle about a whorl either side. The beard WRAPS the
+  jaw: under the ear's lobe it reaches back past the sideburn's line, and the neck's top carries it on round.
+- The dermis study's SPLAT (`.claude/skills/dermis-study/splat.mjs`): the skin map's regions as points on the head's
+  surface net, orthographic from any azimuth, the far side culled by the normals, a pale grey where no region weighs;
+  where a region lies, in seconds, before a lit render's minutes.
+- LOCS and CORNROWS, anyone's (dermal-hair.js, the tie's new tails `loc` and `row`): locs, the hair matted into ropes, one
+  from each section of a grid over the scalp, twisting round its rope and hanging to the shoulder; cornrows, plaited flat
+  in rows from the hairline over the crown to the nape (a root joins its nearest row where it is nearest, the scalp parted
+  bare between), a short braid on past it. In the women's and the men's pools of the African groups, and the Latin coily.
+- THE ERAS' CUTS: the mohawk, the fauxhawk (a `strip` cut: the band down the middle kept and standing, the rest clipped),
+  the broccoli (the 2020s' perm), the mullet, the '90s curtains and bowl, the 2000s' emo fringe; some in the men's pools
+  now and then. A style with ties is grown with its ties at any length. The fauxhawk is the 2000s–2010s gelled one:
+  textured spikes worked up, back and in to a ridge (a groom's `gel`, 0 … 1: what stands is turned from the scalp's
+  normal toward that ridge, not fanned out); `spiky` its whole-top variation (a Kisame's), and the SPIKED FADE family:
+  the spiked fade, the high one, the spiked quiff fade and the burst fade's band of spikes. The bowl is clipped short
+  beneath (a root a shelf or a strip clips stays clipped under a line cut).
+- ASYMMETRY (head-relational.js, 0-centred, absent byte-identical): the left eye's, brow's and mouth corner's height, the
+  nose's lean, the left jaw's and cheekbone's width. The composer rolls each face its own (`FACE_ASYMMETRY`, ~1–1.5 mm),
+  never none: a mirror reads uncanny.
+- BEAUTY (face-compose.js `composeFace`'s `beauty`, 0 … 1, `FACE_BEAUTY`): averageness and symmetry, the attractiveness
+  research's steadiest findings: the proportions' and the nose's reach and the shapes' spread drawn toward the bucket's
+  mean, the asymmetry toward slight. The default (0.5) leans to it: most faces typical, the median rather than the
+  extremes; every composed face, women's and men's, changes with it.
+- THE SKIN'S MARKS (dermal-map.js `marks`, `MARK_KINDS`): moles, a beauty mark, birthmarks (a café-au-lait patch, a
+  port-wine stain) at mm on the head, painted into the skin's colour, a stain's edge wandering; the composer rolls up to
+  three moles a face, a beauty mark in its classic places now and then, a birthmark rarely (`FACE_MARKS`).
+- HAIR STREAKS (dermal-hair.js scalp key `streaks`, `STREAK_KINDS`, `STREAK_DYES`): the money pieces framing the face,
+  a chunk at a clump's seat, the under layer, the tips (ombré, from a share along the strand), a scatter of babylights;
+  each strand and card in one carries its `streak` (the dye, linear, and where along it the dye starts). The hair grows
+  exactly as without; absent, no field. A buzz under 2 cm takes none.
+- PIERCINGS (new epidermis/dermal-jewel.js `pierce`, `readPiercings`, `PIERCING_SITES`): the lobe and the upper lobe, the
+  helix, the tragus, the nostril, the septum, the brow, the bridge, the labret, a lip ring, the monroe and the medusa,
+  each placed from the head's landmarks and settled on its surface by the field (the ear's sites from the ear's own
+  samples), in a kind the site takes (stud, a gem set; hoop through its hole, hanging off the tissue's edge; barbell;
+  drop) and a metal; out, the pieces and one mesh (balls, rings, wires) in the chart's frame with its materials.
+- ADORNMENTS in the composer (`FACE_ADORN`), rolled after the marks: each site at its chance by sex (the lobes on most
+  women, few men, every other site rare; a nose stud common in the South Asian buckets), one metal a face; now and then
+  streaks, mostly the salon's lightened dyes, sometimes a fashion colour, as a scalp hint. The rolls before them keep
+  their dice.
+- THE YEARS ON THE SAME ROLL (face-compose.js `composeFace`'s `age`, years 16 … 85, `FACE_AGE`): the rolled face is the
+  person at their prime (28; absent or 28, the face as rolled, byte for byte); other ages keep every roll and the
+  person's styling (the cut, the streaks, the piercings, the marks, the beard's style) and move the years' signs. Older:
+  the soft tissue descends (the jowl and the fold, the cheek's fat from the cheekbone to the jaw, thinner lips set back,
+  a longer nose and ear, hooded lids, the outer canthus down), the skin's `age` and `lines` rise, the hair greys from
+  its onset, a man's temples recede and his loss advances by its destiny, a woman's crown thins late. Younger, to 16:
+  fuller cheeks and lips, a smaller nose, a softer jaw, a man's brow ridge not yet grown, the skin younger. Its own dice
+  (`face-age`): the rate the person ages at, the greying's onset by the ancestry's mean, the loss's destiny, the same at
+  every age of one seed.
+- THE FACE'S LINES AS FOLDS (dermal-map.js `dermalDetail`, dermal-texture.js `FOLD_INK`): each line a tapered polyline
+  painted at two scales, a thin dark core inside a broad smooth shade (`crease`, `soft`), with a faint lift on the roll's
+  lit lip (`lift`), in the skin's own warm shadow rather than grey; broken along its length, wider as it deepens, the
+  crow's feet curved and more of them with depth. The lines no longer read as pencil strokes. Absent `lines`, nothing.
+- THE WRINKLE MAP (dermal-texture.js the FOLD page, `FOLD_SLOPE`; dermal-map.js `FOLD`, `dermalDetail`'s `slope`): the
+  same folds as SHAPE, a narrow valley and the broad roll of skin on its lit side, baked as the height's slope over the
+  head's mm (R toward the figure's right along the chart's `tr`, G up the head along its `ta`, 128 flat; B the valley's
+  cavity), so the light draws a fold and it answers the light's direction: an engine's wrinkle normal map. Only where
+  the face has lines (absent, no page). The dermis study bends its shading by it; `--key` moves the key light (a raking
+  side light shows the folds turn with it). A normal map shades; it casts no shadow and leaves the silhouette smooth.
+- THE FOREHEAD'S FURROWS AS SHAPE (head-relational.js `furrows`, 0 … 1, absent byte-identical): an old forehead's three
+  deep folds cut into the skin, each a tube laid along the forehead by the landmarks, sunk along the skin's normal so a
+  shallow sliver cuts (~0.8 mm at 1), thinning to nothing at its ends, its edge blended soft: real shape, so an engine's
+  light casts it and the profile carries it, under the same lines the paint and the wrinkle map draw. The composer cuts
+  them from the late fifties at the person's rate.
+- THE FOLDS' PAINT BY THE ART DIRECTION (dermal-texture.js `FOLD_INK.lit`): where the light draws a fold (the realistic
+  register, no painted `shade`), the painted core and shade at a little over half; whole where an art direction paints
+  its light in.
+- GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
+  0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
+- GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
+  (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
+  the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.
+- THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
+  not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
+- THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
+  as a camera saw it, and the deepest two photograph near-black and grey (less red over blue than MST 6), so MST 9 and 10
+  rendered as dark grey under a white sheen. Below MST 8's luminance a tone is lifted (by a square root under that knee,
+  its order kept) and holds MST 8's red slope, the way measured deep skin stays a red-sloped few percent; the melanin
+  measure (the blood shown, the palms) still reads the swatch. MST 1 … 8, and any hex tone at or above the knee, are
+  byte-identical.
+
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

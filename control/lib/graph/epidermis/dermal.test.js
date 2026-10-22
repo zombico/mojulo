@@ -8,7 +8,8 @@ import { relationalHeadChart } from './dermal-head.js';
 import { chartFromRings, meshOcclusion } from './dermal-chart.js';
 import { readLook, LOOKS, readAncestry } from './dermal-looks.js';
 import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
-import { readDermis, dermisAt, dermalDetail } from './dermal-map.js';
+import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin, headXY, hairMeanOf, hairColourOf } from './dermal-map.js';
+import { MST } from '../egocube/ancestry.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
 
@@ -170,5 +171,164 @@ describe('the tie', () => {
     const signs = across.slice(2, -2).map((o) => Math.sign(o[0] * ref[0] + o[1] * ref[1] + o[2] * ref[2])).filter(Boolean);
     let flips = 0; for (let i = 1; i < signs.length; i++) if (signs[i] !== signs[i - 1]) flips++;
     expect(flips).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('the deep tones as albedo', () => {
+  it('keeps every swatch down to the knee, and below it lifts the deepest in order, red over blue like the knee', () => {
+    for (let t = 1; t <= 8; t++) expect(toneAlbedo(t)).toEqual(hexLin(MST[t - 1]));
+    const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], [a8, a9, a10] = [8, 9, 10].map(toneAlbedo);
+    expect(lum(a8)).toBeGreaterThan(lum(a9)); expect(lum(a9)).toBeGreaterThan(lum(a10));
+    expect(lum(a10)).toBeGreaterThan(lum(hexLin(MST[9])));
+    expect(a10[0] / a10[2]).toBeGreaterThan(3);
+  });
+});
+
+describe('the shading painted in', () => {
+  it('absent paints nothing, and asked for darkens the enclosed skin, deeper the more it is asked', () => {
+    const L = layoutDermis(chart, { page: 128 }), D = readDermis('male');
+    const plain = paintDermis(chart, D, L), half = paintDermis(chart, readDermis({ from: 'male', shade: 0.5 }), L), full = paintDermis(chart, readDermis({ from: 'male', shade: 1 }), L);
+    expect(paintDermis(chart, readDermis({ from: 'male', shade: 0 }), L).albedo).toEqual(plain.albedo);
+    const sum = (T) => T.albedo.reduce((a, v, i) => a + (i % 4 === 3 ? 0 : v), 0);
+    expect(sum(half)).toBeLessThan(sum(plain)); expect(sum(full)).toBeLessThan(sum(half));
+    for (let i = 0; i < plain.albedo.length; i++) expect(full.albedo[i]).toBeLessThanOrEqual(plain.albedo[i]);
+    expect(() => readDermis({ from: 'male', shade: 1.2 })).toThrow(/shade/);
+  });
+  it('takes an art direction\'s shade: its colour leans the shade to its hue, its steps band it', () => {
+    const L = layoutDermis(chart, { page: 128 }), plain = paintDermis(chart, readDermis({ from: 'male', shade: 1 }), L);
+    const blue = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, colour: '#3050a0' } }), L), cel = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, steps: 2 } }), L);
+    const ch = (T, c) => T.albedo.reduce((a, v, i) => a + (i % 4 === c ? v : 0), 0);
+    expect(ch(blue, 2) / ch(blue, 0)).toBeGreaterThan(ch(plain, 2) / ch(plain, 0));
+    expect(cel.albedo).not.toEqual(plain.albedo);
+    // (the deep curve: the same shade until the knee, then a near-black only in the deepest few texels)
+    const deep = paintDermis(chart, readDermis({ from: 'male', shade: { amount: 1, curve: 'deep' } }), L);
+    let moved = 0, n = 0;
+    for (let i = 0; i < plain.albedo.length; i += 4) { if (plain.albedo[i + 3] === 0) continue; n++; if (deep.albedo[i] < plain.albedo[i]) moved++; expect(deep.albedo[i]).toBeLessThanOrEqual(plain.albedo[i]); }
+    expect(moved).toBeGreaterThan(0); expect(moved / n).toBeLessThan(0.05);
+    expect(() => readDermis({ from: 'male', shade: { amount: 1, curve: 'cliff' } })).toThrow(/shade/);
+    for (const bad of [{ amount: 2 }, { amount: 1, steps: 1 }, { amount: 1, colour: 'blue' }, { amount: 1, gloss: 1 }]) expect(() => readDermis({ from: 'male', shade: bad })).toThrow(/shade/);
+  });
+});
+
+describe('the beard\'s styles', () => {
+  const beardAt = (D) => chart.samples.map((s) => (s ? dermisAt(s, D, { detail: false }).hair : null)).map((h, i) => ({ h, s: chart.samples[i] })).filter((x) => x.s);
+  it('absent, the tract as it was; a style masks its zones and gives each its length', () => {
+    const plain = beardAt(readDermis('male')), goatee = beardAt(readDermis({ from: 'male', beardStyle: 'goatee' })), full = beardAt(readDermis({ from: 'male', beardStyle: 'full' }));
+    const beard = (xs) => xs.filter((x) => x.h.tract === 'beard');
+    expect(beard(goatee).length).toBeLessThan(beard(plain).length);
+    expect(beard(goatee).length).toBeGreaterThan(0);
+    expect(Math.max(...beard(full).map((x) => x.h.length))).toBeGreaterThan(20);
+    expect(beard(plain).every((x) => x.h.length === readDermis('male').stubble)).toBe(true);
+  });
+  it('grows a lock\'s length as ribbons of hair, curled by the hair\'s type', () => {
+    const D = readDermis({ from: 'male', beardStyle: 'full' }), straight = growBodyHair(chart, D, { tracts: ['beard'] }), curly = growBodyHair(chart, D, { tracts: ['beard'], type: 'curly' });
+    expect(straight.counts.beard.lock).toBe(true);
+    expect(straight.strands.some((s) => s.ribbon > 0 && s.represents >= 1)).toBe(true);
+    const wander = (G) => G.strands.reduce((m, s) => m + s.pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - s.pts[i][0], p[1] - s.pts[i][1], p[2] - s.pts[i][2]), 0) / Math.hypot(...[0, 1, 2].map((k) => s.pts.at(-1)[k] - s.pts[0][k])), 0) / G.strands.length;
+    expect(wander(curly)).toBeGreaterThan(wander(straight));
+    expect(() => readDermis({ from: 'male', beardStyle: 'mutton' })).toThrow(/beardStyle/);
+  });  it('trims the moustache at the lip line: a hair above the upper lip no longer than its way down to the lip', () => {
+    const D = readDermis({ from: 'male', beardStyle: 'moustache' }), near = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, h: dermisAt(x, D, { detail: false }).hair })).filter(({ q, M, h }) => h.tract === 'beard' && q.Y > M.ls.Y && q.Y < M.ls.Y + 4 && Math.abs(q.X) < 20);
+    expect(near.length).toBeGreaterThan(0);
+    for (const { q, M, h } of near) expect(h.length).toBeLessThanOrEqual(Math.max(1.5, (q.Y - M.ls.Y) * 1.15) + 1e-9);
+    // (and thick: a styled moustache denser than the bare tract, its hairs lifted off the lip)
+    expect(Math.max(...near.map(({ h }) => h.density))).toBeGreaterThan(55 * 1.5);
+    expect(Math.max(...near.map(({ h }) => h.lift))).toBeGreaterThan(0.3);
+  });
+});
+
+describe('the beard\'s growth direction', () => {
+  it('fans the moustache out from the philtrum, flatter toward the corners; slants the cheek toward the chin, more lower down', () => {
+    const D = readDermis('male'), at = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, h: dermisAt(x, D, { detail: false }).hair })).filter(({ h }) => h.tract === 'beard');
+    const slant = (h) => Math.abs(Math.atan2(Math.sin(h.flow), -Math.cos(h.flow)));
+    const mean = (xs) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+    const lip = at.filter(({ q, M }) => q.Y > M.sto.Y + 2 && q.Y < M.sn.Y - 2), mid = lip.filter(({ q }) => Math.abs(q.X) < 8), edge = lip.filter(({ q, M }) => Math.abs(q.X) > Math.abs(M.chR.X) - 10 && Math.abs(q.X) < Math.abs(M.chR.X));
+    expect(mean(edge.map(({ h }) => slant(h)))).toBeGreaterThan(mean(mid.map(({ h }) => slant(h))));
+    const cheek = at.filter(({ q, M }) => Math.abs(q.X) > Math.abs(M.chR.X) + 20 && Math.abs(q.X) < Math.abs(M.porionR.X) * 0.5);
+    const low = cheek.filter(({ q, M }) => q.Y > M.me.Y + 8 && q.Y < M.goR.Y + 15), high = cheek.filter(({ q, M }) => q.Y > M.sto.Y);
+    expect(mean(low.map(({ h }) => slant(h)))).toBeGreaterThan(mean(high.map(({ h }) => slant(h))));
+  });
+});
+
+describe('a man\'s loss to the horseshoe', () => {
+  it('leaves a band round the sides and the back, level, its top about the parietal ridge: no island above it', () => {
+    const D = readDermis({ from: 'male', bald: 0.95, peak: 6 }), pts = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, s: dermisAt(x, D, { detail: false }).regions.scalp || 0 }));
+    const kept = pts.filter(({ s }) => s > 0.5);
+    expect(kept.length).toBeGreaterThan(0);
+    for (const { q, M } of kept) expect(q.Y).toBeLessThan(M.porionR.Y + 70);
+    // (and a full head keeps its crown)
+    expect(chart.samples.filter((x) => x?.marks).some((x) => (dermisAt(x, readDermis('male'), { detail: false }).regions.scalp || 0) > 0.5 && headXY(x).Y > x.marks.points.porionR.Y + 70)).toBe(true);
+  });
+});
+
+describe('locs and cornrows, anyone\'s', () => {
+  it('grows a loc from each section and a cornrow laid along the scalp, then on past the nape', () => {
+    const D = readDermis('female');
+    const L = growScalp(chart, D, readScalp({ style: 'locs', type: 'coily' }), { colliders: ['head'] }), R = growScalp(chart, D, readScalp({ style: 'cornrows', type: 'coily' }), { colliders: ['head'] });
+    expect(L.strands.length).toBeGreaterThan(0); expect(R.strands.length).toBeGreaterThan(0);
+    // (a cornrow's hair lies on the scalp until the nape: most of a row strand's points within a centimetre of the head)
+    const V = chart.vertices, near = (p) => { let b = Infinity; for (const v of V) { const d = (v[0] - p[0]) ** 2 + (v[1] - p[1]) ** 2 + (v[2] - p[2]) ** 2; if (d < b) b = d; } return Math.sqrt(b); };
+    const sample = R.strands.filter((_, i) => i % 97 === 0), onScalp = sample.map((st) => st.pts.filter((p) => near(p) < 0.012).length / st.pts.length);
+    expect(onScalp.reduce((a, b) => a + b, 0) / onScalp.length).toBeGreaterThan(0.5);
+    // (a loc hangs: its strands reach well below where they grow)
+    const drop = L.strands.filter((_, i) => i % 97 === 0).map((st) => st.pts[0][2] - st.pts.at(-1)[2]);
+    expect(Math.max(...drop)).toBeGreaterThan(0.15);
+  });
+});
+
+describe('hair streaks', () => {
+  it('dyes a section without moving a hair: the money pieces at the front, a scatter by the dice, none where none is asked', () => {
+    const D = readDermis('female'), plain = growScalp(chart, D, readScalp({ style: 'shoulder', spacing: 0.02 }), { colliders: ['head'] });
+    const dyed = growScalp(chart, D, readScalp({ style: 'shoulder', spacing: 0.02, streaks: [{ kind: 'money', colour: 'platinum' }, { kind: 'scatter', colour: 'pink', share: 0.2 }] }), { colliders: ['head'] });
+    expect(plain.strands.some((s) => 'streak' in s) || plain.cards.some((c) => 'streak' in c)).toBe(false);
+    expect(dyed.strands.map((s) => s.pts)).toEqual(plain.strands.map((s) => s.pts));
+    const pink = hexLin('#d8689a').map((v) => Math.round(v * 1e4) / 1e4), platinum = hexLin('#e6dcc4').map((v) => Math.round(v * 1e4) / 1e4);
+    const money = dyed.strands.filter((s) => s.streak?.colour.join() === platinum.join()), scatter = dyed.strands.filter((s) => s.streak?.colour.join() === pink.join());
+    expect(money.length).toBeGreaterThan(0);
+    // (the money pieces grow at the front of the head; the scatter's share near what was asked)
+    const front = (s) => s.pts[0][1] > 0;
+    expect(money.filter(front).length / money.length).toBeGreaterThan(0.9);
+    expect(scatter.length / (dyed.strands.length - money.length)).toBeGreaterThan(0.14);
+    expect(scatter.length / (dyed.strands.length - money.length)).toBeLessThan(0.26);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'stripe', colour: 'pink' }] })).toThrow(/kind/);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'tips', colour: 'mauve' }] })).toThrow(/colour/);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'chunk', colour: 'blue' }] })).toThrow(/at/);
+  }, 120000);
+});
+
+describe('grey hair', () => {
+  it('silvers a share of the strands, the beard\'s sooner, and none without the dial', () => {
+    const D0 = readDermis({ from: 'male', stubble: 8 }), D1 = readDermis({ from: 'male', stubble: 8, grey: 0.4 });
+    const B0 = growBodyHair(chart, D0, { share: 0.5, tracts: ['beard'] }), B1 = growBodyHair(chart, D1, { share: 0.5, tracts: ['beard'] });
+    expect(B0.strands.some((s) => s.streak)).toBe(false);
+    expect(B1.strands.map((s) => s.pts)).toEqual(B0.strands.map((s) => s.pts));
+    const share = B1.strands.filter((s) => s.streak?.grey).length / B1.strands.length;
+    expect(share).toBeGreaterThan(0.4); expect(share).toBeLessThan(0.62);   // the beard's 1.3 × 0.4
+    expect(hairMeanOf(D0)).toEqual(hairColourOf(D0));
+    expect(hairMeanOf(D1)[0]).toBeGreaterThan(hairColourOf(D1)[0]);
+    expect(() => readDermis({ from: 'male', grey: 2 })).toThrow(/grey/);
+  });
+});
+
+describe('the face\'s lines as folds', () => {
+  it('paints a thin core inside a broader smooth shade, and nothing without lines', () => {
+    const S = chart.samples.filter((s) => s?.part === 'head' && s.marks);
+    const on = S.map((s) => dermalDetail(s, readDermis({ from: 'male', lines: 1, age: 1 })));
+    expect(on.some((d) => d.crease > 0.3)).toBe(true);
+    // (the shade reaches where the core has gone: the line sits in a gradient, never on bare skin)
+    expect(on.filter((d) => d.soft > 0.05).length).toBeGreaterThan(on.filter((d) => d.crease > 0.05).length);
+    expect(S.every((s) => { const d = dermalDetail(s, readDermis({ from: 'male' })); return !d.crease && !d.soft && !d.lift; })).toBe(true);
+  });
+});
+
+describe('the wrinkle map', () => {
+  it('bakes the folds\' slope only where the face has lines, turning across each fold', () => {
+    const L = layoutDermis(chart, { page: 64 });
+    expect(paintDermis(chart, readDermis({ from: 'male' }), L).fold).toBeUndefined();
+    const S = chart.samples.filter((s) => s?.part === 'head' && s.marks), D = readDermis({ from: 'male', lines: 1, age: 1 });
+    const sl = S.map((s) => dermalDetail(s, D).slope).filter(Boolean);
+    // (a fold rises to its roll and falls into its valley: both signs of slope up the forehead)
+    expect(sl.some((g) => g[1] > 0.05)).toBe(true); expect(sl.some((g) => g[1] < -0.05)).toBe(true);
+    expect(paintDermis(chart, D, L).fold).toBeInstanceOf(Uint8Array);
   });
 });
