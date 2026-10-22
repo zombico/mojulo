@@ -33,7 +33,7 @@ const html = `<meta charset="utf-8">
   --ink: #eef1f5; --dim: #8e9aab; --line: #2a3240;
   --hero: #5fd0c8; --dummy: #e8a35a; --shadow: #000000;
   --startup: #3fbf6b; --active: #e5484d; --recovery: #4a86e8; --stop: #f4f1de; --stun: #f08a4b; --air: #3a4658;
-  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --spark: #fff3b0; --smear: #5fd0c8;
+  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --spark: #fff3b0; --smear: #5fd0c8;
   --good: #3fbf6b; --bad: #e5484d;
   --display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
   --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -134,7 +134,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       </div>
       <div class="bar">
         <canvas id="strip" aria-label="The last two seconds, frame by frame: the hero above, the dummy below, presses as marks"></canvas>
-        <div class="legend"><span><i style="background:var(--startup)"></i>startup</span><span><i style="background:var(--active)"></i>active</span><span><i style="background:var(--recovery)"></i>recovery</span><span><i style="background:var(--stop)"></i>hitstop</span><span><i style="background:var(--stun)"></i>stun</span><span><i style="background:var(--gather)"></i>gather</span><span><i style="background:var(--air)"></i>air</span><span><i style="background:var(--inv)"></i>invincible</span><span><i style="background:var(--guard)"></i>guard</span><span><i style="background:var(--mercy)"></i>mercy</span><span><i style="background:var(--cling)"></i>wall slide</span><span>▲ press (orange: dropped)</span></div>
+        <div class="legend"><span><i style="background:var(--startup)"></i>startup</span><span><i style="background:var(--active)"></i>active</span><span><i style="background:var(--recovery)"></i>recovery</span><span><i style="background:var(--stop)"></i>hitstop</span><span><i style="background:var(--stun)"></i>stun</span><span><i style="background:var(--gather)"></i>gather</span><span><i style="background:var(--air)"></i>air</span><span><i style="background:var(--inv)"></i>invincible</span><span><i style="background:var(--guard)"></i>guard</span><span><i style="background:var(--mercy)"></i>mercy</span><span><i style="background:var(--cling)"></i>wall slide</span><span><i style="background:var(--armor)"></i>armor halo</span><span><i style="background:var(--hyper)"></i>hyper armor</span><span>▲ press (orange: dropped)</span></div>
       </div>
     </div>
     <aside>

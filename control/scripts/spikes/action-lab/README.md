@@ -148,6 +148,33 @@ A hit taken loses the charge.
 The heavy's rows join the frame data (startup counted from the release). A ring on the hero shows the charge once it
 has shown (`show`), coloured by the level reached; the shots fly as balls.
 
+## Offense armor: what it takes to interrupt an attack
+
+Every hit carries **tags**: light or heavy, and its kind (`shot`, `stomp`, `launcher`). Every attack may carry
+**armor**, live through its startup and active frames unless it names its own window:
+
+- **none**: any hit interrupts it.
+- **`by: [tags]`**: only a hit carrying one of those tags interrupts it. That is "heavy attacks only", or a
+  **trigger**, a certain kind of attack (the hook breaks to a heavy or to a shot, even the platformer's light shot).
+- **`hits: n`**: the nth hit interrupts it whatever its tags (poise: it shrugs off the ones before).
+- **`by: []`**: hyper armor, nothing interrupts it.
+
+A hit the armor holds against lands as a **clank**: no stun, no push, half the hit's freeze on both bodies, and the
+attack goes on. The page draws a halo on an armored body while its armor is live (steel: something breaks it; pale:
+hyper armor), and the frame data has an armor column.
+
+| attack | armor | interrupted by |
+|---|---|---|
+| the dummy's **jab** | none | any hit |
+| the dummy's **hook** | `by: ['heavy', 'shot']` | a heavy, or a shot (a trigger) |
+| the dummy's **perilous blow** | `by: []` | nothing: dodge it |
+| realistic's **haymaker** (the charged heavy) | `by: ['heavy'], hits: 2` | a heavy, or a second hit |
+| action's **heavy** | `by: ['heavy']` | a heavy |
+| action's **launcher** | `by: []` | nothing |
+
+Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
+stomper off without being squashed.
+
 ## Lock-on
 
 The card's `lock`, on realistic and action (a Souls game and a character action game target; a platformer and a pinball
@@ -220,7 +247,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 198 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 212 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -290,6 +317,13 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
   - A hit taken loses the charge.
+- **Offense armor.**
+  - The dummy's jab stops at the tap and never lands; the hook and the perilous blow clank off it (no stun, no push)
+    and land.
+  - A heavy breaks the hook; nothing breaks the perilous blow, not even the top charge. The platformer's light shot
+    breaks the hook (a trigger) where its light tap only clanks.
+  - Realistic's haymaker shrugs off the first light hit and breaks at the second. Action's heavy shrugs off a light hit
+    and lands, a heavy hit interrupts it, and the launcher's hyper armor shrugs off the heavy hook and lands.
 - **Lock-on.** Realistic and action take the target and face it to a millionth of a radian while strafing at
   their strafe's share of the run. A locked side roll keeps its distance to the target to a millionth of a metre while
   sweeping round it (0.58 rad in action's roll), and faces it at the end; unlocked, the same roll drifts out. A locked

@@ -64,6 +64,14 @@
  * Pinball revs a SPIN DASH, rooted, the stick aiming it, and the release launches it at the level's speed. A hit taken
  * loses the charge.
  *
+ * OFFENSE ARMOR (an attack's `armor`, a hit's `tags`): what it takes to interrupt an attack. Every hit is tagged
+ * (light or heavy, and its kind: shot, stomp, launcher); an attack with no armor stops at any hit; an armored one, in
+ * its armor frames, stops only at a hit carrying one of the tags it names (heavy only; or a TRIGGER, a certain kind of
+ * attack: the hook breaks to a heavy or a shot), or at its `hits`th hit (poise: it shrugs off the first); `by: []`
+ * is HYPER armor, nothing interrupts it. A hit the armor holds against lands as a clank: no stun, no push, a short
+ * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
+ * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -141,6 +149,10 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            body holds a charging stance: `move` its share of the run, 0 rooted with the stick aiming, no jump; false:
  *            the meter runs while the body does anything, X's), air (it fires off the ground), at (per level: the charged
  *            move, as a string's | the shot { speed, size (m), life (frames), force } | the spin { speed, frames })
+ *            A move (a string's, a charged one, the dummy's) may carry `tags` (the hit's kind: absent, a finisher is
+ *            heavy and the rest light) and `armor` ({ by: [tags that interrupt it], hits (the hit that interrupts it
+ *            whatever its tags; absent: none), frames [from, to) (absent: through startup + active) } or absent: any
+ *            hit interrupts it)
  *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
  *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
  *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
@@ -172,7 +184,7 @@ export const FEELS = Object.freeze({
     land: { model: 'slide', slide: 2 },
     pound: null,
     charge: { kind: 'heavy', levels: [40], show: 30, stance: true, move: 0.3, air: false, at: [
-      { take: 'cross', startup: 14, snap: 8, active: 3, recovery: 24, wings: { wind: 1.35, after: 1.25 }, lunge: 0.35, force: { gain: 1.8 } },
+      { take: 'cross', startup: 14, snap: 8, active: 3, recovery: 24, wings: { wind: 1.35, after: 1.25 }, lunge: 0.35, force: { gain: 1.8 }, tags: ['heavy'], armor: { by: ['heavy'], hits: 2 } },
     ] },
     air: null,
     cling: null,
@@ -201,8 +213,8 @@ export const FEELS = Object.freeze({
     cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
     charge: { kind: 'heavy', levels: [30, 70], show: 26, stance: true, move: 0.4, air: false, at: [
-      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 20, wings: { wind: 2.1, after: 1.6 }, lunge: 0.6, force: { gain: 16, lift: 8 } },
-      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 26, wings: { wind: 2.4, after: 1.8 }, lunge: 0.9, finisher: true, force: { gain: 20, lift: 42 } },
+      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 20, wings: { wind: 2.1, after: 1.6 }, lunge: 0.6, force: { gain: 16, lift: 8 }, tags: ['heavy'], armor: { by: ['heavy'] } },
+      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 26, wings: { wind: 2.4, after: 1.8 }, lunge: 0.9, finisher: true, force: { gain: 20, lift: 42 }, tags: ['heavy', 'launcher'], armor: { by: [] } },
     ] },
     look: { squash: 0.06, smear: 0.09 },
   },
@@ -225,8 +237,8 @@ export const FEELS = Object.freeze({
     cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
     charge: { kind: 'shot', levels: [24, 66], show: 16, stance: false, air: true, at: [
-      { speed: 14, size: 0.15, life: 50, force: { push: 4 } },
-      { speed: 16, size: 0.4, life: 60, force: { push: 7, hop: 0.7 } },
+      { speed: 14, size: 0.15, life: 50, force: { push: 4 }, tags: ['light', 'shot'] },
+      { speed: 16, size: 0.4, life: 60, force: { push: 7, hop: 0.7 }, tags: ['heavy', 'shot'] },
     ] },
     look: { squash: 0.22, smear: null },
   },
@@ -725,6 +737,7 @@ function landOn(S, H, D, top, nx, ny) {
     else H.v[2] = Math.max(falling, Math.sqrt(2 * J.gRise * L.min));
     const type = L.model === 'stomp' ? 'stomp' : 'bounce-off';
     if (D.mercy > 0) { S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', vz: r4(H.v[2]), immune: true }); S.events.push({ f: S.f, who: 'dummy', type: 'immune', mercy: D.mercy }); return; }
+    if (armorHolds(S, H, D, 'hero', ['light', 'stomp'], 0)) return;   // an armored attack shrugs off a stomp too
     const stop = hitstop(S, 0); H.stop = D.stop = stop; H.fresh = D.fresh = stop > 0;
     D.mercy = C.hit.mercy; D.lastHit = { take: 'cross', f: S.f, finisher: false }; D.combo = 0;
     if (L.model === 'stomp') { D.squash = L.stun; D.stun = L.stun; D.act = null; }
@@ -759,18 +772,19 @@ function poundFloor(S, B, who) {
   const hit = B.act.hit; B.act = { kind: 'poundLag', f: 0, of: P.lag };
   if (P.kind === 'plunge' && !hit && P.radius && len2(D.p[0] - B.p[0], D.p[1] - B.p[1]) <= P.radius && Math.abs(D.p[2] - B.p[2]) < 0.5) {
     const d = len2(D.p[0] - B.p[0], D.p[1] - B.p[1]), dir = d > 1e-6 ? [(D.p[0] - B.p[0]) / d, (D.p[1] - B.p[1]) / d] : [Math.sin(B.yaw), Math.cos(B.yaw)];
-    strike(S, B, D, who, { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true, shock: true }, dir);
+    strike(S, B, D, who, { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true, shock: true, tags: ['heavy', 'stomp'] }, dir);
   }
 }
 /** the stomp attack comes down on a body: a plunge's blow (then it slides off, and lags on the floor), a pound's stomp
  * (harder, always the high bounce), a bounce attack's rebound off it with the ricochet */
 function poundBody(S, H, D, top, nx, ny) {
   const P = S.card.pound, L = S.card.land, J = S.card.jump; H.act.hit = true;
-  if (P.kind === 'plunge') { H.p[2] = top; H.v[2] = 0; strike(S, H, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true }, [-nx, -ny]); return; }   // the feet on its top; it slides off below
+  if (P.kind === 'plunge') { H.p[2] = top; H.v[2] = 0; strike(S, H, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: P.force, finisher: true, tags: ['heavy', 'stomp'] }, [-nx, -ny]); return; }   // the feet on its top; it slides off below
   H.p[2] = top; H.grounded = false; H.jumped = true; H.cut = false; H.apex = null; H.from = top; H.hang = J.hang; H.coyote = 0; H.act = null; H.spin = 0;
   H.v[2] = Math.sqrt(2 * J.gRise * (P.kind === 'pound' ? L.high : P.bounce));
   const type = P.kind === 'pound' ? 'stomp' : 'bounce-off';
   if (D.mercy > 0) { S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', pound: true, vz: r4(H.v[2]), immune: true }); S.events.push({ f: S.f, who: 'dummy', type: 'immune', mercy: D.mercy }); return; }
+  if (armorHolds(S, H, D, 'hero', P.kind === 'pound' ? ['heavy', 'stomp'] : ['light', 'stomp'], 0)) return;
   const stop = hitstop(S, 0) + (P.kind === 'pound' ? 2 : 0); H.stop = D.stop = stop; H.fresh = D.fresh = stop > 0;
   D.mercy = S.card.hit.mercy; D.lastHit = { take: 'cross', f: S.f, finisher: false }; D.combo = 0;
   if (P.kind === 'pound') { D.squash = P.stun; D.stun = P.stun; D.act = null; }
@@ -857,7 +871,7 @@ function flyShots(S) {
       const dx = D.p[0] - sh.p[0], dy = D.p[1] - sh.p[1], d = len2(dx, dy);
       if (d <= RADIUS + sh.size && sh.p[2] >= D.p[2] - sh.size && sh.p[2] <= D.p[2] + D.h + sh.size) {
         const at = CH.at[sh.lv - 1];
-        strike(S, sh, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: at.force, finisher: sh.lv === CH.levels.length, shot: sh.lv }, [sh.v[0] / len2(sh.v[0], sh.v[1]), sh.v[1] / len2(sh.v[0], sh.v[1])]);
+        strike(S, sh, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: at.force, finisher: sh.lv === CH.levels.length, shot: sh.lv, tags: at.tags ?? ['light', 'shot'] }, [sh.v[0] / len2(sh.v[0], sh.v[1]), sh.v[1] / len2(sh.v[0], sh.v[1])]);
         return false;
       }
     }
@@ -872,14 +886,15 @@ function flyShots(S) {
  * its right) and the ZONES on it: `zone` the whole arc's ('orange': parryable; 'red'), or `orange` [from, to] the
  * share of the arc that is (the rest red). A SWEEP crosses its arc over its active frames and meets a body on the frame
  * it reaches the body's angle; a thrust (no sweep) is live across its whole arc on every active frame. `unblockable`:
- * a guard does not stop it (a perilous attack: dodge it).
+ * a guard does not stop it (a perilous attack: dodge it). `armor`: what interrupts it in its telegraph (the jab any
+ * hit, the hook a heavy or a shot, the perilous blow nothing).
  */
 export const SPAR = Object.freeze({
   every: 90, range: 2.2,
   moves: Object.freeze([
-    Object.freeze({ name: 'jab', take: 'jab', startup: 30, active: 4, recovery: 20, reach: 1.0, arc: [-10, 10], sweep: false, zone: 'orange' }),
-    Object.freeze({ name: 'hook', take: 'cross', startup: 36, active: 10, recovery: 24, reach: 1.1, arc: [-70, 70], sweep: true, orange: [0.35, 0.65] }),
-    Object.freeze({ name: 'perilous', take: 'cross', startup: 48, active: 6, recovery: 30, reach: 1.3, arc: [-30, 30], sweep: false, zone: 'red', unblockable: true }),
+    Object.freeze({ name: 'jab', take: 'jab', startup: 30, active: 4, recovery: 20, reach: 1.0, arc: [-10, 10], sweep: false, zone: 'orange', tags: ['light'] }),
+    Object.freeze({ name: 'hook', take: 'cross', startup: 36, active: 10, recovery: 24, reach: 1.1, arc: [-70, 70], sweep: true, orange: [0.35, 0.65], tags: ['heavy'], armor: { by: ['heavy', 'shot'] } }),
+    Object.freeze({ name: 'perilous', take: 'cross', startup: 48, active: 6, recovery: 30, reach: 1.3, arc: [-30, 30], sweep: false, zone: 'red', unblockable: true, tags: ['heavy'], armor: { by: [] } }),
   ]),
 });
 export const sparMove = (a) => SPAR.moves.find((m) => m.name === a?.name) ?? SPAR.moves[0];
@@ -948,6 +963,7 @@ function strike(S, A, V, who, m, [fx, fy]) {
     }
   }
   if (V.mercy > 0) { S.events.push({ f: S.f, who: vic, type: 'immune', mercy: V.mercy }); return; }
+  if (armorHolds(S, A, V, who, tagsOf(m), m.dv)) return;
   const free = V.stun === 0;
   if (vic === 'dummy' && S.guard && free && V.alert > 0 && !V.act) {
     V.alert = S.card.hit.alert; V.combo = 0; const stop = hitstop(S, m.dv * 0.5); A.stop = V.stop = stop; A.fresh = V.fresh = stop > 0;
@@ -969,6 +985,26 @@ function strike(S, A, V, who, m, [fx, fy]) {
   V.act = vic === 'hero' ? { kind: 'hurt', f: 0, of: Math.max(12, V.stun) } : null;
   if (V.charge) loseCharge(S, V, 'hit');
   S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, ...(A.act?.lv ? { charged: A.act.lv } : {}), ...(m.shot ? { shot: m.shot } : {}), ...(m.spar ? { attack: m.name, zone: m.zone, unblockable: !!m.unblockable, guarding } : {}), dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
+}
+/** a hit's tags: its own, or a finisher heavy and the rest light */
+function tagsOf(m) { return m.tags ?? (m.finisher ? ['heavy'] : ['light']); }
+/** the armor a body's attack has on this frame (its window: `frames`, or startup through active), or null */
+function armorOf(S, B) {
+  const a = B.act; if (!a || (a.kind !== 'move' && a.kind !== 'spar')) return null;
+  const m = a.kind === 'spar' ? sparMove(a) : moveDef(S, a), AR = m.armor; if (!AR) return null;
+  const [from, to] = AR.frames ?? [0, m.startup + m.active], f = a.shown ?? a.f;
+  return f >= from && f < to ? AR : null;
+}
+/** does V's attack's armor hold against this hit: a tag it names breaks it, so does its `hits`th hit; held, the hit
+ * clanks (a short freeze on both, no stun, no push) and the attack goes on */
+function armorHolds(S, A, V, who, tags, dv) {
+  const AR = armorOf(S, V); if (!AR) return false;
+  const n = (V.act.absorbed ?? 0) + 1, vic = who === 'hero' ? 'dummy' : 'hero';
+  if (tags.some((t) => AR.by.includes(t)) || (AR.hits != null && n >= AR.hits)) { S.events.push({ f: S.f, who: vic, type: 'armor-break', by: who, tags, hits: n }); return false; }
+  V.act.absorbed = n;
+  const stop = Math.ceil(hitstop(S, dv) / 2); A.stop = V.stop = stop; A.fresh = V.fresh = stop > 0;
+  S.events.push({ f: S.f, who: vic, type: 'armor', by: who, tags, hits: n, of: AR.hits ?? null, breaks: AR.by, hitstop: stop });
+  return true;
 }
 function iframed(S, B) {
   const k = B.act?.kind, I = k === 'dodge' ? S.card.dodge.iframes : k === 'dash' ? S.card.dash?.iframes : null;
@@ -1045,16 +1081,18 @@ export function frameData(card, body) {
     const next = cancel == null ? null : card.moves.string[i + 1];
     const link = next ? stun - (cancel - m.startup + next.startup) : null;
     return { take: m.take, startup: m.startup, active: m.active, recovery: m.recovery, total: m.startup + m.active + m.recovery, cancel,
-      reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher };
+      reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher, armor: armorText(m) };
   }).concat(card.charge?.kind === 'heavy' ? card.charge.at.map((m, k) => {   // the charged moves: startup counted from the release
     const dv = body.dv[m.take], F = { ...card.hit.force, ...(m.force ?? {}) }, shown = F.model === 'momentum' ? dv * F.gain : F.model === 'boop' ? F.push : F.floor * F.restitution;
     const stun = stunOf(S, m, shown, 1), stop = card.hit.hitstop ? Math.min(card.hit.hitstop.max, Math.round(card.hit.hitstop.base + card.hit.hitstop.perMs * shown)) : 0, owes = m.active + m.recovery - 1;
     return { take: m.take, charge: k + 1, held: card.charge.levels[k], startup: m.startup, active: m.active, recovery: m.recovery, total: m.startup + m.active + m.recovery, cancel: null,
-      reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link: null, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher };
+      reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link: null, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher, armor: armorText(m) };
   }) : []);
 }
+/** an attack's armor in words: none, heavy (what breaks it), hyper; ×n its poise */
+function armorText(m) { const A = m.armor; if (!A) return 'none'; const by = A.by.length ? A.by.join(' / ') : 'hyper'; return A.hits ? `${by}, or hit ${A.hits}` : by; }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

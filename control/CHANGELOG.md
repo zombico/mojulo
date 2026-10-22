@@ -37,6 +37,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Offense armor, in the lab: what it takes to interrupt an attack.** Every hit is tagged (light or heavy, and its
+  kind: shot, stomp, launcher) and every attack may carry armor through its startup and active frames: none (any hit
+  interrupts it), interrupted only by hits with certain tags (heavy attacks only, or a trigger such as a shot), by its
+  nth hit (poise), or hyper armor (nothing interrupts it). A hit the armor holds against clanks: no stun, no push, the
+  attack goes on. The dummy's jab stops at any hit, its hook only at a heavy or a shot, its perilous blow never;
+  realistic's charged haymaker shrugs off one light hit, action's heavy every light one, its launcher everything. The
+  page draws a halo on an armored body and the frame data gains an armor column. The gate holds 212 laws on both
+  casts, with a recorded run of the dummy's three attacks among its fixtures.
 - **Hold and release, in the lab: the charge** (the card's `charge`; every feel). The attack's press still acts at
   once, so the tap is never delayed; holding on charges it, and the release fires the charged attack on its own frame
   at the level the hold reached (a release short of the first level fizzles). Realistic and action charge a heavy in a

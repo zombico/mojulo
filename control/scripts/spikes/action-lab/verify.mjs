@@ -410,6 +410,41 @@ for (const id of FEEL_IDS) {
     check(`${id}: a hit taken loses the charge: the release fires nothing`, hh && hurt.states[hh.f - 1].hero.charge && !hurt.states[hh.f].hero.charge && !ev(hurt, 'release').length, { hit: hh?.f, lost: ev(hurt, 'charge-lost').map((e) => [e.f, e.why]) });
   }
 
+  // ─── offense armor: what it takes to interrupt an attack ───
+  {
+    const FAR = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
+    // the dummy set a metre ahead of the hero, facing it, `f` frames into one of its attacks
+    const put = (S, name, f) => { const H = S.hero, D = S.dummy; D.p = [H.p[0] + Math.sin(H.yaw), H.p[1] + Math.cos(H.yaw), 0]; D.v = [0, 0, 0]; D.yaw = Math.atan2(H.p[0] - D.p[0], H.p[1] - D.p[1]); D.act = { kind: 'spar', f, hit: false, name }; };
+    const tapOn = (name) => track(run(C, (f) => (f === 1 ? AT : 0), 120, { arena: FAR, guard: false, mid: (S, f) => { if (f === 0) put(S, name, 0); } }));
+    const jab = tapOn('jab'), hook = tapOn('hook'), per = tapOn('perilous'), c0 = 1 + C.moves.string[0].startup;
+    const dj = ev(jab, 'hit', 'dummy')[0];
+    row['armor'] = 'jab none · hook heavy / shot · perilous hyper';
+    check(`${id}: the dummy's jab stops at any hit: the tap interrupts its telegraph, and it never lands`, dj?.f === c0 && jab.states[c0].dummy.act?.kind !== 'spar' && !ev(jab, 'hit', 'hero').length && !ev(jab, 'armor', 'dummy').length, { hit: dj?.f, act: jab.states[c0].dummy.act?.kind });
+    const ah = ev(hook, 'armor', 'dummy')[0], ap = ev(per, 'armor', 'dummy')[0];
+    check(`${id}: the hook's armor and the perilous blow's hyper armor shrug off the tap (a clank: no stun, no push), and each goes on to land`, ah?.f === c0 && ap?.f === c0 && !ev(hook, 'hit', 'dummy').length && !ev(per, 'hit', 'dummy').length && hook.states[c0].dummy.act?.name === 'hook' && Math.hypot(...hook.states[c0].dummy.v) === 0 && ev(hook, 'hit', 'hero').length === 1 && ev(per, 'hit', 'hero').length === 1, { hook: ah?.f, perilous: ap?.f, landed: [ev(hook, 'hit', 'hero').length, ev(per, 'hit', 'hero').length] });
+    const CH2 = C.charge;
+    if (CH2?.kind === 'heavy') {
+      const top = CH2.levels.length - 1, rel = (k) => 1 + CH2.levels[k], con = (k) => rel(k) + CH2.at[k].startup;
+      const heavyOn = (name, k) => track(run(C, hold(AT, 1, rel(k)), rel(k) + 90, { arena: FAR, guard: false, mid: (S, f) => { if (f === con(k) - 10) put(S, name, 0); } }));
+      const hb = heavyOn('hook', 0), pb = heavyOn('perilous', top), hh = ev(hb, 'hit', 'dummy')[0];
+      check(`${id}: a heavy breaks the hook's armor (it interrupts the telegraph, the hook never lands); nothing breaks the perilous blow's, not even the top charge`, hh?.charged === 1 && ev(hb, 'armor-break', 'dummy').length === 1 && !ev(hb, 'hit', 'hero').length && ev(pb, 'armor', 'dummy').some((e) => e.tags.includes('heavy')) && !ev(pb, 'armor-break', 'dummy').length && !ev(pb, 'hit', 'dummy').length, { hook: hh && [hh.f, hh.charged], perilous: ev(pb, 'armor', 'dummy').map((e) => e.tags) });
+      // the hero's own armor: the dummy's blows set to land inside the charged move's armor frames
+      const into = (k, blows) => track(run(C, hold(AT, 1, rel(k)), rel(k) + 90, { arena: FAR, guard: false, mid: (S, f) => { for (const [at, name] of blows) if (f === rel(k) + at) put(S, name, name === 'hook' ? 41 : 30); } }));
+      if (id === 'realistic') {
+        const two = into(0, [[1, 'jab'], [6, 'jab']]), a1 = ev(two, 'armor', 'hero')[0], br = ev(two, 'armor-break', 'hero')[0];
+        check(`${id}: the haymaker shrugs off the first light hit and breaks at the second (its poise), and never lands`, a1?.f === rel(0) + 1 && br?.f === rel(0) + 6 && ev(two, 'hit', 'hero').length === 1 && !ev(two, 'hit', 'dummy').length, { armor: a1?.f, broke: br?.f });
+      } else {
+        const lj = into(0, [[2, 'jab']]), lh = into(0, [[2, 'hook']]), hy = into(top, [[2, 'hook']]);
+        check(`${id}: the heavy shrugs off a light hit and lands; a heavy hit interrupts it; the launcher's hyper armor shrugs off the heavy hook and lands`, ev(lj, 'armor', 'hero').length === 1 && ev(lj, 'hit', 'dummy').some((h) => h.charged === 1) && ev(lh, 'armor-break', 'hero').length === 1 && ev(lh, 'hit', 'hero').length === 1 && !ev(lh, 'hit', 'dummy').length && ev(hy, 'armor', 'hero').length === 1 && ev(hy, 'hit', 'dummy').some((h) => h.charged === top + 1), { light: ev(lj, 'armor', 'hero').length, heavy: ev(lh, 'armor-break', 'hero').length, hyper: ev(hy, 'armor', 'hero').length });
+      }
+    }
+    if (CH2?.kind === 'shot') {   // a trigger: the hook breaks to a shot, the light one as well
+      const rel = 1 + CH2.levels[0], LANE = { half: 400, blocks: [], hero: [0, 0], dummy: [0, 4] };
+      const sh = track(run(C, hold(AT, 1, rel), rel + 60, { arena: LANE, guard: false, mid: (S, f) => { if (f === rel - 5) { S.dummy.yaw = Math.PI; S.dummy.act = { kind: 'spar', f: 0, hit: false, name: 'hook' }; } } })), b = ev(sh, 'armor-break', 'dummy')[0];
+      check(`${id}: a trigger: the light shot breaks the hook's armor (it names shots), where the light tap only clanks`, b?.tags.includes('shot') && b.tags.includes('light') && ev(sh, 'hit', 'dummy')[0]?.shot === 1, { broke: b && [b.f, b.tags] });
+    }
+  }
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));

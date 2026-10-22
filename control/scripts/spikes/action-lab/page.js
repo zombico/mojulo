@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -119,7 +119,7 @@ const say = {
   dropped: (e) => `${e.button} dropped: ${e.why}`,
   takeoff: () => 'take-off', apex: (e) => `apex ${e.height.toFixed(2)} m`, land: (e) => `land at ${e.fall.toFixed(1)} m/s`,
   edge: () => 'walked off an edge', coyote: (e) => `coyote jump (${e.left} f were left)`, cut: () => 'jump cut on release',
-  move: (e) => (e.who === 'dummy' ? `dummy telegraphs a ${e.name} (${e.telegraph} f): ${e.unblockable ? 'red, unblockable: dodge it' : e.zone === 'orange' ? 'all orange: parryable' : 'red with an orange middle: parry it there'}` : `move ${e.i + 1}: ${e.take}`),
+  move: (e) => (e.who === 'dummy' ? `dummy telegraphs a ${e.name} (${e.telegraph} f): ${e.unblockable ? 'red, unblockable: dodge it' : e.zone === 'orange' ? 'all orange: parryable' : 'red with an orange middle: parry it there'}; ${({ jab: 'any hit interrupts it', hook: 'armored: only a heavy or a shot interrupts it', perilous: 'hyper armor: nothing interrupts it' })[e.name] ?? ''}` : `move ${e.i + 1}: ${e.take}`),
   hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.shot ? `the ${e.shot > 1 ? 'full charge shot' : 'charge shot'}` : e.charged ? `the charged ${e.charged > 1 ? 'launcher' : 'heavy'}` : e.attack ? `the ${e.attack}${e.unblockable && e.guarding ? ', through the guard (unblockable)' : ''}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
   blocked: (e) => `blocked (a free dummy that saw it coming), hitstop ${e.hitstop} f`, immune: (e) => `immune: mercy ${e.mercy} f left`,
   whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
@@ -139,6 +139,8 @@ const say = {
   'charge-level': (e) => `charge level ${e.lv} (held ${e.held} f)`, 'charge-fizzle': (e) => `let go: ${e.why}, nothing fires`, 'charge-lost': (e) => `charge lost: ${e.why === 'hit' ? 'hit while charging' : e.why}`,
   release: (e) => `released at level ${e.lv} after ${e.held} f: ${({ heavy: e.lv > 1 ? 'the launcher' : 'the heavy', shot: e.top ? 'the full charge shot' : 'a charge shot', spin: 'the spin dash' })[e.kind]}`,
   'shot-wall': () => 'the shot hit a wall',
+  armor: (e) => `${e.who === 'dummy' ? 'the dummy\'s attack' : 'your attack'} shrugs off a ${e.tags.join(' ')} hit${e.of ? ` (${e.hits} of ${e.of}: the next one interrupts)` : ''}: ${e.breaks.length ? `only ${e.breaks.join(' or ')} interrupts it` : 'hyper armor, nothing interrupts it'}`,
+  'armor-break': (e) => `${e.who === 'dummy' ? 'the dummy\'s' : 'your'} armor broken by a ${e.tags.join(' ')} hit${e.hits > 1 ? ` (hit ${e.hits})` : ''}: interrupted`,
   'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
 function onEvent(e) {
@@ -156,6 +158,7 @@ function onEvent(e) {
     sparks.push({ p: [S.dummy.p[0], S.dummy.p[1], S.dummy.p[2] + 1.3], t: 0, big: e.finisher || e.hitstop > 6 });
   }
   if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step' || e.type === 'pound-bounce' || e.type === 'wall-jump' || e.type === 'air-jump' || e.type === 'dash-jump' || e.type === 'air-dash')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
+  if (e.type === 'armor' || e.type === 'armor-break') { const B = S[e.who]; sparks.push({ p: [B.p[0], B.p[1], B.p[2] + 1.2], t: 0, big: e.type === 'armor-break', evade: e.type === 'armor' }); }
   if (e.who === 'hero' && (e.type === 'parry' || e.type === 'block' || e.type === 'perfect' || e.type === 'guard-break')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: e.type === 'parry' || e.type === 'perfect', evade: e.type === 'perfect' });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
@@ -315,6 +318,9 @@ function drawBody(who, colour) {
   prevWorld[who] = w;
   const inv = (d.clip === 'dodge' || d.clip === 'dash') && d.iframes, hurt = B.stun > 0 || B.act?.kind === 'hurt';
   const witch = who === 'dummy' && S.witch > 0;
+  // armor on this frame: a halo under the bones (steel: something breaks it; gold: hyper armor, nothing does)
+  const AR = util.armorOf(S, B);
+  if (AR) { ctx.strokeStyle = AR.by.length ? COL.armor : COL.hyper; ctx.globalAlpha = 0.45; ctx.lineWidth = Math.max(6, ppm * 0.16); ctx.lineCap = 'round'; ctx.beginPath(); for (const [i, j] of D.bones) { const p0 = P(...w[i]), p1 = P(...w[j]); ctx.moveTo(p0[0] + shake, p0[1]); ctx.lineTo(p1[0] + shake, p1[1]); } ctx.stroke(); ctx.globalAlpha = 1; }
   ctx.strokeStyle = d.held ? COL.ink : inv || witch ? COL.inv : hurt ? COL.stun : colour; ctx.globalAlpha = inv ? 0.6 : 1;
   ctx.lineWidth = Math.max(2, ppm * 0.055); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath();
@@ -423,9 +429,9 @@ function renderDials() {
 const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
 function renderFrameData() {
   const rows = frameData(S.card, DATA[cast].body);
-  const head = '<tr><th>move</th><th>startup</th><th>active</th><th>recovery</th><th>total</th><th>cancel</th><th>hitstop</th><th>stun</th><th>link</th><th>on block</th></tr>';
+  const head = '<tr><th>move</th><th>startup</th><th>active</th><th>recovery</th><th>total</th><th>cancel</th><th>hitstop</th><th>stun</th><th>link</th><th>on block</th><th>armor</th></tr>';
   const sign = (x) => (x == null ? '–' : x > 0 ? `+${x}` : String(x));
-  $('fd').innerHTML = head + rows.map((r, i) => `<tr><td>${r.charge ? `hold ${r.charge} (${r.held} f)` : `${i + 1}. ${r.take}`}${r.finisher ? ' ✦' : ''}</td><td class="c-startup">${r.startup}</td><td class="c-active">${r.active}</td><td class="c-recovery">${r.recovery}</td><td>${r.total}</td><td>${r.cancel ?? '–'}</td><td>${r.hitstop}</td><td>${r.stun}</td><td class="${r.link == null ? '' : r.link >= 0 ? 'good' : 'bad'}">${sign(r.link)}</td><td class="${r.onBlock >= 0 ? 'good' : 'bad'}">${sign(r.onBlock)}</td></tr>`).join('');
+  $('fd').innerHTML = head + rows.map((r, i) => `<tr><td>${r.charge ? `hold ${r.charge} (${r.held} f)` : `${i + 1}. ${r.take}`}${r.finisher ? ' ✦' : ''}</td><td class="c-startup">${r.startup}</td><td class="c-active">${r.active}</td><td class="c-recovery">${r.recovery}</td><td>${r.total}</td><td>${r.cancel ?? '–'}</td><td>${r.hitstop}</td><td>${r.stun}</td><td class="${r.link == null ? '' : r.link >= 0 ? 'good' : 'bad'}">${sign(r.link)}</td><td class="${r.onBlock >= 0 ? 'good' : 'bad'}">${sign(r.onBlock)}</td><td>${r.armor}</td></tr>`).join('');
   const C = S.card;
   $('jd').textContent = `jump: commit ${C.jump.commit} f · apex ${C.jump.height} m · coyote ${C.jump.coyote} f · buffer ${C.jump.buffer} f · cut ×${C.jump.cut} · dodge: a directional ${C.dodge.kind}, ${C.dodge.frames} f${C.dodge.iframes ? `, invincible ${C.dodge.iframes[0]}–${C.dodge.iframes[1]}` : ', no invincibility'} · dash: ${C.dash ? `${C.dash.kind}, ${C.dash.frames} f${C.dash.air ? ', air dash' : ''}` : 'none'} · wall: ${C.wall.model}`;
 }
