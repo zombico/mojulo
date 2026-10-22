@@ -957,7 +957,8 @@ export function withGeocube(manifest) {
   if (m.trail !== undefined) {
     if ((H !== undefined || clouds !== undefined) && m.kit !== undefined) no(`${H !== undefined ? 'hour' : 'clouds'} lights the cube's look; a trail in its own kit takes none (drop kit, or hour and clouds)`);
     const low = lowerGeocube(cube, 'outside', T?.name, H, m.kit === undefined ? Wr : undefined);
-    return { ...m, kit: m.kit ?? low.kit };
+    // (its land drawn as the cube's island is, in the cube's look: its land shading, isekai.js)
+    return { ...m, kit: m.kit ?? low.kit, ...(m.kit === undefined && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}) };
   }
   if (m.meru !== undefined) {
     const low = lowerGeocube(cube, 'outside', T?.name, H, Wr);
@@ -1103,7 +1104,9 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const firstTown = Object.keys(cube.settlements ?? {})[0];
   const TD = show === 'town' ? (D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : D;
   const town = show === 'land' || show === 'town' ? geocubeTown(cube, TD, manifest.style) : null, seed = manifest.seed ?? 1;
-  const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  // (a street's land is drawn as the island's: the cube's land shading, isekai.js)
+  const land = low0.meru?.shading ? { shading: low0.meru.shading } : {};
+  const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }

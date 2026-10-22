@@ -125,13 +125,28 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
-### The gritty land: its cliffs and boulders drawn as the gritty island's
+### The land drawn as the island's: a cube's town and trail stand on its island's terrain
 
-A gritty cube paints its buildings, streets and rooms from relief, and its island draws its rock's own formation on the
-cliffs; the cliffs and boulders of its town and trail were still the isekai kit's pixel-locked tiles.
+A geocube's island draws its land as polygons lit by the cube's land rules, and a gritty one draws its rock's own
+formation on its cliffs; the land under its towns and trails was still the isekai kit's pixel-locked tiles and grass
+cards. It is now drawn the island's way, by the island's own functions.
 
+- **The polygon land on an isekai stage** (`era/isekai.js`, a stage's `shading`: the same object the local meru reads,
+  `local-meru/plan.js` `readShading`, now exported). No tiles on the land: cliffs and boulders baked flat per facet, the
+  ground, the talus and the trail smooth at each corner, then the land's rules (`local-meru/shading.js`: crevice,
+  ridge, blend, mix). No grass on it (no tufts, no field, no fringe, no hats, no trail blend, no live grass). A gritty
+  land (`grit` from `GRIT_PIXELS`) breaks its boulders and its cliffs' rims and strews stones
+  (`local-meru/broken-land.js`), and the page draws its rock's fabric near the eye: the site's own strata and joints,
+  the land's `skin` (a formation: beds worn back, overhangs, fallen slabs) and `rocks`. Absent, a stage is byte for
+  byte as it was.
+- **A geocube's town and trail carry it.** `show: 'town'`, a domain's street and a recipe's `geocube` with a `trail`
+  pass the cube's land shading (its outside's `land`, as its island takes it), so every cube's street stands on its
+  island's terrain: a quiet cube's ground smooth and green, a gritty one's crags in their formation. Their grass is
+  gone with it, to come back with the flora. The trees and the clouds are the kit's, as before.
 - **Parked for the flora:** the matte painter's natural cuts, `turf`, `leaves` and `bark` (`matte-paint/dressed.js`,
   on the dressed tile's rails), grey relief tiles to lay over the ground, a crown and a trunk. Nothing lays them yet.
+- Not yet on the stage: the land rules' `valley` and the rock's `facet` planes (the island's `valleyOf` and its
+  planarised rock); a cube that names them draws its street's land without them.
 
 ### Geotown structures: doors and windows, the street, the square, the gates
 

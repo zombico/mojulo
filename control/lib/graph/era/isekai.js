@@ -16,6 +16,14 @@
  *   grass     tufts as crossed blade cards, pixel-locked, lit or shade by the shadow at the tuft's root
  *   trees     a crown of overlapping round masses on a short trunk, baked and locked to the foliage ramp
  *   layers    the far ridges painted from the far ramp; a thin haze; the sky dome from the sky ramp; a high cloud deck
+ *
+ * THE POLYGON LAND (a stage's `shading`, opt-in: the same object the local meru reads, local-meru/plan.js
+ * `readShading`; a geocube's town and trail carry its land's): the land drawn as the island's is, by its functions. No
+ * tiles on the land: cliff and boulders baked flat per facet, the ground, the scree and the trail smooth at each corner,
+ * then the land's rules (local-meru/shading.js: crevice, ridge, blend, mix); no grass on it (no tufts, no field, no
+ * fringe, no hat, no trail blend). A gritty land (`grit` from GRIT_PIXELS) breaks its boulders, its cliffs' rims and
+ * strews stones (local-meru/broken-land.js), and the page draws its rock's fabric near the eye (matte-paint/fabric.js:
+ * the site's own strata and joints, the land's `skin` and `rocks`). Absent, every face is as it was.
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
 import { reserveSite, kept, CROWN } from './reserve.js';
@@ -24,7 +32,7 @@ import { poleOf } from './style/pole.js';
 import { ISEKAI_STYLES, isekaiMask } from './isekai-tiles.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, r5, hexRgb, rgbHex, crossed } from './geom.js';
-import { makeSunShadow, sunDir } from './sun.js';
+import { makeSunShadow, makeSoftSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
@@ -40,6 +48,10 @@ import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './ou
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
+import { readShading } from '../local-meru/plan.js';
+import { bakeLand, ruleLand } from '../local-meru/shading.js';
+import { breakRims, strewStones } from '../local-meru/broken-land.js';
+import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -322,6 +334,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   if (!st) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
+  // the polygon land (`shading`, see the header): the island's drawing, and a gritty one's broken rock
+  const SH = readShading(manifest.shading), broken = SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? SH.grit : 0;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
@@ -332,7 +346,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // a named stone (the trail's landmark) carries its node on every face
   const named = (fs, it) => (it.node ? fs.map((f) => ({ ...f, node: it.node })) : fs);
-  const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
+  const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed, broken); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
   const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
@@ -360,10 +374,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
+  // (a gritty polygon land: its cliffs' rims broken and stones strewn, as the island's; broken-land.js)
+  if (broken) {
+    breakRims([...ground.faces, ...ribbon], { grit: broken, seed, dx: site.grid.dx });
+    boulders.push(...strewStones(st, { faces: [...ground.faces, ...ribbon], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
+  }
   const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
-  const shadow = makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
+  const shadow = SH && SH.sun && !cardMask ? makeSoftSunShadow(solid, dir, SH.sun, { cell: 0.6 })
+    : makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const reach = (p, n) => Math.max(0, dot(n, dir)) * shadow(addv(p, mul(n, 0.05)), n);
   const lit = Gl ? (p, n) => reach(p, n) >= st.cel || glowAt(p) >= st.cel : (p, n) => reach(p, n) >= st.cel;
@@ -381,9 +401,15 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const cel = [];
   const draw = (f, tile, isLit, vn = null) => { const { cel: _c, size: _s, key: _k, celN, ...rest } = f; cel.push(put(rest, tile, isLit, celN ?? f.normal, vn)); };
   const cliffN = MAT ? formNormals(ground.faces.filter((f) => f.cel === 'cliff')) : null;
-  for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
+  // (the polygon land: the rock untiled, lit with the land below; its albedo the rock ramp's middle, as the island's; the
+  // talus apron is ground, as the island's is)
+  const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil) } : null;
+  const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
+  const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff'), ...boulders.flatMap((b) => [...b.sides, ...b.cap])].map(asRock) : [];
+  if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
-  for (const b of boulders) {
+  if (!SH) for (const b of boulders) {
     const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
     for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
     const hatted = b.s >= st.boulder.minHat;
@@ -396,7 +422,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const Lp = st.lip;
   // (a card with no grass, an airless one's, drapes no fringe over its cliff lips and stands no blades)
-  for (const l of st.grass ? ground.lips : []) {
+  for (const l of st.grass && !SH ? ground.lips : []) {
     drape(fringes, l.a, l.b, addv(l.a, mul(l.down, Lp.fringe * 2)), addv(l.b, mul(l.down, Lp.fringe * 2)), Lp.fringe, Lp.out, l.out, null, Lp.scale, 'isekai:lip');
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }
@@ -422,7 +448,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
   for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = st.grass ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
+  const tufts = st.grass && !SH ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -430,7 +456,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // the FIELD: within `reach` of the trail the meadow stands as one sea of blades, a tuft on a jittered grid every
   // `every` metres (never on the ribbon, a rock or a trunk), the band by the shadow at its root
-  const F = st.grass?.field;
+  const F = SH ? null : st.grass?.field;
   if (F) {
     let i = 0;
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
@@ -468,18 +494,20 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // the realistic pole (a card's `ground`) draws the ground and the scree itself: material × light, shadows crisp
   // (the trail ribbon too: the old bake of it is kept only as what the trail blend reads its stops from)
-  const bare = ground.faces.filter((f) => !f.cel), real = st.ground ? realGround(st, site, [...bare.map((f) => ({ ...f, grid: true })), ...ribbon], shadow, sun, ambient, isekaiMarks(st, site, S), S) : [];
+  const bare = ground.faces.filter((f) => !f.cel), real = st.ground && !SH ? realGround(st, site, [...bare.map((f) => ({ ...f, grid: true })), ...ribbon], shadow, sun, ambient, isekaiMarks(st, site, S), S) : [];
   // the trees on the material pole: their faces light only (white), then the bark's grain and the leaf's tile on
   const woodM = MAT ? wood.map((f) => ({ ...f, tint: [1, 1, 1], mat: f.group === 'isekai:wood' ? 'grain' : 'leaf' })) : wood;
-  const plain = [...(st.ground ? [] : bare), ...ribbon, ...woodM];
-  const baked = bakeStageLight(plain, glowLights, ambient, isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
+  // (the polygon land: the land baked and ruled as the island's, the rest as before)
+  const land = SH ? ruleLand(bakeLand([...[...bare, ...ribbon].map(({ cls: _c, ...f }) => ({ ...f, tint: landTint[f.group] ?? f.tint })), ...rockFaces], ambient, sun, SH), SH, landTint, { cell: site.grid.dx, seed: seed + 517 }) : [];
+  const plain = SH ? woodM : [...(st.ground ? [] : bare), ...ribbon, ...woodM];
+  const baked = bakeStageLight(plain, glowLights, ambient, SH ? undefined : isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
   // (the crowns on the material pole with a canopy: each face its skin's BAND by the light it was baked with)
   const SHADEL = lumaOf(ambient);
-  const drawn = (st.ground ? baked.slice(ribbon.length) : baked).map((f) => (!f.mat ? f : f.mat === 'leaf' && st.tiles.canopy ? canopyFace(st, f, SHADEL, LITL) : materialFace(st, f)));
+  const drawn = (st.ground && !SH ? baked.slice(ribbon.length) : baked).map((f) => (!f.mat ? f : f.mat === 'leaf' && st.tiles.canopy ? canopyFace(st, f, SHADEL, LITL) : materialFace(st, f)));
   // the TRAIL BLEND: the soil's rim out over the grass and the grass's creep in over the trail, each in the stop nearest
   // the baked colour of the lane it carries on — the trail's along the edge for the rim, the fringe's for the creep —
   // so the blend is the two materials meeting, not a third laid between them
-  if (st.trailBlend) {
+  if (st.trailBlend && !SH) {
     const rb = baked.slice(st.ground ? 0 : bare.length).slice(0, ribbon.length), strips = trailRims(st, site, seed);
     if (strips.length !== ribbon.length) throw new Error('isekai: the trail blend steps with the ribbon (trailBlend.step 0.75)');
     // per station the ribbon is [fringe −, trail −, trail +, fringe +] and the strips [bleed −, over −, bleed +, over +];
@@ -494,7 +522,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
-  const faces = [...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
+  const faces = [...land, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
@@ -526,7 +554,14 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...((manifest.wind || manifest.grass) && st.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    ...((manifest.wind || manifest.grass) && st.grass && !SH ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
+    ...(broken ? { fabric: (() => {
+      const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
+      if (SH.skin === undefined) return rockFabric({ ...base, rockColour: null, green: null });
+      if (SH.rocks === undefined) return rockFabric({ ...base, skin: SH.skin });
+      return { ...rockFabric({ ...base, skin: SH.skin, groups: FABRIC_GROUPS }), also: rockFabric({ ...base, skin: SH.rocks, seed: seed + 101, groups: ['isekai:rock'], key: 'rock-fabric-rocks' }) };
+    })() } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };

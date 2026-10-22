@@ -123,7 +123,8 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
 /** How gritty a style must be before its rock takes pixels (a quiet style keeps polygon rock). */
 export { GRIT_PIXELS };
 export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2', sun: 1.5, mix: 0, facet: 0, valley: 0 });
-function readShading(v) {
+/** A land's `shading` read and checked (absent or false: null), its settings over SHADING. */
+export function readShading(v) {
   if (v === undefined || v === false) return null;
   if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade, sun, mix, facet, valley }');
   const o = v === true ? {} : v;
