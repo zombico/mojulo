@@ -131,7 +131,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   study lights a subject by its `light`, so one face reads in each game's light and shade.
 - THE DEEP CURVE (`shade.curve: 'deep'`, the `chiaroscuro` shading): the shade as before until the skin is enclosed
   deepest, then a near-black in the shade's hue: the nostrils, the mouth's line, the sockets' inner corners, the ear's
-  folds. A near-black only that deep, and only by asking for it.
+  folds (the knee at 0.9 of the occlusion, the darkest a tenth of the shade's colour: a tight band, tightened at the
+  operator's ask). A near-black only that deep, and only by asking for it.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

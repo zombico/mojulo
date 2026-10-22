@@ -163,7 +163,7 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
 /** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, how deep it paints at `shade: 1`,
  * how far a shade's colour leans it to its hue, and the `deep` curve's knee (the occlusion past which the skin falls toward
  * a near-black, `near` of its colour: the nostrils, the mouth's line, the sockets' corners, the ear's folds) */
-const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6, knee: 0.8, near: 0.05 });
+const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6, knee: 0.9, near: 0.1 });
 /** the deep curve's fall past its knee (0 … 1, smooth) */
 const smoothKnee = (o) => { const t = Math.max(0, Math.min(1, (o - SHADE.knee) / (1 - SHADE.knee))); return t * t * (3 - 2 * t); };
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
