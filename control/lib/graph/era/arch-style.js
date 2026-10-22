@@ -127,7 +127,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', read: 'a cube of whitewashed rubble under a flat roof, small square lights, shutters', elements: {
       wall: { storeys: [st('str:plaster', 0.92), st('str:plaster', 0.94)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:plaster', value: 0.95 },
-      lights: { w: 0.8, h: 1, bay: 2.4 }, socle: { h: 0.35, group: 'str:plaster', value: 0.86 }, shutters: { share: 0.8 },
+      lights: { w: 0.8, h: 1, bay: 2.4, frame: 0.06, glazing: 'casement', trim: 'str:paint', trimValue: 0.5 }, door: { leaf: 'boards', steps: 1 },
+      socle: { h: 0.35, group: 'str:plaster', value: 0.86 }, shutters: { share: 0.8, form: 'boards' },
       sills: null, lintels: null, quoins: null, stack: null, frame: null, pickets: null,
       road: { paving: 'flags' }, yards: { form: 'rendered' },
     }, compose: { mass: { w: 7, d: 6.5 } } },
@@ -140,7 +141,8 @@ export const STYLE_STARTERS = Object.freeze({
     class: 'ancient',
     language: { from: 'timber-hall', elements: {
       wall: { storeys: [st('str:stone', 0.58, 'coursed'), st('str:plaster', 0.9)] },
-      roof: { pitch: 50, eave: 0.6, value: 0.42 }, frame: { member: 0.24, value: 0.18 }, shutters: { share: 0.3 },
+      roof: { pitch: 50, eave: 0.6, value: 0.42 }, frame: { member: 0.24, value: 0.18 }, shutters: { share: 0.3, form: 'boards' },
+      lights: { frame: 0.08, glazing: 'lattice', trim: 'str:timber', trimValue: 0.2 }, door: { leaf: 'boards', surround: 'frame', steps: 1 },
     } },
     materials: { plaster: 'lime-render', stone: 'rubble', timber: 'boards', roof: 'clay-tile', plinth: 'rubble', road: 'setts', walk: 'flags', punched: 'lime-render', pier: 'ashlar', banded: 'lime-render' },
     palette: { timber: '#3b2b22', plaster: '#e9e0c9' },
@@ -152,12 +154,14 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', elements: {
       wall: { storeys: [st('str:stone', 0.5, 'brick'), st('str:stone', 0.52, 'brick')] },
       roof: { form: 'hip', pitch: 30, eave: 0.3, group: 'str:slate', value: 0.36 },
-      lights: { w: 1, h: 1.8, bay: 2.6, sill: 0.7 }, door: { w: 1.1, h: 2.4 },
+      lights: { w: 1, h: 1.8, bay: 2.6, sill: 0.7, frame: 0.06, glazing: 'sash', trim: 'str:paint', trimValue: 0.95 },
+      door: { w: 1.1, h: 2.2, leaf: 'panels', surround: 'pilasters', fanlight: 'arch', steps: 2 },
       socle: { group: 'str:plaster', value: 0.86 }, sills: { group: 'str:plaster', value: 0.9 }, lintels: { group: 'str:plaster', value: 0.9 },
       cornice: { kind: 'cornice', h: 0.3, proud: 0.2, group: 'str:plaster', value: 0.9 },
       quoins: null, frame: null, shutters: null, pickets: { form: 'rail' },
     }, compose: { mass: { w: 7, d: 9 }, annex: null } },
     materials: { stone: 'hand-brick', plaster: 'limewash', roof: 'slate', plinth: 'ashlar', road: 'setts', walk: 'flags', punched: 'hand-brick', pier: 'ashlar', banded: 'lime-render' },
+    palette: { paint: '#f1eee6' },
     city: { grain: 'london' },
   },
   'adobe-pueblo': {
@@ -166,7 +170,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', read: 'stepped adobe under flat roofs, small lights under timber lintels', elements: {
       wall: { storeys: [st('str:plaster', 0.68), st('str:plaster', 0.7)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.3, group: 'str:plaster', value: 0.64 },
-      lights: { w: 0.7, h: 0.8, bay: 3, sill: 1 }, door: { w: 0.9, h: 2 }, lintels: { group: 'str:timber', value: 0.3 },
+      lights: { w: 0.7, h: 0.8, bay: 3, sill: 1, frame: 0.12, glazing: 'casement', trim: 'str:timber', trimValue: 0.3 }, door: { w: 0.9, h: 2, leaf: 'boards', surround: 'frame' },
+      lintels: { group: 'str:timber', value: 0.3 },
       socle: null, sills: null, quoins: null, stack: null, frame: null, shutters: null, pickets: null,
       road: { paving: 'earth' }, footway: { form: 'flush', w: 1.4 }, yards: { form: 'rendered' },
     }, compose: { mass: { w: 8, d: 7 }, tiers: { shrink: 0.72, every: true }, annex: null } },
@@ -178,7 +183,8 @@ export const STYLE_STARTERS = Object.freeze({
     class: 'ancient',
     language: { from: 'timber-hall', elements: {
       wall: { storeys: [st('str:timber', 0.5, 'boards'), st('str:timber', 0.52, 'boards')] },
-      roof: { pitch: 45, eave: 0.5, value: 0.3 }, lights: { w: 0.9, h: 1.3 },
+      roof: { pitch: 45, eave: 0.5, value: 0.3 }, lights: { w: 0.9, h: 1.3, frame: 0.08, glazing: 'casement', trim: 'str:paint', trimValue: 0.92 },
+      door: { leaf: 'panels', surround: 'frame', steps: 1 },
       lintels: { group: 'str:paint', value: 0.92 }, sills: { group: 'str:paint', value: 0.92 }, socle: { h: 0.6 },
       quoins: null, frame: null, shutters: null, footway: { form: 'boards' }, pickets: { form: 'paling' },
     } },
@@ -192,7 +198,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', read: 'plastered courtyard houses under flat roofs, round-headed lights, a tiled dado', elements: {
       wall: { storeys: [st('str:plaster', 0.84), st('str:plaster', 0.86)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.25, group: 'str:plaster', value: 0.82 },
-      lights: { form: 'arch', w: 0.8, h: 1.5, bay: 3.2 }, door: { form: 'arch', w: 1.2, h: 2.5 },
+      lights: { form: 'arch', w: 0.8, h: 1.5, bay: 3.2, frame: 0.14, glazing: 'lattice', trim: 'str:timber', trimValue: 0.35 },
+      door: { form: 'arch', w: 1.2, h: 2.5, leaf: 'boards', surround: 'frame' },
       lintels: { form: 'key', group: 'str:stone', value: 0.75 }, bands: { kind: 'band', w: 0.22, group: 'str:paint', value: 0.5 },
       socle: { h: 0.7, group: 'str:paint', value: 0.45 },
       sills: null, quoins: null, stack: null, frame: null, shutters: null, pickets: null,
@@ -208,7 +215,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', elements: {
       wall: { storeys: [st('str:stone', 0.72, 'ashlar'), st('str:stone', 0.76, 'ashlar')] },
       roof: { form: 'hip', pitch: 55, eave: 0.3, group: 'str:slate', value: 0.34 },
-      lights: { form: 'arch', w: 1.2, h: 2, bay: 3.2, sill: 0.7 }, door: { form: 'arch', w: 1.4, h: 2.5 },
+      lights: { form: 'arch', w: 1.2, h: 2, bay: 3.2, sill: 0.7, frame: 0.1, glazing: 'sash', trim: 'str:stone', trimValue: 0.82 },
+      door: { form: 'rect', w: 1.4, h: 2.3, leaf: 'glazed', surround: 'pilasters', fanlight: 'rect', steps: 3 },
       cornice: { kind: 'cornice', h: 0.42, proud: 0.28, group: 'str:stone', value: 0.82 }, bands: { kind: 'band', w: 0.2, group: 'str:stone', value: 0.8 },
       lintels: { form: 'key', group: 'str:stone', value: 0.82 }, socle: { h: 0.8, value: 0.56 },
       frame: null, shutters: null, pickets: { form: 'rail' }, road: { paving: 'flags' },
@@ -223,7 +231,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', read: 'a stepped pale mass, piers between the lights, a finial', elements: {
       wall: { storeys: [st('str:stone', 0.74), st('str:stone', 0.78)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.7 },
-      lights: { w: 1, h: 1.8, bay: 2.8 }, door: { w: 1.4, h: 2.5 },
+      lights: { w: 1, h: 1.8, bay: 2.8, frame: 0.05, glazing: 'casement', trim: 'str:paint', trimValue: 0.25 },
+      door: { w: 1.4, h: 2.4, leaf: 'glazed', surround: 'frame', steps: 1 },
       ribs: { kind: 'rib', count: 4, w: 0.22, share: 1, group: 'str:stone', value: 0.86 },
       finial: { kind: 'point', count: 1, len: 0.25, base: 0.3, group: 'str:stone', value: 0.86 },
       bands: { kind: 'band', w: 0.16, group: 'str:paint', value: 0.4 }, socle: { h: 0.9, value: 0.4 },
@@ -239,7 +248,8 @@ export const STYLE_STARTERS = Object.freeze({
     language: { from: 'timber-hall', read: 'a concrete mass, fins between deep lights, a heavy fascia', elements: {
       wall: { storeys: [st('str:stone', 0.56, 'panels'), st('str:stone', 0.58, 'panels')] },
       roof: { kind: 'cap', form: 'flat', eave: 0.6, group: 'str:stone', value: 0.5 },
-      lights: { w: 1.4, h: 1.1, bay: 3.4, sill: 1 }, door: { w: 1.4, h: 2.2 },
+      lights: { w: 1.4, h: 1.1, bay: 3.4, sill: 1, frame: 0.2, glazing: 'plate', trim: 'str:stone', trimValue: 0.5 },
+      door: { w: 1.4, h: 2.2, leaf: 'glazed', surround: 'hood', steps: 1 },
       cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:stone', value: 0.6 },
       ribs: { kind: 'rib', count: 6, w: 0.3, share: 1, group: 'str:stone', value: 0.5 }, socle: { h: 0.9, value: 0.45 },
       sills: null, lintels: null, quoins: null, stack: null, frame: null, shutters: null, pickets: null,
@@ -370,6 +380,9 @@ function surfacesBuilt(doc) {
   const out = new Set(['plinth']), E = doc.elements;
   const add = (g) => { if (typeof g !== 'string') return; const s = g.replace(/^str:/, ''); out.add(['tile', 'slate', 'shingle', 'thatch'].includes(s) ? 'roof' : s); };
   for (const el of Object.values(E)) { if (el.kind === 'wall') for (const s of el.storeys ?? []) add(s.group); else if (el.kind === 'cap') { if (el.form !== 'none') add(el.group); } else add(el.group); }
+  // (a built light's frame and bars, and a built door's surround, are painted in the light's trim: era/out-openings.js)
+  const light = Object.values(E).find((e) => e.kind === 'light'), door = Object.values(E).find((e) => e.kind === 'door');
+  if (light && (light.frame !== undefined || light.glazing !== undefined || (door && (door.surround || door.fanlight)))) add(light.trim ?? 'str:paint');
   return out;
 }
 /** What advises on a style, never refusing: each { law, ok, value }. */

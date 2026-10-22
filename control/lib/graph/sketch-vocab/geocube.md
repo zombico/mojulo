@@ -25,11 +25,13 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
   (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
-  <starter>, …changes }`, or your own: `{ read, class: 'ancient' |
-  'modern', language, materials, palette?, city? }`. `language` is an anchor or its elements on their rails (`{ from:
-  'timber-hall', elements: { roof: { pitch: 50 }, quoins: null } }`: a whole element with its `kind` replaces, null
-  drops); `materials` a word per surface (plaster, stone, timber, plinth, roof; a city's punched, pier, banded, grid,
-  road, walk), e.g. limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass;
+  <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
+  `language` is an anchor or its elements on their rails (`{ from: 'timber-hall', elements: { roof: { pitch: 50 },
+  quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
+  writes them: a light's `frame` (0–0.2 m), `glazing` (lattice, sash, casement, plate) and `trim`; a door's `leaf`
+  (boards, panels, glazed), `surround` (frame, pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters'
+  `form` (boards, louvred). `materials` a word per surface (plaster, stone, timber, plinth, roof; a city's punched,
+  pier, banded, grid, road, walk), e.g. limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass;
   `palette` a colour per surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its
   laws back (class, cover against pitch, value order, idle surfaces): they advise, never refuse.
 

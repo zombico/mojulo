@@ -125,6 +125,25 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Geotown structures: doors and windows, the street, the square, the gates
+
+The geotown's buildings up close, and the town round them: its openings as architecture rather than marks on a wall.
+
+- **Openings as architecture** (`era/out-openings.js`). New params on the building language's `light` and `door`
+  elements, held by the street and refused off their rails by name; absent, every town is as it was, byte for byte.
+  A light's `frame` stands a surround proud of the wall with its returns as the reveal, the glass set back in it;
+  its `glazing` lays bars over the glass (`lattice`, leaded diamonds; `sash`, two sashes of small panes with a meeting
+  rail; `casement`, a mullion and a transom; `plate`, one pane), in its `trim` (a surface group, `trimValue` its
+  value). A door's `leaf` is `boards`, `panels` (raised, in two columns) or `glazed` (its upper half glass); its
+  `surround` a `frame`, `pilasters` and an entablature, or a `hood` on brackets; its `fanlight` a glazed transom
+  (`rect`) or a half-round over the head with radial bars (`arch`); its `steps` up to the threshold, and the stage
+  raises the house's floor to meet them. Shutters take a `form` (`boards`, `louvred`) and stand out of the wall. They
+  are a detail's depth (the near ring); over the ring's triangle budget the dressing off the lane face goes into the
+  tile first, then the language's own ornaments, then the lane face's dressing. The style starters take them by period
+  and place (sashes and a fanlight between pilasters for the Georgian terrace, leaded lattices for the Tudor town and
+  the medina, white casements for the Nordic harbour, plate glass in deep reveals under a hood for the Brutalist), and
+  the style's `surfaces-built` law counts a built light's trim as a surface its palette may name.
+
 ### Architectural style: the model composes a town's and a city's look, on the cube's materials
 
 A town or a city is not one style: a STYLE says what a place's builders build, and the town, the city and their dress

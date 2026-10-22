@@ -30,6 +30,7 @@ import { decompileAnchor, ANCHOR_STRUCTURES, ANCHOR_IDS } from './out-anchor-str
 import { designTown } from './out-town.js';
 import { structureStyle } from './out-structures.js';
 import { dressTownFace } from './town-dress.js';
+import { stepsLift } from './out-openings.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -265,7 +266,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const zs = samples.map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       const atDoor = [toWorld([doorPlan[0], doorPlan[1] - 0.6]), toWorld([doorPlan[0], doorPlan[1] + 0.6])].map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       if (zs.length < samples.length * 0.9 || !atDoor.length) return { off: true };
-      const floor = Math.max(...atDoor) + 0.12;
+      // (a door with steps stands its floor up them: the steps' foot on the land, era/out-openings.js)
+      const floor = Math.max(...atDoor) + (lot?.design?.dims?.steps ? stepsLift(lot.design.dims.steps) : 0.12);
       const cellsIn = (set) => { let n = 0; for (const B of boxes) for (let i = Math.floor(B[0]); i <= Math.floor(B[2]); i++) for (let j = Math.floor(B[1]); j <= Math.floor(B[3]); j++) if (set.has(`${i},${j}`)) n++; return n; };
       const hits = (B, c) => B[0] < c.max[0] && c.min[0] < B[2] && B[1] < c.max[1] && c.min[1] < B[3];
       // a building never stands on a beat of the trail (the way runs through them) or another building
