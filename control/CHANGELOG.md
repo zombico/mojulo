@@ -37,6 +37,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Two getaways, in the lab: the directional roll and the dash.** The dodge button is now a directional roll: it
+  goes the way the stick points while the body keeps its facing (a roll forward, to either side, or a hop back, each
+  its own clip), and with the stick at rest it is a shorter backstep. A new dash button carries the dash and all of
+  Mega Man X's moves; action gains a quick ground dash, and realistic, which steps rather than rolls, has none. No
+  feel rolls in the air. The gate holds 139 laws on both casts.
 - **The dashes, in the lab** (Mega Man X; the card's `dodge`). On the three non-realistic feels: an air dash with
   gravity off, once an airtime (landing and walls give it back); the dash jump, a jump inside a ground dodge that
   leaves on the press and keeps the dodge's speed through the air; and the dash wall jump, which kicks at the dash's

@@ -13,7 +13,7 @@ let fails = 0;
 const check = (name, ok, measured) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${measured === undefined ? '' : `  ${JSON.stringify(measured)}`}`); };
 const note = (name, measured) => console.log(`note  ${name}  ${JSON.stringify(measured)}`);
 const OPEN = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
-const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE;
+const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH;
 
 /**
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
@@ -123,8 +123,8 @@ for (const id of FEEL_IDS) {
   const turn = (S) => { S.hero.yaw = 0; };
   if (I) {
     const p = 30 - (I[0] + 1);
-    const r = track(run(C, (f) => (f === p ? DG : 0), 90, { arena: SP, spar: true, setup: turn }));
-    check(`${id}: a telegraphed hit landing inside the ${C.dodge.kind}'s invincible frames is evaded`, ev(r, 'evaded').length === 1 && !ev(r, 'hit').length, { evaded: ev(r, 'evaded').map((e) => e.f), hit: ev(r, 'hit').map((e) => e.f) });
+    const r = track(run(C, (f) => (f === p ? [0, 127, DG] : 0), 90, { arena: SP, spar: true, setup: turn }));
+    check(`${id}: a telegraphed hit landing inside the ${C.dodge.kind}'s invincible frames is evaded (rolling forward into it)`, ev(r, 'evaded').length === 1 && !ev(r, 'hit').length, { evaded: ev(r, 'evaded').map((e) => e.f), hit: ev(r, 'hit').map((e) => e.f) });
   } else {
     const r = track(run(C, () => 0, 90, { arena: SP, spar: true, setup: turn }));
     check(`${id}: without invincible frames a dodge is space, not immunity: standing still the telegraph lands`, ev(r, 'hit').length === 1 && !ev(r, 'evaded').length, ev(r, 'hit').map((e) => e.f));
@@ -198,21 +198,33 @@ for (const id of FEEL_IDS) {
     check(`${id}: no wall slide: against a wall with the stick into it, the body falls free`, !ev(sl, 'cling').length && sl.states[30].hero.v[2] < -3);
   }
 
+  // ─── the directional roll: along the stick, the facing kept; the stick at rest a backstep ───
+  const R0 = C.dodge, WAYS = [['fwd', [0, 127]], ['right', [127, 0]], ['back', [0, -127]], ['left', [-127, 0]]];
+  const rollOf = (stick) => track(run(C, (f) => (f === 5 ? [stick[0], stick[1], DG] : [0, 0, 0]), 60, { arena: OPEN }));
+  const ways = Object.fromEntries(WAYS.map(([w, st]) => { const r = rollOf(st), e = ev(r, 'dodge')[0], p0 = r.states[4].hero.p, p1 = r.end.hero.p, d = [p1[0] - p0[0], p1[1] - p0[1]], len = Math.hypot(...d);
+    return [w, { rel: e?.rel, yaw: r.end.hero.yaw, len, along: len ? (d[0] * st[0] + d[1] * st[1]) / (len * 127) : 0 }]; }));
+  const stillR = rollOf([0, 0]), st0 = ev(stillR, 'dodge')[0], stLen = Math.hypot(stillR.end.hero.p[0] - stillR.states[4].hero.p[0], stillR.end.hero.p[1] - stillR.states[4].hero.p[1]);
+  row['roll'] = WAYS.map(([w]) => `${w} ${ways[w].len.toFixed(2)}`).join(' · ');
+  check(`${id}: the ${R0.kind} goes the way the stick points, the body keeping its facing: a ${R0.kind} forward, right, back and left`, WAYS.every(([w]) => ways[w].rel === w && ways[w].yaw === 0 && ways[w].along > 0.999), Object.fromEntries(WAYS.map(([w]) => [w, [ways[w].rel, +ways[w].along.toFixed(4)]])));
+  check(`${id}: the stick at rest is a backstep, as short as a ${R0.kind} back (${R0.back.speed}× the speed, ${R0.back.frames}× the frames)`, st0?.rel === 'back' && st0.neutral && Math.abs(stLen - ways.back.len) < 1e-9 && ways.back.len < ways.fwd.len, { backstep: +stLen.toFixed(4), forward: +ways.fwd.len.toFixed(4) });
+  { const air = track(run(C, (f) => (f === 1 ? [0, 127, DG] : 0), 30, { arena: OPEN, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
+    check(`${id}: no ${R0.kind} in the air: the press is dropped, and says why`, !ev(air, 'dodge').length && ev(air, 'dropped').some((e) => e.button === 'dodge' && /air/.test(e.why))); }
+
   // ─── the dashes (Mega Man X): the air dash, the dash jump, the held dash, the dash wall jump ───
-  const DD = C.dodge, fwdP = [0, 127, 0], hspeed = (st) => Math.hypot(st.hero.v[0], st.hero.v[1]);
+  const DD = C.dash ?? {}, fwdP = [0, 127, 0], hspeed = (st) => Math.hypot(st.hero.v[0], st.hero.v[1]);
   const nA = DD.air?.frames ?? 10;   // the air dash held through, let go, pressed again while still in the air
-  const ad = track(run(C, (f) => (f >= 1 && f < nA + 1 ? [0, 127, DG] : f === nA + 3 ? [0, 127, DG] : fwdP), 120, { arena: { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] }, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
+  const ad = track(run(C, (f) => (f >= 1 && f < nA + 1 ? [0, 127, DS] : f === nA + 3 ? [0, 127, DS] : fwdP), 120, { arena: { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] }, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
   const adE = ev(ad, 'air-dash');
   if (DD.air) {
     const a0 = adE[0], n = DD.air.frames, flatZ = Array.from({ length: n - 1 }, (_, k) => ad.states[1 + k].hero.p[2]).every((z) => z === ad.states[0].hero.p[2]);
     const sp = hspeed(ad.states[2]), spOk = DD.kind === 'boost' ? sp >= C.ground.run - 1e-9 : Math.abs(sp - DD.air.speed) < 1e-9;
-    const spentD = ad.events.some((e) => e.type === 'dropped' && e.button === 'dodge' && /spent/.test(e.why));
+    const spentD = ad.events.some((e) => e.type === 'dropped' && e.button === 'dash' && /spent/.test(e.why));
     row['air dash'] = `${DD.air.count} × ${DD.air.frames} f`;
-    check(`${id}: a dodge in the air is an air dash: no fall for its ${n} f, at ${DD.kind === 'boost' ? 'a boost' : `${DD.air.speed} m/s`}; a second in the same airtime is spent`, a0?.f === 1 && flatZ && spOk && spentD, { at: a0?.f, flat: flatZ, speed: +sp.toFixed(3), spent: spentD });
+    check(`${id}: a dash in the air is an air dash: no fall for its ${n} f, at ${DD.kind === 'boost' ? 'a boost' : `${DD.air.speed} m/s`}; a second in the same airtime is spent`, a0?.f === 1 && flatZ && spOk && spentD, { at: a0?.f, flat: flatZ, speed: +sp.toFixed(3), spent: spentD });
     check(`${id}: landing gives the air dash back`, ad.end.hero.grounded && ad.end.hero.airDashes === DD.air.count, { left: ad.end.hero.airDashes });
-  } else check(`${id}: no air dash: a dodge in the air is dropped, and says why`, !adE.length && ad.events.some((e) => e.type === 'dropped' && e.button === 'dodge'));
-  // the dash jump: a dodge on the ground, a jump inside it
-  const djPads = (f) => (f >= 10 && f < 18 ? [0, 127, DG | (f >= 14 ? J : 0)] : f >= 18 && f < 60 ? [0, 127, J] : fwdP);
+  } else check(`${id}: no dash: a dash pressed (on the ground or in the air) is dropped, and says why`, !adE.length && ad.events.some((e) => e.type === 'dropped' && e.button === 'dash'));
+  // the dash jump: a dash on the ground, a jump inside it
+  const djPads = (f) => (f >= 10 && f < 18 ? [0, 127, DS | (f >= 14 ? J : 0)] : f >= 18 && f < 60 ? [0, 127, J] : fwdP);
   const dj = track(run(C, djPads, 140, { arena: OPEN })), djE = ev(dj, 'dash-jump')[0];
   const plainJ = track(run(C, (f) => (f >= 14 && f < 60 ? [0, 127, J] : fwdP), 140, { arena: OPEN }));
   if (DD.jump) {
@@ -221,15 +233,15 @@ for (const id of FEEL_IDS) {
     const off3 = ev(plainJ, 'takeoff')[0], land3 = plainJ.events.find((e) => e.type === 'land' && e.who === 'hero' && e.f > off3.f);
     const plainTop = Math.max(...plainJ.states.slice(off3.f + 1, land3.f).map(hspeed));
     row['dash jump'] = `${djE.speed.toFixed(1)} m/s`;
-    check(`${id}: a jump inside a ground dodge is a dash jump: it leaves on the press, and the air keeps the dodge's speed (${djE.speed.toFixed(2)} m/s, a plain jump ${plainTop.toFixed(2)})`, djE.f === 14 && off2.f === 14 && carriedV && djE.speed > plainTop + 0.5, { left: off2.f, carried: carriedV, plainTop: +plainTop.toFixed(3) });
-  } else check(`${id}: no dash jump: a jump in a dodge waits for it to end`, !djE && (ev(dj, 'takeoff')[0]?.f ?? 99) > 14);
+    check(`${id}: a jump inside a ground dash is a dash jump: it leaves on the press, and the air keeps the dash's speed (${djE.speed.toFixed(2)} m/s, a plain jump ${plainTop.toFixed(2)})`, djE.f === 14 && off2.f === 14 && carriedV && djE.speed > plainTop + 0.5, { left: off2.f, carried: carriedV, plainTop: +plainTop.toFixed(3) });
+  } else check(`${id}: no dash jump: with no dash, a jump on its frame is the ground's own`, !djE && (ev(dj, 'takeoff')[0]?.f ?? 99) > 14);
   if (DD.hold) {
-    const relD = track(run(C, (f) => (f >= 10 && f < 14 ? DG : 0), 80, { arena: OPEN })), helD = track(run(C, (f) => (f >= 10 && f < 70 ? DG : 0), 80, { arena: OPEN }));
-    const endR = relD.events.find((e) => e.type === 'end' && e.what === 'dodge'), endH = helD.events.find((e) => e.type === 'end' && e.what === 'dodge');
+    const relD = track(run(C, (f) => (f >= 10 && f < 14 ? DS : 0), 80, { arena: OPEN })), helD = track(run(C, (f) => (f >= 10 && f < 70 ? DS : 0), 80, { arena: OPEN }));
+    const endR = relD.events.find((e) => e.type === 'end' && e.what === 'dash'), endH = helD.events.find((e) => e.type === 'end' && e.what === 'dash');
     check(`${id}: the dash lasts while it is held (${DD.frames} f at most, ${DD.hold.min} f at least)`, endR.f - 10 === DD.hold.min - 1 && endR.released && endH.f - 10 === DD.frames - 1, { tapped: endR.f - 10 + 1, held: endH.f - 10 + 1 });
   }
   if (DD.wall && CL) {
-    const k0 = ev(sl, 'cling')[0].f + 10, dw = track(run(C, (f) => (f < k0 - 2 ? into : f < k0 ? [127, 0, DG] : f < k0 + 40 ? [-127, 0, DG | J] : [-127, 0, 0]), 140, { arena: CLIFF, setup: onWall() }));
+    const k0 = ev(sl, 'cling')[0].f + 10, dw = track(run(C, (f) => (f < k0 - 2 ? into : f < k0 ? [127, 0, DS] : f < k0 + 40 ? [-127, 0, DS | J] : [-127, 0, 0]), 140, { arena: CLIFF, setup: onWall() }));
     const wd = ev(dw, 'wall-jump')[0], awayD = DD.kind === 'boost' ? C.ground.run : DD.speed, afterK = hspeed(dw.states[k0 + CL.lock + 4]);
     check(`${id}: a wall jump with the dash held kicks at the dash's speed (${awayD} m/s) and the air keeps it`, wd?.dash && Math.abs(dw.states[k0].hero.v[0] + awayD) < 1e-9 && afterK >= awayD - 1e-9, { dash: wd?.dash, kick: +dw.states[k0].hero.v[0].toFixed(3), after: +afterK.toFixed(3) });
   }

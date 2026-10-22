@@ -99,7 +99,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
 #touchpad { position: absolute; inset: auto 0 0 0; height: 46%; pointer-events: none; }
 #tstick { position: absolute; left: max(14px, env(safe-area-inset-left, 0px)); bottom: 14px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--line); pointer-events: auto; touch-action: none; }
 #tknob { position: absolute; left: 40px; top: 40px; width: 40px; height: 40px; border-radius: 50%; background: var(--ink); opacity: 0.5; }
-.tbtns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: 14px; display: grid; grid-template-columns: repeat(2, 56px); gap: 10px; pointer-events: auto; }
+.tbtns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: 14px; display: grid; grid-template-columns: repeat(3, 56px); gap: 10px; pointer-events: auto; }
 .tbtns button { height: 56px; border-radius: 50%; padding: 0; font-size: 12px; touch-action: none; }
 .tbtns button.on { background: var(--ink); color: var(--bg); }
 @media (max-width: 700px), (pointer: coarse) { .keys { display: none; } }
@@ -126,10 +126,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
-          <div class="tbtns"><button type="button" data-tbtn="DODGE">Dodge</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
+          <div class="tbtns"><button type="button" data-tbtn="DODGE">Roll</button><button type="button" data-tbtn="DASH">Dash</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
         </div>
       </div>
       <div class="bar">
@@ -141,7 +141,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <section class="card"><h2>Last press</h2><div class="last"><div id="lastBig">–</div><div id="lastWhat">Press jump or attack.</div></div></section>
       <section class="card"><h2>Input</h2>
         <div class="inputs"><svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="var(--line)" stroke-width="2"></circle><circle id="knob" cx="20" cy="20" r="5" fill="var(--hero)"></circle></svg>
-        <div class="btns"><span id="bJ">JUMP</span><span id="bA">HIT</span><span id="bD">DODGE</span><span id="bS">RUN</span></div></div>
+        <div class="btns"><span id="bJ">JUMP</span><span id="bA">HIT</span><span id="bD">ROLL</span><span id="bX">DASH</span><span id="bS">RUN</span></div></div>
         <span id="padname"></span>
         <dl id="st"></dl>
       </section>

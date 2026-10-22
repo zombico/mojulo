@@ -7,8 +7,9 @@
  * active + recovery as the take shares them. The card's wings deepen the wind-up and the follow-through about ready,
  * and the promise holds: the fist meets its contact point on the contact frame. Realistic's card is the take's own
  * time, so its fitted frames are the take's frame for frame. The jump's gather is fitted to the commit, its air is
- * read by vertical speed (the kernel flies it), its landing to the card's land frames. The dodge is a roll fitted to
- * its frames. The reaction is the library's, its depth by the blow the card hands on.
+ * read by vertical speed (the kernel flies it), its landing to the card's land frames. The dodge is a roll for each way
+ * it can go (forward, right, left, back) fitted to its frames. The reaction is the library's, its depth by the blow the
+ * card hands on.
  *
  * The BODY is the character's half: per take its reach (the fist ahead of the body's centre at contact) and its real
  * blow (the spike's momentum Δv), the cycles' natural speed and stride travel, the mass. Another cast reaches shorter
@@ -108,9 +109,13 @@ export function bake(cast = 'male') {
     const gather = Array.from({ length: J.commit + 1 }, (_, k) => pack(rigNodesAt(R, jc.fn(J.commit ? (off * k) / J.commit : off)).nodes, about));
     const air = Array.from({ length: AIR + 1 }, (_, k) => { const n = rigNodesAt(R, jc.fn(off + ((on - off) * k) / AIR)).nodes; return pack(n, centre(n)); });
     const land = Array.from({ length: Math.max(1, J.land) }, (_, k) => pack(rigNodesAt(R, jc.fn(on + ((1 - on) * (k + 1)) / Math.max(1, J.land))).nodes, about));
-    const D = card.dodge, rollName = D.kind === 'sidestep' ? 'rollSide' : 'rollForward';
-    const rc = keyedClip(JUMPS[rollName], R);
-    const dodge = D.kind === 'roll' || D.kind === 'sidestep' ? Array.from({ length: D.frames + 1 }, (_, k) => { const n = rigNodesAt(R, rc.fn(k / D.frames)).nodes; return pack(n, centre(n)); }) : null;
+    // the directional roll: the library's roll forward, its side rolls (right, and the mirrored left), its hop back,
+    // each fitted to the card's frames for that way (a back one shorter)
+    const D = card.dodge, ROLLS = { fwd: 'rollForward', right: 'rollSide', left: 'rollSideLeft', back: 'jumpBack' };
+    const dodge = Object.fromEntries(Object.entries(ROLLS).map(([way, name]) => {
+      const rc = keyedClip(JUMPS[name], R), n0 = way === 'back' ? Math.round(D.frames * D.back.frames) : D.frames;
+      return [way, Array.from({ length: n0 + 1 }, (_, k) => { const n = rigNodesAt(R, rc.fn(k / n0)).nodes; return pack(n, centre(n)); })];
+    }));
     // the reaction the card's blow causes: the library's, its peak scaled by the blow shown (the spike's reactGain)
     const shown = (take) => { const F = card.hit.force; return F.model === 'momentum' ? body.dv[take] * F.gain : F.model === 'boop' ? F.push : F.floor * F.restitution; };
     const look = { ...A.FLAVORS[id], hitstop: null, windHold: 0, name: id };

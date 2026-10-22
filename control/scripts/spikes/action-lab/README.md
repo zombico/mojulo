@@ -105,21 +105,27 @@ The card's `air` and `cling`, on the three non-realistic feels:
 - **Pinball's walls** are bumpers above 3 m/s; slower than that in the air they are plain walls, so a body can come to
   rest on one and slide.
 
-## The dashes (Mega Man X)
+## Two getaways: the directional roll and the dash
 
-The card's `dodge` grows X's dashes on the three non-realistic feels:
+Two buttons. **DODGE** (K, gamepad B) is the **directional roll**, the card's `dodge`: it goes the way the stick points
+while the body keeps its facing, so it reads as a roll forward, a roll to the left or the right, or a hop back (the hero
+library's roll forward, side roll and its mirror, and hop back, each fitted to the roll's frames). With the stick at
+rest it is a **backstep**, shorter, as in Dark Souls and Devil May Cry. **DASH** (L, gamepad RB) is the dash, the card's
+`dash`, with Mega Man X's moves on the three non-realistic feels.
 
-| feel | the ground dodge | air dash | dash jump | X's held dash | dash wall jump |
-|---|---|---|---|---|---|
-| **realistic** | a sidestep | none | none | no | no |
-| **action** | the roll (invincible 2–15) | 1, 9 m/s, 14 f | out of the roll, at its speed | no | yes, 8.5 m/s |
-| **platformer** | X's dash, 9 m/s | 1, 9 m/s, 24 f at most | yes, 9 m/s | yes: 30 f at most, 6 at least | yes, 9 m/s |
-| **pinball** | the boost | 1, a boost in the air | yes, at the boost's speed | no | yes, at the run's 12 m/s |
+| feel | the roll | invincible | back (and the backstep) | the dash | air dash | dash jump | X's held dash | dash wall jump |
+|---|---|---|---|---|---|---|---|---|
+| **realistic** | a step, 3.2 m/s, 22 f | no | 0.7× the speed, 0.8× the frames | none (it sprints) | none | none | no | no |
+| **action** | a roll, 8.5 m/s, 24 f | 2–15 | 0.7×, 0.75× | a quick dash, 12 m/s, 14 f | 1, 9 m/s, 14 f | yes | no | yes, 12 m/s |
+| **platformer** | a roll, 8 m/s, 20 f (Mario Odyssey's) | no | 0.7×, 0.75× | X's dash, 9 m/s | 1, 9 m/s, 24 f at most | yes | yes: 30 f at most, 6 at least | yes, 9 m/s |
+| **pinball** | a roll, 10 m/s, 16 f | 0–8 | 0.7×, 0.75× | the boost (invincible 0–20) | 1, a boost in the air | yes, at the boost's speed | no | yes, at the run's 12 m/s |
+
+No feel rolls in the air; the press is dropped with its reason.
 
 - **The air dash** switches gravity off for its frames and goes at the air dash's speed, once an airtime. Landing and
   a wall give it back, and out of it the air keeps its speed.
-- **The dash jump** is a jump pressed inside a ground dodge. It leaves on the press (action's 3-frame gather is
-  skipped) and the air keeps the dodge's speed until landing. A plain running jump's air tops out at the run.
+- **The dash jump** is a jump pressed inside a ground dash. It leaves on the press (action's 3-frame gather is
+  skipped) and the air keeps the dash's speed until landing. A plain running jump's air tops out at the run.
 - **X's held dash** lasts while the button is held, up to its frames, and a tap gives the minimum.
 - **The dash wall jump** is a wall jump with the dash held. It kicks at the dash's speed and the air keeps it. A dash
   pressed while on the wall is held for the kick, not spent as an air dash.
@@ -150,7 +156,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 127 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 139 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -194,11 +200,15 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     the wall, rising its share of the jump. A jump inside the wall's coyote time still kicks.
   - Action and platformer climb one wall by held kicks (each kick higher than the last); pinball does not. Touching a
     wall gives the air jump back. Realistic has none of it.
+- **The directional roll.** Each feel's roll goes along the stick, forward, right, back and left, with the facing
+  unchanged to the bit, and each reads its way. The stick at rest is a backstep exactly as long as a roll back, and
+  shorter than a roll forward (action: 1.21 m against 2.30). A roll pressed in the air is dropped. A telegraphed hit
+  inside the roll's invincible frames is evaded, rolling forward into it.
 - **The dashes.**
   - Each non-realistic feel's air dash holds its height exactly for its frames at its speed. A second in the same
     airtime is refused, saying it is spent, and landing gives it back.
-  - The dash jump leaves on the press and every air frame keeps the dodge's speed: 7.76 m/s against a plain jump's
-    6.5 in action, 9 against 6 in platformer, 18.8 against 3.1 in pinball.
+  - The dash jump leaves on the press and every air frame keeps the dash's speed: 12 m/s against a plain jump's 6.5
+    in action, 9 against 6 in platformer, 18.8 against 3.1 in pinball.
   - The platformer's dash ends at 6 frames when tapped and at 30 held.
   - The dash wall jump kicks at the dash's speed and still has it after the kick.
   - Realistic has none of it.
@@ -219,7 +229,8 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (in the air, the stomp
-  attack; action's is S + J, back and attack), K dodge. A standard
+  attack; action's is S + J, back and attack), K dodge roll, L dash. Gamepad: A jump, X attack, B roll, RB dash, RT
+  sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
 - **Feel and settings.** 1–4 switch the feel; C switches the cast (the same card on the other body). T toggles a
