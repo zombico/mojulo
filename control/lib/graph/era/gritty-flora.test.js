@@ -53,8 +53,9 @@ describe('gritty flora', () => {
     expect(of(Q, 'isekai:crown').some(detailed)).toBe(false);
     expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
     expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
-    // (its crowns in lumped lobes, more faces than the quiet one's masses, their tints darker toward the core)
-    expect(of(G, 'isekai:crown').length).toBeGreaterThan(of(Q, 'isekai:crown').length);
+    // (its crowns in lumped lobes, not the quiet one's spheres, their tints darker toward the core)
+    const shape = (P) => of(P, 'isekai:crown').map((f) => JSON.stringify(f.corners)).sort().join('|');
+    expect(shape(G)).not.toBe(shape(Q));
     const tints = (P) => new Set(of(P, 'isekai:crown').map((f) => f.fill)).size;
     expect(tints(G)).toBeGreaterThan(1);
     // (its clouds hi-def, the cutouts with them; a quiet land's pixel-locked)
@@ -96,5 +97,10 @@ describe('gritty flora', () => {
     expect(cards(G).length).toBeGreaterThan(0);
     expect(cards(G).every((f) => /:leafcard-b[0-3]\+hd$/.test(f.texture) && !f.textureLit && G.cutouts.includes(f.texture))).toBe(true);
     expect(cards(Q)).toHaveLength(0);
-  }, 60000);
+    // (a bush is a crown's kin: it stands leaf cards too, and its faces are lumped, not the design's)
+    const B = assembleIsekaiScene({ style: id, shading: { grit: 0.7 }, shrubs: { count: 6 } }), QB = assembleIsekaiScene({ style: id, shading: true, shrubs: { count: 6 } });
+    expect(cards(B).length).toBeGreaterThan(cards(G).length);
+    const bush = (P) => P.faces.filter((f) => f.group === 'flora:bush').map((f) => JSON.stringify(f.corners)).sort().join('|');
+    expect(bush(B)).not.toBe(bush(QB));
+  }, 90000);
 });

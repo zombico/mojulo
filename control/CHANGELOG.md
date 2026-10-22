@@ -148,6 +148,9 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
 - **Leaf cards on the crowns' outline.** A gritty cube's look carries the leaf card's tile on its own foliage ramp, and
   its land stands the kit's leaf cards out of each crown mass (as the realistic pole does), each its band's tile drawn
   hi-def in the foliage's stops: a crown's edge is leaves, not a dome's curve.
+- **Bushes the same.** A gritty land's bushes are lumped about their own middles as a crown's lobes are and stand leaf
+  cards like a crown's mass. (The lobes are coarse, twenty facets: the cards carry the outline; a gritty grove town is
+  about 64,000 faces against a quiet one's 50,000.)
 - **The clouds.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the kit's
   own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest stops, the
   cutout's edge kept whole.

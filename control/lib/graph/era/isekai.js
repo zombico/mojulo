@@ -389,7 +389,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const shrubAsk = manifest.shrubs !== undefined ? manifest.shrubs : B?.flora.shrubs ?? undefined;
   const shrubErr = validateShrubs(shrubAsk); if (shrubErr.length) throw new Error(`isekai: ${shrubErr.join('; ')}`);
   const shr = placeShrubs(st.shrubs, shrubAsk, site, { rocks, trees, unit: st.rubble.unit, reserved: site.reserved }, seed);
-  const shrRaw = ikebanaFaces(st, shr).map((f) => ({ ...f, group: SHRUB_GROUP }));
+  const shrRaw0 = ikebanaFaces(st, shr).map((f) => ({ ...f, group: SHRUB_GROUP }));
+  // (on a gritty land a bush is a crown's kin: its faces lumped about its own middle, and it stands leaf cards like a
+  // crown's mass, below)
+  const bushes = broken ? bushMasses(shrRaw0) : [], shrRaw = broken ? lumpBushes(shrRaw0, bushes, broken) : shrRaw0;
   const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid];
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
@@ -512,7 +515,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // rather than lit by the vertex, so a crown's outline is leaves on either pole)
   if ((MAT || broken) && st.tiles.leafcard) {
     const fillL = lumaOf(fill0);
-    for (const t of trees) for (const [mi, m] of (t.masses ?? []).entries()) {
+    for (const t of [...trees, ...bushes]) for (const [mi, m] of (t.masses ?? []).entries()) {
       const N = 6 + Math.round(m.r * 4);
       for (let i = 0; i < N; i++) {
         const zc = 1 - 1.7 * ((i + 0.5) / N), rr = Math.sqrt(Math.max(0, 1 - zc * zc)), az = i * 2.39996 + hash3(mi, i, 1201) * 0.6, d = unit([Math.cos(az) * rr, Math.sin(az) * rr, zc]);
@@ -1050,6 +1053,25 @@ function limb(out, pts, radii, sides, scale) {
 // a gritty crown's lobes: each mass three overlapping lobes about its middle (a little out from the crown's),
 // every vertex pushed by a lumpy noise, and a face's tint darkened by how deep in the crown it lies (the dark core)
 const LOBES = 3;
+// a bush's middle and reach, from its faces (each carries its bush's id, `node`): a crown's mass for the leaf cards
+function bushMasses(faces) {
+  const by = new Map();
+  for (const f of faces) { const b = by.get(f.node) ?? { pts: [] }; for (const c of f.corners) b.pts.push(c); by.set(f.node, b); }
+  return [...by.values()].map(({ pts }) => {
+    const c = mean(pts), r = Math.max(...pts.map((q) => Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2])));
+    return { node: null, at: c, masses: [{ at: c.map(r5), r: r5(r * 0.75), squash: 0.85 }] };
+  }).map((b, i) => ({ ...b, node: [...by.keys()][i] }));
+}
+// a bush's faces lumped about its middle as a crown's lobes are (more with grit), their normals taken again
+function lumpBushes(faces, bushes, grit) {
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), lump = 0.14 + 0.16 * t, at = new Map(bushes.map((b) => [b.node, b]));
+  return faces.map((f) => {
+    const b = at.get(f.node); if (!b) return f;
+    const c = b.at, R = b.masses[0].r || 1;
+    const cs = f.corners.map((v) => { const q = 1 + lump * (2 * vnoise(v[0] / (0.3 * R), v[1] / (0.3 * R) + v[2] / (0.3 * R), 1321) - 1); return P([c[0] + (v[0] - c[0]) * q, c[1] + (v[1] - c[1]) * q, c[2] + (v[2] - c[2]) * q]); });
+    return { ...f, corners: cs, normal: facetN(cs.length === 3 ? cs : cs.slice(0, 3), sub(mean(cs), c)) };
+  });
+}
 function crownLobes(m, c, Rc, k, mi, grit) {
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), out = unit(sub(m.at, c)), lobes = [];
   for (let j = 0; j < LOBES; j++) {
@@ -1094,7 +1116,8 @@ function treeFaces(st, site, trees, grit = 0) {
     // (a gritty crown: lobes, lumped, its core dark)
     else masses.forEach((m, mi) => {
       const { lobes, lump, deep } = crownLobes(m, c, Rc, k, mi, grit);
-      for (const L of lobes) for (const tri of blobTris(L.at, [L.r, L.r, L.r * C.squash], null, { detail: 1 })) {
+      // (each lobe coarse, twenty facets: the leaf cards carry the outline, the lobes its clumps)
+      for (const L of lobes) for (const tri of blobTris(L.at, [L.r, L.r, L.r * C.squash], null, { detail: 0 })) {
         const cs = tri.p.map((v) => { const n = vnoise(v[0] / (0.16 * Rc) + 3.1 * ti, v[1] / (0.16 * Rc) + v[2] / (0.16 * Rc), k + 1311), q = 1 + lump * (2 * n - 1); return P([L.at[0] + (v[0] - L.at[0]) * q, L.at[1] + (v[1] - L.at[1]) * q, L.at[2] + (v[2] - L.at[2]) * q]); });
         const nn = facetN(cs, sub(mean(cs), L.at)), depth = Math.min(1, Math.hypot(...sub(mean(cs), c)) / (Rc * 1.1)), dk = 1 - deep * (1 - depth);
         out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint.map((v) => r5(v * dk)), group: crownGroup });
