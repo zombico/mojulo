@@ -141,9 +141,15 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
-    // (under a styled beard of a lock's length, the skin in the hair's colour, as the scalp's under its groom: a gap between
+    // (under a styled beard, the skin in the hair's colour, as the scalp's under its groom: a gap between
     // the locks, foreshortened where they point at the eye, reads as beard, never as the shaven shadow's grey)
-    if (D.beardStyle && beardD > 0.5) { const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)); if (bl > 4) col = mixc(col, hairLin.map((x) => x * 0.8), 0.8 * Math.min(1, (bl - 4) / 4) * Math.min(1, beardD / 55)); }
+    // (as much as the hair covers it: the more the longer and the denser; faded in with the beard's region itself, so it is
+    // nothing where the hair stops and no line marks the style's edge)
+    if (D.beardStyle && beardD > 0.5) {
+      const bl = lerp((s) => (s.hair.tract === 'beard' ? s.hair.length : 0)), bw = lerp((s) => s.regions.beard || 0);
+      const share = 0.85 * smooth(0.5, 8, bl) * Math.min(1, 0.5 + 0.35 * beardD / 55) * smooth(0.3, 0.8, bw);
+      if (share > 0) col = mixc(col, hairLin.map((x) => x * 0.8), share);
+    }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
     if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
@@ -169,6 +175,8 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
  * a near-black, `near` of its colour: the nostrils, the mouth's line, the sockets' corners, the ear's folds) */
 const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6, knee: 0.9, near: 0.1 });
 /** the deep curve's fall past its knee (0 … 1, smooth) */
+/** a smoothstep from a to b */
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const smoothKnee = (o) => { const t = Math.max(0, Math.min(1, (o - SHADE.knee) / (1 - SHADE.knee))); return t * t * (3 - 2 * t); };
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
 export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
