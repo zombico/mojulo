@@ -19,14 +19,16 @@ const hash = (cast, outfit) => {
 
 // (boots and sandals re-pinned once: a strap became the tailor's one band, `bandAt`, whose caps take their ring's mixed
 // weights, where the footwear's own copy had left them on the upper's bone; nothing else in their parts moved; the
-// jacket's twice: the gi cinched 8 mm past its belt each side, so the belt is a band and not a cone up to the blouse)
+// jacket's twice: the gi cinched 8 mm past its belt each side, so the belt is a band and not a cone up to the blouse;
+// boots and sandals again at the merge of the footwear library, which makes them now (lib/graph/footwear: layered
+// soles, the card's adornments), its own byte pin in footwear.char.test.js)
 const PINS = {
   'gathered, male': { cast: 'male', outfit: ['martialPants'], hash: '29b724313540708d' },
   'to the floor, female': { cast: 'female', outfit: ['wideTrousers'], hash: '33172caef3f632a2' },
   'jacket over, male': { cast: 'male', outfit: ['martialPants', 'gi'], hash: 'a751dce1d22f1290' },
   'jacket over, female': { cast: 'female', outfit: ['martialPants', 'gi'], hash: '6764b0b73238dfeb' },
-  'boots, male': { cast: 'male', outfit: ['boots'], hash: '1f700a2bb84e1b5e' },
-  'sandals, female': { cast: 'female', outfit: ['sandals'], hash: 'b677f82a7dd87c20' },
+  'boots, male': { cast: 'male', outfit: ['boots'], hash: 'bba218d019b9d024' },
+  'sandals, female': { cast: 'female', outfit: ['sandals'], hash: '770ba3a90fec3ebf' },
 };
 
 describe('the tailored words, byte for byte', () => {

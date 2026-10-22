@@ -249,17 +249,197 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
 
-### Footwear: a composable primitive
+### Footwear: a solver library, an adapter per body's foot
 
-In progress (on the realistic body first; a solver library with an adapter per body's foot next).
-`polygonizer/body-relational-footwear.js` `footwear(recipe, R, build, map, spec)`: an UPPER (leather close over the foot
-and its toes, a field garment; `upper: false` none, a sandal) at a HEIGHT (`boot`: carried up the shank as a shaft, the
-foot's leather tucked under it round the ankle; `shoe`: from a collar below the ankle), and ADORNMENTS: a SOLE under the
-foot and under the toes (split at the toe base so it bends with them; the footprint's outline grown by a welt, from the
-floor up), STRAPS round the upper (or the bare foot) and a BUCKLE on each one's outer side, each carried by the weights
-of the upper's nearest point. New groups `Sole`, `Strap`, `Brass` (their tones added to a palette that names none). The
-words on the realistic body: `boots`, `shoes` (new), `sandals` (new; on the authored body a low close shoe).
-`fieldGarment` takes `covers: null` (every ring of the segments it is `on`).
+In progress (the library and the realistic body's adapter first; heels, laces and the other bodies' feet next).
+`lib/graph/footwear/`, on the armour and outfit pattern: footwear in THREE LAYERS (`principles.js`), the SOCK (the
+protosock, the shoe's close outer layer and its bottom colour: a height and a thickness, none for a sandal), the SOLE
+(its layers stacked from the floor up, each with its own thickness, welt and group: an outsole, a midsole, a stripe; a
+layer's patterns: `pod` an air window at the heel, proud of its wall; `heel` a block under the print's rear, a dress
+heel on the still-flat foot; `lugs` tread round its edge) and the ADORNMENT the solver lays over them
+(`ADORN_PRIMS`: `strap` with a `buckle`, `band` (gilding), `cuff` at the sock's collar, `toeCap` (a quarter egg over the
+toes, mapped from the toe base to the frontmost toe with a toe allowance past it (`room`), the leather under it tucked
+inside, `rivets` round its back edge, small and dark a brogue's perforations; in the leather's own group a sleek toe);
+`panel`, a pattern piece on the upper as a cobbler cuts it (`cobbler.js` COBBLER_REGIONS in the sock's own
+coordinates, along the foot and round from the instep's centre line: the `tongue` (standing above the collar by its
+`rise`), the `eyestay`s, the `vamp`, the `quarter`s, the `counter`, the `foxing`; or an inline region), a MATCHING PAIR,
+lateral and medial, where the piece has two sides; `laces` criss-cross between the eyestays over the tongue; any of
+them in a `group` of its own). Composed by CARDS (`styles.js`, pure data: a new look is a card), each annotated
+with its `family` (shoe, boot, sandal, sneaker, dress); a card EXTENDS another (`from`: its sock merged, `adornPlus`
+appended, its tones merged), and wears any COLOURWAY (`skin`: `SKINS` tripleBlack, tripleWhite, volt, navy, oxblood,
+tan, or its own tones by group), the pieces' groups being roles (Overlay, Counter, Eyestay, Midsole …); by passes in a fixed order (`expand.js`: sock, sole, adorn, tone; tones
+only for the groups laid), refused by name (`validateFootwear`). Worn on any body through its FOOT ADAPTER (`adapters/`:
+which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the bare skin a sandal is worn
+on, the body's own way to lay the sock, and how a share along a segment names its stations): a card's places are shares
+of a segment, so it reads on any body. `wearFootwear(adapter, card)`.
+The realistic body (`adapters/realistic.js`; `polygonizer/body-relational-footwear.js` re-exports it): the sock a field
+garment, close over the foot's forms (`boot`: up the shank as a shaft, the foot's leather tucked under it round the
+ankle; `shoe`: from a collar below the ankle; its `thick` the leather's ease). The words on the realistic body: `boots`,
+`shoes` (new), `sandals` (new; on the authored body a low close shoe), `workBoots` (a steel toe, riveted),
+`adventurerBoots` (a thicker sock, a deep sole, a cuff, a gilt band, a buckled strap), `sneakers` (a court shoe: a white
+cupsole on a gum outsole, a rubber toe bumper) and `runners` (a foam midsole with an air pod, a contrast stripe), both
+cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the heel counter. SPORTS varieties over them:
+`highTops` (over the ankle, a padded collar, an ankle strap, a deep cupsole on air), `skateShoes` (a vulcanized sole, a
+suede vamp, a side stripe), `trailRunners` (a lugged outsole, a toe guard). DRESS shoes (a sleek sock, a leather sole on
+a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforated round the cap), `derbies` (open
+lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
+a pull tab). BOOTS cut as a cobbler cuts them: a region's `shaft` carries its piece on up a boot's shank (the quarters past the
+ankle, wrapping round to meet at a back seam; the tongue up the front, standing above the top; the eyestays beside it,
+the laces on up between them, `shaftRows`; where the foot's piece begins below the ankle, a bridge on the foot's
+leather cut round as the shaft's, so no plain leather shows between them), so any boot-height card is cut up the leg
+and a shoe is not. Cards
+`hikingBoots` (lugged, a padded collar, a toe guard), `combatBoots` (laced to mid-calf), `chukkas` (suede, a crepe
+sole), `cowboyBoots` (pull tabs, a stitched band, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
+plain shaft, a low heel); `workBoots` laced. FANTASY, DRAMA AND HISTORY (`fantasy.js`): primitives the cobbler's pieces do not make, composed by cards like any
+other: `toePoint` (the toe drawn out past the toes, tapering, curled up by its degrees, a `bell` on its tip), `wrap` (a
+ribbon spiralled up the leg, on the leather or the bare leg above a short boot; `cross` a second the other way),
+`flare` (a funnel rising from a boot's top and opening out), `buttons` (a row up a boot's side), `spur` (a neck from the
+heel and a star rowel), `wings` (a fan of feathers at each side of the ankle), `jewel` (a stone on the toe, the instep or
+the ankle), `fur` (a shaggy ruff round the collar, or round the leg at a share: tufts and a drooping fringe of seeded
+lengths); the heel kind `teeth` (a board on two teeth, the foot raised level when the toes stand as high as the heel).
+Families `historic` and `fantasy`. Cards `poulaines`, `jesterShoes`, `persianSlippers`, `romanCaligae` (hobnailed),
+`gladiatorSandals`, `vikingWraps`, `cavalierBoots`, `buttonBoots`, `geta`, `elvenBoots`, `talaria`, `furBoots`, `barbarianBoots`. On the authored body
+a card wears its boot, sandal or shoe by its sock. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
+tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
+`station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
+metatarsus `pitch` degrees heel-up, or the pose's own heel where it lifts further, a free foot's toes turned down by the
+pitch; absent, nothing changes), solved from the foot's own heel-to-ball length so the legs keep their length; the soles
+and the heel cut against where the ground will be under that pose, rigid on the foot's and the toes' bones, the heel
+leaned in the bind so it stands plumb when worn, a slender heel's foot under the back of the seat. Cards `pumps`,
+`blockHeels`, `wedges`, `platforms`; `chelseaBoots` on a low block heel. A tone may be `{ of: <group>, shade }` (that
+group's colour darkened or lightened, read after the palette: `readTones`), so recolouring `Shoes` carries the pieces
+cut from it; the dress cards use it. A card's or its skin's named tones stand over the palette's defaults, the
+operator's palette over all. body-study `--dress` paints the shoes in their own colours; a rig with a stance stands the
+bind in it; `--crop shin` frames a tall boot whole. On the
+authored body the library's other words are its boot, its sandal or its shoe by the card's family, for now. `boots`, `shoes` and `sandals` are pinned byte for
+byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
+segments it is `on`). body-study `--dress` colours each footwear group by its tone.
+
+### Handwear: a solver library, an adapter per body's hand
+
+The footwear library's sibling for the hands (lib/graph/handwear): a CARD (pure data, a family, `from` its kin, `skin` a
+colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gloves the way the shoes are made.
+- THE PROTOGLOVE: the palm's and the digits' own rings stood off by the leather's thickness, a digit cut at its middle
+  joint or at its knuckle where the card's `fingers` (and `thumb`) say, its end closed inside the finger; the cuff up
+  the forearm by its share (the realistic adapter's close leather, a field garment); a glove with no cuff tucks its
+  first ring under the forearm's skin. `glove: false` lays the adornment on the bare hand.
+- THE GLOVER'S CUT (cutter.js): pieces in the hand's design coordinates (the plating library's fitted shell: along the
+  segment, round it from the back of the hand, the thumb's side +, the palm ±1), named `back`, `palm`, `heel`,
+  `knuckles`, `fingerBacks`, `fingerPads`, `thumb`, or `{ seg, t, s }`.
+- ADORNMENT PRIMITIVES (`ADORN_PRIMS`): a piece, the points stitched down a dress glove's back, a cuff, a strap (a snap
+  or a buckle on its back), a flared gauntlet cuff from the wrist, a hard knuckle guard, studs, a knight's lames, rings
+  with stones, a stone on the back or the knuckles, claws curled toward the palm (each rigid on its last phalanx), fur, a
+  fighter's crossed wraps. Each takes its surface's weights.
+- CARDS by family: glove (`gloves`, `suitGloves`, `fingerless`, `mitts`), dress (`dressGloves`, `operaGloves`,
+  `drivingGloves`), work (`workGloves`, `weldingGloves`, `gardenGloves`), sport (`bikerGloves`, `cyclingGloves`,
+  `goalkeeperGloves`, `fightGloves`, `skiGloves`, `handWraps`), historic (`cavalierGloves`, `falconryGlove`,
+  `knightGauntlets`, `bishopGloves`), fantasy (`clawGloves`, `sorcererGloves`, `furGloves`, `gemGauntlet`); colourways in
+  `SKINS`; a piece's tone may be OF the leather's.
+- SPORT AND DRESS VARIETIES, skinnable as the shoes are: sport `battingGloves`, `golfGloves`, `liftingGloves`,
+  `receiverGloves`, `racingGloves`, `hockeyGloves`, `tacticalGloves`; dress `kidGloves`, `walkingGloves`, `winterGloves`, `eveningGloves`, `mousquetaireGloves`,
+  `bridalGloves`, `ceremonialGloves`, `perforatedDrivers`, most a variety of their kin (`from`). Primitives `buttons`
+  (a row at the wrist's opening, up the inner forearm along a long cuff) and `perf` (a grid of perforation over a
+  region, on each digit of a digits one). Colourways for sport (`tripleWhite`, `infrared`, `royal`, `hiVis`, with
+  `volt`, `navy`) and for leather (`cognac`, `chocolate`, `dove`, `burgundy`, `ivory`, with `tan`, `oxblood`): a
+  leather colourway carries every piece whose tone is OF the leather. The knight's and the stone gauntlet are the
+  `gauntlet` family's.
+- THE MITTEN SHELL (a card's `mitten: { pad, grip, thumb }`): one closed padded form over the palm and the four fingers
+  in place of their gloves, made round the gloved hand as spheres (the palm's surface, each digit's bones sampled
+  along) sliced from the wrist on past the fingers, each slice read out from its middle, its front rounding off where
+  the spheres end. With a `grip` (a hand word: a boxing glove's `fist`) the shell is made round the closed hand, rigid
+  on the hand bone, and the body HOLDS THE GRIP AT REST (station-loft-rig.js `holdGrip`: the hand's joints and every
+  part riding the digits' bones turned into it by the rig's own curl), so the bind, every pose and an export keep the
+  fist inside it; without one the shell bends with the fingers inside it, each point taking its nearest skin's
+  weights. `thumb: 'apart'` keeps the thumb in its own sheath. Words `boxingGloves` and `sparringGloves` (a fist, its
+  thumb sewn to its side), `mittens` (knit, the thumb apart).
+- FANTASY AND HISTORIC MITTENS on the shell. `mitten.free` leaves any digits outside it in their own sheaths (a
+  trigger finger); a piece aimed at a digit inside the shell skips it, and claws grow from the bare tips through it. The
+  primitive `ribs` lays bands across the shell, spaced by its length (lames, scales, trim, cracks). Historic
+  `mailMittens` (a mail muffler), `mittenGauntlets` (Gothic, steel lames to the fingertips, the thumb's own),
+  `lobsterGauntlets` (blued, lames from the back of the hand), `triggerMittens`, `arcticMittens` (sealskin, trim, fur);
+  fantasy `bearPaws`, `pincerGauntlets`, `golemFists` (a stone fist held closed), `dragonClaws`.
+- Every card is an outfit word, worn on either body through its adapter (its parts riding their segments' dials, its
+  tones under the operator's palette). THE AUTHORED BODY wears them too (adapters/authored.js): the same hand as the
+  realistic body's, its glove's cuff new rings sampled round up the authored forearm's few coarse ones, their weights
+  mixed from the rings either side. A mitten's grip marks the hand `held` (station-loft-rig.js): a pose's own fingers
+  no longer curl it on past its glove's fist (a guard's fist had curled the thumb out through the shell); its wrist
+  still turns. body-study paints its groups, a palette's colour
+  first.
+- The fitted shell reads a coarse ring (the hand's eight points, a digit's six) as it is, unsmoothed: easing toward
+  neighbours that far round had lifted the flat back of the hand about 7 mm off it.
+
+### Wearables sized to the body: no one wears the same size shoe
+
+The footwear and the handwear libraries' cards were drawn on the realistic man (every sole, heel, welt, strap, cuff,
+claw and mitten's padding in his metres), so the realistic woman, the tall and the short builds wore his sizes. Now each
+is worn at the body's size: an adapter reports its body's foot (heel to toe tip along the foot: `footLength`) or hand
+(the wrist to the middle finger's tip: `handLength`), and where it differs from the reference the cards were drawn for
+(`FOOT_REFERENCE`, `HAND_REFERENCE`, the realistic man's), the body is carried to the reference's size, the card worn
+there unchanged (its lengths, the library's defaults and its tolerances alike), and every piece carried back, a heel's
+stance with them; the adapter's own close-fit distances (the leather's ease, the envelope's reach) take the scale too.
+The reference body is worn as it was, byte for byte (its pins hold). Both libraries' realistic adapters and the
+authored hand adapter report their size; the plated suit's feet and hands, being these libraries' cards, follow.
+
+### Plating: segment-paneled armour on the realistic body
+
+In progress (the realistic body first; joint caps, glow seams and the other bodies next). `lib/graph/plating/`, a module
+of its own beside the armour (it leaves `armor/` and the realistic fit untouched; the hard-suit can adopt it): a powered
+suit as TWO LAYERS, an undersuit (a close field garment over the trunk and the limbs) and PLATES over it, each a REGION
+of one segment in that segment's own coordinates (`regions.js` PLATE_REGIONS: along it, round from its front line;
+chest, abs, flank, back, lumbar, belt, hip, shoulder, bicep, triceps, gauntlet, thigh, thighOuter, hamstring, shin,
+calf; or an inline region), cut from the suit's own grid and standing off it by its `lift` (footwear/cobbler.js
+`panelOn`), never across a joint; split into `rows` whose gaps are the PANEL LINES; a matched pair where the region has
+two sides; a REACTOR disc on the sternum in a rim, its group rendered full-bright (`emissive`). Composed by SUIT cards
+(`styles.js`, pure data; `from`, `platesPlus`, a `skin` colourway), refused by name (`validatePlating`). Outfit words on
+the realistic body: `powerSuit` (red and gold), `stealthSuit` (black, wide panel lines), `heavySuit` (gunmetal, far
+standoff, more rows), `sleekSuit` (white, few plates); on the authored body none yet. body-study `--dress` paints a
+suit's groups in their own colours.
+FITTED SHELLS (the layout of a powered suit as a supercar's body is laid out, `shell.js`, `layouts.js`): a segment faired
+into one smooth shell (`fairShell`: its grooves bridged), cut along DESIGN LINES in its own coordinates (`t` down it,
+`s` round it, + its lateral side) into panels (`shellPanel`) fitted across narrow seams, bevelled down into them, domed
+where they cap, stacked by LAYER (an underplate, a trim strip, the overplate, a cap, a light), so the overplates'
+windows show the metal beneath; a mirrored panel's pair on the other side. Its lines run STRAIGHT and JOG (`stepped`:
+straight runs joined by short straight diagonals, neighbours sharing their jogs so they fit along them), each kink a
+sharp corner (a panel takes a section at every kink of its edges).
+MUSCLE-MAPPED SHELLS (`muscles.js`): on a muscled segment the body draws the lines. The realistic body's muscle map
+(body-relational-map.js) gathered into PLATE GROUPS per segment (`MUSCLE_GROUPS`: the pectoral, the sternum, the collar,
+each row of the rectus, the oblique, the lat, the trapezius, the spine; the deltoid, the biceps, the triceps; the
+brachioradialis, the extensors, the flexors; the rectus femoris, the vasti, the adductors, the hamstrings, the knee),
+each plate's edges the boundaries between its muscle and its neighbours' (at the half-slot between them, so neighbours
+share them), STRAIGHTENED (`straighten`: held straight, jogging only where the groove moves and holds), so the seams fall
+in the grooves in the stepped style; each group its layer and colour role, an underplate under each segment. A suit's
+`muscles: { on, only?, bulk?, seam? }`. The suit `markSuit`: the trunk, the arms and the thighs cut by their muscles, the
+greaves, knee caps and sabatons below, a reactor on the sternum. The JOINTS banded (`joints`: two narrow articulated
+bands at the shoulder, the elbow, the wrist, the waist, the hip and the groin, the back of the knee; the armpit a banded
+group), the grooves wider (14 mm), the calf cut by its muscles (the gastrocnemius's two heads and the soleus, under the
+greave's front, `greaveFront`); the labels eased before the cut (a point takes the group most of its neighbours share);
+a point inside another part's skin (`hidden`) left out, and each segment's underplate and joint bands kept to the stretch
+of it that shows, so the inner of two overlapping skins does not poke through. Where the muscles interleave too finely
+to cut by (the lower back, the pelvis, the thigh toward the groin), a DESIGNED cut instead: `spine` (a dark channel down the back, a column of
+vertebrae, a sacrum ending in a chevron; a design line may run through the back, `s` past ±1), `lumbar` (stepped plates
+either side of the spine), `hips` (seat and hip plates, a codpiece, a low-abdominal plate), `thighs` (a quadriceps plate narrowing to the knee in a chevron, a
+trim strip down the outside, a side plate, an adductor plate inside, a teardrop over the vastus medialis, hamstring plates
+either side of a back seam); and SERVOS (`servos`: a hub at
+the outer and the inner side of each knee and elbow, a disc, a domed core and a light; a panel may be a `circle` sized in
+metres). `markSuit` cut by its muscles where they are clear and by design where they are not. Layouts `greave` (a chevron shin plate, side
+plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
+suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
+its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.
+GAUNTLETS: the hand and its digits are plating segments (a layout panel's `seg: 'fingers'` lays it on the four), and a
+suit names its `hands` (a handwear card: the glove the hand's plates are laid on, in the suit's group). Layouts
+`vambrace` (the forearm by design: a top plate over the extensors with a vent, a trim strip down the radius, a flexor
+plate, an ulnar plate across the back line, a cuff proud over the wrist), `gauntlet` (an underplate, a stepped back
+plate, a blade down the little finger's edge, a domed knuckle cap, a repulsor in the palm, a lame a phalanx on each
+finger and the thumb, low), `gauntletHeavy` (a studded knuckle bar, a thumb guard), `gauntletSleek` (one plate with a
+light line), `vambraceHeavy` (a ridge, a flared cuff). A shell may be laid on some of its segments (`{ layout, on }`).
+Suits `markGauntlets`, `heavyGauntlets`, `sleekGauntlets`, `bracers`; `markSuit` wears the vambraces and the gauntlets.
+A plate takes the weights of its surface's nearest point or, where the surface blends by ring (a digit's), its ring's,
+so a finger's lames curl with it.
+THE PARADIGM CLOSED OUT: a layout is data a card can carry. A shell entry is a layout's name or `{ layout | panels,
+drop?, plus?, name?, on?, bulk? }` (a layout of its own, named; or a named one with panels dropped by id and others
+added), a variety adds shells to its kin's (`shellsPlus`), and every panel is checked by name (`validatePanel`) before
+it is cut. The laws carry it (a layout is data; the extremities are their own libraries' cards), and docs/plating.md
+sets out the card, the passes, the laws and the adapter the three wearable libraries share.
 
 ### The hero's skin: a part of the character, shown where it shows
 

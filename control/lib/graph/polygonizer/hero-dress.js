@@ -27,6 +27,9 @@
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
 import { validatePaint } from './body-paint.js';
+import { FOOTWEAR, footwearCard } from '../footwear/index.js';
+import { SUITS } from '../plating/index.js';
+import { HANDWEAR } from '../handwear/index.js';
 import { validateGarments } from './body-garment.js';
 import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
 
@@ -200,6 +203,8 @@ export function lowerPaint(paint, plan) {
 const CHEST_UNDER = ['pectoral', 'bust', 'navel'];
 const torsoPiece = (id, g, k, sleeve, ease = 0.008) => [{ id, part: 'torso', ease: ease * k, over: CHEST_UNDER, group: g }, ...sleeve];   // up to the collar ring: the neck rises out of it
 const hem = (id, g, k, { structured }, ease = 0.012) => (structured ? [{ id: `${id}Hem`, part: 'pelvis', u: [4, 6], ease: ease * k, group: g }] : []);
+/** a footwear card's segment pieces on the authored body: another word's, each id led by the card's word */
+const footAs = (w, pieces) => pieces.map((p) => ({ ...p, id: `${w}${p.id[0].toUpperCase()}${p.id.slice(1)}` }));
 export const OUTFIT_WORDS = Object.freeze({
   tee: ({ scale: k, ...c }) => [...torsoPiece('tee', 'Top', k, [{ id: 'teeSleeve', part: 'upperArm', run: [0, 0.45], ease: 0.01 * k, flare: [0, 0.006 * k], group: 'Top' }]), ...hem('tee', 'Top', k, c)],
   shirt: ({ scale: k, ...c }) => [...torsoPiece('shirt', 'Top', k, [{ id: 'shirtSleeve', part: 'upperArm', ease: 0.01 * k, group: 'Top' }, { id: 'shirtCuff', part: 'foreArm', run: [0, 0.92], ease: 0.01 * k, group: 'Top' }]), ...hem('shirt', 'Top', k, c)],
@@ -223,10 +228,22 @@ export const OUTFIT_WORDS = Object.freeze({
   boots: ({ scale: k }) => [{ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' },
     { id: 'bootFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (the boot's foot alone, below the ankle; on the realistic body both are the footwear primitive's,
-  // body-relational-footwear.js)
+  // lib/graph/footwear)
   shoes: ({ scale: k }) => [{ id: 'shoeFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],
   // (on the authored body a sandal is a low shoe, close; on the realistic body the sole and the straps alone)
   sandals: ({ scale: k }) => [{ id: 'shoeSandal', part: 'foot', fit: 'shoe', ease: 0.003 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
+  // (the plating library's suits, lib/graph/plating: on the realistic body its undersuit and plates; on the authored body
+  // nothing yet, its adapter to come)
+  ...Object.fromEntries(Object.keys(SUITS).map((w) => [w, () => []])),
+  // (the handwear library's gloves, lib/graph/handwear: worn after the plan expands, on either body through its adapter;
+  // nothing in the plan)
+  ...Object.fromEntries(Object.keys(HANDWEAR).map((w) => [w, () => []])),
+  // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
+  // its sandal or its shoe by the card's sock, under ids of their own)
+  ...Object.fromEntries(Object.keys(FOOTWEAR).filter((w) => !['boots', 'shoes', 'sandals'].includes(w)).map((w) => {
+    const C = footwearCard(w), base = C.sock === false ? 'sandals' : C.sock?.height === 'boot' ? 'boots' : 'shoes';
+    return [w, (c) => footAs(w, OUTFIT_WORDS[base](c))];
+  })),
 });
 /** Error strings for the door's `outfit` (form; the plan grammar judges the pieces) */
 export function validateOutfit(outfit) {

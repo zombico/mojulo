@@ -168,6 +168,8 @@ Pointers only; each target carries its own design notes.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
+- What it wears: the wearable libraries [footwear/](control/lib/graph/footwear/), [handwear/](control/lib/graph/handwear/) and
+  [plating/](control/lib/graph/plating/) (card → passes → laws → adapter; a new look is a card): [docs/plating.md](docs/plating.md).
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

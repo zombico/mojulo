@@ -96,9 +96,11 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
 
   // FOOTWEAR: a boot (its shaft's share of the shank from the ankle) or a shoe
   const boot = garments.find((g) => g.id === 'boot' && g.fit === 'shoe'), shaft = garments.find((g) => g.id === 'bootShaft'), shoe = garments.find((g) => g.id === 'shoe' && g.fit === 'shoe');
-  for (const [word, P, spec] of [['boots', boot, boot && { ...FOOTWEAR.boots, ...(shaft?.run ? { shaft: 1 - shaft.run[0] } : {}) }], ['shoes', shoe, shoe && FOOTWEAR.shoes]]) {
+  // (the footwear library's cards: a boot's shaft its sock's, a share of the shank from the ankle)
+  for (const [word, P, spec] of [['boots', boot, boot && (shaft?.run ? { ...FOOTWEAR.boots, sock: { ...FOOTWEAR.boots.sock, shaft: 1 - shaft.run[0] } } : 'boots')], ['shoes', shoe, shoe && 'shoes']]) {
     if (!P) continue;
-    Object.assign(parts, footwear(recipe, R, build, map, spec, { id: word, group: P.group ?? 'Shoes' }).parts); Object.assign(tones, FOOTWEAR_TONES);
+    const W = footwear(recipe, R, build, map, spec, { id: word, group: P.group ?? 'Shoes' });
+    Object.assign(parts, W.parts); Object.assign(tones, FOOTWEAR_TONES, W.tones || {});
     worn.add(P.id); if (word === 'boots' && shaft) worn.add(shaft.id);
   }
 

@@ -68,13 +68,19 @@ import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
-import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
+import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
 import { fitPlates, fieldPlates, wornPieces } from '@/lib/graph/polygonizer/body-relational-armour';
-import { footwear, FOOTWEAR } from '@/lib/graph/polygonizer/body-relational-footwear';
+import { FOOTWEAR, readTones } from '@/lib/graph/footwear';
+import { footwear } from '@/lib/graph/footwear/adapters/realistic';
+import { SUITS } from '@/lib/graph/plating';
+import { plating } from '@/lib/graph/plating/adapters/realistic';
+import { HANDWEAR } from '@/lib/graph/handwear';
+import { handwear } from '@/lib/graph/handwear/adapters/realistic';
+import { handwearAuthored } from '@/lib/graph/handwear/adapters/authored';
 import { loosePants, LOOSE_GARMENTS } from '@/lib/graph/polygonizer/body-relational-drape';
 import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi';
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
@@ -304,10 +310,14 @@ function realisticExpand(plan, hero) {
   const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
   const fieldWords = words.filter((w) => FIELD_GARMENTS[w]);
   if (fieldWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !fieldWords.some((w) => new RegExp(`^${w}([A-Z]|$)`).test(g.id))) };
-  // FOOTWEAR: a word with a footwear spec (body-relational-footwear.js FOOTWEAR: boots, shoes) is the primitive's, in place
-  // of its segment pieces (`boot…`, `shoe…`)
-  const footWords = words.filter((w) => FOOTWEAR[w]);
-  if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !/^(boot|shoe)[A-Z]/.test(g.id)) };
+  // FOOTWEAR: a word with a footwear card (lib/graph/footwear FOOTWEAR) is the library's, in place of its segment pieces
+  // (`boot…`, `shoe…`, `<word>…`)
+  const footWords = words.filter((w) => FOOTWEAR[w]), footPiece = new RegExp(`^(boot|shoe|${footWords.join('|')})[A-Z]`);
+  if (footWords.length) plan = { ...plan, garments: (plan.garments || []).filter((g) => !footPiece.test(g.id)) };
+  // PLATING: a suit word (lib/graph/plating SUITS: a powered suit's undersuit and plates) is the library's
+  const suitWords = words.filter((w) => SUITS[w]);
+  // HANDWEAR: a glove word (lib/graph/handwear HANDWEAR) is the library's
+  const handWords = words.filter((w) => HANDWEAR[w]);
   // LOOSE garments (body-relational-drape.js LOOSE_GARMENTS: martialPants; body-relational-gi.js LOOSE_TOPS: gi): the
   // drape's, in place of their segment pieces
   const looseWords = words.filter((w) => LOOSE_GARMENTS[w] || LOOSE_TOPS[w]);
@@ -335,7 +345,7 @@ function realisticExpand(plan, hero) {
     plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
-  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
+  if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
   // carries the chest now, so they stand off the torso alone)
   const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
@@ -405,6 +415,19 @@ function realisticExpand(plan, hero) {
     }
     R.palette = { ...W.tones, ...(R.palette || {}) };
   }
+  for (const w of suitWords) {
+    const B = realisticBuild(hero), RS = validateRig(S.rig), W = plating(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
+    for (const [name, part] of Object.entries(W.parts)) {
+      R.parts[name] = part;
+      // (it rides its segment's dials, as a garment does)
+      const seg = name.slice(name.indexOf('_') + 1);
+      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+    }
+    // (the suit's tones over the palette's defaults, the operator's own palette over all; its glow full-bright)
+    R.palette = { ...W.tones, ...(R.palette || {}) };
+    for (const g of W.named) if (!hero.palette?.[g] && W.tones[g]) R.palette[g] = W.tones[g];
+    if (W.emissive.length) R.emissive = [...new Set([...(R.emissive || []), ...W.emissive])];
+  }
   for (const w of footWords) {
     const B = realisticBuild(hero), RS = validateRig(S.rig), W = footwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
     for (const [name, part] of Object.entries(W.parts)) {
@@ -412,8 +435,15 @@ function realisticExpand(plan, hero) {
       const seg = name.slice(name.indexOf('_') + 1);
       for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
     }
+    // (the tones the card or its colourway names stand over the palette's defaults; the operator's own palette over all)
     R.palette = { ...W.tones, ...(R.palette || {}) };
+    for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+    // (a tone of another group, the leather's shade, read against the palette as it now stands)
+    R.palette = readTones(R.palette);
+    // (heeled shoes: the rig stands every pose in them)
+    if (W.stance) R.rig = { ...R.rig, stance: W.stance };
   }
+  for (const w of handWords) { const B = realisticBuild(hero), RS = validateRig(S.rig); wearHands(R, hero, handwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w })); }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {
     const B = realisticBuild(hero), RS = validateRig(S.rig), map = bodyPartMap(S, RS, B);
@@ -446,10 +476,33 @@ function garmentCorrectives(C, parts) {
     return { ...c, d };
   });
 }
+/** a handwear word's parts worn on the recipe `R` (in place): each riding its segment's dials, the card's tones over the
+ * palette's defaults (the operator's own over all, a tone of another group read), and a mitten's grip held at rest (the
+ * digits and their joints closed into it, the body's and the glove's, so the bind, every pose and an export hold the
+ * hand inside the shell) */
+function wearHands(R, hero, W) {
+  for (const [name, part] of Object.entries(W.parts)) {
+    R.parts[name] = part;
+    const seg = name.slice(name.indexOf('_') + 1);
+    for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+  }
+  R.palette = { ...W.tones, ...(R.palette || {}) };
+  for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+  R.palette = readTones(R.palette);
+  if (W.grip) { const H = holdGrip(R.rig, R.parts, W.grip); R.rig = H.rig; Object.assign(R.parts, H.parts); }
+}
+/** the AUTHORED body's wearables: the handwear words on its hands (lib/graph/handwear, the authored adapter) */
+function authoredWear(R, hero) {
+  const words = Array.isArray(hero?.outfit) ? hero.outfit : typeof hero?.outfit === 'string' ? [hero.outfit] : [];
+  const handWords = words.filter((w) => HANDWEAR[w]);
+  if (!handWords.length || !R.rig?.hands) return R;
+  for (const w of handWords) wearHands(R, hero, handwearAuthored(R, validateRig(R.rig), w, { id: w }));
+  return R;
+}
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : expandPlan(full); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
