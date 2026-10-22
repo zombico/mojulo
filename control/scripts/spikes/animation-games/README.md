@@ -11,7 +11,11 @@ node scripts/spikes/animation-games/verify.mjs [cast=male]          # the machin
 node scripts/spikes/animation-games/preview.mjs /abs/out/dir [cast] # animation-games.html (a player) + filmstrip-<take>.svg
 node scripts/spikes/animation-games/motion-verify.mjs [cast=male]   # motion: running, then jumping (below)
 node scripts/spikes/animation-games/motion-preview.mjs /abs/out/dir [cast]   # motion.html (follow cameras) + motion-strobe.svg
+node scripts/spikes/animation-games/viewer.mjs /abs/out/dir [cast]  # every part on one review page: index.html + players + PNG strips
 ```
+
+`viewer.mjs` runs every part's preview and verify, renders the filmstrips to PNG, and writes `index.html`, the page's
+body for the artifact host. A new part is a row in its `PARTS`.
 
 ## The idea in one paragraph
 
