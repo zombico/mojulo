@@ -55,6 +55,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   swing. The blade's tip lands on its contact point in every register, and the blow is the body's real tip speed times
   the weapon and arm. The finding: `swingKeys` reports the strike about 7 % of the cycle earlier than the rig's player
   plays it.
+- **Combos and hitstun** (`combo.mjs`): strings of 3 and 5 hits (fists, a sword) cancelled one into the next against a
+  simulated victim. Hitstun is one law in every register (the next hit links if it lands inside the last hit's stun,
+  and a free victim blocks), with a stun from four sources:
+  - realistic: the body's reaction time
+  - action: the game's combo rule, decaying, ending on a launching finisher
+  - platformer: none, with mercy invincibility instead
+  - pinball: none, since the ricochet takes the victim out of reach
+
+  The findings: a realistic jab string sits within a frame of the reaction time; action's decay drops a sword
+  string's finisher by a frame; strings need a step-in the library lacks.
 - **Two views:** every player draws each pane from the side and from a ¾ overhead camera over a floor grid.
 - **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
