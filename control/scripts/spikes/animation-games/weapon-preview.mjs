@@ -116,8 +116,8 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.max(0,(now-last)/
  }}
 sel.onchange=()=>{clockT=0;label();};document.getElementById('restart').onclick=()=>{clockT=0;};
 label();requestAnimationFrame(frame);
-// inside the review viewer: say how tall the page is, so its frame fits it
-const tell=()=>{try{parent!==window&&parent.postMessage({spikeHeight:document.documentElement.scrollHeight},'*');}catch(e){}};addEventListener('load',tell);addEventListener('resize',tell);setTimeout(tell,300);
+// inside the review viewer: say how tall the content is (the body's, not the document's: inside a frame that is the frame's own height, and would grow it without end), when it changes
+let told=0;const tell=()=>{try{const h=Math.ceil(document.body.scrollHeight);if(parent!==window&&Math.abs(h-told)>2){told=h;parent.postMessage({spikeHeight:h},'*');}}catch(e){}};addEventListener('load',tell);addEventListener('resize',tell);setTimeout(tell,300);
 </script></body></html>`;
 writeFileSync(join(out, 'weapon.html'), html);
 console.log(`wrote ${join(out, 'weapon.html')} and ${data.swings.map((s) => `weapon-${s.id}.svg`).join(', ')}`);
