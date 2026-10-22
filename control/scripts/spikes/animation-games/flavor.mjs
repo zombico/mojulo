@@ -154,14 +154,15 @@ function grownKeys(take, F) {
  * Each frame: `src` the take's share shown, `pose` the rig pose, `held` the frame repeats the last (a freeze), `scale`
  * [x, y, z] the body's squash and stretch about its feet (null: none).
  */
-export function render(take, flavor, R, { fps = 60, blowDv = null, speed = null } = {}) {
+export function render(take, flavor, R, { fps = 60, blowDv = null, speed = null, landed = true } = {}) {
   const F = flavorOf(flavor);
   const keys = grownKeys(take, F);
   const clip = clipOf(take, keys, R);
   const T = take.seconds;
   const rate = F.rate ? clamp((speed ?? F.rate.speed) / F.rate.ref, 1, F.rate.max) : 1;
   // the output clock in frames: each span its role's time; a hold after the deepest wind-up and on the blow
-  const stop = F.hitstop ? Math.min(F.hitstop.max, Math.round(F.hitstop.base + F.hitstop.perMs * (blowDv ?? 0))) : 0;
+  // (a blow that does not land, a whiff or one blocked or passing through, freezes nothing: `landed` false)
+  const stop = F.hitstop && landed ? Math.min(F.hitstop.max, Math.round(F.hitstop.base + F.hitstop.perMs * (blowDv ?? 0))) : 0;
   const segs = [], beatFrame = [0]; let clock = 0, held = 0, own = 0;
   for (let i = 1; i < take.beats.length; i++) {
     const a = take.beats[i - 1], b = take.beats[i];
