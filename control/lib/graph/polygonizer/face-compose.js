@@ -28,6 +28,8 @@ import { RELATIONS, RELATION_POLES } from './head-relational.js';
 import { EYE_CHANNELS } from './head-relational-eye.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { BROW_SHAPES, LASH_SHAPES } from '../epidermis/epidermis.js';
+import { readScalp } from '../epidermis/dermal-hair.js';
+import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
 import { streamOf } from '../city/plan/dice.js';
 
 /**
@@ -133,6 +135,36 @@ export const FACE_HAIRLINE = Object.freeze({
   peak: { chance: 0.45, mm: [2, 10], scalp: { part: 'centre', moves: ['framed-layers'] } },
   bald: { female: { chance: 0.08, amount: [0.1, 0.5] }, male: { chance: 0.45, amount: [0.1, 1] } },
 });
+/**
+ * THE HAIR'S CUTS by region, as a stylist there cuts and styles each texture (a pool per texture, a style repeated to
+ * weigh it; dermal-hair.js SCALP_STYLES): the texture rolled from the face's ancestry's (egocube/ancestry.js), the cut
+ * from the bucket's pool for it. A texture a pool leaves out keeps the ancestry's own style. The Levant and the Maghreb
+ * wear long blow-dried waves and long defined curls; South Asia long hair, braided, put up; Mexico layered curls and a
+ * curly crop, a high bun for coily hair; sub-Saharan Africa the short afro, the high bun, braids, the curly crop (the big round
+ * afro rare). Rolled last of all.
+ */
+export const FACE_HAIR = Object.freeze({
+  mena: {
+    straight: [{ style: 'long' }, { style: 'layers' }, { style: 'shoulder', part: 'centre', moves: ['framed-layers'] }],
+    wavy: [{ style: 'long', type: 'wavy' }, { style: 'long', type: 'wavy' }, { style: 'layers', type: 'wavy' }, { style: 'shoulder', type: 'wavy', part: 'centre', moves: ['framed-layers'] }, { style: 'half-up', type: 'wavy' }],
+    curly: [{ style: 'long', type: 'curly' }, { style: 'layers', type: 'curly' }, { style: 'half-up', type: 'curly' }, { style: 'curls' }],
+    coily: [{ style: 'curly-crop', type: 'coily' }, { style: 'bun', type: 'coily' }],
+  },
+  'south-asian': {
+    straight: [{ style: 'long' }, { style: 'long' }, { style: 'braid' }, { style: 'bun' }, { style: 'half-up' }],
+    wavy: [{ style: 'long', type: 'wavy' }, { style: 'braid', type: 'wavy' }, { style: 'half-up', type: 'wavy' }, { style: 'layers', type: 'wavy' }],
+    curly: [{ style: 'long', type: 'curly' }, { style: 'braid', type: 'curly' }, { style: 'curls' }],
+    coily: [{ style: 'bun', type: 'coily' }, { style: 'braid', type: 'coily' }],
+  },
+  latin: {
+    curly: [{ style: 'layers', type: 'curly' }, { style: 'curls' }, { style: 'half-up', type: 'curly' }, { style: 'curly-crop' }],
+    coily: [{ style: 'high-bun' }, { style: 'twa' }, { style: 'curly-crop', type: 'coily' }],
+  },
+  african: {
+    curly: [{ style: 'curls' }, { style: 'curls' }, { style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'high-bun', type: 'curly' }, { style: 'twa', type: 'curly' }, { style: 'twa', type: 'curly' }],
+    coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'high-bun' }, { style: 'braid', type: 'coily' }, { style: 'bun', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'afro' }],
+  },
+});
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
@@ -155,6 +187,7 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   proportions  its proportions' reaches (`FACE_PROPORTIONS` absent)
  *   grooms       its brows' and lashes' ranges (`FACE_GROOMS` absent)
  *   bald         its men's prevalence of hair loss against the western (1): a scale on the chance (`FACE_HAIRLINE`)
+ *   hair         its cuts by texture (`FACE_HAIR`'s pool by that name; absent, the ancestry's own styles)
  *   tones        [lo, hi] on the Monk scale: the intent's tones within its ancestries' (`equatorial` is brown); the
  *                ancestry still gives the hair, the undertone and the eyes' colour (absent, the ancestry's own roll)
  *   blend        { bucket: weight }: a BLEND of buckets, each face one of them (rolled by weight), composed as that
@@ -203,6 +236,7 @@ export const FACE_BUCKETS = Object.freeze({
   },
   // SOUTH ASIA is a cline from the north-west to the south: its two ends as buckets, `south-asian` the faces along it
   'indo-aryan': {
+    hair: 'south-asian',
     note: 'Indo-Aryan South Asian ancestry: northern India and Pakistan (Punjab, Kashmir, Rajasthan, the Gangetic plain)',
     ancestry: ['south-asian'],
     tones: [3, 7],
@@ -221,6 +255,7 @@ export const FACE_BUCKETS = Object.freeze({
     grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
   },
   dravidian: {
+    hair: 'south-asian',
     note: 'Dravidian South Asian ancestry: southern India and Sri Lanka (Tamil, Telugu, Kannada, Malayali, Sinhala)',
     ancestry: ['south-asian'],
     tones: [5, 9],
@@ -237,6 +272,7 @@ export const FACE_BUCKETS = Object.freeze({
     grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
   },
   african: {
+    hair: 'african',
     note: 'sub-Saharan African ancestry (the base after published West and Central African and African-diaspora anthropometry)',
     ancestry: ['african'],
     // a longer vault; a fuller, rounder forehead; the nose's base much wider, its root low and broad, its bridge broad (its
@@ -268,6 +304,7 @@ export const FACE_BUCKETS = Object.freeze({
     weights: { nose: { classical: 0.5, soft: 1.4, button: 1.2 }, lips: { full: 1.3 } },
   },
   latin: {
+    hair: 'latin',
     note: 'Mexican and mestizo Latin American ancestry (Indigenous American and European)',
     ancestry: ['latin-american', 'indigenous-american', 'latin-american'],
     // a broader face with high, forward cheekbones and a fuller jaw; the base moderately wide, the bridge a little broad;
@@ -283,6 +320,7 @@ export const FACE_BUCKETS = Object.freeze({
     weights: { nose: { classical: 1.2 }, cheeks: { sculpted: 1.3 } },
   },
   levantine: {
+    hair: 'mena',
     note: 'Levantine ancestry: Lebanon, Syria, Palestine, Jordan',
     ancestry: ['middle-eastern-north-african'],
     tones: [2, 6],
@@ -298,6 +336,7 @@ export const FACE_BUCKETS = Object.freeze({
     grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.45], length: [0.9, 1.25] } },
   },
   'south-mediterranean': {
+    hair: 'mena',
     note: 'the southern Mediterranean shore: the Maghreb (Morocco, Algeria, Tunisia, Libya) and coastal Egypt',
     ancestry: ['middle-eastern-north-african'],
     tones: [3, 7],
@@ -437,6 +476,16 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const BL = H.bald[sex], hasLoss = d() < BL.chance * (B.bald ?? 1), loss = BL.amount[0] + d() * (BL.amount[1] - BL.amount[0]);
   const bald = baldAt ?? (hasLoss ? Math.round(loss * 100) / 100 : 0);
   if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));
+  // the CUT: the texture from the ancestry's, the cut from the bucket's pool for it (a woman's; the man's are to come)
+  let cut = null;
+  const textures = HUMAN_ANCESTRIES[ancestry]?.textures, texture = textures ? textures[Math.floor(d() * textures.length) % textures.length] : null, pool = sex === 'female' && B.hair ? FACE_HAIR[B.hair]?.[texture] : null;
+  const pickCut = d();
+  if (pool) cut = { ...pool[Math.floor(pickCut * pool.length) % pool.length] };
+  // (a widow's peak's hint over a cut it suits: a part, no ties, at least to the shoulder; a cut of its own replaces the
+  // ancestry's style)
+  const suits = (c) => { const g = readScalp(c); return g.part !== 'none' && !g.ties.length && g.length >= 0.25; };
+  if (cut && scalpHint) cut = suits(cut) ? { ...cut, ...scalpHint } : cut;
+  if (cut) scalpHint = cut;
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;

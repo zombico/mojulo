@@ -87,6 +87,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   deep-set eyes, MST 2–6) and `south-mediterranean` (the Maghreb and coastal Egypt: a long narrow face, a straight to
   aquiline nose, almond eyes, fuller lips, MST 3–7), `mena` the mix between them. A mix may hold its own tones over its
   buckets' (the equatorial's brown is the mix's, its buckets keep their own).
+- THE HAIR'S CUTS by region (`FACE_HAIR`): a woman's hair texture is rolled from her ancestry's and cut from her bucket's
+  pool for it, as a stylist there would cut it (the Levant and the Maghreb: long blow-dried waves, long defined curls,
+  layered curls, half-up; South Asia: long hair, braided, put up; Mexico: layered curls, a curly crop, a high bun;
+  sub-Saharan Africa: the short afro, the high bun, braids, the bun, the curly crop, the big round afro rare); a texture a
+  pool leaves out keeps the ancestry's own style. The widow's peak's centre part goes only on cuts it suits (a part, no
+  ties, to the shoulder or longer). New cuts (dermal-hair.js): `curly-crop` (~9 cm on top, tapered at the nape and round the ears) and `high-bun` (the hair
+  smoothed up into a top-knot high on the crown).
 - THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
   rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
   behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the

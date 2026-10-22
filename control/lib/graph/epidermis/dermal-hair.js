@@ -83,10 +83,16 @@ export const SCALP_STYLES = Object.freeze({
   // TWA (a short afro) close to the head; a puff of curls the same, looser
   afro: { length: 0.22, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.85, cut: { envelope: { out: 0.06, up: 0.075, rise: 0.012, back: -0.008 }, taper: { min: 0.02, rise: [0, 0.4] } } },
   twa: { length: 0.06, front: 1, sides: 0.85, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.8, cut: { envelope: { out: 0.018, up: 0.022 } } },
+  // a short curly cut: the curls kept on top (~9 cm), tapered at the nape and round the ears (a stylist's curly crop, never
+  // a round helmet)
+  'curly-crop': { length: 0.09, front: 1, sides: 0.8, crown: 1, part: 'side', fringe: false, type: 'curly', stand: 0.25, chunk: 0.7, cut: { taper: { min: 0.02, rise: [0.05, 0.5] } } },
   curls: { length: 0.3, front: 0.7, sides: 1, crown: 1, part: 'side', fringe: false, type: 'curly', stand: 0.12, chunk: 0.85, cut: { line: { at: 'shoulder', shape: 'u', drop: 0.03 } } },
   // GATHERED to a tie: every root combed taut over the head to it, the rest one bundle from it
   ponytail: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.48 }, gather: 'all', tail: { kind: 'tail', length: 0.32 } }] },
   'high-ponytail': { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.8 }, gather: 'all', tail: { kind: 'tail', length: 0.36 } }] },
+  // the HIGH BUN: the hair smoothed up from the hairline and gathered high on the crown into a top-knot (curly and coily
+  // hair's slicked-up bun; an afro PUFF, a round soft mass of coils there, needs a tail that holds a coil's volume)
+  'high-bun': { length: 0.3, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, type: 'coily', ties: [{ at: { az: 180, rise: 0.85 }, gather: 'all', tail: { kind: 'bun' } }] },
   bun: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, ties: [{ at: { az: 180, rise: 0.62 }, gather: 'all', tail: { kind: 'bun' } }] },
   braid: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'centre', fringe: false, ties: [{ at: { az: 180, rise: 0.3 }, gather: 'all', tail: { kind: 'braid', length: 0.36 } }] },
   // the top section gathered at the crown's back, the rest falling to the shoulder

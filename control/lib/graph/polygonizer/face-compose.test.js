@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
+import { readScalp } from '../epidermis/dermal-hair.js';
 
 describe('the face composer', () => {
   it('is deterministic: the same seed composes the same face', () => {
@@ -134,5 +135,20 @@ describe('the face composer', () => {
     // (an open dial: set it, and the face keeps everything else)
     const a = composeFace({ sex: 'male', seed: 4 }), b = composeFace({ sex: 'male', seed: 4, bald: 0.8 });
     expect(b.dermis.bald).toBe(0.8); expect(b.relations).toEqual(a.relations);
+  });
+
+  it('cuts the hair from its bucket\'s pool for the rolled texture, a groom the hair reads', () => {
+    let cuts = 0;
+    for (const bucket of ['mena', 'south-asian', 'latin', 'african']) for (let seed = 1; seed <= 16; seed++) {
+      const f = composeFace({ bucket, seed });
+      if (!f.scalp?.style) continue;
+      cuts++;
+      expect(() => readScalp(f.scalp)).not.toThrow();
+      const B = FACE_BUCKETS[f.mixed?.of ?? f.bucket], pools = Object.values(FACE_HAIR[B.hair]).flat().map((c) => c.style);
+      expect(pools).toContain(f.scalp.style);
+    }
+    expect(cuts).toBeGreaterThan(20);
+    // (a woman of the Levant or the Maghreb never draws the big round afro)
+    for (let seed = 1; seed <= 40; seed++) expect(composeFace({ bucket: 'mena', seed }).scalp?.style).not.toBe('afro');
   });
 });
