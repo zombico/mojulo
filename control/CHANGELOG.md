@@ -26,6 +26,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE CHILD FORM (hero laws 13, hero-form.js `CHILD_FORM`; anime-looks.js `CHILD_FACE`): the child drawn as the anime
+  child reads, on the chibi form's base. Its limbs are cylinders, it has no pectoral, mitten hands, round shoes and a
+  short neck. It is rounder: a barrel torso (the waist as wide as the chest, each section toward round) and fuller
+  arms. Its shoulders are narrower, and with a larger head on shorter legs it stands about three and three-quarter
+  heads tall. Its anime face is the child's, under any look or the hero's own words: a short lower face, full cheeks,
+  a small set-back chin, a button nose, a broader head, and eyes set lower, opened taller and with larger irises, a
+  narrower mouth and a thinner brow. On the boy, the male base's long jaw and forward chin are brought toward the
+  female base's. The bare `child` word is now the child build, as `chibi` became the chibi build under laws 6, and a
+  child minted without a head wears the anime head, as a chibi does. Its dress is the chibi's few pieces.
+- THE ADULT-FORM CHIBI, PINNED (`chibi-adult-form.char.test.js`): the laws 12 chibi's record, plan and recipe, bare,
+  in the ranger kit and in the knight's plate, byte for byte; laws 13 builds it the same.
 - THE CHIBI FORM (hero laws 12, hero-form.js `CHIBI_FORM`): the chibi reads as simple solids, not a small adult.
   Its limbs are cylinders: no muscle shaping, each limb's rings drawn most of the way to their mean radius, the ankle
   as full as the calf and the knee as full as the thigh. Its chest has no pectoral layer. Its head is larger and its

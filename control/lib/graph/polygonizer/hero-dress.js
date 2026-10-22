@@ -61,7 +61,7 @@ export function dressContext(style = {}, scale = 1, plan = null) {
   if (segs.find((s) => s.name === 'torso')?.slotT) ctx.dense = true;
   const chest = segs.filter((s) => /^(pectoral|bust)R$/.test(s.name)).flatMap((s) => [s.name, s.name.replace(/R$/, 'L')]);
   if (chest.length) ctx.chest = chest;
-  if (style.body === 'chibi') ctx.chibi = CHIBI_DRESS;
+  if (style.body === 'chibi' || style.body === 'child') ctx.chibi = CHIBI_DRESS;   // (the child form wears as the chibi does)
   return ctx;
 }
 /** Every piece worn on the torso stands off the chest's layers too (hero-form.js CHEST_FORM: the pectorals, the breasts),

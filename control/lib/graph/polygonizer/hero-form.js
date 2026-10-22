@@ -313,8 +313,12 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * Laws 12 adds THE CHIBI FORM (CHIBI_FORM): the chibi's limbs cylinders, no pectoral, a larger head on shorter limbs and
  * neck, mitten hands and round shoes, and its plan's `style.body: 'chibi'`, by which it wears few pieces (hero-dress.js
  * CHIBI_DRESS); laws 6 to 11 drew a small adult.
+ * Laws 13 adds THE CHILD FORM (CHILD_FORM, lawCast): the child build on the chibi form's base, rounder (a barrel torso,
+ * fuller arms), narrower in the shoulder and about three and three-quarter heads tall, its anime face the child's
+ * (anime-looks.js CHILD_FACE), and the bare `child` word read as the child build; laws 1 to 12 stood the bare word on
+ * a man's radii and drew the build as a small adult.
  */
-export const HERO_LAWS_VERSION = 12;
+export const HERO_LAWS_VERSION = 13;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -349,7 +353,8 @@ export const CHIBI = Object.freeze({ headScale: 1.15, arm: 0.9, neck: 1.45 });
  * ring, which the shoulders' span sets, and stands as deep as the belly under it; laws 6 to 10 stepped out to the
  * shoulder in a shelf two centimetres tall and pinched the chest behind it */
 export const CHIBI_CHEST = Object.freeze({ chest: 1.25, chestDepth: 1.3 });
-/** THE CHIBI FORM (hero laws 12, on the structured core): the mascot read as simple solids, not a small adult. Its
+/** THE CHIBI FORM (hero laws 12, on the structured core), THE ADULT-FORM CHIBI (pinned: chibi-adult-form.char.test.js):
+ * the mascot read as simple solids, not a small adult. Its
  * limbs CYLINDERS: no muscle on them (ARM_FORM's and LEG_FORM's offsets none) and each limb's rings drawn `cylinder`
  * of the way to their mean radius, so the arm, the forearm and the shank run straight from end to end, the ankle as
  * full as the calf; its chest without the pectoral layer. Its head larger (`head`, over CHIBI's). Its hands SMALL
@@ -358,12 +363,21 @@ export const CHIBI_CHEST = Object.freeze({ chest: 1.25, chestDepth: 1.3 });
  * the shank as full as the thigh) and its neck short (`neck`, of its length: the head sits down on the shoulders). Its
  * legs and arms shorter (`legs`, `arms`, of their lengths), so it stands about two and a half heads tall and its
  * hands hang at its hips */
-export const CHIBI_FORM = Object.freeze({ cylinder: 0.8, head: 1.15, legs: 0.85, arms: 0.85, calf: 1.35, neck: 0.5, hands: 0.7, puff: 1.45, wide: 0.85, foot: Object.freeze({ length: 0.8, width: 1.3 }) });
+export const CHIBI_FORM = Object.freeze({ body: 'chibi', cylinder: 0.8, head: 1.15, legs: 0.85, arms: 0.85, calf: 1.35, neck: 0.5, hands: 0.7, puff: 1.45, wide: 0.85, foot: Object.freeze({ length: 0.8, width: 1.3 }) });
+/** THE CHILD FORM (hero laws 13, on the structured core): the child build drawn as the anime child reads, on the chibi
+ * form's base (CHIBI_FORM's terms: cylinder limbs, no pectoral, mitten hands, round shoes, a short neck, a larger head
+ * on shorter legs and arms, about three and three-quarter heads tall), its shoulders narrower (`shoulders`, of their
+ * span), and ROUNDER: the torso a barrel (`round` of the way from its rings to round sections and from the
+ * waist's width to the chest's, its rings' corners rounded) and the arms fuller (`arm`, of the build's radius). Its
+ * anime face is anime-looks.js CHILD_FACE. */
+export const CHILD_FORM = Object.freeze({ body: 'child', cylinder: 0.8, head: 1.3, legs: 0.88, arms: 0.92, shoulders: 0.88, calf: 1.3, neck: 0.7, hands: 0.75, puff: 1.45, wide: 0.9, foot: Object.freeze({ length: 0.85, width: 1.25 }), round: 0.6, arm: 1.3 });
 /** The cast a hero's word reads under its laws: `{ cast }`, and with laws 6 a chibi's `{ headScale, body }` (CHIBI over
  * the chibi build), which the body's own controls override. Laws 1 to 5: the word as it was. */
 export function lawCast(cast, laws = 1, proportions = 'hero') {
   if (laws < 6) return { cast };
   const built = cast === 'chibi' ? { pole: 'male', build: 'chibi' } : cast, preset = isBuiltCast(built) && built.build === 'chibi' ? castOf(built, proportions) : null;
+  // laws 13: the bare `child` word is the child build, as `chibi` is the chibi's under laws 6, its head the child form's
+  if (laws >= 13 && (cast === 'child' || (isBuiltCast(cast) && cast.build === 'child'))) { const c = cast === 'child' ? { pole: 'male', build: 'child' } : cast, p = castOf(c, proportions); return { cast: c, headScale: r6(p.headScale * CHILD_FORM.head) }; }
   const chest = preset && laws >= 11 ? { chest: r6(preset.body.chest * CHIBI_CHEST.chest), chestDepth: r6(preset.body.chestDepth * CHIBI_CHEST.chestDepth) } : {};
   return preset ? { cast: built, headScale: r6(preset.headScale * CHIBI.headScale * (laws >= 12 ? CHIBI_FORM.head : 1)), body: { arm: r6(preset.body.arm * CHIBI.arm), neck: r6(preset.body.neck * CHIBI.neck), ...chest } } : { cast: built };
 }
@@ -518,7 +532,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
@@ -539,8 +553,9 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the tune's lengths and shoulders multiply the cast's own dials (a unit ratio leaves the dial exactly as cast)
   const { from: _castFrom, ...castDials } = resolveCast(preset ? preset.dials : cast);
   // laws 12: THE CHIBI FORM (CHIBI_FORM) on the chibi build: its limbs cylinders, its hands mittens, its shoes round
-  const CF = structured && laws >= 12 && preset?.build === 'chibi' ? CHIBI_FORM : null;
-  if (CF) { castDials.neck *= CF.neck; castDials.thigh *= CF.legs; castDials.shank *= CF.legs; castDials.upperArm *= CF.arms; castDials.forearm *= CF.arms; }
+  // (laws 13: THE CHILD FORM, CHILD_FORM, on the child build, on the same terms and its own)
+  const CF = !structured ? null : laws >= 12 && preset?.build === 'chibi' ? CHIBI_FORM : laws >= 13 && preset?.build === 'child' ? CHILD_FORM : null;
+  if (CF) { castDials.neck *= CF.neck; castDials.thigh *= CF.legs; castDials.shank *= CF.legs; castDials.upperArm *= CF.arms; castDials.forearm *= CF.arms; if (CF.shoulders) castDials.shoulderSpan *= CF.shoulders; }
   const tuneDial = (k, f) => { if (f !== 1) castDials[k] = castDials[k] * f; };
   tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('upperArm', TN.armLength); tuneDial('forearm', TN.armLength); tuneDial('shoulderSpan', TN.shoulders);
   // laws 4: the leg length (LEG_LENGTH), measured on the cast as tuned: the leg's run added, the lumbar's taken away
@@ -556,6 +571,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
   const b = { ...BODY_DEFAULTS, ...(preset?.body || {}), ...body };
   if (CF && body.calf === undefined) b.calf = r6(b.calf * CF.calf);
+  if (CF?.arm && body.arm === undefined) b.arm = r6(b.arm * CF.arm);
   const bustErr = bustCeilingError(b.bust, b.chest); if (bustErr) throw new Error(bustErr);
   // the tune's widths and thicknesses multiply the cast's radii. The forearm takes the arm's radius when it names none,
   // and the hip's profile depth derives from the UNTUNED hip, so `hips` widens the pelvis without deepening it (the
@@ -667,7 +683,14 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
       ring('st3_st4_50', 3.5, zS + NECK_ROOT.trapZ[sex] * (n4.z - zS), xS + F.trap * (xNeck - xS), F.depth[4] * D, F.yc[3], 5),
       { ...n4, id: 'st4', u: 4 },
     ];
-    if (dense) for (const [id, push] of Object.entries(TORSO_SCULPT[preset?.silhouette === 'female' ? 'female' : 'male'])) addPush(torso.stations.find((x) => x.id === id), Object.fromEntries(Object.entries(push).map(([k, d]) => [k, g(d)])));
+    // laws 13: the child's torso a BARREL (CHILD_FORM `round`): the navel's and the costal ring's width toward the chest's,
+    // each ring's depth toward its width, its corners rounded (no sculpt over it)
+    if (CF?.round) {
+      const S = torso.stations, xC2 = S.find((x) => x.id === 'st2').r[0];
+      for (const st of S) if (st.id === 'st1' || st.id === 'st1_st2_50') st.r = [r6(st.r[0] + CF.round * (xC2 - st.r[0])), st.r[1]];
+      for (const st of S) if (st.id !== 'st0' && st.id !== 'st4') { const X = st.r[0] * dT; if (X > st.r[1]) st.r = [st.r[0], r6(st.r[1] + CF.round * (X - st.r[1]))]; if (st.e !== undefined) st.e = 2; }
+    }
+    if (dense && !CF?.round) for (const [id, push] of Object.entries(TORSO_SCULPT[preset?.silhouette === 'female' ? 'female' : 'male'])) addPush(torso.stations.find((x) => x.id === id), Object.fromEntries(Object.entries(push).map(([k, d]) => [k, g(d)])));
     // the NECK ROOT (NECK_ROOT): the three top rings' front slots pushed down to the sternal notch under the hub, falling
     // off round the ring by the slot's angle; the top ring's front pulled back onto the neck's front, so the neck rises
     // out of the chest and its root's front is the neck's own surface, not the torso's cap
@@ -1073,7 +1096,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     schema: PLAN_SCHEMA,
     frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${castLabel(cast)}${preset?.proportions && preset.proportions !== 'hero' ? `, ${preset.proportions} proportions` : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
-    style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e, ...(CF ? { body: 'chibi' } : {}) },
+    style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e, ...(CF ? { body: CF.body } : {}) },
     joints, segments, include, dials, palette: { ...(preset?.glove && structured ? { Glove: GLOVE_WHITE } : {}), ...(structured && bare && palette.Skin && !palette.Navel ? { ...palette, Navel: darken(palette.Skin, CHEST_FORM.navel.tone) } : palette) }, rig, clips,
   }, S);
 }

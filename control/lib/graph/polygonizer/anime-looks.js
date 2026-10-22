@@ -17,7 +17,7 @@
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
-import { resolveTune, castPole } from './hero-form.js';
+import { resolveTune, castPole, castOf, lawCast } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 
@@ -95,11 +95,27 @@ export function resolveLook(spec) {
  * @param {string} defaultStyle  the family when none names one
  * @param {{ hairBase?: { form: object, cut: string } | null }} [options]
  */
+/** THE CHILD'S FACE (hero laws 13, the child build's anime head; hero-form.js CHILD_FORM is its body): the anime child as
+ * it reads, not a small adult's face. The face's words (a short lower face, round full cheeks, a small set-back chin, a
+ * button nose, the head broader, the eyes and irises larger, all inside the studio's ranges; on the male base its jaw
+ * and chin brought toward the female base's, `male`) and the sculpt's past them (the eyes set lower on the face and
+ * opened taller, the irises larger, the mouth narrower, the nose's tip less projected, the brow thinner). Under every other layer: a look, the hero's own words and genki compose over it. */
+export const CHILD_FACE = Object.freeze({
+  face: Object.freeze(['youthful', 'soft', 'button-nose', Object.freeze({ eyeWidth: 1.06, eyeHeight: 1.05, iris: 1.06, width: 1.06, lower: 0.94 })]),
+  sculpt: Object.freeze({ eyeLevel: -0.02, fissureHeight: 1.2, irisSize: 1.2, mouthWidth: 0.8, tipProjection: 0.8, browThick: 0.75 }),
+  // the boy: the male base's long lower face, forward chin, low jaw corner and narrow opening brought toward the female
+  // base's (an anime child's face is soft whichever it is), inside the male base's ranges
+  male: Object.freeze({ lower: 0.92, chin: 0.8, chinProjection: 0.75, jawAngle: 1.15, eyeHeight: 1.12 }),
+});
+/** does this hero wear the child's face (CHILD_FACE): the child build, its word or its pole-and-build, under laws 13 */
+export const childFaced = (hero) => (hero.laws ?? 1) >= 13 && castOf(lawCast(hero.cast, hero.laws).cast)?.build === 'child';
+
 export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
-  const L = hero.lookResolved ?? null;
+  const L = hero.lookResolved ?? null, C = childFaced(hero) ? CHILD_FACE : null;
   // GENKI (anime-genki.js): one more layer over the look and the own layer, on every channel; none when absent or 0
   const G = genkiLayers(hero);
-  const { from: _f, ...face } = resolveAnimeFace([L?.face, hero.face, G?.face].filter(Boolean));
+  // (the child's face its words in order, then the boy's own: a nested list would be read as one ratio object)
+  const { from: _f, ...face } = resolveAnimeFace([...(C ? C.face : []), C && heroHeadPole(hero) === 'male' ? C.male : null, L?.face, hero.face, G?.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
   // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
   // read as named and its controls and lock edits compose like any other entry's
@@ -111,7 +127,7 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const hairWords = own === 'none' ? null : resolveAnimeHair([...base, ...(Array.isArray(L?.hair) ? L.hair : [L?.hair])].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
   const expression = genkiExpression(hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral'), hero);
   const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune, G?.tune].filter(Boolean));
-  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
+  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([C?.sculpt, L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */

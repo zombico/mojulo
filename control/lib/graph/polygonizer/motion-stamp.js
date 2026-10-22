@@ -39,7 +39,7 @@ export function withDefaultWalk(spec) {
 /**
  * A hero being MINTED is built on the game body, the tiered form (tiered-form.js), unless it names a form (`'realistic'`, or
  * the deprecated `'classic'`, the body before it) or the deprecated streamlined core, which only the classic body carries.
- * A chibi minted on it wears the anime head (`head: 'anime'`) unless it names a head or says a word only the landmark
+ * A chibi or a child minted on it wears the anime head (`head: 'anime'`) unless it names a head or says a word only the landmark
  * head reads (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). Only the mint calls this: a hero stored
  * without a form keeps the classic body it was made with, and one stored without a head the landmark head.
  */
@@ -48,7 +48,7 @@ export function withDefaultForm(spec) {
   const formed = (spec.form !== undefined && spec.form !== null) || spec.core === 'streamlined' ? spec : { ...spec, form: 'tiered' };
   return chibiHead(formed);
 }
-const isChibi = (cast) => cast === 'chibi' || (isObj(cast) && cast.build === 'chibi');
+const isChibi = (cast) => cast === 'chibi' || cast === 'child' || (isObj(cast) && (cast.build === 'chibi' || cast.build === 'child'));
 const LANDMARK_WORDS = ['face', 'hair', 'expression', 'headPreset'];
 function chibiHead(spec) {
   if (spec.form !== 'tiered' || spec.head !== undefined || !isChibi(spec.cast)) return spec;
