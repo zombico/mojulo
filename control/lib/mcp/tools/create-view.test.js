@@ -48,7 +48,7 @@ describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
     }
     // the generated stage cards (era/entries.js) share the family but not the entry: a stage is minted as a recipe
     // (and the cards for a kind-generic CHANNEL any base takes through `overrides`: a manual, not a base; each is named here)
-    const CHANNEL_CARDS = ['weather', 'structures'];
+    const CHANNEL_CARDS = ['weather', 'structures', 'creases'];
     const worldCards = [...catalog.values()].filter((c) => c.family === 'world' && !c.generated && !CHANNEL_CARDS.includes(c.id));
     expect(worldCards.map((c) => c.id).sort()).toEqual([...WORLD_BASES].sort());
     for (const id of CHANNEL_CARDS) expect(catalog.get(id), `channel card '${id}'`).toMatchObject({ family: 'world', entry: 'compose_world' });
@@ -140,10 +140,10 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(65 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18)
+    expect(all.cards.length).toBe(66 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: creases, a channel card, 2026-10-22)
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(12 + stage);
-    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(13);   // the bases, the weather and structures channel cards and the generated city-plan card (city rails, 2026-10-12)
+    expect(world.cards.length).toBe(13 + stage);   // (13: creases, a channel card, 2026-10-22)
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(14);   // the bases, the weather, structures and creases channel cards and the generated city-plan card (city rails, 2026-10-12)
     expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

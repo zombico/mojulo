@@ -342,6 +342,13 @@ export const EMIT_FIXTURES = [
     ],
     toon: { ink: { lines: false, widthAbs: 0.002 } },
   }],
+  // creases (channels/creases.js): a wall on a floor (angular), a tree's face beside it (organic: its own group,
+  // drawn black in the mask) and a repeated post (angular instances), in a world with a metre unit
+  ['creases', {
+    faces: [quad('#8a7a5c'), floor('#b8b08a'), quad('#3a6a32', { organic: true })],
+    repeats: [{ template: [quad('#666666')], transforms: [{ pos: [6, 0, 0] }, { pos: [8, 0, 0] }], group: 'furniture:post' }],
+    creases: { ink: '#1b1d3e', wash: 0.5 }, metersPerUnit: 3.66,
+  }],
   ['cdn', { faces: [quad()], cdn: true }],
   ['capture-bare', { faces: [floor()], capture: true }],
   ['capture-controllable', { faces: [floor()], entities: ENTITIES, camera: CAMERA, capture: true }],

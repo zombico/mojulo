@@ -44,6 +44,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf } from '@/lib/graph/era/geocube';
+import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -233,6 +234,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
     toon: unshaded ? null : toon,
+    // CREASES (scene/channels/creases.js): `creases` on the manifest (or scene.creases), the vgl rule as a World pass.
+    // A kind whose trees are grown here tags them organic when it is on (fractal-city, city); the payload carries it
+    // below. Dropped under the unshaded export, as the other baked shading is. Absent ⇒ null ⇒ every byte identical.
+    creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -449,6 +454,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       if (vc.contact > 0 && !vc.only && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
     }
   }
+
+  // the crease pass (ctx.creases above): the World page reads the resolved terms; stills and exports ignore them
+  if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) payload.creases = ctx.creases;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the

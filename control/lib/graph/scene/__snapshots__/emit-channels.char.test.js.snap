@@ -38,6 +38,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > controllable-smoke emits byte-identically 1`] = `"a7c5794c396214feaec2beaf92d682c0faf743e0d8ca59a67ee3896e9a1a0b37"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > creases emits byte-identically 1`] = `"ce09d16ef5ae229706c7a18711a08c7260b968d8cef93bea43a77d2362d5301b"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal emits byte-identically 1`] = `"3b711733f3014e444967fed2a842ab8b4d06f9254d5d92259948985f91241636"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > crystal-light emits byte-identically 1`] = `"7fab05224ab0e364b86df40aa046e5cca21676318e32711ea4e3bebf749a143a"`;

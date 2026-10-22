@@ -41,7 +41,7 @@ import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, co
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
 import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
-import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP } from './view-cube-contract.js';
+import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP, STATIC_ORGANIC_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import { contrastFaces } from '../era/vertex-contrast.js';
@@ -55,6 +55,7 @@ import {
   strokeOverlayChannelScript, versusChannelScript, boardChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
+import { readCreases, creasesChannelScript } from './channels/creases.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
@@ -214,7 +215,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, fabric = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, fabric = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, creases = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -245,7 +246,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // effects depthClip: an effects[] layer that asks for the scene's depth (a cloud deck that must not paint over the
   // trees in front of it) gets one shared depth prepass, spliced after fog's. No such layer → '' → byte-identical.
   const fxDepth = (Array.isArray(effects) ? effects : []).some((l) => l && l.depthClip && typeof l.frag === 'string');
-  const prePass = fogPre + (fxDepth ? '__fxPrepass(); ' : '');
+  // creases (channels/creases.js): the vgl rule over the scene's depth — its mask-and-depth prepass runs first. Absent ⇒
+  // null ⇒ no block, no prepass, no marks: every byte identical.
+  const creasesCfg = readCreases(creases);
+  const prePass = (creasesCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
   // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
@@ -358,6 +362,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       // textured template faces (a grown plant's bark or trunk): one { key, pos, uv, col, lit } per texture, drawn by
       // the textured-instances block below with the same transforms; the key is absent without them
       ...(Object.keys(gm.textureGroups || {}).length ? { tex: Object.entries(gm.textureGroups).map(([key, g]) => ({ key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit })) } : {}),
+      ...(creasesCfg && r.template.some((f) => f && !f.organic) ? { crease: true } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -401,7 +406,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // city. A page with no metal face on the static group, or with nothing else on it, keeps its groups: byte-identical.
   const onStatic = (f) => f && !(f.decal === 'shadow' || f.decal === 'ink' || f.water) && drawLayerGroup(f) === STATIC_GROUP;
   const metalSplit = expanded.some((f) => onStatic(f) && f.metal) && expanded.some((f) => onStatic(f) && !f.metal);
-  const renderGroup = (f) => (metalSplit && f.metal && drawLayerGroup(f) === STATIC_GROUP ? STATIC_METAL_GROUP : drawLayerGroup(f));
+  const renderGroup0 = (f) => (metalSplit && f.metal && drawLayerGroup(f) === STATIC_GROUP ? STATIC_METAL_GROUP : drawLayerGroup(f));
+  // CREASES: an `organic` face (a tree, a shrub) leaves the static group for its own, which the crease mask draws black;
+  // only with creases on — without them the flag is never read and the groups are as they were
+  const renderGroup = creasesCfg ? (f) => (f.organic && renderGroup0(f) === STATIC_GROUP ? STATIC_ORGANIC_GROUP : renderGroup0(f)) : renderGroup0;
   const inkByGroup = new Map();
   if (toonInk) {
     for (const f of expanded0) {
@@ -414,7 +422,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // translucent water pass below — keep both out of the opaque mesh (shadows would double as flat
   // dark patches; water needs per-vertex alpha the opaque mesh can't carry).
   const layerOf = new Map();
-  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = renderGroup(f); if (k !== (f.group || 'static') && k !== STATIC_METAL_GROUP) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
+  for (const f of expanded) { if (f.decal === 'shadow' || f.decal === 'ink' || f.water) continue; const k = renderGroup(f); if (k !== (f.group || 'static') && k !== STATIC_METAL_GROUP && k !== STATIC_ORGANIC_GROUP) layerOf.set(k, f.layer); (groupMap.get(k) || groupMap.set(k, []).get(k)).push(f); }
   const groups = [...groupMap].map(([name, fs]) => {
     const gm = faceListToMesh(fs, { decollide: false }); // already de-collided globally above
     const nf = fs.find((f) => Array.isArray(f.normal));
@@ -449,7 +457,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
     // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
     const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && fs.some((f) => !f.organic) ? { crease: true } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
@@ -919,6 +927,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
     splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
+    creases: creasesCfg ? creasesChannelScript(creasesCfg, { metersPerUnit }) : '',
     fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock,
   };
 
@@ -1016,7 +1025,8 @@ for (const grp of GROUPS) {
   const translucent = typeof grp.alpha === 'number' && grp.alpha < 1;
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: ${hasSingleSide ? 'grp.singleSide ? THREE.FrontSide : THREE.DoubleSide' : 'THREE.DoubleSide'}, transparent: grp.hideable || translucent, opacity: translucent ? grp.alpha : 1, depthWrite: !translucent });
   const m = new THREE.Mesh(geo, mat); m.renderOrder = (grp.hideable || translucent) ? 1 : 0;
-  m.userData.g = grp.name;   // group name → pick lookup (PICK_META); inert when no picks emitted
+  m.userData.g = grp.name;   // group name → pick lookup (PICK_META); inert when no picks emitted${creasesCfg ? `
+  if (grp.crease) m.userData.crease = true;   // angular: the crease mask draws it white` : ''}
   scene.add(m); meshes[grp.name] = m;
   if (grp.hideable) hideable.push(grp);
   // X-ray group (outer walls): render an EdgesGeometry cage you can see through, with
@@ -1045,7 +1055,7 @@ for (const grp of GROUPS) {
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow
-    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${creasesCfg ? 'if (grp.crease) tm.userData.crease = true; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1071,7 +1081,7 @@ for (const r of REPEATS) {
   });
   im.instanceMatrix.needsUpdate = true;
   if (im.instanceColor) im.instanceColor.needsUpdate = true;
-  im.userData.g = r.name;
+  im.userData.g = r.name;${creasesCfg ? ' if (r.crease) im.userData.crease = true;' : ''}
   scene.add(im); solids.push(im); meshes[r.name] = im;
 }
 ${hasRepeatTextures ? `// textured template faces (a grown plant's bark, a palm's trunk): per repeat and texture key, one InstancedMesh with
@@ -1093,7 +1103,7 @@ for (const r of REPEATS) for (const t of (r.tex || [])) {
     if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));
   });
   im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
-  im.userData.g = r.name; scene.add(im); ${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(im);
+  im.userData.g = r.name;${creasesCfg ? ' if (r.crease) im.userData.crease = true;' : ''} scene.add(im); ${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(im);
 }
 ` : ''}
 const camera = new THREE.PerspectiveCamera(CAMS[0].vfov, wrap.clientWidth / wrap.clientHeight, 0.1, 8000);

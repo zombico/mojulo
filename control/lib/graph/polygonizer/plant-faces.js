@@ -149,7 +149,7 @@ export function plantBoxToFaces(box = {}, opts = {}) {
       ...(Number.isFinite(p.fanSpread) ? { fanSpread: p.fanSpread } : {}),
       ...(p.frondType === 'fan' || p.frondType === 'palmate' ? { frondType: 'fan' } : {}),
     };
-    return plantToFaces(palm, mesh);
+    return organic(plantToFaces(palm, mesh), opts.organic);
   }
 
   const foliage = p.foliage || (box.shape === 'conifer' ? 'conifer' : box.shape === 'shrub' ? 'cluster' : 'cluster');
@@ -172,7 +172,14 @@ export function plantBoxToFaces(box = {}, opts = {}) {
     ...(Number.isInteger(p.foliageLevels) ? { foliageLevels: p.foliageLevels } : {}),
     ...(p.forkStyle === 'planar' || p.forkStyle === 'spiral' ? { forkStyle: p.forkStyle } : {}),
   };
-  return plantToFaces(spec, mesh);
+  return organic(plantToFaces(spec, mesh), opts.organic);
+}
+
+// a street tree is ORGANIC: the World's crease pass (scene/channels/creases.js) never inks it, nor the ground at its foot.
+// Tagged only when the world draws creases (`opts.organic`), so every other scene keeps its bytes.
+function organic(faces, on) {
+  if (on) for (const f of faces) f.organic = true;
+  return faces;
 }
 
 /** Validate then expand a list of plant specs to a single face list. Returns

@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Creases: the vgl rule as a shader in the World
+
+The vgl rule inks a concave crease (a wall's foot, a tier on the one below, a column on its plinth) and never a convex
+edge or a silhouette. Until now it was baked geometry for box massings only: the stepped pyramid's hairlines and the
+city's `creaseSeams` feather. It is now a pass in the World page over the scene's depth, for any geometry the builders
+mark angular, with a falloff that blends from the corner out. Opt-in: a world that does not ask emits the same bytes.
+
+- **`creases` on any world manifest** (`true`, or `{ ink, line, wash, reach }`). Built for the outcomes outside the game
+  loop: the fractal city (its metro profile too), the city plan, edifices, historic places, the transit kinds and the
+  building interiors. The exported unshaded base drops it, as it drops the other baked shading. `compose_world` takes
+  it as `overrides.creases` on any base, and a stored world takes it by patch (`set /creases true`); the manual is the
+  `creases` view-vocab card. Engines do not draw it yet (marked absent).
+- **How it draws** (`scene/channels/creases.js`). One prepass draws every solid's linear depth and an angular mask
+  into a float target. A pass then reads each pixel's neighbours against its plane: a small disc for the line, a disc
+  of the world reach for the blend. Only rises taller than two pixels count, and the ink fades where the reach spans
+  only a few pixels, so a far facade's window reveals are not hatched. A depth-aware 4x4 composite blends the sampling
+  jitter out.
+- **Only angular surfaces take ink.** A face marked `organic` (the city's trees) is drawn black in the crease mask, so
+  neither it nor the ground at its foot is inked; figures, walkers, cars, water and the sky are never inked.
+- Planned: a colour-theorist register that composes the creases, vertex contrast and the toon bands and ink into one
+  choice on the cube.
+
 ### Micro matte painting: surfaces painted from relief
 
 Every surface mark becomes relief, painted from a light: an element's face is a seeded height field, lit from a
