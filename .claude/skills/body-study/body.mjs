@@ -49,6 +49,7 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href)
 process.chdir(CONTROL);
 const sharp = createRequire(path.join(CONTROL, 'package.json'))('sharp');
 const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+const { withDefaultForm } = await import('@/lib/graph/polygonizer/motion-stamp.js');
 const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
 const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
@@ -171,7 +172,9 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra }) });
+  // (the body a mint gets: the tiered game body unless the spec names a form; a --form slice reads the classic plan)
+  const spec = { cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra };
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(form ? spec : withDefaultForm(spec)) });
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = graft ? sl.recipe : relationalHeadRecipe(sl.recipe, { sex: cast === 'female' ? 'female' : 'male' });
   // (the relational head leaves the landmark head's jawOpen dial behind: the dials the recipe still has)
