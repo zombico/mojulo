@@ -57,9 +57,9 @@ describe('the micro-city', () => {
   });
 
   it('is lit at the cube\'s hour under its clouds, as its land is: past dusk the moon, the stars and the windows; without, as it was', () => {
-    const at = (more) => assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', seed: 3, ...more }).city, { route: true });
-    const plain = geocubeCity({ kind: 'geocube', cube: 'limestone-crags', show: 'city', seed: 3 }).city;
-    expect(plain.paint).toEqual({ geocube: 'limestone-crags', amount: 1 });
+    const at = (more) => assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'valley-morning', show: 'city', seed: 3, ...more }).city, { route: true });
+    const plain = geocubeCity({ kind: 'geocube', cube: 'valley-morning', show: 'city', seed: 3 }).city;
+    expect(plain.paint).toEqual({ geocube: 'valley-morning', amount: 1 });
     const day = at({}), noon = at({ hour: 'noon' }), night = at({ hour: 'night', clouds: 'fair' });
     // (at its reference's own hour the city is lit as it was; a night is darker, its windows lit, its sky starred)
     expect(noon.light).toEqual(day.light);
