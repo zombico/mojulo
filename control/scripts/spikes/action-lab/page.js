@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -13,18 +13,18 @@ const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k
 let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
 let spar = false, guard = true, critter = false, paused = false, stepOnce = false;
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
-let S, hist = [], log = [], presses = [], sparks = [], cam = { x: 0, y: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
+let S, hist = [], log = [], presses = [], sparks = [], cam = { x: 0, y: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
 function reset() {
   S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT });
   hist = []; log = []; presses = []; sparks = []; shown = {}; prevWorld = {};
-  cam = { x: S.hero.p[0], y: S.hero.p[1] };
+  cam = { x: S.hero.p[0], y: S.hero.p[1], yaw: 0 };
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
 }
 
 // ─── input: keyboard, gamepad, touch ───
 const keys = new Set(), tapped = new Set();   // tapped: pressed since the last tick, so a tap between two ticks still lands
-const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
@@ -60,7 +60,7 @@ function readPad() {
   const on = (k) => keys.has(k) || tapped.has(k);
   let x = (on('right') ? 1 : 0) - (on('left') ? 1 : 0), y = (on('up') ? 1 : 0) - (on('down') ? 1 : 0);
   if (x && y) { x *= Math.SQRT1_2; y *= Math.SQRT1_2; }
-  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('sprint') ? BTN.SPRINT : 0);
+  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('sprint') ? BTN.SPRINT : 0);
   tapped.clear();
   const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
   padName = gp ? gp.id : null;
@@ -69,11 +69,13 @@ function readPad() {
     if (dz) { x = ax; y = -ay; }
     const pr = (i) => !!gp.buttons[i]?.pressed;
     if (pr(12)) y = 1; if (pr(13)) y = -1; if (pr(14)) x = -1; if (pr(15)) x = 1;
-    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(7) || pr(10) ? BTN.SPRINT : 0);
+    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) || pr(10) ? BTN.SPRINT : 0);
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
-  return [Math.round(Math.max(-1, Math.min(1, x)) * 127), Math.round(Math.max(-1, Math.min(1, y)) * 127), b];
+  // the stick is the camera's: up the screen is the way the camera looks (behind the hero at the target, when locked)
+  const c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), wx = x * c + y * sn, wy = -x * sn + y * c;
+  return [Math.round(Math.max(-1, Math.min(1, wx)) * 127), Math.round(Math.max(-1, Math.min(1, wy)) * 127), b];
 }
 
 // ─── the tick ───
@@ -128,7 +130,7 @@ const say = {
   'bounce-off': (e) => (e.immune ? 'bounced off (the dummy is in its mercy)' : `bounced off the dummy at ${e.vz.toFixed(1)} m/s (fell at ${e.fell.toFixed(1)}), the dummy ricochets`),
   slide: () => 'on its head: slid off (its top is no floor)',
   cling: () => 'on the wall: sliding down it', 'wall-jump': (e) => `${e.dash ? 'dash ' : ''}wall jump${e.coyote ? ', a moment after leaving the wall' : ': kicked off the wall'}`,
-  'air-dash': (e) => `air dash (${e.left} left)`, 'dash-jump': (e) => `dash jump: the air keeps ${e.speed.toFixed(1)} m/s`, 'air-jump': (e) => `air jump (${e.left} left)`,
+  'air-dash': (e) => `air dash (${e.left} left)`, lock: () => 'locked on the dummy', unlock: () => 'lock let go', 'lock-lost': () => 'lock lost: the target is out of range', 'dash-jump': (e) => `dash jump: the air keeps ${e.speed.toFixed(1)} m/s`, 'air-jump': (e) => `air jump (${e.left} left)`,
   pound: (e) => ({ plunge: 'plunge: straight down', pound: 'ground pound: the flip, then the drop', bounce: 'bounce attack: straight down' })[e.kind],
   'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
@@ -226,9 +228,12 @@ function fit() {
 }
 addEventListener('resize', fit);
 new ResizeObserver(fit).observe(stage.parentElement); new ResizeObserver(fit).observe(strip);
+const scale = () => Math.max(70, view === 'three' ? Math.min(W, H * 1.4) / 9 : Math.min(W, H * 1.6) / 8);
+/** a world point's depth along the camera (larger: farther up the screen) */
+const depthOf = (x, y) => (x - cam.x) * Math.sin(cam.yaw) + (y - cam.y) * Math.cos(cam.yaw);
 function P(x, y, z) {
-  const ppm = Math.max(70, view === 'three' ? Math.min(W, H * 1.4) / 9 : Math.min(W, H * 1.6) / 8);
-  if (view === 'three') return [W / 2 + (x - cam.x) * ppm, H * 0.62 - (z * CT + (y - cam.y) * ST) * ppm];
+  const ppm = scale();
+  if (view === 'three') { const rx = x - cam.x, ry = y - cam.y, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); return [W / 2 + (rx * c - ry * sn) * ppm, H * 0.62 - (z * CT + (rx * sn + ry * c) * ST) * ppm]; }
   return [W / 2 + (y - cam.y) * ppm, H * 0.78 - z * ppm];
 }
 function poly(pts, fill, stroke) { ctx.beginPath(); pts.forEach((p, i) => { const q = P(...p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); } }
@@ -238,28 +243,39 @@ function drawArena() {
     poly([[-h, -h, 0], [h, -h, 0], [h, h, 0], [-h, h, 0]], COL.floor);
     ctx.lineWidth = 1; ctx.strokeStyle = COL.grid;
     for (let i = -h; i <= h; i++) { const a = P(i, -h, 0), b = P(i, h, 0), c2 = P(-h, i, 0), d = P(h, i, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.moveTo(c2[0], c2[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
-    poly([[-h, h, 0], [h, h, 0], [h, h, 0.5], [-h, h, 0.5]], COL.block);
+    const up = [Math.sin(cam.yaw), Math.cos(cam.yaw)];
+    for (const [n, a, b] of [[[0, 1], [-h, h], [h, h]], [[0, -1], [h, -h], [-h, -h]], [[1, 0], [h, h], [h, -h]], [[-1, 0], [-h, -h], [-h, h]]]) if (n[0] * up[0] + n[1] * up[1] > 0.2) poly([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], 0.5], [a[0], a[1], 0.5]], COL.block);
   } else {
     const a = P(0, -h, 0), b = P(0, h, 0); ctx.fillStyle = COL.floor; ctx.fillRect(a[0], a[1], b[0] - a[0], H - a[1]);
     ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; for (let i = -h; i <= h; i++) { const q = P(0, i, 0); ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0], q[1] + 6); ctx.stroke(); }
   }
 }
-function drawBlock(k, front) {
+/** a block: the side faces that face the camera, then its top */
+function drawBlock(k) {
   const [x0, x1] = k.x, [y0, y1] = k.y;
   if (view === 'three') {
-    if (!front) poly([[x0, y0, k.h], [x1, y0, k.h], [x1, y1, k.h], [x0, y1, k.h]], COL.blockTop);
-    poly([[x0, y0, 0], [x1, y0, 0], [x1, y0, k.h], [x0, y0, k.h]], COL.block);
-  } else if (!front) poly([[0, y0, 0], [0, y1, 0], [0, y1, k.h], [0, y0, k.h]], COL.block, COL.blockTop);
+    const up = [Math.sin(cam.yaw), Math.cos(cam.yaw)];
+    for (const [n, a, b] of [[[0, -1], [x0, y0], [x1, y0]], [[0, 1], [x1, y1], [x0, y1]], [[-1, 0], [x0, y1], [x0, y0]], [[1, 0], [x1, y0], [x1, y1]]]) if (n[0] * up[0] + n[1] * up[1] < 0) poly([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], k.h], [a[0], a[1], k.h]], COL.block);
+    poly([[x0, y0, k.h], [x1, y0, k.h], [x1, y1, k.h], [x0, y1, k.h]], COL.blockTop);
+  } else poly([[0, y0, 0], [0, y1, 0], [0, y1, k.h], [0, y0, k.h]], COL.block, COL.blockTop);
+}
+const corners = (k) => [[k.x[0], k.y[0]], [k.x[1], k.y[0]], [k.x[1], k.y[1]], [k.x[0], k.y[1]]];
+/** the lock-on's mark: a ring at the target's feet and a notch over its head */
+function drawLock() {
+  if (!S.lock) return;
+  const D = S.dummy, c = P(D.p[0], D.p[1], D.p[2]), ppm = scale(), top = P(D.p[0], D.p[1], D.p[2] + D.h + 0.35);
+  ctx.strokeStyle = COL.lock; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(c[0], c[1], 0.55 * ppm, 0.55 * ppm * (view === 'three' ? ST : 0.25), 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = COL.lock; ctx.beginPath(); ctx.moveTo(top[0], top[1] + 7); ctx.lineTo(top[0] - 7, top[1] - 5); ctx.lineTo(top[0] + 7, top[1] - 5); ctx.closePath(); ctx.fill();
 }
 function drawShadow(B) {
   const g = util.groundAt(S, B.p[0], B.p[1]), up = Math.max(0, B.p[2] - g), r = 0.34 / (1 + up * 0.4);
   ctx.globalAlpha = 0.5 / (1 + up); ctx.fillStyle = COL.shadow;
-  const c = P(B.p[0], B.p[1], g); const ppm = Math.abs(P(1, 0, 0)[0] - P(0, 0, 0)[0]);
+  const c = P(B.p[0], B.p[1], g); const ppm = scale();
   ctx.beginPath(); ctx.ellipse(c[0], c[1], r * ppm, r * ppm * (view === 'three' ? ST : 0.25), 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
 }
 function drawBody(who, colour) {
   const { d, a } = poseFrames(who), w = toWorld(d, a), D = DATA[cast], B = S[who];
-  const ppm = Math.abs(P(1, 0, 0)[0] - P(0, 0, 0)[0]);
+  const ppm = scale();
   const shake = d.held ? ((S.f % 2) * 2 - 1) * 2 : 0;
   // smears: a hand or foot that jumped further than the card's smear in one frame
   const sm = S.card.look.smear, prev = prevWorld[who];
@@ -279,7 +295,7 @@ function drawBody(who, colour) {
   ctx.globalAlpha = 1;
 }
 function drawSparks() {
-  const ppm = Math.abs(P(1, 0, 0)[0] - P(0, 0, 0)[0]);
+  const ppm = scale();
   sparks = sparks.filter((s) => s.t < 14);
   for (const s of sparks) {
     const c = P(...s.p), r = (s.big ? 0.6 : 0.35) * ppm * (0.4 + s.t / 14), n = s.big ? 10 : 7;
@@ -291,14 +307,22 @@ function drawSparks() {
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
   const k = 0.12; cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (S.hero.p[1] - cam.y) * k;
+  // locked, the camera swings behind the hero to look at the target; let go, it swings back north
+  const want = S.lock ? util.bearing(S) : 0; cam.yaw += util.angDiff(want, cam.yaw) * (S.lock ? 0.3 : 0.12);   // close behind while locked, so a held stick keeps circling
   drawArena();
-  const blocks = [...S.arena.blocks].sort((a, b) => b.y[0] - a.y[0]);
-  for (const b of blocks) drawBlock(b, false);
-  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].sort((a, b) => (view === 'three' ? S[b[0]].p[1] - S[a[0]].p[1] : S[a[0]].p[0] - S[b[0]].p[0]));
+  const near = (b) => Math.min(...corners(b).map(([x, y]) => depthOf(x, y))), far = (b) => Math.max(...corners(b).map(([x, y]) => depthOf(x, y)));
+  const blocks = [...S.arena.blocks].sort((a, b) => far(b) - far(a));
+  for (const b of blocks) drawBlock(b);
+  drawLock();
+  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].sort((a, b) => (view === 'three' ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
   for (const [who, col] of bodies) {
     drawShadow(S[who]); drawBody(who, col);
-    // a block whose front face stands before a body that is below its top covers the body's legs
-    if (view === 'three') for (const b of blocks) { const B = S[who]; if (B.p[1] > b.y[0] && B.p[2] < b.h - 0.05 && B.p[0] > b.x[0] - 0.4 && B.p[0] < b.x[1] + 0.4 && B.p[1] - b.y[0] < 2.5) drawBlock(b, true); }
+    // a block standing between the camera and a body below its top covers it
+    if (view === 'three') for (const b of blocks) {
+      const B = S[who], dB = depthOf(B.p[0], B.p[1]); if (B.p[2] >= b.h - 0.05 || dB <= near(b)) continue;
+      const xs = corners(b).map(([x, y]) => P(x, y, 0)[0]), bx = P(B.p[0], B.p[1], 0)[0];
+      if (bx > Math.min(...xs) - 20 && bx < Math.max(...xs) + 20 && dB - near(b) < 3) drawBlock(b);
+    }
   }
   drawSparks();
   drawStrip();
@@ -367,10 +391,10 @@ function renderLast() {
 }
 function renderState() {
   const H = S.hero, v = Math.hypot(H.v[0], H.v[1]), d = poseOf(S, 'hero');
-  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
+  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
   $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
-  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
+  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
   $('padname').textContent = padName ? `Gamepad: ${padName.slice(0, 40)}` : 'Keyboard (a gamepad works too)';
 }
 

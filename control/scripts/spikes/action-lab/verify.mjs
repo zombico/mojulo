@@ -13,7 +13,7 @@ let fails = 0;
 const check = (name, ok, measured) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${measured === undefined ? '' : `  ${JSON.stringify(measured)}`}`); };
 const note = (name, measured) => console.log(`note  ${name}  ${JSON.stringify(measured)}`);
 const OPEN = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
-const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH;
+const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK;
 
 /**
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
@@ -209,6 +209,33 @@ for (const id of FEEL_IDS) {
   check(`${id}: the stick at rest is a backstep, as short as a ${R0.kind} back (${R0.back.speed}× the speed, ${R0.back.frames}× the frames)`, st0?.rel === 'back' && st0.neutral && Math.abs(stLen - ways.back.len) < 1e-9 && ways.back.len < ways.fwd.len, { backstep: +stLen.toFixed(4), forward: +ways.fwd.len.toFixed(4) });
   { const air = track(run(C, (f) => (f === 1 ? [0, 127, DG] : 0), 30, { arena: OPEN, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
     check(`${id}: no ${R0.kind} in the air: the press is dropped, and says why`, !ev(air, 'dodge').length && ev(air, 'dropped').some((e) => e.button === 'dodge' && /air/.test(e.why))); }
+
+  // ─── lock-on: the facing on the target, the stick a strafe, the rolls circling it ───
+  const LO = C.lock, EAST = { half: 400, blocks: [], hero: [0, 0], dummy: [4, 0] };
+  const yawErr = (st) => Math.abs(util.angDiff(st.hero.yaw, util.bearing(st)));
+  if (LO) {
+    const sf = track(run(C, (f) => (f === 1 ? [0, 127, LK] : [0, 127, 0]), 90, { arena: EAST }));
+    const facing = sf.states.slice(30).every((st) => yawErr(st) < 1e-6), top = Math.max(...sf.states.map((st) => Math.hypot(st.hero.v[0], st.hero.v[1])));
+    row['lock'] = `${LO.range} m, strafe ${LO.strafe}×`;
+    check(`${id}: lock-on takes the target and the body faces it, the stick a strafe at ${LO.strafe}× the run`, ev(sf, 'lock').length === 1 && facing && Math.abs(top - C.ground.run * LO.strafe) < 1e-6, { facing, top: +top.toFixed(4), want: +(C.ground.run * LO.strafe).toFixed(4) });
+    // a side roll, locked and not: the stick across the line to the target
+    const rollAt = 30, side = (lock) => track(run(C, (f) => (f === 1 && lock ? LK : f === rollAt ? [0, 127, DG] : 0), rollAt + 40, { arena: EAST }));
+    const lk = side(true), un = side(false), dist = (st) => Math.hypot(st.hero.p[0] - st.dummy.p[0], st.hero.p[1] - st.dummy.p[1]);
+    const n = C.dodge.frames, during = lk.states.slice(rollAt, rollAt + n);
+    const kept = during.every((st) => Math.abs(dist(st) - 4) < 1e-6), swept = Math.abs(util.angDiff(Math.atan2(lk.end.hero.p[0] - 4, lk.end.hero.p[1]), Math.atan2(-4, 0)));
+    check(`${id}: locked, a side ${C.dodge.kind} circles the target at its distance (4 m), facing it; unlocked the same ${C.dodge.kind} goes straight and drifts away`, kept && swept > 0.1 && yawErr(lk.end) < 1e-6 && dist(un.end) > 4 + 0.05, { kept, swept: +swept.toFixed(4), unlocked: +dist(un.end).toFixed(4) });
+    const fwdL = track(run(C, (f) => (f === 1 ? LK : f === rollAt ? [127, 0, DG] : 0), rollAt + 40, { arena: EAST })), backL = track(run(C, (f) => (f === 1 ? LK : f === rollAt ? [-127, 0, DG] : 0), rollAt + 40, { arena: EAST }));
+    check(`${id}: locked, a ${C.dodge.kind} forward closes on the target and one back opens, along the line to it`, dist(fwdL.end) < 4 - 0.3 && dist(backL.end) > 4 + 0.3 && Math.abs(fwdL.end.hero.p[1]) < 1e-9 && Math.abs(backL.end.hero.p[1]) < 1e-9, { forward: +dist(fwdL.end).toFixed(4), back: +dist(backL.end).toFixed(4) });
+    const far = track(run(C, (f) => (f === 1 ? LK : 0), 10, { arena: { ...EAST, dummy: [LO.range + 1, 0] } }));
+    const toggle = track(run(C, (f) => (f === 1 || f === 5 ? LK : 0), 10, { arena: EAST }));
+    const lost = track(run(C, (f) => (f === 1 ? [0, 0, LK] : [-127, 0, BTN.SPRINT]), 400, { arena: EAST }));
+    check(`${id}: no target past ${LO.range} m (the press says so); a second press lets go; walking out past ${LO.range + 3} m loses it`, ev(far, 'dropped').some((e) => e.button === 'lock' && /no target/.test(e.why)) && ev(toggle, 'unlock').length === 1 && ev(lost, 'lock-lost').length === 1, { far: ev(far, 'dropped').map((e) => e.why), lost: ev(lost, 'lock-lost').map((e) => e.f) });
+    const atk = track(run(C, (f) => (f === 1 ? LK : f === 30 ? [-127, 0, AT] : 0), 40, { arena: EAST }));
+    check(`${id}: locked, an attack goes at the target whatever the stick says`, Math.abs(util.angDiff(atk.states[30].hero.yaw, Math.PI / 2)) < 1e-6, { yaw: +atk.states[30].hero.yaw.toFixed(6) });
+  } else {
+    const nl = track(run(C, (f) => (f === 1 ? LK : 0), 10, { arena: EAST }));
+    check(`${id}: no lock-on in this feel: the press is dropped, and says why`, !ev(nl, 'lock').length && ev(nl, 'dropped').some((e) => e.button === 'lock' && /no lock-on/.test(e.why)));
+  }
 
   // ─── the dashes (Mega Man X): the air dash, the dash jump, the held dash, the dash wall jump ───
   const DD = C.dash ?? {}, fwdP = [0, 127, 0], hspeed = (st) => Math.hypot(st.hero.v[0], st.hero.v[1]);

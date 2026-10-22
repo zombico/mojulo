@@ -105,6 +105,27 @@ The card's `air` and `cling`, on the three non-realistic feels:
 - **Pinball's walls** are bumpers above 3 m/s; slower than that in the air they are plain walls, so a body can come to
   rest on one and slide.
 
+## Lock-on
+
+The card's `lock`, on realistic and action (a Souls game and a character action game target; a platformer and a pinball
+game do not, and the press says so). **LOCK** (Q, gamepad LB) takes the dummy as the target when it is in range, a
+second press lets it go, and walking out past the range plus 3 m loses it.
+
+| feel | range | turning to face it | the strafe |
+|---|---|---|---|
+| **realistic** | 12 m | 540°/s | 0.5× the run |
+| **action** | 14 m | 1440°/s | 0.85× the run |
+
+- **Locked, the body faces the target** after every frame's move, so the stick strafes and an attack goes at the target
+  whatever the stick says.
+- **The rolls circle it.** A locked roll is split into its part along the line to the target and its part around it,
+  and each is taken against where the body is now, every frame. A side roll traces an arc at its distance, a roll
+  forward closes along the line, a roll back opens, and a diagonal spirals. Unlocked, the same side roll goes straight
+  and drifts away.
+- **The page's camera** swings close behind the hero to look at the target, and the stick is read against it, so up
+  the screen is toward the target and a held stick left or right keeps circling (three held side rolls in action drift
+  out only from 3.0 to 3.3 m while sweeping 2.4 rad round).
+
 ## Two getaways: the directional roll and the dash
 
 Two buttons. **DODGE** (K, gamepad B) is the **directional roll**, the card's `dodge`: it goes the way the stick points
@@ -156,7 +177,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 139 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 151 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -200,6 +221,12 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     the wall, rising its share of the jump. A jump inside the wall's coyote time still kicks.
   - Action and platformer climb one wall by held kicks (each kick higher than the last); pinball does not. Touching a
     wall gives the air jump back. Realistic has none of it.
+- **Lock-on.** Realistic and action take the target and face it to a millionth of a radian while strafing at
+  their strafe's share of the run. A locked side roll keeps its distance to the target to a millionth of a metre while
+  sweeping round it (0.58 rad in action's roll), and faces it at the end; unlocked, the same roll drifts out. A locked
+  roll forward closes and one back opens, exactly along the line. A target past range is refused, a second press lets
+  go, walking out loses it, and a locked attack goes at the target against the stick. The platformer and pinball
+  refuse the press.
 - **The directional roll.** Each feel's roll goes along the stick, forward, right, back and left, with the facing
   unchanged to the bit, and each reads its way. The stick at rest is a backstep exactly as long as a roll back, and
   shorter than a roll forward (action: 1.21 m against 2.30). A roll pressed in the air is dropped. A telegraphed hit
@@ -229,8 +256,8 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (in the air, the stomp
-  attack; action's is S + J, back and attack), K dodge roll, L dash. Gamepad: A jump, X attack, B roll, RB dash, RT
-  sprint. A standard
+  attack; action's is S + J, back and attack), K dodge roll, L dash, Q lock-on. Gamepad: A jump, X attack, B roll,
+  RB dash, LB lock-on, RT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
 - **Feel and settings.** 1–4 switch the feel; C switches the cast (the same card on the other body). T toggles a

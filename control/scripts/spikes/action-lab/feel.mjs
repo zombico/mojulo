@@ -40,6 +40,13 @@
  * air keeps the dash's speed), the DASH WALL JUMP (the kick at the dash's speed, kept), and X's dash lasting as long
  * as the button is held. Realistic has no dash (it sprints) and steps rather than rolls.
  *
+ * LOCK-ON (the card's `lock`): LOCK takes the dummy as the target when it is in range and lets it go on the next press
+ * (or when it walks out past the range). Locked, the body turns to face the target and keeps facing it, so the stick
+ * strafes (slower), an attack goes at it, and a roll is read against it: its toward-and-away part along the line to
+ * the target and its around part across that line, taken afresh each frame, so a side roll CIRCLES the target at its
+ * distance, a roll forward closes, back opens, and a diagonal spirals. Realistic and action lock on; the platformer and
+ * pinball do not target.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -63,7 +70,7 @@
  */
 export const FPS = 60;
 export const DT = 1 / FPS;
-export const BTN = Object.freeze({ JUMP: 1, ATTACK: 2, DODGE: 4, SPRINT: 8, DASH: 16 });
+export const BTN = Object.freeze({ JUMP: 1, ATTACK: 2, DODGE: 4, SPRINT: 8, DASH: 16, LOCK: 32 });
 const G = 9.81, RADIUS = 0.3, STEP = 0.12, DEG = Math.PI / 180, HEIGHT = 1.7;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
@@ -103,6 +110,8 @@ const len2 = (x, y) => Math.hypot(x, y);
  *   cling    the wall, or null: slide (m/s down it), toward (the stick's share into the wall that holds it), up (× the
  *            jump's height: the wall jump), away (m/s off the wall), lock (frames the kick ignores the stick), coyote
  *            (frames after leaving the wall a jump still kicks off it)
+ *   lock     lock-on, or null: range (m: a target within it can be taken; past it + 3 m the lock is lost), turn
+ *            (deg/s: the facing toward the target), strafe (the share of the run the stick gets while locked)
  *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
  *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
  *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
@@ -119,6 +128,7 @@ export const FEELS = Object.freeze({
     jump: { commit: 12, height: 0.45, gRise: G, gFall: G, cut: 1, hang: 0, coyote: 3, buffer: 6, air: 0.1, maxFall: 30, land: 10, heavy: { fall: 5.5, lag: 12 } },
     dodge: { kind: 'step', frames: 22, speed: 3.2, iframes: null, back: { speed: 0.7, frames: 0.8 }, cancel: false },
     dash: null,
+    lock: { range: 12, turn: 540, strafe: 0.5 },
     moves: {
       string: [
         { take: 'jab', startup: 11, snap: 6, active: 2, recovery: 12, wings: { wind: 1, after: 1 }, lunge: 0.08 },
@@ -140,6 +150,7 @@ export const FEELS = Object.freeze({
     ground: { walk: 2, run: 6.5, sprint: 9, accel: 45, decel: 60, turn: 1440 },
     jump: { commit: 3, height: 1.3, gRise: 28, gFall: 40, cut: 0.45, hang: 5, coyote: 6, buffer: 8, air: 0.85, maxFall: 25, land: 4, heavy: null },
     dodge: { kind: 'roll', frames: 24, speed: 8.5, iframes: [2, 15], back: { speed: 0.7, frames: 0.75 }, cancel: true },
+    lock: { range: 14, turn: 1440, strafe: 0.85 },
     dash: { kind: 'dash', frames: 14, speed: 12, iframes: null, air: { count: 1, speed: 9, frames: 14 }, cancel: true, hold: null, jump: true, wall: true },
     moves: {
       string: [
@@ -162,6 +173,7 @@ export const FEELS = Object.freeze({
     ground: { walk: 2.5, run: 6, sprint: 8, accel: 75, decel: 75, turn: Infinity },
     jump: { commit: 0, height: 1.806, gRise: 20, gFall: 34, cut: 0.5, hang: 0, coyote: 6, buffer: 6, air: 0.7, maxFall: 18, land: 4, heavy: null },
     dodge: { kind: 'roll', frames: 20, speed: 8, iframes: null, back: { speed: 0.7, frames: 0.75 }, cancel: false },
+    lock: null,
     dash: { kind: 'dash', frames: 30, speed: 9, iframes: null, air: { count: 1, speed: 9, frames: 24 }, cancel: false, hold: { min: 6 }, jump: true, wall: true },
     moves: {
       string: [{ take: 'jab', startup: 4, snap: 2, active: 4, recovery: 10, wings: { wind: 1.25, after: 1.2 }, lunge: 0 }],
@@ -180,6 +192,7 @@ export const FEELS = Object.freeze({
     ground: { walk: 3, run: 12, sprint: 20, accel: 7, decel: 2.5, turn: 720, steer: 200 },
     jump: { commit: 0, height: 1.0, gRise: 15.7, gFall: 15.7, cut: 0.6, hang: 0, coyote: 6, buffer: 6, air: 0.3, maxFall: 30, land: 0, heavy: null, spin: true },
     dodge: { kind: 'roll', frames: 16, speed: 10, iframes: [0, 8], back: { speed: 0.7, frames: 0.75 }, cancel: true },
+    lock: null,
     dash: { kind: 'boost', frames: 20, speed: 8, iframes: [0, 20], air: { count: 1, speed: 8, frames: 16 }, cancel: true, hold: null, jump: true, wall: true },
     moves: {
       string: [{ take: 'jab', startup: 3, snap: 1, active: 3, recovery: 6, wings: { wind: 1, after: 1 }, lunge: 0 }],
@@ -222,7 +235,7 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * every feel's jump; the standing dummy (1.7) is taller than most.
  */
 export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT } = {}) {
-  const S = { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0,
+  const S = { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0, lock: null,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
   S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0;
   return S;
@@ -240,7 +253,8 @@ export function step(S0, pad) {
   const pressed = b & ~S.held, released = S.held & ~b; S.held = b;
   const stick = stickOf(px, py);
   const H = S.hero, D = S.dummy;
-  for (const [name, bit] of [['jump', BTN.JUMP], ['attack', BTN.ATTACK], ['dodge', BTN.DODGE], ['dash', BTN.DASH]]) if (pressed & bit) press(S, name, stick);
+  for (const [name, bit] of [['jump', BTN.JUMP], ['attack', BTN.ATTACK], ['dodge', BTN.DODGE], ['dash', BTN.DASH], ['lock', BTN.LOCK]]) if (pressed & bit) press(S, name, stick);
+  if (S.lock && targetDist(S) > S.card.lock.range + 3) { S.lock = null; S.events.push({ f: S.f, who: 'hero', type: 'lock-lost' }); }
   if ((released & BTN.JUMP) && !H.stop) cutJump(S, H);
   tryQueue(S, stick);
   if (!H.stop) moveBody(S, H, 'hero', stick, b);
@@ -331,6 +345,11 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
+  if (name === 'lock') {
+    if (!C.lock) return { reason: 'no lock-on in this feel', queue: false };
+    if (!S.lock && targetDist(S) > C.lock.range) return { reason: `no target within ${C.lock.range} m`, queue: false };
+    return true;
+  }
   if (name === 'dash') {
     const DS = C.dash; if (!DS) return { reason: 'no dash in this feel', queue: false };
     if (!H.grounded && !DS.air) return { reason: 'no air dash in this feel', queue: false };
@@ -370,16 +389,21 @@ function act(S, name, stick, waited) {
   if (name === 'attack') {
     if (poundAsked(S, stick)) { H.act = { kind: 'pound', f: 0, hit: false }; H.jumped = true; S.events.push({ f: S.f, who: 'hero', type: 'pound', kind: C.pound.kind }); return; }
     const i = H.act?.kind === 'move' ? H.act.i + 1 : 0;
-    if (stick.m > 0) H.yaw = Math.atan2(stick.x, stick.y);   // the swing's direction from the held stick
+    if (S.lock) H.yaw = bearing(S);   // locked: at the target
+    else if (stick.m > 0) H.yaw = Math.atan2(stick.x, stick.y);   // the swing's direction from the held stick
     H.act = { kind: 'move', i, f: 0, hit: false }; S.events.push({ f: S.f, who: 'hero', type: 'move', i, take: C.moves.string[i].take }); return;
   }
+  if (name === 'lock') { S.lock = S.lock ? null : { target: 'dummy' }; S.events.push({ f: S.f, who: 'hero', type: S.lock ? 'lock' : 'unlock', on: 'dummy' }); return; }
   if (name === 'dodge') {
     // the directional roll: along the stick, the body keeping its facing (forward, back, left or right of it); with
     // the stick at rest, a backstep
     const D = C.dodge, neutral = stick.m === 0, dir = neutral ? H.yaw + Math.PI : Math.atan2(stick.x, stick.y), rel = angDiff(dir, H.yaw);
     const side = Math.abs(rel) <= Math.PI / 4 ? 'fwd' : Math.abs(rel) >= (3 * Math.PI) / 4 ? 'back' : rel > 0 ? 'right' : 'left';
     const of = side === 'back' ? Math.round(D.frames * D.back.frames) : D.frames;
-    H.act = { kind: 'dodge', f: 0, of, dir, rel: side, neutral }; S.events.push({ f: S.f, who: 'hero', type: 'dodge', kind: D.kind, rel: side, neutral });
+    // locked, the roll is read against the target: its part along the line to it and its part around it
+    let lock = null;
+    if (S.lock) { const [rx, ry, d] = fromTarget(S); lock = { r: Math.sin(dir) * rx + Math.cos(dir) * ry, t: Math.sin(dir) * -ry + Math.cos(dir) * rx, rad: d }; }
+    H.act = { kind: 'dodge', f: 0, of, dir, rel: side, neutral, lock }; S.events.push({ f: S.f, who: 'hero', type: 'dodge', kind: D.kind, rel: side, neutral, locked: !!lock });
     return;
   }
   if (name === 'dash') {
@@ -411,6 +435,7 @@ function moveBody(S, B, who, stick, buttons) {
   if (stick && free && stick.m > 0) {
     let top = (buttons & BTN.SPRINT) ? Gd.sprint : Gd.run;
     if (!B.grounded && B.carry > top) top = B.carry;   // a dash jump's air holds the dash's speed
+    if (who === 'hero' && S.lock && B.grounded) top *= C.lock.strafe;   // locked: a strafe
     want = { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top };
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
@@ -430,7 +455,8 @@ function moveBody(S, B, who, stick, buttons) {
     if (n && -(stick.x * n[0] + stick.y * n[1]) > CL.toward * stick.m) clung = n;
   }
   // facing follows the stick (a move keeps its own, set at the press)
-  if (want && free && a?.kind !== 'move' && a?.kind !== 'dodge' && a?.kind !== 'dash' && (B.grounded || C.jump.air > 0.5)) B.yaw = turnToward(B.yaw, want.heading, Gd.turn * DEG * DT);
+  if (who === 'hero' && S.lock) { /* locked: the facing is set on the target after the frame's move, below */ }
+  else if (want && free && a?.kind !== 'move' && a?.kind !== 'dodge' && a?.kind !== 'dash' && (B.grounded || C.jump.air > 0.5)) B.yaw = turnToward(B.yaw, want.heading, Gd.turn * DEG * DT);
   // the gather: the body waits on the ground for its take-off
   if (a?.kind === 'gather' && a.f >= a.of && B.grounded) takeOff(S, B, who);
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
@@ -444,7 +470,12 @@ function moveBody(S, B, who, stick, buttons) {
     B.p[0] += (B.v[0] * DT) / n; B.p[1] += (B.v[1] * DT) / n;
     const hit = resolveWalls(S, B); if (hit && !wallHit) { wallHit = hit; wallResponse(S, B, who, hit); }
   }
+  if (a?.kind === 'dodge' && a.lock) {   // a locked roll keeps its distance to the target but for its own along-part
+    const D = S.dummy, dx = B.p[0] - D.p[0], dy = B.p[1] - D.p[1], d = len2(dx, dy);
+    if (d > 1e-6) { B.p[0] = D.p[0] + (dx / d) * a.lock.rad; B.p[1] = D.p[1] + (dy / d) * a.lock.rad; resolveWalls(S, B); }
+  }
   ground(S, B, who);
+  if (who === 'hero' && S.lock && free && a?.kind !== 'dash') B.yaw = turnToward(B.yaw, bearing(S), C.lock.turn * DEG * DT);   // locked: on the target where it is now
   if (clung && !B.grounded) {
     if (!B.cling) S.events.push({ f: S.f, who, type: 'cling', n: clung.map(r4), z: r4(B.p[2]) });
     B.cling = clung; B.wallN = clung; B.wallCoyote = CL.coyote; B.yaw = Math.atan2(clung[0], clung[1]);   // faces out, as X does
@@ -475,8 +506,18 @@ function slide(B) { const s = len2(B.v[0], B.v[1]); if (s < 1e-9) return; const 
 function rollVelocity(S, B) {
   const D = S.card.dodge, a = B.act, t = a.f / a.of, k = a.rel === 'back' ? D.back.speed : 1;
   const speed = D.speed * k * (1 - 0.7 * t);
+  if (a.lock) {   // locked: along the line to the target and around it, each against where the body is now
+    const [rx, ry] = fromTarget(S), tx = -ry, ty = rx;
+    B.v[0] = (rx * a.lock.r + tx * a.lock.t) * speed; B.v[1] = (ry * a.lock.r + ty * a.lock.t) * speed;
+    a.lock.rad = Math.max(2 * RADIUS, a.lock.rad + a.lock.r * speed * DT);
+    return;
+  }
   B.v[0] = Math.sin(a.dir) * speed; B.v[1] = Math.cos(a.dir) * speed;
 }
+/** the target (the dummy): its distance, the bearing to it (a yaw), and the unit line from it to the hero */
+function targetDist(S) { return len2(S.dummy.p[0] - S.hero.p[0], S.dummy.p[1] - S.hero.p[1]); }
+function bearing(S) { return Math.atan2(S.dummy.p[0] - S.hero.p[0], S.dummy.p[1] - S.hero.p[1]); }
+function fromTarget(S) { const dx = S.hero.p[0] - S.dummy.p[0], dy = S.hero.p[1] - S.dummy.p[1], d = len2(dx, dy) || 1e-9; return [dx / d, dy / d, d]; }
 /** the dash's speed: X's constant dash (gravity off), the boost on top of the run, the air dash */
 function dashVelocity(S, B) {
   const D = S.card.dash, a = B.act, t = a.f / a.of;
@@ -807,7 +848,7 @@ export function frameData(card, body) {
   });
 }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

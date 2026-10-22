@@ -37,6 +37,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Lock-on, in the lab** (the card's `lock`; realistic and action). A lock button takes the dummy as the target in
+  range and lets it go on the next press or when it walks out of range. Locked, the body faces the target, the stick
+  strafes, attacks go at it, and the rolls circle it: a side roll arcs round the target at its distance, forward
+  closes, back opens. The page's camera swings behind the hero to the target and reads the stick against it. The gate
+  holds 151 laws on both casts.
 - **Two getaways, in the lab: the directional roll and the dash.** The dodge button is now a directional roll: it
   goes the way the stick points while the body keeps its facing (a roll forward, to either side, or a hop back, each
   its own clip), and with the stick at rest it is a shorter backstep. A new dash button carries the dash and all of
