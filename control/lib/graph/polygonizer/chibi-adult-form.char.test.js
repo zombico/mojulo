@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { withDefaultForm } from './motion-stamp.js';
+import { HERO_LAWS_VERSION } from './hero-form.js';
 
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 const PINS = {
@@ -17,13 +18,13 @@ const PINS = {
 
 describe('the adult-form chibi (hero laws 12), byte for byte', () => {
   for (const [name, [spec, record, plan, recipe]] of Object.entries(PINS)) {
-    it(`${name}: minted on the tiered body with the anime head; its record, plan and recipe; laws 13 builds the same`, () => {
+    it(`${name}: minted on the tiered body with the anime head; its record, plan and recipe; the later laws build the same`, () => {
       const r = { ...heroRecord(withDefaultForm(spec)), laws: 12 };
       expect(r.form).toBe('tiered'); expect(r.head).toBe('anime');
       expect(h(r)).toBe(record); expect(h(heroPlanOf(r))).toBe(plan);
       expect(h(expandLayeredManifest({ kind: 'layered', hero: r }).recipe)).toBe(recipe);
-      const r13 = { ...r, laws: 13 };
-      expect(h(heroPlanOf(r13))).toBe(plan); expect(h(expandLayeredManifest({ kind: 'layered', hero: r13 }).recipe)).toBe(recipe);
+      for (const laws of [13, HERO_LAWS_VERSION]) { const later = { ...r, laws };
+        expect(h(heroPlanOf(later)), `laws ${laws}`).toBe(plan); expect(h(expandLayeredManifest({ kind: 'layered', hero: later }).recipe), `laws ${laws}`).toBe(recipe); }
     }, 120_000);
   }
 });

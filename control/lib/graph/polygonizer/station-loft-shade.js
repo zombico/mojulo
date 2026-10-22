@@ -297,9 +297,9 @@ function weldedNormals(V, F, G, restV, crease, q) {
 
 /** The region weight toward the head capsule at a Skin vertex (rest position `p`) of `part`: an elliptical falloff in
  * the frontal (x, z) plane around each eye and the mouth (1 inside, fading to the face's 0.5 over 0.6 radii). */
-function regionWeight(part, p, L) {
+function regionWeight(part, p, L, floor = 0.5) {
   if (part === 'face') {
-    let w = 0.5;
+    let w = floor;
     for (const e of L.eyes) { const d = dmath.hypot((p[0] - e.c[0]) / (e.r * 1.35), (p[2] - e.c[2]) / (e.r * 1.1)); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
     const m = L.mouth; if (m && m.r > 0) { const d = dmath.hypot((p[0] - m.c[0]) / (m.r * 1.6), (p[2] - m.c[2]) / m.r); w = Math.max(w, clamp01(1 - (d - 1) / 0.6)); }
     return w;
@@ -378,9 +378,9 @@ function clothFaces(mesh, recipe) {
  * axis (NECK_WEIGHT), so its prism facets shade as one round column. A degenerate face takes its weld's unfiltered sum
  * (or +z when that is zero too), so every entry is unit length.
  */
-export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0 } = {}) {   // `ellipsoid`: a weight, or { w, nose } (headEllipsoidNormals)
+export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0, face = 0.5 } = {}) {   // `ellipsoid`: a weight, or { w, nose } (headEllipsoidNormals); `face`: the anime face's floor toward its capsule (regionWeight)
   if (rigid && rigid.size && rest !== mesh) {
-    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest, ellipsoid }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy, ellipsoid });
+    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest, ellipsoid, face }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy, ellipsoid, face });
     return own.map((f, fi) => (rigid.has(partOf(mesh, fi)) ? still[fi] : f));
   }
   const V = mesh.vertices, F = mesh.faces, G = mesh.groups;
@@ -409,7 +409,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
         const s = unit(sub(p, [a[0] + d[0] * u, a[1] + d[1] * u, a[2] + d[2] * u])), n = out[fi][k], w = NECK_WEIGHT;
         out[fi][k] = unit([n[0] * (1 - w) + s[0] * w, n[1] * (1 - w) + s[1] * w, n[2] * (1 - w) + s[2] * w]); return;
       }
-      let w = wOf.get(vi); if (w === undefined) { w = regionWeight(part, RV[vi], L); const k = noseKeep && part === 'face' ? noseKeep[mesh.pointIds?.[vi]?.slice(5)] : 0; if (k) w *= 1 - k; wOf.set(vi, w); }
+      let w = wOf.get(vi); if (w === undefined) { w = regionWeight(part, RV[vi], L, face); const k = noseKeep && part === 'face' ? noseKeep[mesh.pointIds?.[vi]?.slice(5)] : 0; if (k) w *= 1 - k; wOf.set(vi, w); }
       if (!(w > 0)) return;
       const p = RV[vi]; let s = unit(sub(p, [C[0], C[1], p[2] > C[2] ? C[2] : p[2] < zLo ? zLo : p[2]]));   // off the capsule's axis, at rest
       if (posed) {   // carried onto the posed face by its own rest → posed rotation (exact for a face riding one bone)

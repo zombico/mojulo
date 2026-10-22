@@ -26,6 +26,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE ROUND CHILD (hero laws 14, anime-looks.js `CHILD_FACE.round`, tiered-form.js `CHILD_SHADE`): the child's
+  jaw and chin rounder, and its figure shaded round so its facets don't read as folds. The chin is broader, shorter
+  and set back, the jaw broad with its corner high, and the lower cheeks full over the jaw line. The boy's chin is no
+  longer narrowed, which drew it to a point under laws 13. Its body and clothes blend across 85° (the tiered body's
+  70°), and its anime face leans 0.85 of the way toward the head's capsule (0.5 on any other face), so the cheeks and
+  the jaw take the light as one round form. Laws 13 children are as they were. The body study frames a large head
+  (the chibi's or the child's) by its own height.
 - THE CHILD FORM (hero laws 13, hero-form.js `CHILD_FORM`; anime-looks.js `CHILD_FACE`): the child drawn as the anime
   child reads, on the chibi form's base. Its limbs are cylinders, it has no pectoral, mitten hands, round shoes and a
   short neck. It is rounder: a barrel torso (the waist as wide as the chest, each section toward round) and fuller

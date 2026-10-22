@@ -258,7 +258,10 @@ function frameBox(V, J, which) {
   if (which === 'hand') return box(mid(J.wristR, J.knucklesR, 0.7), [0.12, 0.12, 0.12]);
   if (which === 'foot') return box(mid(J.ankleR, J.toeTipR, 0.45), [0.14, 0.14, 0.14]);
   if (which === 'neck') return box(mid(J.neckHub, J.headBase, 0.4), [0.15, 0.15, 0.15]);
-  if (which === 'head') return box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]);
+  // (a larger head, the chibi's or the child's, framed by its own height over its base: the figure's top, for the head
+  // joints stand a fixed run apart whatever the head's size; an adult's at the 12 cm it always was)
+  if (which === 'head') { let top = -Infinity; for (const v of V) if (v[2] > top) top = v[2]; const h = top - J.headBase[2], hh = Math.max(0.12, 0.62 * h);
+    return h > 0.2 ? box([J.headBase[0], J.headBase[1], J.headBase[2] + 0.35 * h], [hh, hh, hh]) : box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]); }
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const v of V) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   return { min: lo, max: hi };

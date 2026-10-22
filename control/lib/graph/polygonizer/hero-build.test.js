@@ -9,7 +9,7 @@ import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
 import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures, heroReadout, heroPlanOf, CLASSIC_DEPRECATED, STREAMLINED_DEPRECATED } from '../../mcp/tools/layered.js';
-import { heroShade, TIERED_SMOOTH_CREASE, WEB_ARMPIT } from './tiered-form.js';
+import { heroShade, TIERED_SMOOTH_CREASE, WEB_ARMPIT, CHILD_SHADE } from './tiered-form.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
 import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
 
@@ -149,10 +149,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(13);
+    expect(HERO_LAWS_VERSION).toBe(14);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 13/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 14/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -360,5 +360,10 @@ describe('the game bodies: the tiered form, and the deprecated ones said on the 
     expect(heroShade({ form: 'tiered' }).crease).toBe(TIERED_SMOOTH_CREASE); expect(heroShade({ form: 'tiered' }).ellipsoid).toBeTruthy();
     expect(heroShade({ form: 'tiered', head: 'anime' })).toEqual({ crease: TIERED_SMOOTH_CREASE, ellipsoid: 0 });
     for (const h of [{ form: 'classic' }, {}, undefined]) expect(heroShade(h)).toEqual({ crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
+    // (laws 14: the child shaded round, its crease wider and its face leaning toward the head's capsule; laws 13 as the tiered)
+    const child = { form: 'tiered', head: 'anime', cast: { build: 'child' } };
+    expect(heroShade({ ...child, laws: 14 })).toEqual({ crease: CHILD_SHADE.crease, ellipsoid: 0, face: CHILD_SHADE.face });
+    expect(heroShade({ ...child, laws: 13 })).toEqual({ crease: TIERED_SMOOTH_CREASE, ellipsoid: 0 });
+    for (const k of ['Skin', 'Top']) expect(CHILD_SHADE.crease[k]).toBeGreaterThan(TIERED_SMOOTH_CREASE[k]);
   });
 });

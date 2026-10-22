@@ -35,6 +35,7 @@ import { heroTarget } from '../era/cast-light.js';
 import { readTarget } from '../era/target.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
 import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
+import { childRound } from './anime-looks.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -48,6 +49,11 @@ const SPLAY = 0.18;
  * the body) blend like the skin (70°), so a form the field draws across the torso's rings reads as one form, not a ring
  * per band; every other group keeps the studio's (station-loft-shade.js STUDIO_SMOOTH_CREASE). */
 export const TIERED_SMOOTH_CREASE = Object.freeze({ Skin: 70, $cloth: 70, Top: 70, Bottom: 70, default: 35 });
+/** THE CHILD'S SHADING (hero laws 14, the child form; hero-form.js CHILD_FORM): read as round. Its body and its clothes
+ * blend across `crease` (wider than the tiered crease, so a ring's or a seam's facet never reads as a fold), and its
+ * anime face leans `face` of the way toward the head's capsule (the proxy's floor, 0.5 on any other face), so the cheeks
+ * and the jaw take the light as one round form, facet lines and all. */
+export const CHILD_SHADE = Object.freeze({ crease: Object.freeze({ Skin: 85, $cloth: 85, Top: 85, Bottom: 85, Shoes: 85, default: 35 }), face: 0.85 });
 /** the apex's height under the chest ring (`st2`), in bust radii: the apex sits low, the lower pole the fuller */
 const APEX_DROP = 0.55;
 /** the rings the chest band gains (u on the torso's stations): enough to carry the fold, the lower pole and the apex */
@@ -473,9 +479,11 @@ export function tieredSockets(plan, { web = 0 } = {}) {
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
  * behind her lips in profile) and rounder (chinPoint; a sharper point read too prominent in three-quarter and profile); the male: a broader jaw, a heavier brow, the chin forward. */
 /** How a hero's figure is shaded smooth (world-kinds.js, and the body study as the World draws it): the crease, and the
- * landmark head's ellipsoid weight on the tiered form; every other hero the studio's crease, no ellipsoid */
+ * landmark head's ellipsoid weight on the tiered form (the child form: its own, CHILD_SHADE, and its face's lean); every
+ * other hero the studio's crease, no ellipsoid */
 export const heroShade = (hero) => (hero?.form === 'tiered'
-  ? { crease: TIERED_SMOOTH_CREASE, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0 }
+  ? (childRound(hero) ? { crease: CHILD_SHADE.crease, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0, face: CHILD_SHADE.face }
+    : { crease: TIERED_SMOOTH_CREASE, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0 })
   : { crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
 
 export const TIERED_FACE = Object.freeze({

@@ -317,8 +317,11 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * fuller arms), narrower in the shoulder and about three and three-quarter heads tall, its anime face the child's
  * (anime-looks.js CHILD_FACE), and the bare `child` word read as the child build; laws 1 to 12 stood the bare word on
  * a man's radii and drew the build as a small adult.
+ * Laws 14 adds THE ROUND CHILD (anime-looks.js CHILD_FACE `round`, tiered-form.js CHILD_SHADE): the child's jaw and chin
+ * rounder (broad, short, the jaw's corner high, the lower cheeks full; the boy's chin no longer narrowed) and its figure
+ * shaded round; laws 13 drew the jaw to a V.
  */
-export const HERO_LAWS_VERSION = 13;
+export const HERO_LAWS_VERSION = 14;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -532,7 +535,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the

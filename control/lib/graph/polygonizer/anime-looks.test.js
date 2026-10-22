@@ -97,6 +97,15 @@ describe('the child\'s face (hero laws 13, CHILD_FACE): under every other layer'
     expect(b.sculpt).toMatchObject(CHILD_FACE.sculpt);
     expect(of(boy, 13).face.chinProjection).toBeLessThan(b.face.chinProjection);
   });
+  it('laws 14, the round child: a broader, shorter, set-back chin, the jaw broad with its corner high, the lower cheeks full; the boy\'s chin no longer narrowed; laws 13 as it was', () => {
+    for (const hero of [child, boy]) {
+      const a = of(hero, 13), b = of(hero, 14);
+      for (const k of ['chin', 'jaw', 'jawAngle', 'lowerCheekVolume']) expect(b.face[k], k).toBeGreaterThan(a.face[k]);
+      expect(b.face.chinHeight).toBeLessThan(a.face.chinHeight); expect(b.face.chinProjection).toBeLessThan(a.face.chinProjection);
+    }
+    expect(of(boy, 14).face.chin).toBeGreaterThanOrEqual(of(child, 13).face.chin);
+    expect(of(child, 13).face).toEqual(composeAnime({ ...child, laws: 13 }, 'bob').face);
+  });
   it('a look and the hero\'s own words compose over it; sculpt: false still turns the graphic face off', () => {
     expect(of({ ...child, face: { eyeHeight: 0.9 } }, 13).face.eyeHeight).toBeLessThan(of(child, 13).face.eyeHeight);
     expect(of({ ...child, sculpt: false }, 13).sculpt).toBe(false);

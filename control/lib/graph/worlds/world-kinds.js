@@ -675,7 +675,7 @@ export const WORLD_KINDS = {
       const character = castLight && (m.toon ?? m.scene?.toon)?.light == null ? null : resolveCharacterLight(m, ctx);
       const figLight = castLight && !character ? castLight : light;
       // (the tiered form's body is smooth under the character light too: its crease, the anime head's proxy kept)
-      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}), ...(m.hero?.form === 'tiered' ? { crease: heroShade(m.hero).crease } : {}) }) : null;
+      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}), ...(m.hero?.form === 'tiered' ? (({ crease, face }) => ({ crease, ...(face !== undefined ? { face } : {}) }))(heroShade(m.hero)) : {}) }) : null;
       // a drawn creature's markings (creature-silhouette.js), stepped by the character light as its own colours
       const marks = character && !m.hero && m.plan?.style?.drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
       const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive, ...(marks ? { tint: marks } : {}) }) : null;

@@ -97,16 +97,23 @@ export function resolveLook(spec) {
  */
 /** THE CHILD'S FACE (hero laws 13, the child build's anime head; hero-form.js CHILD_FORM is its body): the anime child as
  * it reads, not a small adult's face. The face's words (a short lower face, round full cheeks, a small set-back chin, a
- * button nose, the head broader, the eyes and irises larger, all inside the studio's ranges; on the male base its jaw
+ * button nose, the head broader, the eyes and irises larger, and under laws 14 ROUND: a broad, short chin, a broad jaw
+ * with its corner high and the lower cheeks full over it, all inside the studio's ranges; on the male base its jaw
  * and chin brought toward the female base's, `male`) and the sculpt's past them (the eyes set lower on the face and
  * opened taller, the irises larger, the mouth narrower, the nose's tip less projected, the brow thinner). Under every other layer: a look, the hero's own words and genki compose over it. */
 export const CHILD_FACE = Object.freeze({
   face: Object.freeze(['youthful', 'soft', 'button-nose', Object.freeze({ eyeWidth: 1.06, eyeHeight: 1.05, iris: 1.06, width: 1.06, lower: 0.94 })]),
+  // laws 14, ROUND: the jaw broad with its corner high, the chin broad, short and set back, the lower cheeks full over the jaw line
+  round: Object.freeze({ jaw: 1.08, jawAngle: 1.1, chin: 1.2, chinHeight: 0.9, chinProjection: 0.9, lowerCheekVolume: 1.15, cheekVolume: 1.1 }),
   sculpt: Object.freeze({ eyeLevel: -0.02, fissureHeight: 1.2, irisSize: 1.2, mouthWidth: 0.8, tipProjection: 0.8, browThick: 0.75 }),
   // the boy: the male base's long lower face, forward chin, low jaw corner and narrow opening brought toward the female
   // base's (an anime child's face is soft whichever it is), inside the male base's ranges
   male: Object.freeze({ lower: 0.92, chin: 0.8, chinProjection: 0.75, jawAngle: 1.15, eyeHeight: 1.12 }),
+  // laws 14: the boy's chin no longer narrowed (laws 13's 0.8 drew it to a point; a broad chin is the round one)
+  roundMale: Object.freeze({ chin: 1.25 }),
 });
+/** does this child wear the ROUND child (laws 14: CHILD_FACE `round`, tiered-form.js CHILD_SHADE) */
+export const childRound = (hero) => (hero.laws ?? 1) >= 14 && childFaced(hero);
 /** does this hero wear the child's face (CHILD_FACE): the child build, its word or its pole-and-build, under laws 13 */
 export const childFaced = (hero) => (hero.laws ?? 1) >= 13 && castOf(lawCast(hero.cast, hero.laws).cast)?.build === 'child';
 
@@ -115,7 +122,8 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   // GENKI (anime-genki.js): one more layer over the look and the own layer, on every channel; none when absent or 0
   const G = genkiLayers(hero);
   // (the child's face its words in order, then the boy's own: a nested list would be read as one ratio object)
-  const { from: _f, ...face } = resolveAnimeFace([...(C ? C.face : []), C && heroHeadPole(hero) === 'male' ? C.male : null, L?.face, hero.face, G?.face].filter(Boolean));
+  const R = C && childRound(hero), boy = C && heroHeadPole(hero) === 'male';
+  const { from: _f, ...face } = resolveAnimeFace([...(C ? C.face : []), R ? C.round : null, boy ? C.male : null, boy && R ? C.roundMale : null, L?.face, hero.face, G?.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
   // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
   // read as named and its controls and lock edits compose like any other entry's
