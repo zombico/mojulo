@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
+import { BROW_SHAPES } from '../epidermis/epidermis.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
@@ -125,7 +126,7 @@ describe('the face composer', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const f = composeFace({ seed }), D = f.dermis;
       expect(() => readDermis({ from: 'female', ...D })).not.toThrow();
-      expect(D.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline[0]); expect(D.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline[1]);
+      expect(D.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline.female[0]); expect(D.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline.female[1]);
       expect(!!f.scalp).toBe(D.peak !== undefined);
     }
     const share = (a) => a.filter((b) => b > 0).length / a.length;
@@ -135,6 +136,19 @@ describe('the face composer', () => {
     // (an open dial: set it, and the face keeps everything else)
     const a = composeFace({ sex: 'male', seed: 4 }), b = composeFace({ sex: 'male', seed: 4, bald: 0.8 });
     expect(b.dermis.bald).toBe(0.8); expect(b.relations).toEqual(a.relations);
+  });
+
+  it('rolls a man about his pole: the hairline lower, the peak more often and without the women\'s groom, the brows heavier', () => {
+    let peaks = 0, wb = 0, mb = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const m = composeFace({ sex: 'male', seed }), w = composeFace({ sex: 'female', seed });
+      expect(m.dermis.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline.male[0]); expect(m.dermis.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline.male[1]);
+      expect(m.scalp?.moves ?? []).not.toContain('framed-layers');
+      if (m.dermis.peak !== undefined) peaks++;
+      expect(m.epidermis.hair.brows.thickness).toBeCloseTo(BROW_SHAPES[m.epidermis.hair.brows.shape].thickness * m.proportions['brows.thickness'] * FACE_GROOM_SEX.male.brows.thickness, 1);   // (the share is read to the hundredth)
+      wb += w.epidermis.hair.brows.thickness; mb += m.epidermis.hair.brows.thickness;
+    }
+    expect(peaks).toBeGreaterThan(12); expect(mb).toBeGreaterThan(wb * 1.3);
   });
 
   it('cuts the hair from its bucket\'s pool for the rolled texture, a groom the hair reads', () => {

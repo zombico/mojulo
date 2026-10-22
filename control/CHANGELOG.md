@@ -112,6 +112,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
   the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
   well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
+- THE MALE POLE (head-relational.js `RELATION_POLES.male`, empty until now; approved by the operator's eyes): the
+  female's principles at the male's character. The cheeks full and the lower cheek filled (volume, never a hollowed
+  default), a broader, rounder chin that no longer recedes over a wider jaw and a heavier masseter, a shorter nose with a
+  finer bridge and a wider base, fuller lips, the eyes a little more open; `HEAD_TUNES.male` re-solved for it and the
+  male head re-pinned. The male dermis's hairline sits lower (0.88) with a widow's peak (5 mm). The sex axis
+  (`dimorphRelations`) now runs between the two poles. The composer rolls a man about his pole: his hairline lower, the
+  widow's peak more often and more marked and without the women's centre-parted groom, his brows taller and fuller
+  (`FACE_GROOM_SEX`); a woman's rolls are byte-identical.
+- THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
+  not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
   as a camera saw it, and the deepest two photograph near-black and grey (less red over blue than MST 6), so MST 9 and 10
   rendered as dark grey under a white sheen. Below MST 8's luminance a tone is lifted (by a square root under that knee,

@@ -287,8 +287,8 @@ export function growEpidermis(head, cube) {
     const f = head.field, h = 0.0004;
     const normal = (q) => unit({ x: f({ ...q, x: q.x + h }) - f({ ...q, x: q.x - h }), y: f({ ...q, y: q.y + h }) - f({ ...q, y: q.y - h }), z: f({ ...q, z: q.z + h }) - f({ ...q, z: q.z - h }) });
     // in head heights: a root laid on the lid's skin (the rim the margin's beads welded into it, along the field's
-    // normal); a step the lash's curl would sink into the skin (a fold, the other lid on a shut eye) bent off it toward
-    // the skin's normal until it clears a hair's breadth — its length kept, never stretched
+    // normal); a step the lash's curl would sink into the skin (a fold, the other lid on a shut eye, a full cheek) bent off
+    // it toward the skin's normal until it clears a hair's breadth — its length kept, never stretched
     const fV = (p) => f({ x: p.x * sc, y: p.y * sc, z: p.z * sc }) / sc, nV = (p) => normal({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
     const clear = 0.05 * MM;
     const skin = {
@@ -296,7 +296,10 @@ export function growEpidermis(head, cube) {
       place: (p) => { const q = toLevel(f, { x: p.x * sc, y: p.y * sc, z: p.z * sc }, 0.2 * clear * sc, 0.05 * clear * sc), r = { x: q.x / sc, y: q.y / sc, z: q.z / sc }; return Math.hypot(r.x - p.x, r.y - p.y, r.z - p.z) > 2 * MM ? null : r; },
       step: (p, dir, l) => {
         let q = add(p, dir, l);
-        for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, nV(q), w)), l);
+        // (a lash heading down onto skin that faces up, a lower lash over a full cheek, is pushed forward off it, not
+        // up: the normal's rise taken off)
+        const off = (n) => (dir.z < 0 && n.z > 0 ? unit({ x: n.x, y: n.y, z: 0 }) : n);
+        for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, off(nV(q)), w)), l);
         return fV(q) < clear ? null : q;   // (pressed against skin it cannot clear — a canthus's corner — it ends)
       },
     };

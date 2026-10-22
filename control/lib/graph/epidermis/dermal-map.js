@@ -71,8 +71,9 @@ export const DERMIS_DIALS = Object.freeze({
 const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
 const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
 
+// (the male's hairline lower than the natural and a widow's peak at its middle: the male pole's, 2026-10-22, the operator's eyes)
 export const DERMIS_PRESETS = Object.freeze({
-  male: { lines: 0, dirt: 0, paint: null, sex: 'male', tone: 3, undertone: 'neutral', age: 0.35, zones: 1, flush: 1, freckles: 0, oil: 0.5, hairline: 1, beard: 1, stubble: 1, body: 1, axilla: 1, hairColour: 'dark-brown', seed: 1 },
+  male: { lines: 0, dirt: 0, paint: null, sex: 'male', tone: 3, undertone: 'neutral', age: 0.35, zones: 1, flush: 1, freckles: 0, oil: 0.5, hairline: 0.88, peak: 5, beard: 1, stubble: 1, body: 1, axilla: 1, hairColour: 'dark-brown', seed: 1 },
   female: { lines: 0, dirt: 0, paint: null, sex: 'female', tone: 3, undertone: 'neutral', age: 0.3, zones: 1, flush: 1, freckles: 0, oil: 0.45, hairline: 1, beard: 0, stubble: 0, body: 0.12, axilla: 0, hairColour: 'dark-brown', seed: 1 },
 });
 

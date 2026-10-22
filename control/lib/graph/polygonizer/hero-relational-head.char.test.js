@@ -18,6 +18,10 @@
  *   and the cheeks (fuller, the lower cheek bowed out), with `HEAD_TUNES.female` re-solved for it; the eyes' outer rings
  *   close in where they would cast past the face's side (`eyeFrame` room: a wider eye on a narrower face). The male is
  *   byte for byte as pinned.
+ * - 2026-10-22, the male pole (face harmony, approved by the operator's eyes): `RELATION_POLES.male`, empty until now,
+ *   fills the cheeks and the lower cheek, broadens and rounds the chin (no longer receding) over a wider jaw and a
+ *   heavier masseter, shortens the nose with a finer bridge and a wider base, fills the lips and opens the eyes a little,
+ *   with `HEAD_TUNES.male` re-solved for it. The female is byte for byte as pinned.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -25,7 +29,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: '77334ad0c5bbf65e', female: 'f32a8591f6c59516' };
+const PINS = { male: 'bb1945531bfd5fc4', female: 'f32a8591f6c59516' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

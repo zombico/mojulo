@@ -126,9 +126,16 @@ export const RELATIONS = Object.freeze({
                         // need a shorter one, or the sum blurs their edges (1 = the same everywhere)
 });
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
-/** the sex poles: ratios the female canon moves (the rest are shared) */
+/** the sex poles: ratios each pole moves over the canon (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
-  male: Object.freeze({}),
+  // the male pole (2026-10-22, the face-harmony study, approved by the operator's eyes): the female's principles at the
+  // male's character: the cheeks full and the lower cheek filled (volume, never a hollowed default); a broader, rounder
+  // chin that no longer recedes over a wider jaw and a heavier masseter; a shorter nose with a finer bridge and a wider
+  // base; fuller lips; the eyes a little more open
+  male: Object.freeze({
+    cheeks: 0.6, lowerCheek: 0.35, chinWidth: 0.04, chinRound: 0.1, masseter: 0.15, chin: 0.006, jaw: 0.75,
+    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.32, fissure: 0.039,
+  }),
   // the female pole (2026-10-21, the face-harmony study, approved by the operator's eyes): beyond the canon's sex cues, a
   // shorter, less projected nose with a finer bridge and a narrower base; larger eyes; fuller, taller, more forward lips
   // over a finer philtrum; a lighter, flatter brow; a narrower jaw and a narrower, pointed chin that no longer recedes;

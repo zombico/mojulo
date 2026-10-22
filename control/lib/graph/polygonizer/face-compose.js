@@ -107,6 +107,9 @@ export const FACE_GROOMS = Object.freeze({
   brows: { thickness: [0.75, 1.3], density: [0.8, 1.25] },
   lashes: { density: [0.7, 1.4], length: [0.85, 1.2] },
 });
+/** the sex's own weight over the rolled grooms (× the rolled share; absent × 1): a man's brows taller and fuller (the male
+ * pole's, 2026-10-22, the operator's eyes) */
+export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 } } });
 /**
  * THE NOSE'S AXIS — one roll per face, −1 … 1, from a SHORT, FLAT nose (less projected, shorter, its parts smaller, its
  * root lower, its base wider, its bridge broader) to a LONG, POINTED one (more projected, longer, a finer bridge and a
@@ -128,11 +131,13 @@ export const FACE_NOSE = Object.freeze({
  * less, by published prevalence at like ages). Rolled last of all: a seed keeps its face. `composeFace`'s `bald` sets it.
  */
 export const FACE_HAIRLINE = Object.freeze({
-  hairline: [0.85, 1.15], round: [-1, 1], sideburn: [-12, 15], nape: [-15, 20],
+  // (the man's about his pole's: lower than the natural, a widow's peak more often and more marked; the male pole's,
+  // 2026-10-22, the operator's eyes)
+  hairline: { female: [0.85, 1.15], male: [0.78, 0.98] }, round: [-1, 1], sideburn: [-12, 15], nape: [-15, 20],
   temples: { female: [-8, 22], male: [-6, 30] },
-  // (a widow's peak is where the hair parts of itself: a face that has one carries its groom's hint, a centre part with
-  // face-framing layers, over any style that has a part)
-  peak: { chance: 0.45, mm: [2, 10], scalp: { part: 'centre', moves: ['framed-layers'] } },
+  // (a widow's peak is where the hair parts of itself: a woman's that has one carries its groom's hint, a centre part
+  // with face-framing layers, over any style that has a part)
+  peak: { chance: { female: 0.45, male: 0.7 }, mm: { female: [2, 10], male: [3, 8] }, scalp: { part: 'centre', moves: ['framed-layers'] } },
   bald: { female: { chance: 0.08, amount: [0.1, 0.5] }, male: { chance: 0.45, amount: [0.1, 1] } },
 });
 /**
@@ -515,8 +520,8 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const browShape = brows || 'natural', lashShape = 'natural', groomShape = { brows: BROW_SHAPES[browShape], lashes: LASH_SHAPES[lashShape] };
   const grooms = { brows: { shape: browShape }, lashes: { shape: lashShape } };
   for (const [g, dials] of Object.entries(B.grooms || FACE_GROOMS)) for (const [k, [lo, hi]] of Object.entries(dials)) {
-    const share = lo + ((d() + d()) / 2) * (hi - lo);
-    grooms[g][k] = Math.round(groomShape[g][k] * share * 1000) / 1000;
+    const share = lo + ((d() + d()) / 2) * (hi - lo), bySex = FACE_GROOM_SEX[sex]?.[g]?.[k] ?? 1;
+    grooms[g][k] = Math.round(groomShape[g][k] * share * bySex * 1000) / 1000;
     proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
   }
   // the tone, where the bucket holds its own range (rolled before the nose, after the rest)
@@ -527,9 +532,9 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   proportions.nose = Math.round(nose * 100) / 100;
   // the hairline and the hair's loss, last of all
   const H = FACE_HAIRLINE, mid = ([lo, hi]) => lo + ((d() + d()) / 2) * (hi - lo), r1 = (v) => Math.round(v * 10) / 10;
-  const hair = { hairline: Math.round(mid(H.hairline) * 1000) / 1000, round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
+  const hair = { hairline: Math.round(mid(H.hairline[sex]) * 1000) / 1000, round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
   let scalpHint = null;
-  if (d() < H.peak.chance) { hair.peak = r1(mid(H.peak.mm)); scalpHint = H.peak.scalp; } else d();
+  if (d() < H.peak.chance[sex]) { hair.peak = r1(mid(H.peak.mm[sex])); scalpHint = sex === 'female' ? H.peak.scalp : null; } else d();
   const BL = H.bald[sex], hasLoss = d() < BL.chance * (B.bald ?? 1), loss = BL.amount[0] + d() * (BL.amount[1] - BL.amount[0]);
   const bald = baldAt ?? (hasLoss ? Math.round(loss * 100) / 100 : 0);
   if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));

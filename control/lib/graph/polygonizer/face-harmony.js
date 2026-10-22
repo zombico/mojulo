@@ -2,8 +2,8 @@
  * face-harmony — the relational head's face read for its HARMONY: how the features stand to one another, and how far
  * along the sex's axis the face sits. Two pieces, both pure:
  *
- *   dimorphRelations(d, female?)  the relations at `d` along the axis from the male canon (0) to the female pole (1), a
- *                   little past either end (−0.25 … 1.5): every ratio the female pole moves, moved by d. A Nordic
+ *   dimorphRelations(d, female?)  the relations at `d` along the axis from the male pole (0) to the female pole (1), a
+ *                   little past either end (−0.25 … 1.5): every ratio either pole moves, moved by d. A Nordic
  *                   heroine is a female at ~0.6: some of the male's bone, the rest hers. Hand it to `relationalHead` as
  *                   `relations` (the tune solved for them).
  *   harmonyMeasures(head)  calipers on the skin for the shapes the canon's calipers (head-field-view.js headMeasures)
@@ -19,10 +19,12 @@ import { rayIn, MM } from './head-field-view.js';
 /** the axis's reach either side of its poles */
 export const DIMORPH_RANGE = Object.freeze([-0.25, 1.5]);
 
-/** The relations `d` of the way from the male canon to the female pole (`female`, the pole's ratios by default). */
+/** The relations `d` of the way from the male pole to the female pole (`female`, the pole's ratios by default): every
+ * ratio either pole moves. */
 export function dimorphRelations(d, female = RELATION_POLES.female) {
-  if (!Number.isFinite(d) || d < DIMORPH_RANGE[0] || d > DIMORPH_RANGE[1]) throw new Error(`dimorph: a number in ${DIMORPH_RANGE.join(' … ')} (0 the male canon, 1 the female pole)`);
-  return Object.fromEntries(Object.entries(female).map(([k, f]) => [k, RELATIONS[k] + d * (f - RELATIONS[k])]));
+  if (!Number.isFinite(d) || d < DIMORPH_RANGE[0] || d > DIMORPH_RANGE[1]) throw new Error(`dimorph: a number in ${DIMORPH_RANGE.join(' … ')} (0 the male pole, 1 the female pole)`);
+  const male = { ...RELATIONS, ...RELATION_POLES.male }, fem = { ...RELATIONS, ...female };
+  return Object.fromEntries([...new Set([...Object.keys(RELATION_POLES.male), ...Object.keys(female)])].map((k) => [k, male[k] + d * (fem[k] - male[k])]));
 }
 
 const r1 = (v) => Math.round(v * 10) / 10;

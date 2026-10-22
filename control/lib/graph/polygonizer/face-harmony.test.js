@@ -5,12 +5,12 @@ import { HEAD_TUNES } from './hero-relational-head.js';
 import { dimorphRelations, harmonyMeasures, DIMORPH_RANGE } from './face-harmony.js';
 
 describe('the sex axis', () => {
-  it('runs from the male canon (0) to the female pole (1), only over the ratios the pole moves', () => {
+  it('runs from the male pole (0) to the female pole (1), only over the ratios the poles move', () => {
     const at0 = dimorphRelations(0), at1 = dimorphRelations(1);
-    expect(Object.keys(at1).sort()).toEqual(Object.keys(RELATION_POLES.female).sort());
+    expect(Object.keys(at1).sort()).toEqual([...new Set([...Object.keys(RELATION_POLES.male), ...Object.keys(RELATION_POLES.female)])].sort());
     for (const k of Object.keys(at1)) {
-      expect(at0[k]).toBeCloseTo(RELATIONS[k], 12);
-      expect(at1[k]).toBeCloseTo(RELATION_POLES.female[k], 12);
+      expect(at0[k]).toBeCloseTo(RELATION_POLES.male[k] ?? RELATIONS[k], 12);
+      expect(at1[k]).toBeCloseTo(RELATION_POLES.female[k] ?? RELATIONS[k], 12);
     }
   });
   it('reaches a little past either pole, and no further', () => {
