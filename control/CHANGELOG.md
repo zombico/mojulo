@@ -139,6 +139,9 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
   worn hollows), the ground and its talus `turf`, and the trail's fringe lanes a new `verge` cut laid across the lane:
   earth and stones at the path's side giving way to turf at the land's, so path and land meet in a band, not a line
   (`withGrittyGround`).
+- **The grass's light.** A gritty land's live grass takes the material light (its ramp read smooth, not banded), the
+  roots darker and the light through the blades stronger as the grit rises (`ao` 0.6 to 0.3, `back` 0.6 to 1); no dry
+  tips, a hue the cube's ramps do not hold.
 
 ### The biocube: a level's flora as data
 

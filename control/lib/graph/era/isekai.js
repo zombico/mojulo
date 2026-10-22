@@ -586,7 +586,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     glow: !!Gl,
     pack: true,
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
-    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)) } : {}),
+    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
@@ -701,6 +701,14 @@ const WALK_EYE = 1.7;
 // the wildflowers' defaults: a card's `live.flowers`, then a recipe's `grass.flowers`, over these
 const FLOWERS_DEFAULT = Object.freeze({ size: 1, lift: 1, share: 0.12, mix: Object.freeze({ daisy: 3, buttercup: 2, clover: 2, lupine: 1, poppy: 1 }), variants: 2 });
 const REAL_GRASS = Object.freeze({ ao: 0.45, back: 0.7, dry: 0.22 });
+/** A gritty land's live grass (`grit` from GRIT_PIXELS): the material light, its contrast the grit's, the roots darker
+ *  (`ao` from 0.6 to 0.3) and the light through the blades stronger (`back` from 0.6 to 1) as the grit rises; no dry
+ *  tips (a hue the cube's ramps do not hold). A quiet land's grass as it was. */
+function grittyGrass(LG, grit, st) {
+  if (!LG || !grit) return LG;
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS)));
+  return { ...LG, real: { ...(LG.real ?? {}), ao: r5(0.6 - 0.3 * t), back: r5(0.6 + 0.4 * t), dry: 0, sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } };
+}
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers'];
 /**
  * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).

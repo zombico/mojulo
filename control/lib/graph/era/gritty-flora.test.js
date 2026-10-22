@@ -49,4 +49,14 @@ describe('gritty flora', () => {
     expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
     expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
   }, 60000);
+
+  it('a gritty land\'s live grass takes the material light, its contrast the grit\'s, no dry hue', () => {
+    const M = { kind: 'stage', kit: 'isekai-meadow', biocube: 'meadow' };
+    const G = assembleStageScene({ ...M, shading: { grit: 0.7 } }).liveGrass, Q = assembleStageScene({ ...M, shading: true }).liveGrass;
+    const t = (0.7 - GRIT_PIXELS) / (1 - GRIT_PIXELS);
+    expect(G.real.ao).toBeCloseTo(0.6 - 0.3 * t, 4);
+    expect(G.real.back).toBeCloseTo(0.6 + 0.4 * t, 4);
+    expect(G.real.dry).toBe(0);
+    expect(Q.real).toBeUndefined();
+  }, 60000);
 });
