@@ -21,6 +21,11 @@
  *   pinball      speed: momentum that builds long and keeps, steering not turning, every wall a bumper, a boost that
  *                cannot be hurt, a hit ricochets out faster than it came
  *
+ * JUMPING ON a body (the card's `land`): realistic and action slide off its top into open space (nobody stands on a
+ * head), and action's ENEMY STEP turns a jump pressed while touching a body in the air into a fresh jump; platformer
+ * STOMPS (the body is squashed, the stomper bounces, higher with the jump held); pinball's spinning body BOUNCES off it
+ * like a bumper and the body ricochets. Bodies never pass into each other: walking into one stops at its side.
+ *
  * THE LAWS every card keeps (verify.mjs): the same pad gives the same trace; an idle pad moves nothing; every press ends
  * acted on or dropped with its reason; a ground jump leaves on press + commit; a buffered or coyote jump within its
  * window jumps and one frame past it does not; a held jump rises monotonic in the hold and the full hold reaches the
@@ -39,7 +44,7 @@
 export const FPS = 60;
 export const DT = 1 / FPS;
 export const BTN = Object.freeze({ JUMP: 1, ATTACK: 2, DODGE: 4, SPRINT: 8 });
-const G = 9.81, RADIUS = 0.3, STEP = 0.12, DEG = Math.PI / 180;
+const G = 9.81, RADIUS = 0.3, STEP = 0.12, DEG = Math.PI / 180, HEIGHT = 1.7;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
 const len2 = (x, y) => Math.hypot(x, y);
@@ -67,6 +72,9 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            (momentum { gain, lift deg } | boop { push, bounce, hop } | ricochet { restitution, floor }), mercy (frames
  *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next)
  *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap }
+ *   land     what coming down on a body does: slide { slide m/s, step { cooldown } } (off its top; `step` the enemy
+ *            step) | stomp { low, high (m: the bounce, the jump held for high), stun (frames squashed) } | bounce { min (m:
+ *            the least rebound), restitution, floor (the body's ricochet, as hit.force) }
  *   look     squash (the volume-kept squash and stretch at take-off and landing), smear (m a hand jumps a frame)
  */
 export const FEELS = Object.freeze({
@@ -85,6 +93,7 @@ export const FEELS = Object.freeze({
     },
     hit: { hitstop: null, stun: { model: 'body' }, force: { model: 'momentum', gain: 1, lift: 0 }, mercy: 0, alert: 60 },
     wall: { model: 'stop', stagger: 3.5 },
+    land: { model: 'slide', slide: 2 },
     look: { squash: 0, smear: null },
   },
   action: {
@@ -102,6 +111,7 @@ export const FEELS = Object.freeze({
     },
     hit: { hitstop: { base: 4, perMs: 0.6, max: 14 }, stun: { model: 'rule', base: 0.5, decay: 0.85, min: 0.12 }, force: { model: 'momentum', gain: 2, lift: 0 }, mercy: 0, alert: 60 },
     wall: { model: 'stop', stagger: null },
+    land: { model: 'slide', slide: 3, step: { cooldown: 12 } },
     look: { squash: 0.06, smear: 0.09 },
   },
   platformer: {
@@ -115,6 +125,7 @@ export const FEELS = Object.freeze({
     },
     hit: { hitstop: { base: 2, perMs: 0, max: 2 }, stun: { model: 'none' }, force: { model: 'boop', push: 2.5, bounce: 3, hop: 0.3 }, mercy: 60, alert: 0 },
     wall: { model: 'bonk', above: 4.5, rebound: 3, hop: 0.5 },
+    land: { model: 'stomp', low: 0.6, high: 1.806, stun: 90 },
     look: { squash: 0.22, smear: null },
   },
   pinball: {
@@ -128,6 +139,7 @@ export const FEELS = Object.freeze({
     },
     hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'ricochet', restitution: 1.3, floor: 6 }, mercy: 20, alert: 0 },
     wall: { model: 'bounce', e: 1.3, cap: 20 },
+    land: { model: 'bounce', min: 1.0, restitution: 1.3, floor: 6 },
     look: { squash: 0.1, smear: 0.05 },
   },
 });
@@ -146,19 +158,20 @@ export const ARENA = Object.freeze({
 
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
-function bodyAt(xy, yaw) {
-  return { fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+function bodyAt(xy, yaw, h = HEIGHT) {
+  return { h, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
 /**
  * A new lab: the card (copied: dials edit the state's own), the body (takes.mjs `bodyOf`: reach and real blow speed
  * per take, strides, mass), the arena. `spar`: the dummy throws a telegraphed jab at a hero in range. `guard`: a free
- * dummy that saw a hit coming guards the next one.
+ * dummy that saw a hit coming guards the next one. `dummyHeight` (m): a short critter (0.8) can be jumped on by
+ * every feel's jump; the standing dummy (1.7) is taller than most.
  */
-export function newState(card, body, { arena = ARENA, spar = false, guard = true } = {}) {
+export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT } = {}) {
   return { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0,
-    hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI) };
+    hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
 }
 
 // ─── the step ───────────────────────────────────────────────────────────
@@ -178,6 +191,7 @@ export function step(S0, pad) {
   tryQueue(S, stick);
   if (!H.stop) moveBody(S, H, 'hero', stick, b);
   if (!D.stop) moveBody(S, D, 'dummy', null, 0);
+  if (!H.stop) bodies(S);
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
   if (!D.stop) { sparThink(S); testHit(S, D, H, 'dummy'); }
@@ -190,6 +204,8 @@ export function step(S0, pad) {
     if (B.mercy > 0) B.mercy--;
     if (B.alert > 0) B.alert--;
     if (B.lag > 0) B.lag--;
+    if (B.stepCd > 0) B.stepCd--;
+    if (B.squash > 0) B.squash--;
   }
   for (const q of S.queue) if (!H.stop) q.age++;
   S.f++;
@@ -232,6 +248,7 @@ function can(S, name) {
     if (a?.kind === 'move' && !cancelOpen(S, a)) return { reason: 'in a move\'s startup or active frames', queue: true };
     if (a?.kind === 'dodge') return { reason: 'in a dodge', queue: true };
     if (H.grounded || H.coyote > 0) return true;
+    if (canStep(S)) return true;
     return { reason: 'in the air', queue: true };
   }
   if (name === 'attack') {
@@ -263,7 +280,11 @@ function act(S, name, stick, waited) {
   const H = S.hero, C = S.card;
   S.events.push({ f: S.f, who: 'hero', type: 'acted', button: name, waited });
   if (name === 'jump') {
-    if (!H.grounded) { S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote }); takeOff(S, H, 'hero'); return; }
+    if (!H.grounded) {
+      if (H.coyote > 0) S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote });
+      else { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; }
+      takeOff(S, H, 'hero'); return;
+    }
     H.act = null;
     if (C.jump.commit > 0) { H.act = { kind: 'gather', f: 0, of: C.jump.commit }; return; }
     takeOff(S, H, 'hero'); return;
@@ -291,6 +312,7 @@ function cutJump(S, B) {
 // ─── moving a body ──────────────────────────────────────────────────────
 function moveBody(S, B, who, stick, buttons) {
   const C = S.card, Gd = C.ground, a = B.act;
+  B.z0 = B.p[2];   // the feet at the frame's start: a fast fall crosses a body's top in one frame
   const free = !(a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt')) && B.stun === 0;
   // the stick's ask: a speed toward a heading
   let want = null;
@@ -369,7 +391,7 @@ function ground(S, B, who) {
   }
   if (B.coyote > 0) B.coyote--;
   if (B.p[2] <= g && B.v[2] <= 0) {
-    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0;
+    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false;
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
@@ -421,6 +443,57 @@ function strideRate(S, speed) {
   let rate = speed / travel; const top = g.at(-1).v;
   if (speed > top) rate *= 1 + 0.5 * (speed / top - 1);   // past the sprint the legs outrun the ground (pinball's wheel)
   return Math.min(FPS / 4, rate);
+}
+
+// ─── bodies: walking into one, jumping on one ──────────────────────────
+/**
+ * The hero against the dummy, two upright cylinders (RADIUS across, `h` tall). Coming down onto the dummy's top (the
+ * feet within a quarter metre of it, not rising) is the card's `land`; any other overlap pushes the hero out to the
+ * dummy's side and takes the part of its velocity that went in (the dummy stands its ground: a training post).
+ */
+function bodies(S) {
+  const H = S.hero, D = S.dummy, C = S.card;
+  const dx = H.p[0] - D.p[0], dy = H.p[1] - D.p[1], d = len2(dx, dy), top = D.p[2] + D.h;
+  const over = d < 2 * RADIUS && H.p[2] < top && H.p[2] + H.h > D.p[2];
+  if (!over) { H.touching = false; H.onHead = false; return; }
+  const nx = d > 1e-6 ? dx / d : -Math.sin(H.yaw), ny = d > 1e-6 ? dy / d : -Math.cos(H.yaw);
+  if (H.v[2] <= 0 && (H.p[2] >= top - 0.25 || (H.z0 ?? H.p[2]) >= top - 1e-6)) return landOn(S, H, D, top, nx, ny);
+  H.p[0] = D.p[0] + nx * 2 * RADIUS; H.p[1] = D.p[1] + ny * 2 * RADIUS;
+  const into = -(H.v[0] * nx + H.v[1] * ny); if (into > 0) { H.v[0] += nx * into; H.v[1] += ny * into; }
+  if (!H.touching) S.events.push({ f: S.f, who: 'hero', type: 'bump', into: r4(Math.max(0, into)) });
+  H.touching = true;
+}
+function landOn(S, H, D, top, nx, ny) {
+  const C = S.card, L = C.land, J = C.jump, falling = -H.v[2];
+  const spun = L.model === 'bounce' && J.spin && H.jumped;
+  if (L.model === 'stomp' || spun) {
+    H.p[2] = top; H.grounded = false; H.jumped = true; H.cut = false; H.apex = null; H.from = top; H.hang = J.hang; H.coyote = 0; H.onHead = false;
+    if (L.model === 'stomp') H.v[2] = Math.sqrt(2 * J.gRise * ((S.held & BTN.JUMP) ? L.high : L.low));
+    else H.v[2] = Math.max(falling, Math.sqrt(2 * J.gRise * L.min));
+    const type = L.model === 'stomp' ? 'stomp' : 'bounce-off';
+    if (D.mercy > 0) { S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', vz: r4(H.v[2]), immune: true }); S.events.push({ f: S.f, who: 'dummy', type: 'immune', mercy: D.mercy }); return; }
+    const stop = hitstop(S, 0); H.stop = D.stop = stop; H.fresh = D.fresh = stop > 0;
+    D.mercy = C.hit.mercy; D.lastHit = { take: 'cross', f: S.f, finisher: false }; D.combo = 0;
+    if (L.model === 'stomp') { D.squash = L.stun; D.stun = L.stun; D.act = null; }
+    else {
+      const sp = Math.max(L.floor, len2(H.v[0], H.v[1])) * L.restitution, hx = len2(H.v[0], H.v[1]) > 1e-6 ? H.v[0] / len2(H.v[0], H.v[1]) : -nx, hy = len2(H.v[0], H.v[1]) > 1e-6 ? H.v[1] / len2(H.v[0], H.v[1]) : -ny;
+      D.v[0] = hx * sp; D.v[1] = hy * sp; D.v[2] = 2; D.grounded = false; D.jumped = false; D.from = D.p[2];
+    }
+    S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', vz: r4(H.v[2]), fell: r4(falling), held: !!(S.held & BTN.JUMP), hitstop: stop });
+    return;
+  }
+  // slide: the top holds the feet but is no floor; the body slides off it, outward, and falls beside
+  H.p[2] = top; H.v[2] = 0;
+  H.p[0] += nx * L.slide * DT; H.p[1] += ny * L.slide * DT;
+  if (!H.onHead) S.events.push({ f: S.f, who: 'hero', type: 'slide', on: 'dummy', fell: r4(falling) });
+  H.onHead = true;
+}
+/** the enemy step: a jump in the air off a body the hero touches (beside it or on it), if the card has one */
+function canStep(S) {
+  const H = S.hero, D = S.dummy, st = S.card.land.step;
+  if (!st || H.stepCd > 0 || H.grounded) return false;
+  const d = len2(H.p[0] - D.p[0], H.p[1] - D.p[1]), z = H.p[2] - D.p[2];
+  return d < 2 * RADIUS + 0.15 && z > 0.2 && z <= D.h + 0.05;
 }
 
 // ─── hits ───────────────────────────────────────────────────────────────
@@ -490,7 +563,10 @@ export function poseOf(S, who) {
   const since = (f) => (S.f - f) / FPS; const sq = C.look.squash;
   const pulse = (t) => Math.exp(-((t / 0.05) ** 2));
   let s = 0; if (sq) { s += sq * pulse(since(B.tookOff)); s -= sq * pulse(since(B.landed) - 0.03); }
-  const scale = Math.abs(s) < 1e-3 ? null : [1 / Math.sqrt(1 + s), 1 / Math.sqrt(1 + s), 1 + s];
+  let scale = Math.abs(s) < 1e-3 ? null : [1 / Math.sqrt(1 + s), 1 / Math.sqrt(1 + s), 1 + s];
+  // a short body is the figure drawn short and broad; a stomped one, flattened for its stun
+  const kz = (B.h / HEIGHT) * (B.squash > 0 ? 0.35 : 1);
+  if (kz !== 1) { const kx = B.squash > 0 ? 1.5 : 1 / Math.sqrt(kz); scale = [(scale ? scale[0] : 1) * kx, (scale ? scale[1] : 1) * kx, (scale ? scale[2] : 1) * kz]; }
   const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0 };
   if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f };
   if (a?.kind === 'spar') return { ...base, clip: 'spar', at: a.f };
@@ -534,7 +610,7 @@ export function frameData(card, body) {
   });
 }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

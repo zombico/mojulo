@@ -65,6 +65,22 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
   tick that struck still shows the contact frame. The frozen frames change nothing, and the move resumes on the next
   frame. A hit's total delay is exactly the hitstop.
 
+## Jumping on a body
+
+What coming down on a body does is the card's `land`. Bodies never pass into each other: walking into the dummy
+stops at its side, and coming down on its top (the feet within a quarter metre of it, or above it at the frame's
+start, not rising) is the card's call:
+
+| feel | coming down on a body |
+|---|---|
+| **realistic** | slides off its top at 2 m/s into open space; nobody stands on a head |
+| **action** | slides off at 3 m/s, plus the **enemy step**: a jump pressed in the air while touching a body (beside it or on it) is a fresh jump on the press, once every 12 frames (Devil May Cry, Bayonetta, Ninja Gaiden) |
+| **platformer** | a **stomp**: the body is squashed (flattened for its 90-frame stun) and the stomper bounces 0.6 m, or the full 1.81 m with the jump held; a body in its mercy is bounced off without effect |
+| **pinball** | a spinning body **bounces off** like a bumper (at least as fast as it fell, never under 1 m) and the body ricochets at 1.3× (at least 7.8 m/s); falling unspun, it slides off |
+
+The standing dummy (1.7 m) is taller than every jump but the platformer's, so the page's **Critter** (H) swaps in a
+short one (0.8 m) that every feel can land on.
+
 ## The feels
 
 | | ground | jump | the light | hit | dodge | wall |
@@ -76,7 +92,7 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 70 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 79 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -97,8 +113,14 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
 - **The dodge.** A telegraphed hit (the sparring dummy's 30-frame jab) that lands inside the invincible frames is
   evaded. Without them (realistic, platformer), standing still, the telegraph lands.
 - **The wall.** It answers as the card says: a stop, a bonk, or a bounce at exactly 1.3× capped.
+- **Jumping on.** Dropped onto the critter, realistic and action slide off into open space, ending on the floor
+  beside it with it untouched. Platformer stomps, squashing and stunning it, with the bounce's apex 0.6 m or (the
+  jump held) 1.806 m to the millimetre. Pinball's spinning body bounces off no slower than it fell, the critter
+  ricochets at 7.8 m/s, and unspun it slides. Action's enemy step jumps on the press beside the standing dummy; no
+  other feel jumps there.
 - **The laws over every run.**
-  - No body passes a wall or a block at any speed. The floor plane is substepped at 8 cm.
+  - No body passes a wall or a block at any speed, and the hero never enters the dummy. The floor plane is
+    substepped at 8 cm.
   - Every press is accounted for.
   - An idle pad moves nothing.
   - The same pad gives the same trace, byte for byte, and the four feels play it four different ways.
@@ -114,7 +136,7 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
 - **Feel and settings.** 1–4 switch the feel; C switches the cast (the same card on the other body). T toggles a
-  sparring dummy that telegraphs a jab, and G toggles its guard.
+  sparring dummy that telegraphs a jab, G toggles its guard, and H swaps in the short critter to jump on.
 - **Training-mode controls.** P pauses, `.` steps one frame, and V switches between the ¾ view and the side view.
 - **Readouts.**
   - The last press, as frames and milliseconds from the press to its effect.

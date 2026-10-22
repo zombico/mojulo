@@ -32,6 +32,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   its reason, byte-identical traces. `lab.mjs` writes a playable page (keyboard, gamepad, touch) with the feel
   switch, the dials, a frame bar, the event log, frame data and a recorder whose runs become fixtures. The eyes gate
   is open.
+- **Jumping on a body, in the lab** (the card's `land`). Bodies no longer pass into each other. Realistic and action
+  slide off a body's top into open space; action adds the enemy step (a jump pressed in the air touching a body is a
+  fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
+  pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
+  feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
 - **Ground acceleration in the platform rule** (`rules-platform.js`, opt-in `accel` and `decel`). The first of the
   lab's pieces in the live rules. The body carries a planar drive that builds toward the stick at `accel` and sheds
   at `decel` (default `accel`). In the air both rates scale by `airControl`, and an unpushed body keeps its drive, so

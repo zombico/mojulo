@@ -19,14 +19,17 @@ const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE;
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
  * block taller than a step over its feet, none past the arena). Returns the events and the per-tick states.
  */
-function run(card, pads, n, { arena = OPEN, setup = null, spar = false, who = body } = {}) {
-  let S = newState(card, who, { arena, spar }); if (setup) setup(S);
+function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight } = {}) {
+  let S = newState(card, who, { arena, spar, guard, dummyHeight }); if (setup) setup(S);
   const events = [], states = []; let breach = null;
   for (let f = 0; f < n; f++) {
     S = step(S, pads(f)); events.push(...S.events); states.push(S);
     for (const w of ['hero', 'dummy']) { const B = S[w];
       if (Math.abs(B.p[0]) > arena.half - util.RADIUS + 1e-9 || Math.abs(B.p[1]) > arena.half - util.RADIUS + 1e-9) breach ??= { f, w, p: B.p };
       for (const k of arena.blocks) if (k.h > B.p[2] + 0.12 && B.p[0] > k.x[0] + 1e-6 && B.p[0] < k.x[1] - 1e-6 && B.p[1] > k.y[0] + 1e-6 && B.p[1] < k.y[1] - 1e-6) breach ??= { f, w, p: B.p, block: k.id }; }
+    // the hero never inside the dummy (a frozen tick moves nothing, so it is checked when the hero moved)
+    const Hh = S.hero, Dd = S.dummy;
+    if (!Hh.stop && Math.hypot(Hh.p[0] - Dd.p[0], Hh.p[1] - Dd.p[1]) < 2 * util.RADIUS - 1e-6 && Hh.p[2] < Dd.p[2] + Dd.h - 1e-6 && Hh.p[2] + Hh.h > Dd.p[2] + 1e-6) breach ??= { f, w: 'hero', inside: 'dummy', p: Hh.p };
   }
   return { events, states, breach, end: S };
 }
@@ -126,6 +129,28 @@ for (const id of FEEL_IDS) {
     check(`${id}: without invincible frames a dodge is space, not immunity: standing still the telegraph lands`, ev(r, 'hit').length === 1 && !ev(r, 'evaded').length, ev(r, 'hit').map((e) => e.f));
   }
 
+  // ─── jumping on: dropped onto a critter's head (0.8 m), and the enemy step beside the standing dummy ───
+  const PERCH = { half: 400, blocks: [], hero: [0, 0], dummy: [0, 0] };
+  const drop = (spun, held) => track(run(C, () => (held ? J : 0), 150, { arena: PERCH, dummyHeight: 0.8, setup: (S) => { S.hero.p = [0.1, 0, 2.5]; S.hero.grounded = false; S.hero.jumped = spun; } }));
+  const LD = C.land, onto = drop(true, false), landed = onto.events.find((e) => e.who === 'hero' && ['stomp', 'bounce-off', 'slide'].includes(e.type));
+  row['jump on'] = landed ? landed.type : 'none';
+  if (LD.model === 'stomp') {
+    const high = drop(true, true), apexOf = (r) => r.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > r.events.find((x) => x.type === 'stomp').f)?.height;
+    const squashed = onto.states[onto.events.indexOf(landed) >= 0 ? landed.f + 1 : 0].dummy;
+    check(`${id}: coming down on a body stomps it (squashed, stunned) and bounces, low (${LD.low} m) or high with the jump held (${LD.high} m)`, landed?.type === 'stomp' && squashed.squash > 0 && squashed.stun > 0 && Math.abs(apexOf(onto) - LD.low) < 1e-3 && Math.abs(apexOf(high) - LD.high) < 1e-3, { low: apexOf(onto), high: apexOf(high), squash: squashed.squash });
+  } else if (LD.model === 'bounce') {
+    const unspun = drop(false, false), b = landed, vD = onto.states[b.f + Math.max(1, b.hitstop + 1)].dummy;
+    check(`${id}: a spinning body bounces off a body (at least as fast as it fell, never under ${LD.min} m) and the body ricochets; falling unspun it slides off`, b?.type === 'bounce-off' && b.vz >= b.fell - 1e-9 && b.vz >= Math.sqrt(2 * C.jump.gRise * LD.min) - 1e-9 && Math.abs(Math.hypot(vD.v[0], vD.v[1]) - LD.floor * LD.restitution) < 0.2 && unspun.events.some((e) => e.type === 'slide'), { vz: b?.vz, fell: b?.fell, ricochet: Math.hypot(vD.v[0], vD.v[1]) });
+  } else {
+    const end = onto.end, off = Math.hypot(end.hero.p[0] - end.dummy.p[0], end.hero.p[1] - end.dummy.p[1]);
+    check(`${id}: coming down on a body slides off its top into open space (no stomp, the body untouched), the feet on the floor beside it`, landed?.type === 'slide' && !onto.events.some((e) => e.type === 'stomp' || e.type === 'bounce-off') && end.hero.grounded && end.hero.p[2] === 0 && off >= 2 * util.RADIUS - 1e-9 && !ev(onto, 'hit', 'dummy').length, { landed: landed?.type, off: +off.toFixed(4) });
+  }
+  const BESIDE = { half: 400, blocks: [], hero: [0, -0.65], dummy: [0, 0] };
+  const st = track(run(C, (f) => (f === 0 || f === 14 ? J : 0), 120, { arena: BESIDE }));
+  const stepEv = ev(st, 'step'), offEv = ev(st, 'takeoff');
+  if (LD.step) check(`${id}: a jump pressed in the air touching a body is an enemy step: a fresh jump on the press`, stepEv.length === 1 && offEv.length >= 2 && offEv[1].f === 14, { stepEv: stepEv.map((e) => e.f), takeoffs: offEv.map((e) => e.f) });
+  else check(`${id}: no enemy step: a jump pressed in the air beside a body does not jump there`, !stepEv.length && !offEv.some((e, i) => i > 0 && e.f === 14), { takeoffs: offEv.map((e) => e.f) });
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));
@@ -135,7 +160,7 @@ for (const id of FEEL_IDS) {
 }
 
 // ─── the laws over every run ───
-check('no body passes a wall or a block, at any speed, in any run', !allBreaches.length, allBreaches.slice(0, 3));
+check('no body passes a wall or a block, and the hero never enters the dummy, at any speed, in any run', !allBreaches.length, allBreaches.slice(0, 3));
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));
 const ends = runs.flatMap((r) => r.events.filter((e) => e.type === 'acted' || e.type === 'dropped'));
 const pending = runs.reduce((a, r) => a + r.end.queue.length, 0);
@@ -159,7 +184,7 @@ check('realistic\'s card is the take\'s own time: its fitted jab is the take fra
 const FIX = new URL('./fixtures/', import.meta.url);
 if (existsSync(FIX)) for (const file of readdirSync(FIX).filter((f) => f.endsWith('.json'))) {
   const fx = JSON.parse(readFileSync(new URL(file, FIX), 'utf8'));
-  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
+  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
   const got = r.events.filter((e) => fx.expect?.types?.includes(e.type)).map((e) => `${e.f}:${e.who}:${e.type}`);
   check(`fixture ${file}: ${fx.says ?? ''}`, !fx.expect?.events || JSON.stringify(got) === JSON.stringify(fx.expect.events), got.slice(0, 6));
 }

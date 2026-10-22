@@ -11,12 +11,12 @@ readCols();
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
 
 let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
-let spar = false, guard = true, paused = false, stepOnce = false;
+let spar = false, guard = true, critter = false, paused = false, stepOnce = false;
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
 let S, hist = [], log = [], presses = [], sparks = [], cam = { x: 0, y: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
 function reset() {
-  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard });
+  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT });
   hist = []; log = []; presses = []; sparks = []; shown = {}; prevWorld = {};
   cam = { x: S.hero.p[0], y: S.hero.p[1] };
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
@@ -33,6 +33,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyV') setView(view === 'three' ? 'side' : 'three');
   else if (e.code === 'KeyT') setSpar(!spar);
   else if (e.code === 'KeyG') setGuard(!guard);
+  else if (e.code === 'KeyH') setCritter(!critter);
   else if (e.code === 'KeyC') setCast(cast === 'male' ? 'female' : 'male');
   else if (e.code === 'Escape' || e.code === 'KeyP') setPaused(!paused);
   else if (e.code === 'Period') { if (paused) stepOnce = true; }
@@ -119,6 +120,9 @@ const say = {
   whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
   wall: (e) => `wall: ${e.response} at ${e.into.toFixed(1)} m/s${e.out != null ? ` → ${e.out.toFixed(1)}` : ''}`,
   free: (e) => `${e.who} free to act`, end: () => null, dodge: (e) => `${e.kind}`,
+  stomp: (e) => (e.immune ? 'stomped, but the dummy is in its mercy: a bounce only' : `stomp: the dummy squashed, the bounce ${e.held ? 'high (jump held)' : 'low'} at ${e.vz.toFixed(1)} m/s`),
+  'bounce-off': (e) => (e.immune ? 'bounced off (the dummy is in its mercy)' : `bounced off the dummy at ${e.vz.toFixed(1)} m/s (fell at ${e.fell.toFixed(1)}), the dummy ricochets`),
+  slide: () => 'on its head: slid off (its top is no floor)', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
 function onEvent(e) {
   const line = say[e.type]?.(e);
@@ -134,6 +138,7 @@ function onEvent(e) {
     const p = open('attack', 'effect'); if (p) { p.effect = e.f; p.out = e.type === 'hit' ? `hit${e.advantage != null ? ` (linked +${e.advantage})` : ''}` : e.type; }
     sparks.push({ p: [S.dummy.p[0], S.dummy.p[1], S.dummy.p[2] + 1.3], t: 0, big: e.finisher || e.hitstop > 6 });
   }
+  if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
   dirty.log = true;
@@ -306,7 +311,7 @@ function renderFeel() {
   for (const b of document.querySelectorAll('[data-feel]')) b.setAttribute('aria-pressed', String(b.dataset.feel === feel));
   $('says').textContent = FEELS[feel].says;
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
-  $('spar').setAttribute('aria-pressed', String(spar)); $('guard').setAttribute('aria-pressed', String(guard));
+  $('spar').setAttribute('aria-pressed', String(spar)); $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = view === 'three' ? '¾ view' : 'Side view'; $('pause').textContent = paused ? 'Resume' : 'Pause';
 }
 const DIALS = [
@@ -368,17 +373,17 @@ function renderRec() {
 let last = null;
 $('rec').addEventListener('click', () => {
   if (rec) { last = rec; rec = null; $('fixture').value = JSON.stringify(fixture(last)); }
-  else { reset(); rec = { feel, cast, spar, guard, card: copy(S.card), pads: [] }; }
+  else { reset(); rec = { feel, cast, spar, guard, critter, card: copy(S.card), pads: [] }; }
   renderRec();
 });
-$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; cards[feel] = copy(last.card); reset(); replay = { pads: last.pads, i: 0 }; renderRec(); });
-const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, card: r.card, pads: r.pads });
+$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); reset(); replay = { pads: last.pads, i: 0 }; renderRec(); });
+const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), card: r.card, pads: r.pads });
 $('copy').addEventListener('click', async () => {
   const t = $('fixture'); t.value = JSON.stringify(fixture(last));
   try { await navigator.clipboard.writeText(t.value); $('recState').textContent = 'Copied. Save it under scripts/spikes/action-lab/fixtures/ and verify.mjs replays it.'; }
   catch { t.hidden = false; t.select(); $('recState').textContent = 'Select-all is on the box below: copy it from there.'; }
 });
-$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
+$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, critter: fx.dummyHeight != null && fx.dummyHeight < 1, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
 $('showfx').addEventListener('click', () => { $('fixture').hidden = !$('fixture').hidden; $('load').hidden = $('fixture').hidden; });
 
 // ─── controls ───
@@ -386,12 +391,13 @@ function setFeel(id, quiet) { feel = id; store.set('feel', id); if (!quiet) rese
 function setView(v) { view = v; store.set('view', v); renderFeel(); }
 function setSpar(on) { spar = on; S.spar = on; renderFeel(); }
 function setGuard(on) { guard = on; S.guard = on; renderFeel(); }
+function setCritter(on) { critter = on; reset(); }
 function setCast(c) { cast = c; store.set('cast', c); reset(); }
 function setPaused(on) { paused = on; renderFeel(); }
 for (const b of document.querySelectorAll('[data-feel]')) b.addEventListener('click', () => setFeel(b.dataset.feel));
 $('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(FEELS[feel]); reset(); });
 $('view').addEventListener('click', () => setView(view === 'three' ? 'side' : 'three'));
-$('spar').addEventListener('click', () => setSpar(!spar)); $('guard').addEventListener('click', () => setGuard(!guard));
+$('spar').addEventListener('click', () => setSpar(!spar)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
 $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); stepOnce = true; });
 

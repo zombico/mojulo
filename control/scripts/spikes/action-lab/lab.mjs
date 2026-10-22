@@ -19,7 +19,8 @@ writeFileSync(cache, JSON.stringify(DATA));
 const FEEL_BUTTONS = [['realistic', 'Realistic', '1'], ['action', 'Action', '2'], ['platformer', 'Platformer', '3'], ['pinball', 'Pinball', '4']]
   .map(([id, name, k]) => `<button type="button" class="feel" data-feel="${id}" aria-pressed="false"><kbd>${k}</kbd>${name}</button>`).join('');
 
-const html = `<title>Action Lab</title>
+const html = `<meta charset="utf-8">
+<title>Action Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -113,6 +114,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <button type="button" id="cast" title="C: the same card on the other body">Male body</button>
       <button type="button" id="spar" aria-pressed="false" title="T: the dummy throws a telegraphed jab when you are close">Spar</button>
       <button type="button" id="guard" aria-pressed="true" title="G: a free dummy that saw a hit coming guards the next">Guard</button>
+      <button type="button" id="critter" aria-pressed="false" title="H: a short dummy (0.8 m) every feel can jump on">Critter</button>
       <button type="button" id="view" title="V">¾ view</button>
       <button type="button" id="pause" title="P or Esc">Pause</button>
       <button type="button" id="stepbtn" title=". (paused): one frame">Step</button>
@@ -124,7 +126,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher) · J attack · K dodge · 1–4 feel · T spar · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher) · J attack · K dodge · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
           <div class="tbtns"><button type="button" data-tbtn="DODGE">Dodge</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>

@@ -37,7 +37,7 @@ const PARTS = [
   // (it publishes alone too), so it is wrapped to stand beside this one
   { id: 'lab', name: 'Action lab', dir: '../action-lab', script: 'lab.mjs', verify: 'verify.mjs', player: 'action-lab.html', wrap: true, height: 1180, strips: [],
     bar: 'Playable: click into it, then WASD move, Shift sprint, Space jump (hold: higher), J attack, K dodge, 1–4 the feel, T a sparring dummy, P pause and . a frame. A gamepad works too.',
-    says: 'The flavors on the player\'s clock: the press is the beat. One feel card per flavor says what each button does (ground acceleration, the jump\'s commit, buffer, coyote and cut, a three-move string with startup, active and recovery, hitstop on both bodies, hitstun, the dodge\'s invincible frames, what a wall does), one pure step plays it at 60 Hz in the gate and in the page, and the hero library\'s clips are fitted to the frames it decides. The frame data it prints is what it plays.' },
+    says: 'The flavors on the player\'s clock: the press is the beat. One feel card per flavor says what each button does (ground acceleration, the jump\'s commit, buffer, coyote and cut, a three-move string with startup, active and recovery, hitstop on both bodies, hitstun, the dodge\'s invincible frames, what a wall does, what landing on a body does: slide off, the enemy step, the stomp, the bumper), one pure step plays it at 60 Hz in the gate and in the page, and the hero library\'s clips are fitted to the frames it decides. The frame data it prints is what it plays.' },
 ];
 
 const node = (args) => execFileSync(process.execPath, args, { cwd: control, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -49,7 +49,7 @@ const parts = [];
 for (const P of PARTS) {
   const dir = P.dir ? join(here, P.dir) : here;
   node([join(dir, P.script), out, cast]);
-  if (P.wrap) { const f = join(out, P.player), h = readFileSync(f, 'utf8'); if (!/^<!doctype/i.test(h)) writeFileSync(f, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">\n${h}`); }
+  if (P.wrap) { const f = join(out, P.player), h = readFileSync(f, 'utf8'); if (!/^<!doctype/i.test(h)) writeFileSync(f, `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1">\n${h}`); }   // (the page brings its own charset)
   let log; try { log = node([join(dir, P.verify), cast]); } catch (e) { log = String(e.stdout ?? '') + String(e.stderr ?? ''); }
   const lines = log.split('\n').filter((l) => /^(PASS|FAIL|note) {2}/.test(l)).map((l) => { const [, kind, rest] = l.match(/^(PASS|FAIL|note) {2}(.*)$/); const i = rest.search(/ {2}[[{]/); return { kind, says: i < 0 ? rest : rest.slice(0, i), measured: i < 0 ? '' : rest.slice(i + 2) }; });
   const strips = [];
