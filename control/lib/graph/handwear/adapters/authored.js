@@ -10,7 +10,7 @@
  *
  * Pure and deterministic.
  */
-import { wearHandwear } from '../expand.js';
+import { wearHandwear, handLength } from '../expand.js';
 import { rigHandJoints } from './realistic.js';
 import { fairShell } from '../../plating/shell.js';
 import { mean, unitv } from '../../footwear/parts.js';
@@ -40,14 +40,17 @@ function cuffOn(P, u0, thick, { n = 12, group }) {
 }
 
 export function authoredHand(recipe, R) {
-  return {
+  const A = {
     sides: ['R', 'L'],
     seg: (kind, S) => (recipe.parts[`${kind}${S}`] ? `${kind}${S}` : null),
     ...rigHandJoints(recipe, R),
     bare: (name) => recipe.parts[name],
-    cuff: (glove, { id, group }) => Object.fromEntries(['R', 'L'].filter((S) => recipe.parts[`foreArm${S}`]).map((S) => [`${id}_foreArm${S}`, cuffOn(recipe.parts[`foreArm${S}`], 2 - 2 * glove.cuff, glove.thick ?? 0.0025, { group })])),
+    // (`k`: the hand's size over the reference's, the leather's thickness scaled with it)
+    cuff: (glove, { id, group, k = 1 }) => Object.fromEntries(['R', 'L'].filter((S) => recipe.parts[`foreArm${S}`]).map((S) => [`${id}_foreArm${S}`, cuffOn(recipe.parts[`foreArm${S}`], 2 - 2 * glove.cuff, (glove.thick ?? 0.0025) * k, { group })])),
     u: (kind, share) => (U_MAX[kind] ?? 4) * share,
   };
+  A.size = () => handLength(A);
+  return A;
 }
 
 /** The handwear on the authored body. */

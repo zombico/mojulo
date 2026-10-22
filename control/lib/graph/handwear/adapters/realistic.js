@@ -10,7 +10,7 @@
  * Pure and deterministic.
  */
 import { fieldGarment } from '../../polygonizer/body-relational-garment.js';
-import { wearHandwear } from '../expand.js';
+import { wearHandwear, handLength } from '../expand.js';
 import { rigNodesAt } from '../../polygonizer/station-loft-rig.js';
 
 /** the glove's leather up the forearm: close, over its forms; `ease` its thickness */
@@ -30,15 +30,18 @@ export function rigHandJoints(recipe, R) {
 }
 
 export function realisticHand(recipe, R, build, map) {
-  return {
+  const A = {
     sides: ['R', 'L'],
     seg: (kind, S) => (recipe.parts[`${kind}${S}`] ? `${kind}${S}` : null),
     // (the joints, and the hand's joints with its digits closed by a hand word: what a mitten's shell is made round)
     ...rigHandJoints(recipe, R),
     bare: (name) => recipe.parts[name],
-    cuff: (glove, { id, group }) => fieldGarment(recipe, R, build, map, { id, covers: null, on: ['foreArm'], window: { foreArm: [2 - 2 * glove.cuff, 2] }, ...LEATHER, ease: glove.thick ?? LEATHER.ease, group }).parts,
+    // (`k`: the hand's size over the reference's, the leather's distances scaled with it)
+    cuff: (glove, { id, group, k = 1 }) => fieldGarment(recipe, R, build, map, { id, covers: null, on: ['foreArm'], window: { foreArm: [2 - 2 * glove.cuff, 2] }, ...LEATHER, ease: (glove.thick ?? LEATHER.ease) * k, reach: LEATHER.reach * k, span: LEATHER.span * k, group }).parts,
     u: (kind, share) => (U_MAX[kind] ?? 4) * share,
   };
+  A.size = () => handLength(A);
+  return A;
 }
 
 /** The handwear on the realistic body. */

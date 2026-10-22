@@ -9,6 +9,8 @@
  *   quarterEgg({ o, fwd, side, L, W, H })     a quarter egg over the toes, toe base to toe tip (a toe cap)
  *   studsOn(ring, mid, { every, minZ })       small blocks round a ring's upper half (rivets)
  *   bindNearest(piece, P)                     a piece's bind copied from the surface it is worn on
+ *   scalePart(P, f)                           a part (its points and its caps) scaled by `f` about the origin: a body
+ *                                             carried to the size a library's cards are drawn at, and its pieces back
  *
  * Pure and deterministic.
  */
@@ -136,3 +138,14 @@ export function studsOn(ring, { every = 4, over = 0, size = 0.005 } = {}) {
   });
   return out;
 }
+
+/** a part scaled by `f` about the origin: its points and its caps (all else, its bind among it, as it was) */
+export function scalePart(P, f) {
+  if (!P) return P;
+  const sc = (p) => p.map((x) => r6(x * f));
+  return { ...P, stations: P.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, p]) => [sl, sc(p)])) })), ...(P.caps ? { caps: Object.fromEntries(Object.entries(P.caps).map(([k, p]) => [k, sc(p)])) } : {}) };
+}
+/** each part of a map scaled by `f` */
+export const scaleParts = (parts, f) => Object.fromEntries(Object.entries(parts || {}).map(([n, P]) => [n, scalePart(P, f)]));
+/** a map of points (joints) scaled by `f`, an absent one left absent */
+export const scalePoints = (J, f) => (J ? Object.fromEntries(Object.entries(J).map(([n, p]) => [n, Array.isArray(p) ? p.map((x) => x * f) : p])) : J);

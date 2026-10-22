@@ -20,7 +20,7 @@ import { standOff, mittenShell, bindAmong } from './parts.js';
 import { HAND_POSES } from '../polygonizer/station-loft-rig.js';
 import { GLOVE_REGIONS, FINGER_KINDS, kindsOf, cutPiece, shellOf, extentOf } from './cutter.js';
 import { slotOf } from '../plating/shell.js';
-import { bindNearest, block, mean, unitv } from '../footwear/parts.js';
+import { bindNearest, block, mean, unitv, scalePart, scaleParts, scalePoints } from '../footwear/parts.js';
 import { toeSpike, ribbon, helixOn, flareTop, furRing } from '../footwear/fantasy.js';
 import { HANDWEAR, HANDWEAR_TONES, SKINS } from './styles.js';
 import { readTones } from '../footwear/expand.js';
@@ -147,8 +147,28 @@ export function validateHandwear(spec, label = 'handwear') {
   return errs;
 }
 
-/** The handwear on a body (see the head of this file). */
-export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Gloves' } = {}) {
+/** THE HAND THE CARDS ARE DRAWN FOR (m): the realistic man's, the wrist to the middle finger's tip. Every length a card
+ * or this library names (the leather's thickness, a strap's width, a claw's length, a mitten's padding) is that hand's;
+ * a body whose adapter reports its own hand (`size`) wears them scaled to it */
+export const HAND_REFERENCE = 0.1646133612590425;
+/** a body's hand length (m): the wrist to the middle finger's tip, at rest */
+export function handLength(A, S = A.sides[0]) {
+  const J = A.joints(S), w = J?.wrist, t = J?.middleTip;
+  return w && t ? Math.hypot(...t.map((x, q) => x - w[q])) : null;
+}
+
+/** The handwear on a body (see the head of this file). SIZED TO THE HAND: where the adapter reports its hand (`size`),
+ * the body is carried to the reference hand's size, the card worn there unchanged, and its pieces carried back; a hand
+ * of the reference's size is worn as it is */
+export function wearHandwear(A, spec = 'gloves', opts = {}) {
+  const L = A.size?.(), k = L ? L / HAND_REFERENCE : 1;
+  if (k === 1 || !(k > 0.2 && k < 5)) return wearSized(A, spec, opts);
+  const f = 1 / k, N = { ...A, size: undefined, joints: (S) => scalePoints(A.joints(S), f), gripJoints: A.gripJoints && ((S, g) => scalePoints(A.gripJoints(S, g), f)),
+    bare: (n) => scalePart(A.bare(n), f), cuff: A.cuff && ((glove, o) => scaleParts(A.cuff(glove, { ...o, k }), f)) };
+  const W = wearSized(N, spec, opts);
+  return { ...W, parts: scaleParts(W.parts, k) };
+}
+function wearSized(A, spec = 'gloves', { id = 'gloves', group = 'Gloves' } = {}) {
   const errs = validateHandwear(spec); if (errs.length) throw new Error(errs.join('; '));
   const C = handwearCard(spec), G = C.glove || null, used = new Set();
   const g0 = G?.group ?? group, parts = {};

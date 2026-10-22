@@ -17,13 +17,16 @@
  *   gripJoints(S, word)         the hand's joints (as `joints`) with its digits closed by a hand word (null: as it
  *                               rests), at the bind: what a mitten's shell is made round
  *   u(kind, share)              the station `u` a share along a segment names on this body
+ *   size()?                     the body's hand length (m; handLength reads it off the adapter): the cards are drawn
+ *                               for HAND_REFERENCE's, and worn scaled to this one (`cuff` then takes `k`, the scale, for
+ *                               its own close-fit distances)
  *
  *   wearHandwear(adapter, card | word, { id, group }) → { parts, tones, named, grip? }   (expand.js; `grip` the
  *                                                     hand word a mitten closes each hand in, which the body holds
  *                                                     at rest: station-loft-rig.js `holdGrip`)
  *   validateHandwear(card | word) → string[]                                    the refusals, by name
  */
-export { wearHandwear, validateHandwear, handwearCard, readTones, ADORN_PRIMS, DIGITS, FINGERS, HANDWEAR_FAMILIES } from './expand.js';
+export { wearHandwear, validateHandwear, handwearCard, readTones, ADORN_PRIMS, DIGITS, FINGERS, HANDWEAR_FAMILIES, HAND_REFERENCE, handLength } from './expand.js';
 export { GLOVE_REGIONS } from './cutter.js';
 export { HANDWEAR_LAWS_VERSION } from './principles.js';
 export { HANDWEAR, HANDWEAR_TONES, SKINS } from './styles.js';

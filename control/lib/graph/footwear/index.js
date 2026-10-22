@@ -13,11 +13,14 @@
  *   upper(sock, { id, group })  the body's own close leather over its foot at the sock's height and thickness → parts
  *                               named `<id>_<segment>`
  *   u(kind, share)              the station `u` a share along a segment names on this body
+ *   size()?                     the body's foot length (m; footLength reads it off the adapter): the cards are drawn for
+ *                               FOOT_REFERENCE's, and worn scaled to this one (`upper` then takes `k`, the scale, for
+ *                               its own close-fit distances)
  *
  *   wearFootwear(adapter, card | word, { id, group }) → { parts, tones }   (expand.js)
  *   validateFootwear(card | word) → string[]                              the refusals, by name
  */
-export { wearFootwear, validateFootwear, footwearCard, readTones, ADORN_PRIMS, HEEL_KINDS, FOOTWEAR_FAMILIES, SOLE_PATTERNS } from './expand.js';
+export { wearFootwear, validateFootwear, footwearCard, readTones, ADORN_PRIMS, HEEL_KINDS, FOOTWEAR_FAMILIES, SOLE_PATTERNS, FOOT_REFERENCE, footLength } from './expand.js';
 export { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 export { FOOTWEAR_LAWS_VERSION } from './principles.js';
 export { COBBLER_REGIONS, REGION_SIDES } from './cobbler.js';

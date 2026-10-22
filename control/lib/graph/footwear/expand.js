@@ -17,7 +17,7 @@
 // `<id>Buckle<k>_<segment>` (k counting the straps), a boot's ankle bridge `<id><Region>Ankle<Lat|Med>_<foot>`, `<id>Sole<i>_…` for a sole's layers past the first, `<id>Pod<i>_…`, `<id>Band<k>_…`, `<id>Cuff_…`, `<id>ToeCap_…`, `<id>Rivet<k>_…`, a panel
 // `<id><Region><Lat|Med>_…` (an inline region's `<id>Panel<k>…`), `<id>Lace<k>_…`.
 // Pure and deterministic: no dice, fixed order.
-import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, block, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv, mean } from './parts.js';
+import { soleSlab, slabBetween, strapBand, buckleOn, bindNearest, block, quarterEgg, tuckUnderEgg, studsOn, pointsOf, unitv, mean, scalePart, scaleParts, scalePoints } from './parts.js';
 import { FOOTWEAR, FOOTWEAR_TONES, SKINS } from './styles.js';
 import { COBBLER_REGIONS, REGION_SIDES, arcOf, panelOn, laceBars } from './cobbler.js';
 import { toeSpike, ribbon, helixOn, flareTop, rowel, furRing } from './fantasy.js';
@@ -184,8 +184,29 @@ export function validateFootwear(spec, label = 'footwear') {
   return errs;
 }
 
-/** The footwear on a body (see the head of this file). */
-export function wearFootwear(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
+/** THE FOOT THE CARDS ARE DRAWN FOR (m): the realistic man's, heel to toe tip along the foot. Every length a card or this
+ * library names (a sole's thickness, a heel's height, a strap's width, a toe cap's room) is that foot's; a body whose
+ * adapter reports its own foot (`size`) wears them scaled to it */
+export const FOOT_REFERENCE = 0.235008;
+/** a body's foot length (m): its bare foot and toes along the foot's forward line (the toe base to the toe tip, level) */
+export function footLength(A, S = A.sides[0]) {
+  const { toeBase: tb, toeTip: tt } = A.joints(S); if (!tb || !tt) return null;
+  const l = Math.hypot(tt[0] - tb[0], tt[1] - tb[1]), fwd = [(tt[0] - tb[0]) / l, (tt[1] - tb[1]) / l, 0];
+  const d = ['foot', 'toes'].flatMap((k) => { const seg = A.seg(k, S), P = seg && A.bare(seg); return P ? P.stations.flatMap((st) => Object.values(st.points)) : []; }).map((p) => p[0] * fwd[0] + p[1] * fwd[1]);
+  return d.length ? Math.max(...d) - Math.min(...d) : null;
+}
+
+/** The footwear on a body (see the head of this file). SIZED TO THE FOOT: where the adapter reports its foot (`size`),
+ * the body is carried to the reference foot's size, the card worn there unchanged, and its pieces (and a heel's stance)
+ * carried back; a foot of the reference's size is worn as it is */
+export function wearFootwear(A, spec = 'boots', opts = {}) {
+  const L = A.size?.(), k = L ? L / FOOT_REFERENCE : 1;
+  if (k === 1 || !(k > 0.2 && k < 5)) return wearSized(A, spec, opts);
+  const f = 1 / k, N = { ...A, size: undefined, joints: (S) => scalePoints(A.joints(S), f), bare: (n) => scalePart(A.bare(n), f), upper: (sock, o) => scaleParts(A.upper(sock, { ...o, k }), f) };
+  const W = wearSized(N, spec, opts);
+  return { ...W, parts: scaleParts(W.parts, k), ...(W.stance ? { stance: { ...W.stance, rise: r6(W.stance.rise * k), toe: r6(W.stance.toe * k) } } : {}) };
+}
+function wearSized(A, spec = 'boots', { id = 'boots', group = 'Shoes' } = {}) {
   const errs = validateFootwear(spec), C = footwearCard(spec);
   if (errs.length) throw new Error(errs.join('; '));
   const sock = C.sock || null, used = new Set();

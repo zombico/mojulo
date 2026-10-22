@@ -191,6 +191,18 @@ colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gl
 - The fitted shell reads a coarse ring (the hand's eight points, a digit's six) as it is, unsmoothed: easing toward
   neighbours that far round had lifted the flat back of the hand about 7 mm off it.
 
+### Wearables sized to the body: no one wears the same size shoe
+
+The footwear and the handwear libraries' cards were drawn on the realistic man (every sole, heel, welt, strap, cuff,
+claw and mitten's padding in his metres), so the realistic woman, the tall and the short builds wore his sizes. Now each
+is worn at the body's size: an adapter reports its body's foot (heel to toe tip along the foot: `footLength`) or hand
+(the wrist to the middle finger's tip: `handLength`), and where it differs from the reference the cards were drawn for
+(`FOOT_REFERENCE`, `HAND_REFERENCE`, the realistic man's), the body is carried to the reference's size, the card worn
+there unchanged (its lengths, the library's defaults and its tolerances alike), and every piece carried back, a heel's
+stance with them; the adapter's own close-fit distances (the leather's ease, the envelope's reach) take the scale too.
+The reference body is worn as it was, byte for byte (its pins hold). Both libraries' realistic adapters and the
+authored hand adapter report their size; the plated suit's feet and hands, being these libraries' cards, follow.
+
 ### Plating: segment-paneled armour on the realistic body
 
 In progress (the realistic body first; joint caps, glow seams and the other bodies next). `lib/graph/plating/`, a module

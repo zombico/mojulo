@@ -121,6 +121,22 @@ describe('handwear on a hand adapter', () => {
     expect(validateHandwear({ glove: false, mitten: {} })[0]).toMatch(/a mitten is the glove's/);
   });
 
+  it('sized to the hand: a hand k times the size wears the card scaled by k, piece for piece; the reference\'s as it is', async () => {
+    const { scalePart, scaleParts } = await import('../footwear/parts.js');
+    const { HAND_REFERENCE } = await import('./index.js');
+    const joints = (S) => { const x = S === 'R' ? 0.3 : -0.3; return { wrist: [x, 0, 0.85], knuckles: [x, 0, 0.79], middleTip: [x, 0, 0.69] }; };
+    // (the stub to six decimals, so a factor of two carries it there and back exactly)
+    const ref = { ...stub, joints, bare: (n) => scalePart(stub.bare(n), 1), cuff: (g, o) => scaleParts(stub.cuff(g, o), 1) };
+    const card = { glove: { cuff: 0.3, thick: 0.002 }, adorn: [{ prim: 'panel', region: 'back' }, { prim: 'strap', at: 0.2, buckle: true }, { prim: 'claws', on: ['index'], length: 0.03 }] };
+    const W0 = wearHandwear({ ...ref, size: () => HAND_REFERENCE }, card, { id: 'h' });
+    expect(JSON.stringify(W0)).toBe(JSON.stringify(wearHandwear(ref, card, { id: 'h' })));
+    const k = 2, sc = (J) => Object.fromEntries(Object.entries(J).map(([n, p]) => [n, p.map((x) => x * k)]));
+    const big = { ...ref, size: () => HAND_REFERENCE * k, joints: (S) => sc(joints(S)), bare: (n) => scalePart(ref.bare(n), k), cuff: (g, o) => scaleParts(ref.cuff(g, o), k) };
+    const W = wearHandwear(big, card, { id: 'h' });
+    expect(Object.keys(W.parts)).toEqual(Object.keys(W0.parts));
+    for (const [n, P] of Object.entries(W.parts)) { const Q = scalePart(W0.parts[n], k); P.stations.forEach((st, i) => Object.entries(st.points).forEach(([sl, p]) => p.forEach((x, q) => expect(x, `${n} ${st.id}.${sl}`).toBeCloseTo(Q.stations[i].points[sl][q], 5)))); }
+  });
+
   it('refuses by name', () => {
     expect(validateHandwear('potholders')[0]).toMatch(/'potholders' is not a handwear word/);
     expect(validateHandwear({ glove: { fingers: 'some' } })[0]).toMatch(/glove\.fingers: one of full, half, none/);

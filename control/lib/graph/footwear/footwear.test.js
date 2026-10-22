@@ -228,3 +228,26 @@ describe('footwear on a foot adapter', () => {
     expect(() => wearFootwear(stub, 'clogs')).toThrow(/clogs/);
   });
 });
+
+describe('footwear sized to the foot', () => {
+  it('a foot k times the size wears the card scaled by k, piece for piece; a reference-size foot wears it as it is', async () => {
+    const { scalePart, scaleParts } = await import('./parts.js');
+    const { FOOT_REFERENCE, footLength } = await import('./index.js');
+    const card = { sock: { height: 'boot', thick: 0.004 }, sole: { thick: 0.012, welt: 0.004 }, heels: { height: 0.06, toe: 0.01, kind: 'block' }, adorn: [{ prim: 'strap', on: 'shank', at: 0.7, buckle: true }, { prim: 'toeCap', lift: 0.002 }] };
+    // (the stub to six decimals, the precision a body's points carry, so a factor of two carries it there and back
+    // exactly: its rings are perfectly symmetric, and a tie broken differently would move the sole's outline)
+    const ref = { ...stub, bare: (n) => scalePart(stub.bare(n), 1), upper: (sock, o) => scaleParts(stub.upper(sock, o), 1) };
+    // (at the reference's size: its own foot reported as the reference's, worn as it is)
+    const L0 = footLength(ref), W0 = wearFootwear({ ...ref, size: () => FOOT_REFERENCE }, card, { id: 'b' });
+    expect(JSON.stringify(W0)).toBe(JSON.stringify(wearFootwear(ref, card, { id: 'b' })));
+    // (the same foot twice the size, reporting its foot: every piece is the reference's scaled, and the heel's stance)
+    const k = 2, big = { ...ref, size: () => FOOT_REFERENCE * k, joints: (S) => Object.fromEntries(Object.entries(ref.joints(S)).map(([n, p]) => [n, p.map((x) => x * k)])),
+      bare: (n) => scalePart(ref.bare(n), k), upper: (sock, o) => scaleParts(ref.upper(sock, o), k) };
+    expect(footLength(big)).toBeCloseTo(L0 * k, 9);
+    const W = wearFootwear(big, card, { id: 'b' });
+    expect(Object.keys(W.parts)).toEqual(Object.keys(W0.parts));
+    for (const [n, P] of Object.entries(W.parts)) { const Q = scalePart(W0.parts[n], k); P.stations.forEach((st, i) => Object.entries(st.points).forEach(([sl, p]) => p.forEach((x, q) => expect(x, `${n} ${st.id}.${sl}[${q}]`).toBeCloseTo(Q.stations[i].points[sl][q], 5)))); }
+    expect(W.stance.rise).toBeCloseTo(W0.stance.rise * k, 5);
+    expect(W.stance.pitch).toBeCloseTo(W0.stance.pitch, 5);
+  });
+});
