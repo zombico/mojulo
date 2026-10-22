@@ -189,8 +189,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
   face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`; on the game body,
-  the tiered form, stamped `form: 'tiered'` at mint when none is named: `'classic'` is the body before it, what a hero
-  stored without a form keeps, and `'realistic'` the realistic body) from a CAST
+  the tiered form, stamped `form: 'tiered'` at mint when none is named and shaded smooth; `'realistic'` the realistic
+  body; `'classic'`, deprecated, the body before it, what a hero stored without a form keeps, said on its readout) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as

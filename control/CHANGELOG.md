@@ -20,7 +20,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `withDefaultForm`, beside the calibrated walk), at the door, on a design run's remake of a new figure, and on a world's
   new inline hero; every build and cast takes it (heroic, brute, lithe, stout, canonical, child, chibi, both poles). A
   hero stored without a form keeps the body it was minted on, byte for byte, and a remake keeps the stored hero's form.
-  The body before it is a word now, `form: 'classic'`, for a new hero that wants it.
+  The body before it is a word now, `form: 'classic'`, and is deprecated with the streamlined core: still read, and a
+  hero on it (named, or stored without a form) is told so on its readout's warnings.
+- THE TIERED BODY IS SHADED SMOOTH wherever it is drawn: under the character light too (the anime head's look), at the
+  tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
+  35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
+  study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE TIERED FORM HOLDS THE BUST'S CEILING (hero-form.js `bustCeilingError`): it builds its plan bare and profiles the
+  bust after, so a runaway `body.bust` passed it silently; it is refused by the same words heroPlan says. And its plan
+  carries no −0 (a stored plan reads it back as 0, so a regenerated plan matched the stored one only by its bytes).
 - `core: 'streamlined'` IS DEPRECATED: still read on a hero that names it (the classic body carries it; a new hero that
   names it is not stamped tiered), and said on its readout's warnings; drop `/hero/core` for the game body.
 - A FLAT CAP CLOSES ITS PART (station-loft.js): each cap now winds against the ring edges it shares with the bands, the

@@ -37,8 +37,8 @@ export function withDefaultWalk(spec) {
 }
 
 /**
- * A hero being MINTED is built on the game body, the tiered form (tiered-form.js), unless it names a form (`'classic'`
- * the body before it, `'realistic'`) or the deprecated streamlined core, which only the classic body carries. Only the
+ * A hero being MINTED is built on the game body, the tiered form (tiered-form.js), unless it names a form (`'realistic'`, or
+ * the deprecated `'classic'`, the body before it) or the deprecated streamlined core, which only the classic body carries. Only the
  * mint calls this: a hero stored without a form keeps the classic body it was made with.
  */
 export function withDefaultForm(spec) {

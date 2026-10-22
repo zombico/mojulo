@@ -8,7 +8,9 @@ import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_
 import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
-import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures } from '../../mcp/tools/layered.js';
+import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures, heroReadout, heroPlanOf, CLASSIC_DEPRECATED, STREAMLINED_DEPRECATED } from '../../mcp/tools/layered.js';
+import { heroShade, TIERED_SMOOTH_CREASE } from './tiered-form.js';
+import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
 
 const expand = (spec, opts) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, opts) });
 const torsoRing = (plan, id) => plan.segments.find((s) => s.name === 'torso').stations.find((st) => st.id === id);
@@ -228,3 +230,19 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
   });
 });
 
+
+describe('the game bodies: the tiered form, and the deprecated ones said on the readout', () => {
+  it('the classic body (named, or stored without a form) and the streamlined core are said deprecated; the tiered is not', () => {
+    const warn = (spec) => { const hero = heroRecord(spec); return heroReadout(hero, heroPlanOf(hero), null, []).warnings ?? []; };
+    expect(warn({ cast: 'male', form: 'classic' })).toContain(CLASSIC_DEPRECATED);
+    expect(warn({ cast: 'male' })).toContain(CLASSIC_DEPRECATED);
+    expect(warn({ cast: 'male', core: 'streamlined' })).toEqual(expect.arrayContaining([STREAMLINED_DEPRECATED]));
+    expect(warn({ cast: 'male', core: 'streamlined' })).not.toContain(CLASSIC_DEPRECATED);
+    for (const form of ['tiered', 'realistic']) expect(warn({ cast: 'male', form })).not.toContain(CLASSIC_DEPRECATED);
+  }, 120_000);
+  it('the tiered body is shaded at its own crease (the anime head\'s too), its landmark head toward its ellipsoid; another the studio\'s', () => {
+    expect(heroShade({ form: 'tiered' }).crease).toBe(TIERED_SMOOTH_CREASE); expect(heroShade({ form: 'tiered' }).ellipsoid).toBeTruthy();
+    expect(heroShade({ form: 'tiered', head: 'anime' })).toEqual({ crease: TIERED_SMOOTH_CREASE, ellipsoid: 0 });
+    for (const h of [{ form: 'classic' }, {}, undefined]) expect(heroShade(h)).toEqual({ crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
+  });
+});

@@ -53,6 +53,7 @@ const { withDefaultForm } = await import('@/lib/graph/polygonizer/motion-stamp.j
 const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
 const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
+const { heroShade } = await import('@/lib/graph/polygonizer/tiered-form.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
 const { outlineMeasures, outlineCritic } = await import('@/lib/graph/polygonizer/dress-outline.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
@@ -236,7 +237,8 @@ function posed(H, nodes) {
   const frames = boneFrames(H.R, H.R.joints, nodes);
   // (a sliced recipe's correctives, the pauldron, added to the rest by the pose before the skin poses it)
   const V = skinLayered({ ...H.mesh, vertices: correctiveRest(H.mesh, H.m.recipe, nodes) }, H.skin, frames);
-  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh });
+  // (shaded as the World shades the hero: its crease, and the tiered landmark head's ellipsoid)
+  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh, ...heroShade(H.m.hero) });
   if (!H.graft) return { V, normals, faces: H.mesh.faces };
   // the graft rides the head bone rigidly; the hero's own head stays out of the picture
   const G = H.graft, f = frames[G.bone], mv = (m, v) => [0, 1, 2].map((r) => m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2]);

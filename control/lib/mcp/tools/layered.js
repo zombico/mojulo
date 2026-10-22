@@ -45,7 +45,7 @@ import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
-import { heroPlan, planScale, castOf, lawCast, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, lawCast, bustCeilingError, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -593,10 +593,13 @@ function resolveHeroWords(hero) {
 // ─── The hero door ────────────────────────────────────────────────────────
 /** the base forms a hero may name: 'tiered' (tiered-form.js: the game body, stamped at mint when none is named,
  * motion-stamp.js withDefaultForm), 'realistic' (body-relational.js: the body re-sampled onto the form field, dialled by
- * a `physique`), 'classic' (the game body before the tiered form: what a hero stored without a form reads) */
+ * a `physique`), 'classic' (deprecated: the game body before the tiered form, what a hero stored without a form reads) */
 export const HERO_FORMS = Object.freeze(['tiered', 'realistic', 'classic']);
 /** the deprecated streamlined core: still read on a hero that names it (the classic body carries it), said on its readout */
-export const STREAMLINED_DEPRECATED = "core: 'streamlined' is deprecated: the game body is the tiered form on the structured core (drop /hero/core); a hero that keeps it is built on the classic body";
+/** the deprecated classic body: still read on a hero that names it or was stored without a form, said on its readout */
+export const CLASSIC_DEPRECATED = "the classic body (form: 'classic', or a hero stored without a form) is deprecated: the game body is the tiered form (set /hero/form to 'tiered')";
+const onClassic = (hero) => hero.form === 'classic' || ((hero.form === undefined || hero.form === null) && hero.core !== 'streamlined');
+export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined') is deprecated: the game body is the tiered form on the structured core (drop /hero/core); a hero that keeps it is built on the classic body";
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero */
 export const REALISTIC_LAWS_VERSION = 1;
@@ -771,7 +774,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
   if (spec.laws !== undefined && !(Number.isInteger(spec.laws) && spec.laws >= 1 && spec.laws <= HERO_LAWS_VERSION)) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws 1 … ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
-  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base, the game body and the default at mint: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; the classic body, the game body before it, and what a hero stored without a form reads)`);
+  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base, the game body and the default at mint: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; the classic body, deprecated: the game body before it, and what a hero stored without a form reads)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
   if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
@@ -977,7 +980,12 @@ const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[headPoleOf(he
  * her chest, as hero-form.js BUST_FORM); none on a child-coded figure. */
 function tieredBust(hero) {
   if (childCoding(hero)) return 0;
-  if (hero.body?.bust !== undefined) return hero.body.bust;
+  if (hero.body?.bust !== undefined) {
+    // (the ceiling heroPlan holds a bust to, held here too: the tiered plan is built bare and the bust profiled after)
+    const props = hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'), chest = hero.body.chest ?? castOf(lawCast(hero.cast, hero.laws ?? 1, props).cast, props)?.body?.chest ?? BODY_DEFAULTS.chest;
+    const err = bustCeilingError(hero.body.bust, chest); if (err) throw new Error(err);
+    return hero.body.bust;
+  }
   if (!femaleOf(hero)) return 0;
   return Math.round(0.27 * (castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.body?.chest ?? BODY_DEFAULTS.chest) * 1e6) / 1e6;
 }
@@ -1190,7 +1198,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const animeFace = anime ? eff.face : null, animeExpression = anime ? eff.expression : null, tune = anime ? eff.tune : hero.tune;
   // the anime head's feature spacing is advised against its base's bands (anime-sculpt.js FEATURE_BANDS) unless a look
   // names another character; the table itself rides faceMeasures either way
-  const warnings = [...(hero.core === 'streamlined' ? [STREAMLINED_DEPRECATED] : []), ...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
+  const warnings = [...(hero.core === 'streamlined' ? [STREAMLINED_DEPRECATED] : onClassic(hero) ? [CLASSIC_DEPRECATED] : []), ...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
     ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : inc?.faceMeasures?.features?.advice ?? []), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage), ...animeFaceZoneWarnings(inc?.hairCoverage, { veil: hair.veil })] : []), ...extraWarnings];
   const dress = dressReadout(styledHero(hero), plan, dressMesh, recipe);
   // the stylism's notes, and the outline read back off the dressed figure (the arms left out)

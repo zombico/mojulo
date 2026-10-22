@@ -34,6 +34,7 @@ import { castOf } from './hero-form.js';
 import { heroTarget } from '../era/cast-light.js';
 import { readTarget } from '../era/target.js';
 import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
+import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -53,7 +54,7 @@ const APEX_DROP = 0.55;
 const BAND = Object.freeze([1.25, 1.75, 2.25]);
 /** the slots the field is sampled on (right-hand; the torso mirrors them) */
 const SLOTS = Object.freeze(['front', 'frontR', 'frontSideR', 'sideR']);
-const r6 = (v) => Math.round(v * 1e6) / 1e6;
+const r6 = (v) => Math.round(v * 1e6) / 1e6 + 0;   // (+ 0: a −0 is 0, as a stored plan reads it back)
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpV = (a, b, t) => (Array.isArray(a) ? a.map((x, k) => r6(lerp(x, Array.isArray(b) ? b[k] : b, t))) : r6(lerp(a, b, t)));
 
@@ -312,6 +313,12 @@ export function tieredSockets(plan) {
  * and a lower lid (the flat stack read as a sticker), the male's lid the heavier.
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
  * behind her lips in profile) and rounder (chinPoint; a sharper point read too prominent in three-quarter and profile); the male: a broader jaw, a heavier brow, the chin forward. */
+/** How a hero's figure is shaded smooth (world-kinds.js, and the body study as the World draws it): the crease, and the
+ * landmark head's ellipsoid weight on the tiered form; every other hero the studio's crease, no ellipsoid */
+export const heroShade = (hero) => (hero?.form === 'tiered'
+  ? { crease: TIERED_SMOOTH_CREASE, ellipsoid: (hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0 }
+  : { crease: STUDIO_SMOOTH_CREASE, ellipsoid: 0 });
+
 export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
     face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.003, chinPoint: 1.06, noseSize: 1.265, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
