@@ -12,7 +12,7 @@
  *                                       houses are) and what of the land it covers (its growth and its trail cleared)
  *
  * Faces carry their surface: the road and walk in their paving's (`street:road`, `street:walk`, a kerb `street:kerb`),
- * lamps and posts in the language's timber and stone. On a gritty cube the town's `dress` lays each paving from relief
+ * lamps and posts in the language's timber and stone. On a gen-7 cube the town's `dress` lays each paving from relief
  * (era/town-dress.js: `street:<paving>`, or a style's `street:road` / `street:walk` words). Pure: no dice.
  */
 import { build as EB } from './out-anchor-elements.js';
@@ -57,7 +57,7 @@ export function layStreet(site, L, span, { y0, y1, ground, paint, lit, soil, gra
     const n = unit(cross(sub3(corners[1], corners[0]), sub3(corners[corners.length - 1], corners[0])));
     const fill = colour(sf, v, n);
     let F = { corners: corners.map((c) => c.map(r5)), group: `street:${sf.key ?? sf.paint}`, fill, cornerFills: corners.map(() => fill), normal: n.map(r5), outNormal: n.map(r5), ...extra };
-    // (a gritty cube's paving laid from relief: the style's road or walk word, else the paving's own)
+    // (a gen-7 cube's paving laid from relief: the style's road or walk word, else the paving's own)
     if (dress && sf.key && (sf.key === 'road' || sf.key === 'walk')) { const k = dress[`street:${sf.key}`] ? `street:${sf.key}` : `street:${sf.paving}`; F = dressTownFace(F, k, dress); }
     out.push(F);
   };

@@ -17,7 +17,7 @@
  * covers its caps); a city's punched, pier, banded and grid walls; the road and the walk of a city and of a town's street.
  *
  *   MATERIAL_WORDS         the words, each { class, on, colour, read, tile? }: a dressed tile (matte-paint/dressed.js) a
- *                          gritty cube lays as relief, and a colour of its own (null: the cube's); a class 'either' is
+ *                          gen-7 cube lays as relief, and a colour of its own (null: the cube's); a class 'either' is
  *                          built in both (clay tile, slate)
  *   STYLE_STARTERS         a small catalogue across periods and places, each a recipe to take { from, …changes }
  *   readStyle(spec)        → the style resolved (its language composed and checked), or refused saying what is allowed
@@ -33,7 +33,7 @@ import { ELEMENT_SETS, composeAnchor } from './out-anchor-elements.js';
 import { ANCHOR_IDS } from './out-anchor-structure.js';
 import { GRAMMAR_IDS, resolveGrammar } from '../city/plan/grammars.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
-import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+import { cubeTexture } from './cube-generation.js';
 
 const no = (msg) => { throw new Error(`style: ${msg}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -60,7 +60,7 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'render', stone: X.stone, mortar: X.mortar, render: [236, 230, 217], rows: 7, cols: 3, ...X.wear, loss: r2(X.loss * 0.15) }, metres: 3 })),
   'lime-render': W('ancient', 'wall', null, 'a lime render over coursed stone, fallen away in patches to the stone',
     (X) => ({ params: { cut: 'render', stone: X.stone, mortar: X.mortar, render: X.coat, rows: 6, cols: 2, ...X.wear, loss: X.loss }, metres: 3 })),
-  ashlar: W('ancient', 'wall', null, 'squared blocks in courses, tooled (rock-faced on a gritty cube)',
+  ashlar: W('ancient', 'wall', null, 'squared blocks in courses, tooled (rock-faced on a worn one)',
     (X) => ({ params: { stone: X.stone, mortar: X.mortar, rows: 5, cols: 2, tool: X.grit >= 0.85 ? 'pitched' : 'tooled', ...X.wear }, metres: 2.4 })),
   rubble: W('ancient', 'wall', null, 'rough stones in uneven courses, wide joints of lime',
     (X) => ({ params: { stone: X.stone, mortar: X.mortar, rows: 7, cols: 3, tool: 'pitched', joint: 0.03, vary: 30, ...X.wear }, metres: 2.4 })),
@@ -104,7 +104,7 @@ const wordsFor = (on) => MATERIAL_WORD_IDS.filter((w) => MATERIAL_WORDS[w].on ==
 
 /** A cube's numbers a word's tile is painted from. */
 export function materialContext(cube) {
-  const g = cube.grit ?? 0, stone = rgbOf(cube.colour.stone);
+  const g = cubeTexture(cube) ?? 0, stone = rgbOf(cube.colour.stone);
   return {
     grit: g, stone, mortar: stone.map((v) => Math.round(v * 0.68)), floor: rgbOf(cube.colour.floor), trim: rgbOf(cube.colour.trim),
     coat: rgbOf(cube.colour.floor).map((v) => Math.min(255, Math.round(v * 1.05 + 10))),
@@ -412,17 +412,17 @@ export function styleLaws(S) {
 const TOWN_GROUPS = { plaster: ['str:plaster'], stone: ['str:stone'], timber: ['str:timber'], shell: ['str:shell'], paint: ['str:paint'], plinth: ['plinth'], roof: ['str:tile', 'str:slate', 'str:shingle', 'str:thatch'], road: ['street:road'], walk: ['street:walk'] };
 const TOWN_SEEDS = { 'str:plaster': 23, 'str:stone': 29, plinth: 31, 'str:shell': 37, 'str:timber': 41, 'str:tile': 43, 'str:slate': 47, 'str:shingle': 53, 'str:thatch': 59, 'str:paint': 61, 'street:road': 151, 'street:walk': 141 };
 /**
- * A town's dress under a style: each surface the style names, its word's tile (on a gritty cube) and its colour (the
+ * A town's dress under a style: each surface the style names, its word's tile (on a gen-7 cube) and its colour (the
  * palette's, else the word's), over the cube's own dress (`dress`, or null on a quiet cube). An entry is { spec?,
  * metres?, roof?, colour? }: the colour a hue the lit face leans to (town-dress.js leanHue). Null when it says nothing.
  */
 export function styleTownDress(S, cube, dress) {
-  const X = materialContext(cube), gritty = (cube.grit ?? -1) >= GRIT_PIXELS, out = { ...(dress ?? {}) };
+  const X = materialContext(cube), textured = cubeTexture(cube) !== null, out = { ...(dress ?? {}) };
   for (const [surface, groups] of Object.entries(TOWN_GROUPS)) {
     const w = S.materials[surface], colour = S.palette[surface] ?? (w ? MATERIAL_WORDS[w].colour : null);
     if (!w && !colour) continue;
     for (const g of groups) {
-      const T = w && gritty ? wordTile(w, X, TOWN_SEEDS[g]) : null, kept = !w && dress?.[g] ? dress[g] : null;
+      const T = w && textured ? wordTile(w, X, TOWN_SEEDS[g]) : null, kept = !w && dress?.[g] ? dress[g] : null;
       const e = { ...(T ? { spec: T.spec, metres: T.metres } : kept ? { spec: kept.spec, metres: kept.metres } : {}), ...(surface === 'roof' ? { roof: true } : {}), ...(surface === 'road' || surface === 'walk' ? { floor: true } : {}), ...(colour ? { colour } : {}) };
       if (e.spec || e.colour) out[g] = e; else delete out[g];
     }

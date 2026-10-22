@@ -1,5 +1,5 @@
 /**
- * A gritty cube's street dressed from relief (town-dress.js): its walls a detail on their own colour and light, laid
+ * A gen-7 cube's street dressed from relief (town-dress.js): its walls a detail on their own colour and light, laid
  * world-locked; a quiet cube's street as it was.
  */
 import { describe, expect, it } from 'vitest';
@@ -12,13 +12,16 @@ import { surfaceTexture } from '../landscape/surface-textures.js';
 
 const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const linOf = (hex) => [1, 3, 5].map((i) => lin(parseInt(hex.slice(i, i + 2), 16)));
-const gritty = readGeocube({ from: 'valley-morning', grit: 0.7 }), quiet = readGeocube('valley-morning');
+const gritty = readGeocube({ from: 'valley-morning', era: 'gen-7', grit: 0.7 }), quiet = readGeocube('valley-morning');
 const wall = (w, fill = '#a08c78') => ({ corners: [[0, 0, 0], [w, 0, 0], [w, 0, 3], [0, 0, 3]], normal: [0, -1, 0], group: 'town:wall', fill, cornerFills: [fill, fill, fill, fill] });
 
 describe('a street\'s dress', () => {
-  it('is a gritty cube\'s alone: its plaster a render over stone, its stone ashlar, its plinth a course; a quiet cube\'s street has none', () => {
+  it('is a gen-7 cube\'s alone: its plaster a render over stone, its stone ashlar, its plinth a course; a gen-6 cube\'s street has none, whatever its grit', () => {
     expect(townDressOf(quiet)).toBeNull();
-    expect(townDressOf(readGeocube({ from: 'valley-morning', grit: GRIT_PIXELS - 0.01 }))).toBeNull();
+    // (gen-6 is pure poly: grit asks for the texture-map layer, it does not make it)
+    expect(townDressOf(readGeocube({ from: 'valley-morning', grit: 0.9 }))).toBeNull();
+    // (inside gen-7 the grit is the wear, however low)
+    expect(townDressOf(readGeocube({ from: 'valley-morning', era: 'gen-7', grit: GRIT_PIXELS - 0.2 }))['str:plaster'].spec.grit).toBeCloseTo(GRIT_PIXELS - 0.2, 9);
     const D = townDressOf(gritty);
     expect(D['str:plaster'].spec).toMatchObject({ gen: 'dressed', cut: 'render', grit: 0.7 });
     expect(D['str:stone'].spec).toMatchObject({ gen: 'dressed', grit: 0.7 });
