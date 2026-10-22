@@ -142,6 +142,11 @@ vocabulary so a stage reads it by merging. Fauna later.
   when the recipe names none, its flowers in the live grass. On a polygon land the grass is the biocube's: the island
   grows none, a biocube brings back the tufts and the field (the lips' and hats' fringes stay off).
 - **A geocube's street takes one** (the geocube kind's `biocube`, `show: 'town'` or a domain's street).
+- **Its grass a carpet by default.** A biocube's grass names its live carpet (`grass.live`: `{ kind, density /m²,
+  height }`, the card's `live`; null for none), and a stage whose biocube grows grass lays it wherever the grass grows,
+  as a recipe's `wind` or `grass` did: blades on every grassable cell round the walker, not tufts in clusters with the
+  ground between them. On a polygon land the grass brings back what the island has none of: a big boulder's hat (its
+  top the ground's, a fringe draped over its rim) and the cliff lips' fringes.
 - The inventory it was drawn from, and the overlaps left to settle (tree clustering said four ways, grass density
   five), are the plan's; a cube's own default biocube and the nature kit come next.
 

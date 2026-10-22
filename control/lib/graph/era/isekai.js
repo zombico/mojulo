@@ -425,14 +425,20 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
   const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
-  const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff'), ...boulders.flatMap((b) => [...b.sides, ...b.cap])].map(asRock) : [];
+  // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
+  // its hat again, its top the ground's)
+  const grows = !!st.grass && (!SH || !!B), hatOf = (b) => grows && b.s >= st.boulder.minHat;
+  const asCap = (b) => (f) => (SH && hatOf(b) ? { ...asRock(f), group: 'isekai:ground', tint: landTint['isekai:ground'] } : asRock(f));
+  const rockFaces = SH ? [...ground.faces.filter((f) => f.cel === 'cliff').map(asRock), ...boulders.flatMap((b) => [...b.sides.map(asRock), ...b.cap.map(asCap(b))])] : [];
   if (!SH) for (const f of ground.faces) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN), cliffN);
   const H = st.hat, fringes = [];
-  if (!SH) for (const b of boulders) {
-    const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
-    for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
-    const hatted = b.s >= st.boulder.minHat;
-    for (const f of b.cap) draw(f, hatted ? 'hat' : 'rock', lit(mean(f.corners), f.normal), bn);
+  for (const b of boulders) {
+    const hatted = SH ? hatOf(b) : b.s >= st.boulder.minHat;
+    if (!SH) {
+      const bn = MAT ? formNormals([...b.sides, ...b.cap]) : null;
+      for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal), bn);
+      for (const f of b.cap) draw(f, hatted ? 'hat' : 'rock', lit(mean(f.corners), f.normal), bn);
+    }
     if (hatted) for (const e of b.rim) {
       const n = facet([e.a, e.b, e.b2, e.a2], sub(mean([e.a, e.b]), [b.it.x, b.it.y, b.it.z0]));
       drape(fringes, e.a, e.b, e.a2, e.b2, H.fringe * b.s, H.out, n, null, H.scale, 'isekai:hat');
@@ -441,7 +447,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const Lp = st.lip;
   // (a card with no grass, an airless one's, drapes no fringe over its cliff lips and stands no blades)
-  for (const l of st.grass && !SH ? ground.lips : []) {
+  for (const l of grows ? ground.lips : []) {
     drape(fringes, l.a, l.b, addv(l.a, mul(l.down, Lp.fringe * 2)), addv(l.b, mul(l.down, Lp.fringe * 2)), Lp.fringe, Lp.out, l.out, null, Lp.scale, 'isekai:lip');
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }
@@ -467,8 +473,6 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
   for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  // (on a polygon land the grass is a biocube's: the island grows none of its own)
-  const grows = !!st.grass && (!SH || !!B);
   const tufts = grows ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
@@ -575,7 +579,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...((manifest.wind || manifest.grass) && grows ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)) } : {}),
+    // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
+    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };

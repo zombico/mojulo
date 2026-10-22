@@ -12,7 +12,9 @@
  *                  the card's `grass` (nature.js grassTufts: `clusters` tussock groups of `perCluster` tufts `spacing`
  *                  m apart, `scatter` a loose share, a tuft every `fringeEvery` m along the trail's fringe; `kinds` the
  *                  grass by place, { fringe, meadow, cliff, scatter } of vegetation/grass.js GRASSES; `field` the sea
- *                  of blades along the trail, { reach m, every m, height } or null). null: no grass
+ *                  of blades along the trail, { reach m, every m, height } or null; `live` the carpet of grown blades
+ *                  round the walker, { kind, density /m², height }, the card's `live`, laid wherever the grass grows,
+ *                  or null for none). null: no grass
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
@@ -33,7 +35,7 @@ const fz = (o) => Object.freeze(o);
 
 const MEADOW = fz({
   trees: fz({ clusters: 5, perCluster: [1, 4], spread: 5, heights: [6, 10], clearTrail: 3.5, clearCliff: 5 }),
-  grass: fz({ clusters: 60, perCluster: [8, 16], spacing: 0.3, scatter: 0.18, fringeEvery: 0.45, height: [0.5, 0.95], field: fz({ reach: 7, every: 0.7, height: [0.55, 1.0] }) }),
+  grass: fz({ clusters: 60, perCluster: [8, 16], spacing: 0.3, scatter: 0.18, fringeEvery: 0.45, height: [0.5, 0.95], field: fz({ reach: 7, every: 0.7, height: [0.55, 1.0] }), live: fz({ kind: 'meadow', density: 5, height: [0.45, 0.9] }) }),
   shrubs: null,
   flowers: null,
 });
@@ -43,12 +45,12 @@ export const BIOCUBE_PRESETS = fz({
   // a windswept upland: lone trees and pairs, grass short and thin, no field along the trail
   upland: fz({ title: 'Upland', reads: 'lone trees on a windswept upland, the grass short and thin', flora: fz({
     trees: fz({ clusters: 4, perCluster: [1, 2], spread: 3, heights: [4, 7], clearTrail: 4, clearCliff: 5 }),
-    grass: fz({ clusters: 30, perCluster: [5, 9], spacing: 0.35, scatter: 0.3, fringeEvery: 0.8, height: [0.25, 0.5], kinds: fz({ fringe: 'fescue', meadow: 'fescue', cliff: 'sedge', scatter: 'needlegrass' }), field: null }),
+    grass: fz({ clusters: 30, perCluster: [5, 9], spacing: 0.35, scatter: 0.3, fringeEvery: 0.8, height: [0.25, 0.5], kinds: fz({ fringe: 'fescue', meadow: 'fescue', cliff: 'sedge', scatter: 'needlegrass' }), field: null, live: fz({ kind: 'fescue', density: 3, height: [0.2, 0.4] }) }),
     shrubs: null, flowers: null }) }),
   // a grove: many trees close in clusters, the grass thin under them, bushes by the trail
   grove: fz({ title: 'Grove', reads: 'trees close in groves, the grass thin under them, bushes along the way', flora: fz({
     trees: fz({ clusters: 9, perCluster: [3, 6], spread: 4, heights: [7, 12], clearTrail: 3, clearCliff: 4 }),
-    grass: fz({ clusters: 35, perCluster: [6, 12], spacing: 0.3, scatter: 0.12, fringeEvery: 0.6, height: [0.4, 0.8], field: fz({ reach: 3, every: 0.9, height: [0.45, 0.8] }) }),
+    grass: fz({ clusters: 35, perCluster: [6, 12], spacing: 0.3, scatter: 0.12, fringeEvery: 0.6, height: [0.4, 0.8], field: fz({ reach: 3, every: 0.9, height: [0.45, 0.8] }), live: fz({ kind: 'meadow', density: 3.5, height: [0.35, 0.75] }) }),
     shrubs: fz({ count: 18, bloom: 0.3, fruit: 0.3 }), flowers: null }) }),
   // bare ground: no trees, no grass
   bare: fz({ title: 'Bare', reads: 'bare ground: rock and earth, nothing growing', flora: fz({ trees: fz({ clusters: 0, perCluster: [1, 1], spread: 3, heights: [6, 10], clearTrail: 3.5, clearCliff: 5, hero: null }), grass: null, shrubs: null, flowers: null }) }),
@@ -85,7 +87,7 @@ function checkTrees(t) {
 function checkGrass(g) {
   if (g === null) return;
   if (!isObj(g)) no('flora.grass is null (none) or { clusters, perCluster, spacing, scatter, fringeEvery, height, kinds?, field? }');
-  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field'], 'flora.grass');
+  keys(g, ['clusters', 'perCluster', 'spacing', 'scatter', 'fringeEvery', 'height', 'kinds', 'field', 'live'], 'flora.grass');
   int(g.clusters, 0, 200, 'flora.grass.clusters'); range(g.perCluster, 1, 40, 'flora.grass.perCluster', true); num(g.spacing, 0.1, 2, 'flora.grass.spacing');
   num(g.scatter, 0, 1, 'flora.grass.scatter'); num(g.fringeEvery, 0.2, 5, 'flora.grass.fringeEvery'); range(g.height, 0.1, 3, 'flora.grass.height');
   if (g.kinds !== undefined) {
@@ -97,6 +99,12 @@ function checkGrass(g) {
     if (!isObj(g.field)) no('flora.grass.field is null (none) or { reach, every, height }');
     keys(g.field, ['reach', 'every', 'height'], 'flora.grass.field');
     num(g.field.reach, 0.5, 30, 'flora.grass.field.reach'); num(g.field.every, 0.3, 5, 'flora.grass.field.every'); range(g.field.height, 0.1, 3, 'flora.grass.field.height');
+  }
+  if (g.live !== undefined && g.live !== null) {
+    if (!isObj(g.live)) no('flora.grass.live is null (none) or { kind, density, height }');
+    keys(g.live, ['kind', 'density', 'height'], 'flora.grass.live');
+    if (!GRASS_IDS.includes(g.live.kind)) no(`flora.grass.live.kind is one of ${GRASS_IDS.join(', ')}`);
+    num(g.live.density, 0.5, 12, 'flora.grass.live.density'); range(g.live.height, 0.1, 3, 'flora.grass.live.height');
   }
 }
 function checkFlowers(f) {
@@ -130,6 +138,9 @@ export function withFlora(card, cube) {
   const F = cube.flora, T = F.trees, G = F.grass;
   const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}) };
   if (T.hero === null) trees.hero = null;
-  const grass = G === null || !card.grass ? null : { ...card.grass, ...G, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
-  return { ...card, trees, grass };
+  const { live: GL, ...G0 } = G ?? {};
+  const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
+  // (the live carpet: the card's, its kind, density and height the cube's)
+  const live = GL && card.live ? { ...card.live, ...GL } : card.live;
+  return { ...card, trees, grass, ...(live !== undefined ? { live } : {}) };
 }

@@ -30,11 +30,16 @@ describe('reading a biocube', () => {
 describe('the flora on a stage', () => {
   const plain = assembleStageScene(M);
 
-  it('the meadow preset is the meadow card\'s own flora: its stage as it was', () => {
+  it('the meadow preset is the meadow card\'s own flora: its land as it was, its grass a carpet by default', () => {
     const card = withFlora(ISEKAI_MEADOW, readBiocube('meadow'));
     expect(card.trees).toEqual(ISEKAI_MEADOW.trees);
     expect(card.grass).toEqual(ISEKAI_MEADOW.grass);
-    expect(JSON.stringify(assembleStageScene({ ...M, biocube: 'meadow' }))).toBe(JSON.stringify(plain));
+    expect(card.live).toEqual(ISEKAI_MEADOW.live);
+    const P = assembleStageScene({ ...M, biocube: 'meadow' });
+    expect(JSON.stringify(P.faces)).toBe(JSON.stringify(plain.faces));
+    expect(plain.liveGrass).toBeUndefined();
+    expect(P.liveGrass.density).toBe(ISEKAI_MEADOW.live.density);
+    expect(assembleStageScene({ ...M, biocube: { from: 'meadow', flora: { grass: { live: null } } } }).liveGrass).toBeUndefined();
   });
 
   it('grows the cube\'s trees, grass and bushes: a grove denser, bare ground nothing', () => {
@@ -45,9 +50,10 @@ describe('the flora on a stage', () => {
     expect(count(bare, 'isekai:grass')).toBe(0);
   });
 
-  it('brings the grass back to a polygon land, as the cube grows it', () => {
-    expect(count(assembleStageScene({ ...M, shading: true }), 'isekai:grass')).toBe(0);
-    expect(count(assembleStageScene({ ...M, shading: true, biocube: 'meadow' }), 'isekai:grass')).toBeGreaterThan(0);
+  it('brings the grass back to a polygon land, as the cube grows it: the tufts, the hats and the lips\' fringes', () => {
+    const bare = assembleStageScene({ ...M, shading: true }), grown = assembleStageScene({ ...M, shading: true, biocube: 'meadow' });
+    for (const g of ['isekai:grass', 'isekai:hat', 'isekai:lip']) { expect(count(bare, g)).toBe(0); expect(count(grown, g), g).toBeGreaterThan(0); }
+    expect(grown.liveGrass).toBeDefined();
   });
 
   it('a geocube\'s street grows it; any other show is told where it goes', () => {
