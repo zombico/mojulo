@@ -82,6 +82,10 @@ export const MATERIAL_WORDS = Object.freeze({
   setts: W('ancient', 'ground', null, 'small stones in courses, crowned and worn smooth',
     (X) => ({ params: { cut: 'setts', face: 'floor', stone: X.stone, mortar: X.floor, rows: 10, cols: 8, vary: 24, ...X.wear }, metres: 1.2 })),
   earth: W('ancient', 'ground', '#8a7358', 'a beaten earth way (a colour)'),
+  'brick-paving': W('either', 'ground', '#9a5a44', 'bricks laid flat in courses across the way, sand in the joints',
+    (X) => ({ params: { face: 'floor', stone: [154, 90, 68], mortar: [150, 140, 120], rows: 12, cols: 6, tool: 'none', joint: 0.01, vary: 20, ...X.wear }, metres: 1.2 })),
+  gravel: W('either', 'ground', null, 'small stones lying close in a bed of grit',
+    (X) => ({ params: { cut: 'gravel', face: 'floor', stone: X.stone, mortar: X.mortar, vary: 18, ...X.wear }, metres: 1 })),
   // MODERN: machine-made, cement-bound, worn by the weather and never by loss
   'wire-brick': W('modern', 'wall', '#9c5440', 'wire-cut brick in an exact stretcher bond, thin struck joints',
     (X) => ({ params: { cut: 'brick', stone: [158, 82, 62], mortar: [176, 170, 160], rows: 16, cols: 5, vary: 14, ...X.machine }, metres: 1.2 })),

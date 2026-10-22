@@ -9,12 +9,19 @@
  *   strewStones(st, { faces, rocks, heightAt, seed, grit, sea })  → small rocks (boulderFaces' shape, `{ sides, cap }`):
  *                                          a few on each boulder's top, pebbles along the paths, scree at the cliffs'
  *                                          feet. Each a stone drawn in the rock's own skin.
+ *   strewEdge(st, { site, heightAt, seed, grit, keep })  → the same stones along a dirt trail's two edges (an isekai
+ *                                          stage's site: trailX, halfWAt, fringeAt, D): thickest at the edge, thinning
+ *                                          out across the fringe onto the land (kicked aside, the larger), a few just in
+ *                                          on the trail, in clumps along it; as many as the grit says, none on ground a
+ *                                          town has claimed (`keep`, era/reserve.js).
  *
  * Pure: hashed dice only. Absent grit, neither is called and the land is the quiet style's, byte for byte.
  */
 import { boulderFaces } from '../era/isekai.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { P, r5 } from '../era/geom.js';
+import { kept } from '../era/reserve.js';
+import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 
 const LAND = new Set(['isekai:ground', 'isekai:trail', 'isekai:sand']);
 const key = (c) => c.join(',');
@@ -97,5 +104,36 @@ export function strewStones(st, { faces, rocks, heightAt, seed, grit, sea = -Inf
       stone(x, y, heightAt(x, y), lerp(STREW.footSize[0], STREW.footSize[1], H(fi * 7 + j, 16) ** 1.5), 9000 + fi * 7 + j);
     }
   });
+  return out;
+}
+
+// the trail's edge: a station a step; at a grit of 1 and in a clump's heart, up to `heap` stones a station a side; how far
+// out across the fringe they reach (a share of the fringe, past it) and in on the trail (m); their sizes (the cap stones'
+// and the pebbles' between; on the trail, half)
+export const EDGE = Object.freeze({ step: 0.4, heap: 4, out: 1.25, in: 0.22, size: [0.1, 0.42], most: 700 });
+
+export function strewEdge(st, { site, heightAt, seed, grit, keep = null }) {
+  const S = { ...st, boulder: STONE, rubble: { ...st.rubble, unit: 1 } }, out = [], H = (a, b) => hash3(a, b, seed + 907);
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), lerp = (a, b, u) => a + (b - a) * u;
+  let i = 0;
+  for (let y = EDGE.step / 2; y < site.D && out.length < EDGE.most; y += EDGE.step) {
+    if (site.gapAt && site.gapAt(y)) continue;
+    // (the station's normal across the trail, as the ribbon's)
+    const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1), n = [1 / l, -sl / l], c = [site.trailX(y), y];
+    for (const side of [-1, 1]) {
+      // (heaped in clumps along the trail: a slow noise a side lets a stretch go bare and heaps another)
+      const clump = Math.max(0, Math.min(1, 1.8 * (vnoise(y * 0.3, side * 7.3, seed + 911) - 0.35))), count = Math.floor(EDGE.heap * (0.35 + 0.65 * t) * clump + H(i, 1));
+      for (let j = 0; j < count && out.length < EDGE.most; j++) {
+        const k = i * 8 + j, u = H(k, 2), inward = u < 0.15;
+        // where across: mostly at the edge, a few in on the trail, the rest out across the fringe (squared: near the edge)
+        const off = inward ? site.halfWAt(y) - EDGE.in * H(k, 3) : site.halfWAt(y) + site.fringeAt(y) * EDGE.out * H(k, 3) ** 2;
+        const x = c[0] + side * n[0] * off, yy = c[1] + side * n[1] * off + (H(k, 4) - 0.5) * EDGE.step * 1.5;
+        if (!kept(keep, x, yy, 0.3)) continue;
+        const sz = lerp(EDGE.size[0], EDGE.size[1], H(k, 5) ** 1.6) * (inward ? 0.5 : 1);
+        out.push(boulderFaces(S, { x: r5(x), y: r5(yy), z0: r5(heightAt(x, yy)), size: r5(sz), v: 20000 + k }, seed));
+      }
+      i++;
+    }
+  }
   return out;
 }

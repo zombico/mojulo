@@ -1,0 +1,146 @@
+/**
+ * TRAIL DRESS — what a trail is made of and how it is worn, read off its recipe (`trail`, out-trail.js) by the isekai
+ * stage (era/isekai.js), which draws it:
+ *
+ *   surface   a ground word (era/arch-style.js MATERIAL_WORDS, the street's own): 'earth' (the dirt, the default),
+ *             'flags', 'setts', 'pavement', 'asphalt', 'brick-paving', 'gravel'. A paved trail leans its faces to the
+ *             word's colour (a stone word with none, to the kit's rock) and, on a gritty land, takes its tile as a
+ *             detail; its fringe is turf to its edge (no verge), and it is strewn with no rubble and worn in no patches
+ *   rubble    false: no stones along a gritty dirt trail's edges (local-meru/broken-land.js strewEdge); true the default
+ *   patches   false, or the patch kinds a gritty dirt trail is worn in (PATCH_KINDS); absent, PATCH_DEFAULT
+ *
+ *   readTrailDress(trail)   → { surface, rubble, patches } (the recipe's, checked; the defaults where it says nothing)
+ *
+ * Pure.
+ */
+import { MATERIAL_WORDS } from './arch-style.js';
+import { hash3, vnoise } from './dirt.js';
+import { kept } from './reserve.js';
+import { normalizeTileSpec } from './tile-specs.js';
+import { detailKey, layDetail } from '../matte-paint/detail.js';
+import { GRIT_PIXELS } from '../matte-paint/fabric.js';
+
+export const TRAIL_SURFACES = Object.freeze(Object.keys(MATERIAL_WORDS).filter((w) => MATERIAL_WORDS[w].on === 'ground'));
+export const PATCH_KINDS = Object.freeze(['worn', 'damp', 'gravel', 'crown', 'puddle']);
+export const PATCH_DEFAULT = Object.freeze(['worn', 'damp', 'gravel']);
+export const TRAIL_DRESS_KEYS = Object.freeze(['surface', 'rubble', 'patches']);
+
+/** A trail recipe's dress, checked: the defaults where it says nothing. */
+export function readTrailDress(trail) {
+  const t = trail && typeof trail === 'object' ? trail : {};
+  const surface = t.surface ?? 'earth';
+  if (!TRAIL_SURFACES.includes(surface)) throw new Error(`stage: trail.surface '${surface}' is not a ground word (${TRAIL_SURFACES.join(', ')})`);
+  if (t.rubble !== undefined && typeof t.rubble !== 'boolean') throw new Error('stage: trail.rubble is true (stones along a gritty dirt trail\'s edges, the default) or false');
+  let patches = PATCH_DEFAULT;
+  if (t.patches === false) patches = [];
+  else if (t.patches !== undefined && t.patches !== true) {
+    if (!Array.isArray(t.patches) || !t.patches.length) throw new Error(`stage: trail.patches is false, true, or a list of patch kinds (${PATCH_KINDS.join(', ')})`);
+    for (const k of t.patches) if (!PATCH_KINDS.includes(k)) throw new Error(`stage: trail.patches: '${k}' is not a patch kind (${PATCH_KINDS.join(', ')})`);
+    patches = [...new Set(t.patches)];
+  }
+  return { surface, rubble: t.rubble !== false, patches };
+}
+
+// ── patches ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * The patches a gritty dirt trail is worn in, each a kind's blobs along it: `every` metres apart about (at a grit of 1),
+ * `len` long, `wid` of the trail's width across, its middle `across` of the half-width off the line; `shade` its trail's
+ * colour a shade up or down (linear), and its relief the `cut` at `grit` of the land's. `ground`: the patch is the
+ * land's colour (a crown of turf), not the trail's; `core`: a darker middle with no relief (a puddle's water).
+ */
+export const PATCHES = Object.freeze({
+  worn: Object.freeze({ every: 6, len: [1.6, 3.4], wid: [0.3, 0.5], across: 0.45, shade: 1.14, cut: 'path', grit: 0.3, metres: 1.5, seed: 101 }),
+  damp: Object.freeze({ every: 10, len: [1, 2.4], wid: [0.4, 0.75], across: 0.4, shade: 0.74, cut: 'path', grit: 0.2, metres: 1.5, seed: 103 }),
+  gravel: Object.freeze({ every: 9, len: [1, 2.6], wid: [0.25, 0.45], across: 0.7, shade: 0.96, cut: 'gravel', grit: 1, metres: 1, seed: 107 }),
+  crown: Object.freeze({ every: 8, len: [2.4, 4.4], wid: [0.16, 0.24], across: 0, shade: 1, cut: 'turf', grit: 1, metres: 1.5, seed: 109, ground: true }),
+  puddle: Object.freeze({ every: 16, len: [0.9, 1.7], wid: [0.4, 0.6], across: 0.25, shade: 0.74, cut: 'path', grit: 0.2, metres: 1.5, seed: 113, core: 0.55 }),
+});
+const LIFT = 0.05, RISE = 0.012, RIM = 14;
+const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const srgb = (c) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const shadeOf = (hex, k) => hexOf(rgbOf(hex).map((v) => srgb(Math.min(1, lin(v) * k))));
+const r5 = (v) => Math.round(v * 1e5) / 1e5;
+// a face's unit normal by Newell's sum
+const upOf = (cs) => { let x = 0, y = 0, z = 0; for (let i = 0; i < cs.length; i++) { const a = cs[i], b = cs[(i + 1) % cs.length]; x += (a[1] - b[1]) * (a[2] + b[2]); y += (a[2] - b[2]) * (a[0] + b[0]); z += (a[0] - b[0]) * (a[1] + b[1]); } const l = Math.hypot(x, y, z) || 1; return [x, y, z].map((v) => r5(v / l)); };
+
+/**
+ * A gritty dirt trail's patches: { site, lanes (the ribbon's lanes as the land coloured them, each its `cls`, 'trail'
+ * or 'fringe': the colours are read off them), kinds, grit, seed, keep } → faces in group 'isekai:trail', each laid with its kind's relief (a puddle's core
+ * plain). Blobs in the trail's own frame, on the ribbon's own heights (nature.js trailFaces: its stations, its lanes,
+ * `LIFT` over the ground) a hair over it; none on ground a town has claimed.
+ */
+export function trailPatches({ site, lanes, kinds, grit, seed, keep = null }) {
+  if (!kinds.length) return [];
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), H = (a, b, s) => hash3(a, b, seed + s);
+  // (the colours to read: the trail's lanes and the fringe's, their middles)
+  const of = (cls) => lanes.filter((f) => f.cls === cls && typeof f.fill === 'string').map((f) => ({ c: [0, 1].map((k) => f.corners.reduce((a, q) => a + q[k], 0) / f.corners.length), fill: f.fill }));
+  const trail = of('trail'), fringe = of('fringe');
+  const near = (L, x, y) => L.reduce((b, q) => (Math.hypot(q.c[0] - x, q.c[1] - y) < Math.hypot(b.c[0] - x, b.c[1] - y) ? q : b), L[0]).fill;
+  if (!trail.length) return [];
+  // the ribbon's frame and its height at (y along, t across): its stations every 0.75 m, its lanes from the line out
+  const frame = (y) => { const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [site.trailX(y), y], n: [1 / l, -sl / l] }; };
+  const xyAt = (y, off) => { const S = frame(y); return [S.c[0] + S.n[0] * off, S.c[1] + S.n[1] * off]; };
+  const zSt = (y, off) => { const [x, yy] = xyAt(y, off); return site.ground(x, yy) + LIFT; };
+  const ribbonZ = (y, off) => {
+    const j = Math.floor(y / 0.75), ya = j * 0.75, yb = Math.min(site.D, ya + 0.75), f = yb > ya ? (y - ya) / (yb - ya) : 0;
+    const at = (ys) => { const hw = site.halfWAt(ys), ft = Math.min(1, Math.abs(off) / hw), z0 = zSt(ys, 0), z1 = zSt(ys, Math.sign(off || 1) * hw); return z0 + (z1 - z0) * ft; };
+    return at(ya) + (at(yb) - at(ya)) * f;
+  };
+  const keys = new Map(), keyOf = (C, v) => {
+    const k = `${C.cut}${v}`;
+    if (!keys.has(k)) { const { seed: s = 1, ...params } = normalizeTileSpec({ gen: 'dressed', cut: C.cut, stone: [200, 200, 200], mortar: [120, 120, 120], vary: 14, grit: Math.round(Math.min(1, grit * C.grit) * 100) / 100, seed: C.seed }, 'trail patches').params; keys.set(k, detailKey(params, s, C.metres, v)); }
+    return keys.get(k);
+  };
+  const out = [];
+  kinds.forEach((kind, ki) => {
+    const C = PATCHES[kind], rise = RISE + 0.004 * ki;
+    let n = 0;
+    for (let y = 2 + C.every * H(ki, 1, 0); y < site.D - 2; y += (C.every * (0.6 + 0.8 * H(ki, n, 1))) / (0.5 + 0.5 * t), n++) {
+      const hw = site.halfWAt(y), len = C.len[0] + (C.len[1] - C.len[0]) * H(ki, n, 2), b0 = hw * (C.wid[0] + (C.wid[1] - C.wid[0]) * H(ki, n, 3));
+      if (site.gapAt && (site.gapAt(y - len / 2) || site.gapAt(y + len / 2) || site.gapAt(y))) continue;
+      const tc0 = C.across * hw * (2 * H(ki, n, 4) - 1), b = Math.min(b0, hw - 0.06), tc = Math.max(-hw + 0.06 + b, Math.min(hw - 0.06 - b, tc0));
+      const [cx, cy] = xyAt(y, tc);
+      if (!kept(keep, cx, cy, len / 2 + 0.5)) continue;
+      const fill0 = C.ground ? near(fringe.length ? fringe : trail, cx, cy) : near(trail, cx, cy), fill = shadeOf(fill0, C.shade);
+      // the blob: a rim of RIM points wobbling about an ellipse, an inner ring half way, the middle; every point on the
+      // ribbon's height a hair over it
+      const ring = (k) => { const a = (2 * Math.PI * k) / RIM, r = 1 + 0.5 * (vnoise(Math.cos(a) * 1.6 + n * 3.1, Math.sin(a) * 1.6 + ki * 5.7, seed + C.seed) - 0.5); return [Math.cos(a) * r, Math.sin(a) * r]; };
+      const P = (s, q) => { const yy = Math.max(0, Math.min(site.D, y + s)), off = Math.max(-hw + 0.04, Math.min(hw - 0.04, tc + q)), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + rise)]; };
+      const rim = Array.from({ length: RIM }, (_, k) => ring(k)), mid = P(0, 0);
+      const outer = rim.map(([u, v]) => P((u * len) / 2, v * b)), inner = rim.map(([u, v]) => P((u * len) / 4, (v * b) / 2));
+      const v = (Math.floor(Math.abs(cx * 0.37 + cy * 0.61)) % 2), key = keyOf(C, v), faceOf = (cs, f, plain) => {
+        // (wound to face up: the rim runs clockwise seen from above)
+        const c2 = cs.slice().reverse(), F = { corners: c2, normal: upOf(c2), group: 'isekai:trail', fill: f, cornerFills: c2.map(() => f), patch: kind };
+        if (plain) return F;
+        const L = layDetail(F, { key, metres: C.metres, as: 'floor' });
+        return L.texture ? L : F;
+      };
+      for (let k = 0; k < RIM; k++) {
+        const k1 = (k + 1) % RIM, core = C.core !== undefined;
+        out.push(faceOf([mid, inner[k], inner[k1]], core ? shadeOf(fill0, C.core) : fill, core));
+        out.push(faceOf([inner[k], outer[k], outer[k1], inner[k1]], fill, false));
+      }
+    }
+  });
+  return out;
+}
+
+// ── surfaces ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// the rock ramp's stop a stone word with no colour of its own leans to; the greys a word's tile is painted from where it
+// names none (laid as a detail, only its relative tones ride on the face)
+const ROCK_STOP = 3, NEUTRAL = Object.freeze({ stone: [200, 200, 200], mortar: [136, 136, 136], floor: [184, 184, 184], trim: [150, 150, 150], coat: [206, 206, 206] });
+
+/**
+ * A paved trail's dress: { colour (the hex its lanes lean to), tile ({ params, seed, metres }: the word's dressed tile,
+ * a gritty land's only) | null }; null for the dirt ('earth').
+ */
+export function surfaceDress(word, { grit = 0, rock = null } = {}) {
+  if (word === 'earth') return null;
+  const W = MATERIAL_WORDS[word], colour = W.colour ?? (rock ? hexOf(rock[Math.min(ROCK_STOP, rock.length - 1)]) : null);
+  if (!(grit >= GRIT_PIXELS) || !W.tile) return { colour, tile: null };
+  const g = Math.round(grit * 100) / 100, X = { ...NEUTRAL, grit: g, wear: { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 }, machine: { grit: g, spall: 0, pit: Math.round(10 * g) / 100 }, loss: Math.round(Math.min(1, 0.1 + 0.6 * g) * 100) / 100 };
+  const T = W.tile(X), { seed = 1, ...params } = normalizeTileSpec({ gen: 'dressed', ...T.params, seed: 127 }, `trail.surface '${word}'`).params;
+  return { colour, tile: { params, seed, metres: T.metres } };
+}

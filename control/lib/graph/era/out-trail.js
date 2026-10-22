@@ -31,6 +31,7 @@ import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
+import { readTrailDress } from './trail-dress.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -74,8 +75,9 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds'];
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches? } (or true)');
+  // (its dress, `surface`, `rubble`, `patches`, is the stage's to draw: era/trail-dress.js reads it)
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -105,6 +107,7 @@ export function readOutTrail(t, depth = 0) {
     if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
+  readTrailDress(t);
   const ground = readGround(t.ground);
   return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
 }

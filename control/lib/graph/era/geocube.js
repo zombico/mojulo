@@ -67,7 +67,8 @@
  *                              the terrain; the outside at `hour`: geocube-hours.js; under `clouds`, painted round the
  *                              dome: matte-paint/sky.js)
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' | 'town', domain? } → its
- *                              specimen (`town`: a micro-town's street walked by the dummy)
+ *                              specimen (`town`: a micro-town's street walked by the dummy; `path` the dress of the
+ *                              trail its street lies on: { surface, rubble, patches }, era/trail-dress.js)
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys (its `domain`
  *                              expanded: an outside domain alone stands on the cube's island)
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
@@ -85,6 +86,7 @@ import { ISEKAI_STYLES } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
 import { readBiocube } from './biocube.js';
+import { TRAIL_DRESS_KEYS } from './trail-dress.js';
 import { STAGE_KITS, isGroundKit } from './stage.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
@@ -1098,7 +1100,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one
@@ -1126,8 +1128,12 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (and its flora a biocube's, era/biocube.js: the recipe's, else the cube's own; a street's trail grows it)
   if (manifest.biocube !== undefined && show !== 'town' && !town) no('biocube is the flora of a street\'s land: show \'town\' (or a domain with a town)');
   const bio = manifest.biocube ?? cube.biocube;
+  // (the trail a street's land is walked on, dressed: its surface, rubble and patches, era/trail-dress.js)
+  if (manifest.path !== undefined && show !== 'town' && !town) no('path is the dress of the trail a street\'s land is walked on: show \'town\' (or a domain with a town)');
+  if (manifest.path !== undefined && (typeof manifest.path !== 'object' || manifest.path === null || Array.isArray(manifest.path) || Object.keys(manifest.path).some((k) => !TRAIL_DRESS_KEYS.includes(k)))) no(`path is { ${TRAIL_DRESS_KEYS.map((k) => `${k}?`).join(', ')} }: the trail's dress`);
+  const dress = manifest.path ?? {};
   const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
-  const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
+  const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12, ...dress }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: { ...dress }, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }

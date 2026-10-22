@@ -28,11 +28,12 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
   `language` is an anchor or its elements on their rails (`{ from: 'timber-hall', elements: { roof: { pitch: 50 },
   quoins: null } }`: a whole element with its `kind` replaces, null drops). Openings are built where the language
-  writes them: a light's `frame` (0–0.2 m), `glazing` (lattice, sash, casement, plate) and `trim`; a door's `leaf`
-  (boards, panels, glazed), `surround` (frame, pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters'
-  `form` (boards, louvred). `materials` a word per surface (plaster, stone, timber, plinth, roof; a city's punched,
-  pier, banded, grid, road, walk), e.g. limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass;
-  `palette` a colour per surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its
+  writes them: a light's `frame` (0–0.2 m), `glazing` (lattice, sash, casement, plate; arabesque a star screen,
+  ornamental leading, stained glass) and `trim`; a door's `leaf` (boards, panels, glazed), `surround` (frame,
+  pilasters, hood), `fanlight` (rect, arch) and `steps` (0–3); shutters' `form` (boards, louvred). `materials` a
+  word per surface (plaster, stone, timber, plinth, roof; a city's punched, pier, banded, grid, road, walk), e.g.
+  limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass; `palette` a colour per
+  surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its
   laws back (class, cover against pitch, value order, idle surfaces): they advise, never refuse.
 
 ## The domains
@@ -61,7 +62,10 @@ A cube that names no domains offers one per terrain and one per interior.
   or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
-  on the micro-town or micro-city builds it in that style, over the settlement's own;
+  on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
+  street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; flags, setts,
+  gravel, brick-paving, pavement, asphalt), and on a gritty cube's dirt `rubble` at its edges and `patches` (worn,
+  damp, gravel, crown, puddle), each `false` for none;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

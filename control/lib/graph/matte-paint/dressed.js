@@ -48,7 +48,7 @@
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
  * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
- * it, worn hollows; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
+ * it, worn hollows; `'gravel'` (a floor) small stones lying close in a bed of grit; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
  * giving way to turf. Each is painted in its stone's
  * ramp alone (a grey, laid as a detail, rides on the face's own colour).
  *
@@ -553,6 +553,21 @@ const NATURAL = {
       peb[k] = p > 0 ? 1 : 0;
       return z + p - 0.002 * cr;
     }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.2 + 0.05 * sfbm(x, y, M, 0.4, 0.4, 3, seed + 13) + 0.06 * peb[k] - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // GRAVEL from above: small stones lying close in a bed of grit, their crowns proud and rounded, a few larger among them,
+  // the grit showing between (less of it with grit)
+  gravel(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), peb = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      let p = 0, tn = 0;
+      marksNear(x, y, M, 0.045, 2, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.7 + 0.25 * g) return;
+        const d = stoneDist(x, y, cx, cy, cs * (0.32 + 0.3 * h(4)) * (h(7) > 0.92 ? 1.6 : 1), h);
+        if (d < 1) { const v = 0.004 * (0.6 + 0.6 * h(6)) * Math.sqrt(1 - d * d); if (v > p) { p = v; tn = (h(5) - 0.5) * 2 * c.vary / 255; } }
+      });
+      peb[k] = p > 0 ? 0.5 + tn * 4 : 0;
+      return p + 0.0006 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5);
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.04 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 13) + 0.08 * peb[k] - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // the VERGE, a path's edge laid across it (v from 0 at the path's side to 1 at the land's): earth, crumbs and pebbles
   // at the path, giving way to turf, the blades thickening outward and leaning over the earth they have not taken

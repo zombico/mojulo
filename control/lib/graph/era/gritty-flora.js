@@ -12,8 +12,9 @@
  *            way to turf at the land's, so the two meet in a band, not a line
  *
  *   withGrittyFlora(faces, grit)   → the faces, the flora's laid; a grit under GRIT_PIXELS lays nothing (as it came)
- *   withGrittyGround(faces, grit, { verge, nearTrail })   → the land's faces laid: path, turf, and the verge on the faces
- *                                    `verge(i)` names (a fringe lane), `nearTrail(corner)` its distance to the trail
+ *   withGrittyGround(faces, grit, { verge, nearTrail, trail })   → the land's faces laid: path, turf, and the verge on the
+ *                                    faces `verge(i)` names (a fringe lane), `nearTrail(corner)` its distance to the trail;
+ *                                    `trail` a paved trail's tile ({ params, seed, metres }) laid on it for the path
  *
  * era/isekai.js lays it on a gritty polygon land (`shading.grit`). Pure: two tiles a cut, alternated by where a face lies.
  */
@@ -66,9 +67,11 @@ export function withGrittyFlora(faces, grit) {
 }
 
 /** The land's faces with the path, the turf and the verge laid on them, as strong as the land is gritty. */
-export function withGrittyGround(faces, grit, { verge = () => false, nearTrail = null } = {}) {
+export function withGrittyGround(faces, grit, { verge = () => false, nearTrail = null, trail = null } = {}) {
   if (!(grit >= GRIT_PIXELS)) return faces;
   const keyOf = keysFor(grit);
+  // (a paved trail's own tile, era/trail-dress.js surfaceDress, over the path's)
+  const paved = trail ? [0, 1].map((v) => detailKey(trail.params, trail.seed, trail.metres, v)) : null;
   return faces.map((f, i) => {
     if (!laid(f)) return f;
     if (verge(i) && nearTrail) {
@@ -80,6 +83,7 @@ export function withGrittyGround(faces, grit, { verge = () => false, nearTrail =
     }
     const C = GROUND_CUTS[f.group];
     if (!C || Math.abs(f.normal[2]) <= 0.7) return f;
+    if (paved && f.group === 'isekai:trail') { const out = layDetail(withFills(f), { key: paved[variantOf(f)], metres: trail.metres, as: 'floor' }); return out.texture ? out : f; }
     const out = layDetail(withFills(f), { key: keyOf(C, variantOf(f)), metres: C.metres, as: 'floor' });
     return out.texture ? out : f;
   });

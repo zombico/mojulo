@@ -96,7 +96,7 @@ export function resamplePlan(key) {
   // (a render's coat lies over coursed stone: its readings shift down by whole courses, so the stone's beds run on across
   // a blend, and blend sharply, so little of the coat is seen twice)
   if (cut === 'render') return { kind: 'hex', cell: 1, sharp: 14, stepV: r4(1 / rows), mean: DETAIL_MEAN, seed, macro };
-  if (cut === 'turf' || cut === 'leaves' || cut === 'bark' || cut === 'path') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
+  if (cut === 'turf' || cut === 'leaves' || cut === 'bark' || cut === 'path' || cut === 'gravel') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
   if (cut === 'stucco' || cut === 'asphalt') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
   return null;
 }

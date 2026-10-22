@@ -125,6 +125,31 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Trail dress: rubble at the edge, patches on the dirt, and paved trails
+
+A gritty dirt trail is strewn at its edges with the mountain's rubble and worn in patches along it, in its own colours.
+A trail can also be paved, in the same material words the town's streets are dressed in. A quiet trail is drawn as
+before.
+
+- **The dress** (`era/trail-dress.js`, a stage's `trail`, the geocube kind's `path` for the trail a street lies on):
+  `surface` a ground word, `rubble` and `patches`, read and refused by name in the trail grammar.
+- **Rubble at the edge** (`local-meru/broken-land.js` `strewEdge`). The stones a gritty island strews on its boulders'
+  tops and at its cliffs' feet, heaped in clumps along both sides of a dirt trail: thickest at its edge, thinning out
+  across the fringe onto the land, a few smaller ones in on the trail, as many as the grit says. None on ground a town
+  has claimed. `rubble: false` for none.
+- **Patches** (`trailPatches`). Blobs on a gritty dirt trail, laid on its ribbon's own heights a hair over it, each
+  the trail's colour a shade off with a relief of its own: `worn` (lighter, packed smooth), `damp` (darker, smooth),
+  `gravel` (stones close in a bed of grit: a new `gravel` cut in `matte-paint/dressed.js`), `crown` (a strip of turf
+  down the middle, the cart track's), `puddle` (a darker core with no relief in a damp ring). The default is worn, damp
+  and gravel; `patches` names the kinds, `false` none.
+- **Paved trails.** `surface`: the dirt (`earth`) by default, or `flags`, `setts`, `pavement`, `asphalt`, and two ground
+  words added to `MATERIAL_WORDS` for trails: `brick-paving` (bricks laid flat in courses across the way) and `gravel`.
+  A paved trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid
+  with its word's tile for the path's; its fringe is turf to its edge (no verge), with no rubble, patches or pebbles.
+- The geocube vocab card names the glazings (arabesque, ornamental, stained) and the trail's dress. Tests:
+  `trail-dress.test.js`. The study spike `scripts/spikes/geotown/trail.mjs` frames one stretch of a stage trail on a
+  cube, per dress.
+
 ### Window glazing: stained glass, ornament and arabesque, by the style
 
 A style's lights took one of five glazings (diamond lattice, sash, casement, plate, none). Three more now, each tied to
