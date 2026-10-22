@@ -1086,7 +1086,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one
@@ -1111,7 +1111,9 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const TD = show === 'town' ? (D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : D;
   const town = show === 'land' || show === 'town' ? geocubeTown(cube, TD, manifest.style) : null, seed = manifest.seed ?? 1;
   // (a street's land is drawn as the island's: the cube's land shading, isekai.js)
-  const land = low0.meru?.shading ? { shading: low0.meru.shading } : {};
+  // (and its flora a biocube's when the recipe names one, era/biocube.js: a street's trail grows it)
+  if (manifest.biocube !== undefined && show !== 'town' && !town) no('biocube is the flora of a street\'s land: show \'town\' (or a domain with a town)');
+  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(manifest.biocube !== undefined ? { biocube: manifest.biocube } : {}) };
   const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });

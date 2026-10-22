@@ -25,6 +25,8 @@
  * fringe, no hat, no trail blend). A gritty land (`grit` from GRIT_PIXELS) breaks its boulders, its cliffs' rims and
  * strews stones (local-meru/broken-land.js), and the page draws its rock's fabric near the eye (matte-paint/fabric.js:
  * the site's own strata and joints, the land's `skin` and `rocks`). Absent, every face is as it was.
+ * A stage's `biocube` (era/biocube.js) lays its flora over the card's trees and grass and grows its bushes; on a polygon
+ * land it brings the grass back (tufts and the field; the lips' and hats' fringes stay the island's: none).
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
 import { reserveSite, kept, CROWN } from './reserve.js';
@@ -50,6 +52,7 @@ import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
+import { readBiocube, withFlora } from './biocube.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones } from '../local-meru/broken-land.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -340,7 +343,9 @@ function drape(out, a, b, a2, b2, len, off, n, key, scale, group) {
 
 /** manifest → World payload, for a stage whose kit is an isekai kit. */
 export function assembleIsekaiScene(manifest = {}, ctx = {}) {
-  const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
+  const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
+  // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
+  const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st = B ? withFlora(st0, B) : st0;
   if (!st) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
   // the polygon land (`shading`, see the header): the island's drawing, and a gritty one's broken rock
@@ -379,8 +384,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ike = st.ikebana ? placeIkebana(st, site, seed) : null, ikeRaw = ike ? ikebanaFaces(st, ike) : [];
   // SHRUBS (a card's `shrubs`, shrubs.js): bushes through the grass by the trail, in flower, in fruit or green; drawn the
   // ikebana's way, and the grass kept off their feet
-  const shrubErr = validateShrubs(manifest.shrubs); if (shrubErr.length) throw new Error(`isekai: ${shrubErr.join('; ')}`);
-  const shr = placeShrubs(st.shrubs, manifest.shrubs, site, { rocks, trees, unit: st.rubble.unit, reserved: site.reserved }, seed);
+  // (a biocube's bushes when the recipe names none)
+  const shrubAsk = manifest.shrubs !== undefined ? manifest.shrubs : B?.flora.shrubs ?? undefined;
+  const shrubErr = validateShrubs(shrubAsk); if (shrubErr.length) throw new Error(`isekai: ${shrubErr.join('; ')}`);
+  const shr = placeShrubs(st.shrubs, shrubAsk, site, { rocks, trees, unit: st.rubble.unit, reserved: site.reserved }, seed);
   const shrRaw = ikebanaFaces(st, shr).map((f) => ({ ...f, group: SHRUB_GROUP }));
   const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid];
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
@@ -460,7 +467,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
   for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = st.grass && !SH ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
+  // (on a polygon land the grass is a biocube's: the island grows none of its own)
+  const grows = !!st.grass && (!SH || !!B);
+  const tufts = grows ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -468,7 +477,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // the FIELD: within `reach` of the trail the meadow stands as one sea of blades, a tuft on a jittered grid every
   // `every` metres (never on the ribbon, a rock or a trunk), the band by the shadow at its root
-  const F = SH ? null : st.grass?.field;
+  const F = grows ? st.grass.field : null;
   if (F) {
     let i = 0;
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
@@ -566,7 +575,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...((manifest.wind || manifest.grass) && st.grass && !SH ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    ...((manifest.wind || manifest.grass) && grows ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };

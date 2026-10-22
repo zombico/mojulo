@@ -125,6 +125,26 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### The biocube: a level's flora as data
+
+A geocube holds a level's one look; what grows there was each kit card's own numbers. A biocube holds it as data, a
+sibling of the geocube: which trees, in what clusters, how dense the grass, which shrubs and flowers, in the kit's own
+vocabulary so a stage reads it by merging. Fauna later.
+
+- **The card** (`era/biocube.js`). `flora`: `trees` (`clusters` groves of `perCluster` trees `spread` metres round,
+  their `heights`, clear of the trail and the cliff, a `crown`, a `hero` or none), `grass` (tussock `clusters` of
+  `perCluster` tufts, a `scatter` share, the fringe's `fringeEvery`, its `height`, its `kinds` by place from
+  `vegetation/grass.js` GRASSES, the `field` of blades along the trail) or null, `shrubs` (the recipe's own
+  `{ count, bloom, fruit }`) and `flowers` (`{ share, mix }` of `vegetation/wildflowers.js`): the kit card's own keys.
+  Presets `meadow` (the meadow card's own numbers: a meadow stage given it is byte for byte as without), `upland`,
+  `grove`, `bare`; `{ from, …changes }` block by block, every value on its rail and told when it is off.
+- **A stage grows it** (`era/isekai.js`, a stage's `biocube`): its trees and grass laid over the card's, its bushes
+  when the recipe names none, its flowers in the live grass. On a polygon land the grass is the biocube's: the island
+  grows none, a biocube brings back the tufts and the field (the lips' and hats' fringes stay off).
+- **A geocube's street takes one** (the geocube kind's `biocube`, `show: 'town'` or a domain's street).
+- The inventory it was drawn from, and the overlaps left to settle (tree clustering said four ways, grass density
+  five), are the plan's; a cube's own default biocube and the nature kit come next.
+
 ### The land drawn as the island's: a cube's town and trail stand on its island's terrain
 
 A geocube's island draws its land as polygons lit by the cube's land rules, and a gritty one draws its rock's own
