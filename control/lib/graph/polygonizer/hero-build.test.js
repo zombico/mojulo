@@ -149,10 +149,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(10);
+    expect(HERO_LAWS_VERSION).toBe(11);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 10/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 11/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -286,6 +286,18 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     // (the web's under-arm slots carry their own blend toward the arm; laws 9's web has none)
     const at = (laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'male', form: 'tiered' }, { staleScale: true }), laws } }).recipe.parts.shoulderWebR.bind.blend;
     for (const sl of WEB_ARMPIT.slots) { expect(at(10)[`st2.${sl}`]).toBeDefined(); expect(at(9)[`st2.${sl}`]).toBeUndefined(); }
+  }, 120_000);
+  it('laws 11, the chibi\'s chest: it meets the shoulder\'s ring without a shelf and stands as deep as the belly; another cast as it was', () => {
+    const torso = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).recipe.parts.torso.stations;
+    const half = (st, k) => { const P = Object.values(st.points).map((p) => p[k]); return (Math.max(...P) - Math.min(...P)) / 2; }, z = (st) => Math.min(...Object.values(st.points).map((p) => p[2]));
+    // the step out from the chest's ring to the armpit's, per metre of rise: laws 10's chibi a shelf, laws 11's no steeper than the man's slope tenfold
+    const step = (S) => { const a = S.find((st) => st.id === 'st2'), b = S.find((st) => st.id === 'st2_st3_50'); return (half(b, 0) - half(a, 0)) / (z(b) - z(a)); };
+    const chibi = { cast: 'chibi', form: 'tiered', head: 'anime' }, man = { cast: 'male', form: 'tiered' };
+    expect(step(torso(chibi, 10))).toBeGreaterThan(2);
+    expect(step(torso(chibi, 11))).toBeLessThan(1);
+    const deep = (S) => half(S.find((st) => st.id === 'st2'), 1) / half(S.find((st) => st.id === 'st1_st2_50'), 1);
+    expect(deep(torso(chibi, 10))).toBeLessThan(0.8); expect(deep(torso(chibi, 11))).toBeGreaterThan(0.9);
+    expect(torso(man, 11)).toEqual(torso(man, 10));
   }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

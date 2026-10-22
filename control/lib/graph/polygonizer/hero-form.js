@@ -308,8 +308,10 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * before it ends; laws 8 met the torso and the arm at facets and a crease.
  * Laws 10 adds the WEB'S ARMPIT (tiered-form.js WEB_ARMPIT): the web's points on the inside of the arm's bend follow the
  * arm more, so a raised arm stretches the web's armpit side; laws 9 folded it behind the armpit.
+ * Laws 11 adds THE CHIBI'S CHEST (CHIBI_CHEST, lawCast): the chibi's chest wider and deeper, meeting the shoulder's ring;
+ * laws 6 to 10 stepped out to it in a shelf.
  */
-export const HERO_LAWS_VERSION = 10;
+export const HERO_LAWS_VERSION = 11;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -340,12 +342,17 @@ function builtCast(pole, word) {
 /** THE CHIBI (hero laws 6): the mascot's head (`headScale`, over the build's), its arms (`arm`, over the build's
  * radius; the forearm takes it) and the neck that carries the larger head (`neck`, over the build's) */
 export const CHIBI = Object.freeze({ headScale: 1.15, arm: 0.9, neck: 1.45 });
+/** THE CHIBI'S CHEST (hero laws 11): its chest's width and depth (over the build's), so the chest meets the shoulder's
+ * ring, which the shoulders' span sets, and stands as deep as the belly under it; laws 6 to 10 stepped out to the
+ * shoulder in a shelf two centimetres tall and pinched the chest behind it */
+export const CHIBI_CHEST = Object.freeze({ chest: 1.25, chestDepth: 1.3 });
 /** The cast a hero's word reads under its laws: `{ cast }`, and with laws 6 a chibi's `{ headScale, body }` (CHIBI over
  * the chibi build), which the body's own controls override. Laws 1 to 5: the word as it was. */
 export function lawCast(cast, laws = 1, proportions = 'hero') {
   if (laws < 6) return { cast };
   const built = cast === 'chibi' ? { pole: 'male', build: 'chibi' } : cast, preset = isBuiltCast(built) && built.build === 'chibi' ? castOf(built, proportions) : null;
-  return preset ? { cast: built, headScale: r6(preset.headScale * CHIBI.headScale), body: { arm: r6(preset.body.arm * CHIBI.arm), neck: r6(preset.body.neck * CHIBI.neck) } } : { cast: built };
+  const chest = preset && laws >= 11 ? { chest: r6(preset.body.chest * CHIBI_CHEST.chest), chestDepth: r6(preset.body.chestDepth * CHIBI_CHEST.chestDepth) } : {};
+  return preset ? { cast: built, headScale: r6(preset.headScale * CHIBI.headScale), body: { arm: r6(preset.body.arm * CHIBI.arm), neck: r6(preset.body.neck * CHIBI.neck), ...chest } } : { cast: built };
 }
 /** the cast a word names under a proportion: the anime or herobot cast when asked for and there is one, else the hero cast;
  * the build form (`{ pole, build }`) is that pole's cast with the build over it; a dial map or a list has none (null) */
@@ -498,7 +505,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the

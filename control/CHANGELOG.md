@@ -26,9 +26,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE CHIBI'S CHEST (hero laws 11, hero-form.js `CHIBI_CHEST`): the chibi's chest is wider (×1.25 over the build's)
+  and deeper (×1.3). It meets the shoulder's ring, which the shoulders' span sets, where laws 6 to 10 stepped out to
+  it in a shelf two centimetres tall, front and back. It stands as deep as the belly under it, where it was pinched
+  behind the shelf. Another cast is as it was.
+- A CHIBI WEARS THE ANIME HEAD at mint (motion-stamp.js `withDefaultForm`): a chibi minted on the tiered body without
+  a head of its own is stamped `head: 'anime'`. It keeps the landmark head when it says a word only that head reads
+  (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). A stored chibi keeps its head.
 - THE WEB'S ARMPIT (hero laws 10, tiered-form.js `WEB_ARMPIT`): the fold under a raised arm closed. The web's
-  under-arm slots (its side, back and front toward the trunk) take the arm on more slowly than its top, so they no
-  longer fold back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
+  under-arm slots (its side, back and front toward the trunk) follow the arm more than the rest of their ring, so a
+  raised arm stretches that side instead of folding it back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
   back slots creased. It reaches less far toward the neck, and its weights hand the collarbone to the fold over its
   length rather than at once. Its rings past the ball turn the in-ball ring onto the arm's way, so it does not twist
   where it enters the arm, and sit a little inside the arm. Its upper slots stay with the trunk over the chest, and

@@ -133,4 +133,9 @@ describe('withDefaultForm — a new hero is built on the game body, the tiered f
     expect(withDefaultForm({ cast: { pole: 'male', build: 'brute' }, form: null }).form).toBe('tiered');
     for (const spec of [{ cast: 'male', form: 'classic' }, { cast: 'male', form: 'realistic' }, { cast: 'male', core: 'streamlined' }]) expect(withDefaultForm(spec)).toBe(spec);
   });
+  it('a chibi minted on it wears the anime head, unless it names a head or says a landmark head\'s word; another cast does not', () => {
+    expect(withDefaultForm({ cast: 'chibi' })).toEqual({ cast: 'chibi', form: 'tiered', head: 'anime' });
+    expect(withDefaultForm({ cast: { pole: 'female', build: 'chibi' } }).head).toBe('anime');
+    for (const spec of [{ cast: 'chibi', head: 'landmark' }, { cast: 'chibi', hair: 'swept' }, { cast: 'chibi', form: 'classic' }, { cast: 'male' }]) expect(withDefaultForm(spec).head).toBe(spec.head);
+  });
 });
