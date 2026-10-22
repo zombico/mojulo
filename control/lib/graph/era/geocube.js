@@ -861,7 +861,11 @@ const cubeMade = (cube) => { const shadow = shadeHue(cube), r = (hex) => rampFro
 export const CUBE_STREET_PAINT = Object.freeze({ 'str:timber': 'cube-trim', 'str:thatch': 'cube-roof', 'str:tile': 'cube-roof', 'str:shingle': 'cube-roof', 'str:slate': 'cube-roof',
   'str:shell': 'cube-stone', 'str:motif': 'cube-trim', 'str:paint': 'cube-accent' });
 
-function outsideOf(cube, base, sw, land, lookCard) {
+function outsideOf(cube, base, sw, land, lookCard0) {
+  // a gritty cube's look draws its crowns' outline as leaves (era/isekai.js leaf cards, gritty-flora.js): the leaf card's
+  // tile on its own foliage ramp, one window round its middle, the light the band
+  const n = land.foliage?.length ?? 0, m = Math.floor((n - 1) / 2), r = Math.min(2, m, n - 1 - m), win = Array.from({ length: 2 * r + 1 }, (_, i) => m - r + i);
+  const lookCard = grittyOf(cube) !== null && n && !lookCard0.tiles?.leafcard ? { ...lookCard0, tiles: { ...lookCard0.tiles, leafcard: { ramp: 'foliage', lit: win, shade: win, scale: 2.4, paint: 'leafcard' } } } : lookCard0;
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });

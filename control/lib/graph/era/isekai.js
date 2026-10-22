@@ -508,7 +508,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
   // leaf die — dense at the foot on the crown, ragged at the tip — so a crown's edge is leaves, not a blob's curve
-  if (MAT && st.tiles.leafcard) {
+  // (and on a gritty land, gritty-flora.js: the same cards, each its band's tile drawn hi-def in the foliage's own stops
+  // rather than lit by the vertex, so a crown's outline is leaves on either pole)
+  if ((MAT || broken) && st.tiles.leafcard) {
     const fillL = lumaOf(fill0);
     for (const t of trees) for (const [mi, m] of (t.masses ?? []).entries()) {
       const N = 6 + Math.round(m.r * 4);
@@ -521,7 +523,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
         const { band, fill } = canopyBand(light, fillL, LITL);
         for (const e of [e1, e2]) {
           const cs = [sub(p0, mul(e, w / 2)), addv(p0, mul(e, w / 2)), addv(p1, mul(e, w / 2)), sub(p1, mul(e, w / 2))].map(P), n = unit(cross(e, d));
-          cel.push({ corners: cs, normal: n.map(r5), outNormal: n.map(r5), uv: [[0, 0], [1, 0], [1, 1], [0, 1]], texture: `isekai:${st.id}:leafcard-b${band}`, textureLit: true, fill, group: 'isekai:leaves', doubleSided: true });
+          cel.push({ corners: cs, normal: n.map(r5), outNormal: n.map(r5), uv: [[0, 0], [1, 0], [1, 1], [0, 1]], ...(MAT ? { texture: `isekai:${st.id}:leafcard-b${band}`, textureLit: true, fill } : { texture: `isekai:${st.id}:leafcard-b${band}+hd`, fill: stopFill(st, 'leafcard', band < 2) }), group: 'isekai:leaves', doubleSided: true });
         }
       }
     }

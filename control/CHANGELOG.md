@@ -145,6 +145,9 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
 - **Crowns in lobes, not domes.** A gritty land's crown masses are each three overlapping lobes, every vertex pushed by
   a lumpy noise (more with grit), so a crown's outline breaks into clumps, and a face's tint darkens by how deep in
   the crown it lies: the dark core between the clumps, in the foliage ramp's own stops.
+- **Leaf cards on the crowns' outline.** A gritty cube's look carries the leaf card's tile on its own foliage ramp, and
+  its land stands the kit's leaf cards out of each crown mass (as the realistic pole does), each its band's tile drawn
+  hi-def in the foliage's stops: a crown's edge is leaves, not a dome's curve.
 - **The clouds.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the kit's
   own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest stops, the
   cutout's edge kept whole.

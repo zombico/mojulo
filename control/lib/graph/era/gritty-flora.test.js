@@ -5,6 +5,10 @@ import { withGrittyFlora, withGrittyGround, FLORA_CUTS } from './gritty-flora.js
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { assembleStageScene } from './stage.js';
 import { isekaiKey, isekaiTexels } from './isekai-tiles.js';
+import { assembleIsekaiScene } from './isekai.js';
+import { readGeocube, lowerGeocube } from './geocube.js';
+import { lookOf, registerLook } from './style/looks.js';
+import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 
 const quad = (group, normal, z = 0) => ({ group, fill: '#506040', normal, corners: normal[2] > 0.7 ? [[0, 0, z], [1, 0, z], [1, 1, z], [0, 1, z]] : [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] });
 const faces = () => [quad('isekai:crown', [0, 0, 1], 5), quad('isekai:crown', [0, -1, 0]), quad('isekai:wood', [0, -1, 0]), quad('isekai:wood', [0, 0, 1]), quad('isekai:ground', [0, 0, 1])];
@@ -80,5 +84,17 @@ describe('gritty flora', () => {
     expect(G.real.back).toBeCloseTo(0.6 + 0.4 * t, 4);
     expect(G.real.dry).toBe(0);
     expect(Q.real).toBeUndefined();
+  }, 60000);
+
+  it('a gritty look carries the leaf card; a gritty land stands leaf cards out of its crowns, hi-def, in the foliage\'s stops', () => {
+    expect(lookOf(lowerGeocube(readGeocube('limestone-crags'), 'outside').kit).card.tiles.leafcard).toMatchObject({ ramp: 'foliage', paint: 'leafcard' });
+    expect(lookOf(lowerGeocube(readGeocube('valley-morning'), 'outside').kit).card.tiles.leafcard).toBeUndefined();
+    const id = 'gritty-flora-leafcard-test', n = ISEKAI_MEADOW.palette.foliage.length, m = Math.floor((n - 1) / 2);
+    registerLook({ id, base: 'isekai-meadow', read: 'a test look', card: { ...ISEKAI_MEADOW, tiles: { ...ISEKAI_MEADOW.tiles, leafcard: { ramp: 'foliage', lit: [m - 1, m, m + 1], shade: [m - 1, m, m + 1], scale: 2.4, paint: 'leafcard' } } }, swatches: {} });
+    const G = assembleIsekaiScene({ style: id, shading: { grit: 0.7 } }), Q = assembleIsekaiScene({ style: id, shading: true });
+    const cards = (P) => P.faces.filter((f) => f.group === 'isekai:leaves');
+    expect(cards(G).length).toBeGreaterThan(0);
+    expect(cards(G).every((f) => /:leafcard-b[0-3]\+hd$/.test(f.texture) && !f.textureLit && G.cutouts.includes(f.texture))).toBe(true);
+    expect(cards(Q)).toHaveLength(0);
   }, 60000);
 });
