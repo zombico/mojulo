@@ -9,6 +9,16 @@ import { readScalp } from '../epidermis/dermal-hair.js';
 import { readPiercings } from '../epidermis/dermal-jewel.js';
 
 describe('the face composer', () => {
+  it('aims: a wanted shape in place of the roll, the rest of the face the seed\'s; an unknown shape refused by name', () => {
+    const rolled = composeFace({ sex: 'female', seed: 7 });
+    const other = Object.fromEntries(FACE_FEATURES.map((f) => [f, Object.keys(FACE_SHAPES[f]).find((n) => n !== rolled.picks[f])]));
+    const aimed = composeFace({ sex: 'female', seed: 7, want: { chin: other.chin } });
+    expect(aimed.picks.chin).toBe(other.chin);
+    for (const f of FACE_FEATURES.filter((x) => x !== 'chin')) expect(aimed.picks[f], f).toBe(rolled.picks[f]);
+    expect(aimed.ancestry).toBe(rolled.ancestry); expect(aimed.dermis.hairline).toBe(rolled.dermis.hairline);
+    expect(() => composeFace({ want: { chin: 'square' } })).toThrow(/want.chin is one of/);
+    expect(() => composeFace({ want: { jawline: 'soft' } })).toThrow(/want names a feature/);
+  });
   it('is deterministic: the same seed composes the same face', () => {
     expect(composeFace({ seed: 7 })).toEqual(composeFace({ seed: 7 }));
   });

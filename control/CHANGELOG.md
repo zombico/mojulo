@@ -14,6 +14,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic hero's face: rolled, bounded, aimed
+
+- A REALISTIC HERO WEARS A COMPOSED FACE (face-compose.js, from face harmony): `face: { seed?, ethnicity?, want?,
+  character?, accent?, nose?, beauty?, age? }` on the realistic body's relational head. Minted with no face, it ROLLS
+  one: the seed, the ethnicity (every base population and the mixed) and, with no `cast`, the sex, stamped into the
+  record so it rebuilds as it was (layered.js `withRolledFace`). Named words BOUND the roll (an ethnicity, a list of
+  them for a mix, a cast) and the rest TUNE it. The baseline is HEROIC (`HERO_FACE`): the face drawn toward its
+  population's harmonious mean (beauty 0.75), at prime age. A remake keeps its stamped face unless the order names one.
+- AIMED: `want: { feature: shape }` takes the shapes named in place of the roll's (composeFace's new `want`); every
+  feature still rolls, so the rest of the face is the seed's and a face liked can be kept and aimed piece by piece.
+- On every read the face's relations and eyes shape the relational head (on the pole's own tune: solving one per face
+  costs most of a minute), and its skin lies under the hero's own `skin`: the ancestry's tone, undertone and hair
+  colour, the hairline, marks, a beard, the years. The face rides `recipe.headFit`, so an export's skin charts the head
+  the face shaped. The readout's `hero.realisticFace` says what was rolled (the picks, the character, the ancestry).
+  The composed cut, brows, lashes and piercings are read there but not yet grown on the hero. A hero without a face, and
+  every other form, is as it was.
+
 ### The tiered game body: the default at mint
 
 - THE GAME BODY IS THE TIERED FORM: a hero minted with no `form` is stamped `form: 'tiered'` (motion-stamp.js

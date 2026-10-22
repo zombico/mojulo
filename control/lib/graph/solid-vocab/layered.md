@@ -811,7 +811,23 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
   `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. Its head is the RELATIONAL head unless `head` says
   `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
-  the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
+  the head's field; bald, its jaw opening on the rig. Its FACE is composed (face-compose.js): per feature a named shape,
+  the features agreeing by their character, drawn from a population's rolls. A realistic hero minted with no `face` gets
+  one ROLLED: its seed, its ethnicity and (with no `cast`) its sex, stamped at mint, at prime age on the HEROIC
+  baseline (drawn toward its population's harmonious mean). Named words BOUND the roll and the rest TUNE it:
+  `face: { seed?, ethnicity?, want?, character?, accent?, nose?, beauty?, age? }`. `ethnicity`: `western`,
+  `north-asian`, `east-asian`, `southeast-asian`, `indo-aryan`, `dravidian`, `african`, `latin`, `levantine`,
+  `south-mediterranean`, the regions `asian`, `south-asian`, `equatorial`, `mena`, or `mixed`; a list of the base ones
+  is a mix of them. `want` AIMS the face at shapes, the rest the seed's: `chin` pointed | soft | heart | strong, `nose`
+  button | fine | soft | classical, `lips` full | pout | lower | fine, `cheeks` sculpted | full | apple, `outline` oval |
+  heart | round | square, `eyes` open | large | almond | deep | hooded | soft, `brows` by the epidermis's shapes.
+  `character: [soft −1 … angular 1, delicate −1 … strong 1]` sets the whole face's harmony; `accent` one feature taken
+  far from it (memorable) or `false`; `nose` its axis (−1 short and flat … 1 long and pointed); `beauty` 0 … 1
+  (0.75 the heroic baseline; lower, more character); `age` in years (16 … 85). Another `seed` is another face with the
+  same words: re-roll with `set /hero/face/seed <n>`, keep what you like and aim the rest. The readout's
+  `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
+  (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
+  the composed cut, brows, lashes and piercings are read but not yet grown on the hero. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
   an OUTFIT CARD (`outfit: { type: 'outfit', style }`), the other words and a `stylism` are worn on its parts by
   the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
