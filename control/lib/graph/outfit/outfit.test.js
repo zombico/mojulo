@@ -173,6 +173,21 @@ describe('the outer layer, fit by zone, and the detail on the garment\'s roles',
     expect(sb.tones.Lapel).toMatch(/^#[0-9a-f]{6}$/);
   });
 
+  it('a WAISTCOAT: refused by name; between the shirt and the jacket, the jacket eased over it, no belt, its front as tailoring', () => {
+    const suit = (w) => ({ type: 'outfit', style: { id: 'w', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic' }, feet: 'shoes', tuck: true, focal: 'belt', ...(w === undefined ? {} : { waistcoat: w }) } } });
+    expect(validateOutfitBuild(suit('yes')).join(' ')).toMatch(/waistcoat: true, false or/);
+    expect(validateOutfitBuild(suit({ buttons: 9 })).join(' ')).toMatch(/waistcoat\.buttons/);
+    expect(validateOutfitBuild(suit({ front: 'triple' })).join(' ')).toMatch(/waistcoat\.front: 'triple'/);
+    expect(validateOutfitBuild(suit({ lapel: 'notch' })).join(' ')).toMatch(/waistcoat\.lapel: not a waistcoat field/);
+    const bare = expandOutfit(suit(), ctx), W = expandOutfit(suit(true), ctx), ids = W.garments.map((E) => E.id);
+    expect(ids.indexOf('vest')).toBeGreaterThan(ids.indexOf('bottomSeat')); expect(ids.indexOf('vest')).toBeLessThan(ids.indexOf('outer'));
+    expect(W.garments.find((E) => E.id === 'outer').ease).toBeGreaterThan(bare.garments.find((E) => E.id === 'outer').ease);
+    expect(bare.kit.some((A) => A.id === 'belt')).toBe(true); expect(W.kit.some((A) => A.id === 'belt')).toBe(false);
+    expect(W.tailoring.vest).toEqual({ front: 'single', buttons: 5 }); expect(W.tones.Waistcoat).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expandOutfit(suit({ front: 'double' }), ctx).tailoring.vest).toEqual({ front: 'double', buttons: 3 });
+    expect(bare.tailoring).toBeUndefined(); expect(bare.tones.Waistcoat).toBeUndefined();
+  });
+
   it('an outer layer over a second skin: the coat its skirt and sleeves, the undershirt paint, the trousers fitted without a hang', () => {
     const out = expandOutfit(coat, ctx), ids = out.garments.map((E) => E.id);
     expect(ids).toEqual(expect.arrayContaining(['outer', 'outerSkirt', 'outerSleeve', 'outerCuff', 'bottomLeg']));

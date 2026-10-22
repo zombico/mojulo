@@ -140,11 +140,19 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     if (thigh) bottoms.push({ id: 'bottomLeg', part: 'thigh', run: thigh, ease: e, ...(h > 0 && leg !== 'brief' ? { flare: [0, thigh[1] < 1 ? h : h * cut.thigh] } : {}), ...(shin ? {} : { rings: { run: [thigh[1] - EDGE.cuff] } }), group: 'Bottom' });
     if (shin) bottoms.push({ id: 'bottomShin', part: 'shank', run: shin, ease: e, ...(h > 0 ? { flare: [h * cut.thigh, h] } : {}), rings: { run: [shin[1] - EDGE.cuff] }, group: 'Bottom' });
   }
+  // a WAISTCOAT over the shirt (and its tie) and the trousers' waist, under the jacket: close woven cloth from the chest
+  // to below the waist, a little over the top's ease; worn without a belt (braces under it)
+  const vest = lang.waistcoat && top ? (lang.waistcoat === true ? {} : lang.waistcoat) : null, vests = [], vestEase = vest ? easeOf('woven') * 0.5 : 0;
+  if (vest) {
+    const e = easeOf(top.family ?? 'knit') + vestEase;
+    vests.push({ id: 'vest', part: 'torso', ease: e, over: ['pectoral', 'bust', 'navel'], group: 'Waistcoat' });
+    if (structured) vests.push({ id: 'vestTail', part: 'pelvis', u: [4.6, 6], ease: e * 1.1, rings: { u: [4.6 + EDGE.hem] }, group: 'Waistcoat' });
+  }
   // an OUTER layer over both (law 4): more ease than what it covers; to the hip or the tunic's length it is a body and a
   // tail, longer a coat whose skirt is one hull round the legs; open, the opening and its edges are painted (below)
   const outer = lang.outer || null, outs = [];
   if (outer) {
-    const fam = outer.family ?? 'woven', e = easeOf(fam) * 1.5 + (top && top.fit !== 'skin' ? easeOf(top.family ?? 'knit') : 0), h = hangOf(fam);   // over a second skin, nothing to clear
+    const fam = outer.family ?? 'woven', e = easeOf(fam) * 1.5 + (top && top.fit !== 'skin' ? easeOf(top.family ?? 'knit') : 0) + vestEase, h = hangOf(fam);   // over a second skin, nothing to clear
     const sleeve = lengths.outerSleeve = stepLength('sleeve', outer.sleeve ?? 'none', dials.coverage), hem = lengths.outerHem = stepLength('coat', outer.hem ?? 'hip', dials.coverage);
     outs.push({ id: 'outer', part: 'torso', ...(hem === 'waist' ? { u: [1.4, 4] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(1 / law.hang), ...(hem === 'waist' ? { rings: { u: [1.4 + EDGE.hem] } } : {}), group: 'Outer' });
     if (structured && (hem === 'hip' || hem === 'tunic')) outs.push({ id: 'outerTail', part: 'pelvis', u: [hem === 'tunic' ? 1.5 : 4, 6], ease: e * 1.25, flare: [h, 0], rings: { u: [(hem === 'tunic' ? 1.5 : 4) + EDGE.hem] }, group: 'Outer' });
@@ -195,7 +203,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // ── 3 LAYER: tucked, the top first and the bottom over its tail; worn out, the bottom first; shoes over both
   const keep = (E) => { const ps = (Array.isArray(E.part) ? E.part : [E.part]).filter((n) => have.has(n)); return ps.length ? [{ ...E, part: ps, ...(E.over ? { over: E.over.filter((n) => have.has(n)) } : {}) }] : []; };
   // every copy piece keeps the body's ratios (proportional ease) on a dense, rounded ring (body-garment.js)
-  const garments = [...(tuck ? [...tops, ...bottoms] : [...bottoms, ...tops]), ...outs, ...panels, ...shoes].flatMap(keep).map((E) => ({ ...E, ease: r6(E.ease), ...(E.flare ? { flare: E.flare.map(r6) } : {}), ...(E.fit ? {} : { proportional: r6(REF_RADIUS * k), dense: true }) }));
+  const garments = [...(tuck ? [...tops, ...bottoms] : [...bottoms, ...tops]), ...vests, ...outs, ...panels, ...shoes].flatMap(keep).map((E) => ({ ...E, ease: r6(E.ease), ...(E.flare ? { flare: E.flare.map(r6) } : {}), ...(E.fit ? {} : { proportional: r6(REF_RADIUS * k), dense: true }) }));
   const worn = new Set(garments.map((E) => E.id)), on = (id, part) => `${id}_${part}`;
 
   // ── 4 CONSTRUCTION + 5 ORNAMENT: the edges, spent from the focal out
@@ -213,7 +221,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
         ease: r6(easeOf(fam) * 1.3), proportional: r6(REF_RADIUS * k), dense: true, group: 'Trim' }); worn.add('topRib'); return true; },
     buttons: () => { if (!wovenTop || !worn.has('top')) return false; if (!structured) { warnings.push('buttons: the streamlined torso has no front slot to set them on; the placket alone'); return false; }
       rows.push({ part: on('top', 'torso'), t: 'front', s: [0.45, 3.6], step: r6(0.55 * law.buttonStep), shape: 'stud', r: r6(0.0045 * law.button * k), h: r6(0.0028 * law.button * k), m: 8, group: 'Button' }); return true; },
-    belt: () => { if (!bottom || ((bottom.family ?? 'woven') !== 'woven' && focal !== 'belt')) return false;   // law 7: a knit waist is elastic, no loops
+    belt: () => { if (!bottom || vest || ((bottom.family ?? 'woven') !== 'woven' && focal !== 'belt')) return false;   // law 7: a knit waist is elastic, no loops; a waistcoat over braces
       if (worn.has('skirt')) { kit.push({ id: 'belt', mode: 'band', part: 'skirt_skirt', s: [0.15, dress ? 0.75 : 0.9], t: 'wrap', nt: 16, ns: 2, mugen: r6(0.002 * k), thick: r6(0.006 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
         signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.026 * k * law.trim), h: r6(0.02 * k * law.trim), bar: r6(0.005 * k), standoff: r6(0.004 * k), group: 'Buckle' } }); return true; }
       const seat = worn.has('bottomSeat') ? on('bottomSeat', 'pelvis') : structured && bottom?.fit === 'skin' ? 'pelvis' : null;   // over second-skin legs, on the body
@@ -306,6 +314,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   if (outer && top && T.Outer && T.Top && Math.abs(lightness(T.Outer) - lightness(T.Top)) < 12) warnings.push(`value step: Outer and Top differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer) tones.Outer = T.Outer ?? shade(T.Top ?? '#888888', 0.62);
   if (panels.length) tones.Panel = T.Panel ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.7);
+  // (a waistcoat the suit's cloth, a three-piece, unless the card names its own)
+  if (vests.length) tones.Waistcoat = T.Waistcoat ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.9);
 
   // ── 7 LEDGER
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
@@ -317,7 +327,9 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   const tie = lang.tie === true && worn.has('top');
   // (its shape words, the shoulder and the waist, beside them or alone)
   const shaped = outer && worn.has('outer') && (outer.shoulder !== undefined || outer.waist !== undefined), shape = shaped ? { ...(outer.shoulder ? { shoulder: outer.shoulder } : {}), ...(outer.waist ? { waist: outer.waist } : {}) } : {};
-  const tailoring = tailored || shaped || tie ? { ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
+  // (and a waistcoat's front, its V and its buttons, made before the jacket's over it)
+  const vestFront = worn.has('vest') ? { front: vest.front ?? 'single', buttons: vest.buttons ?? (vest.front === 'double' ? 3 : 5) } : null;
+  const tailoring = tailored || shaped || tie || vestFront ? { ...(vestFront ? { vest: vestFront } : {}), ...(tailored || shaped ? { outer: { ...(tailored ? { front: outer.front ?? 'single', lapel: outer.lapel ?? (outer.front === 'double' ? 'peak' : 'notch'), buttons: outer.buttons ?? (outer.front === 'double' ? 3 : 2), open: !!outer.open } : {}), ...shape } } : {}), ...(tie ? { tie: { group: 'Tie' } } : {}) } : null;
   if (tailored) tones.Lapel = card.tones?.Lapel ?? shade(T.Outer ?? tones.Outer ?? '#444444', 1.12);
   if (tie) tones.Tie = card.tones?.Tie ?? '#5b1f2b';
   return { garments, paint, rows, kit, tones, trace, ...(tailoring ? { tailoring } : {}) };

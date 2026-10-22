@@ -34,6 +34,14 @@ body catches up to what the authored one wears, and its principles are shared ba
   shown the jacket through at the shoulder and the elbow). A jacket cut at the waist (a tailcoat's, a spencer's) raises
   its stance till its last button is 3 cm over the hem: below the cloth the front had no surface, and its lapel and
   button were thrown a metre out. The authored pins unchanged.
+- THE WAISTCOAT: the outfit language's `waistcoat: true | { front: single | double, buttons: 3–6 }` puts a waistcoat
+  between the shirt (and its tie) and the jacket, from the chest to below the waist, the jacket eased over it, worn
+  without a belt; a `Waistcoat` tone (the jacket's unless the card names one). On the realistic body the tailor gives it
+  its V (narrower than a jacket's, so it shows between the lapels), its buttons down the middle (two rows,
+  double-breasted) and its ARMHOLES, painted the shirt's and laid on the shirt slot by slot (`armholes`): taken in under
+  the shirt they had stood out as shards, laid on a reach measured over a window of heights they had creased the jacket
+  over them. The jacket's V walls over it read as the waistcoat. A seeded card `threepiece`. Cards without the word
+  byte-identical (both pins unchanged).
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

@@ -172,6 +172,21 @@ describe('an outfit card worn by the tailor', () => {
     for (const k of tails) for (const p of pointsOf(r.parts[k])) { const q = seat.filter((s) => Math.abs(s[2] - p[2]) < 0.02 && Math.abs(s[0] - p[0]) < 0.02); if (q.length) expect(p[1], k).toBeLessThan(Math.min(...q.map((s) => s[1]))); }
   }, 300_000);
 
+  it('a three-piece: the waistcoat close between the shirt and the jacket, its V, five buttons and painted armholes; the jacket over it; no belt; all closed', () => {
+    const r = card('threepiece'), V = r.parts.vest_body, S = r.parts.top_body, J = r.parts.outer_body;
+    expect(V && S && J).toBeTruthy();
+    expect(Object.keys(r.parts).filter((k) => /^vestButton\d_torso$/.test(k)).length).toBe(5);
+    expect(Object.keys(r.parts).some((k) => /^belt/.test(k))).toBe(false);
+    // (painted armholes: the shirt's group on the waistcoat's faces above the armpit, front and back alike)
+    expect(Object.values(V.bandGroups || {}).flat()).toContain(S.group ?? 'Top');
+    // (at the chest, off the V: the waistcoat outside the shirt and inside the jacket, each ring's points round its middle)
+    const ringAt = (P, z) => P.stations.reduce((b, st) => (Math.abs(centre(P, st)[2] - z) < Math.abs(centre(P, b)[2] - z) ? st : b));
+    const z = centre(V, V.stations[Math.floor(V.stations.length / 2)])[2], back = (P) => { const st = ringAt(P, z), c = centre(P, st); return Math.max(...P.slots.map((sl) => c[1] - st.points[sl][1])); };
+    expect(back(V)).toBeGreaterThan(back(S)); expect(back(J)).toBeGreaterThan(back(V));
+    const A = auditLayered(compileLayered(r));
+    for (const k of Object.keys(r.parts).filter((k) => /^(vest|outer)/.test(k))) { expect(A[k].windingErrors, k).toBe(0); expect(A[k].nonManifold, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0); }
+  }, 300_000);
+
   it('a cloak and its hood over the suit: within the cape\'s arc every point of the jacket under its outer face', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'business', pieces: [{ kind: 'cloak', hood: true }] } }) }).recipe;
     const C = r.parts.cloak_cape; expect(C).toBeTruthy(); expect(r.parts.cloakHood_hood).toBeTruthy();

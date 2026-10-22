@@ -483,6 +483,43 @@ export function lapelBand(path, width, surface, { out0, t = 0.003, lift = 0.002,
   return { layer: 1, closure: 'closed', slots: names, stations, caps: { back: sub(mid(stations[0]), scl(d0, 0.001)).map(r6), tip: add(mid(stations[n - 1]), scl(d1, 0.001)).map(r6) } };
 }
 
+/** the ARMHOLES of sleeveless cloth `P` (a waistcoat's), PAINTED: above `zArm` (the armhole's foot, at the side seam)
+ * every face whose middle lies farther out to the side of its ring's middle than the armhole's edge, a quarter ellipse
+ * from the cloth's own side at `zArm` in to `xIn` (the shoulder strap's outer edge) at `zTop`, painted `group` (the
+ * shirt's, whose sleeve's head is there), front and back alike; the points out there laid on the cloth it is worn over
+ * (`onto`, a tube with the same slots, the shirt: its point on the same slot at the same height, 1 mm out), so a jacket
+ * over it need not clear it. Not taken in under it: a ring's points stepped in and out round the shoulder's uneven rings
+ * had stood out as shards; nor laid on a reach measured over a window of heights, which stands out on the shoulder's curve.
+ * In place */
+export function armholes(P, { zArm, zTop, xIn, group, onto = null }) {
+  const n = P.slots.length, half = n / 2, C = P.stations.map((st) => mean(P.slots.map((sl) => st.points[sl])));
+  const i0 = C.reduce((b, c, i) => (Math.abs(c[2] - zArm) < Math.abs(C[b][2] - zArm) ? i : b), 0);
+  const xOut = Math.max(...P.slots.map((sl) => Math.abs(P.stations[i0].points[sl][0] - C[i0][0])));
+  const edge = (z) => xIn + (xOut - xIn) * Math.sqrt(Math.max(0, 1 - ((Math.min(z, zTop) - zArm) / (zTop - zArm)) ** 2));
+  const bands = { ...(P.bandGroups || {}) }, out = (p, c) => p[2] >= zArm && Math.abs(p[0] - c[0]) > edge(p[2]);
+  for (let i = 0; i + 1 < P.stations.length; i++) {
+    const a = P.stations[i], b = P.stations[i + 1], key = `${a.id}-${b.id}`;
+    let row = null;
+    for (let k = 0; k < half; k++) {
+      const q = [a.points[P.slots[k]], a.points[P.slots[k + 1]], b.points[P.slots[k]], b.points[P.slots[k + 1]]], m = mean(q), cm = mean([C[i], C[i + 1]]);
+      if (!out(m, cm)) continue;
+      row = row ?? (bands[key] ? [...bands[key]] : Array(half).fill(P.group ?? 'Body')); row[k] = group;
+    }
+    if (row) bands[key] = row;
+  }
+  if (onto && P.slots.every((sl) => onto.slots.includes(sl))) {
+    const S = [...onto.stations].sort((u, v) => mean(onto.slots.map((sl) => u.points[sl]))[2] - mean(onto.slots.map((sl) => v.points[sl]))[2]);
+    const D = S.map((st) => mean(onto.slots.map((sl) => st.points[sl])));
+    // (the shirt's point on a slot at a height: between its two rings there, 1 mm out from their middle)
+    const at = (sl, z) => { let k = 0; while (k < S.length - 2 && S[k + 1].points[sl][2] < z) k++;
+      const a = S[k].points[sl], b = S[k + 1].points[sl], f = Math.max(0, Math.min(1, (z - a[2]) / ((b[2] - a[2]) || 1e-9))), q = a.map((v, j) => v + (b[j] - v) * f), m = D[k].map((v, j) => v + (D[k + 1][j] - v) * f);
+      const d = unitv([q[0] - m[0], q[1] - m[1], 0]); return [q[0] + d[0] * 0.001, q[1] + d[1] * 0.001, q[2]]; };
+    P.stations.forEach((st, i) => { for (const sl of P.slots) { const p = st.points[sl]; if (out(p, C[i])) st.points[sl] = at(sl, p[2]).map(r6); } });
+  }
+  P.bandGroups = bands; if (group !== 'Skin' && group !== (P.group ?? 'Body')) P.painted = [...new Set([...(P.painted || []), group])];
+  return P;
+}
+
 /** an OPENING in the cloth `P` (a closed jacket's quarters, cut away below its last button): each point facing the
  * front for which `inside(p)` holds taken in under what the cloth is worn over (`under(c)(direction)`, 3 mm in), the
  * faces it takes in painted `group` (what shows there: the trousers). In place */
