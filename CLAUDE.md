@@ -99,7 +99,9 @@ node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lan
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
 entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
 
-Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
+Test tiers: a change to prose only (root docs, `docs/`, the changelog, a README, `NOTICE`) runs no tests and needs no
+`npm install` (generated pages such as the hillclimb page are code: regenerate them). Otherwise,
+while iterating, run the test folder next to the change; before a commit, `test:critical`, that
 folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
 kernels; the whole suite and `test:e2e` once before merging into the release candidate (CI runs both and `test:deep`,
 the e2e tier in its own job on one leg).

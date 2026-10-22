@@ -14,6 +14,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Trademark policy
+
+- **`TRADEMARKS.md`** says how the mojulo name may be used: fork freely under your own name; "powered by
+  mojulo" as a description, never in a product, package, domain or handle. The README, `NOTICE` (shipped in the
+  package), `TERMS.md` and `CONTRIBUTING.md` point to it. The code stays Apache 2.0.
+
 ### Animation games spike: one take, four flavors
 
 - **A research spike, nothing registered** (`scripts/spikes/animation-games/`). A *flavor* renders a take the hero
