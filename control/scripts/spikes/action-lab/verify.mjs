@@ -3,7 +3,7 @@
 //   node scripts/spikes/action-lab/verify.mjs [cast=male]
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, newState, step, frameData, util } from './feel.mjs';
+import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, POLES, POLE_IDS, VIEWS, STAGES, poleCard, blendPoles, newState, step, frameData, util } from './feel.mjs';
 const T = await import('./takes.mjs');
 const A = await import('../animation-games/flavor.mjs');
 
@@ -735,6 +735,31 @@ check('no body passes a wall or a block, and the hero never enters the dummy, at
         const jet = mrun((f) => (f >= 1 && f < 400 ? J : 0), 420, { gear: 'jet' }), glide = mrun(() => J, 120, { gear: 'glide', setup: (S) => { S.hero.p[2] = 20; S.hero.grounded = false; S.hero.from = 20; } });
     check(`mech ${label}: the gear rides along: the jetpack lights and the glider opens`, ev(jet, 'jet').length >= 1 && ev(glide, 'glide').length >= 1, { jet: ev(jet, 'jet').length, glide: ev(glide, 'glide').length });
   }
+}
+
+// ─── the poles: game templates, each a base feel, its fields, a viewer and a stage ───
+{
+  const prow = (table.poles = {});
+  const bad = POLE_IDS.filter((id) => { const P = POLES[id], c = poleCard(id);
+    const setOk = Object.entries(P.set ?? {}).every(([k, v]) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.entries(v).every(([k2, v2]) => typeof v2 === 'object' || JSON.stringify(c[k]?.[k2]) === JSON.stringify(v2)) : JSON.stringify(c[k]) === JSON.stringify(v)));
+    const kept = P.set?.moves ? true : JSON.stringify(c.moves) === JSON.stringify(FEELS[P.base].moves);
+    return !(FEELS[P.base] && VIEWS.includes(P.view.camera) && STAGES[P.stage] && Array.isArray(P.needs) && setOk && kept && (P.mount == null || c.boost));
+  });
+  POLE_IDS.forEach((id) => { prow[id] = `${POLES[id].base} · ${POLES[id].view.camera} · ${POLES[id].stage}${POLES[id].mount != null ? ' · mech' : ''}${POLES[id].gear ? ` · ${POLES[id].gear}` : ''}`; });
+  check('poles: every pole names a base feel, a viewer and a stage that exist and what it still needs; its card is the base with its fields merged over (the rest kept: its moves), a mech mounted where it says', !bad.length, { bad });
+  // played on its stage: one pole a procedure (plain fields merged over, a mech mounted, the 2D rail)
+  const plain = POLE_IDS.find((id) => POLES[id].mount == null && !POLES[id].set?.lane), mounted = POLE_IDS.find((id) => POLES[id].mount != null), railed = POLE_IDS.find((id) => POLES[id].set?.lane?.face);   // (the fighter's rail faces the foe; a platformer's only holds the line)
+  const script = (f) => [Math.round(127 * Math.sin(f / 29)), Math.round(127 * Math.cos(f / 37)), ((f % 41) < 6 ? J : 0) | ((f % 17) === 0 ? AT : 0) | ((f % 73) === 9 ? DG : 0) | ((f % 97) > 60 ? DS : 0)];
+  const playPole = (id) => track(run(poleCard(id), script, 500, { arena: STAGES[POLES[id].stage], gear: POLES[id].gear ?? null }));
+  const hash = (r) => createHash('sha256').update(JSON.stringify(r.states.map((x) => [x.hero.p, x.dummy.p, x.events]))).digest('hex');
+  const plays = [plain, mounted, railed].map((id) => { const a = playPole(id), b = playPole(id); return { id, same: hash(a) === hash(b), breach: a.breach, moved: Math.hypot(a.end.hero.p[0] - STAGES[POLES[id].stage].hero[0], a.end.hero.p[1] - STAGES[POLES[id].stage].hero[1]) > 0.5, r: a }; });
+  check(`poles: ${plays.map((p) => POLES[p.id].name).join(', ')} play a scripted pad on their own stages, the same twice, no body through a wall`, plays.every((p) => p.same && !p.breach && p.moved), plays.map((p) => [p.id, p.same, !!p.breach, p.moved]));
+  const rail = plays[2].r, onLine = rail.states.every((x) => x.hero.p[0] === POLES[railed].set.lane.x && x.dummy.p[0] === POLES[railed].set.lane.x), facing = rail.states.filter((x) => !x.hero.act).every((x) => Math.abs(util.angDiff(x.hero.yaw, util.bearing(x))) < 1e-9);
+  check(`poles: ${POLES[railed].name}'s rail holds both bodies on its line, the hero facing its foe`, onLine && facing, { onLine, facing });
+  // between two poles: the numbers blended, the rest from the nearer
+  const [pa, pb] = [plain, POLE_IDS.find((id) => id !== plain && POLES[id].base !== POLES[plain].base && POLES[id].mount == null)], A = poleCard(pa), B = poleCard(pb);
+  const b0 = blendPoles(pa, pb, 0), b1 = blendPoles(pa, pb, 1), bh = blendPoles(pa, pb, 0.5), b4 = blendPoles(pa, pb, 0.4);
+  check(`poles: between ${POLES[pa].name} and ${POLES[pb].name} every number blends (the run, the jump's height, its gravity), the rest from the nearer pole (the hit's stun model)`, b0.ground.run === A.ground.run && b1.ground.run === B.ground.run && Math.abs(bh.ground.run - (A.ground.run + B.ground.run) / 2) < 1e-3 && Math.abs(bh.jump.height - (A.jump.height + B.jump.height) / 2) < 1e-3 && b4.hit.stun.model === A.hit.stun.model && bh.hit.stun.model === B.hit.stun.model, { run: [A.ground.run, bh.ground.run, B.ground.run], stun: [b4.hit.stun.model, bh.hit.stun.model] });
 }
 
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));

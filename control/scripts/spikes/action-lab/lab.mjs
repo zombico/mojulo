@@ -33,7 +33,7 @@ const html = `<meta charset="utf-8">
   --ink: #eef1f5; --dim: #8e9aab; --line: #2a3240;
   --hero: #5fd0c8; --dummy: #e8a35a; --shadow: #000000;
   --startup: #3fbf6b; --active: #e5484d; --recovery: #4a86e8; --stop: #f4f1de; --stun: #f08a4b; --air: #3a4658;
-  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --flame: #ffb02e; --wing: #cfe8ff; --spark: #fff3b0; --smear: #5fd0c8;
+  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --flame: #ffb02e; --wing: #cfe8ff; --sky: #1b2633; --spark: #fff3b0; --smear: #5fd0c8;
   --good: #3fbf6b; --bad: #e5484d;
   --display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
   --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -54,6 +54,8 @@ button:disabled { opacity: 0.4; cursor: default; }
 kbd { font: 500 11px/1 var(--mono); margin-right: 6px; opacity: 0.7; }
 .tools { display: flex; flex-wrap: wrap; gap: 6px; }
 #says { flex-basis: 100%; margin: 0; color: var(--dim); font-size: 14px; }
+#poleSays { flex-basis: 100%; margin: 0; color: var(--ink); font-size: 13px; }
+#poleSays:empty { display: none; }
 main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; min-height: 0; }
 .stagebox { display: grid; grid-template-rows: auto auto; gap: 8px; min-width: 0; align-self: start; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); }
 .canvaswrap { position: relative; height: clamp(320px, 66vh, 760px); border-radius: 10px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); }
@@ -119,12 +121,16 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <button type="button" id="onehit" aria-pressed="false" title="O: any hit is the end (the one-hit games)">One hit</button>
       <button type="button" id="gearbtn" aria-pressed="false" title="E: the gear the jump uses in the air: none, the glider, the jetpack">Gear</button>
       <button type="button" id="mountbtn" aria-pressed="false" title="M: ride a mech (MSA's movement rules over this feel's card): off, heavy, swift; the weight dial blends them">Mech</button>
-      <button type="button" id="view" title="V">¾ view</button>
+      <select id="pole" aria-label="Game template" title="a game template: its feel, its viewer, its stage"></select>
+      <select id="toward" aria-label="Blend toward" title="a second template to tune toward"></select>
+      <input id="blendT" type="range" min="0" max="1" step="0.05" value="0" aria-label="How far toward it" title="how far toward the second template">
+      <button type="button" id="view" title="V: the viewer (¾ follow, isometric, overhead, side, third person, over the shoulder, first person, mech chase)">¾ follow</button>
       <button type="button" id="pause" title="P or Esc">Pause</button>
       <button type="button" id="stepbtn" title=". (paused): one frame">Step</button>
       <button type="button" id="reset" title="R">Reset</button>
     </div>
     <p id="says"></p>
+    <p id="poleSays" class="says-pole"></p>
   </header>
   <main>
     <div class="stagebox">

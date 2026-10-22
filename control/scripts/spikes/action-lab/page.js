@@ -1,11 +1,11 @@
 // action-lab page: the playable half. lab.mjs inlines feel.mjs (the kernel, its exports stripped) above this file and
 // DATA (takes.mjs bake, per cast) above that, so the page steps the very code the gate runs.
-/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy */
+/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life', 'flame', 'wing']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life', 'flame', 'wing', 'sky']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -13,13 +13,17 @@ const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k
 let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
 let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null, gear = null, mount = null, shakeT = 0;   // mount: riding a mech, its weight (1 heavy … 0 swift), or off   // shooter: the name of one of the card's ranged sets, or off
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
+let pole = null, toward = null, blendT = 0, lastShotF = -99;   // the game template (a pole), the pole blended toward and how far
 let S, hist = [], log = [], presses = [], sparks = [], tracers = [], cam = { x: 0, y: 0, z: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
 function reset() {
-  const sets = cards[feel].ranged?.sets ?? {}; if (shooter && !sets[shooter]) shooter = Object.keys(sets)[0] ?? null;
-  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
+  // a template: its card (blended toward another pole if asked) on its stage; else the feel's card in the lab's arena
+  const P = pole ? POLES[pole] : null, near = P && toward && blendT >= 0.5 ? POLES[toward] : P;
+  const card = P ? (toward && blendT > 0 ? blendPoles(pole, toward, blendT) : poleCard(pole)) : cards[feel];
+  const sets = card.ranged?.sets ?? {}; if (shooter && !sets[shooter]) shooter = Object.keys(sets)[0] ?? null;
+  S = newState(card, DATA[cast].body, { arena: near ? STAGES[near.stage] : ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
   hist = []; log = []; presses = []; sparks = []; tracers = []; shown = {}; prevWorld = {};
-  cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 };
+  cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 }; pc.ok = false;
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
 }
 
@@ -31,7 +35,7 @@ addEventListener('keydown', (e) => {
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
   if (/^Digit[1-4]$/.test(e.code)) { setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
   if (e.code === 'KeyR') reset();
-  else if (e.code === 'KeyV') setView(view === 'three' ? 'side' : 'three');
+  else if (e.code === 'KeyV') setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
   else if (e.code === 'KeyT') setSpar(!spar);
   else if (e.code === 'KeyY') cycleShooter();
   else if (e.code === 'KeyE') cycleGear();
@@ -79,7 +83,7 @@ function readPad() {
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
   // the stick is the camera's: up the screen is the way the camera looks (behind the hero at the target, when locked)
-  const c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), wx = x * c + y * sn, wy = -x * sn + y * c;
+  const iy = inputYaw(), c = Math.cos(iy), sn = Math.sin(iy), wx = x * c + y * sn, wy = -x * sn + y * c;
   return [Math.round(Math.max(-1, Math.min(1, wx)) * 127), Math.round(Math.max(-1, Math.min(1, wy)) * 127), b];
 }
 
@@ -185,6 +189,7 @@ function onEvent(e) {
   if (e.type === 'armor' || e.type === 'armor-break') { const B = S[e.who]; sparks.push({ p: [B.p[0], B.p[1], B.p[2] + 1.2], t: 0, big: e.type === 'armor-break', evade: e.type === 'armor' }); }
   if (e.who === 'hero' && (e.type === 'parry' || e.type === 'block' || e.type === 'perfect' || e.type === 'guard-break')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: e.type === 'parry' || e.type === 'perfect', evade: e.type === 'perfect' });
   if (e.type === 'fire' && e.hitscan) tracers.push({ from: e.from, to: e.to, t: 0, hit: e.result === 'hit' });
+  if (e.type === 'round' && e.who === 'hero') lastShotF = e.f;
   if (e.type === 'round' && e.from) tracers.push({ from: e.from, to: e.to, t: 0, hit: e.mode === 'core' || e.mode === 'assist', hero: true });
   if (e.who === 'hero' && (e.type === 'hurt' || e.type === 'ko')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.2], t: 0, big: e.type === 'ko' || !!e.down });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
@@ -272,18 +277,82 @@ function fit() {
 }
 addEventListener('resize', fit);
 new ResizeObserver(fit).observe(stage.parentElement); new ResizeObserver(fit).observe(strip);
-const scale = () => Math.max(70, view === 'three' ? Math.min(W, H * 1.4) / 9 : Math.min(W, H * 1.6) / 8);
-/** a world point's depth along the camera (larger: farther up the screen) */
-const depthOf = (x, y) => (x - cam.x) * Math.sin(cam.yaw) + (y - cam.y) * Math.cos(cam.yaw);
+// ─── the viewers: orthographic (¾ follow, isometric, overhead), side, and the perspective cameras (mojulo's gameworld
+// third-person and first-person, over-the-shoulder, the mech's chase), each a template's way of being seen ───
+const VIEW_LABEL = { three: '¾ follow', iso: 'Isometric', overhead: 'Overhead', side: 'Side', 'third-person': 'Third person', shoulder: 'Over the shoulder', 'first-person': 'First person', mech: 'Mech chase' };
+const ORTHO = { three: 50, iso: 38, overhead: 76 };   // the tilt (deg) each orthographic viewer looks down at
+const PERSP = { 'third-person': { D: 4.5, h: 2.4, off: 0, pitch: 0.24, lag: 0.05 }, shoulder: { D: 2.6, h: 1.85, off: 0.6, pitch: 0.12, lag: 0.1 }, 'first-person': { D: 0, h: 0, off: 0, pitch: 0.05, lag: 1, bob: 10 }, mech: { D: 7.5, h: 3.6, off: 0, pitch: 0.2, lag: 0.04 } };
+const isOrtho = () => view in ORTHO, isPersp = () => view in PERSP, NEAR = 0.1, FOCAL = () => H * 0.9;
+const tilt = () => ((ORTHO[view] ?? 50) * Math.PI) / 180;
+/** the perspective camera: behind the hero (or at its eyes), its yaw lagging the hero's run (on the target when locked) */
+const pc = { x: 0, y: 0, z: 1.6, yaw: 0, pitch: 0.2, ok: false };
+const camOpt = () => ({ ...PERSP[view], ...(pole && POLES[pole].view.camera === view ? POLES[pole].view : {}) });
+function updatePersp() {
+  const o = camOpt(), B = S.hero, k = (B.h ?? util.HEIGHT) / util.HEIGHT, v = Math.hypot(B.v[0], B.v[1]);
+  const want = S.lock ? util.bearing(S) : view === 'first-person' ? B.yaw : v > 0.6 && !B.act ? Math.atan2(B.v[0], B.v[1]) : pc.yaw;
+  if (!pc.ok) { pc.yaw = S.lock ? want : B.yaw; }
+  else pc.yaw += util.angDiff(want, pc.yaw) * (view === 'first-person' ? 1 : S.lock ? 0.15 : o.lag);
+  const fx = Math.sin(pc.yaw), fy = Math.cos(pc.yaw), rx = Math.cos(pc.yaw), ry = -Math.sin(pc.yaw);
+  let tx, ty, tz;
+  if (view === 'first-person') {   // the eyes, with the head's bob and a dip on landing
+    const run = Math.min(1, v / Math.max(0.1, S.card.ground.run)), dip = S.f - B.landed < 12 ? -0.08 * (1 - (S.f - B.landed) / 12) : 0;
+    tx = B.p[0] + fx * 0.12; ty = B.p[1] + fy * 0.12; tz = B.p[2] + B.h * 0.93 + 0.03 * run * Math.sin(4 * Math.PI * B.stride) + dip;
+  } else { tx = B.p[0] - fx * o.D * k + rx * o.off; ty = B.p[1] - fy * o.D * k + ry * o.off; tz = B.p[2] + o.h * k; }
+  const kk = !pc.ok || view === 'first-person' ? 1 : 0.25;
+  pc.x += (tx - pc.x) * kk; pc.y += (ty - pc.y) * kk; pc.z += (tz - pc.z) * kk; pc.pitch = o.pitch; pc.ok = true;
+}
+/** a world point in the camera's frame: [right, up, depth] */
+function camSpace(x, y, z) {
+  const dx = x - pc.x, dy = y - pc.y, dz = z - pc.z, s = Math.sin(pc.yaw), c = Math.cos(pc.yaw), sp = Math.sin(pc.pitch), cp = Math.cos(pc.pitch);
+  const fwd = dx * s + dy * c;
+  return [dx * c - dy * s, fwd * sp + dz * cp, fwd * cp - dz * sp];
+}
+const proj = (q) => [W / 2 + (FOCAL() * q[0]) / q[2], H * 0.5 - (FOCAL() * q[1]) / q[2]];
+/** the stick is the camera's: up the screen is the way it looks */
+const inputYaw = () => (isPersp() ? pc.yaw : view === 'iso' ? Math.PI / 4 : view === 'overhead' ? 0 : view === 'side' ? -Math.PI / 2 : cam.yaw);
+const scale = () => Math.max(70, isPersp() ? FOCAL() / 6 : isOrtho() ? Math.min(W, H * 1.4) / (view === 'overhead' ? 12 : 9) : Math.min(W, H * 1.6) / 8);
+const scaleAt = (p) => (isPersp() ? FOCAL() / Math.max(0.6, camSpace(p[0], p[1], p[2] + 1)[2]) : scale());
+/** a world point's depth along the camera (larger: farther) */
+const depthOf = (x, y) => (isPersp() ? (x - pc.x) * Math.sin(pc.yaw) + (y - pc.y) * Math.cos(pc.yaw) : (x - cam.x) * Math.sin(cam.yaw) + (y - cam.y) * Math.cos(cam.yaw));
 function P(x, y, z) {
+  if (isPersp()) { const q = camSpace(x, y, z); return q[2] < NEAR ? [NaN, NaN] : proj(q); }   // behind the camera: dropped
   const ppm = scale();
-  if (view === 'three') { const rx = x - cam.x, ry = y - cam.y, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); return [W / 2 + (rx * c - ry * sn) * ppm, H * 0.62 - ((z - cam.z) * CT + (rx * sn + ry * c) * ST) * ppm]; }
+  if (isOrtho()) { const rx = x - cam.x, ry = y - cam.y, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), t = tilt(); return [W / 2 + (rx * c - ry * sn) * ppm, H * 0.62 - ((z - cam.z) * Math.cos(t) + (rx * sn + ry * c) * Math.sin(t)) * ppm]; }
   return [W / 2 + (y - cam.y) * ppm, H * 0.78 - (z - cam.z) * ppm];
+}
+/** a polygon (or a segment) clipped at the camera's near plane, then projected: the floor and the blocks in perspective */
+function clipNear(pts, closed) {
+  const cs = pts.map((p) => camSpace(...p)), out = [];
+  const n = closed ? cs.length : cs.length - 1;
+  for (let i = 0; i < n; i++) {
+    const a = cs[i], b = cs[(i + 1) % cs.length], ia = a[2] >= NEAR, ib = b[2] >= NEAR;
+    if (ia) out.push(a);
+    if (ia !== ib) { const t = (NEAR - a[2]) / (b[2] - a[2]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, NEAR]); }
+    if (!closed && i === n - 1 && ib) out.push(b);
+  }
+  return out.map(proj);
+}
+function polyP(pts, fill, stroke) { const q = clipNear(pts, true); if (q.length < 3) return; ctx.beginPath(); q.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); } }
+function segP(a, b) { const q = clipNear([a, b], false); if (q.length === 2) { ctx.moveTo(q[0][0], q[0][1]); ctx.lineTo(q[1][0], q[1][1]); } }
+/** a circle on the floor: an ellipse in the orthographic and side viewers, a projected ring in perspective */
+function groundRing(x, y, z, r, fill) {
+  if (isPersp()) { const pts = Array.from({ length: 16 }, (_, i) => [x + r * Math.cos((i / 16) * 2 * Math.PI), y + r * Math.sin((i / 16) * 2 * Math.PI), z]); polyP(pts, fill ? ctx.fillStyle : null, fill ? null : ctx.strokeStyle); return; }
+  const c = P(x, y, z), ppm = scale(); ctx.beginPath(); ctx.ellipse(c[0], c[1], r * ppm, r * ppm * (isOrtho() ? Math.sin(tilt()) : 0.25), 0, 0, Math.PI * 2); fill ? ctx.fill() : ctx.stroke();
 }
 function poly(pts, fill, stroke) { ctx.beginPath(); pts.forEach((p, i) => { const q = P(...p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); } }
 function drawArena() {
   const A = S.arena, h = A.half;
-  if (view === 'three') {
+  if (isPersp()) {   // the floor to the horizon, its grid clipped at the camera, the arena's walls a low fence
+    ctx.fillStyle = COL.floor; ctx.fillRect(0, 0, W, H);
+    const hy = H * 0.5 - FOCAL() * Math.tan(pc.pitch); ctx.fillStyle = COL.sky; ctx.fillRect(0, 0, W, Math.max(0, hy));
+    ctx.lineWidth = 1; ctx.strokeStyle = COL.grid; ctx.beginPath();
+    for (let i = -h; i <= h; i++) { segP([i, -h, 0], [i, h, 0]); segP([-h, i, 0], [h, i, 0]); }
+    ctx.stroke();
+    const walls = [[[-h, h, 0], [h, h, 0]], [[h, -h, 0], [-h, -h, 0]], [[h, h, 0], [h, -h, 0]], [[-h, -h, 0], [-h, h, 0]]].sort((p, q) => depthOf(q[0][0] + q[1][0], q[0][1] + q[1][1]) - depthOf(p[0][0] + p[1][0], p[0][1] + p[1][1]));
+    for (const [a, b] of walls) polyP([a, b, [b[0], b[1], 1.2], [a[0], a[1], 1.2]], COL.block, COL.blockTop);
+    return;
+  }
+  if (isOrtho()) {
     poly([[-h, -h, 0], [h, -h, 0], [h, h, 0], [-h, h, 0]], COL.floor);
     ctx.lineWidth = 1; ctx.strokeStyle = COL.grid;
     for (let i = -h; i <= h; i++) { const a = P(i, -h, 0), b = P(i, h, 0), c2 = P(-h, i, 0), d = P(h, i, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.moveTo(c2[0], c2[1]); ctx.lineTo(d[0], d[1]); ctx.stroke(); }
@@ -297,7 +366,12 @@ function drawArena() {
 /** a block: the side faces that face the camera, then its top */
 function drawBlock(k) {
   const [x0, x1] = k.x, [y0, y1] = k.y;
-  if (view === 'three') {
+  if (isPersp()) {   // the faces that face the camera, then the top if the camera is above it
+    for (const [n, a, b] of [[[0, -1], [x0, y0], [x1, y0]], [[0, 1], [x1, y1], [x0, y1]], [[-1, 0], [x0, y1], [x0, y0]], [[1, 0], [x1, y0], [x1, y1]]]) if (n[0] * (pc.x - a[0]) + n[1] * (pc.y - a[1]) > 0) polyP([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], k.h], [a[0], a[1], k.h]], COL.block, COL.blockTop);
+    if (pc.z > k.h) polyP([[x0, y0, k.h], [x1, y0, k.h], [x1, y1, k.h], [x0, y1, k.h]], COL.blockTop);
+    return;
+  }
+  if (isOrtho()) {
     const up = [Math.sin(cam.yaw), Math.cos(cam.yaw)];
     for (const [n, a, b] of [[[0, -1], [x0, y0], [x1, y0]], [[0, 1], [x1, y1], [x0, y1]], [[-1, 0], [x0, y1], [x0, y0]], [[1, 0], [x1, y0], [x1, y1]]]) if (n[0] * up[0] + n[1] * up[1] < 0) poly([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], k.h], [a[0], a[1], k.h]], COL.block);
     poly([[x0, y0, k.h], [x1, y0, k.h], [x1, y1, k.h], [x0, y1, k.h]], COL.blockTop);
@@ -326,18 +400,17 @@ function drawArc() {
 function drawLock() {
   if (!S.lock) return;
   const D = S.dummy, c = P(D.p[0], D.p[1], D.p[2]), ppm = scale(), top = P(D.p[0], D.p[1], D.p[2] + D.h + 0.35);
-  ctx.strokeStyle = COL.lock; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(c[0], c[1], 0.55 * ppm, 0.55 * ppm * (view === 'three' ? ST : 0.25), 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = COL.lock; ctx.lineWidth = 2; groundRing(D.p[0], D.p[1], D.p[2], 0.55, false);
   ctx.fillStyle = COL.lock; ctx.beginPath(); ctx.moveTo(top[0], top[1] + 7); ctx.lineTo(top[0] - 7, top[1] - 5); ctx.lineTo(top[0] + 7, top[1] - 5); ctx.closePath(); ctx.fill();
 }
 function drawShadow(B) {
   const g = util.groundAt(S, B.p[0], B.p[1]), up = Math.max(0, B.p[2] - g), r = 0.34 / (1 + up * 0.4);
   ctx.globalAlpha = 0.5 / (1 + up); ctx.fillStyle = COL.shadow;
-  const c = P(B.p[0], B.p[1], g); const ppm = scale();
-  ctx.beginPath(); ctx.ellipse(c[0], c[1], r * ppm, r * ppm * (view === 'three' ? ST : 0.25), 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  groundRing(B.p[0], B.p[1], g, r, true); ctx.globalAlpha = 1;
 }
 function drawBody(who, colour) {
   const { d, a } = poseFrames(who), w = toWorld(d, a), D = DATA[cast], B = S[who];
-  const ppm = scale();
+  const ppm = scaleAt(B.p);
   const shake = d.held ? ((S.f % 2) * 2 - 1) * 2 : 0;
   // smears: a hand or foot that jumped further than the card's smear in one frame
   const sm = S.card.look.smear, prev = prevWorld[who];
@@ -376,20 +449,24 @@ function drawSparks() {
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
   if (shakeT > 0.2) { ctx.translate(0, ((S.f % 2) * 2 - 1) * shakeT * 0.5); if (!paused) shakeT *= 0.75; }   // a footfall or a hard landing shakes the camera
-  const k = 0.12; cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (S.hero.p[1] - cam.y) * k;
+  const k = 0.12, fy = S.card.lane?.face ? (S.hero.p[1] + S.dummy.p[1]) / 2 : S.hero.p[1];   // a fighter's camera frames both fighters
+  cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (fy - cam.y) * k;
   cam.z += (Math.max(0, S.hero.p[2] - 2) - cam.z) * 0.08;   // a high flight lifts the camera with it (a jump's height does not)
-  // locked, the camera swings behind the hero to look at the target; let go, it swings back north
-  const want = S.lock ? util.bearing(S) : 0; cam.yaw += util.angDiff(want, cam.yaw) * (S.lock ? 0.3 : 0.12);   // close behind while locked, so a held stick keeps circling
+  // locked, the ¾ camera swings behind the hero to look at the target; let go, it swings back north. The isometric and
+  // overhead viewers hold their own yaw; the perspective cameras follow the hero
+  if (view === 'iso') cam.yaw = Math.PI / 4; else if (view === 'overhead') cam.yaw = 0;
+  else { const want = S.lock ? util.bearing(S) : 0; cam.yaw += util.angDiff(want, cam.yaw) * (S.lock ? 0.3 : 0.12); }   // close behind while locked, so a held stick keeps circling
+  if (isPersp()) updatePersp();
   drawArena();
   const near = (b) => Math.min(...corners(b).map(([x, y]) => depthOf(x, y))), far = (b) => Math.max(...corners(b).map(([x, y]) => depthOf(x, y)));
   const blocks = [...S.arena.blocks].sort((a, b) => far(b) - far(a));
   for (const b of blocks) drawBlock(b);
   drawArc(); drawLock();
-  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].sort((a, b) => (view === 'three' ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
+  const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].filter(([who]) => !(view === 'first-person' && who === 'hero')).sort((a, b) => (isOrtho() || isPersp() ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
   for (const [who, col] of bodies) {
     drawShadow(S[who]); drawBody(who, col);
     // a block standing between the camera and a body below its top covers it
-    if (view === 'three') for (const b of blocks) {
+    if (isOrtho()) for (const b of blocks) {
       const B = S[who], dB = depthOf(B.p[0], B.p[1]); if (B.p[2] >= b.h - 0.05 || dB <= near(b)) continue;
       const xs = corners(b).map(([x, y]) => P(x, y, 0)[0]), bx = P(B.p[0], B.p[1], 0)[0];
       if (bx > Math.min(...xs) - 20 && bx < Math.max(...xs) + 20 && dB - near(b) < 3) drawBlock(b);
@@ -397,13 +474,28 @@ function draw() {
   }
   drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawThrust(); drawLife();
   drawSparks();
+  if (view === 'first-person') drawViewmodel();
   drawStrip();
+}
+/** first person: the hero's arm in the frame's corner, bobbing with the stride, dipping on a landing, reaching on a
+ * blow, kicking on a shot; and the crosshair */
+function drawViewmodel() {
+  const B = S.hero, v = Math.hypot(B.v[0], B.v[1]), run = Math.min(1, v / Math.max(0.1, S.card.ground.run)), amp = camOpt().bob ?? 10;
+  const ph = 2 * Math.PI * B.stride, bx = Math.sin(ph) * amp * run, by = Math.abs(Math.cos(ph)) * amp * 0.6 * run + (S.f - B.landed < 12 ? 18 * (1 - (S.f - B.landed) / 12) : 0);
+  let reach = 0; const a = B.act;
+  if (a?.kind === 'move') { const m = a.lv ? S.card.charge.at[a.lv - 1] : S.card.moves.string[a.i], f = a.shown ?? a.f; reach = f < m.startup ? -0.25 * (f / m.startup) : f < m.startup + m.active + 3 ? 1 : Math.max(0, 1 - (f - m.startup - m.active - 3) / Math.max(1, m.recovery)); }
+  const kick = Math.max(0, 1 - (S.f - lastShotF) / 6) * 22;
+  const sx = W * 0.8 + bx, sy = H + 30 + by, hx = W * 0.66 + bx - reach * W * 0.12, hy = H * 0.76 + by - reach * H * 0.12 + kick;
+  ctx.strokeStyle = COL.hero; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(14, H * 0.05); ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.fillStyle = COL.hero; ctx.beginPath(); ctx.arc(hx, hy, Math.max(10, H * 0.03), 0, Math.PI * 2); ctx.fill();
+  if (S.hero.arms) { ctx.strokeStyle = COL.ink; ctx.lineWidth = Math.max(6, H * 0.018); ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx - W * 0.05, hy - H * 0.06); ctx.stroke(); }
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(W / 2 - 8, H / 2); ctx.lineTo(W / 2 + 8, H / 2); ctx.moveTo(W / 2, H / 2 - 8); ctx.lineTo(W / 2, H / 2 + 8); ctx.stroke();
 }
 /** the enemy's shots: a ball its size with a shadow on the floor, the hitscan tracers a fading line */
 function drawFoes() {
   const ppm = scale();
   for (const q of S.foes) {
-    const g = util.groundAt(S, q.p[0], q.p[1]), sh = P(q.p[0], q.p[1], g); ctx.fillStyle = COL.shadow; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.ellipse(sh[0], sh[1], q.size * ppm, q.size * ppm * (view === 'three' ? ST : 0.25), 0, 0, Math.PI * 2); ctx.fill();
+    const g = util.groundAt(S, q.p[0], q.p[1]), sh = P(q.p[0], q.p[1], g); ctx.fillStyle = COL.shadow; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.closePath(); groundRing(q.p[0], q.p[1], g, q.size, true);
     const c = P(...q.p); ctx.globalAlpha = 1; ctx.fillStyle = COL.foe; ctx.beginPath(); ctx.arc(c[0], c[1], Math.max(3, q.size * ppm), 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = COL.ink; ctx.lineWidth = 1; ctx.stroke();
   }
@@ -482,7 +574,7 @@ function drawCharge() {
   const ppm = scale(), z = B.p[2] + (B.act?.kind === 'charge' && CH.kind === 'spin' ? 0.35 : 1.0), k = Math.min(1, c.held / CH.levels.at(-1)), pulse = 1 + 0.12 * Math.sin(S.f * (0.4 + 0.4 * c.lv));
   const p = P(B.p[0], B.p[1], z), r = (0.35 + 0.25 * k) * ppm * pulse;
   ctx.strokeStyle = c.lv >= CH.levels.length ? COL.charge2 : c.lv ? COL.charge1 : COL.dim; ctx.lineWidth = 2 + c.lv * 1.5; ctx.globalAlpha = 0.85;
-  ctx.beginPath(); ctx.ellipse(p[0], p[1], r, r * (view === 'three' ? 0.75 : 1), 0, 0, Math.PI * 2 * Math.max(0.05, k)); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.ellipse(p[0], p[1], r, r * (isOrtho() ? 0.75 : 1), 0, 0, Math.PI * 2 * Math.max(0.05, k)); ctx.stroke(); ctx.globalAlpha = 1;
 }
 
 // ─── the frame strip: the training mode's bar ───
@@ -503,7 +595,7 @@ function renderFeel() {
   $('says').textContent = FEELS[feel].says;
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
   $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('mountbtn').setAttribute('aria-pressed', String(mount != null)); $('mountbtn').textContent = mount == null ? 'Mech' : `Mech: ${mount === 1 ? 'heavy' : mount === 0 ? 'swift' : `weight ${mount}`}`; $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
-  $('view').textContent = view === 'three' ? '¾ view' : 'Side view'; $('pause').textContent = paused ? 'Resume' : 'Pause';
+  $('view').textContent = VIEW_LABEL[view] ?? view; $('pause').textContent = paused ? 'Resume' : 'Pause';
 }
 const DIALS = [
   ['Ground', 'ground.run', 'run', 1, 24, 0.5, 'm/s'], ['Ground', 'ground.accel', 'accel', 1, 120, 1, 'm/s²'], ['Ground', 'ground.decel', 'decel', 1, 120, 1, 'm/s²'],
@@ -533,7 +625,7 @@ function renderDials() {
     const row = document.createElement('label'); row.className = 'dial'; row.htmlFor = id;
     row.innerHTML = `<span>${label}</span><input id="${id}" type="range" min="${min}" max="${max}" step="${st}" value="${v}"><output>${fmt(v)} ${unit}</output>`;
     const input = row.querySelector('input'), out = row.querySelector('output');
-    input.addEventListener('input', () => { const x = +input.value; setPath(S.card, path, x); setPath(cards[feel], path, x); out.textContent = `${fmt(x)} ${unit}`; renderFrameData(); });
+    input.addEventListener('input', () => { const x = +input.value; setPath(S.card, path, x); if (!pole) setPath(cards[feel], path, x); out.textContent = `${fmt(x)} ${unit}`; renderFrameData(); });
     box.append(row);
   }
 }
@@ -574,11 +666,11 @@ function renderRec() {
 let last = null;
 $('rec').addEventListener('click', () => {
   if (rec) { last = rec; rec = null; $('fixture').value = JSON.stringify(fixture(last)); }
-  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, gear, mount, card: copy(mount != null ? cards[feel] : S.card), pads: [] }; }
+  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, gear, mount: pole ? null : mount, card: copy(pole ? S.card : mount != null ? cards[feel] : S.card), arena: pole ? S.arena : null, pole, pads: [] }; }
   renderRec();
 });
 $('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); shooter = null; gear = last.gear ?? null; mount = last.mount ?? null; reset(); if (last.shooter) { S.shooter = last.shooter; S.spar = false; shooter = Object.entries(S.card.ranged.sets).find(([, v]) => JSON.stringify(v) === JSON.stringify(last.shooter))?.[0] ?? 'recorded'; renderFeel(); } replay = { pads: last.pads, i: 0 }; renderRec(); });
-const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), ...(r.gear ? { gear: r.gear } : {}), ...(r.mount != null ? { mount: r.mount } : {}), card: r.card, pads: r.pads });
+const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), ...(r.gear ? { gear: r.gear } : {}), ...(r.mount != null ? { mount: r.mount } : {}), ...(r.arena ? { arena: r.arena, pole: r.pole } : {}), card: r.card, pads: r.pads });
 $('copy').addEventListener('click', async () => {
   const t = $('fixture'); t.value = JSON.stringify(fixture(last));
   try { await navigator.clipboard.writeText(t.value); $('recState').textContent = 'Copied. Save it under scripts/spikes/action-lab/fixtures/ and verify.mjs replays it.'; }
@@ -588,7 +680,23 @@ $('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixtu
 $('showfx').addEventListener('click', () => { $('fixture').hidden = !$('fixture').hidden; $('load').hidden = $('fixture').hidden; });
 
 // ─── controls ───
-function setFeel(id, quiet) { feel = id; store.set('feel', id); if (!quiet) reset(); else renderFeel(); }
+function setFeel(id, quiet) { feel = id; store.set('feel', id); if (!quiet) { pole = null; renderPoles(); reset(); } else renderFeel(); }
+/** a template: its base feel, its viewer, its gear and its stage; blended toward another by the slider */
+function setPole(id) {
+  pole = id || null;
+  if (pole) { const P = POLES[pole]; feel = P.base; gear = P.gear ?? null; view = P.view.camera; }
+  renderPoles(); reset();
+}
+function renderPoles() {
+  $('pole').value = pole ?? ''; $('toward').value = toward ?? ''; $('blendT').value = String(blendT);
+  $('toward').disabled = !pole; $('blendT').disabled = !pole || !toward;
+  $('poleSays').textContent = pole ? `${POLES[pole].name} (after ${POLES[pole].after}): ${POLES[pole].says}${toward && blendT > 0 ? `; ${Math.round(blendT * 100)}% toward ${POLES[toward].name}` : ''}. Still needs: ${POLES[pole].needs.join('; ') || 'nothing'}.` : '';
+}
+$('pole').innerHTML = '<option value="">Template: none</option>' + POLE_IDS.map((id) => `<option value="${id}">${POLES[id].name}</option>`).join('');
+$('toward').innerHTML = '<option value="">Blend toward: none</option>' + POLE_IDS.map((id) => `<option value="${id}">${POLES[id].name}</option>`).join('');
+$('pole').addEventListener('change', (e) => setPole(e.target.value));
+$('toward').addEventListener('change', (e) => { toward = e.target.value || null; if (!toward) blendT = 0; renderPoles(); reset(); });
+$('blendT').addEventListener('change', (e) => { blendT = +e.target.value; renderPoles(); reset(); });
 function setView(v) { view = v; store.set('view', v); renderFeel(); }
 function setSpar(on) { spar = on; S.spar = on; if (on && shooter) { shooter = null; S.shooter = null; } renderFeel(); }
 /** the shooter: off → each of the card's ranged sets → off (it takes the dummy from sparring) */
@@ -608,7 +716,7 @@ function setCast(c) { cast = c; store.set('cast', c); reset(); }
 function setPaused(on) { paused = on; renderFeel(); }
 for (const b of document.querySelectorAll('[data-feel]')) b.addEventListener('click', () => setFeel(b.dataset.feel));
 $('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(FEELS[feel]); reset(); });
-$('view').addEventListener('click', () => setView(view === 'three' ? 'side' : 'three'));
+$('view').addEventListener('click', () => setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]));
 $('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('mountbtn').addEventListener('click', cycleMount); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
 $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); stepOnce = true; });

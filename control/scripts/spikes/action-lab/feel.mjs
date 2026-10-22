@@ -72,6 +72,17 @@
  * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
  * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
  *
+ * THE POLES (`POLES`, `poleCard(id)`, `blendPoles(a, b, t)`): game templates, the sane defaults a game starts from
+ * and the poles its movement is tuned between. Each is a base feel, the fields it changes (movement and animation:
+ * the ground, the jump, the dodge, the hit's freeze, the look, the rules it carries), a viewer (the camera the game is
+ * seen through, mojulo's gameworld cameras: third-person, first-person, side, top-down, plus over-the-shoulder,
+ * isometric, overhead and the mech's chase) and a stage that suits it, and what it still `needs` (the primitives it
+ * names that the lab has not built). Fallen Angel (DMC), Ebon Spirits (GoW / Souls), Cogs of Combat (Gears),
+ * Infinity Crisis (hero and arena shooters), Conscription (the contemporary FPS), Steel Serpents (Metal Gear),
+ * Vigilante Justice (the superhero game), Mech Battle Kai (MSA's mech), Jumping Giuseppe (the mascot platformer),
+ * Isekai Party (the RPG that resolves without collision), Mojulo Fighter (the 2D fighter: mojulo's versus loop,
+ * gameworld/quick.js, to be formalized). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
+ *
  * THE HEAVY-ROBOT RULES, mobile-suit-arena's movement (mojulo's controllable rules-platform.js and maneuvers.js) split
  * into rules that overlap, each a card field any feel may carry alone or with the others:
  *   boost       the held thrust on DASH: instant, at `speed`, draining a GAUGE (`gauge` seconds), refilled when the
@@ -433,6 +444,92 @@ export const ARENA = Object.freeze({
   hero: [0, -3], dummy: [0, 0],
 });
 
+/** The stages a pole is seen on: an arena each, shaped for its genre (blocks { x, y, h }, the hero's and the dummy's start). */
+export const STAGES = Object.freeze({
+  courtyard: { half: 10, blocks: [{ id: 'fountain', x: [-2, 2], y: [3, 5], h: 0.6 }, { id: 'steps', x: [-8, -5], y: [-8, -5], h: 1.2 }, { id: 'wall', x: [5, 8], y: [-2, 1], h: 2.4 }], hero: [0, -4], dummy: [0, 0] },
+  ruins: { half: 10, blocks: [{ id: 'pillar-a', x: [-4.4, -3.6], y: [3.6, 4.4], h: 5 }, { id: 'pillar-b', x: [3.6, 4.4], y: [3.6, 4.4], h: 5 }, { id: 'pillar-c', x: [-4.4, -3.6], y: [-4.4, -3.6], h: 5 }, { id: 'pillar-d', x: [3.6, 4.4], y: [-4.4, -3.6], h: 5 }, { id: 'rubble', x: [-7, -5], y: [-0.5, 0.5], h: 0.8 }], hero: [0, -6], dummy: [0, 2] },
+  cover: { half: 10, blocks: [{ id: 'wall-l', x: [-6, -2], y: [-1, -0.6], h: 1 }, { id: 'wall-r', x: [2, 6], y: [-1, -0.6], h: 1 }, { id: 'wall-c', x: [-2, 2], y: [3, 3.4], h: 1 }, { id: 'wall-fl', x: [-8, -5], y: [5, 5.4], h: 1 }, { id: 'wall-fr', x: [5, 8], y: [5, 5.4], h: 1 }], hero: [0, -6], dummy: [0, 6] },
+  levels: { half: 12, blocks: [{ id: 'tier-l', x: [-12, -6], y: [-12, 12], h: 1.5 }, { id: 'tier-r', x: [6, 12], y: [-12, 12], h: 3 }, { id: 'box', x: [-3, 3], y: [6, 9], h: 1 }], hero: [0, -6], dummy: [0, 4] },
+  urban: { half: 14, blocks: [{ id: 'bldg-a', x: [-14, -5], y: [-14, -4], h: 6 }, { id: 'bldg-b', x: [5, 14], y: [-14, -4], h: 6 }, { id: 'bldg-c', x: [-14, -5], y: [4, 14], h: 6 }, { id: 'bldg-d', x: [5, 14], y: [4, 14], h: 6 }, { id: 'crates', x: [-1, 1], y: [0, 1], h: 1.2 }], hero: [0, -9], dummy: [0, 6] },
+  compound: { half: 12, blocks: [{ id: 'fence-a', x: [-12, -3], y: [-2, -1.5], h: 2.5 }, { id: 'fence-b', x: [3, 12], y: [-2, -1.5], h: 2.5 }, { id: 'hall-a', x: [-3, -2.5], y: [2, 12], h: 2.5 }, { id: 'hall-b', x: [2.5, 3], y: [-12, -6], h: 2.5 }, { id: 'crate', x: [-8, -3], y: [6, 6.5], h: 2.5 }], hero: [0, -9], dummy: [0, 8] },
+  rooftops: { half: 16, blocks: [{ id: 'roof-a', x: [-16, -4], y: [-16, -3], h: 5 }, { id: 'roof-b', x: [-2, 8], y: [-6, 4], h: 7 }, { id: 'roof-c', x: [10, 16], y: [-16, 16], h: 4 }, { id: 'roof-d', x: [-16, -6], y: [2, 16], h: 6 }], hero: [0, -12], dummy: [0, 8] },
+  battlefield: { half: 22, blocks: [{ id: 'rock-a', x: [-12, -6], y: [4, 10], h: 6 }, { id: 'rock-b', x: [8, 14], y: [-8, -2], h: 4 }, { id: 'mesa', x: [-3, 3], y: [14, 18], h: 8 }], hero: [0, -10], dummy: [0, 6] },
+  platforms: { half: 12, blocks: [{ id: 'step-1', x: [-3, 3], y: [-2, 1], h: 0.8 }, { id: 'step-2', x: [-3, 3], y: [2, 4], h: 1.6 }, { id: 'step-3', x: [-3, 3], y: [5.5, 7], h: 2.6 }, { id: 'step-4', x: [-3, 3], y: [9, 11], h: 1.2 }], hero: [0, -8], dummy: [0, -4] },
+  field: { half: 16, blocks: [{ id: 'rock-a', x: [-6, -4], y: [4, 6], h: 1 }, { id: 'rock-b', x: [6, 8], y: [-3, -1], h: 1.4 }], hero: [0, -5], dummy: [0, 3] },
+  stage: { half: 9, blocks: [], hero: [0, -2], dummy: [0, 2] },
+});
+/**
+ * The poles: a game's template, its movement and animation the pole the game is tuned toward. base (a feel), set (the
+ * fields it changes, merged over the base: movement, the hit's freeze, the look, the rules it carries), mount (a mech's
+ * weight), gear, view { camera, … the camera's own: D (m back), h (m up), off (m right), pitch (rad) }, stage, after (the
+ * kind of game it echoes), needs (what it names that the lab has not built).
+ */
+export const POLES = Object.freeze({
+  'fallen-angel': { name: 'Fallen Angel', after: 'Devil May Cry', base: 'action', view: { camera: 'third-person', D: 5, h: 2.6 }, stage: 'courtyard',
+    says: 'offense first: twitchy movement, long strings, a hard freeze on every blow, the launcher, the air; the guard and the parry there, but attack is the answer',
+    set: { ground: { walk: 2.2, run: 7, sprint: 9.5, accel: 60, decel: 80, turn: 1800 }, jump: { commit: 2, height: 1.5, hang: 6 }, air: { jumps: 1, mult: 0.85 }, hit: { hitstop: { base: 5, perMs: 0.7, max: 16 } }, look: { squash: 0.08, smear: 0.12 }, guard: { parry: 10 } },
+    needs: ['melee weapon switching (a moveset a weapon)', 'juggle physics (a floatier air hitstun, combo decay)', 'jump cancel'] },
+  'ebon-spirits': { name: 'Ebon Spirits', after: 'God of War, Dark Souls', base: 'realistic', view: { camera: 'shoulder', D: 3.8, h: 2.3, off: 0.55, pitch: 0.16 }, stage: 'ruins',
+    says: 'offense and defense, leaning to defense: slower deliberate movement, committed blows with a short freeze, a roll with invincible frames, the lock-on, the parry and stamina',
+    set: { ground: { walk: 1.6, run: 4.2, sprint: 6.2, accel: 9, decel: 13, turn: 720 }, jump: { commit: 8, height: 0.5 }, dodge: { kind: 'roll', frames: 26, speed: 5, iframes: [3, 16], back: { speed: 0.7, frames: 0.8 }, cancel: false }, hit: { hitstop: { base: 2, perMs: 0.4, max: 7 } } },
+    needs: ['one stamina pool for rolls, attacks and the sprint', 'heals that commit', 'enemy health and poise'] },
+  'cogs-of-combat': { name: 'Cogs of Combat', after: 'Gears of War', base: 'realistic', view: { camera: 'shoulder', D: 3.2, h: 2.1, off: 0.75, pitch: 0.14 }, stage: 'cover',
+    says: 'Ebon Spirits as a hard shooter: heavy bodies, a roadie run, an evade roll, landings that weigh, the guns',
+    set: { ground: { walk: 1.6, run: 3.8, sprint: 7, accel: 9, decel: 12, turn: 540 }, jump: { commit: 10, height: 0.4 }, dodge: { kind: 'roll', frames: 22, speed: 6, iframes: null, back: { speed: 0.7, frames: 0.8 }, cancel: false }, landing: { per: 2, max: 10 } },
+    needs: ['cover (snap, blind fire, pop out)', 'aiming apart from the facing', 'active reload', 'the roadie run\'s camera'] },
+  'infinity-crisis': { name: 'Infinity Crisis', after: 'arena and hero shooters', base: 'action', gear: 'jet', view: { camera: 'first-person' }, stage: 'levels',
+    says: 'movement and abilities over aim: fast, a double jump, a jetpack, dashes, the guns',
+    set: { ground: { walk: 2.5, run: 6.5, sprint: 8.5, accel: 70, decel: 70, turn: 1800 }, jump: { commit: 0, height: 1.3, hang: 0, cut: 0.6, air: 0.9 }, air: { jumps: 1, mult: 0.85 }, look: { squash: 0.03, smear: null } },
+    needs: ['ability slots with cooldowns and an ultimate', 'air-strafe acceleration', 'shields and healing'] },
+  conscription: { name: 'Conscription: Contemporary Combat', after: 'the contemporary FPS', base: 'realistic', view: { camera: 'first-person' }, stage: 'urban',
+    says: 'the general FPS: a soldier\'s run and sprint, a short jump, the guns, no lock-on',
+    set: { ground: { walk: 1.6, run: 4.6, sprint: 7.2, accel: 16, decel: 20, turn: 1080 }, jump: { commit: 3, height: 0.55, air: 0.3 }, lock: null },
+    needs: ['aim-down-sights', 'the sprint-to-fire delay', 'the slide', 'the mantle', 'recoil and spread'] },
+  'steel-serpents': { name: 'Steel Serpents', after: 'Metal Gear', base: 'realistic', view: { camera: 'overhead' }, stage: 'compound',
+    says: 'stealth action, a stretch of realistic: a careful walk, a dive roll, the counter',
+    set: { ground: { walk: 1.3, run: 4.2, sprint: 5.8, accel: 8, decel: 12, turn: 720 }, jump: { commit: 10, height: 0.4 }, dodge: { kind: 'roll', frames: 28, speed: 4, iframes: null, back: { speed: 0.7, frames: 0.8 }, cancel: false }, guard: { parry: 8 } },
+    needs: ['crouch and prone', 'enemy senses and alert (mojulo\'s mind.js perception)', 'grab and takedown', 'wall-hug'] },
+  'vigilante-justice': { name: 'Vigilante Justice', after: 'superhero games', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 5.5, h: 3.2 }, stage: 'rooftops',
+    says: 'action with stealth, toward action: a fast run, a high jump, the cape glide, counters on a lenient window, the lock-on on the crowd',
+    set: { ground: { walk: 2, run: 7, sprint: 10, accel: 25, decel: 30, turn: 900 }, jump: { commit: 3, height: 1.6, hang: 4 }, glide: { kind: 'glide', fall: 2.5, speed: 10, accel: 8, turn: 120, time: null }, guard: { parry: 14 }, lock: { range: 10, turn: 1440, strafe: 0.85 } },
+    needs: ['free-flow: the lunge from target to target', 'grapple and swing', 'parkour', 'stealth (as Steel Serpents)'] },
+  'mech-battle-kai': { name: 'Mech Battle Kai', after: 'mobile-suit-arena', base: 'action', mount: 1, view: { camera: 'mech' }, stage: 'battlefield',
+    says: 'MSA\'s principles: the heavy mech, the boost on its gauge, the hover, the charge jump, the landings',
+    set: {}, needs: ['the kneel', 'the tackle'] },
+  'jumping-giuseppe': { name: 'Jumping Giuseppe', after: 'the mascot platformer', base: 'platformer', view: { camera: 'side' }, stage: 'platforms',
+    says: 'the mascot platformer: movement first, a springy squash and stretch, the stomp, the ground pound, the wall jump',
+    set: { look: { squash: 0.28, smear: null }, lane: { x: 0, face: false } }, needs: ['context jumps (the long jump, the backflip, the triple jump)', 'power-ups'] },
+  'isekai-party': { name: 'Isekai Party', after: 'the RPG', base: 'realistic', view: { camera: 'iso' }, stage: 'field',
+    says: 'controlled, not collision: an even walk, no freeze, no knockback, no stun; what lands is resolved, not shoved',
+    set: { ground: { walk: 1.6, run: 4.5, sprint: 6, accel: 20, decel: 30, turn: 900 }, jump: { commit: 4, height: 0.5 }, hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'momentum', gain: 0, lift: 0 } }, hurt: { stun: 0, knock: 0, slow: null, mercy: 0, charge: 'keep' } },
+    needs: ['targeted resolution (by range and stats, no hit areas)', 'cast bars and a global cooldown', 'the party'] },
+  'mojulo-fighter': { name: 'Mojulo Fighter', after: 'the 2D fighter', base: 'action', view: { camera: 'side' }, stage: 'stage',
+    says: 'on rails: a walk forward and back, a fixed jump arc, facing the foe, the strings and their frame data',
+    set: { ground: { walk: 1.6, run: 3.2, sprint: 3.2, accel: 80, decel: 80, turn: Infinity }, jump: { commit: 4, height: 1.2, cut: 1, hang: 0, air: 0.25 }, air: null, cling: null, lock: null, glide: null, jet: null, lane: { x: 0, face: true } },
+    needs: ['formalize mojulo\'s versus loop (gameworld/quick.js)', 'motion inputs', 'block by holding back', 'high, low and overhead', 'throws', 'pushback and corners', 'juggle limits', 'meter'] },
+});
+export const POLE_IDS = Object.freeze(Object.keys(POLES));
+/** the viewers a pole may name (the page draws each): ¾ follow, isometric, overhead, side, third-person chase, over-the-shoulder, first-person, the mech's chase */
+export const VIEWS = Object.freeze(['three', 'iso', 'overhead', 'side', 'third-person', 'shoulder', 'first-person', 'mech']);
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+/** a deep merge: objects merge, everything else (a number, a list, null) replaces */
+function mergeDeep(a, b) { if (!isObj(a) || !isObj(b)) return copy(b); const o = { ...copy(a) }; for (const [k, v] of Object.entries(b)) o[k] = isObj(v) && isObj(a[k]) ? mergeDeep(a[k], v) : copy(v); return o; }
+/** a pole's card: its base feel with its fields merged over (a mech mounted), named for the pole */
+export function poleCard(id) {
+  const P = POLES[id], merged = mergeDeep(FEELS[P.base], P.set ?? {});
+  const card = P.mount != null ? mechCard(merged, P.mount) : merged;
+  return { ...card, says: P.says, pole: id };
+}
+/** between two poles: every number blended (`t` 0 the first, 1 the second), anything else (a model, a list, a rule one
+ * of them lacks) taken from the nearer; the viewer and the stage the nearer's */
+export function blendPoles(a, b, t) {
+  const A = poleCard(a), B = poleCard(b), u = Math.max(0, Math.min(1, t)), cp = (v) => (v === undefined ? undefined : copy(v));
+  const mix = (x, y) => (typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? r4(x + (y - x) * u)
+    : isObj(x) && isObj(y) ? Object.fromEntries([...new Set([...Object.keys(x), ...Object.keys(y)])].map((k) => [k, k in x && k in y ? mix(x[k], y[k]) : cp(u < 0.5 ? x[k] : y[k])]).filter(([, v]) => v !== undefined))
+    : cp(u < 0.5 ? x : y));
+  return { ...mix(A, B), says: `between ${POLES[a].name} and ${POLES[b].name} (${u})`, pole: u < 0.5 ? a : b, blend: { a, b, t: u } };
+}
+
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
@@ -758,6 +855,7 @@ function moveBody(S, B, who, stick, buttons) {
     B.p[0] += (B.v[0] * DT * gk) / n; B.p[1] += (B.v[1] * DT * gk) / n;
     const hit = resolveWalls(S, B); if (hit && !wallHit) { wallHit = hit; wallResponse(S, B, who, hit); }
   }
+  if (C.lane) { B.p[0] = C.lane.x; B.v[0] = 0; if (who === 'hero' && C.lane.face) B.yaw = bearing(S); }   // the 2D rail: held on the line, facing the foe
   if (a?.kind === 'dodge' && a.lock) {   // a locked roll keeps its distance to the target but for its own along-part
     const D = S.dummy, dx = B.p[0] - D.p[0], dy = B.p[1] - D.p[1], d = len2(dx, dy);
     if (d > 1e-6) { B.p[0] = D.p[0] + (dx / d) * a.lock.rad; B.p[1] = D.p[1] + (dy / d) * a.lock.rad; resolveWalls(S, B); }
@@ -1759,7 +1857,7 @@ export function frameData(card, body) {
 /** an attack's armor in words: none, heavy (what breaks it), hyper; ×n its poise */
 function armorText(m) { const A = m.armor; if (!A) return 'none'; const by = A.by.length ? A.by.join(' / ') : 'hyper'; return A.hits ? `${by}, or hit ${A.hits}` : by; }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf, weaponOf, mechCard, mechKnobs };
+export const util = { STAGES, stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf, weaponOf, mechCard, mechKnobs };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

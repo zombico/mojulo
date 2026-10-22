@@ -37,6 +37,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Game templates in the lab: the poles, each in its own viewer.** Eleven templates, the sane defaults a game starts
+  from and the poles its movement is tuned between: Fallen Angel (DMC), Ebon Spirits (GoW, Souls), Cogs of Combat
+  (Gears), Infinity Crisis (arena and hero shooters), Conscription (the contemporary FPS), Steel Serpents (Metal Gear),
+  Vigilante Justice (superhero games), Mech Battle Kai (mobile-suit-arena), Jumping Giuseppe (the mascot platformer),
+  Isekai Party (the RPG) and Mojulo Fighter (the 2D fighter, mojulo's versus loop to be formalized). Each is a base feel
+  with its movement and animation fields, a viewer, a stage and the primitives it still needs; any two blend. The page
+  opens each in its own viewer, after mojulo's gameworld cameras: third person, over the shoulder, first person (an arm
+  that bobs, dips, reaches and kicks, and a crosshair), the mech's chase, isometric, overhead and side, alongside the ¾
+  follow. A lane rule holds the 2D games to their plane, the fighter facing its foe. The gate holds 326 laws on both
+  casts.
 - **The heavy-robot rules and the mech, in the lab.** mobile-suit-arena's movement (mojulo's controllable rules) split
   into rules that overlap, each a card field any feel may carry alone: the boost (an instant held thrust on a gauge
   that overheat-locks, its jump and turn costs, an inertia skid), the hover cushion under it, Armored Core's quick

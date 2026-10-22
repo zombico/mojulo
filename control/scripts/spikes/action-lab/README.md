@@ -175,6 +175,39 @@ hyper armor), and the frame data has an armor column.
 Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
 stomper off without being squashed.
 
+## The poles: game templates and their viewers
+
+`POLES` in `feel.mjs`: the sane defaults a game starts from, and the poles its movement is tuned between. Each is a
+base feel with the fields it changes (movement and animation: the ground, the jump, the dodge, the hit's freeze, the
+look, the rules it carries), a **viewer** it is seen through, a **stage** that suits it, and what it still **needs**
+(the primitives it names that the lab has not built: the build order). `poleCard(id)` makes its card;
+`blendPoles(a, b, t)` tunes between two, every number blended and the rest (a model, a rule only one has, the viewer,
+the stage) taken from the nearer. The page's **Template** picker opens one in its own viewer on its own stage; **Blend
+toward** and its slider tune it toward another.
+
+| pole | after | base | viewer | stage | still needs |
+|---|---|---|---|---|---|
+| **Fallen Angel** | Devil May Cry | action | third person | courtyard | melee weapon switching; juggle physics; jump cancel |
+| **Ebon Spirits** | God of War, Dark Souls | realistic | over the shoulder | ruins | one stamina pool; heals that commit; enemy health and poise |
+| **Cogs of Combat** | Gears of War | realistic | over the shoulder | cover | cover; aiming apart from facing; active reload; the roadie-run camera |
+| **Infinity Crisis** | arena and hero shooters | action, jetpack | first person | levels | ability slots and an ultimate; air-strafe acceleration; shields and healing |
+| **Conscription: Contemporary Combat** | the contemporary FPS | realistic | first person | urban | aim-down-sights; sprint-to-fire; slide; mantle; recoil and spread |
+| **Steel Serpents** | Metal Gear | realistic | overhead | compound | crouch and prone; enemy senses and alert (mojulo's `mind.js` perception); grab and takedown; wall-hug |
+| **Vigilante Justice** | superhero games | action, glider | third person | rooftops | free-flow lunges; grapple and swing; parkour; stealth |
+| **Mech Battle Kai** | mobile-suit-arena | the heavy mech | the mech's chase | battlefield | the kneel; the tackle |
+| **Jumping Giuseppe** | the mascot platformer | platformer, on a lane | side | platforms | context jumps; power-ups |
+| **Isekai Party** | the RPG | realistic: no freeze, stun or knockback | isometric | field | targeted resolution; cast bars and a global cooldown; the party |
+| **Mojulo Fighter** | the 2D fighter | action, on a lane facing the foe | side | stage | formalize mojulo's versus loop (gameworld `quick.js`); motion inputs; hold-back block; high, low, overhead; throws; pushback and corners; juggle limits; meter |
+
+**The viewers** follow mojulo's gameworld cameras (`lib/graph/gameworld/cameras.js`: third-person, first-person,
+side, top-down) and add three: the **¾ follow** (the lab's first), **isometric** and **overhead** are orthographic;
+**side** is the side-scroller's (a lane holds the bodies to its plane; a fighter's camera frames both fighters);
+**third person**, **over the shoulder**, **first person** and the **mech's chase** are perspective cameras, the floor to
+the horizon and the blocks clipped at the camera, lagging the hero's run and swinging to the target when locked. First
+person hides the hero's body and shows its arm in the corner, bobbing with the stride, dipping on a landing, reaching
+on a blow, kicking on a shot, with a crosshair. The stick is the viewer's: up is the way it looks (in side, D and A run
+the line). **V** cycles the viewers on anything.
+
 ## The heavy-robot rules, and the mech
 
 mobile-suit-arena's movement (mojulo's controllable `rules-platform.js` and `maneuvers.js`), split into rules that
@@ -348,7 +381,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 322 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 326 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -418,6 +451,11 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
   - A hit taken loses the charge; the platformer's card keeps it and the release still fires.
+- **The poles.** Every pole names a base feel, a viewer and a stage that exist and what it still needs; its card is the
+  base with its fields merged over (the rest kept), a mech mounted where it says. Fallen Angel, Mech Battle Kai and
+  Mojulo Fighter (one a procedure: fields merged, a mech, the rail) play a scripted pad on their stages, the same twice,
+  through no wall; the fighter's rail holds both bodies on its line, the hero facing its foe. Between two poles every
+  number blends and the rest comes from the nearer.
 - **The heavy-robot rules and the mech.**
   - The weight knob blends the presets (halfway at 0.5). Ridden in another game the card keeps its combat and walks as
     the mech. Each rule works alone on an ordinary card (the gait, the charge jump, the boost, the landing).
