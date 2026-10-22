@@ -36,6 +36,8 @@ import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
+import { readLanguages, mergeTranslations, coverage, localizationBrief } from '@/lib/graph/game/game-languages.js';
+import { gatherLevelWords } from '@/lib/graph/game/level-words.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -158,14 +160,14 @@ async function realize(step, action) {
   if (key === 'game') {
     // the game over the levels: create_game (each level audited where the runner asked, else unaudited, recorded), its
     // manifest whole in place
-    const { title, store, levels, links, theme, shell, final } = order;
+    const { title, store, levels, links, theme, shell, final, languages } = order;
     if (action === 'make') {
       const minted = await createGameHandler({ ...order, ref });
       return order.auto_audit ? { audits: (minted.audits ?? []).map((a) => ({ ref: a.ref, audited: a.audited, note: a.note })) } : {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}) } });
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(languages ? { languages } : {}) } });
     }
     return {};
   }
@@ -312,9 +314,86 @@ function composedWorld(c) {
 // what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
+// LOCALIZE (game/game-languages.js): the game's languages declared on its gameworld (carried whole onto the game the run
+// makes, so a remake keeps them) or on a game made on its own; a localizer briefed on what a language still owes (its
+// conventions, the gamer's words, each word with what it is, who says it and its room); its lines folded in, placeholders
+// held; the game remade in place. Answers the brief, never a translation: the operator's agent localizes, mojulo keeps.
+const LOCALIZE_KEYS = ['languages', 'source', 'default', 'lang', 'lines', 'limit'];
+async function localize(ref, L) {
+  if (!isObj(L)) throw new Error(`design_game: localize is { ${LOCALIZE_KEYS.join('?, ')}? }: the languages, then a language's brief and its lines`);
+  for (const k of Object.keys(L)) if (!LOCALIZE_KEYS.includes(k)) throw new Error(`design_game: localize.${k} is not a setting (${LOCALIZE_KEYS.join(', ')})`);
+  if (!ref) throw new Error('design_game: localize names the gameworld (or a game) by `ref`');
+  const row = SketchRepository.getByRef(ref);
+  if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
+  const world = isGameworldKind(row.manifest?.kind);
+  if (!world && row.manifest?.kind !== 'game') throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}': localize takes a gameworld or a game`);
+  const W = world ? gameworldOf(row.manifest) : null, cur = world ? W.languages : row.manifest.languages;
+  // the languages: declared, or changed (a language dropped takes its words with it; the others keep theirs)
+  let next = cur;
+  if (L.languages !== undefined || L.source !== undefined || L.default !== undefined) {
+    const source = L.source ?? cur?.source ?? 'en';
+    if (L.languages !== undefined && !(Array.isArray(L.languages) && L.languages.every((t) => typeof t === 'string'))) throw new Error("design_game: localize.languages is the game's languages as tags (['en', 'ja', 'pt-BR']), its source among them or added");
+    const locales = [...new Set([source, ...(L.languages ?? cur?.locales ?? [])])];
+    const kept = Object.fromEntries(Object.entries(cur?.strings ?? {}).filter(([t]) => locales.includes(t) && t !== source));
+    const dflt = L.default ?? (cur?.default && locales.includes(cur.default) ? cur.default : undefined);
+    next = { source, locales, ...(dflt !== undefined ? { default: dflt } : {}), ...(Object.keys(kept).length ? { strings: kept } : {}) };
+  }
+  if (!next) throw new Error("design_game: this game has no languages yet: localize: { languages: ['en', 'ja'] } declares them (the source first or added)");
+  const bad = readLanguages(next, { where: 'localize' });
+  if (bad.length) throw new Error(`design_game: ${bad.join('; ')}`);
+  const lang = L.lang;
+  if (lang !== undefined && (!next.locales.includes(lang) || lang === next.source)) throw new Error(`design_game: localize.lang is one of the game's languages other than its source (${next.locales.filter((t) => t !== next.source).join(', ')})`);
+  let refused = [];
+  if (L.lines !== undefined) {
+    if (lang === undefined) throw new Error('design_game: localize.lines are for a language: give localize.lang beside them');
+    if (!Array.isArray(L.lines)) throw new Error('design_game: localize.lines is [{ source, translation }, …]: the words as the brief gave them and each one localized');
+    const m = mergeTranslations(next, lang, L.lines);
+    next = m.languages; refused = m.errors;
+  }
+  // stored where it lives; a gameworld's game remade in place so it plays in them at once
+  let ran;
+  if (JSON.stringify(next) !== JSON.stringify(cur)) {
+    if (world) {
+      await updateSketchHandler({ ref, manifest: { ...row.manifest, languages: next } });
+      if (W.made?.game) {
+        const W2 = { ...W, languages: next };
+        readGameworld(W2);
+        const out = await runWorld(ref, W2);
+        ran = out.ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting');
+        if (JSON.stringify(out.world) !== JSON.stringify(W2)) await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
+      }
+    } else await updateSketchHandler({ ref, manifest: { ...row.manifest, languages: next } });
+  }
+  const gameRef = world ? W.made?.game?.ref : ref;
+  const game = gameRef ? SketchRepository.getByRef(gameRef)?.manifest : null;
+  const head = { ok: true, ref, languages: { source: next.source, locales: next.locales, ...(next.default ? { default: next.default } : {}) }, ...(ran?.length ? { ran } : {}), ...(refused.length ? { refused } : {}) };
+  if (!game || game.kind !== 'game' || !game.languages) {
+    return { ...head, next: "run the world (design_game({ ref, run: true })): a language's words are read from the game it makes and its levels" };
+  }
+  // the words, read where the pages read them: every level resolved as the World route resolves it
+  const { words, failed } = await gatherLevelWords(game, (r) => SketchRepository.getByRef(r));
+  const C = coverage(game, words);
+  const play = (t) => `/api/sketches/${encodeURIComponent(gameRef)}/game?lang=${encodeURIComponent(t)}`;
+  const status = { ...head, game: gameRef, coverage: Object.fromEntries(Object.entries(C).map(([t, c]) => [t, { done: c.done, total: c.total, ...(c.stale.length ? { stale: c.stale.length } : {}), play: play(t) }])), ...(Object.keys(failed).length ? { unread_levels: failed } : {}) };
+  if (lang === undefined) return { ...status, next: "localize: { lang: '<tag>' } for a language's brief; then { lang, lines: [{ source, translation }] }" };
+  // the brief, a batch at a time: the words owed first in table order; each place listed up to three
+  const B = localizationBrief(game, words, lang), limit = Number.isInteger(L.limit) && L.limit > 0 ? Math.min(L.limit, 400) : 120;
+  const batch = B.words.slice(0, limit).map((w) => ({ ...w, where: w.where.slice(0, 3), ...(w.where.length > 3 ? { more: w.where.length - 3 } : {}) }));
+  return {
+    ...status,
+    brief: { locale: B.locale, owed: B.words.length, conventions: B.conventions, rules: B.rules, glossary: B.glossary, words: batch },
+    next: B.words.length ? `localize: { lang: '${lang}', lines: [{ source, translation }, …] } for these words (source exactly as given), and the next batch comes back` : `${lang} is complete: play it at ${play(lang)}`,
+  };
+}
+
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, compose, readout: shape } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, example?, compare?, localize? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, compose, readout: shape, localize: localizeIn } = input;
+  if (localizeIn !== undefined) {
+    const mixed = Object.keys(input).filter((k) => k !== 'ref' && k !== 'localize');
+    if (mixed.length) throw new Error(`design_game: localize is given alone with its ref (not with ${mixed.join(', ')})`);
+    return localize(given, localizeIn);
+  }
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
@@ -461,6 +540,7 @@ export function registerDesignGameTools() {
         readout: { type: 'string', enum: ['full', 'changed'] },
         quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
         compose: { type: 'object', description: '{ prompt, levels?, seed?, name? }' },
+        localize: { type: 'object', description: '{ languages?, lang?, lines? }: the game in other languages (get_game_vocab languages)' },
       },
       required: [],
     },

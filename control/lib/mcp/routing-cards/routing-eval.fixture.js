@@ -192,6 +192,9 @@ export const COLLISION_FIXTURE = [
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
+  // a game in other languages is the game rail's: design_game's localize (declared, briefed, folded in), not a new tool
+  ['can my game be played in Spanish and Portuguese too?', 'design_game', 'localize'],
+  ['my players in Japan want the whole game in their own language', 'design_game', 'localize'],
   // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
   ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
   ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],

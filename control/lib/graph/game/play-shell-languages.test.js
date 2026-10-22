@@ -94,6 +94,15 @@ describe('the level list\'s language (no front)', () => {
     expect(again.d.documentElement.hasAttribute('dir')).toBe(false);
   });
 
+  it('?lang= opens it in a language (a localizer\'s check, a shared link) without keeping it as the player\'s', () => {
+    const html = emitPlayShell(normalizeGameManifest(BASE), LEVELS, { gameRef: 'coin-run' });
+    const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game?lang=ar', beforeParse(w) { Object.defineProperty(w.navigator, 'languages', { value: ['ja'] }); } });
+    expect(dom.window.document.documentElement.lang).toBe('ar');
+    expect(dom.window.localStorage.getItem('moj-play:Coin Run:settings')).toBeNull();
+    const odd = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game?lang=fr', beforeParse(w) { Object.defineProperty(w.navigator, 'languages', { value: ['ja'] }); } });
+    expect(odd.window.document.documentElement.lang).toBe('ja');   // a language the game lacks: as if not asked
+  });
+
   it('a level is asked for in the language, from the game\'s table', () => {
     const { d } = page();
     d.querySelector('#app .card button.primary').click();

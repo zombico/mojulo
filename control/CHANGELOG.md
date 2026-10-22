@@ -56,6 +56,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (grouped past four digits, lakh in Hindi). The shell's controls panel shows its rows in the language and each key
   as the player's keyboard has it (the browser's layout where it tells, else the language's usual one: Z Q S D on
   AZERTY). A page without a language is not touched.
+- **The door: `design_game({ ref, localize })`.** The agent's way in, on the game rail (no new tool). `{ languages }`
+  declares them on the gameworld (read and carried whole onto the game its run makes, so a remake keeps them) or on a
+  game made on its own; `{ lang }` answers the language's brief a batch at a time; `{ lang, lines }` folds a
+  localizer's lines in (a line that drops a slot is refused, the rest kept), remakes the game in place and answers
+  the next batch. Every answer carries each language's coverage and a link that plays it: the shell takes `?lang=` to
+  open a language without keeping it. Its manual is `get_game_vocab({ id: 'languages' })`; the game-design routing card
+  names it, and the routing eval holds two phrasings to it. The `tools/list` pin moves 212,000 → 212,100 (one schema
+  property; design_game's description is unchanged).
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 

@@ -70,6 +70,8 @@
  *     quick?,                             // a quick game: one level, one goal, any hero or none (quick.js)
  *     front?,                             // the game's title over a cover, start menu, credits, end (game/play-front.js),
  *                                         // carried whole onto the game the run makes
+ *     languages?,                         // the languages it is played in and its localized words (game/game-languages.js),
+ *                                         // carried whole onto the game (design_game's localize writes it)
  *     intent?: { from?, cube?, why? },    // what game it is, as a cosmos cube (intent.js): what the levels are laid for
  *     camera?, screen?,                   // the camera it plays through (cameras.js) and the screen it is made for
  *                                         // (game/screen.js): each level carries the screen, and the game
@@ -123,6 +125,7 @@ import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
+import { readLanguages } from '../game/game-languages.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 
@@ -175,7 +178,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', 'languages', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
@@ -624,11 +627,13 @@ export function readGameworld(W) {
   if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
   // the front: its shape read here (its menu against a game of several levels; the game's own check sees the count)
   if (W.front !== undefined) { const e = readFront(W.front, { levels: 2, run: !!(isObj(W.quick) && W.quick.run), where: 'gameworld: front' }); if (e.length) throw new Error(e.join('\n')); }
+  // the languages it is played in and its localized words (game/game-languages.js): carried whole into its game
+  if (W.languages !== undefined) { const e = readLanguages(W.languages, { where: 'gameworld: languages' }); if (e.length) throw new Error(e.join('\n')); }
   if (W.intent !== undefined) readIntent(W.intent);   // what game it is (intent.js): read here, laid by the levels
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.languages !== undefined ? { languages: W.languages } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**

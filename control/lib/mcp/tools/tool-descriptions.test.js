@@ -411,7 +411,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Held 2026-10-20 at 212_000 (measured 211,923) merging 1019-science-worlds: create_view's `kind` gains 'classical',
 // 'microscopic', 'quantum' and 'relativistic' (laws composed into a demo, each an argument on the view door; on its own
 // branch it raised the pin 211_300 -> 211_500). No new tool.
-const PAYLOAD_CEILING = 212_000;
+// Raised 2026-10-22 (212_000 -> 212_100; measured 212,054) for game languages: design_game's `localize` (the game in
+// other languages: declared, briefed, its lines folded in), one schema property, its pointer in the property's own
+// description so design_game's stays under its ceiling. No new tool.
+const PAYLOAD_CEILING = 212_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

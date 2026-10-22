@@ -699,7 +699,9 @@ export function playShellRuntime(cfg, K) {
     })), [el('button', { cls: 'link', text: T('back'), on: () => (back === 'levels' ? renderLevels() : home()) })])));
   }
   const langSrc = (src) => src + (src.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + encodeURIComponent(lang) + (LANG.game ? '&game=' + encodeURIComponent(LANG.game) : '');
-  if (LANG) setLanguage(LANG.locales.indexOf(settings.lang) >= 0 ? settings.lang : __mojPick(LANG.locales, navigator.languages || [navigator.language], LANG.fallback));
+  // ?lang=<tag> opens the game in that language (a shared link, a localizer's check) without keeping it as the player's
+  const asked = LANG ? /(?:^|[?&])lang=([^&#]+)/.exec(location.search.slice(1)) : null, askedTag = asked ? decodeURIComponent(asked[1]) : null;
+  if (LANG) setLanguage(LANG.locales.indexOf(askedTag) >= 0 ? askedTag : LANG.locales.indexOf(settings.lang) >= 0 ? settings.lang : __mojPick(LANG.locales, navigator.languages || [navigator.language], LANG.fallback));
 
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
   const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));

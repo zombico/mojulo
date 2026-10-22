@@ -275,7 +275,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     const links = onBoard ? [] : gameLinks(stages, levelRefs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.languages ? { languages: G.languages } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -358,7 +358,7 @@ function worldSteps(world, G, ref) {
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.languages ? { languages: G.languages } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -528,7 +528,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}), ...(G.languages ? { languages: G.languages } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   return steps;
 }
