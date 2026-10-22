@@ -217,6 +217,32 @@ function doorOf(id, x, y0, out, F, ground) {
   return { id, at: P3([zone[0], zone[1], F.floor]), half: odd ? [0.75, 1.4, 2] : [1.4, 0.75, 2], spawn: P3([back[0], back[1], gz(back)]), heading: r5(Math.atan2(ny, nx)) };
 }
 
+/** Whether a point lies on a street's paving (its road, walks, kerbs and door paths): a lookup over their top faces. */
+function pavedBy(faces) {
+  const C = 2, cells = new Map(), tops = faces.filter((f) => /^street:(road|walk|kerb)$/.test(f.group) && f.normal[2] > 0.7);
+  for (const f of tops) {
+    const P = f.corners.map((c) => [c[0], c[1]]), xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
+    for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++) for (let j = Math.floor(Math.min(...ys) / C); j <= Math.floor(Math.max(...ys) / C); j++) {
+      const k = `${i},${j}`; if (!cells.has(k)) cells.set(k, []); cells.get(k).push(P);
+    }
+  }
+  const inside = (P, x, y) => { let s = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) s = !s; } return s; };
+  return (x, y) => (cells.get(`${Math.floor(x / C)},${Math.floor(y / C)}`) || []).some((P) => inside(P, x, y));
+}
+
+/** The live grass with no cell on the paving: a cell's tufts stand anywhere in it, so a cell any corner of which is paved
+ *  grows none (era/isekai.js liveGrassConfig's mask, bit 1 the cell grows). */
+function offPaving(L, paved) {
+  const g = L.grid, M = Uint8Array.from(Buffer.from(g.m.__b64, 'base64')), CX = g.nx - 1;
+  let n = 0;
+  for (let j = 0; j < g.ny - 1; j++) for (let i = 0; i < CX; i++) {
+    if (!(M[j * CX + i] & 1)) continue;
+    const at = (a, b) => paved(g.x0 + (i + a) * g.cell, g.y0 + (j + b) * g.cell);
+    if (at(0, 0) || at(1, 0) || at(1, 1) || at(0, 1) || at(0.5, 0.5)) { M[j * CX + i] = 0; n++; }
+  }
+  return n ? { ...L, grid: { ...g, m: { ...g.m, __b64: Buffer.from(M.buffer).toString('base64') } } } : L;
+}
+
 /**
  * The outdoor payload with its buildings seated: their faces, lights, colliders and anchors added, the land's growth
  * cleared from their footprints. A recipe without `buildings` returns the payload as it came. `ctx.planOnly` seats
@@ -455,6 +481,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   if (ctx.planOnly) return { reserved };
   // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
   // the trail under it cleared, a path of slabs to each door
+  let liveGrass = null;
   if (ST && !ctx.planOnly) {
     const doors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && String(a.id).includes('town-'));
     if (doors.length) {
@@ -463,8 +490,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
       const { faces: SF, clear } = layStreet(ST.site, ST.L, ST.span, { y0, y1, ground, paint, lit, soil: fillOf(/:trail$/), grass: fillOf(/:ground$/), dress: manifest.town.dress, doors });
       const mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
-      faces = [...faces.filter((f) => { const g = f.group || ''; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy); }), ...SF];
+      // (nothing grows on the street's own ground either, its door paths among it: what stands within a hand of it goes;
+      // and the land wholly under its paving goes with the trail, so no blend of the trail's runs under the street: its
+      // kerbs and walks are its edge)
+      const paved = pavedBy(SF), near = (x, y) => paved(x, y) || [[0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]].some(([dx, dy]) => paved(x + dx, y + dy));
+      const under = (f) => f.corners.every((c) => paved(c[0], c[1])) && paved(...mid(f));
+      faces = [...faces.filter((f) => { const g = f.group || ''; if (GROUND.test(g) && under(f)) return false; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy) && !(CLEARED.test(g) && near(cx, cy)); }), ...SF];
+      if (payload.liveGrass) liveGrass = offPaving(payload.liveGrass, paved);
     }
   }
-  return { ...payload, faces, ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
+  return { ...payload, faces, ...(liveGrass ? { liveGrass } : {}), ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

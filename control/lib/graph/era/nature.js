@@ -555,16 +555,18 @@ export function grassTufts(st, site, trees, rocks, sun, seed) {
   };
   const tufts = [];
   const add = (zone, x, y, i) => {
-    if (x < 0 || y < 0 || x > W || y > D || !free(x, y)) return;
+    // (nothing rooted on the trail: its edge a hand clear)
+    if (x < 0 || y < 0 || x > W || y > D || trailDist(x, y) < halfWAt(y) + 0.1 || !free(x, y)) return;
     const z = ground(x, y), lit = sun.shadow([x, y, z + 0.25], [0, 0, 1]);
     const h = mix(G.height[0], G.height[1], hash3(i, 31, S + 101)) * (zone === 'cliff' ? 1.2 : 1);
     tufts.push({ zone, level: inRadius(x, y) ? 'L1' : 'L0', v: i % G.variants, pos: [r5(x), r5(y), r5(z - 0.03)], scale: r5(h * (zone === 'scatter' ? 0.7 : 1)), lit });
   };
-  // the fringe: both edges of the trail, every `fringeEvery` metres, inside the fringe band
+  // the fringe: both edges of the trail, every `fringeEvery` metres, inside the fringe band (its offset across the trail,
+  // so a slanting stretch keeps its fringe off the trail as a straight one does)
   let i = 0;
   for (let y = 0.3; y < D; y += G.fringeEvery) for (const side of [-1, 1]) {
-    const off = halfWAt(y) + fringeAt(y) * (0.15 + 0.85 * hash3(i, 33, S + 103));
-    add('fringe', trailX(y) + side * off, y + (hash3(i, 35, S + 107) - 0.5) * 0.3, i++);
+    const off = halfWAt(y) + fringeAt(y) * (0.15 + 0.85 * hash3(i, 33, S + 103)), slant = Math.hypot(1, trailX(y + 0.5) - trailX(y - 0.5));
+    add('fringe', trailX(y) + side * off * slant, y + (hash3(i, 35, S + 107) - 0.5) * 0.3, i++);
   }
   // meadow clumps: centres in the grass (never on the trail or the talus), more tufts inside a radius
   for (let c = 0; c < G.clusters; c++) {

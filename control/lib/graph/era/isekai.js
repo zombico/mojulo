@@ -799,7 +799,8 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     const cs = [node(i, j), node(i + 1, j), node(i + 1, j + 1), node(i, j + 1)], c = mean(cs), n = facet(cs, [0, 0, 1]);
     if (c[0] > site.W || n[2] < st.slope.rock) continue;
     if ((g.apron[j * nx + i] + g.apron[(j + 1) * nx + i + 1]) / 2 > st.landform.apronMin) continue;
-    if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) + 0.1) continue;
+    // (a cell's tufts stand anywhere in it: the whole cell clear of the trail, its half-diagonal past the edge)
+    if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) + 0.1 + cell * 0.71) continue;
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.15)) continue;
     if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < 0.45)) continue;
     if (site.reserved && !kept(site.reserved, c[0], c[1], 0.3)) continue;

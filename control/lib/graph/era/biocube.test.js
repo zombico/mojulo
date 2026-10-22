@@ -70,3 +70,30 @@ describe('the flora on a stage', () => {
     expect(() => assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'room', biocube: 'meadow' }, {}, assembleStageScene)).toThrow(/biocube/);
   });
 });
+
+describe('nothing grows on a path', () => {
+  // (a path's top faces: the trail itself, not its blend strips; a street's road, kerbs, walks and door paths)
+  const inside = (P, x, y) => { let s = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) s = !s; } return s; };
+  const pathsOf = (P) => P.faces.filter((f) => /:trail$|^street:(road|walk|kerb)$/.test(f.group || '') && !/:(rim|creep)-/.test(f.texture || '') && f.normal[2] > 0.7).map((f) => f.corners.map((c) => [c[0], c[1]]));
+  const onPath = (paths, x, y) => paths.some((q) => inside(q, x, y));
+  const mid = (f) => [0, 1].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length);
+  // the tufts' roots, and every corner of every cell the live grass grows in
+  const grownOn = (P) => {
+    const paths = pathsOf(P), tufts = P.faces.filter((f) => f.group === 'isekai:grass' && onPath(paths, ...mid(f))).length;
+    const g = P.liveGrass.grid, M = Buffer.from(g.m.__b64, 'base64'), CX = g.nx - 1;
+    let cells = 0;
+    for (let j = 0; j < g.ny - 1; j++) for (let i = 0; i < CX; i++) if (M[j * CX + i] & 1 && [[0, 0], [1, 0], [1, 1], [0, 1]].some(([a, b]) => onPath(paths, g.x0 + (i + a) * g.cell, g.y0 + (j + b) * g.cell))) cells++;
+    return { tufts, cells };
+  };
+
+  it('a trail: its fringe beside it where it slants as where it runs straight, the carpet a whole cell clear of it', () => {
+    expect(grownOn(assembleStageScene({ ...M, biocube: 'meadow' }))).toEqual({ tufts: 0, cells: 0 });
+  });
+
+  it('a town\'s street: no tuft or cell on its paving or its door paths, no land left under its paving', () => {
+    const T = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
+    expect(grownOn(T)).toEqual({ tufts: 0, cells: 0 });
+    const paved = T.faces.filter((f) => /^street:(road|walk)$/.test(f.group) && f.normal[2] > 0.7).map((f) => f.corners.map((c) => [c[0], c[1]]));
+    expect(T.faces.filter((f) => /:ground$/.test(f.group || '') && f.corners.every((c) => onPath(paved, c[0], c[1]))).length).toBe(0);
+  }, 60000);
+});

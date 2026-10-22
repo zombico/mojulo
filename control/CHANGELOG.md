@@ -161,7 +161,10 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
 - **The path and its edge.** The trail takes a new `path` cut (packed earth, crumbs, faceted stones pressed into it,
   worn hollows), the ground and its talus `turf`, and the trail's fringe lanes a new `verge` cut laid across the lane:
   earth and stones at the path's side giving way to turf at the land's, so path and land meet in a band, not a line
-  (`withGrittyGround`).
+  (`withGrittyGround`). A town's street keeps its own edge, its kerbs and walks: the land wholly under its paving goes
+  with the trail under it (`stage-buildings.js`), so no blend runs under the street; the trail beyond the town blends as
+  before. The same band laid across a walk is the shape a later street wear would take (water at the kerb, rubble at
+  a derelict wall's foot).
 - **The grass's light.** A gritty land's live grass takes the material light (its ramp read smooth, not banded), the
   roots darker and the light through the blades stronger as the grit rises (`ao` 0.6 to 0.3, `back` 0.6 to 1); no dry
   tips, a hue the cube's ramps do not hold.
@@ -206,6 +209,10 @@ vocabulary so a stage reads it by merging. Fauna later.
   as a recipe's `wind` or `grass` did: blades on every grassable cell round the walker, not tufts in clusters with the
   ground between them. On a polygon land the grass brings back what the island has none of: a big boulder's hat (its
   top the ground's, a fringe draped over its rim) and the cliff lips' fringes.
+- **Nothing grows on a path.** The trail's fringe tufts stand off it across the trail, not along x, so a slanting
+  stretch keeps them off as a straight one does, and no tuft roots within a hand of it (`nature.js` `grassTufts`: the
+  nature kit's fringe too). The carpet grows only in cells wholly clear of the trail (a cell's tufts stand anywhere in
+  it). A town's street clears what stands on its own paving, its door paths among it, tufts and carpet cells alike.
 - The inventory it was drawn from, and the overlaps left to settle (tree clustering said four ways, grass density
   five), are the plan's; a cube's own default biocube and the nature kit come next.
 
