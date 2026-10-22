@@ -64,6 +64,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   open a language without keeping it. Its manual is `get_game_vocab({ id: 'languages' })`; the game-design routing card
   names it, and the routing eval holds two phrasings to it. The `tools/list` pin moves 212,000 → 212,100 (one schema
   property; design_game's description is unchanged).
+- **Fixed: a gameworld's game kept its screen and its front.** The game the run made never carried the screen it was
+  made for (create_game's mint had no `screen`), and a remade game was rebuilt from a fixed list that dropped its
+  `screen`, its `front` and a quick game's `run`. The make now stores the screen, and a remake writes the game's order
+  whole (its mint-only asks aside), so the made and the remade game are the same game.
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 

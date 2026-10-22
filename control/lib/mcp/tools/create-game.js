@@ -94,7 +94,7 @@ export function themeOf(theme, palette, ref) {
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }
 
-export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, languages, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, screen, languages, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -115,7 +115,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   }
 
   const { theme, palette: solved } = themeOf(themeIn, palette, ref);
-  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}), ...(languages !== undefined ? { languages } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}), ...(final !== undefined ? { final } : {}), ...(screen !== undefined ? { screen } : {}), ...(languages !== undefined ? { languages } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -233,10 +233,10 @@ export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, languages, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, screen, languages, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   if (input.tabletop !== undefined) return mintTabletop(input, context);
   try {
-    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, languages, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, final, screen, languages, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
     // the game is complete: now is when the operator is asked how to share it (share-offer.js)
     return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {

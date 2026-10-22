@@ -72,7 +72,7 @@ const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand|keeper)(-\d+)?
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
 
 /** Make or remake one step; → the record to keep. */
-async function realize(step, action) {
+export async function realize(step, action) {
   const { key, ref, order } = step;
   if (key === 'casting') {
     // the casting page's cast (an egocube row, casting.js): rolled where it is written; a changed request rolls it anew in place
@@ -159,15 +159,16 @@ async function realize(step, action) {
   }
   if (key === 'game') {
     // the game over the levels: create_game (each level audited where the runner asked, else unaudited, recorded), its
-    // manifest whole in place
-    const { title, store, levels, links, theme, shell, final, languages } = order;
+    // manifest whole in place: the order as the mint stores it, its mint-only asks aside, so a remake keeps every key the
+    // make wrote (the screen, the front, a run, the languages)
+    const { allow_unaudited: _unaudited, auto_audit: _audit, audits: _audits, ...game } = order;
     if (action === 'make') {
       const minted = await createGameHandler({ ...order, ref });
       return order.auto_audit ? { audits: (minted.audits ?? []).map((a) => ({ ref: a.ref, audited: a.audited, note: a.note })) } : {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
-      const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
-      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}), ...(final ? { final } : {}), ...(languages ? { languages } : {}) } });
+      const kept = game.theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
+      await updateSketchHandler({ ref, title: game.title, manifest: { kind: 'game', ...game, ...(kept ? { theme: kept } : {}) } });
     }
     return {};
   }
