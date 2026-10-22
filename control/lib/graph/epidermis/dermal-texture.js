@@ -30,7 +30,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
+import { dermisAt, dermalDetail, headXY, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
@@ -103,6 +103,7 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  */
 export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 } = {}) {
   const P = dermalPages(layout, D);
+  P.lipLine = lipSeam(chart);
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
@@ -112,6 +113,26 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8 }
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
 }
+
+/**
+ * THE LIP LINE of a closed mouth (null open, or on a chart with no mouth): where the lips meet the surface net closes
+ * over a slit thinner than its cells in patches, so the seam read as a row of dark notches. Painted instead as one even
+ * line as dark as the notches, so they sink into it: an arc from corner to corner through the stomion (the lips' own
+ * marks), set at the seam's measured height (the median of the samples the head closes over between the corners, near
+ * the stomion), a thin dark core in a soft edge, deeper at the corners.
+ */
+export const LIP_LINE = Object.freeze({ core: 0.8, soft: 1.6, ink: 0.88, softInk: 0.22, corner: 0.2, tint: [0.36, 0.29, 0.31] });
+function lipSeam(chart) {
+  const head = chart.parts?.head;
+  if (!head?.marks || head.marks.open) return null;
+  const M = head.marks.points, sto = M.sto, chX = (Math.abs(M.chR.X) + Math.abs(M.chL.X)) / 2, chY = (M.chR.Y + M.chL.Y) / 2;
+  const ys = chart.samples.filter((s) => s?.enclosed && s.part === 'head').map((s) => headXY(s)).filter((q) => Math.abs(q.X) < 0.8 * chX && Math.abs(q.Y - sto.Y) < 4).map((q) => q.Y).sort((a, b) => a - b);
+  if (!ys.length) return null;
+  const dy = ys[ys.length >> 1] - sto.Y;
+  return { pts: Array.from({ length: 17 }, (_, i) => { const X = -chX + (2 * chX * i) / 16; return { X, Y: sto.Y + dy + (chY - sto.Y) * (X / chX) ** 2 }; }), reach: chX };
+}
+/** distance from a point to a polyline (mm) */
+const seamD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1], bx = b.X - a.X, by = b.Y - a.Y, l2 = bx * bx + by * by || 1e-9, u = Math.max(0, Math.min(1, ((q.X - a.X) * bx + (q.Y - a.Y) * by) / l2)); d = Math.min(d, Math.hypot(q.X - a.X - bx * u, q.Y - a.Y - by * u)); } return d; };
 
 /** The pages, blank: the albedo white, the roughness mid, the flow at rest. */
 export function dermalPages(layout, D) {
@@ -171,6 +192,14 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     if (det?.soft) col = col.map((x, k) => x * (1 - ink * FOLD_INK.soft * det.soft * FOLD_SHADOW[k]));
     if (det?.crease) col = col.map((x, k) => x * (1 - ink * FOLD_INK.core * det.crease * FOLD_SHADOW[k]));
     if (det?.lift) col = col.map((x) => x * (1 + ink * FOLD_INK.lift * det.lift));
+    // the LIP LINE where a closed mouth's lips meet: one even line (a thin core in a soft edge), deeper at the corners
+    if (P.lipLine && A.part === 'head' && A.marks) {
+      const q = headXY(A), d = seamD(q, P.lipLine.pts);
+      if (d < LIP_LINE.soft * 3) {
+        const c = 1 + LIP_LINE.corner * Math.max(0, Math.abs(q.X) / P.lipLine.reach - 0.75) * 4, w = Math.min(1, c * (LIP_LINE.ink * Math.exp(-((d / LIP_LINE.core) ** 2)) + LIP_LINE.softInk * Math.exp(-((d / LIP_LINE.soft) ** 2))));
+        col = col.map((x, k) => x * (1 - w * (1 - LIP_LINE.tint[k])));
+      }
+    }
     if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
     const o = (r.y + py) * N + r.x + px;

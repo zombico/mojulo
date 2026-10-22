@@ -21,7 +21,7 @@
 //                   creator's face over them
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases; --lineup-all adds the lateral and
 //                   the back, two subjects to a row); --lineup-crop eyes frames
-//                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
+//                   the eyes close (eye: the right eye alone; face: the face, brow to chin; mouth: the lips close) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
 //   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?,"light"?,"piercings"?}]'
 //                   (`piercings`: dermal-jewel.js's list, '["lobes", {"site":"septum","metal":"gold"}]'; the scalp's `streaks`, dermal-hair.js)
 //                   (`light`: { key, fill, rim: hexes, exposure }, an art direction's, color-theorist/adapters.js skinDirection)
@@ -167,7 +167,10 @@ function render(H, cam, W, Hh, mode, R = null) {
     if (mode === 'parts') { const k = kinds[tri[[w0, w1, w2].indexOf(Math.max(w0, w1, w2))]]; return (k ? hexLin(PART_COLOURS[k]) : [0.3, 0.3, 0.3]).map((c) => c * (0.35 + 0.65 * Math.max(0, NL))); }
     const uv = T.faceUV(fi), U = uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2, Vv = uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2;
     // (an enclosed face, a nostril's or the lips' line inside, is darkened by its own occlusion: it has no texels)
-    const shut = tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
+    // (but a closed mouth's seam carries its painted LIP LINE, dermal-texture.js: its notches take the line's colour, so
+    // the dark along the lips is one even line, not a row of holes)
+    const seam = H.head && !chart.parts?.head?.marks?.open && tri.every((vi) => { const p = V[vi], q = H.head.landmarks.stomion; return Math.hypot(p[0] - q.x * STAND_M, p[1] - q.y * STAND_M, p[2] - q.z * STAND_M) < 0.03; });
+    const shut = !seam && tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
     // (the FOLD page, the lines' wrinkle map: the normal bent by the folds' height slope, X along the chart's `tr` turned
     // to the figure's right, Y along its `ta` up the head; the light, not the paint, draws the fold)
     if (T.fold && mode === 'lit') {
@@ -408,14 +411,14 @@ if (body) {
 // THE LINEUP: each subject at the front and the front ¾ only, lit with its hair, four subjects to a row, what each was
 // rolled to under it
 if (lineup) {
-  const W = lineupCrop === 'face' || lineupCrop === 'eye' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' ? 340 : 330, nv = lineupAll ? 4 : 2, per = lineupAll ? 2 : 4;
+  const W = lineupCrop === 'face' || lineupCrop === 'eye' || lineupCrop === 'mouth' ? 400 : 260, Hh = lineupCrop === 'face' ? 440 : lineupCrop === 'eye' || lineupCrop === 'mouth' ? 340 : 330, nv = lineupAll ? 4 : 2, per = lineupAll ? 2 : 4;
   for (let k = 0; k < subjects.length; k++) {
     const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
     LIGHT = face?.light ? lightOfHex(face.light) : null;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
     const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.represents ?? (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1));
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
-    const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'eye' ? boxAt(m3(Le.eyeR), 0.024) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
+    const Le = H.head.landmarks, box = lineupCrop === 'mouth' ? boxAt(m3(Le.stomion), 0.028) : lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'eye' ? boxAt(m3(Le.eyeR), 0.024) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
     const col0 = (k % per) * nv * W, y = Math.floor(k / per) * (Hh + 60);
     for (const [c, v] of VIEWS.slice(0, nv).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');

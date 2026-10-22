@@ -22,6 +22,10 @@
  *   fills the cheeks and the lower cheek, broadens and rounds the chin (no longer receding) over a wider jaw and a
  *   heavier masseter, shortens the nose with a finer bridge and a wider base, fills the lips and opens the eyes a little,
  *   with `HEAD_TUNES.male` re-solved for it. The female is byte for byte as pinned.
+ * - 2026-10-22, the closed mouth's seam (face harmony, the operator: "standardize the depth so it's drawn evenly"): a
+ *   closed mouth's lip line is cut to one depth along the lips (`SEAM`, the lips' fronts probed across the mouth) in place
+ *   of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and left a groove under the surface net's cell in
+ *   places (a row of dark notches along the lips). Both poles; the tunes as they were; an open mouth keeps its carve.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -29,7 +33,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: 'bb1945531bfd5fc4', female: 'f32a8591f6c59516' };
+const PINS = { male: 'e4e630874fc477b4', female: 'a05469bc7935876c' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

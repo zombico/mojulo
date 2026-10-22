@@ -245,6 +245,10 @@ export const TISSUE_MM = Object.freeze({
   temporal: 10, condyle: 9, masseter: 18, go: 12, buccal: 15, philtrum: 12, mentolabial: 11, pg: 11, gn: 8, me: 7,
 });
 const MM_V = 1 / 230;   // a millimetre in head heights
+/** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
+ * radius (its width), its edge's blend */
+const SEAM = Object.freeze({ depth: 1, radius: 1.3, blend: 0.5 });
+const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** the tissue markers on the mandible, and how much of the jaw's motion each rides */
 const JAW_TISSUE = Object.freeze({ mentolabial: 1, pg: 1, gn: 1, me: 1, go: 1, masseter: 0.5, buccal: 0.5 });
 
@@ -1049,14 +1053,16 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const bonds = vajras.map((w) => {
     const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i], w.stepIn)) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
     const [a, c, b] = beads.map(([q]) => S(q)), [ra, rc, rb] = beads.map(([, r]) => r * sc);
-    return { group: w.group, blend: w.blend, skullOnly: !!w.skullOnly, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
+    return { name: w.name, group: w.group, blend: w.blend, skullOnly: !!w.skullOnly, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
   });
   // the teeth are many small crowns: a box about them all, so the field skips them away from the mouth
   const teethBonds = bonds.filter((b) => b.group === 'teeth' || b.group === 'tongue'), tm = 0.02 * sc;
   const teethBox = teethBonds.length ? { lo: { x: Math.min(...teethBonds.map((b) => b.lo.x)) - tm, y: Math.min(...teethBonds.map((b) => b.lo.y)) - tm, z: Math.min(...teethBonds.map((b) => b.lo.z)) - tm }, hi: { x: Math.max(...teethBonds.map((b) => b.hi.x)) + tm, y: Math.max(...teethBonds.map((b) => b.hi.y)) + tm, z: Math.max(...teethBonds.map((b) => b.hi.z)) + tm } } : null;
   // the orbits: cones opening forward round each globe, deep enough to hold it with room for the fat behind it
   const orbits = ['L', 'R'].map((s) => ({ a: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.005 }), b: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.15 }), ra: 0.068 * sc, rb: 0.04 * sc }));
-  const carves = bonds.filter((b) => b.group === 'carve');
+  // (a closed mouth's lip line is cut even, after the skin: `seam` below; the carve's own tube, its depth swinging with the
+  // lips' curve back to the corners, is the open mouth's)
+  const carves = bonds.filter((b) => b.group === 'carve' && !(b.name === 'lipLine' && !mouth));
   // where the wavelength shortens: the mouth (about the stomion, the mouth's width) and each eye
   const featureFoci = [
     { c: S({ ...Pt.sto, y: Pt.sto.y - 0.02 }), s2: ((Pt.chR.x + 0.02) * sc) ** 2 },
@@ -1168,8 +1174,28 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const box = { lo: P.g.z * sc + 5 * mm, hi: P.g.z * sc + 40 * mm };
     return { blend: 1.6 * mm, f: (p) => { if (p.z < box.lo || p.z > box.hi || p.y < P.g.y * sc - 0.08 * sc) return Infinity; let d = Infinity; for (const T of tubes) for (let i = 0; i + 1 < T.length; i++) d = Math.min(d, seg(p, T[i], T[i + 1])); return d - R; } };
   })() : null;
+  // THE SEAM of a closed mouth: the line between the lips cut to ONE depth all along it (`SEAM`), so it is drawn evenly:
+  // the lips' fronts probed across the mouth (the line's place the valley where they meet, its depth from the less
+  // prominent lip's front), a thin tube laid along it, sunk by the same depth everywhere, fading out at the corners. The
+  // lip line's own carve (deep at the middle, shallow toward the corners, nothing where thin lips part from it) left a
+  // groove under a surface net's cell in places, drawn as a row of dark notches. An open mouth keeps its carve.
+  const seam = skin && !mouth ? (() => {
+    const mm = MM_V * sc, ch = Math.abs(Pt.chR.x) * sc, tube = [], R = SEAM.radius * mm;
+    const front = (x, z) => { let y = Pt.sto.y * sc + 20 * mm; while (skinField({ x, y, z }) > 0 && y > Pt.sto.y * sc - 25 * mm) y -= 0.25 * mm; let lo = y, hi = y + 0.25 * mm; for (let i = 0; i < 8; i++) { const m = (lo + hi) / 2; if (skinField({ x, y: m, z }) > 0) hi = m; else lo = m; } return (lo + hi) / 2; };
+    for (let i = 0; i <= 16; i++) {
+      const u = -1 + (2 * i) / 16, x = u * (ch - 1.5 * mm), zc = (Pt.sto.z + (Pt.chR.z - Pt.sto.z) * u * u) * sc;
+      const rows = Array.from({ length: 13 }, (_, k) => { const z = zc + (k - 6) * 0.4 * mm; return { z, y: front(x, z) }; });
+      const valley = rows.slice(3, 10).reduce((a, r) => (r.y < a.y ? r : a)), lips = Math.min(Math.max(...rows.slice(0, 4).map((r) => r.y)), Math.max(...rows.slice(9).map((r) => r.y)));
+      const depth = SEAM.depth * mm * (1 - smoothstep(0.75, 1, Math.abs(u)) * 0.7);
+      tube.push({ x, y: lips + R - depth, z: valley.z });
+    }
+    const seg = (p, a, b) => { const bx = b.x - a.x, by = b.y - a.y, bz = b.z - a.z, l2 = bx * bx + by * by + bz * bz || 1e-12, u = Math.max(0, Math.min(1, ((p.x - a.x) * bx + (p.y - a.y) * by + (p.z - a.z) * bz) / l2)); return Math.hypot(p.x - a.x - bx * u, p.y - a.y - by * u, p.z - a.z - bz * u); };
+    const lim = { x: ch + 4 * mm, z: [Math.min(...tube.map((q) => q.z)) - 6 * mm, Math.max(...tube.map((q) => q.z)) + 6 * mm] };
+    return { blend: SEAM.blend * mm, f: (p) => { if (Math.abs(p.x) > lim.x || p.z < lim.z[0] || p.z > lim.z[1]) return Infinity; let d = Infinity; for (let i = 0; i + 1 < tube.length; i++) d = Math.min(d, seg(p, tube[i], tube[i + 1])); return d - R; } };
+  })() : null;
   const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
+    if (seam) { const c = seam.f(p); if (c < seam.blend * 4) d = smax(d, -c, seam.blend); }
     if (furrows) { const c = furrows.f(p); if (c < furrows.blend * 4) d = smax(d, -c, furrows.blend); }
     for (const e of ears) { const ef = e.f(p); if (ef !== Infinity) d = smin(d, ef, JOIN.ear * sc); }
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }

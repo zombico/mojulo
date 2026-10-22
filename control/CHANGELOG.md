@@ -253,6 +253,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - THE FOLDS' PAINT BY THE ART DIRECTION (dermal-texture.js `FOLD_INK.lit`): where the light draws a fold (the realistic
   register, no painted `shade`), the painted core and shade at a little over half; whole where an art direction paints
   its light in.
+- THE CLOSED MOUTH'S SEAM, EVEN (head-relational.js `SEAM`; the relational head re-pinned): a closed mouth's lip line
+  is cut to one depth all along the lips (~1 mm under the less prominent lip's front, the lips' fronts probed across
+  the mouth, fading at the corners) in place of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and, where
+  thin lips parted from it, left a groove under the surface net's cell: drawn as a row of dark notches along the lips,
+  plainest on the men and the old. An open mouth keeps its carve.
+- THE LIP LINE PAINTED (dermal-texture.js `LIP_LINE`): a closed mouth's seam painted as one even line (a thin dark core
+  in a soft edge, a little deeper at the corners), an arc from corner to corner through the stomion at the seam's
+  measured height; an open mouth (`marks.open`, dermal-head.js) none.
 - GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
   0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
 - GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
