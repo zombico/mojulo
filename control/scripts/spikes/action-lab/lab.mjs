@@ -129,10 +129,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · E gear (the glider or the jetpack: hold the jump past the apex, or press it in the air) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · F shoot (hold: auto, or charge) · Z switch weapon · E gear (the glider or the jetpack: hold the jump past the apex, or press it in the air) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
-          <div class="tbtns"><button type="button" data-tbtn="DODGE">Roll</button><button type="button" data-tbtn="DASH">Dash</button><button type="button" data-tbtn="LOCK">Lock</button><button type="button" data-tbtn="GUARD">Guard</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
+          <div class="tbtns"><button type="button" data-tbtn="DODGE">Roll</button><button type="button" data-tbtn="DASH">Dash</button><button type="button" data-tbtn="LOCK">Lock</button><button type="button" data-tbtn="GUARD">Guard</button><button type="button" data-tbtn="SHOOT">Shoot</button><button type="button" data-tbtn="SWITCH">Swap</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
         </div>
       </div>
       <div class="bar">
@@ -144,7 +144,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <section class="card"><h2>Last press</h2><div class="last"><div id="lastBig">–</div><div id="lastWhat">Press jump or attack.</div></div></section>
       <section class="card"><h2>Input</h2>
         <div class="inputs"><svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="var(--line)" stroke-width="2"></circle><circle id="knob" cx="20" cy="20" r="5" fill="var(--hero)"></circle></svg>
-        <div class="btns"><span id="bJ">JUMP</span><span id="bA">HIT</span><span id="bD">ROLL</span><span id="bX">DASH</span><span id="bL">LOCK</span><span id="bG">GUARD</span><span id="bS">RUN</span></div></div>
+        <div class="btns"><span id="bJ">JUMP</span><span id="bA">HIT</span><span id="bD">ROLL</span><span id="bX">DASH</span><span id="bL">LOCK</span><span id="bG">GUARD</span><span id="bF">SHOOT</span><span id="bS">RUN</span></div></div>
         <span id="padname"></span>
         <dl id="st"></dl>
       </section>

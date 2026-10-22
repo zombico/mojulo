@@ -175,6 +175,37 @@ hyper armor), and the frame data has an armor column.
 Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
 stomper off without being squashed.
 
+## The loadout: mobile-suit-arena's weapons
+
+The card's `loadout`, lifted from mobile-suit-arena, whose weapons are mojulo's own controllable rules
+(`lib/graph/worlds/controllable/combat-ranged.js`: `initWeapon`, `tickWeapon`, `stepWeapon`; `maneuvers.js`:
+`armSwitchReady`). The fields keep MSA's names and meanings and its seconds; distances are in metres (MSA's units ÷ 10).
+**F** is the trigger (held: an auto weapon streams, a charge weapon charges), **Z** switches.
+
+- **Ready time** (`switchReady`): every switch arms the incoming weapon, the slot's own value over the loadout's, re-armed
+  in full on each switch. A pull inside it is dropped.
+- **Cooldown**: an `auto` weapon fires at `rof` while held; a semi weapon opens a pull of `burst` rounds at `burstRof`
+  (the burst commits) and waits its `cooldown`.
+- **Ammo or charge**: a `magazine`; or an energy pool (`energyMax`, `energyCost`, `energyRegen`) that overheat-locks when
+  emptied, until refilled to `energyUnlockFrac`; and `chargeTime`, held to charge, released to fire one charged bolt
+  (`chargedAmmoCost`, `chargedImpact`).
+- **Reload**: an empty magazine auto-reloads over `reload`, and every carried weapon's timers tick while stowed (MSA's
+  autoloader).
+- **Fire classes**: `sight` (hitscan, through the body only), `area` (hitscan with the assist ring: auto-aim), `lob` (a
+  travelling round under `projectileGravity`, bursting with `splashRadius`, its proximity fuze, `armTime`, `fuse`).
+
+| feel | loadout |
+|---|---|
+| **realistic** | MSA's MACHINE GUN (area, auto), LONG RIFLE (sight, 4 s cooldown), GRENADE (lob, its own 1.33 s ready time) |
+| **action** | a mobile suit's: the BEAM RIFLE (3-round burst, charge for a 3-round bolt), the HYPER BAZOOKA (lob, proximity fuze), the HEAD VULCAN (area, 16 rounds a second), the V78 BEAM RIFLE (energy, overheat) |
+| **platformer** | in MSA's terms: the BUSTER (a straight travelling round, a deep magazine, no ready time), a special weapon on energy that does not come back |
+| **pinball** | none |
+
+Shooting does not end a flight: the jetpack stays lit (`boostFire`, the lab's default for every weapon; MSA's holds
+lob and semi beams while boosting). Left out because they would rework the lab rather than add to it: the targeting
+cones and the hit egg, the crosshair, spread, recoil and falloff, dual wield, teams, damage and poise, charge through
+boost, and melee loadout slots (attack stays the card's melee).
+
 ## The glider and the jetpack
 
 E cycles the gear: none, the glider, the jetpack (the card's `glide` and `jet`). Either takes the jump button in the air
@@ -293,7 +324,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 269 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 297 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -363,6 +394,18 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
   - A hit taken loses the charge; the platformer's card keeps it and the release still fires.
+- **The loadout.**
+  - Ready time: a switch arms the next weapon's frames; a pull a frame sooner is dropped, on the frame it acts; a second
+    switch re-arms it; a slot's own value wins (the grenade's).
+  - Cooldown: a semi weapon's next pull a frame early is dropped, on the frame it fires; an auto weapon streams at its
+    rate; a burst fires its rounds at its rate, commits, then waits its cooldown.
+  - The magazine empties and auto-reloads over its time, refusing the trigger meanwhile, and reloads while stowed.
+  - A charge weapon held its time fires one charged bolt on release, for its cost. An energy weapon overheat-locks when
+    emptied and unlocks when full again (the special weapon never comes back).
+  - A lob bursts where it lands and its splash takes a body beside the burst; the bazooka's proximity fuze bursts beside
+    a near miss, which sails past without it; a straight round meets a body when its speed says.
+  - Hitscan: the sight weapon lands only through the body, the area weapon also inside its assist ring; cover stops both.
+  - Rounds leave while the jetpack stays lit; the trigger is refused in a roll.
 - **The glider and the jetpack.**
   - With no gear a held jump does nothing in the air.
   - The paraglider opens on a press from a height, sinks and flies at the card's speeds, a press folds it, its stamina
@@ -429,7 +472,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (hold to charge, release to
-  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, E the gear, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
+  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, F shoot, Z switch weapon, E the gear, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
   RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.

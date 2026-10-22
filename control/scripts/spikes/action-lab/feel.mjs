@@ -72,6 +72,20 @@
  * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
  * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
  *
+ * THE LOADOUT (the card's `loadout`): the weapons, lifted from mobile-suit-arena's (mojulo's controllable rules:
+ * combat-ranged.js `initWeapon` / `tickWeapon` / `stepWeapon` and maneuvers.js `armSwitchReady`), their fields named as
+ * there, seconds as there, distances in metres (MSA's units ÷ 10). SHOOT is the trigger, SWITCH cycles the slots.
+ * READY TIME: every switch arms the incoming weapon's `switchReady` (the slot's, else the loadout's), re-armed in full
+ * on each switch. COOLDOWN: an `auto` weapon fires at `rof` while held; a semi one opens a pull of `burst` rounds at
+ * `burstRof` (a burst commits) and then waits its `cooldown`. AMMO OR CHARGE: a `magazine` of rounds, or an energy pool
+ * (`energyMax`, `energyCost`, `energyRegen`; emptied it OVERHEAT-LOCKS until refilled to `energyUnlockFrac`), and a
+ * `chargeTime` hold that fires one charged bolt on release (`chargedAmmoCost`, `chargedImpact`). RELOAD: an empty
+ * magazine auto-reloads over `reload`, and every carried weapon's timers tick while stowed (MSA's autoloader). The fire
+ * classes: `sight` (hitscan, the core only), `area` (hitscan with the assist ring: auto-aim), `lob` (a travelling round
+ * under `projectileGravity`, bursting with `splashRadius`, its proximity fuze, `armTime`, `fuse`). `boostFire`: shooting
+ * while boosting (the jetpack or a dash); the lab's default lets every weapon fire there (MSA's holds lob and semi
+ * beams). Pinball carries none.
+ *
  * THE GLIDER AND THE JETPACK (the card's `glide` and `jet`, the gear the state is given): the jump button, in the
  * air once the air jumps are spent, or held on past the apex. Realistic's glider is BotW's PARAGLIDER (opened by a
  * press from a height, a steady sink and forward speed, steered, folded by a press, its stamina limited) and its
@@ -120,7 +134,7 @@
  */
 export const FPS = 60;
 export const DT = 1 / FPS;
-export const BTN = Object.freeze({ JUMP: 1, ATTACK: 2, DODGE: 4, SPRINT: 8, DASH: 16, LOCK: 32, GUARD: 64 });
+export const BTN = Object.freeze({ JUMP: 1, ATTACK: 2, DODGE: 4, SPRINT: 8, DASH: 16, LOCK: 32, GUARD: 64, SHOOT: 128, SWITCH: 256 });
 const G = 9.81, RADIUS = 0.3, STEP = 0.12, DEG = Math.PI / 180, HEIGHT = 1.7;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
@@ -178,6 +192,11 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            heavy and the rest light) and `armor` ({ by: [tags that interrupt it], hits (the hit that interrupts it
  *            whatever its tags; absent: none), frames [from, to) (absent: through startup + active) } or absent: any
  *            hit interrupts it)
+ *   loadout  the weapons, or null: switchReady (s), slots ([{ name, switchReady?, weapon: { fireClass, auto, rof,
+ *            cooldown, burst, burstRof, magazine, reload, reserve, energyMax, energyCost, energyRegen,
+ *            energyOverheatRegen, energyUnlockFrac, chargeTime, chargedAmmoCost, chargedImpact, chargedRangeMul,
+ *            range, coreAngle, assistAngle, impact, boostFire, projectileSpeed, projectileGravity, lobAngle,
+ *            splashRadius, projRadius, proximityRadius, armTime, fuse } }]: MSA's names and meanings)
  *   glide    the glider, or null: kind (paraglider: opened and folded by a press | glide: held | float: held, the height
  *            kept), min (m above the floor to open one), fall (m/s down), from / speed (m/s: the forward speed it starts
  *            at least at and settles on), accel, turn (deg/s), time (frames: its stamina, or a float's length; null:
@@ -226,6 +245,11 @@ export const FEELS = Object.freeze({
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
     pound: null,
+    loadout: { switchReady: 1, slots: [   // an FPS's three, from MSA's: the machine gun, the long rifle, the grenade
+      { name: 'MACHINE GUN', weapon: { fireClass: 'area', auto: true, rof: 8, magazine: 25, reload: 2.5, coreAngle: 1.5, assistAngle: 1.5, range: 25.6, impact: 12 } },
+      { name: 'LONG RIFLE', weapon: { fireClass: 'sight', auto: false, cooldown: 4, magazine: 8, reload: 10, coreAngle: 1.2, range: 38.4, impact: 100 } },
+      { name: 'GRENADE', switchReady: 1.33, weapon: { fireClass: 'lob', magazine: 4, cooldown: 0.7, reload: 3.5, projectileSpeed: 26.4, projectileGravity: 9.6, lobAngle: 0, splashRadius: 4.42, projRadius: 0.24, impact: 75, armTime: 0.08, fuse: 5 } },
+    ] },
     glide: { kind: 'paraglider', min: 1.2, fall: 1.5, speed: 6, accel: 4, turn: 90, time: 600 },
     jet: { kind: 'thrust', thrust: 15, rise: 3, fuel: 120, delay: 30, regen: 1, air: 0.4 },
     ranged: { sets: { fps: ['rifle', 'marksman'] }, every: 120 },
@@ -261,6 +285,12 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.8 },
     cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
+    loadout: { switchReady: 1, slots: [   // a mobile suit's, lifted from MSA: the beam rifle (burst, charge), the hyper bazooka, the head vulcan, the V78 energy rifle
+      { name: 'BEAM RIFLE', weapon: { fireClass: 'sight', auto: false, burst: 3, burstRof: 9, cooldown: 1.2, magazine: 12, reload: 10, coreAngle: 1.5, range: 38.4, impact: 30, chargeTime: 1.5, chargedImpact: 150, chargedAmmoCost: 3 } },
+      { name: 'HYPER BAZOOKA', weapon: { fireClass: 'lob', magazine: 3, cooldown: 5, reload: 10, projectileSpeed: 91.26, projectileGravity: 1.44, lobAngle: 0, splashRadius: 2.04, projRadius: 0.48, proximityRadius: 1.56, impact: 100, armTime: 0.05, fuse: 3 } },
+      { name: 'HEAD VULCAN', weapon: { fireClass: 'area', auto: true, rof: 16, magazine: 60, reload: 2.2, coreAngle: 2, assistAngle: 2, range: 28.82, impact: 6 } },
+      { name: 'V78 BEAM RIFLE', weapon: { fireClass: 'sight', auto: false, cooldown: 2, magazine: 99, reload: 10, coreAngle: 1.2, range: 38.42, impact: 60, chargedImpact: 100, energyMax: 100, energyCost: 45, energyRegen: 10, energyOverheatRegen: 10, energyUnlockFrac: 1, chargeTime: 1.1, chargedEnergyCost: 75 } },
+    ] },
     glide: { kind: 'glide', fall: 2, speed: 8, accel: 12, turn: 180, time: null },
     jet: { kind: 'hover', thrust: 30, rise: 0.5, fuel: 90, delay: 20, regen: 1.5, air: 1 },
     ranged: { sets: { arena: ['orb', 'fan', 'ring', 'homing'], brawler: ['knife', 'gun'] }, every: 120 },
@@ -291,6 +321,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.9 },
     cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
+    loadout: { switchReady: 0, slots: [   // a run-and-gun's, in MSA's terms: the buster (a straight travelling round, a deep magazine), a special weapon on energy that does not come back
+      { name: 'BUSTER', weapon: { fireClass: 'lob', cooldown: 0.12, magazine: 99, reload: 1, projectileSpeed: 12, projectileGravity: 0, projRadius: 0.12, impact: 10, armTime: 0, fuse: 0.9 } },
+      { name: 'METAL BLADE', weapon: { fireClass: 'lob', cooldown: 0.2, magazine: 99, reload: 1, projectileSpeed: 10, projectileGravity: 0, projRadius: 0.2, impact: 20, armTime: 0, fuse: 1.2, energyMax: 28, energyCost: 1, energyRegen: 0 } },
+    ] },
     glide: { kind: 'float', time: 60 },
     jet: { kind: 'thrust', thrust: 50, rise: 5, fuel: 60, delay: 0, regen: 3, air: 0.9 },
     ranged: { sets: { platformer: ['pellet', 'aimed', 'lob', 'wave'] }, every: 100 },
@@ -321,6 +355,7 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.7 },
     cling: { slide: 4, toward: 0.3, up: 0.8, away: 8, lock: 6, coyote: 4 },
     pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
+    loadout: null,
     glide: { kind: 'glide', from: 4, fall: 1, speed: 12, accel: 3, turn: 120, grab: true, time: null },
     jet: { kind: 'flap', flap: 3.5, sink: 1.5, fuel: 480, air: 0.8 },
     ranged: { sets: { pinball: ['buzz', 'burst', 'bouncer'] }, every: 120 },
@@ -361,9 +396,10 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * air once the air jumps are spent (null: nothing).
  */
 export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null, gear = null } = {}) {
-  const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, shooter, gear, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
+  const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], rounds: [], shotN: 0, shooter, gear, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
   S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null; S.hero.hp = card.life?.hp ?? null; S.hero.fuel = card.jet?.fuel ?? 0;
+  S.hero.arms = card.loadout?.slots?.length ? { slot: 0, readyT: 0, readyMax: 0, w: card.loadout.slots.map((sl) => initWeapon(sl.weapon)) } : null;
   return S;
 }
 
@@ -379,12 +415,13 @@ export function step(S0, pad) {
   const pressed = b & ~S.held, released = S.held & ~b; S.held = b;
   const stick = stickOf(px, py);
   const H = S.hero, D = S.dummy;
-  for (const [name, bit] of [['jump', BTN.JUMP], ['attack', BTN.ATTACK], ['dodge', BTN.DODGE], ['dash', BTN.DASH], ['lock', BTN.LOCK], ['guard', BTN.GUARD]]) if (pressed & bit) press(S, name, stick);
+  for (const [name, bit] of [['jump', BTN.JUMP], ['attack', BTN.ATTACK], ['dodge', BTN.DODGE], ['dash', BTN.DASH], ['lock', BTN.LOCK], ['guard', BTN.GUARD], ['shoot', BTN.SHOOT], ['switch', BTN.SWITCH]]) if (pressed & bit) press(S, name, stick);
   if (S.lock && targetDist(S) > S.card.lock.range + 3) { S.lock = null; S.events.push({ f: S.f, who: 'hero', type: 'lock-lost' }); }
   if ((released & BTN.JUMP) && !H.stop) cutJump(S, H);
   if ((released & BTN.ATTACK) && H.charge) H.charge.letGo = true;
   if (H.charge?.letGo && !H.stop) release(S, stick);   // the release is the beat (a frozen hero lets go when it thaws)
   tryQueue(S, stick);
+  if (H.arms && !H.stop) armsStep(S);
   // Witch Time: the attacker runs at half speed (it skips every other tick: its move, its blow, its timers)
   const slow = S.witch > 0 && S.f % 2 === 1;
   if (S.witch > 0 && --S.witch === 0) S.events.push({ f: S.f, who: 'dummy', type: 'witch-end' });
@@ -394,7 +431,7 @@ export function step(S0, pad) {
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
   if (!D.stop && !slow) { sparThink(S); shooterThink(S); testHit(S, D, H, 'dummy'); }
-  flyShots(S); if (!slow) flyFoes(S);
+  flyShots(S); flyRounds(S); if (!slow) flyFoes(S);
   for (const [w, B] of [['hero', H], ['dummy', D]]) {
     if (w === 'dummy' && slow) continue;
     // a frozen body changes nothing; the tick that struck (or was struck) still shows its own frame and runs on
@@ -413,6 +450,7 @@ export function step(S0, pad) {
     if (B.slowed > 0) B.slowed--;
     const ST = S.card.guard?.stamina; if (ST && w === 'hero' && B.act?.kind !== 'block') B.stamina = Math.min(ST.max, B.stamina + ST.regen * DT);
     if (w === 'hero' && B.charge) meter(S, B);
+    if (w === 'hero' && B.arms) armsTick(S, B);
     if (w === 'hero' && S.gear === 'jet') {   // the tank: refilled a beat after landing (a flight on landing); a flight's time runs out
       const JT = S.card.jet;
       if (B.grounded) { if (JT.kind === 'flap') B.fuel = JT.fuel; else if (++B.jetRest > JT.delay) B.fuel = Math.min(JT.fuel, B.fuel + JT.regen); }
@@ -515,6 +553,13 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
+  if (name === 'shoot') { const why = fireGate(S, true); return why ? { reason: why, queue: false } : true; }
+  if (name === 'switch') {
+    if (!H.arms) return { reason: 'no weapons in this feel', queue: false };
+    if (H.arms.w.length < 2) return { reason: 'one weapon only', queue: false };
+    if (a?.kind === 'move' || a?.kind === 'dodge') return { reason: `mid-${a.kind === 'move' ? 'swing' : 'roll'}`, queue: false };
+    return true;
+  }
   return { reason: 'unknown button', queue: false };
 }
 /** the move an act plays: a string's, or (`lv`) the charged move of that level */
@@ -556,6 +601,8 @@ function act(S, name, stick, waited) {
     if (i === 0 && C.charge && (S.held & BTN.ATTACK)) { H.charge = { held: 0, lv: 0, from: S.f }; H.act.charging = true; }
     return;
   }
+  if (name === 'shoot') return;   // the trigger: armsStep reads it this tick (the press was let through by the same gates)
+  if (name === 'switch') return switchWeapon(S, H);
   if (name === 'guard') { H.act = { kind: 'block', f: 0, pressed: S.f }; S.events.push({ f: S.f, who: 'hero', type: 'guard' }); return; }
   if (name === 'lock') { S.lock = S.lock ? null : { target: 'dummy' }; S.events.push({ f: S.f, who: 'hero', type: S.lock ? 'lock' : 'unlock', on: 'dummy' }); return; }
   if (name === 'dodge') {
@@ -965,6 +1012,167 @@ function flyShots(S) {
     }
     sh.f++; return sh.f < sh.life;
   });
+}
+/** the loadout's travelling rounds (S.rounds, apart from the charge shots): gravity on a lob, the floor and the walls (a
+ * round with a splash bursts there), the dummy's body (a direct hit, or the burst), the proximity fuze once armed, the
+ * fuse at the end of its life (8 cm substeps) */
+function flyRounds(S) {
+  if (!S.rounds.length) return;
+  const A = S.arena, lim = A.half, D = S.dummy;
+  S.rounds = S.rounds.filter((sh) => {
+    if (sh.g) sh.v[2] -= sh.g * DT;
+    const n = Math.max(1, Math.ceil((Math.hypot(sh.v[0], sh.v[1], sh.v[2]) * DT) / 0.08));
+    for (let i = 0; i < n; i++) {
+      for (const k of [0, 1, 2]) sh.p[k] += (sh.v[k] * DT) / n;
+      const armed = !(sh.arm > sh.f), floor = sh.p[2] < groundAt(S, sh.p[0], sh.p[1]);
+      const wall = Math.abs(sh.p[0]) > lim || Math.abs(sh.p[1]) > lim || A.blocks.some((k) => k.h > sh.p[2] && sh.p[0] >= k.x[0] && sh.p[0] <= k.x[1] && sh.p[1] >= k.y[0] && sh.p[1] <= k.y[1]);
+      if (wall || floor) { if (sh.blast && armed) blast(S, sh); else S.events.push({ f: S.f, who: 'hero', type: 'shot-wall', weapon: sh.weapon }); return false; }
+      const dx = D.p[0] - sh.p[0], dy = D.p[1] - sh.p[1], d = len2(dx, dy), inZ = sh.p[2] >= D.p[2] - sh.size && sh.p[2] <= D.p[2] + D.h + sh.size;
+      if (inZ && d <= RADIUS + sh.size) {
+        if (sh.blast && armed) blast(S, sh);
+        else { const sp = len2(sh.v[0], sh.v[1]) || 1; strike(S, sh, D, 'hero', { ...sh.hit, dv: S.body.dv[sh.hit.take] }, [sh.v[0] / sp, sh.v[1] / sp]); }
+        return false;
+      }
+      if (armed && sh.prox && inZ && d <= RADIUS + sh.prox) { blast(S, sh); return false; }   // the proximity fuze: a near miss bursts beside the body
+    }
+    sh.f++; if (sh.f < sh.life) return true;
+    if (sh.blast) blast(S, sh);   // the fuse
+    return false;
+  });
+}
+/** a round bursts: the dummy inside its splash (and near its height) takes the blow, pushed away from the burst */
+function blast(S, sh) {
+  const D = S.dummy, dx = D.p[0] - sh.p[0], dy = D.p[1] - sh.p[1], d = len2(dx, dy);
+  const hit = d <= sh.blast + RADIUS && sh.p[2] >= D.p[2] - sh.blast && sh.p[2] <= D.p[2] + D.h + sh.blast;
+  S.events.push({ f: S.f, who: 'hero', type: 'blast', weapon: sh.weapon, at: sh.p.map(r4), hit });
+  if (!hit) return;
+  const sp = len2(sh.v[0], sh.v[1]) || 1, dir = d > 1e-6 ? [dx / d, dy / d] : [sh.v[0] / sp, sh.v[1] / sp];
+  strike(S, sh, D, 'hero', { ...sh.hit, dv: S.body.dv[sh.hit.take] }, dir);
+}
+
+// ─── the loadout: mobile-suit-arena's weapons ──────────────────────────
+const W_EPS = 1e-9;
+/** a weapon's config made whole, as MSA's initWeapon: the class, the trigger, the magazine and the reload, the energy
+ * pool, the charge, the travelling round. Times in seconds (the state's timers count frames) */
+function weaponOf(w) {
+  const area = w.fireClass === 'area', lob = w.fireClass === 'lob';
+  return { fireClass: lob ? 'lob' : area ? 'area' : 'sight', auto: w.auto ?? (area && !lob), rof: w.rof ?? 10, cooldown: w.cooldown ?? 0.5,
+    burst: Math.max(1, Math.round(w.burst ?? 1)), burstRof: w.burstRof ?? 8, magazine: w.magazine ?? 30, reload: w.reload ?? 2,
+    reserve: Number.isFinite(w.reserve) && w.reserve >= 0 ? w.reserve : null, coreAngle: w.coreAngle ?? 1.5, assistAngle: w.assistAngle ?? (area ? 7 : (w.coreAngle ?? 1.5)),
+    range: w.range ?? 40, impact: w.impact ?? 0, chargedImpact: w.chargedImpact ?? null, chargedAmmoCost: w.chargedAmmoCost ?? null, chargedRangeMul: w.chargedRangeMul ?? 1.2,
+    energyMax: w.energyMax ?? 0, energyCost: w.energyCost ?? 0, energyRegen: w.energyRegen ?? 0, energyOverheatRegen: w.energyOverheatRegen ?? null, energyUnlockFrac: w.energyUnlockFrac ?? 1,
+    chargeTime: w.chargeTime ?? 0, chargedEnergyCost: w.chargedEnergyCost ?? null, boostFire: w.boostFire ?? true,
+    projectileSpeed: w.projectileSpeed ?? 6, projectileGravity: w.projectileGravity ?? 3, lobAngle: w.lobAngle ?? 0, splashRadius: w.splashRadius ?? 0,
+    projRadius: w.projRadius ?? 0.05, proximityRadius: w.proximityRadius ?? 0, armTime: w.armTime ?? 0.06, fuse: w.fuse ?? 4 };
+}
+/** a weapon's state as minted: the magazine full, nothing cooling, reloading, locked or charging */
+function initWeapon(w) {
+  const W = weaponOf(w);
+  return { ammo: W.magazine, reserve: W.reserve, cooldownT: 0, reloading: false, reloadT: 0, prevFire: false, shots: 0, burstLeft: 0, energy: W.energyMax, energyLock: false, charging: false, chargeT: 0, chargeReady: false };
+}
+const slotOf = (S) => S.card.loadout.slots[S.hero.arms.slot];
+/** why the trigger cannot act now, or null: the body busy, the slot's reload, its overheat lock, the switch's ready
+ * time, boosting with a weapon that holds fire there; with `press`, also a semi trigger's cooldown, an empty pool */
+function fireGate(S, press = false) {
+  const H = S.hero, A = H.arms; if (!A) return 'no weapons in this feel';
+  const a = H.act, W = weaponOf(slotOf(S).weapon), w = A.w[A.slot];
+  if (H.stun > 0 || H.blockstun > 0 || (a && ['hurt', 'ko', 'stagger', 'bonk', 'move', 'dodge', 'block', 'charge', 'pound', 'poundLag', 'gather'].includes(a.kind))) return a ? `in ${a.kind}` : 'in hitstun';
+  if (w.reloading) return `reloading (${Math.ceil(w.reloadT)} f)`;
+  if (W.energyMax > 0 && w.energyLock) return W.energyRegen > 0 || W.energyOverheatRegen > 0 ? 'overheated' : 'out of weapon energy';
+  if (A.readyT > W_EPS) return `readying the ${slotOf(S).name} (${Math.ceil(A.readyT)} f)`;
+  if ((H.jet || a?.kind === 'dash') && !W.boostFire) return 'holds fire while boosting';
+  if (press && !W.auto && (w.cooldownT > W_EPS || w.burstLeft > 0)) return `cooling down (${Math.ceil(w.cooldownT)} f)`;
+  if (press && w.ammo <= 0) return 'empty';
+  if (press && W.energyMax > 0 && w.energy <= 0) return 'out of energy';
+  return null;
+}
+function cancelCharge(w) { w.charging = false; w.chargeT = 0; w.chargeReady = false; }
+/** SWITCH: the next slot; its ready time armed in full (the slot's `switchReady`, else the loadout's), as MSA's
+ * armSwitchReady; the old weapon's charge let go */
+function switchWeapon(S, H) {
+  const A = H.arms, L = S.card.loadout; cancelCharge(A.w[A.slot]);
+  A.slot = (A.slot + 1) % A.w.length;
+  const sl = L.slots[A.slot]; A.readyMax = Math.round((Number.isFinite(sl.switchReady) ? sl.switchReady : L.switchReady ?? 1) * FPS); A.readyT = A.readyMax;
+  S.events.push({ f: S.f, who: 'hero', type: 'switch', to: sl.name, slot: A.slot, ready: A.readyMax });
+}
+/** the trigger, once a tick (MSA's stepWeapon): gates, then the charge (held to charge, released to fire the bolt, an
+ * uncharged release an ordinary pull), the semi pull opening its burst, the auto stream, the round's cost, cooldown */
+function armsStep(S) {
+  const H = S.hero, A = H.arms, sl = slotOf(S), W = weaponOf(sl.weapon), w = A.w[A.slot];
+  const held = !!(S.held & BTN.SHOOT), edge = held && !w.prevFire, release = !held && w.prevFire;
+  if (fireGate(S)) { cancelCharge(w); w.prevFire = held; return; }
+  const energyReady = !(W.energyMax > 0) || w.energy > 0, open = () => w.cooldownT <= W_EPS && w.burstLeft <= 0 && w.ammo > 0 && energyReady;
+  let forced = false, charged = false;
+  if (W.chargeTime > 0 && !W.auto) {
+    const full = Math.round(W.chargeTime * FPS);
+    if (w.charging && held) { w.chargeT = Math.min(full, w.chargeT + 1); if (!w.chargeReady && w.chargeT >= full) { w.chargeReady = true; S.events.push({ f: S.f, who: 'hero', type: 'w-charged', weapon: sl.name }); } w.prevFire = true; return; }
+    if (w.charging && release) { charged = w.chargeReady; cancelCharge(w); if (charged) forced = true; else if (open()) w.burstLeft = W.burst; }
+    else if (edge && open()) { w.charging = true; w.chargeT = 0; w.chargeReady = false; w.prevFire = true; return; }
+    else if (w.burstLeft <= 0) { w.prevFire = held; return; }
+  }
+  w.prevFire = held;
+  if (!W.auto && !forced && edge && open()) w.burstLeft = W.burst;
+  if (!(energyReady && w.ammo > 0 && w.cooldownT <= W_EPS && (forced || (W.auto ? held : w.burstLeft > 0)))) return;
+  w.ammo -= charged && W.chargedAmmoCost ? Math.min(W.chargedAmmoCost, w.ammo) : 1; w.shots++;
+  if (W.energyMax > 0) {
+    w.energy = Math.max(0, w.energy - (charged ? (W.chargedEnergyCost ?? W.energyCost) : W.energyCost));
+    if (w.energy <= 0) { w.energy = 0; w.energyLock = true; w.burstLeft = 0; S.events.push({ f: S.f, who: 'hero', type: 'overheat', weapon: sl.name }); }
+  }
+  if (!W.auto && !forced) w.burstLeft--;
+  w.cooldownT = W.auto ? FPS / W.rof : w.burstLeft > 0 ? FPS / W.burstRof : W.cooldown * FPS;
+  fireRound(S, sl.name, W, charged, w);
+}
+/** the passive timers for EVERY carried weapon, stowed or not (MSA's tickWeapon, the autoloader): the cooldown, the
+ * energy's regen and its unlock, an empty magazine's auto-reload; and the switch's ready time */
+function armsTick(S, H) {
+  const A = H.arms, L = S.card.loadout;
+  if (A.readyT > 0) A.readyT = Math.max(0, A.readyT - 1);
+  A.w.forEach((w, i) => {
+    const W = weaponOf(L.slots[i].weapon), name = L.slots[i].name;
+    if (w.cooldownT > 0) w.cooldownT = Math.max(0, w.cooldownT - 1);
+    if (W.energyMax > 0) {
+      const rr = w.energyLock ? (W.energyOverheatRegen ?? W.energyRegen) : W.energyRegen;
+      if (rr > 0) w.energy = Math.min(W.energyMax, w.energy + rr / FPS);
+      if (w.energyLock && rr > 0 && w.energy >= W.energyMax * Math.max(0, Math.min(1, W.energyUnlockFrac)) - W_EPS) { w.energyLock = false; S.events.push({ f: S.f, who: 'hero', type: 'unlock', weapon: name }); }
+    }
+    if (w.ammo <= 0 && !w.reloading && w.reserve !== 0) { w.reloading = true; w.reloadT = W.reload * FPS; w.burstLeft = 0; S.events.push({ f: S.f, who: 'hero', type: 'reload', weapon: name, frames: Math.round(w.reloadT) }); }
+    if (w.reloading && --w.reloadT <= W_EPS) {
+      const take = w.reserve == null ? W.magazine : Math.min(W.magazine, w.reserve);
+      w.ammo = take; w.reloading = false; w.reloadT = 0; if (w.reserve != null) w.reserve -= take;
+      S.events.push({ f: S.f, who: 'hero', type: 'reloaded', weapon: name, ammo: take });
+    }
+  });
+}
+/** a round leaves: along the facing (locked: at the target) from the chest. A hitscan class walks its ray (a block is
+ * cover; `sight` lands only through the body, `area` also inside its assist ring); a `lob` launches a travelling round */
+function fireRound(S, name, W, charged, w) {
+  const H = S.hero, D = S.dummy, yaw = S.lock ? bearing(S) : H.yaw, fx = Math.sin(yaw), fy = Math.cos(yaw);
+  const impact = charged ? (W.chargedImpact ?? W.impact) : W.impact, heavy = impact >= 100;
+  const hit = { take: heavy ? 'cross' : 'jab', tags: [heavy ? 'heavy' : 'light', 'shot'], finisher: charged && heavy, shot: name };
+  const o = [H.p[0] + fx * (RADIUS + 0.1), H.p[1] + fy * (RADIUS + 0.1), H.p[2] + 1.2];
+  if (W.fireClass === 'lob') {
+    const la = W.lobAngle * DEG, sp = W.projectileSpeed;
+    S.rounds.push({ id: S.shotN++, weapon: name, f: 0, p: o, v: [fx * Math.cos(la) * sp, fy * Math.cos(la) * sp, Math.sin(la) * sp], g: W.projectileGravity, size: W.projRadius,
+      blast: W.splashRadius, prox: W.proximityRadius, arm: Math.round(W.armTime * FPS), life: Math.max(1, Math.round(W.fuse * FPS)), hit });
+    S.events.push({ f: S.f, who: 'hero', type: 'round', weapon: name, mode: 'launch', ammo: w.ammo, charged });
+    return;
+  }
+  const range = W.range * (charged ? W.chargedRangeMul : 1);
+  let mode = 'miss', at = o;
+  for (let t = 0; t <= range; t += 0.05) {
+    const p = [o[0] + fx * t, o[1] + fy * t, o[2]]; at = p;
+    if (Math.abs(p[0]) > S.arena.half || Math.abs(p[1]) > S.arena.half) break;
+    if (S.arena.blocks.some((k) => k.h > p[2] && p[0] >= k.x[0] && p[0] <= k.x[1] && p[1] >= k.y[0] && p[1] <= k.y[1])) { mode = 'cover'; break; }
+    if (len2(p[0] - D.p[0], p[1] - D.p[1]) <= RADIUS && p[2] >= D.p[2] && p[2] <= D.p[2] + D.h) { mode = 'core'; break; }
+  }
+  const dx = D.p[0] - o[0], dy = D.p[1] - o[1], d = len2(dx, dy);
+  if (mode !== 'core' && mode !== 'cover' && W.fireClass === 'area' && d <= range && Math.abs(D.p[2] + 1.2 - o[2]) < D.h) {   // the assist ring: the MG's auto-aim
+    const ang = Math.abs(angDiff(Math.atan2(dx, dy), yaw));
+    let clear = true; for (let t = 0; t < d - RADIUS; t += 0.05) { const p = [o[0] + (dx / d) * t, o[1] + (dy / d) * t]; if (S.arena.blocks.some((k) => k.h > o[2] && p[0] >= k.x[0] && p[0] <= k.x[1] && p[1] >= k.y[0] && p[1] <= k.y[1])) { clear = false; break; } }
+    if (clear && ang <= W.assistAngle * DEG + Math.atan(RADIUS / d)) { mode = 'assist'; at = [D.p[0], D.p[1], o[2]]; }
+  }
+  S.events.push({ f: S.f, who: 'hero', type: 'round', weapon: name, mode, ammo: w.ammo, charged, from: o.map(r4), to: at.map(r4) });
+  if (mode === 'core' || mode === 'assist') strike(S, { p: o, v: [0, 0, 0] }, D, 'hero', { ...hit, dv: S.body.dv[hit.take] }, d > 1e-6 ? [dx / d, dy / d] : [fx, fy]);
 }
 
 // ─── the glider and the jetpack ─────────────────────────────────────────
@@ -1408,7 +1616,7 @@ export function frameData(card, body) {
 /** an attack's armor in words: none, heavy (what breaks it), hyper; ×n its poise */
 function armorText(m) { const A = m.armor; if (!A) return 'none'; const by = A.by.length ? A.by.join(' / ') : 'hyper'; return A.hits ? `${by}, or hit ${A.hits}` : by; }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf, weaponOf };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

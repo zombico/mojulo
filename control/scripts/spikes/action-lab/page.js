@@ -25,7 +25,7 @@ function reset() {
 
 // ─── input: keyboard, gamepad, touch ───
 const keys = new Set(), tapped = new Set();   // tapped: pressed since the last tick, so a tap between two ticks still lands
-const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', KeyF: 'shoot', KeyZ: 'switch', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
@@ -64,7 +64,7 @@ function readPad() {
   const on = (k) => keys.has(k) || tapped.has(k);
   let x = (on('right') ? 1 : 0) - (on('left') ? 1 : 0), y = (on('up') ? 1 : 0) - (on('down') ? 1 : 0);
   if (x && y) { x *= Math.SQRT1_2; y *= Math.SQRT1_2; }
-  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('guard') ? BTN.GUARD : 0) | (on('sprint') ? BTN.SPRINT : 0);
+  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('guard') ? BTN.GUARD : 0) | (on('shoot') ? BTN.SHOOT : 0) | (on('switch') ? BTN.SWITCH : 0) | (on('sprint') ? BTN.SPRINT : 0);
   tapped.clear();
   const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
   padName = gp ? gp.id : null;
@@ -73,7 +73,7 @@ function readPad() {
     if (dz) { x = ax; y = -ay; }
     const pr = (i) => !!gp.buttons[i]?.pressed;
     if (pr(12)) y = 1; if (pr(13)) y = -1; if (pr(14)) x = -1; if (pr(15)) x = 1;
-    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) ? BTN.GUARD : 0) | (pr(6) || pr(10) ? BTN.SPRINT : 0);
+    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) ? BTN.GUARD : 0) | (pr(3) ? BTN.SHOOT : 0) | (pr(8) ? BTN.SWITCH : 0) | (pr(6) || pr(10) ? BTN.SPRINT : 0);
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
@@ -126,7 +126,7 @@ const say = {
   takeoff: () => 'take-off', apex: (e) => `apex ${e.height.toFixed(2)} m`, land: (e) => `land at ${e.fall.toFixed(1)} m/s`,
   edge: () => 'walked off an edge', coyote: (e) => `coyote jump (${e.left} f were left)`, cut: () => 'jump cut on release',
   move: (e) => (e.who === 'dummy' ? `dummy telegraphs a ${e.name} (${e.telegraph} f): ${e.unblockable ? 'red, unblockable: dodge it' : e.zone === 'orange' ? 'all orange: parryable' : 'red with an orange middle: parry it there'}; ${({ jab: 'any hit interrupts it', hook: 'armored: only a heavy or a shot interrupts it', perilous: 'hyper armor: nothing interrupts it' })[e.name] ?? ''}` : `move ${e.i + 1}: ${e.take}`),
-  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.shot ? `the ${e.shot > 1 ? 'full charge shot' : 'charge shot'}` : e.charged ? `the charged ${e.charged > 1 ? 'launcher' : 'heavy'}` : e.attack ? `the ${e.attack}${e.unblockable && e.guarding ? ', through the guard (unblockable)' : ''}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
+  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.shot ? `the ${typeof e.shot === 'string' ? e.shot : e.shot > 1 ? 'full charge shot' : 'charge shot'}` : e.charged ? `the charged ${e.charged > 1 ? 'launcher' : 'heavy'}` : e.attack ? `the ${e.attack}${e.unblockable && e.guarding ? ', through the guard (unblockable)' : ''}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
   blocked: (e) => `blocked (a free dummy that saw it coming), hitstop ${e.hitstop} f`, immune: (e) => `immune: mercy ${e.mercy} f left`,
   whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
   wall: (e) => `wall: ${e.response} at ${e.into.toFixed(1)} m/s${e.out != null ? ` → ${e.out.toFixed(1)}` : ''}`,
@@ -153,6 +153,9 @@ const say = {
   'glide-end': (e) => `${S.card.glide?.kind === 'float' ? 'the float' : 'the glide'} ends: ${e.why}`,
   jet: (e) => `the jetpack lights (${e.kind}, ${e.fuel} f of fuel)`, 'jet-end': (e) => `the jetpack ${e.why === 'out of fuel' ? 'burns out' : 'cuts'}: ${e.why}`,
   flap: () => null, tired: () => 'too tired to fly: down you go',
+  round: (e) => (e.mode === 'launch' ? `the ${e.weapon} launches (${e.ammo} left)` : `the ${e.weapon}: ${({ core: 'a hit', assist: 'a hit in the assist ring', miss: 'a miss', cover: 'into a wall' })[e.mode]}${e.charged ? ', charged' : ''} (${e.ammo} left)`),
+  switch: (e) => `switched to the ${e.to}${e.ready ? `: ready in ${e.ready} f` : ''}`, reload: (e) => `the ${e.weapon} reloads (${e.frames} f)`, reloaded: (e) => `the ${e.weapon} reloaded (${e.ammo})`,
+  overheat: (e) => `the ${e.weapon} overheats: locked until its energy is back`, unlock: (e) => `the ${e.weapon} cools: unlocked`, 'w-charged': (e) => `the ${e.weapon} is charged: release`, blast: (e) => `the ${e.weapon} bursts${e.hit ? ', catching the dummy' : ''}`,
   rings: (e) => `the rings scattered (${e.lost}): one more hit is the end`, ko: (e) => (e.oneHit ? 'down: one hit is the end in this game' : 'down: out of life'), up: (e) => `up again, life ${e.hp}`,
   armor: (e) => `${e.who === 'dummy' ? 'the dummy\'s attack' : 'your attack'} shrugs off a ${e.tags.join(' ')} hit${e.of ? ` (${e.hits} of ${e.of}: the next one interrupts)` : ''}: ${e.breaks.length ? `only ${e.breaks.join(' or ')} interrupts it` : 'hyper armor, nothing interrupts it'}`,
   'armor-break': (e) => `${e.who === 'dummy' ? 'the dummy\'s' : 'your'} armor broken by a ${e.tags.join(' ')} hit${e.hits > 1 ? ` (hit ${e.hits})` : ''}: interrupted`,
@@ -176,6 +179,7 @@ function onEvent(e) {
   if (e.type === 'armor' || e.type === 'armor-break') { const B = S[e.who]; sparks.push({ p: [B.p[0], B.p[1], B.p[2] + 1.2], t: 0, big: e.type === 'armor-break', evade: e.type === 'armor' }); }
   if (e.who === 'hero' && (e.type === 'parry' || e.type === 'block' || e.type === 'perfect' || e.type === 'guard-break')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: e.type === 'parry' || e.type === 'perfect', evade: e.type === 'perfect' });
   if (e.type === 'fire' && e.hitscan) tracers.push({ from: e.from, to: e.to, t: 0, hit: e.result === 'hit' });
+  if (e.type === 'round' && e.from) tracers.push({ from: e.from, to: e.to, t: 0, hit: e.mode === 'core' || e.mode === 'assist', hero: true });
   if (e.who === 'hero' && (e.type === 'hurt' || e.type === 'ko')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.2], t: 0, big: e.type === 'ko' || !!e.down });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
@@ -393,7 +397,7 @@ function drawFoes() {
     ctx.strokeStyle = COL.ink; ctx.lineWidth = 1; ctx.stroke();
   }
   tracers = tracers.filter((t) => t.t < 10);
-  for (const t of tracers) { const a = P(...t.from), b = P(...t.to); ctx.strokeStyle = COL.laser; ctx.globalAlpha = 1 - t.t / 10; ctx.lineWidth = t.hit ? 3 : 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); if (!paused) t.t++; }
+  for (const t of tracers) { const a = P(...t.from), b = P(...t.to); ctx.strokeStyle = t.hero ? COL.charge1 : COL.laser; ctx.globalAlpha = 1 - t.t / 10; ctx.lineWidth = t.hit ? 3 : 2; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); if (!paused) t.t++; }
   ctx.globalAlpha = 1;
 }
 /** the shooter's aim through its telegraph: a laser for a sight (bright once locked), a faint line for the rest */
@@ -421,11 +425,19 @@ function drawGear() {
 function drawLife() {
   const L = S.card.life, H = S.hero; if (!L || H.hp == null) return;
   ctx.font = `600 12px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillStyle = COL.ink;
-  if (L.kind === 'rings') { ctx.fillText(`RINGS ${H.hp}${H.act?.kind === 'ko' ? '  DOWN' : ''}`, 14, 18); gauge(); return; }
+  if (L.kind === 'rings') { ctx.fillText(`RINGS ${H.hp}${H.act?.kind === 'ko' ? '  DOWN' : ''}`, 14, 18); gauge(); weaponLine(); return; }
   const w = 140, k = H.hp / L.hp; ctx.fillText(L.oneHit ? 'ONE HIT' : 'LIFE', 14, 18);
   ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.strokeRect(80, 12, w, 12); ctx.fillStyle = H.act?.kind === 'ko' ? COL.stun : COL.life; ctx.fillRect(80, 12, w * k, 12);
   ctx.fillStyle = COL.ink; ctx.fillText(`${H.hp}`, 80 + w + 8, 18);
-  gauge();
+  gauge(); weaponLine();
+}
+/** the weapon in hand, under the gauges: its name, rounds or energy, and what holds it (ready, reload, overheat, charge) */
+function weaponLine() {
+  const A = S.hero.arms; if (!A) return;
+  const sl = S.card.loadout.slots[A.slot], W = util.weaponOf(sl.weapon), w = A.w[A.slot];
+  const what = A.readyT > 0 ? `READY ${Math.ceil(A.readyT)}` : w.reloading ? `RELOAD ${Math.ceil(w.reloadT)}` : w.energyLock ? 'OVERHEAT' : w.charging ? (w.chargeReady ? 'CHARGED' : `CHARGE ${Math.round((100 * w.chargeT) / (W.chargeTime * FPS))}%`) : '';
+  const amt = W.energyMax > 0 ? `EN ${Math.round(w.energy)}/${W.energyMax}` : W.magazine >= 99 ? '∞' : `${w.ammo}/${W.magazine}`;
+  ctx.fillStyle = COL.ink; ctx.fillText(`${sl.name}  ${amt}  ${what}`, 14, 58);
 }
 /** the gear's gauge under the life: the jetpack's fuel, the paraglider's stamina, a flight's time */
 function gauge() {
@@ -438,7 +450,7 @@ function gauge() {
 /** the shots in flight: a ball its size, the full charge brighter */
 function drawShots() {
   const ppm = scale();
-  for (const sh of S.shots) {
+  for (const sh of [...S.shots, ...(S.rounds ?? [])]) {
     const c = P(...sh.p); ctx.fillStyle = sh.lv > 1 ? COL.charge2 : COL.charge1; ctx.globalAlpha = 0.9;
     ctx.beginPath(); ctx.arc(c[0], c[1], Math.max(3, sh.size * ppm), 0, Math.PI * 2); ctx.fill();
     const t = P(sh.p[0] - sh.v[0] * 0.03, sh.p[1] - sh.v[1] * 0.03, sh.p[2]); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = Math.max(2, sh.size * ppm); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.moveTo(t[0], t[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
@@ -523,7 +535,7 @@ function renderState() {
   $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['gear', gear ? `${gear === 'glide' ? S.card.glide?.kind : `jetpack (${S.card.jet?.kind})`}${gear === 'jet' ? `, fuel ${Math.round(S.hero.fuel)}` : ''}` : 'none'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
   $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
-  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
+  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT], ['bF', BTN.SHOOT]]) $(id).classList.toggle('on', !!(b & bit));
   $('padname').textContent = padName ? `Gamepad: ${padName.slice(0, 40)}` : 'Keyboard (a gamepad works too)';
 }
 

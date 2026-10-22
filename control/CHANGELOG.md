@@ -37,6 +37,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **The loadout, in the lab: mobile-suit-arena's weapons** (the card's `loadout`). Lifted from mobile-suit-arena,
+  whose weapons are mojulo's controllable rules, with their field names and meanings: the switch's ready time
+  (re-armed each switch, a slot's own winning), the cooldown (auto at a rate of fire, semi with a committed burst), a
+  magazine or an energy pool that overheat-locks, a charge shot, the auto-reload that runs for stowed weapons too, and
+  the sight, area (assist ring) and lob (gravity, splash, proximity fuze, arm time, fuse) classes. Shooting no longer
+  ends a jetpack flight. Realistic carries MSA's machine gun, long rifle and grenade, action a mobile suit's beam rifle,
+  hyper bazooka, head vulcan and V78 energy rifle, the platformer a buster and a special weapon; pinball none. What
+  would rework the lab rather than add to it stays out (the targeting cones, spread and recoil, damage and poise, melee
+  slots). The gate holds 297 laws on both casts, with recorded runs of a switch and a jetpack gun run.
 - **The glider and the jetpack, in the lab** (the card's `glide` and `jet`, chosen as gear). Either takes the jump in
   the air once the air jumps are spent, held past the apex or pressed. Realistic's glider is a paraglider opened from
   a height with a stamina limit and its jetpack a slow thrust on a small tank; action glides and hovers; the

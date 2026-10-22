@@ -13,7 +13,7 @@ let fails = 0;
 const check = (name, ok, measured) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${measured === undefined ? '' : `  ${JSON.stringify(measured)}`}`); };
 const note = (name, measured) => console.log(`note  ${name}  ${JSON.stringify(measured)}`);
 const OPEN = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
-const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK, GU = BTN.GUARD;
+const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK, GU = BTN.GUARD, SH = BTN.SHOOT, SW = BTN.SWITCH;
 
 /**
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
@@ -572,6 +572,98 @@ for (const id of FEEL_IDS) {
       check(`${id}: the jetpack (${JT.kind}): held past the apex it lifts, climbing no faster than ${JT.rise} m/s, above the jump's height; it burns out after ${JT.fuel} f and the tank refills ${JT.delay} f after landing`, on && off?.why === 'out of fuel' && off.f - on.f === JT.fuel && climbs && top > C.jump.height + 0.1 && Math.abs(refill - want) <= 2, { on: on?.f, out: off && [off.f, off.why], top: +top.toFixed(3), refill: [refill, want] });
       const tap = gearRun('jet', (f) => (f === 1 || f === 40 ? J : 0), 120, { setup: high(10) });
       check(`${id}: a press in the air lights it too, and letting go puts it out`, ev(tap, 'jet').some((e) => e.f === 40) && ev(tap, 'jet-end').some((e) => e.why === 'let go'), ev(tap, 'jet').map((e) => e.f));
+    }
+  }
+
+  // ─── the loadout: mobile-suit-arena's weapons (ready time, cooldown, ammo or charge, reload) ───
+  if (C.loadout) {
+    const L = C.loadout, slots = L.slots, WO = (i) => util.weaponOf(slots[i].weapon), find = (fn) => slots.findIndex((sl, i) => fn(WO(i), sl));
+    const armRun = (i, pads, n, o = {}) => track(run(o.card ?? C, pads, n, { arena: o.arena ?? OPEN, gear: o.gear ?? null, guard: false, setup: (S) => { if (i != null) S.hero.arms.slot = i; o.setup?.(S); }, mid: o.mid }));
+    const rounds = (r) => ev(r, 'round'), dropped = (r, re) => ev(r, 'dropped').filter((e) => e.button === 'shoot' && re.test(e.why));
+    const tap = (fs) => (f) => (fs.includes(f) ? SH : 0);
+    row['loadout'] = slots.map((sl) => sl.name).join(' · ');
+    if (slots.length > 1) {
+      const ready = Math.round((Number.isFinite(slots[1].switchReady) ? slots[1].switchReady : L.switchReady ?? 1) * FPS);
+      // (two runs: a press on the frame after another is the same held press)
+      const at = 5 + Math.max(ready, 1), r = armRun(null, (f) => (f === 5 ? SW : f === at ? SH : 0), ready + 60), sw = ev(r, 'switch')[0];
+      const soon = ready > 0 ? armRun(null, (f) => (f === 5 ? SW : f === 5 + ready - 1 ? SH : 0), ready + 10) : null;
+      const early = soon ? dropped(soon, /readying/).filter((e) => e.f === 5 + ready - 1) : [];
+      const acted = ev(r, 'acted').filter((e) => e.button === 'shoot' && e.f === at);
+      const twice = armRun(null, (f) => (f === 5 || f === 15 ? SW : 0), 20), s2 = ev(twice, 'switch')[1];
+      row['ready'] = `${L.switchReady ?? 1} s` + (slots.some((sl) => Number.isFinite(sl.switchReady)) ? ` (${slots.filter((sl) => Number.isFinite(sl.switchReady)).map((sl) => `${sl.name} ${sl.switchReady} s`).join(', ')})` : '');
+      check(`${id}: ready time: a switch arms the next weapon's ${ready} f (${(ready / FPS).toFixed(2)} s); ${ready ? 'the trigger a frame sooner is dropped (readying), on the frame it acts' : 'none here: the trigger acts at once'}; a second switch re-arms it in full`, sw?.slot === 1 && sw.ready === ready && (ready === 0 || early.length === 1) && acted.length === 1 && s2 && Math.round(twice.states[15].hero.arms.readyT) === Math.max(0, s2.ready - 1), { ready: sw?.ready, early: early.length, acted: acted.length, rearmed: s2?.ready });
+      const own = find((W, sl) => Number.isFinite(sl.switchReady));
+      if (own > 0) {
+        const pads = (f) => (f >= 1 && f <= own * 2 && f % 2 === 1 ? SW : 0), r3 = armRun(null, pads, own * 2 + 4), last = ev(r3, 'switch').at(-1);
+        check(`${id}: a slot's own switchReady wins over the loadout's (${slots[own].name}: ${slots[own].switchReady} s)`, last?.to === slots[own].name && last.ready === Math.round(slots[own].switchReady * FPS), { to: last?.to, ready: last?.ready });
+      }
+    }
+    const semi = find((W) => !W.auto && W.burst === 1 && !(W.chargeTime > 0) && W.cooldown * FPS < 400);
+    if (semi >= 0) {
+      const W = WO(semi), cd = Math.ceil(W.cooldown * FPS - 1e-9), r = armRun(semi, tap([1, 1 + cd]), cd + 10), soon = armRun(semi, tap([1, cd]), cd + 10);
+      check(`${id}: cooldown: the ${slots[semi].name} fires once a pull and waits ${W.cooldown} s (${cd} f); a pull a frame before it is dropped (cooling down), on it the next round leaves`, rounds(r).map((e) => e.f).join() === `1,${1 + cd}` && dropped(soon, /cooling/).some((e) => e.f === cd) && rounds(soon).length === 1, { rounds: rounds(r).map((e) => e.f), cd });
+    }
+    const auto = find((W) => W.auto);
+    if (auto >= 0) {
+      const W = WO(auto), per = Math.ceil(FPS / W.rof - 1e-9), r = armRun(auto, (f) => (f >= 1 && f <= 60 ? SH : 0), 61), fs = rounds(r).map((e) => e.f);
+      check(`${id}: an auto weapon streams while held: the ${slots[auto].name} at ${W.rof} rounds a second (a round every ${per} f)`, fs.length > 3 && fs.slice(1).every((x, k) => x - fs[k] === per), { rounds: fs.length, per });
+      // the magazine and the reload: empty, it reloads over its time (stowed too), refusing the trigger meanwhile
+      const need = W.magazine * per + 5, R = Math.round(W.reload * FPS), e1 = armRun(auto, (f) => (f >= 1 && f <= need ? SH : 0) | (f === need + 10 ? SH : 0), need + R + 20);
+      const rl = ev(e1, 'reload')[0], rd = ev(e1, 'reloaded')[0], during = dropped(e1, /reloading/);
+      const stow = slots.length > 1 ? armRun(auto, (f) => (f >= 1 && f <= need ? SH : 0) | (f === need + 2 ? SW : 0), need + R + 20) : null, srd = stow && ev(stow, 'reloaded')[0];
+      check(`${id}: the magazine (${W.magazine}) empties and auto-reloads over ${W.reload} s, the trigger refused meanwhile${stow ? ', and it reloads stowed (switched away)' : ''}`, rounds(e1).length === W.magazine && rl && rd && rd.f - rl.f === R - 1 && during.length >= 1 && e1.states[rd.f].hero.arms.w[auto].ammo === W.magazine && (!stow || (srd && stow.states[srd.f].hero.arms.slot !== auto)), { rounds: rounds(e1).length, reload: rl?.f, reloaded: rd?.f, stowed: srd?.f });
+    }
+    const burst = find((W) => !W.auto && W.burst > 1);
+    if (burst >= 0) {
+      const W = WO(burst), per = Math.ceil(FPS / W.burstRof - 1e-9), cd = Math.ceil(W.cooldown * FPS - 1e-9), rel = W.chargeTime > 0 ? 2 : 1;
+      const r = armRun(burst, (f) => (f === 1 ? SH : 0), 30 + cd), fs = rounds(r).map((e) => e.f), last = fs.at(-1);
+      const again = armRun(burst, tap([1, last + cd]), 60 + cd), af = rounds(again).map((e) => e.f), soon = armRun(burst, tap([1, last + cd - 1]), 60 + cd);
+      check(`${id}: a burst: one pull of the ${slots[burst].name} fires ${W.burst} rounds ${per} f apart${W.chargeTime ? ' (on the release: it charges while held)' : ''}, committed, then waits ${W.cooldown} s (a pull a frame sooner is dropped)`, fs.length === W.burst && fs[0] === rel && fs.slice(1).every((x, k) => x - fs[k] === per) && af.length === 2 * W.burst && af[W.burst] === last + cd + rel - 1 && dropped(soon, /cooling/).length === 1, { rounds: fs, next: af[W.burst], want: last + cd + rel - 1 });
+    }
+    const chg = find((W) => W.chargeTime > 0);
+    if (chg >= 0) {
+      const W = WO(chg), full = Math.round(W.chargeTime * FPS), r = armRun(chg, (f) => (f >= 1 && f <= full + 5 ? SH : 0), full + 20), c = ev(r, 'w-charged')[0], rd = rounds(r);
+      const cost = W.chargedAmmoCost ?? 1, ammo = r.states.at(-1).hero.arms.w[chg].ammo;
+      check(`${id}: charge: held ${W.chargeTime} s the ${slots[chg].name} charges (${full} f) and the release fires one charged bolt${W.chargedAmmoCost ? ` for ${cost} rounds` : ''}`, c?.f === 1 + full && rd.length === 1 && rd[0].charged && rd[0].f === full + 6 && ammo === W.magazine - Math.min(cost, W.magazine), { charged: c?.f, round: rd[0] && [rd[0].f, rd[0].charged], ammo });
+    }
+    const en = find((W) => W.energyMax > 0);
+    if (en >= 0) {
+      const W = WO(en), cd = Math.ceil(W.cooldown * FPS - 1e-9), every = cd + 2, presses = Array.from({ length: 40 }, (_, k) => 1 + k * every);
+      const pad_ = (f) => (W.chargeTime > 0 ? (presses.includes(f) ? SH : 0) : (presses.includes(f) ? SH : 0));
+      const n = presses.at(-1) + 700, r = armRun(en, pad_, n), oh = ev(r, 'overheat')[0], un = ev(r, 'unlock')[0], refused = oh && dropped(r, /overheated|out of weapon energy|out of energy/).filter((e) => e.f > oh.f);
+      const regen = W.energyOverheatRegen ?? W.energyRegen;
+      check(`${id}: energy: the ${slots[en].name}'s pool (${W.energyMax}, ${W.energyCost} a round${W.energyRegen ? `, ${W.energyRegen}/s back` : ', none back'}) empties and overheat-locks, the trigger refused; ${regen > 0 ? `it unlocks when the pool is full again (${regen}/s)` : 'it never comes back'}`, oh && refused.length > 0 && (regen > 0 ? un && Math.abs(un.f - oh.f - Math.ceil((W.energyMax * W.energyUnlockFrac) / regen * FPS)) <= 1 : !un), { overheat: oh?.f, unlock: un?.f, refused: refused?.length });
+    }
+    const lob = find((W) => W.fireClass === 'lob');
+    if (lob >= 0) {
+      const W = WO(lob), far = armRun(lob, tap([1]), Math.round(W.fuse * FPS) + 10), b = ev(far, 'blast')[0] ?? null;
+      if (W.splashRadius > 0 && b) {
+        const at = b.at, near = armRun(lob, tap([1]), Math.round(W.fuse * FPS) + 10, { arena: { half: 400, blocks: [], hero: [0, 0], dummy: [at[0] + Math.min(1, W.splashRadius * 0.5), at[1], 0] } }), nb = ev(near, 'blast')[0];
+        check(`${id}: the ${slots[lob].name} is a travelling round (${W.projectileSpeed} m/s, gravity ${W.projectileGravity}): it bursts where it lands and its splash (${W.splashRadius} m) takes a body beside the burst`, nb?.hit && ev(near, 'hit', 'dummy').length === 1, { burst: at, hit: nb?.hit });
+      } else if (!W.splashRadius) {
+        const lane = { half: 400, blocks: [], hero: [0, 0], dummy: [0, 4] }, r = armRun(lob, tap([1]), 80, { arena: lane }), h = ev(r, 'hit', 'dummy')[0], want = 1 + Math.ceil((4 - util.RADIUS - 0.1 - W.projRadius - util.RADIUS) / (W.projectileSpeed / FPS)) - 1;
+        check(`${id}: the ${slots[lob].name} is a straight travelling round (${W.projectileSpeed} m/s): it meets a body when its speed says`, h && Math.abs(h.f - want) <= 1 && h.shot === slots[lob].name, { hit: h?.f, want });
+      }
+      if (W.proximityRadius > 0) {
+        const side = util.RADIUS + W.proximityRadius - 0.1, arena = { half: 400, blocks: [], hero: [0, 0], dummy: [side, 10] }, r = armRun(lob, tap([1]), 60, { arena }), bb = ev(r, 'blast')[0];
+        const noFuze = armRun(lob, tap([1]), 60, { arena, card: { ...C, loadout: { ...L, slots: slots.map((sl, i) => (i === lob ? { ...sl, weapon: { ...sl.weapon, proximityRadius: 0 } } : sl)) } } });
+        check(`${id}: the ${slots[lob].name}'s proximity fuze: a near miss (${side.toFixed(2)} m off) bursts beside the body and the splash catches it; without the fuze it sails past`, bb?.hit && ev(r, 'hit', 'dummy').length === 1 && !ev(noFuze, 'hit', 'dummy').length, { burst: bb && bb.f, noFuze: ev(noFuze, 'hit', 'dummy').length });
+      }
+    }
+    const sight = find((W) => W.fireClass === 'sight'), area = find((W) => W.fireClass === 'area');
+    if (sight >= 0 && area >= 0) {
+      const off = { half: 400, blocks: [], hero: [0, 0], dummy: [0.5, 10] }, ahead = { half: 400, blocks: [], hero: [0, 0], dummy: [0, 10] }, wall = { ...ahead, blocks: [{ id: 'c', x: [-2, 2], y: [5, 5.5], h: 3 }] };
+      const mode = (i, arena) => rounds(armRun(i, tap([1]), 4, { arena }))[0]?.mode;
+      const m = { sightOff: mode(sight, off), areaOff: mode(area, off), sightOn: mode(sight, ahead), cover: mode(area, wall) };
+      check(`${id}: hitscan on the fire frame: the ${slots[sight].name} (sight) lands only through the body, the ${slots[area].name} (area) also inside its ${WO(area).assistAngle}° assist ring (a body 0.5 m off at 10 m); cover stops both`, m.sightOff === 'miss' && m.areaOff === 'assist' && m.sightOn === 'core' && m.cover === 'cover', m);
+    }
+    if (C.jet && C.jet.kind !== 'flap') {
+      const i = auto >= 0 ? auto : 0, r = armRun(i, (f) => (f >= 1 && f < 300 ? J : 0) | (f >= 40 && f < 60 ? SH : 0), 120, { gear: 'jet' }), lit = rounds(r).filter((e) => r.states[e.f].hero.jet);
+      check(`${id}: shooting while jetpacking: rounds leave and the jetpack stays lit`, lit.length >= 1 && !ev(r, 'jet-end').some((e) => e.why !== 'out of fuel' && e.why !== 'let go'), { rounds: rounds(r).length, whileLit: lit.length, ends: ev(r, 'jet-end').map((e) => e.why) });
+    }
+    if (C.dodge.kind === 'roll') {
+      const r = armRun(auto >= 0 ? auto : 0, (f) => (f === 5 ? DG : 0) | (f === 8 ? SH : 0), 20);
+      check(`${id}: the trigger is refused while the body is busy (a roll)`, dropped(r, /in dodge/).length === 1);
     }
   }
 
