@@ -32,8 +32,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   with the body travelling through the world, in the same four flavors. Each flavor sets how fast speed builds and how
   high it tops out, whether the stride keeps pace with the ground (planted feet) or outruns it (pinball's wheel of legs,
   never under four frames a stride), the take-off contact, and the arc: the clip's own on earth's gravity, a hang, or
-  the platform rule's rise on 20 and fall on 34. The clip's take-off and landing are the flight's ends in every
-  flavor. `motion-verify.mjs` is the machine gate. `motion-preview.mjs` writes follow-camera players and a
+  the platform rule's rise on 20 and fall on 34. Pinball flies a tucked spin (the forward roll's tuck, whole turns as
+  a ball of it would roll, never under 8 frames a turn) in place of the leap. The clip's take-off and landing are the
+  flight's ends in every flavor. `motion-verify.mjs` is the machine gate. `motion-preview.mjs` writes follow-camera players and a
   chronophotograph. The findings: the jog → sprint blend slides a planted foot (worse the faster speed builds), the
   platform rule has no acceleration on the ground, and the library has no start from standstill.
 

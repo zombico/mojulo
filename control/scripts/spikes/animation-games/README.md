@@ -123,14 +123,14 @@ the flavor flies them.
 | **realistic** | builds over τ 1 s to 7 m/s | the ground's rate: a planted foot holds still | the clip's own (0.2 s) | the clip's own air (0.40 s) on earth's gravity: 0.19 m | keeps 90 % of the speed |
 | **action** | τ 0.45 s to 9 m/s | the ground's rate | the clip's, gather ×1.7 deep | 1.2 m, a 0.1 s hang at the top | holds 3 frames, squash |
 | **platformer** | τ 0.08 s to 6 m/s (the platform rule's) | the ground's rate | ×0.6 | the platform rule's: 8.5 m/s up on gravity 20, down on 34 | keeps it all, squash 0.25 |
-| **pinball** | τ 1.4 s to 20 m/s | outruns the ground, never under 4 frames a stride | shorter the faster (7 m/s ÷ speed) | 1.0 m on gravity ×1.6 | keeps it all |
+| **pinball** | τ 1.4 s to 20 m/s | outruns the ground, never under 4 frames a stride | shorter the faster (7 m/s ÷ speed) | 1.0 m on gravity ×1.6, flown as a tucked spin | keeps it all |
 
 **The promise.** The body leaves the floor on the take-off frame and meets it on the landing frame, in every flavor. The
 clip's ground contacts are the flight's ends; only the air between them is stretched to the flavor's arc. On the landing
 frame the feet sit where the clip's own feet are at its landing, to within a centimetre (the deeper absorb and the
 squash account for the difference).
 
-**What the machine gate measured** (`motion-verify.mjs`; all 13 checks hold on male and female; nobody has looked yet):
+**What the machine gate measured** (`motion-verify.mjs`; all 15 checks hold on male and female; nobody has looked yet):
 
 | | realistic | action | platformer | pinball |
 |---|---|---|---|---|
@@ -142,6 +142,7 @@ squash account for the difference).
 | hips' lowest in the gather | 0.80 m | 0.74 m | 0.72 m | 0.78 m |
 | air, height, length | 0.40 s, 0.19 m, 2.6 m | 1.08 s, 1.2 m, 9.6 m | 0.75 s, 1.81 m, 4.5 m | 0.72 s, 1.0 m, 9.7 m |
 | rise ÷ fall time | 1 | 1 | 1.30 | 1 |
+| turns in the air | 0 | 0 | 0 | 3 (9.7 frames a turn) |
 
 ### Motion findings
 
@@ -166,6 +167,12 @@ squash account for the difference).
 5. **The library has no start from standstill.** The run-up starts from a jog, because the library has no drive phase:
    no short, quick, low first steps. Blending the sprint cycle down to zero speed would look like slow motion. A real
    standing start is a clip of its own.
-6. **The pinball contact gets short.** At 13.5 m/s the take-off contact is 0.1 s, and the push's poses pass in 6 frames.
-   A pinball game may want the jump's poses swapped for a tuck (the `rollForward` clip already exists), which is the
-   open question from the first section.
+6. **Pinball's air is a tucked spin.** At 13.5 m/s the take-off contact is 0.1 s, and the leap's poses barely register.
+   So pinball swaps the leap for Sonic's spin ball: the body folds into `rollForward`'s middle key (the shoulder's tilt
+   left out so it spins square) and turns forward about its hips. It then opens back out into the leap's own landing
+   pose, so the take-off and landing are still the clip's.
+   - **How many turns.** Like a ball of the tuck rolling at the take-off speed: speed ÷ (π × the tuck's 0.45 m) turns a
+     second, rounded to whole turns so it lands upright.
+   - **Rolling and reading disagree.** Rolling would give 6.8 turns in the 0.72 s air (7.3 on the female cast). The floor
+     of 8 frames a turn caps it at 3, so the body reads as a turning body rather than a strobing one. Does pinball want
+     the honest roll, accepting the strobe, or a smear-ball with no visible body?

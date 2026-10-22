@@ -50,15 +50,32 @@ const wrap = (x) => ((x % 1) + 1) % 1;
  * shorter). `wings`: the gather's (`load`) and the landing's (`absorb`) depth, sink and lean. `flight`: { clip } the
  * clip's own air on earth's gravity; { height, g, hang } a symmetric arc with a float at the top; { up, g, fall } the
  * platform rule's: launched at `up`, rising on `g`, falling on `fall`. `keep`: the speed a landing keeps. `landHold`:
- * frames the landing freezes. `squash`, `smear` as flavor.mjs.
+ * frames the landing freezes. `spin`: the air is a tucked spin, not the leap (below). `squash`, `smear` as flavor.mjs.
+ *
+ * THE SPIN (pinball's air, Sonic's spin ball): out of the take-off the body folds into the forward roll's tuck (hero-jump
+ * `rollForward`, its middle key, the shoulder's tilt left out so the ball spins square), turns forward about its hips,
+ * and opens back out into the leap's own landing pose. It turns as a ball of the tuck's size rolling at the take-off
+ * speed would (speed ÷ π·diameter turns a second), rounded to whole turns so it lands upright, and never faster than
+ * SPIN_FRAMES frames a turn so the turn still reads.
  */
 export const MOTION_FLAVORS = Object.freeze({
   realistic: { top: 7, tau: 1.0, cadence: 0, ground: 1, wings: { load: 1, absorb: 1 }, flight: { clip: true }, keep: 0.9, landHold: 0, squash: 0, smear: null },
   action: { top: 9, tau: 0.45, cadence: 0, ground: 1, wings: { load: 1.7, absorb: 1.6 }, flight: { height: 1.2, g: G, hang: 0.1 }, keep: 1, landHold: 3, squash: 0.08, smear: 0.2 },
   platformer: { top: 6, tau: 0.08, cadence: 0, ground: 0.6, wings: { load: 1.3, absorb: 1.3 }, flight: { up: 8.5, g: 20, fall: 34 }, keep: 1, landHold: 0, squash: 0.25, smear: null },
-  pinball: { top: 20, tau: 1.4, cadence: 0.8, ground: 'speed', wings: { load: 1, absorb: 1 }, flight: { height: 1.0, g: 1.6 * G }, keep: 1, landHold: 0, squash: 0.12, smear: 0.06 },
+  pinball: { top: 20, tau: 1.4, cadence: 0.8, ground: 'speed', wings: { load: 1, absorb: 1 }, flight: { height: 1.0, g: 1.6 * G }, spin: true, keep: 1, landHold: 0, squash: 0.12, smear: 0.06 },
 });
 const ENDS = ['wristL', 'wristR', 'toeTipL', 'toeTipR', 'headTop'];
+const SPIN_FRAMES = 8, TUCK_IN = 0.12, TUCK_OUT = 0.8;   // a turn's fewest frames; the air's shares the tuck closes by and opens from
+const ss = (x) => { const t = clamp(x, 0, 1); return t * t * (3 - 2 * t); };
+/** the tuck: the forward roll's middle key, square (no shoulder tilt), in the air (no foot planted) */
+function tuckOf(R) {
+  const key = JUMPS.rollForward.keys.find((k) => k.t === 0.5); const { rollBody, pitchBody, ...k } = key;
+  const n = rigNodesAt(R, keyedClip({ seconds: 1, keys: [{ ...k, t: 0, ground: 0, sink: 0 }, { ...k, t: 1, ground: 0, sink: 0 }] }, R).fn(0.5)).nodes;
+  return { nodes: n, diameter: Math.max(...Object.values(n).map((p) => p[2])) - Math.min(...Object.values(n).map((p) => p[2])) };
+}
+/** every node turned forward by `deg` about the side axis through `at` (the head goes forward and down) */
+const pitched = (n, deg, at) => { const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return Object.fromEntries(Object.entries(n).map(([k, p]) => { const y = p[1] - at[1], z = p[2] - at[2]; return [k, [p[0], at[1] + y * c + z * s, at[2] - y * s + z * c]]; })); };
+const mixNodes = (a, b, w) => (w <= 0 ? a : w >= 1 ? b : Object.fromEntries(Object.keys(a).map((k) => [k, [0, 1, 2].map((i) => lerp(a[k][i], b[k][i], w))])));
 const floorOf = (R) => Math.min(...Object.values(R.legs).flatMap((L) => [R.joints[L.toeBase][2], R.joints[L.toeTip][2]]));
 
 /** the flight a flavor flies: { up (s), hang (s), down (s), height (m), z(t) } */
@@ -152,9 +169,19 @@ export function runJump(R, flavor, { runUp = 12, runOut = 0.8, fps = 60 } = {}) 
     push({ part: 'takeoff', nodes: place(blended, [0, y, 0], sc), root: [0, r4(y), 0], speed: r4(vT), share: r4(s), scale: sc, fade: !!f });
     y += vT / fps;
   }
-  for (let k = 0; k < nAir; k++) {   // the flight: the clip's air stretched to the flavor's arc
+  // the spin's turns: a ball of the tuck rolling at the take-off speed, whole turns, none quicker than SPIN_FRAMES
+  const tuck = F.spin ? tuckOf(R) : null;
+  const spinFrames = (TUCK_OUT - TUCK_IN) * nAir;
+  const turns = tuck ? clamp(Math.round(((vT / (Math.PI * tuck.diameter)) * airSec)), 1, Math.max(1, Math.floor(spinFrames / SPIN_FRAMES))) : 0;
+  for (let k = 0; k < nAir; k++) {   // the flight: the clip's air stretched to the flavor's arc (or the spin flown along it)
     const s = off + ((on - off) * k) / nAir, z = zIn(fl, (k / fps) / scaleAir); const sc = squashAt(kOff + k, sqBeats);
-    push({ part: 'air', nodes: place(nodesAt(clipIn.fn(s)), [0, y, z], sc), root: [0, r4(y), r4(z)], speed: r4(vT), share: r4(s), scale: sc });
+    let n = nodesAt(clipIn.fn(s)), spin = 0;
+    if (tuck) {
+      const u = k / nAir, w = Math.min(ss(u / TUCK_IN), 1 - ss((u - TUCK_OUT) / (1 - TUCK_OUT)));
+      spin = 360 * turns * ss((u - TUCK_IN / 2) / (TUCK_OUT - TUCK_IN / 2));
+      const m = mixNodes(n, tuck.nodes, w); n = pitched(m, spin, m.navel);
+    }
+    push({ part: 'air', nodes: place(n, [0, y, z], sc), root: [0, r4(y), r4(z)], speed: r4(vT), share: r4(s), scale: sc, ...(tuck ? { spin: r4(spin) } : {}) });
     y += vT / fps;
   }
   const yTake = frames[kOff].root[1];
@@ -179,7 +206,8 @@ export function runJump(R, flavor, { runUp = 12, runOut = 0.8, fps = 60 } = {}) 
   // the clip's own feet at its landing (its toe rides TOUCH over the floor until its contact is whole): the promise's mark
   const own = nodesAt(keyedClip(JUMPS.runningJump, R, { speed: 0 }).fn(on)), clipLandToes = Math.min(own.toeBaseL[2], own.toeBaseR[2]) - floor;
   return { flavor, fps, frames, beats, floor, clipLandToes: r4(clipLandToes),
-    jump: { takeoffSpeed: r4(vT), landSpeed: r4(vL), air: r4(airSec), height: r4(fl.height), length: r4(frames[kLand].root[1] - yTake), upDown: r4(fl.up / fl.down), contactIn: r4(nIn / fps), contactOut: r4(nOut / fps), hang: fl.hang },
+    jump: { takeoffSpeed: r4(vT), landSpeed: r4(vL), air: r4(airSec), height: r4(fl.height), length: r4(frames[kLand].root[1] - yTake), upDown: r4(fl.up / fl.down), contactIn: r4(nIn / fps), contactOut: r4(nOut / fps), hang: fl.hang,
+      ...(tuck ? { turns, framesPerTurn: r4(spinFrames / turns), tuck: r4(tuck.diameter), ballTurns: r4((vT / (Math.PI * tuck.diameter)) * airSec) } : {}) },
     cycle: { jog: r4(C.jog.v), sprint: r4(C.sprint.v), travel: r4(C.sprint.travel) } };
 }
 
@@ -187,7 +215,8 @@ export function runJump(R, flavor, { runUp = 12, runOut = 0.8, fps = 60 } = {}) 
  * The machine gate's measures: the run (seconds to 90 % of top speed from the jog, the top reached, strides a second and
  * frames a stride at the take-off speed, the planted feet's worst slide in the world on the run's frames outside the
  * cross-fades, m/s, on one gait and while the jog blends into the sprint, and the frames that blend take; how much faster than the ground the stride sweeps its feet at take-off), the gather (the hips'
- * lowest in the take-off's contact), the jump (its own), the landing (the root's height on its frame, the frame before, the feet's height
+ * lowest in the take-off's contact), the spin (its turns, frames a turn, the turns a ball of the tuck would roll, how
+ * far it has turned on the frame before landing, and whether the head is up on the take-off and landing frames), the jump (its own), the landing (the root's height on its frame, the frame before, the feet's height
  * there), holds, squash, smears.
  */
 export function motionSignature(R, run) {
@@ -218,6 +247,8 @@ export function motionSignature(R, run) {
     stridesPerSecond: atT.rate, framesPerStride: r4(fps / atT.rate), outrun: Math.round(outrun * 100) / 100 + 0, gather: r4(gather), skate: r4(sk.one.v), blendSkate: r4(sk.blend.v), blendFrames,
     air: run.jump.air, height: run.jump.height, length: run.jump.length, upDown: run.jump.upDown, contactIn: run.jump.contactIn, landSpeed: run.jump.landSpeed,
     landRoot: L.root[2], beforeLandRoot: fr[run.beats.land - 1].root[2], landToes: r4(Math.min(L.nodes.toeBaseL[2], L.nodes.toeBaseR[2]) - run.floor), clipLandToes: run.clipLandToes,
+    turns: run.jump.turns ?? 0, framesPerTurn: run.jump.framesPerTurn ?? null, ballTurns: run.jump.ballTurns ?? null,
+    spinEnd: fr[run.beats.land - 1].spin ?? 0, upright: ['takeoff', 'land'].every((b) => { const n = fr[run.beats[b]].nodes; return n.headTop[2] > n.navel[2] + 0.3; }),
     held: fr.filter((f) => f.held).length, squash: r4(Math.max(0, ...fr.filter((f) => f.scale).map((f) => Math.abs(f.scale[2] - 1)))), smears,
   };
 }

@@ -51,6 +51,10 @@ check('pinball: the stride outruns the ground (its feet sweep back faster than t
 check('pinball: the fastest take-off, the shortest contact, the most smears, no speed lost', NAMES.every((f) => S.pinball.takeoffSpeed >= S[f].takeoffSpeed && S.pinball.contactIn <= S[f].contactIn && S.pinball.smears >= S[f].smears) && S.pinball.landSpeed === S.pinball.takeoffSpeed,
   { takeoff: by('takeoffSpeed'), contactIn: by('contactIn'), smears: by('smears') });
 
+check('pinball: the air is a tucked spin, whole turns (lands upright), as many as a ball of the tuck would roll but never under 8 frames a turn', S.pinball.turns >= 1 && S.pinball.spinEnd === 360 * S.pinball.turns && S.pinball.upright && S.pinball.framesPerTurn >= 8 && S.pinball.turns <= Math.max(1, Math.round(S.pinball.ballTurns)),
+  { turns: S.pinball.turns, ballTurns: S.pinball.ballTurns, framesPerTurn: S.pinball.framesPerTurn, spinEnd: S.pinball.spinEnd, upright: S.pinball.upright });
+check('only pinball spins; every flavor takes off and lands head up', NAMES.every((f) => (f === 'pinball') === (S[f].turns > 0) && S[f].upright), Object.fromEntries(NAMES.map((f) => [f, [S[f].turns, S[f].upright]])));
+
 // ── the four are four, and determinism ──
 check('the same run and jump plays four ways (take-off speed, height, air and contact differ pairwise)', NAMES.every((a, i) => NAMES.slice(i + 1).every((b) => ['takeoffSpeed', 'height', 'air', 'contactIn'].some((k) => S[a][k] !== S[b][k]))));
 const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -59,6 +63,7 @@ check('a run is byte-identical run to run', NAMES.every((f) => hash(M.runJump(R,
 // ── what the gate measures but does not judge ──
 note('the jog → sprint blend slides a planted foot, worse the faster speed builds (m/s, over the frames the blend takes)', Object.fromEntries(NAMES.map((f) => [f, [S[f].blendSkate, S[f].blendFrames]])));
 note('jump length on the ground (m): the flavor\'s air times its take-off speed', by('length'));
+note('pinball\'s spin: the turns a ball of the tuck would roll in its air, and the turns it shows (the 8-frame floor caps them)', { ball: S.pinball.ballTurns, shown: S.pinball.turns, tuck: RUN.pinball.jump.tuck });
 
 console.log(`\n${fails ? `${fails} FAILED` : 'all held'} (machine gate; the eyes gate is open: run motion-preview.mjs and look)`);
 process.exitCode = fails ? 1 : 0;
