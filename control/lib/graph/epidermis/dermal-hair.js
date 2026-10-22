@@ -69,7 +69,7 @@ export const HAIR_TYPES = Object.freeze({
  * an undercut), `fringe` (the bangs' own line: `at` a level), `envelope` (the hair rounded to an ellipsoid about the head:
  * `out`, `up`, `rise`, `back` in m: an afro shaped), `layers` (no lock longer than this from its root), `soft`
  * (point cutting off the line, m). A style under
- * 4 cm lies on the scalp as body hair does.
+ * 2 cm lies on the scalp as body hair does.
  */
 export const SCALP_STYLES = Object.freeze({
   buzz: { length: 0.006, front: 1, sides: 0.8, crown: 1, part: 'none', fringe: false, ragged: 0 },
@@ -101,6 +101,25 @@ export const SCALP_STYLES = Object.freeze({
   braid: { length: 0.4, front: 1, sides: 1, crown: 1, part: 'centre', fringe: false, ties: [{ at: { az: 180, rise: 0.3 }, gather: 'all', tail: { kind: 'braid', length: 0.36 } }] },
   // the top section gathered at the crown's back, the rest falling to the shoulder
   'half-up': { length: 0.45, front: 0.6, sides: 1, crown: 1, part: 'centre', fringe: false, cut: { line: { at: 'shoulder', shape: 'u', drop: 0.03 } }, ties: [{ at: { az: 180, rise: 0.66 }, gather: 'top', tail: { kind: 'tail', length: 0.24 } }] },
+  // THE MEN'S BARBERING, by the cuts a barber in each place would name (each a taper, a shelf, a fringe, a part over a
+  // length; the operator's ask, 2026-10-22):
+  // a SKIN FADE: the sides and the back faded to the skin low, the top short (the barbershop staple, worldwide)
+  fade: { length: 0.035, front: 1.1, sides: 1, crown: 1, part: 'none', fringe: false, cut: { taper: { min: 0.0005, rise: [0.04, 0.42] } } },
+  // the CAESAR: short all over, the front combed forward to a short level fringe
+  caesar: { length: 0.03, front: 1, sides: 0.8, crown: 1, part: 'none', fringe: true, cut: { fringe: { at: 'forehead' }, taper: { min: 0.004, rise: [0.05, 0.4] } } },
+  // the FRENCH CROP: a textured top pushed forward to a short fringe, the sides tight
+  'french-crop': { length: 0.045, front: 1.1, sides: 1, crown: 1, part: 'none', fringe: true, tousle: 0.5, cut: { fringe: { at: 'forehead' }, taper: { min: 0.002, rise: [0.05, 0.45] } } },
+  // the TWO-BLOCK (the Korean cut): the sides and the back clipped under a shelf, the top grown and falling forward over it
+  'two-block': { length: 0.1, front: 0.9, sides: 1, crown: 1, part: 'none', fringe: true, volume: 0.1, cut: { shelf: { rise: 0.55, min: 0.006 }, fringe: { at: 'brow' } } },
+  // the POMPADOUR: the front lifted up and back off the brow, the sides tapered
+  pompadour: { length: 0.11, front: 1.2, sides: 1, crown: 0.9, part: 'none', fringe: false, volume: 0.2, tousle: 0, frizz: 0.0008, cut: { taper: { min: 0.004, rise: [0.05, 0.5] } },
+    locks: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((k) => [`fringe-${k}`, { lift: 1.5, stand: 0.12 }])) },
+  // the SLICK-BACK: combed straight back, sleek, the sides under a shelf
+  'slick-back': { length: 0.1, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, volume: 0.05, frizz: 0, cut: { shelf: { rise: 0.45, min: 0.003 } } },
+  // the HIGH-TOP: coily hair grown tall on top, clipped close at the sides
+  'high-top': { length: 0.09, front: 1, sides: 0.4, crown: 1, part: 'none', fringe: false, type: 'coily', stand: 0.85, cut: { envelope: { out: 0.012, up: 0.07, rise: 0.02 }, taper: { min: 0.002, rise: [0.05, 0.5] } } },
+  // the TOP-KNOT: the top grown and tied in a bun on the crown, the sides and the back clipped under a shelf
+  'top-knot': { length: 0.3, front: 1, sides: 1, crown: 1, part: 'none', fringe: false, cut: { shelf: { rise: 0.66, min: 0.003 } }, ties: [{ at: { az: 180, rise: 0.82 }, gather: 'all', tail: { kind: 'bun' } }] },
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
@@ -142,6 +161,7 @@ export function readScalp(spec = 'short') {
   let cut = { ...(st.cut || {}) }, locks = {}, globals = {};
   const addLocks = (L) => { for (const [n, e] of Object.entries(L || {})) { const o = locks[n] || {}; locks[n] = { ...o, ...e, ...(o.length && e.length ? { length: o.length * e.length } : {}), ...(o.sweep && e.sweep ? { sweep: o.sweep + e.sweep } : {}) }; } };
   let ties = [];
+  addLocks(st.locks);   // (a style's own lock edits first: a pompadour's lifted front)
   for (const m of moves) { const { note: _n, cut: c, locks: L, ties: tz, ...g } = SCALP_MOVES[m]; cut = { ...cut, ...(c || {}) }; addLocks(L); globals = { ...globals, ...g }; if (tz) ties = [...ties, ...tz]; }
   // (a move's ties come first: a temple braid claims its roots before a ponytail gathers the rest)
   ties = [...ties, ...(doc.ties || st.ties || [])];
@@ -488,7 +508,9 @@ const COMB_WAVE = { straight: { amp: 0.0018, period: 0.065 }, wavy: { amp: 0.006
 export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk', 'upperArm'] } = {}) {
   const S = scalp, colour = hairColourOf(D), shade = hairShade(colour, S.type);
   const empty = (extra = {}) => ({ guides: [], strands: [], cards: [], shade, counts: { guides: 0, strands: 0, ...extra } });
-  if (S.length < 0.04) {
+  // (a buzz lies on the scalp as body hair does; from 2 cm a cut is grown as one, so its taper, its shelf and its fringe
+  // shape it: a fade fades, a Caesar's fringe falls forward, a crop is no bowl)
+  if (S.length < 0.02) {
     const body = growBodyHair(chart, D, { share: 0.5, tracts: ['scalp'], scalpLength: S.length, ragged: S.ragged, seed: S.seed });
     return { ...empty({ strands: body.strands.length, lying: true }), strands: body.strands };
   }

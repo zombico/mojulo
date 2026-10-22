@@ -161,6 +161,9 @@ describe('the face composer', () => {
     }
     // (every pool's cut is a groom the hair reads)
     for (const P of Object.values(FACE_HAIR_MALE)) for (const cuts of Object.values(P)) for (const c of cuts) expect(() => readScalp(c)).not.toThrow();
+    // (a man's cut from his culture's barbers: East Asia's two-block among them, never a western man's)
+    expect(men('north-asian').some((f) => f.scalp?.style === 'two-block')).toBe(true);
+    expect(men('western').some((f) => f.scalp?.style === 'two-block')).toBe(false);
     // (East Asian beards sparser and more often shaven than the West's)
     const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
     expect(mean(men('north-asian').map((f) => f.dermis.beard))).toBeLessThan(mean(men('western').map((f) => f.dermis.beard)));

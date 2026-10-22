@@ -237,6 +237,19 @@ describe('the beard\'s styles', () => {
   });
 });
 
+describe('the beard\'s growth direction', () => {
+  it('fans the moustache out from the philtrum, flatter toward the corners; slants the cheek toward the chin, more lower down', () => {
+    const D = readDermis('male'), at = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, h: dermisAt(x, D, { detail: false }).hair })).filter(({ h }) => h.tract === 'beard');
+    const slant = (h) => Math.abs(Math.atan2(Math.sin(h.flow), -Math.cos(h.flow)));
+    const mean = (xs) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+    const lip = at.filter(({ q, M }) => q.Y > M.sto.Y + 2 && q.Y < M.sn.Y - 2), mid = lip.filter(({ q }) => Math.abs(q.X) < 8), edge = lip.filter(({ q, M }) => Math.abs(q.X) > Math.abs(M.chR.X) - 10 && Math.abs(q.X) < Math.abs(M.chR.X));
+    expect(mean(edge.map(({ h }) => slant(h)))).toBeGreaterThan(mean(mid.map(({ h }) => slant(h))));
+    const cheek = at.filter(({ q, M }) => Math.abs(q.X) > Math.abs(M.chR.X) + 20 && Math.abs(q.X) < Math.abs(M.porionR.X) * 0.5);
+    const low = cheek.filter(({ q, M }) => q.Y > M.me.Y + 8 && q.Y < M.goR.Y + 15), high = cheek.filter(({ q, M }) => q.Y > M.sto.Y);
+    expect(mean(low.map(({ h }) => slant(h)))).toBeGreaterThan(mean(high.map(({ h }) => slant(h))));
+  });
+});
+
 describe('a man\'s loss to the horseshoe', () => {
   it('leaves a band round the sides and the back, level, its top about the parietal ridge: no island above it', () => {
     const D = readDermis({ from: 'male', bald: 0.95, peak: 6 }), pts = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, s: dermisAt(x, D, { detail: false }).regions.scalp || 0 }));

@@ -179,6 +179,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   temple, and no island of hair left by a widow's peak once the front has receded. What the loss leaves a barber keeps
   short (dermal-hair.js): no lock from the band's top laid over the bald crown. The MENA men's wavy pool crops instead of
   standing in a curly crop's spikes.
+- THE MEN'S CUTS by culture (dermal-hair.js `SCALP_STYLES`, the cuts a barber in each place would name): the fade, the
+  Caesar, the French crop, the two-block, the pompadour, the slick-back, the high-top, the top-knot; drawn by region
+  (face-compose.js `FACE_HAIR_MALE`: East Asia's two-block and French crop, the Levant's slick-back, the Latin and the
+  Black barbershop's fade and Caesar, South Asia's neat side part; a bucket's `hairMale`). A cut from 2 cm is grown as a
+  cut (its taper, shelf and fringe shape it: a fade fades, a crop is no bowl; a buzz still lies as body hair), and a
+  style may carry its own lock edits.
+- THE BEARD'S GROWTH DIRECTION (dermal-map.js `beardFlow`): the sideburn straight down, the cheek down and toward the chin
+  (the more the lower), the chin down and gathering, the moustache out from the philtrum (flatter toward the corners),
+  under the jaw back toward the throat, the neck down toward its middle about a whorl either side. The beard WRAPS the
+  jaw: under the ear's lobe it reaches back past the sideburn's line, and the neck's top carries it on round.
+- The dermis study's SPLAT (`.claude/skills/dermis-study/splat.mjs`): the skin map's regions as points on the head's
+  surface net, orthographic from any azimuth, the far side culled by the normals, a pale grey where no region weighs;
+  where a region lies, in seconds, before a lit render's minutes.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

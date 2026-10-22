@@ -6,6 +6,8 @@
 // brows and lashes (epidermis.js), the beard's stubble and the scalp's clumps (dermal-hair.js), drawn with a hair
 // shader's shifted dual highlight. Run, then Read the sheet.
 //
+// (WHERE a region lies, before paying for a render: splat.mjs beside this, the map's regions as points in seconds)
+//
 //   node .claude/skills/dermis-study/dermis.mjs [male] [female] [--dermis '{…}'] [--scalp '{…}'|word]
 //                                               [--epidermis '{…}'|preset] [--cells N] [--page N] [--out dir]
 //

@@ -87,6 +87,20 @@ export const BEARD_STYLES = Object.freeze({
 /** a styled beard's density (× the tract's) and lift (its hairs' rise off the skin, its volume) by zone: the moustache
  * thickest and bushiest, the chin and the cheeks full (the operator's eyes, 2026-10-22) */
 export const BEARD_ZONES = Object.freeze({ density: { moustache: 2.4, chin: 1.6, cheek: 1.6 }, lift: { moustache: 0.7, chin: 0.5, cheek: 0.5 } });
+/**
+ * THE BEARD'S GROWTH DIRECTION on the relational head, as a barber reads it (the slant `round` of `flowOf(-1, round)`, +
+ * toward the face's front): the sideburn straight down; the cheek down and toward the chin, the more the lower; the chin
+ * down, gathering to its middle; the moustache out from the philtrum to the mouth's corners, flatter toward them; under
+ * the jaw, back toward the throat.
+ */
+function beardFlow(A, lip) {
+  const q = headXY(A), M = A.marks.points, x = Math.abs(q.X), a = A.around, chW = Math.abs(M.chR.X), fwd = toward(a, 0);
+  if (lip) return toward(a, a < 0.5 ? 0.25 : 0.75) * (0.45 + 0.6 * smooth(0, chW, x));
+  const ear = Math.abs(M.porionR.X), under = 1 - smooth(M.me.Y - 4, M.me.Y + 8, q.Y);
+  const chin = 1 - smooth(chW + 4, chW + 16, x), side = smooth(ear * 0.55, ear * 0.85, x);
+  const cheek = fwd * (0.2 + 0.4 * (1 - smooth(M.goR.Y, M.sto.Y + 20, q.Y))) * (1 - side) * (1 - chin);
+  return cheek - fwd * 0.12 * chin * (1 - under) - fwd * 0.2 * under * (1 - chin);
+}
 /** the beard's style at an address on the relational head: { mask 0 … 1 over the tract, length mm } (null without a style) */
 export function beardStyleAt(A, D) {
   if (!D.beardStyle || !A.marks) return null;
@@ -238,7 +252,8 @@ export function dermalRegions(A, D) {
     if (A.feature) put(A.feature === 'ear' ? 'ear' : A.feature === 'nose' ? 'nose' : A.feature === 'lip' ? 'lip' : 'eyelid', 1);
   } else if (part === 'neck') {
     put('neck', 1);
-    put('beard', near(front, 0.28) * smooth(0.5, 0.75, u));
+    // (at the neck's top the beard wraps on round, under the ears and behind the jaw's angle, as the head's does)
+    put('beard', near(front, 0.28 + 0.14 * smooth(0.72, 0.95, u)) * smooth(0.5, 0.75, u));
   } else if (part === 'trunk') {
     put('chest', near(front, 0.25) * smooth(0.5, 0.62, u));
     put('abdomen', near(front, 0.25) * smooth(0.6, 0.5, u));
@@ -368,7 +383,10 @@ function relationalHeadRegions(A, D, put, R) {
   // (the nose clears the beard only on itself, above its base: its region's reach round the columella would otherwise bare
   // the whole upper lip, the moustache's middle)
   // (the ear is its own: no beard grows on it, nor in front of it past the sideburn's foot)
-  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 6, cheekLine - 6, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0) * smooth(M.sn.Y - 3, M.sn.Y + 1, q.Y)) * (1 - Math.min(1, 1.6 * (R.ear || 0))) * (BS ? BS.mask : 1));
+  // (behind the jaw's angle, under the ear's lobe, the beard WRAPS the jaw: its back edge reaches back past the
+  // sideburn's line to under the ear, and onto the neck's side)
+  const lobe = M.sn.Y, backX = foot.X + (Math.abs(por.X) + 10 - foot.X) * (1 - smooth(lobe - 8, lobe + 2, q.Y));
+  put('beard', (1 - scalp) * (1 - smooth(backX + 2, backX + 10, x)) * smooth(cheekLine + 6, cheekLine - 6, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0) * smooth(M.sn.Y - 3, M.sn.Y + 1, q.Y)) * (1 - Math.min(1, 1.6 * (R.ear || 0))) * (BS ? BS.mask : 1));
   if (A.feature === 'ear') { put('ear', 1); delete R.beard; delete R.scalp; }
   put('face', face);
   put('headSide', (1 - scalp) * (1 - face) * 0.6);
@@ -485,7 +503,7 @@ export function hairTract(A, R, D) {
     if (w('beard') > 0.3 && D.beard > 0) {
       // the cheeks down and a little forward; the upper lip down and out from the middle
       const lip = A.marks ? (() => { const q = headXY(A), M = A.marks.points; return q.Y > M.sto.Y && q.Y < M.sn.Y && Math.abs(q.X) < Math.abs(M.chR.X); })() : u > HEAD_LEVELS.mouth && u < HEAD_LEVELS.noseBase && ad(a, 0) < 0.07;
-      const out = lip ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
+      const out = A.marks ? beardFlow(A, lip) : lip ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
       const BS = D.beardStyle ? beardStyleAt(A, D) : null;
       // (the moustache trimmed at the lip line, as it usually is: a hair above the upper lip as long as its way down to
       // the lip's border, so none hangs over the lip; a style may let it, `overLip`; the painted shadow as it was)
@@ -497,7 +515,12 @@ export function hairTract(A, R, D) {
   }
   // (the throat's beard thins out under the jaw rather than stopping at a line)
   // (a style with a neckline trims the throat; one without lets its chin's length fade down it)
-  if (A.part === 'neck') return w('beard') > 0.05 && D.beard > 0 && !(D.beardStyle && beardStyleOf(D.beardStyle).neck !== undefined) ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.beardStyle ? beardStyleOf(D.beardStyle).lengths.chin * 0.6 : D.stubble, flowOf(-1), 0.3) : vellus;
+  // (the neck's: down toward the throat's middle, turning about a WHORL either side where the jaw's stream meets the
+  // throat's, as most men's do)
+  if (A.part === 'neck') {
+    const whorl = 1.1 * Math.exp(-((ad(a, 0) - 0.09) ** 2 / 0.0025 + (u - 0.72) ** 2 / 0.02)) * (a < 0.5 ? 1 : -1);
+    return w('beard') > 0.05 && D.beard > 0 && !(D.beardStyle && beardStyleOf(D.beardStyle).neck !== undefined) ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.beardStyle ? beardStyleOf(D.beardStyle).lengths.chin * 0.6 : D.stubble, flowOf(-1, toward(a, 0) * 0.3) + whorl, 0.3) : vellus;
+  }
   if (A.part === 'trunk') {
     if (w('axilla') > 0.4 && D.axilla > 0) return T('axilla', 35 * D.axilla, 14, flowOf(-1), 0.5);
     const chest = male ? w('chest') * near(Math.min(ad(a, 0), Math.abs(ad(a, 0) - 0.1)), 0.14) : 0;

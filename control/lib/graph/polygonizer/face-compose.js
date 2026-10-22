@@ -181,28 +181,39 @@ export const FACE_HAIR = Object.freeze({
  */
 export const FACE_HAIR_MALE = Object.freeze({
   default: {
-    straight: [{ style: 'short' }, { style: 'short' }, { style: 'undercut' }, { style: 'crop' }, { style: 'buzz' }],
-    wavy: [{ style: 'short', type: 'wavy' }, { style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
-    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'short', type: 'curly' }, { style: 'crop', type: 'curly' }],
-    coily: [{ style: 'twa' }, { style: 'curly-crop', type: 'coily' }, { style: 'buzz', type: 'coily' }, { style: 'crop', type: 'coily' }],
+    straight: [{ style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'undercut' }, { style: 'crop' }, { style: 'french-crop' }, { style: 'fade' }, { style: 'pompadour' }, { style: 'slick-back' }, { style: 'buzz' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'pompadour', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'short', type: 'curly' }, { style: 'crop', type: 'curly' }],
+    coily: [{ style: 'fade', type: 'coily' }, { style: 'twa' }, { style: 'caesar', type: 'coily' }, { style: 'buzz', type: 'coily' }],
   },
+  // East and Southeast Asia: the two-block, the French crop, the comma's short forward fall, a side part, a crop
+  'east-asian': {
+    straight: [{ style: 'two-block' }, { style: 'two-block' }, { style: 'french-crop' }, { style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'crop' }, { style: 'pompadour' }, { style: 'buzz' }],
+    wavy: [{ style: 'two-block', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'short', type: 'wavy' }],
+  },
+  // the Levant and the Maghreb: the slick-back, the fade, a short cut, the undercut
   mena: {
-    straight: [{ style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
-    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
-    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'crop', type: 'curly' }],
+    straight: [{ style: 'slick-back' }, { style: 'slick-back' }, { style: 'fade' }, { style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
+    wavy: [{ style: 'slick-back', type: 'wavy' }, { style: 'fade', type: 'wavy' }, { style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'crop', type: 'curly' }],
   },
+  // South Asia: the side part combed neat, the slick-back, a fade, a short cut
   'south-asian': {
-    straight: [{ style: 'short' }, { style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
-    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }],
-    curly: [{ style: 'curly-crop' }, { style: 'short', type: 'curly' }],
+    straight: [{ style: 'short', moves: ['sleek'] }, { style: 'short', moves: ['sleek'] }, { style: 'short' }, { style: 'slick-back' }, { style: 'fade' }, { style: 'undercut' }, { style: 'crop' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'slick-back', type: 'wavy' }, { style: 'fade', type: 'wavy' }, { style: 'undercut', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'short', type: 'curly' }],
   },
+  // Latin America: the fade, the Caesar, the crop, the slick-back
   latin: {
-    straight: [{ style: 'short' }, { style: 'undercut' }, { style: 'crop' }, { style: 'buzz' }],
-    curly: [{ style: 'curly-crop' }, { style: 'crop', type: 'curly' }],
+    straight: [{ style: 'fade' }, { style: 'fade' }, { style: 'caesar' }, { style: 'crop' }, { style: 'slick-back' }, { style: 'undercut' }, { style: 'buzz' }],
+    wavy: [{ style: 'fade', type: 'wavy' }, { style: 'caesar', type: 'wavy' }, { style: 'slick-back', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'crop', type: 'curly' }],
+    coily: [{ style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'twa' }],
   },
+  // the Black barbershop: the fade, the Caesar, the close crop (waves), the TWA, a high-top, a top-knot
   african: {
-    curly: [{ style: 'curly-crop' }, { style: 'twa', type: 'curly' }, { style: 'buzz', type: 'curly' }],
-    coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'buzz', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'crop', type: 'coily' }],
+    curly: [{ style: 'fade', type: 'curly' }, { style: 'curly-crop' }, { style: 'caesar', type: 'curly' }, { style: 'twa', type: 'curly' }],
+    coily: [{ style: 'fade', type: 'coily' }, { style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'buzz', type: 'coily', moves: ['sleek'] }, { style: 'twa' }, { style: 'high-top' }, { style: 'top-knot', type: 'coily' }],
   },
 });
 /**
@@ -238,6 +249,7 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   grooms       its brows' and lashes' ranges (`FACE_GROOMS` absent)
  *   bald         its men's prevalence of hair loss against the western (1): a scale on the chance (`FACE_HAIRLINE`)
  *   hair         its cuts by texture (`FACE_HAIR`'s pool by that name; absent, the ancestry's own styles)
+ *   hairMale     its men's cuts' pool (`FACE_HAIR_MALE`'s by that name), where it differs from `hair`'s
  *   tones        [lo, hi] on the Monk scale: the intent's tones within its ancestries' (`equatorial` is brown); the
  *                ancestry still gives the hair, the undertone and the eyes' colour (absent, the ancestry's own roll)
  *   hybrid       { parents: { bucket: weight } | 'all', share?: [lo, hi] }: a HYBRID of two base buckets, trait by trait
@@ -254,7 +266,7 @@ export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'north-asian': {
     note: 'Northeast Asian ancestry: Mongolia, Korea, northern China, the Siberian peoples (the asiatic look\'s centre)',
-    beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
+    hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     ancestry: ['east-asian'],
     // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the inner canthi
     // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
@@ -271,7 +283,7 @@ export const FACE_BUCKETS = Object.freeze({
   'east-asian': {
     note: 'East Asian ancestry, China\'s centre and south and Japan (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian'],
-    beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
+    hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
     // a little less projected, its bridge broader; a lighter brow ridge and a rounder forehead; the cheekbones further
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
@@ -348,7 +360,7 @@ export const FACE_BUCKETS = Object.freeze({
   'southeast-asian': {
     note: 'Filipino and maritime Southeast Asian ancestry (Austronesian)',
     ancestry: ['southeast-asian'],
-    beard: { styles: { clean: 5, stubble: 2.5, goatee: 1.2, moustache: 1, 'short-boxed': 0.6, full: 0.2, 'van-dyke': 0.4, 'chin-strap': 0.4 }, fullness: [0.35, 0.8] },
+    hairMale: 'east-asian', beard: { styles: { clean: 5, stubble: 2.5, goatee: 1.2, moustache: 1, 'short-boxed': 0.6, full: 0.2, 'van-dyke': 0.4, 'chin-strap': 0.4 }, fullness: [0.35, 0.8] },
     // a rounder vault; the inner canthi wider apart; the root low and broad, the base wider, the bridge broad (the nose
     // leaning short and flat); the lips fuller and a little forward; the cheekbones forward; a lighter brow ridge. The lid
     // a parallel crease or the rig's, sometimes an in-fold or hooded, now and then a monolid
@@ -594,7 +606,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   if (bald > 0) hair.bald = Math.max(0, Math.min(1, bald));
   // the CUT: the texture from the ancestry's, the cut from the bucket's pool for it (a woman's; the man's are to come)
   let cut = null;
-  const textures = HUMAN_ANCESTRIES[ancestry]?.textures, texture = textures ? textures[Math.floor(d() * textures.length) % textures.length] : null, pool = sex === 'female' ? (B.hair ? FACE_HAIR[B.hair]?.[texture] : null) : texture ? FACE_HAIR_MALE[B.hair]?.[texture] ?? FACE_HAIR_MALE.default[texture] ?? null : null;
+  const textures = HUMAN_ANCESTRIES[ancestry]?.textures, texture = textures ? textures[Math.floor(d() * textures.length) % textures.length] : null, pool = sex === 'female' ? (B.hair ? FACE_HAIR[B.hair]?.[texture] : null) : texture ? FACE_HAIR_MALE[B.hairMale ?? B.hair]?.[texture] ?? FACE_HAIR_MALE.default[texture] ?? null : null;
   const pickCut = d();
   if (pool) cut = { ...pool[Math.floor(pickCut * pool.length) % pool.length] };
   // (a widow's peak's hint over a cut it suits: a part, no ties, at least to the shoulder; a cut of its own replaces the
