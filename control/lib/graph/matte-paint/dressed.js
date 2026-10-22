@@ -47,7 +47,9 @@
  * The NATURAL class, the land a town stands in (era/gritty-land.js): `cut: 'turf'` (a floor) a sward from above, blades
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
- * rounded plates between furrows running up and forking. Each is painted in its stone's
+ * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
+ * it, worn hollows; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
+ * giving way to turf. Each is painted in its stone's
  * ramp alone (a grey, laid as a detail, rides on the face's own colour).
  *
  * SEAMLESS by construction: whole courses and whole blocks a repeat (a course's breaks wrap round its length), every
@@ -491,6 +493,11 @@ function marksNear(x, y, M, cell, per, seed, each) {
     for (let q = 0; q < per; q++) { const h = (r) => hash01(wi * per + q, wj, seed + r * 7); each((I + h(1)) * cs, (J + h(2)) * cs, h, cs); }
   }
 }
+// a stone's distance from its middle, 1 at its outline: a stone, not a drop (a few facets of its own, turned, a little long)
+function stoneDist(x, y, cx, cy, r, h) {
+  const a = Math.atan2(y - cy, x - cx), n = 5 + Math.floor(3 * h(8)), seg = (2 * Math.PI) / n, w = ((((a + h(9) * 6.283) % seg) + seg) % seg) - seg / 2;
+  return Math.hypot((x - cx) * (1 - 0.3 * h(5)), y - cy) / (r * (Math.cos(Math.PI / n) / Math.cos(w)));
+}
 const NATURAL = {
   // a sward from above: blades in every direction, each a tapered ridge, standing in tussocks; bare earth where a broad
   // patch is worn through (more of it with grit), a shade down and smooth but for its crumbs
@@ -530,6 +537,44 @@ const NATURAL = {
       return (best < 0 ? -0.014 + 0.002 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 3) : z) + 0.03 * m;
     }, (x, y, k, lit) => rampAt(body, 0.58 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.04 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 17)
       - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.35 * gap[k] - (0.12 + 0.2 * g) * (1 - mass[k])));
+  },
+  // a path's packed earth from above: fine crumbs, pebbles pressed into it (their crowns proud and worn), shallow hollows
+  // where feet fall, a crack or two at grit
+  path(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), peb = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      let z = -0.004 * Math.max(0, sfbm(x, y, M, 0.5, 0.35, 2, seed + 3)) + 0.0007 * sfbm(x, y, M, 0.012, 0.012, 2, seed + 5), p = 0;
+      marksNear(x, y, M, 0.09, 1, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.12 + 0.2 * g) return;
+        const d = stoneDist(x, y, cx, cy, cs * (0.08 + 0.14 * h(4)), h);
+        if (d < 1) { const v = 0.003 * (0.5 + h(6)) * Math.min(1, (1 - d) * 3); if (v > p) p = v; }
+      });
+      const cr = g > 0.5 ? Math.max(0, 1 - Math.abs(sfbm(x, y, M, 0.3, 0.3, 2, seed + 7)) / 0.02) * smoothstep(0.1, 0.4, sfbm(x, y, M, 0.8, 0.8, 1, seed + 9)) : 0;
+      peb[k] = p > 0 ? 1 : 0;
+      return z + p - 0.002 * cr;
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.2 + 0.05 * sfbm(x, y, M, 0.4, 0.4, 3, seed + 13) + 0.06 * peb[k] - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // the VERGE, a path's edge laid across it (v from 0 at the path's side to 1 at the land's): earth, crumbs and pebbles
+  // at the path, giving way to turf, the blades thickening outward and leaning over the earth they have not taken
+  verge(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), peb = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      const t = y / M, take = smoothstep(0.08, 0.75, t + 0.25 * sfbm(x, y, M, 0.25, 0.5, 2, seed + 3));
+      let z = 0, p = 0;
+      marksNear(x, y, M, 0.035, 3, seed + 11, (cx, cy, h, cs) => {
+        if (h(7) > take) return;
+        const a = (0.5 + 0.35 * (h(3) - 0.5)) * Math.PI, ux = Math.cos(a), uy = Math.sin(a), L = cs * (1.6 + 1.2 * h(4)), wd = cs * 0.13, dx = x - cx, dy = y - cy;
+        const q = clamp(dx * ux + dy * uy, -L / 2, L / 2), d = Math.hypot(dx - q * ux, dy - q * uy);
+        if (d < wd) { const v = 0.005 * (0.55 + 0.45 * h(5)) * (1 - (2 * q / L) ** 2) * Math.sqrt(1 - d / wd); if (v > z) z = v; }
+      });
+      marksNear(x, y, M, 0.08, 1, seed + 21, (cx, cy, h, cs) => {
+        if (h(3) > (1 - take) * (0.35 + 0.3 * g)) return;
+        const d = stoneDist(x, y, cx, cy, cs * (0.08 + 0.14 * h(4)), h);
+        if (d < 1) { const v = 0.003 * (0.5 + h(6)) * Math.min(1, (1 - d) * 3); if (v > p) p = v; }
+      });
+      peb[k] = p > 0 ? 1 : 0;
+      return z * take + p + 0.0006 * sfbm(x, y, M, 0.012, 0.012, 2, seed + 5) * (1 - take) + 0.005 * sfbm(x, y, M, 0.25, 0.25, 3, seed + 9) * take;
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.05 * sfbm(x, y, M, 0.45, 0.45, 3, seed + 17) + 0.06 * peb[k] - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // a trunk's bark, u round it and v up it: plates between furrows that run up the trunk and fork, each plate a rounded
   // ridge, its face scaled fine (rougher with grit)

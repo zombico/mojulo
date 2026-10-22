@@ -53,7 +53,7 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
-import { withGrittyFlora } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones } from '../local-meru/broken-land.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -548,7 +548,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
-  const faces = [...land, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
+  // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
+  // the bare ground, then the ribbon's lanes in order, then the rock)
+  const nb = bare.length, landD = broken ? withGrittyGround(land, broken, { verge: (i) => i >= nb && i < nb + ribbon.length && ribbon[i - nb].cls !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]) }) : land;
+  const faces = [...landD, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));

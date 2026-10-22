@@ -1,7 +1,7 @@
 // Gritty flora (gritty-flora.js): what grows on a gritty land laid with relief in its own colours, as strong as the land
 // is gritty; a quiet land's flora as it came.
 import { describe, expect, it } from 'vitest';
-import { withGrittyFlora, FLORA_CUTS } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround, FLORA_CUTS } from './gritty-flora.js';
 import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { assembleStageScene } from './stage.js';
 
@@ -30,9 +30,23 @@ describe('gritty flora', () => {
     expect(withGrittyFlora(faces(), 0.7)).toEqual(withGrittyFlora(faces(), 0.7));
   });
 
-  it('a gritty polygon land lays it; a quiet one does not', () => {
-    const M = { kind: 'stage', kit: 'isekai-meadow' }, crowns = (P) => P.faces.filter((f) => f.group === 'isekai:crown');
-    expect(crowns(assembleStageScene({ ...M, shading: { grit: 0.7 } })).some((f) => /^detail:/.test(f.texture || ''))).toBe(true);
-    expect(crowns(assembleStageScene({ ...M, shading: true })).some((f) => /^detail:/.test(f.texture || ''))).toBe(false);
+  it('lays the path on the trail, turf on the ground, and the verge across a fringe lane from the trail\'s side', () => {
+    const lane = { ...quad('isekai:ground', [0, 0, 1]), corners: [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]] }, land = [quad('isekai:trail', [0, 0, 1]), quad('isekai:ground', [0, 0, 1]), lane];
+    expect(withGrittyGround(land, 0.2)).toBe(land);
+    // (the trail runs along x = −1: the lane's two corners at x 0 are its side)
+    const [path, turf, verge] = withGrittyGround(land, 0.7, { verge: (i) => i === 2, nearTrail: (c) => c[0] + 1 });
+    for (const f of [path, turf, verge]) expect(f.texture).toMatch(/^detail:dressed-/);
+    expect(new Set([path.texture, turf.texture, verge.texture]).size).toBe(3);
+    expect(verge.uv.map((q) => q[1])).toEqual([0, 0, 0.999, 0.999]);
   });
+
+  it('a gritty polygon land lays it; a quiet one does not', () => {
+    // (one gritty stage: its broken rock's strewn stones make it a heavy one)
+    const M = { kind: 'stage', kit: 'isekai-meadow' }, G = assembleStageScene({ ...M, shading: { grit: 0.7 } }), Q = assembleStageScene({ ...M, shading: true });
+    const of = (P, g) => P.faces.filter((f) => f.group === g), detailed = (f) => /^detail:/.test(f.texture || '');
+    expect(of(G, 'isekai:crown').some(detailed)).toBe(true);
+    expect(of(Q, 'isekai:crown').some(detailed)).toBe(false);
+    expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
+    expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
+  }, 60000);
 });

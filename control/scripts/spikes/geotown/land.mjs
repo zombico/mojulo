@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SPIKE: a cube's land close up in its micro-town (the geocube kind's `show: 'town'`): the ground by a house, the nearest
+ * SPIKE: a cube's land close up in its micro-town (the geocube kind's `show: 'town'`): the trail's edge, the nearest
  * tree, the nearest cliff, each cube on a row: the gritty land read against the same land unworn.
  *
  *   cd control && node scripts/spikes/geotown/land.mjs [name] [cube …]   (a cube a preset or a JSON spec)
@@ -42,7 +42,10 @@ try {
     const near = (g) => P.faces.filter((f) => f.group === g).map(mid).sort((a, b) => Math.hypot(a[0] - h.at[0], a[1] - h.at[1]) - Math.hypot(b[0] - h.at[0], b[1] - h.at[1]))[0];
     const off = (p, d, z) => { const v = [h.at[0] - p[0], h.at[1] - p[1]], l = Math.hypot(...v) || 1; return [p[0] + (v[0] / l) * d, p[1] + (v[1] / l) * d, p[2] + z].map(r3); };
     const tree = near('isekai:crown'), cliff = near('isekai:cliff');
-    const cams = [cam('ground', at(6, 3, 1.4), at(1.5, 6, 0), 70), cam('tree', off(tree, 6, -1.5), tree.map(r3), 60), cam('cliff', off(cliff, 9, 0), cliff.map(r3), 70)];
+    // the trail's edge: from the town's trail camera, a few metres along and down at the path's side
+    const TF = P.cameras.find((c) => c.name === 'trail')?.worldFraming, along = TF ? [0, 1, 2].map((k) => TF.lookAt[k] - TF.cameraPosition[k]) : null;
+    const edge = TF ? cam('edge', [TF.cameraPosition[0], TF.cameraPosition[1], TF.cameraPosition[2] - 0.5].map(r3), [0, 1, 2].map((k) => r3(TF.cameraPosition[k] + along[k] * 0.3 + (k === 2 ? -1.6 : 0))), 60) : cam('ground', at(6, 3, 1.4), at(1.5, 6, 0), 70);
+    const cams = [edge, cam('tree', off(tree, 6, -1.5), tree.map(r3), 60), cam('cliff', off(cliff, 9, 0), cliff.map(r3), 70)];
     const cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });
     rows.push({ cap: cube, cells });

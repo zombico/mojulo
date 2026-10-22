@@ -135,6 +135,10 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
   one another, now gathered into masses that read from afar, thin and dark between them), a crown's top laid as a
   floor and its sides as a wall, and the trunks take `bark` up them: grey relief over each face's own colour
   (`matte-paint/detail.js` layDetail), its strength the land's grit.
+- **The path and its edge.** The trail takes a new `path` cut (packed earth, crumbs, faceted stones pressed into it,
+  worn hollows), the ground and its talus `turf`, and the trail's fringe lanes a new `verge` cut laid across the lane:
+  earth and stones at the path's side giving way to turf at the land's, so path and land meet in a band, not a line
+  (`withGrittyGround`).
 
 ### The biocube: a level's flora as data
 
