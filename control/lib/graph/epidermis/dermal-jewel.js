@@ -13,7 +13,7 @@
  *
  *   readPiercings(spec)            words ('lobes', 'nostril-L', 'septum') or { site, side, kind, metal, gem, size } → the list
  *   pierce(chart, head, spec)      → { pieces: [{ site, side, kind, metal, at, n }], mesh: { vertices, normals, faces,
- *                                    material }, materials: [{ name, colour, metal, roughness }] }
+ *                                    material, piece (each face's piece) }, materials: [{ name, colour, metal, roughness }] }
  *
  * Metres in the chart's frame (x the figure's right, y forward, z up): the mesh lies on the head the chart charts.
  * No dice: the same head and list place the same jewellery. Absent a list, nothing.
@@ -160,16 +160,20 @@ function siteFrame(chart, head, site, side) {
 
 // ─── the mesh: balls, rings, wires ───
 function mesher() {
-  const vertices = [], normals = [], faces = [], material = [];
+  const vertices = [], normals = [], faces = [], material = [], piece = [];
+  let current = 0;
   const put = (p, n) => { vertices.push(p.map(r6)); normals.push(n.map(r6)); return vertices.length - 1; };
-  const quad = (a, b, c, d, m) => { faces.push([a, b, c], [a, c, d]); material.push(m, m); };
+  const quad = (a, b, c, d, m) => { faces.push([a, b, c], [a, c, d]); material.push(m, m); piece.push(current, current); };
+  const tri = (a, b, c, m) => { faces.push([a, b, c]); material.push(m); piece.push(current); };
   const ball = (c, r, m, flat = 1) => {
-    const NA = 12, NB = 8, ids = [];
-    for (let j = 0; j <= NB; j++) for (let i = 0; i < NA; i++) {
-      const th = (Math.PI * j) / NB, ph = (2 * Math.PI * i) / NA, n = [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)];
-      ids.push(put(add(c, [n[0] * r, n[1] * r, n[2] * r * flat]), n));
-    }
-    for (let j = 0; j < NB; j++) for (let i = 0; i < NA; i++) { const a = j * NA + i, b = j * NA + ((i + 1) % NA); quad(ids[a], ids[a + NA], ids[b + NA], ids[b], m); }
+    // (a pole a single point: the rings between it and the other pole, fanned to it, no face collapsed onto one)
+    const NA = 12, NB = 8, pt = (th, ph) => { const n = [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; return put(add(c, [n[0] * r, n[1] * r, n[2] * r * flat]), n); };
+    const top = pt(0, 0), rows = [];
+    for (let j = 1; j < NB; j++) rows.push(Array.from({ length: NA }, (_, i) => pt((Math.PI * j) / NB, (2 * Math.PI * i) / NA)));
+    const bot = pt(Math.PI, 0);
+    for (let i = 0; i < NA; i++) tri(top, rows[0][i], rows[0][(i + 1) % NA], m);
+    for (let j = 0; j + 1 < rows.length; j++) for (let i = 0; i < NA; i++) quad(rows[j][i], rows[j + 1][i], rows[j + 1][(i + 1) % NA], rows[j][(i + 1) % NA], m);
+    for (let i = 0; i < NA; i++) tri(bot, rows.at(-1)[(i + 1) % NA], rows.at(-1)[i], m);
   };
   // a ring about `c` in the plane of e1, e2 (radius R, the wire's r)
   const ring = (c, e1, e2, R, r, m) => {
@@ -185,8 +189,11 @@ function mesher() {
     const t = unit(sub(b, a)), e1 = unit(perp([1, 0, 0], t), unit(perp([0, 1, 0], t))), e2 = cross(t, e1), NA = 6, ids = [];
     for (const p of [a, b]) for (let i = 0; i < NA; i++) { const g = (2 * Math.PI * i) / NA, n = add(scl(e1, Math.cos(g)), scl(e2, Math.sin(g))); ids.push(put(add(p, scl(n, r)), n)); }
     for (let i = 0; i < NA; i++) quad(ids[i], ids[(i + 1) % NA], ids[NA + ((i + 1) % NA)], ids[NA + i], m);
+    // (capped both ends: every piece a closed solid)
+    const ca = put(a, scl(t, -1)), cb = put(b, t);
+    for (let i = 0; i < NA; i++) { tri(ca, ids[(i + 1) % NA], ids[i], m); tri(cb, ids[NA + i], ids[NA + ((i + 1) % NA)], m); }
   };
-  return { vertices, normals, faces, material, ball, ring, wire };
+  return { vertices, normals, faces, material, piece, ball, ring, wire, at: (i) => { current = i; } };
 }
 
 /** The piercings on a head: each placed on its site and its jewellery meshed. `spec` as readPiercings takes it. */
@@ -196,6 +203,7 @@ export function pierce(chart, head, spec, opts = {}) {
   const pieces = [];
   for (const P of list) {
     const F = siteFrame(chart, head, P.site, P.side); if (!F) continue;
+    M.at(pieces.length);
     const S = PIERCING_SITES[P.site], z = P.size, hexM = JEWEL_METALS[P.metal] ?? P.metal, m = mat(P.metal, hexM, true);
     if (P.kind === 'stud') {
       const r = S.stud * z, g = P.gem ? mat(P.gem, JEWEL_GEMS[P.gem] ?? P.gem, false) : m;
@@ -215,5 +223,5 @@ export function pierce(chart, head, spec, opts = {}) {
     }
     pieces.push({ ...P, at: F.p.map(r6), n: F.n.map(r6) });
   }
-  return { pieces, mesh: { vertices: M.vertices, normals: M.normals, faces: M.faces, material: M.material }, materials };
+  return { pieces, mesh: { vertices: M.vertices, normals: M.normals, faces: M.faces, material: M.material, piece: M.piece }, materials };
 }

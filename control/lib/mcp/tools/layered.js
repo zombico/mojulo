@@ -87,6 +87,7 @@ import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
+import { heroJewellery, heroHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
@@ -229,12 +230,45 @@ function realisticRecipe(recipe, hero) {
   const K = structuredClone(kept), parts = Object.fromEntries(Object.entries(recipe.parts).filter(([k]) => !K.removed.includes(k)));
   const S = { ...recipe, parts: { ...parts, ...K.parts }, rig: K.rig, dials: K.dials, ...(K.correctives ? { correctives: K.correctives } : {}) };
   // (the relational head, `head: 'relational'`, swapped in on the sliced body: hero-relational-head.js)
-  return hero.head === 'relational' ? relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', realisticFaceOf(hero)) : S;
+  if (hero.head !== 'relational') return S;
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face);
+  // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
+  // colours under the palette's own
+  if (!face || !H.headFit) return H;
+  let out = H;
+  if (face.piercings?.length) { const J = jewelleryOf(H, face.piercings); out = { ...out, parts: { ...out.parts, ...structuredClone(J.parts) }, palette: { ...J.palette, ...(out.palette || {}) } }; }
+  // THE SCALP on its head (hero-head-layers.js heroHair): the composed face's cut over its ancestry's, its cards
+  const scalp = faceScalp(hero, face);
+  if (scalp) { const Hr = hairOf(H, heroDermisSpec(faceSkin(hero)).spec, scalp); out = { ...out, parts: { ...out.parts, ...structuredClone(Hr.parts) }, palette: { ...Hr.palette, ...(out.palette || {}) } }; }
+  return out;
+}
+/** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
+ * face rolled one (a style), else the face's hint over the ancestry's (a peak's part, the streaks); null for none */
+function faceScalp(hero, C) {
+  const A = readAncestry({ id: C.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
+  if (C.scalp?.style) return { ...C.scalp, seed: hero.face.seed ?? 1 };
+  if (!A.scalp || A.scalp === 'none') return null;
+  return C.scalp ? { ...(typeof A.scalp === 'string' ? { style: A.scalp } : A.scalp), ...C.scalp } : A.scalp;
 }
 /** The relational head on a sliced body, kept as the body's slice is: by what the swap reads (the neck it seals to, the
  * landmark head it is fitted to, the rig's joints, the pole), and laid onto the recipe at hand (the parts it changed or
  * added, the parts it removed, its creases, the dials it dropped, the joints it moved). A swap costs seconds */
 const HEADS = new Map();
+/** a head's piercings, kept by its fit and the list (the chart they are placed on costs seconds) */
+const JEWELS = new Map(), HAIRS = new Map();
+/** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
+function hairOf(S, dermis, scalp) {
+  const key = JSON.stringify([S.headFit, dermis, scalp]);
+  let H = HAIRS.get(key);
+  if (!H) { H = heroHair(S, dermis, scalp); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  return H;
+}
+function jewelleryOf(S, piercings) {
+  const key = JSON.stringify([S.headFit, piercings]);
+  let J = JEWELS.get(key);
+  if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
+  return J;
+}
 function relationalHeadOn(S, sex, face = null) {
   const own = face ? { relations: face.relations, eyes: face.eyes } : {};
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own]);
@@ -867,7 +901,7 @@ export function withRolledFace(spec, was = null) {
 function faceReadout(hero) {
   const C = realisticFaceOf(hero); if (!C) return null;
   return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent,
-    shown: 'the head\'s shape and its skin (tone, hairline, marks, beard, the years)', notYet: 'the composed cut, brows, lashes and piercings are read here but not yet grown on the hero' };
+    shown: `the head\'s shape and its skin (tone, hairline, marks, beard, the years), its hair${C.piercings?.length ? ', its piercings' : ''}`, notYet: 'the brows, the lashes and a styled beard are read here but not yet grown on the hero (the beard is painted)' };
 }
 
 /** The realistic form's refusals: what it takes (a `physique`), and what it does not wear yet. Dress, armour, kits,

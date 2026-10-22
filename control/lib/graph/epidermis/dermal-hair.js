@@ -602,9 +602,10 @@ const COMB_WAVE = { straight: { amp: 0.0018, period: 0.065 }, wavy: { amp: 0.006
  *   the cards      one ribbon per guide, for an engine
  *
  * `opts.colliders` the parts the locks drape over (default the head, the neck, the trunk and the upper arms). A style
- * under 4 cm lies on the scalp as body hair does.
+ * under 2 cm lies on the scalp as body hair does. `opts.strands: false` grows the guides and their cards alone (an
+ * engine's hair, without the strands a render draws).
  */
-export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk', 'upperArm'] } = {}) {
+export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk', 'upperArm'], strands: withStrands = true } = {}) {
   const S = scalp, colour = hairColourOf(D), shade = hairShade(colour, S.type);
   const empty = (extra = {}) => ({ guides: [], strands: [], cards: [], shade, counts: { guides: 0, strands: 0, ...extra } });
   // (a buzz lies on the scalp as body hair does; from 2 cm a cut is grown as one, so its taper, its shelf and its fringe
@@ -910,8 +911,8 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     }
     return g;
   });
-  // ── the strands: each from its nearest guides on its own side, parallel ──
-  const sroots = darts(S.strandGap, 'strands'), strands = [];
+  // ── the strands: each from its nearest guides on its own side, parallel (`strands: false`, the cards alone: none) ──
+  const sroots = withStrands ? darts(S.strandGap, 'strands') : [], strands = [];
   const colsS = cols.map((c) => (c.surface ? { surface: { ...c.surface, frame: false } } : c)), headS = colsS.filter((_, i) => cols[i].surface?.frame);
   sroots.forEach((at, si) => {
     // a gathered strand: its walk blended from its tie's nearest guides (each walk at the same share of its way to the

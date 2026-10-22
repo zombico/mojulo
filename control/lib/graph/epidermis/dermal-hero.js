@@ -37,6 +37,8 @@ export function heroDermisSpec(hero) {
 
 /** the relational head's parts on the hero */
 const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/;
+/** what the head wears of its own (hero-head-layers.js: its jewellery, its hair): never a garment over the body's skin */
+const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*)$/;
 /** the body's skin parts (dermal-body.js charts them) */
 const BODY = /^(torso|neck|pelvis|upperArm[RL]|foreArm[RL]|hand[RL]|thumb[RL]|index[RL]|middle[RL]|ring[RL]|little[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL])$/;
 /** a head point this far inside its field (m) is let down under another part's skin */
@@ -70,7 +72,7 @@ export function heroDermis(mesh, recipe, { sex = recipe.headFit?.sex ?? 'male', 
  */
 export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
   const V = mesh.vertices, F = mesh.faces, partOf = (vi) => mesh.provenance[vi].part, boneOf = (part) => recipe.parts[part]?.bind?.bone;
-  const cover = []; F.forEach((t, fi) => { const p = partOf(t[0]); if (!HEAD.test(p) && !BODY.test(p) && mesh.groups[fi] !== 'Skin') cover.push(fi); });
+  const cover = []; F.forEach((t, fi) => { const p = partOf(t[0]); if (!HEAD.test(p) && !BODY.test(p) && !HEAD_LAYER.test(p) && mesh.groups[fi] !== 'Skin') cover.push(fi); });
   if (!cover.length) return null;
   // the bones beside each bone: those sharing a joint (a head or a tail)
   const bones = recipe.rig?.bones || [], ends = new Map(bones.map((b) => [b.id, [b.head, b.tail].filter(Boolean)])), beside = new Map();

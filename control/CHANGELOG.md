@@ -192,6 +192,26 @@ body catches up to what the authored one wears, and its principles are shared ba
   plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
   base, said in the readout.
 
+### Unified character: the face harmony's work in the realistic character depictor
+
+- PIERCINGS ON THE HERO (polygonizer/hero-head-layers.js `heroJewellery`): a realistic hero's composed face's piercings
+  (face-compose.js's roll) are grown on its head: the head rebuilt from its fit, pierced on its own chart
+  (epidermis/dermal-jewel.js), mapped into the hero's frame and carried as a pinned part on the visage (`jewel`; the
+  lower lip's labret and lip ring `jewelJaw`, on a face the jaw alone carries, so they follow it), each piece's group its
+  metal's or its gem's (`JewelGold`, `GemRuby` …) with its colour in the palette under the hero's own. A hero with no
+  face, or a face that rolled none, wears none. The readout's `realisticFace.notYet` no longer lists them.
+- THE SCALP ON THE HERO (hero-head-layers.js `heroHair`): a realistic hero's composed face grows its hair: the cut it
+  rolled (face-compose.js's, a style) or its ancestry's with the face's hint over it, grown on the face's head
+  (dermal-hair.js `growScalp`, the guides alone) as an engine's hair cards, each a thin closed slab along a guide (its
+  width the card's), pinned to the visage where the head alone carries it: `Hair` in the hair's colour as the eye
+  averages it (its grey mixed in), a streak's cards `HairStreak` in the dye. A buzz grows none (the painted scalp is the
+  hair). A hero with no face wears none.
+- dermal-hair.js `growScalp`'s `strands: false`: the guides and their cards alone, without the strands a render draws.
+- dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
+  single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).
+- dermal-hero.js: what the head wears of its own (`jewel`, `jewelJaw`, the hair to come) never counts as a garment over
+  the body's skin.
+
 ### Face harmony: the female differentiated, the look standard, the lips' grain
 
 - The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune

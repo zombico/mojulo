@@ -3,6 +3,7 @@
 // as it was; what the realistic body does not wear yet refuses by name. (Beside the slice, not in the critical tier: a
 // realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
+import { compileLayered, auditLayered } from './station-loft.js';
 
 import { heroDermisSpec } from '../epidermis/dermal-hero.js';
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
@@ -141,5 +142,20 @@ describe('the realistic hero at the door', () => {
     // (the ancestry's deep tone, unless the hero's skin or palette names one)
     expect(a.dermis.tone).toBeGreaterThanOrEqual(6); expect(a.dermis.undertone).toBeTruthy();
     expect(at({ seed: 1, ethnicity: 'african' }, { skin: { tone: 2 } }).dermis.tone).toBe(2);
+  }, 300_000);
+  it('wears its face\'s piercings and its scalp: pinned to the visage, closed, in their colours; no piercings where the face rolled none', () => {
+    const at = (face) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'female', ...(face ? { face } : {}) }) });
+    const m = at({ seed: 6, ethnicity: 'western' }), P = m.recipe.parts, C = realisticFaceOf(heroRecord({ form: 'realistic', cast: 'female', face: { seed: 6, ethnicity: 'western' } }));
+    expect(C.piercings.length).toBeGreaterThan(0);
+    expect(P.jewel.pin.parent).toBe('visage');
+    expect(m.recipe.palette[P.jewel.group]).toMatch(/^#[0-9a-f]{6}$/);
+    const A = auditLayered(compileLayered(m.recipe, m.dials));
+    expect(A.jewel.pass).toBe(true);
+    // (and its scalp: the cut's cards on the head, closed, in the hair's colour)
+    expect(P.hair.pin.parent).toBe('visage'); expect(A.hair.pass).toBe(true);
+    expect(m.recipe.palette.Hair).toMatch(/^#[0-9a-f]{6}$/);
+    // (a face that rolled no piercings, and a hero with no face, wear none)
+    expect(Object.keys(at(null).recipe.parts).some((k) => /^(jewel|hair)/.test(k))).toBe(false);
+    expect(Object.keys(at({ seed: 2, ethnicity: 'western' }).recipe.parts).some((k) => /^jewel/.test(k))).toBe(false);
   }, 300_000);
 });
