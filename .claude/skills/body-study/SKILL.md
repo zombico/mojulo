@@ -33,7 +33,8 @@ node .claude/skills/body-study/body.mjs female \
 
 Any entry may carry its own `"crop"`.
 
-**Crops** (`--crop`, or per row): `torso`, `shoulder`, `hip`, `knee`, `hand`, `foot` (the right side's), `neck` (the
+**Crops** (`--crop`, or per row): `torso`, `shoulder`, `hip`, `knee`, `shin` (over the knee to the floor: a tall boot
+whole), `hand`, `foot` (the right side's), `neck` (the
 seam where the head sits). Framed on the POSED joints, so a crop follows its joint through a gait.
 
 **Laws** (`--laws <n>`): mint the hero under an earlier version of the hero laws (hero-form.js `HERO_LAWS_VERSION`;
@@ -70,8 +71,16 @@ bone shows.
 pelvis, the pelvis and the thigh, the arm and the shoulder) shows who is on top along it. `--parts '<regex>'` keeps
 only the parts it names (`--parts '^pelvis$'`), to see one shell whole.
 
-**The dress** (`--dress`): garments (a field garment, or a segment piece `<id>_<body part>`) in cloth blue over
-the clay body, so how close a shirt lies and which grooves it spans read at a glance.
+**The dress** (`--dress`): armour (`adorn.*`) in steel grey, garments (a field garment, or a segment piece `<id>_<body part>`) in cloth blue over
+the clay body, so how close a shirt lies and which grooves it spans read at a glance. Footwear and plating in their own colours: the
+shoes (`Shoes`), each footwear group (the sole, the overlays, the laces …) and a suit's (its plates, trim, undersuit,
+reactor) by the recipe's palette.
+
+**The dressed outline** (`--outline`): under each cast's sections, the front outline scanned every 5 mm, the bare body grey
+and the dressed figure blue, the landmarks ticked and each division a red line, and the read beside it
+(`polygonizer/dress-outline.js`, [docs/garment-principles.md](../../../docs/garment-principles.md)): the silhouette family
+against the bare body's, each half's fit, where loose cloth returns to the body, the flair pieces, and the advice in the
+western and the anime style.
 
 **The sections panel and the measures table** come at the bind, per cast:
 

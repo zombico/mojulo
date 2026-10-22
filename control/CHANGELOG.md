@@ -14,6 +14,184 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic hero's face: rolled, bounded, aimed
+
+- A REALISTIC HERO WEARS A COMPOSED FACE (face-compose.js, from face harmony): `face: { seed?, ethnicity?, want?,
+  character?, accent?, nose?, beauty?, age? }` on the realistic body's relational head. Minted with no face, it ROLLS
+  one: the seed, the ethnicity (every base population and the mixed) and, with no `cast`, the sex, stamped into the
+  record so it rebuilds as it was (layered.js `withRolledFace`). Named words BOUND the roll (an ethnicity, a list of
+  them for a mix, a cast) and the rest TUNE it. The baseline is HEROIC (`HERO_FACE`): the face drawn toward its
+  population's harmonious mean (beauty 0.75), at prime age. A remake keeps its stamped face unless the order names one.
+- AIMED: `want: { feature: shape }` takes the shapes named in place of the roll's (composeFace's new `want`); every
+  feature still rolls, so the rest of the face is the seed's and a face liked can be kept and aimed piece by piece.
+- On every read the face's relations and eyes shape the relational head (on the pole's own tune: solving one per face
+  costs most of a minute), and its skin lies under the hero's own `skin`: the ancestry's tone, undertone and hair
+  colour, the hairline, marks, a beard, the years. The face rides `recipe.headFit`, so an export's skin charts the head
+  the face shaped. The readout's `hero.realisticFace` says what was rolled (the picks, the character, the ancestry).
+  The composed cut, brows, lashes and piercings are read there but not yet grown on the hero. A hero without a face, and
+  every other form, is as it was.
+
+### The tiered game body: the default at mint
+
+- THE GAME BODY IS THE TIERED FORM: a hero minted with no `form` is stamped `form: 'tiered'` (motion-stamp.js
+  `withDefaultForm`, beside the calibrated walk), at the door, on a design run's remake of a new figure, and on a world's
+  new inline hero; every build and cast takes it (heroic, brute, lithe, stout, canonical, child, chibi, both poles). A
+  hero stored without a form keeps the body it was minted on, byte for byte, and a remake keeps the stored hero's form.
+  The body before it is a word now, `form: 'classic'`, and is deprecated with the streamlined core: still read, and a
+  hero on it (named, or stored without a form) is told so on its readout's warnings.
+- THE TIERED BODY IS SHADED SMOOTH wherever it is drawn: under the character light too (the anime head's look), at the
+  tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
+  35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
+  study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE ROUND CHILD (hero laws 14, anime-looks.js `CHILD_FACE.round`, tiered-form.js `CHILD_SHADE`): the child's
+  jaw and chin rounder, and its figure shaded round so its facets don't read as folds. The chin is broader, shorter
+  and set back, the jaw broad with its corner high, and the lower cheeks full over the jaw line. The boy's chin is no
+  longer narrowed, which drew it to a point under laws 13. Its body and clothes blend across 85° (the tiered body's
+  70°), and its anime face leans 0.85 of the way toward the head's capsule (0.5 on any other face), so the cheeks and
+  the jaw take the light as one round form. Laws 13 children are as they were. The body study frames a large head
+  (the chibi's or the child's) by its own height.
+- THE CHILD FORM (hero laws 13, hero-form.js `CHILD_FORM`; anime-looks.js `CHILD_FACE`): the child drawn as the anime
+  child reads, on the chibi form's base. Its limbs are cylinders, it has no pectoral, mitten hands, round shoes and a
+  short neck. It is rounder: a barrel torso (the waist as wide as the chest, each section toward round) and fuller
+  arms. Its shoulders are narrower, and with a larger head on shorter legs it stands about three and three-quarter
+  heads tall. Its anime face is the child's, under any look or the hero's own words: a short lower face, full cheeks,
+  a small set-back chin, a button nose, a broader head, and eyes set lower, opened taller and with larger irises, a
+  narrower mouth and a thinner brow. On the boy, the male base's long jaw and forward chin are brought toward the
+  female base's. The bare `child` word is now the child build, as `chibi` became the chibi build under laws 6, and a
+  child minted without a head wears the anime head, as a chibi does. Its dress is the chibi's few pieces.
+- THE ADULT-FORM CHIBI, PINNED (`chibi-adult-form.char.test.js`): the laws 12 chibi's record, plan and recipe, bare,
+  in the ranger kit and in the knight's plate, byte for byte; laws 13 builds it the same.
+- THE CHIBI FORM (hero laws 12, hero-form.js `CHIBI_FORM`): the chibi reads as simple solids, not a small adult.
+  Its limbs are cylinders: no muscle shaping, each limb's rings drawn most of the way to their mean radius, the ankle
+  as full as the calf and the knee as full as the thigh. Its chest has no pectoral layer. Its head is larger and its
+  legs, arms and neck shorter, so it stands about two and a half heads tall with its hands at its hips. Its hands are
+  small mittens and its shoes short and round. Another cast is as it was.
+- THE CHIBI'S DRESS (hero laws 12, hero-dress.js `CHIBI_DRESS`): a body that small cannot carry every piece, so the
+  chibi wears only the pieces that say what it is. The ranger kit is its belt and its bossed pauldron, drawn bolder
+  and thicker. An armour build keeps each family's own few pieces (plate: the pauldrons, the breastplate, the greaves;
+  lamellar: the dō and the greaves; the hard-suit: the cuirass, the pauldrons, the boots), never a helm over the face,
+  with fewer, larger lames and no ornament. The build's own dials still win. The plan says `style.body: 'chibi'`, so
+  what it wears reads it; no other plan says it, and every other kit and suit is as it was.
+- THE CHIBI'S CHEST (hero laws 11, hero-form.js `CHIBI_CHEST`): the chibi's chest is wider (×1.25 over the build's)
+  and deeper (×1.3). It meets the shoulder's ring, which the shoulders' span sets, where laws 6 to 10 stepped out to
+  it in a shelf two centimetres tall, front and back. It stands as deep as the belly under it, where it was pinched
+  behind the shelf. Another cast is as it was.
+- A CHIBI WEARS THE ANIME HEAD at mint (motion-stamp.js `withDefaultForm`): a chibi minted on the tiered body without
+  a head of its own is stamped `head: 'anime'`. It keeps the landmark head when it says a word only that head reads
+  (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). A stored chibi keeps its head.
+- THE WEB'S ARMPIT (hero laws 10, tiered-form.js `WEB_ARMPIT`): the fold under a raised arm closed. The web's
+  under-arm slots (its side, back and front toward the trunk) follow the arm more than the rest of their ring, so a
+  raised arm stretches that side instead of folding it back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
+  back slots creased. It reaches less far toward the neck, and its weights hand the collarbone to the fold over its
+  length rather than at once. Its rings past the ball turn the in-ball ring onto the arm's way, so it does not twist
+  where it enters the arm, and sit a little inside the arm. Its upper slots stay with the trunk over the chest, and
+  its base sits deeper in the torso. Measured on the male with both arms up and forward: no face of the cone or the
+  web folds over, where laws 9 folded one. Laws 9 rows are as they were.
+- THE SHOULDER CONE (hero laws 9, tiered-form.js `SHOULDER_CONE`): the web's inner fairing, in its group and skinned as
+  it is (the collarbone at its base, the fold at the ball), its rings square to the way from the ball toward the neck's
+  root: from one hidden in the ball to a wide, flattened base held inside the torso's own section. Its upper half rides
+  just over the torso's skin where it would sink under it, so the torso's faceted shoulder corner (the pectoral's top,
+  the trapezius' slope, the shoulder blade) runs into the ball closed; its sides stay under the skin and its underside
+  draws in toward its centre, so it never spans the armpit. Past the ball it runs on INTO THE ARM, round the arm's own
+  axis inside the web at rest, to inside the arm's belly ring, its weights handing the fold to the arm more slowly than
+  the web's: a raised arm's root, which pulled away from the torso's shoulder corner in a V, stays joined to it. The
+  ball is drawn in under the web and the cone (its centre kept), so a raised arm no longer shows it as a jagged band;
+  and the web hugs the arm before it ends (its last ring before the arm's on the arm's own way down) where it met the
+  arm at an angle and showed the meeting as a crease. A small fold remains behind a raised arm's armpit.
+- THE SHOULDER WEB (hero laws 8, tiered-form.js `SHOULDER_WEB`): a sleeve of skin in the arm's own colour group (the
+  top's tone under a shirt, the skin on a bare arm) over the tiered shoulder's ball, from inside the torso's shoulder
+  through the ball's equator to the arm's own belly ring, where it ends on the arm's points and welds into one surface
+  with it. It rides the collarbone, the shoulder's fold and the arm by ring, so it stretches as the arm swings, and it
+  splits with the arm's chain at a target that splits the arm. The ball reads as the deltoid's swell instead of a knob;
+  a tiered hero stamped before keeps its ball bare.
+- THE TIERED LIMB END (hero laws 7, tiered-form.js `tieredJoints` `respace`): a lofted limb stopped short of its bridge
+  (the thigh, at the knee) carries its shaping rings with its end, each by its share of the run, so its last span keeps
+  its length. Laws 1 to 6 left them, and the man's thigh ended in a centimetre-long span: a knight's knee guard built
+  over it splayed past half a metre on the default body. A tiered hero stamped before keeps its thigh.
+- THE TIERED FORM HOLDS THE BUST'S CEILING (hero-form.js `bustCeilingError`): it builds its plan bare and profiles the
+  bust after, so a runaway `body.bust` passed it silently; it is refused by the same words heroPlan says. And its plan
+  carries no −0 (a stored plan reads it back as 0, so a regenerated plan matched the stored one only by its bytes).
+- `core: 'streamlined'` IS DEPRECATED: still read on a hero that names it (the classic body carries it; a new hero that
+  names it is not stamped tiered), and said on its readout's warnings; drop `/hero/core` for the game body.
+- A FLAT CAP CLOSES ITS PART (station-loft.js): each cap now winds against the ring edges it shares with the bands, the
+  bands alone judged by their geometry. A cap whose point sits on its ring's own plane (the tiered form's joints and
+  bridges, where each limb ends on the ring the bridge begins on) had been wound by a coin toss, eight to sixteen faces
+  wound against their neighbours on the upper arms, forearms, thighs, hands and every bridge; every pointed cap winds as
+  it did.
+- A HEELED STANCE PASSES THE RIG GATE (station-loft-rig.js `auditRig`): the planted toe is read on the shoe's forepart
+  sole, `stance.toe` up, where the solver stands it; a footwear card with a heel on the game body (pumps, stilettos)
+  was refused at mint with a planted drift of exactly that lift.
+- THE CHIBI (hero laws 6, hero-form.js `CHIBI`, `lawCast`): the bare `chibi` word reads as the chibi build on the male
+  pole (its child radii), with the head larger (`headScale` × 1.15 over the build's), the arms thinner (× 0.9 over the
+  build's radius) and the neck that carries the head fuller (× 1.45). Laws 1 to 5 stood the bare word on the adult
+  radii, a man's arms and a head no bigger than his; a chibi stamped under them keeps it.
+
+### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
+
+The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic
+body catches up to what the authored one wears, and its principles are shared back.
+
+- ADULTS ONLY: a child-coded hero asked of the realistic body (a child or chibi figure cast, or the anime 'kid' look)
+  is that cast's stylized western figure instead (`adultsOnly`, the first step of `validateHeroSpec` and `heroRecord`):
+  its colours keyed the same (the realistic skin's colour, as the dermis reads its tone, the palette's `Skin` unless the
+  palette names one; every palette key as given), the realistic body's own keys left off, its dress as asked.
+- ONE SET OF PRIMITIVES: the tailor re-exports the footwear library's `soleSlab`, `strapBand`, `buckleOn` and
+  `bindNearest` (its own copies had drifted from them; the library's are the superset, its `buckleOn` now taking a
+  slot's name as the tailor's did); both byte pins unchanged.
+- docs/realistic-body.md says what the body wears and still refuses as the tree has it.
+- HANGING PIECES OVER THE TAILOR'S CLOTH: a panel (coat-tails, a tabard's apron), a cape and a hood on the realistic body
+  hang over the cloth the tailor made, not the skin under it. A hull piece takes `over` (more parts it hangs over beside
+  what is worn on its body parts; absent, as before): the realistic path hands a panel the trunk's and the legs' cloth,
+  a cape and a hood the sleeves' too, and keeps those names where it had filtered `over` to the skin's parts (a cloak had
+  shown the jacket through at the shoulder and the elbow). A jacket cut at the waist (a tailcoat's, a spencer's) raises
+  its stance till its last button is 3 cm over the hem: below the cloth the front had no surface, and its lapel and
+  button were thrown a metre out. The authored pins unchanged.
+- THE WAISTCOAT: the outfit language's `waistcoat: true | { front: single | double, buttons: 3–6 }` puts a waistcoat
+  between the shirt (and its tie) and the jacket, from the chest to below the waist, the jacket eased over it, worn
+  without a belt; a `Waistcoat` tone (the jacket's unless the card names one). On the realistic body the tailor gives it
+  its V (narrower than a jacket's, so it shows between the lapels), its buttons down the middle (two rows,
+  double-breasted) and its ARMHOLES, painted the shirt's and laid on the shirt slot by slot (`armholes`): taken in under
+  the shirt they had stood out as shards, laid on a reach measured over a window of heights they had creased the jacket
+  over them. The jacket's V walls over it read as the waistcoat. A seeded card `threepiece`. Cards without the word
+  byte-identical (both pins unchanged).
+- STATUES ON THE REALISTIC BODY: `statue` is no longer refused there. Every card and format carves: one material over
+  every group, no dermis (stone is not skin), a lost head (and a torso study) taking the realistic head's own parts with
+  it (the face and the nose, bound to the head beside the plan's head parts), a bust without the upper arms' stumps
+  (the torso carries the shoulder; a stump cut from the deltoid's rings stood out as a disc). `detail` stays refused,
+  its refusal now saying an outfit dresses this body. The authored statues unchanged.
+- docs/realistic-body.md said no exporter carried the correctives and the body had no UVs; both have been in place
+  (the skinned GLB's corrective morph targets with their weights baked per clip key, the skin's UV atlas). It says so
+  now, and what is still missing: an engine-side driver, so a pose the engine makes itself gets the correctives.
+- THE OUTLINE READ ON BOTH BODIES: the dressed outline (dress-outline.js: the family against the bare body's, each half's
+  fit, the returns, the divisions, the flair, the advice in each canon) is read for the authored game body's heroes too,
+  in the hero's readout beside its ring-for-ring silhouette; a figure it cannot read goes without it, never refused.
+- THE LANDINGS MEASURED ON THE GAME BODY: the stylism's proportion stage judged every length word by where it lands on
+  the realistic body. Measured on the authored game body (`GAME_LANDINGS`), a top's and a coat's hems from the waist to
+  the tunic land 4 to 5 hundredths lower (its trunk is longer for its height), enough that under the anime canon's leg
+  line a top worn out at the hip, kept on the realistic body, is moved on the game body; the stage now judges by the
+  body the hero is on. Down the leg the bodies agree within about two hundredths. The measuring found a cropped woven
+  top refused on the game body (its buttons placed below its window); its row now starts on it.
+- ONE CANON ACROSS THE WEARABLES: the footwear, handwear and plating libraries' principles each end on the same law, the
+  canon is the outfit's (the dressed outline's western | anime): no library carries a canon of its own, and what each
+  canon asks of its pieces is the garment principles' (a boot, a gauntlet's cuff, plates standing out among the anime
+  flair pieces; the feet in the value gradient). The outline read measures that gradient now (`values: { chest,
+  feet }`, the shoe's L* against the chest's front) and the anime canon reads it (`gradient`: dark shoes under a light
+  chest).
+- WHAT THE GAME BODY WEARS, SAID: the authored body wears the handwear library's gloves (its own adapter) and every
+  footwear card as plain boots, shoes or sandals; the tailoring words, the plated suits and the footwear cards' own cut
+  are the realistic body's. The hero readout now says so (`realisticOnly`) where it had worn them plain or dropped them
+  in silence; nothing refused.
+- FOOTWEAR CARDS ON THE GAME BODY: every footwear library card past the plain boots, shoes and sandals is the library's
+  on the authored body's structured core too, through an authored foot adapter (`footwear/adapters/authored.js`). The
+  plan keeps the bare foot (hero-foot.js, the same proportions) under the card (`heroPlan({ feet: 'bare' })`); the
+  library reads it up to the toe base, the five toes as one block from that ring on, the leather stood off past the bare
+  foot near each ring; a heeled card stands the rig in its stance, as on the realistic body. A closed shoe's foot is not
+  drawn (the game foot's boxy sections stood past the toe cap the library tucks the leather under); a sandal's straps and
+  sole are on the bare foot. The library takes an adapter's `facets` (a share of its reference resolution: sole and
+  heel outlines, the toe cap, the wraps), the game body's half; absent, as drawn, the realistic pins unchanged. The
+  plain words and the outfit cards' `feet` keep the kernel's shoe, byte for byte; the streamlined core keeps the plain
+  base, said in the readout.
+
 ### Face harmony: the female differentiated, the look standard, the lips' grain
 
 - The dermis study's lineup takes subjects of its own (`--faces '[{ label, sex, relations, eyes }]'`, the wave's tune
@@ -311,6 +489,396 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   one height, and cloth copied from them wound inside out), its cap closing between the legs; the trunk's cloth takes
   the thighs in (`join`), so the seat wraps their tops; the seat and the legs CROSS a few centimetres over the crotch
   (under it the seat let down under the legs, over it the legs under the seat), so the seat's edge leaves no lip.
+
+### The tailored suit: a jacket's front and lapels
+
+A suit read as a suit on the realistic body: its front, its lapels and its buttons as words on the outfit card, made
+by the tailor. Cards without them unchanged, byte for byte.
+
+- THE WORDS (`outfit/styles.js`): `outer.front` `single` | `double`, `outer.lapel` `notch` | `peak` | `shawl` | `none`,
+  `outer.buttons` 1–3; any of them gives the jacket a tailored front (single with a notch lapel and two buttons, double
+  with a peak and three rows, unless named). The expander carries them as the build's `tailoring`, beside its pieces;
+  the lapel's facing a `Lapel` tone (the card's, else a shade off the jacket's). The authored game body's jacket is
+  unchanged by them.
+- THE FRONT (`body-relational-tailor.js`): `cutV`, the jacket's V from its top button up to the collar, taken in under
+  the shirt, its edge carried onto the roll lines and its walls painted as the shirt (on cloth whose points sit 2 cm
+  apart a V cut by them alone is a ragged slit); `lapelBand`, the lapels and the collar one band along the roll lines
+  and round the back of the neck, its width the lapel's shape (the notch's step at the gorge, the peak's corner carried
+  up and out, the shawl's one curve), the collar falling down over the shoulders, its inner edge rolled over the V's;
+  `buttonOn`, a disc on the cloth. The wear adapter places them: the stance by the button count (two a little above the
+  waist, one under it, three higher), the roll lines to the side of the neck, one row of buttons or two; a lapelled
+  jacket wears no stand collar. Each part closed and wound once; a stride stretches no edge of it past 5 mm.
+- CLOSED, ONE SIDE OVER THE OTHER: a closed tailored jacket's right front lies over the left, its edge a band standing
+  on the left front from the top button to the hem. A single front is cut away below its last button (the quarters,
+  `cutOpening`, opening on the trousers, the left front's edge come out from under the right); a double front is square
+  to the hem, its edge past the left row of buttons, its left lapel going down under the right front so the two cross
+  above the buttons.
+- THE TIE (`language.tie: true`): a blade on the shirt from its collar to the belt (`bladeOn`: the knot a block, the
+  blade widening to its point), the jacket carried out over it (`clearOver`) and showing it in the V; a card's `Tie`
+  tone, else a deep red.
+- Two business cards: `business` (navy, single-breasted, two buttons, notch lapels, a burgundy tie) and
+  `doublebreasted` (charcoal, peak lapels, three rows of buttons, a navy tie over a pale blue shirt).
+- OPEN, THE LAPELS TO THE HEM: an unbuttoned jacket's fronts hang a little apart from the top button down, its lapels
+  carried on down each front's edge to the hem as the facing turned back (its buttons on the front under's edge).
+- A WOMAN'S SUIT closes her way, left front over right (the hero's sex handed to the tailor with the front's words),
+  every overlap, edge, crossing and button mirrored. A skirt's waistband is a layer under a jacket worn over it, and
+  the jacket is carried out over the skirt at its own height (the skirt's rings filled in between, so a ring reads the
+  skirt where it is, not 2 cm lower); every garment's trunk clears the trunks worn before it below the waist (close cloth
+  over a woman's hips had lain inside the trousers' seat, which bridges from hip to hip, showing them through a
+  jacket). Two cards: `skirtsuit` (navy, one button, notch lapels, a pencil skirt to the knee, a white blouse) and
+  `trousersuit` (black, double-breasted, peak lapels, gold buttons, wide trousers, an ivory blouse).
+- THE SHOULDER AND THE WAIST: `outer.shoulder` `natural` | `structured` and `outer.waist` `suppressed` | `straight`,
+  alone or beside the front's words. Structured, the jacket's shoulders squared on a pad (`squareShoulders`: above its
+  widest ring each ring's reach to the side carried out to the straight line from the neck's point at 18°, 4 mm past
+  the widest, square from there down to it; a centimetre had stood the shoulder out past the sleeve's head). Suppressed,
+  the waist drawn in toward what the jacket is worn over (`takeIn`, eased over 11 cm either side); straight, a sack's
+  fall from the chest to the hip, the waist's hollow bridged (`fallStraight`). The collar now falls at the back and
+  not at the sides of the neck, where over a squared shoulder it had stood out as wings, and is a little narrower. The
+  suits wear them: `business`, `doublebreasted` and `trousersuit` structured, `skirtsuit` natural, all suppressed.
+- THE LAPEL ALONG THE CLOTH: its outer edge measured along the jacket (`clothWalker`: round the ring at its height, up
+  or down the cloth), not stepped out sideways and dropped back onto it, which had stood its top out off the shoulder
+  in the air; its section six points across, so over a bust no chord of it dips under the cloth, and its rings twice as
+  close along the roll line. A closed front's V is off the middle and a face's paint is mirrored, so the cut's walls
+  are painted as the shirt only where both sides are cut (a one-sided wall's paint had laid a strip of white shirt on
+  the jacket beyond the lapel); the quarters' paint the same. The belt is made before the jacket's front, the waist
+  suppressed onto it and the ridge it leaves eased into the cloth 6 cm above and below (`bridgeRun` now takes a range,
+  along the run only, and points to hold); a skirt reads what is under it within 1 cm of each ring (`clearanceOver`
+  takes its window), so it no longer flares out too soon into a shelf under a jacket.
+
+### The garment designer: silhouette principles over tailoring primitives
+
+Garments on the realistic body as data over a small set of construction primitives, and the principles
+that make a silhouette read as measures with bands, so a garment is chosen and checked rather than designed by hand.
+
+- THE TAILOR (`polygonizer/body-relational-tailor.js`): the realistic body's construction in one place, each a pure
+  function that knows no garment: runs (`oneTube`), profiles (`drapeRun`, `clearanceOver`), edges (`fallToFloor`,
+  `turnHemIn`), trims (`bandAt`, `strapBand`, `sashOn`, `strip`, `ribbon`, `soleSlab`, `buckleOn`) and binds
+  (`bindNearest`, `bindRibbon`, `ringW`). The trousers, the gi and the footwear are each their choice of them. Moved byte
+  for byte (`body-relational-tailored.char.test.js`, out of the critical tier: each case mints a realistic body), but
+  for one fix: a strap is now the one band, its caps riding with their ring as a cuff's do.
+- THE PRINCIPLES (`docs/garment-principles.md`): what makes a dressed silhouette read, each as a measure of the dressed
+  figure with a starting band in two styles, western (fashion and tailoring) and anime/game (character costume):
+  silhouette families and their shift from the bare body, waist suppression, fit class, return points for loose cloth,
+  the dominant division on thirds and never at halves, the leg line, a hem off the limb's widest, the shoulder line,
+  fabric stiffness, the flair budget, readability at a thumbnail, and rules for dressing each body type. Every source
+  so far seen only in search results, and said so.
+- THE DRESSED OUTLINE READ (`polygonizer/dress-outline.js`): the realistic body's outline sliced off the compiled mesh
+  against the bare body under it (a tenth of a second): the family, each half's fit, where loose cloth returns to the
+  body (by its standoff each side, so layers at a belt count as a return), the divisions (only where a garment spans the
+  body and does not go on below), the leg line, a hem's place on the limb, the flair pieces, and advice in each style.
+  In the realistic hero's readout as `dress.outline`; `/body-study --outline` draws it. It found the gi's belt a cone up
+  to its blouse (the gi now cinched past the belt) and advises the gi's skirt off the thigh's widest.
+- OUTFIT CARDS ON THE REALISTIC BODY (`polygonizer/body-relational-wear.js`): the outfit expander's pieces (a card's,
+  a stylism's, an outfit word's) worn by the tailor instead of the authored body's ring copies baked on the realistic
+  envelope (a cropped top, rippled shoulders, belt shards). The expander still makes every design choice; the adapter
+  only makes them: each garment one cloth block over its windows (the trunk's `u`, a limb's `run`), each layer standing
+  off the one under it, a limb's two pieces one tube faired over the elbow or the knee, a top's tail and body one; a
+  knit or fitted top's second-skin paint made close cloth worn first; a sleeve or leg stopping short of the hand or the
+  foot turned back in to the limb; a collar a stand collar up the neck (`collarOn`); boots and shoes the footwear
+  primitive; the belt a band with its buckle at the front. Each authored part name a worn piece had is an ALIAS for the
+  cloth it became (its `u` shifted where pieces were merged), and the cloth is in the body the dress is made on, so
+  what the expander placed on a piece lands on it: trims and an open front painted on its faces, rows of buttons,
+  embroidered emblems, pauldrons. Still the authored kernel's: hanging panels, capes, hoods. New tailor primitives:
+  `flareRun`, `fairRun`, `collarOn`, a buckle at a named slot.
+- STYLISM ON THE REALISTIC BODY: no longer refused. A genre, a register and a target outline lower to an outfit build,
+  worn as above. `/body-study --palette` shows a figure in its palette's colours, face by face.
+- THE DESIGNER: the stylism given the principles (`stylism/proportion.js`), opt-in, nothing moving without it.
+  `stylism.canon: 'western' | 'anime'` names the principles an outfit is designed to: the lengths the solver chose (a
+  coat's, a top worn out, a skirt's, a trouser leg's) are judged where they land on the figure, measured on the
+  realistic body for each length word, and moved to the nearest word that lands well (never at halves, never on the
+  thigh's top or the calf's belly, the leg line kept), the hero's own lengths and a card it named standing; each move a
+  note in the stylism's ledger, and the outline read advises in that canon. `stylism.silhouette: 'balance'` picks the
+  outline the figure is dressed toward by the canon's rules for its cast and physique (a jacked western male a column, no
+  padding; a heavy figure one long vertical run; a drawn female an X), with why. The outline read's calf is the bare
+  leg's now, the knee not counted.
+- THE PROOF, by data alone: a long coat, a gown, a structured jacket and `balance`, each a stylism with a canon, on
+  male and female, athletic and heavyset; every one made without new garment code. What the run found and fixed: a waist
+  wrap built for the authored body's girth cut through a heavy figure's coat (now a band, or a sash, made by the tailor
+  on the outermost cloth at its height); loose sleeves swelled into balloons (loose cloth past 14 mm of ease now hangs,
+  the tailor's fall down the limb, a sleeve narrowing to its cuff); the read judged a hem just under the knee as on the
+  calf (now a good landing, as the stage holds); the family cut-offs re-centred on this body as it is read (a gi and a
+  straight coat H, a long coat and a gown A, a cinched bodice over a flared skirt X).
+- THE REALISTIC REGISTER: the realistic body's cloth cut as a character designer of the seventh console generation
+  cuts it (close, with a real wearing ease; the silhouette from the cut, the belt, the coat's skirt and the layers, not
+  from volume), where the expander's eases were tuned on the game body. Every garment the close cloth now, its ease
+  compressed toward its role's ceiling (a shirt 12 mm, trousers 14, a coat 22: a coat still looser than a jacket, a
+  jacket than a shirt) and held no farther than 15 mm past it (`fieldGarment`'s new `stand`: the trunk's cloth no longer
+  carried out over the arms at the armpit). A COAT'S SKIRT, or a skirt's own, is the tailor's now (`carrySkirt`): carried
+  down from the garment's body, close at the waist, falling from the hips' widest without following the legs back in,
+  the hollows bridged, an A by the expander's flare over its drop compressed the same way, its hem turned up inside so
+  it opens beneath; a skirt with no body hangs from a waistband of the close cloth, its belt on that. The authored skirt's
+  name is an alias for it (turned: its hem the lowest `u`), so a trim painted on its hem lands there. Measured per side
+  over the bare body: a long coat's chest about 10 cm → 6, its waist 9–12 → 4, its knee 11 → 7. Also fixed: a stand
+  collar with no neck above the garment's top (a heavy figure's shirt) is left off instead of built inside out; the
+  martial trousers' shin piece no longer carries a negative flare the authored body refused. SLEEVES are their own
+  now: at their own pieces' ease, closer than the body's, a layer out only over the sleeves under them (not the
+  trousers), bridged over the arm's hollows (the tailor's `bridgeRun`), and hanging only when the cut itself is loose,
+  where every jacket's sleeve used to fall straight from the shoulder (a jacket sleeve 2.4 cm off the arm → 1.0–2.0). A
+  jacket worn over the trousers' belt clears it; an open front painted on a jacket whose body and tail are one tube
+  is each piece's own again (the tail's paint, in the trousers' colour, had covered the whole front).
+- `/garment-design <brief>`: the designer as a skill. The brief in stylism words or a card, the rationale principle by
+  principle, the mint and the read, the words adjusted at most three times, the sheet shown; the eyes gate the
+  operator's.
+
+### The gi: a wrapped jacket over the martial artist's trousers
+
+A jacket that goes over the wide trousers, on the outfit word `gi` (`polygonizer/body-relational-gi.js`; the authored
+body wears a wide top, sleeves to the forearm and a hem over the hips):
+
+- The BODY one tube from the collar to its hem: close over the shoulders, hanging below the chest (the slack eased in,
+  so the back has no step), BLOUSED over the belt it is cinched under, then a SKIRT carried straight down past the hip,
+  every ring clear of the trousers under it; the skirt's weights the pelvis's, the thigh's shared in toward each side.
+- The WRAP: a V from the collar to the crossing, the cloth inside it taken under the skin, which shows; one COLLAR band
+  lying on the cloth, up the right edge, standing round the back of the neck, down the left edge and over the crossing to
+  the right waist (left over right); the over-panel's edge on down the skirt. Both in `TopFold`, the jacket's own shade.
+- WIDE SLEEVES draped as the trousers' legs are, one tube from the shoulder to the forearm, flaring to the hem.
+- TURNED HEMS: the skirt's and the sleeves' cloth folded back up inside, so they open as cloth does instead of closing
+  with a lid (the loft winds such a tube only from the collar down, its cap's pole back toward the opening).
+- The BELT is the jacket's (band, knot, tails); the trousers' sash is left off under a gi. The drape's sash takes a
+  station and a name, and its legs an optional `flare` (absent, the trousers are unchanged).
+- Machine gate (`body-relational-gi.test.js`): closed and wound once, the skirt outside the trousers from the belt to the
+  hem, no jacket over the chest's middle in the V, each sleeve wider than the arm and its hem turned in, no edge grown
+  more than 3 cm in a stride or a sprint (a ribbon's corners take one station's weights).
+
+### Loose cloth that falls: the martial artist's wide trousers
+
+Everything the realistic body wore was FITTED: the cloth field close over the forms. Loose cloth now hangs
+(`polygonizer/body-relational-drape.js`), on the outfit words `martialPants` and `wideTrousers`:
+
+- The DRAPE: the trousers' leg rings re-made hanging, each slot's radius the widest of its own (and a slack) and the
+  ring above's let down slowly (`taper`), so the cloth falls from the seat and the thigh past the knee instead of
+  following it in; vertical folds round the ring, deeper toward the hem.
+- ONE TUBE A LEG: the thigh's and the shank's rings one piece (no edge across the knee), the shank's taken round at the
+  thigh's slots, every point's weights mixed from its own piece's, so a stride carries the cloth with the leg.
+- The MIDLINE: each leg's inner side held off the body's middle plane, so the two legs never cross (at the crotch,
+  where the thigh's skin reaches the plane, the plane wins).
+- The HEM: `martialPants` blouses over a cuff gathered at the ankle (a wrapped band, its caps weighted as its rings,
+  so a bent knee carries the whole cuff); `wideTrousers` falls open to just above the ground, over the foot.
+- A SASH at the waist, a knot at the front and two tails hanging. Tones `Sash` and `Cuff`.
+- Machine gate: closed and wound once, the legs apart at the midline, wider than the calf, the cuff with the ankle in a
+  stride and whole on its ring, the open hem never under the ground (`body-relational-drape.test.js`).
+
+### Armour fitted to the realistic body
+
+In progress. An armour build (`adorn: { type: 'armor', style }`) on `form: 'realistic'` was the authored body's kit baked
+on the realistic body's envelope: plates sampled 6 × 4, the breast and back windows open at the flanks, the fauld two
+coarse wraps crumpling over the belly, the pauldron's anchor folding over the shoulder's turns. Now
+(`polygonizer/body-relational-armour.js`, the style still naming every piece, its window and its ornament):
+
+- Every plate sampled as densely as the realistic skin under it and made the kit's own hollow plate (a wall rolled at
+  its edges, faired over the forms beneath: `fitPlates`).
+- The CUIRASS (the kit's breast and back plates) and the FAULD made field shells round the trunk over their windows
+  (a field garment at a plate's clearance, taut over the forms; `fieldGarment` takes a `window` in the segment's
+  stations), worn on the body the rest of the kit is baked over, so a tasset or a strap stacks over them.
+- The PAULDRONS a JOINT CAP each (`jointCap`): a dome over the shoulder from a centre deep in it, the farthest of the
+  skin and the cuirass under each direction faired and held clear, its outer and inner walls rolled at the rim,
+  carried by the clavicle; the kit's lames down the arm under it.
+- The GORGET optional: the realistic body wears it only when the build names it (`wear: ['gorget']`, armor/expand.js
+  validates the word). The authored body's armour byte for byte.
+- By ROLE, not by name (`roleOf`: a piece's carrier, its window, whether it wraps, what it spans), so every family is
+  fitted alike and a style the fit has never seen is fitted by what its pieces cover: the trunk's panels front and
+  back one CUIRASS (the knight's breast and back, the hardsuit's chest, back and abdomen plates); every wrap round the
+  trunk a field HOOP over its window, each over the one before in the kit's stacking (a fauld's lames, a belt, the
+  lamellar rows), the lowest carried down to a skirt's hanging plates when no cuirass meets them; a pinned panel hangs
+  (the lamellar skirt) and keeps its kit shape; a shoulder's anchor a CAP; a foot's wrap a BOOT; a neck's wrap the
+  optional gorget; the HEAD's pieces (a helm, a neck guard hung from it) left off, not fitted to the relational head
+  yet. A strap hugs what lies under it (its lift read within 2 cm). Plate, lamellar and hardsuit styles mint on the
+  realistic body (a lamellar suit refused before: its neck guard's address fell off the realistic neck).
+- The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
+  primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
+  made for the authored foot lands on the same share of the realistic one.
+
+### Footwear: a solver library, an adapter per body's foot
+
+In progress (the library and the realistic body's adapter first; heels, laces and the other bodies' feet next).
+`lib/graph/footwear/`, on the armour and outfit pattern: footwear in THREE LAYERS (`principles.js`), the SOCK (the
+protosock, the shoe's close outer layer and its bottom colour: a height and a thickness, none for a sandal), the SOLE
+(its layers stacked from the floor up, each with its own thickness, welt and group: an outsole, a midsole, a stripe; a
+layer's patterns: `pod` an air window at the heel, proud of its wall; `heel` a block under the print's rear, a dress
+heel on the still-flat foot; `lugs` tread round its edge) and the ADORNMENT the solver lays over them
+(`ADORN_PRIMS`: `strap` with a `buckle`, `band` (gilding), `cuff` at the sock's collar, `toeCap` (a quarter egg over the
+toes, mapped from the toe base to the frontmost toe with a toe allowance past it (`room`), the leather under it tucked
+inside, `rivets` round its back edge, small and dark a brogue's perforations; in the leather's own group a sleek toe);
+`panel`, a pattern piece on the upper as a cobbler cuts it (`cobbler.js` COBBLER_REGIONS in the sock's own
+coordinates, along the foot and round from the instep's centre line: the `tongue` (standing above the collar by its
+`rise`), the `eyestay`s, the `vamp`, the `quarter`s, the `counter`, the `foxing`; or an inline region), a MATCHING PAIR,
+lateral and medial, where the piece has two sides; `laces` criss-cross between the eyestays over the tongue; any of
+them in a `group` of its own). Composed by CARDS (`styles.js`, pure data: a new look is a card), each annotated
+with its `family` (shoe, boot, sandal, sneaker, dress); a card EXTENDS another (`from`: its sock merged, `adornPlus`
+appended, its tones merged), and wears any COLOURWAY (`skin`: `SKINS` tripleBlack, tripleWhite, volt, navy, oxblood,
+tan, or its own tones by group), the pieces' groups being roles (Overlay, Counter, Eyestay, Midsole …); by passes in a fixed order (`expand.js`: sock, sole, adorn, tone; tones
+only for the groups laid), refused by name (`validateFootwear`). Worn on any body through its FOOT ADAPTER (`adapters/`:
+which parts are the foot, the toes and the shank, the rig's ankle, toe base and toe tip, the bare skin a sandal is worn
+on, the body's own way to lay the sock, and how a share along a segment names its stations): a card's places are shares
+of a segment, so it reads on any body. `wearFootwear(adapter, card)`.
+The realistic body (`adapters/realistic.js`; `polygonizer/body-relational-footwear.js` re-exports it): the sock a field
+garment, close over the foot's forms (`boot`: up the shank as a shaft, the foot's leather tucked under it round the
+ankle; `shoe`: from a collar below the ankle; its `thick` the leather's ease). The words on the realistic body: `boots`,
+`shoes` (new), `sandals` (new; on the authored body a low close shoe), `workBoots` (a steel toe, riveted),
+`adventurerBoots` (a thicker sock, a deep sole, a cuff, a gilt band, a buckled strap), `sneakers` (a court shoe: a white
+cupsole on a gum outsole, a rubber toe bumper) and `runners` (a foam midsole with an air pod, a contrast stripe), both
+cut as sneakers are: tongue, eyestays, laces, matching quarter overlays, the heel counter. SPORTS varieties over them:
+`highTops` (over the ankle, a padded collar, an ankle strap, a deep cupsole on air), `skateShoes` (a vulcanized sole, a
+suede vamp, a side stripe), `trailRunners` (a lugged outsole, a toe guard). DRESS shoes (a sleek sock, a leather sole on
+a welt, a stacked heel): `oxfords` (cap toe, closed lacing), `brogues` (perforated round the cap), `derbies` (open
+lacing over a tongue), `loafers` (a saddle strap), `monkStraps` (two buckled straps), `chelseaBoots` (elastic gussets,
+a pull tab). BOOTS cut as a cobbler cuts them: a region's `shaft` carries its piece on up a boot's shank (the quarters past the
+ankle, wrapping round to meet at a back seam; the tongue up the front, standing above the top; the eyestays beside it,
+the laces on up between them, `shaftRows`; where the foot's piece begins below the ankle, a bridge on the foot's
+leather cut round as the shaft's, so no plain leather shows between them), so any boot-height card is cut up the leg
+and a shoe is not. Cards
+`hikingBoots` (lugged, a padded collar, a toe guard), `combatBoots` (laced to mid-calf), `chukkas` (suede, a crepe
+sole), `cowboyBoots` (pull tabs, a stitched band, a cuban heel the body stands on, a long toe), `ridingBoots` (a tall
+plain shaft, a low heel); `workBoots` laced. FANTASY, DRAMA AND HISTORY (`fantasy.js`): primitives the cobbler's pieces do not make, composed by cards like any
+other: `toePoint` (the toe drawn out past the toes, tapering, curled up by its degrees, a `bell` on its tip), `wrap` (a
+ribbon spiralled up the leg, on the leather or the bare leg above a short boot; `cross` a second the other way),
+`flare` (a funnel rising from a boot's top and opening out), `buttons` (a row up a boot's side), `spur` (a neck from the
+heel and a star rowel), `wings` (a fan of feathers at each side of the ankle), `jewel` (a stone on the toe, the instep or
+the ankle), `fur` (a shaggy ruff round the collar, or round the leg at a share: tufts and a drooping fringe of seeded
+lengths); the heel kind `teeth` (a board on two teeth, the foot raised level when the toes stand as high as the heel).
+Families `historic` and `fantasy`. Cards `poulaines`, `jesterShoes`, `persianSlippers`, `romanCaligae` (hobnailed),
+`gladiatorSandals`, `vikingWraps`, `cavalierBoots`, `buttonBoots`, `geta`, `elvenBoots`, `talaria`, `furBoots`, `barbarianBoots`. On the authored body
+a card wears its boot, sandal or shoe by its sock. HEELS (`heels: { height, toe, shank, kind: stiletto | kitten | block | wedge }`) change the mechanics: the foot is
+tipped about the toe base and the body risen on them, as the RIG'S STANCE (`rig.stance: { rise, toe, pitch }`,
+`station-loft-rig.js`: every pose stands in it, the root `rise` higher, each planted foot's toes `toe` up and its
+metatarsus `pitch` degrees heel-up, or the pose's own heel where it lifts further, a free foot's toes turned down by the
+pitch; absent, nothing changes), solved from the foot's own heel-to-ball length so the legs keep their length; the soles
+and the heel cut against where the ground will be under that pose, rigid on the foot's and the toes' bones, the heel
+leaned in the bind so it stands plumb when worn, a slender heel's foot under the back of the seat. Cards `pumps`,
+`blockHeels`, `wedges`, `platforms`; `chelseaBoots` on a low block heel. A tone may be `{ of: <group>, shade }` (that
+group's colour darkened or lightened, read after the palette: `readTones`), so recolouring `Shoes` carries the pieces
+cut from it; the dress cards use it. A card's or its skin's named tones stand over the palette's defaults, the
+operator's palette over all. body-study `--dress` paints the shoes in their own colours; a rig with a stance stands the
+bind in it; `--crop shin` frames a tall boot whole. On the
+authored body the library's other words are its boot, its sandal or its shoe by the card's family, for now. `boots`, `shoes` and `sandals` are pinned byte for
+byte as the primitive first made them (`footwear.char.test.js`). `fieldGarment` takes `covers: null` (every ring of the
+segments it is `on`). body-study `--dress` colours each footwear group by its tone.
+
+### Handwear: a solver library, an adapter per body's hand
+
+The footwear library's sibling for the hands (lib/graph/handwear): a CARD (pure data, a family, `from` its kin, `skin` a
+colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gloves the way the shoes are made.
+- THE PROTOGLOVE: the palm's and the digits' own rings stood off by the leather's thickness, a digit cut at its middle
+  joint or at its knuckle where the card's `fingers` (and `thumb`) say, its end closed inside the finger; the cuff up
+  the forearm by its share (the realistic adapter's close leather, a field garment); a glove with no cuff tucks its
+  first ring under the forearm's skin. `glove: false` lays the adornment on the bare hand.
+- THE GLOVER'S CUT (cutter.js): pieces in the hand's design coordinates (the plating library's fitted shell: along the
+  segment, round it from the back of the hand, the thumb's side +, the palm ±1), named `back`, `palm`, `heel`,
+  `knuckles`, `fingerBacks`, `fingerPads`, `thumb`, or `{ seg, t, s }`.
+- ADORNMENT PRIMITIVES (`ADORN_PRIMS`): a piece, the points stitched down a dress glove's back, a cuff, a strap (a snap
+  or a buckle on its back), a flared gauntlet cuff from the wrist, a hard knuckle guard, studs, a knight's lames, rings
+  with stones, a stone on the back or the knuckles, claws curled toward the palm (each rigid on its last phalanx), fur, a
+  fighter's crossed wraps. Each takes its surface's weights.
+- CARDS by family: glove (`gloves`, `suitGloves`, `fingerless`, `mitts`), dress (`dressGloves`, `operaGloves`,
+  `drivingGloves`), work (`workGloves`, `weldingGloves`, `gardenGloves`), sport (`bikerGloves`, `cyclingGloves`,
+  `goalkeeperGloves`, `fightGloves`, `skiGloves`, `handWraps`), historic (`cavalierGloves`, `falconryGlove`,
+  `knightGauntlets`, `bishopGloves`), fantasy (`clawGloves`, `sorcererGloves`, `furGloves`, `gemGauntlet`); colourways in
+  `SKINS`; a piece's tone may be OF the leather's.
+- SPORT AND DRESS VARIETIES, skinnable as the shoes are: sport `battingGloves`, `golfGloves`, `liftingGloves`,
+  `receiverGloves`, `racingGloves`, `hockeyGloves`, `tacticalGloves`; dress `kidGloves`, `walkingGloves`, `winterGloves`, `eveningGloves`, `mousquetaireGloves`,
+  `bridalGloves`, `ceremonialGloves`, `perforatedDrivers`, most a variety of their kin (`from`). Primitives `buttons`
+  (a row at the wrist's opening, up the inner forearm along a long cuff) and `perf` (a grid of perforation over a
+  region, on each digit of a digits one). Colourways for sport (`tripleWhite`, `infrared`, `royal`, `hiVis`, with
+  `volt`, `navy`) and for leather (`cognac`, `chocolate`, `dove`, `burgundy`, `ivory`, with `tan`, `oxblood`): a
+  leather colourway carries every piece whose tone is OF the leather. The knight's and the stone gauntlet are the
+  `gauntlet` family's.
+- THE MITTEN SHELL (a card's `mitten: { pad, grip, thumb }`): one closed padded form over the palm and the four fingers
+  in place of their gloves, made round the gloved hand as spheres (the palm's surface, each digit's bones sampled
+  along) sliced from the wrist on past the fingers, each slice read out from its middle, its front rounding off where
+  the spheres end. With a `grip` (a hand word: a boxing glove's `fist`) the shell is made round the closed hand, rigid
+  on the hand bone, and the body HOLDS THE GRIP AT REST (station-loft-rig.js `holdGrip`: the hand's joints and every
+  part riding the digits' bones turned into it by the rig's own curl), so the bind, every pose and an export keep the
+  fist inside it; without one the shell bends with the fingers inside it, each point taking its nearest skin's
+  weights. `thumb: 'apart'` keeps the thumb in its own sheath. Words `boxingGloves` and `sparringGloves` (a fist, its
+  thumb sewn to its side), `mittens` (knit, the thumb apart).
+- FANTASY AND HISTORIC MITTENS on the shell. `mitten.free` leaves any digits outside it in their own sheaths (a
+  trigger finger); a piece aimed at a digit inside the shell skips it, and claws grow from the bare tips through it. The
+  primitive `ribs` lays bands across the shell, spaced by its length (lames, scales, trim, cracks). Historic
+  `mailMittens` (a mail muffler), `mittenGauntlets` (Gothic, steel lames to the fingertips, the thumb's own),
+  `lobsterGauntlets` (blued, lames from the back of the hand), `triggerMittens`, `arcticMittens` (sealskin, trim, fur);
+  fantasy `bearPaws`, `pincerGauntlets`, `golemFists` (a stone fist held closed), `dragonClaws`.
+- Every card is an outfit word, worn on either body through its adapter (its parts riding their segments' dials, its
+  tones under the operator's palette). THE AUTHORED BODY wears them too (adapters/authored.js): the same hand as the
+  realistic body's, its glove's cuff new rings sampled round up the authored forearm's few coarse ones, their weights
+  mixed from the rings either side. A mitten's grip marks the hand `held` (station-loft-rig.js): a pose's own fingers
+  no longer curl it on past its glove's fist (a guard's fist had curled the thumb out through the shell); its wrist
+  still turns. body-study paints its groups, a palette's colour
+  first.
+- The fitted shell reads a coarse ring (the hand's eight points, a digit's six) as it is, unsmoothed: easing toward
+  neighbours that far round had lifted the flat back of the hand about 7 mm off it.
+
+### Wearables sized to the body: no one wears the same size shoe
+
+The footwear and the handwear libraries' cards were drawn on the realistic man (every sole, heel, welt, strap, cuff,
+claw and mitten's padding in his metres), so the realistic woman, the tall and the short builds wore his sizes. Now each
+is worn at the body's size: an adapter reports its body's foot (heel to toe tip along the foot: `footLength`) or hand
+(the wrist to the middle finger's tip: `handLength`), and where it differs from the reference the cards were drawn for
+(`FOOT_REFERENCE`, `HAND_REFERENCE`, the realistic man's), the body is carried to the reference's size, the card worn
+there unchanged (its lengths, the library's defaults and its tolerances alike), and every piece carried back, a heel's
+stance with them; the adapter's own close-fit distances (the leather's ease, the envelope's reach) take the scale too.
+The reference body is worn as it was, byte for byte (its pins hold). Both libraries' realistic adapters and the
+authored hand adapter report their size; the plated suit's feet and hands, being these libraries' cards, follow.
+
+### Plating: segment-paneled armour on the realistic body
+
+In progress (the realistic body first; joint caps, glow seams and the other bodies next). `lib/graph/plating/`, a module
+of its own beside the armour (it leaves `armor/` and the realistic fit untouched; the hard-suit can adopt it): a powered
+suit as TWO LAYERS, an undersuit (a close field garment over the trunk and the limbs) and PLATES over it, each a REGION
+of one segment in that segment's own coordinates (`regions.js` PLATE_REGIONS: along it, round from its front line;
+chest, abs, flank, back, lumbar, belt, hip, shoulder, bicep, triceps, gauntlet, thigh, thighOuter, hamstring, shin,
+calf; or an inline region), cut from the suit's own grid and standing off it by its `lift` (footwear/cobbler.js
+`panelOn`), never across a joint; split into `rows` whose gaps are the PANEL LINES; a matched pair where the region has
+two sides; a REACTOR disc on the sternum in a rim, its group rendered full-bright (`emissive`). Composed by SUIT cards
+(`styles.js`, pure data; `from`, `platesPlus`, a `skin` colourway), refused by name (`validatePlating`). Outfit words on
+the realistic body: `powerSuit` (red and gold), `stealthSuit` (black, wide panel lines), `heavySuit` (gunmetal, far
+standoff, more rows), `sleekSuit` (white, few plates); on the authored body none yet. body-study `--dress` paints a
+suit's groups in their own colours.
+FITTED SHELLS (the layout of a powered suit as a supercar's body is laid out, `shell.js`, `layouts.js`): a segment faired
+into one smooth shell (`fairShell`: its grooves bridged), cut along DESIGN LINES in its own coordinates (`t` down it,
+`s` round it, + its lateral side) into panels (`shellPanel`) fitted across narrow seams, bevelled down into them, domed
+where they cap, stacked by LAYER (an underplate, a trim strip, the overplate, a cap, a light), so the overplates'
+windows show the metal beneath; a mirrored panel's pair on the other side. Its lines run STRAIGHT and JOG (`stepped`:
+straight runs joined by short straight diagonals, neighbours sharing their jogs so they fit along them), each kink a
+sharp corner (a panel takes a section at every kink of its edges).
+MUSCLE-MAPPED SHELLS (`muscles.js`): on a muscled segment the body draws the lines. The realistic body's muscle map
+(body-relational-map.js) gathered into PLATE GROUPS per segment (`MUSCLE_GROUPS`: the pectoral, the sternum, the collar,
+each row of the rectus, the oblique, the lat, the trapezius, the spine; the deltoid, the biceps, the triceps; the
+brachioradialis, the extensors, the flexors; the rectus femoris, the vasti, the adductors, the hamstrings, the knee),
+each plate's edges the boundaries between its muscle and its neighbours' (at the half-slot between them, so neighbours
+share them), STRAIGHTENED (`straighten`: held straight, jogging only where the groove moves and holds), so the seams fall
+in the grooves in the stepped style; each group its layer and colour role, an underplate under each segment. A suit's
+`muscles: { on, only?, bulk?, seam? }`. The suit `markSuit`: the trunk, the arms and the thighs cut by their muscles, the
+greaves, knee caps and sabatons below, a reactor on the sternum. The JOINTS banded (`joints`: two narrow articulated
+bands at the shoulder, the elbow, the wrist, the waist, the hip and the groin, the back of the knee; the armpit a banded
+group), the grooves wider (14 mm), the calf cut by its muscles (the gastrocnemius's two heads and the soleus, under the
+greave's front, `greaveFront`); the labels eased before the cut (a point takes the group most of its neighbours share);
+a point inside another part's skin (`hidden`) left out, and each segment's underplate and joint bands kept to the stretch
+of it that shows, so the inner of two overlapping skins does not poke through. Where the muscles interleave too finely
+to cut by (the lower back, the pelvis, the thigh toward the groin), a DESIGNED cut instead: `spine` (a dark channel down the back, a column of
+vertebrae, a sacrum ending in a chevron; a design line may run through the back, `s` past ±1), `lumbar` (stepped plates
+either side of the spine), `hips` (seat and hip plates, a codpiece, a low-abdominal plate), `thighs` (a quadriceps plate narrowing to the knee in a chevron, a
+trim strip down the outside, a side plate, an adductor plate inside, a teardrop over the vastus medialis, hamstring plates
+either side of a back seam); and SERVOS (`servos`: a hub at
+the outer and the inner side of each knee and elbow, a disc, a domed core and a light; a panel may be a `circle` sized in
+metres). `markSuit` cut by its muscles where they are clear and by design where they are not. Layouts `greave` (a chevron shin plate, side
+plates sweeping to the ankle, windows with trim strips, calf plates over them, a cuff, vents), `kneeCap`, `sabaton`. A
+suit names its `shells` (with a `bulk`), its undersuit's segments (`suit.on`) and its `feet` (a footwear card: its sole,
+its quarter-egg toe). The suit `markBoots`. The footwear library's toe cap is allowed on a bare foot.
+GAUNTLETS: the hand and its digits are plating segments (a layout panel's `seg: 'fingers'` lays it on the four), and a
+suit names its `hands` (a handwear card: the glove the hand's plates are laid on, in the suit's group). Layouts
+`vambrace` (the forearm by design: a top plate over the extensors with a vent, a trim strip down the radius, a flexor
+plate, an ulnar plate across the back line, a cuff proud over the wrist), `gauntlet` (an underplate, a stepped back
+plate, a blade down the little finger's edge, a domed knuckle cap, a repulsor in the palm, a lame a phalanx on each
+finger and the thumb, low), `gauntletHeavy` (a studded knuckle bar, a thumb guard), `gauntletSleek` (one plate with a
+light line), `vambraceHeavy` (a ridge, a flared cuff). A shell may be laid on some of its segments (`{ layout, on }`).
+Suits `markGauntlets`, `heavyGauntlets`, `sleekGauntlets`, `bracers`; `markSuit` wears the vambraces and the gauntlets.
+A plate takes the weights of its surface's nearest point or, where the surface blends by ring (a digit's), its ring's,
+so a finger's lames curl with it.
+THE PARADIGM CLOSED OUT: a layout is data a card can carry. A shell entry is a layout's name or `{ layout | panels,
+drop?, plus?, name?, on?, bulk? }` (a layout of its own, named; or a named one with panels dropped by id and others
+added), a variety adds shells to its kin's (`shellsPlus`), and every panel is checked by name (`validatePanel`) before
+it is cut. The laws carry it (a layout is data; the extremities are their own libraries' cards), and docs/plating.md
+sets out the card, the passes, the laws and the adapter the three wearable libraries share.
 
 ### The hero's skin: a part of the character, shown where it shows
 

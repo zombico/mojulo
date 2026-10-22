@@ -12,8 +12,8 @@
 //                   stand word (relaxed, guard, hand-on-hip …) }, or { "pose": a rig pose as rigNodesAt takes it };
 //                   any entry may carry its own "crop". Without --acts: the bind, from the front, the front ¾, the
 //                   lateral, the back and below.
-//   --crop          torso | shoulder | hip | knee | hand | foot | neck | head (the right side's, the neck seam where the
-//                   head sits, the head itself), framed on the posed joints; default the whole body.
+//   --crop          torso | shoulder | hip | knee | shin | hand | foot | neck | head (the right side's, the neck seam where
+//                   the head sits, the head itself; the shin from over the knee to the floor, a tall boot whole), framed on the posed joints; default the whole body.
 //   --register      the hero's register word (the door's `register`, default its own).
 //   --laws          the hero laws to mint under (hero-form.js HERO_LAWS_VERSION; default the current): 1 for a hero as
 //                   rows minted before laws 2 read
@@ -28,6 +28,9 @@
 //                   "physique":"jacked","outfit":["tee","trousers"]}' is the realistic hero dressed, as the door makes it)
 //   --physique      the form's build under a physique (body-relational.js PHYSIQUES: athletic, skinny, heavyset,
 //                   jacked), or its dials as JSON ({ from?, bulk, tone, weight, height }, each −1 to 1); with --form
+//   --palette       each face in its palette colour (the face's group: trims painted on cloth show).
+//   --outline       the dressed outline panel (dress-outline.js) under each cast's sections: the bare and dressed front
+//                   outlines, the divisions, and the read in each style.
 //   --out           output dir (default /tmp/body-study): sheet.png, sheet.svg, report.json.
 //
 // Each cast gets a SECTIONS panel at the bind (the trunk cut level at the neck, the chest, the waist and the seat; the
@@ -46,20 +49,28 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href)
 process.chdir(CONTROL);
 const sharp = createRequire(path.join(CONTROL, 'package.json'))('sharp');
 const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+const { withDefaultForm } = await import('@/lib/graph/polygonizer/motion-stamp.js');
 const { compileLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
 const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await import('@/lib/graph/polygonizer/station-loft-rig.js');
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
+const { heroShade } = await import('@/lib/graph/polygonizer/tiered-form.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
+const { outlineMeasures, outlineCritic } = await import('@/lib/graph/polygonizer/dress-outline.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
 const { bodyPartMap, PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-map.js');
 const { relationalHead } = await import('@/lib/graph/polygonizer/head-relational.js');
 const { headFieldMesh } = await import('@/lib/graph/polygonizer/head-field-view.js');
 const { relationalHeadRecipe } = await import('@/lib/graph/polygonizer/hero-relational-head.js');
+const { FOOTWEAR_TONES } = await import('@/lib/graph/footwear/index.js');
+const { PLATING_TONES } = await import('@/lib/graph/plating/index.js');
+const { HANDWEAR_TONES } = await import('@/lib/graph/handwear/index.js');
+// (a footwear or a plating group's tone, the recipe's palette over the library's, as the dress colours it; the shoes' own too)
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false;
+let out = '/tmp/body-study', acts = null, crop = null, reg = null, laws = null, form = null, phys = null, heroSpec = {}, tint = false, dress = false, partMap = false, only = null, vitruvian = false, bones = false, graft = false, outline = false, palette = false;
 const casts = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -72,6 +83,8 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--physique') { const v = args[++i]; phys = v.startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--tint') { tint = true; continue; }
   if (a === '--dress') { dress = true; continue; }
+  if (a === '--outline') { outline = true; continue; }
+  if (a === '--palette') { palette = true; continue; }
   if (a === '--map') { partMap = true; continue; }
   if (a === '--bones') { bones = true; continue; }
   if (a === '--graft') { graft = true; continue; }
@@ -84,7 +97,7 @@ for (let i = 0; i < args.length; i++) {
 if (!casts.length) casts.push('male', 'female');
 if (phys && !form) throw new Error('body-study: --physique dials a form build; name one with --form');
 const BUILD = form ? physique(form, phys ?? 'athletic') : null;
-const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'hand', 'foot', 'neck', 'head'];
+const CROPS = ['torso', 'shoulder', 'hip', 'knee', 'shin', 'hand', 'foot', 'neck', 'head'];
 for (const c of [crop, ...(acts || []).map((r) => r.crop)]) if (c && !CROPS.includes(c)) throw new Error(`body-study: crop '${c}' is not one of ${CROPS.join(', ')}`);
 mkdirSync(out, { recursive: true });
 
@@ -160,7 +173,9 @@ const heroes = new Map();
 function hero(cast, extra = {}) {
   const key = JSON.stringify([cast, extra]);
   if (heroes.has(key)) return heroes.get(key);
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra }) });
+  // (the body a mint gets: the tiered game body unless the spec names a form; a --form slice reads the classic plan)
+  const spec = { cast, ...(reg ? { register: reg } : {}), ...(laws ? { laws } : {}), ...(form ? { hair: 'none', ...(BUILD.tune ? { tune: BUILD.tune } : {}) } : {}), ...heroSpec, ...extra };
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(form ? spec : withDefaultForm(spec)) });
   const sl = form ? formSlice(m.recipe, validateRig(m.recipe.rig), BUILD) : null;
   if (sl) m.recipe = graft ? sl.recipe : relationalHeadRecipe(sl.recipe, { sex: cast === 'female' ? 'female' : 'male' });
   // (the relational head leaves the landmark head's jawOpen dial behind: the dials the recipe still has)
@@ -194,7 +209,8 @@ function rowNodes(cast, H, row) {
   if (row.gait) { const ph = row.phase ?? 0; return { nodes: rigNodesAt(H.R, gaitPose(H.R, row.gait)(ph)).nodes, label: `${row.gait} ${ph}` }; }
   if (row.gesture) { const g = hero(cast, { gesture: row.gesture }); const pose = standPose(g.m.recipe, g.R); return { nodes: rigNodesAt(H.R, pose || {}).nodes, label: `gesture ${row.gesture}` }; }
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
-  return { nodes: H.R.joints, label: 'bind' };
+  // (a rig with a stance, heeled shoes', stands the bind in it: lib/graph/polygonizer/station-loft-rig.js)
+  return H.R.stance ? { nodes: rigNodesAt(H.R, {}).nodes, label: 'bind, in the stance' } : { nodes: H.R.joints, label: 'bind' };
 }
 // the hero's own head (its shell and what sits on it), hidden where the relational head is grafted
 const HERO_HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face)/;
@@ -221,7 +237,8 @@ function posed(H, nodes) {
   const frames = boneFrames(H.R, H.R.joints, nodes);
   // (a sliced recipe's correctives, the pauldron, added to the rest by the pose before the skin poses it)
   const V = skinLayered({ ...H.mesh, vertices: correctiveRest(H.mesh, H.m.recipe, nodes) }, H.skin, frames);
-  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh });
+  // (shaded as the World shades the hero: its crease, and the tiered landmark head's ellipsoid)
+  const normals = layeredShadingNormals({ ...H.mesh, vertices: V }, H.m.recipe, { rest: H.mesh, ...heroShade(H.m.hero) });
   if (!H.graft) return { V, normals, faces: H.mesh.faces };
   // the graft rides the head bone rigidly; the hero's own head stays out of the picture
   const G = H.graft, f = frames[G.bone], mv = (m, v) => [0, 1, 2].map((r) => m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2]);
@@ -236,10 +253,15 @@ function frameBox(V, J, which) {
   if (which === 'shoulder') return box(J.shoulderR, [0.15, 0.15, 0.15]);
   if (which === 'hip') return box(mid(J.pelvisHub, J.hipR, 0.7), [0.2, 0.2, 0.2]);
   if (which === 'knee') return box(J.kneeR, [0.14, 0.14, 0.16]);
+  // (the shin: from over the knee to the floor, the toes in front: a tall boot whole)
+  if (which === 'shin') { const c = mid(J.kneeR, J.toeTipR, 0.5), h = (J.kneeR[2] - Math.min(J.toeTipR[2], J.ankleR[2])) / 2 + 0.07; return box(c, [h, h, h]); }
   if (which === 'hand') return box(mid(J.wristR, J.knucklesR, 0.7), [0.12, 0.12, 0.12]);
   if (which === 'foot') return box(mid(J.ankleR, J.toeTipR, 0.45), [0.14, 0.14, 0.14]);
   if (which === 'neck') return box(mid(J.neckHub, J.headBase, 0.4), [0.15, 0.15, 0.15]);
-  if (which === 'head') return box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]);
+  // (a larger head, the chibi's or the child's, framed by its own height over its base: the figure's top, for the head
+  // joints stand a fixed run apart whatever the head's size; an adult's at the 12 cm it always was)
+  if (which === 'head') { let top = -Infinity; for (const v of V) if (v[2] > top) top = v[2]; const h = top - J.headBase[2], hh = Math.max(0.12, 0.62 * h);
+    return h > 0.2 ? box([J.headBase[0], J.headBase[1], J.headBase[2] + 0.35 * h], [hh, hh, hh]) : box(mid(J.headBase, J.headTop, 0.4), [0.12, 0.12, 0.12]); }
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const v of V) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], v[k]); hi[k] = Math.max(hi[k], v[k]); }
   return { min: lo, max: hi };
@@ -377,7 +399,7 @@ for (const cast of casts) {
     const W = which ? 380 : 300, Hh = which ? 440 : 560;
     const posedAll = posed(H, nodes), pick = only ? posedAll.faces.map((tri, fi) => (only.test(H.mesh.provenance[tri[0]]?.part ?? 'head') ? fi : -1)).filter((fi) => fi >= 0) : null;
     const { V } = posedAll, faces = pick ? pick.map((fi) => posedAll.faces[fi]) : posedAll.faces, normals = pick ? pick.map((fi) => posedAll.normals[fi]) : posedAll.normals;
-    const box = frameBox(V, nodes, which), hue = partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; return P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
+    const box = frameBox(V, nodes, which), hue = palette ? faces.map((tri, k) => { const g = H.mesh.groups[pick ? pick[k] : k] ?? H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]?.group, hex = H.m.recipe.palette?.[g]; return /^#[0-9a-f]{6}$/i.test(hex ?? '') ? [1, 3, 5].map((o) => parseInt(hex.slice(o, o + 2), 16) * 1.15) : [205, 196, 186]; }) : partMap ? mapHues(H, faces) : dress ? faces.map((tri) => { const P = H.m.recipe.parts?.[H.mesh.provenance[tri[0]]?.part]; const nm = H.mesh.provenance[tri[0]]?.part ?? ''; const g = P?.group; const pal = H.m.recipe.palette?.[g]; return typeof pal === 'string' && (FOOTWEAR_TONES[g] || PLATING_TONES[g] || HANDWEAR_TONES[g]) ? rgbOf(pal) : g === 'Sole' ? [52, 46, 42] : g === 'Strap' ? [120, 82, 56] : g === 'Brass' ? [196, 160, 80] : FOOTWEAR_TONES[g] || PLATING_TONES[g] || HANDWEAR_TONES[g] || (g === 'Shoes' && H.m.recipe.palette?.Shoes) ? rgbOf(H.m.recipe.palette?.[g] ?? FOOTWEAR_TONES[g] ?? PLATING_TONES[g] ?? HANDWEAR_TONES[g]) : g === 'Sash' || g === 'Cuff' ? [40, 60, 110] : g === 'TopFold' ? [70, 100, 146] : nm.startsWith('adorn.') ? [150, 156, 166] : P && (P.garment || nm.includes('_')) ? [86, 120, 168] : [205, 196, 186]; }) : tint ? faces.map((tri) => partTint(H.mesh.provenance[tri[0]]?.part ?? 'head')) : null;
     for (const [col, v] of views.entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), img = rasterize(V, faces, normals, cam, W, Hh, hue);
       await cell(col * W, y0, img, W, Hh);
@@ -410,6 +432,27 @@ for (const cast of casts) {
   lines.forEach((t, i) => parts.push(`<text x="40" y="${y0 + 40 + ph + 34 + i * 17}" font-family="monospace" font-size="13" fill="#333">${esc(t)}</text>`));
   console.log(`\n${cast}${reg ? ` (${reg})` : ''}${laws ? ` laws ${laws}` : ''}:`); for (const t of lines) console.log(`  ${t}`);
   y0 += ph + 330;
+  if (outline) y0 = outlinePanel(hero(cast), cast, y0);
+}
+/** THE OUTLINE panel (`--outline`, dress-outline.js): the front outline scanned every 5 mm, the bare body grey under the
+ * dressed figure blue, the landmarks' heights ticked, each division a red line, and the read beside it (the family against
+ * the bare body's, each half's fit, the return points, the flair, the advice in each style) */
+function outlinePanel(H, cast, yTop) {
+  const M = outlineMeasures(H.mesh, H.m.recipe, { profile: true }), P = M.profile, SC = 300, ph = (P.top - P.ground) * SC, cx = 260, y = (z) => yTop + 40 + (P.top - z) * SC;
+  parts.push(`<rect x="0" y="${yTop}" width="${Math.max(sheetW, 1500)}" height="${ph + 80}" fill="#faf9f7"/>`);
+  label(0, yTop + 22, `${cast} · the dressed outline (dress-outline.js): the bare body grey, the dressed blue, ${SC / 100} px per cm; the divisions red`, 14);
+  for (const r of P.rows) {
+    for (const [a, b] of r.bare) parts.push(`<rect x="${cx + a * SC}" y="${y(r.z) - 0.8}" width="${(b - a) * SC}" height="1.6" fill="#b9b2a8"/>`);
+    for (const [a, b] of r.dressed) parts.push(`<rect x="${cx + a * SC}" y="${y(r.z) - 0.8}" width="${(b - a) * SC}" height="1.6" fill="#5678a8" fill-opacity="0.55"/>`);
+  }
+  for (const [k, z] of Object.entries(P.landmarks)) { parts.push(`<line x1="${cx - 150}" y1="${y(z)}" x2="${cx - 125}" y2="${y(z)}" stroke="#666"/>`); parts.push(`<text x="${cx - 155}" y="${y(z) + 4}" text-anchor="end" font-family="monospace" font-size="11" fill="#555">${k}</text>`); }
+  for (const d of M.divisions) { parts.push(`<line x1="${cx - 120}" y1="${y(d.z)}" x2="${cx + 120}" y2="${y(d.z)}" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="6 3"/>`); parts.push(`<text x="${cx + 125}" y="${y(d.z) + 4}" font-family="monospace" font-size="11" fill="#c0392b">${d.kind} ${d.f}${d.dL !== null ? ` ΔL* ${Math.round(d.dL)}` : ''}</text>`); }
+  const sex = cast === 'female' ? 'female' : 'male', text = [`family ${M.family} (bare ${M.bareFamily})`, `fit: top ${M.fit.top.class} (${M.fit.top.e}), bottom ${M.fit.bottom.class} (${M.fit.bottom.e})`, `returns: ${M.returns.join(', ') || 'none'}`, `flair: ${M.flair.of.join(', ') || 'none'} · body line ${M.flair.bodyLine}`, `leg line ${M.legLine} · mass above/below ×${M.rho}`,
+    ...Object.entries(M.ratios).map(([k, v]) => `${k} ${v} (bare ${M.bareRatios[k]})`)];
+  for (const st of ['western', 'anime']) { const c = outlineCritic(M, st, { sex }); text.push('', `${st}: ${c.reads.filter((x) => !x.in).map((x) => x.id).join(', ') || 'all in band'}`, ...c.advice.map((a) => `  · ${a}`)); }
+  text.forEach((t, i) => parts.push(`<text x="${cx + 330}" y="${yTop + 60 + i * 17}" font-family="monospace" font-size="12" fill="#333">${esc(t)}</text>`));
+  sheetW = Math.max(sheetW, 1900);
+  return yTop + Math.max(ph + 80, 80 + text.length * 17);
 }
 sheetW = Math.max(sheetW, 1500);
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${y0}" viewBox="0 0 ${sheetW} ${y0}"><rect width="100%" height="100%" fill="${BG}"/>${parts.join('')}</svg>`;

@@ -24,6 +24,12 @@
  *   about the toe base with a targeted foot, about +x; absent level), seat (degrees, 0 … 60: the free legs
  *   turned further forward about the hips, a seated statue's thighs level; seatL/seatR one leg's alone, added), and every
  *   rig chain channel.
+ * STANCE (`rig.stance: { rise, toe, pitch }`, a heeled shoe's: lib/graph/footwear): every pose stands in it — the root
+ *   `rise` metres higher, each planted foot's toes `toe` metres up (on the shoe's forepart sole) and its metatarsus turned
+ *   `pitch` degrees heel-up about the toe base, or the pose's own `heel<S>` where it lifts the heel further (a free foot's
+ *   toes turned down about the ankle by the pitch). Absent ⇒ nothing changes.
+ * HELD (`rig.held: [<side>]`, a padded glove's grip baked into the rest hand: holdGrip): a held hand's fingers take no
+ *   pose (its glove holds them); its wrist still turns. Absent ⇒ nothing changes.
  * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
  * links about its hinge axis by the digit's curl × the link's weight (a link's turn carrying the later links' own axes) (`fingers<S>`: degrees, + closing, or { <digit>:
  * deg }, or a word of `poses`; a number curls the thumb at half), then the whole hand about the wrist joint
@@ -89,7 +95,8 @@ export function handValue(R, n, v) {
 function handLocal(R, pose) {
   const out = {};
   for (const [S, H] of Object.entries(R.hands || {})) {
-    const f = pose[`fingers${S}`], w = pose[`wrist${S}`];
+    // (a held hand's fingers stay as its glove holds them)
+    const f = R.held?.includes(S) ? undefined : pose[`fingers${S}`], w = pose[`wrist${S}`];
     if ((f === undefined || f === 0) && (w === undefined || w === 0)) continue;
     const pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
     // a link's turn carries the digit's later hinges with it (the thumb's knuckle turns with its root)
@@ -98,6 +105,44 @@ function handLocal(R, pose) {
     Object.assign(out, pts);
   }
   return out;
+}
+
+/**
+ * THE GRIP HELD AT REST (a padded glove's: lib/graph/handwear, a boxing glove's fist): the rig's hand joints and every
+ * part riding the digits' bones turned into the hand word `grip[S]` at REST, by the rig's own curl (each link about its
+ * hinge by the digit's curl × the link's weight, a later hinge carried by the turns before it), a part's point by the
+ * turns of the links its bones lie past, blended by its weights. So the bind, every pose and an export hold the closed
+ * hand; the hand is marked `held`, so a pose's own fingers do not curl it further. → { rig, parts } (only the parts it
+ * turned)
+ */
+export function holdGrip(rig, parts, grip) {
+  const R = validateRig(rig), joints = { ...rig.joints }, turned = {}, level = {}, steps = {}, rnd = (v) => v.map((x) => Math.round(x * 1e6) / 1e6);
+  for (const [S, word] of Object.entries(grip || {})) {
+    const H = R.hands?.[S]; if (!H) continue;
+    const c = handValue(R, `fingers${S}`, word), pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
+    for (const [d, g] of Object.entries(H.digits)) {
+      const ax = g.links.map((l) => l.axis ?? g.axis), key = `${d}${S}`; steps[key] = [];
+      g.links.forEach((l, i) => {
+        const p = [...pts[l.pivot]], a = (c[d] || 0) * l.weight; steps[key].push({ p, ax: ax[i], a });
+        for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a);
+        for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a);
+        // (a bone headed at this link's pivot lies past it: turned by this link and those before)
+        for (const b of R.bones) if (b.head === l.pivot) level[b.id] = { key, n: i + 1 };
+      });
+    }
+    for (const j of H.joints) { const o = rig.joints[j]; joints[j] = Array.isArray(o) ? rnd(pts[j]) : { ...o, at: rnd(pts[j]) }; }
+  }
+  const T = (p, b) => { const L = level[b]; if (!L) return p; let q = p; for (const s of steps[L.key].slice(0, L.n)) q = rotLine(q, s.p, s.ax, s.a); return q; };
+  const moved = (w) => Object.keys(w).some((b) => level[b]);
+  for (const [name, P] of Object.entries(parts)) {
+    const own = { [P.bind?.bone]: 1 }, blend = P.bind?.blend || {};
+    if (!P.bind || !(level[P.bind.bone] || Object.values(blend).some(moved))) continue;
+    const at = (p, w) => { const tot = Object.values(w).reduce((t, x) => t + x, 0) || 1; return rnd(Object.entries(w).reduce((acc, [b, x]) => { const q = T(p, b); return acc.map((v, i) => v + (q[i] * x) / tot); }, [0, 0, 0])); };
+    turned[name] = { ...P, stations: P.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, p]) => [sl, at(p, blend[`${st.id}.${sl}`] ?? blend[st.id] ?? own)])) })),
+      caps: Object.fromEntries(Object.entries(P.caps || {}).map(([k, p]) => [k, at(p, blend[k] ?? own)])) };
+  }
+  const held = [...new Set([...(rig.held ?? []), ...Object.keys(grip || {}).filter((S) => R.hands?.[S])])];
+  return { rig: { ...rig, joints, ...(held.length ? { held } : {}) }, parts: turned };
 }
 
 /** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
@@ -143,6 +188,12 @@ export function validateRig(rig) {
   const legs = {};
   for (const [S, l] of Object.entries(rig.legs || {})) { for (const k of ['hip', 'knee', 'hock', 'toeBase', 'toeTip']) if (!joints[l?.[k]]) throw new Error(`station-loft-rig: legs.${S}.${k} is not a joint`); if (!fin3(l.pole)) throw new Error(`station-loft-rig: legs.${S}.pole must be a direction`); legs[S] = { ...l, pole: [...l.pole] }; }
   const reach = rig.reach ?? 'reject'; if (reach !== 'reject' && reach !== 'clamp') throw new Error("station-loft-rig: reach must be 'reject' or 'clamp'");
+  let stance = null;
+  if (rig.stance !== undefined) {
+    const t = rig.stance, ok = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+    if (!t || !ok(t.rise, 0, 0.3) || !ok(t.toe, 0, 0.1) || !ok(t.pitch, 0, 70)) throw new Error('station-loft-rig: stance is { rise (0 … 0.3 m), toe (0 … 0.1 m), pitch (0 … 70°) }');
+    stance = { rise: t.rise, toe: t.toe, pitch: t.pitch };
+  }
   const hands = {};
   for (const [S, h] of Object.entries(rig.hands || {})) {
     const at = `station-loft-rig: hands.${S}`;
@@ -166,12 +217,13 @@ export function validateRig(rig) {
     for (const ch of [`wrist${S}`, `fingers${S}`]) if (RIG_CHANNELS.includes(ch) || ch in chains) throw new Error(`${at}: the channel ${ch} is taken`);
     hands[S] = { carrier: h.carrier, wrist: h.wrist, axes: Object.fromEntries(['flex', 'deviation', 'twist'].map((k) => [k, unit(h.axes[k])])), joints: [...handJoints], digits, poses: h.poses || HAND_POSES };
   }
+  if (rig.held !== undefined && !(Array.isArray(rig.held) && rig.held.every((S) => hands[S]))) throw new Error(`station-loft-rig: held lists the rig's hands (${Object.keys(hands).join(', ')}) whose fingers its gloves hold`);
   for (const [id, f] of Object.entries(folds)) for (const b of f.bones) if (boneIndex[b] === undefined) throw new Error(`station-loft-rig: folds.${id}.bones names unknown bone ${b}`);
   // a bone's `parent` (a limb's next segment: the forearm's upper arm) frames it from that bone's frame by the shortest turn
   // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
   // not a field of the bone)
   for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}) };
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}) };
 }
 
 /**
@@ -294,6 +346,9 @@ export function rigNodesAt(R, pose = {}) {
   const sink = Number.isFinite(pose.sink) ? Math.max(0, pose.sink) : 0;
   const drop = crouch * 0.45 * (hipZ - toeZ) + sink;
   for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
+  // (the STANCE: the root risen on the shoes)
+  const ST = R.stance;
+  if (ST) for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] + ST.rise];
   // `shift: { x, y }` (metres: an action's, hero-strike.js) carries the core over the floor — the weight moving over
   // planted feet, the legs reaching them from where the hips now are. Absent ⇒ nothing moves.
   const sx = Number.isFinite(pose.shift?.x) ? pose.shift.x : 0, sy = Number.isFinite(pose.shift?.y) ? pose.shift.y : 0;
@@ -321,7 +376,9 @@ export function rigNodesAt(R, pose = {}) {
     if (planted) {
       const toeTurn = Number(pose[`toeTurn${S}`]) || 0, toeVec = sub(rest[L.toeTip], rest[L.toeBase]);
       const foot = target ? { toeBase: [...target], toeTip: add(target, toeTurn ? rotAxis(toeVec, [0, 0, 0], 0, toeTurn) : toeVec) } : plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
-      let metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
+      // (the STANCE: the toes on the forepart sole, the heel up by its pitch)
+      if (ST) { nodes[L.toeBase] = add(nodes[L.toeBase], [0, 0, ST.toe]); nodes[L.toeTip] = add(nodes[L.toeTip], [0, 0, ST.toe]); }
+      let metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, ST ? Math.min(pose[`heel${S}`] || 0, -ST.pitch) : (pose[`heel${S}`] || 0));
       // `splay<S>` (degrees, + the toe outward: a stance's) turns the planted foot about the vertical through its ball —
       // the toe and the heel round it — and the knee's pole with it, so the knee tracks over the toes. Absent ⇒ none.
       const splay = Number.isFinite(pose[`splay${S}`]) ? pose[`splay${S}`] * (rest[L.hip][0] < 0 ? 1 : -1) : 0;
@@ -351,6 +408,8 @@ export function rigNodesAt(R, pose = {}) {
       }
       const shin = boneFrame({ id: 'shin', head: L.knee, tail: L.hock }, rest, nodes);
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
+      // (the STANCE: a foot in heels stays tipped off the ground too, its toes turned down about the ankle by the pitch)
+      if (ST) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -ST.pitch);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };
     }
   }
@@ -846,9 +905,11 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
     // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it); a leg
     // given a `feet` target (a gait's footfall, a swing foot on its arc) stands at that target, its toe tip turned with it
+    // (a STANCE stands the toes on the shoe's forepart sole, `toe` metres up, wherever the pose plants them)
+    const up = (p) => (R.stance ? add(p, [0, 0, R.stance.toe]) : p);
     for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) {
       const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
-      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], target))] : ((at) => [len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))])(plantedFoot(R, l, pose))));
+      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], up(target)))] : ((at) => [len(sub(nodes[l.toeBase], up(at.toeBase))), len(sub(nodes[l.toeTip], up(at.toeTip)))])(plantedFoot(R, l, pose))));
     }
     out.poses.push({ pose, legs: report.legs });
   }

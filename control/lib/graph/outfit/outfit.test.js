@@ -157,6 +157,44 @@ describe('the passes', () => {
 describe('the outer layer, fit by zone, and the detail on the garment\'s roles', () => {
   const ctx = { have: STRUCT, scale: 1 };
   const coat = { type: 'outfit', style: { id: 'x', dials: { ornament: 2 }, language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', fit: 'skin' }, bottom: { family: 'woven', leg: 'long', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'long', hem: 'knee', open: true }, feet: 'boots', tuck: true, focal: 'belt' } } };
+  it('a jacket\'s FRONT words: refused by name, carried as tailoring with their defaults, absent nothing', () => {
+    const jacket = (o) => ({ type: 'outfit', style: { id: 'j', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic', ...o }, feet: 'shoes', tuck: true } } });
+    expect(validateOutfitBuild(jacket({ front: 'triple' })).join(' ')).toMatch(/outer\.front: 'triple'/);
+    expect(validateOutfitBuild(jacket({ lapel: 'wide' })).join(' ')).toMatch(/outer\.lapel: 'wide'/);
+    expect(validateOutfitBuild(jacket({ buttons: 4 })).join(' ')).toMatch(/outer\.buttons/);
+    expect(validateOutfitBuild(jacket({ shoulder: 'padded' })).join(' ')).toMatch(/outer\.shoulder: 'padded'/);
+    expect(validateOutfitBuild(jacket({ waist: 'tight' })).join(' ')).toMatch(/outer\.waist: 'tight'/);
+    expect(expandOutfit(jacket({ shoulder: 'structured', waist: 'straight' }), ctx).tailoring.outer).toEqual({ shoulder: 'structured', waist: 'straight' });
+    expect(expandOutfit(jacket({}), ctx).tailoring).toBeUndefined();
+    expect(expandOutfit(jacket({}), ctx).tones.Lapel).toBeUndefined();
+    expect(expandOutfit(jacket({ front: 'double' }), ctx).tailoring.outer).toEqual({ front: 'double', lapel: 'peak', buttons: 3, open: false });
+    const sb = expandOutfit(jacket({ lapel: 'shawl', buttons: 1, open: true }), ctx);
+    expect(sb.tailoring.outer).toEqual({ front: 'single', lapel: 'shawl', buttons: 1, open: true });
+    expect(sb.tones.Lapel).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('a cropped woven top keeps its buttons on its own window', () => {
+    const crop = { type: 'outfit', style: { id: 'c', language: { top: { family: 'woven', hem: 'crop' }, bottom: { family: 'woven', leg: 'long' }, focal: 'placket' } } };
+    const X = expandOutfit(crop, ctx), row = X.rows.find((R) => R.group === 'Button');
+    expect(row.s[0]).toBeGreaterThanOrEqual(X.garments.find((E) => E.id === 'top').u[0]);
+    expect(() => wear({ cast: 'female', outfit: crop })).not.toThrow();
+  });
+
+  it('a WAISTCOAT: refused by name; between the shirt and the jacket, the jacket eased over it, no belt, its front as tailoring', () => {
+    const suit = (w) => ({ type: 'outfit', style: { id: 'w', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic' }, feet: 'shoes', tuck: true, focal: 'belt', ...(w === undefined ? {} : { waistcoat: w }) } } });
+    expect(validateOutfitBuild(suit('yes')).join(' ')).toMatch(/waistcoat: true, false or/);
+    expect(validateOutfitBuild(suit({ buttons: 9 })).join(' ')).toMatch(/waistcoat\.buttons/);
+    expect(validateOutfitBuild(suit({ front: 'triple' })).join(' ')).toMatch(/waistcoat\.front: 'triple'/);
+    expect(validateOutfitBuild(suit({ lapel: 'notch' })).join(' ')).toMatch(/waistcoat\.lapel: not a waistcoat field/);
+    const bare = expandOutfit(suit(), ctx), W = expandOutfit(suit(true), ctx), ids = W.garments.map((E) => E.id);
+    expect(ids.indexOf('vest')).toBeGreaterThan(ids.indexOf('bottomSeat')); expect(ids.indexOf('vest')).toBeLessThan(ids.indexOf('outer'));
+    expect(W.garments.find((E) => E.id === 'outer').ease).toBeGreaterThan(bare.garments.find((E) => E.id === 'outer').ease);
+    expect(bare.kit.some((A) => A.id === 'belt')).toBe(true); expect(W.kit.some((A) => A.id === 'belt')).toBe(false);
+    expect(W.tailoring.vest).toEqual({ front: 'single', buttons: 5 }); expect(W.tones.Waistcoat).toMatch(/^#[0-9a-f]{6}$/);
+    expect(expandOutfit(suit({ front: 'double' }), ctx).tailoring.vest).toEqual({ front: 'double', buttons: 3 });
+    expect(bare.tailoring).toBeUndefined(); expect(bare.tones.Waistcoat).toBeUndefined();
+  });
+
   it('an outer layer over a second skin: the coat its skirt and sleeves, the undershirt paint, the trousers fitted without a hang', () => {
     const out = expandOutfit(coat, ctx), ids = out.garments.map((E) => E.id);
     expect(ids).toEqual(expect.arrayContaining(['outer', 'outerSkirt', 'outerSleeve', 'outerCuff', 'bottomLeg']));

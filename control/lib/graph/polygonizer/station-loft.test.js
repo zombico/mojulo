@@ -50,6 +50,13 @@ describe('station-loft — the grammar', () => {
     expect(m.pointIds).toContain('body/st0.sideL'); expect(m.pointIds).toContain('spike/apex'); expect(m.faceIds).toContain('body/st0-st1.k3.a'); expect(m.featureEdges).toHaveLength(1);
     expect(m.groups).toContain('Back'); expect(m.groups).toContain('Spike');
   });
+  it('a flat cap, its point on its own ring\'s plane, closes the part wound once and facing out', () => {
+    const vol = (p) => Object.values(p.faces).reduce((t, f) => { const [a, b, c] = f.map((id) => p.points[id]); return t + (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6; }, 0);
+    // (the body above, its caps at its rings' centres: the tiered form's joints end so)
+    const flat = { ...body, caps: { back: [0, 0, 0.5], tip: [0, 1, 0.5] } }, m = compileLayered({ ...recipe, dials: {}, creases: {}, parts: { body: flat } });
+    expect(auditLayered(m).body).toMatchObject({ windingErrors: 0, boundaryEdges: 0, pass: true });
+    expect(vol(m.parts.body)).toBeGreaterThan(0);
+  });
   it('mirrors by name: the left half is the exact mirror of the right, faces included', () => {
     const m = compileLayered(recipe); const P = at(m);
     for (const [id, v] of Object.entries(P)) if (/[RL]$/.test(id)) expect(P[mirrorPid(id)]).toEqual([-v[0], v[1], v[2]]);

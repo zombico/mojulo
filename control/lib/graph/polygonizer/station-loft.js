@@ -88,12 +88,11 @@ function loft(name, part) {
     right.push({ id: `${name}/tip.k${k}`, tri: [pid(L, k), pid(L, k + 1), `${name}/tip`], family: 'tip', ring: L, group: capGroup('tip') });
   }
   const ringCentre = (i) => mean(slots.map((s) => points[`${name}/${rings[i].id}.${s}`]));
-  const flip = {};
-  for (const fam of ['band', 'back', 'tip']) {
-    const f = right.find((x) => x.family === fam); const p = f.tri.map((id) => points[id]);
-    const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const c = fam === 'band' ? mean([ringCentre(f.ring), ringCentre(f.ring + 1)]) : ringCentre(f.ring);
-    flip[fam] = dot(nrm, sub(mean(p), c)) < 0;
-  }
+  // (the bands face out by their geometry; each cap winds against the ring edges it shares with them, so a flat cap,
+  // its point on the ring's own plane, closes the part the same way a pointed one does)
+  const f = right[0], p = f.tri.map((id) => points[id]), nrm = cross(sub(p[1], p[0]), sub(p[2], p[0]));
+  const band = dot(nrm, sub(mean(p), mean([ringCentre(0), ringCentre(1)]))) < 0;
+  const flip = { band, tip: band, back: !band };
   for (const f of right) {
     const tri = flip[f.family] ? [...f.tri].reverse() : f.tri; faces[f.id] = tri; groups[f.id] = f.group;
     const mid = mirrorFaceId(f.id, n); faces[mid] = [...tri].reverse().map(mirrorPid); groups[mid] = f.group;

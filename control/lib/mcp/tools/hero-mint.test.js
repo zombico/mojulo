@@ -36,6 +36,11 @@ describe('hero-mint: the one way a run mints or remakes a hero', () => {
     const paged = heroRemakeOps({ ...order, motion: [{ op: 'set', path: '/hero/motion', value: {} }] }, { hero: { cast: 'male', motion: { jog: true } } });
     expect(paged[0].value.motion.jog).toBeUndefined();
     expect(paged[0].value.motion.walk).toBeTruthy();
+    // the body: a new figure on the tiered game body, a stored one on the body it was minted on, a named one as named
+    expect(heroRemakeOps(order, null)[0].value.form).toBe('tiered');
+    expect(heroRemakeOps(order, { hero: { cast: 'male' } })[0].value.form).toBeUndefined();
+    expect(heroRemakeOps(order, { hero: { cast: 'male', form: 'tiered' } })[0].value.form).toBe('tiered');
+    expect(heroRemakeOps({ ...order, spec: { ...order.spec, form: 'classic' } }, null)[0].value.form).toBe('classic');
     const lit = heroRemakeOps({ ...order, mint: { ...order.mint, toon: { light: true } } }, null);
     expect(lit[1]).toEqual({ op: 'set', path: '/toon', value: { light: true } });
   });

@@ -586,10 +586,13 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
 
 /**
  * Compose a face: { sex, bucket, seed, character?: [soft↔angular, delicate↔strong], accent?: false | a feature, nose?: the
- * nose's axis, −1 … 1, over the bucket's roll } →
+ * nose's axis, −1 … 1, over the bucket's roll, want?: { feature: shape } (the face AIMED: a feature takes the shape
+ * named in place of its roll; every feature still rolls, so the dice after it fall as they would and the rest of the face
+ * is the seed's) } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default, age = null } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default, age = null, want = null } = {}) {
+  for (const [f, name] of Object.entries(want || {})) if (!FACE_SHAPES[f]?.[name]) throw new Error(FACE_SHAPES[f] ? `face: want.${f} is one of ${Object.keys(FACE_SHAPES[f]).join(', ')}` : `face: want names a feature (${FACE_FEATURES.join(', ')})`);
   if (age !== null && !(age >= FACE_AGE.range[0] && age <= FACE_AGE.range[1])) throw new Error(`face: age ${age} (years, ${FACE_AGE.range.join(' … ')}; the roll is the person at ${FACE_AGE.prime})`);
   if (!(beauty >= 0 && beauty <= 1)) throw new Error('face: beauty 0 … 1 (0 every roll at its full reach; 1 drawn to the population\'s mean, the asymmetry slight)');
   // (named parents make the face a hybrid of them, whatever the bucket)
@@ -600,7 +603,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
     let r = b() * sum;
     const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
-    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty, age }), blend: bucket };
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty, age, want }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const own = B, mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
@@ -626,7 +629,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const base = { ...RELATIONS, ...RELATION_POLES[sex] }, off = { ...(B.base || {}) }, picks = {}, eyes = {};
   let brows = null;
   for (const f of FACE_FEATURES) {
-    const name = pick(f, f === acc), k = (FACE_SPREAD[0] + d() * (FACE_SPREAD[1] - FACE_SPREAD[0])) * (1 - FACE_BEAUTY.shapes * beauty), S = FACE_SHAPES[f][name];
+    const rolled = pick(f, f === acc), name = want?.[f] ?? rolled, k = (FACE_SPREAD[0] + d() * (FACE_SPREAD[1] - FACE_SPREAD[0])) * (1 - FACE_BEAUTY.shapes * beauty), S = FACE_SHAPES[f][name];
     picks[f] = name;
     for (const [key, v] of Object.entries(S.rel || {})) off[key] = (off[key] || 0) + v * k;
     for (const [ch, v] of Object.entries(S.eyes || {})) { const rest = EYE_CHANNELS[ch][0]; eyes[ch] = Math.round((rest + (v - rest) * k) * 1000) / 1000; }

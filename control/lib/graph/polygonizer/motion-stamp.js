@@ -36,9 +36,29 @@ export function withDefaultWalk(spec) {
   return { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), walk: true } };
 }
 
-/** An inline hero as the door would mint it: withDefaultWalk, and `laws` when it reads the hero laws' tables. */
+/**
+ * A hero being MINTED is built on the game body, the tiered form (tiered-form.js), unless it names a form (`'realistic'`, or
+ * the deprecated `'classic'`, the body before it) or the deprecated streamlined core, which only the classic body carries.
+ * A chibi or a child minted on it wears the anime head (`head: 'anime'`) unless it names a head or says a word only the landmark
+ * head reads (`face`, `hair`, `expression`, `headPreset`, a clip's `face`). Only the mint calls this: a hero stored
+ * without a form keeps the classic body it was made with, and one stored without a head the landmark head.
+ */
+export function withDefaultForm(spec) {
+  if (!isObj(spec)) return spec;
+  const formed = (spec.form !== undefined && spec.form !== null) || spec.core === 'streamlined' ? spec : { ...spec, form: 'tiered' };
+  return chibiHead(formed);
+}
+const isChibi = (cast) => cast === 'chibi' || cast === 'child' || (isObj(cast) && (cast.build === 'chibi' || cast.build === 'child'));
+const LANDMARK_WORDS = ['face', 'hair', 'expression', 'headPreset'];
+function chibiHead(spec) {
+  if (spec.form !== 'tiered' || spec.head !== undefined || !isChibi(spec.cast)) return spec;
+  if (LANDMARK_WORDS.some((k) => spec[k] !== undefined) || JSON.stringify(spec.clips ?? null).includes('"face"')) return spec;
+  return { ...spec, head: 'anime' };
+}
+
+/** An inline hero as the door would mint it: withDefaultForm, withDefaultWalk, and `laws` when it reads the hero laws' tables. */
 function mintedInline(hero) {
-  const walked = withDefaultWalk(hero);
+  const walked = withDefaultWalk(withDefaultForm(hero));
   return walked.laws === undefined && readsHeroLaws(walked) ? { ...walked, laws: HERO_LAWS_VERSION } : walked;
 }
 
@@ -63,7 +83,7 @@ export function stampAuthoredMotion(manifest, prev = null) {
       if (!isObj(f)) continue;
       const pf = isObj(prev?.figures) ? prev.figures[name] : null;
       let g = stampFigureMotion(f, pf);
-      // a hero NEW to the world's figures is minted as the door mints one: the calibrated walk unless it brings its own,
+      // a hero NEW to the world's figures is minted as the door mints one: the game body and the calibrated walk unless it brings its own,
       // and the hero laws when it reads their tables (an inline hero is re-recorded on every render, so it is stamped
       // here, where it is written, or never); a figure the world already had is left as it was stored
       if (isObj(g.hero) && !pf) g = { ...g, hero: mintedInline(g.hero) };

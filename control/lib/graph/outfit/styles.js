@@ -8,7 +8,12 @@
 //             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
 //             full, rigidity?: shell | stiff | crisp | soft | flowing | 0 … 1 (how the skirt moves: rigidity.js) } | false
 //             outer:  { family, sleeve, hem: waist | hip | tunic | knee | midi | maxi, open: true|false, cut?: pencil | aline |
-//             full } | false: a layer over the top and the bottom (a vest or jerkin without sleeves, a jacket, a coat)
+//             full } | false: a layer over the top and the bottom (a vest or jerkin without sleeves, a jacket, a coat);
+//             a tailored FRONT on the realistic body (the authored body's jacket unchanged): front?: single | double (one
+//             row of buttons, or two with the fronts overlapped), lapel?: notch | peak | shawl | none (none: the stand
+//             collar), buttons?: 1 | 2 | 3 (in a row); any of them gives the jacket a V onto the shirt, its lapels and its
+//             buttons (single with a notch lapel, double with a peak, unless named); its SHAPE: shoulder?: natural |
+//             structured (squared on a pad), waist?: suppressed (taken in) | straight (a sack, chest to hip)
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
 //             turn, default 0.33), split?: 1 | 2 (two tails side by side), cut?, family?, rigidity? (default 'soft') }]: DRAPE
 //             PANELS hung from the waist over everything else (coattails, a tabard's apron, tassets, a loincloth)
@@ -19,6 +24,11 @@
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
 //             feet:   'boots' | 'shoes' | 'none'
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
+//             tie:    true (a tie on the shirt from its collar to the belt, under a closed jacket: the realistic body's) |
+//             false
+//             waistcoat: true | { front?: 'single' | 'double', buttons?: 3–6 } (a waistcoat over the shirt and the tie and
+//             under the jacket, from the chest to below the waist, worn without a belt; its V and its buttons the realistic
+//             body's) | false
 //             focal:  'collar' | 'placket' | 'belt' (law 5; defaults to the woven top's placket, else the belt)
 //             (sleeve, hem and leg are LENGTHS words: principles.js)
 //   tones     group → '#hex': Top, Bottom, Shoes and the construction's (Trim, Placket, Button, Seam, Waistband,
@@ -153,10 +163,54 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": true, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
     "tones": { "Outer": "#e8eaee", "Top": "#2a2e36", "Bottom": "#2a2e36", "Shoes": "#e8eaee", "Trim": "#7fb2ff", "Leather": "#2a2e36", "Buckle": "#c9ced6" }
   },
+  // the BUSINESS SUITS: a closed jacket over a shirt and tie, its front made by the tailor on the realistic body (a V,
+  // lapels, the right front over the left; the authored body wears the jacket as it always has)
+  business: {
+    "id": "business",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "single", "lapel": "notch", "buttons": 2 , "shoulder": "structured", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true },
+    "tones": { "Outer": "#1f2a44", "Top": "#f6f7f9", "Bottom": "#1f2a44", "Tie": "#6b1d2a", "Shoes": "#3b2416", "Button": "#15181f", "Leather": "#3b2416", "Buckle": "#c9a24a", "Trim": "#1f2a44" }
+  },
+  doublebreasted: {
+    "id": "doublebreasted",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 3 , "shoulder": "structured", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true },
+    "tones": { "Outer": "#3a3d42", "Top": "#cfdcec", "Bottom": "#3a3d42", "Tie": "#1d2b4a", "Shoes": "#141110", "Button": "#22252a", "Leather": "#141110", "Buckle": "#b9b9b9", "Trim": "#3a3d42" }
+  },
+  // a THREE-PIECE: the business suit's cloth in a waistcoat between the shirt and the jacket (its V shows between the
+  // lapels, its buttons down it), worn without a belt
+  threepiece: {
+    "id": "threepiece",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "single", "lapel": "notch", "buttons": 2 , "shoulder": "structured", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar", "tie": true, "waistcoat": true },
+    "tones": { "Outer": "#4a4e57", "Waistcoat": "#4a4e57", "Top": "#f4f1ea", "Bottom": "#4a4e57", "Tie": "#7a5a1e", "Shoes": "#2a1a10", "Button": "#1d1f24", "Leather": "#2a1a10", "Buckle": "#c9a24a", "Trim": "#4a4e57" }
+  },
+  // (a woman's: her jacket's left front over her right, as hers close; a pencil skirt or wide trousers)
+  skirtsuit: {
+    "id": "skirtsuit",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "kind": "skirt", "family": "woven", "leg": "knee", "cut": "pencil" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "single", "lapel": "notch", "buttons": 1 , "shoulder": "natural", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#1f2a44", "Top": "#f6f7f9", "Bottom": "#1f2a44", "Shoes": "#111111", "Button": "#15181f", "Leather": "#111111", "Buckle": "#c9a24a", "Trim": "#1f2a44" }
+  },
+  trousersuit: {
+    "id": "trousersuit",
+    "dials": { "stylize": 0.1, "fit": 0.3, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true, "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "wide", "fit": "eased" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "tunic", "open": false, "fit": "fitted", "collar": true, "front": "double", "lapel": "peak", "buttons": 2 , "shoulder": "structured", "waist": "suppressed" }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#141416", "Top": "#f1ece1", "Bottom": "#141416", "Shoes": "#0b0b0b", "Button": "#c9a24a", "Leather": "#0b0b0b", "Buckle": "#c9a24a", "Trim": "#141416" }
+  }
 });
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
+/** a jacket's FRONT words (the tailor's, on the realistic body): the fastening, the lapel, the buttons in a row */
+export const OUTER_FRONTS = Object.freeze(['single', 'double']), OUTER_LAPELS = Object.freeze(['notch', 'peak', 'shawl', 'none']);
+/** a jacket's SHAPE words (the tailor's too): its shoulder and its waist */
+export const OUTER_SHOULDERS = Object.freeze(['natural', 'structured']), OUTER_WAISTS = Object.freeze(['suppressed', 'straight']);
 const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
@@ -174,7 +228,9 @@ export function validateOutfitCard(card, at = 'outfit.style') {
     else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`), ...one(L.bottom.cut, TCUT, `${at}.language.bottom.cut`)); }
   if (L.outer !== undefined && L.outer !== false) { if (typeof L.outer !== 'object') errs.push(`${at}.language.outer: { family, sleeve, hem, open?, cut? } or false`);
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
-      if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`); } }
+      if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
+      errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
+      if (L.outer.buttons !== undefined && !(Number.isInteger(L.outer.buttons) && L.outer.buttons >= 1 && L.outer.buttons <= 3)) errs.push(`${at}.language.outer.buttons: 1, 2 or 3 (a row's, down the front)`); } }
   if (L.panels !== undefined) { if (!Array.isArray(L.panels)) errs.push(`${at}.language.panels: a list of { at, length, width?, split?, cut?, family?, rigidity? }`);
     else L.panels.forEach((Q, i) => { const w = `${at}.language.panels[${i}]`;
       if (!Q || typeof Q !== 'object' || Array.isArray(Q)) { errs.push(`${w}: { at, length, width?, split?, cut?, family?, rigidity? }`); return; }
@@ -190,6 +246,14 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   errs.push(...one(L.feet, FEET, `${at}.language.feet`), ...one(L.focal, FOCAL, `${at}.language.focal`));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);
+  if (L.tie !== undefined && typeof L.tie !== 'boolean') errs.push(`${at}.language.tie: true or false (a tie on the shirt, the realistic body's)`);
+  if (L.waistcoat !== undefined && typeof L.waistcoat !== 'boolean') {
+    const V = L.waistcoat, w = `${at}.language.waistcoat`;
+    if (!(V && typeof V === 'object' && !Array.isArray(V))) errs.push(`${w}: true, false or { front?, buttons? }`);
+    else { errs.push(...one(V.front, OUTER_FRONTS, `${w}.front`));
+      if (V.buttons !== undefined && !(Number.isInteger(V.buttons) && V.buttons >= 3 && V.buttons <= 6)) errs.push(`${w}.buttons: a whole number, 3–6`);
+      for (const k of Object.keys(V)) if (!['front', 'buttons'].includes(k)) errs.push(`${w}.${k}: not a waistcoat field (front, buttons)`); }
+  }
   if (card.tones !== undefined && !(card.tones && typeof card.tones === 'object' && Object.values(card.tones).every(isHex))) errs.push(`${at}.tones: { group: '#rrggbb' }`);
   return errs;
 }

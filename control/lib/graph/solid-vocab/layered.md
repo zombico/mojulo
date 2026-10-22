@@ -188,12 +188,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
   face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
-  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
+  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`; on the game body,
+  the tiered form, stamped `form: 'tiered'` at mint when none is named and shaded smooth; `'realistic'` the realistic
+  body; `'classic'`, deprecated, the body before it, what a hero stored without a form keeps, said on its readout) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
   percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
-  unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
+  unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded (a chibi or a child minted without a head, or a landmark head's word, wears the anime head; the chibi, the adult-form chibi, is drawn as simple solids, cylinder limbs and mitten hands, the child as the same rounder, a barrel torso and fuller arms, with the anime child's face, both wearing only a kit's or a suit's few signature pieces) — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
   body proportion lab's contract. Controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
   `neck`, `legs` (joints move, the soles stay on the ground), `armLength` (the upper arm and forearm, so a body shortened
   by `legs` and `torso` does not keep a grown arm that hangs to its knees); widths `shoulders` (the arm chain rides out, the yoke widens),
@@ -419,8 +421,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
   the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
   streamlined hero keeps its mitten and refuses those words. Hip armour hangs
-  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
-  before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
+  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` (deprecated: said on
+  the readout, and a hero naming it keeps the classic body) is the hero before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
 <!-- /section -->
@@ -551,7 +553,17 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   woven, sleeve, hem, collar, fit, girth }`; `bottom { family, leg, cut: skinny | tapered (default) | straight | wide, fit, girth }`
   or a skirt `{ kind: 'skirt', leg: micro … maxi, cut: pencil | aline | full, rigidity? }` (one hull round the hips and
   both legs, never narrowing below them, open beneath, skinned by nearness), `dress: true` (the skirt the top's own
-  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth }` over both; `panels: [{ at: back | front | sides
+  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth, front?, lapel?, buttons? }` over both (on
+  the realistic body a TAILORED FRONT: `front: single | double`, `lapel: notch | peak | shawl | none`, `buttons: 1 | 2 | 3`
+  give the jacket a V onto the shirt, its lapels and collar, its buttons; `shoulder: natural | structured`, `waist:
+  suppressed | straight` its shape; closed, the right front over the left; a suit
+  jacket's length is `hem: 'tunic'`, over the seat; a card's `Lapel` tone its facing; `tie: true` a tie on the shirt,
+  its `Tie` tone; open, the lapels run to the hem; a woman's closes left over right; the cards `business` and
+  `doublebreasted` are suits with ties, `skirtsuit` and `trousersuit` a woman's); `waistcoat: true | { front, buttons:
+  3–6 }` a waistcoat between the shirt and the jacket, no belt (on the realistic body its own V and buttons, its
+  armholes; `Waistcoat` tone; the card `threepiece`; on the game body the tailoring and a plated suit
+  are worn plain or not at all, said in the readout's `realisticOnly`; gloves and footwear cards are worn on both, the
+  game body's shoes at half the realistic polygons, its foot bare under a sandal and not drawn under a closed shoe); `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose
@@ -564,7 +576,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the cloth fills the waist or erases the taper (advice; the eyes gate is a person's). Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/bottom/cut`, `/hero/outfit/language/panels`.
 
-  STYLISM. `stylism: { genre?, register?, detail?, silhouette? }` dresses the hero the way a character designer works:
+  STYLISM. `stylism: { genre?, register?, detail?, silhouette?, canon? }` dresses the hero the way a character designer works:
   the silhouette first, then detail, each a solver over principles that lowers to the outfit build above and writes down
   why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` | `alien` — what makes each big shape there (a
   mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring); every genre but `alien`
@@ -577,7 +589,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   an outline with its signature: `operative` (spy), `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`,
   `lolita`, `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler` (any cast wears any; a
   signature still drawn with a stand-in — a sailor collar, pleats, slits, puff sleeves — is listed in
-  `silhouette.approximated`). `detail` (`plain` | `considered` | `rich` | `ornate`) is the detail budget, spent from the FOCAL out (the outline's,
+  `silhouette.approximated`), or `balance`: the outline the FIGURE is dressed toward by the canon's rules (its cast and
+  physique: a jacked western male a column, no padding; a heavy figure one long vertical run; a drawn female an X).
+  `canon` (`western` | `anime`) names the principles the outfit is designed to (docs/garment-principles.md): with it,
+  the lengths the solver chose move off bad landings (a coat or a top worn out ending at halves, a hem on the thigh's
+  top or the calf's belly, a short leg line) to the nearest good word, the hero's own and a named card's standing, each
+  move a note; the readout's `dress.outline` advises in that canon alone. `detail` (`plain` | `considered` | `rich` | `ornate`) is the detail budget, spent from the FOCAL out (the outline's,
   or `focal`: neck | chest | back | waist | arms | wrists | hem) in one `motif` family (the genre's, or a MOTIFS name):
   emblem, border, echo, bindings, a metal fitting from heroic up; on what shows (a robe's own `trim` where it covers). The designed pieces get colour roles from a
   STAND-IN palette (a style guide's palette will replace it): each role a clear value step from what it sits on, the
@@ -782,26 +799,53 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   becomes painted rim, and a row of rivets under 2 px one rivet. A held item's lathes, sweeps and gems follow the pixels
   it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
   bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
-  balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
+  balls, the web of skin over each (the arm's colour, from inside the torso to the arm's belly, stretching as it swings)
+  and the cone under it that runs the torso's shoulder into the ball. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
 - **The realistic body (`form: 'realistic'`).** The hero's body re-sampled onto the form field: bone where it shows and
   the muscle masses placed from the rig's joints, summed into one skin, denser than authored (the torso 48 round, 64 on
   the female, with the bust in the field), the shoulder girdle with a blade, and morph-like correctives a raised arm
   wears (the pauldron, the shoulder's blend; `recipe.correctives`). The build is the cast's pole's (`cast: 'male'` or
-  `'female'`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
+  `'female'`: it depicts ADULTS, and a child or chibi cast asked of it is that cast's stylized figure instead, its colours
+  keyed the same, the skin's colour its palette's `Skin`), dialled by `physique`: a word (`athletic`, the default; `skinny`, `heavyset`, `jacked`) or
   `{ from?, bulk, tone, weight, height }`, each −1 to 1 (bulk the muscles across, tone their definition, weight a layer
   of fat, height the stature a tenth either way); the hero stores it stamped `laws: 1`. Revise with
   `set /hero/physique 'jacked'` or `set /hero/physique/bulk 0.5`. Its head is the RELATIONAL head unless `head` says
   `landmark` or `none`: a cranium, a visage, a nose, eyes and ears, each sampled from its own direction and shaded by
-  the head's field; bald, its jaw opening on the rig. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
+  the head's field; bald, its jaw opening on the rig. Its FACE is composed (face-compose.js): per feature a named shape,
+  the features agreeing by their character, drawn from a population's rolls. A realistic hero minted with no `face` gets
+  one ROLLED: its seed, its ethnicity and (with no `cast`) its sex, stamped at mint, at prime age on the HEROIC
+  baseline (drawn toward its population's harmonious mean). Named words BOUND the roll and the rest TUNE it:
+  `face: { seed?, ethnicity?, want?, character?, accent?, nose?, beauty?, age? }`. `ethnicity`: `western`,
+  `north-asian`, `east-asian`, `southeast-asian`, `indo-aryan`, `dravidian`, `african`, `latin`, `levantine`,
+  `south-mediterranean`, the regions `asian`, `south-asian`, `equatorial`, `mena`, or `mixed`; a list of the base ones
+  is a mix of them. `want` AIMS the face at shapes, the rest the seed's: `chin` pointed | soft | heart | strong, `nose`
+  button | fine | soft | classical, `lips` full | pout | lower | fine, `cheeks` sculpted | full | apple, `outline` oval |
+  heart | round | square, `eyes` open | large | almond | deep | hooded | soft, `brows` by the epidermis's shapes.
+  `character: [soft −1 … angular 1, delicate −1 … strong 1]` sets the whole face's harmony; `accent` one feature taken
+  far from it (memorable) or `false`; `nose` its axis (−1 short and flat … 1 long and pointed); `beauty` 0 … 1
+  (0.75 the heroic baseline; lower, more character); `age` in years (16 … 85). Another `seed` is another face with the
+  same words: re-roll with `set /hero/face/seed <n>`, keep what you like and aim the rest. The readout's
+  `hero.realisticFace` says what was rolled (the picks, the character, the ancestry). It shapes the head and its skin
+  (the ancestry's tone, undertone and hair colour, the hairline, marks, a beard, the years) under the hero's own `skin`;
+  the composed cut, brows, lashes and piercings are read but not yet grown on the hero. Dress by BODY PART: `outfit: ['fittedShirt', 'trousers']` (also
   `tee`, `fittedTee`) lies on the parts it covers, spanning the grooves between the muscles and following the forms;
-  the other words, `adorn` and `paint` are worn over the skin's envelope; an outfit takes off the body's suit (its
+  an OUTFIT CARD (`outfit: { type: 'outfit', style }`), the other words and a `stylism` are worn on its parts by
+  the same cloth (each garment one piece over the segments it covers, the layers apart, collars standing, short
+  sleeves turned in; its trims, buttons and emblems where the card puts them; a skirt carried down from its body), a
+  panel, a cape and a hood still over the skin's envelope; `adorn` and `paint` are worn over the envelope too; an outfit takes off the body's suit (its
   Top and Bottom paint), so what it leaves bare is skin. Its SKIN is the character's: `skin: { tone, undertone, age,
   flush, freckles, oil, lines, dirt, paint, hairColour, … }` (tone an MST swatch 1–10 or a hex; `palette.Skin` is the
   tone when `skin` names none), painted in an export (the GLB's base colour texture) where it shows; skin under what it
   wears keeps the flat base colour. `bake: true` pre-bakes light into its corners (the unlit export): the head's layers
   and the eyes' globes cast no shadow, the eyes wear the `eye` finish. A first mint takes about 40 s (the body's slice
-  and the head), then is kept. Refused by name: `detail`, `statue`, `stylism`, `body`, `girth` (the physique dials
-  those).
+  and the head), then is kept. ARMOUR (`adorn: { type: 'armor', style }`, any family) is fitted to it by role: the
+  trunk's plates one cuirass, its wraps hoops, the shoulders domed caps, the feet boots; the gorget only with
+  `wear: ['gorget']`; a helm is left off (not fitted to its head yet). FOOTWEAR words: `boots`, `shoes`, `sandals`
+  (a welted sole, straps and buckles). LOOSE words: `martialPants` (wide, falling, bloused over a cuffed ankle, a sash),
+  `wideTrousers` (falling open to the floor), and `gi` (a wrapped jacket over them: a V, a standing collar, wide sleeves,
+  a skirt, the belt; worn with `martialPants` it takes their sash); the authored body wears them as wide segment pieces.
+  It carves as a `statue` (in one material, no skin; a bust without the arms' stumps). Refused by name: `detail` (an
+  outfit dresses it), `body`, `girth` (the physique dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

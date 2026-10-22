@@ -44,11 +44,11 @@ import { levelClothBake, recipeTones } from '@/lib/graph/materials/dress-materia
 import { readGeocube } from '@/lib/graph/era/geocube';
 import { fieldPaintOf, fieldColours } from '@/lib/graph/polygonizer/field-paint';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
-import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
+import { TIERED_FACE_TINT, tieredPole, heroShade } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
-import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
+import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
@@ -674,7 +674,8 @@ export const WORLD_KINDS = {
       const castLight = castLight0 ? withBands(castLight0, resolveToon(ctx.toon)?.bands) : null;
       const character = castLight && (m.toon ?? m.scene?.toon)?.light == null ? null : resolveCharacterLight(m, ctx);
       const figLight = castLight && !character ? castLight : light;
-      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}) }) : null;
+      // (the tiered form's body is smooth under the character light too: its crease, the anime head's proxy kept)
+      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}), ...(m.hero?.form === 'tiered' ? (({ crease, face }) => ({ crease, ...(face !== undefined ? { face } : {}) }))(heroShade(m.hero)) : {}) }) : null;
       // a drawn creature's markings (creature-silhouette.js), stepped by the character light as its own colours
       const marks = character && !m.hero && m.plan?.style?.drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
       const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive, ...(marks ? { tint: marks } : {}) }) : null;
@@ -690,9 +691,9 @@ export const WORLD_KINDS = {
       // a DRAWN creature (creature-drawn.js, the plan's `style.drawn`) welds its body and fur as one form, and wears its
       // markings (creature-silhouette.js): its own, or countershading and points when its body is one colour
       const drawn = !m.hero && !!m.plan?.style?.drawn;
-      const crease = m.hero?.form === 'tiered' ? TIERED_SMOOTH_CREASE : drawn ? drawnCrease(m.plan) : STUDIO_SMOOTH_CREASE;
+      const crease = drawn ? drawnCrease(m.plan) : heroShade(m.hero).crease;
       // and its landmark head's normals toward the head's ellipsoid (tiered-form.js TIERED_FACE_SMOOTH)
-      const ellipsoid = m.hero?.form === 'tiered' && (m.hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0;
+      const ellipsoid = heroShade(m.hero).ellipsoid;
       // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
       // and the BAKE STACK (surface-bake.js, opt-in `bake`): painted light per corner, read off the rest mesh, stacked
       // over the head's tint or a drawn creature's markings (their product). Absent ⇒ the tint is the one before it

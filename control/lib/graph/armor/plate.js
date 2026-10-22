@@ -129,7 +129,7 @@ export function plateSuit(dials, ctx, { focalSide = 'R', fnSide = 'L', variant =
   };
   const pieces = []; const worn = [];
   for (const [th, slot, who] of PLATE_ORDER) {
-    if (c < th - 1e-9) continue;
+    if (c < th - 1e-9 || (ctx.keep && !ctx.keep.includes(slot))) continue;
     const sides = who === 'both' ? [focalSide, other(focalSide)] : who === 'fn' ? [fnSide] : who === 'other' ? [other(fnSide)] : who === 'focal' ? [focalSide] : who === 'partner' ? [other(focalSide)] : [null];
     for (const S of sides) { worn.push(`${slot}${S ? ':' + S : ''}`);
       if (slot === 'pauldron') { const rank = who === 'focal' ? 'focal' : 'partner'; pieces.push({ slot, rank, entries: pauldron(variant, dials, ctx, { side: S, rank, groups }).kit }); }

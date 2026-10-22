@@ -4,7 +4,9 @@
 // realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
 
-import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION } from '../../mcp/tools/layered.js';
+import { heroDermisSpec } from '../epidermis/dermal-hero.js';
+import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
+import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { readDermis, skinBase } from '../epidermis/dermal-map.js';
 
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
@@ -23,9 +25,24 @@ describe('the realistic hero at the door', () => {
     expect(refused({ cast: 'male', form: 'realistic', physique: 'brawny' })).toMatch(/unknown physique 'brawny'/);
     expect(refused({ cast: 'male', form: 'realistic', physique: { bulk: 3 } })).toMatch(/outside/);
     expect(refused({ cast: 'male', form: 'realistic', head: 'anime' })).toMatch(/head: the realistic body/);
-    expect(refused({ cast: 'male', form: 'realistic', detail: 'clothed' })).toMatch(/detail: not worn on the realistic body yet/);
+    expect(refused({ cast: 'male', form: 'realistic', detail: 'clothed' })).toMatch(/detail: the authored body's own clothing.*dressed by an outfit/);
     expect(refused({ cast: 'male', form: 'realistic', body: { waist: 0.2 } })).toMatch(/body: the realistic body's girths/);
     expect(refused({ cast: { pole: 'male', build: 'brute' }, form: 'realistic' })).toMatch(/cast: the realistic body/);
+  });
+
+  it('depicts adults: a child asked of it is the stylized western figure of that cast, its colours keyed the same', () => {
+    const r = heroRecord({ cast: 'child', form: 'realistic', physique: 'lean', skin: { tone: 7 }, palette: { Hair: '#2a1d14' }, outfit: ['tee', 'trousers'] });
+    expect(r.form).toBeUndefined(); expect(r.physique).toBeUndefined(); expect(r.skin).toBeUndefined();
+    expect(r.cast).toBe('child'); expect(r.head).toBe('landmark');
+    // (the skin's colour as the dermis reads its tone, the palette's own keys as given, the dress as asked)
+    expect(r.palette).toEqual({ Hair: '#2a1d14', Skin: heroDermisSpec({ cast: 'male', skin: { tone: 7 } }).base });
+    expect(r.outfit).toEqual(['tee', 'trousers']);
+    // (the build form too, and a palette's own Skin stands)
+    const b = heroRecord({ cast: { pole: 'female', build: 'child' }, form: 'realistic', skin: { tone: 3 }, palette: { Skin: '#e0b090' } });
+    expect(b.form).toBeUndefined(); expect(b.palette.Skin).toBe('#e0b090');
+    // (an adult stays realistic, and a cast the realistic body does not build is still refused by name)
+    expect(heroRecord({ cast: 'female', form: 'realistic' }).form).toBe('realistic');
+    expect(refused({ cast: 'brute', form: 'realistic' })).toMatch(/cast: the realistic body/);
   });
 
   it('mints: the body re-sampled (no pectoral parts, the correctives carried) and gated; a new physique re-slices', () => {
@@ -69,10 +86,60 @@ describe('the realistic hero at the door', () => {
     expect(d.parts.footR.group).toBe('Shoes');
   }, 240_000);
 
+  it('carved: a statue in one material, no skin; a lost head takes the realistic head\'s face with it; a bust without the arms\' stumps', () => {
+    const carve = (statue) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', statue }) }).recipe;
+    const lost = carve({ type: 'statue', style: 'archaic', lose: ['head'] });
+    expect(new Set(Object.values(lost.palette)).size).toBe(1); expect(lost.dermis).toBeUndefined();
+    for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR']) expect(lost.parts[k], k).toBeUndefined();
+    expect(lost.parts.neck && lost.parts.torso && lost.parts.footR).toBeTruthy();
+    const bust = carve('roman-bust');
+    expect(bust.statue.crop).toBe('bust'); expect(bust.parts.visage && bust.parts.nose && bust.parts.torso).toBeTruthy();
+    expect(Object.keys(bust.parts).filter((k) => /upperArm|pelvis|thigh/.test(k))).toEqual([]);
+  }, 240_000);
+
   it('dressed, wears its whole head: the parts of the face the plan has no name for kept, the fit its skin maps back by', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt'] }) }).recipe;
     for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL']) expect(r.parts[k], k).toBeTruthy();
     expect(r.headFit).toMatchObject({ sex: 'female' });
     for (const k of ['k', 'ty', 'men']) expect(Number.isFinite(r.headFit[k]), k).toBe(true);
   }, 120_000);
+
+  it('its face: rolled at mint where nothing bounds it, bounded by what is named, kept on a remake; refused by name', () => {
+    // (nothing decided: the seed, the ethnicity and the sex rolled and stamped)
+    const bare = withRolledFace({ form: 'realistic' });
+    expect(Number.isInteger(bare.face.seed)).toBe(true); expect(ROLLED_ETHNICITIES).toContain(bare.face.ethnicity); expect(['male', 'female']).toContain(bare.cast);
+    // (named words bound the roll: the cast and the ethnicity kept, a want carried)
+    const named = withRolledFace({ form: 'realistic', cast: 'female', face: { ethnicity: 'latin', want: { eyes: 'almond' } } });
+    expect(named).toMatchObject({ cast: 'female', face: { ethnicity: 'latin', want: { eyes: 'almond' } } }); expect(Number.isInteger(named.face.seed)).toBe(true);
+    // (another form, or the landmark head, rolls nothing; a remake keeps its stamped face and the cast it came with)
+    for (const spec of [{ form: 'tiered' }, { form: 'realistic', head: 'landmark' }]) expect(withRolledFace(spec)).toBe(spec);
+    expect(withRolledFace({ form: 'realistic' }, { face: { seed: 9, ethnicity: 'african' }, cast: 'female' })).toEqual({ form: 'realistic', face: { seed: 9, ethnicity: 'african' }, cast: 'female' });
+    const [op] = heroRemakeOps({ spec: { form: 'realistic', physique: 'jacked' } }, { hero: { form: 'realistic', cast: 'female', face: { seed: 9, ethnicity: 'african' } } });
+    expect(op.value).toMatchObject({ cast: 'female', face: { seed: 9, ethnicity: 'african' } });
+    // (refused by name; a child asked of the realistic body is the stylized figure, its realistic face left off)
+    expect(validateHeroSpec({ form: 'realistic', face: { want: { chin: 'square' } } })).toEqual([expect.stringMatching(/face.want.chin: one of/)]);
+    expect(validateHeroSpec({ form: 'realistic', face: { ethnicity: ['western'] } })[0]).toMatch(/face.ethnicity/);
+    expect(validateHeroSpec({ form: 'realistic', face: { tilt: 1 } })[0]).toMatch(/face.tilt: not a realistic face's word/);
+    expect(adultsOnly({ form: 'realistic', cast: 'child', face: { seed: 2 } }).face).toBeUndefined();
+  });
+  it('its face composed on every read: the heroic baseline, the readout\'s roll, a mix of ethnicities', () => {
+    const hero = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 3, ethnicity: 'east-asian', want: { nose: 'button' } } });
+    expect(hero.face).toEqual({ seed: 3, ethnicity: 'east-asian', want: { nose: 'button' } });
+    const F = realisticFaceOf(hero);
+    expect(F.picks.nose).toBe('button'); expect(F).toEqual(realisticFaceOf({ ...hero }));
+    expect(realisticFaceOf({ ...hero, face: { ...hero.face, beauty: HERO_FACE.beauty } }).relations).toEqual(F.relations);
+    const ro = heroReadout(hero, heroPlanOf(hero), null, []).realisticFace;
+    expect(ro).toMatchObject({ words: hero.face, ethnicity: 'east-asian', picks: F.picks, ancestry: F.ancestry });
+    expect(realisticFaceOf({ ...hero, face: { seed: 3, ethnicity: ['western', 'african'] } }).hybrid).toBeTruthy();
+    expect(realisticFaceOf({ form: 'realistic', head: 'relational', cast: 'male' })).toBeNull();
+  });
+  it('its face shapes its head and lies under its skin: the composed relations on the relational head, the ancestry\'s tone, the hero\'s own skin over it', () => {
+    const at = (face, extra = {}) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(face ? { face } : {}), ...extra }) }).recipe;
+    const plain = at(null), a = at({ seed: 1, ethnicity: 'african' }), b = at({ seed: 2, ethnicity: 'african' });
+    expect(a.parts.visage).not.toEqual(plain.parts.visage); expect(a.parts.visage).not.toEqual(b.parts.visage);
+    expect(a.headFit.relations).toBeTruthy(); expect(plain.headFit.relations).toBeUndefined();
+    // (the ancestry's deep tone, unless the hero's skin or palette names one)
+    expect(a.dermis.tone).toBeGreaterThanOrEqual(6); expect(a.dermis.undertone).toBeTruthy();
+    expect(at({ seed: 1, ethnicity: 'african' }, { skin: { tone: 2 } }).dermis.tone).toBe(2);
+  }, 300_000);
 });
