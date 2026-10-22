@@ -23,7 +23,10 @@
  *   strikeTake   ready → load → contact (the blow dealt) → follow → ready        (hero-strike.js)
  *   jumpTake     ready → load → takeoff → land → absorb → ready                   (hero-jump.js)
  *   reactTake    blow → peak (the blow taken) → release → ready                   (hero-react.js)
- * Each span between beats has a ROLE (wind, act, air, after, settle) a flavor times.
+ * Each span between beats has a ROLE (wind, act, air, after, settle) a flavor times. A take may bring its own player
+ * (`clip(keys, R)` → { fn, seconds }: a swing's, weapon.mjs), its own contact point (`point(nodes)`: a blade's tip, else
+ * the striking wrist), its own striking mass (`effective` kg: a weapon and the arm behind it) and its own wind-up hold
+ * (`windHold` s: a charged heavy weapon's), each over the flavor's.
  *
  *   FLAVORS, FLAVOR_NAMES
  *   strikeTake(name, R) · jumpTake(name, R) · reactTake(name, R, { gain })
@@ -82,6 +85,10 @@ export const FLAVORS = Object.freeze({
   },
 });
 export const FLAVOR_NAMES = Object.freeze(Object.keys(FLAVORS));
+/** a take's player: its own, else the hero library's keyed clip */
+const clipOf = (take, keys, R) => (take.clip ? take.clip(keys, R) : keyedClip({ ...take, keys }, R));
+/** the point a take strikes with: its own, else the striking wrist */
+const pointOf = (take, n) => (take.point ? take.point(n) : n[`wrist${take.hand}`]);
 const flavorOf = (f) => (typeof f === 'string' ? FLAVORS[f] && { name: f, ...FLAVORS[f] } : f) || (() => { throw new Error(`animation-games: no flavor '${f}' (have ${FLAVOR_NAMES.join(', ')})`); })();
 
 // ─── takes ─────────────────────────────────────────────────────────────────
@@ -150,7 +157,7 @@ function grownKeys(take, F) {
 export function render(take, flavor, R, { fps = 60, blowDv = null, speed = null } = {}) {
   const F = flavorOf(flavor);
   const keys = grownKeys(take, F);
-  const clip = keyedClip({ ...take, keys }, R);
+  const clip = clipOf(take, keys, R);
   const T = take.seconds;
   const rate = F.rate ? clamp((speed ?? F.rate.speed) / F.rate.ref, 1, F.rate.max) : 1;
   // the output clock in frames: each span its role's time; a hold after the deepest wind-up and on the blow
@@ -161,7 +168,7 @@ export function render(take, flavor, R, { fps = 60, blowDv = null, speed = null 
     own += ((b.at - a.at) * T * (F.time[b.role] ?? 1) * fps) / rate;
     const d = Math.max(1, Math.round(own) + held - clock);
     segs.push({ f0: clock, f1: clock + d, s0: a.at, s1: b.at }); clock += d; beatFrame.push(clock);
-    const hold = Math.round((b.id === 'load' ? F.windHold : 0) * fps) + ((b.deals || b.takes) ? stop : 0);
+    const hold = Math.round((b.id === 'load' ? (take.windHold ?? F.windHold) : 0) * fps) + ((b.deals || b.takes) ? stop : 0);
     if (hold > 0) { segs.push({ f0: clock, f1: clock + hold, s0: b.at, s1: b.at, hold: true }); clock += hold; held += hold; }
   }
   const srcAt = (k) => { const s = segs.find((g) => k <= g.f1) ?? segs.at(-1); return s.hold ? s.s0 : s.s0 + ((s.s1 - s.s0) * (k - s.f0)) / (s.f1 - s.f0); };
@@ -204,25 +211,26 @@ export function nodesOf(R, rendered) {
  * last 60th of a second before contact, not the instant: the clip's monotone cubic flattens a joint at its extreme (the
  * elbow straightening at contact), so the instant before contact reads half the speed the drive carried */
 function handSpeed(take, R) {
-  const clip = keyedClip(take, R); const c = take.beats.find((b) => b.deals).at, h = 1 / (60 * take.seconds);
-  const w = `wrist${take.hand}`; const a = rigNodesAt(R, clip.fn(c - h)).nodes[w], b = rigNodesAt(R, clip.fn(c)).nodes[w];
-  return dist(a, b) / (h * take.seconds);
+  // (on the body's own clock: a take whose length is a register's exaggeration says the body's, `bodySeconds`)
+  const T = take.bodySeconds ?? take.seconds, clip = clipOf(take, take.keys, R), c = take.beats.find((b) => b.deals).at, h = 1 / (60 * T);
+  const a = pointOf(take, rigNodesAt(R, clip.fn(c - h)).nodes), b = pointOf(take, rigNodesAt(R, clip.fn(c)).nodes);
+  return dist(a, b) / (h * T);
 }
 const EFFECTIVE = 0.04;   // the share of the striker's mass a straight blow carries into its target (a jab's 2–3 kg)
 const FULL_DV = 1.2;      // m/s given the victim that the reaction library's peaks were posed for (a fighting game's hit)
 /**
  * A blow: the striker's hand speed (its take's), what it gives the victim (`dv` m/s), against the body on earth's
  * (`powerscale`), the frames it freezes, how far and how high the victim is thrown (a ricochet hands back the body's
- * travel `speed` times its restitution), the striker's bounce, and how far
+ * travel `speed` times its restitution; a take that stands still, a weapon's, ricochets off its striking point's speed), the striker's bounce, and how far
  * into its reaction the victim goes (`reactGain`: the reaction's peak scaled by the blow, never past half again).
  */
 export function blow(take, flavor, R, { attackerKg = 75, victimKg = 75, speed = null } = {}) {
   const F = flavorOf(flavor); const v = handSpeed(take, R);
-  const m = EFFECTIVE * attackerKg, real = (m * v) / (m + victimKg);
+  const m = take.effective ?? EFFECTIVE * attackerKg, real = (m * v) / (m + victimKg);
   let dv, lift = 0, bounce = 0;
   if (F.force.model === 'momentum') { dv = real * F.force.gain; lift = F.force.lift ?? 0; }
   else if (F.force.model === 'boop') { dv = F.force.push; bounce = F.force.bounce; }
-  else { dv = (speed ?? F.rate?.speed ?? v) * F.force.restitution; }   // a ricochet: the body's own travel, handed back with more
+  else { dv = (take.ricochetFromPoint ? v : speed ?? F.rate?.speed ?? v) * F.force.restitution; }   // a ricochet: the body's own travel, handed back with more
   const rad = (lift * Math.PI) / 180, up = dv * Math.sin(rad), along = dv * Math.cos(rad);
   // thrown: the flight (if lifted), then a slide on the soles (friction 0.8) or a tumble
   const air = up > 0 ? (2 * up) / G : 0; const slide = (along * along) / (2 * 0.8 * G);
@@ -250,7 +258,7 @@ export function exchange(strike, reactName, flavor, R, opts = {}) {
  * What a render measures: its length, its holds (frames and the longest run), the wind-up's depth (the most the ends
  * move off ready up to the load, metres), frames moving from load to the promised beat (holds not counted), the ends' peak speed (m/s on the
  * output clock), how much changes a frame (metres, mean of the moving frames), poses shown a second, the squash's
- * deepest and its volume error, smears, and (a strike) the hand's distance at contact from where the take puts it.
+ * deepest and its volume error, smears, and (a take that deals a blow) its striking point's distance at contact from where the take puts it.
  */
 export function signature(R, rendered, { take = null } = {}) {
   const { nodes, smears } = nodesOf(R, rendered); const fr = rendered.frames; const fps = rendered.fps;
@@ -265,7 +273,7 @@ export function signature(R, rendered, { take = null } = {}) {
   const peak = steps.indexOf(Math.max(...steps));
   const sq = fr.filter((f) => f.scale);
   let contactErr = null;
-  if (take?.kind === 'strike') { const c = beat('contact'); contactErr = r4(dist(nodes[c.frame][`wrist${take.hand}`], rigNodesAt(R, keyedClip(take, R).fn(take.beats.find((b) => b.deals).at)).nodes[`wrist${take.hand}`])); }
+  if (take?.beats.some((b) => b.deals)) { const c = beat('contact'); contactErr = r4(dist(pointOf(take, nodes[c.frame]), pointOf(take, rigNodesAt(R, clipOf(take, take.keys, R).fn(take.beats.find((b) => b.deals).at)).nodes))); }
   return {
     seconds: rendered.seconds, frames: fr.length, held: fr.filter((f) => f.held).length, longestHold: Math.max(0, ...runs),
     windDepth: r4(wind), driveFrames: beat('load') && promised ? fr.slice(beat('load').frame + 1, promised.frame + 1).filter((f) => !f.held).length : null,

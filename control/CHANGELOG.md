@@ -49,6 +49,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   hand). The climb is built from the rig's own leg solve and `reachArm`, since the library has no climbing clip. Its
   palms meet the wall within 1.5 mm and its holds hold. A realistic wall refuses a property. A walk into a bouncy wall,
   or into a body, now walks in place instead of freezing as a block.
+- **Weapons** (`weapon.mjs`): the hero library's swings (chop, thrust, rising, the two-handed cleave) at each item class,
+  in the four registers. Realistic is the rig's own swing. The others show the weight more or less: action charges a
+  heavy blade, draws a trail, and freezes longer for a heavier weapon; platformer flattens every weapon to one snappy
+  swing. The blade's tip lands on its contact point in every register, and the blow is the body's real tip speed times
+  the weapon and arm. The finding: `swingKeys` reports the strike about 7 % of the cycle earlier than the rig's player
+  plays it.
 - **Two views:** every player draws each pane from the side and from a ¾ overhead camera over a floor grid.
 - **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
