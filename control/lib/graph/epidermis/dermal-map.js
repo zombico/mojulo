@@ -115,6 +115,17 @@ const UNDERTONE_TINT = { cool: [0.99, 0.985, 1.03], neutral: [1, 1, 1], warm: [1
 // the zones' tints (multiplicative, linear): blood, the bony yellow, the beard's cool shadow, a vein's blue, a freckle
 const BLOOD = [1.0, 0.72, 0.7], YELLOW = [1.03, 0.99, 0.84], COOL = [0.84, 0.9, 0.97], VEIN = [0.93, 0.95, 1.04], FRECKLE = [0.8, 0.68, 0.56];
 const PALM = hexLin('#e3ad98'), NAIL = hexLin('#efc4b8');
+/** The tone as an ALBEDO (linear). A swatch is skin as a camera saw it, and the deepest swatches photograph near-black and
+ * grey (MST 9 and 10 have less red over blue than MST 6), where measured deep skin stays a strongly red-sloped ~5 % (its
+ * melanin takes the blue first). Below the deep knee (MST 8's luminance) the swatch keeps its order but is lifted
+ * (luminance by a square root under the knee) and holds the knee's warmth. A tone at or above the knee is its swatch. */
+const DEEP = hexLin(MST[7]), DEEP_L = lum(DEEP), DEEP_Q = DEEP.map((x) => x / DEEP_L);
+export const toneAlbedo = (tone) => {
+  const c = typeof tone === 'string' ? hexLin(tone) : hexLin(MST[tone - 1]), L = lum(c);
+  if (!(L < DEEP_L) || L <= 0) return c;
+  const L2 = DEEP_L * Math.sqrt(L / DEEP_L), s = smooth(0, 0.5, 1 - L / DEEP_L);
+  return c.map((x, k) => L2 * (x / L + (DEEP_Q[k] - x / L) * s));
+};
 
 // ─── the masks ───
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -323,8 +334,8 @@ export function dermisAt(A, D, { detail = true } = {}) {
   const R = dermalRegions(A, D), w = (k) => R[k] || 0;
   const seed = seedOf(A, D);
   // ── colour: the swatch, its undertone, then the zones ──
-  const base0 = typeof D.tone === 'string' ? hexLin(D.tone) : hexLin(MST[D.tone - 1]);
-  const mel = Math.max(0, Math.min(1, 1 - lum(base0) / lum(hexLin(MST[0]))));   // 0 the lightest swatch … ~1 the deepest
+  const base0 = toneAlbedo(D.tone), swatch = typeof D.tone === 'string' ? hexLin(D.tone) : hexLin(MST[D.tone - 1]);
+  const mel = Math.max(0, Math.min(1, 1 - lum(swatch) / lum(hexLin(MST[0]))));   // 0 the lightest swatch … ~1 the deepest
   let c = mulc(base0, UNDERTONE_TINT[D.undertone]);
   const Z = D.zones, show = 1 - 0.6 * mel;   // a deep skin shows its blood less
   const blood = Math.max(w('cheek') * 0.55, w('nose') * 0.6, w('ear') * 0.7, w('knuckles') * 0.6, w('elbow') * 0.5, w('knee') * 0.5, w('fingertip') * 0.55, w('palm') * 0.25, w('sole') * 0.3, w('heel') * 0.4, w('underEye') * 0.15, w('lip') * 0.3, w('axilla') * 0.1);
@@ -437,7 +448,7 @@ export function hairTract(A, R, D) {
 
 /** the skin's BASE colour (sRGB hex): its tone under its undertone, before the zones, the blood and the detail (the flat
  * colour of skin no texture covers, the palette's Skin) */
-export const skinBase = (D) => linHex(mulc(typeof D.tone === 'string' ? hexLin(D.tone) : hexLin(MST[D.tone - 1]), UNDERTONE_TINT[D.undertone]));
+export const skinBase = (D) => linHex(mulc(toneAlbedo(D.tone), UNDERTONE_TINT[D.undertone]));
 
 /** the hair's colour (linear RGB) from the dermis's word */
 export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairColour);

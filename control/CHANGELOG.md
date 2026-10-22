@@ -112,6 +112,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
   the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
   well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
+- THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
+  as a camera saw it, and the deepest two photograph near-black and grey (less red over blue than MST 6), so MST 9 and 10
+  rendered as dark grey under a white sheen. Below MST 8's luminance a tone is lifted (by a square root under that knee,
+  its order kept) and holds MST 8's red slope, the way measured deep skin stays a red-sloped few percent; the melanin
+  measure (the blood shown, the palms) still reads the swatch. MST 1 … 8, and any hex tone at or above the knee, are
+  byte-identical.
 
 ### Body-part map: dress tailored to the body, not the segment
 

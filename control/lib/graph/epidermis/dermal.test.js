@@ -8,7 +8,8 @@ import { relationalHeadChart } from './dermal-head.js';
 import { chartFromRings, meshOcclusion } from './dermal-chart.js';
 import { readLook, LOOKS, readAncestry } from './dermal-looks.js';
 import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
-import { readDermis, dermisAt, dermalDetail } from './dermal-map.js';
+import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin } from './dermal-map.js';
+import { MST } from '../egocube/ancestry.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
 
@@ -170,5 +171,15 @@ describe('the tie', () => {
     const signs = across.slice(2, -2).map((o) => Math.sign(o[0] * ref[0] + o[1] * ref[1] + o[2] * ref[2])).filter(Boolean);
     let flips = 0; for (let i = 1; i < signs.length; i++) if (signs[i] !== signs[i - 1]) flips++;
     expect(flips).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('the deep tones as albedo', () => {
+  it('keeps every swatch down to the knee, and below it lifts the deepest in order, red over blue like the knee', () => {
+    for (let t = 1; t <= 8; t++) expect(toneAlbedo(t)).toEqual(hexLin(MST[t - 1]));
+    const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], [a8, a9, a10] = [8, 9, 10].map(toneAlbedo);
+    expect(lum(a8)).toBeGreaterThan(lum(a9)); expect(lum(a9)).toBeGreaterThan(lum(a10));
+    expect(lum(a10)).toBeGreaterThan(lum(hexLin(MST[9])));
+    expect(a10[0] / a10[2]).toBeGreaterThan(3);
   });
 });
