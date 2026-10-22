@@ -8,6 +8,8 @@
 //   glove   { cuff? (a share of the forearm from the wrist; 0.06), thick? (m, how far the leather stands off the hand;
 //           0.0018), fingers? / thumb? (full | half: cut at the middle joint | none: at the knuckle), group? }, or false:
 //           the adornment on the bare hand
+//   mitten  { pad? (m; 0.008), grip? (a hand word the hand is held in: a boxing glove's fist), thumb? (joined | apart:
+//           its own sheath) }: one closed padded shell over the palm and the four fingers in place of the glove's
 //   adorn   [{ prim, … }] the adornment, in order (expand.js ADORN_PRIMS)
 //   tones   { <group>: '#hex' | { of: <group>, shade: −1 … 1 } } over HANDWEAR_TONES, for the groups the card uses; a tone
 //           OF another group is that group's colour darkened (−) or lightened (+), so recolouring the leather (`Gloves`)
@@ -21,6 +23,8 @@ export const HANDWEAR = Object.freeze({
   suitGloves: { family: 'glove', glove: { cuff: 0, thick: 0.0012 } },
   fingerless: { from: 'gloves', glove: { fingers: 'half' } },
   mitts: { from: 'gloves', glove: { fingers: 'none', cuff: 0.12 } },
+  // the mitten: knit, one shell round the four fingers, the thumb in its own sheath, a ribbed cuff
+  mittens: { family: 'glove', glove: { cuff: 0.2, thick: 0.004 }, mitten: { pad: 0.006, thumb: 'apart' }, adorn: [{ prim: 'cuff', width: 0.03, lift: 0.002 }], tones: { Gloves: '#8a2a2a', Cuff: OF(-0.2) } },
   // ── DRESS ──
   // the dress glove: thin black leather, the three points down the back
   dressGloves: { family: 'dress', glove: { cuff: 0.07, thick: 0.0012 }, adorn: [{ prim: 'points' }], tones: { Gloves: '#141416', Stitch: OF(0.18) } },
@@ -93,9 +97,11 @@ export const HANDWEAR = Object.freeze({
   // the tactical glove: olive, a hard knuckle guard, padded fingers, a palm, a strap
   tacticalGloves: { family: 'sport', glove: { cuff: 0.06, thick: 0.002 }, adorn: [{ prim: 'panel', region: 'palm', lift: 0.0014 }, { prim: 'panel', region: 'fingerBacks', lift: 0.0018, group: 'Pad' }, { prim: 'knuckles' }, { prim: 'strap', width: 0.022, lift: 0.0025, buckle: false }],
     tones: { Gloves: '#3d4232', Overlay: OF(-0.3), Pad: OF(-0.18), Guard: '#26272a', Strap: OF(-0.3) } },
-  // the boxer's: a thick padded glove, the fingers lost in it, a wide band at the wrist (a puffed glove, not yet the
-  // rounded fist a boxing glove closes into)
-  boxingGloves: { family: 'sport', glove: { cuff: 0.26, thick: 0.012 }, adorn: [{ prim: 'strap', at: 0.12, width: 0.05, lift: 0.004 }], tones: { Gloves: '#b3141b', Strap: '#f2f1ec' } },
+  // the boxer's: a mitten shell padded round the fist the hand is held in, its thumb sewn to its side, a band at the wrist
+  boxingGloves: { family: 'sport', glove: { cuff: 0.26, thick: 0.002 }, mitten: { pad: 0.016, grip: 'fist' }, adorn: [{ prim: 'strap', at: 0.12, width: 0.05, lift: 0.004 }],
+    tones: { Gloves: '#b3141b', Strap: '#f2f1ec' } },
+  // the sparring glove: the boxer's padded deeper
+  sparringGloves: { from: 'boxingGloves', mitten: { pad: 0.021 }, tones: { Gloves: '#1d2a44', Strap: '#1d2a44' } },
   // hand wraps: no glove, a strip wound over the palm and the wrist, crossed
   handWraps: { family: 'sport', glove: false, adorn: [{ prim: 'wrap', turns: 2.5, cross: true, w: 0.016 }], tones: { Wrap: '#efe9dc' } },
   // ── HISTORIC ──

@@ -67,7 +67,7 @@ import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
-import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
+import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
@@ -398,6 +398,9 @@ function realisticExpand(plan, hero) {
     R.palette = { ...W.tones, ...(R.palette || {}) };
     for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
     R.palette = readTones(R.palette);
+    // (a mitten's grip, held at rest: the digits and their joints closed into it, the body's and the glove's, so the bind,
+    // every pose and an export hold the hand inside the shell)
+    if (W.grip) { const H = holdGrip(R.rig, R.parts, W.grip); R.rig = H.rig; Object.assign(R.parts, H.parts); }
   }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {

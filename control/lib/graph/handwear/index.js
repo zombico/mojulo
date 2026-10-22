@@ -14,9 +14,13 @@
  *   bare(name)                  the skin's part: what the glove stands off, and a bare hand's adornment is worn on
  *   cuff(glove, { id, group })  the body's own close leather up the forearm by the glove's `cuff` share → parts named
  *                               `<id>_<segment>`
+ *   gripJoints(S, word)         the hand's joints (as `joints`) with its digits closed by a hand word (null: as it
+ *                               rests), at the bind: what a mitten's shell is made round
  *   u(kind, share)              the station `u` a share along a segment names on this body
  *
- *   wearHandwear(adapter, card | word, { id, group }) → { parts, tones, named }   (expand.js)
+ *   wearHandwear(adapter, card | word, { id, group }) → { parts, tones, named, grip? }   (expand.js; `grip` the
+ *                                                     hand word a mitten closes each hand in, which the body holds
+ *                                                     at rest: station-loft-rig.js `holdGrip`)
  *   validateHandwear(card | word) → string[]                                    the refusals, by name
  */
 export { wearHandwear, validateHandwear, handwearCard, readTones, ADORN_PRIMS, DIGITS, FINGERS, HANDWEAR_FAMILIES } from './expand.js';

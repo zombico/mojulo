@@ -84,8 +84,31 @@ describe('handwear on a hand adapter', () => {
     expect(Math.max(...one.stations.flatMap((st) => Object.values(st.points)).map((p) => p[1]))).toBeLessThan(0);
   });
 
+  it('a mitten: one shell over the palm and the fingers, closed past them; gripped it is rigid and asks the body to hold the grip', () => {
+    // (the stub's joints: the wrist over the palm, the knuckles at its end, each digit's down its cylinder; a grip curls none
+    // here, the body's rig does that: the shell is made round what the adapter hands over)
+    const joints = (S) => { const x = S === 'R' ? 0.3 : -0.3, J = { wrist: [x, 0, 0.85], knuckles: [x, 0, 0.79] };
+      ['thumb', 'index', 'middle', 'ring', 'little'].forEach((d, i) => (d === 'thumb' ? ['Cmc', 'Mcp', 'Ip', 'Tip'] : ['Mcp', 'Pip', 'Dip', 'Tip']).forEach((j, k) => { J[`${d}${j}`] = [x + (i - 2) * 0.012, 0, 0.77 - 0.02 * k]; }));
+      return J; };
+    const A = { ...stub, gripJoints: (S) => joints(S) };
+    const W = wearHandwear(A, { glove: { cuff: 0.2 }, mitten: { pad: 0.01, grip: 'fist' } }, { id: 'x' });
+    // (the shell in place of the palm's and the digits' gloves, the cuff kept; its front past the fingertips; rigid)
+    expect(Object.keys(W.parts).filter((k) => k.endsWith('R')).sort()).toEqual(['xMitten_handR', 'x_foreArmR']);
+    const z = W.parts.xMitten_handR.stations.flatMap((st) => Object.values(st.points)).map((p) => p[2]);
+    expect(Math.min(...z)).toBeLessThan(joints('R').middleTip[2] - 0.01);
+    expect(W.parts.xMitten_handR.bind).toEqual({ bone: 'handR', blend: {} });
+    expect(W.grip).toEqual({ R: 'fist', L: 'fist' });
+    // (soft, its thumb apart: the thumb in its own glove, the shell bending with the fingers inside it, no grip asked)
+    const M = wearHandwear(A, { glove: { cuff: 0.2 }, mitten: { thumb: 'apart' } }, { id: 'm' });
+    expect(M.parts.m_thumbL).toBeTruthy();
+    expect(Object.values(M.parts.mMitten_handR.bind.blend).some((w) => w.index1R)).toBe(true);
+    expect(M.grip).toBeUndefined();
+    expect(validateHandwear({ glove: {}, mitten: { grip: 'claw' } })[0]).toMatch(/mitten\.grip: a hand word/);
+    expect(validateHandwear({ glove: false, mitten: {} })[0]).toMatch(/a mitten is the glove's/);
+  });
+
   it('refuses by name', () => {
-    expect(validateHandwear('mittens')[0]).toMatch(/'mittens' is not a handwear word/);
+    expect(validateHandwear('potholders')[0]).toMatch(/'potholders' is not a handwear word/);
     expect(validateHandwear({ glove: { fingers: 'some' } })[0]).toMatch(/glove\.fingers: one of full, half, none/);
     expect(validateHandwear({ glove: { cuff: 2 } })[0]).toMatch(/glove\.cuff: a share/);
     expect(validateHandwear({ glove: {}, sole: 1 })[0]).toMatch(/not 'sole'/);

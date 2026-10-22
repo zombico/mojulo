@@ -4,6 +4,10 @@
 //   1 GLOVE   the protoglove: the palm's and the digits' own rings stood off by the leather's thickness (parts.js
 //             `standOff`), a digit cut at its middle joint or its knuckle where the card's fingers say, the cuff up the
 //             forearm by its share (the adapter's close leather); none: the adornment on the bare hand
+//   1b MITTEN a card's `mitten`: one closed padded shell over the palm and the four fingers (and the thumb, unless it
+//             stands apart in its own sheath), round the digits as the card's `grip` holds them (parts.js `mittenShell`):
+//             a boxing glove's fist, rigid on the hand, the grip returned for the body to hold the hand in at rest; with
+//             no grip a soft shell, bending with the fingers inside it
 //   2 ADORN   per side, the card's primitives in order (ADORN_PRIMS), each on the glove (or the bare hand) under it,
 //             carried by its weights: a `panel` a glover's piece (cutter.js GLOVE_REGIONS: the back, the palm, the
 //             knuckles, the fingers' backs …), the points, a cuff, a strap, a flared gauntlet cuff, a knuckle guard,
@@ -12,10 +16,11 @@
 //
 // Parts are layer 1, named `<id>_<segment>` (the glove), `<id><Piece>_<segment>` for each adornment's pieces (`<Piece>` the
 // prim's or the region's name, a count where it lays several). Pure and deterministic: no dice, fixed order.
-import { standOff } from './parts.js';
+import { standOff, mittenShell, bindAmong } from './parts.js';
+import { HAND_POSES } from '../polygonizer/station-loft-rig.js';
 import { GLOVE_REGIONS, FINGER_KINDS, kindsOf, cutPiece, shellOf, extentOf } from './cutter.js';
 import { slotOf } from '../plating/shell.js';
-import { bindNearest, block, strapBand, mean, unitv } from '../footwear/parts.js';
+import { bindNearest, block, mean, unitv } from '../footwear/parts.js';
 import { toeSpike, ribbon, helixOn, flareTop, furRing } from '../footwear/fantasy.js';
 import { HANDWEAR, HANDWEAR_TONES, SKINS } from './styles.js';
 import { readTones } from '../footwear/expand.js';
@@ -57,6 +62,8 @@ export function handwearCard(spec, depth = 0) {
   const { from: _f, skin, adornPlus, ...own } = C;
   const out = B ? { ...B, ...own, glove: own.glove === false ? false : own.glove === undefined ? B.glove : B.glove ? { ...B.glove, ...own.glove } : own.glove,
     tones: { ...(B.tones || {}), ...(own.tones || {}) } } : { ...own };
+  if (B && own.mitten !== undefined) out.mitten = own.mitten === false || !B.mitten ? own.mitten : { ...B.mitten, ...own.mitten };
+  if (out.mitten === false) delete out.mitten;
   if (adornPlus) out.adorn = [...(out.adorn || []), ...adornPlus];
   if (skin !== undefined) out.tones = { ...(out.tones || {}), ...(typeof skin === 'string' ? SKINS[skin] : skin) };
   if (out.tones && !Object.keys(out.tones).length) delete out.tones;
@@ -68,7 +75,7 @@ export function validateHandwear(spec, label = 'handwear') {
   const words = Object.keys(HANDWEAR).join(', ');
   if (typeof spec === 'string') return Object.hasOwn(HANDWEAR, spec) ? [] : [`${label}: '${spec}' is not a handwear word (${words}), or give a card { glove, adorn }`];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: a word or a card { glove, adorn }`];
-  const errs = [], KEYS = ['family', 'glove', 'adorn', 'adornPlus', 'tones', 'from', 'skin'];
+  const errs = [], KEYS = ['family', 'glove', 'mitten', 'adorn', 'adornPlus', 'tones', 'from', 'skin'];
   for (const k of Object.keys(spec)) if (!KEYS.includes(k)) errs.push(`${label}: a card takes ${KEYS.join(', ')}, not '${k}'`);
   if (spec.from !== undefined && !(typeof spec.from === 'string' ? Object.hasOwn(HANDWEAR, spec.from) : spec.from && typeof spec.from === 'object')) errs.push(`${label}.from: a handwear word (${words}) or a card`);
   if (spec.skin !== undefined && !(typeof spec.skin === 'string' ? Object.hasOwn(SKINS, spec.skin) : spec.skin && typeof spec.skin === 'object' && !Array.isArray(spec.skin))) errs.push(`${label}.skin: a colourway (${Object.keys(SKINS).join(', ')}) or { <group>: '#rrggbb' }`);
@@ -85,6 +92,17 @@ export function validateHandwear(spec, label = 'handwear') {
       for (const k of ['fingers', 'thumb']) if (G[k] !== undefined && !Object.hasOwn(FINGERS, G[k])) errs.push(`${label}.glove.${k}: one of ${Object.keys(FINGERS).join(', ')}`);
       if (G.group !== undefined && !GROUP.test(G.group)) errs.push(`${label}.glove.group: a group name`);
       for (const k of Object.keys(G)) if (!['cuff', 'thick', 'fingers', 'thumb', 'group'].includes(k)) errs.push(`${label}.glove: takes cuff, thick, fingers, thumb, group, not '${k}'`);
+    }
+  }
+  if (C.mitten !== undefined) {
+    const M = C.mitten, at = `${label}.mitten`;
+    if (!M || typeof M !== 'object' || Array.isArray(M)) errs.push(`${at}: { pad?, grip?, thumb? }, or false`);
+    else {
+      if (M.pad !== undefined && !(M.pad >= 0.002 && M.pad <= 0.03)) errs.push(`${at}.pad: metres of padding round the hand, 0.002 … 0.03`);
+      if (M.grip !== undefined && !Object.hasOwn(HAND_POSES, M.grip)) errs.push(`${at}.grip: a hand word the hand is held in (${Object.keys(HAND_POSES).join(', ')})`);
+      if (M.thumb !== undefined && !['joined', 'apart'].includes(M.thumb)) errs.push(`${at}.thumb: joined (inside the shell) or apart (its own sheath)`);
+      for (const k of Object.keys(M)) if (!['pad', 'grip', 'thumb'].includes(k)) errs.push(`${at}: takes pad, grip, thumb, not '${k}'`);
+      if (G === false) errs.push(`${at}: a mitten is the glove's; this card wears none`);
     }
   }
   if (C.adorn !== undefined && !Array.isArray(C.adorn)) errs.push(`${label}.adorn: a list of { prim, … }`);
@@ -128,11 +146,34 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
   // 1 GLOVE: the cuff up the forearm (the adapter's leather), the palm and the digits stood off
   if (G) {
     if ((G.cuff ?? 0) > 0 && A.cuff) for (const [name, part] of Object.entries(A.cuff(G, { id, group: g0 }))) put(name, part);
-    const thick = G.thick ?? 0.0018;
+    const thick = G.thick ?? 0.0018, M = C.mitten ?? null, inShell = (kind) => M && (kind !== 'thumb' || M.thumb !== 'apart');
     for (const S of A.sides) for (const kind of ['hand', ...DIGITS]) {
-      const seg = A.seg(kind, S), P = seg && A.bare(seg); if (!P) continue;
+      const seg = A.seg(kind, S), P = seg && A.bare(seg); if (!P || inShell(kind)) continue;
       const keep = kind === 'hand' ? P.stations.length : FINGERS[(kind === 'thumb' ? G.thumb : null) ?? G.fingers ?? 'full'];
       put(`${id}_${seg}`, standOff(P, thick, { keep, tuck: kind === 'hand' && !parts[`${id}_${A.seg('foreArm', S)}`], group: g0 }));
+    }
+  }
+  // 1b MITTEN: per side, the shell round the palm's surface and the digits' bones as the grip holds them, rigid on the hand
+  if (G && C.mitten && A.gripJoints) {
+    const M = C.mitten, thick = G.thick ?? 0.0018, pad = M.pad ?? 0.008;
+    for (const S of A.sides) {
+      const hs = A.seg('hand', S), H = hs && A.bare(hs), J = A.gripJoints(S, M.grip ?? null); if (!H || !J?.wrist || !J.knuckles) continue;
+      const mid = (st) => mean(Object.values(st.points)), m1 = mid(H.stations[1]), unit = (v) => unitv(v), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const Ax = unit(J.knuckles.map((x, q) => x - J.wrist[q])), off = (v) => { const d = dot(v, Ax); return unit(v.map((x, q) => x - Ax[q] * d)); };
+      const pt = (k) => H.stations[1].points[H.slots[k]], D = off(pt(0).map((x, q) => x - m1[q])), V0 = off(pt(H.slots.length / 4).map((x, q) => x - m1[q])), dv = dot(V0, D), V = unit(V0.map((x, q) => x - D[q] * dv));
+      // (the cloud: the palm's surface, finely; each digit's bones as the grip sets them, a sphere every few millimetres)
+      const F = shellOf(H), U = H.stations.length - 1, cloud = [];
+      for (let i = 0; i <= 12; i++) for (let j = 0; j < 16; j++) cloud.push({ p: F.at((U * i) / 12, (H.slots.length * j) / 16).p, r: thick });
+      for (const d of DIGITS) {
+        if (d === 'thumb' && M.thumb === 'apart') continue;
+        const ds = A.seg(d, S), P = ds && A.bare(ds), chain = (d === 'thumb' ? ['Cmc', 'Mcp', 'Ip', 'Tip'] : ['Mcp', 'Pip', 'Dip', 'Tip']).map((j) => J[`${d}${j}`]); if (!P || chain.some((q) => !q)) continue;
+        const st = P.stations[Math.min(2, P.stations.length - 1)], c = mid(st), r = P.slots.reduce((t, sl) => t + Math.hypot(...st.points[sl].map((x, q) => x - c[q])), 0) / P.slots.length + thick;
+        for (let k = 0; k < 3; k++) { const a = chain[k], b = chain[k + 1], steps = Math.max(2, Math.ceil(Math.hypot(...b.map((x, q) => x - a[q])) / 0.005)); for (let i = 0; i <= steps; i++) cloud.push({ p: a.map((x, q) => x + (b[q] - x) * (i / steps)), r }); }
+      }
+      const shell = mittenShell(cloud, { o: J.wrist, A: Ax, D, V }, { pad });
+      // (a gripped shell rigid on the hand, a stiff pad's; a soft one bending with the palm and the fingers inside it)
+      const inside = [H, ...DIGITS.filter((d) => d !== 'thumb' || M.thumb !== 'apart').map((d) => A.seg(d, S) && A.bare(A.seg(d, S))).filter(Boolean)];
+      put(`${id}Mitten_${hs}`, { ...shell, group: g0, bind: M.grip ? { bone: H.bind.bone, blend: {} } : bindAmong(shell, inside) });
     }
   }
   // 2 ADORN: per side, the card's primitives in order
@@ -242,5 +283,7 @@ export function wearHandwear(A, spec = 'gloves', { id = 'gloves', group = 'Glove
   }
   // 4 TONE
   const tones = { ...HANDWEAR_TONES, ...(G ? { [g0]: HANDWEAR_TONES[g0] ?? HANDWEAR_TONES.Gloves } : {}), ...(C.tones || {}) };
-  return { parts, tones: Object.fromEntries(Object.entries(tones).filter(([g]) => used.has(g))), named: Object.keys(C.tones || {}).filter((g) => used.has(g)) };
+  // (the GRIP a mitten closes each hand in, for the body to hold at rest: station-loft-rig.js `holdGrip`)
+  const grip = G && C.mitten?.grip ? Object.fromEntries(A.sides.map((S) => [S, C.mitten.grip])) : null;
+  return { parts, tones: Object.fromEntries(Object.entries(tones).filter(([g]) => used.has(g))), named: Object.keys(C.tones || {}).filter((g) => used.has(g)), ...(grip ? { grip } : {}) };
 }

@@ -104,6 +104,42 @@ function handLocal(R, pose) {
   return out;
 }
 
+/**
+ * THE GRIP HELD AT REST (a padded glove's: lib/graph/handwear, a boxing glove's fist): the rig's hand joints and every
+ * part riding the digits' bones turned into the hand word `grip[S]` at REST, by the rig's own curl (each link about its
+ * hinge by the digit's curl × the link's weight, a later hinge carried by the turns before it), a part's point by the
+ * turns of the links its bones lie past, blended by its weights. So the bind, every pose and an export hold the closed
+ * hand, and a pose's own fingers curl on from it. → { rig, parts } (only the parts it turned)
+ */
+export function holdGrip(rig, parts, grip) {
+  const R = validateRig(rig), joints = { ...rig.joints }, turned = {}, level = {}, steps = {}, rnd = (v) => v.map((x) => Math.round(x * 1e6) / 1e6);
+  for (const [S, word] of Object.entries(grip || {})) {
+    const H = R.hands?.[S]; if (!H) continue;
+    const c = handValue(R, `fingers${S}`, word), pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
+    for (const [d, g] of Object.entries(H.digits)) {
+      const ax = g.links.map((l) => l.axis ?? g.axis), key = `${d}${S}`; steps[key] = [];
+      g.links.forEach((l, i) => {
+        const p = [...pts[l.pivot]], a = (c[d] || 0) * l.weight; steps[key].push({ p, ax: ax[i], a });
+        for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a);
+        for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a);
+        // (a bone headed at this link's pivot lies past it: turned by this link and those before)
+        for (const b of R.bones) if (b.head === l.pivot) level[b.id] = { key, n: i + 1 };
+      });
+    }
+    for (const j of H.joints) { const o = rig.joints[j]; joints[j] = Array.isArray(o) ? rnd(pts[j]) : { ...o, at: rnd(pts[j]) }; }
+  }
+  const T = (p, b) => { const L = level[b]; if (!L) return p; let q = p; for (const s of steps[L.key].slice(0, L.n)) q = rotLine(q, s.p, s.ax, s.a); return q; };
+  const moved = (w) => Object.keys(w).some((b) => level[b]);
+  for (const [name, P] of Object.entries(parts)) {
+    const own = { [P.bind?.bone]: 1 }, blend = P.bind?.blend || {};
+    if (!P.bind || !(level[P.bind.bone] || Object.values(blend).some(moved))) continue;
+    const at = (p, w) => { const tot = Object.values(w).reduce((t, x) => t + x, 0) || 1; return rnd(Object.entries(w).reduce((acc, [b, x]) => { const q = T(p, b); return acc.map((v, i) => v + (q[i] * x) / tot); }, [0, 0, 0])); };
+    turned[name] = { ...P, stations: P.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, p]) => [sl, at(p, blend[`${st.id}.${sl}`] ?? blend[st.id] ?? own)])) })),
+      caps: Object.fromEntries(Object.entries(P.caps || {}).map(([k, p]) => [k, at(p, blend[k] ?? own)])) };
+  }
+  return { rig: { ...rig, joints }, parts: turned };
+}
+
 /** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
 export function validateRig(rig) {
   if (!rig || typeof rig !== 'object' || !rig.joints || !Array.isArray(rig.bones)) throw new Error('station-loft-rig: rig needs joints and a bones list');

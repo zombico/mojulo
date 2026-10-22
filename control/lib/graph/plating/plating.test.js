@@ -142,7 +142,7 @@ describe('a plated suit on a body adapter', () => {
     // (the last lame rides the last phalanx: its ring's weights, not the digit's first bone)
     expect(Object.values(W.parts.mGauntletLame2_indexR.bind.blend).some((w) => w.index3R)).toBe(true);
     expect(validatePlating({ shells: [{ layout: 'joints', on: ['wing'] }] })[0]).toMatch(/shells\[0\]\.on: the segments/);
-    expect(validatePlating({ hands: 'mittens' })[0]).toMatch(/suit\.hands: 'mittens' is not a handwear word/);
+    expect(validatePlating({ hands: 'potholders' })[0]).toMatch(/suit\.hands: 'potholders' is not a handwear word/);
   });
 
   it('a layout is data: every named one a valid shell; a card cuts its own, or drops and adds to one, or adds to its kin\'s', () => {

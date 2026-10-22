@@ -159,14 +159,22 @@ colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gl
   `knightGauntlets`, `bishopGloves`), fantasy (`clawGloves`, `sorcererGloves`, `furGloves`, `gemGauntlet`); colourways in
   `SKINS`; a piece's tone may be OF the leather's.
 - SPORT AND DRESS VARIETIES, skinnable as the shoes are: sport `battingGloves`, `golfGloves`, `liftingGloves`,
-  `receiverGloves`, `racingGloves`, `hockeyGloves`, `tacticalGloves`, `boxingGloves` (a puffed glove, not yet a
-  rounded fist); dress `kidGloves`, `walkingGloves`, `winterGloves`, `eveningGloves`, `mousquetaireGloves`,
+  `receiverGloves`, `racingGloves`, `hockeyGloves`, `tacticalGloves`; dress `kidGloves`, `walkingGloves`, `winterGloves`, `eveningGloves`, `mousquetaireGloves`,
   `bridalGloves`, `ceremonialGloves`, `perforatedDrivers`, most a variety of their kin (`from`). Primitives `buttons`
   (a row at the wrist's opening, up the inner forearm along a long cuff) and `perf` (a grid of perforation over a
   region, on each digit of a digits one). Colourways for sport (`tripleWhite`, `infrared`, `royal`, `hiVis`, with
   `volt`, `navy`) and for leather (`cognac`, `chocolate`, `dove`, `burgundy`, `ivory`, with `tan`, `oxblood`): a
   leather colourway carries every piece whose tone is OF the leather. The knight's and the stone gauntlet are the
   `gauntlet` family's.
+- THE MITTEN SHELL (a card's `mitten: { pad, grip, thumb }`): one closed padded form over the palm and the four fingers
+  in place of their gloves, made round the gloved hand as spheres (the palm's surface, each digit's bones sampled
+  along) sliced from the wrist on past the fingers, each slice read out from its middle, its front rounding off where
+  the spheres end. With a `grip` (a hand word: a boxing glove's `fist`) the shell is made round the closed hand, rigid
+  on the hand bone, and the body HOLDS THE GRIP AT REST (station-loft-rig.js `holdGrip`: the hand's joints and every
+  part riding the digits' bones turned into it by the rig's own curl), so the bind, every pose and an export keep the
+  fist inside it; without one the shell bends with the fingers inside it, each point taking its nearest skin's
+  weights. `thumb: 'apart'` keeps the thumb in its own sheath. Words `boxingGloves` and `sparringGloves` (a fist, its
+  thumb sewn to its side), `mittens` (knit, the thumb apart).
 - Every card is an outfit word: on the realistic body the library's (its parts riding their segments' dials, its tones
   under the operator's palette); on the authored body nothing yet. body-study paints its groups, a palette's colour
   first.
