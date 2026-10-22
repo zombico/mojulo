@@ -79,6 +79,7 @@ import { SUITS } from '@/lib/graph/plating';
 import { plating } from '@/lib/graph/plating/adapters/realistic';
 import { HANDWEAR } from '@/lib/graph/handwear';
 import { handwear } from '@/lib/graph/handwear/adapters/realistic';
+import { handwearAuthored } from '@/lib/graph/handwear/adapters/authored';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -387,21 +388,7 @@ function realisticExpand(plan, hero) {
     // (heeled shoes: the rig stands every pose in them)
     if (W.stance) R.rig = { ...R.rig, stance: W.stance };
   }
-  for (const w of handWords) {
-    const B = realisticBuild(hero), RS = validateRig(S.rig), W = handwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w });
-    for (const [name, part] of Object.entries(W.parts)) {
-      R.parts[name] = part;
-      const seg = name.slice(name.indexOf('_') + 1);
-      for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
-    }
-    // (the card's tones over the palette's defaults, the operator's own palette over all; a tone of another group read)
-    R.palette = { ...W.tones, ...(R.palette || {}) };
-    for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
-    R.palette = readTones(R.palette);
-    // (a mitten's grip, held at rest: the digits and their joints closed into it, the body's and the glove's, so the bind,
-    // every pose and an export hold the hand inside the shell)
-    if (W.grip) { const H = holdGrip(R.rig, R.parts, W.grip); R.rig = H.rig; Object.assign(R.parts, H.parts); }
-  }
+  for (const w of handWords) { const B = realisticBuild(hero), RS = validateRig(S.rig); wearHands(R, hero, handwear(S, RS, B, bodyPartMap(S, RS, B), w, { id: w })); }
   if (shells?.tones) R.palette = { ...shells.tones, ...(R.palette || {}) };
   if (fieldWords.length) {
     const B = realisticBuild(hero), RS = validateRig(S.rig), map = bodyPartMap(S, RS, B);
@@ -434,10 +421,33 @@ function garmentCorrectives(C, parts) {
     return { ...c, d };
   });
 }
+/** a handwear word's parts worn on the recipe `R` (in place): each riding its segment's dials, the card's tones over the
+ * palette's defaults (the operator's own over all, a tone of another group read), and a mitten's grip held at rest (the
+ * digits and their joints closed into it, the body's and the glove's, so the bind, every pose and an export hold the
+ * hand inside the shell) */
+function wearHands(R, hero, W) {
+  for (const [name, part] of Object.entries(W.parts)) {
+    R.parts[name] = part;
+    const seg = name.slice(name.indexOf('_') + 1);
+    for (const d of Object.values(R.dials || {})) if (Array.isArray(d.parts) && d.parts.includes(seg) && !d.parts.includes(name)) d.parts.push(name);
+  }
+  R.palette = { ...W.tones, ...(R.palette || {}) };
+  for (const g of W.named) if (!hero.palette?.[g]) R.palette[g] = W.tones[g];
+  R.palette = readTones(R.palette);
+  if (W.grip) { const H = holdGrip(R.rig, R.parts, W.grip); R.rig = H.rig; Object.assign(R.parts, H.parts); }
+}
+/** the AUTHORED body's wearables: the handwear words on its hands (lib/graph/handwear, the authored adapter) */
+function authoredWear(R, hero) {
+  const words = Array.isArray(hero?.outfit) ? hero.outfit : typeof hero?.outfit === 'string' ? [hero.outfit] : [];
+  const handWords = words.filter((w) => HANDWEAR[w]);
+  if (!handWords.length || !R.rig?.hands) return R;
+  for (const w of handWords) wearHands(R, hero, handwearAuthored(R, validateRig(R.rig), w, { id: w }));
+  return R;
+}
 function expandAware(plan, hero) {
   // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
-  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : expandPlan(full); } catch (err) {
+  try { const full = drawnPlan(compileOutfit(plan)); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(expandPlan(full), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }

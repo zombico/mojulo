@@ -181,8 +181,12 @@ colourway, `adornPlus`) worn through a HAND ADAPTER by passes under laws, the gl
   `mailMittens` (a mail muffler), `mittenGauntlets` (Gothic, steel lames to the fingertips, the thumb's own),
   `lobsterGauntlets` (blued, lames from the back of the hand), `triggerMittens`, `arcticMittens` (sealskin, trim, fur);
   fantasy `bearPaws`, `pincerGauntlets`, `golemFists` (a stone fist held closed), `dragonClaws`.
-- Every card is an outfit word: on the realistic body the library's (its parts riding their segments' dials, its tones
-  under the operator's palette); on the authored body nothing yet. body-study paints its groups, a palette's colour
+- Every card is an outfit word, worn on either body through its adapter (its parts riding their segments' dials, its
+  tones under the operator's palette). THE AUTHORED BODY wears them too (adapters/authored.js): the same hand as the
+  realistic body's, its glove's cuff new rings sampled round up the authored forearm's few coarse ones, their weights
+  mixed from the rings either side. A mitten's grip marks the hand `held` (station-loft-rig.js): a pose's own fingers
+  no longer curl it on past its glove's fist (a guard's fist had curled the thumb out through the shell); its wrist
+  still turns. body-study paints its groups, a palette's colour
   first.
 - The fitted shell reads a coarse ring (the hand's eight points, a digit's six) as it is, unsmoothed: easing toward
   neighbours that far round had lifted the flat back of the hand about 7 mm off it.

@@ -28,6 +28,8 @@
  *   `rise` metres higher, each planted foot's toes `toe` metres up (on the shoe's forepart sole) and its metatarsus turned
  *   `pitch` degrees heel-up about the toe base, or the pose's own `heel<S>` where it lifts the heel further (a free foot's
  *   toes turned down about the ankle by the pitch). Absent ⇒ nothing changes.
+ * HELD (`rig.held: [<side>]`, a padded glove's grip baked into the rest hand: holdGrip): a held hand's fingers take no
+ *   pose (its glove holds them); its wrist still turns. Absent ⇒ nothing changes.
  * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
  * links about its hinge axis by the digit's curl × the link's weight (a link's turn carrying the later links' own axes) (`fingers<S>`: degrees, + closing, or { <digit>:
  * deg }, or a word of `poses`; a number curls the thumb at half), then the whole hand about the wrist joint
@@ -93,7 +95,8 @@ export function handValue(R, n, v) {
 function handLocal(R, pose) {
   const out = {};
   for (const [S, H] of Object.entries(R.hands || {})) {
-    const f = pose[`fingers${S}`], w = pose[`wrist${S}`];
+    // (a held hand's fingers stay as its glove holds them)
+    const f = R.held?.includes(S) ? undefined : pose[`fingers${S}`], w = pose[`wrist${S}`];
     if ((f === undefined || f === 0) && (w === undefined || w === 0)) continue;
     const pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
     // a link's turn carries the digit's later hinges with it (the thumb's knuckle turns with its root)
@@ -109,7 +112,8 @@ function handLocal(R, pose) {
  * part riding the digits' bones turned into the hand word `grip[S]` at REST, by the rig's own curl (each link about its
  * hinge by the digit's curl × the link's weight, a later hinge carried by the turns before it), a part's point by the
  * turns of the links its bones lie past, blended by its weights. So the bind, every pose and an export hold the closed
- * hand, and a pose's own fingers curl on from it. → { rig, parts } (only the parts it turned)
+ * hand; the hand is marked `held`, so a pose's own fingers do not curl it further. → { rig, parts } (only the parts it
+ * turned)
  */
 export function holdGrip(rig, parts, grip) {
   const R = validateRig(rig), joints = { ...rig.joints }, turned = {}, level = {}, steps = {}, rnd = (v) => v.map((x) => Math.round(x * 1e6) / 1e6);
@@ -137,7 +141,8 @@ export function holdGrip(rig, parts, grip) {
     turned[name] = { ...P, stations: P.stations.map((st) => ({ ...st, points: Object.fromEntries(Object.entries(st.points).map(([sl, p]) => [sl, at(p, blend[`${st.id}.${sl}`] ?? blend[st.id] ?? own)])) })),
       caps: Object.fromEntries(Object.entries(P.caps || {}).map(([k, p]) => [k, at(p, blend[k] ?? own)])) };
   }
-  return { rig: { ...rig, joints }, parts: turned };
+  const held = [...new Set([...(rig.held ?? []), ...Object.keys(grip || {}).filter((S) => R.hands?.[S])])];
+  return { rig: { ...rig, joints, ...(held.length ? { held } : {}) }, parts: turned };
 }
 
 /** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
@@ -212,12 +217,13 @@ export function validateRig(rig) {
     for (const ch of [`wrist${S}`, `fingers${S}`]) if (RIG_CHANNELS.includes(ch) || ch in chains) throw new Error(`${at}: the channel ${ch} is taken`);
     hands[S] = { carrier: h.carrier, wrist: h.wrist, axes: Object.fromEntries(['flex', 'deviation', 'twist'].map((k) => [k, unit(h.axes[k])])), joints: [...handJoints], digits, poses: h.poses || HAND_POSES };
   }
+  if (rig.held !== undefined && !(Array.isArray(rig.held) && rig.held.every((S) => hands[S]))) throw new Error(`station-loft-rig: held lists the rig's hands (${Object.keys(hands).join(', ')}) whose fingers its gloves hold`);
   for (const [id, f] of Object.entries(folds)) for (const b of f.bones) if (boneIndex[b] === undefined) throw new Error(`station-loft-rig: folds.${id}.bones names unknown bone ${b}`);
   // a bone's `parent` (a limb's next segment: the forearm's upper arm) frames it from that bone's frame by the shortest turn
   // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
   // not a field of the bone)
   for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}) };
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}) };
 }
 
 /**

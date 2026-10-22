@@ -22,11 +22,15 @@ describe('the grip held at rest', () => {
     expect(H.parts.torso).toBeUndefined();
   });
 
-  it('no grip, nothing moves; a held rig still validates and poses', () => {
+  it('no grip, nothing moves; a held hand takes no pose\'s fingers', () => {
     const H = holdGrip(recipe.rig, recipe.parts, {});
     expect(H.parts).toEqual({});
     expect(H.rig.joints).toEqual(recipe.rig.joints);
-    const R1 = validateRig(holdGrip(recipe.rig, recipe.parts, { R: 'fist', L: 'fist' }).rig);
-    expect(() => rigNodesAt(R1, { fingersR: 'open' })).not.toThrow();
+    // (held: a pose's own fingers leave a held hand as its glove holds it, the other hand curls)
+    const R1 = validateRig(holdGrip(recipe.rig, recipe.parts, { R: 'fist' }).rig), rest = rigNodesAt(R1, {}).nodes, posed = rigNodesAt(R1, { fingersR: 'open', fingersL: 'fist' }).nodes;
+    expect(R1.held).toEqual(['R']);
+    expect(posed.indexTipR).toEqual(rest.indexTipR);
+    expect(posed.indexTipL).not.toEqual(rest.indexTipL);
+    expect(() => validateRig({ ...recipe.rig, held: ['X'] })).toThrow(/held lists the rig's hands/);
   });
 });

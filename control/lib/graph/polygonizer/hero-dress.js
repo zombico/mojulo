@@ -226,8 +226,8 @@ export const OUTFIT_WORDS = Object.freeze({
   // (the plating library's suits, lib/graph/plating: on the realistic body its undersuit and plates; on the authored body
   // nothing yet, its adapter to come)
   ...Object.fromEntries(Object.keys(SUITS).map((w) => [w, () => []])),
-  // (the handwear library's gloves, lib/graph/handwear: on the realistic body its own; on the authored body nothing yet,
-  // its adapter to come)
+  // (the handwear library's gloves, lib/graph/handwear: worn after the plan expands, on either body through its adapter;
+  // nothing in the plan)
   ...Object.fromEntries(Object.keys(HANDWEAR).map((w) => [w, () => []])),
   // (the footwear library's other cards, lib/graph/footwear: on the realistic body their own; on the authored body its boot,
   // its sandal or its shoe by the card's sock, under ids of their own)
