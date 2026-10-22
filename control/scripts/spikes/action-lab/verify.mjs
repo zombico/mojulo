@@ -3,7 +3,7 @@
 //   node scripts/spikes/action-lab/verify.mjs [cast=male]
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, newState, step, frameData, util } from './feel.mjs';
+import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, newState, step, frameData, util } from './feel.mjs';
 const T = await import('./takes.mjs');
 const A = await import('../animation-games/flavor.mjs');
 
@@ -13,14 +13,15 @@ let fails = 0;
 const check = (name, ok, measured) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${measured === undefined ? '' : `  ${JSON.stringify(measured)}`}`); };
 const note = (name, measured) => console.log(`note  ${name}  ${JSON.stringify(measured)}`);
 const OPEN = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
+const DT_ = 1 / FPS;
 const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK, GU = BTN.GUARD, SH = BTN.SHOOT, SW = BTN.SWITCH;
 
 /**
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
  * block taller than a step over its feet, none past the arena). Returns the events and the per-tick states.
  */
-function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null, shooter = null, gear = null } = {}) {
-  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves, shooter, gear }); if (setup) setup(S);
+function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null, shooter = null, gear = null, mount = null } = {}) {
+  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves, shooter, gear, mount }); if (setup) setup(S);
   const events = [], states = []; let breach = null;
   for (let f = 0; f < n; f++) {
     if (mid) mid(S, f);   // a test may move a body mid-run (between ticks), to put it where the law needs it
@@ -677,6 +678,65 @@ for (const id of FEEL_IDS) {
 
 // ─── the laws over every run ───
 check('no body passes a wall or a block, and the hero never enters the dummy, at any speed, in any run', !allBreaches.length, allBreaches.slice(0, 3));
+// ─── the mech: mobile-suit-arena's movement as a mount, heavy (1) to swift (0) ───
+{
+  const A0 = FEELS.action, mrow = (table.mech = {});
+  const mid = mechKnobs(0.5), between = (h, w, m) => m >= Math.min(h, w) - 1e-9 && m <= Math.max(h, w) + 1e-9;
+  check('mech: the weight knob blends the presets: at 0.5 each number is halfway (the walk, the boost, the gauge, the gravity)', [['ground', 'walk'], ['boost', 'speed'], ['boost', 'gauge'], ['jump', 'gRise'], ['gait', 'lurch']].every((k) => { const get = (o) => k.reduce((x, y) => x[y], o); return Math.abs(get(mid) - (get(MECH.heavy) + get(MECH.swift)) / 2) < 1e-3 && between(get(MECH.heavy), get(MECH.swift), get(mid)); }), { walk: mid.ground.walk, boost: mid.boost.speed });
+  const ride = mechCard(FEELS.platformer, 1), keeps = ['moves', 'hit', 'land', 'loadout', 'hurt', 'life', 'dodge', 'charge', 'guard'].every((k) => JSON.stringify(ride[k]) === JSON.stringify(FEELS.platformer[k]));
+  const rideRun = track(run(FEELS.platformer, () => pad(0, 127, 0), 200, { mount: 1 })), top = Math.max(...rideRun.states.map((x) => Math.hypot(x.hero.v[0], x.hero.v[1])));
+  check('mech: ridden in another game (the platformer) the card keeps its combat (moves, hits, the stomp, the loadout, what a hit does) and walks as the mech', keeps && Math.abs(top - MECH.heavy.ground.walk) < 1e-9, { keeps, top });
+  // the rules overlap rather than make one character: each works alone on an ordinary card
+  const R0 = FEELS.realistic, P0 = FEELS.platformer;
+  const gaitOnly = track(run({ ...R0, gait: MECH.heavy.gait }, () => pad(0, 127, 0), 300)), ffs = ev(gaitOnly, 'footfall');
+  const chargeOnly = track(run({ ...P0, chargeJump: MECH.heavy.chargeJump }, (f) => (f >= 5 && f < 200 ? J : 0), 300)), launched = ev(chargeOnly, 'launch')[0];
+  const boostOnly = track(run({ ...A0, boost: MECH.swift.boost, dash: null }, (f) => pad(0, 127, f >= 10 && f < 40 ? DS : 0), 60)), bOnly = boostOnly.states[20].hero;
+  const landOnly = track(run({ ...R0, landing: MECH.heavy.landing }, () => 0, 80, { setup: (S) => { S.hero.p[2] = 2; S.hero.grounded = false; S.hero.from = 2; } }));
+  check('mech: the rules overlap, each alone on an ordinary card: realistic with only the heavy gait steps in footfalls; the platformer with only the charge jump squats and launches; action with only the boost thrusts on the ground (no hover); realistic with only the heavy landing lags', ffs.length > 5 && gaitOnly.states[0].card.ground.run === R0.ground.run && launched?.frac === 1 && Math.abs(Math.hypot(bOnly.v[0], bOnly.v[1]) - MECH.swift.boost.speed) < 1e-9 && bOnly.p[2] === 0 && ev(landOnly, 'land')[0] && landOnly.states[ev(landOnly, 'land')[0].f].hero.lag > 0, { footfalls: ffs.length, launch: launched?.frac, boost: +Math.hypot(bOnly.v[0], bOnly.v[1]).toFixed(2), lag: landOnly.states[ev(landOnly, 'land')[0]?.f]?.hero.lag });
+  for (const [label, w] of [['heavy', 1], ['swift', 0]]) {
+    const K = mechKnobs(w), BO = K.boost, KG = K.ground, GT = K.gait, HV = K.hover, max = BO.gauge * FPS, mrun = (pads, n, o = {}) => track(run(A0, pads, n, { arena: o.arena ?? OPEN, mount: w, gear: o.gear ?? null, setup: o.setup, mid: o.mid, guard: false }));
+    const speed = (x) => Math.hypot(x.hero.v[0], x.hero.v[1]);
+    mrow[label] = `walk ${KG.walk} · boost ${BO.speed} m/s · gauge ${BO.gauge} s · hover ${HV.height} m${K.chargeJump ? ` · charge ${K.chargeJump.max} s` : ''}${K.quickBoost ? ` · quick boost ${K.quickBoost.speed} m/s` : ''}`;
+    // the walk: its acceleration, the heavy gait's dip at each footfall, a footfall each step
+    const walk = mrun(() => pad(0, 127, 0), 400), t90 = walk.states.findIndex((x) => speed(x) >= 0.9 * KG.walk) + 1, want90 = Math.ceil((0.9 * KG.walk) / KG.accel * FPS);
+    const late = walk.states.slice(200), ratio = late.slice(1).map((x, k) => (x.hero.p[1] - late[k].hero.p[1]) / (KG.walk * DT_)), ff = ev(walk, 'footfall').filter((e) => e.f > 200).map((e) => e.f), gap = ff.slice(1).map((x, k) => x - ff[k]), stepF = (GT.stride / KG.walk) * FPS;
+    check(`mech ${label}: the walk builds to ${KG.walk} m/s on its acceleration (${KG.accel} m/s²); the gait dips to ${(1 - GT.lurch).toFixed(2)}/${(1 - GT.lurch / 2).toFixed(2)} of the walk at each footfall, a footfall every ${(GT.stride / KG.walk).toFixed(2)} s`, Math.abs(t90 - want90) <= 1 && Math.abs(Math.min(...ratio) - (1 - GT.lurch) / (1 - GT.lurch / 2)) < 0.02 && gap.every((g) => Math.abs(g - stepF) <= 1), { t90, want90, dip: +Math.min(...ratio).toFixed(3), gap: [Math.min(...gap), Math.max(...gap)], stepF: +stepF.toFixed(2) });
+    // the boost: instant, on the hover cushion, draining a frame a frame; released, the skid
+    // (a frame with a quick boost bursts first: the press is the quick boost, the hold the boost after it)
+    const B0 = 10, B1 = 50, qf = K.quickBoost ? K.quickBoost.frames : 0, b0 = B0 + qf, bo = mrun((f) => pad(0, 127, f >= B0 && f < B1 ? DS : 0), 120), bs = bo.states, n = Math.round(BO.inertia * FPS);
+    const skidOk = [3, 6].every((j) => Math.abs(speed(bs[B1 + j]) - BO.speed * (n - 1 - j) / n) < 1e-6), spent = (K.quickBoost ? K.quickBoost.cost * FPS : 0) + (B1 - b0);
+    check(`mech ${label}: the boost is instant (${BO.speed} m/s ${K.quickBoost ? 'once the quick boost\'s burst is out' : 'on the press'}), held on a ${HV.height} m hover cushion (never landing), draining its gauge a frame a frame; let go, it skids out over ${BO.inertia} s`, Math.abs(speed(bs[b0]) - BO.speed) < 1e-9 && bs.slice(b0 + 4, B1).every((x) => Math.abs(x.hero.p[2] - HV.height) < 1e-9 && !x.hero.grounded) && !ev(bo, 'land').some((e) => e.f > B0 && e.f < B1) && Math.abs(bs[B1 - 1].hero.boostG - (max - spent)) < 1e-6 && skidOk, { first: speed(bs[b0]), z: bs[B1 - 1].hero.p[2], gauge: [bs[B1 - 1].hero.boostG, max - spent], skid: [3, 6].map((j) => +speed(bs[B1 + j]).toFixed(3)) });
+    // run dry: the overheat lock, refused, unlocking when full after overheatRegen
+    const dry = mrun((f) => pad(0, 127, (f >= 5 && f < 5 + max + 5 ? DS : 0) | (f === 5 + max + 20 ? DS : 0)), max + BO.overheatRegen * FPS + 60), oh = ev(dry, 'boost-overheat')[0], un = ev(dry, 'boost-unlock')[0];
+    check(`mech ${label}: thrust dry (${BO.gauge} s) the gauge overheat-locks; a press then is refused; it unlocks when full again, ${BO.overheatRegen} s on`, oh && un && Math.abs(un.f - oh.f - BO.overheatRegen * FPS) <= 1 && ev(dry, 'dropped').some((e) => e.button === 'dash' && /overheated/.test(e.why)), { overheat: oh?.f, unlock: un?.f, want: oh && oh.f + BO.overheatRegen * FPS });
+    const vec = mrun((f) => pad(f >= 30 ? 127 : 0, f >= 30 ? 0 : 127, f >= 10 && f < 50 ? DS : 0), 60), turn = ev(vec, 'boost-turn')[0];
+    check(`mech ${label}: turning the thrust past 45° bites ${BO.turnCost} s of gauge (MSA's vectoring); the thrusters cold, it refills (${BO.regen} s to full)`, turn?.f === 30 && Math.abs(vec.states[29].hero.boostG - vec.states[30].hero.boostG - (1 + BO.turnCost * FPS)) < 1e-6 && Math.abs(vec.states[55].hero.boostG - vec.states[54].hero.boostG - max / (BO.regen * FPS)) < 1e-6, { turn: turn?.f });
+    const catchR = mrun((f) => (f >= 1 && f < 200 ? DS : 0), 260, { setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }), lands = ev(catchR, 'land');
+    check(`mech ${label}: falling while boosting it is caught on the cushion and held (no landing); let go, it lands`, catchR.states[150].hero.hovering && Math.abs(catchR.states[150].hero.p[2] - HV.height) < 1e-9 && lands.length >= 1 && lands.every((e) => e.f >= 200), { z: catchR.states[150].hero.p[2], lands: lands.map((e) => e.f) });
+    // the landing: lag by the fall, a jump in it waits
+    const H0 = 2, drop = mrun(() => 0, 120, { setup: (S) => { S.hero.p[2] = H0; S.hero.grounded = false; S.hero.from = H0; } }), ld = ev(drop, 'land')[0], lagWant = Math.min(K.landing.max, Math.round(K.landing.per * ld.fall));
+    const dropJ = mrun((f) => (f === ld.f + 1 ? J : 0), 120, { setup: (S) => { S.hero.p[2] = H0; S.hero.grounded = false; S.hero.from = H0; } });
+    check(`mech ${label}: a landing lags by its fall (${K.landing.per} f a m/s, ${K.landing.max} f at most): from ${H0} m ${lagWant} f, a jump pressed in it waits`, drop.states[ld.f].hero.lag === Math.max(0, lagWant - 1) && (lagWant === 0 || ev(dropJ, 'buffered').concat(ev(dropJ, 'dropped')).some((e) => e.button === 'jump' && /landing lag/.test(e.why))), { fall: ld.fall, lag: drop.states[ld.f].hero.lag + 1, want: lagWant });
+    // boost armor: a hit while boosting keeps a share of its stun
+    const HU = A0.hurt, arm = mrun((f) => pad(0, 127, f >= 10 ? DS : 0), 40, { mid: (S, f) => { if (f === 20) { const H = S.hero, p = [H.p[0], H.p[1] + 1.2, H.p[2] + 1.1]; S.foes.push({ id: 1, name: 'orb', f: 0, life: 60, size: 0.25, g: 0, b: p.slice(), p, v: [0, -9, 0] }); } } }), hh = ev(arm, 'hurt')[0];
+    check(`mech ${label}: boost armor: a hit while boosting keeps ×${K.armor} of its stun`, hh?.maneuver && hh.stun === Math.round(HU.stun * K.armor), { stun: hh?.stun, want: Math.round(HU.stun * K.armor) });
+    const dg = mrun((f) => (f === 5 ? DG : 0), 20);
+    check(`mech ${label}: the dodge ${BO.dodgeOverheat ? 'dumps the gauge and overheats it (MSA\'s acrobatic dodge)' : 'leaves the gauge alone'}`, BO.dodgeOverheat ? dg.states[5].hero.boostLock && ev(dg, 'boost-overheat').some((e) => e.by === 'dodge') : !ev(dg, 'boost-overheat').length && dg.states[5].hero.boostG === max, { lock: dg.states[5].hero.boostLock });
+    if (K.chargeJump) {
+      const CH = K.chargeJump, full = Math.round(CH.max * FPS), apexOf = (r) => ev(r, 'apex')[0]?.height, Hj = (K.jump.speed ** 2) / (2 * K.jump.gRise);
+      const tapJ = mrun((f) => (f === 5 ? J : 0), 200), fullJ = mrun((f) => pad(0, f > 5 ? 127 : 0, f >= 5 && f < 5 + full + 30 ? J : 0), 300), lt = ev(tapJ, 'launch')[0], lf = ev(fullJ, 'launch')[0];
+      const rooted = fullJ.states.slice(10, 5 + full).every((x) => speed(x) < 1e-9), vT = 0.6 + (CH.mult - 0.6) * lt.frac;
+      check(`mech ${label}: the stop-and-charge jump: held it roots in a squat; a tap launches at 0.6 (×0.36 the height), the full ${CH.max} s charge auto-launches at ${CH.mult} (×${(CH.mult ** 2).toFixed(2)}) and leaps along the stick at ${CH.dash} m/s`, rooted && lf.f === 5 + full && lf.frac === 1 && Math.abs(apexOf(tapJ) - Hj * vT * vT) < 2e-3 && Math.abs(apexOf(fullJ) - Hj * CH.mult * CH.mult) < 2e-3 && Math.abs(speed(fullJ.states[lf.f + 2]) - CH.dash) < 1e-6, { tap: [apexOf(tapJ), +(Hj * vT * vT).toFixed(4)], full: [apexOf(fullJ), +(Hj * CH.mult ** 2).toFixed(4)], leap: +speed(fullJ.states[lf.f + 2]).toFixed(3) });
+    }
+    if (K.quickBoost) {
+      const Q = K.quickBoost, q = mrun((f) => pad(127, 0, f === 10 || f === 14 ? DS : 0), 60), qb = ev(q, 'quick-boost');
+      check(`mech ${label}: the quick boost: a press bursts ${Q.frames} f at ${Q.speed} m/s for ${Q.cost} s of gauge; another press while it cools is refused`, qb.length === 1 && q.states.slice(10, 10 + Q.frames).every((x) => Math.abs(speed(x) - Q.speed) < 1e-9) && Math.abs(q.states[10].hero.boostG - (max - Q.cost * FPS)) < 1e-6 && ev(q, 'dropped').some((e) => e.button === 'dash' && /cooling/.test(e.why)), { bursts: qb.length, gauge: q.states[10].hero.boostG });
+    }
+        const jet = mrun((f) => (f >= 1 && f < 400 ? J : 0), 420, { gear: 'jet' }), glide = mrun(() => J, 120, { gear: 'glide', setup: (S) => { S.hero.p[2] = 20; S.hero.grounded = false; S.hero.from = 20; } });
+    check(`mech ${label}: the gear rides along: the jetpack lights and the glider opens`, ev(jet, 'jet').length >= 1 && ev(glide, 'glide').length >= 1, { jet: ev(jet, 'jet').length, glide: ev(glide, 'glide').length });
+  }
+}
+
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));
 const ends = runs.flatMap((r) => r.events.filter((e) => e.type === 'acted' || e.type === 'dropped'));
 const pending = runs.reduce((a, r) => a + r.end.queue.length, 0);
@@ -700,7 +760,7 @@ check('realistic\'s card is the take\'s own time: its fitted jab is the take fra
 const FIX = new URL('./fixtures/', import.meta.url);
 if (existsSync(FIX)) for (const file of readdirSync(FIX).filter((f) => f.endsWith('.json'))) {
   const fx = JSON.parse(readFileSync(new URL(file, FIX), 'utf8'));
-  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, shooter: fx.shooter ?? null, gear: fx.gear ?? null, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
+  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, shooter: fx.shooter ?? null, gear: fx.gear ?? null, mount: fx.mount ?? null, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
   const got = r.events.filter((e) => fx.expect?.types?.includes(e.type)).map((e) => `${e.f}:${e.who}:${e.type}`);
   check(`fixture ${file}: ${fx.says ?? ''}`, !fx.expect?.events || JSON.stringify(got) === JSON.stringify(fx.expect.events), got.slice(0, 6));
 }

@@ -11,13 +11,13 @@ readCols();
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
 
 let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
-let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null, gear = null;   // shooter: the name of one of the card's ranged sets, or off
+let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null, gear = null, mount = null, shakeT = 0;   // mount: riding a mech, its weight (1 heavy … 0 swift), or off   // shooter: the name of one of the card's ranged sets, or off
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
 let S, hist = [], log = [], presses = [], sparks = [], tracers = [], cam = { x: 0, y: 0, z: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
 function reset() {
   const sets = cards[feel].ranged?.sets ?? {}; if (shooter && !sets[shooter]) shooter = Object.keys(sets)[0] ?? null;
-  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear });
+  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
   hist = []; log = []; presses = []; sparks = []; tracers = []; shown = {}; prevWorld = {};
   cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 };
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
@@ -35,6 +35,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyT') setSpar(!spar);
   else if (e.code === 'KeyY') cycleShooter();
   else if (e.code === 'KeyE') cycleGear();
+  else if (e.code === 'KeyM') cycleMount();
   else if (e.code === 'KeyO') setOneHit(!S.card.life?.oneHit);
   else if (e.code === 'KeyG') setGuard(!guard);
   else if (e.code === 'KeyH') setCritter(!critter);
@@ -149,6 +150,9 @@ const say = {
   fire: (e) => (e.hitscan ? `the ${e.name} fires: ${({ hit: 'a hit, no flight to react to', cover: 'stopped by cover', out: 'a miss' })[e.result]}` : null),
   burst: (e) => `the ${e.name} bursts on the floor`,
   hurt: (e) => `hit by the ${e.by}: ${e.damage} damage, ${e.stun ? `${e.down ? 'knocked down' : 'stunned'} ${e.stun} f` : 'a flinch, control kept'}${e.maneuver ? ' (maneuver armor: moving through it)' : ''}`,
+  squat: () => 'squatting: hold to charge the jump', launch: (e) => `launched at ${e.mult.toFixed(2)}× (${Math.round(e.frac * 100)}% charged)${e.frac === 1 ? ', a leap' : ''}`,
+  'boost-on': () => 'boost', 'boost-off': () => null, boost: () => null, 'boost-turn': (e) => `the thrust turned: ${e.cost} s of gauge`, 'boost-overheat': (e) => `the thrusters overheat${e.by === 'dodge' ? ' (the dodge dumped the gauge)' : ''}: no boost until the gauge is full`,
+  'boost-unlock': () => 'the thrusters cool: boost again', 'quick-boost': () => 'quick boost', 'boost-jump': () => 'a jump off the boost\'s hover', footfall: () => null,
   glide: (e) => ({ paraglider: 'the paraglider opens', glide: 'gliding', float: 'floating: the height held' })[e.kind],
   'glide-end': (e) => `${S.card.glide?.kind === 'float' ? 'the float' : 'the glide'} ends: ${e.why}`,
   jet: (e) => `the jetpack lights (${e.kind}, ${e.fuel} f of fuel)`, 'jet-end': (e) => `the jetpack ${e.why === 'out of fuel' ? 'burns out' : 'cuts'}: ${e.why}`,
@@ -162,12 +166,14 @@ const say = {
   'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
 function onEvent(e) {
+  if (e.type === 'footfall') shakeT = Math.max(shakeT, 6 * e.weight);
+  if (e.type === 'land' && e.who === 'hero' && S.card.landing) shakeT = Math.max(shakeT, Math.min(14, e.fall * 2));
   const line = say[e.type]?.(e);
   const whose = e.who === 'dummy' && ['takeoff', 'apex', 'land', 'edge', 'wall', 'free'].includes(e.type) ? 'dummy: ' : '';
   if (line) { log.push({ f: e.f, who: e.who, type: e.type, line: e.type === 'free' ? line : whose + line }); if (log.length > 60) log.shift(); }
   if (e.who === 'hero' && e.type === 'press') presses.push({ button: e.button, f: e.f, acted: null, effect: null, out: null });
   const open = (btn, need) => [...presses].reverse().find((p) => p.button === btn && !p.out && (need === 'acted' ? p.acted == null : p.acted != null && p.effect == null));
-  if (e.who === 'hero' && e.type === 'acted') { const p = open(e.button, 'acted'); if (p) { p.acted = e.f; if (e.button === 'dodge' || e.button === 'dash') { p.effect = e.f; p.out = e.button === 'dash' ? S.card.dash.kind : S.card.dodge.kind; } } }
+  if (e.who === 'hero' && e.type === 'acted') { const p = open(e.button, 'acted'); if (p) { p.acted = e.f; if (e.button === 'dodge' || e.button === 'dash') { p.effect = e.f; p.out = e.button === 'dash' ? (S.card.dash?.kind ?? (S.card.quickBoost ? 'quick boost' : 'boost')) : S.card.dodge.kind; } } }
   if (e.who === 'hero' && e.type === 'dropped') { const p = [...presses].reverse().find((q) => q.button === e.button && q.acted == null && !q.out); if (p) p.out = `dropped: ${e.why}`; }
   if (e.who === 'hero' && e.type === 'takeoff') { const p = open('jump', 'effect'); if (p) { p.effect = e.f; p.out = 'take-off'; } }
   if (e.who === 'hero' && e.type === 'whiff') { const p = open('attack', 'effect'); if (p) { p.effect = e.f; p.out = 'whiff'; } }
@@ -218,6 +224,7 @@ function poseFrames(who) {
     case 'gather': a = pick(F.gather, F.gather.length > 1 ? (d.at * (F.gather.length - 1)) / Math.max(1, d.of) : 0); break;
     case 'dodge': { const fr = F.dodge[d.rel]; a = pick(fr, (d.at * (fr.length - 1)) / d.of); key += d.rel; break; }
     case 'dash': a = locoAt(D, Math.max(D.loco.sprint.v, d.speed), (S.f * 0.08) % 1); break;
+    case 'boost': { const n = F.air.length - 1, x = 0.3 * n, i = Math.floor(x); a = lerp(F.air[i], F.air[i + 1], x - i); break; }   // the thrust's pose: legs gathered, the lean added in toWorld
     case 'guard': a = pick(F.guard, d.at); break;
     case 'react': a = pick(F.react[d.take].frames, d.at); key += d.take; break;
     case 'air': { const n = F.air.length - 1, x = d.u * n, i = Math.min(n - 1, Math.floor(x)); a = lerp(F.air[i], F.air[i + 1], x - i); break; }
@@ -225,7 +232,7 @@ function poseFrames(who) {
       if (S[who].grounded) { let mz = Infinity; for (let k = 2; k < a.length; k += 3) mz = Math.min(mz, a[k]); a = a.map((v, k) => (k % 3 === 2 ? v - mz : v)); }   // a ball on the ground (the spin dash) sits on it
       break;
     case 'land': a = pick(F.land, d.at); break;
-    case 'loco': a = locoAt(D, d.speed, d.phase); break;
+    case 'loco': a = S.card.gait && who === 'hero' ? locoFrames(D.loco.walk, d.phase) : locoAt(D, d.speed, d.phase); break;   // a heavy gait walks, at its own cadence
     default: a = D.idle;
   }
   // a short cross-fade when the clip changes, so a hand-off never pops (the kernel's frames are untouched)
@@ -248,6 +255,7 @@ function toWorld(d, a) {
   for (let k = 0; k < n; k++) {
     let x = a[k * 3] / 1000, y = a[k * 3 + 1] / 1000, z = a[k * 3 + 2] / 1000;
     if (sp) { const zz = z - pz; [y, z] = [y * cs + zz * ss, pz - y * ss + zz * cs]; }
+    if (d.lean) { const [lp, lr] = d.lean; [y, z] = [y * Math.cos(lp) + z * Math.sin(lp), -y * Math.sin(lp) + z * Math.cos(lp)]; [x, z] = [x * Math.cos(lr) + z * Math.sin(lr), -x * Math.sin(lr) + z * Math.cos(lr)]; }   // leaning into the thrust, about the feet
     x *= sc[0]; y *= sc[1]; z *= sc[2];
     out[k] = [d.p[0] + x * c + y * s, d.p[1] - x * s + y * c, d.p[2] + z];
   }
@@ -345,12 +353,14 @@ function drawBody(who, colour) {
   if (AR) { ctx.strokeStyle = AR.by.length ? COL.armor : COL.hyper; ctx.globalAlpha = 0.45; ctx.lineWidth = Math.max(6, ppm * 0.16); ctx.lineCap = 'round'; ctx.beginPath(); for (const [i, j] of D.bones) { const p0 = P(...w[i]), p1 = P(...w[j]); ctx.moveTo(p0[0] + shake, p0[1]); ctx.lineTo(p1[0] + shake, p1[1]); } ctx.stroke(); ctx.globalAlpha = 1; }
   ctx.strokeStyle = d.held ? COL.ink : inv || witch ? COL.inv : hurt ? COL.stun : colour; ctx.globalAlpha = inv ? 0.6 : 1;
   if (who === 'hero' && B.mercy > 0 && S.card.hurt?.mercy && S.f % 6 < 3) ctx.globalAlpha = 0.25;   // mercy: the classic blink
-  ctx.lineWidth = Math.max(2, ppm * 0.055); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const heavy = who === 'hero' && S.card.size;   // a grown body (a mech) reads heavy: thick limbs, a boxed head
+  ctx.lineWidth = Math.max(2, ppm * (heavy ? 0.12 : 0.055)); ctx.lineCap = heavy ? 'square' : 'round'; ctx.lineJoin = heavy ? 'miter' : 'round';
   ctx.beginPath();
   for (const [i, j] of D.bones) { const p0 = P(...w[i]), p1 = P(...w[j]); ctx.moveTo(p0[0] + shake, p0[1]); ctx.lineTo(p1[0] + shake, p1[1]); }
   ctx.stroke();
   const hb = w[D.names.indexOf('headBase')], ht = w[D.names.indexOf('headTop')];
-  if (hb && ht) { const c = P((hb[0] + ht[0]) / 2, (hb[1] + ht[1]) / 2, (hb[2] + ht[2]) / 2); ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(c[0] + shake, c[1], Math.max(4, ppm * 0.11), 0, Math.PI * 2); ctx.fill(); }
+  if (hb && ht && heavy) { const c = P((hb[0] + ht[0]) / 2, (hb[1] + ht[1]) / 2, (hb[2] + ht[2]) / 2), r = Math.max(5, ppm * 0.16); ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(c[0] + shake - r, c[1] - r * 0.8, 2 * r, 1.6 * r); }
+  else if (hb && ht) { const c = P((hb[0] + ht[0]) / 2, (hb[1] + ht[1]) / 2, (hb[2] + ht[2]) / 2); ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(c[0] + shake, c[1], Math.max(4, ppm * 0.11), 0, Math.PI * 2); ctx.fill(); }
   ctx.globalAlpha = 1;
 }
 function drawSparks() {
@@ -365,6 +375,7 @@ function drawSparks() {
 }
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+  if (shakeT > 0.2) { ctx.translate(0, ((S.f % 2) * 2 - 1) * shakeT * 0.5); if (!paused) shakeT *= 0.75; }   // a footfall or a hard landing shakes the camera
   const k = 0.12; cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (S.hero.p[1] - cam.y) * k;
   cam.z += (Math.max(0, S.hero.p[2] - 2) - cam.z) * 0.08;   // a high flight lifts the camera with it (a jump's height does not)
   // locked, the camera swings behind the hero to look at the target; let go, it swings back north
@@ -384,7 +395,7 @@ function draw() {
       if (bx > Math.min(...xs) - 20 && bx < Math.max(...xs) + 20 && dB - near(b) < 3) drawBlock(b);
     }
   }
-  drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawLife();
+  drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawThrust(); drawLife();
   drawSparks();
   drawStrip();
 }
@@ -408,6 +419,13 @@ function drawAim() {
   ctx.strokeStyle = COL.laser; ctx.globalAlpha = R.sight ? 0.25 + 0.6 * k : 0.25; ctx.lineWidth = locked ? 3 : 1.5; ctx.setLineDash(R.sight ? [] : [6, 6]);
   ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
   if (locked && S.f % 4 < 2) { ctx.fillStyle = COL.laser; ctx.beginPath(); ctx.arc(o[0], o[1], 6, 0, Math.PI * 2); ctx.fill(); }   // the glint
+}
+/** the boost's flame: from the back, against the thrust (a quick boost's longer) */
+function drawThrust() {
+  const B = S.hero; if (!(B.boosting || B.qb > 0)) return;
+  const ppm = scale(), sp = Math.hypot(B.v[0], B.v[1]) || 1, bx = -B.v[0] / sp, by = -B.v[1] / sp, L = B.qb > 0 ? 1.1 : 0.6 + 0.15 * (S.f % 3);
+  const zb = B.p[2] + B.h * 0.6, o = P(B.p[0] + bx * 0.15, B.p[1] + by * 0.15, zb), t = P(B.p[0] + bx * (0.15 + L), B.p[1] + by * (0.15 + L), zb - 0.25);   // from the back, at the body's own height
+  ctx.strokeStyle = COL.flame; ctx.lineWidth = Math.max(5, ppm * 0.14); ctx.lineCap = 'round'; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); ctx.globalAlpha = 1;
 }
 /** the gear in flight: a canopy over a paraglider, wings out for a glide or a float, a flame under a jetpack, a rotor
  * for a flight */
@@ -442,6 +460,7 @@ function weaponLine() {
 /** the gear's gauge under the life: the jetpack's fuel, the paraglider's stamina, a flight's time */
 function gauge() {
   const H = S.hero, C = S.card; let k = null, label = '';
+  if (C.boost && H.boostG != null) { ctx.fillStyle = H.boostLock ? COL.stun : COL.ink; ctx.fillText(H.boostLock ? 'OVERHEAT' : 'BOOST', 14, 78); ctx.strokeStyle = COL.dim; ctx.strokeRect(80, 72, 140, 12); ctx.fillStyle = H.boostLock ? COL.stun : COL.charge1; ctx.fillRect(80, 72, (140 * H.boostG) / (C.boost.gauge * FPS), 12); }
   if (S.gear === 'jet' && C.jet) { k = H.fuel / C.jet.fuel; label = C.jet.kind === 'flap' ? 'FLIGHT' : 'FUEL'; }
   else if (S.gear === 'glide' && C.glide?.time) { k = H.glide ? 1 - H.glideT / C.glide.time : H.glideSpent ? 0 : 1; label = C.glide.kind === 'float' ? 'FLOAT' : 'STAMINA'; }
   if (k == null) return;
@@ -483,7 +502,7 @@ function renderFeel() {
   for (const b of document.querySelectorAll('[data-feel]')) b.setAttribute('aria-pressed', String(b.dataset.feel === feel));
   $('says').textContent = FEELS[feel].says;
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
-  $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
+  $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('mountbtn').setAttribute('aria-pressed', String(mount != null)); $('mountbtn').textContent = mount == null ? 'Mech' : `Mech: ${mount === 1 ? 'heavy' : mount === 0 ? 'swift' : `weight ${mount}`}`; $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = view === 'three' ? '¾ view' : 'Side view'; $('pause').textContent = paused ? 'Resume' : 'Pause';
 }
 const DIALS = [
@@ -499,6 +518,13 @@ const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), 
 const setPath = (o, p, v) => { const ks = p.split('.'); let c = o; for (const k of ks.slice(0, -1)) c = c[k]; c[ks.at(-1)] = v; };
 function renderDials() {
   const box = $('dials'); box.innerHTML = '';
+  if (mount != null) {   // the mech's one knob: heavy (1) to swift (0); a change re-lays the mech over the card
+    const h = document.createElement('div'); h.className = 'dgroup'; h.textContent = 'Mech'; box.append(h);
+    const row = document.createElement('label'); row.className = 'dial'; row.htmlFor = 'dial-mech-weight';
+    row.innerHTML = `<span>weight</span><input id="dial-mech-weight" type="range" min="0" max="1" step="0.05" value="${mount}"><output>${mount.toFixed(2)}</output>`;
+    row.querySelector('input').addEventListener('change', (e) => { mount = +e.target.value; reset(); });
+    box.append(row);
+  }
   let group = null;
   for (const [g, path, label, min, max, st, unit] of DIALS) {
     const v = getPath(S.card, path); if (v == null) continue;
@@ -548,17 +574,17 @@ function renderRec() {
 let last = null;
 $('rec').addEventListener('click', () => {
   if (rec) { last = rec; rec = null; $('fixture').value = JSON.stringify(fixture(last)); }
-  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, gear, card: copy(S.card), pads: [] }; }
+  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, gear, mount, card: copy(mount != null ? cards[feel] : S.card), pads: [] }; }
   renderRec();
 });
-$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); shooter = null; gear = last.gear ?? null; reset(); if (last.shooter) { S.shooter = last.shooter; S.spar = false; shooter = Object.entries(S.card.ranged.sets).find(([, v]) => JSON.stringify(v) === JSON.stringify(last.shooter))?.[0] ?? 'recorded'; renderFeel(); } replay = { pads: last.pads, i: 0 }; renderRec(); });
-const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), ...(r.gear ? { gear: r.gear } : {}), card: r.card, pads: r.pads });
+$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); shooter = null; gear = last.gear ?? null; mount = last.mount ?? null; reset(); if (last.shooter) { S.shooter = last.shooter; S.spar = false; shooter = Object.entries(S.card.ranged.sets).find(([, v]) => JSON.stringify(v) === JSON.stringify(last.shooter))?.[0] ?? 'recorded'; renderFeel(); } replay = { pads: last.pads, i: 0 }; renderRec(); });
+const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), ...(r.gear ? { gear: r.gear } : {}), ...(r.mount != null ? { mount: r.mount } : {}), card: r.card, pads: r.pads });
 $('copy').addEventListener('click', async () => {
   const t = $('fixture'); t.value = JSON.stringify(fixture(last));
   try { await navigator.clipboard.writeText(t.value); $('recState').textContent = 'Copied. Save it under scripts/spikes/action-lab/fixtures/ and verify.mjs replays it.'; }
   catch { t.hidden = false; t.select(); $('recState').textContent = 'Select-all is on the box below: copy it from there.'; }
 });
-$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, critter: fx.dummyHeight != null && fx.dummyHeight < 1, shooter: fx.shooter ?? null, gear: fx.gear ?? null, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
+$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, critter: fx.dummyHeight != null && fx.dummyHeight < 1, shooter: fx.shooter ?? null, gear: fx.gear ?? null, mount: fx.mount ?? null, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
 $('showfx').addEventListener('click', () => { $('fixture').hidden = !$('fixture').hidden; $('load').hidden = $('fixture').hidden; });
 
 // ─── controls ───
@@ -571,6 +597,8 @@ function cycleShooter() {
   shooter = i + 1 < keys.length ? keys[i + 1] : null; S.shooter = shooter ? S.card.ranged.sets[shooter] : null; S.volleyN = 0;
   if (shooter) { spar = false; S.spar = false; } renderFeel();
 }
+/** the mech: off → heavy → swift → off (laid over the feel's card: its combat kept, its movement the mech's rules) */
+function cycleMount() { mount = mount == null ? 1 : mount === 1 ? 0 : null; reset(); }
 /** the gear: none → glider → jetpack → none (what the jump does in the air once the air jumps are spent) */
 function cycleGear() { gear = gear == null ? 'glide' : gear === 'glide' ? 'jet' : null; S.gear = gear; S.hero.glide = false; S.hero.jet = false; S.hero.flying = false; S.hero.fuel = S.card.jet?.fuel ?? 0; renderFeel(); }
 function setOneHit(on) { if (!S.card.life) return; S.card.life.oneHit = on; cards[feel].life.oneHit = on; renderFeel(); }
@@ -581,7 +609,7 @@ function setPaused(on) { paused = on; renderFeel(); }
 for (const b of document.querySelectorAll('[data-feel]')) b.addEventListener('click', () => setFeel(b.dataset.feel));
 $('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(FEELS[feel]); reset(); });
 $('view').addEventListener('click', () => setView(view === 'three' ? 'side' : 'three'));
-$('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
+$('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('mountbtn').addEventListener('click', cycleMount); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
 $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); stepOnce = true; });
 

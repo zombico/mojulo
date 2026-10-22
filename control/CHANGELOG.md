@@ -37,6 +37,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **The heavy-robot rules and the mech, in the lab.** mobile-suit-arena's movement (mojulo's controllable rules) split
+  into rules that overlap, each a card field any feel may carry alone: the boost (an instant held thrust on a gauge
+  that overheat-locks, its jump and turn costs, an inertia skid), the hover cushion under it, Armored Core's quick
+  boost, the stop-and-charge jump, a heavy gait that dips at each footfall, landings that lag by the fall, a grown
+  body. The mech is one composition of them laid over any card as a mount (its combat kept, its movement the
+  mech's), so it is its own game or a thing to ride in another; one weight knob blends MSA's heavy suit into a swift
+  Armored Core frame, and the glider and jetpack ride along. The page draws it heavy (thick limbs, a boxed head,
+  footfall shake, a lean and a flame on the boost) with a boost gauge. The gate holds 322 laws on both casts, with
+  recorded heavy and swift runs among its fixtures.
 - **The loadout, in the lab: mobile-suit-arena's weapons** (the card's `loadout`). Lifted from mobile-suit-arena,
   whose weapons are mojulo's controllable rules, with their field names and meanings: the switch's ready time
   (re-armed each switch, a slot's own winning), the cooldown (auto at a rate of fire, semi with a committed burst), a

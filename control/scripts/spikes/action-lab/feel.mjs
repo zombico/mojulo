@@ -72,6 +72,26 @@
  * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
  * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
  *
+ * THE HEAVY-ROBOT RULES, mobile-suit-arena's movement (mojulo's controllable rules-platform.js and maneuvers.js) split
+ * into rules that overlap, each a card field any feel may carry alone or with the others:
+ *   boost       the held thrust on DASH: instant, at `speed`, draining a GAUGE (`gauge` seconds), refilled when the
+ *               thrusters are cold (`regen` seconds to full; `overheatRegen` after running dry), OVERHEAT-locked when
+ *               emptied until full again (`unlock`); a jump bites `jumpCost`, a turn of the thrust past 45° `turnCost`;
+ *               released, an INERTIA skid; `dodgeOverheat`: the acrobatic dodge dumps the gauge
+ *   hover       the cushion under a boost: held `height` over the floor, lifted at `rise` (it skims and catches a fall)
+ *   quickBoost  a press of DASH: a burst of `frames` at `speed`, `cost` seconds of the gauge if there is one, `cooldown`
+ *   chargeJump  the stop-and-charge jump: held, rooted in a squat; the release scales the launch 0.6 → `mult`; a full
+ *               charge (`max` seconds) leaps along the stick at `dash`
+ *   gait        the heavy gait: a step of `stride` metres, the speed dipping by `lurch` at each footfall, a footfall
+ *               event a step (`shake`, its weight on the camera)
+ *   landing     the landing's lag by the fall: `per` frames a m/s, `max` at most, a crouch with it
+ *   size        the body's `height` (the figure grown)
+ * and boost armor is the maneuver armor's `boost` way. THE MECH is one composition of them (`mechCard(card, weight)`,
+ * newState's `mount`): laid over any card, its combat kept and its movement the mech's, so a mech is its own game or
+ * the thing a body rides in another. Its one knob, `weight`, blends MSA's HEAVY suit (1) into a SWIFT Armored Core
+ * frame (0). The lab's animation goes past MSA's clips: the gait's dip and footfalls, the crouch by the fall, the squat
+ * deepening with the charge, the lean into the thrust. The glider and the jetpack ride along as gear.
+ *
  * THE LOADOUT (the card's `loadout`): the weapons, lifted from mobile-suit-arena's (mojulo's controllable rules:
  * combat-ranged.js `initWeapon` / `tickWeapon` / `stepWeapon` and maneuvers.js `armSwitchReady`), their fields named as
  * there, seconds as there, distances in metres (MSA's units ÷ 10). SHOOT is the trigger, SWITCH cycles the slots.
@@ -368,6 +388,39 @@ export const FEELS = Object.freeze({
 });
 export const FEEL_IDS = Object.freeze(Object.keys(FEELS));
 
+/**
+ * The mech presets, compositions of the heavy-robot rules in the lab's metres (MSA's units ÷ 10, its seconds). HEAVY is
+ * mobile-suit-arena's suit (walk 33.6, boost 74, jump 31.2 on gravity 40.8 up / 62.4 down, a 9 s gauge, hover 0.5,
+ * inertia 0.5, a 2 s charge to 2.2×, boost armor halving stun, the dodge an overheat). SWIFT is an Armored Core frame:
+ * a fast walk, a hard fast boost on a small quick gauge, a quick boost, light landings, a plain jump.
+ */
+export const MECH = Object.freeze({
+  heavy: { size: { height: 2.4 }, ground: { walk: 3.36, accel: 6, decel: 9, turn: 200 }, jump: { speed: 3.12, gRise: 4.08, gFall: 6.24, maxFall: 3.6, air: 0.3 }, armor: 0.5,
+    boost: { speed: 7.4, gauge: 9, regen: 5, overheatRegen: 7.5, unlock: 1, jumpCost: 0.8, turnCost: 0.75, inertia: 0.5, dodgeOverheat: true }, hover: { height: 0.05, rise: 3.12 },
+    chargeJump: { max: 2, mult: 2.2, dash: 4.08 }, quickBoost: null, gait: { stride: 1.32, lurch: 0.35, shake: 1 }, landing: { per: 4, max: 24 } },
+  swift: { size: { height: 2.4 }, ground: { walk: 6, accel: 30, decel: 30, turn: 540 }, jump: { speed: 7, gRise: 14, gFall: 18, maxFall: 12, air: 0.8 }, armor: 0.25,
+    boost: { speed: 15, gauge: 4, regen: 1.5, overheatRegen: 3, unlock: 1, jumpCost: 0.3, turnCost: 0.1, inertia: 0.25, dodgeOverheat: false }, hover: { height: 0.15, rise: 6 },
+    chargeJump: null, quickBoost: { speed: 26, frames: 10, cost: 0.6, cooldown: 24 }, gait: { stride: 1.6, lurch: 0.12, shake: 0.35 }, landing: { per: 1, max: 8 } },
+});
+/** the knobs at a weight: each number the presets' blend (1 heavy, 0 swift), a part only one of them has (the charge
+ * jump, the quick boost) and a flag taken from the nearer */
+export function mechKnobs(weight = 1) {
+  const t = Math.max(0, Math.min(1, weight));
+  const mix = (h, w) => (typeof h === 'number' && typeof w === 'number' ? r4(w + (h - w) * t)
+    : h && w && typeof h === 'object' ? Object.fromEntries(Object.keys(h).map((k) => [k, mix(h[k], w[k])])) : t >= 0.5 ? copy(h) : copy(w));
+  return { name: t === 1 ? 'heavy' : t === 0 ? 'swift' : `weight ${t}`, weight: t, ...mix(MECH.heavy, MECH.swift) };
+}
+/** a card ridden as a mech: its combat kept (moves, hits, guard, loadout, the dodge), its movement the mech's rules */
+export function mechCard(card, weight = 1) {
+  const K = mechKnobs(weight), c = JSON.parse(JSON.stringify(card, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v)), G = K.ground, J = K.jump;
+  return { ...c, says: `${c.says}; riding a mech (${K.name})`,
+    ground: { walk: r4(G.walk / 2), run: G.walk, sprint: G.walk, accel: G.accel, decel: G.decel, turn: G.turn },
+    jump: { ...c.jump, commit: 0, height: r4((J.speed * J.speed) / (2 * J.gRise)), gRise: J.gRise, gFall: J.gFall, cut: K.chargeJump ? 1 : 0.5, hang: 0, air: J.air, maxFall: J.maxFall, heavy: null, spin: false },
+    dash: null, air: null, cling: null, maneuver: { on: ['boost'], stun: K.armor, knock: K.armor },
+    boost: K.boost, hover: K.hover, quickBoost: K.quickBoost, chargeJump: K.chargeJump, gait: K.gait, landing: K.landing, size: K.size, mech: { name: K.name, weight: K.weight } };
+}
+
+
 /** The arena: a square floor walled at ±half, and blocks { x: [x0, x1], y: [y0, y1], h } (a ledge to jump on, a wall). */
 export const ARENA = Object.freeze({
   half: 9,
@@ -395,10 +448,14 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * instead of sparring (one a volley, every `ranged.every` frames). `gear`: 'glide' or 'jet', what the jump does in the
  * air once the air jumps are spent (null: nothing).
  */
-export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null, gear = null } = {}) {
+export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null, gear = null, mount = null } = {}) {
+  if (mount != null) card = mechCard(card, mount);   // riding a mech: the card's movement becomes the mech's
   const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], rounds: [], shotN: 0, shooter, gear, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
   S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null; S.hero.hp = card.life?.hp ?? null; S.hero.fuel = card.jet?.fuel ?? 0;
+  if (card.size) S.hero.h = card.size.height;
+  if (card.boost) { S.hero.boostG = card.boost.gauge * FPS; S.hero.boostLock = false; }
+  if (card.quickBoost) { S.hero.qb = 0; S.hero.qbCd = 0; }
   S.hero.arms = card.loadout?.slots?.length ? { slot: 0, readyT: 0, readyMax: 0, w: card.loadout.slots.map((sl) => initWeapon(sl.weapon)) } : null;
   return S;
 }
@@ -444,6 +501,7 @@ export function step(S0, pad) {
     if (B.lag > 0) B.lag--;
     if (B.stepCd > 0) B.stepCd--;
     if (B.wallLock > 0) B.wallLock--;
+    if (B.qbCd > 0) B.qbCd--;
     if (B.wallCoyote > 0 && !B.cling && B.leftWall !== S.f) B.wallCoyote--;   // counted from the frame after leaving, as the ground's
     if (B.squash > 0) B.squash--;
     if (B.blockstun > 0) B.blockstun--;
@@ -503,7 +561,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a?.kind === 'move' && !cancelOpen(S, a)) return { reason: 'in a move\'s startup or active frames', queue: true };
     if (a?.kind === 'dash') return C.dash.jump && !a.air && H.grounded ? true : { reason: a.air ? 'in an air dash' : 'in a dash', queue: true };
     if (a?.kind === 'dodge') return { reason: 'in a dodge roll', queue: true };
-    if (H.grounded || H.coyote > 0) return true;
+    if (H.grounded || H.coyote > 0 || H.hovering) return true;
     if (canWallJump(S) || canStep(S)) return true;
     if (C.air && H.airLeft > 0) return true;
     const g = gearPress(S); if (g) return g;
@@ -545,6 +603,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     return true;
   }
   if (name === 'dash') {
+    if (C.boost || C.quickBoost) return thrustDashCan(S);   // the boost and the quick boost take DASH
     const DS = C.dash; if (!DS) return { reason: 'no dash in this feel', queue: false };
     if (!H.grounded && !DS.air) return { reason: 'no air dash in this feel', queue: false };
     if (!H.grounded && H.airDashes <= 0) return { reason: 'the air dash is spent', queue: false };
@@ -576,6 +635,7 @@ function act(S, name, stick, waited) {
   S.events.push({ f: S.f, who: 'hero', type: 'acted', button: name, waited });
   if (name === 'jump') {
     if (!H.grounded) {
+      if (H.hovering) { S.events.push({ f: S.f, who: 'hero', type: 'boost-jump' }); takeOff(S, H, 'hero'); return; }   // off the thrust cushion, MSA's hover grace
       if (H.coyote > 0) { S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote }); takeOff(S, H, 'hero'); return; }
       if (canWallJump(S)) return wallJump(S, H);
       if (canStep(S)) { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; takeOff(S, H, 'hero'); return; }
@@ -588,6 +648,7 @@ function act(S, name, stick, waited) {
     }
     if (H.act?.kind === 'poundLag') { S.events.push({ f: S.f, who: 'hero', type: 'pound-jump' }); takeOff(S, H, 'hero', C.pound.jump); return; }
     H.act = null;
+    if (C.chargeJump) { H.act = { kind: 'squat', f: 0 }; S.events.push({ f: S.f, who: 'hero', type: 'squat' }); return; }   // MSA's stop-and-charge
     if (C.jump.commit > 0) { H.act = { kind: 'gather', f: 0, of: C.jump.commit }; return; }
     takeOff(S, H, 'hero'); return;
   }
@@ -608,6 +669,7 @@ function act(S, name, stick, waited) {
   if (name === 'dodge') {
     // the directional roll: along the stick, the body keeping its facing (forward, back, left or right of it); with
     // the stick at rest, a backstep
+    if (C.boost?.dodgeOverheat && H.boostG != null) { H.boostG = 0; if (!H.boostLock) { H.boostLock = true; S.events.push({ f: S.f, who: 'hero', type: 'boost-overheat', by: 'dodge' }); } }   // MSA: the acrobatic dodge dumps the gauge
     const D = C.dodge, neutral = stick.m === 0, dir = neutral ? H.yaw + Math.PI : Math.atan2(stick.x, stick.y), rel = angDiff(dir, H.yaw);
     const side = Math.abs(rel) <= Math.PI / 4 ? 'fwd' : Math.abs(rel) >= (3 * Math.PI) / 4 ? 'back' : rel > 0 ? 'right' : 'left';
     const of = side === 'back' ? Math.round(D.frames * D.back.frames) : D.frames;
@@ -618,6 +680,7 @@ function act(S, name, stick, waited) {
     return;
   }
   if (name === 'dash') {
+    if (C.boost || C.quickBoost) return thrustDashAct(S, H, stick);
     const DS = C.dash, dir = stick.m > 0 ? Math.atan2(stick.x, stick.y) : H.yaw;
     if (!H.grounded) {   // the air dash: gravity off, at the air dash's speed, once an airtime
       H.airDashes--; H.act = { kind: 'dash', f: 0, of: DS.air.frames, dir, from: len2(H.v[0], H.v[1]), air: true }; H.v[2] = 0; H.yaw = dir;
@@ -627,6 +690,7 @@ function act(S, name, stick, waited) {
   }
 }
 function takeOff(S, B, who, mult = 1) {
+  if (who === 'hero' && S.card.boost && B.boostG != null) B.boostG = Math.max(0, B.boostG - S.card.boost.jumpCost * FPS);   // MSA: every launch bites the gauge
   const J = S.card.jump; B.act = null; B.grounded = false; B.coyote = 0; B.jumped = true; B.cut = false; B.hang = J.hang; B.apex = null;
   B.v[2] = Math.sqrt(2 * J.gRise * J.height * mult); B.tookOff = S.f; B.from = B.p[2];
   S.events.push({ f: S.f, who, type: 'takeoff', z: r4(B.p[2]) });
@@ -654,7 +718,9 @@ function moveBody(S, B, who, stick, buttons) {
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
   if (who === 'hero' && S.gear) gearHold(S, B, free);
-  if (a?.kind === 'pound') { B.v[0] = 0; B.v[1] = 0; B.v[2] = a.f < C.pound.hang ? 0 : -C.pound.speed; }
+  const mechV = who === 'hero' && (C.boost || C.quickBoost || C.chargeJump) ? thrustDrive(S, B, stick, buttons, free) : false;
+  if (mechV) { /* a heavy-robot rule drove the body: the boost, the quick boost, the skid, the squat */ }
+  else if (a?.kind === 'pound') { B.v[0] = 0; B.v[1] = 0; B.v[2] = a.f < C.pound.hang ? 0 : -C.pound.speed; }
   else if (a?.kind === 'charge' && !C.charge.move) { B.v[0] = 0; B.v[1] = 0; if (stick?.m > 0) B.yaw = turnToward(B.yaw, Math.atan2(stick.x, stick.y), Gd.turn * DEG * DT); }   // rooted: crouched, the stick aims
   else if (a?.kind === 'poundLag') { B.v[0] = 0; B.v[1] = 0; }
   else if (a?.kind === 'dodge') rollVelocity(S, B);
@@ -678,16 +744,18 @@ function moveBody(S, B, who, stick, buttons) {
   // the gather: the body waits on the ground for its take-off
   if (a?.kind === 'gather' && a.f >= a.of && B.grounded) takeOff(S, B, who);
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
-  if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
+  if (B.hovering) { /* on the thrust cushion: the mech holds its height */ }
+  else if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
   else if (clung) { B.v[2] = -CL.slide; B.p[2] -= CL.slide * DT; }   // down the wall at a constant speed
   else if (B.glide) { B.v[2] = C.glide.kind === 'float' ? 0 : -C.glide.fall; B.p[2] += B.v[2] * DT; }   // the glider's steady sink, the float's held height
   else if (B.jet) jetLift(S, B);
   else if (!B.grounded && !(a?.kind === 'dash' && (a.air || C.dash.kind === 'dash'))) { fall(S, B, who); if (B.flying && B.v[2] < -C.jet.sink) B.v[2] = -C.jet.sink; }
   // the floor plane: substeps no longer than 8 cm against the walls
   const sp = len2(B.v[0], B.v[1]); const n = Math.max(1, Math.ceil((sp * DT) / 0.08));
+  const gk = who === 'hero' && C.gait && B.grounded && !mechV ? gaitStep(S, B) : 1;   // the heavy gait: the speed dips at each footfall
   let wallHit = null;
   for (let i = 0; i < n; i++) {
-    B.p[0] += (B.v[0] * DT) / n; B.p[1] += (B.v[1] * DT) / n;
+    B.p[0] += (B.v[0] * DT * gk) / n; B.p[1] += (B.v[1] * DT * gk) / n;
     const hit = resolveWalls(S, B); if (hit && !wallHit) { wallHit = hit; wallResponse(S, B, who, hit); }
   }
   if (a?.kind === 'dodge' && a.lock) {   // a locked roll keeps its distance to the target but for its own along-part
@@ -702,7 +770,9 @@ function moveBody(S, B, who, stick, buttons) {
     B.v[0] = 0; B.v[1] = 0; if (C.air) B.airLeft = C.air.jumps; B.airDashes = C.dash?.air?.count ?? 0; B.carry = 0;
   } else if (B.cling && B.grabbed !== S.f) { B.cling = null; B.leftWall = S.f; }   // (a grab this frame holds until the next reads the stick)
   // the stride: a cycle at the ground's rate (strides a second = speed ÷ the travel of a stride at that speed)
+  const stride0 = B.stride;
   if (B.grounded) B.stride = (B.stride + strideRate(S, len2(B.v[0], B.v[1])) * DT) % 1;
+  if (who === 'hero' && C.gait && B.grounded && B.stride !== stride0 && (Math.floor(B.stride * 2) !== Math.floor(stride0 * 2) || B.stride < stride0)) S.events.push({ f: S.f, who, type: 'footfall', weight: C.gait.shake });
   if ((a?.kind === 'charge' && C.charge.kind === 'spin') || a?.spin) B.spin = (B.spin + 0.5 + 0.35 * (B.charge?.lv ?? 2)) % (2 * Math.PI);   // the spin dash revs, then rolls
   if (!B.grounded && C.jump.spin && B.jumped) B.spin += Math.min(2 * Math.PI / 8, (2 * len2(B.v[0], B.v[1]) / 0.45) * DT);
 }
@@ -774,6 +844,7 @@ function ground(S, B, who) {
   if (B.p[2] <= g && B.v[2] <= 0) {
     const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; B.glide = false; B.glideT = 0; B.glideSpent = false; B.jet = false; B.flying = false; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps; if (who === 'hero') { B.airDashes = S.card.dash?.air?.count ?? 0; B.carry = 0; }
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
+    if (S.card.landing && who === 'hero') { const LD = S.card.landing; B.lag = Math.min(LD.max, Math.round(LD.per * fallSpeed)); B.lagOf = B.lag; }   // the heavy landing: lag by the fall
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
     if (B.act?.kind === 'pound') poundFloor(S, B, who);
@@ -836,6 +907,7 @@ function endAct(S, B, who) {
   }
 }
 function strideRate(S, speed) {
+  if (S.card.gait) return speed < 0.05 ? 0 : speed / (2 * S.card.gait.stride);   // the heavy gait's step: two to a cycle, `stride` metres each
   const g = S.body.strides; if (speed < 0.05) return 0;
   let travel = speed <= g[0].v ? g[0].travel : g.at(-1).travel;
   for (let i = 1; i < g.length; i++) if (speed > g[i - 1].v && speed <= g[i].v) travel = g[i - 1].travel + ((g[i].travel - g[i - 1].travel) * (speed - g[i - 1].v)) / (g[i].v - g[i - 1].v);
@@ -1175,6 +1247,73 @@ function fireRound(S, name, W, charged, w) {
   if (mode === 'core' || mode === 'assist') strike(S, { p: o, v: [0, 0, 0] }, D, 'hero', { ...hit, dv: S.body.dv[hit.take] }, d > 1e-6 ? [dx / d, dy / d] : [fx, fy]);
 }
 
+// ─── the heavy-robot rules: mobile-suit-arena's movement ──────────────
+/** DASH with a boost or a quick boost: a quick boost (cooling, short of the gauge, busy: refused), else the boost's hold */
+function thrustDashCan(S) {
+  const H = S.hero, C = S.card, Q = C.quickBoost, a = H.act;
+  if (C.boost && H.boostLock) return { reason: 'the thrusters are overheated', queue: false };
+  if (a && a.kind !== 'squat') return { reason: `in ${a.kind}`, queue: false };
+  if (Q && H.qbCd > 0) return { reason: `quick boost cooling (${H.qbCd} f)`, queue: false };
+  if (Q && C.boost && H.boostG < Q.cost * FPS) return { reason: 'too little boost for a quick boost', queue: false };
+  return true;
+}
+function thrustDashAct(S, H, stick) {
+  const C = S.card, Q = C.quickBoost; if (H.act?.kind === 'squat') H.act = null;
+  if (!Q) { S.events.push({ f: S.f, who: 'hero', type: 'boost' }); return; }   // the hold carries it (thrustDrive)
+  H.qb = Q.frames; H.qbDir = stick.m > 0 ? Math.atan2(stick.x, stick.y) : S.lock ? bearing(S) : H.yaw; H.qbCd = Q.cooldown;
+  if (C.boost) H.boostG = Math.max(0, H.boostG - Q.cost * FPS);
+  H.skid = null; S.events.push({ f: S.f, who: 'hero', type: 'quick-boost', dir: r4(H.qbDir) });
+}
+/** once a tick, the thrust rules (MSA's boost layer and its stop-and-charge jump): the squat coiling and its launch;
+ * a quick boost's burst; the held boost (instant thrust, the hover cushion, the gauge, the vectoring cost); released,
+ * the inertia skid; the gauge's regen and its overheat lock. True when it set the body's planar velocity */
+function thrustDrive(S, B, stick, buttons, free) {
+  const C = S.card, BO = C.boost, HV = C.hover, CJ = C.chargeJump, Q = C.quickBoost, a = B.act, max = BO ? BO.gauge * FPS : 0, pay = (c) => { B.boostG = Math.max(0, B.boostG - c); };
+  let drove = false, thrust = false;
+  B.hovering = false;
+  const cushion = () => {   // the hover: below its height and not rising, held (and lifted) to it, never landing; swept by the coming frame's fall
+    if (!HV) return;
+    const g = groundAt(S, B.p[0], B.p[1]);
+    if (B.grounded || (B.v[2] <= 0 && B.p[2] - g <= HV.height - B.v[2] * DT + 1e-9)) { B.p[2] = Math.min(g + HV.height, Math.max(B.p[2], g) + HV.rise * DT); B.v[2] = 0; B.grounded = false; B.hovering = true; B.jumped = false; }
+  };
+  if (a?.kind === 'squat' && CJ) {
+    B.v[0] = 0; B.v[1] = 0; drove = true;
+    const full = Math.round(CJ.max * FPS), frac = Math.min(1, a.f / full);
+    if (!(S.held & BTN.JUMP) || a.f >= full) {
+      const vmul = 0.6 + (CJ.mult - 0.6) * frac;
+      takeOff(S, B, 'hero', vmul * vmul);
+      if (a.f >= full && stick?.m > 0) { const d = Math.atan2(stick.x, stick.y); B.v[0] = Math.sin(d) * CJ.dash; B.v[1] = Math.cos(d) * CJ.dash; B.carry = CJ.dash; B.yaw = d; }
+      S.events.push({ f: S.f, who: 'hero', type: 'launch', frac: r4(frac), mult: r4(vmul) });
+    }
+  } else if (Q && B.qb > 0 && free) {
+    B.qb--; B.v[0] = Math.sin(B.qbDir) * Q.speed; B.v[1] = Math.cos(B.qbDir) * Q.speed; drove = true; thrust = true;
+    if (!B.grounded) { B.v[2] = 0; B.hovering = true; }   // a quick boost holds its height
+  } else if (BO) {
+    if (!free) B.qb = 0;
+    const held = !!(buttons & BTN.DASH), boosting = held && free && !a && B.boostG > 1e-6 && !B.boostLock;
+    if (boosting) {
+      const dir = stick?.m > 0 ? Math.atan2(stick.x, stick.y) : S.lock ? bearing(S) : B.yaw;
+      if (!B.boosting) { B.boostDir = dir; S.events.push({ f: S.f, who: 'hero', type: 'boost-on' }); }
+      else if (Math.abs(angDiff(dir, B.boostDir)) > Math.PI / 4) { pay(BO.turnCost * FPS); B.boostDir = dir; S.events.push({ f: S.f, who: 'hero', type: 'boost-turn', cost: BO.turnCost }); }   // MSA's vectoring cost
+      B.boosting = true; B.skid = null; pay(1);
+      B.v[0] = Math.sin(dir) * BO.speed; B.v[1] = Math.cos(dir) * BO.speed; if (!S.lock) B.yaw = dir;
+      cushion(); drove = true; thrust = true;
+    } else {
+      if (B.boosting) { B.boosting = false; S.events.push({ f: S.f, who: 'hero', type: 'boost-off' }); if (BO.inertia > 0 && free) { const n = Math.round(BO.inertia * FPS); B.skid = { t: n, n, v: [B.v[0], B.v[1]] }; } }
+      if (B.skid && free && !a && B.skid.t > 0) { B.skid.t--; const k = B.skid.t / B.skid.n; B.v[0] = B.skid.v[0] * k; B.v[1] = B.skid.v[1] * k; if (!B.skid.t) B.skid = null; drove = true; }   // MSA's inertia: the skid sheds the dash in a line
+      else B.skid = null;
+    }
+  }
+  if (BO) {
+    if (!thrust) B.boostG = Math.min(max, B.boostG + max / ((B.boostLock ? BO.overheatRegen : BO.regen) * FPS));   // the thrusters cold: the gauge refills
+    if (B.boostG <= 1e-6 && !B.boostLock) { B.boostLock = true; B.boosting = false; S.events.push({ f: S.f, who: 'hero', type: 'boost-overheat', by: 'boost' }); }
+    else if (B.boostLock && B.boostG >= max * BO.unlock - 1e-9) { B.boostLock = false; S.events.push({ f: S.f, who: 'hero', type: 'boost-unlock' }); }
+  }
+  return drove;
+}
+/** the heavy gait: the step's speed through a stride, dipping to (1 − lurch) at each footfall, its mean the walk's */
+function gaitStep(S, B) { const L = S.card.gait.lurch, c = Math.cos(2 * Math.PI * B.stride); return (1 - L * c * c) / (1 - L / 2); }
+
 // ─── the glider and the jetpack ─────────────────────────────────────────
 /** a jump pressed in the air (no coyote, wall, step or air jump to take it): what the gear does with it, true, a
  * reason it cannot, or null (the press is the air's as ever: buffered for the landing) */
@@ -1383,7 +1522,7 @@ function hurtHero(S, P, dir) {
 function maneuverOf(S, B) {
   const M = S.card.maneuver; if (!M) return null;
   const a = B.act, sp = len2(B.v[0], B.v[1]);
-  const on = (w) => (w === 'dash' ? a?.kind === 'dash' : w === 'roll' ? a?.kind === 'dodge' : w === 'sprint' ? B.grounded && !a && !!(S.held & BTN.SPRINT) && sp > S.card.ground.run : w === 'run' ? B.grounded && !a && sp >= (M.speed ?? S.card.ground.run * 0.9) : w === 'air' ? !B.grounded : false);
+  const on = (w) => (w === 'boost' ? !!(B.boosting || B.qb > 0) : w === 'dash' ? a?.kind === 'dash' : w === 'roll' ? a?.kind === 'dodge' : w === 'sprint' ? B.grounded && !a && !!(S.held & BTN.SPRINT) && sp > S.card.ground.run : w === 'run' ? B.grounded && !a && sp >= (M.speed ?? S.card.ground.run * 0.9) : w === 'air' ? !B.grounded : false);
   return M.on.some(on) ? M : null;
 }
 /** life taken: health down (any hit the end with `oneHit`); rings all scattered, or the end with none; the end is down
@@ -1556,7 +1695,8 @@ export function poseOf(S, who) {
   let scale = Math.abs(s) < 1e-3 ? null : [1 / Math.sqrt(1 + s), 1 / Math.sqrt(1 + s), 1 + s];
   // a short body is the figure drawn short and broad; a stomped one, flattened for its stun
   const kz = (B.h / HEIGHT) * (B.squash > 0 ? 0.35 : 1);
-  if (kz !== 1) { const kx = B.squash > 0 ? 1.5 : 1 / Math.sqrt(kz); scale = [(scale ? scale[0] : 1) * kx, (scale ? scale[1] : 1) * kx, (scale ? scale[2] : 1) * kz]; }
+  // a `size` is the figure grown; a critter drawn short and broad
+  if (kz !== 1) { const kx = B.squash > 0 ? 1.5 : who === 'hero' && C.size ? kz : 1 / Math.sqrt(kz); scale = [(scale ? scale[0] : 1) * kx, (scale ? scale[1] : 1) * kx, (scale ? scale[2] : 1) * kz]; }
   const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0, charge: B.charge && B.charge.held >= C.charge.show ? { held: B.charge.held, lv: B.charge.lv } : null, gear: B.glide ? C.glide.kind : B.jet ? 'jet' : B.flying ? 'flap' : null };
   if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f, ...(a.lv ? { lv: a.lv } : {}) };
   if (a?.kind === 'charge') return C.charge.kind === 'spin' ? { ...base, clip: 'spin', spin: B.spin, crouch: true } : { ...base, clip: 'charge', at: a.f };
@@ -1564,6 +1704,7 @@ export function poseOf(S, who) {
   if (a?.kind === 'spar') return { ...base, clip: 'spar', name: a.name, at: a.f };
   if (a?.kind === 'aim') return { ...base, clip: 'aim', name: a.name, at: a.f };
   if (a?.kind === 'gather') return { ...base, clip: 'gather', at: a.f, of: a.of };
+  if (a?.kind === 'squat') { const k = Math.min(1, a.f / (C.chargeJump.max * FPS)), sc = base.scale ?? [1, 1, 1]; return { ...base, clip: 'gather', at: 1, of: 1, charge: k, scale: [sc[0] * (1 + 0.08 * k), sc[1] * (1 + 0.08 * k), sc[2] * (1 - 0.22 * k)] }; }   // the squat deepens with the charge
   if (a?.kind === 'pound') return { ...base, clip: C.pound.kind === 'plunge' ? 'air' : 'spin', u: 1, spin: C.pound.kind === 'bounce' ? (S.f % 8) * (Math.PI / 4) : B.spin };
   if (a?.kind === 'poundLag') return { ...base, clip: 'land', at: Math.min(a.f, Math.max(0, (C.jump.land || 1) - 1)), of: a.of };
   if (a?.kind === 'dodge') return { ...base, clip: 'dodge', kind: C.dodge.kind, rel: a.rel, at: a.f, of: a.of, speed: v, iframes: iframed(S, B) };
@@ -1575,7 +1716,9 @@ export function poseOf(S, who) {
     return { ...base, clip: 'react', take: a?.kind === 'stagger' || a?.kind === 'bonk' || a?.kind === 'ko' ? 'cross' : B.lastHit?.take ?? 'jab', at, air: !B.grounded, ko: a?.kind === 'ko' };
   }
   if (B.cling) return { ...base, clip: 'air', u: 0.85, cling: true };
-  if (B.glide || B.jet || B.flying) return { ...base, clip: 'air', u: B.glide ? 0.5 : 0.4 };   // the glider and the jetpack fly the apex's pose
+  if (B.glide || B.jet || B.flying) return { ...base, clip: 'air', u: B.glide ? 0.5 : 0.4 };
+  if (B.boosting || B.qb > 0) { const d = B.qb > 0 ? B.qbDir : Math.atan2(B.v[0], B.v[1]), rel = angDiff(d, B.yaw), L = B.qb > 0 ? 0.45 : 0.3; return { ...base, clip: 'boost', air: !B.grounded, speed: v, lean: [r4(L * Math.cos(rel)), r4(L * Math.sin(rel))] }; }   // leaning into the thrust
+  if (C.landing && B.lag > 0 && B.grounded) { const k = B.lag / Math.max(1, B.lagOf ?? B.lag), sc = base.scale ?? [1, 1, 1]; return { ...base, clip: 'land', at: 0, of: 1, scale: [sc[0], sc[1], sc[2] * (1 - 0.2 * k)] }; }   // the landing crouch, by the fall   // the glider and the jetpack fly the apex's pose
   if (!B.grounded) {
     const v0 = Math.sqrt(2 * C.jump.gRise * C.jump.height);
     return { ...base, clip: C.jump.spin && B.jumped ? 'spin' : 'air', u: clamp((v0 - B.v[2]) / (2 * v0), 0, 1), spin: B.spin };
@@ -1616,7 +1759,7 @@ export function frameData(card, body) {
 /** an attack's armor in words: none, heavy (what breaks it), hyper; ×n its poise */
 function armorText(m) { const A = m.armor; if (!A) return 'none'; const by = A.by.length ? A.by.join(' / ') : 'hyper'; return A.hits ? `${by}, or hit ${A.hits}` : by; }
 /** helpers the page and the gate share */
-export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf, weaponOf };
+export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt, armorOf, maneuverOf, rangedOf, weaponOf, mechCard, mechKnobs };
 function moveTo(a, b, step) { return a < b ? Math.min(b, a + step) : Math.max(b, a - step); }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function turnToward(a, b, max) { const d = angDiff(b, a); return Math.abs(d) <= max ? b : a + Math.sign(d) * max; }

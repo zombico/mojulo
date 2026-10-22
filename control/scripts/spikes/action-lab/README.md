@@ -175,6 +175,30 @@ hyper armor), and the frame data has an armor column.
 Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
 stomper off without being squashed.
 
+## The heavy-robot rules, and the mech
+
+mobile-suit-arena's movement (mojulo's controllable `rules-platform.js` and `maneuvers.js`), split into rules that
+overlap: each is a card field any feel may carry alone or with the others, not one character's movement.
+
+| rule | what it does (MSA's) |
+|---|---|
+| `boost` | DASH held: an instant thrust at `speed`, draining a gauge (`gauge` s), refilled when the thrusters are cold (`regen` s to full, `overheatRegen` after running dry), overheat-locked when emptied until full again; a jump bites `jumpCost`, a turn of the thrust past 45° `turnCost`; released, an inertia skid; `dodgeOverheat`: the dodge dumps the gauge |
+| `hover` | the cushion under a boost: held `height` over the floor, lifted at `rise`; it skims and catches a fall, never landing |
+| `quickBoost` | Armored Core's: a press of DASH bursts `frames` at `speed` for `cost` s of gauge, then cools |
+| `chargeJump` | stop-and-charge: held, rooted in a squat; the release launches at 0.6 to `mult` of the jump's speed; a full charge leaps along the stick |
+| `gait` | the heavy gait: a step of `stride` m, the speed dipping by `lurch` at each footfall, a footfall event a step (the camera shakes) |
+| `landing` | lag by the fall, `per` frames a m/s up to `max`, with a crouch |
+| `size` | the body grown (a mech reads heavy: thick limbs, a boxed head) |
+
+Boost armor is the maneuver armor's `boost` way. **The mech** is one composition of them: `mechCard(card, weight)`, or
+newState's `mount`, laid over any feel's card. The card keeps its combat (moves, hits, guard, the loadout, what a hit
+does) and its movement becomes the mech's, so a mech is its own game or the thing a body rides in another. **M** rides
+one over the current feel; its one knob, **weight**, blends MSA's **heavy** suit (1: walk 3.36 m/s, boost 7.4 m/s on a
+9 s gauge, a 2 s charge jump to 2.2×, landings that lag, the dodge an overheat, stun halved boosting) into a **swift**
+Armored Core frame (0: walk 6, boost 15 on a 4 s quick gauge, a quick boost of 26 m/s, light landings). The glider and
+the jetpack ride along as gear. The animation is the lab's, past MSA's clips: the gait's dip and footfalls, the crouch
+by the fall, the squat deepening with the charge, the body leaning into the thrust and its flame.
+
 ## The loadout: mobile-suit-arena's weapons
 
 The card's `loadout`, lifted from mobile-suit-arena, whose weapons are mojulo's own controllable rules
@@ -324,7 +348,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 297 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 322 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -394,6 +418,16 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
   - A hit taken loses the charge; the platformer's card keeps it and the release still fires.
+- **The heavy-robot rules and the mech.**
+  - The weight knob blends the presets (halfway at 0.5). Ridden in another game the card keeps its combat and walks as
+    the mech. Each rule works alone on an ordinary card (the gait, the charge jump, the boost, the landing).
+  - For heavy and swift: the walk builds on its acceleration; the gait dips at each footfall to the frame's share, a
+    footfall every step; the boost is instant on its hover cushion, never landing, draining a frame a frame, skidding
+    out on release; run dry it overheat-locks, refuses, and unlocks when full; a turn of the thrust costs its share;
+    the gauge refills cold; a fall while boosting is caught on the cushion; a landing lags by the fall; boost armor
+    keeps its share of the stun; the dodge overheats the heavy gauge and leaves the swift's alone.
+  - The heavy charge jump: rooted in its squat, a tap at 0.36 of the height, the full charge at 4.84 and a leap. The
+    swift quick boost: a burst at its speed for its cost, refused while cooling. The jetpack and the glider ride along.
 - **The loadout.**
   - Ready time: a switch arms the next weapon's frames; a pull a frame sooner is dropped, on the frame it acts; a second
     switch re-arms it; a slot's own value wins (the grenade's).
@@ -472,7 +506,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (hold to charge, release to
-  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, F shoot, Z switch weapon, E the gear, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
+  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, F shoot, Z switch weapon, E the gear, M ride a mech, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
   RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
