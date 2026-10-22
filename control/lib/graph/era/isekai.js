@@ -20,7 +20,8 @@
  * THE POLYGON LAND (a stage's `shading`, opt-in: the same object the local meru reads, local-meru/plan.js
  * `readShading`; a geocube's town and trail carry its land's): the land drawn as the island's is, by its functions. No
  * tiles on the land: cliff and boulders baked flat per facet, the ground, the scree and the trail smooth at each corner,
- * then the land's rules (local-meru/shading.js: crevice, ridge, blend, mix); no grass on it (no tufts, no field, no
+ * then the land's rules (local-meru/shading.js: crevice, ridge, blend, mix, valley), the rock drawn toward planes with
+ * `facet` (local-meru/land-form.js, on the faces' own heights); no grass on it (no tufts, no field, no
  * fringe, no hat, no trail blend). A gritty land (`grit` from GRIT_PIXELS) breaks its boulders, its cliffs' rims and
  * strews stones (local-meru/broken-land.js), and the page draws its rock's fabric near the eye (matte-paint/fabric.js:
  * the site's own strata and joints, the land's `skin` and `rocks`). Absent, every face is as it was.
@@ -51,6 +52,7 @@ import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones } from '../local-meru/broken-land.js';
+import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
 
 export { ISEKAI_STYLES };
@@ -75,10 +77,17 @@ const stopFill = (st, tile, lit) => { const T = st.tiles[tile], ramp = st.palett
  * The GROUND as the landform grid's facets. Steep facets are cliff (pixel-locked, `cel: 'cliff'`, uv up the face along
  * its own horizontal); the talus apron is scree; the rest is grass. The trail's corridor is left to its ribbon. Each
  * cliff LIP — the edge a grass cell shares with a cliff cell that falls away below it — is returned with the way down.
+ * `z` (optional): the grid's heights to draw instead of its own (a polygon land's rock drawn toward planes).
  */
-export function isekaiGround(st, site) {
+// the grid's heights with its rock (steeper than the card's `slope.rock`) drawn toward planes `span` metres across
+function facetedZ(st, g, span) {
+  const z = Float64Array.from(g.z), at = (i, j) => [gridX(g, i), gridY(g, j), z[j * g.nx + i]], isCliff = (_cs, n) => n[2] < st.slope.rock;
+  for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, span);
+  return z;
+}
+export function isekaiGround(st, site, z = site.grid.z) {
   const out = [], lips = [], { grid: g, trailDist, halfWAt, W } = site, sc = st.tiles.cliff.scale;
-  const at = (i, j) => [gridX(g, i), gridY(g, j), g.z[j * g.nx + i]];
+  const at = (i, j) => [gridX(g, i), gridY(g, j), z[j * g.nx + i]];
   const cls = new Map(), nrm = new Map(), cell = (i, j) => [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
   for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) {
     const cs = cell(i, j);
@@ -341,7 +350,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const keep = manifest._keepOut ?? null;
   const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
-  const ground = isekaiGround(st, site);
+  // (a polygon land's rock drawn toward planes, `shading.facet`: on the faces' own heights, as the island's; the land the
+  // rest is placed on keeps its own)
+  const zG = SH && SH.facet > 0 ? facetedZ(st, site.grid, SH.facet) : site.grid.z;
+  const ground = isekaiGround(st, site, zG);
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // a named stone (the trail's landmark) carries its node on every face
@@ -498,7 +510,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the trees on the material pole: their faces light only (white), then the bark's grain and the leaf's tile on
   const woodM = MAT ? wood.map((f) => ({ ...f, tint: [1, 1, 1], mat: f.group === 'isekai:wood' ? 'grain' : 'leaf' })) : wood;
   // (the polygon land: the land baked and ruled as the island's, the rest as before)
-  const land = SH ? ruleLand(bakeLand([...[...bare, ...ribbon].map(({ cls: _c, ...f }) => ({ ...f, tint: landTint[f.group] ?? f.tint })), ...rockFaces], ambient, sun, SH), SH, landTint, { cell: site.grid.dx, seed: seed + 517 }) : [];
+  const land = SH ? ruleLand(bakeLand([...[...bare, ...ribbon].map(({ cls: _c, ...f }) => ({ ...f, tint: landTint[f.group] ?? f.tint })), ...rockFaces], ambient, sun, SH), SH, landTint, { cell: site.grid.dx, seed: seed + 517, ...(SH.valley > 0 ? { valley: valleyOf({ ...site.grid, z: zG }) } : {}) }) : [];
   const plain = SH ? woodM : [...(st.ground ? [] : bare), ...ribbon, ...woodM];
   const baked = bakeStageLight(plain, glowLights, ambient, SH ? undefined : isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
   // (the crowns on the material pole with a canopy: each face its skin's BAND by the light it was baked with)

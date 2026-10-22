@@ -1076,8 +1076,14 @@ function withTownCameras(payload, site) {
   // the house: from the road a few steps along, at a person's eye; the street: from the house's own walk, down it
   const from = [c[0] - t[0] * way * 6, c[1] - t[1] * way * 6], side = [h.at[0] + h.N[0] * 1.2, h.at[1] + h.N[1] * 1.2];
   const ahead = [side[0] + t[0] * way * 30, side[1] + t[1] * way * 30];
+  // the trail: on its open stretch short of the street (the longer of the two ends: era/stage-buildings.js streetRange),
+  // at a person's eye, looking along it toward the town, so its edges into the land and the rocks beside it are seen
+  const ys = H.map((q) => q.at[1]), s0 = Math.max(0, Math.min(...ys) - 6), s1 = Math.min(site.D, Math.max(...ys) + 6), back = s0 >= site.D - s1 ? -1 : 1;
+  const ty = back < 0 ? Math.max(2, s0 - 18) : Math.min(site.D - 2, s1 + 18), ly = ty - back * 12, on = (yy) => [site.trailX(yy), yy];
+  const te = on(ty), tk = on(ly);
   payload.cameras = [cam('house', [from[0], from[1], gz(from) + 1.7], [mid[0], mid[1], h.floor + 0.4 * tall], 70),
-    cam('street', [side[0], side[1], h.floor + 1.7], [ahead[0], ahead[1], gz(ahead) + 1.4], 75), ...payload.cameras];
+    cam('street', [side[0], side[1], h.floor + 1.7], [ahead[0], ahead[1], gz(ahead) + 1.4], 75),
+    cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
   for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style); build a level on a cube with a stage recipe's geocube`);

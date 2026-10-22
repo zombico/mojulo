@@ -145,8 +145,12 @@ cards. It is now drawn the island's way, by the island's own functions.
   gone with it, to come back with the flora. The trees and the clouds are the kit's, as before.
 - **Parked for the flora:** the matte painter's natural cuts, `turf`, `leaves` and `bark` (`matte-paint/dressed.js`,
   on the dressed tile's rails), grey relief tiles to lay over the ground, a crown and a trunk. Nothing lays them yet.
-- Not yet on the stage: the land rules' `valley` and the rock's `facet` planes (the island's `valleyOf` and its
-  planarised rock); a cube that names them draws its street's land without them.
+- **Valley and facet on the stage.** The land's `valley` (a corner darkened by the sky the land round it takes) and
+  `facet` (the rock drawn toward planes, on the faces' own heights, the ground round it and the land the rest is placed
+  on unmoved) now reach a stage's polygon land too: the island's `valleyOf` and `planarise`, moved unchanged into
+  `local-meru/land-form.js` (the island imports them from there, byte for byte as before).
+- **The micro-town's `trail` camera** (`show: 'town'`): on the trail's open stretch short of the street, at a person's
+  eye, looking along it toward the town, so the trail's edges into the land and the rocks beside it are seen.
 
 ### Geotown structures: doors and windows, the street, the square, the gates
 

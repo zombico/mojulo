@@ -42,9 +42,19 @@ describe('the polygon land', () => {
     expect(JSON.stringify(assembleStageScene({ ...M, shading: { grit: 0.7, skin: 'limestone' } }))).toBe(JSON.stringify(G));
   });
 
+  it('`facet` draws the rock toward planes on its own faces, what stands on the land unmoved; `valley` darkens the land', () => {
+    const F = assembleStageScene({ ...M, shading: { facet: 4 } }), key = (P, g) => P.faces.filter((f) => f.group === g).map((f) => JSON.stringify(f.corners)).sort().join('|');
+    expect(key(F, 'isekai:cliff')).not.toBe(key(shaded, 'isekai:cliff'));
+    // (on the faces' own heights: what is placed on the land, the trees, stands where it stood)
+    expect(key(F, 'isekai:crown')).toBe(key(shaded, 'isekai:crown'));
+    const V = assembleStageScene({ ...M, shading: { valley: 0.7 } }), sum = (P) => P.faces.filter((f) => f.group === 'isekai:ground').reduce((a, f) => a + parseInt(f.fill.slice(1, 3), 16), 0);
+    expect(sum(V)).toBeLessThan(sum(shaded));
+  });
+
   it('a geocube\'s town stands on its land drawn as its island\'s', () => {
     const T = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
     expect(T.faces.some((f) => GRASS.has(f.group))).toBe(false);
     expect(T.faces.filter((f) => f.group === 'isekai:cliff').every((f) => f.texture === undefined)).toBe(true);
+    expect(T.cameras.map((c) => c.name).slice(0, 3)).toEqual(['house', 'street', 'trail']);
   });
 });
