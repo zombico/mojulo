@@ -193,12 +193,12 @@ export const STYLE_STARTERS = Object.freeze({
     city: { grain: 'london' },
   },
   'moorish-medina': {
-    read: 'a Moorish medina: lime-plastered walls under flat roofs, round-headed lights and doors with keystones, a tiled dado and a band at each storey',
+    read: 'a Moorish medina: lime-plastered walls under flat roofs, round-headed lights screened in star-pattern lattice and doors with keystones, a tiled dado and a band at each storey',
     class: 'ancient',
     language: { from: 'timber-hall', read: 'plastered courtyard houses under flat roofs, round-headed lights, a tiled dado', elements: {
       wall: { storeys: [st('str:plaster', 0.84), st('str:plaster', 0.86)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.25, group: 'str:plaster', value: 0.82 },
-      lights: { form: 'arch', w: 0.8, h: 1.5, bay: 3.2, frame: 0.14, glazing: 'lattice', trim: 'str:timber', trimValue: 0.35 },
+      lights: { form: 'arch', w: 0.8, h: 1.5, bay: 3.2, frame: 0.14, glazing: 'arabesque', trim: 'str:timber', trimValue: 0.35 },
       door: { form: 'arch', w: 1.2, h: 2.5, leaf: 'boards', surround: 'frame' },
       lintels: { form: 'key', group: 'str:stone', value: 0.75 }, bands: { kind: 'band', w: 0.22, group: 'str:paint', value: 0.5 },
       socle: { h: 0.7, group: 'str:paint', value: 0.45 },
@@ -208,6 +208,22 @@ export const STYLE_STARTERS = Object.freeze({
     materials: { plaster: 'limewash', stone: 'ashlar', road: 'flags', walk: 'flags', punched: 'limewash', pier: 'ashlar', banded: 'limewash' },
     palette: { plaster: '#e2cfae', paint: '#2d6e70' },
     city: { grain: 'mediterranean' },
+  },
+  'gothic-parish': {
+    read: 'a Gothic parish: coursed stone under steep slate, tall round-headed lights of stained glass in stone surrounds, keystones, a deep socle',
+    class: 'ancient',
+    language: { from: 'timber-hall', read: 'coursed stone under steep slate, tall stained-glass lights', elements: {
+      wall: { storeys: [st('str:stone', 0.6, 'coursed'), st('str:stone', 0.62, 'coursed')] },
+      roof: { pitch: 58, eave: 0.35, group: 'str:slate', value: 0.3 },
+      lights: { form: 'arch', w: 0.9, h: 2, bay: 3.2, sill: 0.9, frame: 0.12, glazing: 'stained', trim: 'str:stone', trimValue: 0.7 },
+      door: { form: 'arch', w: 1.3, h: 2.5, leaf: 'boards', surround: 'frame', steps: 2 },
+      lintels: { form: 'key', group: 'str:stone', value: 0.7 }, socle: { h: 0.9, value: 0.5 },
+      sills: null, quoins: null, stack: null, frame: null, shutters: null, pickets: null,
+      road: { paving: 'setts' },
+    } },
+    materials: { stone: 'rubble', plinth: 'ashlar', roof: 'slate', road: 'setts', walk: 'flags', punched: 'ashlar', pier: 'ashlar', banded: 'ashlar' },
+    palette: { stone: '#b9b2a4', paint: '#7a2f3a' },
+    city: { grain: 'london' },
   },
   'beaux-arts': {
     read: 'Beaux-Arts boulevards: sawn stone in courses, tall round-headed lights with keystones, a band at each storey, a deep cornice, steep slate roofs',
@@ -226,12 +242,12 @@ export const STYLE_STARTERS = Object.freeze({
     city: { grain: 'paris', facade: { roof: { form: 'mansard' } } },
   },
   'art-deco': {
-    read: 'Art Deco: smooth pale masses stepping back under flat roofs, piers running up between the lights, a crowning finial, dark bands',
+    read: 'Art Deco: smooth pale masses stepping back under flat roofs, piers running up between leaded sunburst lights, a crowning finial, dark bands',
     class: 'modern',
     language: { from: 'timber-hall', read: 'a stepped pale mass, piers between the lights, a finial', elements: {
       wall: { storeys: [st('str:stone', 0.74), st('str:stone', 0.78)] },
       roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.7 },
-      lights: { w: 1, h: 1.8, bay: 2.8, frame: 0.05, glazing: 'casement', trim: 'str:paint', trimValue: 0.25 },
+      lights: { w: 1, h: 1.8, bay: 2.8, frame: 0.05, glazing: 'ornamental', trim: 'str:paint', trimValue: 0.25 },
       door: { w: 1.4, h: 2.4, leaf: 'glazed', surround: 'frame', steps: 1 },
       ribs: { kind: 'rib', count: 4, w: 0.22, share: 1, group: 'str:stone', value: 0.86 },
       finial: { kind: 'point', count: 1, len: 0.25, base: 0.3, group: 'str:stone', value: 0.86 },
@@ -383,6 +399,8 @@ function surfacesBuilt(doc) {
   // (a built light's frame and bars, and a built door's surround, are painted in the light's trim: era/out-openings.js)
   const light = Object.values(E).find((e) => e.kind === 'light'), door = Object.values(E).find((e) => e.kind === 'door');
   if (light && (light.frame !== undefined || light.glazing !== undefined || (door && (door.surround || door.fanlight)))) add(light.trim ?? 'str:paint');
+  // (a stained light's panes are the paint's and the lens's: era/out-openings.js)
+  if (light?.glazing === 'stained') add('str:paint');
   return out;
 }
 /** What advises on a style, never refusing: each { law, ok, value }. */

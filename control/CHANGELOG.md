@@ -125,6 +125,29 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Window glazing: stained glass, ornament and arabesque, by the style
+
+A style's lights took one of five glazings (diamond lattice, sash, casement, plate, none). Three more now, each tied to
+the style that speaks it: an arabesque star screen from the in-house pattern library, leaded ornament, and stained
+glass in the style's own colours.
+
+- **Arabesque** (`moorish-medina`). A screen of the khatam star field (octagons and their gap squares,
+  `polygonizer/arabesque.js` at its own contact angles) over the glass. Drawn as bars, a screen is hundreds a light, past
+  a house's whole triangle budget, so the budget sent it into the tile, which the town stage never draws. It is one
+  cutout card a light instead (`era/screen-tiles.js`: the field painted white on clear, one cell a tile, the card's own
+  trim colour multiplying it), carried beside the house's faces (`speak`'s `screens`) and stood by the town stage as
+  `town:screen`. A screen whose light went into the tile goes with it. Renderers that draw no textures leave the glass
+  clear.
+- **Ornamental** (`art-deco`). Leading: a border a hand in, a roundel at the head (an arch's spring, three quarters up a
+  square light), a sunburst of rays from it to the border, and two uprights under it, darker than the frame.
+- **Stained** (the new `gothic-parish` starter: coursed stone, a steep slate roof, tall arched lights). Panes behind
+  the lattice's cames, cut to the light's clear, each on the paint's ramp or the lens's by its ring out from the light's
+  heart, its value its own. A tall light's diamonds are sized up to it (some three dozen panes a light, a hand at
+  least). The style's surfaces take the paint the panes use. The house budget sheds panes after cames, so a light keeps
+  its colour longest.
+- The glazing rail names all eight; the existing five glazings are unchanged. Tests: `out-openings.test.js`. The close
+  spike (`scripts/spikes/geotown/close.mjs`) frames the front light square on.
+
 ### Gritty flora: the cube's grit draws what grows in detail
 
 A geocube's grit already says how finely its rooms, streets and rock are drawn; the biocube says what grows. Grit now

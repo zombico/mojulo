@@ -35,7 +35,7 @@ const WORDS = {
   boundForm: ['rail', 'paling', 'picket', 'hedge', 'drystone', 'coursed', 'rendered'], footPaving: ['flags', 'setts', 'slabs'], roadPaving: ['setts', 'flags', 'earth'],
   walkForm: ['kerbed', 'flush', 'boards', 'verge'],
   // the openings as architecture (era/out-openings.js)
-  glazing: ['none', 'lattice', 'sash', 'casement', 'plate'], trim: ['str:paint', 'str:timber', 'str:stone', 'str:plaster', 'str:accent'],
+  glazing: ['none', 'lattice', 'sash', 'casement', 'plate', 'arabesque', 'ornamental', 'stained'], trim: ['str:paint', 'str:timber', 'str:stone', 'str:plaster', 'str:accent'],
   leaf: ['boards', 'panels', 'glazed'], surround: ['none', 'frame', 'pilasters', 'hood'], fanlight: ['none', 'rect', 'arch'], shutterForm: ['flat', 'boards', 'louvred'],
 };
 export const ELEMENT_KINDS = Object.freeze({

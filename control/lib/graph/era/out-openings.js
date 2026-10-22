@@ -6,7 +6,12 @@
  *   a light's   frame      a surround standing `frame` proud of the wall round the light's shape (open at its foot
  *                          when a sill takes it), its returns the reveal, so the glass reads as set back in a depth
  *               glazing    bars over the glass: 'lattice' (leaded diamonds), 'sash' (two sashes of small panes and a
- *                          meeting rail), 'casement' (a mullion and a transom), 'plate' (one pane), 'none'
+ *                          meeting rail), 'casement' (a mullion and a transom), 'plate' (one pane), 'none';
+ *                          'arabesque' (a screen of the khatam star field over the clear: one cutout card, the
+ *                          field painted in it, era/screen-tiles.js; laid into `ctx.screens`, else clear glass),
+ *                          'ornamental' (leading: a border, a roundel at the head, a sunburst from it, uprights
+ *                          under it), 'stained' (coloured panes behind leaded diamonds: each pane the paint's or the
+ *                          lens's ramp by its ring out from the light's heart, its value its own)
  *               trim       the surface group the frame and bars are painted in, at `trimValue`
  *   a door's    leaf       'boards' (upright, their joints), 'panels' (raised, two columns), 'glazed' (its upper half
  *                          glass in small panes)
@@ -25,12 +30,17 @@
  * Pure: no dice (a household's draws are the language's; these follow from what the language says).
  */
 import { geometry as G } from './out-structures.js';
+import { screenKey, screenUv } from './screen-tiles.js';
 
 const { face, r3 } = G;
 const tangentOf = (W) => { const a = W.at(0, 0, 0), b = W.at(1, 0, 0); return [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; };
 // a direction in the wall's (u, z) plane, in the world
 const dir3 = (W, du, dz) => { const t = tangentOf(W); return [t[0] * du, t[1] * du, dz]; };
 const RISE = 0.16, TREAD = 0.32;
+// a screen's star field: a cell a quarter-metre, its bars two centimetres
+const SCREEN = Object.freeze({ pitch: 0.24, bar: 0.02 });
+// a stained light's panes, about: its diamonds sized to it (a hand at least, the lattice's)
+const STAINED_PANES = 36;
 
 /**
  * A band round a polygon's edges ([u, z] counter-clockwise, its first edge its foot), `w` wide, its face `d` proud of
@@ -86,6 +96,36 @@ const spanAt = (L, z) => {
   return [L.uc - h, L.uc + h];
 };
 
+// inside a light's clear, `e` in from its edge
+const inLight = (L, u, z, e) => u > L.uc - L.w / 2 + e && u < L.uc + L.w / 2 - e && z > L.z0 + e && z < topAt(L, u) - e;
+// a segment's runs inside a region, walked a couple of centimetres at a time: [[a, b], …]
+function runsIn(a, b, inside, step = 0.02) {
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / step)), at = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], runs = [];
+  let start = null;
+  for (let i = 0; i <= n; i++) {
+    const p = at(i / n), ok = inside(p[0], p[1]);
+    if (ok && !start) start = p;
+    if ((!ok || i === n) && start) { const end = ok ? p : at((i - 1) / n); if (Math.hypot(end[0] - start[0], end[1] - start[1]) > 0.015) runs.push([start, end]); start = null; }
+  }
+  return runs;
+}
+// a pane's polygon clipped to a convex clear ([u, z] counter-clockwise): Sutherland–Hodgman
+function clipConvex(poly, clip) {
+  let out = poly;
+  for (let i = 0; i < clip.length && out.length; i++) {
+    const a = clip[i], b = clip[(i + 1) % clip.length], side = (p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]), next = [];
+    for (let j = 0; j < out.length; j++) {
+      const p = out[j], q = out[(j + 1) % out.length], sp = side(p), sq = side(q);
+      if (sp >= 0) next.push(p);
+      if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); next.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
+    }
+    out = next;
+  }
+  return out;
+}
+const area = (P) => Math.abs(P.reduce((s, p, i) => { const q = P[(i + 1) % P.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+const hash2 = (i, j) => { let h = (Math.imul(i, 73856093) ^ Math.imul(j, 19349663)) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return (h % 1000) / 1000; };
+
 /** Bars over a light's glass, by its glazing: { kind: 'rect' | 'arch', uc, z0, w, hh } in the wall's (u, z). */
 function glaze(out, W, L, glazing, d, value, extra, part = 'glazing') {
   const u0 = L.uc - L.w / 2, u1 = L.uc + L.w / 2, spring = L.kind === 'arch' ? L.z0 + L.hh - L.w / 2 : L.z0 + L.hh;
@@ -105,7 +145,7 @@ function glaze(out, W, L, glazing, d, value, extra, part = 'glazing') {
     if (L.kind === 'arch') for (let k = 1; k < 4; k++) { const a = (Math.PI * k) / 4; bar(out, W, [L.uc, spring], [L.uc + (L.w / 2 - 0.01) * Math.cos(a), spring + (L.w / 2 - 0.01) * Math.sin(a)], 0.03, d, part, value, extra); }
   } else if (glazing === 'lattice') {
     // leaded diamonds: cames at ±60° from the level, a hand apart, clipped to the light (an arch's head left plain)
-    const s = 0.2, top = spring, k = Math.tan((Math.PI * 60) / 180);
+    const s = L.cell ?? 0.2, top = spring, k = Math.tan((Math.PI * 60) / 180);
     for (const sg of [1, -1]) {
       for (let c = -(top - L.z0) * 1.2; c < L.w + (top - L.z0) * 1.2; c += s) {
         // the line u = u0 + c + sg (z - z0) / k, clipped to u0–u1 (where it crosses each) and z0–top
@@ -114,17 +154,68 @@ function glaze(out, W, L, glazing, d, value, extra, part = 'glazing') {
         if (zb - za > 0.03) bar(out, W, [uz(za), za], [uz(zb), zb], 0.014, d, part, value, extra);
       }
     }
+  } else if (glazing === 'ornamental') {
+    // the border a hand in; a roundel at the head (an arch's spring, three quarters up a rect); a sunburst of rays from
+    // it out to the border; two uprights under it
+    const m = 0.08, inB = (u, z) => inLight(L, u, z, m + 0.005), cz = L.kind === 'arch' ? spring : r3(L.z0 + L.hh * 0.72), rr = r3(Math.min(L.w * 0.2, (L.hh - (cz - L.z0)) * 0.6, 0.22));
+    const lines = [];
+    lines.push([[u0 + m, L.z0 + m], [u1 - m, L.z0 + m]], [[u0 + m, L.z0 + m], [u0 + m, topAt(L, u0 + m) - m]], [[u1 - m, L.z0 + m], [u1 - m, topAt(L, u1 - m) - m]]);
+    if (L.kind === 'arch') { const r = L.w / 2 - m; for (let k = 0; k < 12; k++) { const a0 = (Math.PI * k) / 12, a1 = (Math.PI * (k + 1)) / 12; lines.push([[L.uc + r * Math.cos(a0), spring + r * Math.sin(a0)], [L.uc + r * Math.cos(a1), spring + r * Math.sin(a1)]]); } }
+    else lines.push([[u0 + m, L.z0 + L.hh - m], [u1 - m, L.z0 + L.hh - m]]);
+    for (const [a, b] of lines) bar(out, W, a, b, 0.018, d, part, value, extra);
+    for (let k = 0; k < 16; k++) { const a0 = (2 * Math.PI * k) / 16, a1 = (2 * Math.PI * (k + 1)) / 16; bar(out, W, [L.uc + rr * Math.cos(a0), cz + rr * Math.sin(a0)], [L.uc + rr * Math.cos(a1), cz + rr * Math.sin(a1)], 0.016, d, part, value, extra); }
+    for (let k = 0; k < 7; k++) { const a = (Math.PI * (k + 0.5)) / 7, far = [L.uc + 3 * Math.cos(a), cz + 3 * Math.sin(a)]; for (const [p, q] of runsIn([L.uc + rr * Math.cos(a), cz + rr * Math.sin(a)], far, inB)) bar(out, W, p, q, 0.014, d, part, value, extra); }
+    for (const sg of [-1, 1]) { const u = r3(L.uc + sg * Math.min(L.w * 0.18, rr * 0.7)); for (const [p, q] of runsIn([u, L.z0 + m], [u, cz - rr], inB)) bar(out, W, p, q, 0.014, d, part, value, extra); }
+  }
+}
+
+/**
+ * A stained light's panes, behind its cames: the leaded diamonds' cells (the lattice's: ±60°, `L.cell` apart) clipped to
+ * its clear, each a pane on the paint's ramp or the lens's by its ring out from the light's heart, its value its own.
+ */
+function stainedPanes(out, W, L, d, extra) {
+  const s = L.cell ?? 0.2, k = Math.tan((Math.PI * 60) / 180), u0 = L.uc - L.w / 2, spring = L.kind === 'arch' ? L.z0 + L.hh - L.w / 2 : L.z0 + L.hh, c0 = -(spring - L.z0) * 1.2;
+  // the clear as a convex polygon: its foot, its jambs, its head (an arch's in twelve chords)
+  const clear = L.kind === 'arch' ? [[u0, L.z0], [u0 + L.w, L.z0], ...Array.from({ length: 13 }, (_, i) => { const a = (Math.PI * i) / 12; return [L.uc + (L.w / 2) * Math.cos(a), spring + (L.w / 2) * Math.sin(a)]; })] : [[u0, L.z0], [u0 + L.w, L.z0], [u0 + L.w, L.z0 + L.hh], [u0, L.z0 + L.hh]];
+  const heart = [L.uc, L.z0 + L.hh * 0.62], n = Math.ceil((L.w + 2 * (spring - L.z0) * 1.2 + L.hh) / s) + 2;
+  // (a cell between the lattice's lines p = c and q = c: u − u0 = (p + q) / 2, z − z0 = (q − p) k / 2)
+  const at = (p, q) => [u0 + (p + q) / 2, L.z0 + ((q - p) * k) / 2];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const p = c0 + i * s, q = c0 + j * s, P = clipConvex([at(p, q), at(p, q + s), at(p + s, q + s), at(p + s, q)].reverse(), clear);
+    if (P.length < 3 || area(P) < 0.0015) continue;
+    const c = P.reduce((a, v) => [a[0] + v[0] / P.length, a[1] + v[1] / P.length], [0, 0]), ring = Math.floor(Math.hypot(c[0] - heart[0], (c[1] - heart[1]) * 0.8) / 0.22);
+    face(out, P.map(([u, z]) => W.at(u, z, d)), W.n, 'pane', r3(0.35 + 0.4 * hash2(i, j)), { ...extra, group: ring % 3 === 1 ? 'str:lens' : 'str:paint' });
   }
 }
 
 /**
  * A light's frame and glazing: `light` { kind: 'rect' | 'arch', uc, z0, w, hh, pts } (its shape's points), `spec` the
- * language's opening ({ frame, glazing, trim, trimValue }), `ctx` { sill: a sill takes the foot, extra }.
+ * language's opening ({ frame, glazing, trim, trimValue }), `ctx` { sill: a sill takes the foot, extra, screens: where
+ * a screen's card goes (a textured face, its uv one cell a unit), apart from the bars, so it costs no budget }.
  */
-export function lightDress(out, W, light, spec, { sill = false, extra = {} } = {}) {
+export function lightDress(out, W, light, spec, { sill = false, extra = {}, screens = null } = {}) {
   const group = spec.trim ?? 'str:paint', value = spec.trimValue ?? 0.85, ex = { ...extra, group };
   if (spec.frame) surround(out, W, light.pts, r3(Math.max(0.06, spec.frame * 0.9)), spec.frame, 'surround', value, ex, { open: sill });
-  if (spec.glazing && spec.glazing !== 'none' && spec.glazing !== 'plate') glaze(out, W, light, spec.glazing, 0.045, spec.glazing === 'lattice' ? r3(value * 0.45) : value, ex);
+  // (a screen: one card over the clear, the star field painted in it, era/screen-tiles.js; where no one takes it, the
+  // glass stays clear)
+  if (spec.glazing === 'arabesque') {
+    if (screens) {
+      // (wound as face() winds it, its uv with it)
+      const zc = r3(light.z0 + light.hh / 2), c = [];
+      face(c, light.pts.map(([u, z]) => W.at(u, z, 0.045)), W.n, 'screen', value, { ...ex, texture: screenKey(SCREEN), textureLit: true });
+      const uv = light.pts.map(([u, z]) => screenUv(u, z, light.uc, zc, SCREEN.pitch)), same = c[0].corners[0].every((v, k) => v === r3(W.at(light.pts[0][0], light.pts[0][1], 0.045)[k]));
+      screens.push({ ...c[0], uv: same ? uv : uv.slice().reverse() });
+    }
+    return;
+  }
+  // (stained glass: its panes, then its cames over them as the lattice's; a tall light's diamonds larger, so it keeps
+  // its colour inside a house's budget: some three dozen panes a light)
+  if (spec.glazing === 'stained') {
+    const L = { ...light, cell: r3(Math.max(0.2, Math.sqrt((light.w * light.hh) / (0.866 * STAINED_PANES)))) };
+    stainedPanes(out, W, L, 0.035, extra); glaze(out, W, L, 'lattice', 0.045, r3(value * 0.45), ex);
+    return;
+  }
+  if (spec.glazing && spec.glazing !== 'none' && spec.glazing !== 'plate') glaze(out, W, light, spec.glazing, 0.045, spec.glazing === 'lattice' || spec.glazing === 'ornamental' ? r3(value * 0.45) : value, ex);
 }
 
 /**

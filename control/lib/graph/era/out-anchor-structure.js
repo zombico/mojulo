@@ -148,7 +148,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (row) { row.span = r3(Math.min(row.span, span)); row.n++; } else parts.push({ part: name, span: r3(span), built, n: 1 });
     return built === 'geometry';
   };
-  const Lv = LEVEL[ring], faces = [], tile = [];
+  const Lv = LEVEL[ring], faces = [], tile = [], screens = [], glassOf = new Map();
   // a household may mirror its plan: door bay, lights and annex to the other hand
   const mirror = D.R() < 0.5 ? -1 : 1;
   let dared = false;
@@ -336,7 +336,9 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
         // the light built (era/out-openings.js): its frame standing out round it, its glazing, where the language says
         if (ok && flatLight && dressedLight && at('sill')) {
           const f0 = out.length;
-          lightDress(out, W, { kind: V.opening, uc, z0, w, hh, pts: shape(V.opening, uc, z0, w, hh) }, OP, { sill: !!(P.sill && at('sill')) });
+          const s0 = screens.length;
+          lightDress(out, W, { kind: V.opening, uc, z0, w, hh, pts: shape(V.opening, uc, z0, w, hh) }, OP, { sill: !!(P.sill && at('sill')), screens });
+          for (let k = s0; k < screens.length; k++) glassOf.set(screens[k], out[f0 - 1]);
           if (W.n[1] !== -1) for (let k = f0; k < out.length; k++) offLane.add(out[k]);
         }
         // the light's sill and lintel: the anchor's, at depth 3
@@ -513,7 +515,8 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   const budget = STRUCTURE_RINGS[U.focus || U.dare || accent ? STRUCTURE_RING_IDS[Math.max(0, STRUCTURE_RING_IDS.indexOf(ring) - 1)] : ring].budget;
   const count = () => faces.reduce((a, f) => a + f.corners.length - 2, 0);
   // (the openings' dressing, era/out-openings.js, goes before the language's own ornaments: off the lane face first)
-  const ORDER = dressedLight || dressedDoor ? ['quoin', 'lintel', 'sill', 'shutter', 'glazing:off', 'surround:off', 'frame', 'cornice', 'socle', 'glazing', 'surround', 'joint', 'panel'] : ['quoin', 'lintel', 'sill', 'shutter', 'frame', 'cornice', 'socle'];
+  // (a stained light's panes go after its cames, so a light keeps its colour longest)
+  const ORDER = dressedLight || dressedDoor ? ['quoin', 'lintel', 'sill', 'shutter', 'glazing:off', 'pane:off', 'surround:off', 'frame', 'cornice', 'socle', 'glazing', 'pane', 'surround', 'joint', 'panel'] : ['quoin', 'lintel', 'sill', 'shutter', 'frame', 'cornice', 'socle'];
   for (const p0 of ORDER) {
     if (count() <= budget) break;
     const [p, off] = p0.split(':'), moved = faces.filter((f) => f.part === p && (!off || offLane.has(f)));
@@ -531,6 +534,8 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
     if (off.length) why.push(`over the ${ring} budget: the lights off the lane face into the tile`);
   }
 
+  // (a screen stands only over glass still built: one whose light went into the tile goes with it)
+  const screened = screens.filter((sc) => !glassOf.get(sc)?.tile);
   // ── measures and laws ──
   for (const f of [...faces, ...tile]) f.group ??= stGroup(0).group;
   const tris = count(), geomParts = parts.filter((p) => p.built === 'geometry');
@@ -552,7 +557,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   const sig = [n, masses.length, lights, Math.round((pitch ?? h) * 2), V.tiers ? Math.round(shrink * 10) : 0, Math.round(W0), used.has('rib'), used.has('shutters'), mirror].join(' ');
   return { use, lot, ring, seed, depth: dep, kitId: style.kitId, tokens: style.tokens, language: L.id,
     dims: { front, side, rear, W0, D0, storeyH, n, axis, form: V.cap ?? V.mass, pitch: pitch ?? 0, eave, jetty: 0, doorW, doorH, bays, bay, need, ground: stGroup(0).group, upper: stGroup(n - 1).group, covering: capV?.group ?? stGroup(0).group, construction: V.mass, ...(P.entry.steps >= 0.5 ? { steps: Math.round(P.entry.steps) } : {}) },
-    why, masses, faces, tile, parts, measures, laws, sig };
+    why, masses, faces, tile, ...(screened.length ? { screens: screened } : {}), parts, measures, laws, sig };
 }
 
 /** The language spoken again for an annex: a smaller mass under the same cap, a depth shallower (its lights at 1). */

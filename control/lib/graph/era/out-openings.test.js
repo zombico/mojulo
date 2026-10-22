@@ -7,6 +7,10 @@ import { surround, lightDress, doorDress, stepsLift } from './out-openings.js';
 import { readElement, ELEMENT_SETS, OPENING_WORDS, ENTRY_WORDS } from './out-anchor-elements.js';
 import { decompileAnchor, speak, ANCHOR_IDS } from './out-anchor-structure.js';
 import { structureStyle } from './out-structures.js';
+import { screenTexels } from './screen-tiles.js';
+import { STYLE_IDS, STYLE_STARTERS, readStyle } from './arch-style.js';
+import { assembleGeocubeScene } from './geocube.js';
+import { assembleStageScene } from './stage.js';
 
 // a front wall: u along x, z up, d proud toward −y
 const W = { len: 10, n: [0, -1, 0], at: (u, z, d = 0) => [u, -d, z] };
@@ -50,6 +54,80 @@ describe('a light built', () => {
   });
 });
 
+describe('the glazings a style speaks', () => {
+  const L = { kind: 'arch', uc: 2, z0: 1, w: 0.9, hh: 1.8, pts: [] };
+  L.pts = [[1.55, 1], [2.45, 1], [2.45, 2.35], ...Array.from({ length: 7 }, (_, k) => { const a = (Math.PI * (k + 1)) / 8; return [2 + 0.45 * Math.cos(a), 2.35 + 0.45 * Math.sin(a)]; }), [1.55, 2.35]];
+  const within = (f) => f.corners.every((c) => c[0] > 1.5 && c[0] < 2.5 && c[2] > 0.95 && c[2] < 2.85);
+
+  it('an arabesque screen is one card over the clear, the khatam painted in it, laid apart from the bars', () => {
+    const out = [], screens = [];
+    lightDress(out, W, L, { glazing: 'arabesque', trim: 'str:timber', trimValue: 0.35 }, { screens });
+    expect(out).toEqual([]);
+    expect(screens).toHaveLength(1);
+    const [c] = screens;
+    expect(c).toMatchObject({ part: 'screen', group: 'str:timber', value: 0.35, textureLit: true });
+    expect(c.texture).toMatch(/^screen:khatam-\d+-\d+$/);
+    expect(c.uv).toHaveLength(c.corners.length);
+    // (one cell a unit: the uv spans the light's width in cells)
+    const us = c.uv.map((q) => q[0]);
+    expect(Math.max(...us) - Math.min(...us)).toBeCloseTo(0.9 / 0.24, 3);
+    // (no one to take it: the glass stays clear)
+    const bare = [];
+    lightDress(bare, W, L, { glazing: 'arabesque' });
+    expect(bare).toEqual([]);
+    // its tile: bars and holes, nothing between (a cutout), the bars a part of it
+    const T = screenTexels(c.texture), cover = T.a.reduce((n, v) => n + (v ? 1 : 0), 0) / (T.W * T.H);
+    expect(new Set(T.a)).toEqual(new Set([0, 255]));
+    expect(cover).toBeGreaterThan(0.1);
+    expect(cover).toBeLessThan(0.6);
+  });
+
+  it('ornamental leading: a border, a roundel at the head and its sunburst, inside the light, darker than its frame', () => {
+    const out = [], cas = [];
+    lightDress(out, W, L, { glazing: 'ornamental', trim: 'str:paint', trimValue: 0.6 });
+    lightDress(cas, W, L, { glazing: 'casement', trim: 'str:paint', trimValue: 0.6 });
+    expect(out.length).toBeGreaterThan(cas.length);
+    expect(out.every((f) => f.part === 'glazing' && within(f) && f.value < 0.6)).toBe(true);
+    // (the roundel's ring about the arch's spring)
+    const ring = out.filter((f) => f.corners.every((c) => Math.hypot(c[0] - 2, c[2] - 2.35) < 0.3 && Math.hypot(c[0] - 2, c[2] - 2.35) > 0.1));
+    expect(ring.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('stained glass: panes on the paint\'s ramp and the lens\'s, inside the light, behind their cames', () => {
+    const out = [];
+    lightDress(out, W, L, { glazing: 'stained', trim: 'str:stone', trimValue: 0.7 });
+    const panes = out.filter((f) => f.part === 'pane'), cames = out.filter((f) => f.part === 'glazing');
+    expect(panes.length).toBeGreaterThan(0);
+    expect(cames.length).toBeGreaterThan(0);
+    expect(new Set(panes.map((f) => f.group))).toEqual(new Set(['str:paint', 'str:lens']));
+    expect(new Set(panes.map((f) => f.value)).size).toBeGreaterThan(3);
+    expect([...panes, ...cames].every(within)).toBe(true);
+    const proud = (f) => -f.corners[0][1];
+    expect(Math.max(...panes.map(proud))).toBeLessThan(Math.min(...cames.map(proud)));
+  });
+
+  it('a starter speaks its glazing in its houses: the screen apart, its glass under it; a quiet glazing as it was', () => {
+    const id = STYLE_IDS.find((k) => STYLE_STARTERS[k].language.elements?.lights?.glazing === 'arabesque'), S = readStyle(id);
+    const b = speak(decompileAnchor(S.language.id ?? S.language.doc), 'dwelling', { w: 12, d: 18 }, style, 3, { ring: 'near' });
+    expect(b.screens.length).toBeGreaterThan(0);
+    expect(b.faces.some((f) => f.part === 'screen')).toBe(false);
+    expect(b.screens.every((sc) => b.faces.some((f) => f.part === 'opening' && f.corners.length === sc.corners.length))).toBe(true);
+    const plain = speak(decompileAnchor(dressed({ lights: { frame: 0.08, glazing: 'lattice', trim: 'str:timber' } })), 'dwelling', { w: 12, d: 18 }, style, 3, { ring: 'near' });
+    expect(plain.screens).toBeUndefined();
+    // (a stained light's panes go to the tile with the budget, after its cames)
+    const st = STYLE_IDS.find((k) => STYLE_STARTERS[k].language.elements?.lights?.glazing === 'stained'), G = speak(decompileAnchor(readStyle(st).language.id ?? readStyle(st).language.doc), 'dwelling', { w: 12, d: 18 }, style, 3, { ring: 'near' });
+    expect(G.faces.reduce((a, f) => a + f.corners.length - 2, 0)).toBeLessThanOrEqual(640 * 1.5);
+  });
+
+  it('a town stage stands the screens as cutout cards in the trim\'s colour', () => {
+    const id = STYLE_IDS.find((k) => STYLE_STARTERS[k].language.elements?.lights?.glazing === 'arabesque');
+    const P = assembleGeocubeScene({ kind: 'geocube', cube: 'island-noon', show: 'town', seed: 3, style: id }, {}, assembleStageScene);
+    const cards = P.faces.filter((f) => f.group === 'town:screen');
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.every((f) => /^screen:/.test(f.texture) && f.textureLit && f.uv.length === f.corners.length && P.cutouts.includes(f.texture))).toBe(true);
+  }, 60000);
+});
+
 describe('a door built', () => {
   const door = (spec, room = 0.6) => { const out = [], D = { kind: 'rect', uc: 3, w: 1, h: 2.2, pts: rect(3, 0, 1, 2.2), room }; const r = doorDress(out, W, D, spec, { arc: 5 }); return { out, ...r }; };
   it('its steps stand below the threshold, out from the wall, and lift the floor by their rise', () => {
@@ -78,7 +156,7 @@ describe('a door built', () => {
 
 describe('in the language', () => {
   it('the words ride the elements\' rails, refused off them by name', () => {
-    expect(() => readElement('lights', { kind: 'light', glazing: 'stained' })).toThrow(/glazing is none \| lattice \| sash/);
+    expect(() => readElement('lights', { kind: 'light', glazing: 'frosted' })).toThrow(/glazing is none \| lattice \| sash/);
     expect(() => readElement('door', { kind: 'door', steps: 5 })).toThrow(/steps is 0–3/);
     expect(() => readElement('door', { kind: 'door', surround: 'portico' })).toThrow(/surround is none \| frame/);
     expect(() => readElement('shutters', { kind: 'shutters', form: 'roller' })).toThrow(/form is flat \| boards \| louvred/);
