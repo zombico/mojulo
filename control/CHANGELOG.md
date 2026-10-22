@@ -139,6 +139,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   own shade, so every hero a world mints today mints as it did.
 - The dermis study's sheen reads the relief layer: each relief class's slopes (its pores and grain, finer than a pixel)
   widen the highlight, Toksvig's way, so the skin reads satin rather than plastic (`--flat-sheen` for the old lobe).
+- THE SCALP'S STRANDS, finer (dermal-hair.js; the operator's eyes): a drawn strand stands for a ribbon `strandGap` wide,
+  `strandWidth` of it drawn; by the hair's type now (`HAIR_TYPES` `strand`): straight and wavy 1.5 mm and 0.4 (~4.5 hairs a
+  strand, between a lash and a card; were 3 mm and 0.75, ~18), curly 2 mm and 0.5, coily 2.5 mm and 0.6 (a curl keeps its
+  locks' weight). Every scalp's strands change; a groom's own `strandGap` / `strandWidth` still wins.
+- A CURL'S KERATIN (`HAIR_TYPES` `chiral`, hair-spine.js `coilOffsets` `flips` / `taper` / `scale`): curly and coily locks
+  twist each their own way: a share left-handed, the radius ± per lock, the twist reversing along the lock (a kink, as a
+  phone cord's: a few a metre in curls, many in coils), and the hair's weight drawing the coil open toward the root. A
+  coil that names none of these is as it was.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

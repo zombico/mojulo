@@ -46,13 +46,17 @@ const ad = (a, b) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d);
  * along the stretched hair), planar (an S-wave, not a helix) }, `frizz` (m, the tips' wander), `stiffness` (a spine word:
  * hair-spine.js SPINE_STIFFNESS), `clump` (0 … 1, how far a clump's children close on its guide at the tip), `volume`
  * (the root's lift, as the share of the lock held along its aim), `flyaways` (the share of children escaping),
- * `roughness` (the highlight's spread: straight hair glossy, coily matte).
+ * `roughness` (the highlight's spread: straight hair glossy, coily matte), `strand` { gap (m, between the drawn strands),
+ * width (the share of the gap a strand's ribbon covers) }: a curl keeps its locks' weight, so curly and coily hair are
+ * drawn thicker than straight; `chiral` (a curl's KERATIN: how a coil twists, lock by lock) { left (the share of locks
+ * that twist left-handed), flips (the twist's reversals a metre: a kink where the helix turns back on itself, as a
+ * phone cord's), taper (how far the hair's own weight draws the coil open near the root), vary (± a lock's radius) }.
  */
 export const HAIR_TYPES = Object.freeze({
-  straight: { curl: null, frizz: 0.0015, stiffness: 'limp', clump: 0.55, volume: 0.06, flyaways: 0.02, roughness: 0.25 },
-  wavy: { curl: { radius: 0.007, period: 0.075, planar: true }, frizz: 0.003, stiffness: 'soft', clump: 0.62, volume: 0.1, flyaways: 0.035, roughness: 0.32 },
-  curly: { curl: { radius: 0.008, period: 0.032 }, frizz: 0.004, stiffness: 'springy', clump: 0.72, volume: 0.16, flyaways: 0.05, roughness: 0.42, stand: 0.3 },
-  coily: { curl: { radius: 0.0028, period: 0.008 }, frizz: 0.005, stiffness: 'stiff', clump: 0.5, volume: 0.3, flyaways: 0.07, roughness: 0.6, stand: 0.6 },
+  straight: { curl: null, frizz: 0.0015, stiffness: 'limp', clump: 0.55, volume: 0.06, flyaways: 0.02, roughness: 0.25, strand: { gap: 0.0015, width: 0.4 } },
+  wavy: { curl: { radius: 0.007, period: 0.075, planar: true }, frizz: 0.003, stiffness: 'soft', clump: 0.62, volume: 0.1, flyaways: 0.035, roughness: 0.32, strand: { gap: 0.0015, width: 0.4 } },
+  curly: { curl: { radius: 0.008, period: 0.032 }, frizz: 0.004, stiffness: 'springy', clump: 0.72, volume: 0.16, flyaways: 0.05, roughness: 0.42, stand: 0.3, strand: { gap: 0.002, width: 0.5 }, chiral: { left: 0.35, flips: 5, taper: 0.35, vary: 0.2 } },
+  coily: { curl: { radius: 0.0028, period: 0.008 }, frizz: 0.005, stiffness: 'stiff', clump: 0.5, volume: 0.3, flyaways: 0.07, roughness: 0.6, stand: 0.6, strand: { gap: 0.0025, width: 0.6 }, chiral: { left: 0.45, flips: 25, taper: 0.15, vary: 0.3 } },
 });
 
 /**
@@ -149,7 +153,10 @@ export function readScalp(spec = 'short') {
     if (!(T.gather === undefined || T.gather === 'all' || T.gather === 'top' || (T.gather > 0 && T.gather < 0.2))) throw new Error(`${at}.gather: 'all' | 'top' | metres (a radius)`);
     if (T.tail && !['tail', 'braid', 'bun'].includes(T.tail.kind ?? 'tail')) throw new Error(`${at}.tail.kind: tail | braid | bun`);
   }
-  const out = { style: doc.style || 'short', ragged: 1, tousle: 0, flip: 0, chunk: 0, stand: 0, ...ty, ...st, type: doc.type || st.type || 'straight', spacing: 0.012, strandGap: 0.003, seed: 1, ...globals, ...rest, moves, locks, ties, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
+  // (the drawn strands by the type: 1.5 mm apart, each 0.4 of its gap wide, ~4.5 hairs, between a lash and a card; a curl's
+  // thicker; the operator's eyes, 2026-10-22)
+  const { strand: TS, ...tyRest } = ty;
+  const out = { style: doc.style || 'short', ragged: 1, tousle: 0, flip: 0, chunk: 0, stand: 0, ...tyRest, ...st, type: doc.type || st.type || 'straight', spacing: 0.012, strandGap: TS.gap, strandWidth: TS.width, seed: 1, ...globals, ...rest, moves, locks, ties, cut: doc.cut === null ? null : { ...cut, ...(doc.cut || {}) } };
   for (const [n, e] of Object.entries(locks)) {
     if (!SCALP_CLUMPS.some((q) => q.name === n)) throw new Error(`scalp: locks.${n} is not a clump (${SCALP_CLUMPS.map((q) => q.name).join(', ')})`);
     for (const [k, v] of Object.entries(e)) { const r = LOCK_EDIT_KEYS[k]; if (!r) throw new Error(`scalp: locks.${n}.${k} unknown (have ${Object.keys(LOCK_EDIT_KEYS).join(', ')})`); if (!(v >= r[0] && v <= r[1])) throw new Error(`scalp: locks.${n}.${k} ${v} (${r[0]} … ${r[1]})`); }
@@ -167,6 +174,14 @@ export function readScalp(spec = 'short') {
   return Object.freeze(out);
 }
 
+/** A lock's own twist (its type's `chiral`, seeded by the lock): its hand, its radius ± `vary`, the reversals along it
+ * (`flips`: their places, 0 … 1 of the coil), and the weight's taper. Absent `chiral`, nothing (the coil as it was). */
+function chiralOf(C, seed, gi, L) {
+  if (!C) return {};
+  const d = streamOf(seed, 'dermal-chiral', `${gi}`), hand = d() < C.left ? -1 : 1, vary = 1 + C.vary * (2 * d() - 1);
+  const n = Math.round(C.flips * L * (0.5 + d())), flips = Array.from({ length: n }, () => d()).sort((a, b) => a - b);
+  return { hand, scale: vary, flips, taper: C.taper };
+}
 /** The shrinkage of a coil: the share of the stretched length a curled hair falls (1 straight). */
 export function curlShrink(curl) {
   if (!curl || !curl.radius || !curl.period) return 1;
@@ -606,7 +621,7 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     // STAND: the root leaves the scalp toward its normal (an afro's halo, a cowlick), the rest of the way the comb's
     const aim = unit(add(scl(add(d, scl(n, 0.1 + 0.4 * S.volume)), 1 - stand), scl(n, 3 * stand)));
     let hang = lockSpine({ root: p, aim, L: free, B: ed.stand > 0.5 ? lockB('stiff', free) : lockB(S.stiffness, free), hold: stand > 0.5 ? 0.3 : 0, n: steps });
-    if (wave.coil && S.curl) hang = coilSpine(hang, { radius: S.curl.radius, turns, hand: 1, from: 0.02 }, free, n, false, (2 * Math.PI * (phi[gi] + run)) / (S.curl.period * k));
+    if (wave.coil && S.curl) hang = coilSpine(hang, { radius: S.curl.radius, turns, hand: 1, from: 0.02, ...chiralOf(S.chiral, S.seed, gi, free) }, free, n, false, (2 * Math.PI * (phi[gi] + run)) / (S.curl.period * k));
     const line = arcResample([...walk.slice(0, -1), ...drapeSpine(hang, cols, 0.04)], NS);
     // the combed wave: across the lock in the hair's layer (square to the lock and to the head's outward), its phase the
     // root's place downstream plus the arc, so neighbouring locks crest together; none at the root
