@@ -139,6 +139,8 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.max(0,(now-last)/
  }
 sel.onchange=()=>{clockT=0;table();};document.getElementById('spd').onchange=()=>{clockT=0;table();};document.getElementById('restart').onclick=()=>{clockT=0;};
 table();requestAnimationFrame(frame);
+// inside the review viewer: say how tall the page is, so its frame fits it
+const tell=()=>{try{parent!==window&&parent.postMessage({spikeHeight:document.documentElement.scrollHeight},'*');}catch(e){}};addEventListener('load',tell);addEventListener('resize',tell);setTimeout(tell,300);
 </script></body></html>`;
 writeFileSync(join(out, 'animation-games.html'), html);
 console.log(`wrote ${join(out, 'animation-games.html')} and ${data.takes.map((t) => `filmstrip-${t.id}.svg`).join(', ')}`);
