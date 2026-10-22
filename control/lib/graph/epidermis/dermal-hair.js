@@ -100,7 +100,7 @@ export const SCALP_STYLES = Object.freeze({
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'flipBack', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'flipBack', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'strandWidth', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
 const CUT_KEYS = ['line', 'fringe', 'envelope', 'taper', 'shelf', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
@@ -161,6 +161,7 @@ export function readScalp(spec = 'short') {
   if (!(out.length > 0 && out.length <= 1.2)) throw new Error('scalp: length 0 … 1.2 m');
   if (!(out.spacing >= 0.004 && out.spacing <= 0.04)) throw new Error('scalp: spacing 0.004 … 0.04 m');
   if (!(out.strandGap >= 0.001 && out.strandGap <= out.spacing)) throw new Error('scalp: strandGap 0.001 m … the guides\' spacing');
+  if (out.strandWidth !== undefined && !(out.strandWidth >= 0.1 && out.strandWidth <= 1)) throw new Error('scalp: strandWidth 0.1 … 1 (the share of the gap a strand\'s ribbon covers)');
   if (!(out.ragged >= 0 && out.ragged <= 2)) throw new Error('scalp: ragged 0 … 2 (0 a cut without wander: a buzz)');
   const ce = cutErrors(out.cut); if (ce.length) throw new Error(ce.join('; '));
   return Object.freeze(out);
