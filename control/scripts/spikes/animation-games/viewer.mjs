@@ -33,16 +33,24 @@ const PARTS = [
     strips: [['collision-run-wall.svg', 'run into a wall'], ['collision-run-unit.svg', 'run into a body'], ['collision-walk-wall.svg', 'walk into a wall'], ['collision-walk-unit.svg', 'walk into a body'],
       ['collision-walls-run.svg', 'run into a wall, by its property'], ['collision-walls-walk.svg', 'walk into a wall, by its property'], ['collision-bouncy-tuned.svg', 'run into a bouncy wall, tuned']],
     says: 'Walking or running into a wall or a standing body of the same mass. The flavor decides what the impact does: the speed each body leaves with, how much of the change it shows, and which rung of one shared ladder it reaches (walk in place, flinch, stagger, down, launched, bonk or boop, spin). A non-realistic wall carries a property: bouncy (tunable), treadmill (the gait goes on in place) or sticky (walk up it, or climb it hand over hand). No trunk passes the wall or the other body.' },
+  // the action lab (../action-lab): the same flavors on the player's clock, playable; its page has no head of its own
+  // (it publishes alone too), so it is wrapped to stand beside this one
+  { id: 'lab', name: 'Action lab', dir: '../action-lab', script: 'lab.mjs', verify: 'verify.mjs', player: 'action-lab.html', wrap: true, height: 1180, strips: [],
+    bar: 'Playable: click into it, then WASD move, Shift sprint, Space jump (hold: higher), J attack, K dodge, 1–4 the feel, T a sparring dummy, P pause and . a frame. A gamepad works too.',
+    says: 'The flavors on the player\'s clock: the press is the beat. One feel card per flavor says what each button does (ground acceleration, the jump\'s commit, buffer, coyote and cut, a three-move string with startup, active and recovery, hitstop on both bodies, hitstun, the dodge\'s invincible frames, what a wall does), one pure step plays it at 60 Hz in the gate and in the page, and the hero library\'s clips are fitted to the frames it decides. The frame data it prints is what it plays.' },
 ];
 
 const node = (args) => execFileSync(process.execPath, args, { cwd: control, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] });
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: control, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
+const git = (args) => { try { return execFileSync('git', args, { cwd: control, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } };
+const commit = git(['rev-parse', '--short', 'HEAD']), branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
 
 const parts = [];
 for (const P of PARTS) {
-  node([join(here, P.script), out, cast]);
-  let log; try { log = node([join(here, P.verify), cast]); } catch (e) { log = String(e.stdout ?? '') + String(e.stderr ?? ''); }
+  const dir = P.dir ? join(here, P.dir) : here;
+  node([join(dir, P.script), out, cast]);
+  if (P.wrap) { const f = join(out, P.player), h = readFileSync(f, 'utf8'); if (!/^<!doctype/i.test(h)) writeFileSync(f, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">\n${h}`); }
+  let log; try { log = node([join(dir, P.verify), cast]); } catch (e) { log = String(e.stdout ?? '') + String(e.stderr ?? ''); }
   const lines = log.split('\n').filter((l) => /^(PASS|FAIL|note) {2}/.test(l)).map((l) => { const [, kind, rest] = l.match(/^(PASS|FAIL|note) {2}(.*)$/); const i = rest.search(/ {2}[[{]/); return { kind, says: i < 0 ? rest : rest.slice(0, i), measured: i < 0 ? '' : rest.slice(i + 2) }; });
   const strips = [];
   for (const [svg, label] of P.strips) {
@@ -112,14 +120,14 @@ ol.checks pre{font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-w
 <div class="wrap">
   <header>
     <h1>Animation Flavors</h1>
-    <div class="meta"><span>spike <code>1021-animation-games</code></span><span>built from <code>${esc(commit)}</code> on <code>1018-consolidated</code></span><span>cast <code>${esc(cast)}</code> · 60 fps · z-up metres</span></div>
+    <div class="meta"><span>spike <code>1021-animation-games</code></span><span>built from <code>${esc(commit)}</code> on <code>${esc(branch)}</code></span><span>cast <code>${esc(cast)}</code> · 60 fps · z-up metres</span></div>
     <div class="legend">${FLAVORS.map(([f, s]) => `<span class="chip"><i style="background:var(--${f})"></i>${f} <span>${s}</span></span>`).join('')}</div>
   </header>
   <nav role="tablist">${parts.map((p, i) => { const g = gate(p); return `<button role="tab" id="tab-${p.id}" aria-controls="${p.id}" aria-selected="${i === 0}">${esc(p.name)}<span class="pill${g.failed ? ' bad' : ''}">${g.held}/${g.of}</span></button>`; }).join('')}</nav>
   ${parts.map((p, i) => { const g = gate(p); return `<section id="${p.id}" role="tabpanel" aria-labelledby="tab-${p.id}"${i ? ' hidden' : ''}>
     <p class="lede">${esc(p.says)}</p>
     <div class="gates"><span class="gate"><b>Machine gate</b> ${g.failed ? `${g.failed} failed of ${g.of}` : `all ${g.of} held`}</span><span class="gate eyes"><b>Eyes gate</b> open: nobody has looked yet</span></div>
-    <div class="frame"><iframe title="${esc(p.name)} player" data-src="${p.player}"${i === 0 ? ` src="${p.player}"` : ''} loading="lazy"></iframe><div class="bar"><span>The player: four panes on one clock, each from the side and from a ¾ overhead camera, a ¼-speed switch.</span><a href="${p.player}" target="_blank" rel="noopener">Open on its own</a></div></div>
+    <div class="frame"><iframe title="${esc(p.name)} player" data-src="${p.player}"${i === 0 ? ` src="${p.player}"` : ''}${p.height ? ` style="height:${p.height}px"` : ''} loading="lazy"></iframe><div class="bar"><span>${esc(p.bar ?? 'The player: four panes on one clock, each from the side and from a ¾ overhead camera, a ¼-speed switch.')}</span><a href="${p.player}" target="_blank" rel="noopener">Open on its own</a></div></div>
     ${p.strips.map((s) => `<figure class="strip" style="margin:0"><figcaption>${esc(s.label)}</figcaption><div class="scroll"><img src="${s.png}" alt="${esc(s.label)} filmstrip" loading="lazy"></div></figure>`).join('\n    ')}
     <h2>What the machine gate measured</h2>
     <ol class="checks">${p.lines.map((l) => `<li><span class="k ${l.kind}">${l.kind}</span>${l.measured ? `<details><summary>${esc(l.says)}</summary><pre>${esc(l.measured)}</pre></details>` : `<span>${esc(l.says)}</span>`}</li>`).join('')}</ol>
