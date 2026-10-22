@@ -5,7 +5,9 @@ readout carries the read for both; the game body's bare outline is its own, a br
 against that and the bands that are ratios of the body hold as they are), each as a MEASURE of the dressed figure with
 a starting BAND in two styles: WESTERN (fashion design and tailoring) and ANIME/GAME (character costume for games and
 animation), the canon's word as `hero-style-critic.js` has it (not the hero's `register`, which is how far it heightens). The bands live as data beside the read that applies them, `control/lib/graph/polygonizer/dress-outline.js`;
-this note is why they are what they are.
+this note is why they are what they are. The wearable libraries (footwear, handwear, plating) have no canon of their
+own: each reads in the outfit's, by these principles (a boot, a gauntlet's cuff, a pauldron among the flair pieces, the
+feet in the value gradient), as each library's last law says.
 
 Gate: machine only. Every band is a starting point read off the sources below, to be tuned at the eyes gate (the
 operator's), as the canon bands of `hero-style-critic.js` are. The read advises; it never refuses
@@ -98,7 +100,7 @@ texture is not counted. A vertical run (an open front, a placket, a column of on
 
 **One focal, framing the face or the action.** The strongest contrast at `f ≤ 0.40`, no rival within 10 `ΔL*`;
 anime/game also lighter at the chest than at the feet (TF2's value gradient, dark feet to a light chest where the
-weapon reads [snippet: Mitchell, GDC 2008]). A belt may be the focal, and is then the only strong division at the waist.
+weapon reads [snippet: Mitchell, GDC 2008]; read as `gradient`, the shoe's L* against the chest's front). A belt may be the focal, and is then the only strong division at the waist.
 
 **Values in a few masses, layers a step apart.** A clear step between layers is `ΔL* ≥ 20` (one step of five), a
 strong one ≥ 40; value masses over 5 % of the outline, western 2–4, anime/game 3–5 [snippet: notan; the 20 L* mapping

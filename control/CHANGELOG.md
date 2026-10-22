@@ -59,6 +59,12 @@ body catches up to what the authored one wears, and its principles are shared ba
   line a top worn out at the hip, kept on the realistic body, is moved on the game body; the stage now judges by the
   body the hero is on. Down the leg the bodies agree within about two hundredths. The measuring found a cropped woven
   top refused on the game body (its buttons placed below its window); its row now starts on it.
+- ONE CANON ACROSS THE WEARABLES: the footwear, handwear and plating libraries' principles each end on the same law, the
+  canon is the outfit's (the dressed outline's western | anime): no library carries a canon of its own, and what each
+  canon asks of its pieces is the garment principles' (a boot, a gauntlet's cuff, plates standing out among the anime
+  flair pieces; the feet in the value gradient). The outline read measures that gradient now (`values: { chest,
+  feet }`, the shoe's L* against the chest's front) and the anime canon reads it (`gradient`: dark shoes under a light
+  chest).
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

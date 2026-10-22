@@ -25,4 +25,8 @@
 //      laid on, so history and fantasy compose as freely as the rest.
 //   9. A CARD'S TONES ARE SUGGESTIONS. The ones it (or its skin) names stand over a palette's defaults; the operator's own
 //      palette over all.
+//  10. THE CANON IS THE OUTFIT'S. A shoe has no canon of its own: it is read in the one the outfit is designed to, by the
+//      dressed outline (dress-outline.js: western | anime, docs/garment-principles.md). In anime/game the feet darker
+//      than the chest (the value gradient, read as `gradient`), and a boot that stands out past the leg one of the one to
+//      three flair pieces; western, a shoe in the outfit's value scheme, true to scale.
 export const FOOTWEAR_LAWS_VERSION = 1;
