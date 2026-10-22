@@ -55,6 +55,15 @@
  * action's PERFECT DODGE, a roll or dash whose invincible frames meet a hit in its first frames, slows the attacker to
  * half speed (Witch Time). The platformer and pinball do not guard (pinball's boost is its defence).
  *
+ * HOLD AND RELEASE (the card's `charge`): the attack's press acts at once (the tap is the card's light, never delayed)
+ * and holding the button on charges it; RELEASE is the beat of the charged attack, at the level the hold reached
+ * (counted from the press, frozen frames not counted), and a release short of the first level fizzles. Realistic and
+ * action charge a HEAVY (the haymaker; action's second level a launcher) in a stance once the tap's move ends: a slow
+ * walk, no jump, a roll or a guard lets it go. The platformer charges Mega Man X's BUSTER: no stance, the body runs and
+ * jumps with the charge held, and the release fires a shot (a small one, then the full charge) from wherever it is.
+ * Pinball revs a SPIN DASH, rooted, the stick aiming it, and the release launches it at the level's speed. A hit taken
+ * loses the charge.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -126,6 +135,12 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            (frames a parried attacker is staggered), stamina ({ max, cost (a block), regen (/s, not guarding), break
  *            (frames staggered when it runs out) } or null), perfect ({ window (a dodge's first frames), witch (frames
  *            the attacker runs at half speed) } or null)
+ *   charge   hold and release, or null: kind (heavy: a charged blow | shot: a projectile | spin: the spin dash), levels
+ *            (frames held from the press to reach each level), show (frames held before the charge shows: a release
+ *            short of it is a plain tap, past it and short of a level it fizzles), stance (once the tap's move ends the
+ *            body holds a charging stance: `move` its share of the run, 0 rooted with the stick aiming, no jump; false:
+ *            the meter runs while the body does anything, X's), air (it fires off the ground), at (per level: the charged
+ *            move, as a string's | the shot { speed, size (m), life (frames), force } | the spin { speed, frames })
  *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
  *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
  *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
@@ -156,6 +171,9 @@ export const FEELS = Object.freeze({
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
     pound: null,
+    charge: { kind: 'heavy', levels: [40], show: 30, stance: true, move: 0.3, air: false, at: [
+      { take: 'cross', startup: 14, snap: 8, active: 3, recovery: 24, wings: { wind: 1.35, after: 1.25 }, lunge: 0.35, force: { gain: 1.8 } },
+    ] },
     air: null,
     cling: null,
     look: { squash: 0, smear: null },
@@ -182,6 +200,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.8 },
     cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
+    charge: { kind: 'heavy', levels: [30, 70], show: 26, stance: true, move: 0.4, air: false, at: [
+      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 20, wings: { wind: 2.1, after: 1.6 }, lunge: 0.6, force: { gain: 16, lift: 8 } },
+      { take: 'cross', startup: 8, snap: 3, active: 4, recovery: 26, wings: { wind: 2.4, after: 1.8 }, lunge: 0.9, finisher: true, force: { gain: 20, lift: 42 } },
+    ] },
     look: { squash: 0.06, smear: 0.09 },
   },
   platformer: {
@@ -202,6 +224,10 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.9 },
     cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
+    charge: { kind: 'shot', levels: [24, 66], show: 16, stance: false, air: true, at: [
+      { speed: 14, size: 0.15, life: 50, force: { push: 4 } },
+      { speed: 16, size: 0.4, life: 60, force: { push: 7, hop: 0.7 } },
+    ] },
     look: { squash: 0.22, smear: null },
   },
   pinball: {
@@ -222,6 +248,7 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.7 },
     cling: { slide: 4, toward: 0.3, up: 0.8, away: 8, lock: 6, coyote: 4 },
     pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
+    charge: { kind: 'spin', levels: [20, 50], show: 14, stance: true, move: 0, air: false, at: [{ speed: 14, frames: 20 }, { speed: 20, frames: 28 }] },
     look: { squash: 0.1, smear: 0.05 },
   },
 });
@@ -242,7 +269,7 @@ export const ARENA = Object.freeze({
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
-  return { h, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+  return { h, charge: null, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
@@ -253,7 +280,7 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * every feel's jump; the standing dummy (1.7) is taller than most.
  */
 export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null } = {}) {
-  const S = { f: 0, card: copy(card), body, arena, spar, guard, sparMoves, sparN: 0, events: [], queue: [], held: 0, lock: null, witch: 0,
+  const S = { f: 0, card: copy(card), body, arena, spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, held: 0, lock: null, witch: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
   S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null;
   return S;
@@ -274,6 +301,8 @@ export function step(S0, pad) {
   for (const [name, bit] of [['jump', BTN.JUMP], ['attack', BTN.ATTACK], ['dodge', BTN.DODGE], ['dash', BTN.DASH], ['lock', BTN.LOCK], ['guard', BTN.GUARD]]) if (pressed & bit) press(S, name, stick);
   if (S.lock && targetDist(S) > S.card.lock.range + 3) { S.lock = null; S.events.push({ f: S.f, who: 'hero', type: 'lock-lost' }); }
   if ((released & BTN.JUMP) && !H.stop) cutJump(S, H);
+  if ((released & BTN.ATTACK) && H.charge) H.charge.letGo = true;
+  if (H.charge?.letGo && !H.stop) release(S, stick);   // the release is the beat (a frozen hero lets go when it thaws)
   tryQueue(S, stick);
   // Witch Time: the attacker runs at half speed (it skips every other tick: its move, its blow, its timers)
   const slow = S.witch > 0 && S.f % 2 === 1;
@@ -284,6 +313,7 @@ export function step(S0, pad) {
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
   if (!D.stop && !slow) { sparThink(S); testHit(S, D, H, 'dummy'); }
+  flyShots(S);
   for (const [w, B] of [['hero', H], ['dummy', D]]) {
     if (w === 'dummy' && slow) continue;
     // a frozen body changes nothing; the tick that struck (or was struck) still shows its own frame and runs on
@@ -300,6 +330,7 @@ export function step(S0, pad) {
     if (B.squash > 0) B.squash--;
     if (B.blockstun > 0) B.blockstun--;
     const ST = S.card.guard?.stamina; if (ST && w === 'hero' && B.act?.kind !== 'block') B.stamina = Math.min(ST.max, B.stamina + ST.regen * DT);
+    if (w === 'hero' && B.charge) meter(S, B);
   }
   for (const q of S.queue) if (!H.stop) q.age++;
   S.f++;
@@ -337,6 +368,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   if (H.blockstun > 0) return { reason: 'in blockstun', queue: true };
   if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt')) return { reason: `in ${a.kind}`, queue: true };
   if (H.lag > 0) return { reason: 'landing lag', queue: true };
+  if (a?.kind === 'charge' && name !== 'dodge' && name !== 'guard' && name !== 'lock') return { reason: 'charging: release the attack to strike', queue: false };
   if (name === 'jump') {
     if (a?.kind === 'gather') return { reason: 'already gathering', queue: false };
     if (a?.kind === 'poundLag' && C.pound?.jump) return true;   // the ground-pound jump
@@ -355,6 +387,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (poundAsked(S, stick) && (!a || a.kind === 'move')) return true;
     if (!H.grounded && !C.moves.air) return { reason: 'no moves in the air in this feel', queue: true };
     if (a?.kind === 'move') {
+      if (a.lv) return { reason: 'the charged move ends the string', queue: true };
       if (a.i + 1 >= C.moves.string.length) return { reason: 'the string is spent', queue: true };
       if (!cancelOpen(S, a)) return { reason: 'the move\'s cancel is not open yet', queue: true };
       return true;
@@ -366,15 +399,16 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   }
   if (name === 'dodge') {
     if (!H.grounded) return { reason: 'no dodge roll in the air', queue: false };
-    if (a?.kind === 'block') return true;   // out of the guard
-    if (a?.kind === 'move') return C.dodge.cancel && a.f >= C.moves.string[a.i].startup + C.moves.string[a.i].active ? true : { reason: 'a move commits until its active frames end', queue: false };
+    if (a?.kind === 'block' || a?.kind === 'charge') return true;   // out of the guard, out of a charge (it is let go)
+    if (a?.kind === 'move') return C.dodge.cancel && pastActive(S, a) ? true : { reason: 'a move commits until its active frames end', queue: false };
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
   if (name === 'guard') {
     if (!C.guard) return { reason: 'no guard in this feel', queue: false };
     if (!H.grounded) return { reason: 'no guard in the air', queue: false };
-    if (a?.kind === 'move') return a.f >= C.moves.string[a.i].startup + C.moves.string[a.i].active ? true : { reason: 'a move commits until its active frames end', queue: false };
+    if (a?.kind === 'charge') return true;
+    if (a?.kind === 'move') return pastActive(S, a) ? true : { reason: 'a move commits until its active frames end', queue: false };
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
@@ -388,14 +422,17 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (!H.grounded && !DS.air) return { reason: 'no air dash in this feel', queue: false };
     if (!H.grounded && H.airDashes <= 0) return { reason: 'the air dash is spent', queue: false };
     if (H.cling && D_WALL(S)) return { reason: 'on the wall: dash is held for a dash wall jump', queue: false };
-    if (a?.kind === 'move') return DS.cancel && a.f >= C.moves.string[a.i].startup + C.moves.string[a.i].active ? true : { reason: 'a move commits until its active frames end', queue: false };
+    if (a?.kind === 'move') return DS.cancel && pastActive(S, a) ? true : { reason: 'a move commits until its active frames end', queue: false };
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
   return { reason: 'unknown button', queue: false };
 }
+/** the move an act plays: a string's, or (`lv`) the charged move of that level */
+function moveDef(S, a) { return a.lv ? S.card.charge.at[a.lv - 1] : S.card.moves.string[a.i]; }
+function pastActive(S, a) { const m = moveDef(S, a); return a.f >= m.startup + m.active; }
 function cancelOpen(S, a) {
-  const C = S.card.moves, m = C.string[a.i], after = m.startup + m.active;
+  const C = S.card.moves, m = moveDef(S, a), after = m.startup + m.active;
   if (C.cancel === 'none') return false;
   if (C.cancel === 'half') return a.f >= after + Math.ceil(m.recovery / 2);
   return a.f >= after + C.cancel;
@@ -424,7 +461,10 @@ function act(S, name, stick, waited) {
     const i = H.act?.kind === 'move' ? H.act.i + 1 : 0;
     if (S.lock) H.yaw = bearing(S);   // locked: at the target
     else if (stick.m > 0) H.yaw = Math.atan2(stick.x, stick.y);   // the swing's direction from the held stick
-    H.act = { kind: 'move', i, f: 0, hit: false }; S.events.push({ f: S.f, who: 'hero', type: 'move', i, take: C.moves.string[i].take }); return;
+    H.act = { kind: 'move', i, f: 0, hit: false }; S.events.push({ f: S.f, who: 'hero', type: 'move', i, take: C.moves.string[i].take });
+    // the opener held on charges: the meter runs from this press (the tap above is already acted)
+    if (i === 0 && C.charge && (S.held & BTN.ATTACK)) { H.charge = { held: 0, lv: 0, from: S.f }; H.act.charging = true; }
+    return;
   }
   if (name === 'guard') { H.act = { kind: 'block', f: 0, pressed: S.f }; S.events.push({ f: S.f, who: 'hero', type: 'guard' }); return; }
   if (name === 'lock') { S.lock = S.lock ? null : { target: 'dummy' }; S.events.push({ f: S.f, who: 'hero', type: S.lock ? 'lock' : 'unlock', on: 'dummy' }); return; }
@@ -471,14 +511,16 @@ function moveBody(S, B, who, stick, buttons) {
     if (!B.grounded && B.carry > top) top = B.carry;   // a dash jump's air holds the dash's speed
     if (who === 'hero' && S.lock && B.grounded) top *= C.lock.strafe;   // locked: a strafe
     if (a?.kind === 'block') top *= C.guard.move;   // guarding: a walk, or rooted
+    if (a?.kind === 'charge') top *= C.charge.move;   // the charging stance: a slow walk, or rooted
     want = top > 0 ? { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top } : null;
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
   if (a?.kind === 'pound') { B.v[0] = 0; B.v[1] = 0; B.v[2] = a.f < C.pound.hang ? 0 : -C.pound.speed; }
+  else if (a?.kind === 'charge' && !C.charge.move) { B.v[0] = 0; B.v[1] = 0; if (stick?.m > 0) B.yaw = turnToward(B.yaw, Math.atan2(stick.x, stick.y), Gd.turn * DEG * DT); }   // rooted: crouched, the stick aims
   else if (a?.kind === 'poundLag') { B.v[0] = 0; B.v[1] = 0; }
   else if (a?.kind === 'dodge') rollVelocity(S, B);
   else if (a?.kind === 'dash') dashVelocity(S, B);
-  else if (rooted) { const m = C.moves.string[a.i]; const speed = a.f < m.startup ? m.lunge / (m.startup * DT) : 0; B.v[0] = Math.sin(B.yaw) * speed; B.v[1] = Math.cos(B.yaw) * speed; }
+  else if (rooted) { const m = moveDef(S, a); const speed = a.f < m.startup ? m.lunge / (m.startup * DT) : 0; B.v[0] = Math.sin(B.yaw) * speed; B.v[1] = Math.cos(B.yaw) * speed; }
   else if (a?.kind === 'block' && !want) slide(B);   // the guard's push back slides out on the soles
   else if (B.grounded && (!stick || !free)) slide(B);
   else if (B.wallLock > 0 && !B.grounded) { /* the wall jump's kick: fixed, the stick locked out */ }
@@ -492,7 +534,7 @@ function moveBody(S, B, who, stick, buttons) {
   }
   // facing follows the stick (a move keeps its own, set at the press)
   if (who === 'hero' && S.lock) { /* locked: the facing is set on the target after the frame's move, below */ }
-  else if (want && free && a?.kind !== 'move' && a?.kind !== 'dodge' && a?.kind !== 'dash' && a?.kind !== 'block' && (B.grounded || C.jump.air > 0.5)) B.yaw = turnToward(B.yaw, want.heading, Gd.turn * DEG * DT);
+  else if (want && free && a?.kind !== 'move' && a?.kind !== 'dodge' && a?.kind !== 'dash' && a?.kind !== 'block' && a?.kind !== 'charge' && (B.grounded || C.jump.air > 0.5)) B.yaw = turnToward(B.yaw, want.heading, Gd.turn * DEG * DT);
   // the gather: the body waits on the ground for its take-off
   if (a?.kind === 'gather' && a.f >= a.of && B.grounded) takeOff(S, B, who);
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
@@ -519,6 +561,7 @@ function moveBody(S, B, who, stick, buttons) {
   } else if (B.cling) { B.cling = null; B.leftWall = S.f; }
   // the stride: a cycle at the ground's rate (strides a second = speed ÷ the travel of a stride at that speed)
   if (B.grounded) B.stride = (B.stride + strideRate(S, len2(B.v[0], B.v[1])) * DT) % 1;
+  if ((a?.kind === 'charge' && C.charge.kind === 'spin') || a?.spin) B.spin = (B.spin + 0.5 + 0.35 * (B.charge?.lv ?? 2)) % (2 * Math.PI);   // the spin dash revs, then rolls
   if (!B.grounded && C.jump.spin && B.jumped) B.spin += Math.min(2 * Math.PI / 8, (2 * len2(B.v[0], B.v[1]) / 0.45) * DT);
 }
 function control(B, want, Gd, share) {
@@ -558,7 +601,8 @@ function fromTarget(S) { const dx = S.hero.p[0] - S.dummy.p[0], dy = S.hero.p[1]
 function dashVelocity(S, B) {
   const D = S.card.dash, a = B.act, t = a.f / a.of;
   let speed;
-  if (a.air) { speed = D.kind === 'boost' ? Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.air.speed * (1 - t)) : D.air.speed; B.v[2] = 0; }
+  if (a.spin) speed = a.from;   // the spin dash: the level's speed, held, gravity as ever
+  else if (a.air) { speed = D.kind === 'boost' ? Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.air.speed * (1 - t)) : D.air.speed; B.v[2] = 0; }
   else if (D.kind === 'boost') speed = Math.min(S.card.wall.cap ?? Infinity, Math.max(a.from, S.card.ground.run) + D.speed * (1 - t));
   else { speed = D.speed; B.v[2] = 0; }
   B.v[0] = Math.sin(a.dir) * speed; B.v[1] = Math.cos(a.dir) * speed; B.yaw = a.dir;
@@ -628,7 +672,13 @@ function wallResponse(S, B, who, n) {
 }
 function endAct(S, B, who) {
   const a = B.act; if (!a) return;
-  if (a.kind === 'move') { const m = S.card.moves.string[a.i]; if (a.f >= m.startup + m.active + m.recovery) { B.act = null; S.events.push({ f: S.f, who, type: 'end', what: 'move' }); } return; }
+  if (a.kind === 'move') {
+    const m = moveDef(S, a); if (a.f < m.startup + m.active + m.recovery) return;
+    B.act = null; S.events.push({ f: S.f, who, type: 'end', what: 'move' });
+    // the tap's move over with the attack still held: the charging stance (a card whose meter runs free has none)
+    if (a.charging && B.charge && !B.charge.letGo && S.card.charge.stance) B.act = { kind: 'charge', f: 0 };
+    return;
+  }
   if (a.kind === 'spar') { const m = sparMove(a); if (a.f >= m.startup + m.active + m.recovery) B.act = null; return; }
   if (a.kind === 'block') { if (!(S.held & BTN.GUARD) && !B.blockstun) { B.act = null; S.events.push({ f: S.f, who, type: 'end', what: 'block' }); } return; }
   const D = S.card.dash;
@@ -760,6 +810,61 @@ function canStep(S) {
   return d < 2 * RADIUS + 0.15 && z > 0.2 && z <= D.h + 0.05;
 }
 
+// ─── hold and release: the charge ──────────────────────────────────────
+/**
+ * The meter, once a tick the hero is not frozen: frames held since the press, a level reached on the frame its count
+ * is met (a release on the next tick fires it). A stance card's charge lives only in the opener's move and the stance:
+ * anything else the body takes up (a roll, a guard, a jump, a stagger) lets it go.
+ */
+function meter(S, B) {
+  const CH = S.card.charge, c = B.charge; if (c.letGo) return;
+  if (CH.stance && !(B.act?.kind === 'charge' || (B.act?.kind === 'move' && B.act.charging))) return loseCharge(S, B, B.act ? `into ${B.act.kind}` : 'the stance left');
+  c.held++;
+  if (c.held === CH.show) S.events.push({ f: S.f, who: 'hero', type: 'charge', kind: CH.kind });
+  const k = CH.levels.indexOf(c.held); if (k >= 0) { c.lv = k + 1; S.events.push({ f: S.f, who: 'hero', type: 'charge-level', lv: c.lv, held: c.held }); }
+}
+function loseCharge(S, B, why) {
+  if (B.charge.held >= S.card.charge.show) S.events.push({ f: S.f, who: 'hero', type: 'charge-lost', why, held: B.charge.held });
+  B.charge = null; if (B.act?.kind === 'charge') B.act = null;
+}
+/** the release: the level the hold reached fires now (short of the first level a shown charge fizzles, a tap is a tap) */
+function release(S, stick) {
+  const H = S.hero, CH = S.card.charge, c = H.charge; H.charge = null;
+  const stance = H.act?.kind === 'charge'; if (stance) H.act = null;
+  const fizzle = (why) => { if (c.held >= CH.show) S.events.push({ f: S.f, who: 'hero', type: 'charge-fizzle', held: c.held, why }); };
+  if (!c.lv) return fizzle(`${CH.levels[0] - c.held} f short of the first level`);
+  if (H.stun > 0 || H.blockstun > 0 || (H.act && ['hurt', 'stagger', 'bonk'].includes(H.act.kind))) return fizzle(`in ${H.act?.kind ?? 'hitstun'}`);
+  if (!H.grounded && !CH.air) return fizzle('in the air: no charged attack off the ground');
+  const at = CH.at[c.lv - 1];
+  if (S.lock) H.yaw = bearing(S);
+  else if (CH.kind === 'heavy' && stick.m > 0) H.yaw = Math.atan2(stick.x, stick.y);   // the heavy swings where the stick holds; the spin was aimed in its stance
+  S.events.push({ f: S.f, who: 'hero', type: 'release', kind: CH.kind, lv: c.lv, held: c.held, top: c.lv === CH.levels.length });
+  if (CH.kind === 'heavy') { H.act = { kind: 'move', i: 0, lv: c.lv, f: 0, hit: false }; return; }
+  if (CH.kind === 'spin') { H.act = { kind: 'dash', f: 0, of: at.frames, dir: H.yaw, from: at.speed, spin: c.lv }; return; }
+  const fx = Math.sin(H.yaw), fy = Math.cos(H.yaw);   // the shot: from the chest, along the facing
+  S.shots.push({ id: S.shotN++, lv: c.lv, f: 0, p: [H.p[0] + fx * (RADIUS + 0.15), H.p[1] + fy * (RADIUS + 0.15), H.p[2] + 1.2], v: [fx * at.speed, fy * at.speed, 0], size: at.size, life: at.life });
+}
+/** the shots fly straight, a wall or a block ends one, the dummy's body takes one as a blow (8 cm substeps) */
+function flyShots(S) {
+  if (!S.shots.length) return;
+  const A = S.arena, lim = A.half, D = S.dummy, CH = S.card.charge;
+  S.shots = S.shots.filter((sh) => {
+    const n = Math.max(1, Math.ceil((len2(sh.v[0], sh.v[1]) * DT) / 0.08));
+    for (let i = 0; i < n; i++) {
+      sh.p[0] += (sh.v[0] * DT) / n; sh.p[1] += (sh.v[1] * DT) / n;
+      const wall = Math.abs(sh.p[0]) > lim || Math.abs(sh.p[1]) > lim || A.blocks.some((k) => k.h > sh.p[2] && sh.p[0] >= k.x[0] && sh.p[0] <= k.x[1] && sh.p[1] >= k.y[0] && sh.p[1] <= k.y[1]);
+      if (wall) { S.events.push({ f: S.f, who: 'hero', type: 'shot-wall', lv: sh.lv }); return false; }
+      const dx = D.p[0] - sh.p[0], dy = D.p[1] - sh.p[1], d = len2(dx, dy);
+      if (d <= RADIUS + sh.size && sh.p[2] >= D.p[2] - sh.size && sh.p[2] <= D.p[2] + D.h + sh.size) {
+        const at = CH.at[sh.lv - 1];
+        strike(S, sh, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: at.force, finisher: sh.lv === CH.levels.length, shot: sh.lv }, [sh.v[0] / len2(sh.v[0], sh.v[1]), sh.v[1] / len2(sh.v[0], sh.v[1])]);
+        return false;
+      }
+    }
+    sh.f++; return sh.f < sh.life;
+  });
+}
+
 // ─── hits ───────────────────────────────────────────────────────────────
 /** the dummy's sparring jab: a telegraph (its startup is long so the hero can read it and dodge) */
 /**
@@ -787,7 +892,7 @@ function sparThink(S) {
   S.events.push({ f: S.f, who: 'dummy', type: 'move', take: m.take, name: m.name, telegraph: m.startup, arc: m.arc, zone: m.zone ?? null, orange: m.orange ?? null, unblockable: !!m.unblockable });
 }
 function moveOf(S, B) {
-  if (B.act?.kind === 'move') { const m = S.card.moves.string[B.act.i]; return { ...m, reach: S.body.reach[m.take], dv: S.body.dv[m.take] }; }
+  if (B.act?.kind === 'move') { const m = moveDef(S, B.act); return { ...m, reach: S.body.reach[m.take], dv: S.body.dv[m.take] }; }
   if (B.act?.kind === 'spar') { const m = sparMove(B.act); return { ...m, dv: S.body.dv[m.take], spar: true }; }
   return null;
 }
@@ -862,7 +967,8 @@ function strike(S, A, V, who, m, [fx, fy]) {
   if (F.model === 'ricochet') { A.v[0] *= 0.1; A.v[1] *= 0.1; }
   V.stun = stunOf(S, m, dv, V.combo); V.mercy = S.card.hit.mercy; V.alert = S.card.hit.alert; V.lastHit = { take: m.take, f: S.f, finisher: !!m.finisher };
   V.act = vic === 'hero' ? { kind: 'hurt', f: 0, of: Math.max(12, V.stun) } : null;
-  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, ...(m.spar ? { attack: m.name, zone: m.zone, unblockable: !!m.unblockable, guarding } : {}), dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
+  if (V.charge) loseCharge(S, V, 'hit');
+  S.events.push({ f: S.f, who: vic, type: 'hit', by: who, i: A.act?.i ?? null, ...(A.act?.kind === 'pound' || A.act?.kind === 'poundLag' ? { pound: S.card.pound.kind } : {}), take: m.take, ...(A.act?.lv ? { charged: A.act.lv } : {}), ...(m.shot ? { shot: m.shot } : {}), ...(m.spar ? { attack: m.name, zone: m.zone, unblockable: !!m.unblockable, guarding } : {}), dv: r4(dv), powerscale: r4(dv / m.dv), hitstop: stop, stun: V.stun, combo: V.combo, advantage, finisher: !!m.finisher });
 }
 function iframed(S, B) {
   const k = B.act?.kind, I = k === 'dodge' ? S.card.dodge.iframes : k === 'dash' ? S.card.dash?.iframes : null;
@@ -893,8 +999,10 @@ export function poseOf(S, who) {
   // a short body is the figure drawn short and broad; a stomped one, flattened for its stun
   const kz = (B.h / HEIGHT) * (B.squash > 0 ? 0.35 : 1);
   if (kz !== 1) { const kx = B.squash > 0 ? 1.5 : 1 / Math.sqrt(kz); scale = [(scale ? scale[0] : 1) * kx, (scale ? scale[1] : 1) * kx, (scale ? scale[2] : 1) * kz]; }
-  const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0 };
-  if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f };
+  const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0, charge: B.charge && B.charge.held >= C.charge.show ? { held: B.charge.held, lv: B.charge.lv } : null };
+  if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f, ...(a.lv ? { lv: a.lv } : {}) };
+  if (a?.kind === 'charge') return C.charge.kind === 'spin' ? { ...base, clip: 'spin', spin: B.spin, crouch: true } : { ...base, clip: 'charge', at: a.f };
+  if (a?.kind === 'dash' && a.spin) return { ...base, clip: 'spin', spin: B.spin, iframes: iframed(S, B) };
   if (a?.kind === 'spar') return { ...base, clip: 'spar', name: a.name, at: a.f };
   if (a?.kind === 'gather') return { ...base, clip: 'gather', at: a.f, of: a.of };
   if (a?.kind === 'pound') return { ...base, clip: C.pound.kind === 'plunge' ? 'air' : 'spin', u: 1, spin: C.pound.kind === 'bounce' ? (S.f % 8) * (Math.PI / 4) : B.spin };
@@ -938,7 +1046,12 @@ export function frameData(card, body) {
     const link = next ? stun - (cancel - m.startup + next.startup) : null;
     return { take: m.take, startup: m.startup, active: m.active, recovery: m.recovery, total: m.startup + m.active + m.recovery, cancel,
       reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher };
-  });
+  }).concat(card.charge?.kind === 'heavy' ? card.charge.at.map((m, k) => {   // the charged moves: startup counted from the release
+    const dv = body.dv[m.take], F = { ...card.hit.force, ...(m.force ?? {}) }, shown = F.model === 'momentum' ? dv * F.gain : F.model === 'boop' ? F.push : F.floor * F.restitution;
+    const stun = stunOf(S, m, shown, 1), stop = card.hit.hitstop ? Math.min(card.hit.hitstop.max, Math.round(card.hit.hitstop.base + card.hit.hitstop.perMs * shown)) : 0, owes = m.active + m.recovery - 1;
+    return { take: m.take, charge: k + 1, held: card.charge.levels[k], startup: m.startup, active: m.active, recovery: m.recovery, total: m.startup + m.active + m.recovery, cancel: null,
+      reach: r4(body.reach[m.take]), dv: r4(shown), stun, hitstop: stop, link: null, onHit: stun - owes, onBlock: 12 - owes, finisher: !!m.finisher };
+  }) : []);
 }
 /** helpers the page and the gate share */
 export const util = { stickOf, groundAt, angDiff, RADIUS, HEIGHT, bearing, targetDist, sparMove, zoneAt };

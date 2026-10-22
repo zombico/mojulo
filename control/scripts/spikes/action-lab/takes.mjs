@@ -126,7 +126,9 @@ export function bake(cast = 'male') {
       return [take, { clip, gain, frames: r.frames.map((f) => pack(rigNodesAt(R, f.pose).nodes, about)) }];
     }));
     const guard = A.render(A.reactTake('hitHigh', R, { gain: 0.15 }), { ...look }, R, { fps: FPS }).frames.slice(0, 13).map((f) => pack(rigNodesAt(R, f.pose).nodes, about));
-    out.feels[id] = { moves, gather, air, land, dodge, react, guard };
+    // the charged moves (a heavy card's): each fitted to its own frames, the release its press
+    const charged = card.charge?.kind === 'heavy' ? card.charge.at.map((m) => { const fm = fitMove(R, m, card, { name: id }); return { take: m.take, frames: nodesOfFrames(R, fm.rendered.frames).map((n) => pack(n, about)) }; }) : [];
+    out.feels[id] = { moves, gather, air, land, dodge, react, guard, charged };
   }
   return out;
 }

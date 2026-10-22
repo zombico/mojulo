@@ -37,6 +37,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Hold and release, in the lab: the charge** (the card's `charge`; every feel). The attack's press still acts at
+  once, so the tap is never delayed; holding on charges it, and the release fires the charged attack on its own frame
+  at the level the hold reached (a release short of the first level fizzles). Realistic and action charge a heavy in a
+  slow stance (action's second level a launcher), the platformer charges Mega Man X's buster and fires a shot from
+  anywhere while it runs and jumps, and pinball revs Sonic's spin dash, aimed by the stick. A hit taken loses the
+  charge. The heavy's rows join the frame data. The gate holds 198 laws on both casts, with a recorded launcher and a
+  recorded full-charge shot among its fixtures.
 - **Guard and parry, in the lab: the attack's arc and its zones** (the card's `guard`; realistic and action). A held
   guard blocks a hit from the front, with a blockstun and a push back. Every enemy attack swings across an arc drawn
   on the floor through its telegraph, red with an orange segment: a hit met in orange by a guard pressed in time is

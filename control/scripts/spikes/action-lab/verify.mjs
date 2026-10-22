@@ -366,6 +366,50 @@ for (const id of FEEL_IDS) {
     }
   }
 
+  // ─── hold and release: the charge (the tap at once, the release the beat, a level by the frames held) ───
+  const CH = C.charge;
+  if (CH) {
+    const L0 = CH.levels[0], last = CH.levels.at(-1), T0 = C.moves.string[0].startup + C.moves.string[0].active + C.moves.string[0].recovery;
+    const tap = track(run(C, (f) => (f === 1 ? AT : 0), last + 40)), long = track(run(C, hold(AT, 1, 1 + last + 10), last + 40));
+    const path = (r) => JSON.stringify(r.states.slice(0, T0).map((x) => [x.hero.p, x.hero.act?.kind ?? null]));
+    row['charge'] = `${CH.kind}, levels ${CH.levels.join('/')} f`;
+    check(`${id}: holding the attack never delays the tap: the opener plays the same frames held or tapped, and a tap shows no charge`, ev(tap, 'move')[0]?.f === 1 && ev(long, 'move')[0]?.f === 1 && path(tap) === path(long) && !ev(tap, 'charge').length && !ev(tap, 'charge-fizzle').length, { tap: ev(tap, 'move')[0]?.f, held: ev(long, 'move')[0]?.f });
+    const short = track(run(C, hold(AT, 1, L0), L0 + 60)), on = track(run(C, hold(AT, 1, 1 + L0), L0 + 60)), re = ev(on, 'release')[0];
+    check(`${id}: the release is the beat: let go ${L0} f after the press it fires level 1 on that frame; a frame sooner it fizzles and fires nothing`, re?.f === 1 + L0 && re.lv === 1 && !ev(short, 'release').length && ev(short, 'charge-fizzle').length === (L0 - 1 >= CH.show ? 1 : 0) && !short.end.shots.length, { release: re && [re.f, re.lv], short: ev(short, 'charge-fizzle').map((e) => e.why) });
+    const lvs = CH.levels.map((L) => ev(track(run(C, hold(AT, 1, 1 + L), L + 60)), 'release')[0]?.lv);
+    check(`${id}: each level fires at its own hold (${CH.levels.join(', ')} f)`, lvs.every((lv, k) => lv === k + 1), lvs);
+    if (CH.kind === 'heavy') {
+      const fd = frameData(C, body).filter((r) => r.charge), at = (k) => 1 + CH.levels[k];
+      const hits = CH.levels.map((L, k) => ev(track(run(C, hold(AT, 1, at(k)), at(k) + 60, { guard: false, mid: (S, f) => { if (f === at(k) - 1) S.dummy.p = [S.hero.p[0], S.hero.p[1] + 1.0, 0]; } })), 'hit', 'dummy')[0]);
+      row['heavy Δv'] = hits.map((h) => h?.dv).join(' / ');
+      check(`${id}: the charged blow lands its startup after the release, on frameData's numbers, harder each level than the last and than the tap`, hits.every((h, k) => h?.charged === k + 1 && h.f === at(k) + CH.at[k].startup && h.dv === fd[k].dv) && hits.every((h, k) => h.dv > (k ? hits[k - 1].dv : frameData(C, body)[0].dv)), hits.map((h) => h && [h.f, h.dv, h.charged]));
+    }
+    if (CH.stance) {
+      const st = T0 + 4;
+      const jmp = track(run(C, (f) => (f >= 1 && f < st + 30 ? AT : 0) | (f === st ? J : 0), st + 40));
+      const walk = track(run(C, (f) => pad(0, f > T0 ? 127 : 0, f >= 1 && f < st + 40 ? AT : 0), st + 41)), wv = Math.max(...walk.states.filter((x) => x.hero.act?.kind === 'charge').map((x) => Math.hypot(x.hero.v[0], x.hero.v[1])));
+      const roll = track(run(C, (f) => (f >= 1 && f < last + 20 ? AT : 0) | (f === L0 + 6 ? DG : 0), last + 40));
+      check(`${id}: the charging stance: a jump in it is dropped (charging), the stick walks it at ${CH.move} of the run, a roll lets the charge go and the release fires nothing`, walk.states[T0 + 1].hero.act?.kind === 'charge' && ev(jmp, 'dropped').some((e) => e.button === 'jump' && /charging/.test(e.why)) && wv <= C.ground.run * CH.move + 1e-9 && (CH.move === 0 ? wv < 1e-9 : wv > 0.1) && ev(roll, 'charge-lost').length === 1 && !ev(roll, 'release').length, { walk: +wv.toFixed(3), lost: ev(roll, 'charge-lost').map((e) => e.why) });
+    }
+    if (CH.kind === 'spin') {
+      const rel = 1 + last, aim = track(run(C, (f) => pad(f > T0 && f < rel ? 127 : 0, 0, f >= 1 && f < rel ? AT : 0), rel + 10)), v = aim.states[rel].hero.v;
+      check(`${id}: the spin dash: rooted in its stance, the stick aims it, and the release launches it along the aim at the level's ${CH.at.at(-1).speed} m/s`, Math.abs(v[0] - CH.at.at(-1).speed) < 1e-6 && Math.abs(v[1]) < 1e-6 && aim.states[rel - 1].hero.p[0] === 0, { v: v.map((x) => +x.toFixed(3)) });
+    }
+    if (CH.kind === 'shot') {
+      const air = track(run(C, (f) => (f >= 1 && f < 50 ? AT : 0) | (f >= 19 && f < 25 ? DS : 0) | (f >= 22 && f < 45 ? J : 0), 60)), ra = ev(air, 'release')[0];
+      check(`${id}: X's buster: the charge is kept through a dash and a jump, and the release fires from the air`, ra?.f === 50 && ra.lv === 1 && !air.states[50].hero.grounded && air.states[50].shots.length === 1 && ev(air, 'dash-jump').length === 1, { release: ra && [ra.f, ra.lv], grounded: air.states[50].hero.grounded });
+      const LANE = { half: 400, blocks: [], hero: [0, 0], dummy: [0, 4] };
+      const shots = CH.levels.map((L, k) => { const rel = 1 + L, r = track(run(C, hold(AT, 1, rel), rel + 60, { arena: LANE, guard: false })), h = ev(r, 'hit', 'dummy')[0], sh = CH.at[k];
+        return { h, want: rel + Math.ceil((4 - util.RADIUS - sh.size - (util.RADIUS + 0.15)) / (sh.speed / FPS)) - 1, push: sh.force.push }; });
+      check(`${id}: the shot flies at its level's speed and lands as a blow of its level's push (the full charge the finisher)`, shots.every(({ h, want, push }, k) => h?.shot === k + 1 && Math.abs(h.f - want) <= 1 && h.dv === push && h.finisher === (k + 1 === CH.levels.length)), shots.map(({ h, want }) => h && [h.f, want, h.dv]));
+      const wall = track(run(C, hold(AT, 1, 1 + L0), L0 + 60, { arena: { ...LANE, blocks: [{ id: 'w', x: [-1, 1], y: [2, 2.5], h: 3 }] }, guard: false }));
+      check(`${id}: a wall stops a shot`, ev(wall, 'shot-wall').length === 1 && !ev(wall, 'hit', 'dummy').length);
+    }
+    // the hero faces away (its tap whiffs) and holds on; the dummy's jab lands from behind mid-charge
+    const hurt = track(run(C, (f) => (f >= 1 && f < 80 ? AT : 0), 100, { arena: { half: 400, blocks: [], hero: [0, -0.8], dummy: [0, 0] }, spar: true, sparMoves: ['jab'], setup: (S) => { S.hero.yaw = Math.PI; } })), hh = ev(hurt, 'hit', 'hero')[0];
+    check(`${id}: a hit taken loses the charge: the release fires nothing`, hh && hurt.states[hh.f - 1].hero.charge && !hurt.states[hh.f].hero.charge && !ev(hurt, 'release').length, { hit: hh?.f, lost: ev(hurt, 'charge-lost').map((e) => [e.f, e.why]) });
+  }
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));

@@ -130,6 +130,24 @@ all red and **unblockable** (a perilous attack: dodge it). The sparring dummy (T
 
 The press window keeps a timing skill in the parry. With `parry: null` on a card, guarding in orange is enough.
 
+## Hold and release: the charge
+
+The card's `charge`, on every feel. The attack's press still acts at once: **the tap is the card's light and is
+never delayed**, whether the button is let go or held. Holding on charges, counted from the press (frozen frames do not
+count). **The release is the beat** of the charged attack: it fires on the release frame at the level the hold reached.
+Let go short of the first level and a charge that was showing fizzles; let go sooner than that and it was only a tap.
+A hit taken loses the charge.
+
+| feel | what it charges | levels (held from the press) | while charging |
+|---|---|---|---|
+| **realistic** | the heavy, a haymaker: 14 f startup from the release, Δv ×1.8 | 40 f | a stance once the jab ends: walks at 0.3×, no jump; a roll or a guard lets it go |
+| **action** | the heavy (40 f), then the launcher (70 f, a finisher thrown up at 42°) | 30 / 70 f | the stance, at 0.4× |
+| **platformer** | Mega Man X's buster: a charge shot, then the full charge (bigger, faster, pushes harder) | 24 / 66 f | no stance: run, jump and dash with it held, and fire from anywhere |
+| **pinball** | Sonic's spin dash: 14 m/s, then 20 m/s, invincible through the boost's frames | 20 / 50 f | rooted and curled, the stick aims it |
+
+The heavy's rows join the frame data (startup counted from the release). A ring on the hero shows the charge once it
+has shown (`show`), coloured by the level reached; the shots fly as balls.
+
 ## Lock-on
 
 The card's `lock`, on realistic and action (a Souls game and a character action game target; a platformer and a pinball
@@ -202,7 +220,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 171 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 198 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -260,6 +278,18 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   - Action's roll meeting a hit in its first 6 frames is a perfect dodge (the dummy's clock runs at half: 10 of its
     frames in 20); a later roll only evades.
   - The platformer and pinball refuse the press, and nobody guards in the air.
+- **Hold and release.**
+  - Holding the attack never delays the tap: the opener plays the same frames held or tapped, and a tap shows no
+    charge.
+  - The release is the beat: let go on the first level's frame count and level 1 fires on that frame; a frame sooner
+    it fizzles and nothing fires. Each level fires at its own hold.
+  - The heavy lands its startup after the release, on frame data's numbers, harder each level than the last and
+    than the tap.
+  - The stance drops a jump (charging), walks at the card's share (pinball's not at all), and a roll lets the charge go.
+  - Pinball's stick aims the spin dash, which leaves along the aim at the level's speed. The platformer keeps the charge
+    through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
+    and a wall stops one.
+  - A hit taken loses the charge.
 - **Lock-on.** Realistic and action take the target and face it to a millionth of a radian while strafing at
   their strafe's share of the run. A locked side roll keeps its distance to the target to a millionth of a metre while
   sweeping round it (0.58 rad in action's roll), and faces it at the end; unlocked, the same roll drifts out. A locked
@@ -294,8 +324,8 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
-- **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (in the air, the stomp
-  attack; action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard. Gamepad: A jump, X attack, B roll,
+- **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (hold to charge, release to
+  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard. Gamepad: A jump, X attack, B roll,
   RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
