@@ -15,6 +15,8 @@ node scripts/spikes/animation-games/collision-verify.mjs [cast=male]   # collisi
 node scripts/spikes/animation-games/collision-preview.mjs /abs/out/dir [cast]   # collision.html + collision-<gait>-<target>.svg
 node scripts/spikes/animation-games/weapon-verify.mjs [cast=male]  # weapons: a strike with a held weapon (below)
 node scripts/spikes/animation-games/weapon-preview.mjs /abs/out/dir [cast]  # weapon.html + weapon-<verb>-<item>.svg
+node scripts/spikes/animation-games/combo-verify.mjs [cast=male]   # combos and hitstun (below)
+node scripts/spikes/animation-games/combo-preview.mjs /abs/out/dir [cast]   # combo.html (with timelines) + combo-<string>.svg (frame-data charts)
 node scripts/spikes/animation-games/viewer.mjs /abs/out/dir [cast]  # every part on one review page: index.html + players + PNG strips
 ```
 
@@ -337,3 +339,69 @@ thrust 4.0). A register that slows the swing to show its weight does not weaken 
 5. **There is no pinball weapon.** A standing swing has no travel to scale its rate by, so pinball's swing plays at its
    default speed and ricochets off the tip. A racing or Sonic-like game with a weapon would want the swing tied to the
    body's speed, like the spin. That is untested here.
+
+## Combos and hitstun
+
+`combo.mjs` strings 3 or 5 of the library's moves together and plays them against a simulated victim:
+
+| string | moves |
+|---|---|
+| fists, 3 hits | jab, jab, cross |
+| fists, 5 hits | jab, jab, cross, jab, cross |
+| sword, 3 hits | chop, rising, thrust |
+| sword, 5 hits | chop, rising, chop, rising, and a cleave finisher |
+
+Each move is rendered by its register and *cancelled* into the next. It is cut at the register's cancel point and
+cross-faded into the next move, which *enters* part way into its wind-up, the way an action string flows from one
+blow's follow-through into the next. The cross-fade ends before the next contact, so every move's striking point still
+lands where the move puts it (0 mm, chained and cancelled).
+
+**Hitstun** is how long a hit leaves the victim unable to act. A hit *links* when it lands inside the stun the last hit
+left. Once the stun runs out the victim is free, and a free victim that has seen a hit coming blocks it. So a string is a
+*true combo* exactly as far as each gap between hits fits inside the stun before it. The **advantage** is the frames of
+stun left when the next hit lands: it is ≥ 0 for every hit that linked and < 0 for every one that was blocked (checked
+across every string and register).
+
+| register | where the stun comes from | cancel / entry | each hit pushes | the end |
+|---|---|---|---|---|
+| **realistic** | the body: 0.22 s of reaction + a flinch of up to 0.4 s, scaled by the blow | half way back to guard / half the wind-up | the blow's real momentum | — |
+| **action** | the game's combo rule (`combat-hit.js`): max(0.12, 0.5 × 0.85^(n−1)) s | at the follow-through / the whole wind-up | 0.6 m/s | a finisher: the full blow, a launch |
+| **platformer** | none: after a hit, 1 s of mercy invincibility | plays each move out / none | a boop | — |
+| **pinball** | none: the hit is a ricochet | at the follow-through / the whole wind-up | the ricochet | — |
+
+The victim's reaction is the library's (`hitHigh` for a jab or a chop, `hitBody` for a cross or a rising cut), scaled
+by the blow, and the finisher's launch is the `knockedOut` collapse in the air. A hit is a **hit**, **blocked**,
+**immune** (inside mercy invincibility) or a **whiff** (the striking point more than 3 cm short of the chest).
+
+**What the machine gate measured** (`combo-verify.mjs`; all 12 checks hold on male and female; nobody has looked yet):
+
+| string | realistic | action | platformer | pinball |
+|---|---|---|---|---|
+| fists, 5 | 5/5, advantage +3 0 0 0 (male); 2/5, +2 −1 (female) | 5/5, +19 +14 +10 +6, launched 2.7 m | hit, immune ×3, hit (after the 1 s) | 1, then whiffs (16 m away) |
+| sword, 5 | 1, then blocked ×4 (−12) | 4/5, +11 +7 +3 −1: the cleave finisher blocked | hit, whiff, immune, hit, immune | 1, then whiffs |
+
+### Combo findings
+
+1. **Hitstun is one law under four sources.** Every register keeps the same rule: the next hit links if it lands
+   inside the last stun. What differs is where the stun comes from: the body's reaction, an authored number, nothing
+   (with invincibility instead), or a ricochet that takes the victim away. The timelines (`combo-<string>.svg`) draw
+   exactly that: a bar per stun and a tick per hit.
+2. **A realistic jab string sits on the reaction time.** Its advantages are within a frame or two of zero, so it lands
+   or drops by the body. The male cast's 1-1-2-1-2 lands whole. The female cast's blows are lighter, so her victim's
+   flinch is shorter, and her cross comes 1 frame late. That is the honest reading of a real combination: punches beat a
+   reaction or they don't. A realistic sword string is blocked after the first cut, because a sword is slower than a
+   reaction.
+3. **The decay that keeps a string honest is tuned to the string.** Action's stun decays 0.85 a hit, so by the 5th hit
+   it is 0.26 s. The fist string's gaps (0.32 s) fit until then; the sword's (0.42 s) do not, and the sword's finisher
+   is blocked by one frame. With a stun that doesn't decay the same string lands whole. A weapon set needs its own base
+   or decay, or stun scaled by the move's weight, as the fighter's strengths are (L/M/H: +4/+4/+2 on hit).
+4. **A string needs footwork.** The cross reaches shorter than the jab (the rear hand) and the rising cut shorter than
+   the chop. Without a step they whiff. The library's strikes have no step-in, so the spike slides the attacker toward
+   the victim through each wind-up (at most half a step; 0.05–0.16 m over a string, by register and cast). A game shows the step; the
+   library needs one, as the thrust's lunge already is.
+5. **Platformers trade hitstun for invincibility.** There, a hit makes the victim *safe* rather than helpless: the
+   hits inside the second after it pass through. So a platformer's combo is the wrong question; its string is one hit
+   and a pause.
+6. **The game's melee caps a string at two.** `combat-melee.js` allows the opener and one follow-up. The 3- and
+   5-hit strings here are the next step, and the combo rule they need (hitstun, decay, finisher) already exists in
+   `combat-hit.js`.

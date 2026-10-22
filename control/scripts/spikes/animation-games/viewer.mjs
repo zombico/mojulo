@@ -26,6 +26,9 @@ const PARTS = [
   { id: 'weapon', name: 'Weapons', script: 'weapon-preview.mjs', verify: 'weapon-verify.mjs', player: 'weapon.html',
     strips: [['weapon-chop-sword.svg', 'chop with a sword'], ['weapon-chop-greatsword.svg', 'chop with a greatsword'], ['weapon-chop-dagger.svg', 'chop with a dagger'], ['weapon-cleave-greatsword.svg', 'two-handed cleave with a greatsword'], ['weapon-thrust-sword.svg', 'thrust with a sword']],
     says: 'A strike with a held weapon (the hero library\'s swings: chop, thrust, rising, the two-handed cleave) at each item class. The realistic register is the rig\'s own swing; the others show the weight more (action: a charged heavy blade, a trail, a freeze that grows with the weapon) or less (platformer: one snappy swing). At contact the blade\'s tip is in the same place in every register.' },
+  { id: 'combo', name: 'Combos', script: 'combo-preview.mjs', verify: 'combo-verify.mjs', player: 'combo.html',
+    strips: [['combo-fist5.svg', 'fists, 5 hits: the stun each hit leaves, and whether the next lands inside it'], ['combo-sword5.svg', 'sword, 5 hits'], ['combo-fist3.svg', 'fists, 3 hits'], ['combo-sword3.svg', 'sword, 3 hits']],
+    says: 'Strings of 3 and 5 hits (fists and a sword) and HITSTUN: a hit leaves the victim unable to act for a while, and the next hit links only if it lands inside that stun; after it the victim blocks. Realistic stuns for the body\'s reaction time (a jab string sits on its edge, a sword is too slow); action authors a stun that decays hit by hit and ends on a launching finisher; platformer has none (mercy invincibility instead); pinball\'s first hit sends the victim out of reach.' },
   { id: 'collision', name: 'Collisions', script: 'collision-preview.mjs', verify: 'collision-verify.mjs', player: 'collision.html',
     strips: [['collision-run-wall.svg', 'run into a wall'], ['collision-run-unit.svg', 'run into a body'], ['collision-walk-wall.svg', 'walk into a wall'], ['collision-walk-unit.svg', 'walk into a body'],
       ['collision-walls-run.svg', 'run into a wall, by its property'], ['collision-walls-walk.svg', 'walk into a wall, by its property'], ['collision-bouncy-tuned.svg', 'run into a bouncy wall, tuned']],
@@ -82,6 +85,7 @@ nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pill{font:600 11px var(--mono);padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--held) 15%,transparent);color:var(--held)}
 .pill.bad{background:color-mix(in srgb,var(--fail) 15%,transparent);color:var(--fail)}
 section{display:grid;gap:16px}
+[hidden]{display:none!important}   /* (the host's skeleton says so too; offline, this page must: section's grid would show every tab) */
 .lede{max-width:72ch;margin:0;color:var(--fg)}
 .gates{display:flex;flex-wrap:wrap;gap:10px;font-size:13px}
 .gate{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:flex;gap:8px;align-items:baseline}
