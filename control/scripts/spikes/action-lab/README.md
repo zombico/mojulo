@@ -105,6 +105,31 @@ The card's `air` and `cling`, on the three non-realistic feels:
 - **Pinball's walls** are bumpers above 3 m/s; slower than that in the air they are plain walls, so a body can come to
   rest on one and slide.
 
+## Guard and parry: the attack's arc and its zones
+
+The card's `guard`, on realistic and action; the platformer and pinball do not guard (pinball's boost is its defence).
+**GUARD** (U, gamepad RT; sprint moves to LT) held blocks a hit from the front: no hitstun, a short blockstun and a push
+back. A hit from behind still lands.
+
+**Every enemy attack swings across an arc**, drawn on the floor through its telegraph: red, with an orange segment.
+A sweep crosses its arc over its active frames and meets a body on the frame it reaches the body's angle; a thrust is
+live across its whole arc. A hit met in **orange** by a guard pressed in time is **parried**: the attacker staggers open
+for a riposte and the guard is free at once. Met in **red**, it is only blocked. Some attacks are all orange; some are
+all red and **unblockable** (a perilous attack: dodge it). The sparring dummy (T) cycles three:
+
+| attack | telegraph | arc | zones |
+|---|---|---|---|
+| **jab** | 30 f | a thrust, ±10° | all orange |
+| **hook** | 36 f | a sweep, ±70° over 10 f | orange in the middle 30 %, red at the edges |
+| **perilous blow** | 48 f | a thrust, ±30° | red, unblockable: a `!` over the dummy |
+
+| feel | guarding | the press for a parry (in orange) | block | more |
+|---|---|---|---|---|
+| **realistic** | walks at 0.35× | within 6 f of the hit (strict) | push 1.2 m/s, 14 f blockstun | stamina 100, 40 a block; empty breaks the guard into a stagger |
+| **action** | rooted | within 12 f (lenient) | push 2 m/s, 10 f blockstun | the **perfect dodge**: a roll or dash meeting a hit in its first 6 f slows the attacker to half speed for 2 s (Witch Time) |
+
+The press window keeps a timing skill in the parry. With `parry: null` on a card, guarding in orange is enough.
+
 ## Lock-on
 
 The card's `lock`, on realistic and action (a Souls game and a character action game target; a platformer and a pinball
@@ -177,7 +202,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 151 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 171 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -221,6 +246,20 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     the wall, rising its share of the jump. A jump inside the wall's coyote time still kicks.
   - Action and platformer climb one wall by held kicks (each kick higher than the last); pinball does not. Touching a
     wall gives the air jump back. Realistic has none of it.
+- **Guard and parry.**
+  - A held guard blocks the jab from the front: no stun, the card's blockstun, pushed back. An attack pressed in the
+    blockstun waits.
+  - A guard pressed inside the window parries it; a frame earlier it only blocks. The parried dummy staggers for the
+    riposte frames and the riposte lands linked.
+  - The hook's arc: standing in its orange middle, a timed guard parries it on the frame the sweep reaches the
+    middle. Standing in its red edge, the same guard only blocks, on the frame the sweep reaches the edge. Outside the
+    arc it whiffs.
+  - The perilous blow goes through a guard, and a roll's invincible frames evade it.
+  - A hit from behind lands through a guard. Realistic blocks twice and the third breaks the guard; action never
+    breaks, and its push back carries it out of the later jabs' reach.
+  - Action's roll meeting a hit in its first 6 frames is a perfect dodge (the dummy's clock runs at half: 10 of its
+    frames in 20); a later roll only evades.
+  - The platformer and pinball refuse the press, and nobody guards in the air.
 - **Lock-on.** Realistic and action take the target and face it to a millionth of a radian while strafing at
   their strafe's share of the run. A locked side roll keeps its distance to the target to a millionth of a metre while
   sweeping round it (0.58 rad in action's roll), and faces it at the end; unlocked, the same roll drifts out. A locked
@@ -256,8 +295,8 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (in the air, the stomp
-  attack; action's is S + J, back and attack), K dodge roll, L dash, Q lock-on. Gamepad: A jump, X attack, B roll,
-  RB dash, LB lock-on, RT sprint. A standard
+  attack; action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard. Gamepad: A jump, X attack, B roll,
+  RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.
 - **Feel and settings.** 1–4 switch the feel; C switches the cast (the same card on the other body). T toggles a

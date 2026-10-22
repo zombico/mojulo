@@ -3,7 +3,7 @@
 //   node scripts/spikes/action-lab/verify.mjs [cast=male]
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { FEELS, FEEL_IDS, BTN, FPS, ARENA, newState, step, frameData, util } from './feel.mjs';
+import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, newState, step, frameData, util } from './feel.mjs';
 const T = await import('./takes.mjs');
 const A = await import('../animation-games/flavor.mjs');
 
@@ -13,16 +13,17 @@ let fails = 0;
 const check = (name, ok, measured) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${measured === undefined ? '' : `  ${JSON.stringify(measured)}`}`); };
 const note = (name, measured) => console.log(`note  ${name}  ${JSON.stringify(measured)}`);
 const OPEN = { half: 400, blocks: [], hero: [0, 0], dummy: [300, 300] };
-const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK;
+const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOCK, GU = BTN.GUARD;
 
 /**
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
  * block taller than a step over its feet, none past the arena). Returns the events and the per-tick states.
  */
-function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight } = {}) {
-  let S = newState(card, who, { arena, spar, guard, dummyHeight }); if (setup) setup(S);
+function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null } = {}) {
+  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves }); if (setup) setup(S);
   const events = [], states = []; let breach = null;
   for (let f = 0; f < n; f++) {
+    if (mid) mid(S, f);   // a test may move a body mid-run (between ticks), to put it where the law needs it
     S = step(S, pads(f)); events.push(...S.events); states.push(S);
     for (const w of ['hero', 'dummy']) { const B = S[w];
       if (Math.abs(B.p[0]) > arena.half - util.RADIUS + 1e-9 || Math.abs(B.p[1]) > arena.half - util.RADIUS + 1e-9) breach ??= { f, w, p: B.p };
@@ -209,6 +210,50 @@ for (const id of FEEL_IDS) {
   check(`${id}: the stick at rest is a backstep, as short as a ${R0.kind} back (${R0.back.speed}× the speed, ${R0.back.frames}× the frames)`, st0?.rel === 'back' && st0.neutral && Math.abs(stLen - ways.back.len) < 1e-9 && ways.back.len < ways.fwd.len, { backstep: +stLen.toFixed(4), forward: +ways.fwd.len.toFixed(4) });
   { const air = track(run(C, (f) => (f === 1 ? [0, 127, DG] : 0), 30, { arena: OPEN, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
     check(`${id}: no ${R0.kind} in the air: the press is dropped, and says why`, !ev(air, 'dodge').length && ev(air, 'dropped').some((e) => e.button === 'dodge' && /air/.test(e.why))); }
+
+  // ─── guard and parry: the telegraphed jab blocked, parried, met from behind; stamina; the perfect dodge ───
+  const GD = C.guard, SPG = { half: 400, blocks: [], hero: [0, -1.0], dummy: [0, 0] }, face = (yaw) => (S) => { S.hero.yaw = yaw; };
+  const spar = (pads, n = 70, yaw = 0, sparMoves = null, mid = null) => track(run(C, pads, n, { arena: SPG, spar: true, setup: face(yaw), sparMoves, mid }));
+  if (GD) {
+    const hsB = C.hit.hitstop ? Math.min(C.hit.hitstop.max, Math.round(C.hit.hitstop.base + C.hit.hitstop.perMs * body.dv.jab * 0.5)) : 0, atB = 30 + hsB + 2;   // the press after the block's freeze
+    const bl = spar((f) => (f >= 1 && f < atB ? GU : f === atB ? GU | AT : f > atB && f < 60 ? GU : 0));
+    const be = ev(bl, 'block')[0], hero30 = bl.states[be?.f ?? 0].hero, back = bl.states[be.f].hero.p[1] - bl.states[be.f + be.hitstop + 8].hero.p[1];
+    row['guard'] = `parry ${GD.parry} f, blockstun ${GD.block.stun} f`;
+    check(`${id}: a held guard blocks a hit from the front: no stun, ${GD.block.stun} f of blockstun, pushed back; an attack in the blockstun waits`, be?.f === 30 && !ev(bl, 'hit', 'hero').length && hero30.stun === 0 && hero30.blockstun === GD.block.stun - 1 && back > 0.05 && ev(bl, 'buffered').some((e) => e.button === 'attack' && /blockstun/.test(e.why)), { block: be?.f, blockstun: hero30.blockstun + 1, back: +back.toFixed(3) });
+    const pIn = spar((f) => (f >= 30 - (GD.parry - 1) && f < 60 ? GU : 0)), pOut = spar((f) => (f >= 30 - GD.parry && f < 60 ? GU : 0));
+    const pe = ev(pIn, 'parry')[0], D0 = pIn.states[pe?.f ?? 0].dummy;
+    check(`${id}: a guard pressed inside ${GD.parry} f of the hit parries it, the attacker staggered ${GD.riposte} f; a frame earlier it only blocks`, pe?.f === 30 && D0.act?.kind === 'stagger' && D0.stun === GD.riposte - 1 && !ev(pOut, 'parry').length && ev(pOut, 'block').length === 1, { parry: pe?.at, stun: D0.stun + 1, early: ev(pOut, 'block').map((e) => e.f) });
+    const rip = spar((f) => (f >= 30 - (GD.parry - 1) && f < 41 ? GU : f === 41 + 1 ? AT : 0), 90), rh = ev(rip, 'hit', 'dummy')[0];
+    check(`${id}: the riposte: an attack out of a parry lands on the staggered attacker`, rh && rh.advantage != null, { hit: rh?.f, advantage: rh?.advantage });
+    const behind = spar((f) => (f >= 1 && f < 60 ? GU : 0), 70, Math.PI);
+    check(`${id}: the guard does not cover the back: a hit from behind lands`, ev(behind, 'hit', 'hero').length === 1 && !ev(behind, 'block').length);
+    const long = spar((f) => (f >= 1 ? GU : 0), 260, 0, ['jab']), blocks = ev(long, 'block'), brk = ev(long, 'guard-break');
+    if (GD.stamina) { const n = Math.floor(GD.stamina.max / GD.stamina.cost);
+      check(`${id}: blocking spends stamina (${GD.stamina.cost} of ${GD.stamina.max}): ${n} blocks, then the guard breaks into a stagger`, blocks.length === n && brk.length === 1 && long.states[brk[0].f].hero.act?.kind === 'stagger', { blocks: blocks.length, broke: brk.map((e) => e.f) }); }
+    else check(`${id}: no stamina: the guard never breaks and nothing gets through (its push back carries it out of the later jabs' reach)`, blocks.length >= 2 && !brk.length && !ev(long, 'hit', 'hero').length, { blocks: blocks.length, whiffs: ev(long, 'whiff', 'dummy').length });
+    if (GD.perfect) {
+      const I = C.dodge.iframes, early = spar((f) => (f === 30 - (I[0] + 1) ? [0, 127, DG] : 0), 80), late = spar((f) => (f === 30 - (GD.perfect.window + 1) ? [0, 127, DG] : 0), 80);
+      const pf = ev(early, 'perfect')[0], dA = (st) => st.dummy.act?.f ?? 0, slowed = dA(early.states[51]) - dA(early.states[31]);
+      check(`${id}: a dodge whose invincible frames meet the hit in its first ${GD.perfect.window} f is a perfect dodge: the attacker at half speed for ${GD.perfect.witch} f; a later one only evades`, pf?.f === 30 && Math.abs(slowed - 10) <= 1 && ev(late, 'evaded').length === 1 && !ev(late, 'perfect').length, { perfect: pf?.at, dummyFrames: slowed, late: ev(late, 'evaded').map((e) => e.f) });
+    }
+    // the arc's zones: the hook sweeps ±70° over 10 f, orange in its middle 30 %; the perilous blow is red, unblockable
+    const HK = SPAR.moves.find((m) => m.name === 'hook'), PR = SPAR.moves.find((m) => m.name === 'perilous');
+    const reachAt = (ang) => HK.startup + Math.max(0, Math.ceil(((ang - HK.arc[0]) / (HK.arc[1] - HK.arc[0])) * HK.active - 1e-9) - 1);   // the frame the sweep meets an angle
+    const at = (deg) => (S, f) => { if (f !== 10) return; const D = S.dummy, a = D.yaw + (deg * Math.PI) / 180; S.hero.p = [D.p[0] + Math.sin(a), D.p[1] + Math.cos(a), 0]; S.hero.yaw = util.bearing(S); };   // after the telegraph took aim
+    const guardAt = (hitF) => (f) => (f >= hitF - (GD.parry ? GD.parry - 1 : 3) && f < hitF + 20 ? GU : 0);
+    const oF = reachAt(0), rF = reachAt(-60);
+    const orange = spar(guardAt(oF), 80, 0, ['hook'], at(0)), red = spar(guardAt(rF), 80, 0, ['hook'], at(-60)), outside = spar(() => 0, 80, 0, ['hook'], at(90));
+    const po = ev(orange, 'parry')[0], br = ev(red, 'block')[0];
+    check(`${id}: the hook's arc: met in its orange middle a timed guard parries it; met in its red edge the same guard only blocks; each where the sweep reaches it`, po?.f === oF && po.zone === 'orange' && br?.f === rF && br.zone === 'red' && !ev(red, 'parry').length && !ev(outside, 'hit', 'hero').length, { orange: [po?.f, oF], red: [br?.f, rF], outside: ev(outside, 'whiff', 'dummy').length });
+    const per = spar((f) => (f >= 1 ? GU : 0), 80, 0, ['perilous']), ph = ev(per, 'hit', 'hero')[0];
+    const I2 = C.dodge.iframes, perD = I2 ? spar((f) => (f === PR.startup - (I2[0] + 1) ? [0, 127, DG] : 0), 90, 0, ['perilous']) : null;
+    check(`${id}: the perilous blow is red and unblockable: it goes through a guard${I2 ? `, and a ${C.dodge.kind}'s invincible frames evade it` : ''}`, ph?.f === PR.startup && ph.unblockable && ph.guarding && (!perD || (ev(perD, 'evaded').length === 1 && !ev(perD, 'hit', 'hero').length)), { hit: ph?.f, evaded: perD ? ev(perD, 'evaded').map((e) => e.f) : null });
+    const air = track(run(C, (f) => (f === 1 ? GU : 0), 20, { arena: OPEN, setup: (S) => { S.hero.p[2] = 3; S.hero.grounded = false; } }));
+    check(`${id}: no guard in the air: the press is dropped, and says why`, ev(air, 'dropped').some((e) => e.button === 'guard' && /air/.test(e.why)));
+  } else {
+    const ng = track(run(C, (f) => (f === 1 ? GU : 0), 10, { arena: OPEN }));
+    check(`${id}: no guard in this feel: the press is dropped, and says why`, ev(ng, 'dropped').some((e) => e.button === 'guard' && /no guard/.test(e.why)));
+  }
 
   // ─── lock-on: the facing on the target, the stick a strafe, the rolls circling it ───
   const LO = C.lock, EAST = { half: 400, blocks: [], hero: [0, 0], dummy: [4, 0] };

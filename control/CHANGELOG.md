@@ -37,6 +37,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **Guard and parry, in the lab: the attack's arc and its zones** (the card's `guard`; realistic and action). A held
+  guard blocks a hit from the front, with a blockstun and a push back. Every enemy attack swings across an arc drawn
+  on the floor through its telegraph, red with an orange segment: a hit met in orange by a guard pressed in time is
+  parried (the attacker staggers open for a riposte), met in red it is only blocked, and some attacks are all orange
+  or all red and unblockable (dodge those). The sparring dummy cycles a jab, a sweeping hook and a perilous blow.
+  Realistic's guard spends stamina and breaks when it runs out; action's perfect dodge slows the attacker to half
+  speed. The gate holds 171 laws on both casts, with a recorded parry and riposte among its fixtures.
 - **Lock-on, in the lab** (the card's `lock`; realistic and action). A lock button takes the dummy as the target in
   range and lets it go on the next press or when it walks out of range. Locked, the body faces the target, the stick
   strafes, attacks go at it, and the rolls circle it: a side roll arcs round the target at its distance, forward

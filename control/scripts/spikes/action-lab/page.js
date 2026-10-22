@@ -1,11 +1,11 @@
 // action-lab page: the playable half. lab.mjs inlines feel.mjs (the kernel, its exports stripped) above this file and
 // DATA (takes.mjs bake, per cast) above that, so the page steps the very code the gate runs.
-/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, SPAR, newState, step, poseOf, frameData, util, copy */
+/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -24,7 +24,7 @@ function reset() {
 
 // ─── input: keyboard, gamepad, touch ───
 const keys = new Set(), tapped = new Set();   // tapped: pressed since the last tick, so a tap between two ticks still lands
-const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
@@ -60,7 +60,7 @@ function readPad() {
   const on = (k) => keys.has(k) || tapped.has(k);
   let x = (on('right') ? 1 : 0) - (on('left') ? 1 : 0), y = (on('up') ? 1 : 0) - (on('down') ? 1 : 0);
   if (x && y) { x *= Math.SQRT1_2; y *= Math.SQRT1_2; }
-  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('sprint') ? BTN.SPRINT : 0);
+  let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('guard') ? BTN.GUARD : 0) | (on('sprint') ? BTN.SPRINT : 0);
   tapped.clear();
   const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
   padName = gp ? gp.id : null;
@@ -69,7 +69,7 @@ function readPad() {
     if (dz) { x = ax; y = -ay; }
     const pr = (i) => !!gp.buttons[i]?.pressed;
     if (pr(12)) y = 1; if (pr(13)) y = -1; if (pr(14)) x = -1; if (pr(15)) x = 1;
-    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) || pr(10) ? BTN.SPRINT : 0);
+    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) ? BTN.GUARD : 0) | (pr(6) || pr(10) ? BTN.SPRINT : 0);
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
@@ -96,14 +96,14 @@ function catOf(who) {
   const B = S[who], a = B.act;
   if (B.stop) return 'stop';
   if (a?.kind === 'move' || a?.kind === 'spar') {
-    const m = a.kind === 'spar' ? SPAR : S.card.moves.string[a.i], f = a.shown ?? a.f;
+    const m = a.kind === 'spar' ? util.sparMove(a) : S.card.moves.string[a.i], f = a.shown ?? a.f;
     return f < m.startup ? 'startup' : f < m.startup + m.active ? 'active' : 'recovery';
   }
   if (a?.kind === 'gather') return 'gather';
   if (a?.kind === 'pound') return (a.shown ?? a.f) < (S.card.pound?.hang ?? 0) ? 'gather' : 'active';
   if (a?.kind === 'poundLag') return 'recovery';
   if (a?.kind === 'dodge' || a?.kind === 'dash') { const I = (a.kind === 'dash' ? S.card.dash : S.card.dodge)?.iframes, f = a.shown ?? a.f; return I && f >= I[0] && f < I[1] ? 'inv' : 'recovery'; }
-  if (a?.kind === 'guard') return 'guard';
+  if (a?.kind === 'guard' || a?.kind === 'block') return 'guard';
   if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') return 'stun';
   if (B.mercy > 0) return 'mercy';
   if (B.cling) return 'cling';
@@ -119,8 +119,8 @@ const say = {
   dropped: (e) => `${e.button} dropped: ${e.why}`,
   takeoff: () => 'take-off', apex: (e) => `apex ${e.height.toFixed(2)} m`, land: (e) => `land at ${e.fall.toFixed(1)} m/s`,
   edge: () => 'walked off an edge', coyote: (e) => `coyote jump (${e.left} f were left)`, cut: () => 'jump cut on release',
-  move: (e) => (e.who === 'dummy' ? `dummy telegraphs a jab (${e.telegraph} f)` : `move ${e.i + 1}: ${e.take}`),
-  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
+  move: (e) => (e.who === 'dummy' ? `dummy telegraphs a ${e.name} (${e.telegraph} f): ${e.unblockable ? 'red, unblockable: dodge it' : e.zone === 'orange' ? 'all orange: parryable' : 'red with an orange middle: parry it there'}` : `move ${e.i + 1}: ${e.take}`),
+  hit: (e) => `${e.who === 'dummy' ? 'dummy' : 'hero'} hit by ${e.pound ? `the ${e.pound}` : e.attack ? `the ${e.attack}${e.unblockable && e.guarding ? ', through the guard (unblockable)' : ''}` : e.take}: Δv ${e.dv.toFixed(2)} m/s (×${e.powerscale.toFixed(1)}), hitstop ${e.hitstop} f, stun ${e.stun} f${e.advantage != null ? `, linked +${e.advantage}` : ''}${e.finisher ? ', finisher' : ''}`,
   blocked: (e) => `blocked (a free dummy that saw it coming), hitstop ${e.hitstop} f`, immune: (e) => `immune: mercy ${e.mercy} f left`,
   whiff: (e) => (e.short > 0 ? `whiff, ${e.short.toFixed(2)} m short` : 'whiff, wide of the dummy'), evaded: (e) => `evaded through the ${e.by}'s invincible frames`,
   wall: (e) => `wall: ${e.response} at ${e.into.toFixed(1)} m/s${e.out != null ? ` → ${e.out.toFixed(1)}` : ''}`,
@@ -130,7 +130,10 @@ const say = {
   'bounce-off': (e) => (e.immune ? 'bounced off (the dummy is in its mercy)' : `bounced off the dummy at ${e.vz.toFixed(1)} m/s (fell at ${e.fell.toFixed(1)}), the dummy ricochets`),
   slide: () => 'on its head: slid off (its top is no floor)',
   cling: () => 'on the wall: sliding down it', 'wall-jump': (e) => `${e.dash ? 'dash ' : ''}wall jump${e.coyote ? ', a moment after leaving the wall' : ': kicked off the wall'}`,
-  'air-dash': (e) => `air dash (${e.left} left)`, lock: () => 'locked on the dummy', unlock: () => 'lock let go', 'lock-lost': () => 'lock lost: the target is out of range', 'dash-jump': (e) => `dash jump: the air keeps ${e.speed.toFixed(1)} m/s`, 'air-jump': (e) => `air jump (${e.left} left)`,
+  'air-dash': (e) => `air dash (${e.left} left)`, lock: () => 'locked on the dummy', guard: () => 'guard up',
+  block: (e) => `blocked${e.zone === 'red' ? ' (met in red: not parryable there)' : ''}: ${e.blockstun} f of blockstun${e.stamina != null ? `, stamina ${Math.round(e.stamina)}` : ''}`,
+  parry: (e) => `parry (${e.at} f after the press): the dummy staggered ${e.riposte} f, riposte!`, 'guard-break': (e) => `guard broken: out of stamina, staggered ${e.stagger} f`,
+  perfect: (e) => `perfect dodge: Witch Time, the dummy at half speed for ${e.witch} f`, 'witch-end': () => 'Witch Time over', unlock: () => 'lock let go', 'lock-lost': () => 'lock lost: the target is out of range', 'dash-jump': (e) => `dash jump: the air keeps ${e.speed.toFixed(1)} m/s`, 'air-jump': (e) => `air jump (${e.left} left)`,
   pound: (e) => ({ plunge: 'plunge: straight down', pound: 'ground pound: the flip, then the drop', bounce: 'bounce attack: straight down' })[e.kind],
   'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
@@ -149,6 +152,7 @@ function onEvent(e) {
     sparks.push({ p: [S.dummy.p[0], S.dummy.p[1], S.dummy.p[2] + 1.3], t: 0, big: e.finisher || e.hitstop > 6 });
   }
   if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step' || e.type === 'pound-bounce' || e.type === 'wall-jump' || e.type === 'air-jump' || e.type === 'dash-jump' || e.type === 'air-dash')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
+  if (e.who === 'hero' && (e.type === 'parry' || e.type === 'block' || e.type === 'perfect' || e.type === 'guard-break')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: e.type === 'parry' || e.type === 'perfect', evade: e.type === 'perfect' });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
   dirty.log = true;
@@ -180,7 +184,7 @@ function poseFrames(who) {
   let a, key = d.clip;
   switch (d.clip) {
     case 'move': a = moveFrame(F, d.i, d.at); key += d.i; break;
-    case 'spar': a = pick(D.spar, d.at); break;
+    case 'spar': a = pick(D.spar[d.name] ?? D.spar.jab, d.at); key += d.name; break;
     case 'gather': a = pick(F.gather, F.gather.length > 1 ? (d.at * (F.gather.length - 1)) / Math.max(1, d.of) : 0); break;
     case 'dodge': { const fr = F.dodge[d.rel]; a = pick(fr, (d.at * (fr.length - 1)) / d.of); key += d.rel; break; }
     case 'dash': a = locoAt(D, Math.max(D.loco.sprint.v, d.speed), (S.f * 0.08) % 1); break;
@@ -260,6 +264,24 @@ function drawBlock(k) {
   } else poly([[0, y0, 0], [0, y1, 0], [0, y1, k.h], [0, y0, k.h]], COL.block, COL.blockTop);
 }
 const corners = (k) => [[k.x[0], k.y[0]], [k.x[1], k.y[0]], [k.x[1], k.y[1]], [k.x[0], k.y[1]]];
+/** an enemy attack's arc on the floor: red, its orange segment, filling through the telegraph; the sweep's edge once live */
+function drawArc() {
+  const D = S.dummy, a = D.act; if (a?.kind !== 'spar' || view !== 'three') return;
+  const m = util.sparMove(a), f = a.shown ?? a.f, r = m.reach + util.RADIUS, total = m.startup + m.active;
+  if (f >= total) return;
+  const deg = Math.PI / 180, at = (t) => D.yaw + (m.arc[0] + (m.arc[1] - m.arc[0]) * t) * deg;
+  const sector = (t0, t1, fill, alpha) => {
+    const pts = [[D.p[0], D.p[1], D.p[2] + 0.02]];
+    for (let i = 0; i <= 12; i++) { const ang = at(t0 + ((t1 - t0) * i) / 12); pts.push([D.p[0] + Math.sin(ang) * r, D.p[1] + Math.cos(ang) * r, D.p[2] + 0.02]); }
+    ctx.globalAlpha = alpha; poly(pts, fill); ctx.globalAlpha = 1;
+  };
+  const live = f >= m.startup, k = f - m.startup, fill = live ? 0.6 : 0.15 + (0.35 * f) / m.startup;
+  sector(0, 1, COL.zoneRed, fill);
+  if (m.zone === 'orange') sector(0, 1, COL.zoneOrange, fill);
+  else if (m.orange) sector(m.orange[0], m.orange[1], COL.zoneOrange, fill);
+  if (live && m.sweep) { const ang = at((k + 1) / m.active), p0 = P(D.p[0], D.p[1], D.p[2] + 0.02), p1 = P(D.p[0] + Math.sin(ang) * r, D.p[1] + Math.cos(ang) * r, D.p[2] + 0.02); ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke(); }
+  if (m.unblockable) { const top = P(D.p[0], D.p[1], D.p[2] + D.h + 0.5); ctx.fillStyle = COL.zoneRed; ctx.font = `700 ${Math.round(scale() * 0.35)}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.fillText('!', top[0], top[1]); ctx.textAlign = 'start'; }
+}
 /** the lock-on's mark: a ring at the target's feet and a notch over its head */
 function drawLock() {
   if (!S.lock) return;
@@ -285,7 +307,8 @@ function drawBody(who, colour) {
   }
   prevWorld[who] = w;
   const inv = (d.clip === 'dodge' || d.clip === 'dash') && d.iframes, hurt = B.stun > 0 || B.act?.kind === 'hurt';
-  ctx.strokeStyle = d.held ? COL.ink : inv ? COL.inv : hurt ? COL.stun : colour; ctx.globalAlpha = inv ? 0.6 : 1;
+  const witch = who === 'dummy' && S.witch > 0;
+  ctx.strokeStyle = d.held ? COL.ink : inv || witch ? COL.inv : hurt ? COL.stun : colour; ctx.globalAlpha = inv ? 0.6 : 1;
   ctx.lineWidth = Math.max(2, ppm * 0.055); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath();
   for (const [i, j] of D.bones) { const p0 = P(...w[i]), p1 = P(...w[j]); ctx.moveTo(p0[0] + shake, p0[1]); ctx.lineTo(p1[0] + shake, p1[1]); }
@@ -313,7 +336,7 @@ function draw() {
   const near = (b) => Math.min(...corners(b).map(([x, y]) => depthOf(x, y))), far = (b) => Math.max(...corners(b).map(([x, y]) => depthOf(x, y)));
   const blocks = [...S.arena.blocks].sort((a, b) => far(b) - far(a));
   for (const b of blocks) drawBlock(b);
-  drawLock();
+  drawArc(); drawLock();
   const bodies = [['dummy', COL.dummy], ['hero', COL.hero]].sort((a, b) => (view === 'three' ? depthOf(S[b[0]].p[0], S[b[0]].p[1]) - depthOf(S[a[0]].p[0], S[a[0]].p[1]) : S[a[0]].p[0] - S[b[0]].p[0]));
   for (const [who, col] of bodies) {
     drawShadow(S[who]); drawBody(who, col);
@@ -351,7 +374,7 @@ function renderFeel() {
 const DIALS = [
   ['Ground', 'ground.run', 'run', 1, 24, 0.5, 'm/s'], ['Ground', 'ground.accel', 'accel', 1, 120, 1, 'm/s²'], ['Ground', 'ground.decel', 'decel', 1, 120, 1, 'm/s²'],
   ['Jump', 'jump.commit', 'commit', 0, 20, 1, 'f'], ['Jump', 'jump.height', 'height', 0.2, 3, 0.05, 'm'], ['Jump', 'jump.gRise', 'rise g', 5, 60, 0.5, 'm/s²'], ['Jump', 'jump.gFall', 'fall g', 5, 80, 0.5, 'm/s²'],
-  ['Jump', 'jump.cut', 'cut', 0.1, 1, 0.05, '×'], ['Wall', 'cling.slide', 'wall slide', 0.5, 8, 0.5, 'm/s'], ['Wall', 'cling.away', 'kick away', 1, 12, 0.5, 'm/s'], ['Wall', 'cling.lock', 'kick lock', 0, 20, 1, 'f'], ['Wall', 'cling.up', 'kick up', 0.3, 1.5, 0.05, '×'], ['Air', 'air.jumps', 'air jumps', 0, 3, 1, ''], ['Roll', 'dodge.speed', 'roll speed', 1, 16, 0.5, 'm/s'], ['Roll', 'dodge.frames', 'roll frames', 6, 40, 1, 'f'], ['Dash', 'dash.speed', 'dash speed', 2, 20, 0.5, 'm/s'], ['Dash', 'dash.frames', 'dash frames', 4, 60, 1, 'f'], ['Dash', 'dash.air.count', 'air dashes', 0, 3, 1, ''], ['Dash', 'dash.air.speed', 'air dash speed', 2, 20, 0.5, 'm/s'], ['Air', 'air.mult', 'air jump', 0.3, 1.5, 0.05, '×'], ['Jump', 'jump.hang', 'hang', 0, 20, 1, 'f'], ['Jump', 'jump.coyote', 'coyote', 0, 20, 1, 'f'], ['Jump', 'jump.buffer', 'buffer', 0, 20, 1, 'f'], ['Jump', 'jump.air', 'air control', 0, 1, 0.05, '×'],
+  ['Jump', 'jump.cut', 'cut', 0.1, 1, 0.05, '×'], ['Wall', 'cling.slide', 'wall slide', 0.5, 8, 0.5, 'm/s'], ['Wall', 'cling.away', 'kick away', 1, 12, 0.5, 'm/s'], ['Wall', 'cling.lock', 'kick lock', 0, 20, 1, 'f'], ['Wall', 'cling.up', 'kick up', 0.3, 1.5, 0.05, '×'], ['Air', 'air.jumps', 'air jumps', 0, 3, 1, ''], ['Guard', 'guard.parry', 'parry window', 1, 20, 1, 'f'], ['Guard', 'guard.block.stun', 'blockstun', 0, 30, 1, 'f'], ['Guard', 'guard.riposte', 'riposte', 10, 120, 1, 'f'], ['Guard', 'guard.perfect.witch', 'witch time', 0, 300, 10, 'f'], ['Roll', 'dodge.speed', 'roll speed', 1, 16, 0.5, 'm/s'], ['Roll', 'dodge.frames', 'roll frames', 6, 40, 1, 'f'], ['Dash', 'dash.speed', 'dash speed', 2, 20, 0.5, 'm/s'], ['Dash', 'dash.frames', 'dash frames', 4, 60, 1, 'f'], ['Dash', 'dash.air.count', 'air dashes', 0, 3, 1, ''], ['Dash', 'dash.air.speed', 'air dash speed', 2, 20, 0.5, 'm/s'], ['Air', 'air.mult', 'air jump', 0.3, 1.5, 0.05, '×'], ['Jump', 'jump.hang', 'hang', 0, 20, 1, 'f'], ['Jump', 'jump.coyote', 'coyote', 0, 20, 1, 'f'], ['Jump', 'jump.buffer', 'buffer', 0, 20, 1, 'f'], ['Jump', 'jump.air', 'air control', 0, 1, 0.05, '×'],
   ['Moves', 'moves.string.0.startup', 'first startup', 1, 30, 1, 'f'], ['Moves', 'moves.buffer', 'buffer', 0, 20, 1, 'f'], ['Hit', 'hit.hitstop.base', 'hitstop base', 0, 20, 1, 'f'],
 ];
 const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
@@ -391,10 +414,10 @@ function renderLast() {
 }
 function renderState() {
   const H = S.hero, v = Math.hypot(H.v[0], H.v[1]), d = poseOf(S, 'hero');
-  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
+  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
   $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
-  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
+  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
   $('padname').textContent = padName ? `Gamepad: ${padName.slice(0, 40)}` : 'Keyboard (a gamepad works too)';
 }
 

@@ -101,7 +101,8 @@ export function bake(cast = 'male') {
   const out = { cast, names: S.names, bones: S.bones, body, idle: pack(stand, about),
     loco: Object.fromEntries(['walk', 'jog', 'sprint'].map((g) => [g, { v: r4(C[g].v), travel: r4(C[g].travel), frames: cycle(g) }])),
     tuck: pack(T.nodes, centre(T.nodes)), tuckDiameter: r4(T.diameter),
-    spar: fitMove(R, { take: SPAR.take, startup: SPAR.startup, snap: 4, active: SPAR.active, recovery: SPAR.recovery, wings: { wind: 1.8, after: 1.4 } }, FEELS.action, { name: 'spar' }).rendered.frames.map((f) => pack(rigNodesAt(R, f.pose).nodes, about)),
+    // the sparring dummy's attacks, each its take fitted to its telegraph, active and recovery frames (a deep wind-up: a telegraph)
+    spar: Object.fromEntries(SPAR.moves.map((m) => [m.name, fitMove(R, { take: m.take, startup: m.startup, snap: 4, active: m.active, recovery: m.recovery, wings: { wind: 1.8, after: 1.4 } }, FEELS.action, { name: 'spar' }).rendered.frames.map((f) => pack(rigNodesAt(R, f.pose).nodes, about))])),
     feels: {} };
   for (const id of FEEL_IDS) {
     const card = FEELS[id], J = card.jump;
