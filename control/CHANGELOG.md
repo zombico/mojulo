@@ -138,7 +138,7 @@ before.
   across the fringe onto the land, a few smaller ones in on the trail, as many as the grit says. None on ground a town
   has claimed. `rubble: false` for none.
 - **Patches** (`trailPatches`). Blobs on a gritty dirt trail, laid on its ribbon's own heights a hair over it, each
-  the trail's colour a shade off with a relief of its own: `worn` (lighter, packed smooth), `damp` (darker, smooth),
+  the trail's colour a shade off with a relief of its own, feathered at its edge into the trail's colour: `worn` (lighter, packed smooth), `damp` (darker, smooth),
   `gravel` (stones close in a bed of grit: a new `gravel` cut in `matte-paint/dressed.js`), `crown` (a strip of turf
   down the middle, the cart track's), `puddle` (a darker core with no relief in a damp ring). The default is worn, damp
   and gravel; `patches` names the kinds, `false` none.

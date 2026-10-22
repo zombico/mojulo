@@ -560,10 +560,10 @@ const NATURAL = {
     const M = c.metres, g = c.grit, body = rampOf(c.stone), peb = new Float32Array(size * size);
     return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
       let p = 0, tn = 0;
-      marksNear(x, y, M, 0.045, 2, seed + 11, (cx, cy, h, cs) => {
+      marksNear(x, y, M, 0.028, 2, seed + 11, (cx, cy, h, cs) => {
         if (h(3) > 0.7 + 0.25 * g) return;
-        const d = stoneDist(x, y, cx, cy, cs * (0.32 + 0.3 * h(4)) * (h(7) > 0.92 ? 1.6 : 1), h);
-        if (d < 1) { const v = 0.004 * (0.6 + 0.6 * h(6)) * Math.sqrt(1 - d * d); if (v > p) { p = v; tn = (h(5) - 0.5) * 2 * c.vary / 255; } }
+        const d = stoneDist(x, y, cx, cy, cs * (0.3 + 0.28 * h(4)) * (h(7) > 0.94 ? 1.5 : 1), h);
+        if (d < 1) { const v = 0.0025 * (0.6 + 0.6 * h(6)) * Math.sqrt(1 - d * d); if (v > p) { p = v; tn = (h(5) - 0.5) * 2 * c.vary / 255; } }
       });
       peb[k] = p > 0 ? 0.5 + tn * 4 : 0;
       return p + 0.0006 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5);

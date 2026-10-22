@@ -44,16 +44,17 @@ export function readTrailDress(trail) {
 // ── patches ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * The patches a gritty dirt trail is worn in, each a kind's blobs along it: `every` metres apart about (at a grit of 1),
- * `len` long, `wid` of the trail's width across, its middle `across` of the half-width off the line; `shade` its trail's
- * colour a shade up or down (linear), and its relief the `cut` at `grit` of the land's. `ground`: the patch is the
- * land's colour (a crown of turf), not the trail's; `core`: a darker middle with no relief (a puddle's water).
+ * `len` long, `wid` of the trail's half-width across, its middle `across` of the half-width off the line; `shade` its
+ * trail's colour a shade up or down (linear), and its relief the `cut` at `grit` of the land's. Its edge feathered: the
+ * outer ring's corners the trail's own colour, so the shade fades out to it. `ground`: the patch is the land's colour (a
+ * crown of turf), not the trail's; `core`: a darker middle with no relief (a puddle's water).
  */
 export const PATCHES = Object.freeze({
-  worn: Object.freeze({ every: 6, len: [1.6, 3.4], wid: [0.3, 0.5], across: 0.45, shade: 1.14, cut: 'path', grit: 0.3, metres: 1.5, seed: 101 }),
-  damp: Object.freeze({ every: 10, len: [1, 2.4], wid: [0.4, 0.75], across: 0.4, shade: 0.74, cut: 'path', grit: 0.2, metres: 1.5, seed: 103 }),
-  gravel: Object.freeze({ every: 9, len: [1, 2.6], wid: [0.25, 0.45], across: 0.7, shade: 0.96, cut: 'gravel', grit: 1, metres: 1, seed: 107 }),
-  crown: Object.freeze({ every: 8, len: [2.4, 4.4], wid: [0.16, 0.24], across: 0, shade: 1, cut: 'turf', grit: 1, metres: 1.5, seed: 109, ground: true }),
-  puddle: Object.freeze({ every: 16, len: [0.9, 1.7], wid: [0.4, 0.6], across: 0.25, shade: 0.74, cut: 'path', grit: 0.2, metres: 1.5, seed: 113, core: 0.55 }),
+  worn: Object.freeze({ every: 4.5, len: [1.8, 3.6], wid: [0.35, 0.55], across: 0.45, shade: 1.3, cut: 'path', grit: 0.3, metres: 1.5, seed: 101 }),
+  damp: Object.freeze({ every: 7, len: [1.2, 2.6], wid: [0.45, 0.8], across: 0.4, shade: 0.6, cut: 'path', grit: 0.2, metres: 1.5, seed: 103 }),
+  gravel: Object.freeze({ every: 7, len: [1.2, 2.8], wid: [0.3, 0.5], across: 0.7, shade: 0.92, cut: 'gravel', grit: 1, metres: 1, seed: 107 }),
+  crown: Object.freeze({ every: 6, len: [4, 8], wid: [0.24, 0.34], across: 0, shade: 1, cut: 'turf', grit: 1, metres: 1.5, seed: 109, ground: true }),
+  puddle: Object.freeze({ every: 12, len: [1, 1.8], wid: [0.45, 0.65], across: 0.25, shade: 0.62, cut: 'path', grit: 0.2, metres: 1.5, seed: 113, core: 0.42 }),
 });
 const LIFT = 0.05, RISE = 0.012, RIM = 14;
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -104,15 +105,15 @@ export function trailPatches({ site, lanes, kinds, grit, seed, keep = null }) {
       const [cx, cy] = xyAt(y, tc);
       if (!kept(keep, cx, cy, len / 2 + 0.5)) continue;
       const fill0 = C.ground ? near(fringe.length ? fringe : trail, cx, cy) : near(trail, cx, cy), fill = shadeOf(fill0, C.shade);
-      // the blob: a rim of RIM points wobbling about an ellipse, an inner ring half way, the middle; every point on the
-      // ribbon's height a hair over it
+      // the blob: a rim of RIM points wobbling about an ellipse, an inner ring six tenths out (the feather between), the
+      // middle; every point on the ribbon's height a hair over it
       const ring = (k) => { const a = (2 * Math.PI * k) / RIM, r = 1 + 0.5 * (vnoise(Math.cos(a) * 1.6 + n * 3.1, Math.sin(a) * 1.6 + ki * 5.7, seed + C.seed) - 0.5); return [Math.cos(a) * r, Math.sin(a) * r]; };
       const P = (s, q) => { const yy = Math.max(0, Math.min(site.D, y + s)), off = Math.max(-hw + 0.04, Math.min(hw - 0.04, tc + q)), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + rise)]; };
       const rim = Array.from({ length: RIM }, (_, k) => ring(k)), mid = P(0, 0);
-      const outer = rim.map(([u, v]) => P((u * len) / 2, v * b)), inner = rim.map(([u, v]) => P((u * len) / 4, (v * b) / 2));
-      const v = (Math.floor(Math.abs(cx * 0.37 + cy * 0.61)) % 2), key = keyOf(C, v), faceOf = (cs, f, plain) => {
+      const outer = rim.map(([u, v]) => P((u * len) / 2, v * b)), inner = rim.map(([u, v]) => P((u * len) * 0.3, v * b * 0.6));
+      const v = (Math.floor(Math.abs(cx * 0.37 + cy * 0.61)) % 2), key = keyOf(C, v), edge = near(trail, cx, cy), faceOf = (cs, f, plain, fs = null) => {
         // (wound to face up: the rim runs clockwise seen from above)
-        const c2 = cs.slice().reverse(), F = { corners: c2, normal: upOf(c2), group: 'isekai:trail', fill: f, cornerFills: c2.map(() => f), patch: kind };
+        const c2 = cs.slice().reverse(), F = { corners: c2, normal: upOf(c2), group: 'isekai:trail', fill: f, cornerFills: fs ? fs.slice().reverse() : c2.map(() => f), patch: kind };
         if (plain) return F;
         const L = layDetail(F, { key, metres: C.metres, as: 'floor' });
         return L.texture ? L : F;
@@ -120,7 +121,7 @@ export function trailPatches({ site, lanes, kinds, grit, seed, keep = null }) {
       for (let k = 0; k < RIM; k++) {
         const k1 = (k + 1) % RIM, core = C.core !== undefined;
         out.push(faceOf([mid, inner[k], inner[k1]], core ? shadeOf(fill0, C.core) : fill, core));
-        out.push(faceOf([inner[k], outer[k], outer[k1], inner[k1]], fill, false));
+        out.push(faceOf([inner[k], outer[k], outer[k1], inner[k1]], fill, false, [fill, edge, edge, fill]));
       }
     }
   });
