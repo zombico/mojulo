@@ -9,6 +9,8 @@ tool, recipe field or exporter. The production code is only read: the hero libra
 # from control/
 node scripts/spikes/animation-games/verify.mjs [cast=male]          # the machine gate, PASS/FAIL per concept
 node scripts/spikes/animation-games/preview.mjs /abs/out/dir [cast] # animation-games.html (a player) + filmstrip-<take>.svg
+node scripts/spikes/animation-games/motion-verify.mjs [cast=male]   # motion: running, then jumping (below)
+node scripts/spikes/animation-games/motion-preview.mjs /abs/out/dir [cast]   # motion.html (follow cameras) + motion-strobe.svg
 ```
 
 ## The idea in one paragraph
@@ -107,3 +109,63 @@ the strike's blow). All four flavors run on both casts. Every check holds on mal
   and held equal by `conformance.mjs`.
 - `REACTS`' authored hold moved out of the clip and into the action flavor.
 - A characterization pin on the packed `b` arrays for each flavor, with realistic byte-identical to today's clips.
+
+## Motion: running, then jumping
+
+`motion.mjs` applies the same idea to locomotion. A run-up from a jog over 12 m blends the jog cycle into the sprint
+as speed builds. The `runningJump` starts on the first frame after the run-up whose cycle phase is nearest the jump's
+first pose. Then come the flight, the landing and 0.8 s of run-out, which picks the cycle up at the phase nearest the
+jump's last pose. Hand-offs cross-fade joint positions over 4 frames. The root now travels: the clips are in place, and
+the flavor flies them.
+
+| flavor | speed | the stride | take-off contact | the arc | landing |
+|---|---|---|---|---|---|
+| **realistic** | builds over τ 1 s to 7 m/s | the ground's rate: a planted foot holds still | the clip's own (0.2 s) | the clip's own air (0.40 s) on earth's gravity: 0.19 m | keeps 90 % of the speed |
+| **action** | τ 0.45 s to 9 m/s | the ground's rate | the clip's, gather ×1.7 deep | 1.2 m, a 0.1 s hang at the top | holds 3 frames, squash |
+| **platformer** | τ 0.08 s to 6 m/s (the platform rule's) | the ground's rate | ×0.6 | the platform rule's: 8.5 m/s up on gravity 20, down on 34 | keeps it all, squash 0.25 |
+| **pinball** | τ 1.4 s to 20 m/s | outruns the ground, never under 4 frames a stride | shorter the faster (7 m/s ÷ speed) | 1.0 m on gravity ×1.6 | keeps it all |
+
+**The promise.** The body leaves the floor on the take-off frame and meets it on the landing frame, in every flavor. The
+clip's ground contacts are the flight's ends; only the air between them is stretched to the flavor's arc. On the landing
+frame the feet sit where the clip's own feet are at its landing, to within a centimetre (the deeper absorb and the
+squash account for the difference).
+
+**What the machine gate measured** (`motion-verify.mjs`; all 13 checks hold on male and female; nobody has looked yet):
+
+| | realistic | action | platformer | pinball |
+|---|---|---|---|---|
+| 90 % of top speed after | 1.9 s | 0.9 s | 0.15 s | not reached in the run-up |
+| take-off speed | 6.6 m/s | 8.9 m/s | 6.0 m/s | 13.5 m/s |
+| frames a stride at take-off | 26.7 | 19.7 | 29.2 | 5.8 |
+| stride outruns the ground by | 0 | 0 | 0 | 16.5 m/s |
+| planted foot's slide on one gait | 0.012 m/s | 0.06 m/s | 0.012 m/s | (a wheel) |
+| hips' lowest in the gather | 0.80 m | 0.74 m | 0.72 m | 0.78 m |
+| air, height, length | 0.40 s, 0.19 m, 2.6 m | 1.08 s, 1.2 m, 9.6 m | 0.75 s, 1.81 m, 4.5 m | 0.72 s, 1.0 m, 9.7 m |
+| rise ÷ fall time | 1 | 1 | 1.30 | 1 |
+
+### Motion findings
+
+1. **The stride rate is the ground's, or it is a choice.** A cycle played at speed ÷ stride length keeps a planted foot
+   still in the world: 1 cm/s at most here, with no foot IK. That is the realistic, action and platformer rule. Pinball
+   breaks it on purpose: past the sprint's own speed, the cycle spins faster than the ground goes by. That is Sonic's
+   wheel of legs, the "lot of change of frames in a fast sequence", and it is capped at 4 frames a stride so it never
+   aliases. A pinball game's feet *should* slide; a realistic game's must not. That choice is a flavor dial, not a bug.
+2. **The jog → sprint blend skates, and fast acceleration makes it worse.** Blending the two cycles by joint position at
+   the same phase slides a planted foot by 0.18 m/s for realistic (over 59 frames) and 1.28 m/s for platformer (over 7
+   frames). The cycles' stance windows do not line up (the jog's left foot lands at phase 0.117, the sprint's at 0.154).
+   A platformer's instant top speed squeezes the whole blend into a few frames. Integrating would need phase-aligned
+   gaits (stance windows normalized before the blend) or a foot lock. The engines' own blend trees will show the same
+   thing.
+3. **The air is the flavor's; the contacts are the clip's.** Keeping the take-off and landing contacts and stretching only
+   the air is enough to fly any arc: 0.4 s or 1.08 s, symmetric or falling faster. The clip already carries `air` (take-off,
+   landing, apex), so an engine can do this itself today. It needs the flavor's gravity, not a new clip.
+4. **The platform rule has no acceleration on the ground.** `rules-platform.js` moves the body at `speed × dt` directly (only
+   its space mode accelerates). It already advances the gait phase at speed ÷ stride length, so its stride is the
+   realistic rule. The flavor's τ 0.08 s is a stand-in for "at once". Realistic and pinball both need an acceleration
+   curve in the live rules to be depicted honestly.
+5. **The library has no start from standstill.** The run-up starts from a jog, because the library has no drive phase:
+   no short, quick, low first steps. Blending the sprint cycle down to zero speed would look like slow motion. A real
+   standing start is a clip of its own.
+6. **The pinball contact gets short.** At 13.5 m/s the take-off contact is 0.1 s, and the push's poses pass in 6 frames.
+   A pinball game may want the jump's poses swapped for a tuck (the `rollForward` clip already exists), which is the
+   open question from the first section.
