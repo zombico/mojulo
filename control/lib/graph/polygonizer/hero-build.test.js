@@ -9,7 +9,8 @@ import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
 import { validateHeroSpec, heroRecord, expandLayeredManifest, heroMeasures, heroReadout, heroPlanOf, CLASSIC_DEPRECATED, STREAMLINED_DEPRECATED } from '../../mcp/tools/layered.js';
-import { heroShade, TIERED_SMOOTH_CREASE } from './tiered-form.js';
+import { heroShade, TIERED_SMOOTH_CREASE, WEB_ARMPIT } from './tiered-form.js';
+import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
 import { STUDIO_SMOOTH_CREASE } from './station-loft-shade.js';
 
 const expand = (spec, opts) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, opts) });
@@ -148,10 +149,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(9);
+    expect(HERO_LAWS_VERSION).toBe(10);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 9/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 10/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -262,6 +263,29 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     expect(R.parts.shoulderWebR.stations.at(-2).points).not.toEqual(eight.parts.shoulderWebR.stations.at(-2).points);
     expect(R.parts.shoulderWebR.stations.at(-1).points).toEqual(eight.parts.shoulderWebR.stations.at(-1).points);
     const big = at({ ...tiered, target: '4k' }, 9); expect(big.parts.shoulderConeR.slots.length).toBe(big.parts.upperArmR.slots.length);
+  }, 120_000);
+  it('laws 10, the web\'s armpit: no face of the cone or the web folds over with the arm raised; laws 9 folded one', () => {
+    // a fold is two neighbouring faces of one part that face the same way at the bind and opposite ways posed
+    const folds = (laws, pose) => {
+      const m = expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'male', form: 'tiered' }, { staleScale: true }), laws } });
+      const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig);
+      const posed = skinLayered(mesh, bindLayered(mesh, m.recipe, R), boneFrames(R, R.joints, rigNodesAt(R, pose).nodes));
+      const sub = (a, b) => a.map((x, k) => x - b[k]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const nrm = (V, [a, b, c]) => { const u = sub(V[b], V[a]), v = sub(V[c], V[a]), n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; return n.map((x) => x / (Math.hypot(...n) || 1)); };
+      let n = 0;
+      for (const part of ['shoulderConeR', 'shoulderWebR']) {
+        const F = mesh.faces.filter((f) => f.every((v) => mesh.provenance[v].part === part)), edges = new Map();
+        F.forEach((f, i) => f.forEach((a, k) => { const b = f[(k + 1) % 3], key = a < b ? `${a},${b}` : `${b},${a}`; (edges.get(key) ?? edges.set(key, []).get(key)).push(i); }));
+        for (const fs of edges.values()) if (fs.length === 2 && dot(nrm(mesh.vertices, F[fs[0]]), nrm(mesh.vertices, F[fs[1]])) > 0 && dot(nrm(posed, F[fs[0]]), nrm(posed, F[fs[1]])) < -0.5) n++;
+      }
+      return n;
+    };
+    const up = { armR: 'up', armL: 'up' };
+    expect(folds(9, up)).toBeGreaterThan(0);
+    expect(folds(10, up)).toBe(0); expect(folds(10, { armR: 'forward', armL: 'forward' })).toBe(0);
+    // (the web's under-arm slots carry their own blend toward the arm; laws 9's web has none)
+    const at = (laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'male', form: 'tiered' }, { staleScale: true }), laws } }).recipe.parts.shoulderWebR.bind.blend;
+    for (const sl of WEB_ARMPIT.slots) { expect(at(10)[`st2.${sl}`]).toBeDefined(); expect(at(9)[`st2.${sl}`]).toBeUndefined(); }
   }, 120_000);
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

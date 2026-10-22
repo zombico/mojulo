@@ -26,6 +26,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE WEB'S ARMPIT (hero laws 10, tiered-form.js `WEB_ARMPIT`): the fold under a raised arm closed. The web's
+  under-arm slots (its side, back and front toward the trunk) take the arm on more slowly than its top, so they no
+  longer fold back behind the armpit. The cone's slots turn half a slot, off the fold's own axis, where its front and
+  back slots creased. It reaches less far toward the neck, and its weights hand the collarbone to the fold over its
+  length rather than at once. Its rings past the ball turn the in-ball ring onto the arm's way, so it does not twist
+  where it enters the arm, and sit a little inside the arm. Its upper slots stay with the trunk over the chest, and
+  its base sits deeper in the torso. Measured on the male with both arms up and forward: no face of the cone or the
+  web folds over, where laws 9 folded one. Laws 9 rows are as they were.
 - THE SHOULDER CONE (hero laws 9, tiered-form.js `SHOULDER_CONE`): the web's inner fairing, in its group and skinned as
   it is (the collarbone at its base, the fold at the ball), its rings square to the way from the ball toward the neck's
   root: from one hidden in the ball to a wide, flattened base held inside the torso's own section. Its upper half rides

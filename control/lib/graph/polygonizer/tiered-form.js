@@ -271,6 +271,16 @@ export const SHOULDER_WEB = Object.freeze([
   Object.freeze({ at: 0, r: 1.06, w: { fold: 1 } }),
   Object.freeze({ toArm: 0.5, swell: 1.04, w: { fold: 0.5, limb: 0.5 } }),
 ]);
+/** THE WEB'S ARMPIT (hero laws 10, `web: 3`): the web's points on the inside of the arm's bend (its medial slots, toward
+ * the armpit) follow the arm more than its ring does, at its equator and the ring hugging the arm, so a raised arm
+ * stretches the web's armpit side instead of folding it; the deltoid's outer side rides the fold as it did. Laws 9's
+ * web folded behind a raised arm's armpit. The cone's tucked underside between its base and the ball stays with the
+ * trunk by how far it is tucked, and its points over the torso's skin by `overTrunk` of how far they ride over; its rings hand the trunk to the fold more evenly along it (`cone`); its ring is turned half a slot (`turn`), so no point sits on the line the fold turns
+ * about (there the faces either side of it sheared over), it reaches less far toward the neck (`reach`), and its rings
+ * into the arm are its ball ring turned into the arm's way, untwisted, drawn in to `inArm` (round, inside the arm's oval). So the fold's turn never folds the cone over or
+ * swings it out of the torso's back as a fin. */
+export const WEB_ARMPIT = Object.freeze({ slots: Object.freeze(['sideL', 'backL', 'frontL']), rings: Object.freeze({ st2: { fold: 0.55, limb: 0.45 }, st3: { fold: 0.2, limb: 0.8 } }),
+  turn: 0.5, reach: 0.45, inside: 0.55, inArm: 0.85, overTrunk: 0.7, cone: Object.freeze([{ trunk: 1 }, { trunk: 0.75, fold: 0.25 }, { trunk: 0.45, fold: 0.55 }, { trunk: 0.15, fold: 0.85 }]) });
 /** THE SHOULDER CONE (hero laws 9, `web: 2`): the web's INNER fairing, in its group and stretching as it does: its
  * rings square to the way from the ball toward the neck's root, from one hidden inside the ball (`start` of its radius)
  * to a wide, flattened base inside the torso (`reach` of the way to the neck hub, `across` the ball's radius front to
@@ -377,15 +387,15 @@ export function tieredSockets(plan, { web = 0 } = {}) {
     // the CONE (laws 9): rings square to the way from the ball to the neck's root, from one hidden inside the ball to a
     // wide, flattened base inside the torso
     if (web >= 2 && J.neckHub) {
-      const C = SHOULDER_CONE, to = J.neckHub.map((x, k) => c[k] + (x - c[k]) * C.reach), ax = unit3(sub3(to, c));
+      const C = SHOULDER_CONE, to = J.neckHub.map((x, k) => c[k] + (x - c[k]) * (web >= 3 ? WEB_ARMPIT.reach : C.reach)), ax = unit3(sub3(to, c));
       const fy = unit3([0, 1, 0].map((x, i) => x - ax[i] * ax[1])), up = cross3(ax, fy), uz = up[2] < 0 ? up.map((x) => -x) : up;   // front-back, then the ring's up
-      const torso = torsoSection(plan, segments), ang = slots.map((_, i) => (2 * Math.PI * i) / slots.length);
+      const torso = torsoSection(plan, segments), ang = slots.map((_, i) => (2 * Math.PI * (i + (web >= 3 ? WEB_ARMPIT.turn : 0))) / slots.length);
       const ringAt = (t, ry, rz) => { const m = c.map((x, i) => x + (to[i] - x) * t); return Object.fromEntries(slots.map((sl, i) => [sl, m.map((x, q) => x + fy[q] * Math.cos(ang[i]) * ry + uz[q] * Math.sin(ang[i]) * rz)])); };
       // (how far a slot rides over the skin: fully at and over the ring's middle, falling to tucked at its bottom)
       const sinOf = (sl) => Math.sin(ang[slots.indexOf(sl)]), over = (sl) => Math.min(1, Math.max(0, sinOf(sl) / C.top)), tuckOf = (sl) => Math.min(1, Math.max(0, -sinOf(sl) / C.under));
       const cone = C.rings.map((R) => {
         const P = ringAt(R.t, r * (C.start + (C.across - C.start) * R.t), r * (C.start + (C.up - C.start) * R.t)), m = c.map((x, i) => x + (to[i] - x) * R.t);
-        if (R.t === 1) return Object.fromEntries(slots.map((sl) => [sl, torso.hold(P[sl], C.inside)]));
+        if (R.t === 1) return Object.fromEntries(slots.map((sl) => [sl, torso.hold(P[sl], web >= 3 ? WEB_ARMPIT.inside : C.inside)]));
         // (a ring between rides just over the torso's skin where it would sink under it, over the shoulder's top and its
         // front and back; under the shoulder it draws in toward its centre, so it never spans the armpit)
         return Object.fromEntries(slots.map((sl) => { const w = R.skin ? over(sl) : 0, under = torso.hold(P[sl], C.sink), outer = w > 0 ? torso.clear(P[sl], unit3(sub3(P[sl], m)), R.skin * r, C.most * r) : P[sl];
@@ -396,21 +406,34 @@ export function tieredSockets(plan, { web = 0 } = {}) {
       // (so it shows nothing there), its weights handing the fold to the arm more slowly than the web's, so a raised arm
       // keeps it round where the web and the ball bunch at the armpit; it ends inside the arm's belly ring. Its rings
       // are lined up slot by slot with the one in the ball (slotMap), as a bridge's are, so the bend never twists.
-      const ws = [...C.rings.map((R) => R.w)];
+      const ringW = (R, i) => (web >= 3 ? WEB_ARMPIT.cone[i] : R.w), ws = [...C.rings.map(ringW)];
       const inBall = cone[cone.length - 1];
       for (const E of C.arm) {
+        if (web >= 3) {
+          // (laws 10: the ball's ring itself turned from the cone's way into the arm's, so its slots run on untwisted)
+          const kx = cross3(ax, d), kl = Math.hypot(...kx), kk = kx.map((x) => x / kl), th = Math.atan2(kl, dot3(ax, d)), co = Math.cos(th), si = Math.sin(th);
+          const turn = (o) => { const kd = dot3(kk, o), ko = cross3(kk, o); return [0, 1, 2].map((i) => o[i] * co + ko[i] * si + kk[i] * kd * (1 - co)); };
+          const m0 = centre(inBall), at = E.belly ? centre(arm.points) : c.map((x, i) => x + d[i] * r * E.at), rr = WEB_ARMPIT.inArm * (E.belly ? E.belly * Math.min(...slots.map((sl) => Math.hypot(...sub3(arm.points[sl], at)))) : r * E.r);
+          cone.push(Object.fromEntries(slots.map((sl) => { const o = unit3(turn(sub3(inBall[sl], m0))); return [sl, at.map((x, i) => x + o[i] * rr)]; }))); ws.push(E.w); continue;
+        }
         const P = E.belly ? Object.fromEntries(slots.map((sl) => { const m = centre(arm.points); return [sl, arm.points[sl].map((x, i) => m[i] + (x - m[i]) * E.belly)]; }))
           : ringPoints(c.map((x, i) => x + d[i] * r * E.at), d, r * E.r, slots);
         const turnTo = slotMap(inBall, P, slots); cone.push(Object.fromEntries(slots.map((sl) => [sl, P[turnTo[sl]]]))); ws.push(E.w);
       }
+      // (laws 10: a tucked point between the base and the ball stays with the trunk by how far it is tucked, so a raised
+      // arm's turn of the fold never swings the cone's underside out of the torso's back as a fin)
+      const tuckedToTrunk = () => Object.fromEntries(C.rings.flatMap((R, i) => (R.skin ? slots.filter((sl) => tuckOf(sl) > 0 || over(sl) > 0).map((sl) => {
+        // (a point over the torso's skin stays with it too, by how far it rides over: a raised arm never lifts it off the chest)
+        const tk = Math.max(tuckOf(sl), WEB_ARMPIT.overTrunk * over(sl)), Rw = ringW(R, i), w = Object.fromEntries([...new Set([...Object.keys(Rw), 'trunk'])].map((k) => [k, r6((Rw[k] ?? 0) * (1 - tk) + (k === 'trunk' ? tk : 0))]));
+        return [`st${i}.${sl}`, wOf(w)]; }) : [])));
       const endC = centre(cone[cone.length - 1]);
       balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderCone'), kind: 'rings', slots: 'ring8', stations: cone.map((P, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) })),
         caps: { back: to.map((x, i) => r6(x + ax[i] * r * 0.2)), tip: endC.map((x, i) => r6(x + d[i] * r * 0.15)) }, group: seg.group, mirror: 'name',
-        bind: { bone: K.fold, blend: { back: wOf(ws[0]), ...Object.fromEntries(ws.map((w, i) => [`st${i}`, wOf(w)])), tip: wOf(ws[ws.length - 1]) } } });
+        bind: { bone: K.fold, blend: { back: wOf(ws[0]), ...Object.fromEntries(ws.map((w, i) => [`st${i}`, wOf(w)])), tip: wOf(ws[ws.length - 1]), ...(web >= 3 ? tuckedToTrunk() : {}) } } });
     }
     balls.push({ name: b.name.replace(/^shoulderBall/, 'shoulderWeb'), kind: 'rings', slots: 'ring8', stations,
       caps: { back: c.map((x, k) => r6(x + d[k] * r * (SHOULDER_WEB[0].at - 0.15))), tip: mid.map((x, k) => r6(x - d[k] * r * 0.15)) },
-      group: seg.group, mirror: 'name', bind: { bone: K.fold, blend: { back: wOf(SHOULDER_WEB[0].w), ...Object.fromEntries(SHOULDER_WEB.map((W, i) => [`st${i}`, wOf(W.w)])), [`st${SHOULDER_WEB.length}`]: wOf(last), tip: wOf(last) } } });
+      group: seg.group, mirror: 'name', bind: { bone: K.fold, blend: { back: wOf(SHOULDER_WEB[0].w), ...Object.fromEntries(SHOULDER_WEB.map((W, i) => [`st${i}`, wOf(W.w)])), [`st${SHOULDER_WEB.length}`]: wOf(last), ...(web >= 3 ? Object.fromEntries(Object.entries(WEB_ARMPIT.rings).flatMap(([st, w]) => WEB_ARMPIT.slots.map((sl) => [`${st}.${sl}`, wOf(w)]))) : {}), tip: wOf(last) } } });
   }
   if (balls.length) { const i = segments.findIndex((g) => g.name === balls[0].name.replace(/^shoulderBall/, 'upperArm')); segments.splice(i + 1, 0, ...balls); }
   // the SHELL round a socket (the torso's shoulder): a point that shares the trunk bone's lift (the collarbone's) keeps
