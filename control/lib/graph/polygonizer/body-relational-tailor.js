@@ -33,6 +33,7 @@ const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const len = (v) => Math.hypot(...v);
 const unitv = (v) => { const l = len(v) || 1; return v.map((x) => x / l); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const ease3 = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
 
 // RUNS
@@ -122,8 +123,8 @@ export function drapeRun(pieces, side, F) {
 
 /** how far out the points `below` (what a garment is worn over) reach from a ring's middle `c`, ray by ray: a function of
  * a horizontal direction, the farthest within 25 mm of the ray and 20 mm of the ring's height (0 when none) */
-export function clearanceOver(below) {
-  return (c) => { const near = below.filter((q) => Math.abs(q[2] - c[2]) < 0.02); return (dh) => { let m = 0; for (const q of near) { const vx = q[0] - c[0], vy = q[1] - c[1], pr = vx * dh[0] + vy * dh[1]; if (pr > m && Math.abs(vx * dh[1] - vy * dh[0]) < 0.025) m = pr; } return m; }; };
+export function clearanceOver(below, band = 0.02) {
+  return (c) => { const near = below.filter((q) => Math.abs(q[2] - c[2]) < band); return (dh) => { let m = 0; for (const q of near) { const vx = q[0] - c[0], vy = q[1] - c[1], pr = vx * dh[0] + vy * dh[1]; if (pr > m && Math.abs(vx * dh[1] - vy * dh[0]) < 0.025) m = pr; } return m; }; };
 }
 
 /** a FLARE along a piece's run: each ring's points `a` (m) out from its middle at its first station, `b` at its last,
@@ -154,14 +155,16 @@ export function fairRun(P, { passes = 2, keep = 1 } = {}) {
 
 /** a run BRIDGED, as cloth lies over the hollows between what it rests on: each slot's radius off its ring's middle
  * lifted to its neighbours' mean wherever it is less, along the run (between the deltoid and the biceps, at the elbow)
- * and round each ring, `passes` times; its first and last `keep` rings held. Never inward, so the cloth stays clear of
- * the peaks it rests on. In place */
-export function bridgeRun(P, { passes = 4, keep = 1 } = {}) {
+ * and (`around`) round each ring, `passes` times; its first and last `keep` rings held, and any ring outside `range`
+ * or point `hold` names. Never inward, so the cloth stays clear of the peaks it rests on. In place */
+export function bridgeRun(P, { passes = 4, keep = 1, range = null, around = true, hold = null } = {}) {
   const S = P.stations, n = S.length, N = P.slots.length; if (n < 2 * keep + 1) return P;
   const C = S.map((st) => mean(P.slots.map((sl) => st.points[sl])));
   const D = S.map((st, i) => P.slots.map((sl) => unitv(sub(st.points[sl], C[i])))), R = S.map((st, i) => P.slots.map((sl) => len(sub(st.points[sl], C[i]))));
-  for (let it = 0; it < passes; it++) for (let i = keep; i < n - keep; i++) for (let j = 0; j < N; j++) R[i][j] = Math.max(R[i][j], (R[i - 1][j] + R[i + 1][j]) / 2, (R[i][(j + N - 1) % N] + R[i][(j + 1) % N]) / 2);
-  S.forEach((st, i) => { if (i >= keep && i < n - keep) P.slots.forEach((sl, j) => { st.points[sl] = add(C[i], scl(D[i][j], R[i][j])).map(r6); }); });
+  // (`range` [zLo, zHi] the rings it may lift; `around` false along the run only; `hold(i, j)` a point left as it is)
+  const free = (i, j) => i >= keep && i < n - keep && (!range || (C[i][2] >= range[0] && C[i][2] <= range[1])) && !(hold && hold(i, j));
+  for (let it = 0; it < passes; it++) for (let i = keep; i < n - keep; i++) for (let j = 0; j < N; j++) if (free(i, j)) R[i][j] = Math.max(R[i][j], (R[i - 1][j] + R[i + 1][j]) / 2, around ? (R[i][(j + N - 1) % N] + R[i][(j + 1) % N]) / 2 : 0);
+  S.forEach((st, i) => P.slots.forEach((sl, j) => { if (free(i, j)) st.points[sl] = add(C[i], scl(D[i][j], R[i][j])).map(r6); }));
   return P;
 }
 
@@ -390,11 +393,15 @@ export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.
   // where the V is narrower than the cloth's points are apart its sides read as the shirt, not as a slope of the jacket
   if (group) {
     const n = P.slots.length, half = n / 2, idx = (sl) => { const j = P.slots.indexOf(sl); return j <= half ? j : n - j; }, bands = { ...(P.bandGroups || {}) };
-    // (a face painted where both its rings are taken in beside it: the V comes to its point, no band of shirt under it)
+    // (a face painted where both its rings are taken in beside it, the V comes to its point, no band of shirt under it;
+    // and on both sides of the front, for a face's paint is mirrored: a closed front's V is off the middle, and a wall
+    // taken in on its one side alone, painted, had laid a strip of shirt on the other side's cloth beyond the lapel)
+    const sides = (set) => [new Set([...set].filter((sl) => P.slots.indexOf(sl) <= half).map(idx)), new Set([...set].filter((sl) => { const j = P.slots.indexOf(sl); return j === 0 || j >= half; }).map(idx))];
+    const pair = (S, k) => S.has(k) || S.has(k + 1);
     for (let i = 0; i + 1 < P.stations.length; i++) {
-      const a = new Set([...taken[i]].map(idx)), b = new Set([...taken[i + 1]].map(idx)); if (!a.size || !b.size) continue;
+      const [aR, aL] = sides(taken[i]), [bR, bL] = sides(taken[i + 1]); if (!aR.size || !bR.size || !aL.size || !bL.size) continue;
       const key = `${P.stations[i].id}-${P.stations[i + 1].id}`, row = bands[key] ? [...bands[key]] : Array(half).fill(P.group ?? 'Body');
-      for (let k = 0; k < half; k++) if ((a.has(k) || a.has(k + 1)) && (b.has(k) || b.has(k + 1))) row[k] = group;
+      for (let k = 0; k < half; k++) if (pair(aR, k) && pair(bR, k) && pair(aL, k) && pair(bL, k)) row[k] = group;
       bands[key] = row;
     }
     P.bandGroups = bands; if (group !== 'Skin' && group !== (P.group ?? 'Body')) P.painted = [...new Set([...(P.painted || []), group])];
@@ -402,17 +409,62 @@ export function cutV(P, under, { front, apex, necks, open = false, openHalf = 0.
   return P;
 }
 
+/** a WALKER on a tube's cloth (its rings as they are now): `across(p, dir, w)` → [the point `w` (m) from `p` measured
+ * along the cloth, its outward normal]: round the ring at `p`'s height as far as `dir` runs round it, and up or down the
+ * cloth (at the same place round the ring) as far as it runs up or down, so a band laid out from a line on a jacket
+ * wraps its chest and its shoulder as cloth does, never stepping out into the air off them */
+export function clothWalker(P) {
+  const n = P.slots.length;
+  const rows = P.stations.map((st) => P.slots.map((sl) => [...st.points[sl]])).map((pts) => ({ pts, z: mean(pts)[2] })).sort((u, v) => u.z - v.z), last = rows.length - 1;
+  const ringAt = (z) => {
+    if (z <= rows[0].z) return rows[0].pts; if (z >= rows[last].z) return rows[last].pts;
+    let i = 0; while (i < last - 1 && rows[i + 1].z < z) i++;
+    const f = (z - rows[i].z) / (rows[i + 1].z - rows[i].z || 1); return rows[i].pts.map((p, k) => p.map((v, q) => v + (rows[i + 1].pts[k][q] - v) * f));
+  };
+  const at = (ring, j, t) => ring[j].map((v, q) => v + (ring[(j + 1) % n][q] - v) * t);
+  const locate = (ring, p) => {
+    let best = { j: 0, t: 0, d: Infinity };
+    for (let j = 0; j < n; j++) { const a = ring[j], ab = sub(ring[(j + 1) % n], a), l2 = dot(ab, ab) || 1, t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / l2)), d = len(sub(p, add(a, scl(ab, t)))); if (d < best.d) best = { j, t, d }; }
+    return best;
+  };
+  const around = (ring, j, t, L, sign) => {
+    for (let guard = 0; guard < 2 * n && L > 1e-9; guard++) {
+      const seg = len(sub(ring[(j + 1) % n], ring[j])) || 1e-6, rem = (sign > 0 ? 1 - t : t) * seg;
+      if (L <= rem) { t += (sign * L) / seg; L = 0; break; }
+      L -= rem; if (sign > 0) { j = (j + 1) % n; t = 0; } else { j = (j + n - 1) % n; t = 1; }
+    }
+    return { j, t };
+  };
+  const across = (p, dir, w) => {
+    let z = p[2], ring = ringAt(z), { j, t } = locate(ring, p);
+    const tan = unitv(sub(ring[(j + 1) % n], ring[j])), ah = dot(dir, tan), Lv = w * dir[2];
+    ({ j, t } = around(ring, j, t, w * Math.hypot(dir[0], dir[1]) * Math.min(1, Math.abs(ah) / (Math.hypot(dir[0], dir[1]) || 1)), ah >= 0 ? 1 : -1));
+    let q = at(ring, j, t), rem = Math.abs(Lv); const dz = Math.sign(Lv) * 0.002;
+    for (let guard = 0; guard < 400 && rem > 1e-9 && dz; guard++) {
+      const z2 = z + dz; if (z2 < rows[0].z || z2 > rows[last].z) break;
+      const q2 = at(ringAt(z2), j, t), d = len(sub(q2, q)); if (d >= rem) { q = q.map((v, k) => v + (q2[k] - v) * (rem / d)); break; }
+      rem -= d; q = q2; z = z2;
+    }
+    const c = mean(ringAt(q[2])), h = [q[0] - c[0], q[1] - c[1], 0], l = Math.hypot(h[0], h[1]) || 1;
+    return [q, [h[0] / l, h[1] / l, 0]];
+  };
+  return { across };
+}
+
 /** a LAPEL and its COLLAR, one band lying on the jacket along `path` (up the right roll line from its button, round the
  * back of the neck, down the left roll line): at each point the band's inner edge on the path and its outer edge
  * `width[k]` (m) out across the cloth from it (the lapel's shape: the notch, the peak, the shawl's curve), away from the
  * V on the lapels and down over the shoulders on the collar (`out0`, the first point's side; `fall[k]` 0 … 1 how far a
- * point's turns down, the collar's; `overhang` its inner edge on over the V); lying `lift` off the
+ * point's turns down, the collar's; `overhang` its inner edge on over the V; `across` a cloth walker's, its outer edge
+ * measured along the cloth, and a middle line to its section); lying `lift` off the
  * surface (`surface(p)` → [the point on it, its outward normal]), `t` thick. A box section on ringSlots(4), its ends a
  * hair past its first and last points */
-export function lapelBand(path, width, surface, { out0, t = 0.003, lift = 0.002, fall = null, overhang = 0 }) {
+export function lapelBand(path, width, surface, { out0, t = 0.003, lift = 0.002, fall = null, overhang = 0, across = null }) {
   if (path.length < 3) return null;
   let P = path; for (let it = 0; it < 2; it++) P = P.map((p, i) => (i === 0 || i === P.length - 1 ? p : p.map((x, q) => 0.25 * P[i - 1][q] + 0.5 * x + 0.25 * P[i + 1][q])));
-  const names = ringSlots(4); let prev = null;
+  // (a section of six: the outer edge, the middle and the inner edge, top and bottom, so across a curve (a bust, the
+  // chest) it lies on the cloth and no chord of it dips under)
+  const names = ringSlots(across ? 6 : 4); let prev = null;
   const stations = P.map((p, i) => {
     const tn = unitv(sub(P[Math.min(i + 1, P.length - 1)], P[Math.max(i - 1, 0)])), [s0, n0] = surface(p);
     let a = unitv(cross(tn, n0));
@@ -422,8 +474,11 @@ export function lapelBand(path, width, surface, { out0, t = 0.003, lift = 0.002,
     // (the collar falls: its outer edge turned down over the shoulders and the back by `fall[k]`)
     const f = fall?.[i] ?? 0, out = f ? unitv(add(scl(a, 1 - f), [0, 0, -f])) : a;
     // (its inner edge `overhang` on over the V, as a lapel rolls over the opening's edge, hiding the cut's step)
-    const [s1, n1] = surface(add(s0, scl(out, Math.max(0.004, width[i])))), inner = add(add(s0, scl(n0, lift)), scl(a, -overhang * (1 - f))), outer = add(s1, scl(n1, lift));
-    const pts = [add(outer, scl(n1, t)), outer, inner, add(inner, scl(n0, t))];
+    // (the outer edge `across` the cloth from the inner when a walker is given: measured along the jacket, not out
+    // into the air off its shoulder)
+    const [s1, n1] = across ? across(s0, out, Math.max(0.004, width[i])) : surface(add(s0, scl(out, Math.max(0.004, width[i])))), inner = add(add(s0, scl(n0, lift)), scl(a, -overhang * (1 - f))), outer = add(s1, scl(n1, lift));
+    const mid = across ? (() => { const [sm, nm] = across(s0, out, Math.max(0.002, width[i] / 2)); return [add(sm, scl(nm, lift)), nm]; })() : null;
+    const pts = mid ? [add(outer, scl(n1, t)), outer, mid[0], inner, add(inner, scl(n0, t)), add(mid[0], scl(mid[1], t))] : [add(outer, scl(n1, t)), outer, inner, add(inner, scl(n0, t))];
     return { id: `st${i}`, u: i, points: Object.fromEntries(names.map((nm, j) => [nm, pts[j].map(r6)])) };
   });
   const mid = (st) => mean(Object.values(st.points)), n = stations.length, d0 = unitv(sub(mid(stations[1]), mid(stations[0]))), d1 = unitv(sub(mid(stations[n - 1]), mid(stations[n - 2])));
@@ -445,10 +500,13 @@ export function cutOpening(P, under, inside, { front, group = null }) {
   }
   if (group) {
     const bands = { ...(P.bandGroups || {}) };
+    // (painted only where the opening is taken in on both sides of the front: a face's paint is mirrored, and a closed
+    // front's quarters are off the middle)
+    const sides = (set) => [new Set([...set].filter((sl) => P.slots.indexOf(sl) <= half).map(idx)), new Set([...set].filter((sl) => { const j = P.slots.indexOf(sl); return j === 0 || j >= half; }).map(idx))];
     for (let i = 0; i + 1 < P.stations.length; i++) {
-      const hit = new Set([...taken[i], ...taken[i + 1]].map(idx)); if (!hit.size) continue;
+      const [aR, aL] = sides(new Set([...taken[i], ...taken[i + 1]])); if (!aR.size || !aL.size) continue;
       const key = `${P.stations[i].id}-${P.stations[i + 1].id}`, row = bands[key] ? [...bands[key]] : Array(half).fill(P.group ?? 'Body');
-      for (let k = 0; k < half; k++) if (hit.has(k) || hit.has(k + 1)) row[k] = group;
+      for (let k = 0; k < half; k++) if ((aR.has(k) || aR.has(k + 1)) && (aL.has(k) || aL.has(k + 1))) row[k] = group;
       bands[key] = row;
     }
     P.bandGroups = bands; if (group !== 'Skin' && group !== (P.group ?? 'Body')) P.painted = [...new Set([...(P.painted || []), group])];

@@ -96,6 +96,15 @@ by the tailor. Cards without them unchanged, byte for byte.
   fall from the chest to the hip, the waist's hollow bridged (`fallStraight`). The collar now falls at the back and
   not at the sides of the neck, where over a squared shoulder it had stood out as wings, and is a little narrower. The
   suits wear them: `business`, `doublebreasted` and `trousersuit` structured, `skirtsuit` natural, all suppressed.
+- THE LAPEL ALONG THE CLOTH: its outer edge measured along the jacket (`clothWalker`: round the ring at its height, up
+  or down the cloth), not stepped out sideways and dropped back onto it, which had stood its top out off the shoulder
+  in the air; its section six points across, so over a bust no chord of it dips under the cloth, and its rings twice as
+  close along the roll line. A closed front's V is off the middle and a face's paint is mirrored, so the cut's walls
+  are painted as the shirt only where both sides are cut (a one-sided wall's paint had laid a strip of white shirt on
+  the jacket beyond the lapel); the quarters' paint the same. The belt is made before the jacket's front, the waist
+  suppressed onto it and the ridge it leaves eased into the cloth 6 cm above and below (`bridgeRun` now takes a range,
+  along the run only, and points to hold); a skirt reads what is under it within 1 cm of each ring (`clearanceOver`
+  takes its window), so it no longer flares out too soon into a shelf under a jacket.
 
 ### The garment designer: silhouette principles over tailoring primitives
 
