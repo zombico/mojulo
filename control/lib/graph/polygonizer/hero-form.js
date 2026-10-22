@@ -292,8 +292,10 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * 0.49 of the stature (the body's own, 0.52) and the trunk from the shoulder's joint to the hip's at 0.30 (0.28).
  * Laws 5 adds the ARM LENGTH (ARM_LENGTH) on the same casts: the humerus and the forearm shortened to the body's own;
  * laws 1 to 4 reached 1.08 to 1.09 of the stature fingertip to fingertip (the body's about 1.03, Leonardo's 1).
+ * Laws 6 adds THE CHIBI (CHIBI, lawCast): the bare `chibi` word read as the chibi build on the male pole, its head larger
+ * and its arms thinner; laws 1 to 5 stood the bare word on the adult radii, a man's arms under a man's head.
  */
-export const HERO_LAWS_VERSION = 5;
+export const HERO_LAWS_VERSION = 6;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -320,6 +322,16 @@ function builtCast(pole, word) {
   if (B.body.hip !== undefined && base.hipDepth != null) body.hipDepth = r6(base.hipDepth * B.body.hip);   // the hip's profile follows its width
   if (B.child) body.bust = 0;
   return { ...pole, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((pole.headScale ?? 1) * (B.headScale ?? 1)), scale: r6((pole.scale ?? 1) * (B.scale ?? 1)), build: word, ...(B.child ? { child: true } : {}) };
+}
+/** THE CHIBI (hero laws 6): the mascot's head (`headScale`, over the build's), its arms (`arm`, over the build's
+ * radius; the forearm takes it) and the neck that carries the larger head (`neck`, over the build's) */
+export const CHIBI = Object.freeze({ headScale: 1.15, arm: 0.9, neck: 1.45 });
+/** The cast a hero's word reads under its laws: `{ cast }`, and with laws 6 a chibi's `{ headScale, body }` (CHIBI over
+ * the chibi build), which the body's own controls override. Laws 1 to 5: the word as it was. */
+export function lawCast(cast, laws = 1, proportions = 'hero') {
+  if (laws < 6) return { cast };
+  const built = cast === 'chibi' ? { pole: 'male', build: 'chibi' } : cast, preset = isBuiltCast(built) && built.build === 'chibi' ? castOf(built, proportions) : null;
+  return preset ? { cast: built, headScale: r6(preset.headScale * CHIBI.headScale), body: { arm: r6(preset.body.arm * CHIBI.arm), neck: r6(preset.body.neck * CHIBI.neck) } } : { cast: built };
 }
 /** the cast a word names under a proportion: the anime or herobot cast when asked for and there is one, else the hero cast;
  * the build form (`{ pole, build }`) is that pole's cast with the build over it; a dial map or a list has none (null) */
@@ -472,7 +484,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the

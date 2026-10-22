@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The tiered game body: the default at mint
+
+- THE GAME BODY IS THE TIERED FORM: a hero minted with no `form` is stamped `form: 'tiered'` (motion-stamp.js
+  `withDefaultForm`, beside the calibrated walk), at the door, on a design run's remake of a new figure, and on a world's
+  new inline hero; every build and cast takes it (heroic, brute, lithe, stout, canonical, child, chibi, both poles). A
+  hero stored without a form keeps the body it was minted on, byte for byte, and a remake keeps the stored hero's form.
+  The body before it is a word now, `form: 'classic'`, for a new hero that wants it.
+- `core: 'streamlined'` IS DEPRECATED: still read on a hero that names it (the classic body carries it; a new hero that
+  names it is not stamped tiered), and said on its readout's warnings; drop `/hero/core` for the game body.
+- A FLAT CAP CLOSES ITS PART (station-loft.js): each cap now winds against the ring edges it shares with the bands, the
+  bands alone judged by their geometry. A cap whose point sits on its ring's own plane (the tiered form's joints and
+  bridges, where each limb ends on the ring the bridge begins on) had been wound by a coin toss, eight to sixteen faces
+  wound against their neighbours on the upper arms, forearms, thighs, hands and every bridge; every pointed cap winds as
+  it did.
+- A HEELED STANCE PASSES THE RIG GATE (station-loft-rig.js `auditRig`): the planted toe is read on the shoe's forepart
+  sole, `stance.toe` up, where the solver stands it; a footwear card with a heel on the game body (pumps, stilettos)
+  was refused at mint with a planted drift of exactly that lift.
+- THE CHIBI (hero laws 6, hero-form.js `CHIBI`, `lawCast`): the bare `chibi` word reads as the chibi build on the male
+  pole (its child radii), with the head larger (`headScale` × 1.15 over the build's), the arms thinner (× 0.9 over the
+  build's radius) and the neck that carries the head fuller (× 1.45). Laws 1 to 5 stood the bare word on the adult
+  radii, a man's arms and a head no bigger than his; a chibi stamped under them keeps it.
+
 ### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
 
 The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic

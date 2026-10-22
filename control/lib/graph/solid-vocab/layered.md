@@ -188,7 +188,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
   face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
-  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
+  a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`; on the game body,
+  the tiered form, stamped `form: 'tiered'` at mint when none is named: `'classic'` is the body before it, what a hero
+  stored without a form keeps, and `'realistic'` the realistic body) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
@@ -419,8 +421,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
   the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
   streamlined hero keeps its mitten and refuses those words. Hip armour hangs
-  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
-  before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
+  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` (deprecated: said on
+  the readout, and a hero naming it keeps the classic body) is the hero before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
 <!-- /section -->

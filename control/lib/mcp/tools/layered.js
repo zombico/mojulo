@@ -45,7 +45,7 @@ import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
-import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, lawCast, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -115,7 +115,7 @@ import { drawnPlan } from '../../graph/polygonizer/creature-drawn.js';
 import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation } from '../../graph/polygonizer/outfit-plan.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
-import { stampHero, withDefaultWalk } from '../../graph/polygonizer/motion-stamp.js';
+import { stampHero, withDefaultWalk, withDefaultForm } from '../../graph/polygonizer/motion-stamp.js';
 import { resolveMotion } from '../../graph/gameworld/hero-vibe.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -591,9 +591,12 @@ function resolveHeroWords(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-/** the base forms a hero may name: 'tiered' (tiered-form.js), 'realistic' (body-relational.js: the body re-sampled
- * onto the form field, dialled by a `physique`) */
-export const HERO_FORMS = Object.freeze(['tiered', 'realistic']);
+/** the base forms a hero may name: 'tiered' (tiered-form.js: the game body, stamped at mint when none is named,
+ * motion-stamp.js withDefaultForm), 'realistic' (body-relational.js: the body re-sampled onto the form field, dialled by
+ * a `physique`), 'classic' (the game body before the tiered form: what a hero stored without a form reads) */
+export const HERO_FORMS = Object.freeze(['tiered', 'realistic', 'classic']);
+/** the deprecated streamlined core: still read on a hero that names it (the classic body carries it), said on its readout */
+export const STREAMLINED_DEPRECATED = "core: 'streamlined' is deprecated: the game body is the tiered form on the structured core (drop /hero/core); a hero that keeps it is built on the classic body";
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero */
 export const REALISTIC_LAWS_VERSION = 1;
@@ -763,12 +766,12 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.statue !== undefined && spec.statue !== null) errs.push(...validateStatueBuild(spec.statue, spec));
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
   if (spec.proportions !== undefined && !PROPORTION_WORDS.includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head), 'hero' (the realistic casts: the default with the landmark head) or 'herobot' (the hero robot's toy-hero body, about 4.5 heads tall: a big head, short arms and torso, big hands and feet)`);
-  if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the default: the vajra core, a pelvis bone turned by the hip line alone and a lumbar bone, the pelvis part, converged legs) or 'streamlined' (the hero before it)`);
+  if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the default: the vajra core, a pelvis bone turned by the hip line alone and a lumbar bone, the pelvis part, converged legs) or 'streamlined' (the hero before it, deprecated: the classic body only)`);
   // what the hero is drawn for (era/target.js) and the level's look (era/geocube.js): a cube is checked as a stage checks one
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
   if (spec.laws !== undefined && !(Number.isInteger(spec.laws) && spec.laws >= 1 && spec.laws <= HERO_LAWS_VERSION)) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws 1 … ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
-  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; absent is today's form)`);
+  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base, the game body and the default at mint: triangles spent where the eye reads them, detail added by tier; the realistic body: the anatomy on one skin, dialled by physique; the classic body, the game body before it, and what a hero stored without a form reads)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
   if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
@@ -990,19 +993,22 @@ function heroFormPlanOf(hero) {
   // (a footwear library card on the game body keeps its foot bare under it, for the card to be worn over: the library's
   // authored adapter, after the plan; the realistic body re-samples its own foot)
   const feet = hero.form !== 'realistic' && libraryFeet(hero.outfit).length ? { feet: 'bare' } : {};
-  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
+  // (the cast as the hero's laws read it: hero-form.js lawCast, the chibi's head and arms under laws 6)
+  const L = lawCast(hero.cast, hero.laws ?? 1, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero')), cast = L.cast;
+  const body = { ...(L.body ?? {}), ...(hero.body ?? {}), ...(childCoding(hero) ? { bust: 0 } : {}) };
+  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body, girth: hero.girth ?? 1, headScale: hero.headScale ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
-  if (hero.head === 'relational') return humanoidPlan({ preset: hero.cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
+  if (hero.head === 'relational') return humanoidPlan({ preset: cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
   if ((hero.head ?? 'landmark') === 'landmark') {
-    return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
-    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
-  const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
+  const plan = heroPlan({ cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
   const { childCoded, ...worn } = dress;
   return dressPlan(plan, { ...worn, figure: { female: castOf(hero.cast, hero.proportions ?? 'hero')?.silhouette === 'female', child: !!childCoded }, operatorPalette: hero.palette ?? {}, scale: planScale({ cast: hero.cast, scale: hero.scale, tune: hero.tune, proportions: hero.proportions ?? 'hero' }) });
 }
@@ -1184,7 +1190,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const animeFace = anime ? eff.face : null, animeExpression = anime ? eff.expression : null, tune = anime ? eff.tune : hero.tune;
   // the anime head's feature spacing is advised against its base's bands (anime-sculpt.js FEATURE_BANDS) unless a look
   // names another character; the table itself rides faceMeasures either way
-  const warnings = [...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
+  const warnings = [...(hero.core === 'streamlined' ? [STREAMLINED_DEPRECATED] : []), ...(recipe?.statue?.warnings ?? []), ...tuneWarnings(tune), ...(landmark ? [...faceWarnings(hero.face), ...hairWarnings(hair)] : []),
     ...(anime ? [...animeFaceWarnings(animeFace, headPoleOf(hero), { sculpt: eff.sculpt }), ...animeSculptWarnings(eff.sculpt), ...(hero.look?.length ? [] : inc?.faceMeasures?.features?.advice ?? []), ...(hair.style === 'none' ? [] : animeHairWarnings(hair, { words: eff.hairWords })), ...animeExpressionWarnings(animeExpression), ...animeCoverageWarnings(inc?.hairCoverage), ...animeFaceZoneWarnings(inc?.hairCoverage, { veil: hair.veil })] : []), ...extraWarnings];
   const dress = dressReadout(styledHero(hero), plan, dressMesh, recipe);
   // the stylism's notes, and the outline read back off the dressed figure (the arms left out)
@@ -1255,7 +1261,7 @@ export async function createLayeredHeroHandler(input) {
   const { spec: heroSpec, vibe } = lowerVibe(Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]])), input.vibe);
   // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
   // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
-  const hero = heroRecord(stampHero(withDefaultWalk(heroSpec)));
+  const hero = heroRecord(stampHero(withDefaultWalk(withDefaultForm(heroSpec))));
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }

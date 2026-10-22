@@ -1,4 +1,4 @@
-/** tiered-form.js — the TIERED base form (`hero.form: 'tiered'`, opt-in): a figure whose triangles are spent where the
+/** tiered-form.js — the TIERED base form (`hero.form: 'tiered'`, the game body: stamped at mint when a hero names no form): a figure whose triangles are spent where the
  * eye reads them, with detail added by tier rather than built at one fixed density.
  *
  * Its first piece is the CHEST. The structured hero's bust is two separate ring20 lens layers cut from the breast's

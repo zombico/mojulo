@@ -905,9 +905,11 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
     // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it); a leg
     // given a `feet` target (a gait's footfall, a swing foot on its arc) stands at that target, its toe tip turned with it
+    // (a STANCE stands the toes on the shoe's forepart sole, `toe` metres up, wherever the pose plants them)
+    const up = (p) => (R.stance ? add(p, [0, 0, R.stance.toe]) : p);
     for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) {
       const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
-      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], target))] : ((at) => [len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))])(plantedFoot(R, l, pose))));
+      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], up(target)))] : ((at) => [len(sub(nodes[l.toeBase], up(at.toeBase))), len(sub(nodes[l.toeTip], up(at.toeTip)))])(plantedFoot(R, l, pose))));
     }
     out.poses.push({ pose, legs: report.legs });
   }

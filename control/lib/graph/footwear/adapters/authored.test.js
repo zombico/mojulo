@@ -5,7 +5,7 @@
 // a plain word unchanged (the kernel's shoe on the boxes).
 import { describe, it, expect } from 'vitest';
 
-import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../../mcp/tools/layered.js';
+import { heroRecord, heroPlanOf, expandLayeredManifest, planLayered } from '../../../mcp/tools/layered.js';
 import { compileLayered, auditLayered } from '../../polygonizer/station-loft.js';
 import { expandPlan } from '../../polygonizer/station-loft-plan.js';
 import { validateRig } from '../../polygonizer/station-loft-rig.js';
@@ -49,5 +49,7 @@ describe('the authored body\'s footwear', () => {
     const p = wear('female', 'pumps');
     expect(p.parts.pumpsHeel_footR).toBeTruthy();
     expect(p.rig.stance.pitch).toBeGreaterThan(10); expect(p.rig.stance.rise).toBeGreaterThan(0.02);
+    // (and the door's rig gate passes it: the planted toes read on the forepart sole, where the stance stands them)
+    expect(() => planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', outfit: ['tee', 'trousers', 'pumps'] }) }))).not.toThrow();
   }, 300_000);
 });

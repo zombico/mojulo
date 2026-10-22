@@ -4,7 +4,7 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH, ARM_LENGTH } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION, LEG_SET, LEG_LENGTH, ARM_LENGTH, CHIBI } from './hero-form.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
@@ -146,10 +146,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(5);
+    expect(HERO_LAWS_VERSION).toBe(6);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 5/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 6/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -203,6 +203,18 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     expect(five.hipR).toEqual(four.hipR);
     const child = { cast: { pole: 'female', build: HERO_BUILD_NAMES.find((n) => castOf({ pole: 'female', build: n }).child) } };
     expect(J(child, 5)).toEqual(J(child, 4));
+  });
+  it('laws 6, the chibi: the bare word is the build, its head larger, its arms thinner, its neck fuller; another cast is as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).plan;
+    const zs = (p) => p.include.find((i) => i.name === 'head').parts.cranium.stations.flatMap((st) => Object.values(st.points).map((q) => q[2]));
+    const head = (p) => Math.max(...zs(p)) - Math.min(...zs(p)), seg = (p, n) => p.segments.find((g) => g.name === n), arm = (p) => seg(p, 'upperArmR').rA[1];
+    const chibi = { cast: 'chibi' }, build = { cast: { pole: 'male', build: 'chibi' } }, five = at(chibi, 5), six = at(chibi, 6);
+    expect(head(six) / head(at(build, 5))).toBeCloseTo(CHIBI.headScale, 3); expect(head(six)).toBeGreaterThan(head(five));
+    expect(arm(six)).toBeLessThan(arm(five)); expect(arm(six) / arm(at(build, 5))).toBeCloseTo(CHIBI.arm, 3);
+    // the hero's own arm over the law's: the bare word and the build alike
+    expect(seg(at({ ...chibi, body: { arm: 0.05 } }, 6), 'upperArmR')).toEqual(seg(at({ ...build, body: { arm: 0.05 } }, 6), 'upperArmR'));
+    const adult = { cast: { pole: 'female', build: 'lithe' } };
+    expect(at(adult, 6)).toEqual(at(adult, 5));
   });
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk

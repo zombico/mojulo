@@ -10,7 +10,7 @@
  *                             it and fall back to the stock four keys), and the character light
  */
 import { heroRecord } from './layered.js';
-import { stampHero, withDefaultWalk } from '@/lib/graph/polygonizer/motion-stamp';
+import { stampHero, withDefaultWalk, withDefaultForm } from '@/lib/graph/polygonizer/motion-stamp';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -26,7 +26,9 @@ export function heroRemakeOps(order, prev = null) {
   // the base is remade as a mint makes it (the calibrated walk) when a motion page follows (the book's hero and cast);
   // a figure with no motion page keeps the walk it was stored with, or gets the calibrated one
   const keep = !order.motion && !isObj(order.spec?.motion) && was && isObj(was.motion);
-  const spec = keep ? { ...order.spec, motion: was.motion } : withDefaultWalk(order.spec);
+  const walked = keep ? { ...order.spec, motion: was.motion } : withDefaultWalk(order.spec);
+  // (the body it was stored on, unless the order names one: a hero stored without a form stays on the classic body)
+  const spec = was && (walked?.form === undefined || walked?.form === null) ? (was.form !== undefined ? { ...walked, form: was.form } : walked) : withDefaultForm(walked);
   const ops = [{ op: 'set', path: '/hero', value: heroRecord(stampHero(spec, was)) }];
   if (order.mint?.toon) ops.push({ op: 'set', path: '/toon', value: order.mint.toon });
   return ops;
