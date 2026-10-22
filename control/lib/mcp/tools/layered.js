@@ -998,10 +998,13 @@ export function dressReadout(hero, plan, mesh, recipe) {
   // the dress stays OUT of the body at every dial extreme (station-loft-clearance.js); the worst configuration is named
   // the dressed silhouette (dress-silhouette.js): the cloth's waist and taper against the body's, advice when it fills them
   if (recipe && hero.outfit !== undefined) { const S = dressSilhouette(recipe); if (S) out.silhouette = S; }
-  // the dressed OUTLINE on the realistic body (dress-outline.js; docs/garment-principles.md): its family against the bare
-  // body's, each half's fit, where loose cloth comes back to the body, the divisions, the flair, and the advice in each style
-  if (hero.form === 'realistic' && mesh?.provenance && recipe?.rig) {
-    const M = outlineMeasures(mesh, recipe), sex = femaleOf(hero) ? 'female' : 'male', canons = hero.stylism?.canon ? [hero.stylism.canon] : ['western', 'anime'];
+  // the dressed OUTLINE (dress-outline.js; docs/garment-principles.md), on either body, read off the mesh: its family against
+  // the bare body's, each half's fit, where loose cloth comes back to the body, the divisions, the flair, and the advice in
+  // each style. A read, never a refusal: a figure it cannot read (no trunk to slice) goes without it
+  let M = null;
+  if (mesh?.provenance && recipe?.rig) try { M = outlineMeasures(mesh, recipe); } catch { M = null; }
+  if (M) {
+    const sex = femaleOf(hero) ? 'female' : 'male', canons = hero.stylism?.canon ? [hero.stylism.canon] : ['western', 'anime'];
     out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
       advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }

@@ -50,6 +50,9 @@ body catches up to what the authored one wears, and its principles are shared ba
 - docs/realistic-body.md said no exporter carried the correctives and the body had no UVs; both have been in place
   (the skinned GLB's corrective morph targets with their weights baked per clip key, the skin's UV atlas). It says so
   now, and what is still missing: an engine-side driver, so a pose the engine makes itself gets the correctives.
+- THE OUTLINE READ ON BOTH BODIES: the dressed outline (dress-outline.js: the family against the bare body's, each half's
+  fit, the returns, the divisions, the flair, the advice in each canon) is read for the authored game body's heroes too,
+  in the hero's readout beside its ring-for-ring silhouette; a figure it cannot read goes without it, never refused.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

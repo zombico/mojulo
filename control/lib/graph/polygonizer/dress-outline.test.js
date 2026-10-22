@@ -1,10 +1,11 @@
 // The dressed outline read (dress-outline.js) on the realistic body, one case per concept: the bare figure (nothing worn
 // reads as nothing: no shift, no division, no flair, every return); trousers alone (their sash the one division, their
 // leg the flair, the ankle's cuff a return); the gi over them (loose above and below, coming back at the belt, the
-// wrists and the ankles; the jacket's skirt at the thigh's widest advised); the knight (the shoulders carried out: a T).
+// wrists and the ankles; the jacket's skirt at the thigh's widest advised); the knight (the shoulders carried out: a T);
+// the authored game body read the same way (its own bare family, a skirt's hem a division, the hero's readout carrying it).
 // Deterministic. (Beside the module, not in the critical tier: each case mints a realistic body.)
 import { describe, it, expect, beforeAll } from 'vitest';
-import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { heroRecord, expandLayeredManifest, dressReadout, heroPlanOf } from '../../mcp/tools/layered.js';
 import { compileLayered } from './station-loft.js';
 import { outlineMeasures, outlineCritic } from './dress-outline.js';
 
@@ -55,4 +56,14 @@ describe('the dressed outline', () => {
     expect(m.family).toBe('T');
     expect(m.at.shoulder.e).toBeGreaterThan(0.15);
   });
+
+  it('the authored game body read the same way: a bare family of its own, a skirt\'s hem a division, the readout carrying it', () => {
+    const hero = heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'sundress' } }), m = expandLayeredManifest({ kind: 'layered', hero }), mesh = compileLayered(m.recipe, m.dials);
+    const M = outlineMeasures(mesh, m.recipe);
+    expect(M.family).not.toBe(M.bareFamily);
+    expect(M.divisions.some((d) => d.kind === 'hem' && d.f > 0.6)).toBe(true);
+    const out = dressReadout(hero, heroPlanOf(hero), mesh, m.recipe);
+    expect(out.outline).toMatchObject({ family: M.family, bare: M.bareFamily });
+    expect(Object.keys(out.outline.advice)).toEqual(['western', 'anime']);
+  }, 300_000);
 });

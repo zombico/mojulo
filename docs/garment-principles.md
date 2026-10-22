@@ -1,6 +1,8 @@
 # Garment principles: what makes a dressed silhouette read
 
-The principles a garment on the realistic body is chosen and checked by, each as a MEASURE of the dressed figure with
+The principles a garment is chosen and checked by, on the realistic body and on the authored game body alike (the hero's
+readout carries the read for both; the game body's bare outline is its own, a broader shoulder, so its family is read
+against that and the bands that are ratios of the body hold as they are), each as a MEASURE of the dressed figure with
 a starting BAND in two styles: WESTERN (fashion design and tailoring) and ANIME/GAME (character costume for games and
 animation), the canon's word as `hero-style-critic.js` has it (not the hero's `register`, which is how far it heightens). The bands live as data beside the read that applies them, `control/lib/graph/polygonizer/dress-outline.js`;
 this note is why they are what they are.
