@@ -395,11 +395,21 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
   // (a gritty polygon land: its cliffs' rims broken and stones strewn, as the island's; broken-land.js)
+  const strewn = [];
   if (broken) {
     breakRims([...ground.faces, ...ribbon], { grit: broken, seed, dx: site.grid.dx });
-    boulders.push(...strewStones(st, { faces: [...ground.faces, ...ribbon], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
+    strewn.push(...strewStones(st, { faces: [...ground.faces, ...ribbon], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
   }
-  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  // (the strewn stones are drawn and lit but cast nothing: a pebble's shadow is a few centimetres, and each would be one
+  // more set of triangles every lit point is tested against)
+  // (a broken boulder casts its unbroken shape's shadow: the chips change its outline by centimetres and its faces by
+  // many times, and every lit point is tested against them)
+  // many times, and every lit point is tested against them; drawn in by an eighth about its foot, so no chip, cut at most
+  // a thirteenth in, lies inside the shape that casts for it)
+  const inset = (it) => (f) => ({ ...f, corners: f.corners.map((c) => [it.x + (c[0] - it.x) * 0.88, it.y + (c[1] - it.y) * 0.88, it.z0 + (c[2] - it.z0) * 0.88]) });
+  const casters = broken ? rocks.flatMap((it) => { const b = boulderFaces(st, it, seed); return [...b.sides, ...b.cap].map(inset(it)); }) : boulders.flatMap((b) => [...b.sides, ...b.cap]);
+  const solid = [...ground.faces, ...ribbon, ...casters, ...wood, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  boulders.push(...strewn);
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
   const shadow = SH && SH.sun && !cardMask ? makeSoftSunShadow(solid, dir, SH.sun, { cell: 0.6 })

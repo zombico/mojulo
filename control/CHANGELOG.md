@@ -199,6 +199,9 @@ cards. It is now drawn the island's way, by the island's own functions.
   `facet` (the rock drawn toward planes, on the faces' own heights, the ground round it and the land the rest is placed
   on unmoved) now reach a stage's polygon land too: the island's `valleyOf` and `planarise`, moved unchanged into
   `local-meru/land-form.js` (the island imports them from there, byte for byte as before).
+- **A gritty land's shadows at a third of the cost.** A broken boulder casts its unbroken shape's shadow (drawn in by an
+  eighth, so no chip lies inside it) and the strewn stones cast none: a gritty meadow stage assembles in about 4 s, not
+  11. Its rock is drawn and lit as before.
 - **The micro-town's `trail` camera** (`show: 'town'`): on the trail's open stretch short of the street, at a person's
   eye, looking along it toward the town, so the trail's edges into the land and the rocks beside it are seen.
 
