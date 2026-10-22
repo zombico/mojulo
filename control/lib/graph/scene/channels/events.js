@@ -1,4 +1,5 @@
 import { buildBus } from '../../worlds/event-bus.js';
+import { localizeChannel } from './page-words.js';
 import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
@@ -190,7 +191,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, locale = null } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them
   const events = events0 && events0.fxStyle === true ? styleEvents(events0) : events0;
   const { widgets } = normalizeHud(events.hud);
@@ -199,7 +200,9 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const facts = cast || listensForHits(events);   // the characters' happenings are read (a hit counts there too)
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
-  const reach = Object.keys(uses).length ? reachScript(uses) : '';
+  // a page in a language (page-words.js): each channel's own words in it, the HUD's numbers in its separators. None: as is
+  const L = (channel, code) => localizeChannel(channel, code, locale);
+  const reach = Object.keys(uses).length ? L('reach', reachScript(uses)) : '';
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
   const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
@@ -213,7 +216,7 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu
   const minigames = !!(events.minigames && typeof events.minigames === 'object');   // play.minigames: the games inside the game
-  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
+  const hudBlock = widgets.length || menus ? L('hud', hudScript(widgets, events.style, events.register, menus)) + (menus ? L('menu', menuScript(menus)) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();
@@ -371,5 +374,5 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript() : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? L('scene', sceneScript()) : ''}${quests ? L('quest', questScript()) : ''}${minigames ? L('minigame', minigameScript(events.minigames)) : ''}${rpg ? rpgScript() : ''}`;
 }

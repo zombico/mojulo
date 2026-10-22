@@ -74,6 +74,24 @@ describe('the words a resolved level puts in front of its player', () => {
   });
 });
 
+describe('the page\'s own words', () => {
+  it('only the channels the level has: its quests\', its scenes\', its menus\' words and the legend; no minigame\'s', () => {
+    const W = payloadWords(payload), page = W.filter((w) => w.role === 'page').map((w) => w.text);
+    expect(page).toEqual(expect.arrayContaining(['new quest', 'hold Space or Esc to skip', 'Sold out.', 'accept: {verb}']));
+    expect(page).not.toContain('You win!');
+    expect(W.filter((w) => w.role === 'controls').map((w) => w.text)).toContain('W A S D / arrows');
+    expect(W.find((w) => w.role === 'verb').text).toBe('buy');
+  });
+
+  it('a page in a language says them: the quest toast, the skip hint, the shop\'s verb and footer', () => {
+    const words = { 'new quest': 'クエスト開始', 'hold Space or Esc to skip': 'Space長押しでスキップ', buy: '買う', 'back: close': 'もどる：閉じる', 'Welcome to the hold.': 'ようこそ。' };
+    const ja = emitThreeWorld({ ...localizePayload(payload, words), lang: { tag: 'ja', words } });
+    for (const w of ["begun: 'クエスト開始'", "'Space長押しでスキップ'", '<span>もどる：閉じる</span>', '"verb":"買う"', 'ようこそ。']) expect(ja).toContain(w);
+    expect(ja).not.toContain("begun: 'new quest'");
+    expect(emitThreeWorld({ ...payload, lang: { tag: 'en', words: {} } })).toBe(emitThreeWorld(payload));
+  });
+});
+
 describe('the page in a language', () => {
   it('no language, or the default English tag: the page byte for byte as ever', () => {
     const plain = emitThreeWorld(payload);

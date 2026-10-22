@@ -46,6 +46,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   named slots), join the game's table and its brief beside the glossary (continue as つづきから, new game as はじめから).
   A kept number's label is shown localized and remembered as written, so a best is not split by language. A game
   without languages carries no language key or code.
+- **The page's own words, its numbers and its keys.** The words a level page's code writes (the quest toast and
+  journal, the scene's skip and choose hints, the default "use" beside the interact key, a shop's or chest's footer
+  and empty states, a minigame's result) are localized where the code is: each is an exact snippet of its channel's
+  emitted code, rewritten in the page's language with its words escaped for where they stand
+  (`scene/channels/page-words.js`). A test holds every snippet to the channel's real code and its writer to the
+  snippet itself, so neither can drift. A level's words list only the channels it has (no "Sold out." for a level
+  without a shop), plus menu verbs and inventory tabs. HUD readouts draw numbers in the language's separators
+  (grouped past four digits, lakh in Hindi). The shell's controls panel shows its rows in the language and each key
+  as the player's keyboard has it (the browser's layout where it tells, else the language's usual one: Z Q S D on
+  AZERTY). A page without a language is not touched.
 
 ### Science worlds: a demo composed from laws, not authored per experiment
 

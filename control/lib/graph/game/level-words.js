@@ -21,6 +21,8 @@
  * line 3]") ARE payload words, whole sentences, so they localize as phrases.
  */
 
+import { PAGE_WORDS, LEGEND_WORDS } from '../scene/channels/page-words.js';
+
 const each = (a, f) => { if (Array.isArray(a)) a.forEach(f); };
 const isStr = (v) => typeof v === 'string' && v.trim().length > 0;
 
@@ -54,7 +56,9 @@ function walkEvents(ev, visit, at) {
     });
     each(m.picks, (_, k) => visit(m.picks, k, { role: 'choice', at: `${where}.picks[${k}]` }));
     each(m.pages, (_, k) => visit(m.pages, k, { role: 'page', at: `${where}.pages[${k}]` }));
+    each(m.tabs, (t, k) => visit(t, 'label', { role: 'menu-tab', at: `${where}.tabs[${k}]` }));
     each(m.rows, (r, k) => {
+      visit(r, 'verb', { role: 'verb', at: `${where}.rows[${k}]` });   // the page only shows it (the lowering acted on it)
       visit(r, 'name', { role: 'item-name', at: `${where}.rows[${k}]` });
       visit(r, 'about', { role: 'item-about', at: `${where}.rows[${k}]` });
       visit(r, 'label', { role: 'hud-label', at: `${where}.rows[${k}]` });
@@ -80,10 +84,24 @@ export function eachLevelWord(payload, visit) {
   each(payload.game?.keep, (k, i) => v(k, 'label', { role: 'kept', at: `game.keep[${i}]`, keep: true }));
 }
 
-/** The level's words, one entry a place, in page order. */
+// the channels a page carries, by what its payload holds: their own words are the level's words too
+// (scene/channels/page-words.js), and only theirs: a level with no shop is never asked for "Sold out."
+const CHANNELS = {
+  quest: (ev) => Array.isArray(ev.quests) && ev.quests.length > 0,
+  scene: (ev) => Array.isArray(ev.scenes) && ev.scenes.length > 0,
+  reach: (ev) => Array.isArray(ev.sources) && ev.sources.some((s) => s && s.type === 'zone' && s.use),
+  menu: (ev) => Array.isArray(ev.menus) && ev.menus.length > 0,
+  minigame: (ev) => !!(ev.minigames && typeof ev.minigames === 'object'),
+};
+
+/** The level's words, one entry a place, in page order; then the words its page's own code writes, by channel. */
 export function payloadWords(payload) {
   const out = [];
   eachLevelWord(payload, (h, k, { role, at, speaker }) => out.push({ text: h[k], role, at, ...(isStr(speaker) ? { speaker } : {}) }));
+  const ev = payload && payload.events && typeof payload.events === 'object' ? payload.events : null;
+  if (ev) for (const [ch, has] of Object.entries(CHANNELS)) if (has(ev)) for (const text of PAGE_WORDS[ch]) out.push({ text, role: 'page', at: `page: ${ch}` });
+  // every page answers the shell's pause with a controls legend
+  if (payload) for (const text of LEGEND_WORDS) out.push({ text, role: 'controls', at: 'page: controls' });
   return out;
 }
 

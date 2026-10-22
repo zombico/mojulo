@@ -74,6 +74,12 @@ const AUTONYMS = {
   'zh-CN': '简体中文', 'zh-TW': '繁體中文', 'zh-HK': '繁體中文 (香港)',
 };
 
+// the letters a keyboard layout moves, by the QWERTY key's letter: what a prompt for that key shows its player
+export const KEY_LAYOUTS = Object.freeze({
+  azerty: Object.freeze({ A: 'Q', Q: 'A', W: 'Z', Z: 'W', M: ',' }),
+  qwertz: Object.freeze({ Y: 'Z', Z: 'Y' }),
+});
+
 // a tag the list does not name: its language's name and its region as written ('Español (AR)'), else the tag itself
 const autonym = (tag) => AUTONYMS[tag] ?? (AUTONYMS[lang(tag)] ? `${AUTONYMS[lang(tag)]} (${tag.split('-').slice(1).join('-')})` : tag);
 
@@ -167,7 +173,7 @@ export function localeProfile(tag) {
     caseless: !CASED.has(script),
     joined: script === 'Arab' || script === 'Deva',   // letter-spacing breaks the joins (and a Devanagari conjunct)
     wrap: script === 'Jpan' || script === 'Hans' || script === 'Hant' ? 'cjk' : script === 'Kore' ? 'keep-all' : script === 'Thai' ? 'dictionary' : 'spaces',
-    number: { group: P.number[0], decimal: P.number[1] },
+    number: { group: P.number[0], decimal: P.number[1], ...(lang(tag) === 'hi' ? { lakh: true } : {}) },
     quotes: P.quotes, punct: P.punct ?? null, plural: P.plural, address: P.address, expansion: P.expansion,
     keys: P.keys ?? 'qwerty', units: P.units ?? 'metric', names: NAMES[script],
     glossary,

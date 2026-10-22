@@ -102,6 +102,21 @@ describe('the level list\'s language (no front)', () => {
   });
 });
 
+describe('the controls panel', () => {
+  it('its rows in the language, its key letters as the player\'s keyboard has them (AZERTY: Z Q S D)', () => {
+    const FR = { ...BASE, languages: { source: 'en', locales: ['en', 'fr'], strings: { fr: { 'W A S D / arrows': 'W A S D / flèches', move: 'bouger', controls: 'commandes' } } } };
+    const html = emitPlayShell(normalizeGameManifest(FR), LEVELS, { gameRef: 'coin-run' });
+    const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', beforeParse(w) { Object.defineProperty(w.navigator, 'languages', { value: ['fr-FR'] }); } });
+    const d = dom.window.document, btn = (t) => [...d.querySelectorAll('button')].find((b) => b.textContent === t);
+    d.querySelector('#app .card button.primary').click();
+    d.getElementById('pauseBtn').click();
+    btn('commandes').click();
+    const rows = [...d.querySelectorAll('#pause dl.keys dt, #pause dl.keys dd')].map((x) => x.textContent);
+    expect(rows.slice(0, 2)).toEqual(['Z Q S D / flèches', 'bouger']);
+    expect(rows).toContain('Space');   // a key name is not a letter
+  });
+});
+
 describe('the front\'s language', () => {
   it('the start menu in the language; options carries the language row; the list sets the page and comes back in it', () => {
     const { d, buttons, click } = page({ front: {} });

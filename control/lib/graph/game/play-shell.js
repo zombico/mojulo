@@ -547,7 +547,7 @@ export function playShellRuntime(cfg, K) {
     if (view === 'controls') {
       const dl = el('dl', { cls: 'keys' });
       const rows = ctlRows || [[T('W A S D / arrows'), T('move')], [T('mouse'), T('look')], [T('Space'), T('jump')]];
-      for (const r of rows) { dl.appendChild(el('dt', { text: r[0] })); dl.appendChild(el('dd', { text: r[1] })); }
+      for (const r of rows) { dl.appendChild(el('dt', { text: keyName(T(r[0])) })); dl.appendChild(el('dd', { text: T(r[1]) })); }
       s.appendChild(el('h2', { text: T('controls') }));
       s.appendChild(dl);
       s.appendChild(el('button', { text: T('back'), on: () => renderPause() }));
@@ -671,10 +671,15 @@ export function playShellRuntime(cfg, K) {
   // in it (its tag, direction and script typesetting), the shell's words and the game's looked up in its table, and each
   // level asked for in it (the World route serves the level's words localized). Absent: none of this runs.
   const LANG = cfg.lang || null;
-  let lang = null, langCss = null;
+  let lang = null, langCss = null, keyMap = null, realKeys = null;
+  // a key's letter as the player's keyboard has it: the board itself where the browser says (navigator.keyboard), else
+  // the layout the language's players mostly have (ZQSD on AZERTY); a prompt's letters are QWERTY places
+  const keyName = (s) => (realKeys || keyMap ? String(s).replace(/\b[A-Z]\b/g, (c) => { const k = realKeys ? realKeys.get('Key' + c) : null; return k ? k.toUpperCase() : (keyMap && keyMap[c]) || c; }) : s);
+  if (LANG && navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then((m) => { realKeys = m; }).catch(() => {});
   function setLanguage(tag) {
     lang = tag;
     words = LANG.t[tag] || null;
+    keyMap = LANG.keys[tag] || null;
     document.documentElement.lang = tag;
     if (LANG.rtl.indexOf(tag) >= 0) document.documentElement.dir = 'rtl'; else document.documentElement.removeAttribute('dir');
     if (!langCss) { langCss = document.createElement('style'); document.head.appendChild(langCss); }

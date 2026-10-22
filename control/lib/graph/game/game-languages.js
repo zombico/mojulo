@@ -28,7 +28,7 @@
  *   pickLanguage(declared, wanted, fallback) the run-time choice (pure; inlined with toString())
  */
 
-import { localeProfile, glossaryFor, localeCss } from './locale-conventions.js';
+import { localeProfile, glossaryFor, localeCss, KEY_LAYOUTS } from './locale-conventions.js';
 // the shell's runtime source is where its words are (each one a T('…') literal): read from it, never listed by hand
 import { playShellRuntime } from './play-shell.js';
 import { playFrontRuntime, FRONT_WORDS } from './play-front.js';
@@ -117,7 +117,7 @@ export function coverage(manifest, levelWords = {}) {
 }
 
 // the roles that sit in a box that does not grow: a budget rides beside them, in Latin-letter widths
-const TIGHT = new Set(['hud-label', 'hud-text', 'choice', 'prompt', 'menu-title', 'menu-entry', 'item-name', 'speaker', 'quest', 'option', 'level-title', 'shell', 'kept']);
+const TIGHT = new Set(['hud-label', 'hud-text', 'choice', 'prompt', 'menu-title', 'menu-entry', 'item-name', 'speaker', 'quest', 'option', 'level-title', 'shell', 'kept', 'page', 'verb', 'menu-tab', 'controls']);
 const ROLE_SAYS = {
   'game-title': 'the game\'s title: a name; localize it as a publisher would (keep, adapt, or subtitle it)',
   'level-title': 'a level\'s name on the level list',
@@ -132,6 +132,9 @@ const ROLE_SAYS = {
   option: 'a difficulty or setup option', 'option-sub': 'the line under an option', label: 'a label',
   prose: 'prose on an about or credits screen', 'credit-role': 'a role in the credits roll', title: 'a title',
   shell: 'the game shell\'s own words: a menu entry, a button, a status, a message; {slots} are filled by the shell',
+  page: 'a word the level\'s page writes itself (the quest toast, the skip hint, a shop\'s footer); {slots} are filled by the page',
+  verb: 'the verb on a menu row (buy, take, use, equip): one short word', 'menu-tab': 'a tab in an inventory grid',
+  controls: 'a row of the controls panel: the keys (leave their letters) or what they do',
   kept: 'the name of a number the game keeps between plays (a score, a time), shown beside its best',
 };
 
@@ -142,7 +145,7 @@ const RULES = [
   'A word in a box that does not grow carries `fit`: about that many Latin letters wide (a CJK character counts as two). Abbreviate as the language\'s games do rather than overflow.',
   'Counts: prefer the forms games use to dodge plural grammar ("×3", "Coins: 3") over a sentence that needs plural forms.',
   'Numbers are drawn by the game; never spell a number as words or change its digits.',
-  'A button keeps the name the platform prints on it (Start, A, Esc); a key prompt names the key, not the letter it types.',
+  'A button keeps the name the platform prints on it (Start, A, Esc). Key letters in a prompt (W A S D, E) are the keys\' places on a QWERTY board: leave them as written; the game shows each player the letter on their own keyboard.',
   'One term, one word: the same source term localizes the same way everywhere in the game (the glossary is the start).',
   'Placeholders a game shows when words are missing ("[Hero: line 3]", "[Choice 2]") are worth localizing as the slot they are, or leaving for the author to fill.',
 ];
@@ -224,12 +227,12 @@ export function shellWords() {
  * typesetting, each one's words (the whole table: the shell shows the game's words, its levels' kept numbers and items
  * too), the fallback, and the game whose table the World route reads when the shell asks for a level in a language. */
 export function shellLanguage(manifest, gameRef = null) {
-  const L = manifest.languages, css = {};
-  for (const tag of L.locales) { const c = localeCss(tag); if (c) css[tag] = c; }
+  const L = manifest.languages, css = {}, keys = {};
+  for (const tag of L.locales) { const c = localeCss(tag); if (c) css[tag] = c; const k = KEY_LAYOUTS[localeProfile(tag).keys]; if (k) keys[tag] = k; }
   return {
     game: gameRef, source: L.source, fallback: L.default ?? L.source, locales: L.locales.slice(),
     names: Object.fromEntries(L.locales.map((tag) => [tag, localeProfile(tag).name])),
-    rtl: L.locales.filter((tag) => localeProfile(tag).dir === 'rtl'), css,
+    rtl: L.locales.filter((tag) => localeProfile(tag).dir === 'rtl'), css, keys,
     t: Object.fromEntries(L.locales.filter((tag) => tag !== L.source).map((tag) => [tag, L.strings?.[tag] ?? {}])),
   };
 }

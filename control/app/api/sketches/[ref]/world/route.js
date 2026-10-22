@@ -389,7 +389,7 @@ export async function GET(request, { params }) {
     // Off unless the manifest or the flag asks — the page stays byte-identical otherwise.
     const xrParam = request.nextUrl.searchParams.get('xr');
     const xr = ['0', 'false'].includes(xrParam) ? null : (['1', 'true'].includes(xrParam) ? (payload.xr || true) : (payload.xr || null));
-    if (locale) payload = { ...localizePayload(payload, locale.strings), lang: locale.lang };
+    if (locale) payload = { ...localizePayload(payload, locale.strings), lang: { tag: locale.lang, words: locale.strings || {} } };
     const html = emitThreeWorld({ ...payload, wireframe, walk, spin, decollide, hud, inline: download, xr });
     if (cacheKey) worldCacheSet(cacheKey, html);
     return worldHtmlResponse(html, sketch, ref, download, 'MISS', etag, streamed.header);
