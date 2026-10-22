@@ -39,6 +39,9 @@ import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-te
 const FOLD_SHADOW = [0.8, 1, 1.12];
 /** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift */
 const FOLD_INK = Object.freeze({ soft: 0.16, core: 0.4, lift: 0.05 });
+/** the FOLD page (the lines' wrinkle map, only where the face has lines): R, G = 128 + 127 × the height's slope / this
+ * (mm per mm; R toward the figure's right, G up the head: the chart's `tr` and `ta`), B the valley's cavity */
+export const FOLD_SLOPE = 1.5;
 
 /** where each part's ring is cut (its `around`): the side least seen */
 export const DERMAL_SEAMS = Object.freeze({ head: 0.5, neck: 0.5, trunk: 0.5, pelvis: 0.5, upperArm: 0.75, forearm: 0.75, hand: 0.75, finger: 0.75, thigh: 0.75, shank: 0.75, foot: 0.75, toe: 0.75 });
@@ -115,7 +118,10 @@ export function dermalPages(layout, D) {
   for (let i = 0; i < N * NH; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
   const classes = [], classOf = new Map();
   const classIndex = (rel) => { if (!classOf.has(rel.class)) { classOf.set(rel.class, classes.length); classes.push({ ...rel }); } return classOf.get(rel.class); };
-  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairMeanOf(D) };
+  // (the FOLD page only where the face has lines: absent, nothing)
+  let fold = null;
+  if (D.lines > 0) { fold = new Uint8Array(N * NH * 4); for (let i = 0; i < N * NH; i++) { fold[i * 4] = fold[i * 4 + 1] = 128; fold[i * 4 + 3] = 255; } }
+  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairMeanOf(D), ...(fold ? { fold } : {}) };
 }
 
 /**
@@ -166,6 +172,7 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
     const o = (r.y + py) * N + r.x + px;
     for (let k = 0; k < 3; k++) albedo[o * 4 + k] = byte(toSrgb(col[k]));
+    if (P.fold && det?.slope) { const e = (g) => Math.round(128 + 127 * Math.max(-1, Math.min(1, g / FOLD_SLOPE))); P.fold[o * 4] = e(det.slope[0]); P.fold[o * 4 + 1] = e(det.slope[1]); P.fold[o * 4 + 2] = byte(det.crease); }
     rough[o] = byte(lerp((s) => s.roughness));
     trans[o] = byte(lerp((s) => s.translucency));
     fuzz[o] = byte(lerp((s) => s.fuzz));
@@ -219,7 +226,7 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
       for (let c = 0; c < 3; c++) { const m = 1 - Sh.amount * o * (1 - floor[c]), nb = SHADE.near * floor[c] / (1 - SHADE.depth); albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * (m + (nb - m) * deep)))); }
     }
   }
-  return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
+  return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, ...(P.fold ? { fold: P.fold } : {}), mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -348,6 +355,7 @@ export function dermalPngs(T) {
   return {
     albedo: encodePngRgba(B(T.albedo), N, NH), roughness: encodePngGrey(B(T.roughness), N, NH), translucency: encodePngGrey(B(T.translucency), N, NH),
     hair: encodePngRgba(B(T.hair), N, NH), fuzz: encodePngGrey(B(T.fuzz), N, NH), ...(T.ao ? { ao: encodePngGrey(B(T.ao), N, NH) } : {}),
+    ...(T.fold ? { fold: encodePngRgba(B(T.fold), N, NH) } : {}),
   };
 }
 export { encodePng };

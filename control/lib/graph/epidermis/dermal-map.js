@@ -592,17 +592,18 @@ export const PAINT_PATTERNS = Object.freeze(['eyes', 'stripes', 'band', 'chin', 
 export const PAINT_COLOURS = Object.freeze({ woad: '#2c4a86', soot: '#1c1a19', ochre: '#8c3a1e', chalk: '#e6e1d6', blood: '#6e1414' });
 export const DIRT_COLOUR = hexLin('#4a3b2c');
 
-/** a fold's profile across it, in its half-widths: the thin core's spread and the smooth shade's (gaussian variances) */
-export const FOLD = Object.freeze({ core: 0.12, soft: 3 });
+/** a fold's profile across it, in its half-widths: the thin core's spread and the smooth shade's (gaussian variances);
+ * its shape: the valley's depth and the roll's height at full depth (mm), each with its spread */
+export const FOLD = Object.freeze({ core: 0.12, soft: 3, valley: 0.3, valleyW: 0.35, roll: 0.12, rollW: 1.4 });
 /** a point against a polyline (mm): its distance `d`, `s` signed (+ on the left of the way it runs), `t` its share of the
- * way along at the nearest point, `L` the polyline's length */
+ * way along at the nearest point, `nx, ny` the nearest segment's left normal, `L` the polyline's length */
 const nearPoly = (q, pts) => {
-  let best = { d: Infinity, s: 0, t: 0 }, run = 0, L = 0;
+  let best = { d: Infinity, s: 0, t: 0, nx: 0, ny: 0 }, run = 0, L = 0;
   for (let i = 0; i + 1 < pts.length; i++) L += Math.hypot(pts[i + 1].X - pts[i].X, pts[i + 1].Y - pts[i].Y);
   for (let i = 0; i + 1 < pts.length; i++) {
     const a = pts[i], b = pts[i + 1], bx = b.X - a.X, by = b.Y - a.Y, l = Math.hypot(bx, by) || 1e-9, u = Math.max(0, Math.min(1, ((q.X - a.X) * bx + (q.Y - a.Y) * by) / (l * l)));
     const px = q.X - a.X - bx * u, py = q.Y - a.Y - by * u, d = Math.hypot(px, py);
-    if (d < best.d) best = { d, s: Math.sign(bx * (q.Y - a.Y) - by * (q.X - a.X)) * d, t: (run + u * l) / (L || 1) };
+    if (d < best.d) best = { d, s: Math.sign(bx * (q.Y - a.Y) - by * (q.X - a.X)) * d, t: (run + u * l) / (L || 1), nx: -by / l, ny: bx / l };
     run += l;
   }
   return { ...best, L };
@@ -617,14 +618,16 @@ const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length
  * (`[r, g, b, alpha]`, linear, the brush's edge ragged). On the relational head (its marks); elsewhere nothing.
  */
 export function dermalDetail(A, D) {
-  if (A.part !== 'head' || !A.marks) return { crease: 0, soft: 0, lift: 0, paint: null };
+  if (A.part !== 'head' || !A.marks) return { crease: 0, soft: 0, lift: 0, slope: null, paint: null };
   const M = A.marks.points, q = headXY(A), sg = q.X >= 0 ? 1 : -1, P = (k) => M[k + (sg > 0 ? 'R' : 'L')], X = Math.abs(q.X);
   const line = (d, w) => Math.exp(-((d / w) ** 2));
   // THE LINES, as FOLDS: each a polyline in mm on the head, painted as the skin creased there (not a pencil stroke on
   // it), at two scales: a thin dark CORE where the fold closes (`crease`) inside a broad SMOOTH shade that falls off
   // softly either side (`soft`, leaning to the side the fold closes under), and a faint lift on the roll's lit lip
-  // (`lift`); tapered to nothing at both ends, broken along its length by a slow noise, wider as it deepens.
-  let crease = 0, soft = 0, lift = 0;
+  // (`lift`); tapered to nothing at both ends, broken along its length by a slow noise, wider as it deepens. And its
+  // SHAPE, for the light: the height of a narrow valley and the broad roll of skin on its lit side (`FOLD` mm), carried
+  // as its slope over the head's mm (`slope`: dh/dX, the figure's right; dh/dY, up), an engine's wrinkle map.
+  let crease = 0, soft = 0, lift = 0, gX = 0, gY = 0;
   if (D.lines > 0) {
     const deep = D.lines * (0.55 + 0.45 * D.age), Q = { X, Y: q.Y };
     // (`side` +1: the shadow on the left of the way the line runs, the lift on its right; `w` its half-width at full
@@ -637,6 +640,11 @@ export function dermalDetail(A, D) {
       crease = Math.max(crease, a * Math.exp(-((u - 0.2) ** 2) / FOLD.core));
       soft = Math.max(soft, a * Math.exp(-((u - 0.6) ** 2) / FOLD.soft));
       lift = Math.max(lift, a * 0.4 * Math.exp(-((u + 1.8) ** 2) / 1.2));
+      // the height across the fold (u in its half-widths): −valley at the core, +roll beyond its lit side; its slope
+      // along the fold's normal (+ the left of its run)
+      const ev = Math.exp(-((u - 0.2) ** 2) / FOLD.valleyW), eb = Math.exp(-((u + 1.8) ** 2) / FOLD.rollW);
+      const dh = a * (FOLD.valley * ev * (2 * (u - 0.2)) / FOLD.valleyW - FOLD.roll * eb * (2 * (u + 1.8)) / FOLD.rollW) * side / ww;
+      gX += dh * r.nx; gY += dh * r.ny;
     };
     // the forehead's three, running across (the brow's skin folds down onto them: the shadow under, the lift above)
     const fz = Math.abs(P('fz').X);
@@ -672,5 +680,5 @@ export function dermalDetail(A, D) {
     const a = edge(d) * (W.amount ?? 0.85);
     if (a > 0.003) paint = [...hexLin(PAINT_COLOURS[W.colour] || W.colour || PAINT_COLOURS.woad), a];
   }
-  return { crease, soft, lift, paint };
+  return { crease, soft, lift, slope: gX || gY ? [sg * gX, gY] : null, paint };
 }

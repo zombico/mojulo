@@ -33,6 +33,8 @@
 //                   rows: the relational head grafted on it with its own atlas and hair; rows of the body textured and lit,
 //                   the map's kinds, the body-part map (polygonizer/body-relational-map.js) on the skin, the channels on the shape, the neck where the head meets it; then the body's atlas pages.
 //                   --physique a word or JSON (the door's), --body-page the atlas's width (default 2048)
+//   --key           the key light's direction in the camera's frame, 'right,up,toward' (default -0.45,0.55,0.75; a
+//                   raking side light: -0.95,0.15,0.25): the folds' wrinkle map (the FOLD page) answers it
 //   --cells         the head's surface net (default 110)
 //   --page          the atlas's page in texels (default 1024)
 //   --out           output dir (default /tmp/dermis-study): sheet.png, sheet.svg, atlas-*.png, report.json
@@ -57,6 +59,7 @@ const { readDermis, dermisAt, hexLin, toSrgb } = await import('@/lib/graph/epide
 const { layoutDermis, paintDermis, dermalPngs, reliefTile } = await import('@/lib/graph/epidermis/dermal-texture.js');
 const { growBodyHair, growScalp, readScalp, hairShade } = await import('@/lib/graph/epidermis/dermal-hair.js');
 const { pierce } = await import('@/lib/graph/epidermis/dermal-jewel.js');
+const { FOLD_SLOPE } = await import('@/lib/graph/epidermis/dermal-texture.js');
 const { readEpidermis, growEpidermis } = await import('@/lib/graph/epidermis/epidermis.js');
 const { readLook, LOOKS, readAncestry } = await import('@/lib/graph/epidermis/dermal-looks.js');
 const { bodyDermis, neckTone, BODY_DERMIS } = await import('@/lib/graph/epidermis/dermal-body.js');
@@ -64,6 +67,9 @@ const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-m
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
+// (the key light's direction in the camera's frame: right, up, toward the camera; `--key` moves it, a raking light low
+// from the side shows what the skin's shape does)
+let KEY_DIR = [-0.45, 0.55, 0.75];
 let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null, lineupAll = false, flatSheen = false;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
@@ -72,6 +78,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--scalp') { const v = args[++i]; scalpSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--epidermis') { const v = args[++i]; epiSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; continue; }
   if (a === '--cells') { cells = Number(args[++i]); continue; }
+  if (a === '--key') { KEY_DIR = args[++i].split(',').map(Number); continue; }
   if (a === '--look') { looks.push(...args[++i].split(',')); continue; }
   if (a === '--faces') { faces.push(...JSON.parse(args[++i])); continue; }
   if (a === '--ancestry') { ancestries.push(...args[++i].split(',')); continue; }
@@ -104,7 +111,7 @@ function camera(az, elev, box, W, H) {
   const span = (v) => Math.max(...corners.map((p) => p[0] * v[0] + p[1] * v[1] + p[2] * v[2])) * 2;
   const sc = 0.94 * Math.min(W / span(r), H / span(u));
   const dot = (p, v) => (p[0] - ctr[0]) * v[0] + (p[1] - ctr[1]) * v[1] + (p[2] - ctr[2]) * v[2];
-  const L = [-0.45, 0.55, 0.75], ln = Math.hypot(...L), lv = L.map((x) => x / ln);
+  const L = KEY_DIR, ln = Math.hypot(...L), lv = L.map((x) => x / ln);
   const light = [0, 1, 2].map((k) => r[k] * lv[0] + u[k] * lv[1] + c[k] * lv[2]);
   return { project: (p) => [W / 2 + dot(p, r) * sc, H / 2 - dot(p, u) * sc, dot(p, c)], view: c, light, pxMm: 1000 / sc };
 }
@@ -161,6 +168,21 @@ function render(H, cam, W, Hh, mode, R = null) {
     const uv = T.faceUV(fi), U = uv[0][0] * w0 + uv[1][0] * w1 + uv[2][0] * w2, Vv = uv[0][1] * w0 + uv[1][1] * w1 + uv[2][1] * w2;
     // (an enclosed face, a nostril's or the lips' line inside, is darkened by its own occlusion: it has no texels)
     const shut = tri.some((vi) => chart.samples[vi].enclosed) && chart.ao ? 0.35 + 0.65 * Math.min(...tri.map((vi) => chart.ao[vi])) : 1;
+    // (the FOLD page, the lines' wrinkle map: the normal bent by the folds' height slope, X along the chart's `tr` turned
+    // to the figure's right, Y along its `ta` up the head; the light, not the paint, draws the fold)
+    if (T.fold && mode === 'lit') {
+      const f = sample(T.fold, [T.page, T.pageH], U, Vv), gx = ((f[0] - 128) / 127) * FOLD_SLOPE, gy = ((f[1] - 128) / 127) * FOLD_SLOPE;
+      if (Math.abs(gx) + Math.abs(gy) > 0.005) {
+        const S = tri.map((vi) => chart.samples[vi]), mix = (k) => [0, 1, 2].map((c) => w0 * S[0][k][c] + w1 * S[1][k][c] + w2 * S[2][k][c]);
+        const dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], pr = (a) => { const d = dt(a, n), v = a.map((x, c) => x - n[c] * d), l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
+        let eX = pr(mix('tr')), eY = pr(mix('ta'));
+        if (eX[0] < 0) eX = eX.map((x) => -x);
+        if (eY[2] < 0) eY = eY.map((x) => -x);
+        let m = n.map((x, c) => x - gx * eX[c] - gy * eY[c]); const ml = Math.hypot(...m); m = m.map((x) => x / ml);
+        const Hv = [0, 1, 2].map((k) => cam.light[k] + cam.view[k]), hl = Math.hypot(...Hv);
+        return skinShade(T, U, Vv, m, dt(m, cam.light), Math.max(0, dt(m, Hv) / hl), Math.max(0, dt(m, cam.view)), cam, shut, mode);
+      }
+    }
     return skinShade(T, U, Vv, n, NL, NH, NV, cam, shut, mode);
   });
   return R;

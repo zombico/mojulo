@@ -320,3 +320,15 @@ describe('the face\'s lines as folds', () => {
     expect(S.every((s) => { const d = dermalDetail(s, readDermis({ from: 'male' })); return !d.crease && !d.soft && !d.lift; })).toBe(true);
   });
 });
+
+describe('the wrinkle map', () => {
+  it('bakes the folds\' slope only where the face has lines, turning across each fold', () => {
+    const L = layoutDermis(chart, { page: 64 });
+    expect(paintDermis(chart, readDermis({ from: 'male' }), L).fold).toBeUndefined();
+    const S = chart.samples.filter((s) => s?.part === 'head' && s.marks), D = readDermis({ from: 'male', lines: 1, age: 1 });
+    const sl = S.map((s) => dermalDetail(s, D).slope).filter(Boolean);
+    // (a fold rises to its roll and falls into its valley: both signs of slope up the forehead)
+    expect(sl.some((g) => g[1] > 0.05)).toBe(true); expect(sl.some((g) => g[1] < -0.05)).toBe(true);
+    expect(paintDermis(chart, D, L).fold).toBeInstanceOf(Uint8Array);
+  });
+});

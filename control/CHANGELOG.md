@@ -239,6 +239,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   painted at two scales, a thin dark core inside a broad smooth shade (`crease`, `soft`), with a faint lift on the roll's
   lit lip (`lift`), in the skin's own warm shadow rather than grey; broken along its length, wider as it deepens, the
   crow's feet curved and more of them with depth. The lines no longer read as pencil strokes. Absent `lines`, nothing.
+- THE WRINKLE MAP (dermal-texture.js the FOLD page, `FOLD_SLOPE`; dermal-map.js `FOLD`, `dermalDetail`'s `slope`): the
+  same folds as SHAPE, a narrow valley and the broad roll of skin on its lit side, baked as the height's slope over the
+  head's mm (R toward the figure's right along the chart's `tr`, G up the head along its `ta`, 128 flat; B the valley's
+  cavity), so the light draws a fold and it answers the light's direction: an engine's wrinkle normal map. Only where
+  the face has lines (absent, no page). The dermis study bends its shading by it; `--key` moves the key light (a raking
+  side light shows the folds turn with it). A normal map shades; it casts no shadow and leaves the silhouette smooth.
 - GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
   (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
   the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.
