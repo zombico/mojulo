@@ -198,6 +198,9 @@ toward** and its slider tune it toward another.
 | **Jumping Giuseppe** | the mascot platformer | platformer, on a lane | side | platforms | context jumps; power-ups |
 | **Isekai Party** | the RPG | realistic: no freeze, stun or knockback | isometric | field | targeted resolution; cast bars and a global cooldown; the party |
 | **Mojulo Fighter** | the 2D fighter | mojulo's versus loop itself (blended: Kata's numbers as a lab card) | side or ¾ | versus's stage | the lab's takes on the versus bodies; a dropped press reported by versus itself; hold-release charge moves; offense-armor tags on versus moves; a ¾ camera that turns with the fighters |
+| **Galaxy Boy** | Mega Man X | platformer, on a lane: the buster's tap shot and charge | side | highway | ladders; a boss's weapon got; sub-tanks and heart tanks; armor parts |
+| **Commuter Rail Runner** | the infinite runner | pinball, on the runner's treadmill; variants rails and slope | third person | rail | the chaser; ramps onto the trains; power-ups; the track's turns |
+| **Sukuna Kitchen** | Fruit Ninja, cut by Jujutsu Kaisen's Cleave and Dismantle | action, on a lane, the kitchen | side | kitchen | the swipe; the pieces as the produce's geometry; Malevolent Shrine; critical fruit and frenzy |
 
 **Mojulo Fighter is mojulo's versus loop** (`lib/graph/versus`), not a lab card on a lane. Picked, the page inlines
 the loop (`versus-page.js`'s modules and its runtime, in a closure of their own) and steps a real match: you are P1 on
@@ -220,6 +223,29 @@ untouchable, then the finish (down or a launch). The **hit-combo super** (`super
 clock running; the **cutscene super** (`super-cutscene`) stops the clock while the page cuts away (closer in,
 darkened, letterboxed). Blocked, either is one blocked blow; whiffed, a whiff. Any fighter takes one (the **Super**
 picker, or a recipe's `super`), and a recipe's own super takes a `lock` of its own.
+
+**Galaxy Boy's buster** (the charge's `tap`): a run-and-gun's attack is a shot, not a jab. The press fires a small shot
+on its own frame from anything but a hurt (a dash, the air, the wall), at most `max` out (the next press dropped: the
+cap), and the same press starts the charge, so a hold releases the charged shot. The rest of X was already the
+platformer's: the dash held, the dash jump keeping its speed, the wall slide and kick, the air dash. No double jump,
+no stomp.
+
+**The runner** (the card's `runner`): the infinite runner as a treadmill. The hero runs in place at the origin and the
+track comes at it, ramping to its top speed, seeded rows out to the horizon, one obstacle a row so a lane is always
+open. On the rails a flick of the stick shifts a lane (in `shift` frames); with no rails the stick steers. A barrier is
+jumped, an overhead rolled or boosted under (the body goes low), a train dodged by being in another lane, a coin
+gathered. A hit stumbles (slowed, a moment to get clear) and a second within its window ends the run, or ends it at
+once, by the card's `crash`. A template may carry **variants** (`variants`, `poleCard(id, variant)`, the page's
+**Variant** picker): Commuter Rail Runner's rails (three lanes, stumbles) and slope (the ball steering free between
+rocks and pillars, one hit and it is over).
+
+**The kitchen** (the card's `kitchen`): the cutter, by mojulo's cuts (`playscape/destruct/cuts.js`, held equal as
+`CUTS`). Produce comes up in seeded waves. **Cleave** is the attack: its live frames cut whatever the hand reaches, a
+slice whose planes adapt to the thing's toughness (a melon three, eight pieces; an apple one, two; charged, one more).
+**Dismantle** is shoot: a ranged slash on a cooldown, aimed at the nearest produce in front, cutting everything on its
+line; a thing with parts (grapes, a banana bunch, a pineapple's crown) is dismantled, its joints giving, a whole one
+slashed. The pieces part by the cut's style (`STYLES`: anime holds them a beat and slips them along the cut; blade
+spreads them; impact bursts). A fall uncut is a miss, three end the shift; a cut bomb ends it.
 
 **The viewers** follow mojulo's gameworld cameras (`lib/graph/gameworld/cameras.js`: third-person, first-person,
 side, top-down) and add three: the **¾ follow** (the lab's first), **isometric** and **overhead** are orthographic;
@@ -478,6 +504,18 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   Mojulo Fighter (one a procedure: fields merged, a mech, the rail) play a scripted pad on their stages, the same twice,
   through no wall; the fighter's rail holds both bodies on its line, the hero facing its foe. Between two poles every
   number blends and the rest comes from the nearer.
+- **Galaxy Boy.** The buster fires on the press's own frame, three out at most (the next dropped: the cap), and
+  again once they are gone; held, the same press charges to both levels and releases the full shot; it shoots
+  through a dash; it has no double jump; on the highway's wall it slides and kicks off.
+- **Commuter Rail Runner.** The track ramps by its card and the hero is held at the origin; a flick shifts a lane in
+  its frames, landing exactly, and stays at the edge; a barrier stumbles a runner who stays down and is cleared by a
+  jump, an overhead cleared by a roll and hit standing or jumping, a train dodged only from another lane; a second
+  hit within the window ends the run and the presses after are dropped; a coin in the lane is gathered, one in
+  another passes; the slope steers by its card and one hit ends it; the rows are seeded, apart, and every kind comes.
+- **Sukuna Kitchen.** Its cuts are mojulo's; Cleave adapts to toughness (melon 8 pieces, apple 2, charged 4); Dismantle
+  aims at the nearest produce, severs the grapes at their joints and slashes the orange behind on its line, spares a
+  bomb off the line, and is dropped while cooling; the anime style holds its pieces a beat, a blade parts them at once;
+  misses and a cut bomb end the shift; the waves are seeded, the same twice.
 - **Mojulo Fighter.** The lab's Kata is versus's (`compileFighter`). On the lab's keys a press in neutral starts
   versus's move that frame and lands on its startup (the heavy's 12, the light's 4, counting the press); every press
   is acted or dropped with its reason (in the intro: the round is not on; in the heavy's recovery: the move it met);

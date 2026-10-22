@@ -81,7 +81,10 @@
  * Infinity Crisis (hero and arena shooters), Conscription (the contemporary FPS), Steel Serpents (Metal Gear),
  * Vigilante Justice (the superhero game), Mech Battle Kai (MSA's mech), Jumping Giuseppe (the mascot platformer),
  * Isekai Party (the RPG that resolves without collision), Mojulo Fighter (the 2D fighter: mojulo's versus loop itself,
- * below; its card the blend's). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
+ * below; its card the blend's), Galaxy Boy (Mega Man X: the platformer and the buster's tap, the charge's `tap`),
+ * Commuter Rail Runner (the infinite runner: `runner`, below; its variants the rails and the slope) and Sukuna
+ * Kitchen (the cutter: `kitchen`, below). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
+ * `variants`: a pole's alternatives, each the fields it changes over the pole's own (`poleCard(id, variant)`).
  *
  * THE HEAVY-ROBOT RULES, mobile-suit-arena's movement (mojulo's controllable rules-platform.js and maneuvers.js) split
  * into rules that overlap, each a card field any feel may carry alone or with the others:
@@ -457,6 +460,9 @@ export const STAGES = Object.freeze({
   platforms: { half: 12, blocks: [{ id: 'step-1', x: [-3, 3], y: [-2, 1], h: 0.8 }, { id: 'step-2', x: [-3, 3], y: [2, 4], h: 1.6 }, { id: 'step-3', x: [-3, 3], y: [5.5, 7], h: 2.6 }, { id: 'step-4', x: [-3, 3], y: [9, 11], h: 1.2 }], hero: [0, -8], dummy: [0, -4] },
   field: { half: 16, blocks: [{ id: 'rock-a', x: [-6, -4], y: [4, 6], h: 1 }, { id: 'rock-b', x: [6, 8], y: [-3, -1], h: 1.4 }], hero: [0, -5], dummy: [0, 3] },
   stage: { half: 9, blocks: [], hero: [0, -2], dummy: [0, 2] },
+  highway: { half: 14, blocks: [{ id: 'wall', x: [-1, 1], y: [6, 6.6], h: 4.5 }, { id: 'ledge', x: [-1, 1], y: [-12, -8], h: 1.4 }, { id: 'pillar', x: [-1, 1], y: [11, 11.6], h: 3 }], hero: [0, -1], dummy: [0, 3.5] },
+  rail: { half: 14, blocks: [], hero: [0, 0], dummy: [12, -12] },
+  kitchen: { half: 7, blocks: [], hero: [0, 0], dummy: [0, -6.4] },
 });
 /**
  * MOJULO FIGHTER: the template is mojulo's versus loop (lib/graph/versus: versus-core.js stepVersus, its compiled
@@ -585,18 +591,51 @@ export const POLES = Object.freeze({
     set: { ...fighterCard(KATA), air: null, cling: null, lock: null, glide: null, jet: null, lane: { x: 0, face: true } },
     versus: { p1: 'kata', p2: 'brisk', scheme: 'modern' },
     needs: ['the lab\'s baked takes on the versus bodies (they wear the 2D rig)', 'a dropped press that versus reports itself (the lab watches it from outside)', 'hold-release charge moves', 'the lab\'s offense-armor tags on versus moves', 'a ¾ camera that turns with the fighters (2.5D)'] },
+  'galaxy-boy': { name: 'Galaxy Boy', after: 'Mega Man X', base: 'platformer', view: { camera: 'side' }, stage: 'highway',
+    says: 'the run-and-gun: the buster\'s tap shot (three out at most) and its charge, held through anything, the dash and the dash jump that keeps its speed, the wall slide and the wall kick, the air dash; no stomp, no double jump',
+    set: {
+      ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 1.6, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
+      dash: { kind: 'dash', frames: 28, speed: 10, iframes: null, air: { count: 1, speed: 10, frames: 20 }, cancel: false, hold: { min: 6 }, jump: true, wall: true },
+      land: { model: 'slide', slide: 3, step: { cooldown: 12 } }, pound: null,
+      charge: { kind: 'shot', levels: [30, 90], show: 14, stance: false, air: true, tap: { speed: 15, size: 0.08, life: 36, max: 3, force: { push: 1 }, tags: ['light', 'shot'] }, at: [
+        { speed: 15, size: 0.18, life: 48, force: { push: 4 }, tags: ['light', 'shot'] },
+        { speed: 17, size: 0.42, life: 60, force: { push: 7, hop: 0.7 }, tags: ['heavy', 'shot'] },
+      ] },
+      life: { hp: 16, oneHit: false, ko: 90 }, lane: { x: 0, face: false },
+    },
+    needs: ['ladders', 'a boss\'s weapon got (a weapon a boss)', 'sub-tanks and heart tanks', 'armor parts (the legs earn the air dash)'] },
+  'commuter-rail-runner': { name: 'Commuter Rail Runner', after: 'the infinite runner', base: 'pinball', view: { camera: 'third-person', D: 5.5, h: 2.8, pitch: 0.22 }, stage: 'rail',
+    says: 'the endless run, pinball\'s body: the track comes at you faster and faster; on the rails a flick switches lanes, a jump clears a barrier, a roll or a boost goes under an overhead, a train is dodged, coins gathered, a hit stumbles and a second ends it; on the slope the ball steers free between rocks and pillars, one hit and the run is over',
+    set: {
+      runner: { speed: 9, ramp: 0.08, max: 18, lanes: [-1.6, 0, 1.6], shift: 8, steer: 7, width: 4.5, every: 16, ahead: 90, lead: 30, seed: 11, low: 0.8, kinds: { barrier: 3, overhead: 2, train: 2, coin: 3 }, crash: 'stumble', stumble: { slow: 0.6, mercy: 50, window: 120 } },
+      jump: { height: 1.4, gRise: 24, gFall: 30 }, dodge: { kind: 'roll', frames: 24, speed: 10, iframes: null, back: { speed: 0.7, frames: 0.75 }, cancel: true }, lock: null,
+    },
+    variants: {
+      rails: {},
+      slope: { runner: { lanes: null, speed: 11, max: 22, kinds: { barrier: 0, overhead: 0, train: 0, coin: 0, rock: 3, pillar: 2, ring: 4 }, crash: 'end', every: 12 } },
+    },
+    needs: ['the chaser (the guard who catches a second stumble)', 'ramps onto the trains\' roofs', 'power-ups (the magnet, the jetpack, the super sneakers)', 'the track\'s turns (the free runner\'s corners)'] },
+  'sukuna-kitchen': { name: 'Sukuna Kitchen', after: 'Fruit Ninja, cut by Jujutsu Kaisen\'s two techniques', base: 'action', view: { camera: 'side' }, stage: 'kitchen',
+    says: 'the cutter: produce tossed up in waves; Cleave (the attack) cuts what the hand reaches with mojulo\'s cleave, as many planes as the thing is tough; Dismantle (shoot) slashes at range along a line, a bunch severed at its joints; a fall uncut is a miss, a bomb ends the shift',
+    set: {
+      kitchen: { every: 70, batch: 3, bombs: 0.1, seed: 5, spread: 3.5, rise: [6.2, 8.4], g: 12, reach: 0.75, hand: 0.55, range: 7, cool: 40, cleave: 'cleave', dismantle: 'sever', adapt: true, misses: 3 },
+      loadout: null, ranged: null, lock: null, life: null, lane: { x: 0, face: false },
+    },
+    needs: ['the swipe (a pointer or a touch drawn as the cut)', 'the pieces as the produce\'s own geometry (cleave.js on its mesh)', 'Domain Expansion: Malevolent Shrine (everything in reach, cut)', 'critical fruit and frenzy'] },
 });
 export const POLE_IDS = Object.freeze(Object.keys(POLES));
+/** a pole's variants (its first the default): each the fields it changes over the pole's own */
+export const variantsOf = (id) => Object.keys(POLES[id]?.variants ?? {});
 /** the viewers a pole may name (the page draws each): ¾ follow, isometric, overhead, side, third-person chase, over-the-shoulder, first-person, the mech's chase */
 export const VIEWS = Object.freeze(['three', 'iso', 'overhead', 'side', 'third-person', 'shoulder', 'first-person', 'mech']);
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 /** a deep merge: objects merge, everything else (a number, a list, null) replaces */
 function mergeDeep(a, b) { if (!isObj(a) || !isObj(b)) return copy(b); const o = { ...copy(a) }; for (const [k, v] of Object.entries(b)) o[k] = isObj(v) && isObj(a[k]) ? mergeDeep(a[k], v) : copy(v); return o; }
 /** a pole's card: its base feel with its fields merged over (a mech mounted), named for the pole */
-export function poleCard(id) {
-  const P = POLES[id], merged = mergeDeep(FEELS[P.base], P.set ?? {});
+export function poleCard(id, variant = null) {
+  const P = POLES[id], v = variant ?? variantsOf(id)[0], merged = mergeDeep(mergeDeep(FEELS[P.base], P.set ?? {}), (v && P.variants?.[v]) ?? {});
   const card = P.mount != null ? mechCard(merged, P.mount) : merged;
-  return { ...card, says: P.says, pole: id };
+  return { ...card, says: P.says, pole: id, ...(v ? { variant: v } : {}) };
 }
 /** between two poles: every number blended (`t` 0 the first, 1 the second), anything else (a model, a list, a rule one
  * of them lacks) taken from the nearer; the viewer and the stage the nearer's */
@@ -632,6 +671,8 @@ export function newState(card, body, { arena = ARENA, spar = false, guard = true
   if (card.boost) { S.hero.boostG = card.boost.gauge * FPS; S.hero.boostLock = false; }
   if (card.quickBoost) { S.hero.qb = 0; S.hero.qbCd = 0; }
   S.hero.arms = card.loadout?.slots?.length ? { slot: 0, readyT: 0, readyMax: 0, w: card.loadout.slots.map((sl) => initWeapon(sl.weapon)) } : null;
+  if (card.runner) S.run = newRun(card.runner);
+  if (card.kitchen) S.kitchen = newKitchen();
   return S;
 }
 
@@ -658,10 +699,12 @@ export function step(S0, pad) {
   const slow = S.witch > 0 && S.f % 2 === 1;
   if (S.witch > 0 && --S.witch === 0) S.events.push({ f: S.f, who: 'dummy', type: 'witch-end' });
   if (!H.stop) moveBody(S, H, 'hero', stick, b);
+  if (S.run && !H.stop) runnerStep(S, H, stick);
   if (!D.stop && !slow) moveBody(S, D, 'dummy', null, 0);
   if (!H.stop) bodies(S);
   tryQueue(S, stick);
   if (!H.stop) testHit(S, H, D, 'hero');
+  if (S.kitchen && !H.stop) kitchenStep(S, H);
   if (!D.stop && !slow) { sparThink(S); shooterThink(S); testHit(S, D, H, 'dummy'); }
   flyShots(S); flyRounds(S); if (!slow) flyFoes(S);
   for (const [w, B] of [['hero', H], ['dummy', D]]) {
@@ -723,6 +766,8 @@ function tryQueue(S, stick) {
 /** can the hero act on a press now: true, or { reason, queue (may it wait for its buffer) } */
 function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
   const H = S.hero, C = S.card, a = H.act;
+  if (S.run?.over) return { reason: 'the run is over (R runs again)', queue: false };
+  if (S.kitchen?.over) return { reason: 'the shift is over (R starts another)', queue: false };
   if (H.stun > 0) return { reason: 'in hitstun', queue: true };
   if (H.blockstun > 0) return { reason: 'in blockstun', queue: true };
   if (a && (a.kind === 'stagger' || a.kind === 'bonk' || a.kind === 'hurt' || a.kind === 'ko')) return { reason: a.kind === 'ko' ? 'down (out of life)' : `in ${a.kind}`, queue: a.kind !== 'ko' };
@@ -741,6 +786,10 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (C.air && H.airLeft > 0) return true;
     const g = gearPress(S); if (g) return g;
     return { reason: C.air ? 'in the air, the air jumps spent' : 'in the air', queue: true };
+  }
+  if (name === 'attack' && C.charge?.tap) {   // the run-and-gun's buster: the tap is a shot, fired from anything but a hurt
+    const T = C.charge.tap, out = S.shots.filter((sh) => sh.lv === 0).length;
+    return out >= T.max ? { reason: `${T.max} shots already out (the buster's cap)`, queue: false } : true;
   }
   if (name === 'attack') {
     if (a?.kind === 'pound' || a?.kind === 'poundLag') return { reason: 'in a stomp attack', queue: true };
@@ -787,6 +836,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a) return { reason: `in ${a.kind}`, queue: false };
     return true;
   }
+  if (name === 'shoot' && C.kitchen) return S.kitchen.cool > 0 ? { reason: `Dismantle is cooling (${S.kitchen.cool} f)`, queue: false } : true;
   if (name === 'shoot') { const why = fireGate(S, true); return why ? { reason: why, queue: false } : true; }
   if (name === 'switch') {
     if (!H.arms) return { reason: 'no weapons in this feel', queue: false };
@@ -827,6 +877,11 @@ function act(S, name, stick, waited) {
     if (C.jump.commit > 0) { H.act = { kind: 'gather', f: 0, of: C.jump.commit }; return; }
     takeOff(S, H, 'hero'); return;
   }
+  if (name === 'attack' && C.charge?.tap) {   // the buster's tap shot, and the charge meter runs from this press
+    fireShot(S, H, 0, C.charge.tap); S.events.push({ f: S.f, who: 'hero', type: 'tap-shot', out: S.shots.filter((sh) => sh.lv === 0).length });
+    if (S.held & BTN.ATTACK) H.charge = { held: 0, lv: 0, from: S.f };
+    return;
+  }
   if (name === 'attack') {
     if (poundAsked(S, stick)) { H.act = { kind: 'pound', f: 0, hit: false }; H.jumped = true; S.events.push({ f: S.f, who: 'hero', type: 'pound', kind: C.pound.kind }); return; }
     const i = H.act?.kind === 'move' ? H.act.i + 1 : 0;
@@ -837,6 +892,7 @@ function act(S, name, stick, waited) {
     if (i === 0 && C.charge && (S.held & BTN.ATTACK)) { H.charge = { held: 0, lv: 0, from: S.f }; H.act.charging = true; }
     return;
   }
+  if (name === 'shoot' && C.kitchen) return dismantle(S, H);
   if (name === 'shoot') return;   // the trigger: armsStep reads it this tick (the press was let through by the same gates)
   if (name === 'switch') return switchWeapon(S, H);
   if (name === 'guard') { H.act = { kind: 'block', f: 0, pressed: S.f }; S.events.push({ f: S.f, who: 'hero', type: 'guard' }); return; }
@@ -1238,8 +1294,12 @@ function release(S, stick) {
   S.events.push({ f: S.f, who: 'hero', type: 'release', kind: CH.kind, lv: c.lv, held: c.held, top: c.lv === CH.levels.length });
   if (CH.kind === 'heavy') { H.act = { kind: 'move', i: 0, lv: c.lv, f: 0, hit: false }; return; }
   if (CH.kind === 'spin') { H.act = { kind: 'dash', f: 0, of: at.frames, dir: H.yaw, from: at.speed, spin: c.lv }; return; }
-  const fx = Math.sin(H.yaw), fy = Math.cos(H.yaw);   // the shot: from the chest, along the facing
-  S.shots.push({ id: S.shotN++, lv: c.lv, f: 0, p: [H.p[0] + fx * (RADIUS + 0.15), H.p[1] + fy * (RADIUS + 0.15), H.p[2] + 1.2], v: [fx * at.speed, fy * at.speed, 0], size: at.size, life: at.life });
+  fireShot(S, H, c.lv, at);
+}
+/** a shot from the chest along the facing: a charge level's (lv 1…), or the buster's tap (lv 0) */
+function fireShot(S, H, lv, at) {
+  const fx = Math.sin(H.yaw), fy = Math.cos(H.yaw);
+  S.shots.push({ id: S.shotN++, lv, f: 0, p: [H.p[0] + fx * (RADIUS + 0.15), H.p[1] + fy * (RADIUS + 0.15), H.p[2] + 1.2], v: [fx * at.speed, fy * at.speed, 0], size: at.size, life: at.life });
 }
 /** the shots fly straight, a wall or a block ends one, the dummy's body takes one as a blow (8 cm substeps) */
 function flyShots(S) {
@@ -1253,8 +1313,8 @@ function flyShots(S) {
       if (wall) { S.events.push({ f: S.f, who: 'hero', type: 'shot-wall', lv: sh.lv }); return false; }
       const dx = D.p[0] - sh.p[0], dy = D.p[1] - sh.p[1], d = len2(dx, dy);
       if (d <= RADIUS + sh.size && sh.p[2] >= D.p[2] - sh.size && sh.p[2] <= D.p[2] + D.h + sh.size) {
-        const at = CH.at[sh.lv - 1];
-        strike(S, sh, D, 'hero', { take: 'cross', dv: S.body.dv.cross, force: at.force, finisher: sh.lv === CH.levels.length, shot: sh.lv, tags: at.tags ?? ['light', 'shot'] }, [sh.v[0] / len2(sh.v[0], sh.v[1]), sh.v[1] / len2(sh.v[0], sh.v[1])]);
+        const at = sh.lv ? CH.at[sh.lv - 1] : CH.tap;
+        strike(S, sh, D, 'hero', { take: sh.lv ? 'cross' : 'jab', dv: S.body.dv[sh.lv ? 'cross' : 'jab'] ?? S.body.dv.cross, force: at.force, finisher: sh.lv === CH.levels.length, shot: sh.lv || 'buster', tags: at.tags ?? ['light', 'shot'] }, [sh.v[0] / len2(sh.v[0], sh.v[1]), sh.v[1] / len2(sh.v[0], sh.v[1])]);
         return false;
       }
     }
@@ -1722,6 +1782,180 @@ function loseLife(S, B, dmg) {
  * a guard does not stop it (a perilous attack: dodge it). `armor`: what interrupts it in its telegraph (the jab any
  * hit, the hook a heavy or a shot, the perilous blow nothing).
  */
+/**
+ * THE RUNNER (the card's `runner`): the infinite runner, a treadmill. The hero runs in place at the origin, facing up
+ * the track, and the track comes at it: `speed` m/s ramping by `ramp` m/s each second to `max`, seeded obstacles every
+ * `every` metres or so (`seed`), out to `ahead`. `lanes` (x, m): the rails, the stick flicked left or right shifts a
+ * lane in `shift` frames; none: free steering at `steer` m/s within `width`. What comes (`kinds`, by weight): a barrier
+ * (jump it), an overhead (roll or spin under it: the dodge, a boost, a spin jump makes the body `low` m), a train or
+ * a pillar (be in another lane, steer round it), a rock (jump it), a coin or a ring (gathered). A hit: `crash` 'end'
+ * (the run is over) or 'stumble' (slowed by `stumble.slow`, `stumble.mercy` frames to get clear; a second within
+ * `stumble.window` metres ends it). One obstacle a row on the rails, so a lane is always open.
+ */
+export const OBSTACLES = Object.freeze({
+  barrier: { h: 0.9, len: 0.5, w: 1.3 }, overhead: { bottom: 1.1, top: 3.2, len: 0.6, w: 1.4 }, train: { h: 3.4, len: 14, w: 1.4 },
+  rock: { h: 0.7, len: 0.9, w: 1.1 }, pillar: { h: 5, len: 1.2, w: 1.2 }, coin: { coin: true, len: 0.4, w: 0.6 }, ring: { coin: true, len: 0.4, w: 0.8 },
+});
+const hash01 = (a, b) => { let t = (Math.imul(a | 0, 2654435761) ^ Math.imul((b | 0) + 0x9e3779b9, 1597334677)) >>> 0; t = Math.imul(t ^ (t >>> 15), 2246822507); t = Math.imul(t ^ (t >>> 13), 3266489909); return ((t ^ (t >>> 16)) >>> 0) / 4294967296; };
+function newRun(R) { return { d: 0, v: R.speed, x: R.lanes ? R.lanes[Math.floor(R.lanes.length / 2)] : 0, lane: R.lanes ? Math.floor(R.lanes.length / 2) : null, edge: 0, far: R.lead ?? 30, n: 0, obs: [], coins: 0, stumbles: [], over: false }; }
+function spawnRow(R, run) {
+  const k = run.n++, r = (j) => hash01(R.seed, k * 7 + j);
+  const kinds = Object.entries(R.kinds), tot = kinds.reduce((a, [, w]) => a + w, 0);
+  let u = r(0) * tot, kind = kinds[0][0];
+  for (const [id, w] of kinds) { if (u < w) { kind = id; break; } u -= w; }
+  const O = OBSTACLES[kind], x = R.lanes ? R.lanes[Math.floor(r(1) * R.lanes.length)] : r4((r(1) * 2 - 1) * (R.width - O.w / 2));
+  run.obs.push({ id: k, kind, x, y: run.far + O.len / 2 });
+  run.far += O.len + R.every * (0.6 + 0.8 * r(2));
+}
+function runnerStep(S, H, stick) {
+  const R = S.card.runner, run = S.run, a = H.act;
+  if (!run.over) { run.v = Math.min(R.max, run.v + R.ramp * DT); run.d += run.v * DT; run.far -= run.v * DT; for (const o of run.obs) o.y -= run.v * DT; }
+  while (!run.over && run.far < R.ahead) spawnRow(R, run);
+  run.obs = run.obs.filter((o) => o.y + OBSTACLES[o.kind].len / 2 > -6);
+  // across the track: the rails' lanes (a flick shifts one) or free steering
+  if (R.lanes) {
+    const edge = stick.x > 0.5 ? 1 : stick.x < -0.5 ? -1 : 0;
+    if (edge && edge !== run.edge && !run.over) {
+      const to = clamp(run.lane + edge, 0, R.lanes.length - 1);
+      S.events.push({ f: S.f, who: 'hero', type: to === run.lane ? 'shift-edge' : 'shift', lane: to });
+      run.lane = to;
+    }
+    run.edge = edge;
+    const tx = R.lanes[run.lane], gap = Math.abs(R.lanes[1] - R.lanes[0]), stepX = gap / R.shift;
+    run.x = Math.abs(tx - run.x) <= stepX + 1e-9 ? tx : r4(run.x + Math.sign(tx - run.x) * stepX);
+  } else if (!run.over) run.x = clamp(run.x + stick.x * R.steer * DT, -R.width + RADIUS, R.width - RADIUS);
+  H.p[0] = run.x;   // across the track the rule alone moves the body (the feel's own ground motion is the treadmill's)
+  H.p[1] = 0; H.v[0] = 0; H.v[1] = run.over ? 0 : run.v; H.yaw = 0;
+  if (run.over) return;
+  // what meets the body this frame
+  const low = a?.kind === 'dodge' || (a?.kind === 'dash' && S.card.dash?.kind === 'boost') || (!H.grounded && S.card.jump.spin && H.jumped);
+  const top = H.p[2] + (low ? R.low : H.h);
+  for (const o of run.obs) {
+    const O = OBSTACLES[o.kind];
+    if (o.hit || Math.abs(o.y) > O.len / 2 + RADIUS || Math.abs(o.x - H.p[0]) > O.w / 2 + RADIUS * 0.6) continue;
+    if (O.coin) { if (H.p[2] < 1.6) { o.hit = true; run.coins++; S.events.push({ f: S.f, who: 'hero', type: 'coin', kind: o.kind, coins: run.coins }); } continue; }
+    const struck = O.bottom != null ? top > O.bottom && H.p[2] < O.top : H.p[2] < O.h;
+    if (!struck) { if (!o.cleared && Math.abs(o.y) <= 0.05 + run.v * DT) { o.cleared = true; S.events.push({ f: S.f, who: 'hero', type: 'cleared', kind: o.kind, by: O.bottom != null ? 'under' : 'over' }); } continue; }
+    o.hit = true;
+    if (H.mercy > 0) continue;
+    const st = R.crash === 'stumble' ? R.stumble : null, again = st && run.stumbles.some((d) => run.d - d <= st.window);
+    if (st && !again) {
+      run.stumbles.push(r4(run.d)); run.v = r4(run.v * st.slow); H.mercy = st.mercy;
+      S.events.push({ f: S.f, who: 'hero', type: 'stumble', kind: o.kind, d: r4(run.d) });
+      continue;
+    }
+    run.over = true; H.act = { kind: 'ko', f: 0, of: Infinity }; H.v[1] = 0; H.charge = null; S.queue = [];
+    S.events.push({ f: S.f, who: 'hero', type: 'crash', kind: o.kind, d: r4(run.d), coins: run.coins, again: !!again });
+    return;
+  }
+}
+
+/**
+ * THE KITCHEN (the card's `kitchen`): the cutter, Sukuna's two techniques on produce tossed into the air, cut by
+ * mojulo's own cuts (playscape/destruct/cuts.js CUT_PRESETS, held equal by verify.mjs as `CUTS`: a pattern, a count,
+ * a style). Produce comes up in waves every `every` frames (one to `batch`, seeded, `bombs` the share that are bombs)
+ * from below the counter. CLEAVE is the attack: the move's active frames cut whatever is within `reach` of the hand,
+ * by `cleave` (a slice whose count adapts to the thing's toughness, Cleave's own rule: a melon takes three planes, an
+ * apple one; a charged Cleave one more). DISMANTLE is the shoot button: a ranged slash on a `cool` cooldown, aimed at
+ * the nearest produce in front within `range` (never a bomb), cutting everything on its line; a thing with parts (a bunch, a crown) is
+ * `dismantle`d (mojulo's concept cut: its joints give, nothing is sliced), a whole one slashed. Pieces: a slice's
+ * 2^count, a grid's or voronoi's count, a dismantle's parts; they part the style's way (`STYLES`: anime holds them a
+ * beat, then slips them along the cut; blade spreads them; impact bursts; laser barely parts). A thing that falls back
+ * uncut is a miss, `misses` end the shift; a cut bomb ends it.
+ */
+export const CUTS = Object.freeze({
+  slash: { pattern: 'slice', count: 1, style: 'blade' }, cleave: { pattern: 'slice', count: 2, style: 'anime' },
+  dice: { pattern: 'grid', count: 8, style: 'blade' }, sever: { pattern: 'dismantle', style: 'impact' },
+});
+export const STYLES = Object.freeze({ blade: { beat: 0, part: 2.4 }, laser: { beat: 0, part: 0.6 }, anime: { beat: 9, part: 1.4 }, impact: { beat: 0, part: 4 } });
+export const PRODUCE = Object.freeze({
+  watermelon: { r: 0.2, tough: 3, parts: 1 }, apple: { r: 0.08, tough: 1, parts: 1 }, orange: { r: 0.09, tough: 1, parts: 1 },
+  pineapple: { r: 0.13, tough: 2, parts: 2 }, banana: { r: 0.12, tough: 1, parts: 3 }, grapes: { r: 0.12, tough: 1, parts: 8 }, bomb: { r: 0.11, bomb: true },
+});
+function newKitchen() { return { t: 0, n: 0, items: [], pieces: [], slashes: [], score: 0, cut: 0, misses: 0, best: 0, cool: 0, over: false }; }
+function tossWave(S) {
+  const K = S.card.kitchen, k = S.kitchen, w = k.n++, r = (j) => hash01(K.seed, w * 31 + j);
+  const ids = Object.keys(PRODUCE).filter((id) => !PRODUCE[id].bomb), n = 1 + Math.floor(r(0) * K.batch);
+  for (let i = 0; i < n; i++) {
+    const bomb = r(10 + i) < K.bombs, kind = bomb ? 'bomb' : ids[Math.floor(r(20 + i) * ids.length)], y0 = r4(S.hero.p[1] + (r(30 + i) * 2 - 1) * K.spread);
+    k.items.push({ id: `${w}.${i}`, kind, p: [0, y0, -0.3], v: [0, r4((S.hero.p[1] - y0) * 0.22 + (r(40 + i) * 2 - 1) * 0.8), r4(K.rise[0] + r(50 + i) * (K.rise[1] - K.rise[0]))] });
+  }
+}
+/** cut one thing: its pieces by the cut's pattern, parting the style's way about the cut's angle; a bomb ends the shift */
+function cutItem(S, it, by, cutName, angle, extra = 0) {
+  const K = S.card.kitchen, k = S.kitchen, P = PRODUCE[it.kind], C = CUTS[cutName];
+  if (P.bomb) { k.over = true; S.events.push({ f: S.f, who: 'hero', type: 'bomb', by }); return 0; }
+  const count = C.pattern === 'slice' && by === 'cleave' && K.adapt ? clamp((P.tough ?? 1) + extra, 1, 3) : C.count;
+  const n = C.pattern === 'slice' ? 2 ** count : C.pattern === 'dismantle' ? P.parts : count, ST = STYLES[C.style];
+  for (let j = 0; j < n; j++) {
+    const ang = angle + ((j + 0.5) * 2 * Math.PI) / n, sp = ST.part * (0.7 + 0.3 * hash01(k.n + j, it.id.length + j));
+    k.pieces.push({ of: it.kind, k: j, n, pattern: C.pattern, p: it.p.slice(), v: [0, r4(it.v[1] + Math.cos(ang) * sp), r4(it.v[2] + Math.sin(ang) * sp)], r: P.r, angle: r4(angle), hold: ST.beat, life: 0 });
+  }
+  S.events.push({ f: S.f, who: 'hero', type: 'cut', kind: it.kind, by, cut: cutName, pattern: C.pattern, style: C.style, count, pieces: n });
+  return n;
+}
+function kitchenStep(S, H) {
+  const K = S.card.kitchen, k = S.kitchen, a = H.act, fy = Math.cos(H.yaw) >= 0 ? 1 : -1;
+  if (k.cool > 0) k.cool--;
+  for (const sl of k.slashes) sl.t++;
+  k.slashes = k.slashes.filter((sl) => sl.t < 12);
+  for (const pc of k.pieces) { if (pc.hold > 0) { pc.hold--; continue; } pc.v[2] -= K.g * DT; pc.p[1] += pc.v[1] * DT; pc.p[2] += pc.v[2] * DT; pc.life++; }
+  k.pieces = k.pieces.filter((pc) => pc.p[2] > -1 && pc.life < 240);
+  if (k.over) return;
+  if (k.t++ % K.every === 0) tossWave(S);
+  // the things in the air; one that falls back uncut is a miss
+  k.items = k.items.filter((it) => {
+    it.v[2] -= K.g * DT; it.p[1] += it.v[1] * DT; it.p[2] += it.v[2] * DT;
+    if (it.p[2] < -0.4 && it.v[2] < 0) {
+      if (!PRODUCE[it.kind].bomb) { k.misses++; S.events.push({ f: S.f, who: 'hero', type: 'miss', kind: it.kind, misses: k.misses }); if (k.misses >= K.misses) { k.over = true; S.events.push({ f: S.f, who: 'hero', type: 'shift-over', score: k.score }); } }
+      return false;
+    }
+    return true;
+  });
+  // CLEAVE: the move's live frames cut what the hand reaches (each thing once a swing; together, a combo)
+  if (a?.kind === 'move') {
+    const m = a.lv ? S.card.charge.at[a.lv - 1] : S.card.moves.string[a.i];
+    if (a.f >= m.startup && a.f < m.startup + m.active) {
+      const hy = H.p[1] + fy * K.hand, hz = H.p[2] + 1.15, got = [];
+      k.items = k.items.filter((it) => {
+        const d = len2(it.p[1] - hy, it.p[2] - hz);
+        if (d > K.reach + PRODUCE[it.kind].r) return true;
+        got.push(it); return false;
+      });
+      const swing = (a.i % 2 ? -1 : 1) * 0.6 + (fy < 0 ? Math.PI : 0);
+      for (const it of got) cutItem(S, it, 'cleave', K.cleave, swing + Math.PI / 2, a.lv ? 1 : 0);
+      score(S, got, 'cleave');
+    }
+  }
+}
+/** DISMANTLE: the ranged slash, aimed at the nearest thing in front, cutting all on its line */
+function dismantle(S, H) {
+  const K = S.card.kitchen, k = S.kitchen, fy = Math.cos(H.yaw) >= 0 ? 1 : -1, hy = H.p[1] + fy * K.hand, hz = H.p[2] + 1.15;
+  k.cool = K.cool;
+  // aimed at produce only (never a bomb); with none in front it runs level, and a bomb on its line is still cut
+  const ahead = k.items.filter((it) => !PRODUCE[it.kind].bomb && (it.p[1] - hy) * fy > 0 && len2(it.p[1] - hy, it.p[2] - hz) <= K.range).sort((p, q) => len2(p.p[1] - hy, p.p[2] - hz) - len2(q.p[1] - hy, q.p[2] - hz));
+  const aim = ahead[0], ang = aim ? Math.atan2(aim.p[2] - hz, (aim.p[1] - hy) * fy) : 0, dy = Math.cos(ang) * fy, dz = Math.sin(ang);
+  const to = [r4(hy + dy * K.range), r4(hz + dz * K.range)], got = [];
+  k.items = k.items.filter((it) => {
+    const ry = it.p[1] - hy, rz = it.p[2] - hz, along = ry * dy + rz * dz, off = Math.abs(ry * dz - rz * dy);
+    if (along < 0 || along > K.range || off > PRODUCE[it.kind].r + 0.06) return true;
+    got.push(it); return false;
+  });
+  k.slashes.push({ from: [r4(hy), r4(hz)], to, t: 0 });
+  S.events.push({ f: S.f, who: 'hero', type: 'dismantle', cut: got.length, aimed: aim?.kind ?? null });
+  const line = Math.atan2(dz, dy);
+  for (const it of got) cutItem(S, it, 'dismantle', PRODUCE[it.kind].parts > 1 ? K.dismantle : 'slash', line);
+  score(S, got, 'dismantle');
+}
+/** what a blow cut scores: one a thing, and three or more at once a combo worth as much again (a bomb scores nothing) */
+function score(S, got, by) {
+  const k = S.kitchen, real = got.filter((it) => !PRODUCE[it.kind].bomb).length;
+  if (got.length > real) S.events.push({ f: S.f, who: 'hero', type: 'shift-over', score: k.score, by: 'bomb' });
+  if (!real) return;
+  k.cut += real; k.score += real + (real >= 3 ? real : 0); k.best = Math.max(k.best, real);
+  if (real >= 3) S.events.push({ f: S.f, who: 'hero', type: 'combo', by, n: real });
+}
+
 export const SPAR = Object.freeze({
   every: 90, range: 2.2,
   moves: Object.freeze([
