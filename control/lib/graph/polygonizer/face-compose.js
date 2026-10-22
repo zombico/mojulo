@@ -190,6 +190,8 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *   hair         its cuts by texture (`FACE_HAIR`'s pool by that name; absent, the ancestry's own styles)
  *   tones        [lo, hi] on the Monk scale: the intent's tones within its ancestries' (`equatorial` is brown); the
  *                ancestry still gives the hair, the undertone and the eyes' colour (absent, the ancestry's own roll)
+ *   hybrid       { parents: { bucket: weight } | 'all', share?: [lo, hi] }: a HYBRID of two base buckets, trait by trait
+ *                (`hybridOf`); `composeFace`'s `parents` makes any face one
  *   blend        { bucket: weight }: a BLEND of buckets, each face one of them (rolled by weight), composed as that
  *                bucket's own face at the same seed; the face names it (`bucket`)
  *   mix          { buckets: { bucket: weight }, pairs, share: [lo, hi] }: a MIX, each face one bucket (by weight) or, at the
@@ -363,6 +365,8 @@ export const FACE_BUCKETS = Object.freeze({
     mix: { buckets: { 'indo-aryan': 0.5, dravidian: 0.5, 'southeast-asian': 1, latin: 1 }, pairs: 0.5, share: [0.2, 0.5] },
   },
   'south-asian': { note: 'South Asia along its cline: Indo-Aryan, Dravidian, and the faces between', mix: { buckets: { 'indo-aryan': 1, dravidian: 1 }, pairs: 0.6, share: [0.2, 0.5] } },
+  // HYBRIDS: a person of two lineages from any of the base buckets, composed trait by trait (`hybridOf`)
+  mixed: { note: 'mixed: a hybrid of any two of the base buckets, trait by trait', hybrid: { parents: 'all' } },
   mena: { note: 'the Middle East and North Africa: the Levant, the southern Mediterranean shore, and the faces between', mix: { buckets: { levantine: 1, 'south-mediterranean': 1 }, pairs: 0.4, share: [0.2, 0.5] } },
 });
 /**
@@ -374,6 +378,55 @@ export const FACE_BUCKETS = Object.freeze({
  * not a population's: a face asked past it is drawn at it.
  */
 export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], cephalic: [-Infinity, 0.83] });
+/**
+ * A HYBRID: a person of two lineages, composed trait by trait (a cline, `mix`, interpolates its neighbours' averages; a
+ * hybrid inherits). Each TRAIT GROUP comes from one parent or the other (the likelier the larger its share), or is
+ * blended between them at the share: the skull, the eyes (their set, the brow, the lid's cover), the nose (its base, its
+ * bridge and root, its axis), the cheeks, the lips, the skin's tone, the hair (its ancestry, so its texture and colour,
+ * and its region's cuts). So a face may carry one parent's lids over the other's nose.
+ */
+export const HYBRID_TRAITS = Object.freeze({
+  skull: ['cephalic', 'headLength', 'faceWidth', 'jaw', 'forehead'],
+  eyes: ['intercanthal', 'fissure', 'browProjection', 'brow'],
+  nose: ['nasalIndex', 'dorsum', 'radix', 'nasionDepth', 'noseProjection'],
+  cheeks: ['malarDepth'],
+  lips: ['lipFullness', 'upperVermilion', 'lowerVermilion', 'lipProjection', 'mouthWidth'],
+  skin: [],
+  hair: [],
+});
+/** the share of trait groups blended (the rest inherited whole from one parent) */
+const HYBRID_BLEND = 0.3;
+/** the second parent's share, rolled in this range */
+const HYBRID_SHARE = Object.freeze([0.3, 0.7]);
+/** a base bucket's tone range: its own, or its first ancestry's */
+const tonesOf = (X) => X.tones || HUMAN_ANCESTRIES[X.ancestry?.[0]]?.tones || [1, 10];
+/** a hybrid's face: two parents (by weight, distinct), the second's share, each trait group's source, as one bucket */
+function hybridOf(parents, share, d) {
+  const names = Object.keys(parents);
+  for (const n of names) if (!FACE_BUCKETS[n] || !FACE_BUCKETS[n].ancestry) throw new Error(`face: a hybrid's parents are base buckets (${Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry).join(', ')})`);
+  if (names.length < 2) throw new Error('face: a hybrid has two parents or more to roll from');
+  const byWeight = (list) => { const sum = list.reduce((a, n) => a + parents[n], 0); let r = d() * sum; return list.find((n) => (r -= parents[n]) <= 0) || list.at(-1); };
+  const a = byWeight(names), b = byWeight(names.filter((n) => n !== a)), A = FACE_BUCKETS[a], C = FACE_BUCKETS[b];
+  const t = share[0] + d() * (share[1] - share[0]), lerp = (x = 0, y = 0, k = t) => x + (y - x) * k;
+  // each group: from A, from C, or blended at t
+  const from = {};
+  for (const g of Object.keys(HYBRID_TRAITS)) { const r = d(); from[g] = r < HYBRID_BLEND ? 'blend' : r < HYBRID_BLEND + (1 - HYBRID_BLEND) * (1 - t) ? a : b; }
+  const k = (g) => (from[g] === 'blend' ? t : from[g] === a ? 0 : 1);
+  const base = {};
+  for (const [g, keys] of Object.entries(HYBRID_TRAITS)) for (const key of keys) { const v = lerp(A.base?.[key], C.base?.[key], k(g)); if (v) base[key] = v; }
+  const NA = A.nose || NOSE_DEFAULT, NC = C.nose || NOSE_DEFAULT, kn = k('nose');
+  const lidsOf = (X) => X.lids || { none: 1 }, ke = k('eyes'), LA = lidsOf(A), LC = lidsOf(C), sa = Object.values(LA).reduce((x, y) => x + y, 0), sc = Object.values(LC).reduce((x, y) => x + y, 0);
+  const lids = Object.fromEntries([...new Set([...Object.keys(LA), ...Object.keys(LC)])].map((n) => [n, (1 - ke) * (LA[n] || 0) / sa + ke * (LC[n] || 0) / sc]));
+  const TA = tonesOf(A), TC = tonesOf(C), ks = k('skin'), tones = [Math.round(lerp(TA[0], TC[0], ks)), Math.round(lerp(TA[1], TC[1], ks))];
+  const H = from.hair === 'blend' ? (d() < t ? C : A) : from.hair === a ? A : C;
+  const bucket = {
+    note: `a hybrid of ${a} and ${b}`, ancestry: H.ancestry, hair: H.hair, base, tones, lids,
+    nose: { mean: lerp(NA.mean, NC.mean, kn), spread: lerp(NA.spread, NC.spread, kn) },
+    weights: (kn < 0.5 ? A : C).weights || {}, grooms: (ke < 0.5 ? A : C).grooms, bald: lerp(A.bald ?? 1, C.bald ?? 1),
+  };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  return { bucket, read: { of: a, with: b, share: r2(t), traits: Object.fromEntries(Object.entries(from).map(([g, s]) => [g, s === 'blend' ? `blend ${r2(t)}` : s])) } };
+}
 /** a MIX's face: its first bucket, and at `pairs` a share of a second (distinct), as one bucket of the two mixed */
 function mixOf(M, d) {
   const names = Object.keys(M.buckets), byWeight = (list) => { const sum = list.reduce((a, n) => a + M.buckets[n], 0); let r = d() * sum; return list.find((n) => (r -= M.buckets[n]) <= 0) || list.at(-1); };
@@ -399,8 +452,10 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * nose's axis, −1 … 1, over the bucket's roll } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null } = {}) {
-  let B = FACE_BUCKETS[bucket];
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null } = {}) {
+  // (named parents make the face a hybrid of them, whatever the bucket)
+  if (parents) bucket = `hybrid:${Object.keys(parents).sort().join('+')}`;
+  let B = parents ? { hybrid: { parents, share: share || HYBRID_SHARE } } : FACE_BUCKETS[bucket];
   if (!B) throw new Error(`face: the bucket is one of ${Object.keys(FACE_BUCKETS).join(', ')}`);
   if (B.blend) {
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
@@ -409,8 +464,10 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
-  const mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
-  if (mixed) B = FACE_BUCKETS[bucket].tones ? { ...mixed.bucket, tones: FACE_BUCKETS[bucket].tones } : mixed.bucket;
+  const own = B, mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
+  if (mixed) B = own.tones ? { ...mixed.bucket, tones: own.tones } : mixed.bucket;
+  const hybrid = B.hybrid ? hybridOf(B.hybrid.parents === 'all' ? Object.fromEntries(Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry).map((k) => [k, 1])) : B.hybrid.parents, B.hybrid.share || HYBRID_SHARE, streamOf(seed, 'face-hybrid', `${bucket}/${sex}`)) : null;
+  if (hybrid) B = hybrid.bucket;
   if (accent !== undefined && accent !== false && !FACE_SHAPES[accent]) throw new Error(`face: accent is false or one of ${FACE_FEATURES.join(', ')}`);
   const d = streamOf(seed, 'face-compose', `${bucket}/${sex}`), roll = () => d() * 2 - 1;
   const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : [roll(), roll()];
@@ -489,5 +546,5 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

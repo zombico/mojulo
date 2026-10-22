@@ -94,6 +94,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   pool leaves out keeps the ancestry's own style. The widow's peak's centre part goes only on cuts it suits (a part, no
   ties, to the shoulder or longer). New cuts (dermal-hair.js): `curly-crop` (~9 cm on top, tapered at the nape and round the ears) and `high-bun` (the hair
   smoothed up into a top-knot high on the crown).
+- HYBRIDS (`hybridOf`, `HYBRID_TRAITS`): a person of two lineages composed trait by trait, not averaged. Each trait group
+  (the skull, the eyes with their lid cover, the nose with its axis, the cheeks, the lips, the skin's tone, the hair's
+  ancestry and its region's cuts) comes from one parent (the likelier the larger its share) or is blended between them;
+  the face names its sources (`hybrid: { of, with, share, traits }`). `mixed` seeds one from any two base buckets;
+  `composeFace({ parents: { a: w, b: w } })` makes any face one. A cline (`mix`: the South Asian, the equatorial, MENA)
+  still interpolates its neighbours.
 - THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
   rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
   behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the

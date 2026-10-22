@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { RELATION_POLES } from './head-relational.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
@@ -150,5 +150,26 @@ describe('the face composer', () => {
     expect(cuts).toBeGreaterThan(20);
     // (a woman of the Levant or the Maghreb never draws the big round afro)
     for (let seed = 1; seed <= 40; seed++) expect(composeFace({ bucket: 'mena', seed }).scalp?.style).not.toBe('afro');
+  });
+
+  it('composes a hybrid trait by trait: each group from one parent or blended, the face naming its sources', () => {
+    const groups = Object.keys(HYBRID_TRAITS), seen = new Set();
+    for (let seed = 1; seed <= 30; seed++) {
+      const f = composeFace({ bucket: 'mixed', seed }), H = f.hybrid;
+      expect(H.of).not.toBe(H.with);
+      expect(Object.keys(H.traits).sort()).toEqual([...groups].sort());
+      for (const [g, src] of Object.entries(H.traits)) {
+        expect([H.of, H.with].includes(src) || src.startsWith('blend')).toBe(true);
+        seen.add(src.startsWith('blend') ? 'blend' : src === H.of ? 'of' : 'with');
+        // (a group inherited whole carries that parent's base: the forehead, which only a base moves)
+        if (g === 'skull' && !src.startsWith('blend')) expect(f.relations.forehead).toBeCloseTo(RELATION_POLES.female.forehead + (FACE_BUCKETS[src].base?.forehead ?? 0), 9);
+      }
+      for (const [k, [lo, hi]] of Object.entries(FACE_LIMITS)) { expect(f.relations[k]).toBeGreaterThanOrEqual(lo); expect(f.relations[k]).toBeLessThanOrEqual(hi); }
+    }
+    expect([...seen].sort()).toEqual(['blend', 'of', 'with']);
+    // (named parents make any face a hybrid of them; a parent must be a base bucket)
+    const f = composeFace({ parents: { western: 1, 'north-asian': 1 }, seed: 2 });
+    expect(['western', 'north-asian']).toContain(f.hybrid.of);
+    expect(() => composeFace({ parents: { western: 1, asian: 1 } })).toThrow(/base buckets/);
   });
 });
