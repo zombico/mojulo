@@ -187,7 +187,8 @@ describe('settlements, the towns a domain walks through', () => {
     const m = withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour' });
     expect(m.trail).toEqual({});
     expect(m.meru).toBeUndefined();
-    expect(m.town).toEqual({ anchor: 'tiered', houses: 4, enter: 1, recipe: { length: 100, branches: 1 }, paint: CUBE_STREET_PAINT });
+    // (its street laid through it, era/stage-street.js)
+    expect(m.town).toEqual({ anchor: 'tiered', houses: 4, enter: 1, recipe: { length: 100, branches: 1 }, paint: CUBE_STREET_PAINT, street: true });
     // the stage's own street wins
     expect(withGeocube({ kind: 'stage', geocube: TOWN, domain: 'harbour', trail: {}, town: { houses: 2 } }).town).toEqual({ houses: 2 });
     expect(geocubePaint({ geocube: TOWN, domain: 'harbour' })).toMatchObject({ domain: 'harbour', settlement: 'harbour' });
