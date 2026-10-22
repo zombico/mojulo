@@ -162,6 +162,33 @@ describe('an outfit card worn by the tailor', () => {
     expect(r.parts.outerEdge_torso).toBeUndefined();
   }, 300_000);
 
+  it('a tailcoat: a jacket cut at the waist keeps its front on the cloth, its tails hung behind the trousers', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: { id: 'tails', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', collar: true, fit: 'fitted' }, bottom: { family: 'woven', leg: 'long', cut: 'straight', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'long', hem: 'waist', open: true, fit: 'fitted', collar: true, lapel: 'peak', buttons: 1 }, panels: [{ at: 'back', length: 'knee', width: 0.3, split: 2, cut: 'pencil' }], feet: 'shoes', tuck: true, tie: true } } } }) }).recipe;
+    // (the stance raised onto the short jacket: its lapel and its button on the cloth, not thrown off it)
+    for (const k of ['outerLapel_torso', 'outerButton0_torso']) for (const q of pointsOf(r.parts[k])) expect(Math.hypot(q[0], q[1]), k).toBeLessThan(0.35);
+    const tails = Object.keys(r.parts).filter((k) => /_panel$/.test(k)), seat = ['bottom_pelvis', 'bottom_legR', 'bottom_legL'].filter((k) => r.parts[k]).flatMap((k) => pointsOf(r.parts[k]));
+    expect(tails.length).toBe(2);
+    // (every point of a tail behind the trousers' back where they meet: hung over the tailor's cloth, not the skin)
+    for (const k of tails) for (const p of pointsOf(r.parts[k])) { const q = seat.filter((s) => Math.abs(s[2] - p[2]) < 0.02 && Math.abs(s[0] - p[0]) < 0.02); if (q.length) expect(p[1], k).toBeLessThan(Math.min(...q.map((s) => s[1]))); }
+  }, 300_000);
+
+  it('a cloak and its hood over the suit: within the cape\'s arc every point of the jacket under its outer face', () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', outfit: { type: 'outfit', style: 'business', pieces: [{ kind: 'cloak', hood: true }] } }) }).recipe;
+    const C = r.parts.cloak_cape; expect(C).toBeTruthy(); expect(r.parts.cloakHood_hood).toBeTruthy();
+    // (the cape's centre as its kernel takes it: the trunk's at the shoulders, between its front and its back)
+    const zt = C.stations[0].points.p0[2], near = pointsOf(r.parts.torso).filter((p) => Math.abs(p[2] - zt) < 0.08), cy = (Math.min(...near.map((p) => p[1])) + Math.max(...near.map((p) => p[1]))) / 2;
+    const ang = (p) => Math.abs(Math.atan2(p[0], p[1] - cy) * 180 / Math.PI), rad = (p) => Math.hypot(p[0], p[1] - cy);
+    const S = C.stations.map((st) => ({ z: st.points.p0[2], P: C.slots.slice(0, C.slots.indexOf('p13') + 1).map((sl) => st.points[sl]) }));
+    const rAt = (P, a) => { for (let k = 0; k + 1 < P.length; k++) { const a0 = ang(P[k]), a1 = ang(P[k + 1]); if (a >= Math.min(a0, a1) && a <= Math.max(a0, a1)) return rad(P[k]) + (rad(P[k + 1]) - rad(P[k])) * ((a - a0) / (a1 - a0 || 1)); } return null; };
+    let checked = 0;
+    for (const k of ['outer_body', 'outer_armR', 'outer_armL']) for (const v of pointsOf(r.parts[k])) {
+      const i = S.findIndex((s, j) => j + 1 < S.length && v[2] <= s.z && v[2] >= S[j + 1].z); if (i < 0) continue;
+      const A = rAt(S[i].P, ang(v)), B = rAt(S[i + 1].P, ang(v)); if (A === null || B === null) continue;
+      expect(rad(v), k).toBeLessThan(A + (B - A) * ((S[i].z - v[2]) / (S[i].z - S[i + 1].z))); checked++;
+    }
+    expect(checked).toBeGreaterThan(500);
+  }, 300_000);
+
   it('a short sleeve: the casual tee\'s, its hem turned back in to the arm, no lid', () => {
     const r = card('casual'), S = r.parts.top_upperArmR; expect(S).toBeTruthy();
     const n = S.stations.length;

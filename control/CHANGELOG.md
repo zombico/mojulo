@@ -27,6 +27,13 @@ body catches up to what the authored one wears, and its principles are shared ba
   `bindNearest` (its own copies had drifted from them; the library's are the superset, its `buckleOn` now taking a
   slot's name as the tailor's did); both byte pins unchanged.
 - docs/realistic-body.md says what the body wears and still refuses as the tree has it.
+- HANGING PIECES OVER THE TAILOR'S CLOTH: a panel (coat-tails, a tabard's apron), a cape and a hood on the realistic body
+  hang over the cloth the tailor made, not the skin under it. A hull piece takes `over` (more parts it hangs over beside
+  what is worn on its body parts; absent, as before): the realistic path hands a panel the trunk's and the legs' cloth,
+  a cape and a hood the sleeves' too, and keeps those names where it had filtered `over` to the skin's parts (a cloak had
+  shown the jacket through at the shoulder and the elbow). A jacket cut at the waist (a tailcoat's, a spencer's) raises
+  its stance till its last button is 3 cm over the hem: below the cloth the front had no surface, and its lapel and
+  button were thrown a metre out. The authored pins unchanged.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

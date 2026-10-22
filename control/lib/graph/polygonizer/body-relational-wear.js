@@ -351,11 +351,15 @@ export function wearPieces(recipe, R, build, map, garments = [], kit = [], paint
       // the STANCE: the top button's height (two a little above the waist, one under it, three higher); the front
       // worn over's EDGE, closed, past the middle on the other side (a man's right front over his left, `sgn` +1; a
       // woman's left over her right, −1; a double front's past the far row of buttons); OPEN, the fronts `h` apart
-      const zS = zWaist + (double ? 0.03 : { 1: -0.01, 2: 0.02, 3: 0.07 }[n] ?? 0.02), step = double ? 0.09 : 0.1, zB = zS - (n - 1) * step;
+      const step = double ? 0.09 : 0.1;
+      let zS = zWaist + (double ? 0.03 : { 1: -0.01, 2: 0.02, 3: 0.07 }[n] ?? 0.02), zB = zS - (n - 1) * step;
       const xE = closed ? -sgn * (double ? 0.085 : 0.02) : 0, h = closed ? 0 : 0.035;
       // the jacket's SURFACE before the cut (and the neck above it, 6 mm out)
       const neckPts = neckSkin ? neckSkin.stations.flatMap((st) => { const c = ctr(st); return Object.values(st.points).map((p) => { const d = unitH(p, c); return [p[0] + d[0] * 0.006, p[1] + d[1] * 0.006, p[2]]; }); }) : [];
       const { cAt, surface, onFront, zTop, zBot } = surfaceOf(J, neckPts), { across } = clothWalker(J);
+      // (a short jacket, a tailcoat's or a spencer's cut at the waist: the stance raised till its last button is on the
+      // cloth, 3 cm over the hem; off it, the front has no surface to lie on)
+      if (zB < zBot + 0.03) { zS += zBot + 0.03 - zB; zB = zBot + 0.03; }
       // the ROLL LINES: from their feet at the stance up to where the collar meets them, at the side of the neck (a
       // double front's left lapel goes down under the right front to its own button, so the two cross above the stance)
       const zC = zTop + 0.012, cTop = cAt(zTop), NP = (deg) => surface([cTop[0] + dir(deg)[0], cTop[1] + dir(deg)[1], zC])[0], NR = NP(65), NL = NP(-65);

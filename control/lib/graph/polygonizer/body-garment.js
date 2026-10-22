@@ -44,6 +44,8 @@
  * `<id>_cape`, draping on the arms and flowing as a curtain (capePart). `fit: 'hood'` rises from the shoulders over
  * the head's volume (`head: { at, r }`, an ellipsoid: the anime head and hair are drawn on the mesh, not in the parts),
  * open at the face (`open`), locked to the neck and the head: `<id>_hood` (hoodPart).
+ * `over` on a hull piece (a skirt, a panel, a cape, a hood): more parts it hangs over beside the pieces worn on its body
+ * parts (the realistic body's cloth, which the tailor makes and this kernel never wore). Absent, as before.
  * `proportional` (a copy piece's: the radius at which its ease is as given): each ring's ease scales with its own radius,
  * so the cloth keeps the body's ratios and a limb's taper survives. `dense`: the cloth's rings resampled to at least
  * twelve points (densePart), so a six-sided limb is not a six-sided sleeve. Both are absent → as before (the kernel only
@@ -307,7 +309,7 @@ const HOOD_SLOTS = 13, HOOD_RINGS = 12;
 function hoodPart(parts, names, P, worn) {
   const n = SLOT_FAMILIES.ring20.length, N = HOOD_RINGS, e = P.ease, thick = P.thick ?? 0.005, { at: hc, r: hr } = P.head;
   const zb = heightAt(parts, P.from), zTop = hc[2] + hr[2] + e;
-  const beneath = [...names, ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_hood$/.test(nm));
+  const beneath = [...names, ...(P.over || []), ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_hood$/.test(nm));
   const pts = beneath.flatMap((nm) => [...parts[nm].stations.flatMap((st) => Object.values(st.points)), parts[nm].caps.back, parts[nm].caps.tip]);
   const cy = hc[1], dirs = Array.from({ length: n }, (_, k) => [Math.sin(2 * Math.PI * k / n), Math.cos(2 * Math.PI * k / n)]);
   const zs = Array.from({ length: N }, (_, i) => zb + (zTop - zb) * Math.sin(Math.PI / 2 * i / (N - 1)));
@@ -435,7 +437,7 @@ function legHull(parts, names, P, worn) {
   const n = SLOT_FAMILIES.ring20.length, flare = Array.isArray(P.flare) ? P.flare[1] : (P.flare ?? 0);
   const zw = heightAt(parts, P.from), zh = heightAt(parts, P.to);
   // (a panel's neighbours are not beneath it: panels hang side by side from one hull, never stacked on each other)
-  const beneath = [...names, ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_panel$/.test(nm));
+  const beneath = [...names, ...(P.over || []), ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_panel$/.test(nm));
   const pts = beneath.flatMap((nm) => [...parts[nm].stations.flatMap((st) => Object.values(st.points)), parts[nm].caps.back, parts[nm].caps.tip]);
   const waist = pts.filter((p) => Math.abs(p[2] - zw) < 0.04), cy = waist.length ? (Math.min(...waist.map((p) => p[1])) + Math.max(...waist.map((p) => p[1]))) / 2 : 0;
   const N = 12, dirs = Array.from({ length: n }, (_, k) => [Math.sin(2 * Math.PI * k / n), Math.cos(2 * Math.PI * k / n)]);
@@ -533,7 +535,7 @@ function capePart(parts, names, P, worn) {
   const n = SLOT_FAMILIES.ring20.length, N = CAPE_RINGS, e = P.ease, thick = P.thick ?? 0.005, flare = Array.isArray(P.flare) ? P.flare[1] : (P.flare ?? 0);
   const zt = heightAt(parts, P.from), zh = heightAt(parts, P.to);
   // (it hangs over everything worn, drape panels too: only another cape is not beneath it)
-  const beneath = [...names, ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_cape$/.test(nm));
+  const beneath = [...names, ...(P.over || []), ...names.flatMap((nm) => worn[nm] || [])].filter((nm, i, a) => a.indexOf(nm) === i && parts[nm] && !/_cape$/.test(nm));
   const pts = beneath.flatMap((nm) => [...parts[nm].stations.flatMap((st) => Object.values(st.points)), parts[nm].caps.back, parts[nm].caps.tip]);
   // the centre: the trunk's at the shoulders, between its front and its back
   const trunk = (parts.torso?.stations || []).flatMap((st) => Object.values(st.points)), near = (trunk.length ? trunk : pts).filter((p) => Math.abs(p[2] - zt) < 0.08);

@@ -342,13 +342,17 @@ function realisticExpand(plan, hero) {
       return hits.map((a) => { const sh = (r) => r.map((v) => (a.k ?? 1) * v + a.du).sort((p, q) => p - q), run = x.run && !x.u ? x.run.map((v) => v * uOf(a.seg)) : null;
         const { run: _r, ...rest } = x; return { ...(run ? rest : x), part: a.part, ...(x.s ? { s: sh(x.s) } : {}), ...(x.u ? { u: sh(x.u) } : {}), ...(run ? { u: sh(run) } : {}), ...(a.win && !x.u && !run && !x.s ? { u: a.win } : {}), ...(Array.isArray(x.over) ? { over: x.over.map((o) => wear.alias.get(o)?.part ?? o) } : {}) }; });
     };
-    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
+    // (what the authored kernel still makes, a panel, a cape, a hood, hangs over the tailor's cloth: its `over`, the trunk's
+    // and the legs' cloth, a cape's and a hood's the sleeves' too)
+    const cloth = Object.keys(wear.parts), trunkCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL])$/.test(k)), allCloth = cloth.filter((k) => /_(body|torso|pelvis|leg[RL]|thigh[RL]|shank[RL]|arm[RL]|upperArm[RL]|foreArm[RL]|neck)$/.test(k));
+    const hangs = (g) => (/^(panel|cape|hood)$/.test(g.fit) ? { ...g, over: [...(g.over || []), ...(g.fit === 'panel' ? trunkCloth : allCloth)] } : g);
+    plan = { ...plan, garments: (plan.garments || []).filter((g) => !wear.worn.has(g.id)).map(hangs), ...(plan.adorn ? { adorn: plan.adorn.filter((A) => !wear.belts.has(A.id)).flatMap(moved) } : {}),
       ...(plan.body?.rows ? { body: { ...plan.body, rows: plan.body.rows.flatMap(moved) } } : {}), ...(Array.isArray(plan.paint) ? { paint: plan.paint.filter((x, i) => !wear.painted.has(i)).flatMap(moved) } : {}) };
   }
   if (!DRESS_KEYS.some((k) => has(plan[k])) && !fieldWords.length && !footWords.length && !suitWords.length && !handWords.length && !looseWords.length && !(wear && Object.keys(wear.parts).length)) return S;
   // (an adornment or a garment stood off `over` parts the slice removed, the pectorals and the bust: the torso's field
-  // carries the chest now, so they stand off the torso alone)
-  const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p]) : o);
+  // carries the chest now, so they stand off the torso alone; the tailor's cloth stays, which a cape hangs over)
+  const kept = (o) => (Array.isArray(o) ? o.filter((p) => S.parts[p] || wear?.parts[p]) : o);
   const onBody = (xs) => (Array.isArray(xs) ? xs.map((x) => (x && x.over !== undefined ? { ...x, over: kept(x.over) } : x)) : xs);
   // (and paint addressed to a part the slice removed is the torso's there, which its own entries paint)
   const painted = (xs) => (Array.isArray(xs) ? xs.filter((x) => !x?.part || S.parts[x.part] || S.parts[`${x.part}R`] || S.parts[`${x.part}L`] || wear?.parts[x.part]) : xs);
