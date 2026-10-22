@@ -412,8 +412,10 @@ const PAINTERS = {
       }
     }
   },
-  // a heaped cumulus (image y = 0 is the top): puffs whose union is the cloud, the base cut flat
-  cumulus(lv, n, R, a) {
+  // a heaped cumulus (image y = 0 is the top): puffs whose union is the cloud, the base cut flat; drawn hi-def (a gritty
+  // land's), the outline broken further: small heads on the heads, a few wisps pulling off the upper edge, the base's
+  // line bumped (the big shape the same: those dice are thrown after the body's)
+  cumulus(lv, n, R, a, K = {}) {
     const top = n - 1, base = SIZE * 0.9, puffs = [];
     const m = 4 + Math.floor(R() * 3);
     for (let i = 0; i < m; i++) {   // the body: along the base, biggest in the middle, heaped up
@@ -425,6 +427,18 @@ const PAINTERS = {
     for (let i = 0; i < 12; i++) {   // the heads: cauliflower on the upper rim of body and crown
       const b = i < 5 ? tower : puffs[1 + Math.floor(R() * (m - 2))], ang = -Math.PI / 2 + (R() - 0.5) * 2.2, r = b[2] * (0.38 + 0.25 * R());
       puffs.push([b[0] + Math.cos(ang) * b[2] * 0.78, b[1] + Math.sin(ang) * b[2] * 0.78, r]);
+    }
+    if (K.hd) {
+      const heads = puffs.slice(-12);
+      for (let i = 0; i < 26; i++) {   // heads on the heads
+        const b = heads[Math.floor(R() * heads.length)], ang = -Math.PI / 2 + (R() - 0.5) * 2.6, r = b[2] * (0.3 + 0.2 * R());
+        puffs.push([b[0] + Math.cos(ang) * b[2] * 0.85, b[1] + Math.sin(ang) * b[2] * 0.85, r]);
+      }
+      for (let i = 0; i < 5; i++) {   // wisps: small puffs pulling off the upper edge, still clinging to it
+        const b = heads[Math.floor(R() * heads.length)], ang = -Math.PI / 2 + (R() - 0.5) * 2.2, r = b[2] * (0.2 + 0.12 * R()), d = b[2] * (0.98 + 0.1 * R());
+        puffs.push([b[0] + Math.cos(ang) * d, b[1] + Math.sin(ang) * d, r]);
+      }
+      for (let i = 0; i < 9; i++) puffs.push([SIZE * (0.12 + 0.76 * R()), base - SIZE * 0.015, SIZE * (0.025 + 0.025 * R())]);   // the base's line bumped
     }
     a.fill(0);
     for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {

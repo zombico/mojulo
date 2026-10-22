@@ -562,7 +562,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     });
   }
   const ridges = layerFaces(st, site, dir);
-  if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
+  if (st.cumulus) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock)
   const nb = bare.length, landD = broken ? withGrittyGround(land, broken, { verge: (i) => i >= nb && i < nb + ribbon.length && ribbon[i - nb].cls !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]) }) : land;
@@ -878,7 +878,10 @@ function petalConfig(st, site, rocks, trees, shadow, Pt, seed = 1) {
  * THE PAINTED SKY: cumulus as cutout cards on a ring past the far layers, each facing the site's centre, pixel-locked
  * (the `cumulus` tile). A card within `towardSun`° of the sun's azimuth is seen from its shaded side.
  */
-export function cumulusFaces(st, site, dir) {
+// a gritty land's cloud: the main card and two smaller ones set behind it and to a side, one mirrored, so the heap has
+// depth and shifts as the eye moves: [behind m, aside × width, up × height, size, mirrored]
+const HEAP = Object.freeze([[0, 0, 0, 1, false], [14, -0.28, 0.12, 0.72, true], [26, 0.3, 0.2, 0.6, false]]);
+export function cumulusFaces(st, site, dir, heap = false) {
   const out = [], c = [site.W / 2, site.D / 2], Cu = st.cumulus, sunAz = Math.atan2(dir[1], dir[0]);
   Cu.tiers.forEach((T, ti) => {
     for (let i = 0; i < T.n; i++) {
@@ -887,8 +890,10 @@ export function cumulusFaces(st, site, dir) {
       const w = mix(T.width[0], T.width[1], h(4)), ht = w * T.tall, p = [c[0] + Math.cos(az) * R, c[1] + Math.sin(az) * R, z];
       const along = [-Math.sin(az), Math.cos(az), 0], n = [-Math.cos(az), -Math.sin(az), 0].map(r5);
       const d = Math.abs(((az - sunAz + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) * 180 / Math.PI, isLit = d > Cu.towardSun;
-      const a = mul(along, w / 2);
-      out.push({ corners: [sub(p, a), addv(p, a), addv(addv(p, a), [0, 0, ht]), addv(sub(p, a), [0, 0, ht])].map(P), normal: n, outNormal: n, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], texture: isekaiKeyOf(st, 'cumulus', isLit), fill: stopFill(st, 'cumulus', isLit), group: 'isekai:cloud', doubleSided: true });
+      for (const [back, side, up, size, flip] of heap ? HEAP : HEAP.slice(0, 1)) {
+        const q = [p[0] - n[0] * back + along[0] * side * w, p[1] - n[1] * back + along[1] * side * w, p[2] + up * ht], a = mul(along, (w * size) / 2), hh = ht * size;
+        out.push({ corners: [sub(q, a), addv(q, a), addv(addv(q, a), [0, 0, hh]), addv(sub(q, a), [0, 0, hh])].map(P), normal: n, outNormal: n, uv: flip ? [[1, 0], [0, 0], [0, 1], [1, 1]] : [[0, 0], [1, 0], [1, 1], [0, 1]], texture: isekaiKeyOf(st, 'cumulus', isLit), fill: stopFill(st, 'cumulus', isLit), group: 'isekai:cloud', doubleSided: true });
+      }
     }
   });
   return out;

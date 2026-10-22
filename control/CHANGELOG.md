@@ -151,9 +151,11 @@ clouds take detail in the cube's own colours, stronger with more grit. A quiet c
 - **Bushes the same.** A gritty land's bushes are lumped about their own middles as a crown's lobes are and stand leaf
   cards like a crown's mass. (The lobes are coarse, twenty facets: the cards carry the outline; a gritty grove town is
   about 64,000 faces against a quiet one's 50,000.)
-- **The clouds.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the kit's
-  own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest stops, the
-  cutout's edge kept whole.
+- **The clouds, heaped.** A gritty land's cumulus cards are drawn hi-def (`era/isekai-tiles.js`, a key's `+hd`): the
+  kit's own drawing in its own stops, smoothed and painted at twice the size, each texel between its two nearest
+  stops, the cutout's edge kept whole, and its outline broken further (small heads on the heads, wisps pulling off the
+  upper edge, the base's line bumped; the big shape the same). Each cloud is a heap of three cards, two smaller set
+  behind it and to a side, one mirrored, so it has depth and shifts as the eye moves.
 
 ### The biocube: a level's flora as data
 

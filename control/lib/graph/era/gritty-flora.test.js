@@ -63,6 +63,8 @@ describe('gritty flora', () => {
     expect(clouds(G).length).toBeGreaterThan(0);
     expect(clouds(G).every((k) => k.endsWith('+hd') && G.cutouts.includes(k))).toBe(true);
     expect(clouds(Q).some((k) => k.endsWith('+hd'))).toBe(false);
+    // (a gritty cloud is a heap: three cards where a quiet one has one)
+    expect(clouds(G).length).toBe(3 * clouds(Q).length);
   }, 60000);
 
   it('a hi-def tile: the same drawing at twice the size, every texel between two neighbouring stops, a cutout whole', () => {
@@ -75,6 +77,9 @@ describe('gritty flora', () => {
     for (let i = 0; i < hd.W * hd.H; i++) { const c = [hd.rgb[i * 3], hd.rgb[i * 3 + 1], hd.rgb[i * 3 + 2]]; if (!inSpan(c)) out++; if (!S.some((q) => q.every((v, k) => v === c[k]))) between++; }
     expect(out).toBe(0);
     expect(between).toBeGreaterThan(0);
+    // (its outline broken further: more of the card is cloud than the pixel tile's body, at the same scale)
+    const cover = (t) => t.a.reduce((n, v) => n + (v ? 1 : 0), 0) / (t.W * t.H);
+    expect(cover(hd)).toBeGreaterThan(cover(px));
   });
 
   it('a gritty land\'s live grass takes the material light, its contrast the grit\'s, no dry hue', () => {
