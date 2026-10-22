@@ -25,10 +25,9 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
-import { assembleGeocubeScene, geocubeReadout, geocubeSteps } from '@/lib/graph/era/geocube';
+import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { styleReadout } from '@/lib/graph/era/arch-style';
-import { isTextured } from '@/lib/graph/era/cube-generation';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
@@ -503,7 +502,7 @@ export const WORLD_KINDS = {
     resolve: (m, ctx) => {
       if (m.show === 'city') {
         const { city, cube, pick, style } = geocubeCity(m), p = withSidewalkCamera(assembleCityScene(city, { title: ctx.title || `${cube.title} · city`, route: true }), { metersPerUnit: CITY_METERS_PER_UNIT });
-        return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) }, ...(isTextured(cube) ? { reliefSteps: geocubeSteps(cube) } : {}) }, { scale: 1 / CITY_METERS_PER_UNIT });
+        return attachDummy({ ...p, geocube: { ...geocubeReadout(cube, 'city', pick, m), ...(style ? { style: styleReadout(style) } : {}) } }, { scale: 1 / CITY_METERS_PER_UNIT });
       }
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene);
       return p.route ? attachDummy(p) : p;

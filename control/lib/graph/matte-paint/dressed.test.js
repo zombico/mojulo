@@ -105,9 +105,7 @@ describe('a gritty cube dresses its room', () => {
     const quiet = lowerGeocube(readGeocube('valley-morning'), 'inside');
     expect(quiet.tiles.wall.gen).toBe('stone-brick'); expect(quiet.tiles.pillar).toBeUndefined(); expect(quiet.tone.detail).toBe(0.45);
     expect(lowerGeocube(readGeocube({ from: 'valley-morning', grit: GRIT_PIXELS - 0.05 }), 'inside')).toEqual(quiet);
-    // (gen-6 is pure poly whatever its grit; gen-7 dresses its room, its grit the wear: era/cube-generation.js)
-    expect(lowerGeocube(readGeocube({ from: 'valley-morning', grit: 0.7 }), 'inside').tiles.wall.gen).toBe('stone-brick');
-    const gritty = lowerGeocube(readGeocube({ from: 'valley-morning', era: 'gen-7', grit: 0.7 }), 'inside');
+    const gritty = lowerGeocube(readGeocube({ from: 'valley-morning', grit: 0.7 }), 'inside');
     expect(gritty.tiles.wall).toMatchObject({ gen: 'dressed', grit: 0.7 });
     expect(gritty.tiles.floor).toMatchObject({ gen: 'dressed', face: 'floor' });
     expect(gritty.tiles.pillar).toMatchObject({ gen: 'dressed', cut: 'fluted' });

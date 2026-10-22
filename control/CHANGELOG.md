@@ -150,13 +150,6 @@ they speak in). The line is drawn where the colours are solved, so it cascades.
   gen-7 cube carries its relief beside its ramps in its readout (`geocubeRelief`: the theorist's where the ramp is, off
   the cube's ramp otherwise), with its layer and wear. `limestone-crags` is gen-7. A gen-6 cube that names no grit is as
   it was.
-- **The layer in the relief's steps** (`scene/channels/relief-steps.js`; era/geocube.js `geocubeSteps`; in progress).
-  A gen-7 page cuts its texture-map layer's relative value (1 the face's own: a detail tile's texel over its mean, the
-  rock fabric's light over the facet's) into five steps, each a colour ratio to the face: one and two stops down the
-  cube's relief and up it, from its ramps' middle stops, carrying the relief's hue lean. The detail tiles take it in
-  the resampler's map hook (a tile it does not shift read once, `kind: 'plain'`; the step decided from a softened read
-  so steps form patches, not speckle), the rock fabric in place of its plain ratio. Its strength and thresholds
-  (`RELIEF_AT`) are being tuned at the eyes gate. A gen-6 page draws as it did.
 
 ### Geotown structures: doors and windows, the street, the square, the gates
 
