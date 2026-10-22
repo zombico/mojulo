@@ -14,6 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Animation games spike: one take, four flavors
+
+- **A research spike, nothing registered** (`scripts/spikes/animation-games/`). A *flavor* renders a take the hero
+  library already solves (a strike, a jump, a reaction) for the kind of game it plays in. It keeps the take's poses and
+  changes its timing, how far it winds up and follows through, its holds, squash and smears, and the force a blow hands
+  on (the *powerscale*: the victim's change of speed against a body on earth's). The four flavors are `realistic`
+  (the take as solved, a blow's real momentum), `action` (a deep wind-up, a snap, both bodies frozen for a hitstop that
+  grows with the blow, the victim thrown), `platformer` (quick starts, squash and stretch at take-off and landing, a blow
+  is a boop) and `pinball` (the take plays faster the faster the body travels, smeared, a hit ricochets). Every cosmos
+  genre picks one, and the operator's word overrides it. `verify.mjs` is the machine gate. Contact lands on its point in
+  every flavor, realistic is the take frame for frame, and renders are byte-identical. `preview.mjs` writes a
+  side-by-side player and filmstrips for the eyes gate, which is still open. The README's findings name the integration
+  costs: the 12-key linear packing smears holds and snaps, and hitstop, knockback and rate by speed belong in the live
+  rules, not in the clip.
+
 ### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
 
 The realistic body depicts adults; the wearable libraries and the tailor share one set of primitives; the realistic
