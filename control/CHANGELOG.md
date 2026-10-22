@@ -47,6 +47,9 @@ body catches up to what the authored one wears, and its principles are shared ba
   it (the face and the nose, bound to the head beside the plan's head parts), a bust without the upper arms' stumps
   (the torso carries the shoulder; a stump cut from the deltoid's rings stood out as a disc). `detail` stays refused,
   its refusal now saying an outfit dresses this body. The authored statues unchanged.
+- docs/realistic-body.md said no exporter carried the correctives and the body had no UVs; both have been in place
+  (the skinned GLB's corrective morph targets with their weights baked per clip key, the skin's UV atlas). It says so
+  now, and what is still missing: an engine-side driver, so a pose the engine makes itself gets the correctives.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

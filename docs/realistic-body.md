@@ -68,8 +68,12 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 
 ## Not yet
 
-Posing outside the body study and the stretch audit does not apply the correctives, and no exporter carries them. The
-body has no UVs. It wears its dress (an outfit card, the words, a stylism, the loose words), armour, kits, paint, and
+The correctives ride the skinned GLB (`scene-gltf.js` `addSkinnedRigFigure`, when the export asks for blend shapes as
+it does for the face): one sparse morph target per corrective after the face's, named by its id, its weight baked at
+each clip key (`addCorrectiveWeights`), its driver (the joint, the bone, the angles) in `mesh.extras.correctives` for an
+engine that would drive it. No engine drives them yet: a pose an engine makes itself (its own animation, IK) gets no
+correctives, and Unity, Blender and USD carry no blend shapes of their own (Unity takes the GLB). The skin is a UV-mapped
+atlas (`heroSkinPaint`, the body's page over the head's, TEXCOORD_0 under the base colour). It wears its dress (an outfit card, the words, a stylism, the loose words), armour, kits, paint, and
 the footwear, handwear and plating libraries (docs/garment-principles.md, docs/plating.md). It carves as a statue (one
 material, no skin, the realistic head's own parts going with a lost head, a bust without the arms' stumps). `detail`
 is refused: it is the authored body's own clothing, fitted to its rings, and an outfit dresses this body. A panel, a cape and a hood are the authored kernel's, hung
