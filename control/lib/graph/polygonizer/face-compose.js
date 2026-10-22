@@ -273,7 +273,7 @@ export const FACE_ADORN = Object.freeze({
  * ages at, the ONSET of their greying (by the ancestry's mean), how far a man's loss is DESTINED to go.
  *   older    k = ((years − prime) / span)^power × rate (1 at ~78): the soft tissue descends (`older`: the jowl and the
  *            fold, the cheek's fat from the cheekbone to the jaw, the lips thinner and back, the nose and the ear longer,
- *            the lid hooded, the outer canthus down); the skin's `age` and `lines` up; the hair greys from its onset over
+ *            the lid hooded, the outer canthus down; the forehead's `furrows` cut as shape from the late fifties); the skin's `age` and `lines` up; the hair greys from its onset over
  *            `grey.span` years; a man's temples recede and his loss advances by its destiny, a woman's crown thins late
  *   younger  j = (prime − years) / span (1 at 16): `younger`'s fuller cheeks and lips, a smaller nose, a softer jaw (a
  *            man's brow ridge not yet grown: `youngerMale`), the skin younger, a man's loss not yet begun
@@ -281,7 +281,7 @@ export const FACE_ADORN = Object.freeze({
 export const FACE_AGE = Object.freeze({
   prime: 28, range: [16, 85], rate: [0.8, 1.2],
   older: {
-    span: 50, power: 1.3,
+    span: 50, power: 1.3, furrows: [55, 85],
     relations: { jowl: 0.008, foldReach: 0.05, cheeks: -0.35, lowerCheek: 0.3, malarDepth: 0.004, lipFullness: -0.3, upperVermilion: -0.01, lowerVermilion: -0.012, lipProjection: -0.006, noseSize: 0.1, earBottom: -0.03, fissure: -0.004, lidSplit: 0.05, canthalTilt: -0.004, masseter: -0.1 },
   },
   younger: { span: 12, relations: { cheeks: 0.25, lowerCheek: 0.15, lipFullness: 0.1, noseSize: -0.08, masseter: -0.12, chin: -0.004, fissure: 0.002, forehead: 0.004 } },
@@ -718,6 +718,9 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const rate = A.rate[0] + ((g() + g()) / 2) * (A.rate[1] - A.rate[0]), onset = (A.grey.onset[ancestry] ?? A.grey.onset.default) + A.grey.spread * (g() + g() - 1), destiny = g();
     const k = age > A.prime ? ((age - A.prime) / A.older.span) ** A.older.power * rate : 0, j = age < A.prime ? (A.prime - age) / A.younger.span : 0;
     for (const [key, v] of Object.entries(A.older.relations)) if (k) off[key] = (off[key] || 0) + Math.round(v * k * 1e5) / 1e5;
+    // (the forehead's furrows cut as shape from the late fifties, at the person's rate)
+    const fu = Math.min(1, smoothY(A.older.furrows[0], A.older.furrows[1], age) * rate);
+    if (fu > 0.005) off.furrows = Math.round(fu * 100) / 100;
     for (const [key, v] of Object.entries({ ...A.younger.relations, ...(sex === 'male' ? A.youngerMale : {}) })) if (j) off[key] = (off[key] || 0) + Math.round(v * j * 1e5) / 1e5;
     // the skin, from the pole's own age at the prime; the lines from the early thirties
     const skin0 = sex === 'male' ? 0.35 : 0.3;
@@ -741,5 +744,5 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(years || {}), ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), ...(piercings.length ? { piercings } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(years || {}), ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), ...(piercings.length ? { piercings } : {}), relations, eyes, epidermis: { hair: years?.grey ? { ...grooms, grey: years.grey } : grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

@@ -37,8 +37,10 @@ import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-te
 
 /** a fold's shadow by channel: the blue and green darkened more than the red (the blood under the skin) */
 const FOLD_SHADOW = [0.8, 1, 1.12];
-/** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift */
-const FOLD_INK = Object.freeze({ soft: 0.16, core: 0.4, lift: 0.05 });
+/** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift; `lit` their
+ * share where the light draws the fold (no painted `shade`: the realistic register, the wrinkle map doing the rest),
+ * whole where the art direction paints its light in */
+const FOLD_INK = Object.freeze({ soft: 0.16, core: 0.4, lift: 0.05, lit: 0.55 });
 /** the FOLD page (the lines' wrinkle map, only where the face has lines): R, G = 128 + 127 × the height's slope / this
  * (mm per mm; R toward the figure's right, G up the head: the chart's `tr` and `ta`), B the valley's cavity */
 export const FOLD_SLOPE = 1.5;
@@ -165,9 +167,10 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
     // (a fold in the skin's own shadow, warmer and redder than grey: the broad smooth shade first, then the thin core
     // darker inside it, so the line sits in a gradient and never on bare skin; the roll's lip lifted a touch)
-    if (det?.soft) col = col.map((x, k) => x * (1 - FOLD_INK.soft * det.soft * FOLD_SHADOW[k]));
-    if (det?.crease) col = col.map((x, k) => x * (1 - FOLD_INK.core * det.crease * FOLD_SHADOW[k]));
-    if (det?.lift) col = col.map((x) => x * (1 + FOLD_INK.lift * det.lift));
+    const ink = (typeof D.shade === 'number' ? D.shade : D.shade?.amount) > 0 ? 1 : FOLD_INK.lit;
+    if (det?.soft) col = col.map((x, k) => x * (1 - ink * FOLD_INK.soft * det.soft * FOLD_SHADOW[k]));
+    if (det?.crease) col = col.map((x, k) => x * (1 - ink * FOLD_INK.core * det.crease * FOLD_SHADOW[k]));
+    if (det?.lift) col = col.map((x) => x * (1 + ink * FOLD_INK.lift * det.lift));
     if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
     const o = (r.y + py) * N + r.x + px;

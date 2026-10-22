@@ -245,6 +245,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cavity), so the light draws a fold and it answers the light's direction: an engine's wrinkle normal map. Only where
   the face has lines (absent, no page). The dermis study bends its shading by it; `--key` moves the key light (a raking
   side light shows the folds turn with it). A normal map shades; it casts no shadow and leaves the silhouette smooth.
+- THE FOREHEAD'S FURROWS AS SHAPE (head-relational.js `furrows`, 0 … 1, absent byte-identical): an old forehead's three
+  deep folds cut into the skin, each a tube laid along the forehead by the landmarks, sunk along the skin's normal so a
+  shallow sliver cuts (~0.8 mm at 1), thinning to nothing at its ends, its edge blended soft: real shape, so an engine's
+  light casts it and the profile carries it, under the same lines the paint and the wrinkle map draw. The composer cuts
+  them from the late fifties at the person's rate.
+- THE FOLDS' PAINT BY THE ART DIRECTION (dermal-texture.js `FOLD_INK.lit`): where the light draws a fold (the realistic
+  register, no painted `shade`), the painted core and shade at a little over half; whole where an art direction paints
+  its light in.
+- GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
+  0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
 - GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
   (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
   the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.

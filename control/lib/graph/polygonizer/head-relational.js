@@ -106,6 +106,8 @@ export const RELATIONS = Object.freeze({
   asymNose: 0,          // the nose's tip and base leaning to the figure's left / v-me (the bridge's root stays)
   asymJaw: 0,           // the left jaw's corner wider, a share (+ wider)
   asymCheek: 0,         // the left cheekbone wider, a share
+  // ── the years' deep folds, as shape (the fine lines are the skin's wrinkle map, dermal-texture.js's FOLD page)
+  furrows: 0,           // the forehead's furrows cut into the skin, 0 none … 1 an old face's (~0.8 mm deep, ~5 mm wide)
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
   jawOpen: 0.17,        // the incisors' opening at full / v-me (~39 mm: a full, comfortable opening; the anatomical
                         // maximum is ~50 mm)
@@ -1142,8 +1144,33 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)), irisTone: (p) => r.irisTone(V(p)) };
   }) : [];
+  // THE FURROWS (`furrows`, an old forehead's deep folds as shape, so an engine's light casts them and the profile shows
+  // them): three across the forehead where the skin's lines run (dermal-map.js dermalDetail), each a tube laid along the
+  // skin, probed from inside the head, sunk so a shallow sliver cuts, deepest at its middle and thinning to nothing at its
+  // ends, its edge blended soft. Absent, nothing.
+  // (placed by the landmarks, `P`: where the skin's own glabella and brow lie, as the skin's paint reads them; the tuned
+  // points are the masses' moved to put it there)
+  const furrows = skin && rel.furrows > 0 ? (() => {
+    const mm = MM_V * sc, half = Math.abs(P.fzR.x) * sc - 4 * mm, R = 2.6 * mm, tubes = [];
+    for (let k = 0; k < 3; k++) {
+      const z0 = P.g.z * sc + (13 + 8 * k) * mm, depth = rel.furrows * (k === 1 ? 0.8 : 0.6) * mm, pts = [];
+      for (let i = 0; i <= 10; i++) {
+        const x = -half + (2 * half * i) / 10, z = z0 + 1.4 * mm * Math.sin(Math.abs(x) / (9 * mm) + k * 1.7), hit = rayIn(skinField, { x, y: P.g.y * sc - 0.08 * sc, z }, [0, 1, 0]);
+        if (!hit) continue;
+        const t = Math.sin(Math.PI * (i / 10)) ** 0.7;
+        // (sunk along the skin's own normal there: a forehead slopes back, and a tube set straight forward cut above its line)
+        const e = 0.2 * mm, gn = ['x', 'y', 'z'].map((k) => skinField({ ...hit, [k]: hit[k] + e }) - skinField({ ...hit, [k]: hit[k] - e })), gl = Math.hypot(...gn) || 1, o = R - depth * t;
+        pts.push({ x: hit.x + (gn[0] / gl) * o, y: hit.y + (gn[1] / gl) * o, z: hit.z + (gn[2] / gl) * o });
+      }
+      if (pts.length > 2) tubes.push(pts);
+    }
+    const seg = (p, a, b) => { const bx = b.x - a.x, by = b.y - a.y, bz = b.z - a.z, l2 = bx * bx + by * by + bz * bz || 1e-12, u = Math.max(0, Math.min(1, ((p.x - a.x) * bx + (p.y - a.y) * by + (p.z - a.z) * bz) / l2)); return Math.hypot(p.x - a.x - bx * u, p.y - a.y - by * u, p.z - a.z - bz * u); };
+    const box = { lo: P.g.z * sc + 5 * mm, hi: P.g.z * sc + 40 * mm };
+    return { blend: 1.6 * mm, f: (p) => { if (p.z < box.lo || p.z > box.hi || p.y < P.g.y * sc - 0.08 * sc) return Infinity; let d = Infinity; for (const T of tubes) for (let i = 0; i + 1 < T.length; i++) d = Math.min(d, seg(p, T[i], T[i + 1])); return d - R; } };
+  })() : null;
   const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
+    if (furrows) { const c = furrows.f(p); if (c < furrows.blend * 4) d = smax(d, -c, furrows.blend); }
     for (const e of ears) { const ef = e.f(p); if (ef !== Infinity) d = smin(d, ef, JOIN.ear * sc); }
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
     for (const e of eyeRigs) {
