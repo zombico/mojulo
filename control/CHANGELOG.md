@@ -142,6 +142,10 @@ vocabulary so a stage reads it by merging. Fauna later.
   when the recipe names none, its flowers in the live grass. On a polygon land the grass is the biocube's: the island
   grows none, a biocube brings back the tufts and the field (the lips' and hats' fringes stay off).
 - **A geocube's street takes one** (the geocube kind's `biocube`, `show: 'town'` or a domain's street).
+- **A cube carries its own** (a geocube's `biocube`, checked when the cube is read): its streets' flora (`show:
+  'town'`, a domain's street, a recipe's `geocube` with a `trail` in the cube's kit) unless the recipe names another.
+  `valley-morning` grows a meadow, `upland-morning` and `limestone-crags` an upland, `jungle-haze` a grove; a cube with
+  none grows nothing on its streets' land, as its island.
 - **Its grass a carpet by default.** A biocube's grass names its live carpet (`grass.live`: `{ kind, density /m²,
   height }`, the card's `live`; null for none), and a stage whose biocube grows grass lays it wherever the grass grows,
   as a recipe's `wind` or `grass` did: blades on every grassable cell round the walker, not tufts in clusters with the

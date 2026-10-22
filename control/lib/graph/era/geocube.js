@@ -48,6 +48,9 @@
  *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
  *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   biocube   (optional) what grows on its land (era/biocube.js: a preset id, a document or { from, …changes }): its
+ *             streets' flora (show 'town', a domain's street, a recipe's geocube with a trail) unless a recipe names
+ *             its own. Absent, a street's land grows nothing, as its island's
  *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
  *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
  *             polygon only
@@ -81,6 +84,7 @@ import { rampFrom, resample } from './look-facets.js';
 import { ISEKAI_STYLES } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
+import { readBiocube } from './biocube.js';
 import { STAGE_KITS, isGroundKit } from './stage.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
@@ -160,7 +164,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     ],
   },
   'jungle-haze': {
-    id: 'jungle-haze', title: 'Jungle haze', reads: 'Olive concrete, mud and a soft hazy sun',
+    id: 'jungle-haze', title: 'Jungle haze', reads: 'Olive concrete, mud and a soft hazy sun', biocube: 'grove',
     light: { reference: 'jungle-haze', outsideFog: 0.5 },
     colour: { stone: '#767a64', floor: '#5a5242', trim: '#686856', accent: '#8a5f34', grass: '#566c3c', foliage: '#3c5630', water: '#4a5848', sand: '#7a6e56' },
     register: { steps: 0, key: 0.4 },
@@ -175,7 +179,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     ],
   },
   'valley-morning': {
-    id: 'valley-morning', title: 'Valley morning', reads: 'Limestone, red roofs, a green valley',
+    id: 'valley-morning', title: 'Valley morning', reads: 'Limestone, red roofs, a green valley', biocube: 'meadow',
     light: { reference: 'island-noon', outsideFog: 1.6 },
     colour: { stone: '#b8aa8c', floor: '#9a7a58', trim: '#e6dcc4', accent: '#b8442c', grass: '#64a83a', foliage: '#3a7a32', water: '#3a8cb8', sand: '#d6c49a', shade: 236 },
     register: { steps: 0, key: 0.5 },
@@ -192,7 +196,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     ],
   },
   'upland-morning': {
-    id: 'upland-morning', title: 'Upland morning', reads: 'Limestone and red roofs on a rocky green upland',
+    id: 'upland-morning', title: 'Upland morning', reads: 'Limestone and red roofs on a rocky green upland', biocube: 'upland',
     light: { reference: 'island-noon', outsideFog: 1.6 },
     colour: { stone: '#b8aa8c', floor: '#9a7a58', trim: '#e6dcc4', accent: '#b8442c', grass: '#64a83a', foliage: '#3a7a32', water: '#3a8cb8', sand: '#d6c49a', shade: 236 },
     register: { steps: 0, key: 0.5 },
@@ -236,7 +240,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
   // the first terrain past the sixth generation: the rock drawn as erosion leaves it (a formation, near the eye), its
   // edges broken and its stones strewn (grit), under a palette solved round the stone and a clear sky
   'limestone-crags': {
-    id: 'limestone-crags', title: 'Limestone crags', reads: 'Pale limestone crags over a deep blue sea, the rock drawn near in its own beds',
+    id: 'limestone-crags', title: 'Limestone crags', reads: 'Pale limestone crags over a deep blue sea, the rock drawn near in its own beds', biocube: 'upland',
     light: { reference: 'island-noon', outsideFog: 0.8, sky: { zenith: '#5a8cc8', horizon: '#cfe1ec', fog: '#c9d8df' } },
     colour: { stone: '#c4b69c', floor: '#a9867c', trim: '#bda09f', accent: '#f49a74', grass: '#aa8957', foliage: '#554700', water: '#365d84', sand: '#b2968d', shade: 270 },
     register: { steps: 0, key: 0.62 },
@@ -331,7 +335,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -417,6 +421,8 @@ export function readGeocube(spec) {
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
+  // biocube (optional): what grows on its land, its streets' flora unless a recipe names its own (era/biocube.js)
+  if (c.biocube !== undefined) readBiocube(c.biocube);
   // surfaces
   only(c.surfaces, ['wall', 'floor', 'accent', 'pillar', 'plinth'], 'surfaces');
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
@@ -958,7 +964,9 @@ export function withGeocube(manifest) {
     if ((H !== undefined || clouds !== undefined) && m.kit !== undefined) no(`${H !== undefined ? 'hour' : 'clouds'} lights the cube's look; a trail in its own kit takes none (drop kit, or hour and clouds)`);
     const low = lowerGeocube(cube, 'outside', T?.name, H, m.kit === undefined ? Wr : undefined);
     // (its land drawn as the cube's island is, in the cube's look: its land shading, isekai.js)
-    return { ...m, kit: m.kit ?? low.kit, ...(m.kit === undefined && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}) };
+    // (and its flora the cube's biocube when the recipe names none)
+    const own = m.kit === undefined;
+    return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}) };
   }
   if (m.meru !== undefined) {
     const low = lowerGeocube(cube, 'outside', T?.name, H, Wr);
@@ -1111,9 +1119,10 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const TD = show === 'town' ? (D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : D;
   const town = show === 'land' || show === 'town' ? geocubeTown(cube, TD, manifest.style) : null, seed = manifest.seed ?? 1;
   // (a street's land is drawn as the island's: the cube's land shading, isekai.js)
-  // (and its flora a biocube's when the recipe names one, era/biocube.js: a street's trail grows it)
+  // (and its flora a biocube's, era/biocube.js: the recipe's, else the cube's own; a street's trail grows it)
   if (manifest.biocube !== undefined && show !== 'town' && !town) no('biocube is the flora of a street\'s land: show \'town\' (or a domain with a town)');
-  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(manifest.biocube !== undefined ? { biocube: manifest.biocube } : {}) };
+  const bio = manifest.biocube ?? cube.biocube;
+  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
   const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town, ...land } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town, ...land } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });

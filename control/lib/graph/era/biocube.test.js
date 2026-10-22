@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readBiocube, withFlora, BIOCUBE_IDS } from './biocube.js';
 import { assembleStageScene } from './stage.js';
-import { assembleGeocubeScene } from './geocube.js';
+import { assembleGeocubeScene, readGeocube } from './geocube.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 
 const M = { kind: 'stage', kit: 'isekai-meadow' };
@@ -54,6 +54,14 @@ describe('the flora on a stage', () => {
     const bare = assembleStageScene({ ...M, shading: true }), grown = assembleStageScene({ ...M, shading: true, biocube: 'meadow' });
     for (const g of ['isekai:grass', 'isekai:hat', 'isekai:lip']) { expect(count(bare, g)).toBe(0); expect(count(grown, g), g).toBeGreaterThan(0); }
     expect(grown.liveGrass).toBeDefined();
+  });
+
+  it('a cube carries its own: checked when the cube is read, grown on its streets unless the recipe names another', () => {
+    expect(readGeocube('valley-morning').biocube).toBe('meadow');
+    expect(() => readGeocube({ from: 'valley-morning', biocube: 'jungle' })).toThrow(/biocube/);
+    const own = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
+    expect(count(own, 'isekai:grass')).toBeGreaterThan(0);
+    expect(own.liveGrass).toBeDefined();
   });
 
   it('a geocube\'s street grows it; any other show is told where it goes', () => {

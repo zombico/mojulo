@@ -52,7 +52,8 @@ describe('the polygon land', () => {
   });
 
   it('a geocube\'s town stands on its land drawn as its island\'s', () => {
-    const T = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
+    // (a cube with no biocube of its own: its street's land grows nothing, as its island's)
+    const T = assembleGeocubeScene({ kind: 'geocube', cube: 'island-noon', show: 'town', walk: false }, {}, assembleStageScene);
     expect(T.faces.some((f) => GRASS.has(f.group))).toBe(false);
     expect(T.faces.filter((f) => f.group === 'isekai:cliff').every((f) => f.texture === undefined)).toBe(true);
     expect(T.cameras.map((c) => c.name).slice(0, 3)).toEqual(['house', 'street', 'trail']);
