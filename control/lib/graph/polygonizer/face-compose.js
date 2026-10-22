@@ -250,6 +250,23 @@ export const FACE_MARKS = Object.freeze({
   moleZones: [[40, 140], [-40, 140], [62, 92], [-62, 92], [68, 175], [-68, 175], [24, 205], [-24, 205], [30, 108], [-30, 108], [10, 76], [-10, 76], [52, 120], [-52, 120]],
   beautyZones: [[22, 113], [-22, 113], [40, 150], [-40, 150], [36, 165], [-36, 165]],
 });
+/**
+ * THE ADORNMENTS, rolled after the marks: PIERCINGS (dermal-jewel.js), each site at its chance by sex (the lobes common on
+ * women and pierced both sides, every other site rare; a bucket's own over it: a nose stud is common in South Asia), the
+ * lobe's kind by its weights, one metal a face; and now and then hair STREAKS (dermal-hair.js `streaks`): a kind, a dye
+ * mostly the hair's own lightened (the salon's), sometimes a fashion colour.
+ */
+export const FACE_ADORN = Object.freeze({
+  sites: {
+    female: { lobe: 0.7, 'upper-lobe': 0.12, helix: 0.1, nostril: 0.08, tragus: 0.03, septum: 0.03, brow: 0.015, labret: 0.015, monroe: 0.015 },
+    male: { lobe: 0.12, helix: 0.025, nostril: 0.025, brow: 0.025, septum: 0.015, labret: 0.01 },
+  },
+  buckets: { 'indo-aryan': { female: { nostril: 0.35 } }, dravidian: { female: { nostril: 0.4 } }, african: { female: { lobe: 0.82 } } },
+  lobe: { female: { stud: 0.55, hoop: 0.3, drop: 0.15 }, male: { stud: 0.7, hoop: 0.3 } },
+  metals: { gold: 0.45, silver: 0.38, rose: 0.1, black: 0.07 },
+  streaks: { chance: { female: 0.12, male: 0.04 }, kinds: { money: 0.35, tips: 0.25, scatter: 0.25, under: 0.15 }, dyes: { honey: 0.25, caramel: 0.2, platinum: 0.15, blonde: 0.15, pink: 0.06, blue: 0.05, purple: 0.05, red: 0.05, teal: 0.04 } },
+});
+const weighed = (W, r) => { const names = Object.keys(W), sum = names.reduce((a, n) => a + W[n], 0); let x = r * sum; return names.find((n) => (x -= W[n]) <= 0) || names.at(-1); };
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
 /** a shape's offsets are scaled by a seeded share in this range */
@@ -657,8 +674,19 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   if (d() < FACE_MARKS.beauty) marks.push({ kind: 'beauty', at: spot(FACE_MARKS.beautyZones, 4), size: Math.round((1.6 + 1 * d()) * 10) / 10 });
   if (d() < FACE_MARKS.birthmark) marks.push({ kind: d() < 0.7 ? 'cafe' : 'wine', at: spot(FACE_MARKS.moleZones, 10), size: Math.round((12 + 22 * d()) * 10) / 10 });
   if (marks.length) picks.marks = marks.map((m) => m.kind).join('+');
+  // the ADORNMENTS, after all else: each site two dice (its chance, its kind), the metal one, the streaks three
+  const AD = FACE_ADORN, sites = { ...AD.sites[sex], ...(AD.buckets[bucket]?.[sex] || {}) }, piercings = [];
+  const metal = weighed(AD.metals, d());
+  for (const site of Object.keys(sites)) { const on = d() < sites[site], k = d(); if (on) piercings.push(site === 'lobe' ? { site, kind: weighed(AD.lobe[sex], k), metal } : { site, metal }); }
+  if (piercings.length) picks.piercings = piercings.map((p) => p.site).join('+');
+  const sOn = d() < AD.streaks.chance[sex], sKind = weighed(AD.streaks.kinds, d()), sDye = weighed(AD.streaks.dyes, d());
+  // (a hint over the ancestry's own cut where the bucket names none; never on a buzz or what a man's loss leaves)
+  if (sOn && (sex === 'female' || !(hair.bald > 0.4)) && (!scalpHint?.style || readScalp(scalpHint).length >= 0.02)) {
+    scalpHint = { ...(scalpHint || {}), streaks: [{ kind: sKind, colour: sDye }] };
+    picks.streaks = `${sKind} ${sDye}`;
+  }
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), ...(piercings.length ? { piercings } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }

@@ -275,3 +275,23 @@ describe('locs and cornrows, anyone\'s', () => {
     expect(Math.max(...drop)).toBeGreaterThan(0.15);
   });
 });
+
+describe('hair streaks', () => {
+  it('dyes a section without moving a hair: the money pieces at the front, a scatter by the dice, none where none is asked', () => {
+    const D = readDermis('female'), plain = growScalp(chart, D, readScalp({ style: 'shoulder', spacing: 0.02 }), { colliders: ['head'] });
+    const dyed = growScalp(chart, D, readScalp({ style: 'shoulder', spacing: 0.02, streaks: [{ kind: 'money', colour: 'platinum' }, { kind: 'scatter', colour: 'pink', share: 0.2 }] }), { colliders: ['head'] });
+    expect(plain.strands.some((s) => 'streak' in s) || plain.cards.some((c) => 'streak' in c)).toBe(false);
+    expect(dyed.strands.map((s) => s.pts)).toEqual(plain.strands.map((s) => s.pts));
+    const pink = hexLin('#d8689a').map((v) => Math.round(v * 1e4) / 1e4), platinum = hexLin('#e6dcc4').map((v) => Math.round(v * 1e4) / 1e4);
+    const money = dyed.strands.filter((s) => s.streak?.colour.join() === platinum.join()), scatter = dyed.strands.filter((s) => s.streak?.colour.join() === pink.join());
+    expect(money.length).toBeGreaterThan(0);
+    // (the money pieces grow at the front of the head; the scatter's share near what was asked)
+    const front = (s) => s.pts[0][1] > 0;
+    expect(money.filter(front).length / money.length).toBeGreaterThan(0.9);
+    expect(scatter.length / (dyed.strands.length - money.length)).toBeGreaterThan(0.14);
+    expect(scatter.length / (dyed.strands.length - money.length)).toBeLessThan(0.26);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'stripe', colour: 'pink' }] })).toThrow(/kind/);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'tips', colour: 'mauve' }] })).toThrow(/colour/);
+    expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'chunk', colour: 'blue' }] })).toThrow(/at/);
+  }, 120000);
+});

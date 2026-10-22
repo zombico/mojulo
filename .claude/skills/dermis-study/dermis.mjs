@@ -22,7 +22,8 @@
 //   --lineup        the subjects side by side at the front and the front ¾ (no atlases; --lineup-all adds the lateral and
 //                   the back, two subjects to a row); --lineup-crop eyes frames
 //                   the eyes close (eye: the right eye alone; face: the face, brow to chin) (an ancestry's subject may name its eyes: id:sex:seed:monolid | inner-fold | parallel | hooded)
-//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?,"light"?}]'
+//   --faces         subjects of their own: '[{"label":"…","sex":"female","relations":{…},"eyes":{…},"ancestry"?,"seed"?,"epidermis"?,"dermis"?,"scalp"?,"tune"?,"light"?,"piercings"?}]'
+//                   (`piercings`: dermal-jewel.js's list, '["lobes", {"site":"septum","metal":"gold"}]'; the scalp's `streaks`, dermal-hair.js)
 //                   (`light`: { key, fill, rim: hexes, exposure }, an art direction's, color-theorist/adapters.js skinDirection)
 //                   (the head's relations replaced as given, the wave's tune solved for them; an ancestry rolls the
 //                   tone and the hair as --ancestry does, at the seed): a spike's sets side by side
@@ -55,6 +56,7 @@ const { relationalHeadChart, STAND_M } = await import('@/lib/graph/epidermis/der
 const { readDermis, dermisAt, hexLin, toSrgb } = await import('@/lib/graph/epidermis/dermal-map.js');
 const { layoutDermis, paintDermis, dermalPngs, reliefTile } = await import('@/lib/graph/epidermis/dermal-texture.js');
 const { growBodyHair, growScalp, readScalp, hairShade } = await import('@/lib/graph/epidermis/dermal-hair.js');
+const { pierce } = await import('@/lib/graph/epidermis/dermal-jewel.js');
 const { readEpidermis, growEpidermis } = await import('@/lib/graph/epidermis/epidermis.js');
 const { readLook, LOOKS, readAncestry } = await import('@/lib/graph/epidermis/dermal-looks.js');
 const { bodyDermis, neckTone, BODY_DERMIS } = await import('@/lib/graph/epidermis/dermal-body.js');
@@ -121,7 +123,9 @@ function headOf(sex, look = null, anc = null, face = null) {
   // the cube's brows and lashes, in the head's STAND units → metres
   const epi = growEpidermis(head, readEpidermis(epiSpec ?? (Lk ? { from: 'default', hair: Lk.epidermis.hair } : 'default')));
   const brows = epi.strands.map((s) => ({ ...s, pts: s.pts.map((p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M]), r: s.r * STAND_M }));
-  return { sex, look, rolled: Lk?.rolled ?? null, head, chart, D, S, L, T, scalp, beard, brows, epiColour: epi.colour, ms: Date.now() - t0 };
+  // (a subject's piercings, dermal-jewel.js: the jewellery's mesh on the chart)
+  const jewel = face?.piercings ? pierce(chart, head, face.piercings) : null;
+  return { sex, look, rolled: Lk?.rolled ?? null, head, chart, D, S, L, T, scalp, beard, brows, jewel, epiColour: epi.colour, ms: Date.now() - t0 };
 }
 
 // ─── the rasteriser: the atlas sampled through the face UVs, lit as skin ───
@@ -236,7 +240,10 @@ function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null, rib
     for (let k = 0; k < n; k++) {
       const p = st.pts[k], q = st.pts[k + 1], A = cam.project(p), B = cam.project(q);
       const t = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], tl = Math.hypot(...t) || 1, T = t.map((x) => x / tl);
-      const s = (k + 0.5) / n, inner = 1 - (shade_.selfShadow ?? 0.25) * (1 - s), base = root.map((c, i) => (c + (tip[i] - c) * s) * inner);
+      const s = (k + 0.5) / n, inner = 1 - (shade_.selfShadow ?? 0.25) * (1 - s);
+      // (a STREAK's dye over the hair's own from its `from` along the strand: its root and tip as the hair shader reads a colour)
+      const dw = st.streak ? Math.min(1, Math.max(0, (s - st.streak.from + 0.04) / 0.08)) : 0;
+      const base = root.map((c, i) => { const h = c + (tip[i] - c) * s; if (!dw) return h * inner; const d = st.streak.colour[i], dye = d * 0.72 + (Math.min(1, d * 1.15 + 0.003) - d * 0.72) * s; return (h + (dye - h) * dw) * inner; });
       const TL = T[0] * L[0] + T[1] * L[1] + T[2] * L[2], TH = T[0] * Hn[0] + T[1] * Hn[1] + T[2] * Hn[2];
       const diff = Math.sqrt(Math.max(0, 1 - TL * TL)), s1 = Math.sqrt(Math.max(0, 1 - (TH + shade_.primary.shift) ** 2)), s2 = Math.sqrt(Math.max(0, 1 - (TH + shade_.secondary.shift) ** 2));
       const g = shade_.gloss ?? 1, sp1 = 0.35 * g * s1 ** (8 / shade_.primary.roughness ** 2), sp2 = 0.3 * g * s2 ** (4 / shade_.secondary.roughness ** 2);
@@ -254,6 +261,16 @@ function drawStrands(R, cam, W, Hh, strands, shade, represents, flat = null, rib
       }
     }
   }
+}
+/** the JEWELLERY (dermal-jewel.js's mesh): a metal lit as metal (its colour in the diffuse and the highlight, a bright
+ * tight lobe, a little of the room reflected at the grazing), a gem glassier */
+function drawJewel(R, cam, W, Hh, J) {
+  if (!J?.mesh.faces.length) return;
+  const { vertices: V, normals: Nm, faces, material } = J.mesh;
+  raster(R, cam, W, Hh, V, faces, (fi, tri) => tri.map((v) => Nm[v]), (fi, tri, w, n, NL, NH, NV) => {
+    const m = J.materials[material[fi]], c = m.colour, d = Math.max(0, NL);
+    return c.map((v) => (m.metal ? v * (0.12 + 0.35 * d) + v * 1.6 * NH ** 60 + v * 0.45 * (1 - NV) ** 2 : v * (0.2 + 0.6 * d) + 0.9 * NH ** 120 + 0.1));
+  });
 }
 /** a tie's BAND: a ring round the bundle where it is gathered, dark and a few millimetres wide */
 function drawBands(R, cam, W, Hh, bands, shade) {
@@ -380,6 +397,7 @@ if (lineup) {
     const col0 = (k % per) * nv * W, y = Math.floor(k / per) * (Hh + 60);
     for (const [c, v] of VIEWS.slice(0, nv).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
+      drawJewel(R, cam, W, Hh, H.jewel);
       drawStrands(R, cam, W, Hh, hair, shade, rep, null, (st) => st.ribbon ?? (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0));
       drawBands(R, cam, W, Hh, H.scalp?.bands, shade);
       drawStrands(R, cam, W, Hh, H.brows, hairShade(hexLin(H.epiColour)), () => 1);
@@ -411,6 +429,7 @@ for (const [who, look, anc] of lineup || body ? [] : subjects) {
   for (const row of rows) {
     for (const [col, v] of row.views.entries()) {
       const cam = camera(v.az, v.elev, row.box, row.W, row.Hh), R = render(H, cam, row.W, row.Hh, row.mode);
+      if (row.mode === 'lit') drawJewel(R, cam, row.W, row.Hh, H.jewel);
       if (row.mode === 'kinds' && H.scalp) drawStrands(R, cam, row.W, row.Hh, H.scalp.guides.map((g) => ({ pts: g.pts, r: 0.0004 })), shade, () => 1, [0.05, 0.05, 0.08]);
       if (row.hair) { drawStrands(R, cam, row.W, row.Hh, hair, shade, rep, null, (st) => st.ribbon ?? (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0)); drawBands(R, cam, row.W, row.Hh, H.scalp?.bands, shade); }
       drawStrands(R, cam, row.W, row.Hh, fine, hairShade(hexLin(H.epiColour)), () => 1);

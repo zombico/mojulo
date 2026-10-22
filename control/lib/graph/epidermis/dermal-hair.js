@@ -14,6 +14,9 @@
  *                shorter by the coil's shrinkage, as coily hair does.
  *   TYPES        straight, wavy, curly, coily (`HAIR_TYPES`: the curl's radius and period, frizz, stiffness, clumping,
  *                root volume, flyaways, sheen); the egocube's hair textures by the same words, the coily gap closed.
+ *   STREAKS      a dye on a section of the scalp (`STREAK_KINDS`: the money pieces, a chunk, the under layer, the tips, a
+ *                scatter of babylights): each strand in one carries its `streak` (the dye's colour, linear, and where
+ *                along the strand it starts), the cards too; absent, no field.
  *   CARDS        one ribbon per guide on the head's shell: the game's hair, derived. `hairShade` gives the shader its numbers (the root darker than the
  *                tip, the shifted dual highlight of a hair shader: the primary toward the root, the secondary tinted
  *                and toward the tip).
@@ -27,7 +30,8 @@
  */
 import { streamOf } from '../city/plan/dice.js';
 import { vnoise } from '../era/dirt.js';
-import { dermisAt, hairColourOf, linHex, HEAD_LEVELS, beardStyleOf } from './dermal-map.js';
+import { dermisAt, hairColourOf, linHex, hexLin, HEAD_LEVELS, beardStyleOf } from './dermal-map.js';
+import { HAIR_COLOURS } from '../egocube/ancestry.js';
 import { lockSpine, lockB, coilSpine, drapeSpine, keepOut } from '../polygonizer/hair-spine.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -166,7 +170,43 @@ export const SCALP_STYLES = Object.freeze({
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'flipBack', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'strandWidth', 'gel', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'flipBack', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'strandWidth', 'gel', 'seed', 'stiffness', 'volume', 'frizz', 'clump', 'streaks'];
+/** The dyes a STREAK takes beyond the hair's own colours (`HAIR_COLOURS`), or any '#rrggbb'. */
+export const STREAK_DYES = Object.freeze({
+  platinum: '#e6dcc4', silver: '#c4c4c8', honey: '#b8823e', caramel: '#9a6234', copper: '#a8521f', burgundy: '#5e1626',
+  pink: '#d8689a', red: '#a81c1c', purple: '#6a3aa8', blue: '#2a56b8', teal: '#16908e', green: '#2e8a44',
+});
+/** A streak's kinds: where on the scalp its dye lies (`width`, `share`, `at` and `from` as each reads them). */
+export const STREAK_KINDS = Object.freeze({
+  // the MONEY PIECES: the sections framing the face either side of the part at the front hairline (`width`: their
+  // share of the way round, from the middle out)
+  money: { width: 0.07 },
+  // a CHUNK: the section about a clump's seat (`at`: its name or { az, rise }; `width`: its radius, m)
+  chunk: { width: 0.02 },
+  // the UNDER layer (peekaboo): the roots below `share` of the rise from the hairline, off the face
+  under: { share: 0.2 },
+  // the TIPS (ombré, dip-dye): every strand, dyed from `from` along it
+  tips: { from: 0.65 },
+  // a SCATTER (babylights): `share` of the strands, by the seeded dice
+  scatter: { share: 0.15 },
+});
+const streakDye = (c) => STREAK_DYES[c] || HAIR_COLOURS[c] || (/^#[0-9a-f]{6}$/i.test(c ?? '') ? c : null);
+/** the streaks' errors (empty = valid) */
+function streakErrors(L) {
+  if (L === undefined) return [];
+  if (!Array.isArray(L)) return ['scalp.streaks: a list of { kind, colour, at?, width?, share?, from? }'];
+  const e = [];
+  L.forEach((q, i) => {
+    const at = `scalp.streaks[${i}]`;
+    if (!q || !STREAK_KINDS[q.kind]) { e.push(`${at}.kind: ${Object.keys(STREAK_KINDS).join(' | ')}`); return; }
+    if (!streakDye(q.colour)) e.push(`${at}.colour: '#rrggbb' or a dye (${[...Object.keys(STREAK_DYES), ...Object.keys(HAIR_COLOURS)].join(', ')})`);
+    if (q.kind === 'chunk' && !(typeof q.at === 'string' ? SCALP_CLUMPS.some((c) => c.name === q.at) : q.at && Number.isFinite(q.at.az) && Number.isFinite(q.at.rise))) e.push(`${at}.at: a clump's name or { az, rise }`);
+    if (q.width !== undefined && !(q.width > 0 && q.width <= 0.25)) e.push(`${at}.width: 0 … 0.25`);
+    if (q.share !== undefined && !(q.share > 0 && q.share <= 1)) e.push(`${at}.share: 0 … 1`);
+    if (q.from !== undefined && !(q.from >= 0 && q.from < 1)) e.push(`${at}.from: 0 (the root) … 1 (the tip)`);
+  });
+  return e;
+}
 const CUT_KEYS = ['line', 'fringe', 'envelope', 'taper', 'shelf', 'strip', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
@@ -236,7 +276,7 @@ export function readScalp(spec = 'short') {
   if (out.gel !== undefined && !(out.gel >= 0 && out.gel <= 1)) throw new Error('scalp: gel 0 … 1 (what stands worked up, back and in to a ridge)');
   if (out.strandWidth !== undefined && !(out.strandWidth >= 0.1 && out.strandWidth <= 1)) throw new Error('scalp: strandWidth 0.1 … 1 (the share of the gap a strand\'s ribbon covers)');
   if (!(out.ragged >= 0 && out.ragged <= 2)) throw new Error('scalp: ragged 0 … 2 (0 a cut without wander: a buzz)');
-  const ce = cutErrors(out.cut); if (ce.length) throw new Error(ce.join('; '));
+  const ce = [...cutErrors(out.cut), ...streakErrors(out.streaks)]; if (ce.length) throw new Error(ce.join('; '));
   return Object.freeze(out);
 }
 
@@ -638,6 +678,25 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     return best;
   };
   const tieOf = roots.map(tieFor);
+  // ── the STREAKS: which dye a root's hair takes (the first listed that claims it), and from where along it ──
+  const STK = (S.streaks || []).map((q, k) => {
+    const K = STREAK_KINDS[q.kind], c = hexLin(streakDye(q.colour)).map((v) => Math.round(v * 1e4) / 1e4);
+    const seat = q.kind === 'chunk' ? ((at) => seatOf(at.az, at.rise))(typeof q.at === 'string' ? SCALP_CLUMPS.find((c_) => c_.name === q.at) : q.at) : -1;
+    return { ...K, ...q, k, colour: c, seat };
+  });
+  const streakOf = (at, key) => {
+    for (const q of STK) {
+      const fd = ad(at.address.around, 0);
+      const on = q.kind === 'money' ? fd > 0.02 && fd < 0.02 + q.width && riseOf(at) < 0.35
+        : q.kind === 'chunk' ? q.seat >= 0 && len(sub(at.p, G[q.seat])) < q.width
+          : q.kind === 'under' ? riseOf(at) < q.share && fd > 0.12
+            : q.kind === 'tips' ? true
+              : streamOf(S.seed, 'dermal-streak', `${q.k}:${key}`)() < q.share;
+      if (on) return { colour: q.colour, from: q.from ?? 0 };
+    }
+    return null;
+  };
+  const dyed = (o, at, key) => { if (!STK.length) return o; const sk = streakOf(at, key); return sk ? { ...o, streak: sk } : o; };
   // ── the comb at a root, then smoothed on its own side of the part ──
   const pAround = S.part === 'side' ? 0.92 : 0;
   // (a part runs over the top from the hairline toward the crown, never down the back: below it the comb is one field)
@@ -855,7 +914,7 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
       // (a row's strand runs in its plait from where it joins it)
       const u0 = TIES[st].path ? TIES[st].pathCum[alongRow(TIES[st], at.p).j] / tl.Lt : 0;
       for (let j = 0; j <= NT; j++) { const u = u0 + (end - u0) * (j / NT); pts.push(tl.point(th + (dice() - 0.5) * 0.05, rho, u)); }
-      strands.push({ pts, r: 0.00004, groom: 'scalp' });
+      strands.push(dyed({ pts, r: 0.00004, groom: 'scalp' }, at, `s${si}`));
       return;
     }
     const sd = sideOf(at.address), ns = nearestK(G, at.p, 3, (j) => tieOf[j] < 0 && (sd === 0 ? side[j] === 0 || nearestK(G, at.p, 1)[0].i === j : side[j] === sd));
@@ -876,9 +935,9 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     }
     // pushed out of the head straight along its normal (the guides were framed round the face; a strand beside its guides
     // pushed sideways as they were would zigzag)
-    strands.push({ pts: pts.map((q, i) => (i > 1 ? keepOut(q, i < NS / 2 ? headS : colsS, 0.04).p : q)), r: 0.00004, groom: 'scalp' });
+    strands.push(dyed({ pts: pts.map((q, i) => (i > 1 ? keepOut(q, i < NS / 2 ? headS : colsS, 0.04).p : q)), r: 0.00004, groom: 'scalp' }, at, `s${si}`));
   });
   // ── the cards: a ribbon per guide, for an engine ──
-  const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return { guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }; });
+  const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return dyed({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }, roots[gi], `g${gi}`); });
   return { guides, strands, cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }

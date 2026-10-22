@@ -213,6 +213,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - THE SKIN'S MARKS (dermal-map.js `marks`, `MARK_KINDS`): moles, a beauty mark, birthmarks (a café-au-lait patch, a
   port-wine stain) at mm on the head, painted into the skin's colour, a stain's edge wandering; the composer rolls up to
   three moles a face, a beauty mark in its classic places now and then, a birthmark rarely (`FACE_MARKS`).
+- HAIR STREAKS (dermal-hair.js scalp key `streaks`, `STREAK_KINDS`, `STREAK_DYES`): the money pieces framing the face,
+  a chunk at a clump's seat, the under layer, the tips (ombré, from a share along the strand), a scatter of babylights;
+  each strand and card in one carries its `streak` (the dye, linear, and where along it the dye starts). The hair grows
+  exactly as without; absent, no field. A buzz under 2 cm takes none.
+- PIERCINGS (new epidermis/dermal-jewel.js `pierce`, `readPiercings`, `PIERCING_SITES`): the lobe and the upper lobe, the
+  helix, the tragus, the nostril, the septum, the brow, the bridge, the labret, a lip ring, the monroe and the medusa,
+  each placed from the head's landmarks and settled on its surface by the field (the ear's sites from the ear's own
+  samples), in a kind the site takes (stud, a gem set; hoop through its hole, hanging off the tissue's edge; barbell;
+  drop) and a metal; out, the pieces and one mesh (balls, rings, wires) in the chart's frame with its materials.
+- ADORNMENTS in the composer (`FACE_ADORN`), rolled after the marks: each site at its chance by sex (the lobes on most
+  women, few men, every other site rare; a nose stud common in the South Asian buckets), one metal a face; now and then
+  streaks, mostly the salon's lightened dyes, sometimes a fashion colour, as a scalp hint. The rolls before them keep
+  their dice.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

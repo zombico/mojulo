@@ -6,6 +6,7 @@ import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
+import { readPiercings } from '../epidermis/dermal-jewel.js';
 
 describe('the face composer', () => {
   it('is deterministic: the same seed composes the same face', () => {
@@ -128,7 +129,8 @@ describe('the face composer', () => {
       const f = composeFace({ seed }), D = f.dermis;
       expect(() => readDermis({ from: 'female', ...D })).not.toThrow();
       expect(D.hairline).toBeGreaterThanOrEqual(FACE_HAIRLINE.hairline.female[0]); expect(D.hairline).toBeLessThanOrEqual(FACE_HAIRLINE.hairline.female[1]);
-      expect(!!f.scalp).toBe(D.peak !== undefined);
+      // (the peak's hint; a streak's rides a scalp hint of its own)
+      expect(!!f.scalp && Object.keys(f.scalp).some((k) => k !== 'streaks')).toBe(D.peak !== undefined);
     }
     const share = (a) => a.filter((b) => b > 0).length / a.length;
     expect(share(lossOf('western', 'male'))).toBeGreaterThan(0.3);
@@ -226,5 +228,14 @@ describe('beauty, asymmetry and the skin\'s marks', () => {
     for (const f of fs) expect(() => readDermis({ from: 'female', ...f.dermis })).not.toThrow();
     expect(fs.filter((f) => f.dermis.marks?.some((m) => m.kind === 'mole')).length).toBeGreaterThan(30);
     expect(fs.some((f) => f.dermis.marks?.some((m) => m.kind === 'beauty'))).toBe(true);
+  });
+  it('rolls adornments last: pierced lobes on most women and few men, now and then streaks, each a list the readers take', () => {
+    const W = Array.from({ length: 80 }, (_, i) => composeFace({ sex: 'female', seed: i + 1 })), Mn = Array.from({ length: 80 }, (_, i) => composeFace({ sex: 'male', seed: i + 1 }));
+    const lobes = (fs) => fs.filter((f) => f.piercings?.some((p) => p.site === 'lobe')).length;
+    expect(lobes(W)).toBeGreaterThan(40); expect(lobes(Mn)).toBeLessThan(25);
+    for (const f of [...W, ...Mn]) { expect(() => readPiercings(f.piercings)).not.toThrow(); if (f.scalp?.style) expect(() => readScalp(f.scalp)).not.toThrow(); }
+    const S = Array.from({ length: 200 }, (_, i) => composeFace({ sex: 'female', bucket: 'dravidian', seed: i + 1 }));
+    expect(S.filter((f) => f.scalp?.streaks).length).toBeGreaterThan(5);
+    expect(S.filter((f) => f.piercings?.some((p) => p.site === 'nostril')).length).toBeGreaterThan(40);
   });
 });
