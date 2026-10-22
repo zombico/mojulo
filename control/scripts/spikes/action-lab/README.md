@@ -81,6 +81,30 @@ start, not rising) is the card's call:
 The standing dummy (1.7 m) is taller than every jump but the platformer's, so the page's **Critter** (H) swaps in a
 short one (0.8 m) that every feel can land on.
 
+## The air jump and the wall (Mega Man X)
+
+The card's `air` and `cling`, on the three non-realistic feels:
+
+| feel | air jump | wall slide | wall jump | one wall climbed? |
+|---|---|---|---|---|
+| **realistic** | none | none | none | no |
+| **action** | 1, 0.8× the jump's height | 2.5 m/s | up 0.9×, away 4 m/s, a 6 f kick | yes, about +1.0 m a kick |
+| **platformer** | 1, 0.9× | 2 m/s | up 1×, away 5 m/s, an 8 f kick | yes, about +1.5 m a kick |
+| **pinball** | 1, 0.7× | 4 m/s (slippery) | up 0.8×, away 8 m/s, a 6 f kick | no: its kick outruns its air control, momentum is the feel |
+
+- **The slide.** Falling against a wall with the stick into it (at least 0.3 of the stick's push) slides down it at a
+  constant speed, facing out as X does. Letting go of the stick lets the body fall free. The tall **tower** in the
+  arena's corner is there to climb.
+- **The kick.** A jump on the wall kicks off it, up and away. The kick's horizontal speed is fixed for its frames
+  (the stick is locked out); after that, holding back toward the wall carries the body back to it. A held jump each
+  time it clings climbs one wall; a tapped jump is cut short and loses height (the variable jump applies to kicks too).
+- **The wall's coyote time.** A jump pressed up to 4–5 frames after leaving the wall still kicks off it, counted
+  from the frame after leaving, as the ground's coyote time is.
+- **What a jump in the air does,** in order: a coyote jump, a wall jump, the enemy step, an air jump, else it waits in
+  the buffer for the landing. Landing and touching a wall give the air jumps back.
+- **Pinball's walls** are bumpers above 3 m/s; slower than that in the air they are plain walls, so a body can come to
+  rest on one and slide.
+
 ## The stomp attack
 
 The card's `pound` is an attack in the air turned downward. It drops in a straight line (no gravity's curve), after
@@ -107,13 +131,15 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 92 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 112 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
 - **Jump.**
   - A ground jump leaves on press + commit: 12, 3, 0 and 0 frames.
   - The full hold's apex is the card's height to the millimetre. Gravity is integrated exactly and split at the apex.
+  - The buffer and the coyote windows are tested on their own, with the air jump and the wall set aside (an air jump
+    takes a press that would otherwise wait for the landing).
   - A longer hold never rises less. A tap reaches 0.37 / 0.56 / 0.42 m in action / platformer / pinball, against
     1.3 / 1.81 / 1.0 m for the full hold.
 - **Buffer and coyote, to the frame.** A press `buffer` frames before landing jumps on the landing; one frame earlier
@@ -140,6 +166,15 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   - An idle pad moves nothing.
   - The same pad gives the same trace, byte for byte, and the four feels play it four different ways.
   - Realistic's fitted jab is the take.
+- **The air jump and the wall.**
+  - Each non-realistic feel air-jumps once, rising its share of the jump to the millimetre; a further press waits,
+    saying the air jumps are spent.
+  - Against a wall with the stick into it, the body drops exactly the slide's speed each frame, facing out. Let go,
+    it falls free.
+  - A jump on the wall kicks off it at the kick's speed, fixed for every frame of its lock with the stick still into
+    the wall, rising its share of the jump. A jump inside the wall's coyote time still kicks.
+  - Action and platformer climb one wall by held kicks (each kick higher than the last); pinball does not. Touching a
+    wall gives the air jump back. Realistic has none of it.
 - **The stomp attack.**
   - Realistic has none, and the dropped press says why.
   - Each other feel's air attack holds still for its hang to the frame, then drops at exactly its speed.

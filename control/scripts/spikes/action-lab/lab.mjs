@@ -33,7 +33,7 @@ const html = `<meta charset="utf-8">
   --ink: #eef1f5; --dim: #8e9aab; --line: #2a3240;
   --hero: #5fd0c8; --dummy: #e8a35a; --shadow: #000000;
   --startup: #3fbf6b; --active: #e5484d; --recovery: #4a86e8; --stop: #f4f1de; --stun: #f08a4b; --air: #3a4658;
-  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --spark: #fff3b0; --smear: #5fd0c8;
+  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --spark: #fff3b0; --smear: #5fd0c8;
   --good: #3fbf6b; --bad: #e5484d;
   --display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
   --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -126,7 +126,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher) · J attack (in the air: the stomp attack; action: back + J) · K dodge · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
           <div class="tbtns"><button type="button" data-tbtn="DODGE">Dodge</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
@@ -134,7 +134,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       </div>
       <div class="bar">
         <canvas id="strip" aria-label="The last two seconds, frame by frame: the hero above, the dummy below, presses as marks"></canvas>
-        <div class="legend"><span><i style="background:var(--startup)"></i>startup</span><span><i style="background:var(--active)"></i>active</span><span><i style="background:var(--recovery)"></i>recovery</span><span><i style="background:var(--stop)"></i>hitstop</span><span><i style="background:var(--stun)"></i>stun</span><span><i style="background:var(--gather)"></i>gather</span><span><i style="background:var(--air)"></i>air</span><span><i style="background:var(--inv)"></i>invincible</span><span><i style="background:var(--guard)"></i>guard</span><span><i style="background:var(--mercy)"></i>mercy</span><span>▲ press (orange: dropped)</span></div>
+        <div class="legend"><span><i style="background:var(--startup)"></i>startup</span><span><i style="background:var(--active)"></i>active</span><span><i style="background:var(--recovery)"></i>recovery</span><span><i style="background:var(--stop)"></i>hitstop</span><span><i style="background:var(--stun)"></i>stun</span><span><i style="background:var(--gather)"></i>gather</span><span><i style="background:var(--air)"></i>air</span><span><i style="background:var(--inv)"></i>invincible</span><span><i style="background:var(--guard)"></i>guard</span><span><i style="background:var(--mercy)"></i>mercy</span><span><i style="background:var(--cling)"></i>wall slide</span><span>▲ press (orange: dropped)</span></div>
       </div>
     </div>
     <aside>

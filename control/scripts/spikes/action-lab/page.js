@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
@@ -104,6 +104,7 @@ function catOf(who) {
   if (a?.kind === 'guard') return 'guard';
   if (B.stun > 0 || a?.kind === 'hurt' || a?.kind === 'stagger' || a?.kind === 'bonk') return 'stun';
   if (B.mercy > 0) return 'mercy';
+  if (B.cling) return 'cling';
   if (!B.grounded) return 'air';
   return null;
 }
@@ -125,6 +126,7 @@ const say = {
   stomp: (e) => (e.immune ? 'stomped, but the dummy is in its mercy: a bounce only' : `stomp: the dummy squashed, the bounce ${e.held ? 'high (jump held)' : 'low'} at ${e.vz.toFixed(1)} m/s`),
   'bounce-off': (e) => (e.immune ? 'bounced off (the dummy is in its mercy)' : `bounced off the dummy at ${e.vz.toFixed(1)} m/s (fell at ${e.fell.toFixed(1)}), the dummy ricochets`),
   slide: () => 'on its head: slid off (its top is no floor)',
+  cling: () => 'on the wall: sliding down it', 'wall-jump': (e) => (e.coyote ? 'wall jump, a moment after leaving the wall' : 'wall jump: kicked off the wall'), 'air-jump': (e) => `air jump (${e.left} left)`,
   pound: (e) => ({ plunge: 'plunge: straight down', pound: 'ground pound: the flip, then the drop', bounce: 'bounce attack: straight down' })[e.kind],
   'pound-jump': () => 'ground-pound jump: the jump out of the pound\'s lag goes higher', 'pound-bounce': () => 'bounced back up off the floor', step: () => 'enemy step: a fresh jump off the dummy', bump: () => null,
 };
@@ -142,7 +144,7 @@ function onEvent(e) {
     const p = open('attack', 'effect'); if (p) { p.effect = e.f; p.out = e.type === 'hit' ? `hit${e.advantage != null ? ` (linked +${e.advantage})` : ''}` : e.type; }
     sparks.push({ p: [S.dummy.p[0], S.dummy.p[1], S.dummy.p[2] + 1.3], t: 0, big: e.finisher || e.hitstop > 6 });
   }
-  if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step' || e.type === 'pound-bounce')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
+  if (e.who === 'hero' && (e.type === 'stomp' || e.type === 'bounce-off' || e.type === 'step' || e.type === 'pound-bounce' || e.type === 'wall-jump' || e.type === 'air-jump')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2]], t: 0, big: e.type !== 'step' });
   if (e.who === 'hero' && (e.type === 'hit' || e.type === 'evaded')) sparks.push({ p: [S.hero.p[0], S.hero.p[1], S.hero.p[2] + 1.3], t: 0, big: false, evade: e.type === 'evaded' });
   if (presses.length > 20) presses.shift();
   dirty.log = true;
@@ -322,7 +324,7 @@ function renderFeel() {
 const DIALS = [
   ['Ground', 'ground.run', 'run', 1, 24, 0.5, 'm/s'], ['Ground', 'ground.accel', 'accel', 1, 120, 1, 'm/s²'], ['Ground', 'ground.decel', 'decel', 1, 120, 1, 'm/s²'],
   ['Jump', 'jump.commit', 'commit', 0, 20, 1, 'f'], ['Jump', 'jump.height', 'height', 0.2, 3, 0.05, 'm'], ['Jump', 'jump.gRise', 'rise g', 5, 60, 0.5, 'm/s²'], ['Jump', 'jump.gFall', 'fall g', 5, 80, 0.5, 'm/s²'],
-  ['Jump', 'jump.cut', 'cut', 0.1, 1, 0.05, '×'], ['Jump', 'jump.hang', 'hang', 0, 20, 1, 'f'], ['Jump', 'jump.coyote', 'coyote', 0, 20, 1, 'f'], ['Jump', 'jump.buffer', 'buffer', 0, 20, 1, 'f'], ['Jump', 'jump.air', 'air control', 0, 1, 0.05, '×'],
+  ['Jump', 'jump.cut', 'cut', 0.1, 1, 0.05, '×'], ['Wall', 'cling.slide', 'wall slide', 0.5, 8, 0.5, 'm/s'], ['Wall', 'cling.away', 'kick away', 1, 12, 0.5, 'm/s'], ['Wall', 'cling.lock', 'kick lock', 0, 20, 1, 'f'], ['Wall', 'cling.up', 'kick up', 0.3, 1.5, 0.05, '×'], ['Air', 'air.jumps', 'air jumps', 0, 3, 1, ''], ['Air', 'air.mult', 'air jump', 0.3, 1.5, 0.05, '×'], ['Jump', 'jump.hang', 'hang', 0, 20, 1, 'f'], ['Jump', 'jump.coyote', 'coyote', 0, 20, 1, 'f'], ['Jump', 'jump.buffer', 'buffer', 0, 20, 1, 'f'], ['Jump', 'jump.air', 'air control', 0, 1, 0.05, '×'],
   ['Moves', 'moves.string.0.startup', 'first startup', 1, 30, 1, 'f'], ['Moves', 'moves.buffer', 'buffer', 0, 20, 1, 'f'], ['Hit', 'hit.hitstop.base', 'hitstop base', 0, 20, 1, 'f'],
 ];
 const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);

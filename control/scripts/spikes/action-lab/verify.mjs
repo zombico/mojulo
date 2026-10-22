@@ -64,10 +64,11 @@ for (const id of FEEL_IDS) {
   check(`${id}: a longer hold never rises less, the shortest is ${C.jump.cut < 1 ? 'lower' : 'the same (no cut)'}`, holds.every((h, i) => !i || h >= holds[i - 1] - 1e-9) && (C.jump.cut < 1 ? holds[0] < holds.at(-1) : holds[0] === holds.at(-1)), holds);
   row['tap apex (m)'] = holds[0];
 
-  // ─── buffer: a press before landing ───
+  // ─── buffer: a press before landing (its window on its own: an air jump would take the press) ───
+  const CW = { ...C, air: null, cling: null };
   const L = ld.f, held = ap.f + C.jump.hang + 2;
   for (const k of [C.jump.buffer, C.jump.buffer + 1]) {
-    const r = track(run(C, (f) => (f >= 10 && f < held) || f === L - k ? J : 0, 300));
+    const r = track(run(CW, (f) => (f >= 10 && f < held) || f === L - k ? J : 0, 300));
     const second = ev(r, 'takeoff')[1], acted = ev(r, 'acted').filter((e) => e.button === 'jump')[1];
     if (k <= C.jump.buffer) check(`${id}: a press ${k} f before landing (the buffer) jumps on the landing, + commit`, acted?.f === L && second?.f === L + C.jump.commit, { landing: L, acted: acted?.f, takeoff: second?.f });
     else check(`${id}: a press ${k} f before landing (one past the buffer) is dropped, and says so`, !second && ev(r, 'dropped').some((e) => e.button === 'jump' && /buffer ran out/.test(e.why)), ev(r, 'dropped').map((e) => e.why));
@@ -77,9 +78,9 @@ for (const id of FEEL_IDS) {
   const LEDGE = { half: 400, blocks: [{ id: 'shelf', x: [-50, 50], y: [-50, 0], h: 1 }], hero: [0, -3], dummy: [300, 300] };
   const up = (S) => { S.hero.p[2] = 1; };
   const walk = (f) => pad(0, 127, 0);
-  const off = track(run(C, walk, 200, { arena: LEDGE, setup: up })); const edge = ev(off, 'edge')[0].f;
+  const off = track(run(CW, walk, 200, { arena: LEDGE, setup: up })); const edge = ev(off, 'edge')[0].f;
   for (const k of [C.jump.coyote, C.jump.coyote + 1]) {
-    const r = track(run(C, (f) => pad(0, 127, f === edge + k ? J : 0), 200, { arena: LEDGE, setup: up }));
+    const r = track(run(CW, (f) => pad(0, 127, f === edge + k ? J : 0), 200, { arena: LEDGE, setup: up }));
     const tko = ev(r, 'takeoff')[0], landed = ev(r, 'land')[0];
     if (k <= C.jump.coyote) check(`${id}: a press ${k} f after walking off (the coyote) jumps from the air`, tko?.f === edge + k && ev(r, 'coyote').length === 1, { edge, takeoff: tko?.f });
     else check(`${id}: a press ${k} f after walking off (one past the coyote) does not jump in the air`, !tko || (landed && tko.f >= landed.f), { edge, takeoff: tko?.f, land: landed?.f });
@@ -149,7 +150,53 @@ for (const id of FEEL_IDS) {
   const st = track(run(C, (f) => (f === 0 || f === 14 ? J : 0), 120, { arena: BESIDE }));
   const stepEv = ev(st, 'step'), offEv = ev(st, 'takeoff');
   if (LD.step) check(`${id}: a jump pressed in the air touching a body is an enemy step: a fresh jump on the press`, stepEv.length === 1 && offEv.length >= 2 && offEv[1].f === 14, { stepEv: stepEv.map((e) => e.f), takeoffs: offEv.map((e) => e.f) });
-  else check(`${id}: no enemy step: a jump pressed in the air beside a body does not jump there`, !stepEv.length && !offEv.some((e, i) => i > 0 && e.f === 14), { takeoffs: offEv.map((e) => e.f) });
+  else check(`${id}: no enemy step: a jump pressed in the air beside a body is no step there (an air jump, if the card has one)`, !stepEv.length && (C.air ? ev(st, 'air-jump').some((e) => e.f === 14) : !offEv.some((e, i) => i > 0 && e.f === 14)), { takeoffs: offEv.map((e) => e.f) });
+
+  // ─── the air jump and the wall (Mega Man X) ───
+  const AJ = C.air, CL = C.cling;
+  // a jump held to its apex; at each apex, let go and press again (held): the air jumps, then one press past them
+  const twice = { events: [] };
+  { let S = newState(C, body, { arena: OPEN }), holding = true, apexes = 0, gap = -1;
+    for (let f = 0; f < 260; f++) {
+      const b = f < 10 ? 0 : f === gap ? 0 : holding ? J : 0;
+      S = step(S, b); twice.events.push(...S.events);
+      for (const e of S.events) if (e.type === 'apex' && e.who === 'hero') { apexes++; gap = f + 1; }
+      if (S.hero.grounded && apexes) break;
+    } }
+  const aj = ev(twice, 'air-jump'), offs2 = ev(twice, 'takeoff');
+  if (AJ) {
+    const ap2 = twice.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > aj[0]?.f);
+    check(`${id}: a jump in the air is an air jump (${AJ.jumps}), rising ${AJ.mult}× the jump's height from where it was pressed; the next is spent`, aj.length === AJ.jumps && Math.abs(ap2.height - C.jump.height * AJ.mult) < 1e-3 && offs2.length === 1 + AJ.jumps && ev(twice, 'buffered').some((e) => /spent/.test(e.why)), { airJumps: aj.length, apex: ap2?.height, want: +(C.jump.height * AJ.mult).toFixed(4), takeoffs: offs2.length });
+  } else check(`${id}: no air jump: a jump in the air does not jump there`, !aj.length && offs2.length === 1, { takeoffs: offs2.length });
+  const CLIFF = { half: 400, blocks: [{ id: 'cliff', x: [1, 3], y: [-50, 50], h: 30 }], hero: [0.69, 0], dummy: [300, 300] };
+  const onWall = (z = 4) => (S) => { S.hero.p[2] = z; S.hero.grounded = false; };
+  const into = [127, 0, 0];
+  const sl = track(run(C, () => into, 60, { arena: CLIFF, setup: onWall() }));
+  if (CL) {
+    const c0 = ev(sl, 'cling')[0], dz = Array.from({ length: 10 }, (_, k) => sl.states[c0.f + 2 + k].hero.p[2] - sl.states[c0.f + 1 + k].hero.p[2]);
+    const free = track(run(C, () => 0, 60, { arena: CLIFF, setup: onWall() })), fz = free.states[20].hero.v[2];
+    check(`${id}: falling against a wall with the stick into it slides down it at ${CL.slide} m/s, facing out; let go, it falls free`, c0 && dz.every((d) => Math.abs(d + CL.slide / FPS) < 1e-9) && Math.abs(sl.states[c0.f + 5].hero.yaw + Math.PI / 2) < 1e-9 && fz < -CL.slide - 1, { cling: c0?.f, dz: +dz[0].toFixed(6), freeFall: +fz.toFixed(3) });
+    const kick = c0.f + 10, kj = track(run(C, (f) => (f >= kick && f < kick + 40 ? [127, 0, J] : into), 120, { arena: CLIFF, setup: onWall() }));
+    const wj = ev(kj, 'wall-jump')[0], lockV = Array.from({ length: CL.lock }, (_, k) => kj.states[kick + k].hero.v[0]);
+    const apw = kj.events.find((e) => e.type === 'apex' && e.who === 'hero' && e.f > wj?.f);
+    check(`${id}: a jump on the wall kicks off it: ${CL.away} m/s away (fixed through its ${CL.lock} f, the stick into the wall ignored) and ${CL.up}× the jump's height up`, wj?.f === kick && lockV.every((v) => Math.abs(v + CL.away) < 1e-9) && Math.abs(apw.height - C.jump.height * CL.up) < 1e-3, { kick: wj?.f, lockV: lockV.map((v) => +v.toFixed(3)), apex: apw?.height });
+    const lv = track(run(C, (f) => (f < kick ? into : f === kick + CL.coyote ? [-127, 0, J] : [-127, 0, 0]), 120, { arena: CLIFF, setup: onWall() }));
+    check(`${id}: off the wall, a jump inside ${CL.coyote} f still kicks off it (the wall's coyote)`, ev(lv, 'wall-jump')[0]?.coyote === true && ev(lv, 'wall-jump')[0].f === kick + CL.coyote, ev(lv, 'wall-jump').map((e) => [e.f, e.coyote]));
+    // climbing: hold into the wall, a held jump each time it clings
+    let pressAt = -1, heights = [];
+    { let S = newState(C, body, { arena: CLIFF }); S.hero.p[2] = 2; S.hero.grounded = false;
+      for (let f = 0; f < 600 && heights.length < 4; f++) { S = step(S, [127, 0, pressAt >= 0 && f >= pressAt && f < pressAt + 18 ? J : 0]); for (const e of S.events) { if (e.type === 'cling') pressAt = f + 3; if (e.type === 'wall-jump') heights.push(e.z); } } }
+    row['wall climb'] = heights.map((z) => z.toFixed(2)).join(' → ');
+    const climbs = heights.length >= 4 && heights.every((z, i) => !i || z > heights[i - 1]);
+    if (C.wall.model === 'bounce') check(`${id}: no climbing a single wall: the kick is too fast for its air control to bring it back (momentum is the feel)`, !climbs, heights);
+    else check(`${id}: one wall is climbed by repeated wall jumps, holding back toward it (Mega Man X)`, climbs, heights.map((z) => +z.toFixed(3)));
+    if (AJ) {
+      const re = track(run(C, () => into, 30, { arena: CLIFF, setup: (S) => { onWall(4)(S); S.hero.airLeft = 0; } }));
+      check(`${id}: touching a wall gives the air jump back`, ev(re, 'cling').length && re.states[ev(re, 'cling')[0].f].hero.airLeft === AJ.jumps, { left: re.states[(ev(re, 'cling')[0]?.f) ?? 0]?.hero.airLeft });
+    }
+  } else {
+    check(`${id}: no wall slide: against a wall with the stick into it, the body falls free`, !ev(sl, 'cling').length && sl.states[30].hero.v[2] < -3);
+  }
 
   // ─── the stomp attack: an attack in the air turned downward ───
   const PD = C.pound, SKY = { half: 400, blocks: [], hero: [0, -5], dummy: [0, 300] };

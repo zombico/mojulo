@@ -26,6 +26,13 @@
  * STOMPS (the body is squashed, the stomper bounces, higher with the jump held); pinball's spinning body BOUNCES off it
  * like a bumper and the body ricochets. Bodies never pass into each other: walking into one stops at its side.
  *
+ * THE AIR JUMP AND THE WALL (the card's `air` and `cling`), Mega Man X's way: a jump pressed in the air, once it is
+ * no coyote jump, no wall jump and no enemy step, is an air jump while the card has one left (reset on landing and on
+ * a wall). Falling against a wall with the stick into it SLIDES down it at a constant speed; a jump on the wall (or a
+ * few frames after leaving it) KICKS off it, up and away, the stick locked out for the kick's frames, after which
+ * holding back toward the wall carries the body back to it: a single wall climbed by repeated wall jumps. The
+ * non-realistic feels have both; realistic neither.
+ *
  * THE STOMP ATTACK (the card's `pound`): an attack in the air turned downward. Action's PLUNGE (back + attack; the
  * attack alone stays the air jab) drops at once and its landing is a launching blow on a body or a shockwave beside
  * one, then a landing lag. Platformer's GROUND POUND (Mario) flips in place, drops straight, stomps a body harder and
@@ -77,7 +84,12 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            causes; { model: 'rule', base s, decay, min s } combat-hit's combo rule; { model: 'none' }), force
  *            (momentum { gain, lift deg } | boop { push, bounce, hop } | ricochet { restitution, floor }), mercy (frames
  *            a hit body cannot be hit again), alert (frames a free body that saw a hit guards the next)
- *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap }
+ *   wall     stop { stagger m/s } | bonk { above, rebound, hop } | bounce { e, cap, soft (m/s: in the air, a slower
+ *            contact is a plain wall, so a body can come to rest on it and cling) }
+ *   air      the air jump, or null: jumps (in the air, reset on landing and on a wall), mult (× the jump's height)
+ *   cling    the wall, or null: slide (m/s down it), toward (the stick's share into the wall that holds it), up (× the
+ *            jump's height: the wall jump), away (m/s off the wall), lock (frames the kick ignores the stick), coyote
+ *            (frames after leaving the wall a jump still kicks off it)
  *   pound    the stomp attack, or null: kind (plunge | pound | bounce), stick (back: back + attack, any: attack),
  *            hang (frames held in the air first), speed (m/s down), radius (m: a plunge's shockwave), force (over the
  *            card's hit force), stun (frames: a pound's stomp), lag (frames on the floor), jump (× the jump's height:
@@ -105,6 +117,8 @@ export const FEELS = Object.freeze({
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
     pound: null,
+    air: null,
+    cling: null,
     look: { squash: 0, smear: null },
   },
   action: {
@@ -123,6 +137,8 @@ export const FEELS = Object.freeze({
     hit: { hitstop: { base: 4, perMs: 0.6, max: 14 }, stun: { model: 'rule', base: 0.5, decay: 0.85, min: 0.12 }, force: { model: 'momentum', gain: 2, lift: 0 }, mercy: 0, alert: 60 },
     wall: { model: 'stop', stagger: null },
     land: { model: 'slide', slide: 3, step: { cooldown: 12 } },
+    air: { jumps: 1, mult: 0.8 },
+    cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
     look: { squash: 0.06, smear: 0.09 },
   },
@@ -138,6 +154,8 @@ export const FEELS = Object.freeze({
     hit: { hitstop: { base: 2, perMs: 0, max: 2 }, stun: { model: 'none' }, force: { model: 'boop', push: 2.5, bounce: 3, hop: 0.3 }, mercy: 60, alert: 0 },
     wall: { model: 'bonk', above: 4.5, rebound: 3, hop: 0.5 },
     land: { model: 'stomp', low: 0.6, high: 1.806, stun: 90 },
+    air: { jumps: 1, mult: 0.9 },
+    cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
     look: { squash: 0.22, smear: null },
   },
@@ -151,8 +169,10 @@ export const FEELS = Object.freeze({
       cancel: 'none', buffer: 6, root: 'keep', air: true,
     },
     hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'ricochet', restitution: 1.3, floor: 6 }, mercy: 20, alert: 0 },
-    wall: { model: 'bounce', e: 1.3, cap: 20 },
+    wall: { model: 'bounce', e: 1.3, cap: 20, soft: 3 },
     land: { model: 'bounce', min: 1.0, restitution: 1.3, floor: 6 },
+    air: { jumps: 1, mult: 0.7 },
+    cling: { slide: 4, toward: 0.3, up: 0.8, away: 8, lock: 6, coyote: 4 },
     pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
     look: { squash: 0.1, smear: 0.05 },
   },
@@ -166,6 +186,7 @@ export const ARENA = Object.freeze({
     { id: 'low', x: [-7, -3], y: [1, 5], h: 0.4 },
     { id: 'ledge', x: [3, 7], y: [2, 4.5], h: 1.1 },
     { id: 'wall', x: [-2, 2], y: [7, 7.6], h: 2.5 },
+    { id: 'tower', x: [5.5, 7.5], y: [-7.5, -5.5], h: 5 },
   ],
   hero: [0, -3], dummy: [0, 0],
 });
@@ -173,7 +194,7 @@ export const ARENA = Object.freeze({
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
-  return { h, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+  return { h, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
@@ -184,8 +205,10 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * every feel's jump; the standing dummy (1.7) is taller than most.
  */
 export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT } = {}) {
-  return { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0,
+  const S = { f: 0, card: copy(card), body, arena, spar, guard, events: [], queue: [], held: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
+  S.hero.airLeft = card.air?.jumps ?? 0;
+  return S;
 }
 
 // ─── the step ───────────────────────────────────────────────────────────
@@ -219,6 +242,8 @@ export function step(S0, pad) {
     if (B.alert > 0) B.alert--;
     if (B.lag > 0) B.lag--;
     if (B.stepCd > 0) B.stepCd--;
+    if (B.wallLock > 0) B.wallLock--;
+    if (B.wallCoyote > 0 && !B.cling && B.leftWall !== S.f) B.wallCoyote--;   // counted from the frame after leaving, as the ground's
     if (B.squash > 0) B.squash--;
   }
   for (const q of S.queue) if (!H.stop) q.age++;
@@ -264,8 +289,9 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (a?.kind === 'move' && !cancelOpen(S, a)) return { reason: 'in a move\'s startup or active frames', queue: true };
     if (a?.kind === 'dodge') return { reason: 'in a dodge', queue: true };
     if (H.grounded || H.coyote > 0) return true;
-    if (canStep(S)) return true;
-    return { reason: 'in the air', queue: true };
+    if (canWallJump(S) || canStep(S)) return true;
+    if (C.air && H.airLeft > 0) return true;
+    return { reason: C.air ? 'in the air, the air jumps spent' : 'in the air', queue: true };
   }
   if (name === 'attack') {
     if (a?.kind === 'pound' || a?.kind === 'poundLag') return { reason: 'in a stomp attack', queue: true };
@@ -299,9 +325,10 @@ function act(S, name, stick, waited) {
   S.events.push({ f: S.f, who: 'hero', type: 'acted', button: name, waited });
   if (name === 'jump') {
     if (!H.grounded) {
-      if (H.coyote > 0) S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote });
-      else { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; }
-      takeOff(S, H, 'hero'); return;
+      if (H.coyote > 0) { S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote }); takeOff(S, H, 'hero'); return; }
+      if (canWallJump(S)) return wallJump(S, H);
+      if (canStep(S)) { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; takeOff(S, H, 'hero'); return; }
+      H.airLeft--; S.events.push({ f: S.f, who: 'hero', type: 'air-jump', left: H.airLeft }); takeOff(S, H, 'hero', C.air.mult); return;
     }
     if (H.act?.kind === 'poundLag') { S.events.push({ f: S.f, who: 'hero', type: 'pound-jump' }); takeOff(S, H, 'hero', C.pound.jump); return; }
     H.act = null;
@@ -346,13 +373,22 @@ function moveBody(S, B, who, stick, buttons) {
   else if (a?.kind === 'dodge') dodgeVelocity(S, B);
   else if (rooted) { const m = C.moves.string[a.i]; const speed = a.f < m.startup ? m.lunge / (m.startup * DT) : 0; B.v[0] = Math.sin(B.yaw) * speed; B.v[1] = Math.cos(B.yaw) * speed; }
   else if (B.grounded && (!stick || !free)) slide(B);
+  else if (B.wallLock > 0 && !B.grounded) { /* the wall jump's kick: fixed, the stick locked out */ }
   else if (B.grounded || want) control(B, want, Gd, B.grounded ? 1 : C.jump.air);
+  // the wall: falling against one with the stick into it slides down it (the hero's, a card with `cling`)
+  const CL = who === 'hero' ? C.cling : null;
+  let clung = null;
+  if (CL && !B.grounded && B.v[2] <= 0 && free && !a && stick && stick.m > 0) {
+    const n = wallNear(S, B);
+    if (n && -(stick.x * n[0] + stick.y * n[1]) > CL.toward * stick.m) clung = n;
+  }
   // facing follows the stick (a move keeps its own, set at the press)
   if (want && free && a?.kind !== 'move' && a?.kind !== 'dodge' && (B.grounded || C.jump.air > 0.5)) B.yaw = turnToward(B.yaw, want.heading, Gd.turn * DEG * DT);
   // the gather: the body waits on the ground for its take-off
   if (a?.kind === 'gather' && a.f >= a.of && B.grounded) takeOff(S, B, who);
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
   if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
+  else if (clung) { B.v[2] = -CL.slide; B.p[2] -= CL.slide * DT; }   // down the wall at a constant speed
   else if (!B.grounded && !(a?.kind === 'dodge' && C.dodge.kind === 'dash')) fall(S, B, who);
   // the floor plane: substeps no longer than 8 cm against the walls
   const sp = len2(B.v[0], B.v[1]); const n = Math.max(1, Math.ceil((sp * DT) / 0.08));
@@ -362,6 +398,11 @@ function moveBody(S, B, who, stick, buttons) {
     const hit = resolveWalls(S, B); if (hit && !wallHit) { wallHit = hit; wallResponse(S, B, who, hit); }
   }
   ground(S, B, who);
+  if (clung && !B.grounded) {
+    if (!B.cling) S.events.push({ f: S.f, who, type: 'cling', n: clung.map(r4), z: r4(B.p[2]) });
+    B.cling = clung; B.wallN = clung; B.wallCoyote = CL.coyote; B.yaw = Math.atan2(clung[0], clung[1]);   // faces out, as X does
+    B.v[0] = 0; B.v[1] = 0; if (C.air) B.airLeft = C.air.jumps;
+  } else if (B.cling) { B.cling = null; B.leftWall = S.f; }
   // the stride: a cycle at the ground's rate (strides a second = speed ÷ the travel of a stride at that speed)
   if (B.grounded) B.stride = (B.stride + strideRate(S, len2(B.v[0], B.v[1])) * DT) % 1;
   if (!B.grounded && C.jump.spin && B.jumped) B.spin += Math.min(2 * Math.PI / 8, (2 * len2(B.v[0], B.v[1]) / 0.45) * DT);
@@ -414,7 +455,7 @@ function ground(S, B, who) {
   }
   if (B.coyote > 0) B.coyote--;
   if (B.p[2] <= g && B.v[2] <= 0) {
-    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false;
+    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps;
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
@@ -441,7 +482,7 @@ function resolveWalls(S, B) {
 function wallResponse(S, B, who, n) {
   const W = S.card.wall, into = -(B.v[0] * n[0] + B.v[1] * n[1]); if (into <= 0) return;
   const leaning = B.touched === S.f - 1; B.touched = S.f;   // pressed on into a wall it already touched: no new event
-  if (W.model === 'bounce') {
+  if (W.model === 'bounce' && !(W.soft && !B.grounded && into < W.soft)) {
     B.v[0] += n[0] * (1 + W.e) * into; B.v[1] += n[1] * (1 + W.e) * into;
     const s = len2(B.v[0], B.v[1]); if (s > W.cap) { B.v[0] *= W.cap / s; B.v[1] *= W.cap / s; }
     S.events.push({ f: S.f, who, type: 'wall', response: 'bounce', into: r4(into), out: r4(Math.min(W.cap, s)) }); return;
@@ -550,6 +591,28 @@ function poundBody(S, H, D, top, nx, ny) {
   S.events.push({ f: S.f, who: 'hero', type, on: 'dummy', pound: true, vz: r4(H.v[2]), hitstop: stop });
 }
 
+// ─── the wall: sliding down it, kicking off it ─────────────────────────
+/** the normal of a wall the body is against (within 3 cm): the arena's edge or a block taller than a step, else null */
+function wallNear(S, B) {
+  const A = S.arena, lim = A.half - RADIUS - 0.03;
+  for (const [i, s] of [[0, 1], [0, -1], [1, 1], [1, -1]]) if (B.p[i] * s >= lim) return i === 0 ? [-s, 0] : [0, -s];
+  for (const k of A.blocks) {
+    if (k.h <= B.p[2] + STEP) continue;
+    const cx = clamp(B.p[0], k.x[0], k.x[1]), cy = clamp(B.p[1], k.y[0], k.y[1]), dx = B.p[0] - cx, dy = B.p[1] - cy, d = len2(dx, dy);
+    if (d > 1e-9 && d <= RADIUS + 0.03) return [dx / d, dy / d];
+  }
+  return null;
+}
+function canWallJump(S) { const H = S.hero; return !!(S.card.cling && !H.grounded && H.wallN && (H.cling || H.wallCoyote > 0)); }
+/** the kick: up (the card's share of the jump) and away from the wall, the stick locked out for `lock` frames */
+function wallJump(S, H) {
+  const CL = S.card.cling, n = H.wallN;
+  S.events.push({ f: S.f, who: 'hero', type: 'wall-jump', n: n.map(r4), z: r4(H.p[2]), coyote: !H.cling });
+  takeOff(S, H, 'hero', CL.up);
+  H.v[0] = n[0] * CL.away; H.v[1] = n[1] * CL.away; H.yaw = Math.atan2(n[0], n[1]);
+  H.wallLock = CL.lock; H.cling = null; H.wallCoyote = 0;
+}
+
 /** the enemy step: a jump in the air off a body the hero touches (beside it or on it), if the card has one */
 function canStep(S) {
   const H = S.hero, D = S.dummy, st = S.card.land.step;
@@ -645,6 +708,7 @@ export function poseOf(S, who) {
     const at = B.lastHit && (B.stun > 0 || a?.kind === 'hurt') ? S.f - B.lastHit.f : a?.f ?? 0;
     return { ...base, clip: 'react', take: a?.kind === 'stagger' || a?.kind === 'bonk' ? 'cross' : B.lastHit?.take ?? 'jab', at, air: !B.grounded };
   }
+  if (B.cling) return { ...base, clip: 'air', u: 0.85, cling: true };
   if (!B.grounded) {
     const v0 = Math.sqrt(2 * C.jump.gRise * C.jump.height);
     return { ...base, clip: C.jump.spin && B.jumped ? 'spin' : 'air', u: clamp((v0 - B.v[2]) / (2 * v0), 0, 1), spin: B.spin };
