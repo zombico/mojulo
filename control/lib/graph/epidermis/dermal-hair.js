@@ -27,7 +27,7 @@
  */
 import { streamOf } from '../city/plan/dice.js';
 import { vnoise } from '../era/dirt.js';
-import { dermisAt, hairColourOf, linHex, HEAD_LEVELS } from './dermal-map.js';
+import { dermisAt, hairColourOf, linHex, HEAD_LEVELS, beardStyleOf } from './dermal-map.js';
 import { lockSpine, lockB, coilSpine, drapeSpine, keepOut } from '../polygonizer/hair-spine.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -274,7 +274,8 @@ export function growBodyHair(chart, D, { share = 0.25, tracts = null, scalpLengt
     if (!(L > 0.0003) || (H.tract === 'beard' && L < 0.0015)) return;
     const dice = streamOf(seed, 'dermal-body', `${fi}`);
     // (a beard of a lock's length grows as LOCKS: ribbons of hair at the type's strand, falling and curling, below)
-    if (H.tract === 'beard' && L >= BEARD_LOCK.min) { beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts); return; }
+    // (a style long anywhere grows all of itself as locks: its moustache's hairs, trimmed short at the lip, among them)
+    if (H.tract === 'beard' && (L >= BEARD_LOCK.min || styleLocks(D))) { beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts); return; }
     const want = H.density * faceArea(chart, tri) * 1e4 * share, n = Math.floor(want) + (dice() < want % 1 ? 1 : 0);
     const c = (counts[H.tract] ??= { strands: 0, represents: Math.round(1 / share) });
     for (let i = 0; i < n; i++) {
@@ -298,8 +299,12 @@ export function growBodyHair(chart, D, { share = 0.25, tracts = null, scalpLengt
  * strands of a lock (a cell of the face) share its hand and phase, so they coil together.
  */
 const BEARD_LOCK = Object.freeze({ min: 0.006, cell: 0.005, coarse: 0.85, tighter: 0.7, lift: 0.5 });
+/** a beard style with a zone a lock's length grows the whole of itself as locks */
+const styleLocks = (D) => !!D.beardStyle && Math.max(...Object.values(beardStyleOf(D.beardStyle).lengths)) >= BEARD_LOCK.min * 1000;
 function beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts) {
-  const ty = HAIR_TYPES[type] || HAIR_TYPES.straight, gap = ty.strand.gap * BEARD_LOCK.coarse, dice = streamOf(seed, 'dermal-beard', `${fi}`);
+  const ty = HAIR_TYPES[type] || HAIR_TYPES.straight, dice = streamOf(seed, 'dermal-beard', `${fi}`);
+  // (denser where the style's zone is: the strands closer, so a thick moustache grows more of them)
+  const dense = Math.max(1, H.density / (55 * Math.max(D.beard, 1e-6))), gap = (ty.strand.gap * BEARD_LOCK.coarse) / Math.sqrt(dense);
   const want = faceArea(chart, tri) / (gap * gap), n = Math.floor(want) + (dice() < want % 1 ? 1 : 0);
   const c = (counts.beard ??= { strands: 0, represents: Math.max(1, Math.round(55 * D.beard * (gap * 100) ** 2)), lock: true });
   // (a straight beard grows a long, low wave; a wavy, curly or coily one its type's curl, tighter)
@@ -308,7 +313,7 @@ function beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts
   for (let i = 0; i < n; i++) {
     let b1 = dice(), b2 = dice(); if (b1 + b2 > 1) { b1 = 1 - b1; b2 = 1 - b2; }
     const at = onFace(chart, tri, b1, b2), h = dermisAt(at.address, D, { detail: false }).hair;
-    if (h.kind !== 'terminal' || h.tract !== 'beard' || !(h.length >= BEARD_LOCK.min * 1000)) continue;
+    if (h.kind !== 'terminal' || h.tract !== 'beard' || !(h.length >= (styleLocks(D) ? 1.5 : BEARD_LOCK.min * 1000))) continue;
     const Lh = (h.length / 1000) * (1 + 0.2 * ragged * (2 * dice() - 1)), th = h.flow + (dice() - 0.5) * 0.3;
     const dir = unit(add(scl(at.ta, Math.cos(th)), scl(at.tr, Math.sin(th))));
     // the lock: its cell on the face (the strands that share it coil together)
@@ -317,7 +322,7 @@ function beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts
     const K = Math.max(6, Math.min(40, Math.ceil(Lh / 0.0015))), sag = smooth(0.006, 0.04, Lh), pts = [add(at.p, scl(at.n, 0.00005))];
     let p = pts[0];
     for (let k = 1; k <= K; k++) {
-      const s = (k - 0.5) / K, e = BEARD_LOCK.lift * (1 - s) ** 1.2;
+      const s = (k - 0.5) / K, e = BEARD_LOCK.lift * (h.lift / 0.3) * (1 - s) ** 1.2;
       let d = add(scl(dir, Math.cos(e)), scl(at.n, Math.sin(e)));
       d = unit(add(scl(d, 1 - sag * s), scl([0, 0, -1], sag * s)));
       if (coil) d = unit(add(d, scl(at.n, -0.35 * s)));
@@ -326,7 +331,7 @@ function beardLocks(chart, tri, fi, D, L, H, type, seed, ragged, strands, counts
       pts.push(p);
     }
     const turns = Lh / (curl.period * curlShrink(curl)), coiled = coilSpine(pts, { radius: curl.radius, turns, hand: 1, from: 0.05, ...chiralOf(ty.chiral, seed, lockId, Lh) }, Lh, at.n, !ty.curl || !!ty.curl.planar, lockPhase);
-    strands.push({ pts: coiled, r: 0.00004, groom: 'beard', ribbon: gap * ty.strand.width, represents: c.represents });
+    strands.push({ pts: coiled, r: 0.00004, groom: 'beard', ribbon: gap * ty.strand.width * (1 + 0.5 * (dense - 1)), represents: c.represents });
     c.strands++;
   }
 }

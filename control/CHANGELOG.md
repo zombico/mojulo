@@ -159,6 +159,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The moustache is trimmed at the lip line, as it usually is: a hair above the upper lip grows no longer than its way down
   to the lip's border, so none hangs over the lip (a beard of strands, 1.5 mm and longer; the painted shadow as it was);
   a style may let it over (`overLip`, none does yet).
+- A styled beard is fuller (dermal-map.js `BEARD_ZONES`, the operator's eyes): denser and lifted off the skin by zone, the
+  moustache thickest (2.4 × the tract's hairs, lifted most), the chin and the cheeks full; its locks closer and a little
+  wider where it is denser, and a style long anywhere grows all of itself as locks (its trimmed moustache among them).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

@@ -231,5 +231,8 @@ describe('the beard\'s styles', () => {
     const D = readDermis({ from: 'male', beardStyle: 'moustache' }), near = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, h: dermisAt(x, D, { detail: false }).hair })).filter(({ q, M, h }) => h.tract === 'beard' && q.Y > M.ls.Y && q.Y < M.ls.Y + 4 && Math.abs(q.X) < 20);
     expect(near.length).toBeGreaterThan(0);
     for (const { q, M, h } of near) expect(h.length).toBeLessThanOrEqual(Math.max(1.5, (q.Y - M.ls.Y) * 1.15) + 1e-9);
+    // (and thick: a styled moustache denser than the bare tract, its hairs lifted off the lip)
+    expect(Math.max(...near.map(({ h }) => h.density))).toBeGreaterThan(55 * 1.5);
+    expect(Math.max(...near.map(({ h }) => h.lift))).toBeGreaterThan(0.3);
   });
 });

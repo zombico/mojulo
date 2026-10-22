@@ -84,6 +84,9 @@ export const BEARD_STYLES = Object.freeze({
   'chin-strap': { zones: { chin: 1, cheeks: 1 }, strap: 12, neck: 10, lengths: { moustache: 0, chin: 6, cheek: 6 } },
   moustache: { zones: { moustache: 1 }, lengths: { moustache: 10, chin: 0, cheek: 0 } },
 });
+/** a styled beard's density (× the tract's) and lift (its hairs' rise off the skin, its volume) by zone: the moustache
+ * thickest and bushiest, the chin and the cheeks full (the operator's eyes, 2026-10-22) */
+export const BEARD_ZONES = Object.freeze({ density: { moustache: 2.4, chin: 1.6, cheek: 1.6 }, lift: { moustache: 0.7, chin: 0.5, cheek: 0.5 } });
 /** the beard's style at an address on the relational head: { mask 0 … 1 over the tract, length mm } (null without a style) */
 export function beardStyleAt(A, D) {
   if (!D.beardStyle || !A.marks) return null;
@@ -102,8 +105,8 @@ export function beardStyleAt(A, D) {
   let mask = Math.min(1, Math.max(...Object.values(w)));
   if (B.neck !== undefined) mask *= smooth(me - B.neck - 3, me - B.neck + 3, q.Y);
   const L = B.lengths, ws = (w.moustache + w.corners * 0.5) + (w.chin + w.soul + w.corners * 0.5) + w.cheeks || 1;
-  const length = ((w.moustache + w.corners * 0.5) * L.moustache + (w.chin + w.soul + w.corners * 0.5) * L.chin + w.cheeks * L.cheek) / ws;
-  return { mask, length, cheek: B.cheek ?? 0 };
+  const by = (V) => ((w.moustache + w.corners * 0.5) * V.moustache + (w.chin + w.soul + w.corners * 0.5) * V.chin + w.cheeks * V.cheek) / ws;
+  return { mask, length: by(L), density: by(BEARD_ZONES.density), lift: by(BEARD_ZONES.lift), cheek: B.cheek ?? 0 };
 }
 /** a style word or { style, lengths } → the style, its lengths over the word's */
 export const beardStyleOf = (s) => (typeof s === 'string' ? BEARD_STYLES[s] : { ...BEARD_STYLES[s.style], lengths: { ...BEARD_STYLES[s.style].lengths, ...(s.lengths || {}) } });
@@ -483,7 +486,7 @@ export function hairTract(A, R, D) {
       // the lip's border, so none hangs over the lip; a style may let it, `overLip`; the painted shadow as it was)
       let len = BS ? BS.length : D.stubble;
       if (lip && A.marks && len >= 1.5 && !(D.beardStyle && beardStyleOf(D.beardStyle).overLip)) len = Math.max(1.5, Math.min(len, (headXY(A).Y - A.marks.points.ls.Y) * 1.15));
-      return T('beard', 55 * D.beard * w('beard'), len, flowOf(-1, out), 0.3);
+      return T('beard', 55 * D.beard * w('beard') * (BS ? BS.density : 1), len, flowOf(-1, out), BS ? BS.lift : 0.3);
     }
     return vellus;
   }
