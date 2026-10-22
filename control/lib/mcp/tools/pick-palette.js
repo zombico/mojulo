@@ -11,7 +11,7 @@ import { novelSeed, nearestRecent, recentPalettes } from '@/lib/graph/color-theo
 import { coverPalette, pixelPalette } from '@/lib/graph/color-theorist/adapters.js';
 import './palette-ledger.js';
 
-const SPEC_FIELDS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values', 'era'];
+const SPEC_FIELDS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values'];
 
 export function pickPaletteHandler(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(`pick_palette takes { ${SPEC_FIELDS.join('?, ')}?, variants? }`);
@@ -24,7 +24,7 @@ export function pickPaletteHandler(input = {}) {
   const palettes = Array.from({ length: variants }, (_, i) => {
     const K = solvePalette({ ...spec, seed: seed + i }), failing = K.checks.filter((c) => !c.ok), near = nearestRecent(K, recent);
     return {
-      palette: K.spec, id: K.id, read: K.read, roles: K.roles, ...(K.relief ? { era: K.era, relief: K.relief } : {}), light: K.light, shadow: K.shadow, fog: K.fog, ui: K.ui, cover: coverPalette(K),
+      palette: K.spec, id: K.id, read: K.read, roles: K.roles, light: K.light, shadow: K.shadow, fog: K.fog, ui: K.ui, cover: coverPalette(K),
       pixel: { '8bit': pixelPalette(K, 3), '16bit': pixelPalette(K, 15) },
       checks: `${K.checks.length - failing.length} of ${K.checks.length} laws hold`,
       ...(failing.length ? { failing: failing.map(({ law, want, value }) => ({ law, want, value })) } : {}),
@@ -59,7 +59,6 @@ export function registerPickPaletteTools() {
         air: { type: 'string', enum: Object.keys(PALETTE_AIRS), description: 'full (default), thin (Mars: a dusty sky), none (vacuum: a void sky, no haze).' },
         shift: { type: 'object', description: 'The palette moved: { turn?: degrees, light?: −1…1, chroma?: ×0.25…2, warm?: −1…1 }.' },
         values: { type: 'object', description: 'Value groups { groups: 2 | 3, of? }: the land in a few masses.' },
-        era: { type: 'string', enum: ['gen-6', 'gen-7'], description: 'gen-6 pure poly (default); gen-7 adds ramp relief for textures.' },
         script: { type: 'string', enum: PALETTE_SCRIPT_IDS, description: "A world's colour script: shifted level by level." },
         seed: { type: 'integer', description: 'The dice for what the spec leaves open (rolled when left out; returned in the spec).' },
         variants: { type: 'integer', description: 'How many palettes to choose between, from consecutive seeds (1–6, default 1).' },

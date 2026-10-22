@@ -125,23 +125,6 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
-### The 7th-gen cube: the texture-map layer, decided where the colours are solved
-
-Two generations, one line: gen-6 is pure poly (baked vertex colour on flat facets, every value on screen a ramp stop
-lit), gen-7 is the texture-map layer (relief-painted tiles, the resampler, the rock's fabric, and the palette steps
-they speak in). The line is drawn where the colours are solved, so it cascades.
-
-- **The colour theorist splits** (color-theorist/solve.js). A palette spec's `era` (era/eras.js: `'gen-6'` the
-  default, `'gen-7'`). A gen-7 palette solves exactly as gen-6 does (the same candidate, ramps, light, shadow, fog and
-  HUD) and adds `relief`: each role's ramp with two deeper shades under its darkest and their two light negatives over
-  its lightest, nine stops, the middle five the ramp's own, added to and never regrown. A shade steps down by most of
-  the ramp's own lowest step, leans on toward the shadow's hue and keeps its chroma, no deeper than OKLCH L 0.12 and
-  no more chroma than that lightness carries in sRGB (a painted shadow, never black); its light steps up as far,
-  toward the light's hue, paling; each side pressed in at its floor or ceiling and the pair kept within half to twice
-  each other. `reliefOf(ramp, Hl, Hs)`. Its laws (`RELIEF_LAWS`, advice stamped after the palette's own): the steps a
-  texture can read (ΔL ≥ 0.035), the deepest a colour, the pairs balanced, the land's lit lips about the sky's light
-  end by day. `pick_palette` takes `era` and returns the relief. A gen-6 spec solves byte for byte as before.
-
 ### Geotown structures: doors and windows, the street, the square, the gates
 
 The geotown's buildings up close, and the town round them: its openings as architecture rather than marks on a wall.
