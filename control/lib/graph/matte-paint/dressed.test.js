@@ -177,3 +177,22 @@ describe('the modern class and the roads', () => {
     }
   });
 });
+
+describe('the natural class (parked: the land a town stands in)', () => {
+  it('each cut is seamless and its own bytes, painted in its stone\'s grey alone; on the rails', () => {
+    for (const cut of ['turf', 'leaves', 'bark']) {
+      const T = dressedTile({ ...CFG, stone: [200, 200, 200], cut, metres: 1 }, { size: 192, seed: 3 });
+      let over = 0;
+      for (let j = 1; j < T.H - 1; j++) {
+        let most = 0;
+        for (let i = 1; i < T.W; i++) most = Math.max(most, Math.abs(lum(T, i, j) - lum(T, i - 1, j)));
+        if (Math.abs(lum(T, T.W - 1, j) - lum(T, 0, j)) > 1.25 * most + 4) over++;
+      }
+      expect(over, cut).toBe(0);
+      let hue = 0; for (let i = 0; i < T.W * T.H; i++) hue = Math.max(hue, Math.abs(T.rgb[i * 3] - T.rgb[i * 3 + 1]), Math.abs(T.rgb[i * 3 + 1] - T.rgb[i * 3 + 2]));
+      expect(hue, cut).toBeLessThanOrEqual(1);
+      expect(Buffer.compare(dressedTile({ ...CFG, stone: [200, 200, 200], cut, metres: 1 }, { size: 192, seed: 3 }).rgb, T.rgb), cut).toBe(0);
+      expect(normalizeTileSpec({ gen: 'dressed', stone: [1, 2, 3], mortar: [1, 2, 3], cut }).params.cut).toBe(cut);
+    }
+  });
+});

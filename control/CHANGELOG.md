@@ -125,6 +125,14 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### The gritty land: its cliffs and boulders drawn as the gritty island's
+
+A gritty cube paints its buildings, streets and rooms from relief, and its island draws its rock's own formation on the
+cliffs; the cliffs and boulders of its town and trail were still the isekai kit's pixel-locked tiles.
+
+- **Parked for the flora:** the matte painter's natural cuts, `turf`, `leaves` and `bark` (`matte-paint/dressed.js`,
+  on the dressed tile's rails), grey relief tiles to lay over the ground, a crown and a trunk. Nothing lays them yet.
+
 ### Geotown structures: doors and windows, the street, the square, the gates
 
 The geotown's buildings up close, and the town round them: its openings as architecture rather than marks on a wall.

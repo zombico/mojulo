@@ -79,7 +79,7 @@ export function layDetail(face, { key, metres, unit = 1, as = 'wall' }) {
  *               wall by whole bond periods (`stepV`) and along it by `stepU` (0: any), its cut a bed joint
  *   'strips'    upright work (boards): strips a few boards wide, each read at a shift along by whole boards, up any
  *   'grid'      a regular grid (slabs, panels): cells of whole units, each read at a shift of whole units both ways
- *   'hex'       free-form work (a render, stucco, asphalt): three readings at seeded shifts blended on a hexagonal grid,
+ *   'hex'       free-form work (a render, stucco, asphalt, the natural cuts): three readings at seeded shifts blended on a hexagonal grid,
  *               the blend holding the tile's contrast round its mean
  * Every plan also lays a broad wash of tone over the surface (`macro`), so a street does not read as one swatch.
  */
@@ -96,6 +96,7 @@ export function resamplePlan(key) {
   // (a render's coat lies over coursed stone: its readings shift down by whole courses, so the stone's beds run on across
   // a blend, and blend sharply, so little of the coat is seen twice)
   if (cut === 'render') return { kind: 'hex', cell: 1, sharp: 14, stepV: r4(1 / rows), mean: DETAIL_MEAN, seed, macro };
+  if (cut === 'turf' || cut === 'leaves' || cut === 'bark') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
   if (cut === 'stucco' || cut === 'asphalt') return { kind: 'hex', cell: 1, sharp: 8, mean: DETAIL_MEAN, seed, macro };
   return null;
 }

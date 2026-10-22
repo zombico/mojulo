@@ -44,6 +44,12 @@
  * edges proud), its cracks sealed in tar, an oil stain here and there. And an ANCIENT road: `'setts'` (a floor) small
  * stones in courses (`rows` × `cols` a repeat, their lengths their own), crowned and worn smooth on top, set in sand.
  *
+ * The NATURAL class, the land a town stands in (era/gritty-land.js): `cut: 'turf'` (a floor) a sward from above, blades
+ * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
+ * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
+ * rounded plates between furrows running up and forking. Each is painted in its stone's
+ * ramp alone (a grey, laid as a detail, rides on the face's own colour).
+ *
  * SEAMLESS by construction: whole courses and whole blocks a repeat (a course's breaks wrap round its length), every
  * block painted in its own coordinates and laid whole, wrapping round the edge it crosses, and the light's march and
  * cavity wrapped (light.js `tile`). Pure: the seed's dice only; the same cfg and seed paint the same bytes.
@@ -72,6 +78,7 @@ export function dressedTile(cfgIn, { size = 512, seed = 1 } = {}) {
   if (cut === 'tile' || cut === 'slate') return roofTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   if (cut === 'boards') return boardsTile({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   if (MODERN[cut]) return MODERN[cut]({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
+  if (NATURAL[cut]) return NATURAL[cut]({ ...DRESSED_DEFAULTS, ...cfgIn }, size, seed);
   const c = { ...DRESSED_DEFAULTS, ...cfgIn }, W = size, H = size, M = c.metres, px = M / size, g = c.grit;
   const { height, owner, lx, ly, blocks } = ashlarField(c, W, H, seed);
   if (cut === 'render') return renderTile(c, { W, H, px, height, owner, lx, ly, blocks }, seed);
@@ -467,5 +474,67 @@ const MODERN = {
       const tone = (cellHash(x, y, M, sw, seed + 17) - 0.5) * 2 * c.vary / 255;
       return rampAt(body, 0.6 + (lit.value[k] - 1) * 1.1 + tone + 0.03 * sfbm(x, y, M, 0.1, 0.1, 2, seed + 19) - 0.18 * stain[k] - 0.3 * crack[k] - 0.3 * lit.cavity[k]);
     });
+  },
+};
+
+// ── the natural class ───────────────────────────────────────────────────────────────────────────────────────────────
+// the land a gritty cube's buildings stand in (era/gritty-land.js), painted as its stone is: no colour of its own (its
+// ramp a grey's, so laid as a detail it rides on the face's own colour), every mark relief the light finds
+const TURF_LIGHT = { az: 90, el: 56, ambient: 0.38, wrap: 0.25, reach: 0.03, soft: 0.002, floor: 0.4, radius: 0.014, cavity: 0.6, edge: 0.14, tile: true };
+const LEAF_LIGHT = { az: 95, el: 50, ambient: 0.34, wrap: 0.3, reach: 0.05, soft: 0.003, floor: 0.32, radius: 0.02, cavity: 0.7, edge: 0.16, tile: true };
+// the strokes of a wrapped grid's cells (cells of `cell`, snapped round M) that cover (x, y): `each(cx, cy, h)` for each
+// of `per` marks a cell in the 3 × 3 cells round it, h(q) the mark's own dice
+function marksNear(x, y, M, cell, per, seed, each) {
+  const n = Math.max(1, Math.round(M / cell)), cs = M / n, ci = Math.floor(x / cs), cj = Math.floor(y / cs);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const I = ci + di, J = cj + dj, wi = ((I % n) + n) % n, wj = ((J % n) + n) % n;
+    for (let q = 0; q < per; q++) { const h = (r) => hash01(wi * per + q, wj, seed + r * 7); each((I + h(1)) * cs, (J + h(2)) * cs, h, cs); }
+  }
+}
+const NATURAL = {
+  // a sward from above: blades in every direction, each a tapered ridge, standing in tussocks; bare earth where a broad
+  // patch is worn through (more of it with grit), a shade down and smooth but for its crumbs
+  turf(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), bare = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      const b = clamp((-0.3 + 0.3 * g - sfbm(x, y, M, 0.7, 0.7, 3, seed + 5)) / 0.08, 0, 1);
+      let z = 0;
+      marksNear(x, y, M, 0.035, 3, seed + 11, (cx, cy, h, cs) => {
+        const a = h(3) * Math.PI, ux = Math.cos(a), uy = Math.sin(a), L = cs * (1.6 + 1.2 * h(4)), wd = cs * 0.13, dx = x - cx, dy = y - cy;
+        const t = clamp(dx * ux + dy * uy, -L / 2, L / 2), d = Math.hypot(dx - t * ux, dy - t * uy);
+        if (d < wd) { const v = 0.005 * (0.55 + 0.45 * h(5)) * (1 - (2 * t / L) ** 2) * Math.sqrt(1 - d / wd); if (v > z) z = v; }
+      });
+      bare[k] = b;
+      return z * (1 - b) + 0.007 * sfbm(x, y, M, 0.25, 0.25, 3, seed + 3) * (1 - 0.6 * b) + 0.0006 * sfbm(x, y, M, 0.015, 0.015, 2, seed + 13) * b;
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.06 * sfbm(x, y, M, 0.45, 0.45, 3, seed + 17) - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.06 * bare[k]));
+  },
+  // a crown's skin: leaves laid over one another, each pointed at both ends, domed across, a groove down its midrib, its
+  // tip dipped; the dark between them where the crown is deep
+  leaves(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size), gap = new Float32Array(size * size);
+    return paintedTile(c, size, LEAF_LIGHT, (x, y, k) => {
+      let best = -1, z = 0, tn = 0;
+      marksNear(x, y, M, 0.15, 4, seed + 11, (cx, cy, h, cs) => {
+        const layer = h(6); if (layer <= best) return;
+        const a = h(3) * Math.PI * 2, ux = Math.cos(a), uy = Math.sin(a), L = cs * (0.75 + 0.45 * h(4)), W = L * 0.4, dx = x - cx, dy = y - cy;
+        const s = (dx * ux + dy * uy) / (L / 2), w = (W / 2) * Math.max(0, 1 - s * s) ** 0.75, b = -dx * uy + dy * ux;
+        if (Math.abs(s) >= 1 || Math.abs(b) >= w) return;
+        const q = b / w;
+        best = layer; tn = (h(5) - 0.5) * 2 * c.vary / 255;
+        z = 0.006 * layer + 0.004 * (1 - q * q) * (1 - s * s) - 0.0012 * Math.exp(-(q * q) / 0.012) - 0.002 * Math.max(0, s);
+      });
+      gap[k] = best < 0 ? 1 : 0; tone[k] = tn;
+      return best < 0 ? -0.014 + 0.002 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 3) : z;
+    }, (x, y, k, lit) => rampAt(body, 0.58 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.04 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 17) - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.35 * gap[k]));
+  },
+  // a trunk's bark, u round it and v up it: plates between furrows that run up the trunk and fork, each plate a rounded
+  // ridge, its face scaled fine (rougher with grit)
+  bark(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone);
+    return paintedTile(c, size, SHAFT_LIGHT, (x, y, k) => {
+      // (each plate a rounded ridge rising out of the furrows either side of it)
+      const r = smoothstep(0.03, 0.42, Math.abs(sfbm(x, y, M, 0.04, 0.3, 3, seed + 3)));
+      return 0.012 * Math.sqrt(r) + (0.0015 + 0.0015 * g) * sfbm(x, y, M, 0.02, 0.05, 3, seed + 9) * r;
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.25 + 0.05 * sfbm(x, y, M, 0.2, 0.6, 2, seed + 11) - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
 };
