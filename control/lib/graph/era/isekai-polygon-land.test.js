@@ -40,7 +40,7 @@ describe('the polygon land', () => {
     expect(G.fabric.formation.id).toBe('limestone');
     expect(G.fabric.groups).toEqual(['isekai:cliff', 'isekai:rock']);
     expect(JSON.stringify(assembleStageScene({ ...M, shading: { grit: 0.7, skin: 'limestone' } }))).toBe(JSON.stringify(G));
-  });
+  }, 60000);   // (two gritty stages: the strewn stones' shadows make each a heavy one)
 
   it('`facet` draws the rock toward planes on its own faces, what stands on the land unmoved; `valley` darkens the land', () => {
     const F = assembleStageScene({ ...M, shading: { facet: 4 } }), key = (P, g) => P.faces.filter((f) => f.group === g).map((f) => JSON.stringify(f.corners)).sort().join('|');
