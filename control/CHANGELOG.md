@@ -28,6 +28,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   side-by-side player and filmstrips for the eyes gate, which is still open. The README's findings name the integration
   costs: the 12-key linear packing smears holds and snaps, and hitstop, knockback and rate by speed belong in the live
   rules, not in the clip.
+- **Motion: running, then jumping** (`motion.mjs`). A run-up from a jog, the running jump, the landing and a run-out,
+  with the body travelling through the world, in the same four flavors. Each flavor sets how fast speed builds and how
+  high it tops out, whether the stride keeps pace with the ground (planted feet) or outruns it (pinball's wheel of legs,
+  never under four frames a stride), the take-off contact, and the arc: the clip's own on earth's gravity, a hang, or
+  the platform rule's rise on 20 and fall on 34. The clip's take-off and landing are the flight's ends in every
+  flavor. `motion-verify.mjs` is the machine gate. `motion-preview.mjs` writes follow-camera players and a
+  chronophotograph. The findings: the jog → sprint blend slides a planted foot (worse the faster speed builds), the
+  platform rule has no acceleration on the ground, and the library has no start from standstill.
 
 ### Realistic catch-up: adults only, one set of primitives, the realistic body's gaps
 
