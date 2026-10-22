@@ -14,6 +14,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Action game unification: one feel for the button, the body and the clip
+
+- **A lab, nothing registered** (`scripts/spikes/action-lab/`). The animation-games spike retimed a take on its own
+  clock; a game runs on the player's. Measured on the spike's registers, the press waits for the clip: the action
+  register's jab is its slowest (14 frames to contact against realistic's 11) and every register's jump waits 10 to
+  30 frames for the clip's gather. The lab makes the press the beat. A *feel* card (realistic, action, platformer,
+  pinball) says what each button does: ground acceleration and turning; the jump's commit, buffer, coyote time, cut,
+  rise and fall gravity and hang; a dodge with invincible frames; a three-move string with startup, active,
+  recovery, cancel and buffer; hitstop on both bodies; hitstun by its source; knockback by the force model; what a
+  wall does. One pure step function plays the card at 60 Hz in node and in the page, over a *body* (the character's
+  reach, real blow and strides), so the same card on the female cast reaches shorter. The hero library's clips are
+  fitted to the frames it decides, so the fist meets its contact point on the card's startup frame, and realistic's
+  card is the take's own time. `verify.mjs` is the machine gate over scripted pads. It holds on both casts: buffer
+  and coyote windows to the frame, apex to the millimetre, hitstop on both bodies, a chained hit's advantage equal to
+  the printed frame data, invincible frames, no body through a wall at 20 m/s, every press acted on or dropped with
+  its reason, byte-identical traces. `lab.mjs` writes a playable page (keyboard, gamepad, touch) with the feel
+  switch, the dials, a frame bar, the event log, frame data and a recorder whose runs become fixtures. The eyes gate
+  is open.
+
 ### Animation games spike: one take, four flavors
 
 - **A research spike, nothing registered** (`scripts/spikes/animation-games/`). A *flavor* renders a take the hero
