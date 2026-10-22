@@ -37,6 +37,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fresh jump). Platformer stomps (the body squashed and stunned, the bounce 0.6 m or 1.81 m with the jump held), and
   pinball's spinning body bounces off like a bumper while the body ricochets. A short critter (0.8 m) gives every
   feel something to land on. The gate holds 79 laws on both casts, with a recorded stomp among its fixtures.
+- **The glider and the jetpack, in the lab** (the card's `glide` and `jet`, chosen as gear). Either takes the jump in
+  the air once the air jumps are spent, held past the apex or pressed. Realistic's glider is a paraglider opened from
+  a height with a stamina limit and its jetpack a slow thrust on a small tank; action glides and hovers; the
+  platformer floats for a second and its jetpack is a strong short burst; pinball glides from a slow start into a wall
+  grab and flies by flapping until it tires. A hit, a move, a dash or a wall ends a flight; with no gear nothing
+  changes. The gate holds 269 laws on both casts, with a recorded glide, jetpack burn and flight among its fixtures.
 - **Ranged attacks, in the lab: the enemy's patterns by genre, what a hit does, maneuver armor.** The dummy turns
   shooter and fires its genre's patterns after a telegraph: realistic's are the FPS's, hitscan (a rifle burst whose
   aim trails the target by a reaction, a marksman whose aim locks before the shot), denied by cover or by moving

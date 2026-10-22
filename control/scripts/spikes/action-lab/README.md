@@ -175,6 +175,22 @@ hyper armor), and the frame data has an armor column.
 Stomps go through the armor too: a stomp is tagged light (the ground pound heavy), so an armored attack bounces the
 stomper off without being squashed.
 
+## The glider and the jetpack
+
+E cycles the gear: none, the glider, the jetpack (the card's `glide` and `jet`). Either takes the jump button in the air
+once there is no coyote jump, wall jump, enemy step or air jump to take it: **held on past the apex**, or **pressed in
+the air**. With no gear nothing changes.
+
+| feel | the glider | the jetpack |
+|---|---|---|
+| **realistic** | BotW's **paraglider**: opened by a press from 1.2 m up, sinks at 1.5 m/s, flies on at 6 m/s, turns 90°/s; a press folds it; its stamina folds it after 10 s | a **thrust** of 15 m/s² against 9.81: a slow climb (3 m/s at most) on a 2 s tank, refilled half a second after landing |
+| **action** | Spyro's **glide**, held: sinks at 2 m/s, settles on 8 m/s, turns 180°/s | a **hover**: the climb eased to 0.5 m/s, 1.5 s of fuel |
+| **platformer** | Peach's **float**, held: the height kept for a second, once a jump | a strong short **thrust**: 50 m/s² against 34, 1 s of fuel, refilled at once on landing |
+| **pinball** | Knuckles' **glide**, held: from 4 m/s building to 12, sinking at 1 m/s, turning 120°/s; a glide into a wall **grabs** it | Tails' **flight**: once the air jump is spent each press flaps up at 3.5 m/s, the fall slowed to 1.5 m/s between; after 8 s it tires |
+
+A hit, a move, a dash or a wall ends a flight. A gauge under the life shows the fuel, the stamina or the flight's time,
+and the page draws the canopy, the wing, the flame or the rotor; the camera rises with a high flight.
+
 ## Ranged attacks: the enemy's patterns, by genre
 
 Y turns the dummy into a shooter (again: the card's next set; T sparring and the shooter take turns). It telegraphs
@@ -277,7 +293,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 
 ## What the machine gate measures (nobody has played it)
 
-`verify.mjs` runs every law on every feel. All 247 checks hold on the male and the female casts:
+`verify.mjs` runs every law on every feel. All 269 checks hold on the male and the female casts:
 
 - **Ground.** 90 % of the run comes on the card's acceleration to the frame, and the run is never passed on the ground.
   Letting go stops the body on the card's deceleration.
@@ -347,6 +363,15 @@ ground pound always bounces high: the commitment the flip cost buys the height.
     through a dash and a jump and fires in the air; each shot lands on the frame its speed says, with its level's push,
     and a wall stops one.
   - A hit taken loses the charge; the platformer's card keeps it and the release still fires.
+- **The glider and the jetpack.**
+  - With no gear a held jump does nothing in the air.
+  - The paraglider opens on a press from a height, sinks and flies at the card's speeds, a press folds it, its stamina
+    folds it on the frame, and too low the press is the air's as ever. The float keeps the height exactly for its
+    frames, once a jump. The glides sink at their rate, settle on their speed, turn no faster than their rate, end on
+    letting go; Knuckles' grabs a wall; a hit ends a glide.
+  - The jetpacks lift above the jump's height, climbing no faster than their cap, burn out on the fuel's frame and
+    refill on the card's schedule after landing; a press in the air lights one, letting go puts it out. Tails' flight
+    flaps on each press, sinks slowly between and tires after its time, the presses then refused.
 - **Ranged attacks.**
   - The rifle and the marksman are hitscan: a still body is hit on the fire frame, every round of the burst. A body
     running across is missed (the rifle's aim trails it, the marksman's locks early). Cover stops them.
@@ -404,7 +429,7 @@ ground pound always bounces high: the commitment the flip cost buys the height.
 `lab.mjs` writes `action-lab.html`, one file of about 1.3 MB that embeds both casts' baked frames and runs offline.
 
 - **Controls.** Keyboard: WASD move, Shift sprint, Space jump (hold for higher), J attack (hold to charge, release to
-  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
+  fire; in the air, the stomp attack, action's is S + J, back and attack), K dodge roll, L dash, Q lock-on, U guard, E the gear, Y the shooter, O one-hit. Gamepad: A jump, X attack, B roll,
   RB dash, LB lock-on, RT guard, LT sprint. A standard
   gamepad works too (A jump, X attack, B dodge, a shoulder or trigger to sprint), and so do touch controls on a phone.
   A key tapped between two ticks still lands.

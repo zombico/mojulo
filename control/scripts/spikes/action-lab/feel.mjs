@@ -72,6 +72,15 @@
  * freeze, the attack goes on. The dummy's jab stops at a touch, its hook only at a heavy or a shot, its perilous
  * blow never; realistic's haymaker shrugs off one light hit, action's heavy every light one, action's launcher all.
  *
+ * THE GLIDER AND THE JETPACK (the card's `glide` and `jet`, the gear the state is given): the jump button, in the
+ * air once the air jumps are spent, or held on past the apex. Realistic's glider is BotW's PARAGLIDER (opened by a
+ * press from a height, a steady sink and forward speed, steered, folded by a press, its stamina limited) and its
+ * jetpack a THRUST that barely beats gravity on a small tank that refills a beat after landing. Action GLIDES as Spyro
+ * (held: a sink, a speed it settles on, a quick turn) and HOVERS on its jetpack. The platformer FLOATS as Peach (held,
+ * the height kept a second, once a jump) and its jetpack is a strong short burst. Pinball glides as Knuckles (from a
+ * slow start building speed, and a glide into a wall grabs it) and flies as Tails (each press a flap, a slow sink
+ * between, until it tires). Nothing changes with no gear.
+ *
  * RANGED ATTACKS (the card's `ranged`, the patterns in RANGED): the dummy turned shooter telegraphs, then fires a
  * pattern its genre uses. Realistic is the FPS's: HITSCAN, a bullet with no flight to react to, so it is not dodged
  * but denied (cover breaks the line, and the aim trails the target by a reaction, so a body that keeps moving across it
@@ -169,6 +178,15 @@ const len2 = (x, y) => Math.hypot(x, y);
  *            heavy and the rest light) and `armor` ({ by: [tags that interrupt it], hits (the hit that interrupts it
  *            whatever its tags; absent: none), frames [from, to) (absent: through startup + active) } or absent: any
  *            hit interrupts it)
+ *   glide    the glider, or null: kind (paraglider: opened and folded by a press | glide: held | float: held, the height
+ *            kept), min (m above the floor to open one), fall (m/s down), from / speed (m/s: the forward speed it starts
+ *            at least at and settles on), accel, turn (deg/s), time (frames: its stamina, or a float's length; null:
+ *            none), grab (a glide into a wall grabs it)
+ *   jet      the jetpack, or null: kind (thrust: held, upward thrust against the fall's gravity | hover: held, the rise
+ *            eased to `rise` | flap: each press a flap of `flap` m/s, the fall slowed to `sink` between), thrust (m/s²),
+ *            rise (m/s: the climb's cap), fuel (frames: thrust held, or a flight's length), delay / regen (frames on the
+ *            ground before the tank refills, fuel back per frame; a flight refills on landing), air (the share of ground
+ *            control while it flies)
  *   ranged   the dummy as a shooter: sets ({ name: [RANGED pattern names] }: the patterns a genre uses, cycled one a
  *            volley), every (frames between volleys)
  *   hurt     what a hit does to the hero: stun (frames; 0: a flinch that keeps control), knock (m/s away), hop (m up),
@@ -208,6 +226,8 @@ export const FEELS = Object.freeze({
     wall: { model: 'stop', stagger: 3.5 },
     land: { model: 'slide', slide: 2 },
     pound: null,
+    glide: { kind: 'paraglider', min: 1.2, fall: 1.5, speed: 6, accel: 4, turn: 90, time: 600 },
+    jet: { kind: 'thrust', thrust: 15, rise: 3, fuel: 120, delay: 30, regen: 1, air: 0.4 },
     ranged: { sets: { fps: ['rifle', 'marksman'] }, every: 120 },
     hurt: { stun: 0, knock: 0, slow: { frames: 24, share: 0.5 }, mercy: 0, charge: 'keep' },
     life: { hp: 100, ko: 90 },
@@ -241,6 +261,8 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.8 },
     cling: { slide: 2.5, toward: 0.3, up: 0.9, away: 4, lock: 6, coyote: 4 },
     pound: { kind: 'plunge', stick: 'back', hang: 4, speed: 22, radius: 1.2, force: { gain: 12, lift: 35 }, lag: 14 },
+    glide: { kind: 'glide', fall: 2, speed: 8, accel: 12, turn: 180, time: null },
+    jet: { kind: 'hover', thrust: 30, rise: 0.5, fuel: 90, delay: 20, regen: 1.5, air: 1 },
     ranged: { sets: { arena: ['orb', 'fan', 'ring', 'homing'], brawler: ['knife', 'gun'] }, every: 120 },
     hurt: { stun: 24, knock: 3, down: 60, mercy: 40, charge: 'lose' },
     life: { hp: 100, ko: 90 },
@@ -269,6 +291,8 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.9 },
     cling: { slide: 2, toward: 0.3, up: 1, away: 5, lock: 8, coyote: 5 },
     pound: { kind: 'pound', stick: 'any', hang: 12, speed: 20, stun: 150, lag: 10, jump: 1.35 },
+    glide: { kind: 'float', time: 60 },
+    jet: { kind: 'thrust', thrust: 50, rise: 5, fuel: 60, delay: 0, regen: 3, air: 0.9 },
     ranged: { sets: { platformer: ['pellet', 'aimed', 'lob', 'wave'] }, every: 100 },
     hurt: { stun: 20, knock: 2, hop: 0.2, mercy: 90, charge: 'keep' },
     life: { hp: 28, oneHit: false, ko: 90 },
@@ -297,6 +321,8 @@ export const FEELS = Object.freeze({
     air: { jumps: 1, mult: 0.7 },
     cling: { slide: 4, toward: 0.3, up: 0.8, away: 8, lock: 6, coyote: 4 },
     pound: { kind: 'bounce', stick: 'any', hang: 0, speed: 25, bounce: 1.6 },
+    glide: { kind: 'glide', from: 4, fall: 1, speed: 12, accel: 3, turn: 120, grab: true, time: null },
+    jet: { kind: 'flap', flap: 3.5, sink: 1.5, fuel: 480, air: 0.8 },
     ranged: { sets: { pinball: ['buzz', 'burst', 'bouncer'] }, every: 120 },
     hurt: { stun: 30, knock: 4, hop: 0.6, mercy: 120, charge: 'lose' },
     life: { kind: 'rings', hp: 10, ko: 90 },
@@ -322,7 +348,7 @@ export const ARENA = Object.freeze({
 // ─── state ───────────────────────────────────────────────────────────────
 const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 'Infinity' : v)), (k, v) => (v === 'Infinity' ? Infinity : v));
 function bodyAt(xy, yaw, h = HEIGHT) {
-  return { h, charge: null, slowed: 0, hp: null, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
+  return { h, charge: null, slowed: 0, hp: null, glide: false, glideT: 0, glideSpent: false, jet: false, flying: false, fuel: 0, jetRest: 0, blockstun: 0, airDashes: 0, carry: 0, airLeft: 0, cling: null, wallN: null, wallCoyote: 0, wallLock: 0, onHead: false, touching: false, stepCd: 0, squash: 0, fresh: false, touched: -99, p: [xy[0], xy[1], 0], v: [0, 0, 0], yaw, grounded: true, coyote: 0, jumped: false, cut: false, hang: 0, apex: null,
     act: null, stop: 0, stun: 0, mercy: 0, lag: 0, alert: 0, combo: 0, lastHit: null, stride: 0, spin: 0,
     tookOff: -99, landed: -99, fallSpeed: 0 };
 }
@@ -331,12 +357,13 @@ function bodyAt(xy, yaw, h = HEIGHT) {
  * per take, strides, mass), the arena. `spar`: the dummy throws a telegraphed jab at a hero in range. `guard`: a free
  * dummy that saw a hit coming guards the next one. `dummyHeight` (m): a short critter (0.8) can be jumped on by
  * every feel's jump; the standing dummy (1.7) is taller than most. `shooter`: the dummy fires these RANGED patterns
- * instead of sparring (one a volley, every `ranged.every` frames).
+ * instead of sparring (one a volley, every `ranged.every` frames). `gear`: 'glide' or 'jet', what the jump does in the
+ * air once the air jumps are spent (null: nothing).
  */
-export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null } = {}) {
-  const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, shooter, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
+export function newState(card, body, { arena = ARENA, spar = false, guard = true, dummyHeight = HEIGHT, sparMoves = null, shooter = null, gear = null } = {}) {
+  const S = { f: 0, card: copy(card), body, arena, spar: shooter ? false : spar, guard, sparMoves, sparN: 0, events: [], queue: [], shots: [], shotN: 0, shooter, gear, foes: [], foeN: 0, volleyN: 0, trail: [], held: 0, lock: null, witch: 0,
     hero: bodyAt(arena.hero, 0), dummy: bodyAt(arena.dummy, Math.PI, dummyHeight) };
-  S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null; S.hero.hp = card.life?.hp ?? null;
+  S.hero.airLeft = card.air?.jumps ?? 0; S.hero.airDashes = card.dash?.air?.count ?? 0; S.hero.stamina = card.guard?.stamina?.max ?? null; S.hero.hp = card.life?.hp ?? null; S.hero.fuel = card.jet?.fuel ?? 0;
   return S;
 }
 
@@ -386,6 +413,11 @@ export function step(S0, pad) {
     if (B.slowed > 0) B.slowed--;
     const ST = S.card.guard?.stamina; if (ST && w === 'hero' && B.act?.kind !== 'block') B.stamina = Math.min(ST.max, B.stamina + ST.regen * DT);
     if (w === 'hero' && B.charge) meter(S, B);
+    if (w === 'hero' && S.gear === 'jet') {   // the tank: refilled a beat after landing (a flight on landing); a flight's time runs out
+      const JT = S.card.jet;
+      if (B.grounded) { if (JT.kind === 'flap') B.fuel = JT.fuel; else if (++B.jetRest > JT.delay) B.fuel = Math.min(JT.fuel, B.fuel + JT.regen); }
+      else { B.jetRest = 0; if (B.flying && B.fuel > 0 && --B.fuel === 0) S.events.push({ f: S.f, who: 'hero', type: 'tired' }); }
+    }
   }
   for (const q of S.queue) if (!H.stop) q.age++;
   S.trail.unshift([H.p[0], H.p[1], H.p[2]]); if (S.trail.length > 40) S.trail.length = 40;   // where the hero was: a shooter's aim trails it
@@ -436,6 +468,7 @@ function can(S, name, stick = { x: 0, y: 0, m: 0 }) {
     if (H.grounded || H.coyote > 0) return true;
     if (canWallJump(S) || canStep(S)) return true;
     if (C.air && H.airLeft > 0) return true;
+    const g = gearPress(S); if (g) return g;
     return { reason: C.air ? 'in the air, the air jumps spent' : 'in the air', queue: true };
   }
   if (name === 'attack') {
@@ -501,7 +534,8 @@ function act(S, name, stick, waited) {
       if (H.coyote > 0) { S.events.push({ f: S.f, who: 'hero', type: 'coyote', left: H.coyote }); takeOff(S, H, 'hero'); return; }
       if (canWallJump(S)) return wallJump(S, H);
       if (canStep(S)) { S.events.push({ f: S.f, who: 'hero', type: 'step', off: 'dummy' }); H.stepCd = C.land.step.cooldown; takeOff(S, H, 'hero'); return; }
-      H.airLeft--; S.events.push({ f: S.f, who: 'hero', type: 'air-jump', left: H.airLeft }); takeOff(S, H, 'hero', C.air.mult); return;
+      if (C.air && H.airLeft > 0) { H.airLeft--; S.events.push({ f: S.f, who: 'hero', type: 'air-jump', left: H.airLeft }); takeOff(S, H, 'hero', C.air.mult); return; }
+      return gearAct(S, H);
     }
     if (H.act?.kind === 'dash') {   // the dash jump: it leaves at once, and the air keeps the dash's speed
       const sp = len2(H.v[0], H.v[1]); S.events.push({ f: S.f, who: 'hero', type: 'dash-jump', speed: r4(sp) });
@@ -572,6 +606,7 @@ function moveBody(S, B, who, stick, buttons) {
     want = top > 0 ? { x: stick.x * top, y: stick.y * top, heading: Math.atan2(stick.x, stick.y), speed: stick.m * top } : null;
   }
   const rooted = a?.kind === 'move' && C.moves.root === 'stop' && B.grounded;
+  if (who === 'hero' && S.gear) gearHold(S, B, free);
   if (a?.kind === 'pound') { B.v[0] = 0; B.v[1] = 0; B.v[2] = a.f < C.pound.hang ? 0 : -C.pound.speed; }
   else if (a?.kind === 'charge' && !C.charge.move) { B.v[0] = 0; B.v[1] = 0; if (stick?.m > 0) B.yaw = turnToward(B.yaw, Math.atan2(stick.x, stick.y), Gd.turn * DEG * DT); }   // rooted: crouched, the stick aims
   else if (a?.kind === 'poundLag') { B.v[0] = 0; B.v[1] = 0; }
@@ -580,8 +615,9 @@ function moveBody(S, B, who, stick, buttons) {
   else if (rooted) { const m = moveDef(S, a); const speed = a.f < m.startup ? m.lunge / (m.startup * DT) : 0; B.v[0] = Math.sin(B.yaw) * speed; B.v[1] = Math.cos(B.yaw) * speed; }
   else if (a?.kind === 'block' && !want) slide(B);   // the guard's push back slides out on the soles
   else if (B.grounded && (!stick || !free)) slide(B);
+  else if (B.glide && C.glide.kind !== 'float') glideSteer(S, B, stick);
   else if (B.wallLock > 0 && !B.grounded) { /* the wall jump's kick: fixed, the stick locked out */ }
-  else if (B.grounded || want) control(B, want, Gd, B.grounded ? 1 : C.jump.air);
+  else if (B.grounded || want) control(B, want, Gd, B.grounded ? 1 : (B.jet || B.flying) ? C.jet.air : C.jump.air);
   // the wall: falling against one with the stick into it slides down it (the hero's, a card with `cling`)
   const CL = who === 'hero' ? C.cling : null;
   let clung = null;
@@ -597,7 +633,9 @@ function moveBody(S, B, who, stick, buttons) {
   // gravity, exact for a constant pull, split at the apex (the rise's gravity and the fall's)
   if (a?.kind === 'pound') { B.p[2] += B.v[2] * DT; if (C.pound.kind === 'pound' && a.f < C.pound.hang) B.spin = (2 * Math.PI * (a.f + 1)) / C.pound.hang; }   // a straight drop, no gravity's curve
   else if (clung) { B.v[2] = -CL.slide; B.p[2] -= CL.slide * DT; }   // down the wall at a constant speed
-  else if (!B.grounded && !(a?.kind === 'dash' && (a.air || C.dash.kind === 'dash'))) fall(S, B, who);
+  else if (B.glide) { B.v[2] = C.glide.kind === 'float' ? 0 : -C.glide.fall; B.p[2] += B.v[2] * DT; }   // the glider's steady sink, the float's held height
+  else if (B.jet) jetLift(S, B);
+  else if (!B.grounded && !(a?.kind === 'dash' && (a.air || C.dash.kind === 'dash'))) { fall(S, B, who); if (B.flying && B.v[2] < -C.jet.sink) B.v[2] = -C.jet.sink; }
   // the floor plane: substeps no longer than 8 cm against the walls
   const sp = len2(B.v[0], B.v[1]); const n = Math.max(1, Math.ceil((sp * DT) / 0.08));
   let wallHit = null;
@@ -615,7 +653,7 @@ function moveBody(S, B, who, stick, buttons) {
     if (!B.cling) S.events.push({ f: S.f, who, type: 'cling', n: clung.map(r4), z: r4(B.p[2]) });
     B.cling = clung; B.wallN = clung; B.wallCoyote = CL.coyote; B.yaw = Math.atan2(clung[0], clung[1]);   // faces out, as X does
     B.v[0] = 0; B.v[1] = 0; if (C.air) B.airLeft = C.air.jumps; B.airDashes = C.dash?.air?.count ?? 0; B.carry = 0;
-  } else if (B.cling) { B.cling = null; B.leftWall = S.f; }
+  } else if (B.cling && B.grabbed !== S.f) { B.cling = null; B.leftWall = S.f; }   // (a grab this frame holds until the next reads the stick)
   // the stride: a cycle at the ground's rate (strides a second = speed ÷ the travel of a stride at that speed)
   if (B.grounded) B.stride = (B.stride + strideRate(S, len2(B.v[0], B.v[1])) * DT) % 1;
   if ((a?.kind === 'charge' && C.charge.kind === 'spin') || a?.spin) B.spin = (B.spin + 0.5 + 0.35 * (B.charge?.lv ?? 2)) % (2 * Math.PI);   // the spin dash revs, then rolls
@@ -687,7 +725,7 @@ function ground(S, B, who) {
   }
   if (B.coyote > 0) B.coyote--;
   if (B.p[2] <= g && B.v[2] <= 0) {
-    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps; if (who === 'hero') { B.airDashes = S.card.dash?.air?.count ?? 0; B.carry = 0; }
+    const fallSpeed = -B.v[2]; B.p[2] = g; B.v[2] = 0; B.grounded = true; B.coyote = 0; B.jumped = false; B.hang = 0; B.landed = S.f; B.spin = 0; B.onHead = false; B.cling = null; B.wallCoyote = 0; B.wallLock = 0; B.glide = false; B.glideT = 0; B.glideSpent = false; B.jet = false; B.flying = false; if (S.card.air && who === 'hero') B.airLeft = S.card.air.jumps; if (who === 'hero') { B.airDashes = S.card.dash?.air?.count ?? 0; B.carry = 0; }
     const J = S.card.jump; if (J.heavy && fallSpeed > J.heavy.fall && who === 'hero') B.lag = J.heavy.lag;
     if (B.act?.kind === 'move' && !S.card.moves.air) B.act = null;
     S.events.push({ f: S.f, who, type: 'land', fall: r4(fallSpeed) });
@@ -713,6 +751,10 @@ function resolveWalls(S, B) {
 }
 function wallResponse(S, B, who, n) {
   const W = S.card.wall, into = -(B.v[0] * n[0] + B.v[1] * n[1]); if (into <= 0) return;
+  if (B.glide && S.card.glide.grab && S.card.cling) {   // Knuckles: a glide into a wall grabs it
+    B.glide = false; B.cling = n; B.wallN = n; B.wallCoyote = S.card.cling.coyote; B.v[0] = 0; B.v[1] = 0; B.yaw = Math.atan2(n[0], n[1]); B.airLeft = S.card.air?.jumps ?? 0;
+    B.grabbed = S.f; S.events.push({ f: S.f, who, type: 'cling', n: n.map(r4), z: r4(B.p[2]), grab: true }); return;
+  }
   const leaning = B.touched === S.f - 1; B.touched = S.f;   // pressed on into a wall it already touched: no new event
   if (W.model === 'bounce' && !(W.soft && !B.grounded && into < W.soft)) {
     B.v[0] += n[0] * (1 + W.e) * into; B.v[1] += n[1] * (1 + W.e) * into;
@@ -923,6 +965,66 @@ function flyShots(S) {
     }
     sh.f++; return sh.f < sh.life;
   });
+}
+
+// ─── the glider and the jetpack ─────────────────────────────────────────
+/** a jump pressed in the air (no coyote, wall, step or air jump to take it): what the gear does with it, true, a
+ * reason it cannot, or null (the press is the air's as ever: buffered for the landing) */
+function gearPress(S) {
+  const H = S.hero, C = S.card;
+  if (S.gear === 'glide' && C.glide) {
+    if (H.glide) return true;   // folded
+    if (H.glideSpent) return null;
+    if (C.glide.kind === 'paraglider') return H.p[2] - groundAt(S, H.p[0], H.p[1]) >= C.glide.min ? true : null;
+    return H.v[2] <= 0 ? true : null;
+  }
+  if (S.gear === 'jet' && C.jet) return H.fuel > 0 ? true : { reason: C.jet.kind === 'flap' ? 'in the air, too tired to fly' : 'in the air, the jetpack out of fuel', queue: true };
+  return null;
+}
+function gearAct(S, H) {
+  const C = S.card;
+  if (S.gear === 'glide') return H.glide ? endGlide(S, H, 'folded') : startGlide(S, H);
+  if (C.jet.kind === 'flap') { H.flying = true; H.v[2] = Math.max(H.v[2], C.jet.flap); H.apex = null; S.events.push({ f: S.f, who: 'hero', type: 'flap', fuel: H.fuel }); return; }
+  H.jet = true; S.events.push({ f: S.f, who: 'hero', type: 'jet', kind: C.jet.kind, fuel: H.fuel });
+}
+function startGlide(S, H) { H.glide = true; H.glideT = 0; H.carry = 0; S.events.push({ f: S.f, who: 'hero', type: 'glide', kind: S.card.glide.kind }); }
+function endGlide(S, H, why) { H.glide = false; if (S.card.glide.kind === 'float' || why === 'out of stamina') H.glideSpent = true; S.events.push({ f: S.f, who: 'hero', type: 'glide-end', why }); }
+/** once a tick, the hero's gear: anything it takes up (a move, a dash, a hit) or a wall ends a flight; a held glider
+ * opens on the way down and closes when let go; the stamina or a float runs out; a held jetpack burns while there is fuel */
+function gearHold(S, B, free) {
+  const C = S.card, held = !!(S.held & BTN.JUMP), a = B.act;
+  if (B.grounded) return;
+  if (!free || a || B.cling) {
+    const why = !free ? 'hit' : B.cling ? 'on the wall' : `into ${a.kind}`;
+    if (B.glide) endGlide(S, B, why);
+    if (B.jet) { B.jet = false; S.events.push({ f: S.f, who: 'hero', type: 'jet-end', why }); }
+    if (!free) B.flying = false;
+    return;
+  }
+  if (S.gear === 'glide' && C.glide) {
+    const GL = C.glide, hold = GL.kind !== 'paraglider';
+    if (B.glide && hold && !held) endGlide(S, B, 'let go');
+    else if (!B.glide && hold && held && B.v[2] <= 0 && !B.glideSpent) startGlide(S, B);
+    if (B.glide && GL.time != null && B.glideT++ >= GL.time) endGlide(S, B, GL.kind === 'float' ? 'the float is spent' : 'out of stamina');
+  }
+  if (S.gear === 'jet' && C.jet && C.jet.kind !== 'flap') {
+    if (B.jet && (!held || B.fuel <= 0)) { B.jet = false; S.events.push({ f: S.f, who: 'hero', type: 'jet-end', why: B.fuel <= 0 ? 'out of fuel' : 'let go' }); }
+    else if (!B.jet && held && B.fuel > 0 && B.v[2] <= 0) { B.jet = true; S.events.push({ f: S.f, who: 'hero', type: 'jet', kind: C.jet.kind, fuel: B.fuel }); }
+  }
+}
+/** the glider's flight: the heading turned toward the stick at its rate, the speed settling on its own */
+function glideSteer(S, B, stick) {
+  const GL = S.card.glide, sp = len2(B.v[0], B.v[1]), h = sp > 0.1 ? Math.atan2(B.v[0], B.v[1]) : B.yaw;
+  const nh = stick?.m > 0 ? turnToward(h, Math.atan2(stick.x, stick.y), GL.turn * DEG * DT) : h, ns = moveTo(Math.max(sp, GL.from ?? 0), GL.speed, GL.accel * DT);
+  B.v[0] = Math.sin(nh) * ns; B.v[1] = Math.cos(nh) * ns; B.yaw = nh;
+}
+/** the jetpack's lift: a thrust against the fall's gravity up to its climb, or a hover easing the climb to `rise`; a
+ * frame of fuel each */
+function jetLift(S, B) {
+  const JT = S.card.jet, g = S.card.jump.gFall;
+  if (JT.kind === 'thrust') B.v[2] = B.v[2] > JT.rise ? B.v[2] - g * DT : Math.min(JT.rise, B.v[2] + (JT.thrust - g) * DT);
+  else B.v[2] = moveTo(B.v[2], JT.rise, JT.thrust * DT);
+  B.p[2] += B.v[2] * DT; B.fuel--; B.apex = null;
 }
 
 // ─── ranged attacks: the dummy as a shooter ────────────────────────────
@@ -1247,7 +1349,7 @@ export function poseOf(S, who) {
   // a short body is the figure drawn short and broad; a stomped one, flattened for its stun
   const kz = (B.h / HEIGHT) * (B.squash > 0 ? 0.35 : 1);
   if (kz !== 1) { const kx = B.squash > 0 ? 1.5 : 1 / Math.sqrt(kz); scale = [(scale ? scale[0] : 1) * kx, (scale ? scale[1] : 1) * kx, (scale ? scale[2] : 1) * kz]; }
-  const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0, charge: B.charge && B.charge.held >= C.charge.show ? { held: B.charge.held, lv: B.charge.lv } : null };
+  const base = { p: B.p.slice(), yaw: B.yaw, scale, held: B.stop > 0, charge: B.charge && B.charge.held >= C.charge.show ? { held: B.charge.held, lv: B.charge.lv } : null, gear: B.glide ? C.glide.kind : B.jet ? 'jet' : B.flying ? 'flap' : null };
   if (a?.kind === 'move') return { ...base, clip: 'move', i: a.i, at: a.f, ...(a.lv ? { lv: a.lv } : {}) };
   if (a?.kind === 'charge') return C.charge.kind === 'spin' ? { ...base, clip: 'spin', spin: B.spin, crouch: true } : { ...base, clip: 'charge', at: a.f };
   if (a?.kind === 'dash' && a.spin) return { ...base, clip: 'spin', spin: B.spin, iframes: iframed(S, B) };
@@ -1265,6 +1367,7 @@ export function poseOf(S, who) {
     return { ...base, clip: 'react', take: a?.kind === 'stagger' || a?.kind === 'bonk' || a?.kind === 'ko' ? 'cross' : B.lastHit?.take ?? 'jab', at, air: !B.grounded, ko: a?.kind === 'ko' };
   }
   if (B.cling) return { ...base, clip: 'air', u: 0.85, cling: true };
+  if (B.glide || B.jet || B.flying) return { ...base, clip: 'air', u: B.glide ? 0.5 : 0.4 };   // the glider and the jetpack fly the apex's pose
   if (!B.grounded) {
     const v0 = Math.sqrt(2 * C.jump.gRise * C.jump.height);
     return { ...base, clip: C.jump.spin && B.jumped ? 'spin' : 'air', u: clamp((v0 - B.v[2]) / (2 * v0), 0, 1), spin: B.spin };

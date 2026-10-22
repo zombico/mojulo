@@ -5,21 +5,21 @@ const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COL = {};
-const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life']) COL[k] = css(`--${k}`); };
+const readCols = () => { for (const k of ['floor', 'grid', 'block', 'blockTop', 'hero', 'dummy', 'ink', 'dim', 'startup', 'active', 'recovery', 'stop', 'stun', 'air', 'inv', 'gather', 'guard', 'mercy', 'spark', 'smear', 'shadow', 'cling', 'lock', 'zoneRed', 'zoneOrange', 'charge1', 'charge2', 'armor', 'hyper', 'foe', 'laser', 'life', 'flame', 'wing']) COL[k] = css(`--${k}`); };
 readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
 
 let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
-let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null;   // shooter: the name of one of the card's ranged sets, or off
+let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null, gear = null;   // shooter: the name of one of the card's ranged sets, or off
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
-let S, hist = [], log = [], presses = [], sparks = [], tracers = [], cam = { x: 0, y: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
+let S, hist = [], log = [], presses = [], sparks = [], tracers = [], cam = { x: 0, y: 0, z: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
 function reset() {
   const sets = cards[feel].ranged?.sets ?? {}; if (shooter && !sets[shooter]) shooter = Object.keys(sets)[0] ?? null;
-  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null });
+  S = newState(cards[feel], DATA[cast].body, { arena: ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear });
   hist = []; log = []; presses = []; sparks = []; tracers = []; shown = {}; prevWorld = {};
-  cam = { x: S.hero.p[0], y: S.hero.p[1], yaw: 0 };
+  cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 };
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
 }
 
@@ -34,6 +34,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyV') setView(view === 'three' ? 'side' : 'three');
   else if (e.code === 'KeyT') setSpar(!spar);
   else if (e.code === 'KeyY') cycleShooter();
+  else if (e.code === 'KeyE') cycleGear();
   else if (e.code === 'KeyO') setOneHit(!S.card.life?.oneHit);
   else if (e.code === 'KeyG') setGuard(!guard);
   else if (e.code === 'KeyH') setCritter(!critter);
@@ -148,6 +149,10 @@ const say = {
   fire: (e) => (e.hitscan ? `the ${e.name} fires: ${({ hit: 'a hit, no flight to react to', cover: 'stopped by cover', out: 'a miss' })[e.result]}` : null),
   burst: (e) => `the ${e.name} bursts on the floor`,
   hurt: (e) => `hit by the ${e.by}: ${e.damage} damage, ${e.stun ? `${e.down ? 'knocked down' : 'stunned'} ${e.stun} f` : 'a flinch, control kept'}${e.maneuver ? ' (maneuver armor: moving through it)' : ''}`,
+  glide: (e) => ({ paraglider: 'the paraglider opens', glide: 'gliding', float: 'floating: the height held' })[e.kind],
+  'glide-end': (e) => `${S.card.glide?.kind === 'float' ? 'the float' : 'the glide'} ends: ${e.why}`,
+  jet: (e) => `the jetpack lights (${e.kind}, ${e.fuel} f of fuel)`, 'jet-end': (e) => `the jetpack ${e.why === 'out of fuel' ? 'burns out' : 'cuts'}: ${e.why}`,
+  flap: () => null, tired: () => 'too tired to fly: down you go',
   rings: (e) => `the rings scattered (${e.lost}): one more hit is the end`, ko: (e) => (e.oneHit ? 'down: one hit is the end in this game' : 'down: out of life'), up: (e) => `up again, life ${e.hp}`,
   armor: (e) => `${e.who === 'dummy' ? 'the dummy\'s attack' : 'your attack'} shrugs off a ${e.tags.join(' ')} hit${e.of ? ` (${e.hits} of ${e.of}: the next one interrupts)` : ''}: ${e.breaks.length ? `only ${e.breaks.join(' or ')} interrupts it` : 'hyper armor, nothing interrupts it'}`,
   'armor-break': (e) => `${e.who === 'dummy' ? 'the dummy\'s' : 'your'} armor broken by a ${e.tags.join(' ')} hit${e.hits > 1 ? ` (hit ${e.hits})` : ''}: interrupted`,
@@ -260,8 +265,8 @@ const scale = () => Math.max(70, view === 'three' ? Math.min(W, H * 1.4) / 9 : M
 const depthOf = (x, y) => (x - cam.x) * Math.sin(cam.yaw) + (y - cam.y) * Math.cos(cam.yaw);
 function P(x, y, z) {
   const ppm = scale();
-  if (view === 'three') { const rx = x - cam.x, ry = y - cam.y, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); return [W / 2 + (rx * c - ry * sn) * ppm, H * 0.62 - (z * CT + (rx * sn + ry * c) * ST) * ppm]; }
-  return [W / 2 + (y - cam.y) * ppm, H * 0.78 - z * ppm];
+  if (view === 'three') { const rx = x - cam.x, ry = y - cam.y, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); return [W / 2 + (rx * c - ry * sn) * ppm, H * 0.62 - ((z - cam.z) * CT + (rx * sn + ry * c) * ST) * ppm]; }
+  return [W / 2 + (y - cam.y) * ppm, H * 0.78 - (z - cam.z) * ppm];
 }
 function poly(pts, fill, stroke) { ctx.beginPath(); pts.forEach((p, i) => { const q = P(...p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); } }
 function drawArena() {
@@ -357,6 +362,7 @@ function drawSparks() {
 function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
   const k = 0.12; cam.x += (S.hero.p[0] - cam.x) * k; cam.y += (S.hero.p[1] - cam.y) * k;
+  cam.z += (Math.max(0, S.hero.p[2] - 2) - cam.z) * 0.08;   // a high flight lifts the camera with it (a jump's height does not)
   // locked, the camera swings behind the hero to look at the target; let go, it swings back north
   const want = S.lock ? util.bearing(S) : 0; cam.yaw += util.angDiff(want, cam.yaw) * (S.lock ? 0.3 : 0.12);   // close behind while locked, so a held stick keeps circling
   drawArena();
@@ -374,7 +380,7 @@ function draw() {
       if (bx > Math.min(...xs) - 20 && bx < Math.max(...xs) + 20 && dB - near(b) < 3) drawBlock(b);
     }
   }
-  drawShots(); drawCharge(); drawFoes(); drawAim(); drawLife();
+  drawShots(); drawCharge(); drawFoes(); drawAim(); drawGear(); drawLife();
   drawSparks();
   drawStrip();
 }
@@ -399,14 +405,35 @@ function drawAim() {
   ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
   if (locked && S.f % 4 < 2) { ctx.fillStyle = COL.laser; ctx.beginPath(); ctx.arc(o[0], o[1], 6, 0, Math.PI * 2); ctx.fill(); }   // the glint
 }
+/** the gear in flight: a canopy over a paraglider, wings out for a glide or a float, a flame under a jetpack, a rotor
+ * for a flight */
+function drawGear() {
+  const B = S.hero, d = poseOf(S, 'hero'), g = d.gear; if (!g) return;
+  const ppm = scale(), x = B.p[0], y = B.p[1], z = B.p[2], c = Math.cos(B.yaw), sn = Math.sin(B.yaw), side = (k, up) => P(x + c * k, y - sn * k, z + up);
+  ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
+  if (g === 'paraglider') { ctx.strokeStyle = COL.wing; ctx.beginPath(); const L = side(-1.2, 2.6), M = side(0, 3.0), R = side(1.2, 2.6); ctx.moveTo(L[0], L[1]); ctx.quadraticCurveTo(M[0], M[1] - 0.3 * ppm, R[0], R[1]); const hd = side(0, 1.6); ctx.moveTo(L[0], L[1]); ctx.lineTo(hd[0], hd[1]); ctx.lineTo(R[0], R[1]); ctx.stroke(); }
+  else if (g === 'glide' || g === 'float') { ctx.fillStyle = COL.wing; ctx.globalAlpha = 0.35; const a = side(-0.9, 1.3), b = side(0, 1.45), e = side(0.9, 1.3), f = side(0, 1.05); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(f[0], f[1]); ctx.closePath(); ctx.fill(); }
+  else if (g === 'jet') { const o = P(x - Math.sin(B.yaw) * 0.15, y - Math.cos(B.yaw) * 0.15, z + 0.9), t = P(x - Math.sin(B.yaw) * 0.15, y - Math.cos(B.yaw) * 0.15, z + 0.9 - (0.5 + 0.2 * (S.f % 3)) ); ctx.strokeStyle = COL.flame; ctx.lineWidth = Math.max(4, ppm * 0.12); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); }
+  else if (g === 'flap') { const h = P(x, y, z + 1.95), r = 0.45 * ppm, t = S.f * 0.6; ctx.strokeStyle = COL.wing; ctx.beginPath(); ctx.moveTo(h[0] - Math.cos(t) * r, h[1] - Math.sin(t) * r * 0.3); ctx.lineTo(h[0] + Math.cos(t) * r, h[1] + Math.sin(t) * r * 0.3); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+}
 /** the hero's life: a bar (health) or a ring count, top left */
 function drawLife() {
   const L = S.card.life, H = S.hero; if (!L || H.hp == null) return;
   ctx.font = `600 12px ${css('--mono')}`; ctx.textBaseline = 'middle'; ctx.fillStyle = COL.ink;
-  if (L.kind === 'rings') { ctx.fillText(`RINGS ${H.hp}${H.act?.kind === 'ko' ? '  DOWN' : ''}`, 14, 18); return; }
+  if (L.kind === 'rings') { ctx.fillText(`RINGS ${H.hp}${H.act?.kind === 'ko' ? '  DOWN' : ''}`, 14, 18); gauge(); return; }
   const w = 140, k = H.hp / L.hp; ctx.fillText(L.oneHit ? 'ONE HIT' : 'LIFE', 14, 18);
   ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.strokeRect(80, 12, w, 12); ctx.fillStyle = H.act?.kind === 'ko' ? COL.stun : COL.life; ctx.fillRect(80, 12, w * k, 12);
   ctx.fillStyle = COL.ink; ctx.fillText(`${H.hp}`, 80 + w + 8, 18);
+  gauge();
+}
+/** the gear's gauge under the life: the jetpack's fuel, the paraglider's stamina, a flight's time */
+function gauge() {
+  const H = S.hero, C = S.card; let k = null, label = '';
+  if (S.gear === 'jet' && C.jet) { k = H.fuel / C.jet.fuel; label = C.jet.kind === 'flap' ? 'FLIGHT' : 'FUEL'; }
+  else if (S.gear === 'glide' && C.glide?.time) { k = H.glide ? 1 - H.glideT / C.glide.time : H.glideSpent ? 0 : 1; label = C.glide.kind === 'float' ? 'FLOAT' : 'STAMINA'; }
+  if (k == null) return;
+  ctx.fillStyle = COL.ink; ctx.fillText(label, 14, 38); ctx.strokeStyle = COL.dim; ctx.strokeRect(80, 32, 140, 12); ctx.fillStyle = COL.flame; ctx.fillRect(80, 32, 140 * Math.max(0, k), 12);
 }
 /** the shots in flight: a ball its size, the full charge brighter */
 function drawShots() {
@@ -444,13 +471,14 @@ function renderFeel() {
   for (const b of document.querySelectorAll('[data-feel]')) b.setAttribute('aria-pressed', String(b.dataset.feel === feel));
   $('says').textContent = FEELS[feel].says;
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
-  $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
+  $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = view === 'three' ? '¾ view' : 'Side view'; $('pause').textContent = paused ? 'Resume' : 'Pause';
 }
 const DIALS = [
   ['Ground', 'ground.run', 'run', 1, 24, 0.5, 'm/s'], ['Ground', 'ground.accel', 'accel', 1, 120, 1, 'm/s²'], ['Ground', 'ground.decel', 'decel', 1, 120, 1, 'm/s²'],
   ['Jump', 'jump.commit', 'commit', 0, 20, 1, 'f'], ['Jump', 'jump.height', 'height', 0.2, 3, 0.05, 'm'], ['Jump', 'jump.gRise', 'rise g', 5, 60, 0.5, 'm/s²'], ['Jump', 'jump.gFall', 'fall g', 5, 80, 0.5, 'm/s²'],
   ['Jump', 'jump.cut', 'cut', 0.1, 1, 0.05, '×'], ['Wall', 'cling.slide', 'wall slide', 0.5, 8, 0.5, 'm/s'], ['Wall', 'cling.away', 'kick away', 1, 12, 0.5, 'm/s'], ['Wall', 'cling.lock', 'kick lock', 0, 20, 1, 'f'], ['Wall', 'cling.up', 'kick up', 0.3, 1.5, 0.05, '×'], ['Air', 'air.jumps', 'air jumps', 0, 3, 1, ''], ['Guard', 'guard.parry', 'parry window', 1, 20, 1, 'f'], ['Guard', 'guard.block.stun', 'blockstun', 0, 30, 1, 'f'], ['Guard', 'guard.riposte', 'riposte', 10, 120, 1, 'f'], ['Guard', 'guard.perfect.witch', 'witch time', 0, 300, 10, 'f'], ['Roll', 'dodge.speed', 'roll speed', 1, 16, 0.5, 'm/s'], ['Roll', 'dodge.frames', 'roll frames', 6, 40, 1, 'f'], ['Dash', 'dash.speed', 'dash speed', 2, 20, 0.5, 'm/s'], ['Dash', 'dash.frames', 'dash frames', 4, 60, 1, 'f'], ['Dash', 'dash.air.count', 'air dashes', 0, 3, 1, ''], ['Dash', 'dash.air.speed', 'air dash speed', 2, 20, 0.5, 'm/s'], ['Air', 'air.mult', 'air jump', 0.3, 1.5, 0.05, '×'], ['Jump', 'jump.hang', 'hang', 0, 20, 1, 'f'], ['Jump', 'jump.coyote', 'coyote', 0, 20, 1, 'f'], ['Jump', 'jump.buffer', 'buffer', 0, 20, 1, 'f'], ['Jump', 'jump.air', 'air control', 0, 1, 0.05, '×'],
+  ['Gear', 'glide.fall', 'glide sink', 0.2, 6, 0.1, 'm/s'], ['Gear', 'glide.speed', 'glide speed', 1, 20, 0.5, 'm/s'], ['Gear', 'glide.time', 'glide time', 10, 900, 10, 'f'], ['Gear', 'jet.thrust', 'jet thrust', 5, 80, 1, 'm/s²'], ['Gear', 'jet.fuel', 'jet fuel', 10, 600, 10, 'f'],
   ['Ranged', 'ranged.every', 'volley every', 30, 300, 5, 'f'], ['Hurt', 'hurt.stun', 'stun', 0, 90, 1, 'f'], ['Hurt', 'hurt.knock', 'knock', 0, 10, 0.5, 'm/s'], ['Hurt', 'hurt.mercy', 'mercy', 0, 240, 5, 'f'], ['Hurt', 'maneuver.stun', 'maneuver stun', 0, 1, 0.05, '×'], ['Hurt', 'life.hp', 'life', 1, 200, 1, ''],
   ['Charge', 'charge.levels.0', 'level 1 at', 4, 120, 1, 'f'], ['Charge', 'charge.levels.1', 'level 2 at', 10, 180, 1, 'f'], ['Charge', 'charge.move', 'stance walk', 0, 1, 0.05, '×'],
   ['Moves', 'moves.string.0.startup', 'first startup', 1, 30, 1, 'f'], ['Moves', 'moves.buffer', 'buffer', 0, 20, 1, 'f'], ['Hit', 'hit.hitstop.base', 'hitstop base', 0, 20, 1, 'f'],
@@ -492,7 +520,7 @@ function renderLast() {
 }
 function renderState() {
   const H = S.hero, v = Math.hypot(H.v[0], H.v[1]), d = poseOf(S, 'hero');
-  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
+  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['gear', gear ? `${gear === 'glide' ? S.card.glide?.kind : `jetpack (${S.card.jet?.kind})`}${gear === 'jet' ? `, fuel ${Math.round(S.hero.fuel)}` : ''}` : 'none'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
   $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
   for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT]]) $(id).classList.toggle('on', !!(b & bit));
@@ -508,17 +536,17 @@ function renderRec() {
 let last = null;
 $('rec').addEventListener('click', () => {
   if (rec) { last = rec; rec = null; $('fixture').value = JSON.stringify(fixture(last)); }
-  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, card: copy(S.card), pads: [] }; }
+  else { reset(); rec = { feel, cast, spar, guard, critter, shooter: S.shooter, gear, card: copy(S.card), pads: [] }; }
   renderRec();
 });
-$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); shooter = null; reset(); if (last.shooter) { S.shooter = last.shooter; S.spar = false; shooter = Object.entries(S.card.ranged.sets).find(([, v]) => JSON.stringify(v) === JSON.stringify(last.shooter))?.[0] ?? 'recorded'; renderFeel(); } replay = { pads: last.pads, i: 0 }; renderRec(); });
-const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), card: r.card, pads: r.pads });
+$('replay').addEventListener('click', () => { if (!last) return; setFeel(last.feel, true); cast = last.cast; spar = last.spar; guard = last.guard; critter = !!last.critter; cards[feel] = copy(last.card); shooter = null; gear = last.gear ?? null; reset(); if (last.shooter) { S.shooter = last.shooter; S.spar = false; shooter = Object.entries(S.card.ranged.sets).find(([, v]) => JSON.stringify(v) === JSON.stringify(last.shooter))?.[0] ?? 'recorded'; renderFeel(); } replay = { pads: last.pads, i: 0 }; renderRec(); });
+const fixture = (r) => ({ says: 'recorded in the lab', feel: r.feel, cast: r.cast, spar: r.spar, guard: r.guard, ...(r.critter ? { dummyHeight: 0.8 } : {}), ...(r.shooter ? { shooter: r.shooter } : {}), ...(r.gear ? { gear: r.gear } : {}), card: r.card, pads: r.pads });
 $('copy').addEventListener('click', async () => {
   const t = $('fixture'); t.value = JSON.stringify(fixture(last));
   try { await navigator.clipboard.writeText(t.value); $('recState').textContent = 'Copied. Save it under scripts/spikes/action-lab/fixtures/ and verify.mjs replays it.'; }
   catch { t.hidden = false; t.select(); $('recState').textContent = 'Select-all is on the box below: copy it from there.'; }
 });
-$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, critter: fx.dummyHeight != null && fx.dummyHeight < 1, shooter: fx.shooter ?? null, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
+$('load').addEventListener('click', () => { try { const fx = JSON.parse($('fixture').value); last = { feel: fx.feel, cast: fx.cast ?? 'male', spar: !!fx.spar, guard: fx.guard ?? true, critter: fx.dummyHeight != null && fx.dummyHeight < 1, shooter: fx.shooter ?? null, gear: fx.gear ?? null, card: fx.card ?? copy(FEELS[fx.feel]), pads: fx.pads }; renderRec(); $('replay').click(); } catch (e) { $('recState').textContent = `That is not a recorded run: ${e.message}`; } });
 $('showfx').addEventListener('click', () => { $('fixture').hidden = !$('fixture').hidden; $('load').hidden = $('fixture').hidden; });
 
 // ─── controls ───
@@ -531,6 +559,8 @@ function cycleShooter() {
   shooter = i + 1 < keys.length ? keys[i + 1] : null; S.shooter = shooter ? S.card.ranged.sets[shooter] : null; S.volleyN = 0;
   if (shooter) { spar = false; S.spar = false; } renderFeel();
 }
+/** the gear: none → glider → jetpack → none (what the jump does in the air once the air jumps are spent) */
+function cycleGear() { gear = gear == null ? 'glide' : gear === 'glide' ? 'jet' : null; S.gear = gear; S.hero.glide = false; S.hero.jet = false; S.hero.flying = false; S.hero.fuel = S.card.jet?.fuel ?? 0; renderFeel(); }
 function setOneHit(on) { if (!S.card.life) return; S.card.life.oneHit = on; cards[feel].life.oneHit = on; renderFeel(); }
 function setGuard(on) { guard = on; S.guard = on; renderFeel(); }
 function setCritter(on) { critter = on; reset(); }
@@ -539,7 +569,7 @@ function setPaused(on) { paused = on; renderFeel(); }
 for (const b of document.querySelectorAll('[data-feel]')) b.addEventListener('click', () => setFeel(b.dataset.feel));
 $('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(FEELS[feel]); reset(); });
 $('view').addEventListener('click', () => setView(view === 'three' ? 'side' : 'three'));
-$('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
+$('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
 $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); stepOnce = true; });
 

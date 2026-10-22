@@ -33,7 +33,7 @@ const html = `<meta charset="utf-8">
   --ink: #eef1f5; --dim: #8e9aab; --line: #2a3240;
   --hero: #5fd0c8; --dummy: #e8a35a; --shadow: #000000;
   --startup: #3fbf6b; --active: #e5484d; --recovery: #4a86e8; --stop: #f4f1de; --stun: #f08a4b; --air: #3a4658;
-  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --spark: #fff3b0; --smear: #5fd0c8;
+  --inv: #b18cff; --gather: #e6c84f; --guard: #9aa6b8; --mercy: #6b5a8c; --cling: #7cc6e8; --lock: #ffb547; --zoneRed: #e5484d; --zoneOrange: #ff9a3c; --charge1: #5cc8ff; --charge2: #ff5ce1; --armor: #8fb4d9; --hyper: #f4f1e6; --foe: #ff6b4a; --laser: #ff3b3b; --life: #4fd18b; --flame: #ffb02e; --wing: #cfe8ff; --spark: #fff3b0; --smear: #5fd0c8;
   --good: #3fbf6b; --bad: #e5484d;
   --display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
   --body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -117,6 +117,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <button type="button" id="critter" aria-pressed="false" title="H: a short dummy (0.8 m) every feel can jump on">Critter</button>
       <button type="button" id="shooter" aria-pressed="false" title="Y: the dummy shoots, the patterns its genre uses (off, then each set: action's arena and brawler)">Shooter</button>
       <button type="button" id="onehit" aria-pressed="false" title="O: any hit is the end (the one-hit games)">One hit</button>
+      <button type="button" id="gearbtn" aria-pressed="false" title="E: the gear the jump uses in the air: none, the glider, the jetpack">Gear</button>
       <button type="button" id="view" title="V">¾ view</button>
       <button type="button" id="pause" title="P or Esc">Pause</button>
       <button type="button" id="stepbtn" title=". (paused): one frame">Step</button>
@@ -128,7 +129,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · E gear (the glider or the jetpack: hold the jump past the apex, or press it in the air) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
           <div class="tbtns"><button type="button" data-tbtn="DODGE">Roll</button><button type="button" data-tbtn="DASH">Dash</button><button type="button" data-tbtn="LOCK">Lock</button><button type="button" data-tbtn="GUARD">Guard</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>

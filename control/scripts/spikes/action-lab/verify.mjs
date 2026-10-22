@@ -19,8 +19,8 @@ const J = BTN.JUMP, AT = BTN.ATTACK, DG = BTN.DODGE, DS = BTN.DASH, LK = BTN.LOC
  * Run a pad script: `pads(f)` → [x, y, buttons] for tick f, `n` ticks. Every tick checks the walls (no body inside a
  * block taller than a step over its feet, none past the arena). Returns the events and the per-tick states.
  */
-function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null, shooter = null } = {}) {
-  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves, shooter }); if (setup) setup(S);
+function run(card, pads, n, { arena = OPEN, setup = null, spar = false, guard = true, who = body, dummyHeight, sparMoves = null, mid = null, shooter = null, gear = null } = {}) {
+  let S = newState(card, who, { arena, spar, guard, dummyHeight, sparMoves, shooter, gear }); if (setup) setup(S);
   const events = [], states = []; let breach = null;
   for (let f = 0; f < n; f++) {
     if (mid) mid(S, f);   // a test may move a body mid-run (between ticks), to put it where the law needs it
@@ -528,6 +528,53 @@ for (const id of FEEL_IDS) {
     }
   }
 
+  // ─── the glider and the jetpack ───
+  {
+    const GL = C.glide, JT = C.jet, gearRun = (gear, pads, n, o = {}) => track(run(o.card ?? C, pads, n, { arena: o.arena ?? OPEN, gear, setup: o.setup, mid: o.mid }));
+    const high = (z) => (S) => { S.hero.p[2] = z; S.hero.grounded = false; S.hero.from = z; };
+    const plain = gearRun(null, hold(J, 1, 200), 300);
+    check(`${id}: with no gear a held jump does nothing in the air`, !ev(plain, 'glide').length && !ev(plain, 'jet').length && !ev(plain, 'flap').length);
+    if (GL.kind === 'paraglider') {
+      const n = GL.time + 40, r = gearRun('glide', (f) => pad(0, 127, f === 2 ? J : 0), n, { setup: high(30) }), g = ev(r, 'glide')[0], e = ev(r, 'glide-end')[0];
+      const mid = r.states[g.f + 120].hero, low = gearRun('glide', (f) => (f === 2 ? J : 0), 30, { setup: high(GL.min - 0.3) });
+      row['glider'] = `paraglider ${GL.fall} m/s down, ${GL.speed} m/s on, ${GL.time} f`;
+      check(`${id}: the paraglider opens on a press from a height (${GL.min} m), sinks at ${GL.fall} m/s and flies on at ${GL.speed} m/s; its stamina folds it after ${GL.time} f and the body falls; too low, the press is the air's`, g?.f === 2 && Math.abs(mid.v[2] + GL.fall) < 1e-9 && Math.abs(Math.hypot(mid.v[0], mid.v[1]) - GL.speed) < 1e-6 && e?.why === 'out of stamina' && e.f === g.f + GL.time && r.states[e.f + 10].hero.v[2] < -GL.fall && !ev(low, 'glide').length, { open: g?.f, fold: e && [e.f, e.why], speed: +Math.hypot(mid.v[0], mid.v[1]).toFixed(3), low: ev(low, 'glide').length });
+      const fold = gearRun('glide', (f) => (f === 2 || f === 60 ? J : 0), 80, { setup: high(30) });
+      check(`${id}: a second press folds the paraglider`, ev(fold, 'glide-end')[0]?.why === 'folded' && ev(fold, 'glide-end')[0].f === 60);
+    } else if (GL.kind === 'float') {
+      const r = gearRun('glide', hold(J, 1, 200), 300), g = ev(r, 'glide')[0], e = ev(r, 'glide-end')[0], zs = g && r.states.slice(g.f, g.f + GL.time).map((x) => x.hero.p[2]);
+      row['glider'] = `float ${GL.time} f`;
+      check(`${id}: the float: held past the apex the height is kept ${GL.time} f, then the body falls, and no second float before landing`, g && e?.why === 'the float is spent' && e.f === g.f + GL.time && zs.every((z) => Math.abs(z - zs[0]) < 1e-9) && r.states[e.f + 10].hero.p[2] < zs[0] && ev(r, 'glide').length === 1, { start: g?.f, end: e?.f, z: zs && +zs[0].toFixed(3) });
+    } else {
+      const r = gearRun('glide', (f) => pad(0, 127, J), 400, { setup: high(40) }), g = ev(r, 'glide')[0], late = r.states[g.f + 300].hero;
+      const turn = gearRun('glide', (f) => pad(f > 60 ? 127 : 0, f > 60 ? 0 : 127, J), 120, { setup: high(40) }), yaws = turn.states.slice(61, 100).map((x) => x.hero.yaw), most = Math.max(...yaws.slice(1).map((y, k) => Math.abs(util.angDiff(y, yaws[k]))));
+      const let_ = gearRun('glide', (f) => (f < 60 ? J : 0), 90, { setup: high(40) }), le = ev(let_, 'glide-end')[0];
+      row['glider'] = `glide ${GL.fall} m/s down, ${GL.from ? `${GL.from} → ` : ''}${GL.speed} m/s, ${GL.turn}°/s${GL.grab ? ', grabs walls' : ''}`;
+      check(`${id}: the glide: held past the apex it sinks at ${GL.fall} m/s and settles on ${GL.speed} m/s${GL.from ? ` from ${GL.from}` : ''}, turning at most ${GL.turn}°/s; let go, it falls`, g && Math.abs(late.v[2] + GL.fall) < 1e-9 && Math.abs(Math.hypot(late.v[0], late.v[1]) - GL.speed) < 1e-6 && most <= (GL.turn * Math.PI) / 180 / FPS + 1e-9 && most > 0 && le?.why === 'let go' && let_.states[le.f + 10].hero.v[2] < -GL.fall, { start: g?.f, speed: +Math.hypot(late.v[0], late.v[1]).toFixed(3), turn: +(most * FPS * 180 / Math.PI).toFixed(1), let: le?.f });
+      if (GL.grab) {
+        const wall = gearRun('glide', () => pad(0, 127, J), 200, { setup: high(40), arena: { ...OPEN, blocks: [{ id: 'w', x: [-5, 5], y: [8, 9], h: 60 }] } }), c = ev(wall, 'cling').find((e) => e.grab);
+        check(`${id}: a glide into a wall grabs it (Knuckles)`, c && wall.states[c.f].hero.cling && !wall.states[c.f].hero.glide, { grab: c?.f });
+      }
+      const hit = gearRun('glide', () => J, 60, { setup: high(40), mid: (S, f) => { if (f === 30) { const H = S.hero, p = [H.p[0], H.p[1] + 0.8, H.p[2] + 1.1]; S.foes.push({ id: 1, name: 'orb', f: 0, life: 60, size: 0.25, g: 0, b: p.slice(), p, v: [0, -9, 0] }); } } });
+      check(`${id}: a hit takes the body out of its glide`, ev(hit, 'glide-end').some((e) => e.why === 'hit'), ev(hit, 'glide-end').map((e) => [e.f, e.why]));
+    }
+    if (JT.kind === 'flap') {
+      const presses = (f) => (f === 1 || (f >= 20 && f % 12 === 8) ? J : 0), r = gearRun('jet', presses, JT.fuel + 120), flaps = ev(r, 'flap'), tired = ev(r, 'tired')[0];
+      const sinks = r.states.filter((x) => x.hero.flying && !x.hero.grounded).every((x) => x.hero.v[2] >= -JT.sink - 1e-9);
+      const after = tired && ev(r, 'dropped').concat(ev(r, 'buffered')).filter((e) => e.button === 'jump' && e.f > tired.f && /tired/.test(e.why));
+      row['jetpack'] = `flight: flap ${JT.flap} m/s, ${JT.fuel} f`;
+      check(`${id}: flight (Tails): once the air jump is spent each press flaps up at ${JT.flap} m/s, the fall slowed to ${JT.sink} m/s between; after ${JT.fuel} f it tires and the presses do nothing`, flaps.length > 10 && flaps.every((e) => r.states[e.f].hero.v[2] >= JT.flap - C.jump.gFall / FPS - 1e-9) && sinks && tired && after.length > 0 && !flaps.some((e) => e.f > tired.f), { flaps: flaps.length, tired: tired?.f, after: after?.length });
+    } else {
+      const r = gearRun('jet', hold(J, 1, 400), 600), on = ev(r, 'jet')[0], off = ev(r, 'jet-end')[0], top = Math.max(...r.states.map((x) => x.hero.p[2])), land = ev(r, 'land').find((e) => e.f > (off?.f ?? 0));
+      const refill = land && r.states.findIndex((x, k) => k > land.f && x.hero.fuel >= JT.fuel), want = land && land.f + JT.delay + Math.ceil(JT.fuel / JT.regen);
+      const climbs = on && r.states.slice(on.f + 30, off.f).every((x) => x.hero.v[2] <= JT.rise + 1e-9) && (JT.kind === 'hover' ? Math.abs(r.states[off.f - 1].hero.v[2] - JT.rise) < 1e-6 : true);
+      row['jetpack'] = `${JT.kind}: ${JT.fuel} f of fuel, refilled ${JT.delay} f after landing`;
+      check(`${id}: the jetpack (${JT.kind}): held past the apex it lifts, climbing no faster than ${JT.rise} m/s, above the jump's height; it burns out after ${JT.fuel} f and the tank refills ${JT.delay} f after landing`, on && off?.why === 'out of fuel' && off.f - on.f === JT.fuel && climbs && top > C.jump.height + 0.1 && Math.abs(refill - want) <= 2, { on: on?.f, out: off && [off.f, off.why], top: +top.toFixed(3), refill: [refill, want] });
+      const tap = gearRun('jet', (f) => (f === 1 || f === 40 ? J : 0), 120, { setup: high(10) });
+      check(`${id}: a press in the air lights it too, and letting go puts it out`, ev(tap, 'jet').some((e) => e.f === 40) && ev(tap, 'jet-end').some((e) => e.why === 'let go'), ev(tap, 'jet').map((e) => e.f));
+    }
+  }
+
   // ─── the wall: what it does, at the feel's top speed ───
   const WALL = { half: 6, blocks: [], hero: [0, -4], dummy: [300, 300] };
   const wr = track(run(C, (f) => pad(0, f < 240 ? 127 : 0, BTN.SPRINT), 300, { arena: { ...WALL, dummy: [5, -5] } }));
@@ -561,7 +608,7 @@ check('realistic\'s card is the take\'s own time: its fitted jab is the take fra
 const FIX = new URL('./fixtures/', import.meta.url);
 if (existsSync(FIX)) for (const file of readdirSync(FIX).filter((f) => f.endsWith('.json'))) {
   const fx = JSON.parse(readFileSync(new URL(file, FIX), 'utf8'));
-  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, shooter: fx.shooter ?? null, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
+  const r = run(FEELS[fx.feel] ? { ...FEELS[fx.feel], ...(fx.card ?? {}) } : FEELS.action, (f) => fx.pads[f] ?? [0, 0, 0], fx.pads.length, { arena: fx.arena ?? ARENA, spar: fx.spar, guard: fx.guard ?? true, dummyHeight: fx.dummyHeight, shooter: fx.shooter ?? null, gear: fx.gear ?? null, who: fx.cast && fx.cast !== cast ? T.bodyOf(T.rigOf(fx.cast)) : body });   // a recorded run plays in the page's arena
   const got = r.events.filter((e) => fx.expect?.types?.includes(e.type)).map((e) => `${e.f}:${e.who}:${e.type}`);
   check(`fixture ${file}: ${fx.says ?? ''}`, !fx.expect?.events || JSON.stringify(got) === JSON.stringify(fx.expect.events), got.slice(0, 6));
 }
