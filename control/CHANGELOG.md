@@ -65,6 +65,10 @@ body catches up to what the authored one wears, and its principles are shared ba
   flair pieces; the feet in the value gradient). The outline read measures that gradient now (`values: { chest,
   feet }`, the shoe's L* against the chest's front) and the anime canon reads it (`gradient`: dark shoes under a light
   chest).
+- WHAT THE GAME BODY WEARS, SAID: the authored body wears the handwear library's gloves (its own adapter) and every
+  footwear card as plain boots, shoes or sandals; the tailoring words, the plated suits and the footwear cards' own cut
+  are the realistic body's. The hero readout now says so (`realisticOnly`) where it had worn them plain or dropped them
+  in silence; nothing refused.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

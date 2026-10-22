@@ -559,7 +559,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   its `Tie` tone; open, the lapels run to the hem; a woman's closes left over right; the cards `business` and
   `doublebreasted` are suits with ties, `skirtsuit` and `trousersuit` a woman's); `waistcoat: true | { front, buttons:
   3–6 }` a waistcoat between the shirt and the jacket, no belt (on the realistic body its own V and buttons, its
-  armholes; `Waistcoat` tone; the card `threepiece`); `panels: [{ at: back | front | sides
+  armholes; `Waistcoat` tone; the card `threepiece`; on the game body the tailoring, a plated suit and a footwear card's
+  cut are worn plain or not at all, said in the readout's `realisticOnly`; gloves are worn on both); `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose

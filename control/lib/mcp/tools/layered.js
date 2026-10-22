@@ -1008,6 +1008,15 @@ export function dressReadout(hero, plan, mesh, recipe) {
     out.outline = { family: M.family, bare: M.bareFamily, fit: { top: M.fit.top.class, bottom: M.fit.bottom.class }, returns: M.returns, divisions: M.divisions.map((d) => `${d.kind}@${d.f}`), flair: M.flair.of,
       advice: Object.fromEntries(canons.map((st) => [st, outlineCritic(M, st, { sex }).advice])) };
   }
+  // what the GAME BODY wears plain or not at all, said (advice, never a refusal): the tailoring is the realistic body's
+  // tailor's; the plating suits its library's realistic adapter's; a footwear card past boots, shoes and sandals its base
+  if (hero.form !== 'realistic') {
+    const words = (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).filter((w) => typeof w === 'string'), only = [];
+    if (plan.tailoring) only.push(`tailoring (${Object.keys(plan.tailoring).join(', ')}): a jacket's front and lapels, its shoulder and waist, a tie and a waistcoat's V are made on the realistic body; the game body wears the pieces plain`);
+    const suits = words.filter((w) => Object.hasOwn(SUITS, w)); if (suits.length) only.push(`${suits.join(', ')}: plated suits are worn on the realistic body; the game body wears none (its armour is an armour build, adorn: { type: 'armor' })`);
+    const shoes = words.filter((w) => Object.hasOwn(FOOTWEAR, w) && !['boots', 'shoes', 'sandals'].includes(w)); if (shoes.length) only.push(`${shoes.join(', ')}: worn as plain boots, shoes or sandals on the game body; the card's cut, sole and adornment are the realistic body's`);
+    if (only.length) out.realisticOnly = only;
+  }
   // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
   const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };
   if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking.filter((id) => !C.adornments[id] || !stitched(id, C.adornments[id])), worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }
