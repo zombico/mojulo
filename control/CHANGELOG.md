@@ -133,6 +133,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   deepest, then a near-black in the shade's hue: the nostrils, the mouth's line, the sockets' inner corners, the ear's
   folds (the knee at 0.9 of the occlusion, the darkest a tenth of the shade's colour: a tight band, tightened at the
   operator's ask). A near-black only that deep, and only by asking for it.
+- THE WORLD'S SKIN, as data (gameworld/hero-looks.js `worldSkin`): a world with a palette hands its characters the shade
+  its art direction paints (`skinDirection`, the default light kept), `characters.direction.shading` naming how
+  (painted when absent). The composed hero carries it as `skin`; the mint takes it only on a realistic hero, under its
+  own shade, so every hero a world mints today mints as it did.
+- The dermis study's sheen reads the relief layer: each relief class's slopes (its pores and grain, finer than a pixel)
+  widen the highlight, Toksvig's way, so the skin reads satin rather than plastic (`--flat-sheen` for the old lobe).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

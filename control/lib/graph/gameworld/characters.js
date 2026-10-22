@@ -20,6 +20,9 @@
  *       primary?, secondary?,                    // the design's leading and supporting elements, in words
  *       palette?: [hex],                         // the character palette; the kit's ramps when from the world
  *       bridge?: { head?, proportions?, toon? }, // explicit crossings out of the tradition
+ *       shading?: 'painted' | 'cel' | 'graphic' | 'chiaroscuro' | 'none',  // how the skin's shade is painted in the
+ *                                              // world's palette (color-theorist/adapters.js skinDirection; painted
+ *                                              // when the world has a palette and this is absent)
  *     },
  *     hero?: {
  *       ref?,                                    // a hero made on its own (create_character), adopted: the run makes
@@ -45,6 +48,7 @@ import { readActions } from './actions.js';
 import { readMotion } from './hero-vibe.js';
 import { readAdornment } from './adornment.js';
 import { readCastRequest, castOfScale, SCALES } from '../egocube/cast.js';
+import { SKIN_SHADINGS } from '../color-theorist/adapters.js';
 
 /** Western and anime: the two traditions every character and world is tuned to; a hero is drawn in one of them. */
 export const TRADITIONS = Object.freeze({
@@ -61,7 +65,7 @@ export const FROM = Object.freeze({
   world: 'the world\'s direction: its kit\'s ramps, its pole and its building ornament',
   custom: 'the creator\'s own direction, standing alone',
 });
-const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'palette', 'bridge'];
+const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'palette', 'bridge', 'shading'];
 
 /** The hero's looks: each element its own page, each the hero-door fields it decides. */
 export const LOOKS_ELEMENTS = Object.freeze({
@@ -130,6 +134,10 @@ function readDirection(d) {
   if (d.palette !== undefined) {
     if (!Array.isArray(d.palette) || !d.palette.length || !d.palette.every(isHex)) throw err('direction.palette is a list of colours (#rrggbb), the character palette');
     out.palette = d.palette.map((h) => h.toLowerCase());
+  }
+  if (d.shading !== undefined) {
+    if (!SKIN_SHADINGS.hasOwnProperty(d.shading)) throw err(`direction.shading is how the skin's shade is painted in the world's palette: ${Object.keys(SKIN_SHADINGS).map((k) => `'${k}'`).join(', ')}`);
+    out.shading = d.shading;
   }
   if (d.bridge !== undefined) {
     if (!isObj(d.bridge)) throw err(`direction.bridge is { ${Object.keys(BRIDGE).join(', ')} }`);

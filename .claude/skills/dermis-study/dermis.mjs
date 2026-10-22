@@ -60,7 +60,7 @@ const { PART_COLOURS } = await import('@/lib/graph/polygonizer/body-relational-m
 
 // ─── arguments ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null, lineupAll = false;
+let out = '/tmp/dermis-study', body = false, physiqueSpec = null, bodyPage = 2048, dermisSpec = {}, scalpSpec = null, epiSpec = null, cells = 110, page = 1024, looks = [], ancestries = [], faces = [], lineup = false, game = false, lineupCrop = null, lineupAll = false, flatSheen = false;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -72,6 +72,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--faces') { faces.push(...JSON.parse(args[++i])); continue; }
   if (a === '--ancestry') { ancestries.push(...args[++i].split(',')); continue; }
   if (a === '--lineup') { lineup = true; continue; }
+  if (a === '--flat-sheen') { flatSheen = true; continue; }
   if (a === '--lineup-all') { lineup = true; lineupAll = true; continue; }
   if (a === '--lineup-crop') { lineup = true; lineupCrop = args[++i]; continue; }
   if (a === '--game') { game = true; continue; }
@@ -112,6 +113,7 @@ function headOf(sex, look = null, anc = null, face = null) {
   const D = readDermis({ ...(Lk ? Lk.dermis : { from: sex }), ...dermisSpec });
   const word = scalpSpec ?? (Lk ? Lk.scalp : sex === 'female' ? 'shoulder' : 'short'), S = word === 'none' ? null : readScalp(word);
   const L = layoutDermis(chart, { page }), T = paintDermis(chart, D, L, { scalp: !!S });
+  T.slopeVar = slopeVarOf(T.classes, D);
   const scalp = S ? growScalp(chart, D, S, { colliders: ['head'] }) : null;
   const beard = growBodyHair(chart, D, { share: 0.5, tracts: ['beard'] });
   // the cube's brows and lashes, in the head's STAND units → metres
@@ -186,6 +188,11 @@ function raster(R, cam, W, Hh, V, faces, normalsOf, colour) {
 const LIGHT_DEFAULT = { key: [1.04, 1, 0.95], fill: [1.04, 1, 0.95], rim: [0.75, 0.85, 1], exposure: 1 };
 let LIGHT = null;
 const lightOfHex = (L) => { const n = (h, s = 1) => { const c = hexLin(h), l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] || 1; return c.map((v) => (v / l) * s); }; return { key: L.key ? n(L.key) : LIGHT_DEFAULT.key, fill: L.fill ? n(L.fill) : LIGHT_DEFAULT.fill, rim: L.rim ? n(L.rim, 0.85) : LIGHT_DEFAULT.rim, exposure: L.exposure ?? 1 }; };
+/** how much of a relief's slopes' variance reaches the sheen (its tiles are drawn steep, to read up close; a pore's floor
+ * reflects little), and at most */
+const SHEEN_RELIEF = { share: 0.25, cap: 0.1 };
+/** each relief class's slopes' variance (its tile's normals: mean (nx² + ny²) / nz²), the sheen's widening */
+const slopeVarOf = (classes, D) => (classes || []).map((cl) => { const t = reliefTile(cl, { px: 64, size: 8, seed: D.seed, age: D.age }), n = t.normal; let s = 0; for (let i = 0; i < n.length; i += 3) { const x = n[i] / 127.5 - 1, y = n[i + 1] / 127.5 - 1, z = Math.max(0.05, n[i + 2] / 127.5 - 1); s += (x * x + y * y) / (z * z); } return s / (n.length / 3); });
 /** a skin texel lit from its atlas: `mode` 'lit' (the skin's cheats), or one of the atlas's channels shown as grey on
  * the shape ('roughness', 'translucency', 'hair', 'ao'), lit flat */
 function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
@@ -199,7 +206,10 @@ function skinShade(T, U, Vv, n, NL, NH, NV, cam, shut = 1, mode = 'lit') {
   // the skin's cheats: the wrap (red reaches past the terminator by the thinness), the sheen, the vellus's rim
   const wrap = [0.18 + 0.5 * tr, 0.1 + 0.22 * tr, 0.08 + 0.18 * tr];
   // (skin reflects about 4 % at every tone: an energy-conserving lobe, so a deep skin's sheen carries its form)
-  const pw = 2 / Math.max(0.02, ro ** 4), spec = 0.04 * ((pw + 2) / 8) * NH ** pw * Math.max(0, NL), rim = 0.12 * fz * (1 - NV) ** 3;
+  // (the relief the texel wears, its pores and grain finer than a pixel, widens the lobe: its slopes' variance added to
+  // the roughness's, Toksvig's way; `--flat-sheen` leaves it out)
+  const ci = T.detail && T.slopeVar ? T.detail[Math.max(0, Math.min(N[1] - 1, Math.floor((1 - Vv) * N[1]))) * N[0] + Math.max(0, Math.min(N[0] - 1, Math.floor(U * N[0])))] : -1;
+  const pw = 2 / Math.max(0.02, ro ** 4 + (flatSheen ? 0 : Math.min(SHEEN_RELIEF.cap, SHEEN_RELIEF.share * (T.slopeVar?.[ci] ?? 0)))), spec = 0.04 * ((pw + 2) / 8) * NH ** pw * Math.max(0, NL), rim = 0.12 * fz * (1 - NV) ** 3;
   // and a cool RIM from behind (the creator's three-point light: a warm key, a cool rim that cuts the head out)
   const rimL = 0.16 * (1 - NV) ** 2.5 * Math.max(0, -(n[0] * cam.light[0] + n[1] * cam.light[1]) * 0.6 + 0.4);
   const Lt = LIGHT || LIGHT_DEFAULT;
