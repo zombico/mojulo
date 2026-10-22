@@ -94,7 +94,7 @@ export const SCALP_STYLES = Object.freeze({
   // layered: a rounded perimeter, every lock no longer than the layer from its root (the top falls in shorter layers)
   layers: { length: 0.6, front: 0.6, sides: 1, crown: 1, part: 'side', fringe: false, cut: { line: { at: 'collarbone', shape: 'u', drop: 0.04 }, layers: 0.24 } },
 });
-const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
+const SCALP_KEYS = ['style', 'type', 'moves', 'locks', 'ties', 'length', 'front', 'sides', 'crown', 'part', 'fringe', 'stand', 'tousle', 'flip', 'flipBack', 'chunk', 'ragged', 'cut', 'spacing', 'strandGap', 'seed', 'stiffness', 'volume', 'frizz', 'clump'];
 const CUT_KEYS = ['line', 'fringe', 'envelope', 'taper', 'shelf', 'layers', 'soft'];
 /** the cut's errors (empty = valid) */
 function cutErrors(c) {
@@ -149,6 +149,7 @@ export function readScalp(spec = 'short') {
     for (const [k, v] of Object.entries(e)) { const r = LOCK_EDIT_KEYS[k]; if (!r) throw new Error(`scalp: locks.${n}.${k} unknown (have ${Object.keys(LOCK_EDIT_KEYS).join(', ')})`); if (!(v >= r[0] && v <= r[1])) throw new Error(`scalp: locks.${n}.${k} ${v} (${r[0]} … ${r[1]})`); }
   }
   if (!(out.tousle >= 0 && out.tousle <= 2) || !(out.flip >= 0 && out.flip <= 2)) throw new Error('scalp: tousle and flip 0 … 2');
+  if (out.flipBack !== undefined && !(out.flipBack >= 0 && out.flipBack <= 1)) throw new Error('scalp: flipBack 0 … 1 (the flip\'s share at the back)');
   if (!(out.chunk >= 0 && out.chunk <= 1.5)) throw new Error('scalp: chunk 0 … 1.5 (strands gathered into their guide\'s piece)');
   if (!['side', 'centre', 'none'].includes(out.part)) throw new Error(`scalp: part '${out.part}' (side | centre | none)`);
   if (!(out.length > 0 && out.length <= 1.2)) throw new Error('scalp: length 0 … 1.2 m');
@@ -334,7 +335,7 @@ export const SCALP_MOVES = Object.freeze({
   // layered longer toward the back, the layered ends flipped out so the width sits at the sides at mid-length, the ends
   // in pieces; within the style's own length
   'framed-layers': { note: 'face-framing layers: a smooth crown, the front shortest, the ends flipped out at the sides, in pieces (the Rachel\'s principles)',
-    volume: 0.04, front: 0.45, flip: 0.5, chunk: 0.45, frizz: 0.001, cut: { layers: 0.22 },
+    volume: 0.04, front: 0.45, flip: 0.5, flipBack: 0.1, chunk: 0.45, frizz: 0.001, cut: { layers: 0.22 },
     locks: Object.fromEntries(['left', 'right'].flatMap((side) => [0, 1, 2].map((j) => [`${side}-temple-${j}`, { stand: 0.08 }]))) },
   // a BLOW-DRY: the roots lifted well off the scalp (the crown fullest, by the lift's own weighting), the sides held
   // out from the head at the temples, the ends turned out, the frizz brushed smooth. (The crown's clumps are left to the
@@ -649,10 +650,11 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
     if (envelope) { const N = g.pts.length - 1; for (let i = 2; i <= N; i++) if (envelope(g.pts[i]) > 1) { const a0 = envelope(g.pts[i - 1]), a1 = envelope(g.pts[i]), f = (1 - a0) / Math.max(1e-9, a1 - a0); g = trimTo(g, (i - 1 + Math.max(0, Math.min(1, f))) / N, NS); break; } }
     // the FRINGE's own line: a bang that falls over the brow (a fringe, a lock let over) cut where it crosses that level
     if (fringeZ && (E[gi].over > 0.3 || (S.fringe && ad(at.address.around, 0) < 0.16))) { const t = crossing(g.pts, fringeZ); if (t !== null) g = trimTo(g, t, NS); }
-    // a FLIP: the ends kicked out and up over the last fifth (a lock's tip turned off the shoulder)
+    // a FLIP: the ends kicked out and up over the last fifth (a lock's tip turned off the shoulder); `flipBack` its share
+    // behind the ears (absent, the whole flip all round)
     if (S.flip && g.L > 0.12) {
-      const N = g.pts.length - 1;
-      g = { ...g, pts: g.pts.map((q, i) => { const u = (i / N - 0.78) / 0.22; if (u <= 0) return q; const out = unit(perp(sub(q, c0), [0, 0, 1])); return add(q, add(scl(out, S.flip * 0.035 * u * u), [0, 0, S.flip * 0.03 * u * u])); }) };
+      const N = g.pts.length - 1, fl = S.flipBack === undefined ? S.flip : S.flip * (1 - (1 - S.flipBack) * smooth(0.25, 0.42, ad(at.address.around, 0)));
+      g = { ...g, pts: g.pts.map((q, i) => { const u = (i / N - 0.78) / 0.22; if (u <= 0) return q; const out = unit(perp(sub(q, c0), [0, 0, 1])); return add(q, add(scl(out, fl * 0.035 * u * u), [0, 0, fl * 0.03 * u * u])); }) };
     }
     return g;
   });

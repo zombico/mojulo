@@ -87,7 +87,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part over any style that has a
   part (the peak is where the hair parts of itself), with the groom's `framed-layers` move (dermal-hair.js, the
   Rachel's principles): a smooth crown, the front cut shortest and layered longer toward the back, the ends flipped out so
-  the width sits at the sides at mid-length, in pieces, within the style's own length. A `blowout` move (the roots lifted
+  the width sits at the sides at mid-length (the back hanging straight: the groom's `flipBack`, the flip's share behind
+  the ears, absent the whole flip all round), in pieces, within the style's own length. A `blowout` move (the roots lifted
   well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
 
 ### Body-part map: dress tailored to the body, not the segment
