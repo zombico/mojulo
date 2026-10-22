@@ -226,6 +226,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   women, few men, every other site rare; a nose stud common in the South Asian buckets), one metal a face; now and then
   streaks, mostly the salon's lightened dyes, sometimes a fashion colour, as a scalp hint. The rolls before them keep
   their dice.
+- THE YEARS ON THE SAME ROLL (face-compose.js `composeFace`'s `age`, years 16 … 85, `FACE_AGE`): the rolled face is the
+  person at their prime (28; absent or 28, the face as rolled, byte for byte); other ages keep every roll and the
+  person's styling (the cut, the streaks, the piercings, the marks, the beard's style) and move the years' signs. Older:
+  the soft tissue descends (the jowl and the fold, the cheek's fat from the cheekbone to the jaw, thinner lips set back,
+  a longer nose and ear, hooded lids, the outer canthus down), the skin's `age` and `lines` rise, the hair greys from
+  its onset, a man's temples recede and his loss advances by its destiny, a woman's crown thins late. Younger, to 16:
+  fuller cheeks and lips, a smaller nose, a softer jaw, a man's brow ridge not yet grown, the skin younger. Its own dice
+  (`face-age`): the rate the person ages at, the greying's onset by the ancestry's mean, the loss's destiny, the same at
+  every age of one seed.
+- GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
+  (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
+  the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

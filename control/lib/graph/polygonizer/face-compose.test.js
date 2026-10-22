@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-import { RELATION_POLES } from './head-relational.js';
+import { RELATION_POLES, RELATIONS } from './head-relational.js';
 import { BROW_SHAPES } from '../epidermis/epidermis.js';
-import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, FACE_HAIR_MALE, FACE_BEARD, FACE_BEAUTY, FACE_ASYMMETRY, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
+import { composeFace, FACE_SHAPES, FACE_FEATURES, FACE_BUCKETS, FACE_PROPORTIONS, FACE_LIMITS, FACE_GROOMS, FACE_NOSE, FACE_HAIRLINE, FACE_HAIR, FACE_GROOM_SEX, FACE_HAIR_MALE, FACE_BEARD, FACE_BEAUTY, FACE_ASYMMETRY, FACE_AGE, HYBRID_TRAITS, LID_FOLD } from './face-compose.js';
 import { EYE_SHAPES } from '../epidermis/dermal-looks.js';
 import { readDermis } from '../epidermis/dermal-map.js';
 import { readScalp } from '../epidermis/dermal-hair.js';
@@ -237,5 +237,33 @@ describe('beauty, asymmetry and the skin\'s marks', () => {
     const S = Array.from({ length: 200 }, (_, i) => composeFace({ sex: 'female', bucket: 'dravidian', seed: i + 1 }));
     expect(S.filter((f) => f.scalp?.streaks).length).toBeGreaterThan(5);
     expect(S.filter((f) => f.piercings?.some((p) => p.site === 'nostril')).length).toBeGreaterThan(40);
+  });
+});
+
+describe('the years on the same roll', () => {
+  it('is the roll at the prime, and keeps the person\'s styling at every age', () => {
+    for (const sex of ['female', 'male']) {
+      expect(composeFace({ sex, seed: 5, age: FACE_AGE.prime })).toEqual(composeFace({ sex, seed: 5 }));
+      const prime = composeFace({ sex, seed: 5 });
+      for (const age of [16, 45, 85]) {
+        const f = composeFace({ sex, seed: 5, age });
+        expect(f.scalp).toEqual(prime.scalp); expect(f.piercings).toEqual(prime.piercings); expect(f.dermis.marks).toEqual(prime.dermis.marks);
+        expect(f.dermis.beardStyle).toEqual(prime.dermis.beardStyle); expect(f.eyes).toEqual(prime.eyes);
+        expect(Object.values(f.relations).every(Number.isFinite)).toBe(true);
+        expect(() => readDermis({ from: sex, ...f.dermis })).not.toThrow();
+      }
+    }
+    expect(() => composeFace({ age: 12 })).toThrow(/age/);
+  });
+  it('descends the tissue, lines the skin and greys the hair as the years rise, and rounds the face below the prime', () => {
+    const at = (age) => composeFace({ sex: 'male', seed: 9, age });
+    const [y, p, m, o] = [at(16), at(28), at(50), at(78)].map((f) => ({ ...f, relations: { ...RELATIONS, ...f.relations } }));
+    expect(o.relations.jowl).toBeGreaterThan(m.relations.jowl); expect(m.relations.jowl).toBeGreaterThan(p.relations.jowl);
+    expect(o.relations.cheeks).toBeLessThan(m.relations.cheeks); expect(y.relations.cheeks).toBeGreaterThan(p.relations.cheeks);
+    expect(o.relations.lipFullness).toBeLessThan(p.relations.lipFullness); expect(y.relations.brow).toBeLessThan(p.relations.brow);
+    expect(o.dermis.lines).toBeGreaterThan(m.dermis.lines); expect(y.dermis.lines).toBe(0);
+    expect(o.dermis.grey).toBeGreaterThan(m.dermis.grey ?? 0); expect(y.dermis.grey).toBeUndefined();
+    expect(o.dermis.age).toBeGreaterThan(m.dermis.age); expect(y.dermis.age).toBeLessThan(m.dermis.age);
+    expect(o.dermis.temples).toBeGreaterThan(y.dermis.temples);
   });
 });

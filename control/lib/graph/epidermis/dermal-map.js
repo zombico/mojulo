@@ -67,6 +67,7 @@ export const DERMIS_DIALS = Object.freeze({
   lines: '0 … 1 (the face\'s lines: the forehead\'s, the frown, crow\'s feet, the nasolabial fold, under the eyes)',
   dirt: '0 … 1 (grime in the cavities and in blotches: the road\'s)',
   paint: `a war paint: null, or { pattern: eyes | stripes | band | chin | mask, colour: a word (woad, soot, ochre, chalk, blood) or a hex, amount 0 … 1 }`,
+  grey: '0 … 1 (the share of the hair gone grey: each strand silver or its own colour, the beard\'s first, the body\'s last; absent 0)',
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
@@ -154,7 +155,7 @@ function marksAt(A, D) {
 /** the shade's curves: `linear` as deep as the occlusion; `deep` the same until the skin is enclosed deepest, then a near-black */
 export const SHADE_CURVES = Object.freeze(['linear', 'deep']);
 /** the dials a map may name or not (absent, they add nothing): checked only when given */
-const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
+const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1], grey: [0, 1] };
 const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
 
 // (the male's hairline lower than the natural and a widow's peak at its middle: the male pole's, 2026-10-22, the operator's eyes)
@@ -580,6 +581,11 @@ export const skinBase = (D) => linHex(mulc(toneAlbedo(D.tone), UNDERTONE_TINT[D.
 
 /** the hair's colour (linear RGB) from the dermis's word */
 export const hairColourOf = (D) => hexLin(HAIR_COLOURS[D.hairColour] || D.hairColour);
+/** a grey hair's colour (linear RGB): the pigment gone, a warm silver */
+export const GREY_HAIR = Object.freeze(hexLin('#cdc8bf'));
+/** the hair's colour as the eye averages it at a distance (linear): its own, toward silver by the share gone grey (the
+ * texture's painted hair, an engine's cards); the colour itself without `grey` */
+export const hairMeanOf = (D) => { const c = hairColourOf(D); return D.grey ? c.map((v, k) => v + (GREY_HAIR[k] - v) * D.grey) : c; };
 
 // ─── the creator's sliders: the face's lines, war paint ───
 export const PAINT_PATTERNS = Object.freeze(['eyes', 'stripes', 'band', 'chin', 'mask']);

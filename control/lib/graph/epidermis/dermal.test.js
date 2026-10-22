@@ -8,7 +8,7 @@ import { relationalHeadChart } from './dermal-head.js';
 import { chartFromRings, meshOcclusion } from './dermal-chart.js';
 import { readLook, LOOKS, readAncestry } from './dermal-looks.js';
 import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
-import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin, headXY } from './dermal-map.js';
+import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin, headXY, hairMeanOf, hairColourOf } from './dermal-map.js';
 import { MST } from '../egocube/ancestry.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
@@ -294,4 +294,18 @@ describe('hair streaks', () => {
     expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'tips', colour: 'mauve' }] })).toThrow(/colour/);
     expect(() => readScalp({ style: 'bob', streaks: [{ kind: 'chunk', colour: 'blue' }] })).toThrow(/at/);
   }, 120000);
+});
+
+describe('grey hair', () => {
+  it('silvers a share of the strands, the beard\'s sooner, and none without the dial', () => {
+    const D0 = readDermis({ from: 'male', stubble: 8 }), D1 = readDermis({ from: 'male', stubble: 8, grey: 0.4 });
+    const B0 = growBodyHair(chart, D0, { share: 0.5, tracts: ['beard'] }), B1 = growBodyHair(chart, D1, { share: 0.5, tracts: ['beard'] });
+    expect(B0.strands.some((s) => s.streak)).toBe(false);
+    expect(B1.strands.map((s) => s.pts)).toEqual(B0.strands.map((s) => s.pts));
+    const share = B1.strands.filter((s) => s.streak?.grey).length / B1.strands.length;
+    expect(share).toBeGreaterThan(0.4); expect(share).toBeLessThan(0.62);   // the beard's 1.3 × 0.4
+    expect(hairMeanOf(D0)).toEqual(hairColourOf(D0));
+    expect(hairMeanOf(D1)[0]).toBeGreaterThan(hairColourOf(D1)[0]);
+    expect(() => readDermis({ from: 'male', grey: 2 })).toThrow(/grey/);
+  });
 });

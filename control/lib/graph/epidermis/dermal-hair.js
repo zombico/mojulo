@@ -30,7 +30,7 @@
  */
 import { streamOf } from '../city/plan/dice.js';
 import { vnoise } from '../era/dirt.js';
-import { dermisAt, hairColourOf, linHex, hexLin, HEAD_LEVELS, beardStyleOf } from './dermal-map.js';
+import { dermisAt, hairColourOf, linHex, hexLin, HEAD_LEVELS, beardStyleOf, GREY_HAIR } from './dermal-map.js';
 import { HAIR_COLOURS } from '../egocube/ancestry.js';
 import { lockSpine, lockB, coilSpine, drapeSpine, keepOut } from '../polygonizer/hair-spine.js';
 
@@ -394,7 +394,20 @@ export function growBodyHair(chart, D, { share = 0.25, tracts = null, scalpLengt
       c.strands++;
     }
   });
-  return { strands, counts };
+  return { strands: greying(strands, D, seed), counts };
+}
+
+/** GREY: a share of the strands silver by the dermis's `grey` (each strand by its own die: salt and pepper, not a tint),
+ * the beard's sooner, the body's later; a strand already dyed keeps its dye. Without `grey`, the strands as they were. */
+const GREY_SHARE = Object.freeze({ scalp: 1, beard: 1.3, body: 0.7 });
+function greying(strands, D, seed, key = 'dermal-grey') {
+  if (!D.grey) return strands;
+  const c = GREY_HAIR.map((v) => Math.round(v * 1e4) / 1e4);
+  return strands.map((st, i) => {
+    if (st.streak) return st;
+    const share = Math.min(1, D.grey * (GREY_SHARE[st.groom] ?? GREY_SHARE.body));
+    return streamOf(seed, key, `${i}`)() < share ? { ...st, streak: { colour: c, from: 0, grey: true } } : st;
+  });
 }
 
 /**
@@ -939,5 +952,5 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   });
   // ── the cards: a ribbon per guide, for an engine ──
   const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return dyed({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }, roots[gi], `g${gi}`); });
-  return { guides, strands, cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
+  return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }

@@ -30,7 +30,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairColourOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR } from './dermal-map.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
@@ -110,7 +110,7 @@ export function dermalPages(layout, D) {
   for (let i = 0; i < N * NH; i++) { albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = albedo[i * 4 + 3] = 255; hair[i * 4 + 1] = hair[i * 4 + 2] = 128; hair[i * 4 + 3] = 255; }
   const classes = [], classOf = new Map();
   const classIndex = (rel) => { if (!classOf.has(rel.class)) { classOf.set(rel.class, classes.length); classes.push({ ...rel }); } return classOf.get(rel.class); };
-  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairColourOf(D) };
+  return { N, NH, albedo, rough, trans, hair, fuzz, detail, classes, classIndex, hairLin: hairMeanOf(D) };
 }
 
 /**

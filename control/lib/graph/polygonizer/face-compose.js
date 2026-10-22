@@ -266,6 +266,31 @@ export const FACE_ADORN = Object.freeze({
   metals: { gold: 0.45, silver: 0.38, rose: 0.1, black: 0.07 },
   streaks: { chance: { female: 0.12, male: 0.04 }, kinds: { money: 0.35, tips: 0.25, scatter: 0.25, under: 0.15 }, dyes: { honey: 0.25, caramel: 0.2, platinum: 0.15, blonde: 0.15, pink: 0.06, blue: 0.05, purple: 0.05, red: 0.05, teal: 0.04 } },
 });
+/**
+ * THE YEARS, on the same roll: the rolled face IS the person at their `prime` (28); `age` (years, 16 … 85) moves it
+ * older or younger with every other roll kept (the cut, the streaks, the piercings, the marks, the beard's style are the
+ * person's styling, not the years'). Its own dice (`face-age`), the same at every age of one seed: the RATE the person
+ * ages at, the ONSET of their greying (by the ancestry's mean), how far a man's loss is DESTINED to go.
+ *   older    k = ((years − prime) / span)^power × rate (1 at ~78): the soft tissue descends (`older`: the jowl and the
+ *            fold, the cheek's fat from the cheekbone to the jaw, the lips thinner and back, the nose and the ear longer,
+ *            the lid hooded, the outer canthus down); the skin's `age` and `lines` up; the hair greys from its onset over
+ *            `grey.span` years; a man's temples recede and his loss advances by its destiny, a woman's crown thins late
+ *   younger  j = (prime − years) / span (1 at 16): `younger`'s fuller cheeks and lips, a smaller nose, a softer jaw (a
+ *            man's brow ridge not yet grown: `youngerMale`), the skin younger, a man's loss not yet begun
+ */
+export const FACE_AGE = Object.freeze({
+  prime: 28, range: [16, 85], rate: [0.8, 1.2],
+  older: {
+    span: 50, power: 1.3,
+    relations: { jowl: 0.008, foldReach: 0.05, cheeks: -0.35, lowerCheek: 0.3, malarDepth: 0.004, lipFullness: -0.3, upperVermilion: -0.01, lowerVermilion: -0.012, lipProjection: -0.006, noseSize: 0.1, earBottom: -0.03, fissure: -0.004, lidSplit: 0.05, canthalTilt: -0.004, masseter: -0.1 },
+  },
+  younger: { span: 12, relations: { cheeks: 0.25, lowerCheek: 0.15, lipFullness: 0.1, noseSize: -0.08, masseter: -0.12, chin: -0.004, fissure: 0.002, forehead: 0.004 } },
+  youngerMale: { browProjection: -0.006, brow: -0.25 },
+  skin: { perYear: 1 / 70, lines: [32, 45] },
+  grey: { onset: { european: 34, 'east-asian': 38, 'south-asian': 36, african: 42, default: 37 }, spread: 6, span: 40 },
+  loss: { male: { years: [20, 70], destined: [0.1, 0.35], withLoss: [0.25, 0.6], temples: 8 }, female: { years: [50, 85], amount: [0, 0.3] } },
+});
+const smoothY = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const weighed = (W, r) => { const names = Object.keys(W), sum = names.reduce((a, n) => a + W[n], 0); let x = r * sum; return names.find((n) => (x -= W[n]) <= 0) || names.at(-1); };
 /** where a bucket's people sit on the nose's axis when it names none */
 const NOSE_DEFAULT = Object.freeze({ mean: 0, spread: 0.6 });
@@ -564,7 +589,8 @@ export const LID_FOLD = Object.freeze(['crease', 'hood', 'creaseHeight', 'crease
  * nose's axis, −1 … 1, over the bucket's roll } →
  * { relations (the full ratios for `relationalHead`'s `relations`), picks { feature: shape }, character, accent, ancestry }.
  */
-export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default } = {}) {
+export function composeFace({ sex = 'female', bucket = 'western', seed = 1, character = null, accent = undefined, nose: noseAt = null, bald: baldAt = null, parents = null, share = null, beauty = FACE_BEAUTY.default, age = null } = {}) {
+  if (age !== null && !(age >= FACE_AGE.range[0] && age <= FACE_AGE.range[1])) throw new Error(`face: age ${age} (years, ${FACE_AGE.range.join(' … ')}; the roll is the person at ${FACE_AGE.prime})`);
   if (!(beauty >= 0 && beauty <= 1)) throw new Error('face: beauty 0 … 1 (0 every roll at its full reach; 1 drawn to the population\'s mean, the asymmetry slight)');
   // (named parents make the face a hybrid of them, whatever the bucket)
   if (parents) bucket = `hybrid:${Object.keys(parents).sort().join('+')}`;
@@ -574,7 +600,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     const names = Object.keys(B.blend), sum = names.reduce((a, n) => a + B.blend[n], 0), b = streamOf(seed, 'face-blend', `${bucket}/${sex}`);
     let r = b() * sum;
     const sub = names.find((n) => (r -= B.blend[n]) <= 0) || names.at(-1);
-    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty }), blend: bucket };
+    return { ...composeFace({ sex, bucket: sub, seed, character, accent, nose: noseAt, bald: baldAt, beauty, age }), blend: bucket };
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const own = B, mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
@@ -685,8 +711,35 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     scalpHint = { ...(scalpHint || {}), streaks: [{ kind: sKind, colour: sDye }] };
     picks.streaks = `${sKind} ${sDye}`;
   }
+  // THE YEARS, on everything rolled (none at the prime: the face as rolled)
+  let years = null;
+  if (age !== null && age !== FACE_AGE.prime) {
+    const A = FACE_AGE, g = streamOf(seed, 'face-age', `${bucket}/${sex}`), r2 = (v) => Math.round(v * 100) / 100;
+    const rate = A.rate[0] + ((g() + g()) / 2) * (A.rate[1] - A.rate[0]), onset = (A.grey.onset[ancestry] ?? A.grey.onset.default) + A.grey.spread * (g() + g() - 1), destiny = g();
+    const k = age > A.prime ? ((age - A.prime) / A.older.span) ** A.older.power * rate : 0, j = age < A.prime ? (A.prime - age) / A.younger.span : 0;
+    for (const [key, v] of Object.entries(A.older.relations)) if (k) off[key] = (off[key] || 0) + Math.round(v * k * 1e5) / 1e5;
+    for (const [key, v] of Object.entries({ ...A.younger.relations, ...(sex === 'male' ? A.youngerMale : {}) })) if (j) off[key] = (off[key] || 0) + Math.round(v * j * 1e5) / 1e5;
+    // the skin, from the pole's own age at the prime; the lines from the early thirties
+    const skin0 = sex === 'male' ? 0.35 : 0.3;
+    years = { age: r2(Math.max(0.05, Math.min(1, skin0 + (age - A.prime) * A.skin.perYear * rate))), lines: r2(Math.max(0, Math.min(1, ((age - A.skin.lines[0]) / A.skin.lines[1]) * rate))) };
+    const grey = r2(smoothY(onset, onset + A.grey.span, age));
+    if (grey > 0) years.grey = grey;
+    // the hair's loss: a man's by his destiny (more where the roll gave him loss already), rolled back when younger; a
+    // woman's crown thinning late; a man's temples receding with his loss's course
+    if (sex === 'male') {
+      const L = A.loss.male, m = (y) => smoothY(L.years[0], L.years[1], y), b0 = hair.bald ?? 0, [lo, hi] = b0 > 0 ? L.withLoss : L.destined, dest = lo + destiny * (hi - lo);
+      const b = age > A.prime ? b0 + dest * (m(age) - m(A.prime)) : b0 * (m(age) / Math.max(1e-6, m(A.prime)));
+      years.bald = r2(Math.max(0, Math.min(1, b)));
+      years.temples = r1(Math.max(-8, Math.min(40, hair.temples + L.temples * (m(age) - m(A.prime)))));
+    } else {
+      const L = A.loss.female, b = (hair.bald ?? 0) + (L.amount[0] + destiny * (L.amount[1] - L.amount[0])) * smoothY(L.years[0], L.years[1], age);
+      if (b > 0) years.bald = r2(Math.min(1, b));
+    }
+    if (!years.bald && !hair.bald) delete years.bald;
+    picks.age = age;
+  }
   const held = (key, v) => (FACE_LIMITS[key] ? Math.max(FACE_LIMITS[key][0], Math.min(FACE_LIMITS[key][1], v)) : v);
   const relations = { ...RELATION_POLES[sex], ...Object.fromEntries(Object.entries(off).map(([key, v]) => [key, held(key, base[key] + v)])) };
   const r3 = (v) => Math.round(v * 1000) / 1000;
-  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), ...(piercings.length ? { piercings } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
+  return { bucket, ...(mixed ? { mixed: mixed.read } : {}), ...(hybrid ? { hybrid: hybrid.read } : {}), dermis: { ...(tone != null ? { tone } : {}), ...hair, ...(years || {}), ...(marks.length ? { marks } : {}), ...(beard ? { beard: beard.fullness, ...(beard.style !== 'clean' ? { beardStyle: beard.style } : {}) } : {}) }, ...(scalpHint ? { scalp: scalpHint } : {}), ...(piercings.length ? { piercings } : {}), relations, eyes, epidermis: { hair: grooms }, picks, proportions, character: at.map(r3), accent: acc, ancestry };
 }
