@@ -78,6 +78,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Southeast Asian and Mexican, and the faces between them; `mixed` names both and the share). A lid roll may name `none`,
   the rig's own lid; a bucket may carry its grooms' ranges and hold its TONES to its intent within its ancestries'
   (`tones`, on the Monk scale: `equatorial` is brown, MST 6–8), the ancestry still giving the hair, the undertone and the eyes.
+- THE GEO-ETHNIC CATALOGUE widened: `north-asian` (Mongolia, Korea, northern China, Siberia: a broad round short vault,
+  high flat forward cheekbones, the eyes wide apart under a low flat root, a light brow, thinner lips, the lid most often
+  a monolid or an in-fold), and `asian` the asiatic look pinned on it (North 2 : East 1); `east-asian` East Asian alone.
+  South Asia as its cline: `indo-aryan` (northern India and Pakistan: a long narrow face, a high root, the nose leaning
+  long and aquiline, large deep-set eyes, MST 3–7) and `dravidian` (southern India and Sri Lanka: a wider base, fuller
+  lips, MST 5–9), `south-asian` the mix along it. MENA: `levantine` (a long oval face, a long high-bridged nose, large
+  deep-set eyes, MST 2–6) and `south-mediterranean` (the Maghreb and coastal Egypt: a long narrow face, a straight to
+  aquiline nose, almond eyes, fuller lips, MST 3–7), `mena` the mix between them. A mix may hold its own tones over its
+  buckets' (the equatorial's brown is the mix's, its buckets keep their own).
 - THE HAIRLINE as dermis dials (dermal-map.js, each absent 0, every map as it was): `round` (the front straight across …
   rounded), `temples` (the corners fuller … receded), `peak` (a widow's peak), `sideburn` (its foot), `nape` (the line
   behind), and `bald`, 0 … 1, hair loss by the sex's pattern (a man's temples, then the crown from the back, then the

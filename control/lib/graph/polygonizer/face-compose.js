@@ -167,9 +167,24 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  */
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
+  'north-asian': {
+    note: 'Northeast Asian ancestry: Mongolia, Korea, northern China, the Siberian peoples (the asiatic look\'s centre)',
+    ancestry: ['east-asian'],
+    // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the inner canthi
+    // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
+    // brow; thinner lips. The lid most often a monolid or an in-fold, the epicanthic fold common
+    base: {
+      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.14, nasalIndex: 0.08, radix: -0.012,
+      nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
+    },
+    nose: { mean: -0.35, spread: 0.55 },
+    lids: { monolid: 2, 'inner-fold': 2, hooded: 1, parallel: 0.5 },
+    bald: 0.5,
+    weights: { eyes: { deep: 0, hooded: 0, large: 0.6 }, nose: { classical: 0.4, soft: 1.4 }, cheeks: { sculpted: 1.3 }, lips: { fine: 1.3 }, brows: { straight: 1.6 } },
+  },
   'east-asian': {
-    note: 'East and Southeast Asian ancestry (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
-    ancestry: ['east-asian', 'east-asian', 'southeast-asian'],
+    note: 'East Asian ancestry, China\'s centre and south and Japan (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
+    ancestry: ['east-asian'],
     // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
     // a little less projected, its bridge broader; a lighter brow ridge and a rounder forehead; the cheekbones further
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
@@ -186,22 +201,39 @@ export const FACE_BUCKETS = Object.freeze({
     bald: 0.55,
     weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
   },
-  'south-asian': {
-    note: 'South Asian ancestry (the base after published Indian anthropometry)',
+  // SOUTH ASIA is a cline from the north-west to the south: its two ends as buckets, `south-asian` the faces along it
+  'indo-aryan': {
+    note: 'Indo-Aryan South Asian ancestry: northern India and Pakistan (Punjab, Kashmir, Rajasthan, the Gangetic plain)',
     ancestry: ['south-asian'],
-    tones: [6, 8],
-    // a longer vault and a narrower face than the East Asian; the root higher than the East Asian (none of its flattening),
-    // the base moderately wide; the eyes a little larger, a touch wider set; the brow a little stronger; the lips a little
-    // fuller. The lid is the rig's creased lid, sometimes hooded (no epicanthic fold)
+    tones: [3, 7],
+    // a long vault and a narrow, long face; the root high, the bridge narrow, the nose leaning long and often aquiline;
+    // the eyes large and deep-set under a defined brow; the lips moderately full. The lid the rig's creased lid,
+    // sometimes hooded (no epicanthic fold)
     base: {
-      cephalic: -0.01, headLength: 0.01, faceWidth: -0.01, intercanthal: 0.04, nasalIndex: 0.05, dorsum: 0.05,
-      fissure: 0.002, browProjection: 0.002, upperVermilion: 0.002, lowerVermilion: 0.003,
+      cephalic: -0.02, headLength: 0.01, faceWidth: -0.015, intercanthal: 0.02, nasalIndex: 0.02,
+      fissure: 0.002, browProjection: 0.003, upperVermilion: 0.001, lowerVermilion: 0.002,
     },
-    nose: { mean: 0.05, spread: 0.65 },
+    nose: { mean: 0.4, spread: 0.6 },
     lids: { none: 3, hooded: 1 },
     bald: 0.8,
-    weights: { eyes: { large: 1.4, deep: 1.3 }, nose: { classical: 1.2 }, lips: { full: 1.2 } },
+    weights: { eyes: { large: 1.3, deep: 1.3 }, nose: { classical: 1.5 } },
     // (the brows and the lashes fuller and darker on the whole: their rolls lean heavier)
+    grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
+  },
+  dravidian: {
+    note: 'Dravidian South Asian ancestry: southern India and Sri Lanka (Tamil, Telugu, Kannada, Malayali, Sinhala)',
+    ancestry: ['south-asian'],
+    tones: [5, 9],
+    // a longer vault and a narrower face than the East Asian; the root higher than the East Asian, the base wider than the
+    // north's, the bridge a little broad (the nose near the axis's middle); the eyes a little larger; the lips fuller
+    base: {
+      cephalic: -0.01, headLength: 0.01, faceWidth: -0.01, intercanthal: 0.04, nasalIndex: 0.1, dorsum: 0.1,
+      fissure: 0.002, browProjection: 0.002, upperVermilion: 0.004, lowerVermilion: 0.005,
+    },
+    nose: { mean: -0.1, spread: 0.6 },
+    lids: { none: 3, hooded: 1 },
+    bald: 0.8,
+    weights: { eyes: { large: 1.4 }, lips: { full: 1.3 } },
     grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.5], length: [0.9, 1.25] } },
   },
   african: {
@@ -223,7 +255,6 @@ export const FACE_BUCKETS = Object.freeze({
   'southeast-asian': {
     note: 'Filipino and maritime Southeast Asian ancestry (Austronesian)',
     ancestry: ['southeast-asian'],
-    tones: [6, 8],
     // a rounder vault; the inner canthi wider apart; the root low and broad, the base wider, the bridge broad (the nose
     // leaning short and flat); the lips fuller and a little forward; the cheekbones forward; a lighter brow ridge. The lid
     // a parallel crease or the rig's, sometimes an in-fold or hooded, now and then a monolid
@@ -239,7 +270,6 @@ export const FACE_BUCKETS = Object.freeze({
   latin: {
     note: 'Mexican and mestizo Latin American ancestry (Indigenous American and European)',
     ancestry: ['latin-american', 'indigenous-american', 'latin-american'],
-    tones: [6, 8],
     // a broader face with high, forward cheekbones and a fuller jaw; the base moderately wide, the bridge a little broad;
     // the lips a little fuller; the eyes a little wider set. The nose spread wide on its axis (the Indigenous American
     // aquiline long nose and the short broad one both). The lid the rig's, sometimes hooded, now and then an in-fold
@@ -252,14 +282,49 @@ export const FACE_BUCKETS = Object.freeze({
     bald: 0.8,
     weights: { nose: { classical: 1.2 }, cheeks: { sculpted: 1.3 } },
   },
-  // a BLEND: a face of one of its buckets, rolled by weight (each face its bucket's own, at the same seed)
-  asian: { note: 'East or South Asian: a face of either bucket', blend: { 'east-asian': 2, 'south-asian': 1 } },
+  levantine: {
+    note: 'Levantine ancestry: Lebanon, Syria, Palestine, Jordan',
+    ancestry: ['middle-eastern-north-african'],
+    tones: [2, 6],
+    // a moderately long vault; a long, oval face; the nose leaning long and high-bridged, often convex; the eyes large
+    // and deep-set under a defined brow; the lips moderately full. The lid the rig's creased lid, sometimes hooded
+    base: {
+      cephalic: -0.01, faceWidth: -0.008, browProjection: 0.003, fissure: 0.002, upperVermilion: 0.002, lowerVermilion: 0.002,
+    },
+    nose: { mean: 0.45, spread: 0.6 },
+    lids: { none: 3, hooded: 1.5 },
+    bald: 0.9,
+    weights: { nose: { classical: 1.6 }, eyes: { deep: 1.3, large: 1.2 }, brows: { thick: 1.4 } },
+    grooms: { brows: { thickness: [0.9, 1.45], density: [0.95, 1.4] }, lashes: { density: [0.9, 1.45], length: [0.9, 1.25] } },
+  },
+  'south-mediterranean': {
+    note: 'the southern Mediterranean shore: the Maghreb (Morocco, Algeria, Tunisia, Libya) and coastal Egypt',
+    ancestry: ['middle-eastern-north-african'],
+    tones: [3, 7],
+    // a long vault and a long, narrow face; the nose straight to aquiline, its base a little wider than the Levant's;
+    // almond eyes under a defined brow; fuller lips. The lid the rig's creased lid, sometimes hooded
+    base: {
+      cephalic: -0.02, headLength: 0.01, faceWidth: -0.01, nasalIndex: 0.04, browProjection: 0.002, upperVermilion: 0.003, lowerVermilion: 0.004,
+    },
+    nose: { mean: 0.25, spread: 0.6 },
+    lids: { none: 3, hooded: 1 },
+    bald: 0.85,
+    weights: { nose: { classical: 1.3 }, eyes: { almond: 1.4, deep: 1.2 }, brows: { thick: 1.3 } },
+    grooms: { brows: { thickness: [0.9, 1.4], density: [0.95, 1.35] }, lashes: { density: [0.9, 1.45], length: [0.9, 1.25] } },
+  },
+  // a BLEND: a face of one of its buckets, rolled by weight (each face its bucket's own, at the same seed): `asian` the
+  // asiatic look, pinned on North Asia
+  asian: { note: 'the asiatic look: North or East Asian, pinned on North Asia', blend: { 'north-asian': 2, 'east-asian': 1 } },
   // a MIX: the brown belt of the equator (Mexican, South Asian, Filipino) and the faces between them: each face one of
   // its buckets, or (at `pairs`) that one with a share of a second, their bases and leanings mixed by the share
+  // (a mix may hold the tones to its intent over its buckets': the equatorial is brown)
   equatorial: {
     note: 'the equatorial belt: South Asian, Southeast Asian (Filipino), Mexican, and their mixes',
-    mix: { buckets: { 'south-asian': 1, 'southeast-asian': 1, latin: 1 }, pairs: 0.5, share: [0.2, 0.5] },
+    tones: [6, 8],
+    mix: { buckets: { 'indo-aryan': 0.5, dravidian: 0.5, 'southeast-asian': 1, latin: 1 }, pairs: 0.5, share: [0.2, 0.5] },
   },
+  'south-asian': { note: 'South Asia along its cline: Indo-Aryan, Dravidian, and the faces between', mix: { buckets: { 'indo-aryan': 1, dravidian: 1 }, pairs: 0.6, share: [0.2, 0.5] } },
+  mena: { note: 'the Middle East and North Africa: the Levant, the southern Mediterranean shore, and the faces between', mix: { buckets: { levantine: 1, 'south-mediterranean': 1 }, pairs: 0.4, share: [0.2, 0.5] } },
 });
 /**
  * THE HEAD'S WORKING RANGE: the relations a composed face is held inside, measured by the tune's solve (where the skin
@@ -306,7 +371,7 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   }
   if (!RELATION_POLES[sex]) throw new Error(`face: the sex is ${Object.keys(RELATION_POLES).join(' or ')}`);
   const mixed = B.mix ? mixOf(B.mix, streamOf(seed, 'face-mix', `${bucket}/${sex}`)) : null;
-  if (mixed) B = mixed.bucket;
+  if (mixed) B = FACE_BUCKETS[bucket].tones ? { ...mixed.bucket, tones: FACE_BUCKETS[bucket].tones } : mixed.bucket;
   if (accent !== undefined && accent !== false && !FACE_SHAPES[accent]) throw new Error(`face: accent is false or one of ${FACE_FEATURES.join(', ')}`);
   const d = streamOf(seed, 'face-compose', `${bucket}/${sex}`), roll = () => d() * 2 - 1;
   const at = character ? character.map((v) => Math.max(-1, Math.min(1, v))) : [roll(), roll()];

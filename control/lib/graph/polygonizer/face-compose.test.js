@@ -113,7 +113,7 @@ describe('the face composer', () => {
 
   it('holds a bucket\'s tones to its intent, within its ancestries', () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const f = composeFace({ bucket: 'equatorial', seed }), [lo, hi] = FACE_BUCKETS[f.mixed.of].tones;
+      const f = composeFace({ bucket: 'equatorial', seed }), [lo, hi] = FACE_BUCKETS.equatorial.tones;
       expect(f.dermis.tone).toBeGreaterThanOrEqual(lo); expect(f.dermis.tone).toBeLessThanOrEqual(hi);
       expect(composeFace({ bucket: 'western', seed }).dermis.tone).toBeUndefined();
     }
