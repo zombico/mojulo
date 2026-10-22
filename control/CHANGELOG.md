@@ -192,6 +192,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The dermis study's SPLAT (`.claude/skills/dermis-study/splat.mjs`): the skin map's regions as points on the head's
   surface net, orthographic from any azimuth, the far side culled by the normals, a pale grey where no region weighs;
   where a region lies, in seconds, before a lit render's minutes.
+- LOCS and CORNROWS, anyone's (dermal-hair.js, the tie's new tails `loc` and `row`): locs, the hair matted into ropes, one
+  from each section of a grid over the scalp, twisting round its rope and hanging to the shoulder; cornrows, plaited flat
+  in rows from the hairline over the crown to the nape (a root joins its nearest row where it is nearest, the scalp parted
+  bare between), a short braid on past it. In the women's and the men's pools of the African groups, and the Latin coily.
+- THE ERAS' CUTS: the mohawk, the fauxhawk (a `strip` cut: the band down the middle kept and standing, the rest clipped),
+  the broccoli (the 2020s' perm), the mullet, the '90s curtains and bowl, the 2000s' emo fringe; some in the men's pools
+  now and then. A style with ties is grown with its ties at any length. The fauxhawk is the 2000s–2010s gelled one:
+  textured spikes worked up, back and in to a ridge (a groom's `gel`, 0 … 1: what stands is turned from the scalp's
+  normal toward that ridge, not fanned out); `spiky` its whole-top variation (a Kisame's), and the SPIKED FADE family:
+  the spiked fade, the high one, the spiked quiff fade and the burst fade's band of spikes. The bowl is clipped short
+  beneath (a root a shelf or a strip clips stays clipped under a line cut).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

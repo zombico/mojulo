@@ -168,11 +168,11 @@ export const FACE_HAIR = Object.freeze({
   },
   latin: {
     curly: [{ style: 'layers', type: 'curly' }, { style: 'curls' }, { style: 'half-up', type: 'curly' }, { style: 'curly-crop' }],
-    coily: [{ style: 'high-bun' }, { style: 'twa' }, { style: 'curly-crop', type: 'coily' }],
+    coily: [{ style: 'high-bun' }, { style: 'twa' }, { style: 'curly-crop', type: 'coily' }, { style: 'cornrows', type: 'coily' }, { style: 'locs', type: 'coily' }],
   },
   african: {
-    curly: [{ style: 'curls' }, { style: 'curls' }, { style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'high-bun', type: 'curly' }, { style: 'twa', type: 'curly' }, { style: 'twa', type: 'curly' }],
-    coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'high-bun' }, { style: 'braid', type: 'coily' }, { style: 'bun', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'afro' }],
+    curly: [{ style: 'curls' }, { style: 'curls' }, { style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'high-bun', type: 'curly' }, { style: 'twa', type: 'curly' }, { style: 'twa', type: 'curly' }, { style: 'locs', type: 'curly' }, { style: 'cornrows', type: 'curly' }],
+    coily: [{ style: 'twa' }, { style: 'twa' }, { style: 'high-bun' }, { style: 'braid', type: 'coily' }, { style: 'bun', type: 'coily' }, { style: 'curly-crop', type: 'coily' }, { style: 'afro' }, { style: 'locs', type: 'coily' }, { style: 'locs', type: 'coily' }, { style: 'cornrows', type: 'coily' }, { style: 'cornrows', type: 'coily' }],
   },
 });
 /**
@@ -181,15 +181,17 @@ export const FACE_HAIR = Object.freeze({
  */
 export const FACE_HAIR_MALE = Object.freeze({
   default: {
-    straight: [{ style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'undercut' }, { style: 'crop' }, { style: 'french-crop' }, { style: 'fade' }, { style: 'pompadour' }, { style: 'slick-back' }, { style: 'buzz' }],
-    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'pompadour', type: 'wavy' }],
-    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'short', type: 'curly' }, { style: 'crop', type: 'curly' }],
+    // (and the eras' cuts, now and then: the fauxhawk, the curtains, the mullet, the broccoli's perm, the emo fringe)
+    straight: [{ style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'undercut' }, { style: 'crop' }, { style: 'french-crop' }, { style: 'fade' }, { style: 'pompadour' }, { style: 'slick-back' }, { style: 'buzz' }, { style: 'fauxhawk' }, { style: 'curtains' }, { style: 'emo-fringe' }, { style: 'spiked-fade' }, { style: 'spiky' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'pompadour', type: 'wavy' }, { style: 'mullet', type: 'wavy' }, { style: 'curtains', type: 'wavy' }],
+    curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'short', type: 'curly' }, { style: 'crop', type: 'curly' }, { style: 'broccoli' }],
     coily: [{ style: 'fade', type: 'coily' }, { style: 'twa' }, { style: 'caesar', type: 'coily' }, { style: 'buzz', type: 'coily' }],
   },
-  // East and Southeast Asia: the two-block, the French crop, the comma's short forward fall, a side part, a crop
+  // East and Southeast Asia: the two-block, the French crop, the comma's short forward fall, a side part, a crop (and the
+  // broccoli's perm, the 2020s')
   'east-asian': {
-    straight: [{ style: 'two-block' }, { style: 'two-block' }, { style: 'french-crop' }, { style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'crop' }, { style: 'pompadour' }, { style: 'buzz' }],
-    wavy: [{ style: 'two-block', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'short', type: 'wavy' }],
+    straight: [{ style: 'two-block' }, { style: 'two-block' }, { style: 'french-crop' }, { style: 'short' }, { style: 'short', moves: ['sleek'] }, { style: 'crop' }, { style: 'pompadour' }, { style: 'buzz' }, { style: 'spiked-quiff-fade' }],
+    wavy: [{ style: 'two-block', type: 'wavy' }, { style: 'french-crop', type: 'wavy' }, { style: 'short', type: 'wavy' }, { style: 'broccoli', type: 'wavy' }],
   },
   // the Levant and the Maghreb: the slick-back, the fade, a short cut, the undercut
   mena: {
@@ -205,15 +207,15 @@ export const FACE_HAIR_MALE = Object.freeze({
   },
   // Latin America: the fade, the Caesar, the crop, the slick-back
   latin: {
-    straight: [{ style: 'fade' }, { style: 'fade' }, { style: 'caesar' }, { style: 'crop' }, { style: 'slick-back' }, { style: 'undercut' }, { style: 'buzz' }],
+    straight: [{ style: 'fade' }, { style: 'fade' }, { style: 'caesar' }, { style: 'crop' }, { style: 'slick-back' }, { style: 'undercut' }, { style: 'buzz' }, { style: 'spiked-fade' }, { style: 'spiked-fade-high' }],
     wavy: [{ style: 'fade', type: 'wavy' }, { style: 'caesar', type: 'wavy' }, { style: 'slick-back', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
     curly: [{ style: 'curly-crop' }, { style: 'fade', type: 'curly' }, { style: 'crop', type: 'curly' }],
-    coily: [{ style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'twa' }],
+    coily: [{ style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'twa' }, { style: 'cornrows', type: 'coily' }],
   },
   // the Black barbershop: the fade, the Caesar, the close crop (waves), the TWA, a high-top, a top-knot
   african: {
-    curly: [{ style: 'fade', type: 'curly' }, { style: 'curly-crop' }, { style: 'caesar', type: 'curly' }, { style: 'twa', type: 'curly' }],
-    coily: [{ style: 'fade', type: 'coily' }, { style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'buzz', type: 'coily', moves: ['sleek'] }, { style: 'twa' }, { style: 'high-top' }, { style: 'top-knot', type: 'coily' }],
+    curly: [{ style: 'fade', type: 'curly' }, { style: 'curly-crop' }, { style: 'caesar', type: 'curly' }, { style: 'twa', type: 'curly' }, { style: 'locs', type: 'curly' }, { style: 'cornrows', type: 'curly' }],
+    coily: [{ style: 'fade', type: 'coily' }, { style: 'fade', type: 'coily' }, { style: 'caesar', type: 'coily' }, { style: 'buzz', type: 'coily', moves: ['sleek'] }, { style: 'twa' }, { style: 'high-top' }, { style: 'top-knot', type: 'coily' }, { style: 'locs', type: 'coily' }, { style: 'locs', type: 'coily' }, { style: 'cornrows', type: 'coily' }],
   },
 });
 /**

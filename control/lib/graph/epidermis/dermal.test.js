@@ -260,3 +260,18 @@ describe('a man\'s loss to the horseshoe', () => {
     expect(chart.samples.filter((x) => x?.marks).some((x) => (dermisAt(x, readDermis('male'), { detail: false }).regions.scalp || 0) > 0.5 && headXY(x).Y > x.marks.points.porionR.Y + 70)).toBe(true);
   });
 });
+
+describe('locs and cornrows, anyone\'s', () => {
+  it('grows a loc from each section and a cornrow laid along the scalp, then on past the nape', () => {
+    const D = readDermis('female');
+    const L = growScalp(chart, D, readScalp({ style: 'locs', type: 'coily' }), { colliders: ['head'] }), R = growScalp(chart, D, readScalp({ style: 'cornrows', type: 'coily' }), { colliders: ['head'] });
+    expect(L.strands.length).toBeGreaterThan(0); expect(R.strands.length).toBeGreaterThan(0);
+    // (a cornrow's hair lies on the scalp until the nape: most of a row strand's points within a centimetre of the head)
+    const V = chart.vertices, near = (p) => { let b = Infinity; for (const v of V) { const d = (v[0] - p[0]) ** 2 + (v[1] - p[1]) ** 2 + (v[2] - p[2]) ** 2; if (d < b) b = d; } return Math.sqrt(b); };
+    const sample = R.strands.filter((_, i) => i % 97 === 0), onScalp = sample.map((st) => st.pts.filter((p) => near(p) < 0.012).length / st.pts.length);
+    expect(onScalp.reduce((a, b) => a + b, 0) / onScalp.length).toBeGreaterThan(0.5);
+    // (a loc hangs: its strands reach well below where they grow)
+    const drop = L.strands.filter((_, i) => i % 97 === 0).map((st) => st.pts[0][2] - st.pts.at(-1)[2]);
+    expect(Math.max(...drop)).toBeGreaterThan(0.15);
+  });
+});
