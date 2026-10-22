@@ -60,6 +60,7 @@ export const DERMIS_DIALS = Object.freeze({
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
+  beardStyle: `a beard's style (BEARD_STYLES): a word, or { style, lengths?: { moustache, chin, cheek } mm } (its zones over the beard tract, a length a zone; absent, the tract and \`stubble\` as they were)`,
   body: '0 … 1.5 (the body\'s terminal hair: the limbs, the chest)',
   axilla: '0 … 1',
   lines: '0 … 1 (the face\'s lines: the forehead\'s, the frown, crow\'s feet, the nasolabial fold, under the eyes)',
@@ -68,6 +69,44 @@ export const DERMIS_DIALS = Object.freeze({
   hairColour: `an egocube hair colour (${Object.keys(HAIR_COLOURS).join(', ')}) or a hex`,
   seed: 'an integer',
 });
+/**
+ * THE BEARD'S STYLES (a barber's lines over the beard tract): which ZONES grow (the moustache, the corners joining it to
+ * the chin, the chin, a soul patch under the lip, the cheeks; or only a `strap` along the jaw), where the cheek line sits
+ * (`cheek`, mm lower), how far under the jaw it runs (`neck`, mm below the menton; absent, the tract's own fade down the
+ * throat), and each zone's length (mm). Lengths of 6 mm and more grow as locks (dermal-hair.js).
+ */
+export const BEARD_STYLES = Object.freeze({
+  stubble: { zones: { moustache: 1, corners: 1, chin: 1, soul: 1, cheeks: 1 }, lengths: { moustache: 3, chin: 3, cheek: 3 } },
+  'short-boxed': { zones: { moustache: 1, corners: 1, chin: 1, soul: 1, cheeks: 1 }, cheek: 6, neck: 14, lengths: { moustache: 8, chin: 10, cheek: 8 } },
+  full: { zones: { moustache: 1, corners: 1, chin: 1, soul: 1, cheeks: 1 }, lengths: { moustache: 16, chin: 40, cheek: 24 } },
+  goatee: { zones: { moustache: 1, corners: 1, chin: 1, soul: 1 }, neck: 8, lengths: { moustache: 10, chin: 14, cheek: 0 } },
+  'van-dyke': { zones: { moustache: 1, chin: 1, soul: 1 }, neck: 4, lengths: { moustache: 14, chin: 22, cheek: 0 } },
+  'chin-strap': { zones: { chin: 1, cheeks: 1 }, strap: 12, neck: 10, lengths: { moustache: 0, chin: 6, cheek: 6 } },
+  moustache: { zones: { moustache: 1 }, lengths: { moustache: 10, chin: 0, cheek: 0 } },
+});
+/** the beard's style at an address on the relational head: { mask 0 … 1 over the tract, length mm } (null without a style) */
+export function beardStyleAt(A, D) {
+  if (!D.beardStyle || !A.marks) return null;
+  const B = beardStyleOf(D.beardStyle), M = A.marks.points, q = headXY(A), x = Math.abs(q.X), Z = B.zones;
+  const chW = Math.abs(M.chR.X) + 2, sto = M.sto.Y, li = M.li.Y, sn = M.sn.Y, me = M.me.Y;
+  const inX = (a, b, f = 3) => smooth(a - f, a + f, x) * (1 - smooth(b - f, b + f, x)), inY = (a, b, f = 2) => smooth(a - f, a + f, q.Y) * (1 - smooth(b - f, b + f, q.Y));
+  const w = {
+    moustache: (Z.moustache ?? 0) * inX(-10, chW + 4) * inY(sto + 1, sn),
+    corners: (Z.corners ?? 0) * inX(chW - 2, chW + 10) * inY(li - 8, sto + 1),
+    chin: (Z.chin ?? 0) * inX(-10, chW + 10) * (1 - smooth(li - 6, li - 2, q.Y)),
+    soul: (Z.soul ?? 0) * inX(-10, 8) * inY(li - 16, li - 1),
+    cheeks: (Z.cheeks ?? 0) * smooth(chW + 7, chW + 13, x) * (1 - smooth(sto - 2, sto + 4, q.Y) * (1 - smooth(chW + 14, chW + 22, x))),
+  };
+  // (a strap: only a band along the jaw; the cheek line lowered; the neckline under the jaw)
+  if (B.strap) w.cheeks *= 1 - smooth(me + B.strap - 3, me + B.strap + 3, q.Y);
+  let mask = Math.min(1, Math.max(...Object.values(w)));
+  if (B.neck !== undefined) mask *= smooth(me - B.neck - 3, me - B.neck + 3, q.Y);
+  const L = B.lengths, ws = (w.moustache + w.corners * 0.5) + (w.chin + w.soul + w.corners * 0.5) + w.cheeks || 1;
+  const length = ((w.moustache + w.corners * 0.5) * L.moustache + (w.chin + w.soul + w.corners * 0.5) * L.chin + w.cheeks * L.cheek) / ws;
+  return { mask, length, cheek: B.cheek ?? 0 };
+}
+/** a style word or { style, lengths } → the style, its lengths over the word's */
+export const beardStyleOf = (s) => (typeof s === 'string' ? BEARD_STYLES[s] : { ...BEARD_STYLES[s.style], lengths: { ...BEARD_STYLES[s.style].lengths, ...(s.lengths || {}) } });
 /** the shade's curves: `linear` as deep as the occlusion; `deep` the same until the skin is enclosed deepest, then a near-black */
 export const SHADE_CURVES = Object.freeze(['linear', 'deep']);
 /** the dials a map may name or not (absent, they add nothing): checked only when given */
@@ -91,6 +130,11 @@ export function readDermis(spec = 'male') {
   const D = { ...base, ...rest };
   for (const [k, [lo, hi]] of Object.entries(RANGES)) if (!(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
   for (const [k, [lo, hi]] of Object.entries(OPTIONAL_RANGES)) if (D[k] !== undefined && !(Number.isFinite(D[k]) && D[k] >= lo && D[k] <= hi)) throw new Error(`dermis: ${k} ${D[k]} (${DERMIS_DIALS[k]})`);
+  if (D.beardStyle !== undefined) {
+    const s = D.beardStyle, word = typeof s === 'string' ? s : s?.style;
+    if (!BEARD_STYLES[word] || (typeof s === 'object' && (Object.keys(s).some((k) => !['style', 'lengths'].includes(k)) || (s.lengths && Object.entries(s.lengths).some(([k, v]) => !['moustache', 'chin', 'cheek'].includes(k) || !(v >= 0 && v <= 120))))))
+      throw new Error(`dermis: beardStyle ${JSON.stringify(s)} (a word: ${Object.keys(BEARD_STYLES).join(', ')}; or { style, lengths?: { moustache, chin, cheek } mm 0 … 120 })`);
+  }
   if (D.shade !== undefined) {
     const Sh = typeof D.shade === 'number' ? { amount: D.shade } : D.shade, in01 = (v) => Number.isFinite(v) && v >= 0 && v <= 1;
     if (!Sh || typeof Sh !== 'object' || !in01(Sh.amount) || Object.keys(Sh).some((k) => !['amount', 'colour', 'steps', 'curve'].includes(k)) || (Sh.curve !== undefined && !SHADE_CURVES.includes(Sh.curve))
@@ -310,9 +354,13 @@ function relationalHeadRegions(A, D, put, R) {
   // the beard: under the cheek line (the sideburn's foot → the mouth's corner), the moustache under the nose's base,
   // round the jaw and under the chin to the neck; never the lips
   const foot = { X: sideX, Y: por.Y + (male ? -4 : 14) }, cor = { X: Math.abs(ch.X) + 6, Y: ch.Y + 6 };
-  const cheekLine = x > cor.X ? cor.Y + ((x - cor.X) / Math.max(1, foot.X - cor.X)) * (foot.Y - cor.Y) : Math.min(M.sn.Y - 2, cor.Y + (cor.X - x) * 2);
+  const cheekLine0 = x > cor.X ? cor.Y + ((x - cor.X) / Math.max(1, foot.X - cor.X)) * (foot.Y - cor.Y) : Math.min(M.sn.Y - 2, cor.Y + (cor.X - x) * 2);
+  // (a style's lines over the tract: its cheek line lowered on the cheeks, its zones, its neckline; absent, as it was)
+  const BS = D.beardStyle ? beardStyleAt(A, D) : null, cheekLine = BS && BS.cheek && x > cor.X ? cheekLine0 - BS.cheek * smooth(cor.X, cor.X + 20, x) : cheekLine0;
+  // (the nose clears the beard only on itself, above its base: its region's reach round the columella would otherwise bare
+  // the whole upper lip, the moustache's middle)
   // (the ear is its own: no beard grows on it, nor in front of it past the sideburn's foot)
-  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 6, cheekLine - 6, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0)) * (1 - Math.min(1, 1.6 * (R.ear || 0))));
+  put('beard', (1 - scalp) * (1 - smooth(foot.X + 2, foot.X + 10, x)) * smooth(cheekLine + 6, cheekLine - 6, q.Y) * (1 - (R.lip || 0)) * (1 - (R.nose || 0) * smooth(M.sn.Y - 3, M.sn.Y + 1, q.Y)) * (1 - Math.min(1, 1.6 * (R.ear || 0))) * (BS ? BS.mask : 1));
   if (A.feature === 'ear') { put('ear', 1); delete R.beard; delete R.scalp; }
   put('face', face);
   put('headSide', (1 - scalp) * (1 - face) * 0.6);
@@ -430,12 +478,14 @@ export function hairTract(A, R, D) {
       // the cheeks down and a little forward; the upper lip down and out from the middle
       const lip = A.marks ? (() => { const q = headXY(A), M = A.marks.points; return q.Y > M.sto.Y && q.Y < M.sn.Y && Math.abs(q.X) < Math.abs(M.chR.X); })() : u > HEAD_LEVELS.mouth && u < HEAD_LEVELS.noseBase && ad(a, 0) < 0.07;
       const out = lip ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
-      return T('beard', 55 * D.beard * w('beard'), D.stubble, flowOf(-1, out), 0.3);
+      const BS = D.beardStyle ? beardStyleAt(A, D) : null;
+      return T('beard', 55 * D.beard * w('beard'), BS ? BS.length : D.stubble, flowOf(-1, out), 0.3);
     }
     return vellus;
   }
   // (the throat's beard thins out under the jaw rather than stopping at a line)
-  if (A.part === 'neck') return w('beard') > 0.05 && D.beard > 0 ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.stubble, flowOf(-1), 0.3) : vellus;
+  // (a style with a neckline trims the throat; one without lets its chin's length fade down it)
+  if (A.part === 'neck') return w('beard') > 0.05 && D.beard > 0 && !(D.beardStyle && beardStyleOf(D.beardStyle).neck !== undefined) ? T('beard', 40 * D.beard * w('beard') * smooth(0.05, 0.5, w('beard')), D.beardStyle ? beardStyleOf(D.beardStyle).lengths.chin * 0.6 : D.stubble, flowOf(-1), 0.3) : vellus;
   if (A.part === 'trunk') {
     if (w('axilla') > 0.4 && D.axilla > 0) return T('axilla', 35 * D.axilla, 14, flowOf(-1), 0.5);
     const chest = male ? w('chest') * near(Math.min(ad(a, 0), Math.abs(ad(a, 0) - 0.1)), 0.14) : 0;

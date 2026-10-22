@@ -147,6 +147,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   twist each their own way: a share left-handed, the radius ± per lock, the twist reversing along the lock (a kink, as a
   phone cord's: a few a metre in curls, many in coils), and the hair's weight drawing the coil open toward the root. A
   coil that names none of these is as it was.
+- THE BEARD'S STYLES (dermal-map.js `beardStyle`, `BEARD_STYLES`: stubble, short-boxed, full, goatee, van-dyke,
+  chin-strap, moustache): a barber's lines over the beard tract (which zones grow: the moustache, the corners, the chin, a
+  soul patch, the cheeks or a strap along the jaw; the cheek line lowered; the neckline under the jaw) and a length a zone.
+  A beard of 6 mm and more grows as LOCKS (dermal-hair.js): ribbons of hair at the hair type's strand, a little coarser,
+  falling under their weight and curling by the man's hair type a step tighter (a coil curling back toward the skin), each
+  lock its own keratin twist (`growBodyHair`'s `type`). Absent, the tract and `stubble` as they were.
+- The beard grows on the whole upper lip (dermal-map.js): the nose's region, whose reach round the columella spans the
+  philtrum, cleared the beard there, so every moustache and every stubble bared the upper lip's middle; the nose now clears
+  the beard only on itself, above its base. Every male skin's upper lip changes.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

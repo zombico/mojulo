@@ -209,3 +209,23 @@ describe('the shading painted in', () => {
     for (const bad of [{ amount: 2 }, { amount: 1, steps: 1 }, { amount: 1, colour: 'blue' }, { amount: 1, gloss: 1 }]) expect(() => readDermis({ from: 'male', shade: bad })).toThrow(/shade/);
   });
 });
+
+describe('the beard\'s styles', () => {
+  const beardAt = (D) => chart.samples.map((s) => (s ? dermisAt(s, D, { detail: false }).hair : null)).map((h, i) => ({ h, s: chart.samples[i] })).filter((x) => x.s);
+  it('absent, the tract as it was; a style masks its zones and gives each its length', () => {
+    const plain = beardAt(readDermis('male')), goatee = beardAt(readDermis({ from: 'male', beardStyle: 'goatee' })), full = beardAt(readDermis({ from: 'male', beardStyle: 'full' }));
+    const beard = (xs) => xs.filter((x) => x.h.tract === 'beard');
+    expect(beard(goatee).length).toBeLessThan(beard(plain).length);
+    expect(beard(goatee).length).toBeGreaterThan(0);
+    expect(Math.max(...beard(full).map((x) => x.h.length))).toBeGreaterThan(20);
+    expect(beard(plain).every((x) => x.h.length === readDermis('male').stubble)).toBe(true);
+  });
+  it('grows a lock\'s length as ribbons of hair, curled by the hair\'s type', () => {
+    const D = readDermis({ from: 'male', beardStyle: 'full' }), straight = growBodyHair(chart, D, { tracts: ['beard'] }), curly = growBodyHair(chart, D, { tracts: ['beard'], type: 'curly' });
+    expect(straight.counts.beard.lock).toBe(true);
+    expect(straight.strands.some((s) => s.ribbon > 0 && s.represents >= 1)).toBe(true);
+    const wander = (G) => G.strands.reduce((m, s) => m + s.pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - s.pts[i][0], p[1] - s.pts[i][1], p[2] - s.pts[i][2]), 0) / Math.hypot(...[0, 1, 2].map((k) => s.pts.at(-1)[k] - s.pts[0][k])), 0) / G.strands.length;
+    expect(wander(curly)).toBeGreaterThan(wander(straight));
+    expect(() => readDermis({ from: 'male', beardStyle: 'mutton' })).toThrow(/beardStyle/);
+  });
+});

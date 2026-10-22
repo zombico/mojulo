@@ -115,7 +115,7 @@ function headOf(sex, look = null, anc = null, face = null) {
   const L = layoutDermis(chart, { page }), T = paintDermis(chart, D, L, { scalp: !!S });
   T.slopeVar = slopeVarOf(T.classes, D);
   const scalp = S ? growScalp(chart, D, S, { colliders: ['head'] }) : null;
-  const beard = growBodyHair(chart, D, { share: 0.5, tracts: ['beard'] });
+  const beard = growBodyHair(chart, D, { share: 0.5, tracts: ['beard'], type: S?.type ?? 'straight' });
   // the cube's brows and lashes, in the head's STAND units → metres
   const epi = growEpidermis(head, readEpidermis(epiSpec ?? (Lk ? { from: 'default', hair: Lk.epidermis.hair } : 'default')));
   const brows = epi.strands.map((s) => ({ ...s, pts: s.pts.map((p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M]), r: s.r * STAND_M }));
@@ -313,11 +313,11 @@ if (body) {
   for (const sex of sexes) {
     const Y = await bodyOf(sex), { H, B } = Y, V = Y.mesh.vertices;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
-    const rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
+    const rep = (st) => (st.represents ?? (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1));
     const whole = boxOf([...V.filter((_, i) => i % 7 === 0), ...Y.hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
     const draw = (cam, W, Hh, mode, withHair) => {
       const R = render(Y.shell, cam, W, Hh, mode); render(H, cam, W, Hh, mode, R);
-      if (withHair) { drawStrands(R, cam, W, Hh, Y.hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) * Y.k : 0)); drawBands(R, cam, W, Hh, H.scalp?.bands?.map((b) => ({ ...b, c: H.place(b.c), r: b.r * Y.k })), shade); }
+      if (withHair) { drawStrands(R, cam, W, Hh, Y.hair, shade, rep, null, (st) => (st.ribbon != null ? st.ribbon * Y.k : st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) * Y.k : 0)); drawBands(R, cam, W, Hh, H.scalp?.bands?.map((b) => ({ ...b, c: H.place(b.c), r: b.r * Y.k })), shade); }
       drawStrands(R, cam, W, Hh, Y.brows, hairShade(hexLin(H.epiColour)), () => 1);
       return R;
     };
@@ -368,13 +368,13 @@ if (lineup) {
     const [who, look, anc, face] = subjects[k], H = headOf(who, look, anc, face), V = H.chart.vertices;
     LIGHT = face?.light ? lightOfHex(face.light) : null;
     const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour)), perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
-    const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
+    const hair = [...(H.scalp?.strands || []), ...H.beard.strands], rep = (st) => (st.represents ?? (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1));
     // (`--lineup-crop eyes`: the eyes close, for comparing the lids)
     const Le = H.head.landmarks, box = lineupCrop === 'eyes' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }), 0.045) : lineupCrop === 'eye' ? boxAt(m3(Le.eyeR), 0.024) : lineupCrop === 'face' ? boxAt(m3({ x: 0, y: Le.eyeR.y, z: Le.eyeR.z }).map((v, i) => v - (i === 2 ? 0.03 : 0)), 0.072) : boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((st) => st.pts)]);
     const col0 = (k % per) * nv * W, y = Math.floor(k / per) * (Hh + 60);
     for (const [c, v] of VIEWS.slice(0, nv).entries()) {
       const cam = camera(v.az, v.elev, box, W, Hh), R = render(H, cam, W, Hh, 'lit');
-      drawStrands(R, cam, W, Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0));
+      drawStrands(R, cam, W, Hh, hair, shade, rep, null, (st) => st.ribbon ?? (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0));
       drawBands(R, cam, W, Hh, H.scalp?.bands, shade);
       drawStrands(R, cam, W, Hh, H.brows, hairShade(hexLin(H.epiColour)), () => 1);
       await cellRaw(col0 + c * W, y, toRGBA(R.img, W, Hh), W, Hh);
@@ -392,7 +392,7 @@ for (const [who, look, anc] of lineup || body ? [] : subjects) {
   const shade = H.scalp?.shade ?? hairShade(hexLin(H.epiColour));
   const hair = [...(H.scalp?.strands || []), ...H.beard.strands], fine = H.brows;
   const perStrand = H.scalp?.counts?.lying ? 2 : H.scalp?.counts?.hairsPerStrand ?? 1;
-  const rep = (st) => (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1);
+  const rep = (st) => (st.represents ?? (st.groom === 'scalp' ? perStrand : st.groom === 'beard' ? 2 : 1));
   const hairBox = boxOf([...V.filter((_, i) => i % 9 === 0), ...hair.filter((_, i) => i % 9 === 0).flatMap((s) => s.pts)]);
   const eyes = m3({ x: 0, y: Lm.eyeR.y, z: Lm.eyeR.z }), mouth = m3(Lm.stomion);
   const rows = [
@@ -406,7 +406,7 @@ for (const [who, look, anc] of lineup || body ? [] : subjects) {
     for (const [col, v] of row.views.entries()) {
       const cam = camera(v.az, v.elev, row.box, row.W, row.Hh), R = render(H, cam, row.W, row.Hh, row.mode);
       if (row.mode === 'kinds' && H.scalp) drawStrands(R, cam, row.W, row.Hh, H.scalp.guides.map((g) => ({ pts: g.pts, r: 0.0004 })), shade, () => 1, [0.05, 0.05, 0.08]);
-      if (row.hair) { drawStrands(R, cam, row.W, row.Hh, hair, shade, rep, null, (st) => (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0)); drawBands(R, cam, row.W, row.Hh, H.scalp?.bands, shade); }
+      if (row.hair) { drawStrands(R, cam, row.W, row.Hh, hair, shade, rep, null, (st) => st.ribbon ?? (st.groom === 'scalp' && !H.scalp?.counts?.lying ? H.S.strandGap * (H.S.strandWidth ?? 0.75) : 0)); drawBands(R, cam, row.W, row.Hh, H.scalp?.bands, shade); }
       drawStrands(R, cam, row.W, row.Hh, fine, hairShade(hexLin(H.epiColour)), () => 1);
       await cellRaw(col * row.W, y0, toRGBA(R.img, row.W, row.Hh), row.W, row.Hh);
       label(col * row.W, y0 + row.Hh - 10, `${sex} · ${v.name} · ${cam.pxMm.toFixed(2)} mm/px`, 11);
