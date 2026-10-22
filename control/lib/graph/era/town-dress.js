@@ -58,8 +58,9 @@ export function townDressOf(cube) {
 
 const keyOf = (entry, v) => {
   // (the spec on the dressed tile's rails, in their order: anything off them refused)
-  const { seed = 1, ...params } = normalizeTileSpec(entry.spec, 'town dress').params;
-  return detailKey(params, seed, entry.metres, v);
+  // (a word's own generator, the floor brick's, rides in the key's params; dressed stone's is the default)
+  const N = normalizeTileSpec(entry.spec, 'town dress'), { seed = 1, ...params } = N.params;
+  return detailKey(N.gen === 'dressed' ? params : { gen: N.gen, ...params }, seed, entry.metres, v);
 };
 /** A lit face's colour leant toward a material's hue, `share` of the way: its luminance kept, so the light baked in
  *  it (and the value its language gave it) stays the cube's, and the material says its hue. */

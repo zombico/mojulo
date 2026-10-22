@@ -3,9 +3,11 @@
  * stage (era/isekai.js), which draws it:
  *
  *   surface   a ground word (era/arch-style.js MATERIAL_WORDS, the street's own): 'earth' (the dirt, the default),
- *             'flags', 'setts', 'pavement', 'asphalt', 'brick-paving', 'gravel'. A paved trail leans its faces to the
- *             word's colour (a stone word with none, to the kit's rock) and, on a gritty land, takes its tile as a
- *             detail; its fringe is turf to its edge (no verge), and it is strewn with no rubble and worn in no patches
+ *             'stone-road', 'gravel' (the outdoor ones, IN_DIRT), 'flags', 'setts', 'pavement', 'asphalt',
+ *             'brick-paving'. A paved trail leans its faces to the word's colour (a stone word with none, to the kit's
+ *             rock) and, on a gritty land, takes its tile as a detail. An outdoor one is laid in the dirt: leant part of
+ *             the way, its edge the dirt trail's (the verge from the dirt, the dirt spilled over its outer stones, the
+ *             rubble beside it). A made one is kept: its fringe turf to its edge, no rubble
  *   rubble    false: no stones along a gritty dirt trail's edges (local-meru/broken-land.js strewEdge); true the default
  *   patches   false, or the patch kinds a gritty dirt trail is worn in (PATCH_KINDS); absent, PATCH_DEFAULT
  *
@@ -24,6 +26,9 @@ export const TRAIL_SURFACES = Object.freeze(Object.keys(MATERIAL_WORDS).filter((
 export const PATCH_KINDS = Object.freeze(['worn', 'damp', 'gravel', 'crown', 'puddle']);
 export const PATCH_DEFAULT = Object.freeze(['worn', 'damp', 'gravel']);
 export const TRAIL_DRESS_KEYS = Object.freeze(['surface', 'rubble', 'patches']);
+// the outdoor surfaces, laid in the dirt: how far each leans from the dirt toward its own colour, and how far in from the
+// edge the dirt covers it (m)
+export const IN_DIRT = Object.freeze({ 'stone-road': Object.freeze({ share: 0.45, inward: 0.3 }), gravel: Object.freeze({ share: 0.5, inward: 0.15 }) });
 
 /** A trail recipe's dress, checked: the defaults where it says nothing. */
 export function readTrailDress(trail) {
@@ -67,6 +72,28 @@ const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const upOf = (cs) => { let x = 0, y = 0, z = 0; for (let i = 0; i < cs.length; i++) { const a = cs[i], b = cs[(i + 1) % cs.length]; x += (a[1] - b[1]) * (a[2] + b[2]); y += (a[2] - b[2]) * (a[0] + b[0]); z += (a[0] - b[0]) * (a[1] + b[1]); } const l = Math.hypot(x, y, z) || 1; return [x, y, z].map((v) => r5(v / l)); };
 
 /**
+ * The trail ribbon's frame and height (nature.js trailFaces: stations every 0.75 m, a trail lane from the line out to
+ * the edge each side and a fringe lane past it, `LIFT` over the ground): `xyAt(y, off)` a point `off` across the trail at
+ * station `y`, `ribbonZ(y, off)` the ribbon's height there, as its lanes' triangles carry it.
+ */
+function ribbonOf(site) {
+  const frame = (y) => { const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [site.trailX(y), y], n: [1 / l, -sl / l] }; };
+  const xyAt = (y, off) => { const S = frame(y); return [S.c[0] + S.n[0] * off, S.c[1] + S.n[1] * off]; };
+  const zSt = (y, off) => { const [x, yy] = xyAt(y, off); return site.ground(x, yy) + LIFT; };
+  const ribbonZ = (y, off) => {
+    const j = Math.floor(y / 0.75), ya = j * 0.75, yb = Math.min(site.D, ya + 0.75), f = yb > ya ? (y - ya) / (yb - ya) : 0;
+    const at = (ys) => {
+      const hw = site.halfWAt(ys), sg = Math.sign(off || 1), a = Math.abs(off);
+      if (a <= hw) { const z0 = zSt(ys, 0), z1 = zSt(ys, sg * hw); return z0 + (z1 - z0) * Math.min(1, a / hw); }
+      // (past the edge, across the fringe lane)
+      const fw = site.fringeAt(ys), z1 = zSt(ys, sg * hw), z2 = zSt(ys, sg * (hw + fw)); return z1 + (z2 - z1) * Math.min(1, (a - hw) / fw);
+    };
+    return at(ya) + (at(yb) - at(ya)) * f;
+  };
+  return { xyAt, ribbonZ };
+}
+
+/**
  * A gritty dirt trail's patches: { site, lanes (the ribbon's lanes as the land coloured them, each its `cls`, 'trail'
  * or 'fringe': the colours are read off them), kinds, grit, seed, keep } → faces in group 'isekai:trail', each laid with its kind's relief (a puddle's core
  * plain). Blobs in the trail's own frame, on the ribbon's own heights (nature.js trailFaces: its stations, its lanes,
@@ -80,15 +107,7 @@ export function trailPatches({ site, lanes, kinds, grit, seed, keep = null }) {
   const trail = of('trail'), fringe = of('fringe');
   const near = (L, x, y) => L.reduce((b, q) => (Math.hypot(q.c[0] - x, q.c[1] - y) < Math.hypot(b.c[0] - x, b.c[1] - y) ? q : b), L[0]).fill;
   if (!trail.length) return [];
-  // the ribbon's frame and its height at (y along, t across): its stations every 0.75 m, its lanes from the line out
-  const frame = (y) => { const sl = (site.trailX(y + 0.01) - site.trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [site.trailX(y), y], n: [1 / l, -sl / l] }; };
-  const xyAt = (y, off) => { const S = frame(y); return [S.c[0] + S.n[0] * off, S.c[1] + S.n[1] * off]; };
-  const zSt = (y, off) => { const [x, yy] = xyAt(y, off); return site.ground(x, yy) + LIFT; };
-  const ribbonZ = (y, off) => {
-    const j = Math.floor(y / 0.75), ya = j * 0.75, yb = Math.min(site.D, ya + 0.75), f = yb > ya ? (y - ya) / (yb - ya) : 0;
-    const at = (ys) => { const hw = site.halfWAt(ys), ft = Math.min(1, Math.abs(off) / hw), z0 = zSt(ys, 0), z1 = zSt(ys, Math.sign(off || 1) * hw); return z0 + (z1 - z0) * ft; };
-    return at(ya) + (at(yb) - at(ya)) * f;
-  };
+  const { xyAt, ribbonZ } = ribbonOf(site);
   const keys = new Map(), keyOf = (C, v) => {
     const k = `${C.cut}${v}`;
     if (!keys.has(k)) { const { seed: s = 1, ...params } = normalizeTileSpec({ gen: 'dressed', cut: C.cut, stone: [200, 200, 200], mortar: [120, 120, 120], vary: 14, grit: Math.round(Math.min(1, grit * C.grit) * 100) / 100, seed: C.seed }, 'trail patches').params; keys.set(k, detailKey(params, s, C.metres, v)); }
@@ -134,14 +153,75 @@ export function trailPatches({ site, lanes, kinds, grit, seed, keep = null }) {
 const ROCK_STOP = 3, NEUTRAL = Object.freeze({ stone: [200, 200, 200], mortar: [136, 136, 136], floor: [184, 184, 184], trim: [150, 150, 150], coat: [206, 206, 206] });
 
 /**
- * A paved trail's dress: { colour (the hex its lanes lean to), tile ({ params, seed, metres }: the word's dressed tile,
- * a gritty land's only) | null }; null for the dirt ('earth').
+ * A paved trail's dress: { colour (the hex its lanes lean to), share (how far), dirt (laid in the dirt: IN_DIRT), tile
+ * ({ params, seed, metres }: the word's tile, a gritty land's only) | null }; null for the dirt ('earth').
  */
 export function surfaceDress(word, { grit = 0, rock = null } = {}) {
   if (word === 'earth') return null;
-  const W = MATERIAL_WORDS[word], colour = W.colour ?? (rock ? hexOf(rock[Math.min(ROCK_STOP, rock.length - 1)]) : null);
-  if (!(grit >= GRIT_PIXELS) || !W.tile) return { colour, tile: null };
+  const W = MATERIAL_WORDS[word], colour = W.colour ?? (rock ? hexOf(rock[Math.min(ROCK_STOP, rock.length - 1)]) : null), dirt = word in IN_DIRT, share = IN_DIRT[word]?.share ?? 0.65;
+  if (!(grit >= GRIT_PIXELS) || !W.tile) return { colour, share, dirt, tile: null };
   const g = Math.round(grit * 100) / 100, X = { ...NEUTRAL, grit: g, wear: { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 }, machine: { grit: g, spall: 0, pit: Math.round(10 * g) / 100 }, loss: Math.round(Math.min(1, 0.1 + 0.6 * g) * 100) / 100 };
-  const T = W.tile(X), { seed = 1, ...params } = normalizeTileSpec({ gen: 'dressed', ...T.params, seed: 127 }, `trail.surface '${word}'`).params;
-  return { colour, tile: { params, seed, metres: T.metres } };
+  // (a word's tile is dressed stone unless it names its own generator: the floor brick's)
+  const T = W.tile(X), N = normalizeTileSpec({ gen: 'dressed', ...T.params, seed: 127 }, `trail.surface '${word}'`), { seed = 1, ...params } = N.params;
+  return { colour, share, dirt, tile: { params: N.gen === 'dressed' ? params : { gen: N.gen, ...params }, seed, metres: T.metres } };
+}
+
+// ── the edge ────────────────────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * The edge of a gritty dirt trail spilled over: blobs of the trail's own dirt, its own relief (the path's tile, `key(v)`),
+ * straddling the edge every `every` metres or so a side and reaching out over the verge, each feathered to whatever
+ * lies under its rim, so the trail meets its verge in a ragged band and not a ruled line.
+ */
+export const SPILL = Object.freeze({ every: 0.9, len: [0.8, 2.2], wid: [0.14, 0.34], out: [0.02, 0.16], rise: 0.008, rim: 10 });
+
+/**
+ * { site, lanes (the ribbon's lanes as the land coloured them, each its `cls`), grit, seed, keep, key (v → the trail's
+ * path tile), metres, inward (m: how far in a surface laid in the dirt is covered at its edge) } → faces in group
+ * 'isekai:trail'.
+ */
+export function edgeSpill({ site, lanes, grit, seed, keep = null, key, metres, inward = 0 }) {
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), H = (a, b, s) => hash3(a, b, seed + 1301 + s);
+  const { xyAt, ribbonZ } = ribbonOf(site);
+  // the colour under a point: the nearest corner's of the trail's and the fringe's lanes (a 1 m grid of them)
+  const cells = new Map(), C = 1, cell = (x, y) => `${Math.floor(x / C)},${Math.floor(y / C)}`;
+  for (const f of lanes) if ((f.cls === 'trail' || f.cls === 'fringe') && typeof f.fill === 'string') f.corners.forEach((c, k) => { const q = cell(c[0], c[1]); if (!cells.has(q)) cells.set(q, []); cells.get(q).push([c[0], c[1], f.cornerFills?.[k] ?? f.fill]); });
+  const under = (x, y) => {
+    let best = null, d = Infinity;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const p of cells.get(`${Math.floor(x / C) + i},${Math.floor(y / C) + j}`) || []) { const e = Math.hypot(p[0] - x, p[1] - y); if (e < d) { d = e; best = p[2]; } }
+    return best;
+  };
+  const out = [];
+  let n = 0;
+  for (const side of [-1, 1]) for (let y = 0.6 + SPILL.every * H(side, 0, 0); y < site.D - 0.6; y += (SPILL.every * (0.5 + H(side, n, 1))) / (0.6 + 0.4 * t), n++) {
+    if (site.gapAt && site.gapAt(y)) continue;
+    const hw = site.halfWAt(y), len = SPILL.len[0] + (SPILL.len[1] - SPILL.len[0]) * H(side, n, 2), b = SPILL.wid[0] + (SPILL.wid[1] - SPILL.wid[0]) * H(side, n, 3) + inward * 0.5;
+    const tc = side * (hw - inward * (0.5 + H(side, n, 5)) + SPILL.out[0] + (SPILL.out[1] - SPILL.out[0]) * H(side, n, 4)), [cx, cy] = xyAt(y, tc), [ex, ey] = xyAt(y, side * hw);
+    if (!kept(keep, cx, cy, len / 2 + 0.5)) continue;
+    const fill = under(ex, ey), rise = SPILL.rise + 0.0004 * (n % 8);
+    if (!fill) continue;
+    const ring = (k) => { const a = (2 * Math.PI * k) / SPILL.rim, r = 1 + 0.6 * (vnoise(Math.cos(a) * 1.8 + n * 2.3, Math.sin(a) * 1.8 + side * 4.1, seed + 1307) - 0.5); return [Math.cos(a) * r, Math.sin(a) * r]; };
+    // (no further in than the trail's middle, no further out than the fringe's edge)
+    const P = (s2, q) => { const yy = Math.max(0, Math.min(site.D, y + s2)), off = Math.max(-hw - site.fringeAt(yy) + 0.04, Math.min(hw + site.fringeAt(yy) - 0.04, tc + q)), [x, y2] = xyAt(yy, side * Math.max(0, side * off)); return [r5(x), r5(y2), r5(ribbonZ(yy, side * Math.max(0, side * off)) + rise)]; };
+    const rim = Array.from({ length: SPILL.rim }, (_, k) => ring(k)), mid = P(0, 0);
+    const outer = rim.map(([u, v]) => P((u * len) / 2, v * b)), inner = rim.map(([u, v]) => P(u * len * 0.3, v * b * 0.6)), rimFill = outer.map((p) => under(p[0], p[1]) ?? fill);
+    const k0 = key((Math.floor(Math.abs(cx * 0.37 + cy * 0.61)) % 2)), faceOf = (cs, fs) => {
+      const c2 = cs.slice().reverse(), F = { corners: c2, normal: upOf(c2), group: 'isekai:trail', fill, cornerFills: fs.slice().reverse(), spill: true };
+      const L = layDetail(F, { key: k0, metres, as: 'floor' });
+      return L.texture ? L : F;
+    };
+    for (let k = 0; k < SPILL.rim; k++) {
+      const k1 = (k + 1) % SPILL.rim;
+      out.push(faceOf([mid, inner[k], inner[k1]], [fill, fill, fill]));
+      out.push(faceOf([inner[k], outer[k], outer[k1], inner[k1]], [fill, rimFill[k], rimFill[k1], fill]));
+    }
+  }
+  return out;
+}
+
+/** A gritty dirt trail's fringe lanes, their corners at the trail's edge the trail's own colour there (`lane(i)` a land
+ *  face's lane class): so a verge fades from the trail's dirt to the land across its width. */
+export function verged(land, lane) {
+  const key = (c) => `${c[0].toFixed(3)},${c[1].toFixed(3)}`, at = new Map();
+  land.forEach((f, i) => { if (lane(i) === 'trail') f.corners.forEach((c, k) => at.set(key(c), f.cornerFills?.[k] ?? f.fill)); });
+  return land.map((f, i) => (lane(i) === 'fringe' ? { ...f, cornerFills: f.corners.map((c, k) => at.get(key(c)) ?? f.cornerFills?.[k] ?? f.fill) } : f));
 }

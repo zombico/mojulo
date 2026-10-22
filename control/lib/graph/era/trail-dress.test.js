@@ -1,7 +1,7 @@
 // Trail dress (trail-dress.js): a gritty dirt trail strewn at its edges and worn in patches in its own colours; a paved
 // trail in the street's ground words; a quiet trail as it came.
 import { describe, expect, it } from 'vitest';
-import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES } from './trail-dress.js';
+import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES, IN_DIRT } from './trail-dress.js';
 import { readOutTrail, outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { assembleGeocubeScene } from './geocube.js';
@@ -20,7 +20,7 @@ describe('reading a trail\'s dress', () => {
     expect(readTrailDress({ rubble: false, patches: false })).toMatchObject({ rubble: false, patches: [] });
     expect(readTrailDress({ patches: ['puddle', 'crown', 'puddle'] }).patches).toEqual(['puddle', 'crown']);
     // (the street's ground words, the two a trail brought among them)
-    expect(TRAIL_SURFACES).toEqual(expect.arrayContaining(['earth', 'flags', 'setts', 'brick-paving', 'gravel']));
+    expect(TRAIL_SURFACES).toEqual(expect.arrayContaining(['earth', 'stone-road', 'gravel', 'flags', 'setts', 'brick-paving']));
     expect(TRAIL_SURFACES.every((w) => MATERIAL_WORDS[w].on === 'ground')).toBe(true);
   });
 
@@ -33,9 +33,12 @@ describe('reading a trail\'s dress', () => {
 
   it('a paved word leans to its colour, or the kit\'s rock where it has none; its tile only on a gritty land', () => {
     expect(surfaceDress('earth')).toBeNull();
-    expect(surfaceDress('brick-paving', { grit: 0.2 })).toEqual({ colour: MATERIAL_WORDS['brick-paving'].colour, tile: null });
+    expect(surfaceDress('brick-paving', { grit: 0.2 })).toEqual({ colour: MATERIAL_WORDS['brick-paving'].colour, share: 0.65, dirt: false, tile: null });
     expect(surfaceDress('flags', { grit: 0.7, rock: ISEKAI_MEADOW.palette.rock }).colour).toMatch(/^#[0-9a-f]{6}$/);
     expect(surfaceDress('flags', { grit: 0.7, rock: ISEKAI_MEADOW.palette.rock }).tile.params.face).toBe('floor');
+    // (the floor stones are the rooms' own, art-direction.js: brick their herringbone, a stone road their rubble)
+    expect(surfaceDress('brick-paving', { grit: 0.7 }).tile.params).toMatchObject({ gen: 'stone-brick', bond: 'herringbone' });
+    expect(surfaceDress('stone-road', { grit: 0.7 })).toMatchObject({ dirt: true, share: IN_DIRT['stone-road'].share, tile: { params: { gen: 'stone-brick', bond: 'rubble' } } });
   });
 });
 
@@ -57,6 +60,18 @@ describe('a trail dressed on a stage', () => {
     expect(patches(G).every((f) => f.normal[2] > 0.7 && /^detail:/.test(f.texture))).toBe(true);
     const sign = (h) => Math.sign(hue(h)), tr = sign(trail(G)[0].fill);
     expect(patches(G).filter((f) => f.patch !== 'crown').every((f) => sign(f.fill) === tr)).toBe(true);
+    // (its edge spilled over: the trail's own dirt and relief reaching out past it onto the verge)
+    const spill = G.faces.filter((f) => f.spill), path = new Set(trail(G).filter((f) => !f.spill).map((f) => f.texture));
+    expect(spill.length).toBeGreaterThan(0);
+    expect(spill.every((f) => path.has(f.texture))).toBe(true);
+    expect(spill.some((f) => f.corners.some((c) => site.trailDist(c[0], c[1]) > site.halfWAt(c[1]) + 0.1))).toBe(true);
+    expect(bare.faces.filter((f) => f.spill).length).toBe(spill.length);
+    // (and its verge starts in the trail's own dirt: a fringe lane's corners at the edge the trail's colour there)
+    const key = (c) => `${c[0].toFixed(3)},${c[1].toFixed(3)}`, at = new Map(trail(G).filter((f) => !f.spill).flatMap((f) => f.corners.map((c, k) => [key(c), f.cornerFills[k]])));
+    const verge = G.faces.filter((f) => f.group === 'isekai:ground' && f.uv && f.uv.every((q) => q[1] === 0 || q[1] === 0.999));
+    const inner = verge.flatMap((f) => f.corners.filter((c, k) => f.uv[k][1] === 0 && at.has(key(c))).map((c) => [f.cornerFills[f.corners.indexOf(c)], at.get(key(c))]));
+    expect(inner.length).toBeGreaterThan(0);
+    expect(inner.every(([a, b]) => a === b)).toBe(true);
     // (the same dress builds the same trail)
     expect(JSON.stringify(assembleStageScene({ ...M, trail: {}, shading: { grit: 0.7 } }).faces.length)).toBe(JSON.stringify(G.faces.length));
   }, 90000);
@@ -76,6 +91,20 @@ describe('a trail dressed on a stage', () => {
     const across = (P) => P.faces.filter((f) => f.group === 'isekai:ground' && f.uv && f.uv.every((q) => q[1] === 0 || q[1] === 0.999)).length;
     expect(across(D)).toBeGreaterThan(0);
     expect(across(B)).toBe(0);
+  }, 90000);
+
+  it('an outdoor surface is laid in the dirt: its stones leant part way, one tile running on, its edge the dirt trail\'s', () => {
+    const R = assembleStageScene({ ...M, trail: { surface: 'stone-road' }, shading: { grit: 0.7 } });
+    const D = assembleStageScene({ ...M, trail: { patches: false }, shading: { grit: 0.7 } });
+    const laid = trail(R).filter((f) => !f.spill);
+    expect(new Set(laid.map((f) => f.texture)).size).toBe(1);
+    // (its edge: the dirt spilled over it with the dirt's own relief, the verge laid across, the rubble beside it)
+    const dirtTex = new Set(trail(D).filter((f) => !f.spill).map((f) => f.texture));
+    expect(R.faces.filter((f) => f.spill).every((f) => dirtTex.has(f.texture))).toBe(true);
+    expect(R.faces.filter((f) => f.spill).length).toBeGreaterThan(0);
+    expect(R.faces.some((f) => f.group === 'isekai:ground' && f.uv && f.uv.every((q) => q[1] === 0 || q[1] === 0.999))).toBe(true);
+    expect(rocks(R)).toBe(rocks(D));
+    expect(patches(R)).toHaveLength(0);
   }, 90000);
 
   it('a geocube\'s street hands its `path` to the trail it lies on; no stone or patch on ground a town has claimed', () => {

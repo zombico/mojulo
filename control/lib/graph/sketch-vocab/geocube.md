@@ -63,9 +63,9 @@ A cube that names no domains offers one per terrain and one per interior.
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
   stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
-  street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; flags, setts,
-  gravel, brick-paving, pavement, asphalt), and on a gritty cube's dirt `rubble` at its edges and `patches` (worn,
-  damp, gravel, crown, puddle), each `false` for none;
+  street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; stone-road and
+  gravel laid in the dirt; flags, setts, brick-paving, pavement, asphalt kept), and on a gritty cube's dirt `rubble` at
+  its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

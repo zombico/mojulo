@@ -52,6 +52,9 @@ const variantOf = (f) => { const c0 = f.corners[0]; return Math.floor(Math.abs(c
 const withFills = (f) => (f.cornerFills ? f : { ...f, cornerFills: f.corners.map(() => f.fill) });
 const laid = (f) => !f.texture && Array.isArray(f.normal) && typeof f.fill === 'string' && f.corners && f.corners.length >= 3;
 
+/** The trail's own path tile at a grit, variant `v` (0 | 1): what its edge's spill is laid with (era/trail-dress.js). */
+export const trailKey = (grit, v) => keysFor(grit)(GROUND_CUTS['isekai:trail'], v);
+
 /** The faces with the flora's relief laid on them, as strong as the land is gritty. */
 export function withGrittyFlora(faces, grit) {
   if (!(grit >= GRIT_PIXELS)) return faces;
@@ -71,7 +74,7 @@ export function withGrittyGround(faces, grit, { verge = () => false, nearTrail =
   if (!(grit >= GRIT_PIXELS)) return faces;
   const keyOf = keysFor(grit);
   // (a paved trail's own tile, era/trail-dress.js surfaceDress, over the path's)
-  const paved = trail ? [0, 1].map((v) => detailKey(trail.params, trail.seed, trail.metres, v)) : null;
+  const paved = trail ? [detailKey(trail.params, trail.seed, trail.metres, 0)] : null;
   return faces.map((f, i) => {
     if (!laid(f)) return f;
     if (verge(i) && nearTrail) {
@@ -83,7 +86,8 @@ export function withGrittyGround(faces, grit, { verge = () => false, nearTrail =
     }
     const C = GROUND_CUTS[f.group];
     if (!C || Math.abs(f.normal[2]) <= 0.7) return f;
-    if (paved && f.group === 'isekai:trail') { const out = layDetail(withFills(f), { key: paved[variantOf(f)], metres: trail.metres, as: 'floor' }); return out.texture ? out : f; }
+    // (one variant only: a paving's joints run on across the faces, where a path's noise would hide a change)
+    if (paved && f.group === 'isekai:trail') { const out = layDetail(withFills(f), { key: paved[0], metres: trail.metres, as: 'floor' }); return out.texture ? out : f; }
     const out = layDetail(withFills(f), { key: keyOf(C, variantOf(f)), metres: C.metres, as: 'floor' });
     return out.texture ? out : f;
   });

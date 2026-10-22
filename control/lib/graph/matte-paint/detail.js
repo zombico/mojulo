@@ -7,7 +7,8 @@
  * facets (a facade's piers and spandrels) carries one continuous stone.
  *
  *   detailKey(params, seed, metres, v)    the tile's key (`detail:dressed-<hash>-a|b`), registered for the resolver:
- *                                         `params` the dressed tile's (on its rails), painted at `metres` a repeat
+ *                                         `params` the dressed tile's (on its rails), painted at `metres` a repeat; with
+ *                                         `gen: 'stone-brick'` and a bond, the rooms' bonded brick tile instead
  *   layDetail(face, { key, metres, unit, as })   the face dressed (`as`: 'wall' | 'roof' | 'floor'; `unit` the world's
  *                                         metres a unit), or the face itself when it is not that kind of face
  *   DETAIL_MEAN                           the mean a detail is set to (linear)
@@ -18,7 +19,7 @@
  * The tiles are served by a texture resolver (`detail:`), painted once a key. Pure.
  */
 import { dressedTile } from './dressed.js';
-import { encodePng, registerTextureResolver } from '../landscape/surface-textures.js';
+import { encodePng, registerTextureResolver, bondedBrickTile } from '../landscape/surface-textures.js';
 
 export const DETAIL_MEAN = 0.8;
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -39,7 +40,8 @@ registerTextureResolver('detail:', (key) => {
   if (PAINTED.has(key)) return PAINTED.get(key);
   const S = SPECS.get(key);
   if (!S) return null;
-  const T = dressedTile(S.cfg, { size: 512, seed: S.seed }), n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
+  // (a brick floor's tile, landscape/surface-textures.js stone-brick in a bond, as the rooms lay it; else dressed stone)
+  const T = S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed }), n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
   for (let k = 0; k < n * 3; k++) { L[k] = lin(T.rgb[k]); m[k % 3] += L[k]; }
   for (let c = 0; c < 3; c++) m[c] = m[c] / n || 1;
   const out = Buffer.alloc(n * 3);
@@ -86,6 +88,7 @@ export function layDetail(face, { key, metres, unit = 1, as = 'wall' }) {
 export function resamplePlan(key) {
   const S = SPECS.get(key);
   if (!S) return null;
+  if (S.cfg.gen === 'stone-brick') return null;
   const c = S.cfg, cut = c.cut ?? 'ashlar', rows = c.rows ?? 4, cols = c.cols ?? 2, seed = (S.seed % 9973) + 1, macro = { amp: 0.07, scale: 6 };
   const r4 = (v) => Math.round(v * 1e5) / 1e5;
   if (cut === 'ashlar' || cut === 'setts' || cut === 'tile') return { kind: 'courses', stepU: 0, stepV: r4(1 / rows), bandV: r4(3 / rows), bandU: 0, seed, macro };

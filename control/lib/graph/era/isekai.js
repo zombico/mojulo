@@ -53,10 +53,10 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
-import { withGrittyFlora, withGrittyGround } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround, trailKey, GROUND_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
-import { readTrailDress, trailPatches, surfaceDress } from './trail-dress.js';
+import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, IN_DIRT } from './trail-dress.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
@@ -357,7 +357,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
-  const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth';
+  // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
+  const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
   const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   // (a polygon land's rock drawn toward planes, `shading.facet`: on the faces' own heights, as the island's; the land the
@@ -405,10 +406,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const strewn = [];
   if (broken) {
     breakRims([...ground.faces, ...ribbon], { grit: broken, seed, dx: site.grid.dx });
-    // (a paved trail takes no pebbles off its corners: it is kept)
-    strewn.push(...strewStones(st, { faces: [...ground.faces, ...(dirt ? ribbon : ribbon.filter((f) => f.cls !== 'trail'))], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
+    // (a made trail takes no pebbles off its corners: it is kept)
+    strewn.push(...strewStones(st, { faces: [...ground.faces, ...(inDirt ? ribbon : ribbon.filter((f) => f.cls !== 'trail'))], rocks: [...boulders], heightAt: site.ground, seed, grit: broken }));
     // (and the same stones along a dirt trail's edges, thinning out onto the land)
-    if (dirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep }));
+    if (inDirt && TD.rubble) strewn.push(...strewEdge(st, { site, heightAt: site.ground, seed, grit: broken, keep }));
   }
   // (the strewn stones are drawn and lit but cast nothing: a pebble's shadow is a few centimetres, and each would be one
   // more set of triangles every lit point is tested against)
@@ -574,11 +575,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans
   // its lanes to its word's colour and, gritty, lays its word's tile for the path's; its fringe is turf to its edge)
   const nb = bare.length, lane = (i) => (i >= nb && i < nb + ribbon.length ? ribbon[i - nb].cls : null), SD = dirt ? null : surfaceDress(TD.surface, { grit: broken, rock: st.palette.rock });
-  const lean = (f) => ({ ...f, fill: leanHue(f.fill, SD.colour), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => leanHue(c, SD.colour)) } : {}) });
-  const landP = SD?.colour ? land.map((f, i) => (lane(i) === 'trail' ? lean(f) : f)) : land;
-  const landD = broken ? withGrittyGround(landP, broken, { verge: (i) => dirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}) }) : landP;
+  const lean = (f) => ({ ...f, fill: leanHue(f.fill, SD.colour, SD.share), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => leanHue(c, SD.colour, SD.share)) } : {}) });
+  // (a gritty trail in the dirt: its verge fades from the dirt to the land across it, and the dirt spills over its edge
+  // in a ragged band, era/trail-dress.js; an outdoor surface's stones leant over the dirt after, so its edge is dirt)
+  const landV = broken && inDirt ? verged(land, lane) : land;
+  const landP = SD?.colour ? landV.map((f, i) => (lane(i) === 'trail' ? lean(f) : f)) : landV;
+  const landD = broken ? withGrittyGround(landP, broken, { verge: (i) => inDirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}) }) : landP;
   // (a gritty dirt trail's patches, worn, damp, gravel…, on its ribbon: era/trail-dress.js)
-  const patches = broken && dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [];
+  const lanes = broken && inDirt ? landV.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })) : null;
+  const patches = broken && inDirt ? [...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, inward: IN_DIRT[TD.surface]?.inward ?? 0 }),
+    ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
   const faces = [...landD, ...patches, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band

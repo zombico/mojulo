@@ -629,7 +629,9 @@ function bondCells(bond, W, H, rows, cols, seed) {
 }
 
 /** The bonded stone wall: the running bond's paint (jitter, accents, grain, bevel, wear, radius, shadow) on any bond. */
-function bondedBrickPng(cfg, { size = 256, seed = 1 } = {}) {
+function bondedBrickPng(cfg, opts) { const { rgb, W, H } = bondedBrickTile(cfg, opts); return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`; }
+/** A bonded brick tile's texels (stone-brick's bonds other than running: herringbone, basketweave, …) → { rgb, W, H }. */
+export function bondedBrickTile(cfg, { size = 256, seed = 1 } = {}) {
   const W = size, H = size, n = makeNoise(seed * 7 + 1), rgb = Buffer.alloc(W * H * 3);
   const rows = cfg.rows ?? 6, cols = cfg.cols ?? 4, mt = cfg.mortarThick ?? 0.1;
   const stone = cfg.stone ?? [150, 145, 135], mortar = cfg.mortar ?? [92, 88, 80];
@@ -667,7 +669,7 @@ function bondedBrickPng(cfg, { size = 256, seed = 1 } = {}) {
       }
     }
   }
-  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+  return { rgb, W, H };
 }
 
 function stoneBrickPng(cfg, { size = 256, seed = 1 } = {}) {

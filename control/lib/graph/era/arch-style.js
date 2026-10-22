@@ -82,8 +82,13 @@ export const MATERIAL_WORDS = Object.freeze({
   setts: W('ancient', 'ground', null, 'small stones in courses, crowned and worn smooth',
     (X) => ({ params: { cut: 'setts', face: 'floor', stone: X.stone, mortar: X.floor, rows: 10, cols: 8, vary: 24, ...X.wear }, metres: 1.2 })),
   earth: W('ancient', 'ground', '#8a7358', 'a beaten earth way (a colour)'),
-  'brick-paving': W('either', 'ground', '#9a5a44', 'bricks laid flat in courses across the way, sand in the joints',
-    (X) => ({ params: { face: 'floor', stone: [154, 90, 68], mortar: [150, 140, 120], rows: 12, cols: 6, tool: 'none', joint: 0.01, vary: 20, ...X.wear }, metres: 1.2 })),
+  // (the rooms' floor brick, art-direction.js BRICK_FLOOR: stone-brick in herringbone, a paver a fifth of a metre; painted
+  // in greys, laid as a detail under the word's colour)
+  'brick-paving': W('either', 'ground', '#9a5a44', 'floor bricks in herringbone, sand in the joints',
+    (X) => ({ params: { gen: 'stone-brick', bond: 'herringbone', stone: [176, 176, 176], mortar: [132, 132, 132], rows: 8, radius: 0.2, shadow: 0.45, mortarThick: 0.1, bevel: 0.18, vary: 14, grain: 11, accent: 0.08, jointDepth: 0.5, chips: r2(Math.min(0.45, 0.1 + 0.35 * X.grit)) }, metres: 1.6 })),
+  // (the rooms' rubble floor, art-direction.js RUBBLE's bond: rounded field stones with wide earth between them)
+  'stone-road': W('ancient', 'ground', null, 'field stones set in the earth, the dirt between them',
+    (X) => ({ params: { gen: 'stone-brick', bond: 'rubble', stone: [184, 184, 184], mortar: [112, 112, 112], rows: 7, radius: 0.5, shadow: 0.6, mortarThick: 0.14, bevel: 0.28, vary: 22, grain: 12, jointDepth: 0.6, chips: r2(Math.min(0.45, 0.1 + 0.3 * X.grit)) }, metres: 1.6 })),
   gravel: W('either', 'ground', null, 'small stones lying close in a bed of grit',
     (X) => ({ params: { cut: 'gravel', face: 'floor', stone: X.stone, mortar: X.mortar, vary: 18, ...X.wear }, metres: 1 })),
   // MODERN: machine-made, cement-bound, worn by the weather and never by loss

@@ -142,10 +142,20 @@ before.
   `gravel` (stones close in a bed of grit: a new `gravel` cut in `matte-paint/dressed.js`), `crown` (a strip of turf
   down the middle, the cart track's), `puddle` (a darker core with no relief in a damp ring). The default is worn, damp
   and gravel; `patches` names the kinds, `false` none.
-- **Paved trails.** `surface`: the dirt (`earth`) by default, or `flags`, `setts`, `pavement`, `asphalt`, and two ground
-  words added to `MATERIAL_WORDS` for trails: `brick-paving` (bricks laid flat in courses across the way) and `gravel`.
-  A paved trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid
-  with its word's tile for the path's; its fringe is turf to its edge (no verge), with no rubble, patches or pebbles.
+- **The edge blended** (gritty dirt). The trail met its verge on a ruled line, a step in colour along it. Now the verge
+  lanes start in the trail's own colour at its edge and fade to the land's across their width (`verged`), and the
+  trail's dirt spills over the edge (`edgeSpill`): blobs of its own colour and path relief straddling the edge every
+  metre or so a side, reaching out over the verge, each feathered to what lies under its rim, so the edge is ragged.
+- **Paved trails.** `surface`: the dirt (`earth`) by default; the outdoor ones laid in the dirt, `stone-road` (field
+  stones with earth between them: the rooms' rubble floor, `art-direction.js` RUBBLE's `stone-brick` bond) and `gravel`;
+  and the made ones, `flags`, `setts`, `pavement`, `asphalt` and `brick-paving` (the rooms' herringbone floor brick,
+  BRICK_FLOOR's bond). `stone-road`, `brick-paving` and `gravel` are ground words added to `MATERIAL_WORDS`. A paved
+  trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid with its
+  word's tile for the path's, one tile across the lanes so its joints run on (`matte-paint/detail.js` lays a
+  `stone-brick` spec as a detail, painted in greys under the word's colour; `landscape/surface-textures.js`
+  `bondedBrickTile` its texels). An outdoor one leans part of the way and keeps the dirt trail's edge: the verge from
+  the dirt, the dirt spilled further in over its outer stones, the rubble beside it. A made one keeps its own: its
+  fringe turf to its edge, with no rubble, patches or pebbles.
 - The geocube vocab card names the glazings (arabesque, ornamental, stained) and the trail's dress. Tests:
   `trail-dress.test.js`. The study spike `scripts/spikes/geotown/trail.mjs` frames one stretch of a stage trail on a
   cube, per dress.
