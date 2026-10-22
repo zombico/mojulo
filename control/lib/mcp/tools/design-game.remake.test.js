@@ -31,7 +31,8 @@ describe('the game step, made and remade', () => {
 
   it('remade in place: every key the make wrote kept (a moved title, a new word), none of the mint\'s', async () => {
     await realize({ key: 'game', ref: 'g', order: ORDER }, 'make');
-    const moved = { ...ORDER, title: 'Gate Run II', run: { length: 1 }, languages: { ...ORDER.languages, strings: { ja: { 'The Gate': '門', 'Gate Run II': 'ゲートラン II' } } }, auto_audit: true };
+    // a mint-only ask is set aside by its key, whatever it holds (a remake never audits: nothing here walks a level)
+    const moved = { ...ORDER, title: 'Gate Run II', run: { length: 1 }, languages: { ...ORDER.languages, strings: { ja: { 'The Gate': '門', 'Gate Run II': 'ゲートラン II' } } }, auto_audit: false };
     await realize({ key: 'game', ref: 'g', order: moved }, 'remake');
     const g = stored();
     expect(g).toMatchObject({ kind: 'game', title: 'Gate Run II', screen: 'phone', front: ORDER.front, run: { length: 1 }, theme: ORDER.theme, languages: moved.languages });
