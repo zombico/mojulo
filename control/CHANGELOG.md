@@ -235,6 +235,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   fuller cheeks and lips, a smaller nose, a softer jaw, a man's brow ridge not yet grown, the skin younger. Its own dice
   (`face-age`): the rate the person ages at, the greying's onset by the ancestry's mean, the loss's destiny, the same at
   every age of one seed.
+- THE FACE'S LINES AS FOLDS (dermal-map.js `dermalDetail`, dermal-texture.js `FOLD_INK`): each line a tapered polyline
+  painted at two scales, a thin dark core inside a broad smooth shade (`crease`, `soft`), with a faint lift on the roll's
+  lit lip (`lift`), in the skin's own warm shadow rather than grey; broken along its length, wider as it deepens, the
+  crow's feet curved and more of them with depth. The lines no longer read as pencil strokes. Absent `lines`, nothing.
 - GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
   (salt and pepper, not a tint), the beard's sooner and the body's later, carried as a strand's `streak` (`grey: true`);
   the texture's painted hair at the mean colour. A dyed strand keeps its dye. Absent, the hair as it was.

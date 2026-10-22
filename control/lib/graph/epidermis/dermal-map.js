@@ -592,6 +592,21 @@ export const PAINT_PATTERNS = Object.freeze(['eyes', 'stripes', 'band', 'chin', 
 export const PAINT_COLOURS = Object.freeze({ woad: '#2c4a86', soot: '#1c1a19', ochre: '#8c3a1e', chalk: '#e6e1d6', blood: '#6e1414' });
 export const DIRT_COLOUR = hexLin('#4a3b2c');
 
+/** a fold's profile across it, in its half-widths: the thin core's spread and the smooth shade's (gaussian variances) */
+export const FOLD = Object.freeze({ core: 0.12, soft: 3 });
+/** a point against a polyline (mm): its distance `d`, `s` signed (+ on the left of the way it runs), `t` its share of the
+ * way along at the nearest point, `L` the polyline's length */
+const nearPoly = (q, pts) => {
+  let best = { d: Infinity, s: 0, t: 0 }, run = 0, L = 0;
+  for (let i = 0; i + 1 < pts.length; i++) L += Math.hypot(pts[i + 1].X - pts[i].X, pts[i + 1].Y - pts[i].Y);
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], bx = b.X - a.X, by = b.Y - a.Y, l = Math.hypot(bx, by) || 1e-9, u = Math.max(0, Math.min(1, ((q.X - a.X) * bx + (q.Y - a.Y) * by) / (l * l)));
+    const px = q.X - a.X - bx * u, py = q.Y - a.Y - by * u, d = Math.hypot(px, py);
+    if (d < best.d) best = { d, s: Math.sign(bx * (q.Y - a.Y) - by * (q.X - a.X)) * d, t: (run + u * l) / (L || 1) };
+    run += l;
+  }
+  return { ...best, L };
+};
 /** distance from a point to a polyline (mm) */
 const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length; i++) d = Math.min(d, segD(q, pts[i], pts[i + 1])); return d; };
 
@@ -602,21 +617,47 @@ const polyD = (q, pts) => { let d = Infinity; for (let i = 0; i + 1 < pts.length
  * (`[r, g, b, alpha]`, linear, the brush's edge ragged). On the relational head (its marks); elsewhere nothing.
  */
 export function dermalDetail(A, D) {
-  if (A.part !== 'head' || !A.marks) return { crease: 0, paint: null };
+  if (A.part !== 'head' || !A.marks) return { crease: 0, soft: 0, lift: 0, paint: null };
   const M = A.marks.points, q = headXY(A), sg = q.X >= 0 ? 1 : -1, P = (k) => M[k + (sg > 0 ? 'R' : 'L')], X = Math.abs(q.X);
   const line = (d, w) => Math.exp(-((d / w) ** 2));
-  let crease = 0;
+  // THE LINES, as FOLDS: each a polyline in mm on the head, painted as the skin creased there (not a pencil stroke on
+  // it), at two scales: a thin dark CORE where the fold closes (`crease`) inside a broad SMOOTH shade that falls off
+  // softly either side (`soft`, leaning to the side the fold closes under), and a faint lift on the roll's lit lip
+  // (`lift`); tapered to nothing at both ends, broken along its length by a slow noise, wider as it deepens.
+  let crease = 0, soft = 0, lift = 0;
   if (D.lines > 0) {
-    const fz = Math.abs(P('fz').X), fade = 1 - smooth(fz - 14, fz - 2, X);
-    for (let k = 0; k < 3; k++) crease = Math.max(crease, line(q.Y - (M.g.Y + 13 + 8 * k + 1.4 * Math.sin(q.X / 9 + k * 1.7)), 0.75) * fade * (k === 1 ? 1 : 0.75));
-    crease = Math.max(crease, line(X - 5 - 0.08 * (q.Y - M.g.Y), 0.6) * band(q.Y, M.g.Y - 5, M.g.Y + 12, 2));
-    const ex = P('ex'), c = { X: Math.abs(ex.X) + 5, Y: ex.Y };
-    for (const a of [-0.45, 0, 0.42]) { const e = { X: c.X + 13 * Math.cos(a), Y: c.Y + 13 * Math.sin(a) }; crease = Math.max(crease, line(segD({ X, Y: q.Y }, c, e), 0.55) * 0.9); }
+    const deep = D.lines * (0.55 + 0.45 * D.age), Q = { X, Y: q.Y };
+    // (`side` +1: the shadow on the left of the way the line runs, the lift on its right; `w` its half-width at full
+    // depth, mm; `k` its own share of the depth)
+    const fold = (pts, w, k, side, key) => {
+      const r = nearPoly(Q, pts); if (r.d > w * 6) return;
+      const dep = k * deep, ww = w * (0.6 + 0.6 * dep), taper = Math.sin(Math.PI * Math.min(1, Math.max(0, r.t))) ** 0.8;
+      const broken = 0.45 + 0.55 * smooth(0.25, 0.7, vnoise(r.t * r.L / 3.5 + key * 7.3, key * 3.1, D.seed + 91));
+      const a = dep * taper * broken, u = (r.s * side) / ww;
+      crease = Math.max(crease, a * Math.exp(-((u - 0.2) ** 2) / FOLD.core));
+      soft = Math.max(soft, a * Math.exp(-((u - 0.6) ** 2) / FOLD.soft));
+      lift = Math.max(lift, a * 0.4 * Math.exp(-((u + 1.8) ** 2) / 1.2));
+    };
+    // the forehead's three, running across (the brow's skin folds down onto them: the shadow under, the lift above)
+    const fz = Math.abs(P('fz').X);
+    for (let k = 0; k < 3; k++) {
+      const y0 = M.g.Y + 13 + 8 * k, pts = Array.from({ length: 9 }, (_, i) => { const x = (fz - 4) * (i / 8); return { X: x, Y: y0 + 1.4 * Math.sin(x / 9 + k * 1.7) + 0.02 * x * x / 10 }; });
+      fold(pts, 0.9, k === 1 ? 1 : 0.7, -1, k + 1);
+    }
+    // the frown's, up from the brow's inner end
+    fold([{ X: 4.5, Y: M.g.Y - 4 }, { X: 5.4, Y: M.g.Y + 4 }, { X: 6.6, Y: M.g.Y + 12 }], 0.7, 0.9, 1, 5);
+    // crow's feet, fanned from beyond the outer canthus and curving down at their ends, more of them as they deepen
+    const ex = P('ex'), c = { X: Math.abs(ex.X) + 4, Y: ex.Y }, n = deep > 0.5 ? 5 : 4;
+    for (let i = 0; i < n; i++) {
+      const a = -0.55 + (1.05 * i) / (n - 1), L = 11 + 3 * Math.cos(a * 2);
+      fold(Array.from({ length: 6 }, (_, m) => { const f = m / 5, b = a - 0.18 * f * f; return { X: c.X + L * f * Math.cos(b), Y: c.Y + L * f * Math.sin(b) }; }), 0.6, 0.85, 1, 6 + i);
+    }
+    // the nasolabial fold, the cheek's lip over it: from beside the nose's wing round toward the mouth's corner
     const al = P('al'), ch = P('ch');
-    crease = Math.max(crease, 0.8 * line(polyD({ X, Y: q.Y }, [{ X: Math.abs(al.X) + 4, Y: al.Y + 3 }, { X: Math.abs(al.X) + 9, Y: (al.Y + ch.Y) / 2 }, { X: Math.abs(ch.X) + 5, Y: ch.Y - 3 }]), 1.6));
-    const eye = P('eye'), eyeW = Math.abs(P('ex').X - P('en').X);
-    crease = Math.max(crease, 0.6 * line(Math.hypot((X - Math.abs(eye.X)) / (eyeW * 0.62), (q.Y - eye.Y + 4) / 11) * 11 - 11, 0.7) * smooth(eye.Y - 4, eye.Y - 9, q.Y));
-    crease *= D.lines * (0.55 + 0.45 * D.age);
+    fold([{ X: Math.abs(al.X) + 3, Y: al.Y + 4 }, { X: Math.abs(al.X) + 7, Y: (al.Y + ch.Y) / 2 + 2 }, { X: Math.abs(ch.X) + 5, Y: ch.Y - 1 }, { X: Math.abs(ch.X) + 6, Y: ch.Y - 6 }], 1.5, 0.85, -1, 12);
+    // under the eye, the lid's arc (its bag above, the shadow below)
+    const eye = P('eye'), ew = Math.abs(P('ex').X - P('en').X);
+    fold(Array.from({ length: 7 }, (_, m) => { const a = Math.PI * (0.15 + 0.7 * (m / 6)); return { X: Math.abs(eye.X) - 0.62 * ew * Math.cos(a), Y: eye.Y - 4 - 7 * Math.sin(a) }; }), 0.8, 0.6, 1, 13);
   }
   let paint = null;
   if (D.paint) {
@@ -631,5 +672,5 @@ export function dermalDetail(A, D) {
     const a = edge(d) * (W.amount ?? 0.85);
     if (a > 0.003) paint = [...hexLin(PAINT_COLOURS[W.colour] || W.colour || PAINT_COLOURS.woad), a];
   }
-  return { crease, paint };
+  return { crease, soft, lift, paint };
 }

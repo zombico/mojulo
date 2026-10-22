@@ -309,3 +309,14 @@ describe('grey hair', () => {
     expect(() => readDermis({ from: 'male', grey: 2 })).toThrow(/grey/);
   });
 });
+
+describe('the face\'s lines as folds', () => {
+  it('paints a thin core inside a broader smooth shade, and nothing without lines', () => {
+    const S = chart.samples.filter((s) => s?.part === 'head' && s.marks);
+    const on = S.map((s) => dermalDetail(s, readDermis({ from: 'male', lines: 1, age: 1 })));
+    expect(on.some((d) => d.crease > 0.3)).toBe(true);
+    // (the shade reaches where the core has gone: the line sits in a gradient, never on bare skin)
+    expect(on.filter((d) => d.soft > 0.05).length).toBeGreaterThan(on.filter((d) => d.crease > 0.05).length);
+    expect(S.every((s) => { const d = dermalDetail(s, readDermis({ from: 'male' })); return !d.crease && !d.soft && !d.lift; })).toBe(true);
+  });
+});

@@ -35,6 +35,11 @@ import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
 
+/** a fold's shadow by channel: the blue and green darkened more than the red (the blood under the skin) */
+const FOLD_SHADOW = [0.8, 1, 1.12];
+/** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift */
+const FOLD_INK = Object.freeze({ soft: 0.16, core: 0.4, lift: 0.05 });
+
 /** where each part's ring is cut (its `around`): the side least seen */
 export const DERMAL_SEAMS = Object.freeze({ head: 0.5, neck: 0.5, trunk: 0.5, pelvis: 0.5, upperArm: 0.75, forearm: 0.75, hand: 0.75, finger: 0.75, thigh: 0.75, shank: 0.75, foot: 0.75, toe: 0.75 });
 const PAD = 2, WHITE = 4, STEP = 4;   // texels between rectangles; the white tile's size; the map's evaluation stride
@@ -152,7 +157,11 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
-    if (det?.crease) col = col.map((x) => x * (1 - 0.32 * det.crease));
+    // (a fold in the skin's own shadow, warmer and redder than grey: the broad smooth shade first, then the thin core
+    // darker inside it, so the line sits in a gradient and never on bare skin; the roll's lip lifted a touch)
+    if (det?.soft) col = col.map((x, k) => x * (1 - FOLD_INK.soft * det.soft * FOLD_SHADOW[k]));
+    if (det?.crease) col = col.map((x, k) => x * (1 - FOLD_INK.core * det.crease * FOLD_SHADOW[k]));
+    if (det?.lift) col = col.map((x) => x * (1 + FOLD_INK.lift * det.lift));
     if (D.dirt > 0) col = mixc(col, DIRT_COLOUR, D.dirt * 0.35 * Math.max(0, vnoise(A.around * A.girth * 1000 / 9, A.along * A.length * 1000 / 9, D.seed + 81) - 0.35) / 0.65);
     if (det?.paint) col = mixc(col, det.paint.slice(0, 3), det.paint[3]);
     const o = (r.y + py) * N + r.x + px;
