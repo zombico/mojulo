@@ -2,11 +2,11 @@
  * THE COLOR THEORIST — a palette solved for what a world is trying to be, instead of picked off a short shelf of kits.
  *
  * A palette SPEC is what a recipe stores: a seed and whatever the agent read from the world's intent —
- *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock?, shift?, script?, values? }
+ *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock?, shift?, script?, values?, era? }
  * heat (cool −1 … warm 1), weight (light −1 … heavy 1) and activity (calm −1 … active 1) are the three colour-emotion
  * factors that held across cultures (Ou, Luo et al. 2004); the agent reads the words, this file never does. What the
  * spec leaves out is rolled from its seed. The CONTRACT is what the spec solves to, every time the same:
- *   { id, spec, read, roles: { <role>: ['#hex' × 5] }, light, shadow, fog, ui, checks }
+ *   { id, spec, read, roles: { <role>: ['#hex' × 5] }, light, shadow, fog, ui, checks, era?, relief? }
  *
  * The order is the art director's, not the colour wheel's (hue templates alone do not predict a palette people like:
  * O'Donovan, Agarwala & Hertzmann 2011):
@@ -18,11 +18,19 @@
  *   4. TEMPERATURE: each ramp leans to the world's shadow hue below its middle and to its light hue above
  *   5. CHECKS: candidates are sampled from the seed and the one the laws like best is kept (Huemint's way)
  *
+ * The GENERATION (`era`, era/eras.js): 'gen-6' (the default) is pure poly, every value on screen a ramp stop lit; a
+ * 'gen-7' palette is for the texture-map layer, and is the same palette with more range: it solves exactly as gen-6
+ * does (the same candidate, the same ramps) and adds `relief`, each role's ramp with two deeper shades under it and
+ * their two light negatives over it (nine stops, the middle five the ramp's own): the steps a texture's recess and its
+ * lit lip are drawn in, so the layer speaks in the palette's values rather than between them.
+ *
  *   readPaletteSpec(v, at) → the spec as written, checked (false stays false: the stock look)
  *   solvePalette(spec)     → the contract
  *   scriptShift(script, i, n) → the shift a world's colour script gives its i-th of n levels (a `shift` moves a palette
  *                          and keeps its identity: the same seed and candidate, its hues turned, its values moved)
  *   rampOf(contract, role, n) → that role's ramp at n stops ([r, g, b]), for a kit whose ramps are other lengths
+ *   reliefOf(ramp, Hl, Hs)    → a ramp's relief ([r, g, b] × 9): two deeper shades under it, their light negatives over it
+ *   RELIEF_LAWS               the gen-7 laws its relief is checked by (on its contract, beside the palette's)
  *   PALETTE_SCHEMES, PALETTE_KEYS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS
  *
  * Pure: seeded dice only. The output for a spec is a compatibility promise over every recipe that stores one.
@@ -32,6 +40,7 @@ import { luma, chroma } from '../era/look-facets.js';
 import { COLOURS } from '../gameworld/tunnel-land.js';
 import { SWATCHES } from '../era/style/swatches.js';
 import { STYLE_DEFAULTS } from '../game/hud-widgets.js';
+import { ERA_IDS } from '../era/eras.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -145,7 +154,7 @@ const GROUPABLE = LOCKABLE.filter((r) => !ROLES[r].accent);
 const valuesOf = (v) => ({ groups: v.groups, of: { ...PALETTE_VALUES[v.groups].of, ...(v.of ?? {}) } });
 // how much of a world each role covers, roughly (for the hue-family count)
 const COVER = { sky: 3, cloud: 1, ground: 4, foliage: 2, soil: 1, rock: 1.5, bark: 0.4, made: 1, rope: 0.2 };
-const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values'];
+const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset', 'values', 'era'];
 // a shift: the same palette moved (its seed, its candidate, its hue relations kept)
 const SHIFT_RANGE = Object.freeze({ turn: [-180, 180, 'degrees every hue turns'], light: [-1, 1, 'toward night (−1) or day (1)'], chroma: [0.25, 2, 'chroma scaled'], warm: [-1, 1, 'hues and the light pulled cool (−1) or warm (1)'] });
 const NEUTRAL = Object.freeze({ turn: 0, light: 0, chroma: 1, warm: 0 });
@@ -227,6 +236,7 @@ export function readPaletteSpec(v, at = 'palette') {
       if (typeof h !== 'string' || !HEX.test(h)) throw new Error(`${at}.lock.${r} is a '#hex'`);
     }
   }
+  if (v.era !== undefined && !ERA_IDS.includes(v.era)) throw new Error(`${at}.era is the generation the palette is for: ${ERA_IDS.map((e) => `'${e}'`).join(' or ')} (gen-6 pure poly, gen-7 the texture-map layer)`);
   if (v.values !== undefined) {
     if (!isObj(v.values) || !PALETTE_VALUES[v.values.groups]) throw new Error(`${at}.values is { groups: 2 | 3, of?: { <role>: <group> } }: the land in two or three bands of value`);
     for (const k of Object.keys(v.values)) if (!['groups', 'of'].includes(k)) throw new Error(`${at}.values.${k} is not part of values (groups, of)`);
@@ -472,6 +482,8 @@ export function solvePalette(spec0 = {}) {
   if (spec === false) throw new Error('palette: false is the stock look; there is nothing to solve');
   const key = JSON.stringify(spec);
   if (SOLVED.has(key)) return SOLVED.get(key);
+  // a gen-7 palette is the gen-6 palette with its relief added: solved without its era, the same identity
+  if (spec.era === 'gen-7') return remember(key, withRelief(solvePalette(Object.fromEntries(Object.entries(spec).filter(([k]) => k !== 'era'))), spec));
   const { script: _script, ...solved } = spec, { shift, ...still } = solved;
   // a preset is a spec to start from: the spec's own fields over it
   const A = readAxes(overPreset(still));
@@ -498,9 +510,65 @@ export function solvePalette(spec0 = {}) {
     checks: checks.map(({ novelty: _n, ...c }) => c),
   };
   Object.defineProperty(contract, 'params', { value: cand, enumerable: false });   // for rampOf, never stored
+  return remember(key, contract);
+}
+function remember(key, contract) {
   if (SOLVED.size > 256) SOLVED.clear();
   SOLVED.set(key, Object.freeze(contract));
   return SOLVED.get(key);
+}
+
+// ── the relief: a gen-7 palette's more range ──────────────────────────────────────────────────────────────────────
+export const RELIEF_STOPS = 9;
+/**
+ * A ramp's relief: its five stops kept, two deeper shades under its darkest and their two light negatives over its
+ * lightest, paired step for step (the k-th shade and the k-th light the same distance off the ramp's ends, so a recess
+ * and the lip that throws it read as one relief). A shade steps down by most of the ramp's own lowest step, leans on
+ * toward the shadow's hue and keeps its chroma (a painted shadow is coloured, never black: its floor L 0.12, its
+ * chroma no more than that lightness carries in sRGB); a light
+ * steps up by the same, toward the light's hue, paling. → [r, g, b] × 9, dark to light.
+ */
+export function reliefOf(ramp, Hl, Hs, { floor = 0.12, ceil = 0.97 } = {}) {
+  const lc = ramp.map(lchOf), n = lc.length, [L0, C0, h0] = lc[0], [Ln, Cn, hn] = lc[n - 1];
+  const low = clamp((lc[1][0] - L0) * 0.8, 0.045, 0.09), high = clamp((Ln - lc[n - 2][0]) * 0.8, 0.045, 0.09);
+  // each side's step pressed in where it meets the floor or the ceiling, then the pair kept near each other (a side
+  // with no room keeps a readable step of its own: the laws say when a pair is lopsided)
+  const d0 = Math.max(0, Math.min(low, (L0 - floor) / 2)), u0 = Math.max(0, Math.min(high, (ceil - Ln) / 2));
+  const sd = Math.min(d0, Math.max(2 * u0, 0.04)), su = Math.min(u0, Math.max(2 * d0, 0.04));
+  // (a deep shade's chroma held, but no more than its lightness can carry in sRGB, so it stays a colour, not black)
+  const deep = (k) => { const L = L0 - k * sd; return oklch(L, clamp(Math.max(C0, 0.03) * (1 + 0.1 * k), 0.025, 0.3 * L), mixHue(h0, Hs, 0.25 * k)); };
+  const light = (k) => oklch(Ln + k * su, Cn * (1 - 0.25 * k), mixHue(hn, Hl, 0.2 * k));
+  return [deep(2), deep(1), ...ramp.map((c) => [...c]), light(1), light(2)];
+}
+// the roles the texture-map layer paints: stone, earth and what is made (walls, paving, timber)
+const RELIEF_LAND = ['ground', 'soil', 'rock', 'made'];
+/** The gen-7 laws (advice, stamped beside the palette's; none refuses). */
+export const RELIEF_LAWS = Object.freeze([
+  { law: 'relief-steps', want: 'every relief stop a readable step from its neighbour (ΔL ≥ 0.035): a texture can tell its recess from its face', test: (K) => {
+    let worst = Infinity, who = '';
+    for (const r of RELIEF_LAND) { const L = K.relief[r].map(Lof); for (const i of [0, 1, 6, 7]) { const d = L[i + 1] - L[i]; if (d < worst) { worst = d; who = r; } } }
+    return { ok: worst >= 0.035, value: `narrowest: ${who} ${worst.toFixed(3)}` };
+  } },
+  { law: 'relief-floor', want: 'the deepest shade of every role it paints is a colour, never black (OKLCH L ≥ 0.1, chroma ≥ 0.02)', test: (K) => { const bad = RELIEF_LAND.filter((k) => { const [L, C] = lchOf(K.relief[k][0]); return L < 0.1 || C < 0.02; }); return { ok: !bad.length, value: bad.join(', ') || `all coloured (deepest L ${Math.min(...RELIEF_LAND.map((k) => Lof(K.relief[k][0]))).toFixed(2)})` }; } },
+  { law: 'relief-pairs', want: 'each shade and its light negative sit as far off the ramp as each other (within half to twice)', test: (K) => {
+    const odd = RELIEF_LAND.filter((r) => { const L = K.relief[r].map(Lof), d = L[2] - L[0], u = L[8] - L[6]; return !(u > 0 && d > 0 && u / d >= 0.5 && u / d <= 2); });
+    return { ok: !odd.length, value: odd.join(', ') || 'all paired' };
+  } },
+  { law: 'relief-sky', air: ['full', 'thin'], want: 'by day the land\'s lit lips stay about the sky\'s light end (a highlight past them is a glint)', test: (K) => {
+    if (K.read.key === 'low') return { ok: true, value: 'a low key: the sky is not the brightest thing' };
+    const s = Lof(hexToRgb(K.roles.sky.at(-1))), top = Math.max(...['ground', 'soil', 'rock'].map((r) => Lof(K.relief[r].at(-2))));
+    return { ok: top <= s + 0.03, value: `L: lip ${top.toFixed(2)} · sky ${s.toFixed(2)}` };
+  } },
+]);
+/** A gen-6 contract with its relief added: the same palette, the gen-7 laws stamped beside its own. */
+function withRelief(base, spec) {
+  const C = base.params, rgb = (r) => r.map(hexToRgb), air = base.read.air ?? 'full';
+  const relief = Object.fromEntries(Object.entries(base.roles).map(([k, r]) => [k, reliefOf(rgb(r), C.Hl, C.Hs)]));
+  const K = { relief, read: base.read, roles: base.roles };
+  const checks = RELIEF_LAWS.filter((l) => !l.air || l.air.includes(air)).map((l) => ({ law: l.law, want: l.want, ...l.test(K) }));
+  const contract = { ...base, id: `pal-${fingerprint([spec, base.id]).slice(0, 8)}`, spec, era: 'gen-7', relief: hexRoles(relief), checks: [...base.checks, ...checks] };
+  Object.defineProperty(contract, 'params', { value: C, enumerable: false });
+  return contract;
 }
 
 /** A role's ramp at n stops ([r, g, b] each), solved again at that length, for a kit whose ramps are not five long. */
