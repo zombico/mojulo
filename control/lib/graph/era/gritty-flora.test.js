@@ -49,6 +49,10 @@ describe('gritty flora', () => {
     expect(of(Q, 'isekai:crown').some(detailed)).toBe(false);
     expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
     expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
+    // (its crowns in lumped lobes, more faces than the quiet one's masses, their tints darker toward the core)
+    expect(of(G, 'isekai:crown').length).toBeGreaterThan(of(Q, 'isekai:crown').length);
+    const tints = (P) => new Set(of(P, 'isekai:crown').map((f) => f.fill)).size;
+    expect(tints(G)).toBeGreaterThan(1);
     // (its clouds hi-def, the cutouts with them; a quiet land's pixel-locked)
     const clouds = (P) => P.faces.filter((f) => /:cumulus-/.test(f.texture || '')).map((f) => f.texture);
     expect(clouds(G).length).toBeGreaterThan(0);

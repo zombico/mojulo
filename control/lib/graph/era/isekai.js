@@ -379,7 +379,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
   const grove = bamboo ? bambooFaces(st, site, trees) : null;
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
-  const wood = bamboo || sak ? [] : treeFaces(st, site, trees);
+  const wood = bamboo || sak ? [] : treeFaces(st, site, trees, broken);
   // IKEBANA (a card's `ikebana`, ikebana-place.js): arrangements painted along the banks, standing on the land; what
   // the grass keeps clear of is the trees and every blocking stem
   const ike = st.ikebana ? placeIkebana(st, site, seed) : null, ikeRaw = ike ? ikebanaFaces(st, ike) : [];
@@ -1045,7 +1045,19 @@ function limb(out, pts, radii, sides, scale) {
  * heaped on a short trunk — one mass on top, a ring of them round its shoulders, each squashed a little — so the crown
  * reads as one cloud-shaped form lit as a few big shapes. Wood and crown are their own groups for the lock.
  */
-function treeFaces(st, site, trees) {
+// a gritty crown's lobes: each mass three overlapping lobes about its middle (a little out from the crown's),
+// every vertex pushed by a lumpy noise, and a face's tint darkened by how deep in the crown it lies (the dark core)
+const LOBES = 3;
+function crownLobes(m, c, Rc, k, mi, grit) {
+  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), out = unit(sub(m.at, c)), lobes = [];
+  for (let j = 0; j < LOBES; j++) {
+    const a = 2 * Math.PI * ((j + hash3(k, 200 + mi, 1301)) / LOBES), e = mix(-0.2, 0.7, hash3(k * 7 + j, 210 + mi, 1303));
+    const d = unit([Math.cos(a) * Math.cos(e) + 0.3 * out[0], Math.sin(a) * Math.cos(e) + 0.3 * out[1], Math.sin(e) + 0.3 * out[2]]);
+    lobes.push({ at: [m.at[0] + d[0] * 0.28 * m.r, m.at[1] + d[1] * 0.28 * m.r, m.at[2] + d[2] * 0.28 * m.r], r: m.r * mix(0.74, 0.84, hash3(k * 11 + j, 220 + mi, 1307)) });
+  }
+  return { lobes, lump: 0.16 + 0.18 * t, deep: 0.25 + 0.2 * t };
+}
+function treeFaces(st, site, trees, grit = 0) {
   const T = st.trees, C = T.crown, out = [], blossom = T.form === 'blossom', crownGroup = blossom ? 'isekai:blossom' : 'isekai:crown', crownTint = blossom ? st.tint.blossom : st.tint.crown;
   trees.forEach((t, ti) => {
     const z0 = site.ground(t.x, t.y) - 0.15, h = t.h, k = Math.round(t.x * 17 + t.y * 5) + ti * 131;
@@ -1073,10 +1085,19 @@ function treeFaces(st, site, trees) {
       tube(out, [from, elbow, to], [C.trunk * h * 0.6, C.trunk * h * 0.42, C.trunk * h * 0.22], 5, st.tint.wood, 'isekai:wood');
     });
     t.masses = masses.map((m) => ({ at: m.at, r: m.r, squash: C.squash }));   // (the realistic pole's leaf cards stand out of these)
-    for (const m of masses) for (const tri of blobTris(m.at, [m.r, m.r, m.r * C.squash], null, { detail: 1 })) {
+    if (!grit) for (const m of masses) for (const tri of blobTris(m.at, [m.r, m.r, m.r * C.squash], null, { detail: 1 })) {
       const cs = tri.p.map(P), nn = facetN(cs, sub(mean(cs), m.at));
       out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: crownGroup });
     }
+    // (a gritty crown: lobes, lumped, its core dark)
+    else masses.forEach((m, mi) => {
+      const { lobes, lump, deep } = crownLobes(m, c, Rc, k, mi, grit);
+      for (const L of lobes) for (const tri of blobTris(L.at, [L.r, L.r, L.r * C.squash], null, { detail: 1 })) {
+        const cs = tri.p.map((v) => { const n = vnoise(v[0] / (0.16 * Rc) + 3.1 * ti, v[1] / (0.16 * Rc) + v[2] / (0.16 * Rc), k + 1311), q = 1 + lump * (2 * n - 1); return P([L.at[0] + (v[0] - L.at[0]) * q, L.at[1] + (v[1] - L.at[1]) * q, L.at[2] + (v[2] - L.at[2]) * q]); });
+        const nn = facetN(cs, sub(mean(cs), L.at)), depth = Math.min(1, Math.hypot(...sub(mean(cs), c)) / (Rc * 1.1)), dk = 1 - deep * (1 - depth);
+        out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint.map((v) => r5(v * dk)), group: crownGroup });
+      }
+    });
   });
   return out;
 }
