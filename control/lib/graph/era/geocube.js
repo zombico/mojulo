@@ -38,9 +38,10 @@
  *   structures (optional) landmarks its builders raise, by name: { <name>: [<structure>…] }, each a fractal structure's
  *             words (fractal-structure/read.js) standing `at` [x, y, z?] or `on: 'summit'` (the top tier's top, `at` then
  *             an offset), painted from the cube's ramps unless it names its own palette, lit by the cube's key
- *   settlements (optional) the towns its builders make, by name: { <name>: { town?, houses?, enter?, doors?, anchor? } }
- *             (`town` a town plan, out-town.js; the street of it a trail walks through, era/stage-buildings.js), built
- *             in the cube's builders' language (its buildings' anchor) unless it names its own
+ *   settlements (optional) the towns its builders make, by name: { <name>: { town?, houses?, enter?, doors?, anchor?,
+ *             style? } } (`town` a town plan, out-town.js; the street of it a trail walks through, era/stage-buildings.js),
+ *             built in the cube's builders' language (its buildings' anchor) unless it names its own; in a `style`
+ *             (era/arch-style.js: its language, its material words, its palette), its own or the cube's buildings'
  *   domains   (optional) the levels the cube makes, each a composition of its ingredients in its one style:
  *             { <name>: { reads?, terrain? | interior?, hour?, structures?, settlement? } } (outside on a terrain at an
  *             hour, with its structures and its town: each a name or written there, or inside an interior). A cube that names none offers one per terrain and one per interior. Expanding a domain lowers
@@ -99,6 +100,7 @@ import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
 import { townDressOf } from './town-dress.js';
+import { readStyle, styleTownDress, styleReadout } from './arch-style.js';
 import { readClouds, CLOUDS_OF_WEATHER } from '../matte-paint/sky.js';
 import { validateStructures } from '../fractal-structure/read.js';
 import { makeLight } from '../polygonizer/vexar.js';
@@ -339,7 +341,7 @@ const groundOrNo = (v, at) => { try { readGround(v); } catch (e) { no(`${at}${e.
 const SLUG = /^[a-z][a-z0-9-]{0,31}$/;
 const TERRAIN_KEYS = ['reads', 'base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'colour'];
 const DOMAIN_KEYS = ['reads', 'terrain', 'interior', 'hour', 'structures', 'settlement'];
-const SETTLEMENT_KEYS = ['town', 'houses', 'enter', 'doors', 'anchor'];
+const SETTLEMENT_KEYS = ['town', 'houses', 'enter', 'doors', 'anchor', 'style'];
 const STRUCTURE_ON = ['summit'];
 const LAND_WORDS = ['smooth', 'crevice', 'ridge', 'blend', 'sun', 'mix', 'facet', 'valley', 'skin', 'rocks'];
 const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) no(`${at}.${k} is not a setting (${at}: ${keys.join(', ')})`); };
@@ -472,8 +474,9 @@ export function readGeocube(spec) {
   if (c.outside.land !== false) only(c.outside.land, LAND_WORDS, 'outside.land');
   // buildings (optional): the seeds a world on this cube builds from
   if (c.buildings !== undefined) {
-    if (!isObj(c.buildings)) no('buildings is { anchor?, uses: [{ use, enter }] }');
-    only(c.buildings, ['anchor', 'uses'], 'buildings');
+    if (!isObj(c.buildings)) no('buildings is { anchor?, style?, uses: [{ use, enter }] }');
+    only(c.buildings, ['anchor', 'style', 'uses'], 'buildings');
+    if (c.buildings.style !== undefined) styleOrNo(c.buildings.style, 'buildings.style');
     if (!Array.isArray(c.buildings.uses) || !c.buildings.uses.every((u) => isObj(u) && typeof u.use === 'string' && ['door', 'walk', false].includes(u.enter ?? 'door'))) no("buildings.uses is [{ use, enter: 'door' | 'walk' | false }]");
   }
   // structures (optional): the landmarks its builders raise, each set by name
@@ -677,15 +680,34 @@ function settlementOrNo(t, at) {
   if (t.enter !== undefined && !(Number.isInteger(t.enter) && t.enter >= 0 && t.enter <= 4)) no(`${at}.enter is 0 to 4: the houses walked into`);
   if (t.doors !== undefined && typeof t.doors !== 'boolean') no(`${at}.doors is false (every house walked into as terrain) or true`);
   if (t.anchor !== undefined && typeof t.anchor !== 'string') no(`${at}.anchor is the builders' language, an anchor structure's id`);
+  if (t.style !== undefined) styleOrNo(t.style, `${at}.style`);
 }
-/** A domain's settlement as a stage's `town` (era/stage-buildings.js): its street, in the cube's builders' language unless it names its own. */
-export function geocubeTown(cube, D) {
+// a style as a cube names it (era/arch-style.js), refused by the style's own words
+function styleOrNo(spec, at) {
+  try { return readStyle(spec, at); } catch (e) { return no(e.message.replace(/^style: /, '')); }
+}
+/**
+ * The style a settlement is built in and the language it speaks: the level's own style (`over`, which brings its
+ * language whatever the settlement names), else the settlement's (its own anchor over its style's language), else the
+ * cube's buildings' (their anchor over their style's). → { style (resolved) | null, anchor (an id or an elements
+ * document) | undefined }.
+ */
+export function settlementStyle(cube, t, over) {
+  const B = cubeBuildings(cube), spec = over ?? t?.style ?? B?.style;
+  const S = spec === undefined ? null : styleOrNo(spec, over !== undefined ? 'style' : t?.style !== undefined ? 'settlement style' : 'buildings.style');
+  const lang = S ? S.language.id ?? S.language.doc : undefined;
+  return { style: S, anchor: over !== undefined ? lang : t?.anchor ?? (t?.style !== undefined ? lang : B?.anchor ?? lang) };
+}
+/** A domain's settlement as a stage's `town` (era/stage-buildings.js): its street, in the cube's builders' language
+ *  unless it names its own, in its style (or the level's, `over`) when one is named. */
+export function geocubeTown(cube, D, over) {
   if (!D || D.settlement === undefined) return null;
-  const t = typeof D.settlement === 'string' ? cube.settlements[D.settlement] : D.settlement, anchor = t.anchor ?? cubeBuildings(cube)?.anchor;
+  const t = typeof D.settlement === 'string' ? cube.settlements[D.settlement] : D.settlement, { style, anchor } = settlementStyle(cube, t, over);
+  // (a gritty cube's street dressed from relief, as its island's rock is: town-dress.js; a style's words and colours over it)
+  const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
   return { ...(anchor !== undefined ? { anchor } : {}), ...(t.houses !== undefined ? { houses: t.houses } : {}), ...(t.enter !== undefined ? { enter: t.enter } : {}),
     ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT },
-    // (a gritty cube's street dressed from relief, as its island's rock is: town-dress.js)
-    ...(townDressOf(cube) ? { dress: townDressOf(cube) } : {}) };
+    ...(dress ? { dress } : {}) };
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -1057,7 +1079,7 @@ function withTownCameras(payload) {
  * `trail` is the land walked: the same island with every way up drawn (island.walk 'all'), laid from its `seed`.
  */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
   // a domain shows the level it makes: its room, or its land (or its land walked, `trail`), at its hour unless the
   // recipe names one
@@ -1070,6 +1092,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   for (const k of ['hour', 'clouds']) if (manifest[k] !== undefined && show === 'room') no(`${k} ${k === 'hour' ? 'is' : 'are'} the outside's: show 'land', 'trail' or 'town' to see the cube under ${k === 'hour' ? 'it' : 'them'}`);
   if (manifest.seed !== undefined && show !== 'trail' && show !== 'town') no('seed is the trail\'s and the town\'s: show \'trail\' to lay the island from a seed, or \'town\' its street');
   if (manifest.seed !== undefined && !Number.isInteger(manifest.seed)) no('seed is an integer');
+  if (manifest.style !== undefined && show !== 'town') no('style is the town\'s and the city\'s: show \'town\' (its street) or \'city\' to see the cube\'s architecture in it');
   const hour = manifest.hour ?? D?.hour;
   const title = ctx.title || `${cube.title} · ${P ? P.name ?? 'composed' : SHOWN[show]}`;
   const low0 = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside', D ? D.interior ?? D.terrain : undefined, hour === undefined ? undefined : readHourOf(hour),
@@ -1078,7 +1101,8 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // island laid from the seed and its way up rolled from it (local-meru/roll.js); an island-less cube's ways are all drawn
   // the micro-town: the domain's street, else the cube's first, else a hamlet's, on a short trail laid from the seed
   const firstTown = Object.keys(cube.settlements ?? {})[0];
-  const town = show === 'land' ? geocubeTown(cube, D) : show === 'town' ? geocubeTown(cube, D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : null, seed = manifest.seed ?? 1;
+  const TD = show === 'town' ? (D?.settlement !== undefined ? D : { settlement: firstTown ?? MICRO_TOWN }) : D;
+  const town = show === 'land' || show === 'town' ? geocubeTown(cube, TD, manifest.style) : null, seed = manifest.seed ?? 1;
   const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
@@ -1086,8 +1110,11 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest),
-    ...(show === 'town' ? { town: { settlement: D?.settlement !== undefined ? (typeof D.settlement === 'string' ? D.settlement : 'written') : firstTown ?? 'micro', anchor: town.anchor ?? null,
+    ...(show === 'town' ? { town: { settlement: D?.settlement !== undefined ? (typeof D.settlement === 'string' ? D.settlement : 'written') : firstTown ?? 'micro', anchor: typeof town.anchor === 'object' ? town.anchor.id ?? 'written' : town.anchor ?? null,
       houses: (payload.anchors || []).filter((a) => a.kind === 'house').length } } : {}) };
+  // (the style the street is built in, and its laws: era/arch-style.js)
+  const TS = town ? settlementStyle(cube, typeof TD.settlement === 'string' ? cube.settlements?.[TD.settlement] : TD.settlement, manifest.style).style : null;
+  if (TS) payload.geocube.style = styleReadout(TS);
   return payload;
 }
 /** What a specimen says of its cube (`payload.geocube`): the look, the levels it makes where it names more than its own

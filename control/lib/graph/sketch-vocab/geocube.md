@@ -20,9 +20,18 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   each standing `at: [x, y, z?]` or `on: 'summit'` (the climb's top; `at` is then an offset). Painted from the cube's
   ramps unless one names its own `palette`, lit by the cube's key at the domain's hour. They stand on a climb, never on
   a trail.
-- **Settlements** (`settlements: { <name>: { town?, houses?, enter?, doors?, anchor? } }`): a town plan and how much of
-  its street stands (`houses` 1–12) and is walked into (`enter` 0–4), in the cube's builders' language unless `anchor`
-  names another. A town walks on a trail.
+- **Settlements** (`settlements: { <name>: { town?, houses?, enter?, doors?, anchor?, style? } }`): a town plan and how
+  much of its street stands (`houses` 1–12) and is walked into (`enter` 0–4), in the cube's builders' language unless
+  `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
+- **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
+  (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
+  <starter>, …changes }`, or your own: `{ read, class: 'ancient' |
+  'modern', language, materials, palette?, city? }`. `language` is an anchor or its elements on their rails (`{ from:
+  'timber-hall', elements: { roof: { pitch: 50 }, quoins: null } }`: a whole element with its `kind` replaces, null
+  drops); `materials` a word per surface (plaster, stone, timber, plinth, roof; a city's punched, pier, banded, grid,
+  road, walk), e.g. limewash, rubble, hand-brick, adobe, clay-tile, thatch, wire-brick, precast, concrete, glass;
+  `palette` a colour per surface; `city` its grain (`paris`, `tokyo`…) and a grammar's changes. The specimen writes its
+  laws back (class, cover against pitch, value order, idle surfaces): they advise, never refuse.
 
 ## The domains
 
@@ -49,7 +58,8 @@ A cube that names no domains offers one per terrain and one per interior.
   each walked by a stand-in at eye height to review the architecture, seen first from a person's eye before a house
   or down a sidewalk; `hour` and `clouds` set an outside's sky (the city's too: past dusk its windows lit). A gritty
   cube's street and city are painted from relief as its rock is: stone walls ashlar, plaster a lime render broken to the
-  stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same;
+  stone, roofs in courses, timber in boards; a city's walls between its windows and its sidewalks the same. `style`
+  on the micro-town or micro-city builds it in that style, over the settlement's own;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

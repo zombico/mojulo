@@ -4,17 +4,20 @@
  *   look:  '<look id>' | { id, cell? }    the world-wide look channel (era/look.js): every kind takes its air and sky
  *                                        there; the city also lights itself by it here, its key (or, with no sun, a
  *                                        moon) and its ambient, because its facades are cards a bake cannot relight
- *   paint: { geocube, amount?, hour?, clouds? }   a level's cube (era/geocube.js) painting the city in its world's
+ *   paint: { geocube, amount?, hour?, clouds?, materials?, style? }   a level's cube (era/geocube.js) painting the city in its world's
  *                                        colours: the ground, the water, the parks and the walks, and every skin leant
  *                                        toward its stone, trim and accent by `amount` (0.5 by default). A look with no
  *                                        sun is lit by the cube's moon. With `hour` or `clouds` (and no look of the
  *                                        recipe's own), the cube lights it at that hour under those clouds, as it does
  *                                        its land (era/geocube-hours.js): its sun on the hour's arc or its moon past dusk
  *                                        (the windows lit), its dome, air and clouds the hour's. `materials` ('modern', a
- *                                        city's by default, or 'ancient') the class a gritty cube dresses it in (dress.js).
+ *                                        city's by default, or 'ancient') the class a gritty cube dresses it in (dress.js);
+ *                                        `style` (era/arch-style.js) its material words and colours, its class the
+ *                                        style's unless `materials` names one.
  *
  * The same city under another look and paint is the same streets, lots and facades: another place and hour. Pure.
  */
+import { readStyle } from '../../era/arch-style.js';
 import { resolveLookSpec, LOOK_CELL } from '../../era/look.js';
 import { readGeocube, GEOCUBE_PRESETS } from '../../era/geocube.js';
 import { hourAir, readHour, referenceHour } from '../../era/geocube-hours.js';
@@ -36,11 +39,11 @@ export function readCityLook(look) {
   try { return resolveLookSpec(look); } catch (err) { return no(err.message); }
 }
 
-/** A recipe's `paint`, checked → { cube, amount }, or null. */
+/** A recipe's `paint`, checked → { cube, amount, hour?, clouds?, materials?, style? }, or null. */
 export function readPaint(paint) {
   if (paint === undefined || paint === null) return null;
   if (!isObj(paint)) no(`paint is { geocube: <${Object.keys(GEOCUBE_PRESETS).join(' | ')} | a cube | { from, … }>, amount? }`);
-  for (const k of Object.keys(paint)) if (!['geocube', 'amount', 'hour', 'clouds', 'materials'].includes(k)) no(`paint.${k} is not a paint setting (geocube, amount, hour, clouds, materials)`);
+  for (const k of Object.keys(paint)) if (!['geocube', 'amount', 'hour', 'clouds', 'materials', 'style'].includes(k)) no(`paint.${k} is not a paint setting (geocube, amount, hour, clouds, materials, style)`);
   if (paint.materials !== undefined && !['ancient', 'modern'].includes(paint.materials)) no(`paint.materials is 'ancient' (hand-worked, lime-bound) or 'modern' (machine-made, cement-bound), got ${JSON.stringify(paint.materials)}`);
   if (paint.geocube === undefined) no('paint.geocube is a geocube preset, a cube, or { from, …changes }');
   let cube;
@@ -49,7 +52,10 @@ export function readPaint(paint) {
   if (!(typeof amount === 'number' && amount >= 0 && amount <= 1)) no('paint.amount is how far the cube\'s colours lean the city, 0 (none) to 1 (all the way)');
   let hour, clouds;
   try { hour = paint.hour === undefined ? undefined : readHour(paint.hour); clouds = paint.clouds === undefined ? undefined : readClouds(paint.clouds); } catch (err) { no(`paint.${err.message}`); }
-  return { cube, amount, ...(hour !== undefined ? { hour } : {}), ...(clouds ? { clouds } : {}), ...(paint.materials !== undefined ? { materials: paint.materials } : {}) };
+  // (a style's words dress the city, its class its materials' unless the paint names them: era/arch-style.js)
+  let style;
+  try { style = paint.style === undefined ? undefined : readStyle(paint.style, 'paint.style'); } catch (err) { no(err.message.replace(/^style: /, '')); }
+  return { cube, amount, ...(hour !== undefined ? { hour } : {}), ...(clouds ? { clouds } : {}), ...(paint.materials !== undefined ? { materials: paint.materials } : {}), ...(style ? { style } : {}) };
 }
 
 /**

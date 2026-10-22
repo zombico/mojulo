@@ -8,17 +8,21 @@
  * colours). A curtain wall's glass and mullions and the windows themselves are as they were.
  *
  *   MATERIAL_CLASSES              'ancient', 'modern'
- *   cityDressOf(P, unit)          → { class, walls: { <rhythm>: [dress…] }, ground: { <group>: dress } } or null
+ *   cityDressOf(P, unit)          → { class, walls: { <rhythm>: [dress…] }, ground: { <group>: dress } } or null; in
+ *                                   a paint's `style` (era/arch-style.js) its words for its rhythms and its ground over
+ *                                   its class's, a quiet cube's city taking their colours without the relief
  *   dressCity(faces, P, unit)     → { faces, textures } the faces dressed (a card carries its wall's `dress` for the
  *                                   realizer, architecture/facade-card.js; a sidewalk's laid here), and the tiles they use
  *
- * Each `dress` is { keys: [a, b], metres, unit }: matte-paint/detail.js lays it world-locked, in metres, on the city's
- * units. Absent grit, the city is as it was, byte for byte.
+ * Each `dress` is { keys: [a, b], metres, unit, colour? }: matte-paint/detail.js lays it world-locked, in metres, on the
+ * city's units (a colour alone leans the wall's frame or the ground, a glass word leaves the building as the city drew
+ * it). Absent grit and a style, the city is as it was, byte for byte.
  */
 import { detailKey, layDetail } from '../../matte-paint/detail.js';
 import { normalizeTileSpec } from '../../era/tile-specs.js';
 import { GRIT_PIXELS } from '../../matte-paint/fabric.js';
 import { surfaceTexture } from '../../landscape/surface-textures.js';
+import { MATERIAL_WORDS, materialContext, wordTile } from '../../era/arch-style.js';
 
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -36,9 +40,33 @@ const CUBE_SHARE = 0.35;
  * one by its own dice. → { class, walls: { <rhythm>: [dress…] }, ground: { <group>: dress } } or null.
  */
 export function cityDressOf(P, unit) {
-  const cube = P?.cube, g = cube?.grit;
-  if (g === undefined || g < GRIT_PIXELS) return null;
-  const cls = P.materials ?? 'modern', stone = rgbOf(cube.colour.stone), mortar = stone.map((v) => Math.round(v * 0.68)), coat = rgbOf(cube.colour.trim);
+  const g = P?.cube?.grit, gritty = g !== undefined && g >= GRIT_PIXELS;
+  if (!P?.style) return gritty ? classDress(P, unit, P.materials ?? 'modern') : null;
+  // a style: its class's dress (on a gritty cube), its words over it
+  const S = P.style, cls = P.materials ?? S.class, D = gritty ? classDress(P, unit, cls) : { class: cls, walls: {}, ground: {} }, X = materialContext(P.cube);
+  const wordOf = (w, surface, i) => {
+    const T = gritty ? wordTile(w, X, WORD_SEEDS[surface] + 3 * i) : null, c = S.palette[surface] ?? MATERIAL_WORDS[w].colour, colour = c ? mixHex(c, P.cube.colour.stone, CUBE_SHARE) : null;
+    return T ? entry(T.spec, T.metres, unit, colour) : { ...(colour ? { colour } : {}) };
+  };
+  for (const r of ['punched', 'pier', 'banded', 'grid']) {
+    const w = S.materials[r], c = S.palette[r];
+    if (w) D.walls[r] = (Array.isArray(w) ? w : [w]).map((x, i) => wordOf(x, r, i));
+    else if (c) D.walls[r] = (D.walls[r] ?? [{}]).map((e) => ({ ...e, colour: mixHex(c, P.cube.colour.stone, CUBE_SHARE) }));
+  }
+  for (const [surface, groups] of [['road', ['city:road']], ['walk', ['city:walk', 'city:plaza']]]) {
+    const w = S.materials[surface], c = S.palette[surface];
+    const E = w ? wordOf(w, surface, 0) : c ? { ...(D.ground[groups[0]] ?? {}), colour: mixHex(c, P.cube.colour.stone, CUBE_SHARE) } : null;
+    if (E) for (const k of groups) D.ground[k] = E;
+  }
+  return D;
+}
+// the seeds a style's words are painted at, by surface
+const WORD_SEEDS = { punched: 101, pier: 111, banded: 121, grid: 131, walk: 141, road: 151 };
+
+// a class's own dress on a gritty cube
+function classDress(P, unit, cls) {
+  const cube = P.cube, g = cube.grit;
+  const stone = rgbOf(cube.colour.stone), mortar = stone.map((v) => Math.round(v * 0.68)), coat = rgbOf(cube.colour.trim);
   const wear = { grit: g, spall: Math.min(1, g), pit: Math.round(60 * g) / 100 }, loss = Math.round(Math.min(1, 0.1 + 0.6 * g) * 100) / 100;
   if (cls === 'ancient') {
     const flags = entry({ gen: 'dressed', face: 'floor', stone: rgbOf(cube.colour.floor), mortar, rows: 3, cols: 3, tool: 'none', ...wear, seed: 61 }, 1.8, unit);
@@ -74,13 +102,16 @@ export function dressCity(faces, P, unit) {
   const out = faces.map((f) => {
     if (f.card && D.walls[f.card.rhythm] && f.card.material !== 'metal') {
       const L = D.walls[f.card.rhythm], E = L[pickOf(f, L.length)];
-      E.keys.forEach((k) => used.add(k));
+      // (a word with no tile and no colour, glass: the building as the city drew it)
+      if (!E.keys && !E.colour) return f;
+      E.keys?.forEach((k) => used.add(k));
       const { colour, ...dress } = E;
-      return { ...f, card: { ...f.card, ...(colour ? { frameHex: mixHex(f.card.frameHex, colour, 1 - CUBE_SHARE) } : {}), dress } };
+      return { ...f, card: { ...f.card, ...(colour ? { frameHex: mixHex(f.card.frameHex, colour, 1 - CUBE_SHARE) } : {}), ...(E.keys ? { dress } : {}) } };
     }
     const E = D.ground[f.group];
     if (E && f.corners) {
       const g = E.colour ? { ...f, fill: mixHex(f.fill, E.colour, 1 - CUBE_SHARE), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => mixHex(c, E.colour, 1 - CUBE_SHARE)) } : {}) } : f;
+      if (!E.keys) return g;
       const d = layDetail(g, { key: E.keys[at(f)], metres: E.metres, unit, as: 'floor' });
       if (d.texture) used.add(d.texture);
       return d.texture ? d : f;

@@ -283,7 +283,7 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
   const dressed = paint ? dressCity(scene.faces, paint, U) : null;
   return {
     ...scene,
-    ...(dressed ? { faces: dressed.faces, textures: { ...(scene.textures || {}), ...dressed.textures } } : {}),
+    ...(dressed ? { faces: dressed.faces, ...(scene.textures || Object.keys(dressed.textures).length ? { textures: { ...(scene.textures || {}), ...dressed.textures } } : {}) } : {}),
     ...traffic,
     ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
     // a walk round one block for a stand-in to take (ctx.route: a geocube's micro-city, era/geocube-city.js): the sidewalk

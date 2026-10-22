@@ -125,6 +125,41 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Architectural style: the model composes a town's and a city's look, on the cube's materials
+
+A town or a city is not one style: a STYLE says what a place's builders build, and the town, the city and their dress
+follow from it. The buildings' design stays the model's: a style composes the building language's elements and the
+material words, and starters are examples on the rails, never the limit.
+
+- **The style card** (`era/arch-style.js`). A style is a starter's id, a document, or `{ from: <starter>, …changes }`:
+  its `read`, its `class` (ancient or modern), its `language` (an anchor's id, its own elements, or `{ from: <anchor>,
+  elements: { <id>: element | null }, … }` that changes or drops the anchor's elements), its `materials` (a word per
+  surface), its `palette` (a colour per surface, over its word's own) and its `city` (a city grammar's changes, its `grain` the
+  grammar it starts from). Every refusal names the rail and the words it allows.
+- **Material words** (`MATERIAL_WORDS`), each of a class and for a surface: ancient limewash, lime render, ashlar,
+  rubble, hand-made brick, adobe, boards, shingle, thatch, flags, setts, earth; modern wire-cut brick, stucco, sawn
+  stone, precast, concrete, glass, pavement, asphalt; clay tile and slate built in both. A word is a dressed tile (on a
+  gritty cube) and a colour of its own: a lit town face keeps its luminance (the cube's light and the value its language
+  gave it) and leans its hue to the word's (`leanHue`, era/town-dress.js; a pale face that would clip gives up chroma,
+  not light), a city's frame leans as a modern material's does; a quiet cube's street and city take the colours without
+  the relief. What a style does not name keeps the cube's own dress.
+- **Starters** (`STYLE_STARTERS`) across periods and places (a whitewashed island village, a Tudor market town, a
+  Georgian terrace, an adobe pueblo, a Nordic timber harbour, a Moorish medina, Beaux-Arts, Art Deco, Brutalist), each a
+  recipe to take `{ from, …changes }`; each keeps its own laws.
+- **Laws that advise** (`styleLaws`, never refusing): the class against the materials, the cover against the pitch,
+  the value order (wall over roof over opening; a flat roof is not seen), materials that name a surface the language
+  never builds; written back on the specimen (`geocube.style`) as `{ law, ok, value }`.
+- **Wired in.** A settlement's `style`, a cube's `buildings.style` (a settlement's over the cube's; at each level an
+  `anchor` named beside a style speaks over its language), the micro-town's and the micro-city's `style` (over the
+  settlement's anchor), and a city paint's `style` (city/plan/look.js; its class the materials' unless the paint names
+  them). The town speaks the style's language in its street and its houses (a stage town's language written as elements
+  now reaches its houses and their insides too, not only its street) and wears its words; a program on a styled cube
+  speaks its style's language. The city's grammar is the style's language at its `grain` with its changes over it
+  (`styleGrammar`): an ancient city raises no curtain walls and no towers and stands no taller than Haussmann's Paris,
+  a flat-capped language raises no roofs; its walls and ground are dressed in its words (a rhythm takes a word or a
+  list, each building picking one by its dice; glass leaves a building as drawn). Absent a style, as it was, byte for
+  byte.
+
 ### Geocube town materials: a cube's town and city painted from relief, at its hours
 
 The island's know-how carried to the cube's architecture: its micro-town and micro-city seen at eye height, lit at its

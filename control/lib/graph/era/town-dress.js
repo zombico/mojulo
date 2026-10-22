@@ -11,7 +11,10 @@
  *   townDressOf(cube)                        → the street's dress (a cube's grit ≥ GRIT_PIXELS), or null
  *   dressTownFace(face, group, dress)        → the face dressed for its source group ('str:plaster', 'str:stone',
  *                                              'str:timber', 'plinth'; a roof's 'str:tile', 'str:slate', 'str:shingle'),
- *                                              or the face itself (no dress for it, or not a wall, or not a roof)
+ *                                              or the face itself (no dress for it, or not a wall, or not a roof); an
+ *                                              entry's `colour` (a style's, era/arch-style.js) leans the face's hue first
+ *   leanHue(hex, colour, share)              a lit face's colour leant toward a material's hue, its luminance (the
+ *                                              light baked in it) kept
  *   DETAIL_MEAN                              the mean a detail is set to (linear)
  *
  * The laying is matte-paint/detail.js's (its tiles served by the `detail:` resolver). Pure: the cube's numbers and the
@@ -23,6 +26,10 @@ import { GRIT_PIXELS } from '../matte-paint/fabric.js';
 
 export { DETAIL_MEAN };
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const srgb = (c) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 
 /** A gritty cube's street dress: each source group's dressed stone, in the cube's own colours, tuned by its grit. */
 export function townDressOf(cube) {
@@ -48,11 +55,25 @@ const keyOf = (entry, v) => {
   const { seed = 1, ...params } = normalizeTileSpec(entry.spec, 'town dress').params;
   return detailKey(params, seed, entry.metres, v);
 };
-/** A placed face dressed for its source group: a wall of a group the dress names, or a pitched roof of one. */
+/** A lit face's colour leant toward a material's hue, `share` of the way: its luminance kept, so the light baked in
+ *  it (and the value its language gave it) stays the cube's, and the material says its hue. */
+export function leanHue(hex, colour, share = 0.65) {
+  const f = rgbOf(hex).map(lin), c = rgbOf(colour).map(lin), Lf = lum(f), Lc = lum(c) || 1e-6;
+  const m = f.map((v, k) => v + ((c[k] * Lf) / Lc - v) * share), top = Math.max(...m);
+  // (a pale face leant to a deep colour would clip: it gives up chroma, toward its own grey, and keeps its light)
+  const t = top > 1 ? (1 - Lf) / (top - Lf) : 1;
+  return hexOf(m.map((v) => srgb(Math.max(0, Math.min(1, Lf + (v - Lf) * t)))));
+}
+const leanFace = (face, colour) => ({ ...face, fill: leanHue(face.fill, colour), ...(face.cornerFills ? { cornerFills: face.cornerFills.map((c) => leanHue(c, colour)) } : {}) });
+
+/** A placed face dressed for its source group: a wall of a group the dress names, or a pitched roof of one; its hue
+ *  leant first when the entry carries a colour (a colour alone dresses no relief). */
 export function dressTownFace(face, group, dress) {
   const E = dress && dress[group];
   if (!E || !face.normal || !face.corners || face.corners.length < 3) return face;
-  const c0 = face.corners[0], v = Math.floor(Math.abs(c0[0] * 0.37 + c0[1] * 0.61 + c0[2] * 0.13)) % 2;
-  const out = layDetail({ ...face, cornerFills: face.cornerFills ?? [face.fill] }, { key: keyOf(E, v), metres: E.metres, as: E.roof ? 'roof' : 'wall' });
-  return out.texture ? out : face;
+  const F = E.colour && typeof face.fill === 'string' ? leanFace(face, E.colour) : face;
+  if (!E.spec) return F;
+  const c0 = F.corners[0], v = Math.floor(Math.abs(c0[0] * 0.37 + c0[1] * 0.61 + c0[2] * 0.13)) % 2;
+  const out = layDetail({ ...F, cornerFills: F.cornerFills ?? [F.fill] }, { key: keyOf(E, v), metres: E.metres, as: E.roof ? 'roof' : 'wall' });
+  return out.texture ? out : F;
 }

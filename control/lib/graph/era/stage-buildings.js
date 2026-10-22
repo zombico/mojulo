@@ -118,7 +118,8 @@ function townStreet(town, kitId, seed0) {
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
-  const anchor = typeof town.anchor === 'string' ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
+  // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
+  const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
     || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor

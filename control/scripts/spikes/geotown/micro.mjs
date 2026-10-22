@@ -3,7 +3,7 @@
  * SPIKE: a cube's micro-town and micro-city (the geocube kind's `show: 'town'` / `'city'`) through their own cameras, as a
  * sheet: the baseline the architecture's materials are read against.
  *
- *   cd control && node scripts/spikes/geotown/micro.mjs [name] [cube|show[|hour[|clouds]] …]
+ *   cd control && node scripts/spikes/geotown/micro.mjs [name] [cube|show[|hour[|clouds[|materials[|style]]]] …]
  *     → ../lite-template/integration/1021/spike-output/geotown/<name>.png
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -34,13 +34,13 @@ const shoot = async (P, cam) => {
   return `data:image/png;base64,${png.toString('base64')}`;
 };
 try {
-  for (const [cube, show, hour, clouds, materials] of SETS) {
-    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'micro', manifest: { kind: 'geocube', cube: cube.startsWith('{') ? JSON.parse(cube) : cube, show, walk: false, seed: 3, ...(hour ? { hour } : {}), ...(clouds ? { clouds } : {}), ...(materials ? { materials } : {}) } });
+  for (const [cube, show, hour, clouds, materials, style] of SETS) {
+    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'micro', manifest: { kind: 'geocube', cube: cube.startsWith('{') ? JSON.parse(cube) : cube, show, walk: false, seed: 3, ...(hour ? { hour } : {}), ...(clouds ? { clouds } : {}), ...(materials ? { materials } : {}), ...(style ? { style: style.startsWith('{') ? JSON.parse(style) : style } : {}) } });
     const ms = Date.now() - t0, tex = Object.keys(P.textures || {}).length, bytes = JSON.stringify(P).length;
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false }));   // (a still keeps its own camera)
     const cams = P.cameras.slice(0, 3), cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });
-    rows.push({ cap: `${cube} · ${show}${hour ? ` · ${hour}` : ''}${clouds ? ` · ${clouds}` : ''}${materials ? ` · ${materials}` : ''} · ${ms} ms · ${P.faces.length} faces · ${tex} textures · payload ${(bytes / 1e6).toFixed(2)} MB`, cells });
+    rows.push({ cap: `${cube} · ${show}${hour ? ` · ${hour}` : ''}${clouds ? ` · ${clouds}` : ''}${materials ? ` · ${materials}` : ''}${style ? ` · ${style.slice(0, 40)}` : ''} · ${ms} ms · ${P.faces.length} faces · ${tex} textures · payload ${(bytes / 1e6).toFixed(2)} MB`, cells });
     console.log(rows[rows.length - 1].cap, '·', cams.map((c) => c.name).join(', '));
   }
 } finally { await browser.close(); }
