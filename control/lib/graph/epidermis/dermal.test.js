@@ -8,7 +8,7 @@ import { relationalHeadChart } from './dermal-head.js';
 import { chartFromRings, meshOcclusion } from './dermal-chart.js';
 import { readLook, LOOKS, readAncestry } from './dermal-looks.js';
 import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
-import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin } from './dermal-map.js';
+import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin, headXY } from './dermal-map.js';
 import { MST } from '../egocube/ancestry.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
 import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
@@ -227,5 +227,9 @@ describe('the beard\'s styles', () => {
     const wander = (G) => G.strands.reduce((m, s) => m + s.pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - s.pts[i][0], p[1] - s.pts[i][1], p[2] - s.pts[i][2]), 0) / Math.hypot(...[0, 1, 2].map((k) => s.pts.at(-1)[k] - s.pts[0][k])), 0) / G.strands.length;
     expect(wander(curly)).toBeGreaterThan(wander(straight));
     expect(() => readDermis({ from: 'male', beardStyle: 'mutton' })).toThrow(/beardStyle/);
+  });  it('trims the moustache at the lip line: a hair above the upper lip no longer than its way down to the lip', () => {
+    const D = readDermis({ from: 'male', beardStyle: 'moustache' }), near = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, h: dermisAt(x, D, { detail: false }).hair })).filter(({ q, M, h }) => h.tract === 'beard' && q.Y > M.ls.Y && q.Y < M.ls.Y + 4 && Math.abs(q.X) < 20);
+    expect(near.length).toBeGreaterThan(0);
+    for (const { q, M, h } of near) expect(h.length).toBeLessThanOrEqual(Math.max(1.5, (q.Y - M.ls.Y) * 1.15) + 1e-9);
   });
 });

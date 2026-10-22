@@ -60,7 +60,7 @@ export const DERMIS_DIALS = Object.freeze({
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
-  beardStyle: `a beard's style (BEARD_STYLES): a word, or { style, lengths?: { moustache, chin, cheek } mm } (its zones over the beard tract, a length a zone; absent, the tract and \`stubble\` as they were)`,
+  beardStyle: `a beard's style (BEARD_STYLES): a word, or { style, lengths?: { moustache, chin, cheek } mm } (its zones over the beard tract, a length a zone, the moustache trimmed at the lip line unless the style lets it over; absent, the tract and \`stubble\` as they were)`,
   body: '0 … 1.5 (the body\'s terminal hair: the limbs, the chest)',
   axilla: '0 … 1',
   lines: '0 … 1 (the face\'s lines: the forehead\'s, the frown, crow\'s feet, the nasolabial fold, under the eyes)',
@@ -479,7 +479,11 @@ export function hairTract(A, R, D) {
       const lip = A.marks ? (() => { const q = headXY(A), M = A.marks.points; return q.Y > M.sto.Y && q.Y < M.sn.Y && Math.abs(q.X) < Math.abs(M.chR.X); })() : u > HEAD_LEVELS.mouth && u < HEAD_LEVELS.noseBase && ad(a, 0) < 0.07;
       const out = lip ? toward(a, a < 0.5 ? 0.25 : 0.75) * 0.6 : toward(a, 0) * 0.25;
       const BS = D.beardStyle ? beardStyleAt(A, D) : null;
-      return T('beard', 55 * D.beard * w('beard'), BS ? BS.length : D.stubble, flowOf(-1, out), 0.3);
+      // (the moustache trimmed at the lip line, as it usually is: a hair above the upper lip as long as its way down to
+      // the lip's border, so none hangs over the lip; a style may let it, `overLip`; the painted shadow as it was)
+      let len = BS ? BS.length : D.stubble;
+      if (lip && A.marks && len >= 1.5 && !(D.beardStyle && beardStyleOf(D.beardStyle).overLip)) len = Math.max(1.5, Math.min(len, (headXY(A).Y - A.marks.points.ls.Y) * 1.15));
+      return T('beard', 55 * D.beard * w('beard'), len, flowOf(-1, out), 0.3);
     }
     return vellus;
   }

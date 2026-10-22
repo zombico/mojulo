@@ -156,6 +156,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The beard grows on the whole upper lip (dermal-map.js): the nose's region, whose reach round the columella spans the
   philtrum, cleared the beard there, so every moustache and every stubble bared the upper lip's middle; the nose now clears
   the beard only on itself, above its base. Every male skin's upper lip changes.
+- The moustache is trimmed at the lip line, as it usually is: a hair above the upper lip grows no longer than its way down
+  to the lip's border, so none hangs over the lip (a beard of strands, 1.5 mm and longer; the painted shadow as it was);
+  a style may let it over (`overLip`, none does yet).
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin
