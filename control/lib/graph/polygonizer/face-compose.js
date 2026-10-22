@@ -119,7 +119,7 @@ export const FACE_NOSE = Object.freeze({
 /**
  * THE HAIRLINE — where the scalp's hair starts and ends, person to person (epidermis/dermal-map.js's hairline dials):
  * the front's height, its shape (straight across … rounded), the temples' corners (fuller … receded), a widow's peak
- * (on some, and with it a groom's hint: `scalp`, a centre part blown out), the sideburn's foot, the nape's line; each
+ * (on some, and with it a groom's hint: `scalp`, a centre part with face-framing layers), the sideburn's foot, the nape's line; each
  * the mean of two dice in its range. HAIR LOSS (`bald`, 0 … 1, by
  * the sex's pattern): rolled on some faces, a man's far more often than a woman's (her front kept, her crown thinned),
  * scaled by the bucket's prevalence (`bald`: men of European descent bald the most; East Asian, African and others
@@ -128,9 +128,9 @@ export const FACE_NOSE = Object.freeze({
 export const FACE_HAIRLINE = Object.freeze({
   hairline: [0.85, 1.15], round: [-1, 1], sideburn: [-12, 15], nape: [-15, 20],
   temples: { female: [-8, 22], male: [-6, 30] },
-  // (a widow's peak is where the hair parts of itself: a face that has one carries its groom's hint, a centre part
-  // blown out, over any style that has a part)
-  peak: { chance: 0.45, mm: [2, 10], scalp: { part: 'centre', moves: ['blowout'] } },
+  // (a widow's peak is where the hair parts of itself: a face that has one carries its groom's hint, a centre part with
+  // face-framing layers, over any style that has a part)
+  peak: { chance: 0.45, mm: [2, 10], scalp: { part: 'centre', moves: ['framed-layers'] } },
   bald: { female: { chance: 0.08, amount: [0.1, 0.5] }, male: { chance: 0.45, amount: [0.1, 1] } },
 });
 /** where a bucket's people sit on the nose's axis when it names none */

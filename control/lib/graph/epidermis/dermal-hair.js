@@ -330,6 +330,12 @@ const turnAbout = (v, n, a) => { const c = Math.cos(a), sn = Math.sin(a), nv = c
 export const SCALP_MOVES = Object.freeze({
   sleek: { note: 'close to the head, no frizz: combed flat', volume: 0.02, frizz: 0 },
   voluminous: { note: 'lifted off the head at the roots, a fuller crown', volume: 0.18 },
+  // FACE-FRAMING LAYERS (the Rachel's principles): a smooth crown (no lift at the roots), the front cut shortest and
+  // layered longer toward the back, the layered ends flipped out so the width sits at the sides at mid-length, the ends
+  // in pieces; within the style's own length
+  'framed-layers': { note: 'face-framing layers: a smooth crown, the front shortest, the ends flipped out at the sides, in pieces (the Rachel\'s principles)',
+    volume: 0.04, front: 0.45, flip: 0.5, chunk: 0.45, frizz: 0.001, cut: { layers: 0.22 },
+    locks: Object.fromEntries(['left', 'right'].flatMap((side) => [0, 1, 2].map((j) => [`${side}-temple-${j}`, { stand: 0.08 }]))) },
   // a BLOW-DRY: the roots lifted well off the scalp (the crown fullest, by the lift's own weighting), the sides held
   // out from the head at the temples, the ends turned out, the frizz brushed smooth. (The crown's clumps are left to the
   // volume: lifted on their own, those either side of a centre part stood up as two horns)

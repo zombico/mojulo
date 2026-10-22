@@ -84,9 +84,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   front, to the horseshoe; a woman's front kept, the crown and the part thinned): the scalp's region, so the skin and the
   hair it grows follow together. The composer rolls them last of every face (`FACE_HAIRLINE`), a man's loss far more
   often than a woman's and scaled by the bucket's prevalence (`bald`); `composeFace({ bald })` sets it. A face rolled a
-  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part blown out over any style that has a
-  part (the peak is where the hair parts of itself). The groom's `blowout` move (dermal-hair.js): the roots lifted well
-  off the scalp, the sides held out at the temples, the ends turned out, smooth. The dermis study's `--lineup-all` adds the lateral and the back.
+  widow's peak (nearly half) carries its groom's hint, `scalp`: a centre part over any style that has a
+  part (the peak is where the hair parts of itself), with the groom's `framed-layers` move (dermal-hair.js, the
+  Rachel's principles): a smooth crown, the front cut shortest and layered longer toward the back, the ends flipped out so
+  the width sits at the sides at mid-length, in pieces, within the style's own length. A `blowout` move (the roots lifted
+  well off the scalp, the sides held out, the ends turned out) is there to ask for; the rolls do not. The dermis study's `--lineup-all` adds the lateral and the back.
 
 ### Body-part map: dress tailored to the body, not the segment
 
