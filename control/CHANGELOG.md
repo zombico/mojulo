@@ -41,12 +41,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   from and the poles its movement is tuned between: Fallen Angel (DMC), Ebon Spirits (GoW, Souls), Cogs of Combat
   (Gears), Infinity Crisis (arena and hero shooters), Conscription (the contemporary FPS), Steel Serpents (Metal Gear),
   Vigilante Justice (superhero games), Mech Battle Kai (mobile-suit-arena), Jumping Giuseppe (the mascot platformer),
-  Isekai Party (the RPG) and Mojulo Fighter (the 2D fighter, mojulo's versus loop to be formalized). Each is a base feel
+  Isekai Party (the RPG) and Mojulo Fighter (the 2D fighter: mojulo's versus loop). Each is a base feel
   with its movement and animation fields, a viewer, a stage and the primitives it still needs; any two blend. The page
   opens each in its own viewer, after mojulo's gameworld cameras: third person, over the shoulder, first person (an arm
   that bobs, dips, reaches and kicks, and a crosshair), the mech's chase, isometric, overhead and side, alongside the ¾
   follow. A lane rule holds the 2D games to their plane, the fighter facing its foe. The gate holds 326 laws on both
   casts.
+- **Mojulo Fighter is mojulo's versus loop, in the lab.** The template no longer approximates a fighter with a lab
+  card on a lane: the page inlines versus (its pure modules and runtime) and steps a real match, you as P1 on the
+  lab's keys (J K L light, medium, heavy, U the special, Q or I the throw, as versus's own page), the CPU or versus's
+  training dummy as P2, your fighter, the opponent, the control scheme and your super picked in the header. The lab's
+  tools read it from outside: every press acted (the move, the frames it waited) or dropped with the state it met,
+  the clock stopped through hitstop as versus keeps a press made then; the frame strip, the frame-data card and
+  versus's boxes. The bodies are the lab's sticks on versus's rig, side or ¾. Blended toward another template it
+  becomes a lab card made from Kata's own numbers (held equal to `compileFighter`), which leaves the floor, peaks and
+  lands its light on versus's frames. `stepMatch` takes the pads a host read itself (`versus-runtime.client.js`).
+- **Supers that lock, in versus** (`lib/graph/versus`: a super's `lock`). The first blow that lands catches; the rest
+  is a script: a blow every few frames, each its share of the super's damage scaled once by the combo it caught, both
+  bodies untouchable and unthrowable, then the finish, a knockdown or a launch. Two kinds: the **hit-combo super**
+  plays in the fight with the clock running, the **cutscene super** stops the clock while the page cuts away (closer
+  in, darkened and letterboxed). Blocked it is one blocked blow; whiffed, a whiff. Versus's shelf ships one of each
+  (`super-chain`, `super-cutscene`), any fighter takes one by `super`, and a recipe's own super takes a `lock`. A caught
+  body replays the impact on each blow (`versus-react.js`). Fighters without one fight as before.
 - **The heavy-robot rules and the mech, in the lab.** mobile-suit-arena's movement (mojulo's controllable rules) split
   into rules that overlap, each a card field any feel may carry alone: the boost (an instant held thrust on a gauge
   that overheat-locks, its jump and turn costs, an inertia skid), the hover cushion under it, Armored Core's quick

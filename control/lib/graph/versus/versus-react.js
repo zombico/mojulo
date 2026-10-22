@@ -15,6 +15,7 @@
  *           taken out, onto its back fast), hit in the air (limp), thrown (turned over), burst away, knocked out
  *   down    the landing (a slam, a bounce), lying, then in its last third rolling onto a side and pushing up to a knee
  *   rise    from the knee to the guard; tech: a hop back out of a broken throw; thrown: held, struggling
+ *   locked  caught in a lock super's script: each of its blows strikes the impact afresh
  *
  *   reactionPose(p, rules, own?) → a pose, or null for a state that is not a reaction (`own`: the fighter's guard and
  *                                  crouch, its tradition's, that the hits, blocks and rising come home to)
@@ -140,6 +141,9 @@ export function reactionPose(p, rules = {}, own = null) {
     case 'rise': return clipAt(own?.guard ? [RISE_CLIP[0], [1, own.guard]] : RISE_CLIP, p.sf / Math.max(1, rules.rise ?? 10));
     case 'tech': return clipAt(TECH_CLIP, p.sf / 14);
     case 'thrown': return clipAt(HELD_CLIP, (p.sf % 24) / 24);
+    // caught in a lock super: each blow of its script strikes the impact afresh (the sim zeroes sf on a blow), never
+    // let all the way home before the next
+    case 'locked': return clipAt(hitClip(r.h === 0 ? 'high' : 'body', HIT_AMP[2], 0.3, own), Math.min(0.6, p.sf / 30));
     default: return null;
   }
 }

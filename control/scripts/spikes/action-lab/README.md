@@ -197,7 +197,29 @@ toward** and its slider tune it toward another.
 | **Mech Battle Kai** | mobile-suit-arena | the heavy mech | the mech's chase | battlefield | the kneel; the tackle |
 | **Jumping Giuseppe** | the mascot platformer | platformer, on a lane | side | platforms | context jumps; power-ups |
 | **Isekai Party** | the RPG | realistic: no freeze, stun or knockback | isometric | field | targeted resolution; cast bars and a global cooldown; the party |
-| **Mojulo Fighter** | the 2D fighter | action, on a lane facing the foe | side | stage | formalize mojulo's versus loop (gameworld `quick.js`); motion inputs; hold-back block; high, low, overhead; throws; pushback and corners; juggle limits; meter |
+| **Mojulo Fighter** | the 2D fighter | mojulo's versus loop itself (blended: Kata's numbers as a lab card) | side or ¾ | versus's stage | the lab's takes on the versus bodies; a dropped press reported by versus itself; hold-release charge moves; offense-armor tags on versus moves; a ¾ camera that turns with the fighters |
+
+**Mojulo Fighter is mojulo's versus loop** (`lib/graph/versus`), not a lab card on a lane. Picked, the page inlines
+the loop (`versus-page.js`'s modules and its runtime, in a closure of their own) and steps a real match: you are P1 on
+the lab's keys (`versusPad`: J K L the light, medium and heavy, U the special, Q or I the throw, the keys versus's own
+page uses; Space or W the jump, back blocks, down crouches), the opponent is versus's CPU when **Spar** is on and its
+training dummy otherwise (**Guard**: it blocks; **Critter**: it crouches). The header picks your fighter, the
+opponent, the control scheme (modern, classic's motions, simple) and your super. The lab's tools read it: `vsWatch`
+holds the lab's rule from outside (every press acted, with the move it started and the frames it waited, or dropped
+with the state it met; its clock stops while the body is frozen in hitstop, as versus keeps a press made then),
+`vsCat` fills the frame strip, the frame-data card prints the fighter's moves, **B** shows versus's boxes. Its bodies
+are the lab's sticks on versus's 2D rig, drawn in the side viewer or in ¾ with the rear limbs set back. Blended
+toward another template it becomes a lab card: `KATA` (versus's all-rounder in its own units, held equal to
+`compileFighter`) through `fighterCard` (mm a frame to m/s, versus's apex sum, versus's startup counting the first
+active frame to the lab's counting the frames before it), so the lab card leaves the floor, peaks and lands its light
+on the same frames.
+
+**Supers that lock** (versus's `lock` on a super, `versus-core.js`): the first blow that lands catches and the rest is
+a script, a blow every `every` frames, each its share of the damage scaled once by the combo it caught, both bodies
+untouchable, then the finish (down or a launch). The **hit-combo super** (`super-chain`) plays it in the fight with the
+clock running; the **cutscene super** (`super-cutscene`) stops the clock while the page cuts away (closer in,
+darkened, letterboxed). Blocked, either is one blocked blow; whiffed, a whiff. Any fighter takes one (the **Super**
+picker, or a recipe's `super`), and a recipe's own super takes a `lock` of its own.
 
 **The viewers** follow mojulo's gameworld cameras (`lib/graph/gameworld/cameras.js`: third-person, first-person,
 side, top-down) and add three: the **¾ follow** (the lab's first), **isometric** and **overhead** are orthographic;
@@ -456,6 +478,13 @@ ground pound always bounces high: the commitment the flip cost buys the height.
   Mojulo Fighter (one a procedure: fields merged, a mech, the rail) play a scripted pad on their stages, the same twice,
   through no wall; the fighter's rail holds both bodies on its line, the hero facing its foe. Between two poles every
   number blends and the rest comes from the nearer.
+- **Mojulo Fighter.** The lab's Kata is versus's (`compileFighter`). On the lab's keys a press in neutral starts
+  versus's move that frame and lands on its startup (the heavy's 12, the light's 4, counting the press); every press
+  is acted or dropped with its reason (in the intro: the round is not on; in the heavy's recovery: the move it met);
+  a special pressed in the heavy's hitstop waits out the freeze and cancels it. The strip reads the heavy's startup,
+  active and recovery from versus. The lab card plays Kata's numbers: off the floor on the same frame, the same apex,
+  the walk, the light. The hit-combo and the cutscene super, on the lab's keys, catch and land every blow of their
+  script, the cutscene's clock held. The same lab pads are the same fight.
 - **The heavy-robot rules and the mech.**
   - The weight knob blends the presets (halfway at 0.5). Ridden in another game the card keeps its combat and walks as
     the mech. Each rule works alone on an ordinary card (the gait, the charge jump, the boost, the landing).

@@ -3,7 +3,7 @@
 //   node scripts/spikes/action-lab/verify.mjs [cast=male]
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, POLES, POLE_IDS, VIEWS, STAGES, poleCard, blendPoles, newState, step, frameData, util } from './feel.mjs';
+import { FEELS, FEEL_IDS, BTN, FPS, ARENA, SPAR, MECH, mechKnobs, mechCard, POLES, POLE_IDS, VIEWS, STAGES, poleCard, blendPoles, newState, step, frameData, util, KATA, versusPad, newVsWatch, vsWatch, vsCat } from './feel.mjs';
 const T = await import('./takes.mjs');
 const A = await import('../animation-games/flavor.mjs');
 
@@ -760,6 +760,61 @@ check('no body passes a wall or a block, and the hero never enters the dummy, at
   const [pa, pb] = [plain, POLE_IDS.find((id) => id !== plain && POLES[id].base !== POLES[plain].base && POLES[id].mount == null)], A = poleCard(pa), B = poleCard(pb);
   const b0 = blendPoles(pa, pb, 0), b1 = blendPoles(pa, pb, 1), bh = blendPoles(pa, pb, 0.5), b4 = blendPoles(pa, pb, 0.4);
   check(`poles: between ${POLES[pa].name} and ${POLES[pb].name} every number blends (the run, the jump's height, its gravity), the rest from the nearer pole (the hit's stun model)`, b0.ground.run === A.ground.run && b1.ground.run === B.ground.run && Math.abs(bh.ground.run - (A.ground.run + B.ground.run) / 2) < 1e-3 && Math.abs(bh.jump.height - (A.jump.height + B.jump.height) / 2) < 1e-3 && b4.hit.stun.model === A.hit.stun.model && bh.hit.stun.model === B.hit.stun.model, { run: [A.ground.run, bh.ground.run, B.ground.run], stun: [b4.hit.stun.model, bh.hit.stun.model] });
+}
+
+// ─── Mojulo Fighter: the template is mojulo's versus loop, played on the lab's pads and watched by the lab's rule ───
+{
+  const VP = await import('../../../lib/graph/versus/versus-page.js'), VC = await import('../../../lib/graph/versus/versus-compile.js'), VS = await import('../../../lib/graph/versus/versus-core.js');
+  const fid = POLE_IDS.find((id) => POLES[id].versus), Pv = POLES[fid].versus, roster = VP.versusGameData({}).roster;
+  const fighter = (id) => VC.compileFighter(roster.find((r) => r.id === id).recipe), kata = fighter('kata'), ctx = { fighters: [fighter(Pv.p1), fighter(Pv.p2)] };
+  const same = JSON.stringify(KATA.walk) === JSON.stringify(kata.walk) && ['prejump', 'vy', 'g', 'landing'].every((k) => KATA.jump[k] === kata.jump[k]) && ['L', 'M', 'H'].every((k) => ['startup', 'active', 'recovery'].every((q) => KATA.normals[k][q] === kata.moves[`stand.${k}`][q]));
+  check(`${POLES[fid].name}: the lab's Kata is versus's (compileFighter): its walk, its jump, its three standing normals`, same && roster.some((r) => r.id === Pv.p1) && roster.some((r) => r.id === Pv.p2), { walk: kata.walk, jump: kata.jump });
+  // a versus match on lab pads: P2 stands; `mid` may move the bodies between steps
+  const vsRun = (pads, n, mid = null, c = ctx) => {
+    let s = VS.newVersus(c, { schemes: [Pv.scheme, 'modern'] }), w = newVsWatch();
+    const out = { watch: [], vs: [], states: [] };
+    for (let f = 0; f < n; f++) {
+      if (mid) mid(s, f);
+      const b = s, vp = versusPad(pads(f));
+      s = VS.stepVersus(VS.cloneVersus(b), [vp, { x: 0, y: 0, b: 0 }], c);
+      const r = vsWatch(w, b, s, vp, c.fighters[0]); w = r.w;
+      out.watch.push(...r.events.map((e) => ({ ...e, at: f }))); out.vs.push(...s.events.map((e) => ({ ...e, at: f }))); out.states.push(s);
+    }
+    return { ...out, w, end: s };
+  };
+  const close = (s, f) => { if (f === 95) s.p[0].x = s.p[1].x - 800; };
+  const tap = (at) => (f) => at[f] ?? [0, 0, 0];
+  const vr = vsRun(tap({ 10: [0, 0, AT], 100: [0, 0, DS], 135: [0, 0, DS], 160: [0, 0, AT], 200: [0, 0, J] }), 260, close);
+  const wv = (type, button) => vr.watch.filter((e) => e.type === type && e.button === button), hitAt = (from) => vr.vs.find((e) => e.t === 'hit' && e.p === 0 && e.at >= from)?.at;
+  const H1 = wv('acted', 'H')[0], L1 = wv('acted', 'L')[0], Hd = wv('dropped', 'H')[0], Ld = wv('dropped', 'L')[0], up = wv('acted', 'up')[0];
+  check(`${POLES[fid].name}: on the lab's keys (versusPad), a press in neutral starts versus's move that frame (the heavy, the light, the jump) and lands on its startup: the heavy ${kata.moves['stand.H'].startup} f, the light ${kata.moves['stand.L'].startup} f, counting the press's frame`, H1?.as === 'stand.H' && H1.waited === 0 && hitAt(100) - 100 + 1 === kata.moves['stand.H'].startup && L1?.as === 'stand.L' && L1.waited === 0 && hitAt(160) - 160 + 1 === kata.moves['stand.L'].startup && up?.as === 'jump', { H: [H1?.as, hitAt(100) - 100 + 1], L: [L1?.as, hitAt(160) - 160 + 1], up: up?.as });
+  const vp = vr.watch.filter((e) => e.type === 'press'), vends = vr.watch.filter((e) => e.type === 'acted' || e.type === 'dropped');
+  check(`${POLES[fid].name}: the lab's rule over versus: every press acted or dropped with its reason (pressed in the intro: the round is not on; in the heavy's recovery: the move it met)`, vp.length === vends.length + vr.w.pending.length && !vr.w.pending.length && /not on/.test(Ld?.why ?? '') && /stand\.H's recovery/.test(Hd?.why ?? ''), { presses: vp.length, dropped: vends.filter((e) => e.type === 'dropped').map((e) => e.why) });
+  // the hitstop holds a press: one made while frozen is good until the freeze ends (versus keeps it), so it is not dropped there
+  const hs = vsRun(tap({ 100: [0, 0, DS], 112: [0, 0, BTN.GUARD] }), 160, close), sp = hs.watch.find((e) => e.button === 'S' && e.type !== 'press');
+  check(`${POLES[fid].name}: a special pressed in the heavy's hitstop waits out the freeze and cancels the heavy (the watch's clock stops with the body)`, sp?.type === 'acted' && /^special\./.test(sp.as) && sp.waited > 0, sp);
+  // the strip reads versus: the heavy's startup, active and recovery as many frames as its data says
+  const cats = vr.states.slice(100, 160).map((s) => vsCat(s.p[0], ctx.fighters[0])), count = (c) => cats.filter((x) => x === c).length;
+  const mH = kata.moves['stand.H'];
+  check(`${POLES[fid].name}: the strip reads versus: the heavy's startup ${mH.startup - 1}, active ${mH.active} and recovery ${mH.recovery} frames (the last its step back to neutral: versus counts it, the strip shows it standing), its hitstop apart`, count('startup') === mH.startup - 1 && count('active') === mH.active && count('recovery') === mH.recovery - 1 && count('stop') > 0, { startup: count('startup'), active: count('active'), recovery: count('recovery'), stop: count('stop') });
+  // the lab card is Kata's in the lab's units: the same frames from the press to the first active, the same take-off, the apex
+  const c = poleCard(fid), vj = vsRun(tap({ 100: [0, 0, J] }), 160), vOff = vj.states.findIndex((s, f) => f >= 100 && s.p[0].y > 0) - 100, vTop = Math.max(...vj.states.map((s) => s.p[0].y)) / 1000;
+  const lj = run(c, (f) => (f === 5 ? J : 0), 80, { arena: STAGES[POLES[fid].stage] }), lOff = lj.states.findIndex((s) => s.hero.p[2] > 0) - 5, lTop = Math.max(...lj.states.map((s) => s.hero.p[2]));
+  const la = run(c, (f) => (f === 5 ? AT : 0), 40, { arena: STAGES[POLES[fid].stage], setup: (S) => { S.dummy.p[1] = S.hero.p[1] + 0.9; } }), lHit = la.events.find((e) => e.type === 'hit' && e.who === 'dummy')?.f;
+  check(`${POLES[fid].name}: the lab card plays Kata's numbers: off the floor ${vOff} f after the press in both, the apex ${vTop.toFixed(2)} m (lab ${lTop.toFixed(2)}), the walk ${c.ground.run} m/s (${kata.walk.f} mm a frame), the light landing ${kata.moves['stand.L'].startup} f in counting the press`, vOff === lOff && Math.abs(lTop - vTop) < 0.03 && Math.abs(c.ground.run - (kata.walk.f * FPS) / 1000) < 1e-9 && lHit - 5 + 1 === kata.moves['stand.L'].startup, { off: [vOff, lOff], top: [vTop, lTop], hit: lHit == null ? null : lHit - 5 + 1 });
+  // the supers that lock (versus's hit-combo and cutscene supers) on the lab's keys: U + L is versus's S + H
+  const VL = await import('../../../lib/graph/versus/versus-library.js');
+  for (const kind of ['combo', 'cutscene']) {
+    const id = Object.keys(VL.SUPERS).find((k) => VL.SUPERS[k].lock?.kind === kind), sc = { fighters: [VC.compileFighter({ ...roster.find((r) => r.id === Pv.p1).recipe, super: { id } }), ctx.fighters[1]] };
+    const lr = vsRun(tap({ 100: [0, 0, BTN.GUARD | DS] }), 400, (s, f) => { if (f === 95) { s.p[0].x = s.p[1].x - 800; s.p[0].meter = 1000; } }, sc);
+    const blows = lr.vs.filter((e) => e.t === 'hit' && e.lock === kind), held = lr.states.filter((s) => s.lock), acted = lr.watch.find((e) => e.type === 'acted');
+    const clock = new Set(held.map((s) => s.timer)).size;
+    check(`${POLES[fid].name}: the ${kind === 'cutscene' ? 'cutscene' : 'hit-combo'} super (${id}) on the lab's keys: U + L starts it, its first blow catches and all ${sc.fighters[0].moves.super.lock.beats.length} land on the script, ${kind === 'cutscene' ? 'the clock held' : 'the clock running'}, then the finish`, acted?.as === 'super' && blows.length === sc.fighters[0].moves.super.lock.beats.length && (kind === 'cutscene' ? clock === 1 : clock > 1) && lr.vs.some((e) => e.t === 'unlock') && !lr.end.lock, { as: acted?.as, blows: blows.length, clock, damage: blows.reduce((a, e) => a + e.dmg, 0) });
+  }
+  // the same lab pads are the same fight
+  const vh = (r) => createHash('sha256').update(JSON.stringify(r.states.map((s) => [s.p[0].x, s.p[0].y, s.p[1].x, s.p[0].st, s.p[1].hp]))).digest('hex');
+  const script = (f) => [Math.round(127 * Math.sin(f / 19)), 0, ((f % 23) === 0 ? AT : 0) | ((f % 31) === 0 ? DS : 0) | ((f % 47) === 0 ? J : 0) | ((f % 53) === 0 ? BTN.GUARD : 0)];
+  check(`${POLES[fid].name}: the same lab pads are the same versus fight, byte for byte`, vh(vsRun(script, 600)) === vh(vsRun(script, 600)));
 }
 
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));

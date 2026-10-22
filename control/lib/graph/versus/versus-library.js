@@ -14,7 +14,8 @@
  *                    damage and frame advantage, so `{ family: 'front-kick', strength: 'M' }` is a whole normal.
  *   SPECIALS         the loop's verbs: fireball (projectile), rising (the invincible reversal), rush, spin, leap
  *                    (an overhead), grab (a command throw); each at L / M / H.
- *   SUPERS           a special's bigger self: a freeze, invincibility, damage, a full meter.
+ *   SUPERS           a special's bigger self: a freeze, invincibility, damage, a full meter; a `lock` makes it a script
+ *                    once it catches: a hit-combo super (in the fight) or a cutscene super (the clock stops).
  *   WEAPONS          what a fighter may hold: a blade on the grip hand that its strikes hit with (versus-compile.js
  *                    lays the blade, its disjoint and what that costs).
  *
@@ -239,6 +240,14 @@ export const SUPERS = Object.freeze({
   'super-rising': {
     from: 'rising', says: 'the reversal at full height: invincible and long, the anti-air that ends a round',
     startup: 4, active: 18, landing: 30, damage: 340, hits: 4, rehit: 4, invuln: 16, freeze: 40, vel: [24, 150],
+  },
+  'super-chain': {
+    from: 'rush', says: 'the hit-combo super: the first blow catches and the rest follow on their own, in the fight\'s own camera, every hit landing; blocked, one blocked blow',
+    startup: 7, active: 6, recovery: 30, damage: 330, travel: 90, invuln: 10, freeze: 30, lock: { kind: 'combo', hits: 7, every: 6, finish: 'launch', gap: 650 },
+  },
+  'super-cutscene': {
+    from: 'rush', says: 'the cutscene super: the first blow catches and the fight cuts away (the camera closes in, the clock stops) for a beat-by-beat that ends with them on the floor',
+    startup: 6, active: 4, recovery: 36, damage: 400, travel: 60, invuln: 12, freeze: 40, lock: { kind: 'cutscene', hits: 5, every: 16, finish: 'down', gap: 600 },
   },
   'super-grab': {
     from: 'grab', says: 'the long throw: it reaches a jump\'s landing, unblockable, invincible to start',

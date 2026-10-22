@@ -1,6 +1,7 @@
 // action-lab page: the playable half. lab.mjs inlines feel.mjs (the kernel, its exports stripped) above this file and
 // DATA (takes.mjs bake, per cast) above that, so the page steps the very code the gate runs.
-/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles */
+/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles,
+   VS, VS_DATA, versusPad, newVsWatch, vsWatch, vsCat */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -24,17 +25,19 @@ function reset() {
   S = newState(card, DATA[cast].body, { arena: near ? STAGES[near.stage] : ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
   hist = []; log = []; presses = []; sparks = []; tracers = []; shown = {}; prevWorld = {};
   cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 }; pc.ok = false;
+  vs = vsOn() ? vsStart() : null; zoomK = 1;
   renderFeel(); renderDials(); renderFrameData(); renderLog(); renderLast();
 }
 
 // ─── input: keyboard, gamepad, touch ───
 const keys = new Set(), tapped = new Set();   // tapped: pressed since the last tick, so a tap between two ticks still lands
-const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', KeyF: 'shoot', KeyZ: 'switch', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+const KEYMAP = { KeyI: 'lock', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', KeyF: 'shoot', KeyZ: 'switch', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
   if (/^Digit[1-4]$/.test(e.code)) { setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
   if (e.code === 'KeyR') reset();
+  else if (e.code === 'KeyB' && vs) VS.RT.showBoxes = !VS.RT.showBoxes;
   else if (e.code === 'KeyV') setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
   else if (e.code === 'KeyT') setSpar(!spar);
   else if (e.code === 'KeyY') cycleShooter();
@@ -82,6 +85,8 @@ function readPad() {
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
+  // versus reads the screen's stick (its plane is the screen's): unrotated
+  if (vs) return [Math.round(Math.max(-1, Math.min(1, x)) * 127), Math.round(Math.max(-1, Math.min(1, y)) * 127), b];
   // the stick is the camera's: up the screen is the way the camera looks (behind the hero at the target, when locked)
   const iy = inputYaw(), c = Math.cos(iy), sn = Math.sin(iy), wx = x * c + y * sn, wy = -x * sn + y * c;
   return [Math.round(Math.max(-1, Math.min(1, wx)) * 127), Math.round(Math.max(-1, Math.min(1, wy)) * 127), b];
@@ -92,6 +97,7 @@ function tick() {
   let p;
   if (replay) { p = replay.pads[replay.i++] ?? [0, 0, 0]; if (replay.i >= replay.pads.length) { replay = null; renderRec(); } }
   else p = readPad();
+  if (vs) { vsTick(p); lastPad = p; return; }
   if (rec) rec.pads.push(p);
   S = step(S, p);
   for (const e of S.events) onEvent(e);
@@ -310,7 +316,8 @@ function camSpace(x, y, z) {
 const proj = (q) => [W / 2 + (FOCAL() * q[0]) / q[2], H * 0.5 - (FOCAL() * q[1]) / q[2]];
 /** the stick is the camera's: up the screen is the way it looks */
 const inputYaw = () => (isPersp() ? pc.yaw : view === 'iso' ? Math.PI / 4 : view === 'overhead' ? 0 : view === 'side' ? -Math.PI / 2 : cam.yaw);
-const scale = () => Math.max(70, isPersp() ? FOCAL() / 6 : isOrtho() ? Math.min(W, H * 1.4) / (view === 'overhead' ? 12 : 9) : Math.min(W, H * 1.6) / 8);
+let zoomK = 1;   // a cutscene super closes the camera in (versus)
+const scale = () => zoomK * Math.max(70, isPersp() ? FOCAL() / 6 : isOrtho() ? Math.min(W, H * 1.4) / (view === 'overhead' ? 12 : 9) : Math.min(W, H * 1.6) / 8);
 const scaleAt = (p) => (isPersp() ? FOCAL() / Math.max(0.6, camSpace(p[0], p[1], p[2] + 1)[2]) : scale());
 /** a world point's depth along the camera (larger: farther) */
 const depthOf = (x, y) => (isPersp() ? (x - pc.x) * Math.sin(pc.yaw) + (y - pc.y) * Math.cos(pc.yaw) : (x - cam.x) * Math.sin(cam.yaw) + (y - cam.y) * Math.cos(cam.yaw));
@@ -447,6 +454,7 @@ function drawSparks() {
   }
 }
 function draw() {
+  if (vs) { drawVersus(); drawStrip(); return; }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
   if (shakeT > 0.2) { ctx.translate(0, ((S.f % 2) * 2 - 1) * shakeT * 0.5); if (!paused) shakeT *= 0.75; }   // a footfall or a hard landing shakes the camera
   const k = 0.12, fy = S.card.lane?.face ? (S.hero.p[1] + S.dummy.p[1]) / 2 : S.hero.p[1];   // a fighter's camera frames both fighters
@@ -596,6 +604,10 @@ function renderFeel() {
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
   $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('mountbtn').setAttribute('aria-pressed', String(mount != null)); $('mountbtn').textContent = mount == null ? 'Mech' : `Mech: ${mount === 1 ? 'heavy' : mount === 0 ? 'swift' : `weight ${mount}`}`; $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = VIEW_LABEL[view] ?? view; $('pause').textContent = paused ? 'Resume' : 'Pause';
+  for (const el of document.querySelectorAll('.vsonly')) el.hidden = !vs;
+  $('rec').disabled = !!vs; $('keys').textContent = vs ? VS_KEYS_HELP : LAB_KEYS_HELP;
+  if (vs) { $('spar').textContent = spar ? 'Spar: CPU' : 'Spar'; $('guard').textContent = 'Guard'; $('vsP1').value = vsPick.p1; $('vsP2').value = vsPick.p2; $('vsScheme').value = vsPick.scheme; $('vsSuper').value = vsPick.super; }
+  else $('spar').textContent = 'Spar';
 }
 const DIALS = [
   ['Ground', 'ground.run', 'run', 1, 24, 0.5, 'm/s'], ['Ground', 'ground.accel', 'accel', 1, 120, 1, 'm/s²'], ['Ground', 'ground.decel', 'decel', 1, 120, 1, 'm/s²'],
@@ -610,6 +622,7 @@ const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), 
 const setPath = (o, p, v) => { const ks = p.split('.'); let c = o; for (const k of ks.slice(0, -1)) c = c[k]; c[ks.at(-1)] = v; };
 function renderDials() {
   const box = $('dials'); box.innerHTML = '';
+  if (vs) { box.innerHTML = '<p class="note">The fighter\'s numbers are its recipe\'s (versus-compile.js): edit the game\'s roster in versus. Blend toward another template and the lab card made from them plays on the dials.</p>'; return; }
   if (mount != null) {   // the mech's one knob: heavy (1) to swift (0); a change re-lays the mech over the card
     const h = document.createElement('div'); h.className = 'dgroup'; h.textContent = 'Mech'; box.append(h);
     const row = document.createElement('label'); row.className = 'dial'; row.htmlFor = 'dial-mech-weight';
@@ -631,6 +644,7 @@ function renderDials() {
 }
 const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
 function renderFrameData() {
+  if (vs) { renderVsFrameData(); return; }
   const rows = frameData(S.card, DATA[cast].body);
   const head = '<tr><th>move</th><th>startup</th><th>active</th><th>recovery</th><th>total</th><th>cancel</th><th>hitstop</th><th>stun</th><th>link</th><th>on block</th><th>armor</th></tr>';
   const sign = (x) => (x == null ? '–' : x > 0 ? `+${x}` : String(x));
@@ -649,6 +663,7 @@ function renderLast() {
   $('lastWhat').textContent = `${p.button} → ${p.out}${lat != null ? ` · ${Math.round((lat * 1000) / FPS)} ms after the press` : ''}`;
 }
 function renderState() {
+  if (vs) { renderVsState(); return; }
   const H = S.hero, v = Math.hypot(H.v[0], H.v[1]), d = poseOf(S, 'hero');
   $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['gear', gear ? `${gear === 'glide' ? S.card.glide?.kind : `jetpack (${S.card.jet?.kind})`}${gear === 'jet' ? `, fuel ${Math.round(S.hero.fuel)}` : ''}` : 'none'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
@@ -659,6 +674,7 @@ function renderState() {
 
 // ─── the recorder: a run becomes a gate fixture ───
 function renderRec() {
+  if (vs) { $('recState').textContent = 'A versus fight is its pad log: versus replays it itself (versus-match.js), so the lab\'s recorder rests here.'; $('replay').disabled = true; $('copy').disabled = true; return; }
   $('recState').textContent = rec ? `Recording · ${rec.pads.length} frames` : replay ? `Replaying · ${replay.i}/${replay.pads.length}` : last ? `${last.pads.length} frames recorded (${last.feel}, ${last.cast})` : 'Nothing recorded yet.';
   $('rec').textContent = rec ? 'Stop' : 'Record';
   $('replay').disabled = !last || !!rec; $('copy').disabled = !last;
@@ -697,8 +713,8 @@ $('toward').innerHTML = '<option value="">Blend toward: none</option>' + POLE_ID
 $('pole').addEventListener('change', (e) => setPole(e.target.value));
 $('toward').addEventListener('change', (e) => { toward = e.target.value || null; if (!toward) blendT = 0; renderPoles(); reset(); });
 $('blendT').addEventListener('change', (e) => { blendT = +e.target.value; renderPoles(); reset(); });
-function setView(v) { view = v; store.set('view', v); renderFeel(); }
-function setSpar(on) { spar = on; S.spar = on; if (on && shooter) { shooter = null; S.shooter = null; } renderFeel(); }
+function setView(v) { if (vs && v !== 'side' && v !== 'three') v = view === 'side' ? 'three' : 'side'; view = v; store.set('view', v); renderFeel(); }
+function setSpar(on) { spar = on; S.spar = on; if (on && shooter) { shooter = null; S.shooter = null; } if (vs) reset(); else renderFeel(); }
 /** the shooter: off → each of the card's ranged sets → off (it takes the dummy from sparring) */
 function cycleShooter() {
   const keys = Object.keys(S.card.ranged?.sets ?? {}), i = shooter ? keys.indexOf(shooter) : -1;
@@ -710,7 +726,7 @@ function cycleMount() { mount = mount == null ? 1 : mount === 1 ? 0 : null; rese
 /** the gear: none → glider → jetpack → none (what the jump does in the air once the air jumps are spent) */
 function cycleGear() { gear = gear == null ? 'glide' : gear === 'glide' ? 'jet' : null; S.gear = gear; S.hero.glide = false; S.hero.jet = false; S.hero.flying = false; S.hero.fuel = S.card.jet?.fuel ?? 0; renderFeel(); }
 function setOneHit(on) { if (!S.card.life) return; S.card.life.oneHit = on; cards[feel].life.oneHit = on; renderFeel(); }
-function setGuard(on) { guard = on; S.guard = on; renderFeel(); }
+function setGuard(on) { guard = on; S.guard = on; if (vs) reset(); else renderFeel(); }
 function setCritter(on) { critter = on; reset(); }
 function setCast(c) { cast = c; store.set('cast', c); reset(); }
 function setPaused(on) { paused = on; renderFeel(); }
@@ -720,6 +736,128 @@ $('view').addEventListener('click', () => setView(VIEWS[(VIEWS.indexOf(view) + 1
 $('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('mountbtn').addEventListener('click', cycleMount); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
 $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); stepOnce = true; });
+
+// ─── Mojulo Fighter: mojulo's versus loop itself (lib/graph/versus, inlined as VS), stepped on the lab's pads ───
+// P1 is the lab's keys (versusPad: J K L light, medium, heavy; U the special; Q or I the throw; Space or W the jump;
+// back blocks, down crouches); P2 the CPU when sparring, else versus's training dummy (Guard: it blocks; Critter: it
+// crouches). The lab's rule watches P1's presses from outside (vsWatch), its strip reads the frames (vsCat), its
+// viewers draw the 2D rig as the lab's sticks: side, or ¾ with the rear limbs set back
+const LAB_KEYS_HELP = $('keys').textContent;
+const VS_KEYS_HELP = 'A D walk (back: block; S: crouch, crouching blocks low) · Space or W jump (with A or D: a jump in or back) · J light · K medium · L heavy · U + a direction: a special (modern) · U + L: the super · Q or I: the throw · DD dash, AA backdash · B the boxes · T spar (the CPU) · G the dummy blocks · H it crouches · V side or ¾ · R a new round';
+let vs = null;
+const vsPick = { p1: VS_DATA.roster[0].id, p2: VS_DATA.roster[1 % VS_DATA.roster.length].id, scheme: 'modern', super: 'own', ...store.get('vsPick', {}) };
+const vsOn = () => !!(pole && POLES[pole].versus && !(toward && blendT > 0));
+const vsCompiled = {};
+const vsFighter = (id, sup) => { const k = `${id}:${sup}`; if (!vsCompiled[k]) { const r = VS_DATA.roster.find((e) => e.id === id) ?? VS_DATA.roster[0]; vsCompiled[k] = { entry: r, F: VS.compileFighter(sup && sup !== 'own' ? { ...r.recipe, super: { id: sup } } : r.recipe) }; } return vsCompiled[k]; };
+function vsStart() {
+  const a = vsFighter(vsPick.p1, vsPick.super), b = vsFighter(vsPick.p2, 'own');
+  VS.RT.dummy = VS.VS_DUMMY.indexOf(critter ? 'crouch' : guard ? 'block' : 'stand');
+  const m = VS.newMatch({ fighters: [a.F, b.F], names: [a.entry.name, b.entry.name], colors: [COL.hero, COL.dummy], schemes: [vsPick.scheme, 'modern'], mode: spar ? 'cpu' : 'training', level: 1, rules: VS_DATA.rules, seed: 1 });
+  cam.y = 0; cam.x = 0; cam.z = 0;
+  if (view !== 'side' && view !== 'three') view = 'side';
+  return { m, w: newVsWatch(), slow: 0 };
+}
+function vsTick(p) {
+  const m = vs.m;
+  if (m.slow > 0) { m.slow--; if (++vs.slow % 3) return; }   // the KO's slow motion: a step every third tick
+  if (m.s.phase === 'matchEnd' && m.end > 180) { vs = vsStart(); return; }
+  const before = m.s, vp = versusPad(p);
+  VS.stepMatch(m, [vp]);
+  const r = vsWatch(vs.w, before, m.s, vp, m.ctx.fighters[0]); vs.w = r.w;
+  for (const e of r.events) vsEvent(e);
+  for (const e of m.s.events) vsEvent({ ...e, f: m.s.f });
+  const F = m.ctx.fighters;
+  hist.push({ h: vsCat(m.s.p[0], F[0]), d: vsCat(m.s.p[1], F[1]), p: r.events.filter((e) => e.type === 'press' || e.type === 'dropped').map((e) => e.type) });
+  if (hist.length > 180) hist.shift();
+}
+const VS_SAY = {
+  hit: (e) => `${e.p ? 'the opponent' : 'you'} hit${e.lock ? ` (the ${e.lock === 'cutscene' ? 'cutscene' : 'hit-combo'} super, blow ${e.beat} of ${e.of})` : ''}: ${e.dmg} damage, combo ${e.combo}`,
+  counter: (e) => `${e.p ? 'the opponent' : 'you'}: a counter hit, ${e.dmg} damage`, block: (e) => `${e.p ? 'you block' : 'blocked'}`,
+  throw: (e) => `${e.p ? 'thrown' : 'a throw'}`, tech: () => 'the throw teched', clash: () => 'the blades clash', parry: (e) => `${e.p ? 'parried' : 'a parry'}`,
+  armor: () => 'armor: the blow absorbed', super: (e) => `${e.p ? 'the opponent\'s' : 'your'} super`, special: (e) => `${e.p ? 'the opponent' : 'you'}: ${e.slot}`,
+  lock: (e) => `${e.p ? 'the opponent\'s' : 'your'} super catches: ${e.kind === 'cutscene' ? 'the cutscene runs, the clock stopped' : `a ${e.hits}-hit combo, every blow landing`}`, unlock: (e) => `the ${e.kind === 'cutscene' ? 'cutscene' : 'hit-combo super'} ends: the finish`,
+  ko: () => 'K.O.', time: () => 'time', round: (e) => `round ${e.n}`, fight: () => 'fight', roundEnd: (e) => (e.w < 0 ? 'a draw' : `${e.w ? 'the opponent' : 'you'} take the round`), match: (e) => (e.w < 0 ? 'the match drawn' : `${e.w ? 'the opponent wins' : 'you win'} the match`),
+  acted: (e) => `${e.button} acted: ${e.as}${e.waited ? ` after waiting ${e.waited} f` : ''}`, dropped: (e) => `${e.button} dropped: ${e.why}`,
+};
+function vsEvent(e) {
+  const type = e.type ?? e.t, line = VS_SAY[type]?.(e);
+  if (line) { log.push({ f: e.f, type: type === 'hit' || type === 'counter' ? (e.p ? 'whiff' : 'hit') : type, line }); if (log.length > 60) log.shift(); }
+  if (type === 'press') presses.push({ button: e.button, f: e.f, acted: null, effect: null, out: null });
+  const open = (q) => [...presses].reverse().find((x) => !x.out && q(x));
+  if (type === 'acted') { const x = open((x) => x.button === e.button && x.acted == null); if (x) { x.acted = e.f; if (e.button === 'up') { x.effect = e.f; x.out = 'the jump'; } else x.move = e.as; } }
+  if (type === 'dropped') { const x = open((x) => x.button === e.button && x.acted == null); if (x) x.out = `dropped: ${e.why}`; }
+  if ((type === 'hit' || type === 'counter' || type === 'block' || type === 'lock') && e.p === 0 && !e.beat) { const x = open((x) => x.acted != null && x.move); if (x) { x.effect = e.f; x.out = `${x.move}: ${type === 'block' ? 'blocked' : type}`; } }
+  if (presses.length > 20) presses.shift();
+  dirty.log = true;
+}
+function drawVersus() {
+  const m = vs.m, s = m.s, half = s.rules.half / 1000, three = view === 'three';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+  // the camera frames the two (versus's span holds both on screen); a cutscene super closes in on them
+  const cut = s.lock?.kind === 'cutscene', mid = (s.p[0].x + s.p[1].x) / 2000;
+  zoomK += ((cut ? 1.6 : 1) - zoomK) * 0.2;
+  const shake = m.shake > 0 ? Math.sin(m.t * 2.3) * m.shake * 0.006 : 0;
+  cam.yaw = -Math.PI / 2; cam.x = 0; cam.y += (mid - cam.y) * 0.18; cam.y += shake; cam.z += ((three ? 0.45 : 0) - cam.z) * 0.2;
+  // the floor and the walls (versus's half, from mid-stage)
+  if (three) {
+    poly([[-1.4, -half, 0], [1.4, -half, 0], [1.4, half, 0], [-1.4, half, 0]], COL.floor);
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for (let y = Math.ceil(-half); y <= half; y++) { const a = P(-1.4, y, 0), b = P(1.4, y, 0); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    for (const y of [-half, half]) poly([[-1.4, y, 0], [1.4, y, 0], [1.4, y, 2.6], [-1.4, y, 2.6]], COL.block, COL.blockTop);
+  } else {
+    const a = P(0, -half, 0), b = P(0, half, 0); ctx.fillStyle = COL.floor; ctx.fillRect(a[0], a[1], b[0] - a[0], H - a[1]);
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; for (let y = Math.ceil(-half); y <= half; y++) { const q = P(0, y, 0); ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0], q[1] + 6); ctx.stroke(); }
+    for (const y of [-half, half]) { const t = P(0, y, 2.6), f = P(0, y, 0); ctx.fillStyle = COL.block; ctx.fillRect(t[0] - (y < 0 ? 10 : 0), t[1], 10, f[1] - t[1]); }
+  }
+  const ppm = scale(), order = s.p[0].mv && !s.p[1].mv ? [1, 0] : [0, 1];
+  for (const i of order) vsBody(m, i, i === 0 ? COL.hero : COL.dummy, ppm);
+  VS.drawEffects(ctx, m, (x, y) => P(0, x / 1000, y / 1000), ppm / 1000);
+  VS.drawHud(ctx, W, H - 40, m);
+  if (cut) { ctx.fillStyle = '#000'; ctx.fillRect(0, H - 40, W, 40); }   // the letterbox down to the frame's edge
+}
+/** one versus body as the lab's sticks: its rig joints (mm, facing-relative) on the lane, the rear limbs set back for ¾ */
+function vsBody(m, i, colour, ppm) {
+  const p = m.s.p[i], F = m.ctx.fighters[i], { J } = VS.drawnPose(m, i);
+  const wp = (k) => [k.endsWith('B') ? -0.14 : k.endsWith('F') ? 0.14 : 0, (p.x + J[k][0] * p.face) / 1000, (p.y + J[k][1]) / 1000];
+  ctx.fillStyle = COL.shadow; ctx.globalAlpha = 0.4 / (1 + p.y / 1000); groundRing(0, p.x / 1000, 0, (F.body.bodyR * 1.6) / 1000, true); ctx.globalAlpha = 1;
+  const sx = (x) => P(0, (p.x + x * p.face) / 1000, 0)[0], sy = (y) => P(0, cam.y, (p.y + y) / 1000)[1];
+  if (F.weapon && F.weapon.grip === 'B') VS.drawBlade(ctx, F, J, sx, sy, ppm / 1000);
+  const col = p.hs > 0 && p.st !== 'locked' ? COL.ink : p.inv > 0 ? COL.inv : ['hit', 'locked', 'fall', 'thrown'].includes(p.st) ? COL.stun : colour;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const back of [true, false]) {
+    ctx.strokeStyle = col; ctx.globalAlpha = back ? 0.5 : 1; ctx.lineWidth = Math.max(2, ppm * 0.055);
+    ctx.beginPath();
+    for (const [a, b] of VS.RIG_BONES) { if ((a.endsWith('B') || b.endsWith('B')) !== back) continue; const p0 = P(...wp(a)), p1 = P(...wp(b)); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  if (F.weapon && F.weapon.grip === 'F') VS.drawBlade(ctx, F, J, sx, sy, ppm / 1000);
+  const h = P(...wp('head')); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(h[0], h[1], Math.max(4, (F.body.head / 1000) * ppm), 0, Math.PI * 2); ctx.fill();
+}
+const vsSlots = (F) => Object.keys(F.moves).filter((k) => !/^special\.[a-z]+\.[LH]$/.test(k));
+function renderVsFrameData() {
+  const F = vs.m.ctx.fighters[0], sign = (x) => (x == null ? '–' : x > 0 ? `+${x}` : String(x));
+  const head = '<tr><th>move</th><th>startup</th><th>active</th><th>recovery</th><th>total</th><th>hitstop</th><th>damage</th><th>guard</th><th>on hit</th><th>on block</th><th>lock</th></tr>';
+  $('fd').innerHTML = head + vsSlots(F).map((k) => { const mv = F.moves[k], L = mv.lock; return `<tr><td>${k}${mv.id && mv.id !== k ? ` (${mv.id})` : ''}</td><td class="c-startup">${mv.startup}</td><td class="c-active">${mv.active}</td><td class="c-recovery">${mv.recovery}</td><td>${mv.total}</td><td>${mv.hitstop ?? '–'}</td><td>${L ? L.beats.reduce((a, b) => a + b, 0) : mv.damage}</td><td>${mv.throw ? 'throw' : mv.guard}</td><td class="${mv.adv?.hit == null ? '' : mv.adv.hit >= 0 ? 'good' : 'bad'}">${sign(mv.adv?.hit)}</td><td class="${mv.adv?.block == null ? '' : mv.adv.block >= 0 ? 'good' : 'bad'}">${sign(mv.adv?.block)}</td><td>${L ? `${L.kind}, ${L.beats.length} × ${L.every} f` : '–'}</td></tr>`; }).join('');
+  const ms = (v) => ((v * FPS) / 1000).toFixed(2);
+  $('jd').textContent = `${F.name}: hp ${F.hp} · walk ${F.walk.f} mm/f forward (${ms(F.walk.f)} m/s), ${F.walk.b} back · jump: prejump ${F.jump.prejump} f, rise ${F.jump.vy} mm/f under ${F.jump.g} mm/f², landing ${F.jump.landing} f · dash ${F.dash.f.frames} f ${F.dash.f.dist} mm, backdash ${F.dash.b.frames} f (invincible ${F.dash.b.invuln}) · versus counts the startup to the first active frame, the lab card the frames before it`;
+}
+function renderVsState() {
+  const s = vs.m.s, F = vs.m.ctx.fighters, of = (p, i) => `${p.mv ? `${p.mv} ${p.mf}/${F[i].moves[p.mv].total}` : p.st}${p.hs ? ` · stop ${p.hs}` : ''}`;
+  $('st').innerHTML = [['frame', s.f], ['phase', s.phase], ['timer', Math.ceil(s.timer / 60)], ['round', `${s.round} (${s.wins.join('–')})`], ['you', of(s.p[0], 0)], ['x, y', `${s.p[0].x}, ${s.p[0].y} mm`], ['life', `${s.p[0].hp} / ${F[0].hp}`], ['meter', s.p[0].meter], ['opponent', of(s.p[1], 1)], ['their life', `${s.p[1].hp} / ${F[1].hp}`], ['combo', s.p[1].combo || '–'], ['lock', s.lock ? `${s.lock.kind}, frame ${s.lock.k}` : '–'], ['buffer', vs.w.pending.map((q) => `${q.button} ${q.age}`).join(', ') || '–'], ['scheme', vsPick.scheme]].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
+  const [x, y, b] = lastPad;
+  $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
+  for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT], ['bF', BTN.SHOOT]]) $(id).classList.toggle('on', !!(b & bit));
+  $('padname').textContent = padName ? `Gamepad: ${padName.slice(0, 40)}` : 'Keyboard (a gamepad works too)';
+}
+{
+  const opts = (list) => list.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  $('vsP1').innerHTML = opts(VS_DATA.roster.map((r) => [r.id, `You: ${r.name}`]));
+  $('vsP2').innerHTML = opts(VS_DATA.roster.map((r) => [r.id, `Vs: ${r.name}`]));
+  $('vsScheme').innerHTML = opts([['modern', 'Modern'], ['classic', 'Classic (motions)'], ['simple', 'Simple']]);
+  $('vsSuper').innerHTML = opts([['own', 'Super: its own'], ...VS_DATA.supers.map((x) => [x.id, `Super: ${x.id.replace(/^super-/, '')}${x.lock ? ` (${x.lock === 'cutscene' ? 'cutscene' : 'hit combo'})` : ''}`])]);
+  for (const k of ['p1', 'p2', 'scheme', 'super']) $(`vs${k === 'p1' ? 'P1' : k === 'p2' ? 'P2' : k[0].toUpperCase() + k.slice(1)}`).addEventListener('change', (e) => { vsPick[k] = e.target.value; store.set('vsPick', vsPick); reset(); });
+}
 
 // ─── the loop: a fixed 60 Hz tick under a free frame rate ───
 let acc = 0, then = performance.now(), slow = 0;
@@ -733,6 +871,6 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 // a read-only window for headless checks (the lab's own scripts drive the page and read what it shows)
-window.__lab = { state: () => S, pose: (who) => { const r = poseFrames(who); return { d: r.d, world: toWorld(r.d, r.a) }; } };
+window.__lab = { state: () => S, versus: () => vs, pose: (who) => { const r = poseFrames(who); return { d: r.d, world: toWorld(r.d, r.a) }; } };
 fit(); reset(); renderRec();
 requestAnimationFrame(frame);

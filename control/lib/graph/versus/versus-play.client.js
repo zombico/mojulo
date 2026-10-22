@@ -268,12 +268,14 @@ function drawStage(stage, view, t) {
 
 function viewFor() {
   const s = match.s;
-  const scale = Math.min(W / (s.rules.span + 1600), H / 3600);
+  // a cutscene super closes the camera in on the two while its script runs (and lets it back out after)
+  match.zoom = (match.zoom ?? 1) + ((s.lock?.kind === 'cutscene' ? 1.5 : 1) - (match.zoom ?? 1)) * 0.2;
+  const scale = Math.min(W / (s.rules.span + 1600), H / 3600) * match.zoom;
   const mid = (s.p[0].x + s.p[1].x) / 2;
   const lim = Math.max(0, s.rules.half - W / scale / 2 + 200);
   match.cam += (Math.max(-lim, Math.min(lim, mid)) - match.cam) * 0.18;
   const shake = match.shake > 0 ? Math.sin(game.t * 2.3) * match.shake : 0;
-  return { scale, camX: match.cam + shake * 6, cx: W / 2, ground: H * 0.84 };
+  return { scale, camX: match.cam + shake * 6, cx: W / 2, ground: H * (0.84 + 0.08 * (match.zoom - 1)) };
 }
 
 function drawFight() {

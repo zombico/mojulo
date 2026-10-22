@@ -141,11 +141,12 @@ function padFor(m, i) {
   return { x: r.x, y: r.y, b: r.b };
 }
 
-/** One frame of a match (presentation slow-motion after a KO is the caller's: it skips calls). */
-function stepMatch(m) {
+/** One frame of a match (presentation slow-motion after a KO is the caller's: it skips calls). `given` [pad1?, pad2?]:
+ * a pad its caller read itself (a host with its own keys), else the match's own (the keyboard, the CPU, the dummy). */
+function stepMatch(m, given = []) {
   const before = m.s;
   m.t++;
-  m.s = stepVersus(before, [padFor(m, 0), padFor(m, 1)], m.ctx);
+  m.s = stepVersus(before, [given[0] ?? padFor(m, 0), given[1] ?? padFor(m, 1)], m.ctx);
   const s = m.s;
   if (m.mode === 'training') {
     s.timer = s.rules.timer * 60;
@@ -244,6 +245,9 @@ function onEvent(m, e) {
     case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; blip('block'); break;
     case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; blip('counter'); break;
     case 'super': m.superFlash = 40; blip('super'); break;
+    // a lock super caught: the hit-combo's name over the fight, or the cutscene's cut (drawHud letterboxes it while it runs)
+    case 'lock': m.flash = { text: e.kind === 'cutscene' ? 'CRITICAL' : `${e.hits}-HIT SUPER`, p: e.p, n: 50 }; m.shake = 8; blip('super'); break;
+    case 'unlock': m.shake = 10; break;
     case 'special': if (m.ctx.fighters[e.p].moves[e.slot].projectile) blip('fireball'); break;
     case 'ko': big('K.O.', null, 120); m.slow = 70; blip('ko'); break;
     case 'time': big('TIME', null, 120); break;
@@ -380,6 +384,14 @@ function drawHud(g, W, H, m) {
   const s = m.s;
   const barW = Math.min(W * 0.38, 520), barH = 22, top = 24, gap = 70;
   if (m.superFlash > 0) { g.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, m.superFlash / 10)})`; g.fillRect(0, 0, W, H); }
+  // a cutscene super: the fight cut away while its script runs, the picture darkened and letterboxed (the caller's
+  // camera may close in too: `m.s.lock`)
+  if (m.s.lock?.kind === 'cutscene') {
+    const bar = Math.round(H * 0.11);
+    g.fillStyle = 'rgba(10,0,20,0.35)'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
+    return;
+  }
   for (let i = 0; i < 2; i++) {
     const F = m.ctx.fighters[i];
     const frac = s.p[i].hp / F.hp;

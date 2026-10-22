@@ -16,6 +16,13 @@ const cache = join(out, 'action-lab.data.json');
 const DATA = process.argv.includes('--cached') && existsSync(cache) ? JSON.parse(readFileSync(cache, 'utf8')) : { male: T.bake('male'), female: T.bake('female') };
 writeFileSync(cache, JSON.stringify(DATA));
 
+// Mojulo Fighter plays mojulo's versus loop itself: its pure modules and its runtime inlined (as versus-page.js inlines
+// them), in a closure of their own (their names, BTN among them, stay out of the kernel's), the roster solved here
+const VP = await import('../../../lib/graph/versus/versus-page.js');
+const { SUPERS } = await import('../../../lib/graph/versus/versus-library.js');
+const vsLib = [...VP.VERSUS_PAGE_MODULES, 'versus-runtime.client.js'].map((f) => `// ── ${f} ──\n${VP.versusSource(f)}`).join('\n');
+const VS_DATA = { ...VP.versusGameData({}), supers: Object.entries(SUPERS).map(([id, r]) => ({ id, says: r.says, lock: r.lock?.kind ?? null })) };
+
 const FEEL_BUTTONS = [['realistic', 'Realistic', '1'], ['action', 'Action', '2'], ['platformer', 'Platformer', '3'], ['pinball', 'Pinball', '4']]
   .map(([id, name, k]) => `<button type="button" class="feel" data-feel="${id}" aria-pressed="false"><kbd>${k}</kbd>${name}</button>`).join('');
 
@@ -124,6 +131,10 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
       <select id="pole" aria-label="Game template" title="a game template: its feel, its viewer, its stage"></select>
       <select id="toward" aria-label="Blend toward" title="a second template to tune toward"></select>
       <input id="blendT" type="range" min="0" max="1" step="0.05" value="0" aria-label="How far toward it" title="how far toward the second template">
+      <select id="vsP1" class="vsonly" hidden aria-label="Your fighter" title="your fighter (versus's roster)"></select>
+      <select id="vsP2" class="vsonly" hidden aria-label="The opponent" title="the opponent (Spar on: the CPU fights it; off: a training dummy, Guard: it blocks, Critter: it crouches)"></select>
+      <select id="vsScheme" class="vsonly" hidden aria-label="Control scheme" title="modern: U + a direction a special, U + L the super; classic: the motions (236, 623, 214) + a button, 236236 the super; simple: J alone runs the auto-combo"></select>
+      <select id="vsSuper" class="vsonly" hidden aria-label="Your super" title="your super: the fighter's own, or one from versus's shelf (the hit-combo super and the cutscene super lock on their first blow)"></select>
       <button type="button" id="view" title="V: the viewer (¾ follow, isometric, overhead, side, third person, over the shoulder, first person, mech chase)">¾ follow</button>
       <button type="button" id="pause" title="P or Esc">Pause</button>
       <button type="button" id="stepbtn" title=". (paused): one frame">Step</button>
@@ -136,7 +147,7 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     <div class="stagebox">
       <div class="canvaswrap">
         <canvas id="stage" aria-label="The arena: your hero, a training dummy, a low block, a ledge and a wall"></canvas>
-        <p class="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · M ride a mech (heavy, swift; L held: boost; Space held: charge jump) · F shoot (hold: auto, or charge) · Z switch weapon · E gear (the glider or the jetpack: hold the jump past the apex, or press it in the air) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
+        <p class="keys" id="keys">WASD move · Shift sprint · Space jump (hold: higher; in the air: air jump, against a wall: wall jump) · J attack (in the air: the stomp attack; action: back + J) · K dodge roll (the way the stick points; at rest: backstep) · Q lock-on (realistic, action: rolls circle the target) · M ride a mech (heavy, swift; L held: boost; Space held: charge jump) · F shoot (hold: auto, or charge) · Z switch weapon · E gear (the glider or the jetpack: hold the jump past the apex, or press it in the air) · Y shooter (the dummy fires its genre's patterns; again: the next set) · O one hit · J held: charge (release: realistic, action a heavy; platformer X's charge shot; pinball the spin dash) · U guard (hold: block; pressed as a hit meets you in an arc's orange: parry; T spars: jab, hook, the red unblockable) · L dash (hold: X's dash; in the air: air dash; jump during it: dash jump) · 1–4 feel · T spar · H critter · P pause · . step</p>
         <div id="touchpad" hidden>
           <div id="tstick"><div id="tknob"></div></div>
           <div class="tbtns"><button type="button" data-tbtn="DODGE">Roll</button><button type="button" data-tbtn="DASH">Dash</button><button type="button" data-tbtn="LOCK">Lock</button><button type="button" data-tbtn="GUARD">Guard</button><button type="button" data-tbtn="SHOOT">Shoot</button><button type="button" data-tbtn="SWITCH">Swap</button><button type="button" data-tbtn="ATTACK">Hit</button><button type="button" data-tbtn="SPRINT">Run</button><button type="button" data-tbtn="JUMP">Jump</button></div>
@@ -167,7 +178,14 @@ textarea { width: 100%; box-sizing: border-box; min-height: 80px; background: va
     </aside>
   </main>
 </div>
-<script>const DATA = ${JSON.stringify(DATA)};</script>
+<script>const DATA = ${JSON.stringify(DATA)};
+const VS_DATA = ${JSON.stringify(VS_DATA).replace(/</g, '\\u003c')};
+const VS = (function () {
+"use strict";
+${vsLib}
+RT.muted = true;
+return { compileFighter, newMatch, stepMatch, drawnPose, drawHud, drawEffects, drawBlade, RT, VS_DUMMY, RIG_BONES };
+})();</script>
 <script type="module">
 ${kernel}
 {

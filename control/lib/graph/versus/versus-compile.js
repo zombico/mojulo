@@ -697,6 +697,30 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
   return m;
 }
 
+/**
+ * A lock super's script (versus-core.js lockStep): `kind` 'combo' (in the fight) or 'cutscene' (the clock stops, the
+ * page cuts away), `hits` blows (the catch the first) one every `every` frames, the caught body held `gap` mm in
+ * front, the `finish` down or launch. Its damage is the super's, split over the blows (the last takes what is left).
+ * A grounded strike's only: a projectile, a throw or a leap lands its own way. Blocked, the catch is one blocked blow.
+ */
+export const LOCK_KINDS = Object.freeze(['combo', 'cutscene']);
+function readLock(L, id, m, damage) {
+  const where = `super '${id}' lock`;
+  if (!L || typeof L !== 'object' || Array.isArray(L)) throw new Error(`versus: ${where} is { kind, hits, every, finish?, gap? }`);
+  if (m.projectile || m.throw || m.airborne) throw new Error(`versus: ${where}: only a grounded strike locks (a projectile, a throw or a leap lands its own way)`);
+  if (!LOCK_KINDS.includes(L.kind)) throw new Error(`versus: ${where}.kind is one of ${LOCK_KINDS.join(', ')}`);
+  for (const [k, lo, hi] of [['hits', 2, 20], ['every', 2, 60], ['gap', 300, 1500]]) {
+    if (L[k] !== undefined && (!isInt(L[k]) || L[k] < lo || L[k] > hi)) throw new Error(`versus: ${where}.${k} is a whole number from ${lo} to ${hi}`);
+  }
+  if (!isInt(L.hits) || !isInt(L.every)) throw new Error(`versus: ${where} needs hits and every`);
+  if (L.finish !== undefined && L.finish !== 'down' && L.finish !== 'launch') throw new Error(`versus: ${where}.finish is down or launch`);
+  // the catch is one blow, so a blocked lock super is one blocked blow
+  m.hits = 1; m.rehit = 0; m.damage = damage;
+  const per = Math.floor(damage / L.hits), beats = Array.from({ length: L.hits }, () => per);
+  beats[L.hits - 1] += damage - per * L.hits;
+  return { kind: L.kind, every: L.every, gap: L.gap ?? 650, finish: L.finish ?? 'down', beats };
+}
+
 /** The super: its special's shape at full meter, invincible to start, with a freeze. o: { lib, supers, tune, weapon }. */
 export function compileSuper(body, id, o = {}) {
   const supers = o.supers ?? SUPERS;
@@ -756,6 +780,7 @@ export function compileSuper(body, id, o = {}) {
     m.hitstun = m.airborne ? 60 : stunFor(m, adv.hit);
     m.blockstun = stunFor(m, adv.block);
   }
+  if (su.lock !== undefined) m.lock = readLock(su.lock, id, m, su.damage);
   if (Object.keys(T).length) m.tuned = Object.keys(T);
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
   m.reach = m.throw ? m.throw.range : reachOf(m.frames);

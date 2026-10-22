@@ -15,6 +15,12 @@
  * knockdowns, launches and juggles, wake-up, throws with a tech window, command throws, projectiles that trade
  * with each other, invincibility, meter, supers with a freeze, and rounds: an intro, a timer, KO, time over,
  * best of three.
+ *
+ * A LOCK super (its move's `lock`, versus-compile.js): the first blow that lands (not blocked) catches, and the rest
+ * is a script, no longer boxes: `s.lock` counts its frames, a blow every `every` (each its share of the damage, scaled
+ * once by the combo it caught), the caught body held `gap` in front, both untouchable and unthrowable, then the finish (down or
+ * launch) and the attacker's recovery. 'combo' plays in the fight (the clock runs); 'cutscene' stops the clock for it
+ * (the page cuts away: versus-runtime.client.js). Blocked, it is a blocked hit; whiffed, a whiff.
  */
 
 import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD } from './versus-input.js';
@@ -105,6 +111,7 @@ export function cloneVersus(s) {
     ...s, wins: s.wins.slice(), rules: s.rules,
     p: s.p.map((p) => ({ ...p, hist: p.hist.slice() })),
     shots: s.shots.map((t) => ({ ...t })), events: [],
+    ...(s.lock ? { lock: { ...s.lock } } : {}),
   };
 }
 
@@ -128,7 +135,7 @@ function stanceOf(p) {
 
 /** The player's hurtboxes this frame, in the world (none while lying down, rising, or in a throw). */
 export function hurtBoxes(p, F) {
-  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || (p.st === 'ko' && p.y <= 0)) return [];
+  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'locking' || p.st === 'locked' || (p.st === 'ko' && p.y <= 0)) return [];
   const fr = moveFrame(p, F);
   const boxes = fr ? fr.hurt : F.idle[stanceOf(p)].hurt;
   return boxes.map((b) => worldBox(b, p.x, p.y, p.face));
@@ -149,7 +156,7 @@ const shotBox = (t) => [t.x - t.w / 2, t.y - t.h / 2, t.x + t.w / 2, t.y + t.h /
 
 function invulnTo(p, F, kind) {
   if (p.inv > 0 && kind !== 'throw') return true;
-  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'tech' || p.st === 'ko' || p.st === 'burst') return true;
+  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'tech' || p.st === 'ko' || p.st === 'burst' || p.st === 'locking' || p.st === 'locked') return true;
   if (p.mv) {
     const m = F.moves[p.mv];
     for (const [a, b, k] of m.invuln) if (p.mf >= a && p.mf <= b && k === kind) return true;
@@ -368,6 +375,8 @@ function advance(s, i, ctx) {
       break;
     }
     case 'thrown': break; // the thrower moves this body
+    case 'locking': lockStep(s, ctx, i); break;
+    case 'locked': break; // the locking body moves this one
     case 'tech': if (p.sf >= 14) { p.st = 'stand'; p.sf = 0; } break;
     case 'burst':
       if (p.y > 0 || p.vy > 0) fly(p, J.g);
@@ -376,6 +385,39 @@ function advance(s, i, ctx) {
     case 'win': case 'lose': break;
     default: break;
   }
+}
+
+// a lock super's script: the caught body held in front (the attacker steps off a wall instead of pushing it through),
+// the active frames run over again a blow a beat, a blow every `every`, then the finish
+function lockStep(s, ctx, i) {
+  const p = s.p[i], o = s.p[1 - i], m = ctx.fighters[i].moves[p.mv], L = m.lock;
+  const k = ++s.lock.k;
+  const lim = s.rules.half - ctx.fighters[1 - i].idle.stand.push[2];
+  let at = p.x + p.face * L.gap;
+  if (Math.abs(at) > lim) { at = sign(at) * lim; p.x = at - p.face * L.gap; }
+  o.x = at;
+  p.mf = m.startup + Math.min(m.active - 1, Math.floor(((k % L.every) * m.active) / L.every));
+  if (k % L.every) return;
+  const n = k / L.every;
+  if (n < L.beats.length) { lockBeat(s, i, m, n); return; }
+  o.st = 'fall'; o.sf = 0; o.mv = null; o.vy = L.finish === 'launch' ? 105 : 45; o.vx = p.face * (L.finish === 'launch' ? 10 : 20);
+  if (o.y <= 0) o.y = 1;
+  o.jug++;
+  react(o, L.finish === 'launch' ? 'launch' : 'down', 1, 2);
+  p.st = 'land'; p.sf = 0; p.landing = m.recovery; p.mv = null;
+  delete s.lock;
+  s.events.push({ t: 'unlock', p: i, kind: L.kind });
+  if (o.hp <= 0) ko(s, 1 - i, p.face);
+}
+// one blow of the script: its share of the damage (scaled once, by the combo it caught, so the script deals the
+// super's damage and no more for its own blows), the impact replayed, both frozen a moment
+function lockBeat(s, i, m, n) {
+  const p = s.p[i], o = s.p[1 - i];
+  const T = s.rules.scaling, dmg = Math.max(1, Math.floor((m.lock.beats[n] * T[Math.min(s.lock.c0, T.length - 1)]) / 100));
+  o.hp = Math.max(0, o.hp - dmg); o.combo++; o.sf = 0;
+  react(o, 'hit', n % 2, 2);
+  p.hs = m.hitstop; o.hs = m.hitstop;
+  s.events.push({ t: 'hit', p: i, dmg, x: o.x - p.face * 150, y: 1100, combo: o.combo, lock: m.lock.kind, beat: n + 1, of: m.lock.beats.length });
 }
 
 const pressedThrow = (p) => pressed(p.hist, BTN.T, 4) || ((pressed(p.hist, BTN.L, 4) && pressed(p.hist, BTN.M, 4)) ? 1 : 0);
@@ -685,6 +727,15 @@ function applyHit(s, ctx, { a, m, shot }) {
     return;
   }
 
+  // a lock super catches: the rest is its script (lockStep)
+  if (!shot && m.lock) {
+    p.st = 'locking'; p.sf = 0; p.hitN = m.hits; p.conn = 1; p.air = 0; p.vx = 0;
+    d.st = 'locked'; d.sf = 0; d.mv = null; d.air = 0; d.vx = 0; d.vy = 0; d.pushn = 0; d.stun = 0;
+    s.lock = { by: a, kind: m.lock.kind, k: 0, c0: d.combo };
+    s.events.push({ t: 'lock', p: a, kind: m.lock.kind, hits: m.lock.beats.length });
+    lockBeat(s, a, m, 0);
+    return;
+  }
   const counter = d.st === 'move' && d.mv && d.mf < ctx.fighters[1 - a].moves[d.mv].startup;
   let dmg = scaled(s, d, src.dmg ?? src.damage);
   if (counter) dmg = Math.floor((dmg * 6) / 5);
@@ -726,6 +777,7 @@ function ko(s, i, face) {
 function rounds(s, ctx) {
   const R = s.rules;
   if (s.phase === 'fight') {
+    if (s.lock?.kind === 'cutscene') return;   // the clock stops for a cutscene
     s.timer--;
     if (s.timer <= 0) {
       s.timer = 0;
@@ -771,6 +823,7 @@ function nextRound(s, ctx) {
   const hist = s.p.map((p) => p.hist);
   s.p = [0, 1].map((i) => ({ ...newPlayer(i, ctx.fighters[i], s.rules, meters[i], schemes[i]), hist: hist[i] }));
   s.shots = [];
+  delete s.lock;
   s.round++;
   s.timer = s.rules.timer * 60;
   s.phase = 'intro';

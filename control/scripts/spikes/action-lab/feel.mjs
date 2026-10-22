@@ -80,8 +80,8 @@
  * names that the lab has not built). Fallen Angel (DMC), Ebon Spirits (GoW / Souls), Cogs of Combat (Gears),
  * Infinity Crisis (hero and arena shooters), Conscription (the contemporary FPS), Steel Serpents (Metal Gear),
  * Vigilante Justice (the superhero game), Mech Battle Kai (MSA's mech), Jumping Giuseppe (the mascot platformer),
- * Isekai Party (the RPG that resolves without collision), Mojulo Fighter (the 2D fighter: mojulo's versus loop,
- * gameworld/quick.js, to be formalized). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
+ * Isekai Party (the RPG that resolves without collision), Mojulo Fighter (the 2D fighter: mojulo's versus loop itself,
+ * below; its card the blend's). `lane` (the fighter's): the bodies held on a line, the hero facing its foe.
  *
  * THE HEAVY-ROBOT RULES, mobile-suit-arena's movement (mojulo's controllable rules-platform.js and maneuvers.js) split
  * into rules that overlap, each a card field any feel may carry alone or with the others:
@@ -459,6 +459,82 @@ export const STAGES = Object.freeze({
   stage: { half: 9, blocks: [], hero: [0, -2], dummy: [0, 2] },
 });
 /**
+ * MOJULO FIGHTER: the template is mojulo's versus loop (lib/graph/versus: versus-core.js stepVersus, its compiled
+ * fighters, its CPU), not a lab card on a lane. The lab inlines the loop into its page and steps it on the lab's pads:
+ * `versusPad` maps them to versus's raw input (J K L the light, medium and heavy, U the special, Q or I the throw: the
+ * keys versus's own page uses; Space or up the jump, the stick its walk, back its block, down its crouch). `vsWatch`
+ * holds the lab's rule over it from outside: every press ends acted (the move it started, the frames it waited) or
+ * dropped with the reason (the state it met), its clock stopped while the body is frozen in hitstop (versus keeps a
+ * press made then). `vsCat` is a body's frame for the strip. `KATA` is versus's all-rounder in versus's units (mm,
+ * frames; its startup counts the first active frame), held equal to `compileFighter` by verify.mjs; `fighterCard`
+ * turns it into the lab card the template blends with (m/s, the lab's startup the frames before the first active).
+ */
+export const KATA = Object.freeze({
+  walk: { f: 52, b: 40 }, jump: { prejump: 4, vy: 124, g: 6, landing: 3 },
+  normals: { L: { startup: 4, active: 2, recovery: 6 }, M: { startup: 7, active: 3, recovery: 14 }, H: { startup: 12, active: 3, recovery: 25 } },
+});
+const VS_BUFFER = 4;   // versus-input.js BUFFER: a press is good for this many frames
+export function fighterCard(K) {
+  const ms = (mmf) => r4((mmf * FPS) / 1000), run = ms(K.walk.f), g = r4((K.jump.g * FPS * FPS) / 1000);
+  // versus's apex is its own sum (each frame the gravity, then the rise): n frames up, n the last with the rise still positive
+  const n = Math.ceil(K.jump.vy / K.jump.g) - 1, apex = n * K.jump.vy - (K.jump.g * n * (n + 1)) / 2;
+  const base = FEELS.action.moves.string, str = ['L', 'M', 'H'].map((k, i) => ({ ...JSON.parse(JSON.stringify(base[Math.min(i, base.length - 1)])), startup: K.normals[k].startup - 1, snap: Math.min(base[Math.min(i, base.length - 1)].snap, K.normals[k].startup - 1), active: K.normals[k].active, recovery: K.normals[k].recovery }));
+  return {
+    ground: { walk: ms(K.walk.b), run, sprint: run, accel: r4(run * FPS), decel: r4(run * FPS), turn: Infinity },
+    jump: { commit: K.jump.prejump, height: r4(apex / 1000), gRise: g, gFall: g, cut: 1, hang: 0, coyote: 0, buffer: VS_BUFFER, air: 0, land: K.jump.landing },
+    moves: { string: str, buffer: VS_BUFFER },
+  };
+}
+/** the versus buttons (versus-input.js BTN: L 1, M 2, H 4, S 8, T 16) and the lab buttons that press them */
+export const VS_BUTTONS = Object.freeze([['L', 1, 'ATTACK'], ['M', 2, 'DODGE'], ['H', 4, 'DASH'], ['S', 8, 'GUARD'], ['T', 16, 'LOCK']]);
+/** a lab pad [x, y, buttons] (the stick unrotated: x screen-right, y up) → versus's raw input { x, y, b } */
+export function versusPad(pad) {
+  const [x, y, b] = pad, t = 64;
+  let vb = 0;
+  for (const [, bit, lab] of VS_BUTTONS) if (b & BTN[lab]) vb |= bit;
+  return { x: x > t ? 1 : x < -t ? -1 : 0, y: b & BTN.JUMP || y > t ? 1 : y < -t ? -1 : 0, b: vb };
+}
+const vsPhase = (p, F) => { const m = F.moves[p.mv]; return p.mf < m.startup ? 'startup' : p.mf < m.startup + m.active ? 'active' : 'recovery'; };
+/** what a body is doing that a press made now meets (the reason it is dropped, if it is) */
+function vsBusy(s, p, F) {
+  if (s.phase !== 'fight') return `the round is not on (${s.phase})`;
+  if (p.mv) { const m = F.moves[p.mv]; return `in ${p.mv}'s ${vsPhase(p, F)} (frame ${p.mf} of ${m.total})${vsPhase(p, F) === 'recovery' ? '' : ', and nothing it cancels into'}`; }
+  return ({ hit: 'in hitstun', block: 'in blockstun', air: 'in the air, its air normal spent', prejump: 'in the jump\'s prejump', land: 'in the landing', dashF: 'in the dash', dashB: 'in the backdash', down: 'knocked down', rise: 'rising', fall: 'falling', thrown: 'thrown', throwing: 'throwing', tech: 'teching the throw', ko: 'knocked out', burst: 'bursting' })[p.st] ?? `in ${p.st}, and nothing read it`;
+}
+export const newVsWatch = () => ({ held: 0, up: false, pending: [] });
+/**
+ * One frame of the watch over P1: `before` and `after` the versus states either side of the step, `vpad` its input.
+ * → { w, events }: press (a fresh button, or the jump), acted { as: the slot, waited }, dropped { why }.
+ */
+export function vsWatch(w0, before, after, vpad, F) {
+  const p0 = before.p[0], p = after.p[0], f = after.f, events = [];
+  const w = { held: vpad.b, up: vpad.y > 0, pending: w0.pending.map((q) => ({ ...q })) };
+  for (const [name, bit] of VS_BUTTONS) if (vpad.b & bit & ~w0.held) { w.pending.push({ button: name, f, age: 0, why: vsBusy(before, p0, F) }); events.push({ type: 'press', button: name, f }); }
+  if (vpad.y > 0 && !w0.up) { w.pending.push({ button: 'up', f, age: 0, why: vsBusy(before, p0, F) }); events.push({ type: 'press', button: 'up', f }); }
+  const started = p.mv && (p.mv !== p0.mv || p.mf < p0.mf) ? p.mv : null, rose = p.st === 'prejump' && p0.st !== 'prejump';
+  const frozen = p.hs > 0 || after.freeze > 0;
+  w.pending = w.pending.filter((q) => {
+    if (q.button === 'up' ? rose : started) { events.push({ type: 'acted', button: q.button, f, as: q.button === 'up' ? 'jump' : started, waited: f - q.f }); return false; }
+    if (!frozen && after.phase === 'fight') q.age++;
+    if (after.phase !== 'fight' && after.phase !== 'intro') q.age = VS_BUFFER + 1;
+    if (q.age > VS_BUFFER || (after.phase === 'intro' && before.phase === 'intro')) { events.push({ type: 'dropped', button: q.button, f, why: q.why }); return false; }
+    return true;
+  });
+  return { w, events };
+}
+/** a body's frame for the strip: hitstop, its move's startup / active / recovery, invincible, stun, guard, air */
+export function vsCat(p, F) {
+  if (p.hs > 0) return 'stop';
+  if (p.mv) return vsPhase(p, F);
+  if (p.inv > 0) return 'inv';
+  if (['hit', 'fall', 'down', 'rise', 'thrown', 'ko', 'tech'].includes(p.st)) return 'stun';
+  if (p.st === 'block') return 'guard';
+  if (p.st === 'prejump' || p.st === 'air' || p.y > 0) return 'air';
+  if (p.st === 'land' || p.st === 'dashF' || p.st === 'dashB') return 'recovery';
+  return null;
+}
+
+/**
  * The poles: a game's template, its movement and animation the pole the game is tuned toward. base (a feel), set (the
  * fields it changes, merged over the base: movement, the hit's freeze, the look, the rules it carries), mount (a mech's
  * weight), gear, view { camera, … the camera's own: D (m back), h (m up), off (m right), pitch (rad) }, stage, after (the
@@ -504,9 +580,11 @@ export const POLES = Object.freeze({
     set: { ground: { walk: 1.6, run: 4.5, sprint: 6, accel: 20, decel: 30, turn: 900 }, jump: { commit: 4, height: 0.5 }, hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'momentum', gain: 0, lift: 0 } }, hurt: { stun: 0, knock: 0, slow: null, mercy: 0, charge: 'keep' } },
     needs: ['targeted resolution (by range and stats, no hit areas)', 'cast bars and a global cooldown', 'the party'] },
   'mojulo-fighter': { name: 'Mojulo Fighter', after: 'the 2D fighter', base: 'action', view: { camera: 'side' }, stage: 'stage',
-    says: 'on rails: a walk forward and back, a fixed jump arc, facing the foe, the strings and their frame data',
-    set: { ground: { walk: 1.6, run: 3.2, sprint: 3.2, accel: 80, decel: 80, turn: Infinity }, jump: { commit: 4, height: 1.2, cut: 1, hang: 0, air: 0.25 }, air: null, cling: null, lock: null, glide: null, jet: null, lane: { x: 0, face: true } },
-    needs: ['formalize mojulo\'s versus loop (gameworld/quick.js)', 'motion inputs', 'block by holding back', 'high, low and overhead', 'throws', 'pushback and corners', 'juggle limits', 'meter'] },
+    says: 'mojulo\'s versus loop itself (lib/graph/versus): a walk forward and back, a fixed jump arc after its prejump, facing the foe, blocking by holding back, high, low and the throw, the specials, meter and the super, rounds; played on the lab\'s keys, watched by the lab\'s gate',
+    // the card the lab's kernel plays when the template is blended toward another: Kata's numbers (versus units, below) in the lab's
+    set: { ...fighterCard(KATA), air: null, cling: null, lock: null, glide: null, jet: null, lane: { x: 0, face: true } },
+    versus: { p1: 'kata', p2: 'brisk', scheme: 'modern' },
+    needs: ['the lab\'s baked takes on the versus bodies (they wear the 2D rig)', 'a dropped press that versus reports itself (the lab watches it from outside)', 'hold-release charge moves', 'the lab\'s offense-armor tags on versus moves', 'a ¾ camera that turns with the fighters (2.5D)'] },
 });
 export const POLE_IDS = Object.freeze(Object.keys(POLES));
 /** the viewers a pole may name (the page draws each): ¾ follow, isometric, overhead, side, third-person chase, over-the-shoulder, first-person, the mech's chase */
