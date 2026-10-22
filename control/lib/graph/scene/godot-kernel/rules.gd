@@ -359,17 +359,73 @@ static func platform(e: Dictionary, r: Dictionary, input: Dictionary, dt: float,
 	var bn := Js.hypot2(bf, bs)
 	if bn == 0.0:
 		bn = 1.0
-	var fwd_move := ((bf / bn) * boost_speed * ctl * dt if boosting else fwd_in * speed * ctl * dt) * halt
-	var side_move := ((bs / bn) * boost_speed * ctl * dt if boosting else side_in * strafe * speed * ctl * dt) * halt
-	p[0] = float(p[0]) + (f[0] * fwd_move + rt[0] * side_move)
-	p[1] = float(p[1]) + (f[1] * fwd_move + rt[1] * side_move)
+	# ground acceleration (opt-in `accel`): the drive builds toward the stick at accel and sheds at decel, scaled by the
+	# air control off the ground, where an unpushed body keeps it; a root stops it, a boost sets it (with boostInertia the
+	# drive starts from rest); absent accel, the direct step
+	var accel := _num(r, "accel", 0.0)
+	var fwd_move := 0.0
+	var side_move := 0.0
+	if accel > 0.0:
+		var decel := _num(r, "decel", 0.0)
+		if decel <= 0.0:
+			decel = accel
+		if not (e.get("drive") is Array):
+			e["drive"] = [0.0, 0.0]
+		var d: Array = e["drive"]
+		if halt == 0.0:
+			d[0] = 0.0
+			d[1] = 0.0
+		elif boosting:
+			var kb := 0.0 if _num(r, "boostInertia", 0.0) > 0.0 else boost_speed * ctl / bn
+			d[0] = (f[0] * bf + rt[0] * bs) * kb
+			d[1] = (f[1] * bf + rt[1] * bs) * kb
+		else:
+			var pushed := absf(fwd_in) + absf(side_in) > 1e-3
+			if pushed or e["grounded"]:
+				var wx := (f[0] * fwd_in + rt[0] * side_in * strafe) * speed
+				var wy := (f[1] * fwd_in + rt[1] * side_in * strafe) * speed
+				var dx := wx - float(d[0])
+				var dy := wy - float(d[1])
+				var dl := Js.hypot2(dx, dy)
+				if dl > 1e-12:
+					var building := pushed and Js.hypot2(wx, wy) >= Js.hypot2(float(d[0]), float(d[1])) - 1e-9 and wx * float(d[0]) + wy * float(d[1]) >= 0.0
+					var k := minf(1.0, ((accel if building else decel) * ctl * dt) / dl)
+					d[0] = float(d[0]) + dx * k
+					d[1] = float(d[1]) + dy * k
+		fwd_move = (float(d[0]) * f[0] + float(d[1]) * f[1]) * dt
+		side_move = (float(d[0]) * rt[0] + float(d[1]) * rt[1]) * dt
+		p[0] = float(p[0]) + float(d[0]) * dt
+		p[1] = float(p[1]) + float(d[1]) * dt
+	else:
+		fwd_move = ((bf / bn) * boost_speed * ctl * dt if boosting else fwd_in * speed * ctl * dt) * halt
+		side_move = ((bs / bn) * boost_speed * ctl * dt if boosting else side_in * strafe * speed * ctl * dt) * halt
+		p[0] = float(p[0]) + (f[0] * fwd_move + rt[0] * side_move)
+		p[1] = float(p[1]) + (f[1] * fwd_move + rt[1] * side_move)
 
 	if world.get("colliders") is Array:
+		var bx := float(p[0])
+		var by := float(p[1])
 		resolve_blocking(p, foot_z, _num(r, "collideHeight", eye if eye != 0.0 else 24.0), _num(r, "collideRadius", 0.0), world["colliders"], step_up)
+		# a wall takes the part of the drive that went into it (the push-out's direction is its normal)
+		if accel > 0.0:
+			var ex := float(p[0]) - bx
+			var ey := float(p[1]) - by
+			var el := Js.hypot2(ex, ey)
+			if el > 1e-9:
+				var dw: Array = e["drive"]
+				var vn := (float(dw[0]) * ex + float(dw[1]) * ey) / el
+				if vn < 0.0:
+					dw[0] = float(dw[0]) - (vn * ex) / el
+					dw[1] = float(dw[1]) - (vn * ey) / el
 	if lane_move:
 		var L := lane_near(lane, p[0], p[1])
 		p[0] = L["px"]
 		p[1] = L["py"]
+		if accel > 0.0:
+			var dl2: Array = e["drive"]
+			var along := float(dl2[0]) * float(L["tx"]) + float(dl2[1]) * float(L["ty"])
+			dl2[0] = float(L["tx"]) * along
+			dl2[1] = float(L["ty"]) * along
 
 	e["hovering"] = false
 	var foot_z0 := float(p[2]) - eye

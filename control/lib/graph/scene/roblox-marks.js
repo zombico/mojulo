@@ -39,7 +39,7 @@ export const RULE_MARKS = Object.freeze({
 // the platform rule's keys, where the place runs each: the Humanoid takes its pace, jump and pull; the strike is the
 // fight's (kernel/combat.luau, the left mouse button its fire); the rest of the web's feel and its moves are not run
 const FEEL = 'the web\'s walk feel (the Humanoid\'s own)';
-const PLATFORM_FEEL = ['turn', 'strafe', 'boostSpeed', 'fallGravity', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl', 'boostMax',
+const PLATFORM_FEEL = ['accel', 'decel', 'turn', 'strafe', 'boostSpeed', 'fallGravity', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl', 'boostMax',
   'jumpBoostCost', 'turnMode', 'lookSens', 'move', 'lane', 'moveYaw', 'faceRate', 'jumpWindup', 'collideRadius', 'collideHeight', 'stride', 'turnStepMin',
   'turnStride', 'boostTurnCost', 'overheatRegen', 'boostRegen', 'boostUnlockFrac', 'glideFall'];
 const PLATFORM_MOVES = {

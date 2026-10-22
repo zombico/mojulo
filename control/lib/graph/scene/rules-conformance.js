@@ -10,7 +10,7 @@
  *
  * The hand scenarios pick one case per path through the rules (a tank turn, a look, a strafe, a slope, a wall, a probe;
  * a jump, its cut, its buffer, coyote time, a wind-up, an air jump, a glide, a ledge stepped up, a ledge fallen off, an
- * embed climbed out of; world and lane movement; a boost, its gauge, its lock); the seeded ones throw random input at a random heightfield with boxes.
+ * embed climbed out of; world and lane movement; a boost, its gauge, its lock; ground acceleration); the seeded ones throw random input at a random heightfield with boxes.
  */
 import { simLevel } from '../game/level-sim.js';
 import { faceGround } from '../game/level-equivalence.js';
@@ -62,6 +62,9 @@ export const SCENARIOS = [
     entity: pilot({ type: 'platform', eye: 1.7, boostSpeed: 14 }), faces: FLAT, input: run([10, { boost: 1 }], [10, { boost: 1, strafe: 1 }], [10, { boost: 1, forward: -1 }], [2, { boost: 1, jump: 1, jumpHeld: 1 }], [20, { boost: 1, forward: 1, jumpHeld: 1 }], [10, { forward: 1 }]) },
   { id: 'platform-gauge', about: 'a boost gauge drained by thrust, a jump and each flip of the dash, locked empty, refilled cold',
     entity: pilot({ type: 'platform', eye: 1.7, boostMax: 1.5, boostRegen: 0.6, overheatRegen: 1 }), faces: FLAT, input: run([10, { boost: 1, forward: 1 }], [6, { boost: 1, strafe: 1 }], [6, { boost: 1, strafe: -1 }], [2, { boost: 1, jump: 1, jumpHeld: 1 }], [40, { boost: 1, forward: 1 }], [20, { boost: 1, forward: 1 }], [60, {}], [15, { boost: 1, forward: 1 }]) },
+  { id: 'platform-accel', about: 'ground acceleration: the run built and shed, carried through a jump, braked against, a wall taking its share, a boost released',
+    entity: pilot({ type: 'platform', eye: 1.7, accel: 30, decel: 20, airControl: 0.5, boostSpeed: 12, collideRadius: 0.4, collideHeight: 1.8 }, [0, 0, 1.7], 0.4), faces: FLAT, colliders: [box([9, -40, 0], [11, 40, 3])],
+    input: run([25, { forward: 1 }], [12, {}], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [20, { jumpHeld: 1 }], [10, { forward: -1 }], [40, { forward: 1 }], [8, { boost: 1 }], [20, {}]) },
   { id: 'platform-look', about: 'a look platformer: the mouse turns and pitches it, A/D strafes it',
     entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look', strafe: 0.7, airControl: 0.4 }), faces: FLAT, input: run([10, { lookDX: 80, lookDY: 30 }], [20, { forward: 1, turn: -1 }], [2, { jump: 1, jumpHeld: 1, forward: 1 }], [25, { forward: 1, jumpHeld: 1 }]) },
 ];

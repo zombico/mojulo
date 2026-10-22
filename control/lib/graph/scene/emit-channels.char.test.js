@@ -164,6 +164,9 @@ import { emitThreeWorld } from './scene-three.js';
 // direction, fov, aspect), which the first-frame check reads (lib/graph/game/first-frame-check.js). Emitted only when
 // `capture` is set: the five capture fixtures (capture-bare, capture-controllable, kitchen-sink-capture, fog-effects,
 // shoot-set-capture) gain 6 lines and change none; every live page stays byte-identical.
+// Re-pinned 2026-10-22 (ground acceleration): `platform` accel / decel (the drive) and the 'drive-stop' suppressed tick,
+// gated on `accel`; the controllable trace pins hold. 14 of the 69 fixtures (the controllable pages) change, and every
+// changed line is the platform rule's own source; the other 55 are byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

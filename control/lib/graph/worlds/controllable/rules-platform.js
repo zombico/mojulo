@@ -2,8 +2,8 @@
  * rules-platform.js — the platform rule: the 3D character controller WITH gravity + jump
  * (controllable-split.plan.md, S4). Horizontal control is direct + tight like `walk`; the z axis
  * is dynamic — gravity, jump, the ground hook. The platformer-FEEL knobs live here on purpose:
- * variable jump height, coyote time, jump buffering, asymmetric gravity, reduced air control,
- * stop-and-charge leaps, kneel, SPACE mode (6DoF Newtonian float), and the THRUSTER layer (boost
+ * ground acceleration, variable jump height, coyote time, jump buffering, asymmetric gravity,
+ * reduced air control, stop-and-charge leaps, kneel, SPACE mode (6DoF Newtonian float), and the THRUSTER layer (boost
  * speed/gauge/overheat/hover/flame) — engine features, all opt-in per rule.
  *
  * THE MANEUVER SEAM (S4): the combat/pack maneuvers that used to be woven inline (dodge, tackle,
@@ -42,6 +42,7 @@ export function buildRulesPlatform(E) {
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall
     const jumpV = r.jumpSpeed ?? 8.5, maxFall = r.maxFall ?? 26, snap = r.snap ?? 0.15, step = r.step ?? 0.35;
     const coyoteT = r.coyote ?? 0.1, bufferT = r.buffer ?? 0.1, cutV = r.jumpCut ?? 0, air = r.airControl ?? 0.7;
+    const accel = r.accel > 0 && r.space !== true ? r.accel : 0, decel = r.decel > 0 ? r.decel : accel;   // ground acceleration (opt-in, below)
     const t = e.transform;
 
     // SPACE MODE (opt-in `space:true`, R18) — the second play mode: no gravity, no ground, everyone
@@ -290,6 +291,35 @@ export function buildRulesPlatform(E) {
       if (sp > sMax) v = scl(v, sMax / sp);
       e.vel = v;
       t.pos = add(t.pos, scl(v, dt));
+    } else if (accel > 0) {
+      // GROUND ACCELERATION (opt-in `accel`, units/s², a feel card's ground.accel): the body carries its own planar
+      // velocity, the DRIVE (`e.drive`, world-space), which builds toward the stick's velocity at `accel` and sheds
+      // toward rest (no stick, or a stick against the motion) at `decel` (default `accel`). In the air both rates are
+      // scaled by `airControl` (the target stays the full speed) and an unpushed body keeps its drive: momentum through
+      // the jump. A root (charge, kneel, swing, dodge, tackle) stops it at once, as the direct step does. A boost sets
+      // it to the dash (the dash is instant), so letting go of F sheds the dash at `decel`; with `boostInertia` the
+      // skid owns the release instead and the drive starts from rest. The step is read back onto f/rt, so the gait and
+      // the clips see what the direct step gave them. Absent `accel` → the direct step below, byte-identical.
+      const d = e.drive || (e.drive = [0, 0]);
+      if (!halt) { d[0] = 0; d[1] = 0; }
+      else if (boosting) {
+        const k = r.boostInertia > 0 ? 0 : boostSpeed * ctl / bn;
+        d[0] = (f[0] * bf + rt[0] * bs) * k; d[1] = (f[1] * bf + rt[1] * bs) * k;
+      } else {
+        const pushed = Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3;
+        if (pushed || e.grounded) {
+          const wx = (f[0] * fwdIn + rt[0] * sideIn * strafe) * speed, wy = (f[1] * fwdIn + rt[1] * sideIn * strafe) * speed;
+          const dx = wx - d[0], dy = wy - d[1], dl = Math.hypot(dx, dy);
+          if (dl > 1e-12) {
+            const building = pushed && Math.hypot(wx, wy) >= Math.hypot(d[0], d[1]) - 1e-9 && wx * d[0] + wy * d[1] >= 0;
+            const k = Math.min(1, ((building ? accel : decel) * ctl * dt) / dl);
+            d[0] += dx * k; d[1] += dy * k;
+          }
+        }
+      }
+      fwdMove = (d[0] * f[0] + d[1] * f[1]) * dt;
+      sideMove = (d[0] * rt[0] + d[1] * rt[1]) * dt;
+      t.pos = add(t.pos, [d[0] * dt, d[1] * dt, 0]);
     } else {
       fwdMove = (boosting ? (bf / bn) * boostSpeed * ctl * dt : fwdIn * speed * ctl * dt) * halt;
       sideMove = (boosting ? (bs / bn) * boostSpeed * ctl * dt : sideIn * strafe * speed * ctl * dt) * halt;
@@ -304,10 +334,22 @@ export function buildRulesPlatform(E) {
     // standing height (gates walk-under). Pure — no colliders → untouched (the open void has none).
     if (world && world.colliders) {
       if (space) resolveBlocking3D(t.pos, e.vel, r.collideRadius ?? 0, world.colliders);   // 3D solid — the station + rocks stop the suit
-      else resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
+      else {
+        const px = t.pos[0], py = t.pos[1];
+        resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
+        // a wall takes the part of the drive that went into it (the push-out's direction is the wall's normal); the
+        // part along it stays, so the body slides on
+        if (accel > 0 && e.drive) {
+          const ex = t.pos[0] - px, ey = t.pos[1] - py, el = Math.hypot(ex, ey);
+          if (el > 1e-9) { const vn = (e.drive[0] * ex + e.drive[1] * ey) / el; if (vn < 0) { e.drive[0] -= (vn * ex) / el; e.drive[1] -= (vn * ey) / el; } }
+        }
+      }
     }
-    // the lane holds: after every horizontal write, the body goes back onto its line
-    if (laneMove) { const L = laneNear(r.lane, t.pos[0], t.pos[1]); t.pos[0] = L.px; t.pos[1] = L.py; }
+    // the lane holds: after every horizontal write, the body goes back onto its line (and a drive, onto its tangent)
+    if (laneMove) {
+      const L = laneNear(r.lane, t.pos[0], t.pos[1]); t.pos[0] = L.px; t.pos[1] = L.py;
+      if (accel > 0 && e.drive) { const along = e.drive[0] * L.tx + e.drive[1] * L.ty; e.drive[0] = L.tx * along; e.drive[1] = L.ty * along; }
+    }
 
     // vertical — gravity (asymmetric), terminal clamp, integrate, then LAND on the surface below.
     // SPACE integrated its own z above (Newtonian, no gravity), so this whole block is ground-only.
@@ -517,6 +559,9 @@ export function buildRulesPlatform(E) {
   // rule owns the gauge when it runs; suppressed (reeling / dropping / clashing) the thruster
   // still recharges — the boost/overheat analog of the autoloader.
   registerSuppressedTick('boost-recovery', (e, dt) => tickBoostRecovery(e, dt), 10);
+  // a body something else owns (reeling, dropping, clashing) is not driving: its drive stops, so it never resumes at a
+  // run it was knocked out of. No `accel` → no drive → nothing to stop.
+  registerSuppressedTick('drive-stop', (e) => { if (e.drive) { e.drive[0] = 0; e.drive[1] = 0; } }, 20);
 
   Object.assign(E, { registerPlatformManeuver, platformPhaseOrder });
 }

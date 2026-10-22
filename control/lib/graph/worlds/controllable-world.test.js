@@ -1126,13 +1126,14 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // and breakable terrain: the 'break' pass (this tick's shots, bursts and swings take hp off the blocks they reach).
     // Skyscape added 'missiles' after 'weapon' (a craft's lock, launch and flares: combat-ranged.js stepMissiles; a no-op
     // without rule.missiles).
+    // Ground acceleration added the 'drive-stop' suppressed tick (an owned body's drive stops; a no-op without rule.accel).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
       bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
-      suppressedTicks: ['boost-recovery'],
+      suppressedTicks: ['boost-recovery', 'drive-stop'],
       entityActions: ['weapon', 'missiles', 'melee', 'tackle'],
       worldPasses: ['body-collisions', 'carry', 'launch', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });

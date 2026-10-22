@@ -32,6 +32,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   its reason, byte-identical traces. `lab.mjs` writes a playable page (keyboard, gamepad, touch) with the feel
   switch, the dials, a frame bar, the event log, frame data and a recorder whose runs become fixtures. The eyes gate
   is open.
+- **Ground acceleration in the platform rule** (`rules-platform.js`, opt-in `accel` and `decel`). The first of the
+  lab's pieces in the live rules. The body carries a planar drive that builds toward the stick at `accel` and sheds
+  at `decel` (default `accel`). In the air both rates scale by `airControl`, and an unpushed body keeps its drive, so
+  momentum carries through a jump. A root (charge, kneel, swing, dodge, tackle) stops it at once. A boost sets it to
+  the dash, so letting go of F sheds the dash; with `boostInertia` the skid owns the release instead. A wall takes the
+  part of the drive that went into it and the body slides on, a lane keeps it on its tangent, and a body a reaction
+  owns stops driving (the `drive-stop` suppressed tick). Absent `accel`, the direct step runs byte for byte: the
+  controllable trace pins hold, and the 14 controllable pages' emission pins move only by the rule's own source. The
+  Godot kernel runs it too (`rules.gd`, held by a new `platform-accel` conformance scenario); Roblox leaves it to the
+  Humanoid's own feel. The `controllable` vocab card names it.
 
 ### Animation games spike: one take, four flavors
 

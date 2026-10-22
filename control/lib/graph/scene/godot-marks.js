@@ -27,7 +27,7 @@ export const RULE_MARKS = Object.freeze({
   walk: m(B, 'kernel/rules.gd: the web walk rule on the level\'s faces (turn, look, strafe, probe, colliders)'),
   follow: m(B, 'kernel/rules.gd: the web chase camera (its ease, shoulder, lead, reverse swing and pitch), pulled in before the land as the page pulls it in; a level whose camera is not the page\'s rides kernel/walker.gd\'s spring arm behind the suit'),
   eye: m(B, 'kernel/rules.gd: first person at the target\'s eye, its heading and pitch'),
-  platform: m(B, 'kernel/rules.gd: the web platform rule\'s run, turn (tank, look, world, lane), jump with its cut, buffer, coyote, wind-up, air jumps and glide, boost and its gauge, on the level\'s faces and colliders; its opt-in moves the kernel does not run are named per level (PLATFORM_LOST)'),
+  platform: m(B, 'kernel/rules.gd: the web platform rule\'s run (its ground acceleration too), turn (tank, look, world, lane), jump with its cut, buffer, coyote, wind-up, air jumps and glide, boost and its gauge, on the level\'s faces and colliders; its opt-in moves the kernel does not run are named per level (PLATFORM_LOST)'),
   glide: m(A, 'no glide in kernel/walker.gd'),
   overhead: m(B, 'kernel/rules.gd: the ¾ overhead, north up the screen'),
   side: m(B, 'kernel/rules.gd: square to the pilot\'s lane, swinging round its bends (the lane pilot is the platform rule\'s)'),
@@ -47,7 +47,7 @@ export const RULE_MARKS = Object.freeze({
 // the kernel runs it: in kernel/rules.gd (ported), in the fight (kernel/combat.gd: the combat_carried row says what of
 // it), or not at all (lost: an opt-in move the web runs and the export names). godot-marks.test.js holds this closed.
 export const PLATFORM_KEYS = Object.freeze({
-  ported: ['type', 'speed', 'turn', 'strafe', 'eye', 'gravity', 'fallGravity', 'jumpSpeed', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl',
+  ported: ['type', 'speed', 'accel', 'decel', 'turn', 'strafe', 'eye', 'gravity', 'fallGravity', 'jumpSpeed', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl',
     'turnMode', 'lookSens', 'move', 'moveYaw', 'faceRate', 'lane', 'jumpWindup', 'airJumps', 'airJumpMult', 'glideFall', 'collideRadius', 'collideHeight', 'stride',
     'turnStepMin', 'turnStride', 'boostSpeed', 'boostMax', 'boostRegen', 'overheatRegen', 'boostUnlockFrac', 'boostTurnCost', 'jumpBoostCost'],
   fight: ['strike', 'strikeCone', 'strikeContact', 'strikeCooldown', 'strikeDamage', 'strikeDur', 'strikeFx', 'strikeImpact', 'strikeLaunch', 'strikeReach', 'combo', 'comboCooldown', 'comboWindow'],

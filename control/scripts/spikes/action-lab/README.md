@@ -142,7 +142,8 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
    Reading the clip's air by vertical speed (rising → apex → falling) plays any arc and any fall off a ledge. Engines'
    blend trees do the same, so it ports.
 5. **The live rules have most of the jump already.** `rules-platform.js` already carries coyote, buffer, cut, rise and
-   fall gravity and air control. It lacks ground acceleration (velocity is instant), hitstop, a generic knockback, and
+   fall gravity and air control, and now ground acceleration (opt-in `accel` / `decel`, the card's `ground.accel` and
+   `ground.decel`; before it, velocity was instant). It lacks hitstop, a generic knockback, and
    attack and dodge buttons (melee shares `fire`, dodge is a double-tap of boost). It has no frame-data timing either:
    the strike is `strikeDur` 0.9 s with a fractional contact window. Those are the integration's first pieces.
 6. **Two combat stacks, one card.** `versus/` already has frame-exact hitstop, stun and a 4-frame buffer. The
