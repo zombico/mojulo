@@ -120,6 +120,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (`dimorphRelations`) now runs between the two poles. The composer rolls a man about his pole: his hairline lower, the
   widow's peak more often and more marked and without the women's centre-parted groom, his brows taller and fuller
   (`FACE_GROOM_SEX`); a woman's rolls are byte-identical.
+- PAINTED SHADING, opt-in (dermal-map.js `shade`, 0 … 1, absent nothing): the occlusion read at a face's reach (the
+  sockets, the hollow under the cheekbone, beside the nose, under the lip and the jaw), multiplied into the colour as a
+  game paints its light in (dermal-texture.js `finishPages`; the head chart's `occlusionAt`). For targets without their
+  own occlusion; an engine that adds its own wants it absent.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

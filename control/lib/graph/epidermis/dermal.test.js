@@ -183,3 +183,15 @@ describe('the deep tones as albedo', () => {
     expect(a10[0] / a10[2]).toBeGreaterThan(3);
   });
 });
+
+describe('the shading painted in', () => {
+  it('absent paints nothing, and asked for darkens the enclosed skin, deeper the more it is asked', () => {
+    const L = layoutDermis(chart, { page: 128 }), D = readDermis('male');
+    const plain = paintDermis(chart, D, L), half = paintDermis(chart, readDermis({ from: 'male', shade: 0.5 }), L), full = paintDermis(chart, readDermis({ from: 'male', shade: 1 }), L);
+    expect(paintDermis(chart, readDermis({ from: 'male', shade: 0 }), L).albedo).toEqual(plain.albedo);
+    const sum = (T) => T.albedo.reduce((a, v, i) => a + (i % 4 === 3 ? 0 : v), 0);
+    expect(sum(half)).toBeLessThan(sum(plain)); expect(sum(full)).toBeLessThan(sum(half));
+    for (let i = 0; i < plain.albedo.length; i++) expect(full.albedo[i]).toBeLessThanOrEqual(plain.albedo[i]);
+    expect(() => readDermis({ from: 'male', shade: 1.2 })).toThrow(/shade/);
+  });
+});

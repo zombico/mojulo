@@ -56,6 +56,7 @@ export const DERMIS_DIALS = Object.freeze({
   peak: 'mm, 0 … 10 (a widow\'s peak: the hairline dipping at the middle; absent 0)',
   sideburn: 'mm, −12 … 15 (the sideburn\'s foot lower; − shorter; absent 0)',
   nape: 'mm, −15 … 20 (the nape\'s line lower; − higher; absent 0)',
+  shade: '0 … 1 (the broad SHADING painted into the colour, as a game paints its light in: the sockets, under the cheekbone, beside the nose, under the lip and the jaw; absent 0, the colour as it was)',
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
@@ -68,7 +69,7 @@ export const DERMIS_DIALS = Object.freeze({
   seed: 'an integer',
 });
 /** the dials a map may name or not (absent, they add nothing): checked only when given */
-const OPTIONAL_RANGES = { round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
+const OPTIONAL_RANGES = { shade: [0, 1], round: [-1, 1], temples: [-8, 40], peak: [0, 10], sideburn: [-12, 15], nape: [-15, 20], bald: [0, 1] };
 const RANGES = { lines: [0, 1], dirt: [0, 1], age: [0, 1], zones: [0, 1.5], flush: [0, 1.5], freckles: [0, 1], oil: [0, 1], hairline: [0.8, 1.2], beard: [0, 1.5], stubble: [0, 30], body: [0, 1.5], axilla: [0, 1] };
 
 // (the male's hairline lower than the natural and a widow's peak at its middle: the male pole's, 2026-10-22, the operator's eyes)

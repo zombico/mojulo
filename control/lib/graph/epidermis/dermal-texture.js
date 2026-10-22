@@ -160,6 +160,8 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
   }
 }
 
+/** the shading's reach (STAND units: ~63 mm, a socket's or a cheek's hollow), its strength, and how deep it paints at `shade: 1` */
+const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75 });
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
 export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
@@ -173,6 +175,13 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
     // (and the dirt gathers where the skin is enclosed: the creases, the sockets' corners, the nostrils' rims)
     for (let i = 0; i < N * NH; i++) { const k = 0.5 + 0.5 * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
     ao = Uint8Array.from(ao, (v) => byte(v));
+  }
+  // the SHADING (the dermis's `shade`, absent nothing): the occlusion at a face's reach, the sockets, the hollow under
+  // the cheekbone, the folds beside the nose and under the lip, darkening the colour as a painted texture carries its
+  // light (an engine that adds its own occlusion wants it absent)
+  if (D.shade > 0 && chart.occlusionAt) {
+    const broad = bakeVertex(chart, uvOf, N, NH, chart.occlusionAt(SHADE.radius, SHADE.strength), 1);
+    for (let i = 0; i < N * NH; i++) { const k = 1 - D.shade * SHADE.depth * Math.max(0, Math.min(1, 1 - broad[i])); if (k >= 1) continue; for (let c = 0; c < 3; c++) albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, srgbLin(albedo[i * 4 + c] / 255) * k))); }
   }
   return { page: N, pageH: NH, albedo, ao, roughness: rough, translucency: trans, hair, fuzz, detail, classes, mmPerTexel: layout.mmPerTexel, faceUV: uvOf };
 }
