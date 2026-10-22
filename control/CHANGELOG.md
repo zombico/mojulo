@@ -26,6 +26,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tiered crease (`TIERED_SMOOTH_CREASE`: the skin and the body's colour groups blend across 70°) where it took the
   35° default and showed its limbs' eight facets; one helper (tiered-form.js `heroShade`) gives the World and the body
   study the same crease and head ellipsoid. The anime head's body is the tiered form at mint, as every new hero's is.
+- THE TIERED LIMB END (hero laws 7, tiered-form.js `tieredJoints` `respace`): a lofted limb stopped short of its bridge
+  (the thigh, at the knee) carries its shaping rings with its end, each by its share of the run, so its last span keeps
+  its length. Laws 1 to 6 left them, and the man's thigh ended in a centimetre-long span: a knight's knee guard built
+  over it splayed past half a metre on the default body. A tiered hero stamped before keeps its thigh.
 - THE TIERED FORM HOLDS THE BUST'S CEILING (hero-form.js `bustCeilingError`): it builds its plan bare and profiles the
   bust after, so a runaway `body.bust` passed it silently; it is refused by the same words heroPlan says. And its plan
   carries no −0 (a stored plan reads it back as 0, so a regenerated plan matched the stored one only by its bytes).

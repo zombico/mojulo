@@ -177,7 +177,7 @@ export function bridgedChains(plan, list = TIERED_JOINTS) {
 
 /** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was.
  * `list`: the joints (TIERED_JOINTS, the hero's; a creature's own, creature-drawn.js creatureJoints). */
-export function tieredJoints(plan, list = TIERED_JOINTS) {
+export function tieredJoints(plan, list = TIERED_JOINTS, { respace = false } = {}) {
   const segments = plan.segments.map((s) => ({ ...s, ...(s.stations ? { stations: s.stations.map((st) => ({ ...st })) } : {}) }));
   const byName = (n) => segments.find((s) => s.name === n);
   const folds = plan.rig?.folds || {}, families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
@@ -196,6 +196,14 @@ export function tieredJoints(plan, list = TIERED_JOINTS) {
     else {
       const S = U.stations, last = S[S.length - 1], prev = S[S.length - 2], d = unit3(sub3(last.at, prev.at));
       const at = plan.joints[D.from ?? J.lower.replace(/R$/, '')].map((x, k) => r6(x - d[k] * J.reach * rad(last.r)));
+      // (`respace`, hero laws 7: the shaping rings past the last whole station move with the end by their share of the
+      // run, so the end's last span keeps its length; laws 1 to 6 left them, and a short limb's last span, the knee's
+      // under a poleyn, closed to a centimetre)
+      if (respace) {
+        const uOf = (i) => S[i].u ?? S.slice(0, i).filter((x) => x.u === undefined).length, n = S.length - 1, shift = sub3(at, last.at);
+        let k = n - 1; while (k > 0 && S[k].u !== undefined && !Number.isInteger(S[k].u)) k--;
+        for (let j = k + 1; j < n; j++) { const f = (uOf(j) - uOf(k)) / (uOf(n) - uOf(k)); S[j] = { ...S[j], at: S[j].at.map((x, q) => r6(x + shift[q] * f)) }; }
+      }
       S[S.length - 1] = { ...last, at }; U.caps = { ...U.caps, tip: at };
     }
     if (D.kind === 'segment') { Object.assign(D, overshoot(plan, D, [-J.reach, D.over?.[1] ?? 0.6])); D.cap = [0, D.cap?.[1] ?? 0.45]; }

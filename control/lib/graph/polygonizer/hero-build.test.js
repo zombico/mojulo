@@ -148,10 +148,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(6);
+    expect(HERO_LAWS_VERSION).toBe(7);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 6/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 7/)]);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };
@@ -217,6 +217,17 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     expect(seg(at({ ...chibi, body: { arm: 0.05 } }, 6), 'upperArmR')).toEqual(seg(at({ ...build, body: { arm: 0.05 } }, 6), 'upperArmR'));
     const adult = { cast: { pole: 'female', build: 'lithe' } };
     expect(at(adult, 6)).toEqual(at(adult, 5));
+  });
+  it('laws 7, the tiered limb end: a lofted limb\'s shaping rings move with its end, its last span kept; another form is as it was', () => {
+    const at = (spec, laws) => expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord(spec, { staleScale: true }), laws } }).plan;
+    const thigh = (p) => p.segments.find((g) => g.name === 'thighR').stations, span = (S) => S[S.length - 2].at[2] - S[S.length - 1].at[2];
+    const tiered = { cast: 'male', form: 'tiered' }, six = thigh(at(tiered, 6)), seven = thigh(at(tiered, 7)), whole = thigh(at({ cast: 'male', form: 'classic' }, 7));
+    expect(seven.at(-1).at).toEqual(six.at(-1).at);   // the end where the bridge begins, as it was
+    expect(span(six)).toBeLessThan(0.02);   // (laws 6: the knee's last span closed to a centimetre or so)
+    // the span's share of the whole limb's last run as on the whole limb (the ring at its u)
+    const share = (S) => span(S) / (S[S.length - 3].at[2] - S[S.length - 1].at[2]);
+    expect(share(seven)).toBeCloseTo(share(whole), 2);
+    expect(at({ cast: 'male', form: 'classic' }, 7)).toEqual(at({ cast: 'male', form: 'classic' }, 6));
   });
   it('laws 2 keeps the cage closed: the lifted root carries the top cap\'s tip up with it', () => {
     // the cast furthest from the identity (chosen from the catalog: the most dials off 1) and the blank trunk
