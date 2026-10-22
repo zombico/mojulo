@@ -3,7 +3,8 @@
 // writes animation-games.html (a player: the four panes in real time, a slow-motion switch, the take, the body's speed
 // for pinball) and filmstrip-<take>.svg (every second frame at 60 fps, a row per flavor: holds boxed, smears drawn; a jump lifted on earth's gravity over
 // its flavor's air time, since the clip itself is in place).
-// A side view, sticks from the rig's bones; the depiction is the spike's, not a renderer's.
+// The player draws each pane twice, a side view and a ¾ overhead one (views.mjs); the filmstrips are side views. Sticks
+// from the rig's bones; the depiction is the spike's, not a renderer's.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { register } from 'node:module';
@@ -11,6 +12,7 @@ register('../../mcp-stdio-loader.mjs', import.meta.url);
 const { validateRig } = await import('../../../lib/graph/polygonizer/station-loft-rig.js');
 const { heroRecord, expandLayeredManifest } = await import('../../../lib/mcp/tools/layered.js');
 const A = await import('./flavor.mjs');
+const { VIEW_JS } = await import('./views.mjs');
 
 const out = process.argv[2]; if (!out) { console.error('usage: preview.mjs /absolute/out/dir [cast]'); process.exit(2); }
 const cast = process.argv[3] ?? 'male';
@@ -19,6 +21,9 @@ const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero:
 const BONES = R.bones.filter((b) => !/Fold|Face|pelvis$|lumbar/.test(b.id)).map((b) => [b.head, b.tail]);
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const side = (n, flip = 1, dx = 0, dz = 0) => Object.fromEntries(Object.entries(n).map(([k, p]) => [k, [r3(dx + flip * p[1]), r3(p[2] + dz)]]));
+// the same body in 3D (a victim turned about the vertical: x and y flipped), centimetres, for the player
+const r2 = (x) => Math.round(x * 100) / 100;
+const solid = (n, flip = 1, dx = 0, dz = 0) => BONES.filter(([a, b]) => n[a] && n[b]).flatMap(([a, b]) => [n[a], n[b]].flatMap((p) => [r2(flip * p[0]), r2(dx + flip * p[1]), r2(p[2] + dz)]));
 
 // a body's frames as side-view sticks; a victim faces back and stands where the blow lands, thrown after its freeze
 // a jump's clip is in place (the engine flies the body): the preview lifts it on earth's gravity over the flavor's own air
@@ -32,9 +37,9 @@ function strip(rendered, { flip = 1, at = 0, knock = null } = {}) {
     frames: nodes.map((n, k) => {
       let dx = at, dz = lift(k);
       if (knock && k > free) { const t = (k - free) / rendered.fps, T = Math.max(0.25, knock.airborne + 0.3); const u = Math.min(1, t / T); dx += knock.distance * (1 - (1 - u) ** 2) * -flip; if (t < knock.airborne) dz = knock.height * 4 * (t / knock.airborne) * (1 - t / knock.airborne); }
-      return { held: rendered.frames[k].held, sticks: BONES.filter(([a, b]) => n[a] && n[b]).map(([a, b]) => [...side({ a: n[a] }, flip, dx, dz).a, ...side({ b: n[b] }, flip, dx, dz).b]) };
+      return { held: rendered.frames[k].held, s3: solid(n, flip, dx, dz), sticks: BONES.filter(([a, b]) => n[a] && n[b]).map(([a, b]) => [...side({ a: n[a] }, flip, dx, dz).a, ...side({ b: n[b] }, flip, dx, dz).b]) };
     }),
-    smears: smears.map((s) => ({ frame: s.frame, line: [at + flip * s.from[1], s.from[2], at + flip * s.to[1], s.to[2]].map(r3) })),
+    smears: smears.map((s) => ({ frame: s.frame, line: [at + flip * s.from[1], s.from[2], at + flip * s.to[1], s.to[2]].map(r3), line3: [flip * s.from[0], at + flip * s.from[1], s.from[2], flip * s.to[0], at + flip * s.to[1], s.to[2]].map(r2) })),
   };
 }
 
@@ -98,6 +103,8 @@ for (const T of data.takes) {
 }
 
 // ── the player ──
+const page = (b) => (b ? { wide: !!b.wide, frames: b.frames.map((f) => ({ h: !!f.held, s: f.s3 })), smears: b.smears.map((m) => ({ frame: m.frame, l: m.line3 })) } : null);
+const pageData = { fps: data.fps, flavors: data.flavors, takes: data.takes.map((T) => ({ id: T.id, label: T.label, by: Object.fromEntries(Object.entries(T.by).map(([k, e]) => [k, { ...e, a: page(e.a), v: page(e.v) }])) })) };
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Animation flavors</title>
 <style>
 :root{--bg:#fafaf7;--fg:#1d1d1b;--mut:#6b6b66;--line:#e2e2dc}
@@ -109,31 +116,37 @@ h1{font-size:18px;margin:0 0 4px}.mut{color:var(--mut)}
 .pane{border:1px solid var(--line);border-radius:8px;padding:8px}
 .pane h2{font-size:14px;margin:0}.pane p{margin:2px 0 6px;font-size:12px;color:var(--mut);min-height:32px}
 canvas{width:100%;aspect-ratio:3/2;display:block}
+.view{font-size:11px;color:var(--mut);margin:4px 0 0}
 table{font-size:11px;border-collapse:collapse;width:100%}td{padding:1px 4px;border-top:1px solid var(--line)}td:last-child{text-align:right}
 </style></head><body>
 <h1>Animation flavors</h1><div class="mut">The same take in each flavor, one clock. The contact pose is the same pose in all four; what differs is time, the wind-up, holds, squash, smears and the force handed on. Machine gate only: nobody has looked yet.</div>
 <div class="bar"><label>take <select id="take"></select></label><label><input type="checkbox" id="slow"> ¼ speed</label><label>pinball speed <select id="spd"><option>4</option><option selected>10</option><option>20</option></select> m/s</label><button id="restart">restart</button><span class="mut" id="clock"></span></div>
 <div class="grid" id="grid"></div>
 <script>
-const D=${JSON.stringify(data)};
+const D=${JSON.stringify(pageData)};
+${VIEW_JS}
 const COL={realistic:'#5b8def',action:'#e5533d',platformer:'#2fa66a',pinball:'#b05be0'};
 const sel=document.getElementById('take'),grid=document.getElementById('grid');
 D.takes.forEach((t,i)=>sel.add(new Option(t.label,i)));
-const panes=D.flavors.map(f=>{const d=document.createElement('div');d.className='pane';d.innerHTML='<h2 style="color:'+COL[f.id]+'">'+f.id+'</h2><p>'+f.says+'</p><canvas width="600" height="400"></canvas><table></table>';grid.appendChild(d);return {f:f.id,cv:d.querySelector('canvas'),tb:d.querySelector('table')};});
+const panes=D.flavors.map(f=>{const d=document.createElement('div');d.className='pane';d.innerHTML='<h2 style="color:'+COL[f.id]+'">'+f.id+'</h2><p>'+f.says+'</p>'+VIEWS.map(v=>'<div class="view">'+VIEW_NAME[v]+'</div><canvas data-view="'+v+'" width="600" height="400"></canvas>').join('')+'<table></table>';grid.appendChild(d);return {f:f.id,cvs:[...d.querySelectorAll('canvas')],tb:d.querySelector('table')};});
 let t0=performance.now(),clockT=0,last=performance.now();
 const entry=(p)=>{const T=D.takes[sel.value];const k=p.f==='pinball'?'pinball@'+document.getElementById('spd').value:p.f;return T.by[k];};
 function table(){for(const p of panes){const e=entry(p),s=e.sig,b=e.blow;const rows=[['length',e.seconds.toFixed(3)+' s'],['frames held',s.held],['wind-up depth',s.windDepth+' m'],['peak end speed',s.peakSpeed+' m/s'],['squash',s.squash],['smears',s.smears]];if(b)rows.push(['victim Δv',b.dv+' m/s'],['powerscale','×'+b.powerscale],['hitstop',b.hitstop+' f'],['thrown',b.knockback.distance+' m']);p.tb.innerHTML=rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('');}}
-function draw(ctx,body,k,col,W,H){const fr=body.frames[Math.max(0,Math.min(body.frames.length-1,k))];const sc=H/(body.wide?4.2:2.6),ox=W*(body.wide?0.18:0.3),oy=H*0.9;
- for(const s of body.smears.filter(s=>s.frame===k)){ctx.strokeStyle=col;ctx.globalAlpha=.35;ctx.lineWidth=14;ctx.beginPath();ctx.moveTo(ox+s.line[0]*sc,oy-s.line[1]*sc);ctx.lineTo(ox+s.line[2]*sc,oy-s.line[3]*sc);ctx.stroke();ctx.globalAlpha=1;}
- ctx.strokeStyle=col;ctx.lineWidth=5;ctx.lineCap='round';for(const s of fr.sticks){ctx.beginPath();ctx.moveTo(ox+s[0]*sc,oy-s[1]*sc);ctx.lineTo(ox+s[2]*sc,oy-s[3]*sc);ctx.stroke();}
- return fr.held;}
+// the camera: centred a little ahead of the body (between the two of a blow), the floor low in the frame
+function screen(view,e,W,H){const sc=H/(e.a.wide?4.2:2.6),c=proj(view,0,e.a.wide?0.9:0.35,0),ox=W*0.5,oy=H*(view==='side'?0.9:0.62);return (q)=>[ox+(q[0]-c[0])*sc,oy-(q[1]-c[1])*sc];}
+function draw(ctx,view,S,body,k,col){const fr=body.frames[Math.max(0,Math.min(body.frames.length-1,k))];
+ for(const m of body.smears.filter(m=>m.frame===k)){ctx.globalAlpha=.35;drawSticks(ctx,view,S,m.l,col,14);ctx.globalAlpha=1;}
+ drawSticks(ctx,view,S,fr.s,col,5);
+ return fr.h;}
 function frame(now){requestAnimationFrame(frame);const dt=Math.max(0,(now-last)/1000);last=now;clockT+=dt*(document.getElementById('slow').checked?0.25:1);
  const longest=Math.max(...panes.map(p=>entry(p).seconds))+0.6;if(clockT>longest)clockT=0;
  document.getElementById('clock').textContent=clockT.toFixed(2)+' s';
- for(const p of panes){const e=entry(p),ctx=p.cv.getContext('2d'),W=p.cv.width,H=p.cv.height;ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle=getComputedStyle(document.body).color;ctx.globalAlpha=.25;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H*0.9);ctx.lineTo(W,H*0.9);ctx.stroke();ctx.globalAlpha=1;
-  const k=Math.floor(clockT*D.fps);let held=draw(ctx,e.a,k,COL[p.f],W,H);
-  if(e.v){held=draw(ctx,e.v,k-e.offset,'#888',W,H)||held;}
+ const fg=getComputedStyle(document.body).color;
+ for(const p of panes)for(const cv of p.cvs){const view=cv.dataset.view,e=entry(p),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);const S=screen(view,e,W,H);
+  if(view==='side'){ctx.strokeStyle=fg;ctx.globalAlpha=.25;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H*0.9);ctx.lineTo(W,H*0.9);ctx.stroke();ctx.globalAlpha=1;}
+  else drawGrid(ctx,view,S,-3,e.a.wide?6:4,-2,2,fg);
+  const k=Math.floor(clockT*D.fps);let held=draw(ctx,view,S,e.a,k,COL[p.f]);
+  if(e.v){held=draw(ctx,view,S,e.v,k-e.offset,'#888')||held;}
   if(held&&k<e.a.frames.length+(e.v?e.offset+e.v.frames.length:0)){ctx.fillStyle='#f0a020';ctx.font='bold 20px system-ui';ctx.fillText('HOLD',12,28);}
   if(clockT>e.seconds){ctx.fillStyle=getComputedStyle(document.body).color;ctx.globalAlpha=.4;ctx.font='14px system-ui';ctx.fillText('done',W-50,24);ctx.globalAlpha=1;}}
  }

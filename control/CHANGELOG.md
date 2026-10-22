@@ -44,6 +44,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   No trunk passes the wall or the other body. `collision-verify.mjs` is the machine gate, and `collision-preview.mjs`
   writes a player and strobes. The findings: the library has no clip that braces a hand against a surface (the forward
   hand passes 11–26 cm through), and the charge is a flavor rule, not physics.
+- **The wall's property** (collision): a non-realistic wall is bouncy (tunable: a restitution, or a fixed rebound and
+  hop), a treadmill (the gait goes on in place), or sticky (the body turns onto it and walks up, or climbs it hand over
+  hand). The climb is built from the rig's own leg solve and `reachArm`, since the library has no climbing clip. Its
+  palms meet the wall within 1.5 mm and its holds hold. A realistic wall refuses a property. A walk into a bouncy wall,
+  or into a body, now walks in place instead of freezing as a block.
+- **Two views:** every player draws each pane from the side and from a ¾ overhead camera over a floor grid.
 - **One review page** (`viewer.mjs`): every part's player, strobes and machine gate on tabs, for the artifact host.
 
 ### Science worlds: a demo composed from laws, not authored per experiment

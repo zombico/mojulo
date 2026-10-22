@@ -193,7 +193,7 @@ change into a rung:
 
 | rung | what plays |
 |---|---|
-| block | nothing: the body stops and settles into the stand |
+| treadmill | the gait goes on in place against the surface (the other body, if any, is untouched: `still`) |
 | bump | `hitHigh`, its peak scaled by the change |
 | stagger | `stagger`: blown back, swaying until it recovers |
 | down | `knockedOut` (hero-rise): the knees buckle, the body falls back about its feet as a rod under gravity |
@@ -204,16 +204,40 @@ change into a rung:
 | flavor | what an impact does | walk → wall | run → wall | run → body |
 |---|---|---|---|---|
 | **realistic** | momentum: a wall gives back 0.1; two bodies share it (restitution 0.2); flinch under 1 m/s of change, stagger under 3.5, down past it | flinch | down, 0.53 m/s back | both stagger (2.1 / 3.2 m/s on) |
-| **action** | springier (a wall gives back 0.4), shown ×3; the charger takes its own change unscaled; a walk is a block; a freeze of 4 + 0.4 f per m/s shown | block | launched, 4.5 m back, 13 f freeze | the charger staggers, the other is launched 10 m |
-| **platformer** | a walk is a block; a run bonks off a wall (3 m/s back, 0.5 m hop, whatever the speed) or boops off a body (both apart at 3 m/s); squashed to 0.75 deep on contact | block | bonk | boop, even |
+| **action** | springier (a wall gives back 0.4), shown ×3; the charger takes its own change unscaled; a walk walks in place; a freeze of 4 + 0.4 f per m/s shown | walks in place | launched, 4.5 m back, 13 f freeze | the charger staggers, the other is launched 10 m |
+| **platformer** | a walk walks in place; a run bonks off a wall (3 m/s back, 0.5 m hop, whatever the speed) or boops off a body (both apart at 3 m/s); squashed to 0.75 deep on contact | walks in place | bonk | boop, even |
 | **pinball** | every surface is a bumper (restitution 1.3); past 2 m/s a body balls up and spins | bounces back at 0.91 m/s | spins 4 turns, 6.1 m back | a Newton's cradle: the runner all but stops, the other spins away at 6.1 m/s |
 
 **The promise.** No trunk joint passes the wall or the other body's trunk, in any flavor, walking or running.
 
-**What the machine gate measured** (`collision-verify.mjs`; all 15 checks hold on male and female; nobody has looked yet).
+### The wall's property
+
+A non-realistic wall says what it does to a body that meets it. Each flavor has a default (the table above), and any
+flavor takes any of them by the caller's word: `collide(R, { flavor, gait, target: 'wall', wall })`. A realistic wall
+is a wall: it refuses a property.
+
+| property | dials | what plays |
+|---|---|---|
+| **bouncy** | `{ e }` restitution (past 1 it gives back more than it got), or `{ rebound, hop }` a fixed bounce; `minSpeed` | the ladder above, from the speed it hands back; slower than `minSpeed`, the body walks in place |
+| **treadmill** | none | the gait goes on, the body pinned with its chest on the surface, the feet sliding under it at the gait's own speed |
+| **sticky, walk** | none | the body turns 90° about the wall's foot over 0.3 s and walks up the face at its own speed, its planted feet on the wall |
+| **sticky, climb** | `speed` (0.6 m/s) | hands and feet on the wall, moving contralaterally (a hand and the other foot together, the other two holding), the body rising steadily |
+
+The climb is new: the library has no climbing clip. The game's `wall_crawl` falls back to a figure's own `climb` or
+`leap`, and the hero has neither. So the spike builds one from what the rig already does. Each foot goes to a hold on
+the wall through the rig's own leg solve (`feet`). Each hand goes to its hold through hero-stance's `reachArm`, posed
+through `elbowsDown`, the space that solver answers in (posed without it, a wrist lands 20–40 cm off its goal). The hand
+holds are set from the rig's shoulder height and arm length, so a short-armed body holds lower; fixed in metres, the
+female cast's palms ended 16 cm off the wall.
+
+**What the machine gate measured** (`collision-verify.mjs`; all 20 checks hold on male and female; nobody has looked yet).
 Realistic momentum sums exactly in body-on-body collisions, and a wall gives back exactly a tenth. Action's freeze holds
 both bodies still and is longer for the harder impact (13 frames off the wall, 8 off a body). Platformer's bonk is the
-same at 3, 5.3 or 9 m/s. Pinball leaves every wall at 1.3× the speed it came in.
+same at 3, 5.3 or 9 m/s. Pinball leaves every wall at 1.3× the speed it came in. Bouncy tunes: off e 0.3, 0.8 and 1.6
+the runner leaves at 1.59, 4.24 and 8.48 m/s, and a fixed rebound of 2, 3 or 5 m/s is exactly that. On a treadmill the
+feet slide at the gait's own speed (0.72 m/s walking, 5.66 running). Walking up, the body rises at the gait's own speed
+(0.699 and 5.29 m/s) with its planted feet within 5 mm of the wall's plane, holding (0.02 m/s). Climbing, the holds drift
+at most 4 mm a frame, the palms sit within 1.5 mm of the wall, and the body rises at exactly 0.6 m/s.
 
 ### Collision findings
 
@@ -229,8 +253,24 @@ same at 3, 5.3 or 9 m/s. Pinball leaves every wall at 1.3× the speed it came in
    stops as hard as the body it hits. Action games show the charger driving through. The spike makes that explicit as
    `charge` (the incoming body's change is shown unscaled while the other's is ×3). It is the same asymmetry as the first
    part's striker and victim.
-4. **A block is the platformer's and the action game's walk.** Walking into a wall or a person does nothing in those
-   games. The spike makes that a threshold on the approach speed (`blockBelow` 1.5 m/s). It also takes the freeze away:
-   a block that froze 4 frames read as a hit.
+4. **Walking in place is the platformer's and the action game's walk.** Walking into a wall or a person does nothing in
+   those games but keep the stride going. The spike makes that a threshold on the approach speed (`minSpeed` on a bouncy
+   wall, `blockBelow` against a body, both 1.5 m/s), and it plays as the treadmill. A first version stopped the body
+   and froze it 4 frames, which read as a hit.
 5. **The hero walk is a stroll.** At 0.70 m/s, every walking collision here is gentle. A brisk walk (1.4 m/s) would put
    realistic's walk into a wall at 1.5 m/s of change, a stagger, which is closer to what walking into a glass door does.
+6. **The treadmill is the one wall that has to slide feet.** It is what most games do, and what a player expects. It
+   is also the only response here where planted feet visibly skate, at exactly the gait's speed. A game that wants the
+   treadmill without the skate has two options: lock the feet and play the gait's upper body alone, or blend the cycle
+   down to an idle push against the wall.
+7. **The climb is the brace finding's answer.** Its palms meet the wall within 1.5 mm, where a bounce's forward hand
+   passes 11–26 cm through it. The same two solvers (`feet` and `reachArm` through `elbowsDown`) would give a run into a
+   wall its hands-up brace.
+
+## Two views
+
+Every player draws each pane twice. The side view is as before. The ¾ overhead view is the same camera swung 35° round
+behind the body and raised 30°, like a third-person game camera, over a floor grid of metres (`views.mjs`, one snippet
+all three players share). The strobes and filmstrips stay side views. The ¾ view shows what the side view hides: the
+guard's stance width, the jab crossing the body, a stride's feet passing each other, and a climb's hands and feet spread
+on the wall.

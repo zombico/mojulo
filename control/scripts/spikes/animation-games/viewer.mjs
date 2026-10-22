@@ -24,8 +24,9 @@ const PARTS = [
     strips: [['motion-strobe.svg', 'chronophotograph: the body 10 times a second where it is']],
     says: 'A run-up from a jog, the running jump, the landing and a run-out, the body travelling. Speed build-up, the stride against the ground, the arc and the landing differ; the clip\'s take-off and landing frames are the flight\'s ends in every flavor. Pinball flies a tucked spin.' },
   { id: 'collision', name: 'Collisions', script: 'collision-preview.mjs', verify: 'collision-verify.mjs', player: 'collision.html',
-    strips: [['collision-run-wall.svg', 'run into a wall'], ['collision-run-unit.svg', 'run into a body'], ['collision-walk-wall.svg', 'walk into a wall'], ['collision-walk-unit.svg', 'walk into a body']],
-    says: 'Walking or running into a wall or a standing body of the same mass. The flavor decides what the impact does: the speed each body leaves with, how much of the change it shows, and which rung of one shared ladder it reaches (block, flinch, stagger, down, launched, bonk or boop, spin). No trunk passes the wall or the other body.' },
+    strips: [['collision-run-wall.svg', 'run into a wall'], ['collision-run-unit.svg', 'run into a body'], ['collision-walk-wall.svg', 'walk into a wall'], ['collision-walk-unit.svg', 'walk into a body'],
+      ['collision-walls-run.svg', 'run into a wall, by its property'], ['collision-walls-walk.svg', 'walk into a wall, by its property'], ['collision-bouncy-tuned.svg', 'run into a bouncy wall, tuned']],
+    says: 'Walking or running into a wall or a standing body of the same mass. The flavor decides what the impact does: the speed each body leaves with, how much of the change it shows, and which rung of one shared ladder it reaches (walk in place, flinch, stagger, down, launched, bonk or boop, spin). A non-realistic wall carries a property: bouncy (tunable), treadmill (the gait goes on in place) or sticky (walk up it, or climb it hand over hand). No trunk passes the wall or the other body.' },
 ];
 
 const node = (args) => execFileSync(process.execPath, args, { cwd: control, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -111,7 +112,7 @@ ol.checks pre{font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-w
   ${parts.map((p, i) => { const g = gate(p); return `<section id="${p.id}" role="tabpanel" aria-labelledby="tab-${p.id}"${i ? ' hidden' : ''}>
     <p class="lede">${esc(p.says)}</p>
     <div class="gates"><span class="gate"><b>Machine gate</b> ${g.failed ? `${g.failed} failed of ${g.of}` : `all ${g.of} held`}</span><span class="gate eyes"><b>Eyes gate</b> open: nobody has looked yet</span></div>
-    <div class="frame"><iframe title="${esc(p.name)} player" data-src="${p.player}"${i === 0 ? ` src="${p.player}"` : ''} loading="lazy"></iframe><div class="bar"><span>The player: four panes on one clock, a ¼-speed switch.</span><a href="${p.player}" target="_blank" rel="noopener">Open on its own</a></div></div>
+    <div class="frame"><iframe title="${esc(p.name)} player" data-src="${p.player}"${i === 0 ? ` src="${p.player}"` : ''} loading="lazy"></iframe><div class="bar"><span>The player: four panes on one clock, each from the side and from a ¾ overhead camera, a ¼-speed switch.</span><a href="${p.player}" target="_blank" rel="noopener">Open on its own</a></div></div>
     ${p.strips.map((s) => `<figure class="strip" style="margin:0"><figcaption>${esc(s.label)}</figcaption><div class="scroll"><img src="${s.png}" alt="${esc(s.label)} filmstrip" loading="lazy"></div></figure>`).join('\n    ')}
     <h2>What the machine gate measured</h2>
     <ol class="checks">${p.lines.map((l) => `<li><span class="k ${l.kind}">${l.kind}</span>${l.measured ? `<details><summary>${esc(l.says)}</summary><pre>${esc(l.measured)}</pre></details>` : `<span>${esc(l.says)}</span>`}</li>`).join('')}</ol>

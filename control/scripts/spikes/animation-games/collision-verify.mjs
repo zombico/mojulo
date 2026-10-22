@@ -34,7 +34,7 @@ check('realistic: the change picks the rung — a walk flinches, a run into a wa
   CASES.map(([g, t]) => `${g}→${t}: ${s('realistic', g, t).a.state}${s('realistic', g, t).b ? ` / ${s('realistic', g, t).b.state}` : ''}`));
 
 // ── action ──
-check('action: a walk into anything is a block (it stops, nothing plays, nothing freezes)', ['wall', 'unit'].every((t) => s('action', 'walk', t).a.state === 'block' && s('action', 'walk', t).a.moved === 0 && s('action', 'walk', t).hitstop === 0 && (!s('action', 'walk', t).b || s('action', 'walk', t).b.moved === 0)));
+check('action: a walk into anything walks in place (no bounce, no freeze, the other body untouched)', ['wall', 'unit'].every((t) => s('action', 'walk', t).a.state === 'treadmill' && Math.abs(s('action', 'walk', t).a.moved) < 0.02 && s('action', 'walk', t).hitstop === 0 && (!s('action', 'walk', t).b || s('action', 'walk', t).b.moved === 0)));
 check('action: the wall throws a runner off its feet, the change shown ×3', s('action', 'run', 'wall').a.state === 'launch' && s('action', 'run', 'wall').a.thrown > 0.05 && s('action', 'run', 'wall').a.lying && near(s('action', 'run', 'wall').a.shown, 3 * s('action', 'run', 'wall').a.dv),
   { thrown: s('action', 'run', 'wall').a.thrown, moved: s('action', 'run', 'wall').a.moved, shown: s('action', 'run', 'wall').a.shown });
 check('action: a charge — the runner takes its own change and keeps its feet, the one it hits is launched and lands lying', !s('action', 'run', 'unit').a.lying && s('action', 'run', 'unit').a.shown === s('action', 'run', 'unit').a.dv && s('action', 'run', 'unit').b.state === 'launch' && s('action', 'run', 'unit').b.lying && s('action', 'run', 'unit').b.moved > 3,
@@ -43,7 +43,7 @@ const both = (k) => { const c = C[k]; const held = c.frames.filter((f) => f.held
 check('action: both bodies hold still through the freeze, and a harder impact freezes longer', both('action run→unit') && both('action run→wall') && s('action', 'run', 'wall').hitstop > s('action', 'run', 'unit').hitstop, { wall: s('action', 'run', 'wall').hitstop, unit: s('action', 'run', 'unit').hitstop });
 
 // ── platformer ──
-check('platformer: a walk is a block; a run bonks off a wall with the fixed hop, whatever its speed', s('platformer', 'walk', 'wall').a.state === 'block' && s('platformer', 'run', 'wall').a.state === 'bonk' && near(s('platformer', 'run', 'wall').a.thrown, 0.5, 0.01) && [3, 5.3, 9].every((v) => Cm.outcome('platformer', v, 'wall').a.vOut === -3 && Cm.outcome('platformer', v, 'wall').a.hop === 0.5),
+check('platformer: a walk walks in place; a run bonks off a wall with the fixed hop, whatever its speed', s('platformer', 'walk', 'wall').a.state === 'treadmill' && s('platformer', 'run', 'wall').a.state === 'bonk' && near(s('platformer', 'run', 'wall').a.thrown, 0.5, 0.01) && [3, 5.3, 9].every((v) => Cm.outcome('platformer', v, 'wall').a.vOut === -3 && Cm.outcome('platformer', v, 'wall').a.hop === 0.5),
   { thrown: s('platformer', 'run', 'wall').a.thrown, vOut: [3, 5.3, 9].map((v) => Cm.outcome('platformer', v, 'wall').a.vOut) });
 check('platformer: a boop throws both bodies apart evenly', s('platformer', 'run', 'unit').a.state === 'boop' && near(s('platformer', 'run', 'unit').a.moved, -s('platformer', 'run', 'unit').b.moved, 0.01) && near(s('platformer', 'run', 'unit').a.thrown, s('platformer', 'run', 'unit').b.thrown, 0.01),
   { moved: [s('platformer', 'run', 'unit').a.moved, s('platformer', 'run', 'unit').b.moved] });
@@ -56,13 +56,30 @@ check('pinball: off a wall at speed it balls up and spins whole turns as it roll
 check('pinball: two bodies are a Newton\'s cradle — the runner all but stops, the other leaves faster than the runner came', Math.abs(s('pinball', 'run', 'unit').a.vOut) < 0.2 * s('pinball', 'run', 'unit').vIn && s('pinball', 'run', 'unit').b.vOut > s('pinball', 'run', 'unit').vIn && s('pinball', 'run', 'unit').b.state === 'spin',
   { runner: s('pinball', 'run', 'unit').a.vOut, other: s('pinball', 'run', 'unit').b.vOut, in: s('pinball', 'run', 'unit').vIn });
 
+// ── the wall's property (every flavor but realistic) ──
+const WALLS = { treadmill: { kind: 'treadmill' }, walkUp: { kind: 'sticky', mode: 'walk' }, climb: { kind: 'sticky', mode: 'climb', speed: 0.6 } };
+const P = {}; for (const [w, wall] of Object.entries(WALLS)) for (const g of ['walk', 'run']) P[`${w} ${g}`] = Cm.collisionSignature(R, Cm.collide(R, { flavor: 'action', gait: g, target: 'wall', wall }));
+console.log('\nthe wall\'s property (action\'s body; every non-realistic flavor takes any of them)');
+console.table(Object.fromEntries(Object.entries(P).map(([k, x]) => [k, { state: x.a.state, slide: x.slide, rose: x.rose, riseRate: x.riseRate, holdDrift: x.holdDrift, handsOnWall: x.handsOnWall, feetOffWall: x.feetOffWall, trunkPen: x.trunkPen, freeze: x.hitstop }])));
+console.log();
+let threw = null; try { Cm.collide(R, { flavor: 'realistic', target: 'wall', wall: { kind: 'treadmill' } }); } catch (e) { threw = e.message; }
+check('a realistic wall is a wall: it refuses a property', !!threw, threw);
+const bounce = [0.3, 0.8, 1.6].map((e) => Cm.outcome('pinball', 5.3, 'wall', { kind: 'bouncy', e }).a.vOut), fixed = [2, 3, 5].map((rebound) => Cm.outcome('platformer', 5.3, 'wall', { kind: 'bouncy', rebound, hop: 0.4 }).a);
+check('bouncy is tunable: the speed back scales with its restitution (×e), or is the fixed rebound and hop it is given', bounce.every((v, i) => near(v, -[0.3, 0.8, 1.6][i] * 5.3, 1e-3)) && fixed.every((a, i) => a.vOut === -[2, 3, 5][i] && a.hop === 0.4), { bounce, fixed: fixed.map((a) => [a.vOut, a.hop]) });
+check('treadmill: the gait goes on in place — the body stays at the surface, its feet slide at the gait\'s own speed, no freeze', ['walk', 'run'].every((g) => P[`treadmill ${g}`].a.state === 'treadmill' && Math.abs(P[`treadmill ${g}`].a.moved) < 0.02 && near(P[`treadmill ${g}`].slide, P[`treadmill ${g}`].vIn, 0.08 * P[`treadmill ${g}`].vIn) && P[`treadmill ${g}`].trunkPen <= 0.001 && P[`treadmill ${g}`].hitstop === 0),
+  ['walk', 'run'].map((g) => ({ g, vIn: P[`treadmill ${g}`].vIn, slide: P[`treadmill ${g}`].slide })));
+check('sticky, walk: turned onto the wall, it walks up at its own speed, its planted feet on the wall\'s plane (< 1 cm) and holding (< 0.1 m/s)', ['walk', 'run'].every((g) => near(P[`walkUp ${g}`].riseRate, P[`walkUp ${g}`].vIn, 0.02 * P[`walkUp ${g}`].vIn) && P[`walkUp ${g}`].feetOffWall < 0.01 && P[`walkUp ${g}`].slide < 0.1 && P[`walkUp ${g}`].trunkPen <= 0.001),
+  ['walk', 'run'].map((g) => ({ g, vIn: P[`walkUp ${g}`].vIn, riseRate: P[`walkUp ${g}`].riseRate, offWall: P[`walkUp ${g}`].feetOffWall, slide: P[`walkUp ${g}`].slide })));
+check('sticky, climb: hands and feet on the wall, the holds holding (< 5 mm a frame), the palms on it (< 5 mm), rising at the climb\'s speed', ['walk', 'run'].every((g) => P[`climb ${g}`].holdDrift < 0.005 && P[`climb ${g}`].handsOnWall < 0.005 && near(P[`climb ${g}`].riseRate, 0.6, 0.02) && P[`climb ${g}`].trunkPen <= 0.001),
+  ['walk', 'run'].map((g) => ({ g, drift: P[`climb ${g}`].holdDrift, palms: P[`climb ${g}`].handsOnWall, riseRate: P[`climb ${g}`].riseRate })));
+
 // ── the four are four, determinism ──
 check('the same run into a wall plays four ways (rung and speed after differ pairwise)', NAMES.every((a, i) => NAMES.slice(i + 1).every((b) => s(a, 'run', 'wall').a.state !== s(b, 'run', 'wall').a.state || s(a, 'run', 'wall').a.vOut !== s(b, 'run', 'wall').a.vOut)), NAMES.map((f) => `${f}: ${s(f, 'run', 'wall').a.state} ${s(f, 'run', 'wall').a.vOut}`));
 const hash = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 check('a collision is byte-identical run to run', NAMES.every((f) => hash(Cm.collide(R, { flavor: f, gait: 'run', target: 'unit' })) === hash(C[`${f} run→unit`])));
 
 // ── what the gate measures but does not judge ──
-note('the forward hand passes the surface (m): the trunk stops on it, but no clip braces a hand against it', Object.fromEntries(NAMES.map((f) => [f, [s(f, 'walk', 'wall').handPen, s(f, 'run', 'wall').handPen]])));
+note('the forward hand passes the surface (m) on a bounce: the trunk stops on it, but no clip braces a hand against it (the climb does: its palms sit on the wall)', Object.fromEntries(NAMES.map((f) => [f, [s(f, 'walk', 'wall').handPen, s(f, 'run', 'wall').handPen]])));
 note('the hero walk\'s own speed is a stroll (m/s): every walk here is gentle', s('realistic', 'walk', 'wall').vIn);
 
 console.log(`\n${fails ? `${fails} FAILED` : 'all held'} (machine gate; the eyes gate is open: run collision-preview.mjs and look)`);
