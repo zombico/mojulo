@@ -174,6 +174,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   after published density; every style reachable everywhere), and the shapes by his sex's weights
   (`FACE_SEX_WEIGHTS`: the thin and high-arched brow, large eyes, the heart's chin and outline rarer on a man) with
   shorter lashes. A woman's every roll is byte for byte as it was.
+- A man's loss ends in a HORSESHOE (dermal-map.js): as the front's recession meets the crown's, what is left is a band round
+  the sides and the back, its top level about the parietal ridge and dipping to the sideburn in front; no wedge left at the
+  temple, and no island of hair left by a widow's peak once the front has receded. What the loss leaves a barber keeps
+  short (dermal-hair.js): no lock from the band's top laid over the bald crown. The MENA men's wavy pool crops instead of
+  standing in a curly crop's spikes.
 - THE LOWER LASHES over a full cheek (epidermis.js): a lash heading down onto skin that faces up is pushed forward off it,
   not up, so the lower lashes point down on the full-cheeked poles (both had them tipping up since the cheeks filled).
 - THE DEEP TONES' ALBEDO (dermal-map.js `toneAlbedo`, which `dermisAt` and `skinBase` now read): an MST swatch is skin

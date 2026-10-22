@@ -592,7 +592,9 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const k = curlShrink(S.curl), REG = { front: S.front, sides: S.sides, back: 1, crown: S.crown }, wave = COMB_WAVE[S.type] || COMB_WAVE.straight;
   const ax = chart.parts[Object.keys(chart.parts).find((q) => chart.parts[q].part === 'head')].axis, c0 = scl(add(ax[0], ax[ax.length - 1]), 0.5);
   const liftOf = (a) => { const fd = ad(a.around, 0), topW = smooth(0.62, 0.85, a.along); return (0.003 + 0.06 * S.volume) * (0.35 + 0.65 * Math.max(topW, 1 - smooth(0.2, 0.3, fd) * (1 - topW))); };
-  const lengthOf = (a) => { const fd = ad(a.around, 0), fr = 1 - smooth(0.12, 0.2, fd), sd = smooth(0.12, 0.2, fd) * (1 - smooth(0.33, 0.4, fd)), cr = smooth(0.82, 0.92, a.along); return S.length * ((fr * REG.front + sd * REG.sides + (1 - fr - sd)) * (1 - cr) + cr * REG.crown); };
+  // (what a man's loss leaves, a barber keeps short: no lock from the horseshoe's top laid over the bald crown)
+  const keep = D.sex === 'male' && D.bald > 0.4 ? 0.035 - 0.025 * smooth(0.4, 1, D.bald) : Infinity;
+  const lengthOf = (a) => { const fd = ad(a.around, 0), fr = 1 - smooth(0.12, 0.2, fd), sd = smooth(0.12, 0.2, fd) * (1 - smooth(0.33, 0.4, fd)), cr = smooth(0.82, 0.92, a.along); return Math.min(keep, S.length * ((fr * REG.front + sd * REG.sides + (1 - fr - sd)) * (1 - cr) + cr * REG.crown)); };
   const NS = 48;
   // ── each tie's TAIL: one bundle from the tie (the elastica's lock, draped), a bun coiled about the tie, or a braid ──
   const NT = 44;

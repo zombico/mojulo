@@ -319,7 +319,8 @@ function relationalHeadRegions(A, D, put, R) {
   const hl0 = pwl([[0, Hf], [Math.abs(fz.X) * 0.7, Hf - 3 - 6 * rnd + 0.3 * tmp], [Math.abs(fz.X) + 6, Ht - (male ? 18 : 10) + tmp], [sideX - 6, M.g.Y - 8], [sideX, por.Y + (male ? -4 : 14) - sb],
     [sideX + 2, por.Y + 34], [Math.abs(por.X) + 30, por.Y + 34], [Math.abs(por.X) + 42, por.Y - 6 - nape], [back * 0.85, por.Y - 38 - nape], [back, por.Y - 42 - nape]], x);
   // (a widow's peak: the line dips at the middle, over ~12 mm either side)
-  const hl = D.peak ? hl0 - D.peak * Math.max(0, 1 - x / 12) ** 2 : hl0;
+  // (a front receded by a man's loss takes its peak with it: no island of hair left on the crown)
+  const pk = D.peak ? D.peak * (1 - smooth(0.25, 0.55, mBald)) : 0, hl = pk ? hl0 - pk * Math.max(0, 1 - x / 12) ** 2 : hl0;
   // the edge broken as a hairline is (no hairline is a drawn line): a few millimetres of wander along it, soft over 5 mm
   const wander = 4 * (vnoise(q.X / 7, 0.5, D.seed + 41) - 0.5) + 2 * (vnoise(q.X / 2.2, 3.5, D.seed + 43) - 0.5);
   let scalp = smooth(hl + wander - 5, hl + wander + 3, q.Y);
@@ -332,6 +333,10 @@ function relationalHeadRegions(A, D, put, R) {
     if (male) {
       const r = 1.2 * smooth(0.2, 1.1, bald), d = crown((55 + 25 * bald) * Math.PI / 180, Math.PI);
       scalp *= smooth(r - 0.12, r + 0.04, d);
+      // (the HORSESHOE: as the front's recession meets the crown's, what is left is a band round the sides and the back
+      // with a level top about the parietal ridge, dipping toward the sideburn in front; no wedge left at the temple)
+      const hs = smooth(0.35, 0.85, bald), top = por.Y + 60 + 220 * (1 - hs) - 58 * (1 - smooth(0.15, 0.35, ad(A.around, 0))) * hs;
+      scalp *= 1 - smooth(top - 4, top + 6, q.Y);
     } else {
       const r = 0.6 * bald, d = crown(80 * Math.PI / 180, 0), n = vnoise(q.X / 3, q.Y / 3, D.seed + 47);
       scalp *= 1 - bald * (1 - smooth(r - 0.1, r + 0.1, d)) * (0.55 + 0.6 * n);

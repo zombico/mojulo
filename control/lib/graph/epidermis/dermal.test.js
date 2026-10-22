@@ -236,3 +236,14 @@ describe('the beard\'s styles', () => {
     expect(Math.max(...near.map(({ h }) => h.lift))).toBeGreaterThan(0.3);
   });
 });
+
+describe('a man\'s loss to the horseshoe', () => {
+  it('leaves a band round the sides and the back, level, its top about the parietal ridge: no island above it', () => {
+    const D = readDermis({ from: 'male', bald: 0.95, peak: 6 }), pts = chart.samples.filter((x) => x?.marks).map((x) => ({ q: headXY(x), M: x.marks.points, s: dermisAt(x, D, { detail: false }).regions.scalp || 0 }));
+    const kept = pts.filter(({ s }) => s > 0.5);
+    expect(kept.length).toBeGreaterThan(0);
+    for (const { q, M } of kept) expect(q.Y).toBeLessThan(M.porionR.Y + 70);
+    // (and a full head keeps its crown)
+    expect(chart.samples.filter((x) => x?.marks).some((x) => (dermisAt(x, readDermis('male'), { detail: false }).regions.scalp || 0) > 0.5 && headXY(x).Y > x.marks.points.porionR.Y + 70)).toBe(true);
+  });
+});

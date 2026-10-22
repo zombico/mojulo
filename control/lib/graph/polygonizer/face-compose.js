@@ -188,7 +188,7 @@ export const FACE_HAIR_MALE = Object.freeze({
   },
   mena: {
     straight: [{ style: 'short' }, { style: 'undercut' }, { style: 'crop' }],
-    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'curly-crop', type: 'wavy' }],
+    wavy: [{ style: 'short', type: 'wavy' }, { style: 'undercut', type: 'wavy' }, { style: 'crop', type: 'wavy' }],
     curly: [{ style: 'curly-crop' }, { style: 'curly-crop' }, { style: 'crop', type: 'curly' }],
   },
   'south-asian': {
