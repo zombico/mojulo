@@ -42,6 +42,11 @@ body catches up to what the authored one wears, and its principles are shared ba
   the shirt they had stood out as shards, laid on a reach measured over a window of heights they had creased the jacket
   over them. The jacket's V walls over it read as the waistcoat. A seeded card `threepiece`. Cards without the word
   byte-identical (both pins unchanged).
+- STATUES ON THE REALISTIC BODY: `statue` is no longer refused there. Every card and format carves: one material over
+  every group, no dermis (stone is not skin), a lost head (and a torso study) taking the realistic head's own parts with
+  it (the face and the nose, bound to the head beside the plan's head parts), a bust without the upper arms' stumps
+  (the torso carries the shoulder; a stump cut from the deltoid's rings stood out as a disc). `detail` stays refused,
+  its refusal now saying an outfit dresses this body. The authored statues unchanged.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

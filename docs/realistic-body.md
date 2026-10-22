@@ -70,8 +70,9 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 
 Posing outside the body study and the stretch audit does not apply the correctives, and no exporter carries them. The
 body has no UVs. It wears its dress (an outfit card, the words, a stylism, the loose words), armour, kits, paint, and
-the footwear, handwear and plating libraries (docs/garment-principles.md, docs/plating.md); `detail` and `statue` are
-still refused (each fitted to the authored body's rings). A panel, a cape and a hood are the authored kernel's, hung
+the footwear, handwear and plating libraries (docs/garment-principles.md, docs/plating.md). It carves as a statue (one
+material, no skin, the realistic head's own parts going with a lost head, a bust without the arms' stumps). `detail`
+is refused: it is the authored body's own clothing, fitted to its rings, and an outfit dresses this body. A panel, a cape and a hood are the authored kernel's, hung
 over the tailor's cloth (their `over`). It depicts adults: a child or chibi cast asked of it is that cast's stylized
 figure instead, its colours keyed the same.
 

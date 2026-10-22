@@ -24,7 +24,7 @@ describe('the realistic hero at the door', () => {
     expect(refused({ cast: 'male', form: 'realistic', physique: 'brawny' })).toMatch(/unknown physique 'brawny'/);
     expect(refused({ cast: 'male', form: 'realistic', physique: { bulk: 3 } })).toMatch(/outside/);
     expect(refused({ cast: 'male', form: 'realistic', head: 'anime' })).toMatch(/head: the realistic body/);
-    expect(refused({ cast: 'male', form: 'realistic', detail: 'clothed' })).toMatch(/detail: not worn on the realistic body yet/);
+    expect(refused({ cast: 'male', form: 'realistic', detail: 'clothed' })).toMatch(/detail: the authored body's own clothing.*dressed by an outfit/);
     expect(refused({ cast: 'male', form: 'realistic', body: { waist: 0.2 } })).toMatch(/body: the realistic body's girths/);
     expect(refused({ cast: { pole: 'male', build: 'brute' }, form: 'realistic' })).toMatch(/cast: the realistic body/);
   });
@@ -83,6 +83,17 @@ describe('the realistic hero at the door', () => {
     const d = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedTee'] }) }).recipe;
     for (const k of ['torso', 'pelvis', 'foreArmR', 'thighL']) expect(d.parts[k].group, k).toBe('Skin');
     expect(d.parts.footR.group).toBe('Shoes');
+  }, 240_000);
+
+  it('carved: a statue in one material, no skin; a lost head takes the realistic head\'s face with it; a bust without the arms\' stumps', () => {
+    const carve = (statue) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', statue }) }).recipe;
+    const lost = carve({ type: 'statue', style: 'archaic', lose: ['head'] });
+    expect(new Set(Object.values(lost.palette)).size).toBe(1); expect(lost.dermis).toBeUndefined();
+    for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR']) expect(lost.parts[k], k).toBeUndefined();
+    expect(lost.parts.neck && lost.parts.torso && lost.parts.footR).toBeTruthy();
+    const bust = carve('roman-bust');
+    expect(bust.statue.crop).toBe('bust'); expect(bust.parts.visage && bust.parts.nose && bust.parts.torso).toBeTruthy();
+    expect(Object.keys(bust.parts).filter((k) => /upperArm|pelvis|thigh/.test(k))).toEqual([]);
   }, 240_000);
 
   it('dressed, wears its whole head: the parts of the face the plan has no name for kept, the fit its skin maps back by', () => {

@@ -278,8 +278,23 @@ function withDressMaterials(recipe, hero, plan = null, geocube = null) {
   return { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces: surfaces ?? {} };
 }
 function statueRecipeOf(recipe, plan, hero) {
-  const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });
-  return { ...carved, statue: trace };
+  // (the realistic head's own parts, the face and the nose it wears beside the plan's head, go with a lost head: the
+  // parts riding the head or the jaw are the head's)
+  const head = hero.form === 'realistic' ? (plan.include || []).find((i) => i.name === 'head') : null;
+  const onHead = head ? Object.keys(recipe.parts).filter((n) => !head.parts?.[n] && /^(head|jaw)$/.test(typeof recipe.parts[n].bind === 'string' ? recipe.parts[n].bind : recipe.parts[n].bind?.bone ?? '')) : [];
+  const cutPlan = onHead.length ? { ...plan, include: plan.include.map((i) => (i === head ? { ...i, parts: { ...i.parts, ...Object.fromEntries(onHead.map((n) => [n, recipe.parts[n]])) } } : i)) } : plan;
+  const { recipe: carved, trace } = statueRecipe(recipe, cutPlan, hero.statue, { female: femaleOf(hero) });
+  if (hero.form !== 'realistic') return { ...carved, statue: trace };
+  // (a realistic body carved has no skin: the stone or the bronze is its surface, not the dermis an export would paint)
+  const { dermis: _d, ...stone } = carved;
+  // (and its bust has no stumps of the upper arms: its torso carries the shoulder's mass, and a stump cut from the arm's
+  // first rings, the deltoid's, stood out past it as a disc; what was worn on them and pinned to them goes too)
+  if (trace.crop !== 'bust') return { ...stone, statue: trace };
+  const parts = { ...stone.parts }, gone = new Set(Object.keys(parts).filter((n) => /(^|_)upperArm[RL]$/.test(n)));
+  for (let grew = true; grew;) { grew = false; for (const [n, p] of Object.entries(parts)) if (!gone.has(n) && p.pin && gone.has(p.pin.parent)) { gone.add(n); grew = true; } }
+  for (const n of gone) delete parts[n];
+  const dials = Object.fromEntries(Object.entries(stone.dials || {}).flatMap(([k, d]) => (Array.isArray(d.parts) ? (d.parts.some((n) => !gone.has(n)) ? [[k, { ...d, parts: d.parts.filter((n) => !gone.has(n)) }]] : []) : typeof d.part === 'string' && gone.has(d.part) ? [] : [[k, d]])));
+  return { ...stone, parts, ...(stone.dials ? { dials } : {}), statue: trace };
 }
 /** THE REALISTIC HERO'S EXPANSION: the bare body (the plan without its dress) expanded and re-sampled onto the form
  * field, then the plan expanded again on that body (expandPlan's `body`), so the garments, the paint and the adornment
@@ -772,7 +787,9 @@ function realisticErrors(spec) {
   if (spec.head !== undefined && !['landmark', 'none', 'relational'].includes(spec.head)) errs.push("head: the realistic body wears the landmark head, the relational head or none (head: 'landmark' | 'relational' | 'none')");
   if (spec.core === 'streamlined') errs.push("core: the realistic body is cut on the structured core's pelvis; drop core: 'streamlined'");
   if (spec.proportions !== undefined && spec.proportions !== 'hero') errs.push("proportions: the realistic body takes the realistic casts' ('hero'); dial it with physique");
-  for (const k of ['detail', 'statue']) if (spec[k] !== undefined && spec[k] !== null && spec[k] !== 'none') errs.push(`${k}: not worn on the realistic body yet (it is fitted to the authored body's rings, which the realistic body re-samples); drop ${k}, or the realistic form`);
+  // (`detail` is the authored body's own clothing, fitted to its rings: the realistic body is clothed by an outfit, which
+  // its tailor makes on its own rings)
+  if (spec.detail !== undefined && spec.detail !== null && spec.detail !== 'none') errs.push("detail: the authored body's own clothing, fitted to its rings; the realistic body is dressed by an outfit (outfit: { type: 'outfit', style }, a garment word) or paint words; drop detail, or the realistic form");
   for (const k of ['body', 'girth']) if (spec[k] !== undefined && spec[k] !== null) errs.push(`${k}: the realistic body's girths are its field's; dial them with physique: { bulk, tone, weight, height }`);
   return errs;
 }

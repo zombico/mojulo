@@ -823,8 +823,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (a welted sole, straps and buckles). LOOSE words: `martialPants` (wide, falling, bloused over a cuffed ankle, a sash),
   `wideTrousers` (falling open to the floor), and `gi` (a wrapped jacket over them: a V, a standing collar, wide sleeves,
   a skirt, the belt; worn with `martialPants` it takes their sash); the authored body wears them as wide segment pieces.
-  Refused by name: `detail`, `statue`, `body`, `girth` (the physique
-  dials those).
+  It carves as a `statue` (in one material, no skin; a bust without the arms' stumps). Refused by name: `detail` (an
+  outfit dresses it), `body`, `girth` (the physique dials those).
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or
