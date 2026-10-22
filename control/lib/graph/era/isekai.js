@@ -53,6 +53,7 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
+import { withGrittyFlora } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones } from '../local-meru/broken-land.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -551,6 +552,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
+  // (a gritty polygon land's flora in detail, as its rock: leaves on the crowns, bark up the trunks; gritty-flora.js)
+  const drawnFaces = broken ? withGrittyFlora(faces, broken) : faces;
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
@@ -564,7 +567,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     heroCam.push({ name: 'hero', worldFraming: { cameraPosition: at.map(r5), lookAt: [t.crownAt[0], t.crownAt[1], t.crownAt[2] - 0.2 * t.crownR].map(r5), horizontalFov: Fh.fov, pictureCenter: [560, 390] } });
   }
   const payload = {
-    faces,
+    faces: drawnFaces,
     cutouts,
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],

@@ -509,13 +509,15 @@ const NATURAL = {
     }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.06 * sfbm(x, y, M, 0.45, 0.45, 3, seed + 17) - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.06 * bare[k]));
   },
   // a crown's skin: leaves laid over one another, each pointed at both ends, domed across, a groove down its midrib, its
-  // tip dipped; the dark between them where the crown is deep
+  // tip dipped; gathered into MASSES (the broad shape a crown reads by from afar), thin and dark between them
   leaves(c, size, seed) {
-    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size), gap = new Float32Array(size * size);
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size), gap = new Float32Array(size * size), mass = new Float32Array(size * size);
     return paintedTile(c, size, LEAF_LIGHT, (x, y, k) => {
+      const m = smoothstep(-0.35, 0.3, sfbm(x, y, M, 0.75, 0.75, 2, seed + 7));
       let best = -1, z = 0, tn = 0;
       marksNear(x, y, M, 0.15, 4, seed + 11, (cx, cy, h, cs) => {
-        const layer = h(6); if (layer <= best) return;
+        // (fewer leaves between the masses: a leaf there only if its dice clear the mass's thinning)
+        const layer = h(6); if (layer <= best || h(7) > 0.35 + 0.65 * m) return;
         const a = h(3) * Math.PI * 2, ux = Math.cos(a), uy = Math.sin(a), L = cs * (0.75 + 0.45 * h(4)), W = L * 0.4, dx = x - cx, dy = y - cy;
         const s = (dx * ux + dy * uy) / (L / 2), w = (W / 2) * Math.max(0, 1 - s * s) ** 0.75, b = -dx * uy + dy * ux;
         if (Math.abs(s) >= 1 || Math.abs(b) >= w) return;
@@ -523,9 +525,11 @@ const NATURAL = {
         best = layer; tn = (h(5) - 0.5) * 2 * c.vary / 255;
         z = 0.006 * layer + 0.004 * (1 - q * q) * (1 - s * s) - 0.0012 * Math.exp(-(q * q) / 0.012) - 0.002 * Math.max(0, s);
       });
-      gap[k] = best < 0 ? 1 : 0; tone[k] = tn;
-      return best < 0 ? -0.014 + 0.002 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 3) : z;
-    }, (x, y, k, lit) => rampAt(body, 0.58 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.04 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 17) - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.35 * gap[k]));
+      gap[k] = best < 0 ? 1 : 0; tone[k] = tn; mass[k] = m;
+      // (a mass bulges toward the light: its leaves stand on it)
+      return (best < 0 ? -0.014 + 0.002 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 3) : z) + 0.03 * m;
+    }, (x, y, k, lit) => rampAt(body, 0.58 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.04 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 17)
+      - 0.4 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.35 * gap[k] - (0.12 + 0.2 * g) * (1 - mass[k])));
   },
   // a trunk's bark, u round it and v up it: plates between furrows that run up the trunk and fork, each plate a rounded
   // ridge, its face scaled fine (rougher with grit)

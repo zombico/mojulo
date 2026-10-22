@@ -125,6 +125,17 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Gritty flora: the cube's grit draws what grows in detail
+
+A geocube's grit already says how finely its rooms, streets and rock are drawn; the biocube says what grows. Grit now
+reaches the flora too: on a gritty cube the crowns, the trunks, the path and its edge, the grass's light and the
+clouds take detail in the cube's own colours, stronger with more grit. A quiet cube is drawn as before.
+
+- **Leaves and bark** (`era/gritty-flora.js`). On a gritty polygon land the crowns take the `leaves` cut (leaves over
+  one another, now gathered into masses that read from afar, thin and dark between them), a crown's top laid as a
+  floor and its sides as a wall, and the trunks take `bark` up them: grey relief over each face's own colour
+  (`matte-paint/detail.js` layDetail), its strength the land's grit.
+
 ### The biocube: a level's flora as data
 
 A geocube holds a level's one look; what grows there was each kit card's own numbers. A biocube holds it as data, a
