@@ -707,7 +707,8 @@ export function geocubeTown(cube, D, over) {
   const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
   return { ...(anchor !== undefined ? { anchor } : {}), ...(t.houses !== undefined ? { houses: t.houses } : {}), ...(t.enter !== undefined ? { enter: t.enter } : {}),
     ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT },
-    ...(dress ? { dress } : {}) };
+    // (its street laid through it in its language, era/stage-street.js)
+    street: true, ...(dress ? { dress } : {}) };
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -1061,23 +1062,22 @@ function townRoute(stage, payload) {
  * The micro-town seen for its architecture, first: `house`, a person's eye nine metres before the first house's door,
  * on its front; `street`, from the walk beside it down the street to the houses after it. The trail's own come after.
  */
-function withTownCameras(payload) {
+function withTownCameras(payload, site) {
   const H = (payload.anchors || []).filter((a) => a.kind === 'house');
   if (!H.length) return;
   const h = H[0], mid = [(h.box.min[0] + h.box.max[0]) / 2, (h.box.min[1] + h.box.max[1]) / 2], tall = h.box.max[2] - h.box.min[2];
   const cam = (name, from, to, fov) => ({ name, worldFraming: { cameraPosition: from.map(r3), lookAt: to.map(r3), horizontalFov: fov } });
-  const eye = [h.at[0] + h.N[0] * 9, h.at[1] + h.N[1] * 9, h.floor + 1.7];
-  // the street: stood before the first house's door, looking toward the rest at their own floors (a terrace's below)
+  // the street's line before the house's door (the trail through the town: era/stage-street.js), the way along it
+  const y = h.at[1], c = [site.trailX(y), y], dx = site.trailX(y + 0.5) - site.trailX(y - 0.5), tl = Math.hypot(dx, 1), t = [dx / tl, 1 / tl];
   const rest = H.slice(1), mean = (k) => rest.reduce((a, q) => a + k(q), 0) / rest.length;
   const far = rest.length ? [mean((q) => q.at[0]), mean((q) => q.at[1]), mean((q) => q.floor) + 2] : [mid[0], mid[1], h.floor + 2];
-  const side = [h.at[0] + h.N[0] * 3, h.at[1] + h.N[1] * 3];
-  payload.cameras = [cam('house', eye, [mid[0], mid[1], h.floor + 0.4 * tall], 70), cam('street', [side[0], side[1], h.floor + 1.7], far, 75), ...payload.cameras];
+  const way = Math.sign((far[1] - y) * t[1] + (far[0] - c[0]) * t[0]) || 1, gz = (p) => site.ground(p[0], p[1]);
+  // the house: from the road a few steps along, at a person's eye; the street: from the house's own walk, down it
+  const from = [c[0] - t[0] * way * 6, c[1] - t[1] * way * 6], side = [h.at[0] + h.N[0] * 1.2, h.at[1] + h.N[1] * 1.2];
+  const ahead = [side[0] + t[0] * way * 30, side[1] + t[1] * way * 30];
+  payload.cameras = [cam('house', [from[0], from[1], gz(from) + 1.7], [mid[0], mid[1], h.floor + 0.4 * tall], 70),
+    cam('street', [side[0], side[1], h.floor + 1.7], [ahead[0], ahead[1], gz(ahead) + 1.4], 75), ...payload.cameras];
 }
-
-/**
- * The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene.
- * `trail` is the land walked: the same island with every way up drawn (island.walk 'all'), laid from its `seed`.
- */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
   for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style); build a level on a cube with a stage recipe's geocube`);
   const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document'));
@@ -1106,7 +1106,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const low = show === 'town' ? { kind: 'stage', kit: low0.kit, seed, trail: { run: 12 }, town } : town ? { kind: 'stage', kit: low0.kit, trail: {}, town } : show !== 'trail' ? low0 : { ...low0, seed, meru: trailMeru(low0.meru, seed) };
   // (a trail's route comes back on the payload, for its dummy to walk: local-meru/dummy.js; a town's is its street's)
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title, ...(show === 'trail' ? { route: true } : {}) });
-  if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload); }
+  if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { ...geocubeReadout(cube, show, P, manifest),

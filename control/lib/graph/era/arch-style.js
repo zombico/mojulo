@@ -14,7 +14,7 @@
  *     city:      { grain?: a city grammar's id, …a grammar's changes } (city/plan/grammars.js) }
  *
  * The SURFACES: a town's plaster, stone, timber, shell, paint (shutters, bands: a colour only), plinth and roof (whatever
- * covers its caps); a city's punched, pier, banded and grid walls, its road and its walk.
+ * covers its caps); a city's punched, pier, banded and grid walls; the road and the walk of a city and of a town's street.
  *
  *   MATERIAL_WORDS         the words, each { class, on, colour, read, tile? }: a dressed tile (matte-paint/dressed.js) a
  *                          gritty cube lays as relief, and a colour of its own (null: the cube's); a class 'either' is
@@ -409,8 +409,8 @@ export function styleLaws(S) {
 
 // ── the town ────────────────────────────────────────────────────────────────────────────────────────────────────────
 // a town surface's source groups, and the seeds their tiles are painted at (the cube's own dress's, era/town-dress.js)
-const TOWN_GROUPS = { plaster: ['str:plaster'], stone: ['str:stone'], timber: ['str:timber'], shell: ['str:shell'], paint: ['str:paint'], plinth: ['plinth'], roof: ['str:tile', 'str:slate', 'str:shingle', 'str:thatch'] };
-const TOWN_SEEDS = { 'str:plaster': 23, 'str:stone': 29, plinth: 31, 'str:shell': 37, 'str:timber': 41, 'str:tile': 43, 'str:slate': 47, 'str:shingle': 53, 'str:thatch': 59, 'str:paint': 61 };
+const TOWN_GROUPS = { plaster: ['str:plaster'], stone: ['str:stone'], timber: ['str:timber'], shell: ['str:shell'], paint: ['str:paint'], plinth: ['plinth'], roof: ['str:tile', 'str:slate', 'str:shingle', 'str:thatch'], road: ['street:road'], walk: ['street:walk'] };
+const TOWN_SEEDS = { 'str:plaster': 23, 'str:stone': 29, plinth: 31, 'str:shell': 37, 'str:timber': 41, 'str:tile': 43, 'str:slate': 47, 'str:shingle': 53, 'str:thatch': 59, 'str:paint': 61, 'street:road': 151, 'street:walk': 141 };
 /**
  * A town's dress under a style: each surface the style names, its word's tile (on a gritty cube) and its colour (the
  * palette's, else the word's), over the cube's own dress (`dress`, or null on a quiet cube). An entry is { spec?,
@@ -423,7 +423,7 @@ export function styleTownDress(S, cube, dress) {
     if (!w && !colour) continue;
     for (const g of groups) {
       const T = w && gritty ? wordTile(w, X, TOWN_SEEDS[g]) : null, kept = !w && dress?.[g] ? dress[g] : null;
-      const e = { ...(T ? { spec: T.spec, metres: T.metres } : kept ? { spec: kept.spec, metres: kept.metres } : {}), ...(surface === 'roof' ? { roof: true } : {}), ...(colour ? { colour } : {}) };
+      const e = { ...(T ? { spec: T.spec, metres: T.metres } : kept ? { spec: kept.spec, metres: kept.metres } : {}), ...(surface === 'roof' ? { roof: true } : {}), ...(surface === 'road' || surface === 'walk' ? { floor: true } : {}), ...(colour ? { colour } : {}) };
       if (e.spec || e.colour) out[g] = e; else delete out[g];
     }
   }

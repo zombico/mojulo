@@ -29,9 +29,12 @@ describe('the micro-town', () => {
     }
     // the same seed lays the same street
     expect(JSON.stringify(town({ seed: 3 }).route)).toBe(JSON.stringify(P.route));
-    // seen first for its architecture: a person's eye before the first house's front, then down the street
+    // seen first for its architecture: from the road before the first house, at a person's eye over the paving, then
+    // down the street from its walk
     expect(P.cameras.slice(0, 2).map((c) => c.name)).toEqual(['house', 'street']);
-    expect(P.cameras[0].worldFraming.cameraPosition[2]).toBeCloseTo(houses[0].floor + 1.7, 2);
+    const [cx, cy, cz] = P.cameras[0].worldFraming.cameraPosition, under = P.faces.filter((f) => f.group === 'street:road' && f.corners.some((c) => Math.hypot(c[0] - cx, c[1] - cy) < 1.2));
+    expect(under.length).toBeGreaterThan(0);
+    expect(cz - Math.max(...under.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(1.7, 0);
   });
 
   it('takes the domain\'s street and land; seed is the trail\'s and the town\'s alone', () => {

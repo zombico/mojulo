@@ -31,6 +31,9 @@ import { designTown } from './out-town.js';
 import { structureStyle } from './out-structures.js';
 import { dressTownFace } from './town-dress.js';
 import { stepsLift } from './out-openings.js';
+import { townLanguage } from './out-town.js';
+import { streetSpan, layStreet } from './stage-street.js';
+import { outTrailOf } from './out-trail-board.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -114,8 +117,9 @@ const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
 const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 function townStreet(town, kitId, seed0) {
-  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress)`);
+  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress, street)`);
+  if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
@@ -235,6 +239,15 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
   let faces = payload.faces, lights = [...(payload.lights || [])], colliders = [...(payload.colliders || [])], anchors = [...(payload.anchors || [])];
   const cutouts = new Set(payload.cutouts || []);
+  // the town's street (`town.street`, stage-street.js): the trail through it laid as its language's lane; the houses
+  // seated to front it, behind its footway, and kept off it
+  const ST = manifest.town?.street && manifest.trail !== undefined ? (() => {
+    const L = townLanguage(structureStyle(kitId, manifest.town.seed ?? manifest.seed ?? 1), manifest.town.anchor);
+    return { L, span: streetSpan(L), site: outTrailOf(manifest).site };
+  })() : null;
+  const offStreet = (x, y) => ST && Math.abs(x - ST.site.trailX(y)) < ST.span.half + 0.2;
+  // the street's stretch: from before its first house to past its last, along the trail
+  const streetRange = (ys) => [Math.max(0, Math.min(...ys) - 6), Math.min(ST.site.D, Math.max(...ys) + 6)], planned = [];
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
@@ -272,7 +285,8 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const hits = (B, c) => B[0] < c.max[0] && c.min[0] < B[2] && B[1] < c.max[1] && c.min[1] < B[3];
       // a building never stands on a beat of the trail (the way runs through them) or another building
       const onBeat = boxes.some((B) => beats.some((bt) => bt.at[0] > B[0] - 2 && bt.at[0] < B[2] + 2 && bt.at[1] > B[1] - 2 && bt.at[1] < B[3] + 2));
-      const blocked = onBeat || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
+      const onStreet = !!ST && String(id).startsWith('town-') && boxes.some((B) => [[B[0], B[1]], [B[2], B[1]], [B[0], B[3]], [B[2], B[3]], [(B[0] + B[2]) / 2, (B[1] + B[3]) / 2]].some(([x, y]) => offStreet(x, y)));
+      const blocked = onBeat || onStreet || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
       return { q, rot, toWorld, boxes, zs, floor, into: Math.max(...zs) - floor, rough: cellsIn(rough), path: cellsIn(path), blocked };
     };
     const score = (F) => (F.off ? Infinity : F.into + 3 * F.rough + (F.path ? 40 : 0) + (F.blocked ? 1000 : 0));
@@ -289,18 +303,32 @@ export function withBuildings(payload, manifest, ctx = {}) {
     } else {
       // absent: the flattest place beside the trail, its door to the trail; the trail's beats and pockets the places
       // looked at (each beat a few distances out to either side), the first best kept
-      const cands = [];
-      for (const p of pockets) { const m = p.mouth ? [p.mouth[0] - p.at[0], p.mouth[1] - p.at[1]] : [0, -1]; cands.push([[p.at[0], p.at[1]], Math.abs(m[0]) >= Math.abs(m[1]) ? (m[0] >= 0 ? '+x' : '-x') : (m[1] >= 0 ? '+y' : '-y')]); }
-      beats.forEach((bt, k) => {
-        const a = beats[Math.max(0, k - 1)].at, c = beats[Math.min(beats.length - 1, k + 1)].at, d = unit([c[0] - a[0], c[1] - a[1], 0]), n = [-d[1], d[0]];
-        for (const off of [5, 8, 11]) for (const sg of [1, -1]) {
-          const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
-          cands.push([[r5(bt.at[0] + sg * n[0] * off), r5(bt.at[1] + sg * n[1] * off)], f]);
+      const cands = [], street = ST && String(id).startsWith('town-');
+      if (street) {
+        // a town with a street fronts it: a seat every metre and a half along it, either side, just behind its footway
+        // and facing it (the house turned to the nearest quarter), the seats nearest the town's heart first
+        for (let y = 2; y <= ST.site.D - 2 + 1e-9; y += 1.5) {
+          const x = ST.site.trailX(y), dx = ST.site.trailX(y + 0.5) - ST.site.trailX(y - 0.5), l = Math.hypot(dx, 1), n = [1 / l, -dx / l];
+          for (const sg of [1, -1]) {
+            const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
+            cands.push([[r5(x + sg * n[0] * (ST.span.half + 1.4)), r5(y + sg * n[1] * (ST.span.half + 1.4))], f, 0.15 * Math.abs(y - ST.site.D / 2)]);
+          }
         }
-      });
+      } else {
+        for (const p of pockets) { const m = p.mouth ? [p.mouth[0] - p.at[0], p.mouth[1] - p.at[1]] : [0, -1]; cands.push([[p.at[0], p.at[1]], Math.abs(m[0]) >= Math.abs(m[1]) ? (m[0] >= 0 ? '+x' : '-x') : (m[1] >= 0 ? '+y' : '-y')]); }
+        beats.forEach((bt, k) => {
+          const a = beats[Math.max(0, k - 1)].at, c = beats[Math.min(beats.length - 1, k + 1)].at, d = unit([c[0] - a[0], c[1] - a[1], 0]), n = [-d[1], d[0]];
+          for (const off of [5, 8, 11]) for (const sg of [1, -1]) {
+            const out = [-sg * n[0], -sg * n[1]], f = Math.abs(out[0]) >= Math.abs(out[1]) ? (out[0] >= 0 ? '+x' : '-x') : (out[1] >= 0 ? '+y' : '-y');
+            cands.push([[r5(bt.at[0] + sg * n[0] * off), r5(bt.at[1] + sg * n[1] * off)], f]);
+          }
+        });
+      }
       let best = null;
-      for (const [P0, f] of cands) { const F = fit(P0, f), sc = score(F); if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
+      for (const [P0, f, near = 0] of cands) { const F = fit(P0, f), sc = score(F) + near; if (!best || sc < best.sc - 1e-9) best = { T: P0, facing: f, sc }; }
       if (!best || best.sc === Infinity) throw new Error(`stage: buildings[${i}] (${id}) finds no place on the land beside the trail; give at: { x, y, facing }`);
+      // (a street's house with no free frontage left is not built: stacked on another it would be a ruin)
+      if (street && best.sc >= 1000) return;
       T = best.T; facing = best.facing;
     }
     const F = fit(T, facing);
@@ -308,7 +336,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const { q, rot, toWorld, zs, floor, into } = F;
     taken.push(...F.boxes);
     // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
-    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); return; }
+    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); if (ST && String(id).startsWith('town-')) planned.push(T[1]); return; }
     const clearUnder = (pad, land = true) => {
       const grow = F.boxes.map((B) => [B[0] - pad, B[1] - pad, B[2] + pad, B[3] + pad]), mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
       faces = faces.filter((f) => { const g = f.group || ''; if (CLEARED.test(g)) { const [cx, cy] = mid(f); return !grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]); } if (land && (GROUND.test(g) || ROUGH.test(g))) { const [cx, cy] = mid(f); return !F.boxes.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); } return true; });
@@ -417,6 +445,24 @@ export function withBuildings(payload, manifest, ctx = {}) {
     seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
       findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : [])] });
   });
+  // (planning: the street's ground is reserved too, so nothing grows on it when the land is laid again)
+  if (ctx.planOnly && ST && planned.length) {
+    const [y0, y1] = streetRange(planned);
+    for (let y = y0; y < y1; y += 2) { const xs = [y, y + 1, y + 2].map((q) => ST.site.trailX(Math.min(q, y1))), h = ST.span.half + 0.5; reserved.push([r5(Math.min(...xs) - h), r5(y), r5(Math.max(...xs) + h), r5(Math.min(y + 2, y1))]); }
+  }
   if (ctx.planOnly) return { reserved };
+  // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
+  // the trail under it cleared, a path of slabs to each door
+  if (ST && !ctx.planOnly) {
+    const doors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && String(a.id).includes('town-'));
+    if (doors.length) {
+      const [y0, y1] = streetRange(doors.map((d) => d.at[1]));
+      const fillOf = (re) => faces.find((f) => re.test(f.group || '') && typeof f.fill === 'string')?.fill ?? '#8a7a62';
+      const lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+      const { faces: SF, clear } = layStreet(ST.site, ST.L, ST.span, { y0, y1, ground, paint, lit, soil: fillOf(/:trail$/), grass: fillOf(/:ground$/), dress: manifest.town.dress, doors });
+      const mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
+      faces = [...faces.filter((f) => { const g = f.group || ''; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy); }), ...SF];
+    }
+  }
   return { ...payload, faces, ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

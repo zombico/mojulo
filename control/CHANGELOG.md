@@ -143,6 +143,18 @@ The geotown's buildings up close, and the town round them: its openings as archi
   and place (sashes and a fanlight between pilasters for the Georgian terrace, leaded lattices for the Tudor town and
   the medina, white casements for the Nordic harbour, plate glass in deep reveals under a hood for the Brutalist), and
   the style's `surfaces-built` law counts a built light's trim as a surface its palette may name.
+- **The street through the town** (`era/stage-street.js`; a stage town's `street: true`, which every geocube town
+  takes). The stretch of trail between a town's first and last house is laid as its language's lane: the anchor's own
+  section (the road in its paving, the edge in its walk's form: a kerb set on end, a flush channel, a boardwalk's
+  fascia, a verge; the walk at its lift) on both sides, draped on the land along the trail; its lamps at their stride,
+  the head reaching over the road, their glass warm; posts along a flush walk; a path of slabs from the walk to each
+  door. The houses are seated to front it: a seat every metre and a half along it either side, just behind the
+  footway, facing it, the seats nearest the town's heart first; a house left no free frontage is not built rather
+  than stacked on another (before, a town's houses scattered over the land, one up a hill, and could stand in one
+  another). The planning pass reserves the street's ground, so nothing grows on it; its trail and growth are cleared.
+  On a gritty cube its setts, flags and slabs are laid from relief (era/town-dress.js `street:*`), a style's `road`
+  and `walk` words over them. The micro-town's `house` camera stands on the road before the first house, its
+  `street` camera on that house's walk looking down it. A stage town that does not ask for its street is as it was.
 
 ### Architectural style: the model composes a town's and a city's look, on the cube's materials
 

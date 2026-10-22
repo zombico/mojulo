@@ -11,7 +11,9 @@
  *   townDressOf(cube)                        → the street's dress (a cube's grit ≥ GRIT_PIXELS), or null
  *   dressTownFace(face, group, dress)        → the face dressed for its source group ('str:plaster', 'str:stone',
  *                                              'str:timber', 'plinth'; a roof's 'str:tile', 'str:slate', 'str:shingle'),
- *                                              or the face itself (no dress for it, or not a wall, or not a roof); an
+ *                                              or the face itself (no dress for it, or not a wall, or not a roof); a
+ *                                              street's paving ('street:setts', 'street:flags', 'street:slabs', a
+ *                                              style's 'street:road', 'street:walk') laid as a floor; an
  *                                              entry's `colour` (a style's, era/arch-style.js) leans the face's hue first
  *   leanHue(hex, colour, share)              a lit face's colour leant toward a material's hue, its luminance (the
  *                                              light baked in it) kept
@@ -47,6 +49,10 @@ export function townDressOf(cube) {
     'str:tile': { spec: { gen: 'dressed', cut: 'tile', stone: rgbOf(cube.colour.floor), mortar, rows: 10, cols: 8, ...wear, seed: 43 }, metres: 2, roof: true },
     'str:slate': { spec: { gen: 'dressed', cut: 'slate', stone: rgbOf(cube.colour.floor), mortar, rows: 12, cols: 6, ...wear, seed: 47 }, metres: 2, roof: true },
     'str:shingle': { spec: { gen: 'dressed', cut: 'slate', stone: rgbOf(cube.colour.trim), mortar, rows: 14, cols: 8, ...wear, seed: 53 }, metres: 2, roof: true },
+    // the street's pavings (era/stage-street.js), by the language's words: setts in courses, flagstones, door slabs
+    'street:setts': { spec: { gen: 'dressed', cut: 'setts', face: 'floor', stone, mortar: rgbOf(cube.colour.floor), rows: 10, cols: 8, vary: 24, ...wear, seed: 63 }, metres: 1.2, floor: true },
+    'street:flags': { spec: { gen: 'dressed', face: 'floor', stone: rgbOf(cube.colour.floor), mortar, rows: 3, cols: 3, tool: 'none', ...wear, seed: 61 }, metres: 1.8, floor: true },
+    'street:slabs': { spec: { gen: 'dressed', face: 'floor', stone: rgbOf(cube.colour.floor), mortar, rows: 2, cols: 2, tool: 'none', ...wear, seed: 65 }, metres: 1.4, floor: true },
   };
 }
 
@@ -74,6 +80,6 @@ export function dressTownFace(face, group, dress) {
   const F = E.colour && typeof face.fill === 'string' ? leanFace(face, E.colour) : face;
   if (!E.spec) return F;
   const c0 = F.corners[0], v = Math.floor(Math.abs(c0[0] * 0.37 + c0[1] * 0.61 + c0[2] * 0.13)) % 2;
-  const out = layDetail({ ...F, cornerFills: F.cornerFills ?? [F.fill] }, { key: keyOf(E, v), metres: E.metres, as: E.roof ? 'roof' : 'wall' });
+  const out = layDetail({ ...F, cornerFills: F.cornerFills ?? [F.fill] }, { key: keyOf(E, v), metres: E.metres, as: E.roof ? 'roof' : E.floor ? 'floor' : 'wall' });
   return out.texture ? out : F;
 }
