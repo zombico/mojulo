@@ -2,10 +2,17 @@
 // landings (halves, the thigh's top, the calf's belly, a short leg line) to the nearest good word of their slot, the
 // hero's own standing; 'balance' picks the outline for the figure by the canon's rules. Absent, nothing moves.
 import { describe, it, expect } from 'vitest';
-import { proportionMoves, balanceOf, LANDINGS, LEVELS } from './proportion.js';
+import { proportionMoves, balanceOf, LANDINGS, GAME_LANDINGS, LEVELS } from './proportion.js';
 import { styledHero, stylismLedger } from './index.js';
 
 describe('the proportion stage', () => {
+  it('judged on the body it is worn on: the game body\'s longer trunk takes a top worn out at the hip off the anime leg line', () => {
+    expect(GAME_LANDINGS.hem.hip).toBeGreaterThan(LANDINGS.hem.hip + 0.03);
+    expect(proportionMoves({ top: { hem: 'hip' } }, {}, 'anime', 'realistic').notes).toEqual([]);
+    const g = proportionMoves({ top: { hem: 'hip' } }, {}, 'anime', 'game');
+    expect(g.language.top.hem).toBe('crop'); expect(g.notes[0].why).toMatch(new RegExp(`${GAME_LANDINGS.hem.hip}`));
+    expect(proportionMoves({ top: { hem: 'hip' } }, {}, 'anime')).toEqual(proportionMoves({ top: { hem: 'hip' } }, {}, 'anime', 'realistic'));
+  });
   it('a coat ending at halves moves up to the hip; a midi skirt off the calf to the knee; shorts off the thigh\'s top', () => {
     expect(LANDINGS.coat.tunic).toBeGreaterThan(0.46);
     const { language, notes } = proportionMoves({ outer: { hem: 'tunic' }, bottom: { kind: 'skirt', leg: 'midi' } }, {}, 'western');

@@ -53,6 +53,12 @@ body catches up to what the authored one wears, and its principles are shared ba
 - THE OUTLINE READ ON BOTH BODIES: the dressed outline (dress-outline.js: the family against the bare body's, each half's
   fit, the returns, the divisions, the flair, the advice in each canon) is read for the authored game body's heroes too,
   in the hero's readout beside its ring-for-ring silhouette; a figure it cannot read goes without it, never refused.
+- THE LANDINGS MEASURED ON THE GAME BODY: the stylism's proportion stage judged every length word by where it lands on
+  the realistic body. Measured on the authored game body (`GAME_LANDINGS`), a top's and a coat's hems from the waist to
+  the tunic land 4 to 5 hundredths lower (its trunk is longer for its height), enough that under the anime canon's leg
+  line a top worn out at the hip, kept on the realistic body, is moved on the game body; the stage now judges by the
+  body the hero is on. Down the leg the bodies agree within about two hundredths. The measuring found a cropped woven
+  top refused on the game body (its buttons placed below its window); its row now starts on it.
 ### Body-part map: dress tailored to the body, not the segment
 
 - The realistic body's skin labelled by BODY PART (chest, abdomen, flank, upper and lower back, seat, hip, groin, neck,

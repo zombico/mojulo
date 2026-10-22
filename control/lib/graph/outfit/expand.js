@@ -220,7 +220,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
       garments.push({ id: 'topRib', part: ['neck'], run: [0.1, r6(0.1 + 0.16 * law.trim)],   // from where the neck leaves the top's yoke
         ease: r6(easeOf(fam) * 1.3), proportional: r6(REF_RADIUS * k), dense: true, group: 'Trim' }); worn.add('topRib'); return true; },
     buttons: () => { if (!wovenTop || !worn.has('top')) return false; if (!structured) { warnings.push('buttons: the streamlined torso has no front slot to set them on; the placket alone'); return false; }
-      rows.push({ part: on('top', 'torso'), t: 'front', s: [0.45, 3.6], step: r6(0.55 * law.buttonStep), shape: 'stud', r: r6(0.0045 * law.button * k), h: r6(0.0028 * law.button * k), m: 8, group: 'Button' }); return true; },
+      // (down the top's own window: a cropped top's starts at 1.4 of the torso, and a button below it had no cloth to sit on)
+      rows.push({ part: on('top', 'torso'), t: 'front', s: [lengths.hem === 'crop' ? 1.85 : 0.45, 3.6], step: r6(0.55 * law.buttonStep), shape: 'stud', r: r6(0.0045 * law.button * k), h: r6(0.0028 * law.button * k), m: 8, group: 'Button' }); return true; },
     belt: () => { if (!bottom || vest || ((bottom.family ?? 'woven') !== 'woven' && focal !== 'belt')) return false;   // law 7: a knit waist is elastic, no loops; a waistcoat over braces
       if (worn.has('skirt')) { kit.push({ id: 'belt', mode: 'band', part: 'skirt_skirt', s: [0.15, dress ? 0.75 : 0.9], t: 'wrap', nt: 16, ns: 2, mugen: r6(0.002 * k), thick: r6(0.006 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
         signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.026 * k * law.trim), h: r6(0.02 * k * law.trim), bar: r6(0.005 * k), standoff: r6(0.004 * k), group: 'Buckle' } }); return true; }

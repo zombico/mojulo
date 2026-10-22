@@ -173,6 +173,13 @@ describe('the outer layer, fit by zone, and the detail on the garment\'s roles',
     expect(sb.tones.Lapel).toMatch(/^#[0-9a-f]{6}$/);
   });
 
+  it('a cropped woven top keeps its buttons on its own window', () => {
+    const crop = { type: 'outfit', style: { id: 'c', language: { top: { family: 'woven', hem: 'crop' }, bottom: { family: 'woven', leg: 'long' }, focal: 'placket' } } };
+    const X = expandOutfit(crop, ctx), row = X.rows.find((R) => R.group === 'Button');
+    expect(row.s[0]).toBeGreaterThanOrEqual(X.garments.find((E) => E.id === 'top').u[0]);
+    expect(() => wear({ cast: 'female', outfit: crop })).not.toThrow();
+  });
+
   it('a WAISTCOAT: refused by name; between the shirt and the jacket, the jacket eased over it, no belt, its front as tailoring', () => {
     const suit = (w) => ({ type: 'outfit', style: { id: 'w', language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, outer: { family: 'woven', sleeve: 'long', hem: 'tunic' }, feet: 'shoes', tuck: true, focal: 'belt', ...(w === undefined ? {} : { waistcoat: w }) } } });
     expect(validateOutfitBuild(suit('yes')).join(' ')).toMatch(/waistcoat: true, false or/);

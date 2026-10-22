@@ -107,7 +107,8 @@ function solve(hero) {
   const cardLang = (() => { const st = own?.style ?? named?.base ?? G.base.style, C = typeof st === 'string' ? SEEDED_OUTFITS[st] : st; return C?.language ?? {}; })();
   // (a card the hero named is the hero's words: its lengths stand as the hero's own do)
   const heroLang = own?.style !== undefined ? languageOf({ language: cardLang }, ownLang) : ownLang;
-  const P = canon ? proportionMoves(languageOf({ language: cardLang }, language), heroLang, canon) : null;
+  // (judged by the landings of the body it is worn on: the realistic body's, or the game body's)
+  const P = canon ? proportionMoves(languageOf({ language: cardLang }, language), heroLang, canon, hero.form === 'realistic' ? 'realistic' : 'game') : null;
   if (P?.notes.length) for (const n of P.notes) { const [slot, key] = n.technique.split(' ')[0].split('.'); language = { ...language, [slot]: { ...(language[slot] || {}), [key]: P.language[slot][key] } }; }
   const have = new Set((own?.pieces || []).map((p) => p.kind));
   // a DETACHED genre stands its plates off the body (a piece's own `float` stands)
