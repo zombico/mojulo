@@ -26,7 +26,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `airdash`: forward or back twice in the air flies level for `airDashDist` over `airDashFrames`.
   - `airjump`: up again, a fresh press, jumps again at `airJumpVy` % of the ground jump.
 
-  The air dash and the air jump share `airActions` per jump. Kombat is left out for now.
+  The air dash and the air jump share `airActions` per jump. Kombat is left out for now. An armed fighter's swing
+  leaves a trail on the versus page in its kind's look, in the fighter's colour: flat hard bands held on twos (cel:
+  anime-air, tag), an added glow with a white cutting edge (isekai: platform), or a faint short sheen (material: street,
+  iron). A game without a kind draws none.
 - **Hitstop, live.** A gameworld feel whose template freezes on a blow (`hit.hitstop`: frames at 60 fps, `base` plus
   `perMs` for each unit of the blow's shove, at most `max`) now carries it onto the hero's strike. Before, the readout
   listed it as not carried. A melee connect freezes the striker and the struck for those frames: no timer, rule,

@@ -109,6 +109,8 @@ function newMatch(opts) {
     ctx, s, mode: opts.mode, level: opts.level ?? 1, mem: [newCpuMemory(), newCpuMemory()], sparks: [], banner: null,
     slow: 0, shake: 0, cam: 0, end: 0, colors: opts.colors, names: opts.names, lastMove: null, lag: [s.p[0].hp, s.p[1].hp],
     combo: [0, 0], comboT: [0, 0], seed: opts.seed >>> 0, idle: 0, flash: null, superFlash: 0, t: 0,
+    // the swing trail's look (a fight kind's: versus-kinds.js), absent ⇒ no trail
+    ...(opts.look && VS_TRAIL[opts.look] ? { look: opts.look, trails: [[], []] } : {}),
   };
 }
 
@@ -160,6 +162,7 @@ function stepMatch(m, given = []) {
   if (p0.mv && p0.mf === 1 && (b0.mv !== p0.mv || b0.mf !== 0)) m.lastMove = m.ctx.fighters[0].moves[p0.mv];
   tickEffects(m);
   tickPoses(m);
+  if (m.look) tickTrails(m);
   for (const e of s.events) onEvent(m, e);
   for (let i = 0; i < 2; i++) {
     if (s.p[1 - i].combo >= 2) { m.combo[i] = s.p[1 - i].combo; m.comboT[i] = 70; }
@@ -214,6 +217,28 @@ const drawnPose = (m, i) => {
   const F = m.ctx.fighters[i], pose = poseOf(m.s.p[i], F, m.t + i * 40, m.s.rules);
   return { pose, J: rigJoints(F.body, pose) };
 };
+
+/**
+ * THE SWING TRAIL (a fight kind's look): an armed fighter's blade, kept a few steps while its tip sweeps fast in a move,
+ * each sample the blade's butt and tip on the stage (mm); drawn by drawEffects in the look's way: cel flat hard bands by
+ * age (newest light, the colour, a deep tone), sampled on twos; isekai an added glow fading, white at the cutting edge;
+ * material a short faint sheen. Its colour is the fighter's.
+ */
+const VS_TRAIL = { isekai: { life: 10, fast: 30 }, cel: { life: 8, fast: 30, twos: true }, material: { life: 4, fast: 45 } };
+function tickTrails(m) {
+  const T = VS_TRAIL[m.look];
+  for (let i = 0; i < 2; i++) {
+    const p = m.s.p[i], F = m.ctx.fighters[i], L = F.weapon && m.drawn[i] ? weaponLine(m.drawn[i].J, F.weapon) : null, tr = m.trails[i];
+    while (tr.length && m.t - tr[tr.length - 1].at > T.life) tr.pop();
+    if (!L) continue;
+    const w = (q) => [p.x + q[0] * p.face, p.y + q[1]], tip = w(L.tip), last = tr.lastTip;
+    tr.lastTip = tip;
+    if (!p.mv || !last || (T.twos && m.t % 2)) continue;
+    if (Math.hypot(tip[0] - last[0], tip[1] - last[1]) * (T.twos ? 0.5 : 1) < T.fast) continue;
+    if (!tr.length || m.t - tr[0].at > 2) tr.unshift({ b: w(L.butt), t: last, at: m.t - 1 });
+    tr.unshift({ b: w(L.butt), t: tip, at: m.t });
+  }
+}
 
 function tickEffects(m) {
   if (m.banner && m.banner.n > 0) m.banner.n--;
@@ -348,6 +373,31 @@ function vsShade(hex, k) {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
+function vsRgba(hex, k, a) {
+  return vsShade(hex, k).replace('rgb(', 'rgba(').replace(')', `,${a.toFixed(3)})`);
+}
+/** The swing trails (tickTrails) in the fight kind's look. */
+function drawTrails(g, m, toScreen) {
+  const T = VS_TRAIL[m.look];
+  for (let i = 0; i < 2; i++) {
+    const tr = m.trails[i], c = m.colors[i];
+    for (let k = 0; k + 1 < tr.length; k++) {
+      const a = tr[k], b = tr[k + 1], u = Math.min(1, (m.t - a.at) / T.life);
+      const q = [a.b, a.t, b.t, b.b].map((v) => toScreen(v[0], v[1]));
+      g.beginPath(); g.moveTo(q[0][0], q[0][1]); for (let j = 1; j < 4; j++) g.lineTo(q[j][0], q[j][1]); g.closePath();
+      if (m.look === 'cel') g.fillStyle = u < 0.34 ? vsShade(c, 0.6) : u < 0.67 ? vsShade(c, 0) : vsShade(c, -0.45);
+      else if (m.look === 'isekai') { g.globalCompositeOperation = 'lighter'; g.fillStyle = vsRgba(c, 0.2, 0.75 * (1 - u) ** 1.5); }
+      else g.fillStyle = vsRgba(c, 0.6, 0.3 * (1 - u));
+      g.fill();
+      if (m.look === 'isekai') {
+        g.strokeStyle = `rgba(255,255,255,${(0.9 * (1 - u)).toFixed(3)})`; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(q[1][0], q[1][1]); g.lineTo(q[2][0], q[2][1]); g.stroke();
+        g.globalCompositeOperation = 'source-over';
+      }
+    }
+  }
+}
+
 /** Sparks, fireballs and (B) the boxes, at `toScreen(xmm, ymm)` with `S` px per mm. */
 function drawEffects(g, m, toScreen, S) {
   const s = m.s;
@@ -358,6 +408,7 @@ function drawEffects(g, m, toScreen, S) {
     glow.addColorStop(0, '#fff'); glow.addColorStop(0.35, m.colors[t.o]); glow.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 1.3, 0, Math.PI * 2); g.fill();
   }
+  if (m.look) drawTrails(g, m, toScreen);
   for (const p of m.sparks) {
     const [x, y] = toScreen(p.x, p.y);
     g.strokeStyle = p.color; g.lineWidth = 3;

@@ -21,6 +21,7 @@ import { moduleDir } from '../../module-dir.js';
 import { solveFighter } from './versus-solver.js';
 import { compileFighter } from './versus-compile.js';
 import { readRules } from './versus-core.js';
+import { FIGHT_KINDS } from './versus-kinds.js';
 import { lawStamp } from './versus-laws.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
@@ -62,9 +63,11 @@ export function versusGameData(manifest = {}) {
   if (roster.length < 1) throw new Error('versus: a roster needs at least one fighter');
   const stages = manifest.stages ?? DEFAULT_STAGES;
   const rules = rulesOf(manifest.rules);
+  // a fight kind's look draws the swing trails (versus-kinds.js); no kind, no look
+  const look = manifest.rules?.kind && FIGHT_KINDS[manifest.rules.kind] ? FIGHT_KINDS[manifest.rules.kind].look : null;
   // arenas: scapeshift stage worlds carrying the fight channel, hosted in a frame (`src`: their World page)
   const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
-  return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
+  return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(look ? { look } : {}), ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
 }
 
 const rulesOf = (r) => readRules(r);

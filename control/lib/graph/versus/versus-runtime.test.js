@@ -70,3 +70,21 @@ describe('versus runtime: the bodies move, they never pop', () => {
     expect(rounds).toBeGreaterThan(1);
   });
 });
+
+describe('versus runtime: the swing trail in a fight kind\'s look', () => {
+  const F = compileFighter(solveFighter({ id: 'kata', archetype: 'all-rounder', weapon: 'katana' }).recipe);
+  const watch = (look, steps = 600) => {
+    const R = load(), g = canvas();
+    const m = R.newMatch({ fighters: [F, F], names: ['A', 'B'], colors: ['#e0503a', '#3a9be0'], schemes: ['modern', 'modern'], mode: 'watch', level: 1, rules: {}, seed: 5, ...(look ? { look } : {}) });
+    const at = [];
+    for (let k = 0; k < steps; k++) { R.stepMatch(m); R.drawEffects(g, m, () => [0, 0], 1); if (m.trails) for (const tr of m.trails) if (tr[0] && tr[0].at === m.t) at.push(m.t); }
+    return { m, at };
+  };
+  it('no look: no trail kept; a look keeps one while a blade sweeps, the cel look on twos', () => {
+    expect('trails' in watch(null, 120).m).toBe(false);
+    const cel = watch('cel'), glow = watch('isekai');
+    expect(cel.at.length).toBeGreaterThan(0); expect(glow.at.length).toBeGreaterThan(0);
+    expect(cel.at.every((t) => t % 2 === 0)).toBe(true);
+    expect(glow.at.some((t) => t % 2 === 1)).toBe(true);
+  });
+});

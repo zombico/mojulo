@@ -52,7 +52,7 @@ function picks() {
   const a = ROSTER[game.pick[0].ix], b = ROSTER[game.pick[1].ix];
   return {
     a, b, names: [a.name, b.name], colors: [a.color, a.id === b.id ? '#e8e8e8' : b.color],
-    schemes: game.pick.map((p) => SCHEMES[p.scheme]), mode: game.mode, level: game.level, rules: VERSUS.rules || {},
+    schemes: game.pick.map((p) => SCHEMES[p.scheme]), mode: game.mode, level: game.level, rules: VERSUS.rules || {}, look: VERSUS.look,
     seed: (game.t * 2654435761) >>> 0,
   };
 }
