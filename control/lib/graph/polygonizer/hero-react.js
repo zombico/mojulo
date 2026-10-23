@@ -20,7 +20,8 @@
  * hero stands on its own feet, not the guard's.
  *
  *   REACTS, REACT_NAMES
- *   heroReact(name, R, { seconds? }) → { fn, seconds, laws }   laws: the ends on the stand, the feet planted
+ *   heroReact(name, R, { seconds? }) → { fn, seconds, laws, act }   laws: the ends on the stand, the feet planted; act:
+ *                                      the face it acts (hero-face-action.js `react`, anime-face-tracks.js)
  *
  * Pure and deterministic.
  */
@@ -75,5 +76,8 @@ export function heroReact(name, R, { seconds } = {}) {
   const toes = (t) => { const n = rigNodesAt(R, C.fn(t)).nodes; return Object.values(R.legs).map((L) => n[L.toeBase]); };
   const at0 = toes(0), drift = Math.max(...[0.1, 0.4, 0.7, 1].flatMap((t) => toes(t).map((p, i) => Math.hypot(p[0] - at0[i][0], p[1] - at0[i][1], p[2] - at0[i][2]))));
   const laws = { planted: drift < 0.02, ends: J.keys[0].t === 0 && J.keys.at(-1).t === 1 && !Object.keys(J.keys.at(-1).pose).length };
-  return { fn: C.fn, seconds: C.seconds, laws };
+  // (the face it acts, hero-face-action.js `react`: on its impact, the first key off the stand, and its hold, the last
+  // before it gives back)
+  const T = C.seconds, act = { family: 'react', action: { family: 'react', name, seconds: T, beats: { impact: J.keys[1].t * T, hold: J.keys.at(-2).t * T, end: T } } };
+  return { fn: C.fn, seconds: T, laws, act };
 }

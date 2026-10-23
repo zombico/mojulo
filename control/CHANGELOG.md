@@ -235,6 +235,12 @@ body catches up to what the authored one wears, and its principles are shared ba
   face's rig on its first build (a minute or two, once per head) and carries its rows.
   The hero in a level wears its skin too (the controllable player draws a painted body's parts on its atlas, texel ×
   its lit colour, as the World page draws it), where it played flat grey.
+  What a clip acts reaches the face (relational-face-rig.js `relationalWeights`; hero-react.js `act`; hero-face-action.js
+  `react`): the realistic face reads the brow an acted take draws (its tilt: set, the brows drawn down and together;
+  worried, lifted), so a strike's kiai or a jump's effort shows on it, where only its lids moved; and a blow taken acts a
+  face, a wince or a grit a frame after the impact, the lids squeezed to the half lid at most, back on the authored face
+  as the body gives back (every hero's reactions, the anime and landmark heads' too). In play each one reaches the
+  state that plays it (a swing, a stagger, a jump).
 - THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
   `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
   ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and

@@ -12,7 +12,8 @@
  *     the midline, Left the figure's left, mesh −x), smile, browRaise, browLower. The jaw opens by the jaw BONE.
  *   • ITS WEIGHTS come from the western expression channels (humanoid-head.js EXPRESSIONS, a key's words, the anime
  *     take's four), so the door's `expression`, the clips' keys and the tracks drive it as they drive the landmark head:
- *     the blink its own, the smile the mouth corners' lift over its range end, the brows their raise (a lower below 0).
+ *     the blink its own, the smile the mouth corners' lift over its range end, the brows their raise (a lower below 0)
+ *     or their tilt (an acted take's brow: set, the lower; worried, the raise), whichever reads more.
  *   • THE ROWS rebase the rest build onto the figure (the stored head and the rebuilt rest may differ by the cast's last
  *     bit), so a target is always added to the head the figure carries.
  * Null for a hero without the relational head; `{ skipped: reason }` when a build changes the head's layout. Pure and
@@ -50,8 +51,12 @@ const layoutOf = (p) => JSON.stringify(p.faces ? Object.keys(p.faces) : p.statio
 /** a face state (westernState's) → its weights in RELATIONAL_FACE_TARGETS' order (`knots`: each eye drawn at its nearest) */
 export function relationalWeights(F, knots) {
   const eL = drawEye(F.eyeL, knots), eR = drawEye(F.eyeR, knots), b = Math.min(eL, eR);
+  // (the brows: their raise, or the tilt an acted take or a set face draws, whichever reads more: tilted outer-up the
+  // corrugator's set brow, inner-up the worried lift)
+  const tilt = F.browTilt ?? 0;
   const w = { blink: b, blinkLeft: eL - b, blinkRight: eR - b, smile: Math.min(1, pos(F.mouthCorner, R.mouthCorner[1])),
-    browRaise: Math.min(1, pos(F.browRaise, R.browRaise[1])), browLower: Math.min(1, pos(-F.browRaise, -R.browRaise[0])) };
+    browRaise: Math.min(1, Math.max(pos(F.browRaise, R.browRaise[1]), pos(-tilt, -R.browTilt[0]))),
+    browLower: Math.min(1, Math.max(pos(-F.browRaise, -R.browRaise[0]), pos(tilt, R.browTilt[1]))) };
   return RELATIONAL_FACE_TARGETS.map((n) => +w[n].toFixed(6));
 }
 /** the tracks' knots and weighing for a realistic hero (the western's, its targets and weights its own) */

@@ -18,6 +18,10 @@ describe('the realistic face\'s weights', () => {
     expect(at({ mouthCorner: CHANNEL_RANGES.mouthCorner[0] }).smile).toBe(0);
     expect(at({ browRaise: CHANNEL_RANGES.browRaise[1] }).browRaise).toBe(1);
     expect(at({ browRaise: CHANNEL_RANGES.browRaise[0] }).browLower).toBe(1);
+    // (an acted take's brow is the tilt: set, the corrugator's lower; worried, the raise)
+    expect(at({ browTilt: CHANNEL_RANGES.browTilt[1] }).browLower).toBe(1);
+    expect(at({ browTilt: CHANNEL_RANGES.browTilt[0] }).browRaise).toBe(1);
+    expect(at({ browTilt: CHANNEL_RANGES.browTilt[1] / 2, browRaise: CHANNEL_RANGES.browRaise[0] }).browLower).toBe(1);
   });
 });
 
