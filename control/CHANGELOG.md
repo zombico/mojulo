@@ -44,6 +44,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   leaves a trail on the versus page in its kind's look, in the fighter's colour: flat hard bands held on twos (cel:
   anime-air, tag), an added glow with a white cutting edge (isekai: platform), or a faint short sheen (material: street,
   iron). A game without a kind draws none.
+- **The held strike.** A gameworld hero who holds a blade or a staff in its right hand now swings it when the game's feel
+  carries a string (the rule's contact window), where before it had no melee at all. A platform body playing the hero
+  whose rule has a contact window and no strike of its own is armed with what it holds:
+  - The runtime's five swing directions are the hero's own swing verbs: neutral its own word (else the chop), forward
+    the thrust, back the cleave (the runtime's topple), and the rising diagonal to either side.
+  - Each verb plays at the item's class, fitted so the strike lands as the window opens, at the world's game type when
+    it names one, and knows its blow (`move` with its tip).
+  - The rule takes the item's reach and the class's swing seconds and damage (any the rule names stand).
+
+  A hero holding nothing, or a rule with no window, is as before (`hero-swing.js` HELD_SWINGS, `fitSwing`,
+  `swingClipKeys`).
 - **Hitstop, live.** A gameworld feel whose template freezes on a blow (`hit.hitstop`: frames at 60 fps, `base` plus
   `perMs` for each unit of the blow's shove, at most `max`) now carries it onto the hero's strike. Before, the readout
   listed it as not carried. A melee connect freezes the striker and the struck for those frames: no timer, rule,

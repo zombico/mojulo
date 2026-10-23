@@ -163,3 +163,28 @@ export function swingTiming(cls, flavor) {
   const act = spans.find((s) => !s.hold && roles[s.from] === 'act'), cock = spans.find((s) => s.hold) ?? act, after = spans.find((s) => roles[s.from] === 'after');
   return { cls, flavor, warp, strike: +act.b.toFixed(3), window: [+cock.a.toFixed(3), +after.b.toFixed(3)] };
 }
+
+// ─── the held strike: a hero's swings as the runtime's ───────────────────────────────────────────────────────
+/**
+ * The runtime's swing directions (worlds/controllable/combat-melee.js: `swing_<dir>`, the stick at the press) played by
+ * a hero's own swing verbs: the neutral swing its own word when it swings one with the right hand (else the chop), a
+ * thrust forward, the cleave back (the runtime's topple), the rising diagonal to either side.
+ */
+export const HELD_SWINGS = Object.freeze({ neutral: null, forward: 'thrust', back: 'cleave', left: 'rising', right: 'rising' });
+/** the held strike's numbers by class: its seconds a swing (the runtime's strikeDur), its damage (hits, as the runtime's
+ * conformance counts them) */
+export const HELD_STRIKE = Object.freeze({ light: { seconds: 0.35, damage: 1 }, normal: { seconds: 0.5, damage: 2 }, heavy: { seconds: 0.72, damage: 3 } });
+/** A swing verb's keys as a hero plays them: the swing's own, on the structured core's swing base (`base`, every key sunk
+ * at least as far), the held hands closed on their grips (`grip`: the fingers channels that hold gear). */
+export function swingClipKeys(word, cls, { base = null, grip = [] } = {}) {
+  let keys = swingKeys(word, cls).keys;
+  if (base) keys = keys.map((k) => ({ ...base, ...k, crouch: Math.max(k.crouch ?? 0, base.crouch) }));
+  if (grip.length) keys = keys.map((k) => ({ ...Object.fromEntries(grip.filter((f) => k[f] === undefined).map((f) => [f, 'grip'])), ...k }));
+  return keys;
+}
+/**
+ * The swing FITTED to the runtime's contact window: the runtime's phase `u` (its swingT) → the swing's own phase, so the
+ * strike (at the swing's `strike`) lands as the window opens (`from`), the wind-up before it and the follow-through after
+ * each stretched to fit.
+ */
+export const fitSwing = (strike, from) => (u) => (u < from ? (u / from) * strike : strike + ((u - from) / (1 - from)) * (1 - strike));

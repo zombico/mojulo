@@ -4,7 +4,10 @@
 // the item clear of the head and the floor, and the chop's blade up and back at the cock, forward at the strike.
 import { describe, expect, it } from 'vitest';
 
-import { SWING_WORDS, SWING_HAND, swingKeys, swingClass, SWING_TIMING, swingTiming, swingClassOfKeys } from './hero-swing.js';
+import { SWING_WORDS, SWING_HAND, swingKeys, swingClass, SWING_TIMING, swingTiming, swingClassOfKeys, fitSwing, swingClipKeys, HELD_STRIKE } from './hero-swing.js';
+import { STRUCTURED_SWING_BASE } from './hero-gesture.js';
+import { playerWorld } from '../playscape/player.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 import { validateRig, rigNodesAt, boneFrames, layeredClip } from './station-loft-rig.js';
 import { gearMounts, gearRestPoint } from './hero-gear.js';
 import { heroRecord, heroPlanOf, expandLayeredManifest, planLayered, validateHeroSpec } from '../../mcp/tools/layered.js';
@@ -178,5 +181,36 @@ describe('the swing in its game type (swingTiming)', () => {
         expect(len(sub(rode, [posed[0], posed[1], posed[2] + dz])), `${swing} frame ${f}`).toBeLessThan(1e-3);
       }
     }
+  });
+});
+
+describe('the held strike: a hero\'s swings as the runtime\'s', () => {
+  it('fitSwing lands the strike as the window opens, never runs back, and spans the clip', () => {
+    for (const [strike, from] of [[0.5, 0.28], [0.556, 0.4], [0.4, 0.62]]) {
+      const f = fitSwing(strike, from);
+      expect(f(0)).toBe(0); expect(f(from)).toBeCloseTo(strike, 12); expect(f(1)).toBeCloseTo(1, 12);
+      let prev = -1; for (let i = 0; i <= 100; i++) { const p = f(i / 100); expect(p).toBeGreaterThanOrEqual(prev); prev = p; }
+    }
+  });
+  it('a verb\'s keys as the hero plays them are the hero plan\'s own (one transform, two callers)', () => {
+    const hero = heroRecord({ cast: 'female', gesture: 'chop', gear: { right: { item: 'sword' } } });
+    expect(swingClipKeys('chop', 'normal', { base: STRUCTURED_SWING_BASE, grip: ['fingersR'] })).toEqual(heroPlanOf(hero).clips.chop);
+  });
+  it('a world whose body strikes with what the hero holds arms it: the five swing directions, each fitted, the rule armed; nothing held, or no window, as before', async () => {
+    const world = (hero, rule) => playerWorld({ hero, library: null, rule });
+    const sword = { cast: 'female', head: 'anime', gear: { right: { item: 'sword' } } };
+    const armed = (await resolveWorldScene({ title: 'p', manifest: world(sword, { strikeContact: [0.4, 0.62] }) })).payload;
+    const F = armed.figures.hero, e = armed.entities.find((x) => x.id === 'hero');
+    expect(Object.keys(F.clips).filter((k) => k.startsWith('swing_')).sort()).toEqual(['swing_back', 'swing_forward', 'swing_left', 'swing_neutral', 'swing_right']);
+    expect(F.clips.swing_forward.move).toMatchObject({ family: 'swing', word: 'thrust', strike: 0.4, window: [0.4, 0.62], tip: { bone: 'handR' } });
+    expect(F.clips.swing_back.move.word).toBe('cleave');
+    expect(e.rule).toMatchObject({ strike: 'melee', strikeDur: HELD_STRIKE.normal.seconds, strikeDamage: HELD_STRIKE.normal.damage });
+    expect(e.rule.strikeReach).toBeGreaterThan(1);
+    expect('held' in F).toBe(false);
+    const plain = (await resolveWorldScene({ title: 'p', manifest: world(sword, {}) })).payload;
+    expect(Object.keys(plain.figures.hero.clips).some((k) => k.startsWith('swing_'))).toBe(false);
+    expect(plain.entities.find((x) => x.id === 'hero').rule.strike).toBeUndefined();
+    const bare = (await resolveWorldScene({ title: 'p', manifest: world({ cast: 'female', head: 'anime' }, { strikeContact: [0.4, 0.62] }) })).payload;
+    expect(bare.entities.find((x) => x.id === 'hero').rule.strike).toBeUndefined();
   });
 });

@@ -50,10 +50,10 @@ import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbe
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
-import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
+import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
-import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming } from '@/lib/graph/polygonizer/hero-swing';
+import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -834,6 +834,30 @@ export const WORLD_KINDS = {
           fn.move = { family: 'swing', word: swingWord, hand: SWING_HAND[swingWord] === 'left' ? 'L' : 'R', class: cls, strike: P.strike, window: P.window, ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: g.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
           clipsIn = { ...clipsIn, [swingWord]: fn };
         }
+        // THE HELD STRIKE (ctx.swings: a world whose body playing this hero strikes in melee, its contact window): a hero
+        // holding a blade or a haft in its right hand swings it as the runtime's swing directions (HELD_SWINGS), each its
+        // own verb at the item's class, fitted to the window (fitSwing: the strike as the window opens), at the world's game
+        // type when it names one; each knows its blow (`move`). The strike's numbers ride the body (`held`) for the world to
+        // arm the rule with. None asked, or nothing held ⇒ as before.
+        let held = null;
+        const hg = ctx.swings && gear ? gear.find((x) => x.slot === 'right' && (x.hold === 'blade' || x.hold === 'haft')) : null;
+        if (hg) {
+          const cls = swingClass({ item: hg.item, mass: hg.trace.dials?.mass ?? 1, share: hg.trace.length / 167.4 }), from = ctx.swings.contact[0];
+          const grip = R.hands ? ['right', 'left'].filter((s) => m.hero.gear?.[s]).map((s) => `fingers${s === 'right' ? 'R' : 'L'}`) : [];
+          const base = (m.hero.core ?? 'structured') === 'structured' ? STRUCTURED_SWING_BASE : null;
+          const q = hg.sockets.tip?.origin ?? hg.sockets.focal?.origin, tip = q ? gearRestPoint(hg, q) : null;
+          const own = isSwing(m.hero.gesture) && SWING_HAND[m.hero.gesture] === 'right' ? m.hero.gesture : 'chop';
+          const swings = {};
+          for (const [dir, verb] of Object.entries(HELD_SWINGS)) {
+            const word = verb ?? own, keys = swingClipKeys(word, cls, { base, grip }), T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
+            const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
+            fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
+            swings[`swing_${dir}`] = fn;
+          }
+          clipsIn = { ...clipsIn, ...swings };
+          held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
+        }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, in an export: its body's and its head's dermal maps on one
         // atlas, the GLB's base colour, under the lit export's plain corners or the unlit's baked light; the World page
@@ -856,7 +880,7 @@ export const WORLD_KINDS = {
         const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
-        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
+        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), ...(held ? { held } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
         // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
