@@ -209,6 +209,12 @@ body catches up to what the authored one wears, and its principles are shared ba
   `HairTip` from the hair's colour as the eye averages it), a streak's blades `HairStreak`. Open, double-sided strips,
   pinned to the visage where the head alone carries it. The cut the face rolled, else its ancestry's with the face's
   hint over it; a buzz grows none (the painted scalp is the hair). A hero with no face wears none.
+- THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
+  blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
+  blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the
+  default), `L0` one broad wedge a comb guide (the outline). The rung is the head's height in pixels under the hero's
+  `target` (era/target.js), L1 for a hero drawn for none; the beard a rung finer than the scalp. The readout's
+  `realisticFace.hairLevel` says which.
 - dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
   single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).
 - dermal-hero.js: what the head wears of its own (`jewel`, `jewelJaw`, the hair to come) never counts as a garment over

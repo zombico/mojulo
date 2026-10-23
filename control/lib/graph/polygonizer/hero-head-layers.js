@@ -20,7 +20,7 @@ import { compileLayered, pinFrame } from './station-loft.js';
 import { surfaceLocalOffset } from './surface-pin.js';
 import { relationalHeadChart, STAND_M } from '../epidermis/dermal-head.js';
 import { pierce, JEWEL_METALS, JEWEL_GEMS } from '../epidermis/dermal-jewel.js';
-import { readScalp, growBodyHair, grassHat, bladeOf } from '../epidermis/dermal-hair.js';
+import { readScalp, growBodyHair, grassHat, bladeOf, HAIR_LADDER } from '../epidermis/dermal-hair.js';
 import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
 import { growEpidermis, readEpidermis } from '../epidermis/epidermis.js';
 
@@ -133,6 +133,8 @@ const HAIR_BANDS = Object.freeze([[0.25, 'HairRoot'], [0.5, 'HairShade'], [0.78,
 const HAIR_RAMP = Object.freeze({ HairRoot: 0.45, HairShade: 0.72, Hair: 1, HairTip: 1.3 });
 /** the beard's: one colour, its own */
 const BEARD_BANDS = Object.freeze([[0.4, 'BeardRoot'], [1.01, 'Beard']]);
+/** the beard's rung for the scalp's: one finer */
+const BEARD_RUNG = Object.freeze({ L2: 'L2', L1: 'L2', L0: 'L1' });
 /** a card on the hero: the points along it (every CARD.step-th of the guide's), its thickness (m, before the head's scale) */
 const CARD = Object.freeze({ points: 12, thick: 0.0006 });
 /**
@@ -144,13 +146,13 @@ const CARD = Object.freeze({ points: 12, thick: 0.0006 });
  * 2 cm, lying on the scalp) grows no cards: the skin's painted scalp is the hair. `dermis` the hero's (its colour, its
  * hairline and loss). Deterministic.
  */
-export function heroHair(recipe, dermis, scalp) {
+export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
   const fit = recipe.headFit;
   if (!fit || !scalp || !recipe.parts.visage) return { parts: {}, palette: {}, counts: null };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
   const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
   // THE GRASS HAT: the scalp a lawn of blades, combed, cut and hung (dermal-hair.js grassHat)
-  const { blades, counts } = grassHat(relationalHeadChart(head, { cells: CELLS }), D, S);
+  const { blades, counts } = grassHat(relationalHeadChart(head, { cells: CELLS }), D, S, { level });
   if (!blades.length || counts.lying) return { parts: {}, palette: {}, counts };
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men];
   const visage = recipe.parts.visage, compiled = compileLayered({ parts: { visage }, dials: {}, creases: {} }).parts.visage;
@@ -161,7 +163,7 @@ export function heroHair(recipe, dermis, scalp) {
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   const part = stripPart(frame, toHero, blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), pin, HAIR_BANDS, 'HairStreak', centre);
   const c = hairMeanOf(D), palette = { ...Object.fromEntries(Object.entries(HAIR_RAMP).map(([g, k]) => [g, linHex(c.map((v) => Math.min(1, v * k + 0.003 * (k - 1))))])), ...(streaked ? { HairStreak: linHex(streaked) } : {}) };
-  return { parts: { hair: part }, palette, counts: { ...counts, blades: blades.length } };
+  return { parts: { hair: part }, palette, counts: { ...counts, level, blades: blades.length } };
 }
 
 /** the face's hair cards' clump (m, the beard's locks gathered to one card a cell) and the brows' and lashes' widths (m) */
@@ -180,7 +182,7 @@ function clumps(strands, cell) {
  * (`hairBrows`, `hairLashes`). `Beard` the hair's colour, its grey a third again; `Brow` its colour with less grey;
  * `Lash` darker. `type` the scalp's hair type (the beard curls by it). Deterministic.
  */
-export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null } = {}) {
+export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1' } = {}) {
   const fit = recipe.headFit;
   if (!fit || !recipe.parts.visage) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
@@ -194,7 +196,10 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     const B = growBodyHair(relationalHeadChart(head, { cells: CELLS }), D, { share: 1, tracts: ['beard'], type });
     const lip = L.stomion.z * STAND_M - 0.002, cards = { head: [], jaw: [] };
     // (the beard a lawn as the scalp is: a wedge a cell, along the lock rooted nearest its middle)
-    for (const st of clumps(B.strands.filter((x) => x.ribbon && x.pts.length > 1), FACE_CARD.cell)) cards[st.pts[0][2] < lip ? 'jaw' : 'head'].push(bladeOf(st, FACE_CARD.cell * FACE_CARD.beardWidth, FACE_CARD.beardStations));
+    // (on the hat's ladder: a rung's cell the wider by 1/√keep, so its wedges as much wider; the outline's three cells)
+    // (a beard is small and costs little: a rung finer than the scalp's)
+    const R = HAIR_LADDER[BEARD_RUNG[level] ?? 'L2'], cell = R.guides ? FACE_CARD.cell * 3 : FACE_CARD.cell / Math.sqrt(R.keep);
+    for (const st of clumps(B.strands.filter((x) => x.ribbon && x.pts.length > 1), cell)) cards[st.pts[0][2] < lip ? 'jaw' : 'head'].push(bladeOf(st, cell * FACE_CARD.beardWidth, FACE_CARD.beardStations, R.turn));
     for (const [bone, name, near] of [['head', 'hairBeard', at(L.n)], ['jaw', 'hairBeardJaw', at(L.pg)]]) {
       if (!cards[bone].length) continue;
       const pin = visagePin(visage, compiled, bone, near); if (!pin) continue;

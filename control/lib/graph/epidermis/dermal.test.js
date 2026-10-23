@@ -11,7 +11,7 @@ import { HUMAN_ANCESTRIES } from '../egocube/ancestry.js';
 import { readDermis, dermisAt, dermalDetail, toneAlbedo, hexLin, headXY, hairMeanOf, hairColourOf } from './dermal-map.js';
 import { MST } from '../egocube/ancestry.js';
 import { layoutDermis, paintDermis, reliefTile } from './dermal-texture.js';
-import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES } from './dermal-hair.js';
+import { growScalp, readScalp, growBodyHair, curlShrink, HAIR_TYPES, grassHat, hairLevel } from './dermal-hair.js';
 
 const head = relationalHead({ sex: 'male' });
 const chart = relationalHeadChart(head, { cells: 44 });
@@ -331,4 +331,16 @@ describe('the wrinkle map', () => {
     expect(sl.some((g) => g[1] > 0.05)).toBe(true); expect(sl.some((g) => g[1] < -0.05)).toBe(true);
     expect(paintDermis(chart, D, L).fold).toBeInstanceOf(Uint8Array);
   });
+});
+
+describe('the grass hat and its ladder', () => {
+  it('plants a lawn of wedges, fewer and wider down the ladder, each tapering to a point', () => {
+    expect([hairLevel(250), hairLevel(100), hairLevel(30)]).toEqual(['L2', 'L1', 'L0']);
+    const D = readDermis('female'), S = readScalp({ style: 'bob', spacing: 0.02 });
+    const [l2, l1, l0] = ['L2', 'L1', 'L0'].map((level) => grassHat(chart, D, S, { level }).blades);
+    expect(l2.length).toBeGreaterThan(l1.length); expect(l1.length).toBeGreaterThan(l0.length);
+    // (the survivors wider, so the cover holds; every blade a wedge to a point)
+    expect(l1[0].half[0]).toBeGreaterThan(l2[0].half[0]);
+    for (const b of [l2[0], l1[0], l0[0]]) { expect(b.half.at(-1)).toBe(0); expect(b.half[0]).toBeGreaterThan(0); }
+  }, 180_000);
 });

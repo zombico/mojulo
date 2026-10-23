@@ -88,7 +88,7 @@ import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
 import { heroJewellery, heroHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
-import { readScalp } from '@/lib/graph/epidermis/dermal-hair';
+import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
@@ -105,7 +105,7 @@ import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swi
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateHeroMotion, motionPlan, locomotionClips } from '../../graph/polygonizer/hero-motion.js';
-import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/era/target.js';
+import { targetError, readTarget, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/era/target.js';
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
@@ -243,12 +243,14 @@ function realisticRecipe(recipe, hero) {
   if (face.piercings?.length) wear(jewelleryOf(H, face.piercings));
   // THE SCALP on its head (hero-head-layers.js heroHair): the composed face's cut over its ancestry's, its cards
   const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
-  if (scalp) wear(hairOf(H, dermis, scalp));
+  // (the hair's rung on the grass's ladder by the head's size on screen: the hero's target, else a third of the blades)
+  const level = heroHairLevel(hero);
+  if (scalp) wear(hairOf(H, dermis, scalp, level));
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis }));
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level }));
   return out;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
@@ -274,12 +276,19 @@ function faceHairOf(S, dermis, opts) {
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
-function hairOf(S, dermis, scalp) {
-  const key = JSON.stringify([S.headFit, dermis, scalp]);
+function hairOf(S, dermis, scalp, level) {
+  const key = JSON.stringify([S.headFit, dermis, scalp, level]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = heroHair(S, dermis, scalp, { level }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
+/** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
+ * target (era/target.js: its figure's pixels, a head about a seventh of them); a hero drawn for no target L1 */
+export function heroHairLevel(hero) {
+  const t = heroTarget(hero); if (!t) return 'L1';
+  try { return hairLevel(readTarget(t).figurePx / HEAD_SHARE); } catch { return 'L1'; }
+}
+const HEAD_SHARE = 7;
 function jewelleryOf(S, piercings) {
   const key = JSON.stringify([S.headFit, piercings]);
   let J = JEWELS.get(key);
@@ -935,7 +944,7 @@ export function withFaceFit(spec) {
 /** the readout's face: what was rolled, so a face liked can be kept by its words or aimed at again */
 function faceReadout(hero) {
   const C = realisticFaceOf(hero); if (!C) return null;
-  return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent, fit: C.tune ? 'its own (solved at mint)' : 'its pole\'s (minted before the fit, or its words changed since: mint it again to solve its own)',
+  return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent, hairLevel: heroHairLevel(hero), fit: C.tune ? 'its own (solved at mint)' : 'its pole\'s (minted before the fit, or its words changed since: mint it again to solve its own)',
     shown: `the head\'s shape and its skin (tone, hairline, marks, beard, the years), its hair${C.piercings?.length ? ', its piercings' : ''}`, notYet: 'the brows, the lashes and a styled beard are read here but not yet grown on the hero (the beard is painted)' };
 }
 

@@ -965,25 +965,43 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
  * solid; their ends, lighter up the ramp, read as the strands. A few thousand blades where a render needs ~15,000
  * strands. → [{ pts, half (half-width a station, 0 at the tip), streak? }], metres in the chart's frame.
  */
-export const GRASS_HAT = Object.freeze({ gap: 0.0045, width: 1.7, stations: 10, ease: 1.8 });
-export function grassHat(chart, D, S, { colliders = ['head'], gap = GRASS_HAT.gap, width = GRASS_HAT.width, stations = GRASS_HAT.stations } = {}) {
+export const GRASS_HAT = Object.freeze({ gap: 0.0045, width: 1.7 });
+/**
+ * THE HAT'S LADDER (the grass's: vegetation/grass.js, fewer blades the smaller it stands on screen, the survivors wider so
+ * the cover holds): `L2` every blade, its strand's shape kept closely (`turn` degrees); `L1` a third of them (rooted
+ * 1/√⅓ as far apart, so as much wider, and `widen` again, as the grass's survivors are), coarser; `L0` the comb's guides alone, one broad wedge a lock, the hair's outline.
+ * `hairLevel(px)` the rung for a head `px` pixels tall on screen.
+ */
+export const HAIR_LADDER = Object.freeze({
+  L2: { keep: 1, turn: 4, stations: 6 },
+  L1: { keep: 0.3, turn: 9, stations: 4, widen: 1.4 },
+  L0: { guides: true, turn: 15, stations: 3, width: 1.5 },
+});
+export const hairLevel = (px) => (px >= 200 ? 'L2' : px >= 80 ? 'L1' : 'L0');
+export function grassHat(chart, D, S, { colliders = ['head'], level = 'L2' } = {}) {
+  const R = HAIR_LADDER[level] || HAIR_LADDER.L2;
+  if (R.guides) {
+    // (the outline: each guide a wedge as wide as its card)
+    const G = growScalp(chart, D, S, { colliders, strands: false });
+    return { counts: G.counts, level, blades: G.guides.map((g, i) => bladeOf({ pts: g.pts, ...(G.cards[i]?.streak ? { streak: G.cards[i].streak } : {}) }, S.spacing * R.width, R.stations, R.turn)) };
+  }
+  const gap = GRASS_HAT.gap / Math.sqrt(R.keep);
   const G = growScalp(chart, D, { ...S, strandGap: Math.min(gap, S.spacing) }, { colliders });
-  return { counts: G.counts, blades: G.strands.map((st) => bladeOf(st, gap * width, stations, GRASS_HAT.ease)) };
+  return { counts: G.counts, level, blades: G.strands.map((st) => bladeOf(st, gap * GRASS_HAT.width * (R.widen ?? 1), R.stations, R.turn)) };
 }
 /** a strand as a blade that keeps its strand's SHAPE: its points kept wherever it turns (over the top of the skull, where
  * the comb lays it along the head: never a chord cut through it), thinned along its straight fall to about `stations`
- * spans, its half-width `w`/2 at the root to 0 at the tip by its share of the length */
-export function bladeOf(st, w, stations) {
+ * spans (a point kept where it turns more than `turnDeg`), its half-width `w`/2 at the root to 0 at the tip by its share
+ * of the length */
+export function bladeOf(st, w, stations, turnDeg = 4) {
   const P = st.pts, n = P.length - 1, cum = [0];
   for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1], P[i][2] - P[i - 1][2]));
   const L = cum[n] || 1e-9, span = L / stations, dir = (a, b) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(...d) || 1; return d.map((x) => x / l); };
   const keep = [0];
   for (let i = 1; i < n; i++) {
     const a = dir(P[keep.at(-1)], P[i]), b = dir(P[i], P[i + 1]), turn = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    if (turn < BLADE_TURN || cum[i] - cum[keep.at(-1)] > span) keep.push(i);
+    if (turn < Math.cos((turnDeg * Math.PI) / 180) || cum[i] - cum[keep.at(-1)] > span) keep.push(i);
   }
   keep.push(n);
   return { pts: keep.map((i) => P[i]), half: keep.map((i, k) => (k === keep.length - 1 ? 0 : (w / 2) * (1 - cum[i] / L) ** 0.75)), ...(st.streak ? { streak: st.streak } : {}) };
 }
-/** a blade keeps a strand's point where it turns more than this (the cosine: ~4°) */
-const BLADE_TURN = Math.cos((4 * Math.PI) / 180);
