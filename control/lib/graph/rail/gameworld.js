@@ -108,6 +108,7 @@ export default registerRail({
     const exits = [];
     if (ref) exits.push({ id: 'book', href: sketchHref(ref, 'bible') });
     if (ref && world.characters) exits.push({ id: 'characters', href: `${sketchHref(ref, 'bible')}?book=characters` });
+    if (ref && world.feel !== undefined && world.feel !== null) exits.push({ id: 'feel', href: `${sketchHref(ref, 'bible')}?book=feel` });
     const gameRef = made.game?.ref;
     if (gameRef && row(gameRef)) exits.push({ id: 'play', href: sketchHref(gameRef, 'game') }, { id: 'playtest', href: sketchHref(gameRef, 'playtest') });
     return { concerns, parts, exits };

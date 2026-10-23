@@ -35,6 +35,7 @@ const EXIT_PATHS = {
   walk: 'M13 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 8l-2.5 4M10 8l3 1.5 2 3M10 8l-.5 5 2.5 3.5V21M9.5 13 7 21',
   play: 'M7 4.5v15l12-7.5z',
   playtest: 'M5 4.5v15l10-7.5zM18 5v14M21 5v14',
+  feel: 'M7 6h10a4 4 0 0 1 4 4v4a3 3 0 0 1-5.4 1.8L14 14h-4l-1.6 1.8A3 3 0 0 1 3 14v-4a4 4 0 0 1 4-4zM6.5 10h3M8 8.5v3M15.5 9.5h.01M17.5 11.5h.01',
   characters: 'M9 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM20 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM2.5 19v-2.5a4 4 0 0 1 8 0V19M13.5 19v-2.5a4 4 0 0 1 8 0V19',
   open: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
@@ -199,8 +200,9 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
     if (!view && views.length) setView({ id: views[0].id });
   }, [views, view]);
   const exit = views.find((e) => e.id === view?.id);
-  // a book or a sheet downloads as one self-contained page; a World or a game is played, not taken
-  const takes = exit && (exit.id === 'book' || exit.id === 'characters' || exit.id.startsWith('sheet:'));
+  // a book or a sheet downloads as one self-contained page (the feel book too: the stick view of the game's controls);
+  // a World or a game is played, not taken
+  const takes = exit && (exit.id === 'book' || exit.id === 'characters' || exit.id === 'feel' || exit.id.startsWith('sheet:'));
   const src = exit ? `${exit.href}${view.hash ? `#${view.hash}` : ''}` : null;
 
   // a concern opens where its part is drawn: the world bible, or the character bible

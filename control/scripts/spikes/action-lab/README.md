@@ -28,8 +28,11 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
 
 ## The design
 
-- **The cards live in lib** (`lib/graph/gameworld/feel/cards.js`: the feels, the mech, the stages, the templates), so
-  the card a game is made from is the card the lab plays; `lab.mjs` inlines them ahead of the kernel.
+- **The lab lives in lib now** (`lib/graph/gameworld/feel/`): the cards (`cards.js`: the feels, the mech, the stages,
+  the templates), the kernel (`kernel.js`), the page (`page.js` and `page.client.js`), the takes (`takes.js`, over the
+  hero library's flavors, `flavor.js` and `motion.js`). A made game's feel book (`book.js`) is the same page locked to
+  its card. `feel.mjs` and `takes.mjs` here (and the animation spike's `flavor.mjs` and `motion.mjs`) re-export them, so
+  the lab's scripts and its gate keep their paths; `lab.mjs` bakes both casts and adds Mojulo Fighter's versus loop.
 - **`feel.mjs`, the kernel.** One FEEL card per feel (`realistic`, `action`, `platformer`, `pinball`) and one pure
   `step(state, pad)` at 60 Hz. The card says what each button does:
   - ground: accel, decel, turn, steer

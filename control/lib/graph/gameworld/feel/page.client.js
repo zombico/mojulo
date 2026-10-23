@@ -1,6 +1,6 @@
 // action-lab page: the playable half. lab.mjs inlines feel.mjs (the kernel, its exports stripped) above this file and
 // DATA (takes.mjs bake, per cast) above that, so the page steps the very code the gate runs.
-/* global DATA, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles, variantsOf, OBSTACLES,
+/* global DATA, SAMPLE, FEELS, FEEL_IDS, ARENA, BTN, FPS, newState, step, poseOf, frameData, util, copy, POLES, POLE_IDS, STAGES, VIEWS, poleCard, blendPoles, variantsOf, OBSTACLES,
    VS, VS_DATA, versusPad, newVsWatch, vsWatch, vsCat */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage'), ctx = stage.getContext('2d'), strip = $('strip'), sctx = strip.getContext('2d');
@@ -11,9 +11,11 @@ readCols();
 
 const store = { get(k, d) { try { const v = localStorage.getItem(`action-lab:${k}`); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem(`action-lab:${k}`, JSON.stringify(v)); } catch { /* storage refused: the page works without it */ } } };
 
-let cast = store.get('cast', 'male'), feel = store.get('feel', 'action'), view = store.get('view', 'three');
+// SAMPLE (feel/book.js): one made game's feel, its card fixed on its base feel, its stage and viewer; null in the lab
+let cast = SAMPLE ? SAMPLE.cast : store.get('cast', 'male'), feel = SAMPLE ? SAMPLE.base : store.get('feel', 'action'), view = SAMPLE ? SAMPLE.view : store.get('view', 'three');
 let spar = false, guard = true, critter = false, paused = false, stepOnce = false, shooter = null, gear = null, mount = null, shakeT = 0;   // mount: riding a mech, its weight (1 heavy … 0 swift), or off   // shooter: the name of one of the card's ranged sets, or off
 const cards = Object.fromEntries(FEEL_IDS.map((id) => [id, copy(FEELS[id])]));
+if (SAMPLE) { cards[SAMPLE.base] = copy(SAMPLE.card); gear = SAMPLE.gear ?? null; }
 let pole = null, toward = null, blendT = 0, lastShotF = -99, variant = null;   // the game template (a pole), the pole blended toward and how far
 let S, hist = [], log = [], presses = [], sparks = [], tracers = [], cam = { x: 0, y: 0, z: 0, yaw: 0 }, shown = {}, prevWorld = {}, rec = null, replay = null;
 
@@ -22,7 +24,7 @@ function reset() {
   const P = pole ? POLES[pole] : null, near = P && toward && blendT >= 0.5 ? POLES[toward] : P;
   const card = P ? (toward && blendT > 0 ? blendPoles(pole, toward, blendT) : poleCard(pole, variant)) : cards[feel];
   const sets = card.ranged?.sets ?? {}; if (shooter && !sets[shooter]) shooter = Object.keys(sets)[0] ?? null;
-  S = newState(card, DATA[cast].body, { arena: near ? STAGES[near.stage] : ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
+  S = newState(card, DATA[cast].body, { arena: near ? STAGES[near.stage] : SAMPLE ? STAGES[SAMPLE.stage] : ARENA, spar, guard, dummyHeight: critter ? 0.8 : util.HEIGHT, shooter: shooter ? sets[shooter] : null, gear, mount });
   hist = []; log = []; presses = []; sparks = []; tracers = []; shown = {}; prevWorld = {};
   cam = { x: S.hero.p[0], y: S.hero.p[1], z: 0, yaw: 0 }; pc.ok = false;
   vs = vsOn() ? vsStart() : null; zoomK = 1;
@@ -35,7 +37,7 @@ const KEYMAP = { KeyI: 'lock', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDow
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
-  if (/^Digit[1-4]$/.test(e.code)) { setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
+  if (/^Digit[1-4]$/.test(e.code)) { if (!SAMPLE) setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
   if (e.code === 'KeyR') reset();
   else if (e.code === 'KeyB' && vs) VS.RT.showBoxes = !VS.RT.showBoxes;
   else if (e.code === 'KeyV') setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
@@ -639,7 +641,7 @@ function drawStrip() {
 // ─── panels ───
 function renderFeel() {
   for (const b of document.querySelectorAll('[data-feel]')) b.setAttribute('aria-pressed', String(b.dataset.feel === feel));
-  $('says').textContent = FEELS[feel].says;
+  $('says').textContent = SAMPLE ? SAMPLE.says : FEELS[feel].says;
   $('cast').textContent = cast === 'male' ? 'Male body' : 'Female body';
   $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('mountbtn').setAttribute('aria-pressed', String(mount != null)); $('mountbtn').textContent = mount == null ? 'Mech' : `Mech: ${mount === 1 ? 'heavy' : mount === 0 ? 'swift' : `weight ${mount}`}`; $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = VIEW_LABEL[view] ?? view; $('pause').textContent = paused ? 'Resume' : 'Pause';
@@ -743,6 +745,7 @@ function setPole(id) {
   renderPoles(); reset();
 }
 function renderPoles() {
+  if (SAMPLE) return;   // a game's sample: its own feel, no templates to pick
   $('pole').value = pole ?? ''; $('toward').value = toward ?? ''; $('blendT').value = String(blendT);
   $('toward').disabled = !pole; $('blendT').disabled = !pole || !toward;
   const vars = pole ? variantsOf(pole) : []; $('variant').hidden = !vars.length;
@@ -773,7 +776,7 @@ function setCritter(on) { critter = on; reset(); }
 function setCast(c) { cast = c; store.set('cast', c); reset(); }
 function setPaused(on) { paused = on; renderFeel(); }
 for (const b of document.querySelectorAll('[data-feel]')) b.addEventListener('click', () => setFeel(b.dataset.feel));
-$('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(FEELS[feel]); reset(); });
+$('reset').addEventListener('click', reset); $('defaults').addEventListener('click', () => { cards[feel] = copy(SAMPLE && feel === SAMPLE.base ? SAMPLE.card : FEELS[feel]); reset(); });
 $('view').addEventListener('click', () => setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]));
 $('spar').addEventListener('click', () => setSpar(!spar)); $('shooter').addEventListener('click', cycleShooter); $('gearbtn').addEventListener('click', cycleGear); $('mountbtn').addEventListener('click', cycleMount); $('onehit').addEventListener('click', () => setOneHit(!S.card.life?.oneHit)); $('guard').addEventListener('click', () => setGuard(!guard)); $('critter').addEventListener('click', () => setCritter(!critter));
 $('cast').addEventListener('click', () => setCast(cast === 'male' ? 'female' : 'male')); $('pause').addEventListener('click', () => setPaused(!paused));
@@ -787,7 +790,7 @@ $('stepbtn').addEventListener('click', () => { if (!paused) setPaused(true); ste
 const LAB_KEYS_HELP = $('keys').textContent;
 const VS_KEYS_HELP = 'A D walk (back: block; S: crouch, crouching blocks low) · Space or W jump (with A or D: a jump in or back) · J light · K medium · L heavy · U + a direction: a special (modern) · U + L: the super · Q or I: the throw · DD dash, AA backdash · B the boxes · T spar (the CPU) · G the dummy blocks · H it crouches · V side or ¾ · R a new round';
 let vs = null;
-const vsPick = { p1: VS_DATA.roster[0].id, p2: VS_DATA.roster[1 % VS_DATA.roster.length].id, scheme: 'modern', super: 'own', ...store.get('vsPick', {}) };
+const vsPick = { p1: VS_DATA.roster[0]?.id, p2: VS_DATA.roster[1 % Math.max(1, VS_DATA.roster.length)]?.id, scheme: 'modern', super: 'own', ...store.get('vsPick', {}) };
 const vsOn = () => !!(pole && POLES[pole].versus && !(toward && blendT > 0));
 const vsCompiled = {};
 const vsFighter = (id, sup) => { const k = `${id}:${sup}`; if (!vsCompiled[k]) { const r = VS_DATA.roster.find((e) => e.id === id) ?? VS_DATA.roster[0]; vsCompiled[k] = { entry: r, F: VS.compileFighter(sup && sup !== 'own' ? { ...r.recipe, super: { id: sup } } : r.recipe) }; } return vsCompiled[k]; };
@@ -914,5 +917,12 @@ function frame(now) {
 }
 // a read-only window for headless checks (the lab's own scripts drive the page and read what it shows)
 window.__lab = { state: () => S, versus: () => vs, pose: (who) => { const r = poseFrames(who); return { d: r.d, world: toWorld(r.d, r.a) }; } };
+// a game's sample: the lab's pickers and its recorder put away; what the game's runtime carries of the card said
+if (SAMPLE) {
+  for (const id of ['pole', 'toward', 'blendT', 'variant', 'mountbtn', 'shooter', 'onehit', 'cast']) $(id).hidden = true;
+  document.querySelector('.feels').hidden = true; $('rec').closest('.card').hidden = true;
+  const R = SAMPLE.report, list = (xs) => xs.map((x) => x.field ?? x).join(', ');
+  $('poleSays').textContent = `In the game: ${list(R.carried)} carried${R.partly.length ? `; partly: ${list(R.partly)}` : ''}${R.lost.length ? `; not carried yet (here only): ${list(R.lost)}` : ''}. The dials try changes on this page only; the game's feel is in its recipe.`;
+}
 fit(); reset(); renderRec();
 requestAnimationFrame(frame);

@@ -57,6 +57,9 @@ import { weatherCardHtml } from './weather-card.js';
 import { airOfKit } from './style-guide.js';
 import { storyReport } from './runner.js';
 import { airspaceOf } from '../skyscape/airspace.js';
+import { feelReport } from './feel/lower.js';
+import { feelSuggestion } from './feel/suggest.js';
+import { POLES } from './feel/cards.js';
 import { planCourse } from '../skyscape/course.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -228,6 +231,20 @@ ${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) 
 ${R.target ? `<p class="muted">Meant for <b>${esc(engineOf(R.target.engine).name)}</b> (advice only): ${esc(R.target.says)}</p>` : ''}</details>`;
 }
 
+// how the hero moves (feel/): the template, what the game's runtime carries of its card, and the feel book to sample it
+// (its sibling page, `?book=feel`); a world that writes none shows what it would be suggested
+function feelHtml(world) {
+  if (world.feel === undefined || world.feel === null) {
+    const S = feelSuggestion(world);
+    return S ? `<details class="brief" id="feel"><summary>How the controls play (not yet said)</summary><p class="muted">Suggested: <b>${esc(typeof S.feel === 'string' ? POLES[S.feel].name : `${POLES[S.feel.pole].name} toward ${POLES[S.feel.toward]?.name ?? ''}`)}</b>, ${esc(S.why)}. Write it as the world's feel to play it.</p></details>` : '';
+  }
+  const R = feelReport(world.feel), list = (xs) => xs.map((x) => esc(x.field ?? x)).join(', ');
+  return `<details class="brief" id="feel" open><summary>How the controls play</summary>
+<p>Plays <b>${esc(R.name)}</b> (after ${esc(R.after)})${R.variant ? `, ${esc(R.variant)}` : ''}${R.toward ? `, ${Math.round(R.t * 100)}% toward ${esc(POLES[R.toward].name)}` : ''}: ${esc(POLES[R.pole].says)}. Seen through its ${esc(R.view)} viewer.</p>
+<ul class="decided"><li><b>carried</b> ${list(R.carried)}</li>${R.partly.length ? `<li><b>partly</b> ${R.partly.map((x) => `${esc(x.field)} <span class="muted">(${esc(x.why)})</span>`).join('; ')}</li>` : ''}${R.lost.length ? `<li class="muted">not carried yet: ${list(R.lost)}</li>` : ''}</ul>
+<p><a href="?book=feel">Sample it in the feel book</a> <span class="muted">(the stick view of these controls: run, jump and strike as the game will)</span></p></details>`;
+}
+
 export function gameworldBibleHtml(world) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
@@ -299,7 +316,7 @@ export function gameworldBibleHtml(world) {
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((x) => `<a href="${anchorOf(x.id)}">${esc(x.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
-${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}</div>`;
+${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}${feelHtml(world)}</div>`;
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;
