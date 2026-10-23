@@ -966,6 +966,13 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
  * strands. → [{ pts, half (half-width a station, 0 at the tip), streak? }], metres in the chart's frame.
  */
 export const GRASS_HAT = Object.freeze({ gap: 0.0045, width: 1.7 });
+/** how far (turns round the head) a point on the scalp lies from the groom's PART, the line the comb parts the top at
+ * (growScalp's: a side part at 0.92, a centre at 0, over the top from the front to the crown); Infinity off it or with
+ * none */
+export function partDistance(address, S) {
+  if (S.part === 'none' || address.along < 0.66 || ad(address.around, 0) > 0.38) return Infinity;
+  return ad(address.around, S.part === 'side' ? 0.92 : 0);
+}
 /**
  * THE HAT'S LADDER (the grass's: vegetation/grass.js, fewer blades the smaller it stands on screen, the survivors wider so
  * the cover holds): `L2` every blade, its strand's shape kept closely (`turn` degrees); `L1` a third of them (rooted

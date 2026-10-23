@@ -128,7 +128,9 @@ describe('the realistic hero at the door', () => {
   it('wears its face\'s hair: the beard (its locks under the lip on the jaw), the brows and the lashes, in the hair\'s own colour over the plan\'s', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', face: { seed: 1, ethnicity: 'western' } }) });
     const P = m.recipe.parts, A = auditLayered(compileLayered(m.recipe, m.dials));
-    for (const k of ['hairBeard', 'hairBeardJaw', 'hairBrows', 'hairLashes']) { expect(P[k]?.pin.parent, k).toBe('visage'); expect(A[k].pass, k).toBe(true); }
+    for (const k of ['hairBeard', 'hairBeardJaw', 'hairBrows', 'hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('visage'); expect(A[k].pass, k).toBe(true); }
+    // (the tuft's base: a coat of the hair's root colour under the scalp's blades and the beard's, no skin between them)
+    expect(P.hairCap.group).toBe('HairRoot'); expect(P.hairBeardCoat.group).toBe('BeardRoot');
     // (the jaw's beard rides a face the jaw alone carries; the moustache's the head)
     expect(P.hairBeardJaw.pin.face).not.toBe(P.hairBeard.pin.face);
     // (one person's hair: the scalp's, the beard's and the brows' colours from the face's, over the plan's defaults)

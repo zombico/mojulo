@@ -209,6 +209,12 @@ body catches up to what the authored one wears, and its principles are shared ba
   `HairTip` from the hair's colour as the eye averages it), a streak's blades `HairStreak`. Open, double-sided strips,
   pinned to the visage where the head alone carries it. The cut the face rolled, else its ancestry's with the face's
   hint over it; a buzz grows none (the painted scalp is the hair). A hero with no face wears none.
+- THE TUFT'S BASE, A COAT (hero-head-layers.js `HAT_CAP`; dermal-hair.js `partDistance`): under the blades, the skin
+  coated half a millimetre deep in the hair's root colour wherever the dermis grows scalp hair (`hairCap`, `HairRoot`:
+  the hairline, a peak and a loss its edge, a bald crown left bare), the groom's part left open so it reads; under a
+  styled beard the same where its locks grow (`hairBeardCoat`, the chin's `hairBeardCoatJaw`, `BeardRoot`). As a
+  tuft's base reads solid, no scalp shows between the blades on a head that has not lost its hair, on any renderer
+  (the World page colours by the palette and wears no skin texture).
 - THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
   blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
   blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the

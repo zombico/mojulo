@@ -20,8 +20,8 @@ import { compileLayered, pinFrame } from './station-loft.js';
 import { surfaceLocalOffset } from './surface-pin.js';
 import { relationalHeadChart, STAND_M } from '../epidermis/dermal-head.js';
 import { pierce, JEWEL_METALS, JEWEL_GEMS } from '../epidermis/dermal-jewel.js';
-import { readScalp, growBodyHair, grassHat, bladeOf, HAIR_LADDER } from '../epidermis/dermal-hair.js';
-import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
+import { readScalp, growBodyHair, grassHat, bladeOf, partDistance, HAIR_LADDER } from '../epidermis/dermal-hair.js';
+import { readDermis, dermisAt, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
 import { growEpidermis, readEpidermis } from '../epidermis/epidermis.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -127,6 +127,42 @@ function stripPart(frame, toHero, blades, pin, bands, streakGroup = null, centre
   const boundary = [...count].filter(([, n]) => n === 1).map(([k]) => k.split('|'));
   return { layer: 2, closure: 'open', pin, group, offsets, faces, boundary, ...(Object.keys(groups).length ? { groups } : {}) };
 }
+/** the CAP (the tuft's base, a coat of the hair's paint): its height over the scalp (m: half a millimetre, paint, not a
+ * mass), the run in from its edge it rises over (m), how far its underside is sunk into the head (m, unseen), and the
+ * PART left open (turns round the head either side of the comb's part line: the part shows the scalp, as it does) */
+const HAT_CAP = Object.freeze({ height: 0.0005, edge: 0.004, sink: 0.001, part: 0.004 });
+/**
+ * THE TUFT'S BASE as one closed part: the chart's faces where the dermis grows `tract`'s hair (dermal-map.js dermisAt: the
+ * scalp's terminal tract, so the hairline, a peak and a loss are its edge and a bald crown is left bare; a beard's where
+ * its locks are at least `min` mm; `where` a point's own test, the lip line's side; off the groom `S`'s part), raised off the
+ * skin to HAT_CAP.height (rising to it over HAT_CAP.edge from its edge, so the hairline is soft) above an underside sunk
+ * into the head, walled round its edge. In the root's colour (`HairRoot`): the dense dark mass a tuft's base reads as, so
+ * no scalp shows between the blades on a head that has not lost its hair. Null where no scalp grows hair.
+ */
+function capPart(chart, D, frame, toHero, pin, { tract = 'scalp', group = 'HairRoot', S = null, min = 0, where = null } = {}) {
+  const V = chart.vertices, N = chart.normals;
+  const inside = chart.samples.map((s, i) => { if (!s || s.feature || (where && !where(V[i]))) return false; const H = dermisAt(s, D, { detail: false }).hair; return H.tract === tract && H.kind === 'terminal' && H.length >= min && !(S && partDistance(s, S) < HAT_CAP.part); });
+  const F = chart.faces.filter((t) => t.every((v) => inside[v]));
+  if (!F.length) return null;
+  // the cap's edge (each edge one face uses) and each point's run in from it, the shortest over the faces' edges
+  const count = new Map(), key = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`), adj = new Map();
+  for (const t of F) for (let e = 0; e < 3; e++) { const a = t[e], b = t[(e + 1) % 3]; count.set(key(a, b), (count.get(key(a, b)) || 0) + 1); for (const [p, q] of [[a, b], [b, a]]) (adj.get(p) || adj.set(p, new Set()).get(p)).add(q); }
+  const edges = [...count].filter(([, n]) => n === 1).map(([k]) => k.split('|').map(Number)), run = new Map();
+  let front = [...new Set(edges.flat())]; front.forEach((v) => run.set(v, 0));
+  while (front.length) { const next = []; for (const v of front) for (const q of adj.get(v) || []) { const d = run.get(v) + Math.hypot(...sub3(V[q], V[v])); if (!(run.get(q) <= d)) { run.set(q, d); next.push(q); } } front = next; }
+  const offsets = {}, faces = {}, top = new Map(), bot = new Map();
+  let nf = 0;
+  const put = (id, p) => { offsets[id] = surfaceLocalOffset(frame, toHero(p)).map(r6); return id; };
+  for (const v of adj.keys()) {
+    const n = unit3(N[v]), h = HAT_CAP.height * Math.min(1, (run.get(v) ?? 0) / HAT_CAP.edge);
+    top.set(v, put(`t${v}`, V[v].map((x, q) => x + n[q] * h))); bot.set(v, put(`b${v}`, V[v].map((x, q) => x - n[q] * HAT_CAP.sink)));
+  }
+  for (const t of F) { faces[`f${nf++}`] = t.map((v) => top.get(v)); faces[`f${nf++}`] = [...t].reverse().map((v) => bot.get(v)); }
+  // the wall round its edge, each edge's way round as the face that uses it runs
+  const way = new Map(); for (const t of F) for (let e = 0; e < 3; e++) way.set(`${t[e]}>${t[(e + 1) % 3]}`, true);
+  for (const [a, b] of edges) { const [p, q] = way.has(`${a}>${b}`) ? [a, b] : [b, a]; faces[`f${nf++}`] = [top.get(q), top.get(p), bot.get(p)]; faces[`f${nf++}`] = [top.get(q), bot.get(p), bot.get(q)]; }
+  return { layer: 2, closure: 'closed', pin, group, offsets, faces };
+}
 /** the hair's bands, root to tip: the root darker, its own colour, the tip lighter (dermal-hair.js hairShade's) */
 const HAIR_BANDS = Object.freeze([[0.25, 'HairRoot'], [0.5, 'HairShade'], [0.78, 'Hair'], [1.01, 'HairTip']]);
 /** the ramp's stops (× the hair's colour, linear), root to tip: the stylized meadow's, dark at the base to bright */
@@ -152,7 +188,7 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis), S = readScalp(scalp);
   const head = relationalHead({ sex, tune: fit.tune ?? HEAD_TUNES[sex], ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) });
   // THE GRASS HAT: the scalp a lawn of blades, combed, cut and hung (dermal-hair.js grassHat)
-  const { blades, counts } = grassHat(relationalHeadChart(head, { cells: CELLS }), D, S, { level });
+  const chart = relationalHeadChart(head, { cells: CELLS }), { blades, counts } = grassHat(chart, D, S, { level });
   if (!blades.length || counts.lying) return { parts: {}, palette: {}, counts };
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men];
   const visage = recipe.parts.visage, compiled = compileLayered({ parts: { visage }, dials: {}, creases: {} }).parts.visage;
@@ -163,11 +199,13 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
   const centre = [0, head.landmarks.eyeR.y * STAND_M * 0.3, head.landmarks.eyeR.z * STAND_M];
   const part = stripPart(frame, toHero, blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), pin, HAIR_BANDS, 'HairStreak', centre);
   const c = hairMeanOf(D), palette = { ...Object.fromEntries(Object.entries(HAIR_RAMP).map(([g, k]) => [g, linHex(c.map((v) => Math.min(1, v * k + 0.003 * (k - 1))))])), ...(streaked ? { HairStreak: linHex(streaked) } : {}) };
-  return { parts: { hair: part }, palette, counts: { ...counts, level, blades: blades.length } };
+  // THE TUFT'S BASE: a cap over all the scalp that grows hair, in the root's colour, under the blades (no skin between them)
+  const cap = capPart(chart, D, frame, toHero, pin, { S });
+  return { parts: { hair: part, ...(cap ? { hairCap: cap } : {}) }, palette, counts: { ...counts, level, blades: blades.length } };
 }
 
 /** the face's hair cards' clump (m, the beard's locks gathered to one card a cell) and the brows' and lashes' widths (m) */
-const FACE_CARD = Object.freeze({ cell: 0.004, beardWidth: 1.9, beardStations: 3, browCell: 0.0025, brow: 0.0012, browPoints: 3, lash: 0.0002, lashPoints: 3 });
+const FACE_CARD = Object.freeze({ cell: 0.004, beardWidth: 1.9, beardStations: 3, coatMin: 3, browCell: 0.0025, brow: 0.0012, browPoints: 3, lash: 0.0002, lashPoints: 3 });
 /** strands gathered to one card a cell of `cell` (m) by their roots, the card the strand nearest the cell's middle */
 function clumps(strands, cell) {
   const cells = new Map();
@@ -193,7 +231,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
   const mean = (g) => { const c = hairColourOfDermis(D); return linHex(c.map((v, i) => v + (GREY[i] - v) * Math.min(1, (D.grey ?? 0) * g))); };
   // the BEARD's locks, a card a cell, split at the lip line
   if (D.beardStyle) {
-    const B = growBodyHair(relationalHeadChart(head, { cells: CELLS }), D, { share: 1, tracts: ['beard'], type });
+    const bchart = relationalHeadChart(head, { cells: CELLS }), B = growBodyHair(bchart, D, { share: 1, tracts: ['beard'], type });
     const lip = L.stomion.z * STAND_M - 0.002, cards = { head: [], jaw: [] };
     // (the beard a lawn as the scalp is: a wedge a cell, along the lock rooted nearest its middle)
     // (on the hat's ladder: a rung's cell the wider by 1/√keep, so its wedges as much wider; the outline's three cells)
@@ -204,6 +242,13 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
       if (!cards[bone].length) continue;
       const pin = visagePin(visage, compiled, bone, near); if (!pin) continue;
       parts[name] = stripPart(pinFrame(compiled, pin), toHero, cards[bone], pin, BEARD_BANDS, null, centre);
+    }
+    // (the beard's coat under it, as the scalp's: where the style grows locks, the skin painted the beard's root; split
+    // at the lip line as the beard is, the chin's riding the jaw)
+    for (const [bone, name, near, where] of [['head', 'hairBeardCoat', at(L.n), (p) => p[2] >= lip], ['jaw', 'hairBeardCoatJaw', at(L.pg), (p) => p[2] < lip]]) {
+      const cp = visagePin(visage, compiled, bone, near); if (!cp) continue;
+      const coat = capPart(bchart, D, pinFrame(compiled, cp), toHero, cp, { tract: 'beard', group: 'BeardRoot', min: FACE_CARD.coatMin, where });
+      if (coat) parts[name] = coat;
     }
     if (parts.hairBeard || parts.hairBeardJaw) { palette.Beard = mean(1.3); palette.BeardRoot = linHex(hairColourOfDermis(D).map((v) => v * 0.6)); }
   }
