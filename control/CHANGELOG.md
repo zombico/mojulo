@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
+
+- **The swing trail.** A composed floor (`fxStyle`, a gameworld's `juice`) draws a weapon's swing as its look draws
+  it: isekai a bright glow ribbon shedding glints, cel flat hard-banded smear sheets held on twos, material a short faint
+  sheen; the game type sets how long it lingers and how fast the blade must move to leave one. The page samples each
+  hand's blade tip (the farthest point of what the hand holds) every frame and draws the swept blade. Its colour is a
+  source: the weapon's element, the hero's power colour, the world's palette, a colour, or a function a caller passes
+  (`resolveTrailColor`), by default the element, else the power colour, else the palette's accent. A gameworld's
+  juice reads them off the game (`trailContext`: the hero's first power's element, else the direction's leading
+  element; the character palette's first colour; the world palette's accent), its `trailColor` word or a source passed
+  to `juiceOfGame(G, { trailColor })` choosing among them. The proving ground's `swing` and `swing-greatsword` takes
+  (with `--rig`) loop a sword hero's swing in place.
+
 ### Juice styling: the effects drawn in the game's register, timed by its game type
 
 - **The effects' floor is a composition.** `fxStyle: { register, look?, flavor, …dials }` composes the floor every beam,

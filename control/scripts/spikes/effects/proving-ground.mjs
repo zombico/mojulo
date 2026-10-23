@@ -43,6 +43,9 @@ export const EFFECTS = {
   itano: { every: 3.4, then: { beam: { who: 'caster', to: 'target', is: 'itano' } } },
   'itano-laser': { every: 2.8, then: { beam: { who: 'caster', to: 'target', is: 'itano-laser' } } },
   // powering up: the caster wears spirit onions (the power-up look's aura) the whole take, firing an orb
+  // a weapon's swing: the caster (with --rig) holds a sword and loops its chop, its trail drawn in the look's way
+  swing: { every: 1.6, swing: { gesture: 'chop', item: 'sword' }, then: { puff: { who: 'caster', is: 'sparks', color: '#ffe9a8' } } },
+  'swing-greatsword': { every: 1.6, swing: { gesture: 'cleave', item: 'greatsword' }, then: { puff: { who: 'caster', is: 'sparks', color: '#ffe9a8' } } },
   'power-up': { every: 3, start: { status: { who: 'caster', is: 'power-up', look: 'power-up' } }, then: { beam: { who: 'caster', to: 'target', is: 'orb', color: '#ffd24a' } } },
 };
 const { JUICE_LOOK_IDS, JUICE_FLAVOR_IDS, readJuiceStyle } = await import('../../../lib/graph/scene/juice-style.js');
@@ -71,6 +74,8 @@ const fox = mascotPlanFromSheet(rollMascot({ brief: 'a robot fox', seed: 1 })).c
 const casterM = expandLayeredManifest({ kind: 'layered', toon: { light: true }, hero: heroRecord({ cast: 'female', head: 'anime', adorn: { type: 'armor', style: 'knight' }, geocube: NIGHT }) });
 const targetM = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: { type: 'armor', style: 'knight' }, geocube: NIGHT }) });
 const rigs = rig ? { caster: await rigFigure(casterM), target: await rigFigure(targetM) } : null;
+// a swinging caster: the hero holding the item, its swing clip played as its idle (so it loops standing)
+const swingRig = async (sw) => { const F = await rigFigure(expandLayeredManifest({ kind: 'layered', toon: { light: true }, hero: heroRecord({ cast: 'female', head: 'anime', gesture: sw.gesture, gear: { right: { item: sw.item } }, geocube: NIGHT }) })); return { ...F, clips: { ...F.clips, walk: F.clips[sw.gesture], forward: F.clips[sw.gesture] } }; };
 const figures = [
   ...(rig ? [] : await figure(casterM, [-4, 0, 0], -Math.PI / 2, 'caster')),
   ...(rig ? [] : await figure(targetM, [4, 0, 0], Math.PI / 2, 'target')),
@@ -112,7 +117,10 @@ for (const name of want) {
   // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off); or the composed cells
   const takes = cells ? cells.map((c) => [`-${c.look}-${c.flavor}`, { ...events, fxLight: true, fxStyle: c }]) : [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]];
   for (const [tag, ev] of takes) {
-    const html = emitThreeWorld({ faces: [...floor, ...wall, ...pillars, ...figures], cameras: [camera], entities, events: ev, ...(rigs ? { figures: rigs } : {}),
+    const figs = rigs && E.swing ? { ...rigs, caster: await swingRig(E.swing) } : rigs;
+    // the swinging caster plays its swing in place, a swing every ~1.4 s (the clock rule: the clip by time, no travel)
+    const ents = E.swing && rig ? entities.map((e) => (e.id === 'caster' ? { ...e, rule: { type: 'clock', rate: 0.7 } } : e)) : entities;
+    const html = emitThreeWorld({ faces: [...floor, ...wall, ...pillars, ...figures], cameras: [camera], entities: ents, events: ev, ...(figs ? { figures: figs } : {}),
       viewBox: { width: 1120, height: 640 }, title: `proving ground · ${name}`, bg: '#0a0c14', sky: { zenith: [8, 10, 20], horizon: [22, 26, 42], day: 0, stars: 0.6, seed: 3 }, inline: true, capture: true });
     writeFileSync(`${out}/${name}${tag}.html`, html);
   }

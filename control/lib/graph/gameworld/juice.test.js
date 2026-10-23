@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { readGameworld, MEADOWMARK } from './index.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { juiceOfGame, juiceSuggestion } from './juice.js';
+import { resolveTrailColor } from '../scene/juice-style.js';
 import { settingOfGame } from './cast-setting.js';
 import { POLE_IDS, POLES } from './feel/cards.js';
 import { GENRE_FLAVOR } from './feel/flavor.js';
@@ -53,6 +54,14 @@ describe('a gameworld\'s juice', () => {
     expect(juiceOfGame({ ...anime, intent: { from: 'jrpg' } }).fxStyle.look).toBe('isekai');
     expect(juiceOfGame({ ...anime, characters: { direction: { tradition: 'western' } }, intent: { from: 'versus-fighter' } }).fxStyle.look).toBe('material');
     expect(juiceOfGame({ ...anime, intent: { from: 'jrpg' }, juice: { look: 'cel' } })).toMatchObject({ fxStyle: { register: 'anime', look: 'cel' }, from: { look: 'operator' } });
+  });
+
+  it('colours the swing trail from the game: its element, its power colour, its palette, or a source the caller passes', () => {
+    const G = { ...readGameworld({ ...MEADOWMARK, juice: 'auto' }), characters: { direction: { tradition: 'anime', primary: 'fire', palette: ['#00ff00'] } } };
+    expect(juiceOfGame(G).fxStyle.trailColor).toEqual(resolveTrailColor('#d4572a'));   // the element first (fire's tint)
+    expect(juiceOfGame({ ...G, juice: { trailColor: 'power' } }).fxStyle.trailColor).toEqual([0, 1, 0]);
+    expect(juiceOfGame(G, { trailColor: (c) => c.power }).fxStyle.trailColor).toEqual([0, 1, 0]);   // a function the caller passes
+    expect(juiceOfGame({ ...G, characters: { direction: { tradition: 'anime' } } }).fxStyle.trailColor).toBeUndefined();   // nothing: the look's own
   });
 
   it('suggests what auto would lay to a world that writes none, and nothing to one that writes it or false', () => {

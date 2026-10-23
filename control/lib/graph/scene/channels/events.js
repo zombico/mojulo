@@ -15,6 +15,7 @@ import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
 import { rimScript } from '../effect-rim.js';
+import { swingTrailScript } from './trail-channel.js';
 import { styleEvents } from '../effect-style.js';
 import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
@@ -213,6 +214,8 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // it gathers them even where the world is not lit by them
   const rimOn = !!(cast && events.rim && events.rim.k > 0) && (mos.length > 0 || bms.length > 0);
   const fxl = (events.fxLight === true || rimOn) && (mos.length > 0 || bms.length > 0);
+  // a weapon's swing trail (a composed floor's `trail`, trail-channel.js): the characters' hands watched for a blade's tip
+  const trailOn = !!(cast && events.trail && events.trail.life > 0);
   // a composed style floor's drawings a second on the moments it styled (a puff's spec, a beam's impact, a battle's)
   const fpsOf = (X) => !!(X && X.fps), rpgBeams = Object.values((events.rpg && events.rpg.juice && events.rpg.juice.fx && events.rpg.juice.fx.beams) || {});
   const mfps = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? fpsOf(r.spec) : r.op === 'beam' && r.spec ? fpsOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => fpsOf(B.impactSpec)));
@@ -336,7 +339,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }) }) : ''}${rimOn ? rimScript(events.rim) : ''}${moments}${beams}
+${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -383,7 +386,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${trailOn ? ' __stepSwing();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }

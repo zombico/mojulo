@@ -30,6 +30,13 @@ export function rimWanted(events) {
   if (!s || typeof s !== 'object') return false;
   try { return juiceFloor(s).rim.k > 0; } catch { return false; }
 }
+/** Whether a world's events will draw on its characters at all (their rim, or a weapon's swing trail: trail-channel.js):
+ *  the page exposes the characters' bodies for them. */
+export function bodiesWanted(events) {
+  const s = events && events.cast === true && events.fxStyle;
+  if (!s || typeof s !== 'object') return false;
+  try { const F = juiceFloor(s); return F.rim.k > 0 || F.trail.life > 0; } catch { return false; }
+}
 
 /** The page's block. Needs the effect light's gather (__fxlU), emitted before it. */
 export function rimScript(rim) {

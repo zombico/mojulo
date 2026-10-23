@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { JUICE_REGISTER_IDS, JUICE_FLAVOR_IDS, JUICE_LOOKS, readJuiceStyle, juiceFloor, juiceSignature } from './juice-style.js';
+import { JUICE_REGISTER_IDS, JUICE_FLAVOR_IDS, JUICE_LOOKS, readJuiceStyle, juiceFloor, juiceSignature, resolveTrailColor } from './juice-style.js';
+import { bodiesWanted } from './effect-rim.js';
 import { FX_STYLE, styleBeam, styleExplosion, styleEvents, puffSpec } from './effect-style.js';
 import { BEAMS, beamLanding, strandPoints } from '../playscape/elements/beams.js';
 import { EXPLOSIONS } from '../playscape/elements/explosions.js';
@@ -196,6 +197,47 @@ describe('juice style: the characters\' rim light', () => {
     expect(band).toContain('uRimBand');
     expect(statusScript({ 'power-up': LOOKS['power-up'] })).not.toContain('uRimBand');
     expect(() => new Function('THREE', 'scene', 'camera', 'renderer', 'window', 'document', 'location', `${band}; return 1;`)).not.toThrow();
+  });
+});
+
+describe('juice style: a weapon\'s swing trail', () => {
+  it('draws the look\'s kind for the game type\'s time: a glow ribbon, cel smear sheets, a short sheen', () => {
+    const iso = floor('anime', 'action').trail, cel = floor('anime', 'action', { look: 'cel' }).trail, mat = floor('western', 'action').trail;
+    expect([iso.kind, cel.kind, mat.kind]).toEqual(['glow', 'cel', 'sheen']);
+    expect(iso.glints).toBe(true);
+    expect(mat.life).toBeLessThan(iso.life);   // a sheen is short
+    expect(cel.base).toBeGreaterThan(iso.base);   // a smear sheet covers more of the blade
+    expect(floor('anime', 'action').trail.life).toBeGreaterThan(floor('anime', 'realistic').trail.life);
+    expect(floor('anime', 'pinball').trail.min).toBeLessThan(floor('anime', 'realistic').trail.min);   // at speed it streaks sooner
+    expect(floor('anime', 'action', { trail: 0 }).trail.life).toBe(0);
+  });
+
+  it('takes its colour from a source: a function, a word read from the context, a colour, else the default chain', () => {
+    const ctx = { element: '#ff3300', power: [0, 1, 0], palette: '#0000ff' };
+    expect(resolveTrailColor('power', ctx)).toEqual([0, 1, 0]);
+    expect(resolveTrailColor('palette', ctx)).toEqual([0, 0, 1]);
+    expect(resolveTrailColor((c) => c.palette, ctx)).toEqual([0, 0, 1]);
+    expect(resolveTrailColor('#ffffff', ctx)).toEqual([1, 1, 1]);
+    expect(resolveTrailColor(undefined, ctx)).toEqual([1, 0.2, 0]);   // the element first
+    expect(resolveTrailColor('element', { power: [0, 1, 0] })).toEqual([0, 1, 0]);   // the element missing: the chain goes on
+    expect(resolveTrailColor(undefined, {})).toBeNull();
+    expect(floor('anime', 'action', { trailColor: '#ff0000' }).trail.color).toEqual([1, 0, 0]);
+    expect(floor('anime', 'action').trail.color).toEqual(JUICE_LOOKS.isekai.trail.color);   // none given: the look's own
+    expect(() => readJuiceStyle({ trailColor: 'mauve' })).toThrow(/trailColor is element \| power \| palette/);
+  });
+
+  it('rides a composed floor\'s events, held on its drawings, and the page watches the hands only where it is', () => {
+    const cel = styleEvents({ cast: true, reactions: [] }, floor('anime', 'action', { look: 'cel' }));
+    expect(cel.trail).toMatchObject({ kind: 'cel', fps: 12 });
+    expect(styleEvents({ cast: true, reactions: [] }).trail).toBeUndefined();
+    expect(bodiesWanted({ cast: true, fxStyle: { look: 'cel', rim: 0 } })).toBe(true);   // the trail alone wants the bodies
+    expect(bodiesWanted({ cast: true, fxStyle: true })).toBe(false);
+    const page = eventsChannelScript({ cast: true, reactions: [], fxStyle: { look: 'cel', flavor: 'action' } });
+    expect(page).toContain('__stepSwing');
+    expect(page).not.toContain('__swGlint');   // glints are the isekai look's
+    expect(eventsChannelScript({ cast: true, reactions: [], fxStyle: { look: 'isekai', flavor: 'action' } })).toContain('__swGlint');
+    expect(eventsChannelScript({ cast: true, reactions: [], fxStyle: true })).not.toContain('__stepSwing');
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', 'window', 'document', 'location', `${page}; return 1;`)).not.toThrow();
   });
 });
 

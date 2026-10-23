@@ -37,6 +37,26 @@ import { FX_STYLE } from './effect-style.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
+const HEX = /^#[0-9a-f]{6}$/i;
+const hexRgb = (h) => [1, 3, 5].map((i) => Math.round((parseInt(h.slice(i, i + 2), 16) / 255) * 1000) / 1000);
+
+/** Where a swing trail's colour comes from: the weapon's element, the hero's power colour, the world's palette (its
+ *  accent). A trail's `trailColor` is one of these, a colour, or (in code) a function of the context. */
+export const TRAIL_SOURCES = Object.freeze(['element', 'power', 'palette']);
+/**
+ * A swing trail's colour from its source and the game's context { element?, power?, palette? } (each '#rrggbb' or
+ * [r, g, b]): a function is called with the context; a source word reads that one; a colour is itself; nothing (or a
+ * word whose colour the context lacks) falls to the default chain, the element, else the power colour, else the palette's
+ * accent, else null (the look's own).
+ */
+export function resolveTrailColor(source, ctx = {}) {
+  const rgb = (c) => (Array.isArray(c) && c.length === 3 ? c.map((x) => +(+x).toFixed(3)) : typeof c === 'string' && HEX.test(c) ? hexRgb(c) : null);
+  if (typeof source === 'function') { const c = rgb(source(ctx)); if (c) return c; }
+  else if (TRAIL_SOURCES.includes(source)) { const c = rgb(ctx[source]); if (c) return c; }
+  else { const c = rgb(source); if (c) return c; }
+  for (const k of TRAIL_SOURCES) { const c = rgb(ctx[k]); if (c) return c; }
+  return null;
+}
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** The looks a register is drawn in. `glyphs` maps a spray's glyph to the look's shape before the game type's, `draw`
@@ -49,25 +69,28 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
  *  colour; `comic` the manga ink burst; `rim` the characters' rim light from the effects round them (effect-rim.js: `k`
  *  its strength, `p` how narrow, `band` above 0 a cel band where the fresnel passes it, `gap` metres the field stands off
  *  the body) and what it does to a status's
- *  coat (`coat`: its strength ×, with the rim's narrowness and band). */
+ *  coat (`coat`: its strength ×, with the rim's narrowness and band); `trail` a weapon's swing trail (`kind`: glow | cel
+ *  | sheen, `life` s it lingers, `base` how far down the blade it reaches, a share from the tip's end, `fast` the share of the swing's
+ *  own peak speed the blade must pass besides the game type's floor (a cel smear marks only the fastest drawings), `glints`, `alpha`,
+ *  `color` the look's own when no source gives one). */
 export const JUICE_LOOKS = Object.freeze({
   isekai: {
     register: 'anime',
     says: 'the contemporary anime RPG: no ink line; a white-hot core into saturated ribbons in a near hue, soft trails, glints for sparks, fire that burns as glowing light, a halo ring on the blow and glints drifting up after it; smoke short and tinted its colour; smooth, every frame',
     ink: null, companions: true, hue: 35, echoes: 3, echoLag: 0.05, echoShrink: 0.8, echoFade: 0.55,
-    rim: { k: 1.1, p: 2.2, band: 0, gap: 0.02, coat: 1.15 }, glyphs: { streak: 'spark', chip: 'spark' }, draw: {}, comic: false, halo: true, motes: true, glow: true, onions: false, debris: false, tint: 0.6, smoke: 0.35, light: 1.2, star: 1.35, fps: null, edge: 'glow', cel: false,
+    rim: { k: 1.1, p: 2.2, band: 0, gap: 0.02, coat: 1.15 }, trail: { kind: 'glow', life: 0.2, base: 0.35, fast: 0.3, glints: true, alpha: 0.9, color: [0.62, 0.86, 1] }, glyphs: { streak: 'spark', chip: 'spark' }, draw: {}, comic: false, halo: true, motes: true, glow: true, onions: false, debris: false, tint: 0.6, smoke: 0.35, light: 1.2, star: 1.35, fps: null, edge: 'glow', cel: false,
   },
   cel: {
     register: 'anime',
     says: 'full anime, cel-shaded (the anime fighter\'s, high-res colour in hard painterly shapes): flat bands with hard edges round a white-hot core, accent hues beside the attack\'s own, fire as overlapping spinning spirit onions ringed by spikes, speed lines, dark debris specks and a swirl ring on the blow, smoke short and coloured; no outline, no grey; drawn on twos',
     ink: null, companions: true, hue: 150, echoes: 3, echoLag: 0.06, echoShrink: 0.82, echoFade: 0.6,
-    rim: { k: 1.3, p: 1.5, band: 0.45, gap: 0.04, coat: 1.25 }, glyphs: { spark: 'streak' }, draw: { dot: 'cdot', soft: 'cblob' }, comic: false, halo: true, motes: true, glow: false, onions: true, debris: true, tint: 0.8, smoke: 0.25, light: 0.8, star: 1.3, fps: 12, edge: 'glow', cel: true,
+    rim: { k: 1.3, p: 1.5, band: 0.45, gap: 0.04, coat: 1.25 }, trail: { kind: 'cel', life: 0.3, base: 0.6, fast: 0.6, glints: false, alpha: 1, color: [0.55, 0.85, 1] }, glyphs: { spark: 'streak' }, draw: { dot: 'cdot', soft: 'cblob' }, comic: false, halo: true, motes: true, glow: false, onions: true, debris: true, tint: 0.8, smoke: 0.25, light: 0.8, star: 1.3, fps: 12, edge: 'glow', cel: true,
   },
   material: {
     register: 'western',
     says: 'material: no ink, the glow and the light it throws carry it; one colour, the material\'s; motion blur, not afterimages; streaks and chips; grey smoke that lingers; every frame',
     ink: null, companions: false, hue: 40, echoes: 4, echoLag: 0.035, echoShrink: 0.9, echoFade: 0.42,
-    rim: { k: 0.5, p: 3.6, band: 0, gap: 0.01, coat: 0.8 }, glyphs: { spark: 'streak' }, draw: {}, comic: false, halo: false, motes: false, glow: false, onions: false, debris: false, tint: 0, smoke: 1.5, light: 1.6, star: 0.9, fps: null, edge: 'glow', cel: false,
+    rim: { k: 0.5, p: 3.6, band: 0, gap: 0.01, coat: 0.8 }, trail: { kind: 'sheen', life: 0.07, base: 0.5, fast: 0.45, glints: false, alpha: 0.35, color: [0.92, 0.94, 1] }, glyphs: { spark: 'streak' }, draw: {}, comic: false, halo: false, motes: false, glow: false, onions: false, debris: false, tint: 0, smoke: 1.5, light: 1.6, star: 0.9, fps: null, edge: 'glow', cel: false,
   },
 });
 export const JUICE_LOOK_IDS = Object.freeze(Object.keys(JUICE_LOOKS));
@@ -84,19 +107,19 @@ export const JUICE_REGISTER_IDS = Object.freeze(Object.keys(JUICE_REGISTERS));
 export const JUICE_FLAVORS = Object.freeze({
   realistic: {
     says: 'an effect on earth: its own pace, no charge it was not given, no arc, no stretch, one echo, a light shake',
-    rate: 1, anticipation: 0, stretch: 0, arc: 0, echoes: 0.34, shake: 0.6, rim: 0.6, star: 0.8, sparks: 0.8, sparkLife: 1, glyphs: {},
+    rate: 1, anticipation: 0, stretch: 0, arc: 0, echoes: 0.34, shake: 0.6, rim: 0.6, trail: { life: 0.6, min: 3 }, star: 0.8, sparks: 0.8, sparkLife: 1, glyphs: {},
   },
   action: {
     says: 'the blow is the verb: a deep charge held to read, then a snap faster than the eye, a big flash and a hard shake',
-    rate: 1.25, anticipation: 1.6, stretch: 1, arc: 1, echoes: 1, shake: 1.35, rim: 1.3, star: 1.3, sparks: 1.2, sparkLife: 1, glyphs: {},
+    rate: 1.25, anticipation: 1.6, stretch: 1, arc: 1, echoes: 1, shake: 1.35, rim: 1.3, trail: { life: 1.3, min: 1.5 }, star: 1.3, sparks: 1.2, sparkLife: 1, glyphs: {},
   },
   platformer: {
     says: 'a boop: a quick wind-up, squash and stretch, a bouncy arc, round sparks gone in a blink, a soft shake',
-    rate: 1.1, anticipation: 0.6, stretch: 1.3, arc: 2.5, echoes: 0.34, shake: 0.5, rim: 1, star: 1.2, sparks: 0.8, sparkLife: 0.7, glyphs: { streak: 'dot', spark: 'dot', chip: 'dot' },
+    rate: 1.1, anticipation: 0.6, stretch: 1.3, arc: 2.5, echoes: 0.34, shake: 0.5, rim: 1, trail: { life: 0.7, min: 2.2 }, star: 1.2, sparks: 0.8, sparkLife: 0.7, glyphs: { streak: 'dot', spark: 'dot', chip: 'dot' },
   },
   pinball: {
     says: 'speed: everything plays fast, stretched along its flight, a long tail of echoes close behind, streaks, every frame drawn',
-    rate: 1.6, anticipation: 0.4, stretch: 1.5, arc: 0, echoes: 1.67, echoLag: 0.5, shake: 0.8, rim: 1.1, star: 1, sparks: 1.5, sparkLife: 1, glyphs: { dot: 'streak', spark: 'streak' }, fps: 'every',
+    rate: 1.6, anticipation: 0.4, stretch: 1.5, arc: 0, echoes: 1.67, echoLag: 0.5, shake: 0.8, rim: 1.1, trail: { life: 1.6, min: 1 }, star: 1, sparks: 1.5, sparkLife: 1, glyphs: { dot: 'streak', spark: 'streak' }, fps: 'every',
   },
 });
 export const JUICE_FLAVOR_IDS = Object.freeze(Object.keys(JUICE_FLAVORS));
@@ -118,12 +141,13 @@ export const JUICE_DIALS = Object.freeze({
   hue: [0, 180, 'degrees the companions stand round from the attack\'s hue'],
   tint: [0, 1, 'how far grey smoke is pulled toward the effect\'s own pale colour'],
   rim: [0, 3, '× the characters\' rim light from the effects round them (0: none)'],
+  trail: [0, 3, '× how long a weapon\'s swing trail lingers (0: none)'],
   companions: 'switch',
   halo: 'switch',
   motes: 'switch',
   comic: 'switch',
 });
-const STYLE_KEYS = ['register', 'look', 'flavor', ...Object.keys(JUICE_DIALS)];
+const STYLE_KEYS = ['register', 'look', 'flavor', 'trailColor', ...Object.keys(JUICE_DIALS)];
 
 /** A composed style's words, checked. */
 export function readJuiceStyle(v, where = 'fxStyle') {
@@ -137,6 +161,11 @@ export function readJuiceStyle(v, where = 'fxStyle') {
   if (JUICE_LOOKS[look].register !== register) throw new Error(`${where}.look '${look}' is the ${JUICE_LOOKS[look].register} register's: ${register} is drawn ${JUICE_REGISTERS[register].looks.join(' | ')}`);
   if (!JUICE_FLAVORS[flavor]) throw new Error(`${where}.flavor is ${JUICE_FLAVOR_IDS.join(' | ')} (the game type's animation)`);
   const out = { register, look, flavor };
+  if (v.trailColor !== undefined) {
+    const c = v.trailColor;
+    if (!((typeof c === 'string' && (TRAIL_SOURCES.includes(c) || HEX.test(c))) || (Array.isArray(c) && c.length === 3 && c.every((x) => num(x) && x >= 0 && x <= 1)))) throw new Error(`${where}.trailColor is ${TRAIL_SOURCES.join(' | ')}, '#rrggbb' or [r, g, b] (a function goes to resolveTrailColor)`);
+    out.trailColor = c;
+  }
   for (const [k, d] of Object.entries(JUICE_DIALS)) {
     if (v[k] === undefined) continue;
     if (d === 'switch') { if (typeof v[k] !== 'boolean') throw new Error(`${where}.${k} is true or false`); out[k] = v[k]; continue; }
@@ -183,13 +212,18 @@ export function juiceFloor(style) {
     // the characters' rim: the look's (how narrow, a soft fade or a cel band, how a status's coat is lifted) at the game
     // type's strength
     rim: Object.freeze({ k: r3(pick('rim', Rg.rim.k * Fl.rim)), p: Rg.rim.p, band: Rg.rim.band, gap: Rg.rim.gap, coat: Rg.rim.coat }),
+    // a weapon's swing trail: the look's kind (a glow ribbon, cel smear sheets, a sheen) lingering the game type's time,
+    // left once the blade's tip moves faster than the game type's floor (m/s) and the look's share of the swing's own
+    // running peak, in its colour (resolveTrailColor)
+    trail: Object.freeze({ kind: Rg.trail.kind, life: r3(Rg.trail.life * Fl.trail.life * pick('trail', 1)), min: Fl.trail.min, fast: Rg.trail.fast, base: Rg.trail.base, glints: Rg.trail.glints, alpha: Rg.trail.alpha,
+      color: resolveTrailColor(S.trailColor) ?? Rg.trail.color }),
   });
 }
 
 /** What tells one composition from another: its look (values and shape) and its time. */
 export function juiceSignature(F) {
   const look = [F.look, F.cel ? 'cel bands' : 'soft glow', F.ink ? `ink ${F.ink}` : 'no ink', F.companions ? 'companions' : 'one colour', F.halo ? 'halo' : 'no halo', F.motes ? 'motes' : 'no motes', F.tint ? `smoke tinted ${F.tint}` : 'grey smoke', F.comic ? 'comic burst' : 'no burst',
-    `sparks ${F.sparks.glyph}×${F.sparks.count}`, F.rim.k ? `rim ${F.rim.band ? 'cel band' : `soft p${F.rim.p}`} ×${F.rim.k}` : 'no rim', `smoke ×${F.smokeK}`, `light ×${F.lightK}`, F.fps ? `${F.fps} drawings/s` : 'every frame'].join(' · ');
+    `sparks ${F.sparks.glyph}×${F.sparks.count}`, F.trail.life ? `trail ${F.trail.kind} ${F.trail.life}s over ${F.trail.min} m/s` : 'no trail', F.rim.k ? `rim ${F.rim.band ? 'cel band' : `soft p${F.rim.p}`} ×${F.rim.k}` : 'no rim', `smoke ×${F.smokeK}`, `light ×${F.lightK}`, F.fps ? `${F.fps} drawings/s` : 'every frame'].join(' · ');
   const time = [`rate ×${F.rate}`, F.charge.time ? `charge ${F.charge.time}s` : 'no charge', `stretch ${F.stretch}`, `arc ${F.arc}`, `${F.echoes} echoes @${F.echoLag}s`, `shake ×${F.shakeK}`, `flash ×${F.starK}`].join(' · ');
   return { look, time };
 }

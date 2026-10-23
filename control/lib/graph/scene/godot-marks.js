@@ -200,6 +200,7 @@ export const EVENT_MARKS = Object.freeze({
   minigames: m(A, 'the games inside the game (playscape/ui/minigames.js: blocks, match, fishing in a pixel window) are the page\'s: minigame-won and minigame-lost never come back'),
   fxStyle: m(A, 'the style floor (scene/effect-style.js) raises the page\'s beams and explosions as it draws them: the moments travel as authored'),
   rim: m(A, 'the characters\' rim light from the effects round them (scene/effect-rim.js) is the page\'s: the kernel\'s characters wear none'),
+  trail: m(A, 'a weapon\'s swing trail (scene/channels/trail-channel.js) is the page\'s: the kernel\'s swings leave none'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */
 export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS));

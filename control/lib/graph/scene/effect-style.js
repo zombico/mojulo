@@ -255,6 +255,9 @@ export function styleEvents(events, F = FX_STYLE) {
   // the characters' rim (effect-rim.js): the look's rim at the game type's strength; a status's coat in the look's rim
   // (as narrow, a cel band where the look draws one, lifted by its share)
   const rim = F.composed && F.rim && F.rim.k > 0 ? { rim: { k: F.rim.k, p: F.rim.p, band: F.rim.band, gap: F.rim.gap } } : {};
+  // a weapon's swing trail (scene/channels/trail-channel.js): the look's kind, the game type's life and threshold, its
+  // colour, held on the floor's drawings a second
+  const trail = F.composed && F.trail && F.trail.life > 0 ? { trail: { ...F.trail, ...(F.fps ? { fps: F.fps } : {}) } } : {};
   const looks = F.composed && F.rim && events.looks ? { looks: Object.fromEntries(Object.entries(events.looks).map(([n, L]) => [n, L && L.coat ? { ...L, coat: { ...L.coat, p: F.rim.p, k: +Math.min(1.5, L.coat.k * F.rim.coat).toFixed(3), ...(F.rim.band ? { band: F.rim.band } : {}) } } : L])) } : {};
-  return { ...events, reactions, ...rpg, ...rim, ...looks };
+  return { ...events, reactions, ...rpg, ...rim, ...trail, ...looks };
 }
