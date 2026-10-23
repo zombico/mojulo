@@ -14,6 +14,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Game feel: the lab's templates in the game loop
+
+- **A gameworld's `feel`.** A game names one of the action lab's templates (`feel: { pole, variant?, toward?, t?, set? }`)
+  and its hero moves by that template's card: the run, the ground's acceleration, the jump's height and its gravity
+  up and down, coyote time and the jump buffer, the shortest hop, air control, the jump's gather, air jumps, the 2D
+  lane. The card is lowered into the platform rule the runtime already plays, laid over the hero's own; what the
+  runtime does not carry yet (hitstop, the parry, the hold-release charge, offense armor, a roll's invincible frames,
+  the runner) is said in the game's readout, never dropped silently. The cards and templates moved from the lab into
+  `lib/graph/gameworld/feel/`, so the card a game is made from is the one the lab plays and holds to its laws.
+
 ### Action game unification: one feel for the button, the body and the clip
 
 - **A lab, nothing registered** (`scripts/spikes/action-lab/`). The animation-games spike retimed a take on its own

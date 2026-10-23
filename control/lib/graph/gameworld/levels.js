@@ -56,6 +56,7 @@ import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
+import { feelCard, lowerFeel } from './feel/lower.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -385,7 +386,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     };
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
-    const rule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
+    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
+    // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
+    // moving kept; no feel, the hero's own rule as it was
+    const feelRule = G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+    const rule = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };

@@ -28,6 +28,8 @@ genres it names leave in 0–3. The clip cannot own the time of a player's actio
 
 ## The design
 
+- **The cards live in lib** (`lib/graph/gameworld/feel/cards.js`: the feels, the mech, the stages, the templates), so
+  the card a game is made from is the card the lab plays; `lab.mjs` inlines them ahead of the kernel.
 - **`feel.mjs`, the kernel.** One FEEL card per feel (`realistic`, `action`, `platformer`, `pinball`) and one pure
   `step(state, pad)` at 60 Hz. The card says what each button does:
   - ground: accel, decel, turn, steer
@@ -177,7 +179,7 @@ stomper off without being squashed.
 
 ## The poles: game templates and their viewers
 
-`POLES` in `feel.mjs`: the sane defaults a game starts from, and the poles its movement is tuned between. Each is a
+`POLES` (`lib/graph/gameworld/feel/cards.js`): the sane defaults a game starts from, and the poles its movement is tuned between. Each is a
 base feel with the fields it changes (movement and animation: the ground, the jump, the dodge, the hit's freeze, the
 look, the rules it carries), a **viewer** it is seen through, a **stage** that suits it, and what it still **needs**
 (the primitives it names that the lab has not built: the build order). `poleCard(id)` makes its card;
@@ -222,6 +224,12 @@ untouchable, then the finish (down or a launch). The **hit-combo super** (`super
 clock running; the **cutscene super** (`super-cutscene`) stops the clock while the page cuts away (closer in,
 darkened, letterboxed). Blocked, either is one blocked blow; whiffed, a whiff. Any fighter takes one (the **Super**
 picker, or a recipe's `super`), and a recipe's own super takes a `lock` of its own.
+
+**In a game** (a gameworld's `feel`, `lib/graph/gameworld/feel/lower.js`): a template's card is lowered over the
+hero's platform rule in every level the game makes: the run and its acceleration, the jump (its launch solved against
+the runtime's own frame stepping, so the apex is the card's), coyote and the buffer, the shortest hop, air control, the
+gather (its take-off on the card's frame), air jumps, the lane. What the runtime does not carry yet is said in the
+game's readout. The gate holds the lowered rule to the lab: the same apex, take-off frame and run.
 
 **Galaxy Boy's buster** (the charge's `tap`): a run-and-gun's attack is a shot, not a jab. The press fires a small shot
 on its own frame from anything but a hurt (a dash, the air, the wall), at most `max` out (the next press dropped: the

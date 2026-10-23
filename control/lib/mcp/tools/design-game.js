@@ -30,6 +30,7 @@ import {
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
+import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
@@ -273,10 +274,13 @@ function readout(ref, world, context = {}) {
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
   // the engine the intent names, and what of the world it does not carry: advice, never a refusal
   if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
+  // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
+  const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
+  if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), intent, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), intent, ...(feel ? { feel } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

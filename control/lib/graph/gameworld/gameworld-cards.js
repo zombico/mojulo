@@ -17,6 +17,8 @@ import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './
 import { ELEMENT_WORDS } from './element-words.js';
 import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
+import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
+import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
@@ -194,6 +196,30 @@ function motionCard() {
     ...pair('motion', ['an old soldier who will not hurry', { vibe: ['heavy', 'stoic'] }], ['a street kid who never stands still', { vibe: ['peppy', 'cocky'] }]),
     '',
     samples('motion'),
+  );
+}
+
+function feelCard() {
+  return lines(
+    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set? }.',
+    'The template\'s card (the action lab\'s) is lowered over the hero\'s platform rule: the run and its acceleration, the',
+    'jump\'s height and gravity up and down, coyote time and the buffer, the shortest hop, air control, the gather, air',
+    'jumps, the 2D lane. design_game\'s readout says what the runtime carries of it, partly carries, and does not carry yet',
+    '(hitstop, the parry, the charge, offense armor, the roll\'s invincible frames, the runner): advice, never a refusal.',
+    'The motion (gameworld-motion) is how the walk LOOKS; the feel is how the controls PLAY. Both may be set.',
+    '',
+    'templates (after · base feel · viewer):',
+    ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),
+    '',
+    'toward + t tunes between two (every number blended, the rest the nearer\'s); set lays the card\'s own fields over it',
+    '(ground { walk, run, sprint, accel, decel, turn }, jump { commit, height, gRise, gFall, cut, coyote, buffer, air }, air { jumps, mult }).',
+    'The template\'s viewer is advice: the camera is the world\'s (camera, or the quick game\'s).',
+    '',
+    'A CONTRAST PAIR (two briefs; the hero rule each lowers to, computed now):',
+    ...[['a Mega Man X style run and gun', 'galaxy-boy'], ['a platformer between Mario and Mega Man', { pole: 'jumping-giuseppe', toward: 'galaxy-boy', t: 0.4 }]].flatMap(([brief, f]) => {
+      const L = lowerFeel(feelCardOf(f)), R = L.rule;
+      return [`  brief: "${brief}"`, `    feel: ${JSON.stringify(f)}`, `    lowers to: run ${R.speed} m/s, jump ${R.jumpSpeed} m/s on ${R.gravity}/${R.fallGravity} m/s², coyote ${R.coyote} s, buffer ${R.buffer} s${R.airJumps ? `, ${R.airJumps} air jump` : ''}; not carried: ${L.lost.map((x) => x.field).join(', ')}`];
+    }),
   );
 }
 
@@ -484,7 +510,9 @@ function nextCard() {
     '  target     the intent names an engine (intent.target) and `lost` are values it does not carry: advice, not a',
     '             refusal (gameworld-intent). Change one or keep it; the export says the same.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
-    '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
+    '  feel       the world\'s feel has card fields the runtime does not carry yet (`lost`): advice (gameworld-feel).',
+  '             Keep it, pick a template closer to what the runtime plays, or wait for the port.',
+  '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
   );
 }
@@ -542,13 +570,14 @@ const CARDS = [
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
+  ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, feel, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

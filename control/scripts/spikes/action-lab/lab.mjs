@@ -9,7 +9,10 @@ const out = process.argv[2];
 if (!out) { console.error('usage: node scripts/spikes/action-lab/lab.mjs /abs/out/dir'); process.exit(2); }
 mkdirSync(out, { recursive: true });
 const here = new URL('.', import.meta.url);
-const kernel = readFileSync(new URL('feel.mjs', here), 'utf8').replace(/^export /gm, '');
+// the cards are lib's (lib/graph/gameworld/feel/cards.js, what a game is made from): inlined ahead of the kernel, which
+// imports them; import lines and the kernel's re-export dropped, `export ` stripped
+const strip = (t) => t.replace(/^import [^\n]*\n/gm, '').replace(/^export \{[^}]*\};?\n/gm, '').replace(/^export /gm, '');
+const kernel = strip(readFileSync(new URL('../../../lib/graph/gameworld/feel/cards.js', here), 'utf8')) + '\n' + strip(readFileSync(new URL('feel.mjs', here), 'utf8'));
 const page = readFileSync(new URL('page.js', here), 'utf8');
 // the bake takes a while (two casts); `--cached` reuses the last one written beside the page while the page is iterated
 const cache = join(out, 'action-lab.data.json');

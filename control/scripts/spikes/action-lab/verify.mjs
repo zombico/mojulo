@@ -865,6 +865,24 @@ check('no body passes a wall or a block, and the hero never enters the dummy, at
   check(`${POLES[rid].name}: the track is seeded (the same rows twice), one obstacle a row with room between (a lane always open), every kind its weights name`, JSON.stringify(ra) === JSON.stringify(rb) && apart && Object.entries(R.kinds).every(([k, w]) => !w || kinds.has(k)), { rows: ra.length, kinds: [...kinds] });
 }
 
+// ─── a game's feel: the card lowered into the runtime (lib/graph/gameworld/feel/lower.js) plays the lab's numbers ───
+{
+  const { lowerFeel } = await import('../../../lib/graph/gameworld/feel/lower.js');
+  const { createWorld, stepWorld } = await import('../../../lib/graph/worlds/controllable-world.js');
+  const rt = (rule, inputs, n) => { const w = createWorld({ entities: [{ id: 'p', rule: { type: 'platform', eye: 0, collideRadius: 0.3, collideHeight: 1.7, ...rule }, transform: { pos: [0, 0, 0], heading: 0 } }] }); const z = []; for (let i = 0; i < n; i++) { stepWorld(w, inputs(i) ?? {}, DT_, { ground: () => 0 }); z.push(w.byId.p.transform.pos[2]); } return { z, e: w.byId.p }; };
+  const off = (z) => z.findIndex((v) => v > 0);
+  // one template a procedure: a jump without a gather, one with
+  const picks = [POLE_IDS.find((id) => poleCard(id).jump.commit === 0), POLE_IDS.find((id) => poleCard(id).jump.commit > 1)];
+  const rows = picks.map((id) => {
+    const C = poleCard(id), R = lowerFeel(C).rule;
+    const lab = run(C, (f) => (f < 60 ? J : 0), 90), lz = lab.states.map((x) => x.hero.p[2]);
+    const r = rt(R, (i) => (i < 60 ? { jump: i === 0 ? 1 : 0, jumpHeld: 1 } : {}), 90);
+    const lr = run(C, () => [0, 127, 0], 90).end.hero.v, rr = rt(R, () => ({ forward: 1 }), 90).e.drive;
+    return { id, apex: [Math.max(...lz), Math.max(...r.z)], off: [off(lz), off(r.z)], run: [Math.hypot(lr[0], lr[1]), Math.hypot(rr[0], rr[1])] };
+  });
+  check(`a game's feel: lowered into the runtime's platform rule, ${rows.map((x) => POLES[x.id].name).join(' and ')} peak at the lab's apex (to 5 mm), leave the floor on the lab's frame and run at the lab's speed`, rows.every((x) => Math.abs(x.apex[0] - x.apex[1]) < 0.005 && x.off[0] === x.off[1] && Math.abs(x.run[0] - x.run[1]) < 1e-6), rows.map((x) => [x.id, x.apex.map((v) => +v.toFixed(4)), x.off, x.run.map((v) => +v.toFixed(3))]));
+}
+
 const presses = runs.flatMap((r) => r.events.filter((e) => e.type === 'press'));
 const ends = runs.flatMap((r) => r.events.filter((e) => e.type === 'acted' || e.type === 'dropped'));
 const pending = runs.reduce((a, r) => a + r.end.queue.length, 0);
