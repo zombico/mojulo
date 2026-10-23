@@ -29,6 +29,10 @@
  * - 2026-10-23, the cranium under the eyes (unified character, the operator: "male eyes disappeared"): under the visage
  *   the cranium is let down from the deeper of the bare head and the face itself, so a deep-set eye's socket no longer
  *   leaves the cranium standing in front of the globe (a rolled face's eye read shut, a pale sheet over it). Both poles.
+ * - 2026-10-23, the eye's surround (unified character, the operator: the eye area's spikes, before the face rig): within
+ *   an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look sees it
+ *   (`eyeGlobeIn`), and the cranium let down `eyeDeflate` more about each globe: the lower lid is a ledge over the globe,
+ *   and faces bridging its front and the globe beside it cut in front of the eye as spikes. Both poles.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -36,7 +40,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: 'c81c180b5903f7e7', female: 'c94db77c2ff00058' };
+const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

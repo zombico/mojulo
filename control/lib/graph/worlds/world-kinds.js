@@ -58,6 +58,7 @@ import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
+import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
 /** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's a side, and the
  * head's, where the face's detail is (its moles, its marks, its fine lines), twice that */
 const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 2048 });
@@ -793,7 +794,7 @@ export const WORLD_KINDS = {
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
         // (the PAINTED face, face-paint-rig.js: its drawings swapped on a texture atlas, the same targets' shape and tracks)
         // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
-        const face = ctx.face && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : null) : null;
+        const face = ctx.face && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track

@@ -706,6 +706,7 @@ export const ACTIONS = Object.freeze({
   smileL: 'the smile, the figure\'s left side only', smileR: 'the smile, the figure\'s right side only',
   browRaise: 'frontalis: the brows lifted', browLower: 'the corrugator: the brows drawn down and together',
   blink: 'the upper lids close over the globes (both)', blinkL: 'the left lid only', blinkR: 'the right lid only',
+  smileEyes: 'the share of a smile\'s squint the eyes take (the lower lid raised and rounded), 0 … 1; absent, all of it',
 });
 export const ACTION_NAMES = Object.freeze(Object.keys(ACTIONS));
 
@@ -1131,7 +1132,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const shift = (k) => ({ x: Vn.browPad[k].x - Rn.browPad[k].x, z: Vn.browPad[k].z - Rn.browPad[k].z });
   const bridge = skin ? browBridge(Pt, { med: shift('c'), L: shift('a'), R: shift('b') }) : null;
   const eyeRigs = skin ? ['L', 'R'].map((s) => {
-    const sm = Math.min(1, act('smile') + act(`smile${s}`)), bl = Math.min(1, act('blink') + act(`blink${s}`));
+    const sm = Math.min(1, act('smile') + act(`smile${s}`)) * (actions && 'smileEyes' in actions ? act('smileEyes') : 1), bl = Math.min(1, act('blink') + act(`blink${s}`));
     // a gaze target (`look`, metres from between the eyes) becomes this eye's yaw and pitch, aimed from its own centre;
     // a side's own gaze still wins over it
     let spec = eyes;

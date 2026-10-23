@@ -40,6 +40,11 @@ export const RELATIONAL_HEAD = Object.freeze({
   eyeIn: [0.85, 0.7, 0.55, 0.4, 0.28, 0.17, 0.08], eyeUnder: 0.01, eyeRise: 0.01, eyeShortIn: 0.6, eyeRoomEase: 6, noseShortDown: 0.45,
   noseSlots: 96, noseMost: 0.04, noseBase: 0.002, noseOut: [0.02, 0.017, 0.0145, 0.0123, 0.0104, 0.0088, 0.0074, 0.0062, 0.0051, 0.0042, 0.0034, 0.0027, 0.0021, 0.0016, 0.0011, 0.0007, 0.0003, 0],
   noseIn: [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.31, 0.23, 0.16, 0.1, 0.05], eyeSink: 0.002, eyeKeep: 0.015, eyeRimSink: 0.0005,
+  // what lies under an eye (the visage's and the nose's points inside `eyeUnder` of its edge, easing out over `eyeRise`)
+  // held `eyeSink` behind the globe's front (its height just inside the lids, `eyeGlobeIn` of the opening, along the
+  // eye's look): the lower lid is a ledge over the globe, and a face bridging its front and the globe beside it would
+  // otherwise cut in front of the eye
+  eyeGlobeIn: 0.85, eyeDeflate: 0.006, eyeAround: 0.02, eyeAroundRise: 0.012,
   // the ears: slots round a section, sections up the ear
   earSlots: 40, earRings: 24,
 });
@@ -313,7 +318,7 @@ function earPart(fE, tragion, C) {
  * on the pole's own tune: solving one per face costs most of a minute, and a composed face sits near its pole). Returns
  * a new recipe; the one given is left as it was.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
@@ -321,8 +326,10 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   const tune = own_ ?? HEAD_TUNES[sex];
   if (!tune) throw new Error(`hero-relational-head: the head's pole is ${Object.keys(HEAD_TUNES).join(' or ')}`);
   const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) };
-  const head = relationalHead({ sex, tune, ears: false, ...own }), eared = relationalHead({ sex, tune, ...own });
-  const { k, ty, men } = fitOf(parts, head, eared);
+  // (`actions`, the face's: head-relational.js ACTIONS, a blink, a smile, a brow; `fit` the rest's, kept so an action moves
+  // the face and never the head's place: relational-face-rig.js differences these builds)
+  const head = relationalHead({ sex, tune, ears: false, ...own, ...(actions ? { actions } : {}) }), eared = fit ? null : relationalHead({ sex, tune, ...own });
+  const { k, ty, men } = fit ?? fitOf(parts, head, eared);
   const toHero = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const inHead = (f) => (q) => f({ x: q[0] / k, y: (q[1] - ty) / k, z: (q[2] - men) / k }) * k;
   const fH = inHead(head.field), fBare = inHead(head.bare);
@@ -331,7 +338,10 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   const under = (q) => { const { f, h } = V.f(q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
   // (under the visage let down from the deeper of the bare head and the face itself: a deep-set eye's socket, sunk past
   // the bare head's reach, would have the cranium stand in front of the globe)
-  const fB = (q) => { const u = under(q); return fBare(q) + u + (u > 0 ? Math.max(0, fH(q) - fBare(q)) : 0); };
+  // (and about each eye let down `eyeDeflate` more, within `eyeAround` of the globe's centre easing out over `eyeAroundRise`:
+  // the visage there is held behind the globe, and the cranium must lie under it)
+  const eyeC = toHero(head.points.eyeR), nearEye = (q) => 1 - ramp((Math.min(Math.hypot(q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]), Math.hypot(q[0] + eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2])) - C.eyeAround) / C.eyeAroundRise);
+  const fB = (q) => { const u = under(q); return fBare(q) + u + (u > 0 ? Math.max(0, fH(q) - fBare(q)) : 0) + C.eyeDeflate * nearEye(q); };
 
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width (where the union is the neck's)
   let seam = -1;
@@ -448,12 +458,20 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   // THE NOSE, its rings following its outline (the wings' creases and the sidewalls run along them), the visage let
   // down under it as under the eyes
   const Nf = noseFrame(fV, fBare, toHero(mid3(head.points.rhinion, head.points.prn)), toHero(head.points.sn), C), NOFF = C.noseOut, NIN = C.noseIn;
-  const underEyes = (q) => C.eyeSink * (1 - ramp((beyond(q) - C.eyeUnder) / C.eyeRise));
+  // (the globe's front per direction about the eye, as its own look sees it)
+  const gH = Array.from({ length: C.eyeSlots }, (_, j) => { const th = (2 * Math.PI * j) / C.eyeSlots, q = E.cast(fV, E.inPlane(th, C.eyeGlobeIn * E.O(th))); return q ? E.at(q).h : null; });
+  const gMin = Math.min(...gH.filter((h) => h !== null)), globeH = (th) => gH[((Math.round((th / (2 * Math.PI)) * C.eyeSlots) % C.eyeSlots) + C.eyeSlots) % C.eyeSlots] ?? gMin;
+  const underGlobe = (q) => {
+    const m = [-q[0], q[1], q[2]], qq = E.beyond(q) <= E.beyond(m) ? q : m, b = E.beyond(qq), w = 1 - ramp((b - C.eyeUnder) / C.eyeRise);
+    if (w <= 0) return 0;
+    const p = E.at(qq); return Math.max(0, p.h - globeH(p.th) + C.eyeSink) * w;
+  };
+  const underEyes = (q) => Math.max(C.eyeSink * (1 - ramp((beyond(q) - C.eyeUnder) / C.eyeRise)), underGlobe(q));
   const nose = reliefPart(Nf, fV, { slots: C.noseSlots, rings: NOFF.length + NIN.length, radius: (th, i) => (i < NOFF.length ? Nf.O(th) + NOFF[i] * Nf.scale(th) : Nf.O(th) * NIN[i - NOFF.length]), sym: true, sink: (q, i) => (i < NOFF.length ? C.eyeRimSink * ramp((NOFF[i] - C.eyeKeep) / (NOFF[0] - C.eyeKeep)) : 0) + underEyes(q), depth: 0.008, name: 'nose' });
   const vis = reliefPart(V, fV, {
     slots: C.slots, rings: C.rings, radius: (th, i) => (1 - i / C.rings) * V.Rat(th), sym: true, relax: C.relax,
     relaxFrom: Math.ceil((1 - C.inner) * C.rings), depth: C.depth, name: 'visage',
-    sink: (q, i) => C.sink * ramp((1 - i / C.rings - C.inner) / (1 - C.inner)) + C.eyeSink * (1 - ramp((Math.min(beyond(q), Nf.beyond(q)) - C.eyeUnder) / C.eyeRise)),
+    sink: (q, i) => C.sink * ramp((1 - i / C.rings - C.inner) / (1 - C.inner)) + Math.max(C.eyeSink * (1 - ramp((Math.min(beyond(q), Nf.beyond(q)) - C.eyeUnder) / C.eyeRise)), underGlobe(q)),
   }), sto = toHero(P.sto);
   const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
   const visW = (p) => {

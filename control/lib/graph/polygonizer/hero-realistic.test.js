@@ -137,6 +137,13 @@ describe('the realistic hero at the door', () => {
     expect(m.recipe.palette.Beard).toBe(m.recipe.palette.Hair); expect(m.recipe.palette.Brow).toBe(m.recipe.palette.Hair);
     expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', palette: { Hair: '#ff0000' }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.palette.Hair).toBe('#ff0000');
   }, 300_000);
+  it('drawn for a target: its rings its own (no split), so it compiles whole; the target reads its hair\'s rung', () => {
+    const at = (target) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(target ? { target } : {}) }) });
+    const m = at('1080p'), bare = at(null);
+    expect(m.recipe.parts.torso.slots).toEqual(bare.recipe.parts.torso.slots);
+    const A = auditLayered(compileLayered(m.recipe, m.dials));
+    expect(Object.entries(A).filter(([, a]) => a && a.pass === false).map(([k]) => k)).toEqual([]);
+  }, 300_000);
   it('its face\'s own fit: worn while it is the fit of its words, the pole\'s once they change', () => {
     const spec = withFaceFit({ form: 'realistic', cast: 'male', face: { seed: 4, ethnicity: 'western' } });
     const own = realisticFaceOf(heroRecord(spec)), pole = realisticFaceOf(heroRecord({ ...spec, face: { seed: 4, ethnicity: 'western' } }));

@@ -223,6 +223,28 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
+  `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
+  ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and
+  the landmark heads' do: `blink`, `blinkLeft`, `blinkRight`, `smile`, `browRaise`, `browLower`, each the head rebuilt
+  at its own fit with one of its actions at full (the lids, the zygomaticus, the frontalis, the corrugator) less the
+  head at rest; the face alone rebuilt (the visage, the nose, the eyes), the cranium and the jaw under it as stored.
+  What rides the face moves as the skin under it moves (a Gaussian of the face's points near each, `CARRY`), not as the
+  one face it is pinned to tilts: a blink carries its lashes, a raised brow its hairs, a smile the beard on the cheeks,
+  and the scalp's hair stays. A blink also sinks the globe behind the shut lid; the smile keeps a seventh of the head's
+  squint (`smileEyes`). The weights are the western expression channels' (the door's `expression`, a clip key's words,
+  the tracks), so the realistic hero blinks and acts as the landmark hero does; the jaw opens by its bone. A rig costs
+  a few head builds (~2 min, once per head; the World page never asks: it plays no face morphs yet).
+- THE EYE'S SURROUND (hero-relational-head.js `eyeGlobeIn`, `eyeDeflate`, `eyeAround`; the relational head re-pinned):
+  within an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look
+  sees it, easing back out to the skin, and the cranium let down further about each globe. The lower lid is a ledge
+  over the globe, and the face sheet, cast along the face's look, landed now on the ledge's front, now on the globe
+  behind it: its faces bridging the two cut in front of the eye as spikes along the lower lid (on every face, worse in
+  a smile, hiding the iris), and the cranium showed through at the lid's crease and the inner corner.
+- A REALISTIC HERO DRAWN FOR A TARGET COMPILES (layered.js `targetPlan`): the target's density split (era/cast-density.js
+  `densityPlan`, halving a part's slots where its outline misses) is not laid on the realistic body, whose rings give
+  every point themselves: the halved slots named points no ring carried, and any `target` failed at compile
+  (`torso/st0.h0R missing`). Its rings are its own; its target reads the hair's rung, as it did.
 - THE LIGHT TONES AS FAIR SKIN (dermal-map.js `toneAlbedo`'s light knee, `LIGHT`; dermal.test.js re-pinned): the
   lightest Monk swatches photograph near-white and grey-yellow (MST 1 … 3 at a luminance of ~0.81 … 0.86, paper's),
   and were taken as the skin's albedo as they are, so a fair hero read as plaster. Above MST 5's luminance a swatch's

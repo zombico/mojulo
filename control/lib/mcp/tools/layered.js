@@ -1105,10 +1105,12 @@ export function sortPieces(plan, O) {
   return { worn, unworn };
 }
 /** The hero's target on its plan (era/cast-density.js): each body part whose outline misses by more than the target's
- * error takes one split, after the dress's refine. No target ⇒ the plan as it was. */
+ * error takes one split, after the dress's refine. No target ⇒ the plan as it was. The realistic body takes none: its
+ * rings are its own (every point given, not drawn from its slots, which a split would halve under them); its target
+ * reads the hair's rung (heroHairLevel). */
 function targetPlan(plan, hero) {
   const target = heroTarget(hero);
-  return tieredDress(target ? densityPlan(plan, target) : plan, hero, target);
+  return tieredDress(target && hero.form !== 'realistic' ? densityPlan(plan, target) : plan, hero, target);
 }
 /** The tiered form's dress, on the plan its target split: its garments over the bridges and split with their parts
  * (tiered-form.js tieredGarments), its kit over the joints (tieredKit), and that kit as the hero's target shows it (adorn-tier.js; the default target when it

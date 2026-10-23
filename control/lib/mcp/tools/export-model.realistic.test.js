@@ -37,6 +37,8 @@ describe('the realistic hero, minted and exported', () => {
     const names = root.listMeshes().find((m) => m.listPrimitives().includes(prim)).getExtras()?.targetNames ?? [];
     expect(prim.listTargets().length).toBe(names.length);
     expect(names).toEqual(expect.arrayContaining(['pauldronBagR', 'shoulderLevelL', 'shoulderOverheadR']));
+    // (and its face's, the realistic head's own actions: relational-face-rig.js)
+    expect(names).toEqual(expect.arrayContaining(['blink', 'blinkLeft', 'smile', 'browRaise']));
     // every vertex's weights sum to one
     const W = prim.getAttribute('WEIGHTS_0'), w = [0, 0, 0, 0];
     for (let i = 0; i < W.getCount(); i += 97) { W.getElement(i, w); expect(Math.abs(w[0] + w[1] + w[2] + w[3] - 1)).toBeLessThan(1e-3); }
