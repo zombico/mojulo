@@ -339,7 +339,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
+${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }), ...(events.rim || events.trail ? { blows: true } : {}) }) : ''}${rimOn ? rimScript(events.rim) : ''}${trailOn ? swingTrailScript(events.trail) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {

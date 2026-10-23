@@ -16,6 +16,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
+- **Hitstop, live.** A gameworld feel whose template freezes on a blow (`hit.hitstop`: frames at 60 fps, `base` plus
+  `perMs` for each unit of the blow's shove, at most `max`) now carries it onto the hero's strike. Before, the readout
+  listed it as not carried. A melee connect freezes the striker and the struck for those frames: no timer, rule,
+  reaction or clip advances, then both play on. The blow's own frame plays out for both bodies, so both hold the same
+  frames whichever comes first in the step. It is an opt-in runtime builder (`hitstop.js`, composed only into a page
+  whose world has a body with a hitstop), so every other page keeps every byte. Godot and Roblox name it as not carried.
+- **The blow flashes.** Under a composed juice floor, a melee connect throws a short flash at the contact in its spark
+  colour. It lights the world (with the effect light), and the struck body's rim field flashes with it.
 - **A swing knows its blow.** A hero's swing clip carries its contact data when packed (`move` on the clip, the GLB's
   `moj:move`): its word, hand and class, the impact's phase and the contact window as shares of the clip, its game type
   when timed, and the blade's tip (the item's point at rest on the hand's bone, which carries it rigidly), so an engine's

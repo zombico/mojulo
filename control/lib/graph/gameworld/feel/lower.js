@@ -15,7 +15,7 @@
  *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
- *                       strikeContact, combo); `lane` the card holds the hero to a line (the level's own); `gear` the
+ *                       strikeContact, combo, hitstop); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
  *   feelReport(feel)  → { pole, name, after, variant?, toward?, t?, view, carried, partly, lost } the readout's
  *
@@ -56,7 +56,6 @@ const LOST = Object.freeze({
   dash: 'the dash: the platform rule\'s boost is a held thrust on a gauge (mobile-suit-arena\'s), not this dash',
   cling: 'the wall slide and the wall jump',
   guard: 'the guard: the block, the parry and its window, witch time',
-  'hit.hitstop': 'hitstop: the freeze on both bodies at a blow',
   charge: 'the hold-release charge',
   pound: 'the stomp attack',
   'land.stomp': 'the stomp on a body\'s head',
@@ -124,6 +123,9 @@ export function lowerFeel(card, { gear = null } = {}) {
     if (S.length > 1) rule.combo = 1;
     half('moves.string', `the contact window's place in the swing (${m.startup} of ${total} frames to the first active); its frames are the swing clip's until the clips are fitted to the card${S.length > 2 ? `; a string of ${S.length} plays as the runtime's two-hit combo` : ''}`);
   }
+  // the hitstop: both bodies frozen on a melee connect for the card's frames (base + perMs a unit of the blow's shove, at
+  // most max: combat-melee.js stepMelee), the runtime's melee only (a stomp's and a pound's are the lab's)
+  if (C.hit?.hitstop && C.hit.hitstop.max > 0) { const H = C.hit.hitstop; put('hit.hitstop', 'hitstop', { base: H.base, perMs: H.perMs, max: H.max }); }
   // the lane: the level's own line (a side camera lays one); facing the foe is the fighter's
   const lane = !!C.lane;
   if (lane) half('lane', 'the hero held to the level\'s own lane (a side camera lays one)' + (C.lane.face ? '; facing the foe is the fighter\'s, not carried' : ''));
@@ -131,7 +133,6 @@ export function lowerFeel(card, { gear = null } = {}) {
   const has = (path) => { const v = path.split('.').reduce((o, k) => (o == null ? o : o[k]), C); return v != null && v !== false && !(isObj(v) && path === 'land.stomp'); };
   for (const [field, why] of Object.entries(LOST)) {
     if (field === 'land.stomp') { if (C.land?.model === 'stomp') lost.push({ field, why }); continue; }
-    if (field === 'hit.hitstop') { if (C.hit?.hitstop && C.hit.hitstop.max > 0) lost.push({ field, why }); continue; }
     if (field === 'moves.string.armor') { if (S?.some((m) => m.armor)) lost.push({ field, why }); continue; }
     if (field === 'armor') continue;
     if (field === 'jump.hang') { if (J.hang > 0) lost.push({ field, why }); continue; }

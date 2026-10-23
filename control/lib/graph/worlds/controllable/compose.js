@@ -39,6 +39,7 @@ import { buildNav } from './nav.js';
 import { buildMind } from './mind.js';
 import { buildGroup } from './group.js';
 import { buildRunner } from './runner.js';
+import { buildHitstop } from './hitstop.js';
 
 export function composeControllable(builders) {
   const E = {};
@@ -54,9 +55,9 @@ export function composeControllable(builders) {
 // own export for the callers that name it. S4: all.js is dissolved.
 export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildWall, buildSwing, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildForms, buildNav, buildMind, buildGroup];
 export const EMISSION = [...EMISSION_ENGINE];
-// OPT-IN builders: composed into a page only when its world asks for them (the endless runner), so a page without one
-// keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec)
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner });
+// OPT-IN builders: composed into a page only when its world asks for them (the endless runner, a melee hitstop), so a page
+// without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec)
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

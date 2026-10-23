@@ -50,6 +50,7 @@ const PLATFORM_MOVES = {
   tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
   loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
   wall: 'the wall (wall.js: any face held, crawled, mantled, jumped off)', metre: 'the wall and the gear', gear: 'the gear (swing.js: the swinger\'s line, its swing and zip)',
+  hitstop: 'the melee hitstop (both bodies frozen on a connect)',
 };
 export const PLATFORM_KEYS = Object.freeze({
   ported: ['type', 'speed', 'eye', 'jumpSpeed', 'gravity'],

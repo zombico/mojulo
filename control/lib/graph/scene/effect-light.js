@@ -7,6 +7,8 @@
  *   a beam's charge    a light at the hand, swelling with the orb (FX_LIGHT.charge × its size)
  *   a moment           its own light (moments.js / explosions.js `light: { k, life, z }`), tinted by its colour, else
  *                      its kind's (MOMENT_TINT: a strike cold white, sparks and blasts warm)
+ *   a melee blow       a flash at the contact (the controllable runtime's clash record), its spark colour, fading
+ *                      (FX_LIGHT.blow): the struck body's rim flashes with it
  *   the level          the sky: an effect lights a night level fully and a noon one a quarter as much (fxDay)
  *
  * The page gathers every light each frame (__fxlPush, from the beam and moment channels), keeps the FX_LIGHT.max
@@ -17,8 +19,9 @@
  *
  *   FX_LIGHT, MOMENT_TINT     the rules' numbers
  *   fxDay(rgb)                how much an effect adds under a sky of this colour (0–255 or 0–1 channels)
- *   fxLightScript({ day, world })  the page's block: __fxlPush(p, rgb, k, r2), __stepFxLight(); world: false gathers
- *                             the lights without lighting the world with them (the effect rim's, effect-rim.js, alone)
+ *   fxLightScript({ day, world, blows })  the page's block: __fxlPush(p, rgb, k, r2), __stepFxLight(); world: false
+ *                             gathers the lights without lighting the world with them (the effect rim's, effect-rim.js,
+ *                             alone); blows: a melee blow's flash too (a composed juice floor's page)
  */
 
 export const FX_LIGHT = Object.freeze({
@@ -28,6 +31,9 @@ export const FX_LIGHT = Object.freeze({
   charge: 4,        // a charging orb's light, per metre of its size, as it swells
   moment: 0.9,      // a moment's own light, × its k (moments.js) and scale
   momentReach: 0.8, // a moment light's core radius, metres × its scale
+  blow: 3,          // a melee blow's flash at the contact (combat-melee.js state.clashes), × its spark scale / 3, fading
+  blowReach: 0.6,   // its core radius, metres
+  blowLife: 0.2,    // seconds it fades over (squared)
   max: 8,           // lights a surface adds
   night: 1, noon: 0.25,
 });
@@ -46,7 +52,7 @@ export function fxDay(rgb) {
 }
 
 /** The page's block: the frame's lights (__fxlPush), and every basic material taking the strongest. */
-export function fxLightScript({ day = FX_LIGHT.night, world = true } = {}) {
+export function fxLightScript({ day = FX_LIGHT.night, world = true, blows = false } = {}) {
   const N = FX_LIGHT.max;
   return `
 // --- effect light (fxLight): what the beams and moments throw on the world, every frame (scene/effect-light.js) ---
@@ -77,7 +83,15 @@ function __fxlPatch(m) {
 }
 // patched as it steps, so meshes made after load (a rig's bones, a beam's target) learn it, wrapping every patch before
 let __fxlSeen = -1;
-function __stepFxLight() {${world ? `
+function __stepFxLight() {${blows ? `
+  // a melee BLOW (combat-melee.js: a connect's clash record) flashes at the contact, so the world and the struck body's rim
+  // flash with it: its spark colour, fading over blowLife
+  const __fxlW = window.__mojCtrl && window.__mojCtrl.world, __fxlC = __fxlW && __fxlW.clashes;
+  if (__fxlC) for (let i = __fxlC.length - 1; i >= 0; i--) {
+    const c = __fxlC[i], u = ((__fxlW.time || 0) - c.t) / ${FX_LIGHT.blowLife}; if (u > 1) break; if (u < 0) continue;
+    const h = c.fxColor != null ? c.fxColor : 0xffd98c;
+    __fxlPush(c.pos, [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255], ${FX_LIGHT.blow} * ((c.fxScale != null ? c.fxScale : 3) / 3) * (1 - u) * (1 - u), ${FX_LIGHT.blowReach ** 2});
+  }` : ''}${world ? `
   let n = 0; scene.traverse(() => { n++; });
   if (n !== __fxlSeen) { __fxlSeen = n; scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__fxlPatch); }); }` : ''}
   __fxlL.sort((a, b) => b[6] - a[6]);
