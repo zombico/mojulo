@@ -74,7 +74,7 @@ const keys = (o, ok, at) => { for (const k of Object.keys(o)) if (!ok.includes(k
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
   keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands'], 'flora.trees');
-  if (t.compose !== undefined && t.compose !== 'ikebana') no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump)");
+  if (t.compose !== undefined && t.compose !== 'ikebana' && t.compose !== false) no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump) or false (scattered)");
   if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
     if (!isObj(t.bands)) no('flora.trees.bands is true or { hero?, far?, stock? } (era/isekai.js treeBands)');
     keys(t.bands, ['hero', 'far', 'stock'], 'flora.trees.bands');

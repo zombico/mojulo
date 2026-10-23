@@ -73,5 +73,7 @@ describe('a forest\'s clumps and bands', () => {
     expect(() => readBiocube({ from: 'grove', flora: { trees: { bands: { hero: 20, far: 10 } } } })).toThrow(/nearer/);
     expect(() => readBiocube({ from: 'grove', flora: { trees: { compose: 'grid' } } })).toThrow(/ikebana/);
     expect(readBiocube({ from: 'grove', flora: { trees: { bands: { hero: 5 }, compose: 'ikebana' } } }).flora.trees.bands).toEqual({ hero: 5 });
+    // (a forest's clumps scattered again: compose false)
+    expect(readBiocube({ from: 'forest', flora: { trees: { compose: false } } }).flora.trees.compose).toBe(false);
   });
 });
