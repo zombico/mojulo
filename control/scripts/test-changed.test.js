@@ -18,16 +18,17 @@ describe('the import graph', () => {
     const T = testsReaching(G, ['lib/graph/versus/versus-kinds.js'], { depth: 1 });
     expect(T.get('lib/graph/versus/versus-kinds.test.js')).toBe(1);
     expect([...T.values()].every((d) => d <= 1)).toBe(true);
-    // a start hop: a reader begins one hop out
+    // a start hop moves a file out
     expect(testsReaching(G, new Map([['lib/graph/versus/versus-kinds.js', 1]]), { depth: 1 }).size).toBe(0);
   });
 });
 
 describe('what a change picks', () => {
-  it('a module: its own tests and those of its importers, and every byte pin it reaches; a test file itself', () => {
-    const S = selectTests(['lib/graph/versus/versus-kinds.js'], { graph: G });
-    expect(S.tests).toContain('lib/graph/versus/versus-kinds.test.js');
-    expect(S.tests).toContain('lib/graph/versus/versus.test.js');
+  it('a module: its own tests (and at depth 2 those of its importers), and every byte pin it reaches; a test file itself', () => {
+    const m = 'lib/graph/scene/juice-style.js', S = selectTests([m], { graph: G }), hops = testsReaching(G, [m]);
+    expect(S.tests).toEqual(expect.arrayContaining(['lib/graph/scene/juice-style.test.js', 'lib/graph/gameworld/juice.test.js']));
+    expect(S.tests.filter((t) => !/\.(char|trace)\.test\.js$/.test(t)).every((t) => hops.get(t) <= 1)).toBe(true);
+    expect(selectTests([m], { graph: G, depth: 2 }).tests.length).toBeGreaterThan(S.tests.length);
     expect(S.pins).toContain('lib/graph/scene/emit-channels.char.test.js');
     expect(selectTests(['lib/graph/versus/versus.test.js'], { graph: G, depth: 0 }).tests).toEqual(['lib/graph/versus/versus.test.js']);
   });

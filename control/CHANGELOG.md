@@ -18,7 +18,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 - **`npm run test:changed`** runs the tests a change needs, picked off the import graph of control's own sources
   (`scripts/test-graph.mjs`, read statically in under half a second). It runs:
-  - the test files within two import hops of a changed module, and a changed test itself;
+  - the test files that import a changed module (one hop; `--depth 2` adds its importers' tests, a branch's check
+    before a merge), and a changed test itself;
   - every byte pin (`*.char` / `*.trace`) the change reaches at any depth;
   - its deep sweeps under the deep config.
 

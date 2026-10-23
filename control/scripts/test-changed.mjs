@@ -3,13 +3,14 @@
 //
 //   npm run test:changed                         the uncommitted change (staged, unstaged, untracked)
 //   npm run test:changed -- --since <ref>        and every commit since <ref> (a branch: --since origin/1023-consolidated)
-//   npm run test:changed -- --depth 3            reach further up the graph (default 2)
+//   npm run test:changed -- --depth 2            reach further up the graph (default 1: the tests that import a changed
+//                                                module; 2 adds those of its importers: a branch's check before a merge)
 //   npm run test:changed -- --list               say what would run, run nothing
 //   npm run test:changed -- --files a.js,b.js    as if these files had changed (paths relative to control/)
 //
 // What runs, for the changed files:
-//   - every test file within `depth` import hops of a changed module (1: the tests that import it; 2: those that
-//     import a module that imports it), and a changed test file itself;
+//   - every test file within `depth` import hops of a changed module (1, the default: the tests that import it; 2:
+//     those that import a module that imports it), and a changed test file itself;
 //   - every byte pin (*.char.test.js, *.trace.test.js) the change reaches at any depth: the emission contract;
 //   - the deep sweeps (*.deep.test.js) among those, under the deep config; the e2e suites among those are named, not
 //     run (CI runs that tier);
@@ -72,7 +73,7 @@ export function changedFiles({ since = null } = {}) {
 }
 
 /** What a set of changed files needs run → { tests, deep, e2e, pins, critical, why, prose } */
-export function selectTests(changed, { depth = 2, graph = importGraph(), e2eList = [] } = {}) {
+export function selectTests(changed, { depth = 1, graph = importGraph(), e2eList = [] } = {}) {
   const why = [], targets = new Map(), direct = new Set(), readBy = new Map();
   const target = (f, hop) => { if (!(targets.get(f) <= hop)) targets.set(f, hop); };
   const readers = new Set(TEXT_READERS.flatMap((T) => T.by));
@@ -81,8 +82,8 @@ export function selectTests(changed, { depth = 2, graph = importGraph(), e2eList
   for (const f of changed) {
     if (PROSE.test(f) || f.startsWith('../') || f.startsWith('node_modules/') || f.startsWith('data/') || f.startsWith('.next/')) continue;
     if (CONFIG.test(f)) { critical = true; why.push(`${f}: a config, so the critical tier`); continue; }
-    // (a reader is one hop up from what it reads: its own tests are the change's second hop)
-    if (!isTest(f) && !readers.has(f)) for (const T of TEXT_READERS) if (T.reads.test(f)) for (const r of T.by) { target(r, 1); if (!readBy.has(r)) readBy.set(r, { why: T.why, n: 0 }); readBy.get(r).n++; }
+    // (a reader is one hop up from what it reads: its own tests count as the change's first hop)
+    if (!isTest(f) && !readers.has(f)) for (const T of TEXT_READERS) if (T.reads.test(f)) for (const r of T.by) { target(r, 0); if (!readBy.has(r)) readBy.set(r, { why: T.why, n: 0 }); readBy.get(r).n++; }
     if (graph.files.has(f)) { target(f, 0); if (isTest(f)) direct.add(f); continue; }
     if (!fs.existsSync(path.join(CONTROL, f))) { why.push(`${f}: removed; its importers are named by the graph's own errors`); continue; }
     // a data file: the tests beside it
@@ -103,7 +104,7 @@ export function selectTests(changed, { depth = 2, graph = importGraph(), e2eList
 
 async function main() {
   const args = process.argv.slice(2), opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
-  const depth = opt('--depth') ? Number(opt('--depth')) : 2, since = opt('--since'), list = args.includes('--list');
+  const depth = opt('--depth') ? Number(opt('--depth')) : 1, since = opt('--since'), list = args.includes('--list');
   const { E2E } = await import(path.join(CONTROL, 'vitest.config.js'));
   const changed = opt('--files') ? opt('--files').split(',').filter(Boolean) : changedFiles({ since });
   if (!changed.length) { console.log('test:changed: nothing changed'); return 0; }

@@ -102,13 +102,13 @@ entry points `chdir` there and `getServerVersion` reads `package.json` from cwd.
 
 Test tiers: a change to prose only (root docs, `docs/`, the changelog, a README, `NOTICE`) runs no tests and needs no
 `npm install` (generated pages such as the hillclimb page are code: regenerate them). Otherwise, while iterating and
-before a commit, `npm run test:changed`: the tests within two import hops of the change, every byte pin it reaches at
-any depth, its deep sweeps, and the critical tier for a config change (`scripts/test-changed.mjs` says how it picks;
+before a commit, `npm run test:changed`: the tests that import the changed modules, every byte pin the change reaches
+at any depth, its deep sweeps, and the critical tier for a config change (`scripts/test-changed.mjs` says how it picks;
 `--list` shows the pick). Add `test:critical` for a change to the MCP surface, a pin or a guard, and `test:e2e` only
 for a gameworld, city, game or structure kernel change. Do not run whole folders or the whole suite locally. The
 whole suite, `test:deep` and `test:e2e` run in CI, sharded, on every PR, on pushes to `main` and the
 release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run). Before merging
-a branch into a release candidate, run `npm run test:changed -- --since origin/<rc>`; CI then runs everything on the
+a branch into a release candidate, run `npm run test:changed -- --since origin/<rc> --depth 2`; CI then runs everything on the
 candidate's push, and a red there is the next fix. A module that reads files beside it is declared in
 `scripts/test-changed.mjs` (a reader of code or of data); a guard test names one that is not.
 

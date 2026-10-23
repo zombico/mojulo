@@ -51,7 +51,7 @@ export function importGraph() {
 }
 
 /** The test files that import any of `files` within `depth` hops (breadth first), each with its nearest hop count.
- * `files` is a list (each starting at hop 0) or a Map of file → the hop it starts at (a text reader starts at 1). */
+ * `files` is a list (each starting at hop 0) or a Map of file → the hop it starts at. */
 export function testsReaching(graph, files, { depth = Infinity } = {}) {
   const start = files instanceof Map ? files : new Map(files.map((f) => [f, 0]));
   const seen = new Map(), out = new Map();
