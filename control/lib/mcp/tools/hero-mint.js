@@ -9,7 +9,7 @@
  *                             walk it was stored with carried over when the order names none (a remake used to drop
  *                             it and fall back to the stock four keys), and the character light
  */
-import { heroRecord, withRolledFace } from './layered.js';
+import { heroRecord, withRolledFace, withFaceFit } from './layered.js';
 import { stampHero, withDefaultWalk, withDefaultForm } from '@/lib/graph/polygonizer/motion-stamp';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -30,7 +30,8 @@ export function heroRemakeOps(order, prev = null) {
   // (the body it was stored on, unless the order names one: a hero stored without a form stays on the classic body)
   const spec = was && (walked?.form === undefined || walked?.form === null) ? (was.form !== undefined ? { ...walked, form: was.form } : walked) : withDefaultForm(walked);
   // (a realistic hero's face: kept from the stored hero unless the order names one, else rolled: layered.js withRolledFace)
-  const ops = [{ op: 'set', path: '/hero', value: heroRecord(stampHero(withRolledFace(spec, was), was)) }];
+  // (and its own fit, solved once and stamped: layered.js withFaceFit)
+  const ops = [{ op: 'set', path: '/hero', value: heroRecord(stampHero(withFaceFit(withRolledFace(spec, was)), was)) }];
   if (order.mint?.toon) ops.push({ op: 'set', path: '/toon', value: order.mint.toon });
   return ops;
 }

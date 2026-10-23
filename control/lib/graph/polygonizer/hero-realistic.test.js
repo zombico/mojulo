@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { compileLayered, auditLayered } from './station-loft.js';
 
 import { heroDermisSpec } from '../epidermis/dermal-hero.js';
-import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
+import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, withFaceFit, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
 import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { readDermis, skinBase } from '../epidermis/dermal-map.js';
 
@@ -117,12 +117,34 @@ describe('the realistic hero at the door', () => {
     expect(withRolledFace({ form: 'realistic' }, { face: { seed: 9, ethnicity: 'african' }, cast: 'female' })).toEqual({ form: 'realistic', face: { seed: 9, ethnicity: 'african' }, cast: 'female' });
     const [op] = heroRemakeOps({ spec: { form: 'realistic', physique: 'jacked' } }, { hero: { form: 'realistic', cast: 'female', face: { seed: 9, ethnicity: 'african' } } });
     expect(op.value).toMatchObject({ cast: 'female', face: { seed: 9, ethnicity: 'african' } });
+    // (and the mint stamps the face's own fit, solved for its relations)
+    expect(Object.keys(op.value.face.fit.tune).length).toBeGreaterThan(0); expect(op.value.face.fit.of).toMatch(/^[0-9a-f]{16}$/);
     // (refused by name; a child asked of the realistic body is the stylized figure, its realistic face left off)
     expect(validateHeroSpec({ form: 'realistic', face: { want: { chin: 'square' } } })).toEqual([expect.stringMatching(/face.want.chin: one of/)]);
     expect(validateHeroSpec({ form: 'realistic', face: { ethnicity: ['western'] } })[0]).toMatch(/face.ethnicity/);
     expect(validateHeroSpec({ form: 'realistic', face: { tilt: 1 } })[0]).toMatch(/face.tilt: not a realistic face's word/);
     expect(adultsOnly({ form: 'realistic', cast: 'child', face: { seed: 2 } }).face).toBeUndefined();
-  });
+  }, 240_000);
+  it('wears its face\'s hair: the beard (its locks under the lip on the jaw), the brows and the lashes, in the hair\'s own colour over the plan\'s', () => {
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', face: { seed: 1, ethnicity: 'western' } }) });
+    const P = m.recipe.parts, A = auditLayered(compileLayered(m.recipe, m.dials));
+    for (const k of ['hairBeard', 'hairBeardJaw', 'hairBrows', 'hairLashes']) { expect(P[k]?.pin.parent, k).toBe('visage'); expect(A[k].pass, k).toBe(true); }
+    // (the jaw's beard rides a face the jaw alone carries; the moustache's the head)
+    expect(P.hairBeardJaw.pin.face).not.toBe(P.hairBeard.pin.face);
+    // (one person's hair: the scalp's, the beard's and the brows' colours from the face's, over the plan's defaults)
+    expect(m.recipe.palette.Beard).toBe(m.recipe.palette.Hair); expect(m.recipe.palette.Brow).toBe(m.recipe.palette.Hair);
+    expect(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', palette: { Hair: '#ff0000' }, face: { seed: 1, ethnicity: 'western' } }) }).recipe.palette.Hair).toBe('#ff0000');
+  }, 300_000);
+  it('its face\'s own fit: worn while it is the fit of its words, the pole\'s once they change', () => {
+    const spec = withFaceFit({ form: 'realistic', cast: 'male', face: { seed: 4, ethnicity: 'western' } });
+    const own = realisticFaceOf(heroRecord(spec)), pole = realisticFaceOf(heroRecord({ ...spec, face: { seed: 4, ethnicity: 'western' } }));
+    expect(own.tune).toEqual(spec.face.fit.tune); expect(pole.tune).toBeUndefined();
+    // (a stamp for other words is not worn: the face's words changed since it was solved)
+    expect(realisticFaceOf(heroRecord({ ...spec, face: { ...spec.face, seed: 5 } })).tune).toBeUndefined();
+    const fitted = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }).recipe;
+    expect(fitted.headFit.tune).toEqual(spec.face.fit.tune);
+    expect(validateHeroSpec({ form: 'realistic', face: { fit: { tune: { zz: 1 }, of: 'x' } } })[0]).toMatch(/face.fit/);
+  }, 300_000);
   it('its face composed on every read: the heroic baseline, the readout\'s roll, a mix of ethnicities', () => {
     const hero = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 3, ethnicity: 'east-asian', want: { nose: 'button' } } });
     expect(hero.face).toEqual({ seed: 3, ethnicity: 'east-asian', want: { nose: 'button' } });

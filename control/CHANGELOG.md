@@ -206,6 +206,19 @@ body catches up to what the authored one wears, and its principles are shared ba
   width the card's), pinned to the visage where the head alone carries it: `Hair` in the hair's colour as the eye
   averages it (its grey mixed in), a streak's cards `HairStreak` in the dye. A buzz grows none (the painted scalp is the
   hair). A hero with no face wears none.
+- THE FACE'S HAIR ON THE HERO (hero-head-layers.js `heroFaceHair`): a styled beard's locks (dermal-hair.js
+  growBodyHair) gathered to one card a cell, those under the lip line on a face the jaw alone carries (`hairBeardJaw`),
+  the moustache's and the cheeks' the head's (`hairBeard`); the brows (a few hairs a card) and the lashes (a card a
+  hair) from the epidermis, its grooms the ancestry's with the composed face's over them; `Beard` (its grey a third
+  again), `Brow`, `Lash`. Stubble stays the skin's paint. The layers' colours lie over the plan's defaults and under the
+  hero's own `palette` (a named `Hair` wins). The scalp's, the beard's and the brows' cards share one slab builder.
+- THE FACE'S OWN FIT (layered.js `withFaceFit`, the mint's; hero-relational-head.js `relationalHeadRecipe`'s `tune`):
+  the mint solves the realistic face's own tune for its composed relations (head-relational.js `solveTune`, ~45 s,
+  once) and stamps it beside its words, `face.fit: { tune, of }` (`of` the relations' fingerprint), so the hero's head
+  is the face the studies show, not the face on its pole's tune. It rides `headFit.tune`, so the skin (dermal-hero.js),
+  the piercings and the hair chart the same head. A face whose words change since reads a stamp not its own and wears
+  the pole's tune until it is minted again (the readout's `realisticFace.fit` says which). A hero minted before keeps
+  the pole's tune, byte for byte, until reminted.
 - dermal-hair.js `growScalp`'s `strands: false`: the guides and their cards alone, without the strands a render draws.
 - dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
   single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).

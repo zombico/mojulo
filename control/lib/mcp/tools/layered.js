@@ -87,11 +87,13 @@ import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
-import { heroJewellery, heroHair } from '@/lib/graph/polygonizer/hero-head-layers';
+import { heroJewellery, heroHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
+import { readScalp } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
 import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
-import { randomInt } from 'node:crypto';
+import { randomInt, createHash } from 'node:crypto';
+import { solveTune } from '@/lib/graph/polygonizer/head-relational';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -236,10 +238,17 @@ function realisticRecipe(recipe, hero) {
   // colours under the palette's own
   if (!face || !H.headFit) return H;
   let out = H;
-  if (face.piercings?.length) { const J = jewelleryOf(H, face.piercings); out = { ...out, parts: { ...out.parts, ...structuredClone(J.parts) }, palette: { ...J.palette, ...(out.palette || {}) } }; }
+  // (each layer's colours over the plan's defaults, under the operator's own palette)
+  const own = hero.palette || {}, wear = (L) => { out = { ...out, parts: { ...out.parts, ...structuredClone(L.parts) }, palette: { ...(out.palette || {}), ...L.palette, ...own } }; };
+  if (face.piercings?.length) wear(jewelleryOf(H, face.piercings));
   // THE SCALP on its head (hero-head-layers.js heroHair): the composed face's cut over its ancestry's, its cards
-  const scalp = faceScalp(hero, face);
-  if (scalp) { const Hr = hairOf(H, heroDermisSpec(faceSkin(hero)).spec, scalp); out = { ...out, parts: { ...out.parts, ...structuredClone(Hr.parts) }, palette: { ...Hr.palette, ...(out.palette || {}) } }; }
+  const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
+  if (scalp) wear(hairOf(H, dermis, scalp));
+  // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
+  // lashes by the ancestry's grooms with the composed face's over them
+  const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
+  const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis }));
   return out;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
@@ -256,6 +265,14 @@ function faceScalp(hero, C) {
 const HEADS = new Map();
 /** a head's piercings, kept by its fit and the list (the chart they are placed on costs seconds) */
 const JEWELS = new Map(), HAIRS = new Map();
+/** a head's face hair (the beard's cards, the brows', the lashes'), kept as its scalp's are */
+const FACE_HAIRS = new Map();
+function faceHairOf(S, dermis, opts) {
+  const key = JSON.stringify([S.headFit, dermis, opts]);
+  let H = FACE_HAIRS.get(key);
+  if (!H) { H = heroFaceHair(S, dermis, opts); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
+  return H;
+}
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
 function hairOf(S, dermis, scalp) {
   const key = JSON.stringify([S.headFit, dermis, scalp]);
@@ -270,7 +287,7 @@ function jewelleryOf(S, piercings) {
   return J;
 }
 function relationalHeadOn(S, sex, face = null) {
-  const own = face ? { relations: face.relations, eyes: face.eyes } : {};
+  const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
   const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
@@ -842,7 +859,13 @@ export const FACE_ETHNICITIES = Object.freeze(Object.keys(FACE_BUCKETS));
 /** the ethnicities a roll draws from when none is named: every base population, and the mixed */
 const BASE_ETHNICITIES = Object.keys(FACE_BUCKETS).filter((k) => FACE_BUCKETS[k].ancestry);
 export const ROLLED_ETHNICITIES = Object.freeze([...BASE_ETHNICITIES, 'mixed']);
-const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age'];
+const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 'beauty', 'age', 'fit'];
+/** THE FACE'S OWN FIT (head-relational.js solveTune: the skin's masses tuned so it lands on its composed relations, as the
+ * studies show it; the pole's tune serves a face near its pole, close but not exact). Solved once at mint (~45 s) and
+ * stamped, `fit: { tune, of }`, `of` the fingerprint of the relations it was solved for: a face whose words have changed
+ * since reads a fit that is not its own and wears the pole's tune until it is minted again. */
+const relationsPrint = (rel) => createHash('sha256').update(JSON.stringify(rel)).digest('hex').slice(0, 16);
+const FIT_KEYS = ['eu', 'zy', 'go', 'op', 'g', 'gn', 'n', 'sn', 'prn', 'al', 'mod'];
 /** does this spec wear the realistic face (the realistic body's own head) */
 const realisticFaced = (spec) => spec?.form === 'realistic' && (spec.head === undefined || spec.head === null || spec.head === 'relational');
 function realisticFaceErrors(f) {
@@ -861,6 +884,7 @@ function realisticFaceErrors(f) {
   if (f.nose !== undefined && !(Number.isFinite(f.nose) && f.nose >= -1 && f.nose <= 1)) errs.push('face.nose: −1 (short and flat) … 1 (long and pointed)');
   if (f.beauty !== undefined && !(Number.isFinite(f.beauty) && f.beauty >= 0 && f.beauty <= 1)) errs.push('face.beauty: 0 (every roll at its full reach) … 1 (the population\'s mean)');
   if (f.age !== undefined && !(Number.isFinite(f.age) && f.age >= FACE_AGE.range[0] && f.age <= FACE_AGE.range[1])) errs.push(`face.age: years, ${FACE_AGE.range.join(' … ')} (the roll is the person at ${FACE_AGE.prime})`);
+  if (f.fit !== undefined && !(f.fit && typeof f.fit === 'object' && typeof f.fit.of === 'string' && f.fit.tune && typeof f.fit.tune === 'object' && Object.entries(f.fit.tune).every(([k, v]) => FIT_KEYS.includes(k) && Number.isFinite(v) && Math.abs(v) < 0.5))) errs.push('face.fit: the face\'s own fit as the mint stamps it ({ tune, of }); leave it out and the next mint solves it');
   return errs;
 }
 const FACES = new Map();
@@ -872,6 +896,8 @@ export function realisticFaceOf(hero) {
   const e = f.ethnicity ?? 'western';
   const C = composeFace({ sex, seed: f.seed ?? 1, ...(Array.isArray(e) ? { parents: Object.fromEntries(e.map((x) => [x, 1])) } : { bucket: e }), beauty: f.beauty ?? HERO_FACE.beauty,
     ...(f.age !== undefined ? { age: f.age } : {}), ...(f.character ? { character: f.character } : {}), ...(f.accent !== undefined ? { accent: f.accent } : {}), ...(f.nose !== undefined ? { nose: f.nose } : {}), ...(f.want ? { want: f.want } : {}) });
+  // (its own fit when the stamp is for these relations)
+  if (f.fit?.tune && f.fit.of === relationsPrint(C.relations)) C.tune = f.fit.tune;
   FACES.set(key, C); if (FACES.size > 64) FACES.delete(FACES.keys().next().value);
   return C;
 }
@@ -897,10 +923,19 @@ export function withRolledFace(spec, was = null) {
   const face = { ...f, ...(f.seed === undefined ? { seed: randomInt(1, 2147483647) } : {}), ...(f.ethnicity === undefined ? { ethnicity: ROLLED_ETHNICITIES[randomInt(ROLLED_ETHNICITIES.length)] } : {}) };
   return { ...spec, face, ...(spec.cast === undefined ? { cast: randomInt(2) ? 'female' : 'male' } : {}) };
 }
+/** THE FACE'S OWN FIT stamped at mint (the realistic face's `fit`): solved for its composed relations (~45 s) unless the
+ * stamp it carries is already for them; any other spec as it is. Only the mint calls this, after withRolledFace. */
+export function withFaceFit(spec) {
+  if (!realisticFaced(spec) || !spec.face || typeof spec.face !== 'object' || Array.isArray(spec.face)) return spec;
+  const { fit, ...words } = spec.face, C = realisticFaceOf({ ...spec, form: 'realistic', head: 'relational', face: words });
+  if (!C || fit?.of === relationsPrint(C.relations)) return spec;
+  const { tune } = solveTune({ sex: femaleOf(spec) ? 'female' : 'male', relations: C.relations });
+  return { ...spec, face: { ...words, fit: { tune: Object.fromEntries(Object.entries(tune).map(([k, v]) => [k, Math.round(v * 1e6) / 1e6])), of: relationsPrint(C.relations) } } };
+}
 /** the readout's face: what was rolled, so a face liked can be kept by its words or aimed at again */
 function faceReadout(hero) {
   const C = realisticFaceOf(hero); if (!C) return null;
-  return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent,
+  return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent, fit: C.tune ? 'its own (solved at mint)' : 'its pole\'s (minted before the fit, or its words changed since: mint it again to solve its own)',
     shown: `the head\'s shape and its skin (tone, hairline, marks, beard, the years), its hair${C.piercings?.length ? ', its piercings' : ''}`, notYet: 'the brows, the lashes and a styled beard are read here but not yet grown on the hero (the beard is painted)' };
 }
 

@@ -112,8 +112,9 @@ export function coveredSkin(mesh, recipe, { reach = 0.08, cell = 0.03 } = {}) {
  * down inside it under another part */
 function headFrame(mesh, recipe) {
   const { sex, k, ty, men, relations, eyes } = recipe.headFit, own = { ...(relations ? { relations } : {}), ...(eyes ? { eyes } : {}) };
-  const H = relationalHead({ sex, tune: HEAD_TUNES[sex], ...own });
-  const plain = relationalHead({ sex, tune: HEAD_TUNES[sex], ears: false, ...own });
+  const tune = recipe.headFit.tune ?? HEAD_TUNES[sex];
+  const H = relationalHead({ sex, tune, ...own });
+  const plain = relationalHead({ sex, tune, ears: false, ...own });
   const stand = (p) => ({ x: p[0] / k, y: (p[1] - ty) / k, z: (p[2] - men) / k });
   const shown = (v) => (/^ear/.test(mesh.provenance[v].part) ? H : plain).field(stand(mesh.vertices[v])) * k >= -HIDDEN;
   return { H, plain, stand, k, shown };

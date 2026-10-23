@@ -313,11 +313,12 @@ function earPart(fE, tragion, C) {
  * on the pole's own tune: solving one per face costs most of a minute, and a composed face sits near its pole). Returns
  * a new recipe; the one given is left as it was.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
-  const tune = HEAD_TUNES[sex];
+  // (a face's own tune, solved for its relations, in place of the pole's: the head the study shows, exactly; it rides the fit)
+  const tune = own_ ?? HEAD_TUNES[sex];
   if (!tune) throw new Error(`hero-relational-head: the head's pole is ${Object.keys(HEAD_TUNES).join(' or ')}`);
   const own = { ...(relations ? { relations } : {}), ...(eyes && Object.keys(eyes).length ? { eyes } : {}) };
   const head = relationalHead({ sex, tune, ears: false, ...own }), eared = relationalHead({ sex, tune, ...own });
@@ -482,7 +483,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   // THE FIT kept on the recipe: the head's pole and its scale and offsets into the hero's frame, so its skin can be read
   // back in the head's own frame (its sphere's addresses, its landmarks' marks: epidermis/dermal-hero.js)
   // (a face of its own rides the fit, so the skin charts the head the face shaped: dermal-hero.js headSkin)
-  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own };
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}) };
   // the rig's jaw on the head's own joint: the hinge between the condyles, the tip at the gnathion
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
