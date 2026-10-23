@@ -5,6 +5,7 @@
  *
  *   cd control && node scripts/spikes/geotown/sand.mjs [name] [cube-json|trail-json|caption …]
  *     a set `beach:<cube>|caption`: the cube's own land (`show: 'land'`, its island), framed on its strand
+ *     FOCUS=<group> frames the densest of another ground (`isekai:pavement`, `isekai:talus`)
  *     → ../lite-template/integration/1021/spike-output/geotown/<name>.png
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -40,7 +41,7 @@ try {
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false }));
     // (the densest 6 m of sand, its centre)
     const bins = new Map();
-    for (const f of P.faces) if (f.group === (beach ? 'isekai:strand' : 'isekai:sand')) { const c = [0, 1, 2].map((k) => f.corners.reduce((a, q) => a + q[k], 0) / f.corners.length), k = `${Math.floor(c[0] / 6)},${Math.floor(c[1] / 6)}`; const b = bins.get(k) ?? { n: 0, s: [0, 0, 0] }; b.n++; b.s = b.s.map((v, i) => v + c[i]); bins.set(k, b); }
+    for (const f of P.faces) if (f.group === (beach ? 'isekai:strand' : process.env.FOCUS ?? 'isekai:sand')) { const c = [0, 1, 2].map((k) => f.corners.reduce((a, q) => a + q[k], 0) / f.corners.length), k = `${Math.floor(c[0] / 6)},${Math.floor(c[1] / 6)}`; const b = bins.get(k) ?? { n: 0, s: [0, 0, 0] }; b.n++; b.s = b.s.map((v, i) => v + c[i]); bins.set(k, b); }
     if (!bins.size) { console.log(caption, 'no', beach ? 'strand' : 'sand'); continue; }
     const best = [...bins.values()].sort((a, b) => b.n - a.n)[0], C = best.s.map((v) => v / best.n);
     const at = (dx, dy, dz) => [C[0] + dx, C[1] + dy, C[2] + dz].map(r3);

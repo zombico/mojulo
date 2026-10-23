@@ -49,7 +49,10 @@
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
  * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
  * it, worn hollows; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
- * wandering across fine grains, a bright fleck here and there; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
+ * wandering across fine grains, a bright fleck here and there; `'karst'` (a floor) a limestone pavement: clints in
+ * courses (`rows`, `cols`) parted by deep grikes (matte-paint/karst.js, the joints shared with what roots in them),
+ * solution pans, lichen rosettes a shade apart; `'scree'` (a floor) angular stones lying close and over one another,
+ * each its own tilt and tone, grit between; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
  * giving way to turf. Each is painted in its stone's
  * ramp alone (a grey, laid as a detail, rides on the face's own colour).
  *
@@ -59,6 +62,7 @@
  */
 import { reliefField, hash01 } from './relief.js';
 import { lightRelief } from './light.js';
+import { karstJoints } from './karst.js';
 import { gnoise2, fractal2 } from '../noise/noise.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -499,6 +503,8 @@ function stoneDist(x, y, cx, cy, r, h) {
   const a = Math.atan2(y - cy, x - cx), n = 5 + Math.floor(3 * h(8)), seg = (2 * Math.PI) / n, w = ((((a + h(9) * 6.283) % seg) + seg) % seg) - seg / 2;
   return Math.hypot((x - cx) * (1 - 0.3 * h(5)), y - cy) / (r * (Math.cos(Math.PI / n) / Math.cos(w)));
 }
+// a karst's grike: half its width at the top, its rounded lip, its depth (m)
+export const KARST_GRIKE = Object.freeze({ half: 0.028, lip: 0.014, depth: 0.05 });
 const NATURAL = {
   // a sward from above: blades in every direction, each a tapered ridge, standing in tussocks; bare earth where a broad
   // patch is worn through (more of it with grit), a shade down and smooth but for its crumbs
@@ -568,6 +574,50 @@ const NATURAL = {
       fleck[k] = f;
       return 0.0022 * crest + 0.0004 * sfbm(x, y, M, 0.008, 0.008, 2, seed + 5);
     }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.03 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 13) + 0.12 * fleck[k] - 0.25 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // KARST from above: the clints' tops, each a little tilted and its own tone, parted by grikes a few centimetres wide
+  // and deep (their lips rounded); shallow pans where water stood; lichen rosettes, light and a few dark, on the tops
+  karst(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), K = karstJoints({ M, rows: c.rows, cols: c.cols, seed }), tone = new Float32Array(size * size), lichen = new Float32Array(size * size), grike = new Float32Array(size * size);
+    const W = KARST_GRIKE;
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      const d = K.dist(x, y), id = K.clint(x, y), t = hash01(id, 3, seed), tx = (hash01(id, 5, seed) - 0.5) * 0.006, ty = (hash01(id, 7, seed) - 0.5) * 0.006;
+      // (the grike a V, its lips rounded; the clint's top a little tilted its own way)
+      let z = -W.depth * (1 - smoothstep(0, W.half + W.lip, d)) ** 1.5 + tx * Math.sin((x / M) * 2 * Math.PI) + ty * Math.sin((y / M) * 2 * Math.PI) + 0.0012 * sfbm(x, y, M, 0.15, 0.15, 3, seed + 5);
+      grike[k] = 1 - smoothstep(0, W.half, d);
+      marksNear(x, y, M, 0.3, 1, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.35 + 0.3 * g) return;
+        const r = cs * (0.15 + 0.25 * h(4)), q = Math.hypot(x - cx, y - cy) / r;
+        if (q < 1 && d > W.half + W.lip) z -= 0.004 * (1 - q * q);
+      });
+      let l = 0;
+      marksNear(x, y, M, 0.22, 1, seed + 17, (cx, cy, h, cs) => {
+        if (h(3) > 0.12 + 0.2 * g) return;
+        const r = cs * (0.12 + 0.25 * h(4)) * (1 + 0.3 * sfbm(x, y, M, 0.02, 0.02, 1, seed + 19)), q = Math.hypot(x - cx, y - cy) / r;
+        if (q < 1) l = (h(5) < 0.7 ? 0.08 : -0.07) * (1 - q * q * 0.5);
+      });
+      // (the top weathered rough: pitted fine, runnels where the rain ran off toward the grikes)
+      z += 0.0015 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 23) - 0.003 * Math.max(0, 1 - Math.abs(sfbm(x, y, M, 0.45, 0.45, 2, seed + 29)) / 0.025) * smoothstep(0.1, 0.4, sfbm(x, y, M, 1.2, 1.2, 1, seed + 31)) * smoothstep(W.half, 0.2, d);
+      tone[k] = (t - 0.5) * 0.14; lichen[k] = d > W.half ? l : 0;
+      return z;
+    }, (x, y, k, lit) => rampAt(body, 0.62 + (lit.value[k] - 1) * 1.3 + tone[k] + lichen[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.5 * grike[k]));
+  },
+  // SCREE from above: angular stones lying close and over one another (the higher wins where two meet), each a flat
+  // top tilted its own way, bevelled at its edge, its own tone; grit between
+  scree(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      let z = -0.004 + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5), tn = -0.08;
+      marksNear(x, y, M, 0.07, 2, seed + 11, (cx, cy, h, cs) => {
+        if (h(3) > 0.75 + 0.2 * g) return;
+        const r = cs * (0.4 + 0.45 * h(4)), dd = stoneDist(x, y, cx, cy, r, h);
+        if (dd >= 1) return;
+        const v = 0.004 + 0.01 * h(6) + ((x - cx) * (h(10) - 0.5) + (y - cy) * (h(11) - 0.5)) * 0.25 - 0.006 * smoothstep(0.75, 1, dd);
+        if (v > z) { z = v; tn = (h(12) - 0.5) * 0.16; }
+      });
+      tone[k] = tn;
+      return z;
+    }, (x, y, k, lit) => rampAt(body, 0.57 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // GRAVEL from above: small stones lying close in a bed of grit, their crowns proud and rounded, a few larger among them,
   // the grit showing between (less of it with grit)

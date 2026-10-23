@@ -7,10 +7,12 @@
  *   CLIMATES         the climates a kind suits (terrain-plants.js PLANT_CLIMATES' names)
  *   SUBSTRATE_FLORA  { <substrate>: { <role>: [[ref, climates], …] } }: a ref is in the library (`grass:sedge`,
  *                    `flower:poppy`, `species:reed`, `form:fingers/saguaro`, `shrub`, `patch:puddle`, `stone:strewn`,
- *                    `stone:edge`, `strand:shells`, `cut:sand`) or wanted, not yet built (`want:marram`, its read in WANTS)
+ *                    `stone:edge`, `strand:shells`, `rock:stonecrop`, `cut:sand`) or wanted, not yet built (`want:marram`, its read in WANTS)
  *   floraLibrary()   → the library's refs, read off its own registries
- *   floraGaps()      → { matrix: [{ substrate, role, have, want }], gaps: [{ want, read, substrates, climates, slots,
- *                    fills, score }] (ranked: the ground and climates a kind opens, and the empty slots it fills), empty
+ *   measuredShares() → { <substrate>: share } of a level, over the cube presets
+ *   floraGaps({ shares }) → { matrix: [{ substrate, role, have, want }], gaps: [{ want, read, substrates, climates, slots,
+ *                    fills, score }] (ranked: the ground a kind would cover, by `shares`, its climates, and the empty
+ *                    slots it fills), empty
  *                    (the slots nothing in the library fills yet), dangling } (a ref naming nothing in the library: a fault)
  *
  * Pure: read off the registries. The report a page is made of (docs/flora-gaps.md, scripts/flora-gaps.mjs).
@@ -23,6 +25,9 @@ import { SPECIES } from '../vegetation/species.js';
 import { FLORA_FORMS } from './out-flora.js';
 import { PATCH_KINDS } from './trail-dress.js';
 import { STRAND } from './strand.js';
+import { ROCK_FLORA } from './rock-flora.js';
+import { GEOCUBE_PRESETS } from './geocube.js';
+import { substrateOf } from './substrate-of.js';
 import { GROUND_CUTS } from './gritty-flora.js';
 import { SUBSTRATE_IDS } from './substrate.js';
 
@@ -36,15 +41,10 @@ export const WANTS = Object.freeze({
   'steppe-grass': 'short dry bunchgrass over bare earth',
   'leaf-litter': 'fallen leaves and twigs drifted under the trees',
   'fallen-log': 'a trunk down in the grass, mossed and split',
-  'scree-lichen': 'grey and orange crusts on the loose stones',
-  'cushion-plant': 'tight domes of moss campion and saxifrage between the stones',
   'alpine-flower': 'gentian, edelweiss and alpine poppy in the gaps',
   'scree-runner': 'creeping stems running over the stones and rooting where they touch',
   krummholz: 'wind-cropped dwarf pines hugging the ground',
-  'lichen-crust': 'flat crusts and rosettes painted over bare rock',
   'rock-moss': 'moss cushions where the rock stays damp',
-  'crevice-fern': 'small ferns rooted in the joints',
-  stonecrop: 'fleshy rosettes of sedum and houseleek in the cracks',
   'rock-flower': 'thrift, rock rose and harebell from the crevices',
   'desert-scrub': 'saltbush and creosote, each a ring of bare sand round it',
   'sea-lyme': 'blue-grey lyme grass in clumps behind the beach',
@@ -75,15 +75,15 @@ export const SUBSTRATE_FLORA = Object.freeze({
       r('species:schefflera', ['tropical']), r('species:banyan', ['tropical']), r('species:rubberfig', ['tropical']), r('species:treefern', ['tropical']), r('species:moso', TT), r('form:broccoli/lollipop')],
   },
   scree: {
-    cover: [r('want:scree-lichen', ['temperate', 'alpine', 'boreal'])],
-    clump: [r('grass:needlegrass', ['alpine', 'arid']), r('want:cushion-plant', AB)],
+    cover: [r('rock:lichen-crust', ['temperate', 'alpine', 'boreal']), r('cut:scree')],
+    clump: [r('grass:needlegrass', ['alpine', 'arid']), r('rock:cushion-plant', AB)],
     accent: [r('want:alpine-flower', ['alpine']), r('want:scree-runner', TA)],
     interspacing: [r('stone:strewn'), r('stone:edge'), r('form:stone/stack')],
     canopy: [r('species:pine', ['alpine']), r('want:krummholz', AB)],
   },
   bedrock: {
-    cover: [r('want:lichen-crust'), r('want:rock-moss', TBT)],
-    clump: [r('want:crevice-fern', TT), r('want:stonecrop', ['temperate', 'arid', 'alpine']), r('want:cushion-plant', ['alpine'])],
+    cover: [r('rock:lichen-crust'), r('cut:karst'), r('want:rock-moss', TBT)],
+    clump: [r('rock:crevice-fern', TT), r('rock:stonecrop', ['temperate', 'arid', 'alpine']), r('rock:cushion-plant', ['alpine'])],
     accent: [r('want:rock-flower', TA), r('form:fingers/tubes', ['arid'])],
     interspacing: [r('form:stone/slab'), r('form:stone/outcrop'), r('form:stone/boulder'), r('stone:strewn')],
     canopy: [r('species:pine', ['temperate', 'alpine', 'boreal']), r('species:strangler', ['tropical'])],
@@ -120,13 +120,37 @@ export function floraLibrary() {
   for (const [f, F] of Object.entries(FLORA_FORMS)) for (const v of Object.keys(F.variants || {})) refs.add(`form:${f}/${v}`);
   for (const k of PATCH_KINDS) refs.add(`patch:${k}`);
   for (const k of Object.keys(STRAND)) refs.add(`strand:${k}`);
+  for (const k of Object.keys(ROCK_FLORA)) refs.add(`rock:${k}`);
   // (a ground's own cut, drawn on a gritty land: era/gritty-flora.js)
   for (const C of Object.values(GROUND_CUTS)) refs.add(`cut:${C.cut}`);
   return refs;
 }
 
-/** The matrix, the gaps ranked by how much ground and climate each would open, and any dangling ref. */
-export function floraGaps() {
+/**
+ * How much of a level each ground covers: its share of a cube's stage land (a trail's, era/substrate-of.js), averaged
+ * over the cube presets that have an outside (era/geocube.js GEOCUBE_PRESETS), each read with its own base, grit and
+ * formation. → { <substrate>: share }
+ */
+export function measuredShares() {
+  const sums = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 0]));
+  let n = 0;
+  for (const cube of Object.values(GEOCUBE_PRESETS)) {
+    if (!cube.outside?.base) continue;
+    const skin = cube.outside.land?.skin, S = substrateOf({ kind: 'stage', kit: cube.outside.base, trail: {}, shading: { grit: cube.grit ?? 0.5, ...(skin ? { skin } : {}) } });
+    for (const k of SUBSTRATE_IDS) sums[k] += S.shares[k];
+    n++;
+  }
+  return Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, n ? Math.round((sums[k] / n) * 1e4) / 1e4 : 0]));
+}
+// a ground no preset lays yet still counts this much (a stream's wet bank, a desert's sand)
+export const SHARE_FLOOR = 0.02;
+
+/**
+ * The matrix, the gaps ranked, and any dangling ref. A gap's score is the ground it would cover: over the substrates it
+ * belongs on, each one's share of a level (`shares`, measured: at least SHARE_FLOOR) × the share of the climates it
+ * suits, doubled on a substrate where it fills an empty slot; × 100.
+ */
+export function floraGaps({ shares = null } = {}) {
   const lib = floraLibrary(), matrix = [], wanted = new Map(), dangling = [];
   for (const sub of SUBSTRATE_IDS) for (const role of ROLES) {
     const have = [], want = [];
@@ -145,8 +169,11 @@ export function floraGaps() {
   }
   // (a slot with nothing in it yet is the sharpest gap: a kind that fills one counts three for it)
   const empty = new Set(matrix.filter((m) => !m.have.length && m.want.length).map((m) => `${m.substrate}.${m.role}`));
-  const gaps = [...wanted.values()].map((g) => ({ want: g.want, read: g.read, substrates: [...g.substrates], climates: CLIMATES.filter((c) => g.climates.has(c)), slots: g.slots,
-    fills: g.slots.filter((x) => empty.has(x)), score: g.substrates.size * g.climates.size + g.slots.length + 3 * g.slots.filter((x) => empty.has(x)).length }))
-    .sort((a, b) => b.score - a.score || a.want.localeCompare(b.want));
+  const sh = shares ?? Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 1 / SUBSTRATE_IDS.length]));
+  const gaps = [...wanted.values()].map((g) => {
+    const fills = g.slots.filter((x) => empty.has(x)), cl = CLIMATES.filter((c) => g.climates.has(c));
+    const score = [...g.substrates].reduce((a, s) => a + Math.max(sh[s] ?? 0, SHARE_FLOOR) * (cl.length / CLIMATES.length) * (fills.some((x) => x.startsWith(`${s}.`)) ? 2 : 1), 0);
+    return { want: g.want, read: g.read, substrates: [...g.substrates], climates: cl, slots: g.slots, fills, score: Math.round(score * 1000) / 10 };
+  }).sort((a, b) => b.score - a.score || a.want.localeCompare(b.want));
   return { matrix, gaps, empty: [...empty], dangling };
 }

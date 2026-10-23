@@ -17,8 +17,8 @@ export const PAGE = resolve(HERE, '../../docs/flora-gaps.md');
 /** The page, as markdown. (The library is read lazily: run alone, the script registers the repo's loader first.) */
 export async function floraGapsMd() {
   const { SUBSTRATES, SUBSTRATE_IDS, FORMATION_TURNS } = await import('../lib/graph/era/substrate.js');
-  const { ROLES, floraGaps } = await import('../lib/graph/era/substrate-flora.js');
-  const G = floraGaps(), cell = (m) => [...m.have.map((h) => `\`${h}\``), ...m.want.map((w) => `*${w}*`)].join(', ') || '·';
+  const { ROLES, floraGaps, measuredShares, SHARE_FLOOR } = await import('../lib/graph/era/substrate-flora.js');
+  const shares = measuredShares(), G = floraGaps({ shares }), cell = (m) => [...m.have.map((h) => `\`${h}\``), ...m.want.map((w) => `*${w}*`)].join(', ') || '·';
   const at = (s, r) => G.matrix.find((m) => m.substrate === s && m.role === r);
   return [
     '# Flora gaps',
@@ -29,9 +29,11 @@ export async function floraGapsMd() {
     '',
     '## The ground',
     '',
-    '| substrate | what it is |',
-    '| --- | --- |',
-    ...SUBSTRATE_IDS.map((s) => `| ${s} | ${SUBSTRATES[s]} |`),
+    'Its share of a level: averaged over the cube presets\' stage land, each with its own base, grit and formation.',
+    '',
+    '| substrate | what it is | share of a level |',
+    '| --- | --- | --- |',
+    ...SUBSTRATE_IDS.map((s) => `| ${s} | ${SUBSTRATES[s]} | ${(shares[s] * 100).toFixed(1)}% |`),
     '',
     'A cube\'s rock formation turns its soil: ' + Object.entries(FORMATION_TURNS).map(([k, t]) => `${k} (${t.read})`).join('; ') + '.',
     '',
@@ -49,11 +51,11 @@ export async function floraGapsMd() {
     '',
     '## The gaps, ranked',
     '',
-    'Ranked by the ground and climates a kind would open, and the empty slots it would fill.',
+    `Ranked by the ground a kind would cover: over the grounds it belongs on, each one's share of a level (at least ${SHARE_FLOOR * 100}%: a ground no preset lays yet), × the share of the climates it suits, doubled where it fills an empty slot.`,
     '',
-    '| wanted | what it is | on | climates | fills |',
-    '| --- | --- | --- | --- | --- |',
-    ...G.gaps.map((g) => `| ${g.want} | ${g.read} | ${g.substrates.join(', ')} | ${g.climates.join(', ')} | ${g.fills.join(', ') || '·'} |`),
+    '| wanted | what it is | on | climates | fills | score |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...G.gaps.map((g) => `| ${g.want} | ${g.read} | ${g.substrates.join(', ')} | ${g.climates.join(', ')} | ${g.fills.join(', ') || '·'} | ${g.score} |`),
     '',
   ].join('\n');
 }

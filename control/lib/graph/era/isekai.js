@@ -53,13 +53,14 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
-import { withGrittyFlora, withGrittyGround, trailKey, turfKey, GROUND_CUTS } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround, trailKey, turfKey, pavementJoints, GROUND_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
 import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, turfBands, IN_DIRT } from './trail-dress.js';
 import { detailKey } from '../matte-paint/detail.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
+import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
@@ -370,8 +371,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ground = isekaiGround(st, site, zG);
   // (the SAND, era/substrate.js: on a polygon land whose formation turns its flats to sand, those cells' ground is drawn
   // as sand and no grass stands on it; no sand cell, nothing changes)
-  const SA = SH ? sandOf(st, site, SH, seed) : null, onSand = SA?.at ?? null;
-  if (SA) ground.faces = ground.faces.flatMap((f) => (f.cel || f.group !== 'isekai:ground' ? [f] : SA.cut(f)));
+  // (and a land whose rock names its formation, era/substrate.js, draws its ground by it: the turned ground — sand,
+  // bedrock's pavement — and the talus as loose stone, no grass on either; no formation, nothing changes)
+  const GF = SH ? formationGround(st, site, SH, seed) : null, onSand = GF?.bare ?? null, SA = GF?.to === 'sand' && GF.cells.length ? GF : null;
+  if (GF) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : GF.cut(f)));
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // a named stone (the trail's landmark) carries its node on every face
@@ -453,7 +456,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the polygon land: the rock untiled, lit with the land below; its albedo the rock ramp's middle, as the island's; the
   // talus apron is ground, as the island's is)
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
-  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(onSand ? { 'isekai:sand': mid(st.palette.sand ?? st.palette.soil) } : {}) } : null;
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(GF ? FORMATION_TINTS(st, mid) : {}) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
   // its hat again, its top the ground's)
@@ -535,6 +538,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     const avoid = [...rocks.filter((r) => r.role !== 'pebble').map((r) => ({ x: r.x, y: r.y, r: r.size * st.rubble.unit * 0.6 })), ...near.map((t) => ({ x: t.x, y: t.y, r: 0.6 }))];
     const dune = duneGrass(st, { cells: SA.cells, cell: SA.cell, heightAt: site.ground, seed, keep, avoid, on: SA.at });
     for (const { rgb, ...f } of duneGrassFaces(st, dune, (p) => lit(p, [0, 0, 1]), site.inRadius)) cel.push({ ...f, fill: rgbHex(rgb.map((v) => v / 255)) });
+  }
+  // the ROCK GROUND grown (era/rock-flora.js): lichen on a formation's pavement, its boulders' and stones' caps and its
+  // talus; on a pavement, cushions, stonecrop and (in the shade) ferns in its joints — the karst tile's own, gritty
+  if (GF) {
+    const caps = boulders.flatMap((b) => b.cap).filter((f) => f.normal[2] > 0.6), talus = ground.faces.filter((f) => f.group === 'isekai:talus').map((f) => mean(f.corners));
+    const shadeAt = (p) => shadow([p[0], p[1], p[2] + 0.2], [0, 0, 1]) <= 0;
+    for (const q of growRockFlora(st, { cells: GF.to === 'bedrock' ? GF.cells : [], cell: GF.cell, talus, caps, heightAt: site.ground, seed, grit: broken || 0.5, keep, on: GF.at, joints: broken ? pavementJoints() : null, shadeAt })) {
+      const isLit = lit([q.at[0], q.at[1], site.ground(q.at[0], q.at[1]) + 0.15], [0, 0, 1]);
+      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
+    }
   }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
   // leaf die — dense at the foot on the crown, ragged at the tip — so a crown's edge is leaves, not a blob's curve
@@ -824,25 +837,38 @@ function flowerConfig(st, F, seed) {
 }
 
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
-/** Where a polygon land's ground is SAND (era/substrate.js: its formation's turn): { at (a test on a point's (x, y)),
- *  cut (a ground face → its sand and its ground, the line between them the turn's), cells (the sand cells' centres),
- *  cell (m) }; null when no cell is. */
-function sandOf(st, site, SH, seed) {
-  const skin = typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin]?.to === 'sand' ? SH.skin : null;
+/** A polygon land drawn by its FORMATION (era/substrate.js: the turn its rock's `skin` names): { to ('sand' |
+ *  'bedrock'), group (what a turned face is drawn as: `isekai:sand`, `isekai:pavement`), at (a test on a point's (x, y):
+ *  turned), bare (turned, or the talus: no grass), cut (a ground face → its turf, its talus and its turned ground, each
+ *  line drawn through the cells where its field crosses), cells (the turned cells' centres), cell (m) }; null without
+ *  one. */
+const TURNED = Object.freeze({ sand: 'isekai:sand', bedrock: 'isekai:pavement' });
+export function formationGround(st, site, SH, seed) {
+  const skin = typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin] ? SH.skin : null;
   if (!skin) return null;
-  const M = substrateMap(st, site, { formation: skin, seed }), S = SUBSTRATE_IDS.indexOf('sand'), field = turnField(skin, seed);
-  if (!M.shares.sand) return null;
+  const to = FORMATION_TURNS[skin].to, group = TURNED[to], M = substrateMap(st, site, { formation: skin, seed }), S = SUBSTRATE_IDS.indexOf(to), field = turnField(skin, seed);
+  const g = site.grid, gx0 = gridX(g, 0), gy0 = gridY(g, 0), dx = gridX(g, 1) - gx0, amin = st.landform.apronMin;
   const turnable = (p) => {
     const i = Math.floor((p[0] - M.x0) / M.cell), j = Math.floor((p[1] - M.y0) / M.cell);
     return i >= 0 && j >= 0 && i < M.nx && j < M.ny && M.turnable[j * M.nx + i] === 1;
   };
   const at = (p) => turnable(p) && field(p[0], p[1]) > 0;
-  // a ground face of a turnable cell: sand where the field is past its turn, the line between drawn through the cell
-  const cut = (f) => (turnable(mean(f.corners)) ? cutFace(f, f.corners.map((c) => field(c[0], c[1])), 'isekai:sand') : [f]);
+  // (the talus apron at a grid node, a ground face's corners being the grid's)
+  const apron = (c) => { const i = Math.round((c[0] - gx0) / dx), j = Math.round((c[1] - gy0) / dx); return g.apron[Math.max(0, Math.min(g.ny - 1, j)) * g.nx + Math.max(0, Math.min(g.nx - 1, i))]; };
+  const cut = (f) => {
+    if (f.group !== 'isekai:ground' && f.group !== 'isekai:scree') return [f];
+    // the talus where its apron passes the land's, then the turn on what is left of a turnable cell
+    const parts = cutFace({ ...f, group: 'isekai:ground', tint: st.tint.ground }, f.corners.map((c) => apron(c) - amin), 'isekai:talus');
+    return parts.flatMap((q) => (q.group === 'isekai:ground' && turnable(mean(f.corners)) ? cutFace(q, q.corners.map((c) => field(c[0], c[1])), group) : [q]));
+  };
   const cells = [];
   for (let k = 0; k < M.cells.length; k++) if (M.cells[k] === S) cells.push([M.x0 + (k % M.nx + 0.5) * M.cell, M.y0 + (Math.floor(k / M.nx) + 0.5) * M.cell]);
-  return { at, cut, cells, cell: M.cell };
+  return { to, group, at, bare: (p) => at(p) || site.apronAt(p[0], p[1]) > amin, cut, cells, cell: M.cell };
 }
+// a formation's grounds: the sand in its own ramp (the soil's without one), the pavement the rock's, the talus the rock's
+// leaned a third to the soil
+const FORMATION_TINTS = (st, mid) => ({ 'isekai:sand': mid(st.palette.sand ?? st.palette.soil), 'isekai:pavement': mid(st.palette.rock),
+  'isekai:talus': mid(st.palette.rock).map((v, k) => v + (mid(st.palette.soil)[k] - v) / 3) });
 /** The live grass kept off the sand: its mask's cells there cleared (the same landform cells). */
 function offSand(LG, onSand) {
   if (!LG || !onSand) return LG;

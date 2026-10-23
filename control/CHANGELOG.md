@@ -125,6 +125,27 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Rock ground: bare rock and scree drawn, and what grows on them
+
+A cube that names its rock now draws its bare rock and its scree as rock: a limestone cube's pavement in its stone,
+jointed, its scree in loose stones, each meeting the turf in a curve. Lichen crusts the rock, cushion plants and
+stonecrop root in its joints, small ferns in the shaded ones. The gap report ranks what is missing by how much of a
+level its ground covers. A cube that names no rock is drawn as before.
+
+- A land whose shading names a formation (`skin`: limestone, flagstone, sandstone) draws its ground by it
+  (`era/isekai.js` `formationGround`): limestone's and flagstone's turned bedrock as pavement (`isekai:pavement`) in the
+  rock's colour, the talus apron as loose stone (`isekai:talus`) in the rock's leaned to the soil, each line with the
+  turf cut through the cells where its field crosses. No grass on either. `limestone-crags` is the first.
+- Gritty, the pavement is laid with the new `karst` cut: clints in courses parted by deep grikes, some only cracks,
+  weathered rough, the odd pan and crack (`matte-paint/karst.js` the joints); the talus with the `scree` cut, angular
+  stones lying over one another.
+- The rock flora (`era/rock-flora.js`): `lichen-crust` (crusts on the clints, the boulders' and stones' caps and the
+  talus, grey-green or gold), `cushion-plant` (flowering domes), `stonecrop` (mats of fleshy rosettes), `crevice-fern`
+  (in the shaded joints), in the kit's own ramps. The clumps root in the joints the karst tile draws: the placer reads
+  the same joints (`gritty-flora.js` `pavementJoints`).
+- The gap report weighs each gap by the ground it would cover (`measuredShares`, over the cube presets' stage land) and
+  shows the shares and scores; bedrock's cover and clump and scree's cover are no longer empty.
+
 ### Sand: the ground drawn as sand, and what lies on it
 
 Where a level's ground is sand, the stage now draws sand there, in the cube's own sand colour, with no grass on it and

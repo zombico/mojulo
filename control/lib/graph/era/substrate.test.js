@@ -58,12 +58,15 @@ describe('what belongs on it, and the library\'s gaps', () => {
     expect(new Set(G.gaps.map((g) => g.want))).toEqual(new Set(Object.keys(WANTS)));
   });
 
-  it('reads the library off its registries, and ranks first a gap that fills an empty slot', () => {
+  it('reads the library off its registries, and ranks a gap by the ground it would cover', () => {
     const lib = floraLibrary();
-    expect(lib.has('grass:sedge') && lib.has('species:reed') && lib.has('patch:puddle')).toBe(true);
-    const G = floraGaps();
+    expect(lib.has('grass:sedge') && lib.has('species:reed') && lib.has('patch:puddle') && lib.has('rock:stonecrop') && lib.has('cut:karst')).toBe(true);
+    // (one ground covering the level: its gaps first; an empty slot doubles a gap on the same ground)
+    const only = (s) => Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, k === s ? 1 : 0]));
+    for (const s of ['wet', 'soil']) expect(floraGaps({ shares: only(s) }).gaps[0].substrates).toContain(s);
+    const G = floraGaps({ shares: only('wet') }), filling = G.gaps.find((g) => g.fills.length && g.substrates.includes('wet')), plain = G.gaps.find((g) => !g.fills.length && g.substrates.includes('wet') && g.climates.length === filling.climates.length && g.substrates.length === 1);
+    if (plain) expect(filling.score).toBe(plain.score * 2);
     expect(G.empty.length).toBeGreaterThan(0);
-    expect(G.gaps[0].fills.length).toBeGreaterThan(0);
     expect(G.gaps.every((g, i) => i === 0 || g.score <= G.gaps[i - 1].score)).toBe(true);
   });
 });

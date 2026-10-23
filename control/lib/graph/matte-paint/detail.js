@@ -32,9 +32,12 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 // the tiles, by key: what each is painted from (filled as keys are made, read by the resolver)
 const SPECS = new Map(), PAINTED = new Map();
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h.toString(36); }
+/** The seed a detail's tile is painted with, for its spec's seed and variant: what a reader of the tile's own pattern
+ *  (era/gritty-flora.js pavementJoints) builds it from. */
+export const detailSeed = (seed, v) => seed * 1009 + 7 + v * 13;
 export function detailKey(params, seed, metres, v) {
   const key = `detail:dressed-${hash(JSON.stringify([params, seed, metres]))}-${'ab'[v]}`;
-  if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres }, seed: seed * 1009 + 7 + v * 13 });
+  if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres }, seed: detailSeed(seed, v) });
   return key;
 }
 /** A detail key's tile as painted, before it is set to its mean: { rgb, W, H }, or null for a key never made. */
