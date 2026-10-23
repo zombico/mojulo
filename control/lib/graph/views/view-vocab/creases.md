@@ -27,7 +27,8 @@ creases: true | {
 
 A world painted by a geocube can take all of it from the cube instead: its `register` (`cel`, `ink-wash`, `wii`) draws
 the creases and the outline in inks the colour theorist picks from the cube's own ramps (the geocube card). The
-world's own `creases` wins over the register's, and `creases: false` turns the register's off.
+world's own `creases` wins over the register's, and `creases: false` turns the register's off. A gritty cube (`grit`
+0.35 and up) whose register names no creases draws the `wii` register's soft ones; its foliage takes no ink.
 
 ## What takes ink
 

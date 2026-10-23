@@ -25,6 +25,7 @@ import { rampFrom } from './look-facets.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 import { readCreases } from '../scene/channels/creases.js';
 import { readContrast } from './vertex-contrast.js';
+import { grittyOf } from '../matte-paint/fabric.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -94,15 +95,17 @@ export function registerInks(cube) {
 }
 
 /** The crease pass's terms the cube's register asks for — its creases and its outline, inked by the colour theorist
- * where the register names no ink — or null when it asks for neither. */
+ * where the register names no ink — or null when it asks for neither. A GRITTY cube (grit ≥ GRIT_PIXELS) whose register
+ * names no creases draws the wii register's, soft: its built stone panel-lined where it meets itself and the ground,
+ * its foliage left alone by the crease roles (scene/crease-roles.js); `creases: false` in its register draws none. */
 export function registerCreases(cube) {
-  const r = cube.register;
-  const creases = r.creases !== undefined && r.creases !== false, outline = r.outline !== undefined && r.outline !== false;
+  const r = cube.register, own = r.creases !== undefined ? r.creases : grittyOf(cube) !== null ? REGISTERS.wii.creases : undefined;
+  const creases = own !== undefined && own !== false, outline = r.outline !== undefined && r.outline !== false;
   if (!creases && !outline) return null;
   const inks = registerInks(cube), o = isObj(r.outline) ? r.outline : {};
   return readCreases({
-    ...(creases ? (r.creases === true ? {} : r.creases) : { line: 0, wash: 0 }),
-    ink: (isObj(r.creases) && r.creases.ink) || inks.creases,
+    ...(creases ? (own === true ? {} : own) : { line: 0, wash: 0 }),
+    ink: (isObj(own) && own.ink) || inks.creases,
     ...(outline ? { outline: { ink: o.color ?? inks.outline, width: o.width ?? OUTLINE_WIDTH } } : {}),
   });
 }

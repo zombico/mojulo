@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { REGISTERS, expandRegister, checkRegister, registerInks, registerCreases, registerInkLaw } from './colour-register.js';
 import { readGeocube, geocubeRegisterOf, GEOCUBE_PRESETS } from './geocube.js';
+import { GRIT_PIXELS } from '../local-meru/plan.js';
 import { CUBE_LAWS } from './geocube-laws.js';
 import { lchOf, hexToRgb } from '../color-theorist/oklab.js';
 
@@ -66,6 +67,16 @@ describe('the colour register: its inks', () => {
     const only = registerCreases(readGeocube({ from: 'valley-morning', register: { steps: 3, key: 0.5, outline: { width: 2 } } }));
     expect(only).toMatchObject({ line: 0, wash: 0, outline: { width: 2 } });
     expect(registerCreases(readGeocube({ from: 'valley-morning', register: 'wii' })).outline).toBeUndefined();
+  });
+
+  it('a gritty cube whose register names no creases draws the wii register\'s; its own creases, or false, win', () => {
+    const gritty = Object.keys(GEOCUBE_PRESETS).find((id) => readGeocube(id).grit >= GRIT_PIXELS), cube = readGeocube(gritty);
+    expect(cube.register.creases).toBeUndefined();
+    expect(registerCreases(cube)).toMatchObject({ ...REGISTERS.wii.creases, ink: registerInks(cube).creases });
+    expect(registerCreases(readGeocube({ from: gritty, grit: GRIT_PIXELS / 2 }))).toBeNull();
+    expect(registerCreases(readGeocube({ from: gritty, register: { ...cube.register, creases: false } }))).toBeNull();
+    expect(registerCreases(readGeocube({ from: gritty, register: 'cel' }))).toMatchObject(REGISTERS.cel.creases);
+    expect(registerInkLaw(cube).ok).toBe(true);
   });
 
   it('a world manifest takes its cube\'s register (a geocube, a stage\'s geocube, a city\'s paint); a hero\'s none', () => {
