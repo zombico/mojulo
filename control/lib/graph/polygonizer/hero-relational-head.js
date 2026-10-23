@@ -316,9 +316,11 @@ function earPart(fE, tragion, C) {
  * The realistic hero's recipe (a sliced one: formSlice) wearing the relational head in place of its landmark head.
  * `sex` picks the head's pole; `relations` and `eyes` a face of its own over the pole's (face-compose.js composeFace's,
  * on the pole's own tune: solving one per face costs most of a minute, and a composed face sits near its pole). Returns
- * a new recipe; the one given is left as it was.
+ * a new recipe; the one given is left as it was. `faceOnly` (the face rig's builds, relational-face-rig.js, which keep the
+ * stored cranium and jaw): the face's parts alone are built, exactly as a whole build makes them; the cranium and the
+ * jaw are the recipe's as given.
  */
-export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, opts = {} } = {}) {
+export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, eyes = null, tune: own_ = null, actions = null, fit = null, faceOnly = false, opts = {} } = {}) {
   const C = { ...RELATIONAL_HEAD, ...opts };
   const r = structuredClone(recipe), parts = r.parts, neck = parts.neck;
   if (!parts.cranium || !parts.jaw || !neck) throw new Error('hero-relational-head: the recipe carries no landmark head on a neck');
@@ -379,7 +381,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   const zM = toHero(P.sto)[2], ch = toHero(P.chR), aCh = Math.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
   const shut = (a) => ramp((Math.abs(a) - aCh) / ease);   // 0 between the corners, 1 past them
   const latM = new Array(H);
-  for (let j = 0; j <= half; j++) {
+  if (!faceOnly) for (let j = 0; j <= half; j++) {
     const a = az[j], f0 = latAt(a, zM, latOf(seamPts[j]), Math.PI / 2 - 0.05), w = 1 - shut(a);
     let f = f0;
     if (w > 0) {
@@ -397,17 +399,18 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
     for (const j of [0, half]) pts[j] = [0, pts[j][1], pts[j][2]];
     return pts;
   };
-  const mouthPts = column((j) => latM[j]);
-  const jawRings = [seamPts, ...Array.from({ length: C.jaw - 1 }, (_, i) => column((j) => latOf(seamPts[j]) + ((latM[j] - latOf(seamPts[j])) * (i + 1)) / C.jaw)), mouthPts];
+  // (the face alone: the cranium's and the jaw's rings, the most of a build's casts, are not cast)
+  const mouthPts = faceOnly ? null : column((j) => latM[j]);
+  const jawRings = faceOnly ? [] : [seamPts, ...Array.from({ length: C.jaw - 1 }, (_, i) => column((j) => latOf(seamPts[j]) + ((latM[j] - latOf(seamPts[j])) * (i + 1)) / C.jaw)), mouthPts];
   const top = (C.top * Math.PI) / 180;
-  const cranRings = [mouthPts, ...Array.from({ length: C.cranium - 1 }, (_, i) => column((j) => latM[j] + ((top - latM[j]) * (i + 1)) / (C.cranium - 1)))];
-  const vertex = cast(0, Math.PI / 2);
+  const cranRings = faceOnly ? [] : [mouthPts, ...Array.from({ length: C.cranium - 1 }, (_, i) => column((j) => latM[j] + ((top - latM[j]) * (i + 1)) / (C.cranium - 1)))];
+  const vertex = faceOnly ? null : cast(0, Math.PI / 2);
 
   const station = (pts, i) => ({ id: `st${i}`, u: i, points: Object.fromEntries(slots.map((s, j) => [s, rp(pts[j])])) });
   // (the caps on the shared rings are inside the head, each set a few millimetres off its ring's middle OUTWARD for its
   // part: the loft winds a cap by its first face against the ring's middle, and a flat cap leaves that undecided)
   const lift = (ps, h) => { const c = mean(ps); return rp([c[0], c[1], c[2] + h]); };
-  const mouthUp = lift(mouthPts, 0.004), mouthDown = lift(mouthPts, -0.004), seamUp = lift(seamPts, 0.004), seamDown = lift(seamPts, -0.004);
+  const mouthUp = faceOnly ? null : lift(mouthPts, 0.004), mouthDown = faceOnly ? null : lift(mouthPts, -0.004), seamUp = lift(seamPts, 0.004), seamDown = lift(seamPts, -0.004);
 
   // THE BIND. The seam ring carries the neck's blend there (lerped onto the head's extra slots); the rings above ease
   // to { jaw, head }: the jaw's share by how far ahead of the ramus (gonion → condyle) a point stands, held to the
@@ -424,8 +427,8 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
     blend[`st${i}.${s}`] = four(mixW(seamW[j], target, v));
   }));
   blend.back = four(mixW(seamW[0], seamW[half], 0.5)); blend.tip = { head: 1 };
-  parts.jaw = { layer: 1, closure: 'closed', slots, stations: jawRings.map(station), group: 'Skin', caps: { back: seamDown, tip: mouthUp }, capGroups: { back: 'Skin', tip: 'Mouth' }, bind: { bone: 'head', blend } };
-  parts.cranium = { layer: 1, closure: 'closed', slots, stations: cranRings.map(station), group: 'Skin', caps: { back: mouthDown, tip: rp(vertex) }, capGroups: { back: 'Mouth', tip: 'Skin' }, bind: 'head' };
+  if (!faceOnly) parts.jaw = { layer: 1, closure: 'closed', slots, stations: jawRings.map(station), group: 'Skin', caps: { back: seamDown, tip: mouthUp }, capGroups: { back: 'Skin', tip: 'Mouth' }, bind: { bone: 'head', blend } };
+  if (!faceOnly) parts.cranium = { layer: 1, closure: 'closed', slots, stations: cranRings.map(station), group: 'Skin', caps: { back: mouthDown, tip: rp(vertex) }, capGroups: { back: 'Mouth', tip: 'Skin' }, bind: 'head' };
 
   // the landmark head leaves (its details, its creases, its dial); the neck ends on the seam
   const gone = landmarkHeadParts(recipe.parts);
@@ -495,7 +498,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   parts.eyeL = mirrorPart(parts.eyeR, { ...parts.eyeR, bind: { bone: 'head' } });
   // THE NORMALS: each part shades by the field it was sampled from, so where two hand over (each let down under the
   // other by a slope) they shade as one skin, and the lids' and the wings' blends finer than the rings read smooth
-  parts.jaw = withNormals(parts.jaw, fU); parts.cranium = withNormals(parts.cranium, fU);
+  if (!faceOnly) { parts.jaw = withNormals(parts.jaw, fU); parts.cranium = withNormals(parts.cranium, fU); }
   for (const k of ['visage', 'nose', 'eyeR', 'eyeL']) parts[k] = withNormals(parts[k], fV);
   if (earR) { const fE = inHead(earR.field); parts.earR = withNormals(parts.earR, fE); parts.earL = withNormals(parts.earL, (q) => fE([-q[0], q[1], q[2]])); }
 

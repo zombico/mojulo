@@ -241,6 +241,12 @@ body catches up to what the authored one wears, and its principles are shared ba
   face, a wince or a grit a frame after the impact, the lids squeezed to the half lid at most, back on the authored face
   as the body gives back (every hero's reactions, the anime and landmark heads' too). In play each one reaches the
   state that plays it (a swing, a stagger, a jump).
+  The face's rig is solved once per machine (new polygonizer/relational-face-store.js; hero-relational-head.js
+  `faceOnly`; scripts/mojulo-paths.mjs `MOJULO_FACE_RIG_DIR`): its builds make the face alone (the cranium and the jaw,
+  which it keeps as stored, are no longer cast five times over), its rows byte-identical, and a head's solved shapes
+  are kept on disk under the mojulo home (keyed on the face the figure carries, the package version and a store
+  version; the newest two dozen kept), so a realistic hero's page or level after a restart reads them back in a blink
+  where it rebuilt them for most of a minute.
 - THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
   `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
   ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and

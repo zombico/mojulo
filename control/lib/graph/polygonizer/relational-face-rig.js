@@ -17,13 +17,15 @@
  *   • THE ROWS rebase the rest build onto the figure (the stored head and the rebuilt rest may differ by the cast's last
  *     bit), so a target is always added to the head the figure carries.
  * Null for a hero without the relational head; `{ skipped: reason }` when a build changes the head's layout. Pure and
- * deterministic; cached per head (a build costs seconds: an export pays it, the World page never asks).
+ * deterministic; its builds are of the face alone (hero-relational-head.js `faceOnly`), kept per head in the process and
+ * on disk (relational-face-store.js), so a head pays them (most of a minute) once per machine.
  */
 import { compileLayered } from './station-loft.js';
 import { relationalHeadRecipe } from './hero-relational-head.js';
 import { resolveWesternExpression, CHANNEL_RANGES } from './humanoid-head.js';
 import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
+import { faceStoreKey, readFaceStore, writeFaceStore } from './relational-face-store.js';
 
 export const RELATIONAL_FACE_TARGETS = Object.freeze(['blink', 'blinkLeft', 'blinkRight', 'smile', 'browRaise', 'browLower']);
 /** the builds the targets are differenced from: each one action at full over the rest */
@@ -102,29 +104,34 @@ export function relationalFaceRig(m, mesh) {
   const key = JSON.stringify([words, fit.k, fit.ty, fit.men, X, X.map((n) => layoutOf(P[n]))]);
   let T = RIGS.get(key);
   if (T === undefined) {
-    const V = {}, layout = X.map((n) => layoutOf(P[n]));
-    T = null;
-    for (const [name, actions] of Object.entries(BUILDS)) {
-      const r = relationalHeadRecipe(m.recipe, { ...words, actions, fit: { k: fit.k, ty: fit.ty, men: fit.men } });
-      const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? r.parts[n] : P[n]]));
-      if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }
-      const C = compileLayered({ ...m.recipe, parts, dials: {}, creases: {} }, {}, {});
-      V[name] = C.vertices;
-      if (name === 'rest') { V.part = C.provenance.map((p) => p.part); V.globe = new Uint8Array(C.vertices.length); C.faces.forEach((t, fi) => { if (GLOBE.test(C.groups[fi])) for (const v of t) V.globe[v] = 1; }); }
-    }
+    // (a head's shapes solved before on this machine, keyed on the face the figure carries)
+    const stored = faceStoreKey(key, X.map((n) => P[n]));
+    T = readFaceStore(stored);
     if (!T) {
-      const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), near = carriedBy(V0, face);
-      for (const name of Object.keys(BUILDS)) {
-        if (name === 'rest') continue;
-        const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) if (face[i]) for (let c = 0; c < 3; c++) d[i * 3 + c] = V[name][i][c] - V0[i][c];
-        if (name === 'blink') for (let i = 0; i < n; i++) if (V.globe[i]) d[i * 3 + 1] -= BLINK_SINK;
-        // (what rides the face moves as the skin under it moves, not as the one face it is pinned to tilts)
-        for (let i = 0; i < n; i++) if (!face[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
-        D[name] = d;
+      const V = {}, layout = X.map((n) => layoutOf(P[n]));
+      for (const [name, actions] of Object.entries(BUILDS)) {
+        const r = relationalHeadRecipe(m.recipe, { ...words, actions, fit: { k: fit.k, ty: fit.ty, men: fit.men }, faceOnly: true });
+        const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? r.parts[n] : P[n]]));
+        if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }
+        const C = compileLayered({ ...m.recipe, parts, dials: {}, creases: {} }, {}, {});
+        V[name] = C.vertices;
+        if (name === 'rest') { V.part = C.provenance.map((p) => p.part); V.globe = new Uint8Array(C.vertices.length); C.faces.forEach((t, fi) => { if (GLOBE.test(C.groups[fi])) for (const v of t) V.globe[v] = 1; }); }
       }
-      // (one eye: the blink weighed across the midline)
-      for (const s of ['Left', 'Right']) { const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) { const w = s === 'Right' ? wRight(V0[i][0]) : 1 - wRight(V0[i][0]); for (let c = 0; c < 3; c++) d[i * 3 + c] = D.blink[i * 3 + c] * w; } D[`blink${s}`] = d; }
-      T = { V0, D };
+      if (!T) {
+        const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), near = carriedBy(V0, face);
+        for (const name of Object.keys(BUILDS)) {
+          if (name === 'rest') continue;
+          const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) if (face[i]) for (let c = 0; c < 3; c++) d[i * 3 + c] = V[name][i][c] - V0[i][c];
+          if (name === 'blink') for (let i = 0; i < n; i++) if (V.globe[i]) d[i * 3 + 1] -= BLINK_SINK;
+          // (what rides the face moves as the skin under it moves, not as the one face it is pinned to tilts)
+          for (let i = 0; i < n; i++) if (!face[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
+          D[name] = d;
+        }
+        // (one eye: the blink weighed across the midline)
+        for (const s of ['Left', 'Right']) { const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) { const w = s === 'Right' ? wRight(V0[i][0]) : 1 - wRight(V0[i][0]); for (let c = 0; c < 3; c++) d[i * 3 + c] = D.blink[i * 3 + c] * w; } D[`blink${s}`] = d; }
+        T = { V0, D };
+        writeFaceStore(stored, T);
+      }
     }
     keep(RIGS, key, T);
   }
