@@ -118,3 +118,44 @@ export function heroSwing(hero, { expand, gearBuild, height = 167.4 }) {
   const cls = swingClass({ item: b.item, mass: e.trace.dials?.mass ?? 1, share: e.trace.length / height });
   return { word, hand, item: b.item, ...swingKeys(word, cls) };
 }
+
+// ─── the swing's timing by game type ────────────────────────────────────────
+/**
+ * The game types' swing TIMING (scene/juice-style.js JUICE_FLAVORS, the weapon spike's WEAPON_REGISTERS): how long each
+ * role of a swing lasts against the others (`wind` the coil and the cock, `act` the strike, `after` the follow-through,
+ * `settle` the recovery: the swing's own keys are one each), and how long the cock HOLDS before the strike, a share of a
+ * key by class. An action game winds deep, holds the heavy cock and cracks the strike in a blink, the follow-through
+ * carried long; a platformer's swing is short all through, the wind-up barely there; pinball's is a quick wind and a
+ * long carry. Realistic is the swing's own even timing (no warp).
+ */
+export const SWING_TIMING = Object.freeze({
+  realistic: null,
+  action: Object.freeze({ wind: 1.5, act: 0.45, after: 1.4, settle: 0.8, hold: Object.freeze({ light: 0, normal: 0.3, heavy: 1.1 }) }),
+  platformer: Object.freeze({ wind: 0.5, act: 0.45, after: 0.7, settle: 0.65, hold: Object.freeze({ light: 0, normal: 0, heavy: 0 }) }),
+  pinball: Object.freeze({ wind: 0.7, act: 0.6, after: 1.1, settle: 0.7, hold: Object.freeze({ light: 0, normal: 0, heavy: 0 }) }),
+});
+// each class's segments by role (segment i runs from key i to key i + 1, the last back to ready), as swingKeys builds them
+const SWING_ROLES = Object.freeze({
+  light: ['wind', 'act', 'after', 'settle', 'settle'],
+  normal: ['wind', 'wind', 'act', 'after', 'settle', 'settle'],
+  heavy: ['wind', 'wind', 'wind', 'act', 'after', 'settle', 'settle'],
+});
+/** the class a swing clip's key count says (swingKeys: five keys light, six normal, seven heavy), or null */
+export const swingClassOfKeys = (n) => Object.keys(SWING_ROLES).find((c) => SWING_ROLES[c].length === n) ?? null;
+/**
+ * A swing's timing in a game type, or null (realistic, an unknown type or class): `warp(u)` the clip's own phase at the
+ * game's phase `u` (each segment's span scaled by its role, the cock held still before the strike; inside a segment the
+ * rig's own ease), so the keys are the swing's own, only re-timed; `strike` the impact's phase and `window` the contact
+ * window (the cock to the end of the follow-through) on the game's timeline.
+ */
+export function swingTiming(cls, flavor) {
+  const T = SWING_TIMING[flavor], roles = SWING_ROLES[cls]; if (!T || !roles) return null;
+  const N = roles.length, spans = [];
+  roles.forEach((r, i) => { if (r === 'act' && T.hold[cls]) spans.push({ from: i, hold: true, d: T.hold[cls] }); spans.push({ from: i, d: T[r] }); });
+  const total = spans.reduce((a, s) => a + s.d, 0);
+  let acc = 0; for (const s of spans) { s.a = acc; acc += s.d / total; s.b = acc; }
+  spans.at(-1).b = 1;
+  const warp = (u) => { const s = spans.find((x) => u < x.b) ?? spans.at(-1); return s.hold ? s.from / N : (s.from + Math.min(1, Math.max(0, (u - s.a) / (s.b - s.a)))) / N; };
+  const act = spans.find((s) => !s.hold && roles[s.from] === 'act'), cock = spans.find((s) => s.hold) ?? act, after = spans.find((s) => roles[s.from] === 'after');
+  return { cls, flavor, warp, strike: +act.b.toFixed(3), window: [+cock.a.toFixed(3), +after.b.toFixed(3)] };
+}

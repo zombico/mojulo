@@ -87,7 +87,7 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
-export async function heroFigure(name, spec) {
+export async function heroFigure(name, spec, { swing = null } = {}) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -101,7 +101,8 @@ export async function heroFigure(name, spec) {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
   }
-  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name });
+  // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js)
+  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}) });
   const body = scene.figures && scene.figures.body;
   if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   const { preview, embodies, ...pack } = body;
@@ -695,7 +696,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
         // no hero is resolved, byte-identical.
         if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
-          payload.figures[name] = await heroFigure(name, rawSpec);
+          // (a composed juice floor's game type times the hero's swing: hero-swing.js swingTiming; the floor or none ⇒ its own)
+          const fxs = sketch.manifest.fxStyle, swing = fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs).flavor : null;
+          payload.figures[name] = await heroFigure(name, rawSpec, { swing });
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,

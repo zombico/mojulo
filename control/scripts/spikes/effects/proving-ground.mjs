@@ -15,6 +15,7 @@ import { register } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 register(new URL('../../mcp-stdio-loader.mjs', import.meta.url).href);
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
+const { WORLD_KINDS } = await import('../../../lib/graph/worlds/world-kinds.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const { heroRecord, expandLayeredManifest } = await import('../../../lib/mcp/tools/layered.js');
 const { rollMascot } = await import('../../../lib/graph/egocube/mascot.js');
@@ -75,7 +76,8 @@ const casterM = expandLayeredManifest({ kind: 'layered', toon: { light: true }, 
 const targetM = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: { type: 'armor', style: 'knight' }, geocube: NIGHT }) });
 const rigs = rig ? { caster: await rigFigure(casterM), target: await rigFigure(targetM) } : null;
 // a swinging caster: the hero holding the item, its swing clip played as its idle (so it loops standing)
-const swingRig = async (sw) => { const F = await rigFigure(expandLayeredManifest({ kind: 'layered', toon: { light: true }, hero: heroRecord({ cast: 'female', head: 'anime', gesture: sw.gesture, gear: { right: { item: sw.item } }, geocube: NIGHT }) })); return { ...F, clips: { ...F.clips, walk: F.clips[sw.gesture], forward: F.clips[sw.gesture] } }; };
+// the swinging hero at its game type's timing (hero-swing.js swingTiming: the take's flavor, as a world's composed juice times it)
+const swingRig = async (sw, flavor) => { const F = (await WORLD_KINDS.layered.resolve(expandLayeredManifest({ kind: 'layered', toon: { light: true }, hero: heroRecord({ cast: 'female', head: 'anime', gesture: sw.gesture, gear: { right: { item: sw.item } }, geocube: NIGHT }) }), { title: 'rig', ...(flavor ? { swing: flavor } : {}) })).figures.body; return { ...F, clips: { ...F.clips, walk: F.clips[sw.gesture], forward: F.clips[sw.gesture] } }; };
 const figures = [
   ...(rig ? [] : await figure(casterM, [-4, 0, 0], -Math.PI / 2, 'caster')),
   ...(rig ? [] : await figure(targetM, [4, 0, 0], Math.PI / 2, 'target')),
@@ -117,7 +119,7 @@ for (const name of want) {
   // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off); or the composed cells
   const takes = cells ? cells.map((c) => [`-${c.look}-${c.flavor}`, { ...events, fxLight: true, fxStyle: c }]) : [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]];
   for (const [tag, ev] of takes) {
-    const figs = rigs && E.swing ? { ...rigs, caster: await swingRig(E.swing) } : rigs;
+    const figs = rigs && E.swing ? { ...rigs, caster: await swingRig(E.swing, ev.fxStyle?.flavor ?? null) } : rigs;
     // the swinging caster plays its swing in place, a swing every ~1.4 s (the clock rule: the clip by time, no travel)
     const ents = E.swing && rig ? entities.map((e) => (e.id === 'caster' ? { ...e, rule: { type: 'clock', rate: 0.7 } } : e)) : entities;
     const html = emitThreeWorld({ faces: [...floor, ...wall, ...pillars, ...figures], cameras: [camera], entities: ents, events: ev, ...(figs ? { figures: figs } : {}),

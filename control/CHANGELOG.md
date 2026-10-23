@@ -16,6 +16,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
+- **The default swing, timed by its game type.** A hero's swing word (chop, thrust, cleave …) plays in a world at that
+  world's game type: a composed floor's flavor (`fxStyle`, a gameworld's `juice`) re-times the swing's own keys when the
+  World packs the hero (`hero-swing.js` `swingTiming`). Each role of the swing (the wind-up, the strike, the
+  follow-through, the recovery) is scaled; an action game holds a heavy weapon's cock before the strike cracks, and a
+  platformer's swing is short throughout. The strike and its contact window are re-read on the new timeline. The poses are
+  the swing's own, and the rig's ease runs within each key. Realistic, the plain floor, or no floor leaves the pack as it
+  was. The proving ground's swing takes play at their cell's game type.
 - **The swing trail.** A composed floor (`fxStyle`, a gameworld's `juice`) draws a weapon's swing as its look draws
   it: isekai a bright glow ribbon shedding glints, cel flat hard-banded smear sheets held on twos, material a short faint
   sheen; the game type sets how long it lingers and how fast the blade must move to leave one. The page samples each

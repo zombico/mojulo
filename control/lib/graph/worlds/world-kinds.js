@@ -52,7 +52,8 @@ import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
-import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
+import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
+import { isSwing, swingClassOfKeys, swingTiming } from '@/lib/graph/polygonizer/hero-swing';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -818,6 +819,11 @@ export const WORLD_KINDS = {
         // the hero's own of that name, with its seconds and its ground speed (`v` on the packed clip). Absent ⇒ as before.
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
+        // THE SWING IN ITS GAME (hero-swing.js swingTiming): a world whose composed juice names a game type (ctx.swing, the
+        // world's fxStyle flavor) plays the hero's swing at that type's timing, its own keys re-timed (a dense clip the
+        // packer samples, as a gait's). Realistic or absent ⇒ the swing's own even keys, byte-identical.
+        const swingT = ctx.swing && isSwing(m.hero?.gesture) && Array.isArray(clipsIn[m.hero.gesture]) ? swingTiming(swingClassOfKeys(clipsIn[m.hero.gesture].length), ctx.swing) : null;
+        if (swingT) { const own = layeredClip(clipsIn[m.hero.gesture], R), fn = (u) => own(swingT.warp(u)); fn.keys = 24; clipsIn = { ...clipsIn, [m.hero.gesture]: fn }; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, in an export: its body's and its head's dermal maps on one
         // atlas, the GLB's base colour, under the lit export's plain corners or the unlit's baked light; the World page
