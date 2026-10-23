@@ -25,6 +25,7 @@
 
 import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD } from './versus-input.js';
 import { METER_MAX, SYSTEMS } from './versus-library.js';
+import { kindRules } from './versus-kinds.js';
 
 export const VERSUS_RULES = Object.freeze({
   half: 3800,       // the walls, from mid-stage
@@ -42,15 +43,20 @@ export const VERSUS_RULES = Object.freeze({
   parryFreeze: 16,  // frames the parried attacker is held
   burstReach: 1600, // mm the burst knocks an attacker away from
   guardMax: 1000, guardRegen: 3, guardRest: 60, crushStun: 40,
+  airActions: 1,    // air dashes and air jumps a jump allows (airdash, airjump)
+  airDashDist: 1100, airDashFrames: 14,   // mm an air dash covers, over frames
+  airJumpVy: 90,    // an air jump's rise, % of the ground jump's
 });
 
 // the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
-const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1 };
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10 };
 
 /** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
 export function readRules(r) {
   if (r === undefined || r === null) return {};
   if (typeof r !== 'object' || Array.isArray(r)) throw new Error('versus: rules is an object');
+  // a KIND of fighting game (versus-kinds.js): its systems and dials under the game's own
+  if (r.kind !== undefined) { const { kind, ...rest } = r; return readRules(kindRules(kind, rest)); }
   const out = {};
   for (const [k, v] of Object.entries(r)) {
     if (k in RULE_FLOORS) {
@@ -62,7 +68,7 @@ export function readRules(r) {
     } else if (k === 'systems') {
       if (!Array.isArray(v) || !v.every((w) => SYSTEMS[w])) throw new Error(`versus: rules.systems is a list of ${Object.keys(SYSTEMS).join(', ')}`);
       if (v.length) out[k] = [...new Set(v)];
-    } else throw new Error(`versus: rules has no '${k}' (one of ${[...Object.keys(RULE_FLOORS), 'scaling', 'systems'].join(', ')})`);
+    } else throw new Error(`versus: rules has no '${k}' (one of ${[...Object.keys(RULE_FLOORS), 'scaling', 'systems', 'kind'].join(', ')})`);
   }
   return out;
 }
@@ -89,6 +95,8 @@ function newPlayer(i, fighter, rules, meter = 0, scheme = 'modern') {
     hist: [], held: 0, scheme,
     ...(rules.systems && rules.systems.includes('guard') ? { gd: rules.guardMax, gdT: 0 } : {}),
     ...(rules.systems && rules.systems.includes('burst') ? { burst: 0 } : {}),
+    // the air actions (airdash, airjump): `aa` spent this jump, `ad` the air dash's frames left, `adv` its step
+    ...(rules.systems && (rules.systems.includes('airdash') || rules.systems.includes('airjump')) ? { aa: 0, ad: 0, adv: 0 } : {}),
   };
 }
 
@@ -231,10 +239,11 @@ function think(s, i, ctx) {
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: p.st === 'air' ? 'air' : (downish(dir) ? 'crouch' : 'stand'), auto });
     if (!cmd) return;
     const kind = cmd.type === 'normal' ? cmd.slot : cmd.type;
-    if (m.cancel.includes(kind) || m.chain.includes(cmd.slot) || (auto && cmd === auto)) start(s, i, ctx, cmd);
+    if (m.cancel.includes(kind) || m.chain.includes(cmd.slot) || (auto && cmd === auto) || gatling(s, p.mv, cmd)) start(s, i, ctx, cmd);
     return;
   }
   if (p.st === 'air') {
+    if (p.aa !== undefined && !p.mv && airAction(s, i, ctx, dir)) return;
     if (p.airMove || p.mv) return;
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: 'air' });
     if (cmd && cmd.type === 'normal') start(s, i, ctx, cmd);
@@ -255,6 +264,37 @@ function think(s, i, ctx) {
   if (next !== p.st) { p.st = next; p.sf = 0; }
 }
 const R_CANCEL = (s) => s.rules.cancelLate;
+// GATLING: a normal cancels into a stronger normal of the same stance (stand.L → stand.M, crouch.M → stand.H …: the
+// stance is the stick's, as any normal's; an air normal into a stronger air normal)
+const RANK = { L: 0, M: 1, H: 2 };
+function gatling(s, from, cmd) {
+  if (!sys(s, 'gatling') || cmd.type !== 'normal') return false;
+  const [a, x] = from.split('.'), [b, y] = cmd.slot.split('.');
+  if (!(x in RANK) || !(y in RANK) || (a === 'air') !== (b === 'air')) return false;
+  return RANK[y] > RANK[x];
+}
+// THE AIR ACTIONS (airdash, airjump): one of `airActions` a jump, while no air move plays. An air dash is forward (or back)
+// twice: level through the air for airDashFrames, airDashDist covered; an air jump is up again, a fresh press: the ground
+// jump's rise × airJumpVy %, its lean from the stick, and the air normal spent before it is given back.
+function airAction(s, i, ctx, dir) {
+  const p = s.p[i], R = s.rules, J = ctx.fighters[i].jump;
+  if (p.ad > 0 || p.aa >= R.airActions) return false;
+  if (sys(s, 'airdash')) {
+    const f = traced(p.hist, '66'), b = !f && traced(p.hist, '44');
+    if (f || b) {
+      p.aa++; p.ad = R.airDashFrames; p.adv = Math.round(R.airDashDist / R.airDashFrames) * (f ? 1 : -1) * p.face; p.vy = 0; p.vx = 0;
+      p.hist = p.hist.map(() => 5);
+      s.events.push({ t: 'airdash', p: i, x: p.x, y: p.y });
+      return true;
+    }
+  }
+  if (sys(s, 'airjump') && dir >= 7 && p.hist.length > 1 && (p.hist[p.hist.length - 2] & 15) < 7) {
+    p.aa++; p.vy = Math.round((J.vy * R.airJumpVy) / 100); p.vx = (dir === 9 ? 1 : dir === 7 ? -1 : 0) * J.vx * p.face; p.airMove = 0;
+    s.events.push({ t: 'airjump', p: i, x: p.x, y: p.y });
+    return true;
+  }
+  return false;
+}
 
 function start(s, i, ctx, cmd) {
   const p = s.p[i];
@@ -267,6 +307,7 @@ function start(s, i, ctx, cmd) {
   p.hitN = 0;
   p.hitAt = 0;
   p.air = 0;
+  if (p.ad) p.ad = 0;
   if (m.armor) p.armorN = 0;
   if (m.stance === 'air') { p.airMove = 1; return; }
   p.st = 'move';
@@ -301,11 +342,11 @@ function advance(s, i, ctx) {
     case 'walkF': p.x += F.walk.f * p.face; break;
     case 'walkB': p.x -= F.walk.b * p.face; break;
     case 'prejump':
-      if (p.sf >= J.prejump) { p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * J.vx * p.face; p.y = 0; }
+      if (p.sf >= J.prejump) { p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * J.vx * p.face; p.y = 0; if (p.aa !== undefined) { p.aa = 0; p.ad = 0; } }
       break;
     case 'air':
       if (p.mv) { p.mf++; if (p.mf > F.moves[p.mv].total) p.mv = null; }
-      fly(p, J.g);
+      if (p.ad > 0) { p.ad--; p.x += p.adv; } else fly(p, J.g);
       if (p.y <= 0 && p.vy < 0) land(p, J.landing);
       break;
     case 'land': if (p.sf >= p.landing) { p.st = 'stand'; p.sf = 0; } break;

@@ -16,6 +16,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
+- **Mojulo Fighter hosts kinds of fighting game.** A versus game's rules may name a `kind` (`versus-kinds.js`): street
+  (Street Fighter), anime-air (Guilty Gear), iron (Tekken), tag (Dragon Ball FighterZ) or platform (Smash). Each is
+  data: its systems and dials under the game's own (the game's systems are added, a dial it sets wins), its input
+  grammar, how its combos are built, its plane, and the look and game type its effects are drawn in. What versus does
+  not run yet of each kind is said (`kindReport(kind).lacks`), never dropped. Three new versus systems, each off
+  unless switched on:
+  - `gatling`: a connected normal, on hit or block, cancels into a stronger one of its stance (L → M → H; air into air).
+  - `airdash`: forward or back twice in the air flies level for `airDashDist` over `airDashFrames`.
+  - `airjump`: up again, a fresh press, jumps again at `airJumpVy` % of the ground jump.
+
+  The air dash and the air jump share `airActions` per jump. Kombat is left out for now.
 - **Hitstop, live.** A gameworld feel whose template freezes on a blow (`hit.hitstop`: frames at 60 fps, `base` plus
   `perMs` for each unit of the blow's shove, at most `max`) now carries it onto the hero's strike. Before, the readout
   listed it as not carried. A melee connect freezes the striker and the struck for those frames: no timer, rule,

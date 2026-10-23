@@ -287,4 +287,7 @@ export const SYSTEMS = Object.freeze({
   parry: 'tap forward as a strike arrives (down for a low) to parry it: no damage, and you move first',
   burst: 'once a round, S + T while being hit breaks the combo and knocks the attacker away',
   guard: 'blocking wears a guard bar; an empty bar is crushed, open for a combo',
+  gatling: 'a connected normal (on hit or block) cancels into a stronger one of its stance: L into M or H, M into H',
+  airdash: 'forward twice in the air (back twice) dashes level through the air: an air action',
+  airjump: 'up again in the air jumps again: an air action (rules.airActions a jump: one by default)',
 });

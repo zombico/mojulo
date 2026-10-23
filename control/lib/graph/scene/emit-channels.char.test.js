@@ -196,6 +196,8 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-23 merging 1018-consolidated into 1021-action-game-unification (1023-consolidated): the runtime
 // carries both sides' additions (the forms, the wall, the swinger, the runner; the drive and 'drive-stop'), each side's re-pin
 // above says what it adds and that no fixture asks for it; the versus channel's page carries the lock supers' source.
+// Re-pinned 2026-10-23 (fight kinds): the `versus` fixture alone, its embedded versus-core gaining the gatling and the air
+// actions (airdash, airjump: rules-gated, no fixture switches them on) and readRules' `kind`; every other page is unchanged.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
