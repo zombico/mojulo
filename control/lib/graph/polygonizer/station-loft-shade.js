@@ -249,6 +249,33 @@ function authoredNormals(mesh, rest, out) {
   });
 }
 
+/**
+ * A part LIT AS ONE VOLUME (the grass's way, vegetation/grass.js volumeLit; a part's `volume: { heart, up }`): each
+ * corner's normal bent out from the volume's heart (the centre of the part `heart` names, where it stands now) and `up`
+ * toward the sky, not its own face's, so a lawn of blades (the hero's hair, hero-head-layers.js) shades as one soft mass
+ * whatever way each blade faces, both its sides alike. A part without one as it was.
+ */
+const VOLUME_UP = 0.2;
+function volumeNormals(mesh, recipe, out) {
+  const P = recipe.parts || {}, vols = Object.entries(P).filter(([, p]) => p?.volume?.heart && P[p.volume.heart]);
+  if (!vols.length) return;
+  const V = mesh.vertices, heart = new Map(), lit = new Map(vols);
+  for (const [, p] of vols) heart.set(p.volume.heart, null);
+  const acc = new Map([...heart.keys()].map((k) => [k, [0, 0, 0, 0]]));
+  V.forEach((v, vi) => { const a = acc.get(mesh.provenance[vi].part); if (a) { a[0] += v[0]; a[1] += v[1]; a[2] += v[2]; a[3]++; } });
+  for (const [k, a] of acc) if (a[3]) heart.set(k, [a[0] / a[3], a[1] / a[3], a[2] / a[3]]);
+  mesh.faces.forEach((t, fi) => {
+    const p = lit.get(partOf(mesh, fi)); if (!p) return;
+    const c = heart.get(p.volume.heart); if (!c) return;
+    const up = p.volume.up ?? VOLUME_UP;
+    t.forEach((vi, k) => {
+      const d = [V[vi][0] - c[0], V[vi][1] - c[1], V[vi][2] - c[2]], l = Math.hypot(...d) || 1;
+      const n = [(d[0] / l) * (1 - up), (d[1] / l) * (1 - up), (d[2] / l) * (1 - up) + up], nl = Math.hypot(...n) || 1;
+      out[fi][k] = [n[0] / nl, n[1] / nl, n[2] / nl];
+    });
+  });
+}
+
 /** The weld (see layeredShadingNormals): per-corner normals over `V` (the shown positions), welded by (group, REST
  * position) into FANS — the faces of one bin joined across the edges they share where their faces turn less than the
  * crease — each corner the area-weighted sum of its own fan. */
@@ -392,6 +419,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
   authoredNormals(mesh, rest, out);
+  volumeNormals(mesh, recipe, out);
   const ew = typeof ellipsoid === 'object' && ellipsoid ? ellipsoid.w : ellipsoid;
   if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1, ellipsoid?.brow ?? 1);
   if (!proxy) return out;

@@ -230,6 +230,15 @@ body catches up to what the authored one wears, and its principles are shared ba
   stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
   takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
   The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.
+- THE HAIR LIT AS ONE VOLUME (station-loft-shade.js `volumeNormals`, a part's `volume: { heart, up }`; the hero's
+  hair, its coat, the beard and the beard's coat: hero-head-layers.js `HAIR_VOLUME`): each corner's shading normal bent
+  out from the head's centre (the cranium's, where it stands) and a fifth toward the sky, the grass's way
+  (vegetation/grass.js volumeLit), so the blades shade as one soft mass, both sides alike, where each lit by its own
+  facing read as flakes. The hair's ramp root to tip gentler (`HAIR_RAMP` 0.7 … 1.12, from 0.45 … 1.3): the bands no
+  longer interleave into a patchwork across the blades. A part without a `volume` is lit as it was.
+- THE BEARD GREYS AT THE ROOT (hero-head-layers.js `BEARD_ROOT`): the beard's root and its coat are its tip's colour,
+  the grey in it, darkened (0.7), where they were the un-greyed colour (×0.6): an old beard read as grey flecks on
+  black.
 - THE DEPICTION SOLVER (new epidermis/hair-solve.js `solveClass`, `candidatesFor`, `prepareCase`; hair-depict.js
   `hairClass`, `HAIR_DEPICTION`, `depictionOf`): how a groom is cut into the hat's blades is a CLASS's, never a style's
   own: `rope` (locs, rows), `tied` (a tail, a braid, a bun), `coil`, `standing` (gel, a crest), `cropped`, `short`,

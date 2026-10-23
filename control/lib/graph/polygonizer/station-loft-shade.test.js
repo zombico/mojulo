@@ -787,3 +787,22 @@ describe('the strands: lines in the hair\'s own hue, darkened', () => {
     expect(toonLightErrors({ strands: { Hair: { count: 2, tone: 1.2, dash: 1 } } }).map((e) => e.split(':')[0])).toEqual(['toon.light.strands.Hair.dash', 'toon.light.strands.Hair.count', 'toon.light.strands.Hair.tone']);
   }, 120000);
 });
+
+describe('a part lit as one volume', () => {
+  // (a heart's triangle about the origin; a blade off to its +x side, facing +y, edge-on to the way out)
+  const mesh = {
+    vertices: [[-0.1, 0, -0.05], [0.1, 0, -0.05], [0, 0, 0.1], [0.2, 0, 0], [0.3, 0, 0], [0.25, 0, 0.1]],
+    faces: [[0, 1, 2], [3, 4, 5]], groups: ['Skin', 'Hair'],
+    provenance: ['cranium', 'cranium', 'cranium', 'hair', 'hair', 'hair'].map((part) => ({ part })),
+    parts: {},
+  };
+  it('bends a blade\'s normals out from the heart and up, whatever way the blade faces', () => {
+    const own = layeredShadingNormals(mesh, { parts: { cranium: {}, hair: {} } }, { proxy: false });
+    const vol = layeredShadingNormals(mesh, { parts: { cranium: {}, hair: { volume: { heart: 'cranium' } } } }, { proxy: false });
+    expect(Math.abs(own[1][0][1])).toBeCloseTo(1, 5);   // (its own: square to the blade)
+    for (const n of vol[1]) { expect(n[0]).toBeGreaterThan(0.6); expect(n[2]).toBeGreaterThan(0); expect(Math.hypot(...n)).toBeCloseTo(1, 6); }
+    // (the heart, and a part without a volume, as they were)
+    expect(vol[0]).toEqual(own[0]);
+    expect(layeredShadingNormals(mesh, { parts: { cranium: {}, hair: { volume: { heart: 'nose' } } } }, { proxy: false })).toEqual(own);
+  });
+});

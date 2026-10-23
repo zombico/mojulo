@@ -106,7 +106,7 @@ function slabPart(frame, toHero, cards, pin, group, centre = [0, 0, 0], points =
  * pin's frame, its faces' groups where they differ from the part's; an open mesh lists its boundary (every edge one face
  * uses), as the audit wants of an open part.
  */
-function pinMesh(frame, toHero, M, pin, group) {
+function pinMesh(frame, toHero, M, pin, group, { volume = null } = {}) {
   const offsets = {}, faces = {}, groups = {};
   M.vertices.forEach((p, i) => { offsets[`v${i}`] = surfaceLocalOffset(frame, toHero(p)).map(r6); });
   M.faces.forEach((f, i) => { faces[`f${i}`] = f.map((v) => `v${v}`); if (M.groups[i] !== group) groups[`f${i}`] = M.groups[i]; });
@@ -116,10 +116,14 @@ function pinMesh(frame, toHero, M, pin, group) {
     for (const f of M.faces) for (let e = 0; e < 3; e++) { const a = f[e], b = f[(e + 1) % 3], kk = a < b ? `${a}|${b}` : `${b}|${a}`; count.set(kk, (count.get(kk) || 0) + 1); }
     boundary = [...count].filter(([, n]) => n === 1).map(([kk]) => kk.split('|').map((v) => `v${v}`));
   }
-  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}) };
+  return { layer: 2, closure: M.closure, pin, group, offsets, faces, ...(boundary ? { boundary } : {}), ...(Object.keys(groups).length ? { groups } : {}), ...(volume ? { volume } : {}) };
 }
 /** the beard's: one colour, its own */
 const BEARD_BANDS = Object.freeze([[0.4, 'BeardRoot'], [1.01, 'Beard']]);
+/** the beard's root and its coat: its colour (the grey in it) darkened by this */
+const BEARD_ROOT = 0.7;
+/** the hair's parts lit as one volume about the head (station-loft-shade.js volumeNormals: the grass's way) */
+const HAIR_VOLUME = Object.freeze({ heart: 'cranium' });
 /** the beard's rung for the scalp's: one finer */
 const BEARD_RUNG = Object.freeze({ L2: 'L2', L1: 'L2', L0: 'L1' });
 /** a card on the hero: the points along it (every CARD.step-th of the guide's), its thickness (m, before the head's scale) */
@@ -149,7 +153,7 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
   const frame = pinFrame(compiled, pin);
   const streaked = blades.find((b) => b.streak && !b.streak.grey)?.streak.colour ?? null;
   const c = hairMeanOf(D), palette = { ...Object.fromEntries(Object.entries(HAIR_RAMP).map(([g, k]) => [g, linHex(c.map((v) => Math.min(1, v * k + 0.003 * (k - 1))))])), ...(streaked ? { HairStreak: linHex(streaked) } : {}) };
-  return { parts: { ...(strips ? { hair: pinMesh(frame, toHero, strips, pin, 'HairRoot') } : {}), ...(cap ? { hairCap: pinMesh(frame, toHero, cap, pin, 'HairRoot') } : {}) }, palette, counts: { ...counts, level, blades: blades.length } };
+  return { parts: { ...(strips ? { hair: pinMesh(frame, toHero, strips, pin, 'HairRoot', { volume: HAIR_VOLUME }) } : {}), ...(cap ? { hairCap: pinMesh(frame, toHero, cap, pin, 'HairRoot', { volume: HAIR_VOLUME }) } : {}) }, palette, counts: { ...counts, level, blades: blades.length } };
 }
 
 /** the face's hair cards' clump (m, the beard's locks gathered to one card a cell) and the brows' and lashes' widths (m) */
@@ -176,7 +180,7 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
   const sc = k / STAND_M, toHero = (q) => [q[0] * sc, q[1] * sc + ty, q[2] * sc + men], L = head.landmarks, at = (p) => [p.x * k, p.y * k + ty, p.z * k + men];
   const visage = recipe.parts.visage, compiled = compileLayered({ parts: { visage }, dials: {}, creases: {} }).parts.visage;
   const centre = [0, L.eyeR.y * STAND_M * 0.3, L.eyeR.z * STAND_M], parts = {}, palette = {};
-  const mean = (g) => { const c = hairColourOfDermis(D); return linHex(c.map((v, i) => v + (GREY[i] - v) * Math.min(1, (D.grey ?? 0) * g))); };
+  const greyed = (g) => { const c = hairColourOfDermis(D); return c.map((v, i) => v + (GREY[i] - v) * Math.min(1, (D.grey ?? 0) * g)); }, mean = (g) => linHex(greyed(g));
   // the BEARD's locks, a card a cell, split at the lip line
   if (D.beardStyle) {
     const bchart = relationalHeadChart(head, { cells: CELLS }), B = growBodyHair(bchart, D, { share: 1, tracts: ['beard'], type });
@@ -189,16 +193,17 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     for (const [bone, name, near] of [['head', 'hairBeard', at(L.n)], ['jaw', 'hairBeardJaw', at(L.pg)]]) {
       if (!cards[bone].length) continue;
       const pin = visagePin(visage, compiled, bone, near); if (!pin) continue;
-      parts[name] = pinMesh(pinFrame(compiled, pin), toHero, stripMesh(cards[bone], BEARD_BANDS, { centre }), pin, 'BeardRoot');
+      parts[name] = pinMesh(pinFrame(compiled, pin), toHero, stripMesh(cards[bone], BEARD_BANDS, { centre }), pin, 'BeardRoot', { volume: HAIR_VOLUME });
     }
     // (the beard's coat under it, as the scalp's: where the style grows locks, the skin painted the beard's root; split
     // at the lip line as the beard is, the chin's riding the jaw)
     for (const [bone, name, near, where] of [['head', 'hairBeardCoat', at(L.n), (p) => p[2] >= lip], ['jaw', 'hairBeardCoatJaw', at(L.pg), (p) => p[2] < lip]]) {
       const cp = visagePin(visage, compiled, bone, near); if (!cp) continue;
       const coat = capMesh(bchart, D, { tract: 'beard', group: 'BeardRoot', min: FACE_CARD.coatMin, where });
-      if (coat) parts[name] = pinMesh(pinFrame(compiled, cp), toHero, coat, cp, 'BeardRoot');
+      if (coat) parts[name] = pinMesh(pinFrame(compiled, cp), toHero, coat, cp, 'BeardRoot', { volume: HAIR_VOLUME });
     }
-    if (parts.hairBeard || parts.hairBeardJaw) { palette.Beard = mean(1.3); palette.BeardRoot = linHex(hairColourOfDermis(D).map((v) => v * 0.6)); }
+    // (the root the tip's colour darkened, its grey and all: a greying beard greys at the root too, never grey flecks on black)
+    if (parts.hairBeard || parts.hairBeardJaw) { palette.Beard = mean(1.3); palette.BeardRoot = linHex(greyed(1.3).map((v) => v * BEARD_ROOT)); }
   }
   // the BROWS and the LASHES, a card a hair (the epidermis's strands, in the head's own units)
   if (epidermis) {

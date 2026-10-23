@@ -21,7 +21,7 @@ const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l
 /** the hair's bands, root to tip: the root darker, its own colour, the tip lighter (the stylized meadow's ramp) */
 export const HAIR_BANDS = Object.freeze([[0.25, 'HairRoot'], [0.5, 'HairShade'], [0.78, 'Hair'], [1.01, 'HairTip']]);
 /** the ramp's stops (× the hair's colour, linear), root to tip */
-export const HAIR_RAMP = Object.freeze({ HairRoot: 0.45, HairShade: 0.72, Hair: 1, HairTip: 1.3 });
+export const HAIR_RAMP = Object.freeze({ HairRoot: 0.7, HairShade: 0.85, Hair: 1, HairTip: 1.12 });
 /** the CAP (the tuft's base, a coat of the hair's paint): its height over the skin (m: paint, not a mass), the run in from
  * its edge it rises over (m), how far its underside is sunk into the head (m, unseen), and the PART left open (turns
  * round the head either side of the comb's part line: the part shows the scalp, as it does) */
