@@ -35,6 +35,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - What games can be made, and what to build next: [docs/tool-surface/hillclimb.md](docs/tool-surface/hillclimb.md)
   (generated from the cosmos registry and sweep; internal, not an MCP surface). Read it before picking game work;
   after changing the registry, `npm run tool-surface` (a critical test fails on a stale page). Skill: `/hillclimb`.
+- What grows on what ground, and the flora library's gaps: [docs/flora-gaps.md](docs/flora-gaps.md) (generated from
+  `era/substrate.js` and `era/substrate-flora.js`; after changing either or the library, `npm run flora-gaps`: a test
+  fails on a stale page). Read it before adding flora.
 - Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
   list that defines it; counts drift the day after they are written.
 - "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the

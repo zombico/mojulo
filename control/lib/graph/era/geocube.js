@@ -68,7 +68,8 @@
  *                              dome: matte-paint/sky.js)
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' | 'trail' | 'town', domain? } → its
  *                              specimen (`town`: a micro-town's street walked by the dummy; `path` the dress of the
- *                              trail its street lies on: { surface, rubble, patches }, era/trail-dress.js)
+ *                              trail its street lies on: { surface, rubble, patches }, era/trail-dress.js; its
+ *                              readout's `substrate` the shares of what its ground is, era/substrate.js)
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys (its `domain`
  *                              expanded: an outside domain alone stands on the cube's island)
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
@@ -87,6 +88,7 @@ import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
 import { readBiocube } from './biocube.js';
 import { TRAIL_DRESS_KEYS } from './trail-dress.js';
+import { substrateOf } from './substrate-of.js';
 import { STAGE_KITS, isGroundKit } from './stage.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
@@ -1139,7 +1141,9 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'town') { payload.route = townRoute(low, payload); withTownCameras(payload, outTrailOf(low).site); }
   if (show === 'room') withAccent(payload, onInterior(cube, D?.interior).inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
-  payload.geocube = { ...geocubeReadout(cube, show, P, manifest),
+  // (what its ground is, era/substrate.js: a street's land, read off the trail it stands on)
+  const sub = low.kind === 'stage' && low.trail !== undefined && low.meru === undefined ? substrateOf(low).shares : null;
+  payload.geocube = { ...geocubeReadout(cube, show, P, manifest), ...(sub ? { substrate: sub } : {}),
     ...(show === 'town' ? { town: { settlement: D?.settlement !== undefined ? (typeof D.settlement === 'string' ? D.settlement : 'written') : firstTown ?? 'micro', anchor: typeof town.anchor === 'object' ? town.anchor.id ?? 'written' : town.anchor ?? null,
       houses: (payload.anchors || []).filter((a) => a.kind === 'house').length } } : {}) };
   // (the style the street is built in, and its laws: era/arch-style.js)

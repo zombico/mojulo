@@ -107,6 +107,7 @@
     "pack:ui": "cd ui-package && npm pack --pack-destination ..",
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "tool-surface": "node scripts/tool-surface.mjs",
+    "flora-gaps": "node scripts/flora-gaps.mjs",
     "test": "vitest run",
     "test:critical": "vitest run --config vitest.critical.config.js",
     "test:deep": "vitest run --config vitest.deep.config.js",
