@@ -30,6 +30,14 @@ export const FLORA_CUTS = Object.freeze({
   'isekai:crown': Object.freeze({ cut: 'leaves', metres: 3, vary: 22, seed: 73 }),
   'isekai:wood': Object.freeze({ cut: 'bark', metres: 1, vary: 10, seed: 79, wall: true }),
 });
+/** A formation's talus (era/isekai.js formationGround): its scree's stones by the rock (limestone in blocks, flagstone
+ *  in plates, sandstone weathered to cobbles), and its coarse patches (`isekai:rubble`) the rock's own big blocks among
+ *  the small. Over GROUND_CUTS' talus and rubble for a land of that rock. */
+export const TALUS_CUTS = Object.freeze({
+  limestone: Object.freeze({ 'isekai:talus': Object.freeze({ cut: 'scree', form: 'blocks', metres: 1.5, vary: 12, seed: 103 }), 'isekai:rubble': Object.freeze({ cut: 'scree', form: 'rubble', metres: 2.4, vary: 12, seed: 107 }) }),
+  flagstone: Object.freeze({ 'isekai:talus': Object.freeze({ cut: 'scree', form: 'plates', metres: 1.8, vary: 12, seed: 103 }), 'isekai:rubble': Object.freeze({ cut: 'scree', form: 'plates', metres: 3, vary: 14, seed: 107 }) }),
+  sandstone: Object.freeze({ 'isekai:talus': Object.freeze({ cut: 'scree', form: 'cobbles', metres: 1.2, vary: 10, seed: 103 }), 'isekai:rubble': Object.freeze({ cut: 'scree', form: 'rubble', metres: 2.2, vary: 12, seed: 107 }) }),
+});
 export const GROUND_CUTS = Object.freeze({
   'isekai:trail': Object.freeze({ cut: 'path', metres: 1.5, vary: 14, seed: 83 }),
   'isekai:ground': Object.freeze({ cut: 'turf', metres: 1.5, vary: 12, seed: 71 }),
@@ -40,7 +48,8 @@ export const GROUND_CUTS = Object.freeze({
   // (a formation's rock ground, where the land names one: era/isekai.js formationGround) the pavement in clints and
   // grikes (its joints the rock flora roots in: era/rock-flora.js), the talus in loose stones
   'isekai:pavement': Object.freeze({ cut: 'karst', metres: 3.6, vary: 10, seed: 101, one: true, rows: 3, cols: 2 }),
-  'isekai:talus': Object.freeze({ cut: 'scree', metres: 1.5, vary: 12, seed: 103 }),
+  'isekai:talus': Object.freeze({ cut: 'scree', form: 'blocks', metres: 1.5, vary: 12, seed: 103 }),
+  'isekai:rubble': Object.freeze({ cut: 'scree', form: 'rubble', metres: 2.4, vary: 12, seed: 107 }),
   verge: Object.freeze({ cut: 'verge', metres: 1, vary: 12, seed: 89 }),
 });
 
@@ -49,9 +58,9 @@ const r2 = (v) => Math.round(v * 100) / 100, r4 = (v) => Math.round(v * 1e4) / 1
 const keysFor = (grit) => {
   const keys = new Map();
   return (C, v) => {
-    const k = `${C.cut}${v}`;
+    const k = `${C.cut}${C.form ?? ''}${C.metres}${v}`;
     if (!keys.has(k)) {
-      const { seed = 1, ...params } = normalizeTileSpec({ gen: 'dressed', cut: C.cut, stone: GREY, mortar: DIM, vary: C.vary, grit: r2(grit), seed: C.seed, ...(C.rows ? { rows: C.rows, cols: C.cols } : {}) }, 'gritty flora').params;
+      const { seed = 1, ...params } = normalizeTileSpec({ gen: 'dressed', cut: C.cut, stone: GREY, mortar: DIM, vary: C.vary, grit: r2(grit), seed: C.seed, ...(C.rows ? { rows: C.rows, cols: C.cols } : {}), ...(C.form ? { form: C.form } : {}) }, 'gritty flora').params;
       keys.set(k, detailKey(params, seed, C.metres, v));
     }
     return keys.get(k);
@@ -70,6 +79,8 @@ export const pavementJoints = () => {
   const C = GROUND_CUTS['isekai:pavement'], J = karstJoints({ M: C.metres, rows: C.rows, cols: C.cols, seed: detailSeed(C.seed, 0) });
   return { dist: (x, y) => J.dist(x, -y), clint: (x, y) => J.clint(x, -y) };
 };
+/** A ground cut's tile at a grit (its first variant): what a cutout of it is made from (era/scree-tiles.js). */
+export const groundKey = (C, grit) => keysFor(grit)(C, 0);
 /** The land's own turf tile at a grit, variant `v`: what the verge's outer edge is turfed with (era/trail-dress.js). */
 export const turfKey = (grit, v) => keysFor(grit)(GROUND_CUTS['isekai:ground'], v);
 
@@ -88,7 +99,7 @@ export function withGrittyFlora(faces, grit) {
 }
 
 /** The land's faces with the path, the turf and the verge laid on them, as strong as the land is gritty. */
-export function withGrittyGround(faces, grit, { verge = () => false, nearTrail = null, trail = null } = {}) {
+export function withGrittyGround(faces, grit, { verge = () => false, nearTrail = null, trail = null, cuts = null } = {}) {
   if (!(grit >= GRIT_PIXELS)) return faces;
   const keyOf = keysFor(grit);
   // (a paved trail's own tile, era/trail-dress.js surfaceDress, over the path's)
@@ -102,7 +113,8 @@ export function withGrittyGround(faces, grit, { verge = () => false, nearTrail =
       const F = withFills(f), lift = layDetail(F, { key: keyOf(C, variantOf(f)), metres: C.metres, as: 'floor' });
       return lift.texture ? { ...lift, uv } : f;
     }
-    const C = GROUND_CUTS[f.group];
+    // (a land's own cuts, `cuts`, over the ground's: a formation's talus)
+    const C = cuts?.[f.group] ?? GROUND_CUTS[f.group];
     if (!C || Math.abs(f.normal[2]) <= 0.7) return f;
     // (one variant only: a paving's joints run on across the faces, where a path's noise would hide a change)
     if (paved && f.group === 'isekai:trail') { const out = layDetail(withFills(f), { key: paved[0], metres: trail.metres, as: 'floor' }); return out.texture ? out : f; }

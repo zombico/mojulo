@@ -52,7 +52,7 @@
  * wandering across fine grains, a bright fleck here and there; `'karst'` (a floor) a limestone pavement: clints in
  * courses (`rows`, `cols`) parted by deep grikes (matte-paint/karst.js, the joints shared with what roots in them),
  * solution pans, lichen rosettes a shade apart; `'scree'` (a floor) angular stones lying close and over one another,
- * each its own tilt and tone, grit between; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
+ * each its own tilt and tone, grit between, its `form` the stones' (SCREE_FORMS: blocks, plates, cobbles, rubble); `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
  * giving way to turf. Each is painted in its stone's
  * ramp alone (a grey, laid as a detail, rides on the face's own colour).
  *
@@ -503,6 +503,48 @@ function stoneDist(x, y, cx, cy, r, h) {
   const a = Math.atan2(y - cy, x - cx), n = 5 + Math.floor(3 * h(8)), seg = (2 * Math.PI) / n, w = ((((a + h(9) * 6.283) % seg) + seg) % seg) - seg / 2;
   return Math.hypot((x - cx) * (1 - 0.3 * h(5)), y - cy) / (r * (Math.cos(Math.PI / n) / Math.cos(w)));
 }
+// SCREE FORMS: a stone's shape (`shape`: 'facets' a few-sided outline, a flat top; 'slab' long and thin, square-cornered,
+// lying nearly flat; 'round' an ellipse, domed), its grid cell (m) and the stones a cell, their radius as a share of the
+// cell, how high, and how much their tops tilt; `big` a second pass of larger stones over the first (rubble)
+export const SCREE_FORMS = Object.freeze({
+  blocks: Object.freeze({ shape: 'facets', cell: 0.07, per: 2, r: [0.4, 0.85], high: 0.01, tilt: 0.25 }),
+  plates: Object.freeze({ shape: 'slab', cell: 0.11, per: 2, r: [0.45, 0.9], high: 0.004, tilt: 0.08 }),
+  cobbles: Object.freeze({ shape: 'round', cell: 0.06, per: 2, r: [0.35, 0.7], high: 0.012, tilt: 0 }),
+  rubble: Object.freeze({ shape: 'facets', cell: 0.035, per: 2, r: [0.4, 0.8], high: 0.005, tilt: 0.25, big: Object.freeze({ cell: 0.2, chance: 0.55, r: [0.3, 0.55], high: 0.03 }) }),
+});
+export const SCREE_FORM_IDS = Object.freeze(Object.keys(SCREE_FORMS));
+/** A scree tile's field: (x, y) → { z (height), tone, dice } — `dice` the winning stone's own (0..1; −1 the grit between),
+ *  what a cutout of it keeps a share of the stones by (era/scree-tiles.js). */
+function screeShape(c, seed) {
+  const M = c.metres, g = c.grit, F = SCREE_FORMS[c.form ?? 'blocks'] ?? SCREE_FORMS.blocks;
+  const distOf = (x, y, cx, cy, r, h) => {
+    // (an outline broken by a slow wobble of its own, so a large stone is no polygon)
+    if (F.shape === 'facets') return stoneDist(x, y, cx, cy, r, h) * (1 + (r > 0.03 ? 0.4 : 0.1) * sfbm(x, y, M, Math.max(0.01, r * 0.6), Math.max(0.01, r * 0.6), 2, seed + 41 + Math.floor(h(15) * 50)));
+    const a = Math.PI * h(14), u = (x - cx) * Math.cos(a) + (y - cy) * Math.sin(a), w = -(x - cx) * Math.sin(a) + (y - cy) * Math.cos(a);
+    if (F.shape === 'slab') return Math.pow(Math.abs(u / r) ** 4 + Math.abs(w / (r * (0.55 + 0.3 * h(5)))) ** 4, 0.25) * (1 + 0.08 * sfbm(x, y, M, 0.03, 0.03, 1, seed + 43));
+    return Math.hypot(u / r, w / (r * (0.65 + 0.3 * h(5))));
+  };
+  const stone = (x, y, cx, cy, h, cs, R, high, best) => {
+    const r = cs * (R[0] + (R[1] - R[0]) * h(4)), dd = distOf(x, y, cx, cy, r, h);
+    if (dd >= 1) return;
+    // (a large stone's top broken in two planes on a ridge across it)
+    const ridge = F.shape === 'facets' && r > 0.03 ? -Math.abs((x - cx) * Math.cos(6.283 * h(16)) + (y - cy) * Math.sin(6.283 * h(16))) * 0.18 : 0;
+    const top = F.shape === 'round' ? high * (0.5 + 0.5 * h(6)) * Math.sqrt(1 - dd * dd) : high * (0.4 + 0.6 * h(6)) + ((x - cx) * (h(10) - 0.5) + (y - cy) * (h(11) - 0.5)) * F.tilt + ridge - 0.006 * smoothstep(0.75, 1, dd);
+    if (top > best.z) { best.z = top; best.tone = (h(12) - 0.5) * 0.16; best.dice = h(13); }
+  };
+  return (x, y) => {
+    const best = { z: -0.004 + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5), tone: -0.08, dice: -1 };
+    marksNear(x, y, M, F.cell, F.per, seed + 11, (cx, cy, h, cs) => { if (h(3) <= 0.75 + 0.2 * g) stone(x, y, cx, cy, h, cs, F.r, F.high, best); });
+    if (F.big) marksNear(x, y, M, F.big.cell, 1, seed + 17, (cx, cy, h, cs) => { if (h(3) <= F.big.chance) stone(x, y, cx, cy, h, cs, F.big.r, F.big.high, best); });
+    return best;
+  };
+}
+/** A scree tile's stones: for each texel the dice of the stone it shows (−1 between them), size × size. */
+export function screeDice(cfgIn, { size = 512, seed = 1 } = {}) {
+  const c = { ...DRESSED_DEFAULTS, ...cfgIn }, at = screeShape(c, seed), px = c.metres / size, out = new Float32Array(size * size);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) out[j * size + i] = at((i + 0.5) * px, (j + 0.5) * px).dice;
+  return out;
+}
 // a karst's grike: half its width at the top, its rounded lip, its depth (m)
 export const KARST_GRIKE = Object.freeze({ half: 0.028, lip: 0.014, depth: 0.05 });
 const NATURAL = {
@@ -602,22 +644,12 @@ const NATURAL = {
       return z;
     }, (x, y, k, lit) => rampAt(body, 0.62 + (lit.value[k] - 1) * 1.3 + tone[k] + lichen[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g) - 0.5 * grike[k]));
   },
-  // SCREE from above: angular stones lying close and over one another (the higher wins where two meet), each a flat
-  // top tilted its own way, bevelled at its edge, its own tone; grit between
+  // SCREE from above: stones lying close and over one another (the higher wins where two meet), each its own tilt and
+  // tone, grit between; its `form` (SCREE_FORMS) the stones' shape and size
   scree(c, size, seed) {
-    const M = c.metres, g = c.grit, body = rampOf(c.stone), tone = new Float32Array(size * size);
-    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
-      let z = -0.004 + 0.0008 * sfbm(x, y, M, 0.01, 0.01, 2, seed + 5), tn = -0.08;
-      marksNear(x, y, M, 0.07, 2, seed + 11, (cx, cy, h, cs) => {
-        if (h(3) > 0.75 + 0.2 * g) return;
-        const r = cs * (0.4 + 0.45 * h(4)), dd = stoneDist(x, y, cx, cy, r, h);
-        if (dd >= 1) return;
-        const v = 0.004 + 0.01 * h(6) + ((x - cx) * (h(10) - 0.5) + (y - cy) * (h(11) - 0.5)) * 0.25 - 0.006 * smoothstep(0.75, 1, dd);
-        if (v > z) { z = v; tn = (h(12) - 0.5) * 0.16; }
-      });
-      tone[k] = tn;
-      return z;
-    }, (x, y, k, lit) => rampAt(body, 0.57 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), at = screeShape(c, seed), tone = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => { const q = at(x, y); tone[k] = q.tone; return q.z; },
+      (x, y, k, lit) => rampAt(body, 0.57 + (lit.value[k] - 1) * 1.3 + tone[k] + 0.03 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 13) - 0.45 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // GRAVEL from above: small stones lying close in a bed of grit, their crowns proud and rounded, a few larger among them,
   // the grit showing between (less of it with grit)

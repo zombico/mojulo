@@ -47,16 +47,25 @@ export function detailTexels(key) {
   // (a brick floor's tile, landscape/surface-textures.js stone-brick in a bond, as the rooms lay it; else dressed stone)
   return S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed });
 }
-registerTextureResolver('detail:', (key) => {
-  if (PAINTED.has(key)) return PAINTED.get(key);
-  const T0 = detailTexels(key);
-  if (!T0) return null;
-  const T = T0, n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
+/** A detail key's spec ({ cfg, seed }: what its tile is painted from), or null for a key never made. */
+export const detailSpec = (key) => SPECS.get(key) ?? null;
+/** A detail key's tile as the page draws it: set to its mean (DETAIL_MEAN, each channel), { rgb, W, H }; null for a key
+ *  never made. What a face laid with it shows, its fill lifted to match (layDetail). */
+export function detailShown(key) {
+  const T = detailTexels(key);
+  if (!T) return null;
+  const n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
   for (let k = 0; k < n * 3; k++) { L[k] = lin(T.rgb[k]); m[k % 3] += L[k]; }
   for (let c = 0; c < 3; c++) m[c] = m[c] / n || 1;
-  const out = Buffer.alloc(n * 3);
-  for (let k = 0; k < n * 3; k++) out[k] = Math.round(srgb(Math.min(1, (L[k] / m[k % 3]) * DETAIL_MEAN)));
-  const url = `data:image/png;base64,${encodePng(out, T.W, T.H).toString('base64')}`;
+  const rgb = Buffer.alloc(n * 3);
+  for (let k = 0; k < n * 3; k++) rgb[k] = Math.round(srgb(Math.min(1, (L[k] / m[k % 3]) * DETAIL_MEAN)));
+  return { rgb, W: T.W, H: T.H };
+}
+registerTextureResolver('detail:', (key) => {
+  if (PAINTED.has(key)) return PAINTED.get(key);
+  const T = detailShown(key);
+  if (!T) return null;
+  const url = `data:image/png;base64,${encodePng(T.rgb, T.W, T.H).toString('base64')}`;
   if (PAINTED.size >= 24) PAINTED.clear();
   PAINTED.set(key, url);
   return url;

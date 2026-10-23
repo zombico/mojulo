@@ -251,7 +251,7 @@ export const TURF_BANDS = Object.freeze([{ from: 0.62, level: 0.08 }, { from: 0.
 // bands along both edges of a line `base(y)` out from the trail's middle: band k from `d` = its wandering `from` in
 // from the line to the next band's, the last out to `past` beyond it, never deeper than `deepest(y)`; each a cutout
 // `keyOf(level)` laid with the world-locked uv of a tile `metres` a repeat, coloured by `under`
-function layBands({ site, bands, base, past, deepest, under, keyOf, metres, seed, keep, group, flag, rise }) {
+function layBands({ site, bands, base, past, deepest, under, keyOf, metres, seed, keep, group, flag, rise, where = null, tone = null }) {
   const { xyAt, ribbonZ } = ribbonOf(site), out = [], step = 0.375, r4 = (v) => Math.round(v * 1e4) / 1e4;
   // (a band's inner line at station y: its `from`, wandering two fifths either way, never past the next band's)
   const line = (k, y, side) => (k === bands.length ? -past : Math.min(deepest(y), Math.max(line(k + 1, y, side) + 0.02, bands[k].from * (0.6 + 0.8 * vnoise(y * 0.55 + k * 3.7, side * 5.3, seed + k)))));
@@ -261,8 +261,8 @@ function layBands({ site, bands, base, past, deepest, under, keyOf, metres, seed
     for (let k = 0; k < bands.length; k++) {
       const P = (yy, d) => { const off = side * (base(yy) - d), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + rise + 0.001 * k)]; };
       const cs = [P(y, line(k, y, side)), P(y, line(k + 1, y, side)), P(y1, line(k + 1, y1, side)), P(y1, line(k, y1, side))];
-      if (cs.some((c) => !kept(keep, c[0], c[1], 0.3))) continue;
-      const n = upOf(cs), C = n[2] < 0 ? cs.reverse() : cs, fills = C.map((c) => under(c[0], c[1]));
+      if (cs.some((c) => !kept(keep, c[0], c[1], 0.3)) || (where && !where(cs))) continue;
+      const n = upOf(cs), C = n[2] < 0 ? cs.reverse() : cs, fills = C.map((c) => under(c[0], c[1])).map((f) => (f && tone ? tone(f) : f));
       if (fills.some((f) => !f)) continue;
       out.push({ corners: C, normal: upOf(C), group, fill: fills[0], cornerFills: fills, texture: keyOf(bands[k].level), textureLit: true, uv: C.map((c) => [r4(c[0] / metres), r4(c[1] / metres)]), [flag]: true });
     }
@@ -276,14 +276,28 @@ export function sandBands({ site, lanes, roadKey, metres, seed, keep = null }) {
     keyOf: (level) => sandKey(roadKey, level), metres, seed: seed + 1409, keep, group: 'isekai:trail', flag: 'sand', rise: 0.006 });
 }
 
-/** { site, lanes, turfKey (the land's turf tile), metres, seed, keep } → the verge's outer edge's faces, in the land's
- *  colour (its fringe lanes' outer corners'). */
-export function turfBands({ site, lanes, turfKey, metres, seed, keep = null }) {
+/** { site, lanes, turfKey (the land's turf tile), metres, seed, keep, where? (a band's corners → laid here: not where
+ *  the land beyond is scree, screeBands) } → the verge's outer edge's faces, in the land's colour (its fringe lanes'
+ *  outer corners'). */
+export function turfBands({ site, lanes, turfKey, metres, seed, keep = null, where = null }) {
   // (the land's colour: the fringe lanes' corners at their outer edge only)
   const outer = lanes.filter((f) => f.cls === 'fringe' && typeof f.fill === 'string').map((f) => {
     const ks = f.corners.map((c, k) => k).filter((k) => site.trailDist(f.corners[k][0], f.corners[k][1]) > site.halfWAt(f.corners[k][1]) + 0.5 * site.fringeAt(f.corners[k][1]));
     return { cls: 'fringe', fill: f.fill, corners: ks.map((k) => f.corners[k]), cornerFills: ks.map((k) => f.cornerFills?.[k] ?? f.fill) };
   });
   return layBands({ site, bands: TURF_BANDS, base: (y) => site.halfWAt(y) + site.fringeAt(y), past: 0.18, deepest: (y) => site.fringeAt(y) - 0.05, under: colourUnder(outer),
-    keyOf: (level) => sandKey(turfKey, level, 'light'), metres, seed: seed + 1423, keep, group: 'isekai:ground', flag: 'turf', rise: 0.006 });
+    keyOf: (level) => sandKey(turfKey, level, 'light'), metres, seed: seed + 1423, keep, group: 'isekai:ground', flag: 'turf', rise: 0.006, where });
+}
+
+/** Where the land beyond a verge is a talus: its scree worked into the verge's outer edge as the turf is elsewhere, its
+ *  stones thinning in across the bands (era/scree-tiles.js: a share of the scree's own stones). { site, lanes, keyOf
+ *  (level → the scree's cutout), metres (its tile's), seed, keep, where (a band's corners → beside the talus), tone (the
+ *  land's colour → the talus's) } → faces. */
+export function screeBands({ site, lanes, keyOf, metres, seed, keep = null, where, tone }) {
+  const outer = lanes.filter((f) => f.cls === 'fringe' && typeof f.fill === 'string').map((f) => {
+    const ks = f.corners.map((c, k) => k).filter((k) => site.trailDist(f.corners[k][0], f.corners[k][1]) > site.halfWAt(f.corners[k][1]) + 0.5 * site.fringeAt(f.corners[k][1]));
+    return { cls: 'fringe', fill: f.fill, corners: ks.map((k) => f.corners[k]), cornerFills: ks.map((k) => f.cornerFills?.[k] ?? f.fill) };
+  });
+  return layBands({ site, bands: TURF_BANDS, base: (y) => site.halfWAt(y) + site.fringeAt(y), past: 0.18, deepest: (y) => site.fringeAt(y) - 0.05, under: colourUnder(outer),
+    keyOf, metres, seed: seed + 1427, keep, group: 'isekai:talus', flag: 'scree', rise: 0.006, where, tone });
 }

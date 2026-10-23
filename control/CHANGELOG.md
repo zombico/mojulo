@@ -143,6 +143,14 @@ level its ground covers. A cube that names no rock is drawn as before.
   talus, grey-green or gold), `cushion-plant` (flowering domes), `stonecrop` (mats of fleshy rosettes), `crevice-fern`
   (in the shaded joints), in the kit's own ramps. The clumps root in the joints the karst tile draws: the placer reads
   the same joints (`gritty-flora.js` `pavementJoints`).
+- Scree in variety (`matte-paint/dressed.js` `SCREE_FORMS`): blocks, plates, cobbles and rubble, by the rock
+  (`gritty-flora.js` `TALUS_CUTS`: limestone in blocks, flagstone in plates, sandstone in cobbles), and coarse patches
+  of rubble (`isekai:rubble`) wandering through a talus.
+- A gritty talus's edge is its stones thinning out (`isekai.js` `TALUS_EDGE`): within a metre either side of its line
+  the ground is turf and over it a cutout of the scree's own tile keeps fewer of its stones band by band
+  (`era/scree-tiles.js`, whole stones, shaded as the scree is), from nearly all inside to a few strays out on the grass.
+  Where a trail's verge runs beside a talus, the verge's outer bands carry the scree the same way instead of turf
+  (`trail-dress.js` `screeBands`); the stage's own trails keep clear of a talus today.
 - The gap report weighs each gap by the ground it would cover (`measuredShares`, over the cube presets' stage land) and
   shows the shares and scores; bedrock's cover and clump and scree's cover are no longer empty.
 

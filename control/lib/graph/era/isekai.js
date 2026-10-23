@@ -53,11 +53,12 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
-import { withGrittyFlora, withGrittyGround, trailKey, turfKey, pavementJoints, GROUND_CUTS } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround, trailKey, turfKey, groundKey, pavementJoints, GROUND_CUTS, TALUS_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
-import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, turfBands, IN_DIRT } from './trail-dress.js';
-import { detailKey } from '../matte-paint/detail.js';
+import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, turfBands, screeBands, IN_DIRT } from './trail-dress.js';
+import { detailKey, layDetail } from '../matte-paint/detail.js';
+import { screeKey } from './scree-tiles.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
@@ -373,7 +374,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // as sand and no grass stands on it; no sand cell, nothing changes)
   // (and a land whose rock names its formation, era/substrate.js, draws its ground by it: the turned ground — sand,
   // bedrock's pavement — and the talus as loose stone, no grass on either; no formation, nothing changes)
-  const GF = SH ? formationGround(st, site, SH, seed) : null, onSand = GF?.bare ?? null, SA = GF?.to === 'sand' && GF.cells.length ? GF : null;
+  const GF = SH ? formationGround(st, site, SH, seed, broken) : null, onSand = GF?.bare ?? null, SA = GF?.to === 'sand' && GF.cells.length ? GF : null;
   if (GF) ground.faces = ground.faces.flatMap((f) => (f.cel ? [f] : GF.cut(f)));
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
@@ -542,7 +543,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the ROCK GROUND grown (era/rock-flora.js): lichen on a formation's pavement, its boulders' and stones' caps and its
   // talus; on a pavement, cushions, stonecrop and (in the shade) ferns in its joints — the karst tile's own, gritty
   if (GF) {
-    const caps = boulders.flatMap((b) => b.cap).filter((f) => f.normal[2] > 0.6), talus = ground.faces.filter((f) => f.group === 'isekai:talus').map((f) => mean(f.corners));
+    const caps = boulders.flatMap((b) => b.cap).filter((f) => f.normal[2] > 0.6), talus = ground.faces.filter((f) => f.group === 'isekai:talus' || f.group === 'isekai:rubble').map((f) => mean(f.corners));
     const shadeAt = (p) => shadow([p[0], p[1], p[2] + 0.2], [0, 0, 1]) <= 0;
     for (const q of growRockFlora(st, { cells: GF.to === 'bedrock' ? GF.cells : [], cell: GF.cell, talus, caps, heightAt: site.ground, seed, grit: broken || 0.5, keep, on: GF.at, joints: broken ? pavementJoints() : null, shadeAt })) {
       const isLit = lit([q.at[0], q.at[1], site.ground(q.at[0], q.at[1]) + 0.15], [0, 0, 1]);
@@ -612,16 +613,31 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // in a ragged band, era/trail-dress.js; an outdoor surface's stones leant over the dirt after, so its edge is dirt)
   const landV = broken && inDirt ? verged(land, lane) : land;
   const landP = SD?.colour ? landV.map((f, i) => (lane(i) === 'trail' ? lean(f) : f)) : landV;
-  const landD = broken ? withGrittyGround(landP, broken, { verge: (i) => inDirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}) }) : landP;
+  const TC = GF ? TALUS_CUTS[GF.skin] : null;
+  const landD0 = broken ? withGrittyGround(landP, broken, { verge: (i) => inDirt && lane(i) !== null && lane(i) !== 'trail', nearTrail: (c) => site.trailDist(c[0], c[1]), ...(SD?.tile ? { trail: SD.tile } : {}), ...(TC ? { cuts: TC } : {}) }) : landP;
+  // (a gritty talus's edge, formationGround: over the turf of its bands its scree's stones, fewer band by band, coloured
+  // as the turf beneath is lit, in the talus's albedo)
+  const toTalus = GF ? ((T, G) => (hex) => rgbHex(hexRgb(hex).map((v, k) => Math.min(1, (v * T[k]) / G[k]))))(landTint['isekai:talus'], landTint['isekai:ground']) : null;
+  const screeOf = TC && broken ? (level) => screeKey(groundKey(TC['isekai:talus'], broken), level) : null;
+  const talusEdge = [];
+  if (screeOf) for (const { screeLevel: level, ...f } of landP) {
+    if (level === undefined) continue;
+    const over = { ...f, corners: f.corners.map((c) => [c[0], c[1], r5(c[2] + 0.006)]), group: 'isekai:talus', fill: toTalus(f.fill), ...(f.cornerFills ? { cornerFills: f.cornerFills.map(toTalus) } : {}) };
+    talusEdge.push({ ...layDetail(over, { key: screeOf(level), metres: TC['isekai:talus'].metres, as: 'floor' }), scree: true });
+  }
+  const landD = GF ? landD0.map(({ screeLevel: _s, ...f }) => f) : landD0;
   // (a gritty dirt trail's patches, worn, damp, gravel…, on its ribbon: era/trail-dress.js)
   const lanes = broken && inDirt ? landV.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })) : null;
   // (a road laid in the dirt: its border sand worked into its cracks, the road showing through beneath)
   const sand = broken && SD?.dirt && SD.tile ? sandBands({ site, lanes, roadKey: detailKey(SD.tile.params, SD.tile.seed, SD.tile.metres, 0), metres: SD.tile.metres, seed, keep }) : [];
   // (and any trail in the dirt: the land's turf worked into its verge's outer edge)
-  const turf = broken && inDirt ? turfBands({ site, lanes, turfKey: turfKey(broken, 0), metres: GROUND_CUTS['isekai:ground'].metres, seed, keep }) : [];
-  const patches = broken && inDirt ? [...sand, ...turf, ...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, scale: IN_DIRT[TD.surface]?.spill ?? 1 }),
+  // (beside a talus, its scree instead, its stones thinning in onto the verge)
+  const besideTalus = GF ? (cs) => GF.talus(cs.reduce((a, c) => (site.trailDist(c[0], c[1]) > site.trailDist(a[0], a[1]) ? c : a))) : null;
+  const turf = broken && inDirt ? turfBands({ site, lanes, turfKey: turfKey(broken, 0), metres: GROUND_CUTS['isekai:ground'].metres, seed, keep, ...(besideTalus ? { where: (cs) => !besideTalus(cs) } : {}) }) : [];
+  const screeVerge = broken && inDirt && screeOf ? screeBands({ site, lanes, keyOf: screeOf, metres: TC['isekai:talus'].metres, seed, keep, where: besideTalus, tone: toTalus }) : [];
+  const patches = broken && inDirt ? [...sand, ...turf, ...screeVerge, ...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, scale: IN_DIRT[TD.surface]?.spill ?? 1 }),
     ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
-  const faces = [...landD, ...patches, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
+  const faces = [...landD, ...talusEdge, ...patches, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
@@ -629,7 +645,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // clouds' cards drawn hi-def in their own stops, isekai-tiles.js `+hd`)
   const hdCloud = (k) => (broken && /:cumulus-/.test(k || '') ? `${k}+hd` : k);
   const drawnFaces = broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces;
-  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-|^sand:/.test(f.texture || '')).map((f) => hdCloud(f.texture)))].sort();
+  const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep|leafcard)-|^sand:|^scree:/.test(f.texture || '')).map((f) => hdCloud(f.texture)))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
@@ -843,11 +859,39 @@ const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).t
  *  line drawn through the cells where its field crosses), cells (the turned cells' centres), cell (m) }; null without
  *  one. */
 const TURNED = Object.freeze({ sand: 'isekai:sand', bedrock: 'isekai:pavement' });
-export function formationGround(st, site, SH, seed) {
+// THE TALUS'S EDGE on a gritty land: within `reach` metres either side of the apron's line its stones thin out, the turf
+// showing through — the ground there turf, a cutout of the scree's own tile over it (era/scree-tiles.js) in bands
+// between `lines` (signed metres from the line, + into the talus) at `levels` (the share of the stones kept); past the
+// first line the talus whole. Its COARSE patches (`isekai:rubble`): where a slow field passes `coarse`
+export const TALUS_EDGE = Object.freeze({ reach: 1, lines: Object.freeze([0.7, 0.5, 0.33, 0.19, 0.07, -0.06, -0.2, -0.38, -0.6]),
+  levels: Object.freeze([0.85, 0.7, 0.56, 0.44, 0.32, 0.21, 0.12, 0.06]), coarse: 0.62, coarseScale: 4.5 });
+/** The talus's signed distance (m, + inside) from the line where its apron passes the land's: found at the grid's nodes
+ *  (to the nearest crossing on any grid edge, out to `reach`), read between them bilinearly. */
+function talusDistance(g, amin, reach) {
+  const nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), dx = gridX(g, 1) - x0, dy = gridY(g, 1) - y0, v = (i, j) => g.apron[j * nx + i] - amin;
+  const B = new Map(), key = (x, y) => `${Math.floor(x / reach)},${Math.floor(y / reach)}`, put = (x, y) => { const k = key(x, y); if (!B.has(k)) B.set(k, []); B.get(k).push([x, y]); };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    if (i + 1 < nx && v(i, j) > 0 !== v(i + 1, j) > 0) { const t = v(i, j) / (v(i, j) - v(i + 1, j)); put(x0 + (i + t) * dx, y0 + j * dy); }
+    if (j + 1 < ny && v(i, j) > 0 !== v(i, j + 1) > 0) { const t = v(i, j) / (v(i, j) - v(i, j + 1)); put(x0 + i * dx, y0 + (j + t) * dy); }
+  }
+  const sd = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = x0 + i * dx, y = y0 + j * dy, bi = Math.floor(x / reach), bj = Math.floor(y / reach);
+    let d = reach;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const q of B.get(`${bi + a},${bj + b}`) ?? []) d = Math.min(d, Math.hypot(q[0] - x, q[1] - y));
+    sd[j * nx + i] = v(i, j) > 0 ? d : -d;
+  }
+  return (x, y) => {
+    const u = Math.max(0, Math.min(nx - 1.001, (x - x0) / dx)), w = Math.max(0, Math.min(ny - 1.001, (y - y0) / dy)), i = Math.floor(u), j = Math.floor(w), fu = u - i, fw = w - j;
+    const a = sd[j * nx + i] + (sd[j * nx + i + 1] - sd[j * nx + i]) * fu, b = sd[(j + 1) * nx + i] + (sd[(j + 1) * nx + i + 1] - sd[(j + 1) * nx + i]) * fu;
+    return a + (b - a) * fw;
+  };
+}
+export function formationGround(st, site, SH, seed, grit = 0) {
   const skin = typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin] ? SH.skin : null;
   if (!skin) return null;
   const to = FORMATION_TURNS[skin].to, group = TURNED[to], M = substrateMap(st, site, { formation: skin, seed }), S = SUBSTRATE_IDS.indexOf(to), field = turnField(skin, seed);
-  const g = site.grid, gx0 = gridX(g, 0), gy0 = gridY(g, 0), dx = gridX(g, 1) - gx0, amin = st.landform.apronMin;
+  const g = site.grid, gx0 = gridX(g, 0), gy0 = gridY(g, 0), dx = gridX(g, 1) - gx0, amin = st.landform.apronMin, E = TALUS_EDGE;
   const turnable = (p) => {
     const i = Math.floor((p[0] - M.x0) / M.cell), j = Math.floor((p[1] - M.y0) / M.cell);
     return i >= 0 && j >= 0 && i < M.nx && j < M.ny && M.turnable[j * M.nx + i] === 1;
@@ -855,20 +899,38 @@ export function formationGround(st, site, SH, seed) {
   const at = (p) => turnable(p) && field(p[0], p[1]) > 0;
   // (the talus apron at a grid node, a ground face's corners being the grid's)
   const apron = (c) => { const i = Math.round((c[0] - gx0) / dx), j = Math.round((c[1] - gy0) / dx); return g.apron[Math.max(0, Math.min(g.ny - 1, j)) * g.nx + Math.max(0, Math.min(g.nx - 1, i))]; };
+  const sd = grit ? talusDistance(g, amin, E.reach) : null, coarse = (c) => vnoise(c[0] / E.coarseScale, c[1] / E.coarseScale, seed + 1621) - E.coarse;
+  // the talus: quiet, where its apron passes the land's; gritty, past the edge's first line, its stones thinning across
+  // the bands to the last, a band's turf carrying its `screeLevel`; and its coarse patches
+  const talusOf = (f) => {
+    if (!sd) return cutFace(f, f.corners.map((c) => apron(c) - amin), 'isekai:talus');
+    const out = [];
+    let rest = [f];
+    E.lines.forEach((t, k) => {
+      const next = [];
+      for (const q of rest) for (const r of cutFace(q, q.corners.map((c) => sd(c[0], c[1]) - t), 'past')) {
+        if (r.group !== 'past') next.push(r);
+        else if (k === 0) out.push(...cutFace({ ...r, group: 'isekai:talus' }, r.corners.map(coarse), 'isekai:rubble'));
+        else out.push({ ...r, group: 'isekai:ground', screeLevel: E.levels[k - 1] });
+      }
+      rest = next;
+    });
+    return [...out, ...rest];
+  };
   const cut = (f) => {
     if (f.group !== 'isekai:ground' && f.group !== 'isekai:scree') return [f];
-    // the talus where its apron passes the land's, then the turn on what is left of a turnable cell
-    const parts = cutFace({ ...f, group: 'isekai:ground', tint: st.tint.ground }, f.corners.map((c) => apron(c) - amin), 'isekai:talus');
-    return parts.flatMap((q) => (q.group === 'isekai:ground' && turnable(mean(f.corners)) ? cutFace(q, q.corners.map((c) => field(c[0], c[1])), group) : [q]));
+    // the talus, then the turn on what is left of a turnable cell (not under the talus's edge)
+    return talusOf({ ...f, group: 'isekai:ground', tint: st.tint.ground }).flatMap((q) => (q.group === 'isekai:ground' && q.screeLevel === undefined && turnable(mean(f.corners)) ? cutFace(q, q.corners.map((c) => field(c[0], c[1])), group) : [q]));
   };
   const cells = [];
   for (let k = 0; k < M.cells.length; k++) if (M.cells[k] === S) cells.push([M.x0 + (k % M.nx + 0.5) * M.cell, M.y0 + (Math.floor(k / M.nx) + 0.5) * M.cell]);
-  return { to, group, at, bare: (p) => at(p) || site.apronAt(p[0], p[1]) > amin, cut, cells, cell: M.cell };
+  return { skin, to, group, at, bare: (p) => at(p) || (sd ? sd(p[0], p[1]) > 0 : site.apronAt(p[0], p[1]) > amin), talus: (p) => (sd ? sd(p[0], p[1]) > 0 : site.apronAt(p[0], p[1]) > amin), cut, cells, cell: M.cell };
 }
 // a formation's grounds: the sand in its own ramp (the soil's without one), the pavement the rock's, the talus the rock's
 // leaned a third to the soil
 const FORMATION_TINTS = (st, mid) => ({ 'isekai:sand': mid(st.palette.sand ?? st.palette.soil), 'isekai:pavement': mid(st.palette.rock),
-  'isekai:talus': mid(st.palette.rock).map((v, k) => v + (mid(st.palette.soil)[k] - v) / 3) });
+  'isekai:talus': mid(st.palette.rock).map((v, k) => v + (mid(st.palette.soil)[k] - v) / 3),
+  'isekai:rubble': mid(st.palette.rock).map((v, k) => (v + (mid(st.palette.soil)[k] - v) / 4) * 0.94) });
 /** The live grass kept off the sand: its mask's cells there cleared (the same landform cells). */
 function offSand(LG, onSand) {
   if (!LG || !onSand) return LG;
