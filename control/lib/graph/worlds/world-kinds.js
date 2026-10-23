@@ -59,6 +59,14 @@ import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
 import { relationalFaceRig } from '@/lib/graph/polygonizer/relational-face-rig';
+/** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
+ * players read `q × s` (rig-preview.js, controllable) */
+function quantMorph({ i, d }) {
+  const b = Buffer.from(d, 'base64'), f = new Float32Array(b.buffer, b.byteOffset, b.length / 4);
+  let m = 0; for (const x of f) m = Math.max(m, Math.abs(x));
+  const s = m > 0 ? m / 32767 : 1, q = Int16Array.from(f, (x) => Math.round(x / s));
+  return { i, q: Buffer.from(q.buffer).toString('base64'), s };
+}
 /** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's a side, and the
  * head's, where the face's detail is (its moles, its marks, its fine lines), twice that */
 const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 2048 });
@@ -794,7 +802,10 @@ export const WORLD_KINDS = {
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
         // (the PAINTED face, face-paint-rig.js: its drawings swapped on a texture atlas, the same targets' shape and tracks)
         // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
-        const face = ctx.face && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
+        // (the REALISTIC face plays on the page too, relational-face-rig.js: its morphs and tracks ride the page's pack, and
+        // the rig preview drives them; the anime and the landmark faces ride an export alone, as before)
+        const pageFace = !ctx.face && rigged && m.hero?.form === 'realistic' && m.hero.head === 'relational';
+        const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track
@@ -822,6 +833,8 @@ export const WORLD_KINDS = {
         // corner and no baked shade, so the engine's light shades one smooth skin, once. Any other figure as before.
         const engineLit = light.flat && m.hero?.form === 'realistic' && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
+        if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };

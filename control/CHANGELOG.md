@@ -223,6 +223,16 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE FACE IN PLAY (worlds/world-kinds.js; channels/rig-preview.js; channels/controllable/index.js; world-scene.js
+  `stateFace`; relational-face-rig.js `MOVES`): the realistic hero's face blinks and acts on the World page and in a
+  level, where it rode an export alone. The page's pack carries the face's rows (16-bit steps of each part's own scale,
+  about a micron, `quantMorph`; an export keeps its floats) and its tracks; the clip preview and the controllable player
+  build morph targets on the faced bone meshes (the neutral face, each target's offsets, as the GLB writes them) and set
+  their weights each frame from the playing clip's facial track, the ambient blink (the authored face with its own
+  blinks) over the clips that hold the face, on the page's clock or the world's. A hero in a level plays each state's
+  clip's track under the state's name. A point no target moves 0.1 mm carries no row (the scalp's far hair), which trims
+  the export too. A page or a level without a realistic hero emits none of it, byte-identical; one with it resolves the
+  face's rig on its first build (a minute or two, once per head) and carries its rows.
 - THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
   `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
   ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and

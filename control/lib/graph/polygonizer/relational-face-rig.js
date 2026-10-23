@@ -38,6 +38,8 @@ const HEAD = /^(visage|nose|eye[RL])$/;
 const R = CHANNEL_RANGES;
 
 const MIDLINE = 0.004;
+/** the least a target moves a point for it to carry a row (m) */
+const MOVES = 1e-4;
 const wRight = (x) => { const t = Math.min(1, Math.max(0, (x + MIDLINE) / (2 * MIDLINE))); return t * t * (3 - 2 * t); };
 const MOVED = 'an action changes the head\'s layout: the face cannot be differenced';
 const RIGS = new Map(), RIGS_MAX = 4;
@@ -129,8 +131,9 @@ export function relationalFaceRig(m, mesh) {
   const sub = new Int32Array(mesh.vertices.length).fill(-1), rows = new Float64Array(idx.length * W);
   for (let k = 0; k < idx.length; k++) {
     const i = idx[k], o = k * W, a = mesh.vertices[i], b = T.V0[k]; let any = false;
-    for (let c = 0; c < 3; c++) { const r = a[c] - b[c]; rows[o + c] = r; if (r) any = true; }
-    K.targets.forEach((t, ti) => { const d = T.D[t]; for (let c = 0; c < 3; c++) { const x = d[k * 3 + c]; rows[o + 3 + ti * 3 + c] = x; if (x) any = true; } });
+    for (let c = 0; c < 3; c++) rows[o + c] = a[c] - b[c];
+    // (a point no target moves `MOVES` m or more carries no row: the scalp's far hair, the face's still corners)
+    K.targets.forEach((t, ti) => { const d = T.D[t]; for (let c = 0; c < 3; c++) { const x = d[k * 3 + c]; rows[o + 3 + ti * 3 + c] = x; if (Math.abs(x) >= MOVES) any = true; } });
     if (any) sub[i] = k;
   }
   const meta = { targets: [...K.targets], weights: K.weigh(westernState(authored)), fps: FACE_FPS, eyeKnots: [...K.eyeKnots], fixKnots: [],

@@ -140,6 +140,11 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
   if (R.through) span(R.through[0], R.through[1], 'through');
 }` : '';
   const timed = Object.values(bank || {}).some((f) => Object.values(f?.clips || {}).some((c) => c?.s > 0));
+  // THE FACE (relational-face-rig.js on the realistic hero): a figure carrying `face` whose parts carry `morph` builds
+  // morph targets on those bone meshes (the neutral face, each target's offsets, as the GLB writes them) and drives
+  // them per frame from the clip's facial track at its time, the ambient blink over the clips that hold the face. No
+  // faced figure ⇒ none of this is emitted, byte-identical.
+  const faced = Object.values(bank || {}).some((f) => f?.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
   const overlaid = Object.values(bank || {}).some((f) => (Array.isArray(f?.overlays) && f.overlays.length) || Object.values(f?.clips || {}).some((c) => Array.isArray(c?.hide)));
   const overlayBuild = overlaid ? `
   const overlays = (fig.overlays || []).map((o) => {
@@ -184,6 +189,31 @@ ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per fig
   if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; }
   return fig.__tex;
 }
+` : ''}${faced ? `function __rpU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
+function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
+function __rpMorph(fig, part, geo) {   // the face's targets on one bone mesh: its corners at the neutral face, each target's offsets
+  if (!fig.face || !part.morph) return;
+  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rpU32(part.morph.i), D = part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
+  const pos = geo.getAttribute('position').array, tg = Array.from({ length: T }, () => new Float32Array(pos.length));
+  for (let k = 0; k < I.length; k++) {
+    const v = I[k] * 3, o = k * W;
+    for (let c = 0; c < 3; c++) { pos[v + c] -= D[o + c]; for (let t = 0; t < T; t++) tg[t][v + c] = D[o + 3 + t * 3 + c]; }
+  }
+  geo.morphAttributes.position = tg.map((a) => new THREE.BufferAttribute(a, 3));
+  geo.morphTargetsRelative = true;
+}
+function __rpTrack(tr, at) {   // a facial track's weights at a time: each drawn frame held to the next
+  if (!tr || !tr.t || !tr.t.length) return null;
+  let i = 0; while (i + 1 < tr.t.length && tr.t[i + 1] <= at) i++;
+  return tr.w[i];
+}
+function __rpFace(r, clipName, phase, sec) {   // the face's weights on its bone meshes this frame
+  const F = r.fig.face, tr = F.tracks && F.tracks[clipName];
+  const over = F.ambient && (!tr || (F.ambientOver || []).includes(clipName));
+  const w = over ? __rpTrack(F.ambient, sec % F.ambient.seconds) : __rpTrack(tr, phase * tr.t[tr.t.length - 1]);
+  const ws = w || F.weights; if (!ws) return;
+  for (const mesh of r.rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
+}
 ` : ''}function __rpBuild(fig) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
@@ -194,8 +224,11 @@ ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per fig
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${painted ? `
     const map = fig.paintTex && part.uv ? __rpTex(fig) : null;
     if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}
+${faced ? `
+    __rpMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${metalHook}${rimHook}${inkHook}${layerHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${faced ? `
+    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${metalHook}${rimHook}${inkHook}${layerHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
     group.add(mesh);
@@ -255,7 +288,8 @@ stepRigPreview = (t) => {
       __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq);
       __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
       mesh.matrix.compose(__rpv, __rpq, __rpONE);
-    }${overlayStep}
+    }${overlayStep}${faced ? `
+    if (fig.face) __rpFace(r, r.state.clip, phase, sec);` : ''}
     probe.phase = phase;
   }
 };

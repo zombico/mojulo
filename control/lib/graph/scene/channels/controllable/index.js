@@ -70,6 +70,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
   // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
   const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
+  // a FACED body (the realistic hero, relational-face-rig.js: `face` and its parts' `morph`): morph targets on its bone
+  // meshes, driven per frame by the state's facial track, the ambient blink over the states that hold the face. No
+  // faced body → the emitted channel is byte-identical.
+  const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -416,7 +420,31 @@ function __decodeFigFrame(posB64, colB64, origin, inv, foot) {
 // figHasSpec) so a page without unit rigs stays byte-identical.${figHasQ ? `
 function __decodeU16(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint16Array(u.buffer); }
 function __decodeU32(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Uint32Array(u.buffer); }` : ''}
-function __makeRigGroup(fig, b) {
+${figHasFace ? `function __rigU32(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Uint32Array(u.buffer); }
+// the face's targets on one bone mesh: its corners at the neutral face, each target's offsets (as the GLB writes them)
+function __mq(m) { const b = atob(m.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Int16Array(u.buffer), f = new Float32Array(q.length); for (let i = 0; i < q.length; i++) f[i] = q[i] * m.s; return f; }   // the page's 16-bit rows
+function __rigMorph(fig, part, geo) {
+  const T = fig.face.targets.length, W = (1 + T) * 3, I = __rigU32(part.morph.i), D = part.morph.q ? __mq(part.morph) : decodeF32(part.morph.d);
+  const pos = geo.getAttribute('position').array, tg = Array.from({ length: T }, () => new Float32Array(pos.length));
+  for (let k = 0; k < I.length; k++) {
+    const v = I[k] * 3, o = k * W;
+    for (let c = 0; c < 3; c++) { pos[v + c] -= D[o + c]; for (let t = 0; t < T; t++) tg[t][v + c] = D[o + 3 + t * 3 + c]; }
+  }
+  geo.morphAttributes.position = tg.map((a) => new THREE.BufferAttribute(a, 3));
+  geo.morphTargetsRelative = true;
+}
+// a facial track's weights at a time (each drawn frame held to the next), then the state's on every faced bone mesh
+function __rigTrack(tr, at) { if (!tr || !tr.t || !tr.t.length) return null; let i = 0; while (i + 1 < tr.t.length && tr.t[i + 1] <= at) i++; return tr.w[i]; }
+function __rigFace(rig, clipName, phase) {
+  const F = rig.fig.face, tr = F.tracks && F.tracks[clipName];
+  // (the ambient blink on the world's own clock, as a live vehicle's shiver is)
+  const now = __world.time || 0;
+  const over = F.ambient && (!tr || (F.ambientOver || []).includes(clipName));
+  const w = over ? __rigTrack(F.ambient, now % F.ambient.seconds) : __rigTrack(tr, phase * tr.t[tr.t.length - 1]);
+  const ws = w || F.weights; if (!ws) return;
+  for (const mesh of rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
+}
+` : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
@@ -431,9 +459,11 @@ function __makeRigGroup(fig, b) {
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));`}
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasFace ? `
+    if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${figHasFace ? `
+    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
@@ -1185,7 +1215,8 @@ ${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the s
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
-  }
+  }${figHasFace ? `
+  if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
