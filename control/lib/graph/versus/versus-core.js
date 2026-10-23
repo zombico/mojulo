@@ -46,10 +46,11 @@ export const VERSUS_RULES = Object.freeze({
   airActions: 1,    // air dashes and air jumps a jump allows (airdash, airjump)
   airDashDist: 1100, airDashFrames: 14,   // mm an air dash covers, over frames
   airJumpVy: 90,    // an air jump's rise, % of the ground jump's
+  resetCost: 500,   // meter a reset spends (reset)
 });
 
 // the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
-const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10 };
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0 };
 
 /** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
 export function readRules(r) {
@@ -226,6 +227,7 @@ function think(s, i, ctx) {
   const p = s.p[i];
   const F = ctx.fighters[i];
   if (p.burst === 0 && (p.st === 'hit' || p.st === 'fall') && !p.ko && pressed(p.hist, BTN.S, 4) && pressed(p.hist, BTN.T, 4)) { burst(s, i); return; }
+  if (p.mv && (p.st === 'move' || p.st === 'air') && sys(s, 'reset') && p.meter >= s.rules.resetCost && pressed(p.hist, BTN.L | BTN.M | BTN.H, 3) === (BTN.L | BTN.M | BTN.H)) { reset(s, i); return; }
   if (p.hs > 0) return;
   const dir = currentDir(p.hist);
   const hasShot = s.shots.some((t) => t.o === i);
@@ -471,6 +473,17 @@ function fly(p, g) {
 
 function land(p, landing) {
   p.y = 0; p.vy = 0; p.vx = 0; p.st = 'land'; p.sf = 0; p.landing = landing; p.mv = null; p.air = 0; p.airMove = 0;
+}
+
+// RESET (the Roman cancel): the move ends where it is, its hitstop too, the meter paid; a body in the air floats free there
+// (its fall starts over), one on the ground stands
+function reset(s, i) {
+  const p = s.p[i];
+  p.meter -= s.rules.resetCost; p.hist = consume(p.hist);
+  const aloft = p.air || p.y > 0 || p.st === 'air';
+  p.mv = null; p.mf = 0; p.hs = 0; p.air = 0; p.airMove = 0; p.vx = 0; p.vy = 0; p.sf = 0;
+  p.st = aloft ? 'air' : 'stand';
+  s.events.push({ t: 'reset', p: i, x: p.x, y: p.y + 1000 });
 }
 
 function tech(s, i) {

@@ -198,7 +198,8 @@ import { emitThreeWorld } from './scene-three.js';
 // above says what it adds and that no fixture asks for it; the versus channel's page carries the lock supers' source.
 // Re-pinned 2026-10-23 (fight kinds): the `versus` fixture alone, its embedded versus-core gaining the gatling and the air
 // actions (airdash, airjump: rules-gated, no fixture switches them on), readRules' `kind`, and the runtime client's swing
-// trails (drawn only with a kind's look, which no fixture names); every other page is unchanged.
+// trails (drawn only with a kind's look, which no fixture names), and the reset system and its banner; every other page
+// is unchanged.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

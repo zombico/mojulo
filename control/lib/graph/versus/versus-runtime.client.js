@@ -266,6 +266,7 @@ function onEvent(m, e) {
     case 'clash': spark(m, e.x, e.y, '#ff9a3a', 10); blip('block'); break;
     case 'parry': spark(m, e.x, e.y, '#7ad2ff', 12); m.flash = { text: 'PARRY', p: e.p, n: 40 }; blip('block'); break;
     case 'burst': spark(m, e.x, e.y, '#ffffff', 18); m.flash = { text: 'BURST', p: e.p, n: 50 }; m.shake = 10; blip('super'); break;
+    case 'reset': spark(m, e.x, e.y, m.colors[e.p], 16); m.flash = { text: 'RESET', p: e.p, n: 40 }; blip('super'); break;
     case 'crush': spark(m, e.x, e.y, '#ff5a3a', 14); m.flash = { text: 'GUARD CRUSH', p: e.p, n: 50 }; m.shake = 8; blip('counter'); break;
     case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; blip('block'); break;
     case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; blip('counter'); break;

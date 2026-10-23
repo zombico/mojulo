@@ -78,3 +78,22 @@ describe('the air actions', () => {
     expect(trace[k + R.airDashFrames].x - trace[k].x).toBeGreaterThan(R.airDashDist * 0.8);
   });
 });
+
+describe('the reset (the Roman cancel)', () => {
+  const tryReset = (systems, meter) => {
+    const { ctx, s } = fight(2400, systems);
+    s.p[0].meter = meter;
+    return run(s, ctx, 12, (k) => ({ x: 0, y: 0, b: k === 0 ? 4 : k === 3 ? 7 : 0 }));
+  };
+  it('L + M + H in a move, with the meter, ends it at once and pays; without the meter or the system, the move plays on', () => {
+    const on = tryReset(['reset'], 1000), at = on.events.find(([, e]) => e.t === 'reset');
+    expect(at).toBeTruthy();
+    expect(on.trace[at[0]]).toMatchObject({ mv: null, st: 'stand' });
+    expect(on.s.p[0].meter).toBeLessThanOrEqual(500);
+    for (const [systems, meter] of [[['reset'], 100], [null, 1000]]) {
+      const r = tryReset(systems, meter);
+      expect(r.events.some(([, e]) => e.t === 'reset')).toBe(false);
+      expect(r.trace[4].mv).toBe('stand.H');
+    }
+  });
+});

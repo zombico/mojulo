@@ -20,11 +20,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (Street Fighter), anime-air (Guilty Gear), iron (Tekken), tag (Dragon Ball FighterZ) or platform (Smash). Each is
   data: its systems and dials under the game's own (the game's systems are added, a dial it sets wins), its input
   grammar, how its combos are built, its plane, and the look and game type its effects are drawn in. What versus does
-  not run yet of each kind is said (`kindReport(kind).lacks`), never dropped. Three new versus systems, each off
-  unless switched on:
+  not run yet of each kind is said (`kindReport(kind).lacks`), never dropped. Four new versus systems, each off
+  unless switched on (anime-air switches on all four):
   - `gatling`: a connected normal, on hit or block, cancels into a stronger one of its stance (L → M → H; air into air).
   - `airdash`: forward or back twice in the air flies level for `airDashDist` over `airDashFrames`.
   - `airjump`: up again, a fresh press, jumps again at `airJumpVy` % of the ground jump.
+  - `reset`: the Roman cancel. L + M + H together during a move spends `resetCost` of meter and ends the move at once:
+    on the ground the fighter stands, in the air it floats free; the page flashes RESET in the fighter's colour.
 
   The air dash and the air jump share `airActions` per jump. Kombat is left out for now. An armed fighter's swing
   leaves a trail on the versus page in its kind's look, in the fighter's colour: flat hard bands held on twos (cel:

@@ -290,4 +290,5 @@ export const SYSTEMS = Object.freeze({
   gatling: 'a connected normal (on hit or block) cancels into a stronger one of its stance: L into M or H, M into H',
   airdash: 'forward twice in the air (back twice) dashes level through the air: an air action',
   airjump: 'up again in the air jumps again: an air action (rules.airActions a jump: one by default)',
+  reset: 'L + M + H together during a move spends rules.resetCost of meter to end it at once: free again, on the ground or in the air (the Roman cancel)',
 });

@@ -7,7 +7,8 @@
  * said (`lacks`), never dropped silently: the report is advice, as a feel's is (gameworld/feel/lower.js).
  *
  *   street     Street Fighter-like: links and special cancels, motion inputs, a super meter; parry the kind's option
- *   anime-air  Guilty Gear-like: gatlings (L → M → H), the air dash and the double jump, burst, a guard bar
+ *   anime-air  Guilty Gear-like: gatlings (L → M → H), the air dash and the double jump, the reset (Roman cancel), burst,
+ *              a guard bar
  *   iron       Tekken-like: four limbs, long strings, juggles with a bound, a sidestep off the plane
  *   tag        Dragon Ball FighterZ / Marvel-like: a team, assists, a superdash
  *   platform   Smash-like: percent and knockback growth, ring-outs, platforms
@@ -30,10 +31,10 @@ export const FIGHT_KINDS = Object.freeze({
     lacks: [],
   }),
   'anime-air': k({
-    name: 'anime-air', after: 'Guilty Gear', systems: ['gatling', 'airdash', 'airjump', 'burst', 'guard'], scheme: 'classic',
+    name: 'anime-air', after: 'Guilty Gear', systems: ['gatling', 'airdash', 'airjump', 'reset', 'burst', 'guard'], scheme: 'classic',
     combos: 'gatlings: a connected normal cancels into a stronger one (L → M → H, on hit or block), and into a special or a super; air combos after the air dash',
     plane: '2D', look: 'cel', flavor: 'action',
-    lacks: ['the Roman cancel (meter spent to reset a move)', 'the dust launcher', 'a faultless defence'],
+    lacks: ['the slowdown a Roman cancel puts on the other fighter', 'the dust launcher', 'a faultless defence'],
   }),
   iron: k({
     name: 'iron', after: 'Tekken', systems: [], scheme: 'classic', combos: 'strings: each limb a button, a move\'s follow-ups chained in a set order',
