@@ -108,7 +108,16 @@ export function hairClass(S) {
  * keeps), solved by the depiction solver (epidermis/hair-solve.js: the fewest faces whose coat and blades leave no bald
  * spot and hold the strands' outline) and written here; a rung a class has no row for is the ladder's own.
  */
-export const HAIR_DEPICTION = Object.freeze({});
+// (solved at L1 on the pole's heads, up to four styles a class, 2026-10-23; L2 and L0 the ladder's own until solved)
+export const HAIR_DEPICTION = Object.freeze({
+  cropped: { L1: { widen: 2.2, turn: 18, lie: 0.9 } },
+  short: { L1: { widen: 2.2, turn: 18, lie: 0.9 } },
+  standing: { L1: { widen: 2.2 } },
+  coil: { L1: { widen: 2.2, turn: 18 } },
+  long: { L1: { widen: 2.2, turn: 18 } },
+  tied: { L1: { widen: 1.8, turn: 18 } },
+  rope: { L1: { widen: 2.2, turn: 18, cap: 8 } },
+});
 export const depictionOf = (S, level = 'L1') => HAIR_DEPICTION[hairClass(S)]?.[level] ?? {};
 /** the hat's blades as its strips (a grey streak's blade in the hair's own bands) */
 export const stripsOf = (blades, centre) => (blades.length ? stripMesh(blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), HAIR_BANDS, { streakGroup: 'HairStreak', centre }) : null);
