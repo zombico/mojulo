@@ -14,6 +14,33 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Juice styling: the effects drawn in the game's register, timed by its game type
+
+- **The effects' floor is a composition.** `fxStyle: { register, flavor, …dials }` composes the floor every beam,
+  explosion and puff is raised to from two halves. The REGISTER is the art direction, anime or western, and sets
+  the look. Anime is the contemporary anime game's (the gacha action RPG's effects): no ink line, a white-hot core
+  into saturated ribbons in a near hue, soft trails, glints for sparks, a halo ring where a blow lands and glints
+  drifting up after it, and smoke kept short and tinted toward the effect's own colour. Western is material: no ink
+  line (an attack's own black edge becomes its glow), one colour, motion blur, streaks and chips, grey smoke that
+  lingers and more light thrown on the world. The FLAVOR is the game type's animation (the animation selector's
+  four: realistic, action, platformer, pinball) and sets the time: playback rate, anticipation, squash and stretch,
+  arcs, echoes, the shake and the impact's flash, and a slight change of shape (round sparks and motes in a
+  platformer, streaks at speed). Dials (JUICE_DIALS) pin any one number over both: among them `fps`, which holds an
+  effect on its drawings (the page draws that only when an effect carries it), and `comic`, the manga ink burst.
+  What stays global holds in every cell: an attack lands on its target (its landing re-read), a line stays a line,
+  a laser one beam, a warm bolt burns and a pale ray crackles. A composed floor also styles the preset puffs it can,
+  a beam's preset impact, the camera's shakes and a party battle's juice (its attacks, its holds and flashes at the
+  game type's pace). `fxStyle: true` is the floor as it was, byte for byte.
+- **A gameworld's `juice`.** `juice: 'auto' | false | { register?, flavor?, …dials }` lays the composed floor on
+  every level as `fxStyle`. The register comes from the game's tradition: the character book's direction, else the
+  kit's pole as the colour theorist leaves it. The game type comes from the feel's template, else the genre's. A
+  composed world writes `'auto'`; design_game's readout reports the floor a world lays, or suggests one (a `juice`
+  step) for a world that writes none. A world without the word is drawn as it always was. The drawer card is
+  `gameworld-juice`.
+- **The juice board.** The effects proving ground takes `--juice <register>:<flavor>` and `--board` (every cell of an
+  effect, side by side); `juice-sheet.mjs` steps each cell in headless Chrome into a contact sheet. These are the eyes
+  gate's material, not its verdict.
+
 ### Game feel: the lab's templates in the game loop
 
 - **A gameworld's `feel`.** A game names one of the action lab's templates (`feel: { pole, variant?, toward?, t?, set? }`)

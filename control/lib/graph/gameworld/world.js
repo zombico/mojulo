@@ -64,6 +64,9 @@
  *     feel?: '<template>' | { pole, variant?, toward?, t?, set? },   // how the hero moves: an action-lab template's card,
  *                                         // lowered over the hero's platform rule (feel/lower.js); what the runtime does
  *                                         // not carry yet is said in design_game's readout
+ *     juice?: 'auto' | false | { register?, flavor?, …dials },   // how its effects are drawn and timed: the effects'
+ *                                         // floor composed from its register (anime | western) and its game type
+ *                                         // (juice.js), laid on every level as `fxStyle`; absent, none is laid
  *     battles?: { party?, packs?, per?, boss?, foe?, … },   // party battles on the trails, the party carried (battles.js)
  *     minigames?: true | false | [{ game, … }],   // the games inside the game, kept on the trails (minigames.js)
  *     moves?: true,                       // every person the run makes (the hero, its foes, guards, keepers) is made
@@ -113,6 +116,7 @@ import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './l
 import { tunnelArena } from './tunnel-arena.js';
 import { WEAPON_ROLES } from './weapon-roles.js';
 import { readFeel } from './feel/lower.js';
+import { readJuiceStyle } from '../scene/juice-style.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
@@ -179,7 +183,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
@@ -630,10 +634,15 @@ export function readGameworld(W) {
   if (W.front !== undefined) { const e = readFront(W.front, { levels: 2, run: !!(isObj(W.quick) && W.quick.run), where: 'gameworld: front' }); if (e.length) throw new Error(e.join('\n')); }
   if (W.intent !== undefined) readIntent(W.intent);   // what game it is (intent.js): read here, laid by the levels
   const feel = W.feel === undefined || W.feel === null ? null : readFeel(W.feel);   // how the hero moves (feel/lower.js)
+  // how its effects are drawn and timed (juice.js): 'auto', false, or words over the game's own register and game type
+  if (W.juice !== undefined && W.juice !== 'auto' && W.juice !== false) {
+    if (!isObj(W.juice)) throw new Error('gameworld: juice is \'auto\' (the game\'s register and game type), false, or { register?, flavor?, …dials } (scene/juice-style.js)');
+    try { readJuiceStyle(W.juice, 'juice'); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
+  }
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**

@@ -210,11 +210,13 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // a word a tunnel read is read, whatever the lexicon made of it
   // a word is unread when neither the lexicon nor any tunnel read it
   const unreadBy = [landDomain(), buildingDomain(), techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].map((d) => new Set(readIntent(d, prompt).unread)), tunnelled = { has: (w) => !unreadBy.every((u) => u.has(w)) };
+  // its juice (juice.js): 'auto', so a composed world's effects are drawn in its register and timed by its game type;
+  // written into the recipe it mints (an older recipe without it is drawn as it always was)
   // the feel a prompt names (feel/suggest.js: a game it is like, "a Mega Man style run and gun"): written, so the
   // world plays it; its words are read. A prompt that names none writes none
   const said = suggestFeels(prompt, 1)[0], feelWords = new Set((said?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   if (said) tunnels.feel = said.matched;
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w)), tunnels }, ...(said ? { feel: said.pole } : {}), style, civilizations, levels: {}, links: [] };
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w)), tunnels }, ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
   // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
   // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
   const indoors = room ? (() => {

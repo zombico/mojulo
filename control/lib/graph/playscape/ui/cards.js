@@ -345,7 +345,9 @@ function beamsCard() {
     'ON THE WORLD, by rule: fxLight: true, every beam, puff and explosion lights what is round it (its colour, size, life);',
     '  fxStyle: true, every attack raised to a style floor (echoes, companions braiding one way in a near hue, a charge, a',
     '  head stretched along its flight, sparks, its ink in its own darkened colour; a laser may stay one beam; a warm bolt',
-    '  burns, a pale ray crackles).',
+    '  burns, a pale ray crackles). fxStyle: { register: anime | western, flavor: realistic | action | platformer |',
+    '  pinball, …dials } composes that floor for the game: its register draws it (the anime game\'s glints, halo and rising',
+    '  motes, or material streaks, light and lingering smoke), its game type times it (rate, charge, stretch, echoes).',
     `example: ${JSON.stringify({ beams: { twin: { color: '#66ccff', charge: { time: 0.8, size: 0.3 }, strands: [{ form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0] }, { form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0], phase: 0.5, color: '#ff66cc' }], impact: 'flash' } }, cues: [{ id: 'fire', when: { use: 'altar' }, then: { beam: { who: 'hero', to: 'golem', is: 'twin' } } }, { id: 'hit', when: { struck: 'golem' }, then: { hurt: { who: 'golem', by: 30 } } }] })}`,
   );
 }

@@ -2,9 +2,13 @@
 // where one effect at a time loops on a heartbeat between a caster and a target, so the light it throws can be seen on
 // stone, on live steel (the knight), on the drawn character light (the anime caster) and on a creature (the fox).
 //
-//   node scripts/spikes/effects/proving-ground.mjs <out-dir> [effect …]   (from control/; effects: see EFFECTS)
+//   node scripts/spikes/effects/proving-ground.mjs <out-dir> [effect …] [--juice <register>:<flavor>] [--board]
+//   (from control/; effects: see EFFECTS)
 //
-// Writes <effect>.html (fxLight and fxStyle), <effect>-light.html (fxLight alone) and <effect>-off.html for each. Spike only: the
+// Writes <effect>.html (fxLight and fxStyle), <effect>-light.html (fxLight alone) and <effect>-off.html for each.
+// --juice anime:action: the effect under that composed floor (scene/juice-style.js) instead, <effect>-anime-action.html.
+// --board: every register × game type, <effect>-<register>-<flavor>.html, and board-<effect>.html with the cells side by
+// side (anime above, western below), so the compositions can be compared by eye. Spike only: the
 // payload is composed here and handed to emitThreeWorld; nothing in it is a product surface.
 import { register } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -38,7 +42,12 @@ export const EFFECTS = {
   itano: { every: 3.4, then: { beam: { who: 'caster', to: 'target', is: 'itano' } } },
   'itano-laser': { every: 2.8, then: { beam: { who: 'caster', to: 'target', is: 'itano-laser' } } },
 };
-const want = process.argv.slice(3).length ? process.argv.slice(3) : Object.keys(EFFECTS);
+const args = process.argv.slice(3), flag = (k) => { const i = args.indexOf(k); return i < 0 ? null : args.splice(i, k === '--board' ? 1 : 2)[k === '--board' ? 0 : 1]; };
+const juiceArg = flag('--juice'), board = flag('--board') !== null;
+const { JUICE_REGISTER_IDS, JUICE_FLAVOR_IDS, readJuiceStyle } = await import('../../../lib/graph/scene/juice-style.js');
+const cells = board ? JUICE_REGISTER_IDS.flatMap((register) => JUICE_FLAVOR_IDS.map((flavor) => ({ register, flavor })))
+  : juiceArg ? [(([register, flavor]) => readJuiceStyle({ register, flavor }))(juiceArg.split(':'))] : null;
+const want = args.length ? args : Object.keys(EFFECTS);
 
 const NIGHT = { from: 'gothic-night', materials: true };
 const figure = async (manifest, at, yaw, group) => {
@@ -81,11 +90,16 @@ for (const name of want) {
   const entities = [...base, ...Object.entries(E.cast || {}).map(([id, pos]) => ({ id, rule: { type: 'static' }, transform: { pos }, body: { type: 'none' } }))];
   const cues = [...(E.start ? [{ id: 'wear', when: { start: true }, then: E.start }] : []), { id: 'go', when: { start: true }, then: E.then }, { id: 'again', when: { every: E.every }, then: E.then }];
   const events = lowerPlay({ entities, play: { cues } }, { player: 'caster' });
-  // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off)
-  for (const [tag, ev] of [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]]) {
+  // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off); or the composed cells
+  const takes = cells ? cells.map((c) => [`-${c.register}-${c.flavor}`, { ...events, fxLight: true, fxStyle: c }]) : [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]];
+  for (const [tag, ev] of takes) {
     const html = emitThreeWorld({ faces: [...floor, ...wall, ...pillars, ...figures], cameras: [camera], entities, events: ev,
       viewBox: { width: 1120, height: 640 }, title: `proving ground · ${name}`, bg: '#0a0c14', sky: { zenith: [8, 10, 20], horizon: [22, 26, 42], day: 0, stars: 0.6, seed: 3 }, inline: true, capture: true });
     writeFileSync(`${out}/${name}${tag}.html`, html);
+  }
+  if (board) {
+    const cell = (c) => `<figure><iframe src="${name}-${c.register}-${c.flavor}.html" loading="lazy"></iframe><figcaption><b>${c.register}</b> · ${c.flavor}</figcaption></figure>`;
+    writeFileSync(`${out}/board-${name}.html`, `<!doctype html><meta charset="utf-8"><title>juice board · ${name}</title><style>body{margin:0;padding:12px;background:#0a0c14;color:#cfd6e6;font:13px system-ui}h1{font-size:15px;margin:0 0 8px}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}figure{margin:0}iframe{width:100%;aspect-ratio:1120/640;border:0;background:#000}figcaption{padding:4px 0}</style><h1>${name}: register (rows) × game type (columns)</h1><div class="g">${cells.map(cell).join('')}</div>`);
   }
   console.log(name, 'ok');
 }

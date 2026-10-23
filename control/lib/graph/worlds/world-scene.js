@@ -582,10 +582,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (typeof sketch.manifest.fxLight !== 'boolean') throw new Error('fxLight is true (the light a world\'s beams, puffs and explosions throw on it, by rule) or false');
     if (sketch.manifest.fxLight && payload.events) payload.events = { ...payload.events, fxLight: true };
   }
-  // the effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word
+  // the effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word,
+  // or a composed floor (scene/juice-style.js: { register: anime | western, flavor: the game type, …dials })
   if (payload && sketch.manifest.fxStyle !== undefined) {
-    if (typeof sketch.manifest.fxStyle !== 'boolean') throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule) or false');
-    if (sketch.manifest.fxStyle && payload.events) payload.events = { ...payload.events, fxStyle: true };
+    const fxs = sketch.manifest.fxStyle;
+    if (typeof fxs !== 'boolean' && !(fxs && typeof fxs === 'object' && !Array.isArray(fxs))) throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule), false, or { register?, flavor?, …dials } (the floor composed for the game: scene/juice-style.js)');
+    if (fxs === true && payload.events) payload.events = { ...payload.events, fxStyle: true };
+    else if (fxs && payload.events) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); payload.events = { ...payload.events, fxStyle: readJuiceStyle(fxs) }; }
+    else if (fxs) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); readJuiceStyle(fxs); }
   }
   if (payload && sketch.manifest.crystalLight) {
     const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');

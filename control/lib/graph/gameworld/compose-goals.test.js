@@ -67,10 +67,13 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     const w = composeGameworld({ prompt: 'a haunted forest of misty hills', seed: 2 });
     expect(w.brief.goal).toBeUndefined();
     expect(Object.values(w.levels).every((l) => l.goal === undefined)).toBe(true);
-    expect(fingerprint(w)).toBe('31e98788');
+    // (a composed world writes its juice, 'auto', since juice styling: the print is the world's without it)
+    expect(w.juice).toBe('auto');
+    const { juice: _j, ...unjuiced } = w;
+    expect(fingerprint(unjuiced)).toBe('31e98788');
     // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
     // without that one flag are the print taken before levels could carry a goal)
-    const orders = runSteps(w, { ref: 'gw' }).map((s) => s.order);
+    const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
     expect(orders.at(-1).auto_audit).toBe(true);
     const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
     expect(fingerprint(unaudited(orders))).toBe('7617ee3d');

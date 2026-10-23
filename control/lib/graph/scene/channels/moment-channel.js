@@ -84,7 +84,7 @@ function __sprStep(P, pts, fade, show) {
 }
 function __sprDrop(P) { for (const s of P.sprs) { scene.remove(s); s.material.dispose(); } for (const r of P.rings) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); } }`;
 
-export function momentScript(kinds, { fx = false } = {}) {
+export function momentScript(kinds, { fx = false, fps = false } = {}) {
   const K = kinds.filter((k) => MOMENTS[k]), shake = kinds.includes('shake'), boom = kinds.includes('explosion');
   const spec = Object.fromEntries(K.map((k) => [k, { ...MOMENTS[k], key: MOMENT_KEYS[k] }]));
   const bolt = K.some((k) => MOMENTS[k].bolt), light = boom || K.some((k) => MOMENTS[k].light);
@@ -200,7 +200,7 @@ function __stepMoments() {
   for (const key in __moLive) {
     const I = __moLive[key], age = now - I.t0;
     if (age >= I.S.dur || age < 0) { __moDrop(I); delete __moLive[key]; continue; }
-    __moStep(I, age);
+    __moStep(I, ${fps ? 'I.S.fps ? Math.floor(age * I.S.fps) / I.S.fps : age' : 'age'});
   }${light ? `
   __moLight.intensity = lk * 6;` : ''}
 }

@@ -18,12 +18,20 @@
  *      secondary action (the sparks), exaggeration (a flash where it lands when it lands on nothing); an explosion's
  *      shock ring is echoed by a second, later and tighter
  *
+ *   A COMPOSED floor (juice-style.js juiceFloor: the game's register, anime or western, and its game type's time)
+ *   carries the same rules at its own numbers, and over them: an attack's black edge turned to glow, sparks reshaped by
+ *   its glyphs, preset puffs made styleable, soft puffs lingering (and tinted) by the register, a halo ring and glints
+ *   drifting up where it draws them, shakes by its share, the whole effect played at its rate (speeds × rate, times ÷
+ *   rate) and drawn on its drawings a second when a dial asks (`fps`, the page's)
+ *
  *   FX_STYLE                       the floor's numbers
- *   styleBeam(B, seed)             an attack raised to the floor
- *   styleExplosion(X, seed)        an explosion's moment spec raised to the floor
- *   styleEvents(events)            a world's lowered events with every beam and explosion raised (its landings re-read)
+ *   styleBeam(B, seed, colour?, F?)      an attack raised to the floor (F: FX_STYLE, or a composed floor)
+ *   styleExplosion(X, seed, F?)          an explosion's moment spec raised to the floor
+ *   styleEvents(events, F?)              a world's lowered events with every beam and explosion raised (its landings re-read)
+ *   puffSpec(is)                   a preset puff as an explosion's spec, or null when it stays the moment's own
  */
 import { beamLanding } from '../playscape/elements/beams.js';
+import { MOMENTS, MOMENT_KEYS } from '../playscape/elements/moments.js';
 
 export const FX_STYLE = Object.freeze({
   thin: 0.03,                     // metres: a strand this narrow is a line
@@ -66,9 +74,9 @@ export function materialOf(B, colour) {
 }
 
 /** An attack raised to the floor (a new object; the attack given is not changed). `colour`: a cue's own, when it names one. */
-export function styleBeam(B, seed = '', colour = null) {
+export function styleBeam(B, seed = '', colour = null, F = FX_STYLE) {
   if (!B || !Array.isArray(B.strands) || !B.strands.length) return B;
-  const core = B.strands[0], F = FX_STYLE, chir = hand(seed || JSON.stringify(core));
+  const core = B.strands[0], chir = hand(seed || JSON.stringify(core));
   if (!(core.width >= F.thin)) return B;   // a line: left as it is
   const out = { ...B, strands: [...B.strands] };
   const bolt = core.form === 'bolt', laser = core.form === 'ray' && core.width < F.laser;
@@ -77,15 +85,15 @@ export function styleBeam(B, seed = '', colour = null) {
   if (mat === 'fire' && !core.fire) out.strands[0] = { ...out.strands[0], fire: true };
   if (mat === 'lightning' && !core.jag) out.strands[0] = { ...out.strands[0], jag: +Math.max(0.25, core.width * 6).toFixed(3), flicker: 14, forks: 2 };
   // 4 · anticipation: a charge before release
-  if (!out.charge) out.charge = { time: F.charge.time, size: +(core.width * F.charge.size).toFixed(3), at: 'hand' };
-  const wait = out.charge.time;
+  if (!out.charge && F.charge.time > 0) out.charge = { time: F.charge.time, size: +(core.width * F.charge.size).toFixed(3), at: 'hand' };
+  const wait = out.charge ? out.charge.time : 0;
   // the core: stretched along its flight, a bolt on a gentle arc (a ray is a beam: straight)
-  out.strands[0] = { ...out.strands[0], ...(core.edge !== 'glow' && core.ink == null ? { ink: F.ink } : {}), ...(core.stretch == null && bolt ? { stretch: F.stretch } : {}), ...(bolt && !core.arc && !core.bow ? { arc: +(F.arc * Math.min(core.speed, 12) / 4).toFixed(3) } : {}), ...(core.form === 'ray' && !core.pulse ? { pulse: F.pulse } : {}), delay: Math.max(core.delay || 0, wait) };
+  out.strands[0] = { ...out.strands[0], ...(core.edge !== 'glow' && core.ink == null && F.ink ? { ink: F.ink } : {}), ...(core.stretch == null && bolt && F.stretch ? { stretch: F.stretch } : {}), ...(bolt && !core.arc && !core.bow && F.arc ? { arc: +(F.arc * Math.min(core.speed, 12) / 4).toFixed(3) } : {}), ...(core.form === 'ray' && !core.pulse ? { pulse: F.pulse } : {}), delay: Math.max(core.delay || 0, wait) };
   // the copies are the core's path without its material (one bolt of lightning, companions plain), but a flame's echoes
   // burn too: a trail of smaller, fainter flames behind the head
   const { fire: _f, jag: _j, flicker: _fl, forks: _fk, ...plain } = out.strands[0], trail = out.strands[0].fire ? { ...plain, fire: true } : plain;
   // 1 + 3 · companions braiding round the core, an analogous hue, one hand
-  if (!decorated(B) && !laser) {
+  if (!decorated(B) && !laser && F.companions !== false) {
     const C = F.companion, w = +(core.width * C.width).toFixed(4), amp = +(core.width * C.radius).toFixed(4);
     for (const phase of [0, 0.5]) out.strands.push({ ...plain, width: w, head: 1, edge: 'glow', twist: chir * C.twist, wave: [amp, 0], phase, hue: chir * C.hue, stretch: 0 });
   }
@@ -95,30 +103,138 @@ export function styleBeam(B, seed = '', colour = null) {
   if (core.form === 'ray' && !laser && !out.rings) out.rings = { ...F.rings };
   if (!out.sparks) out.sparks = { ...F.sparks };
   if (!out.impact) out.impact = 'flash';
-  return out;
+  return F.composed ? composeBeam(out, seed, F) : out;
 }
 
 /** An explosion's moment spec raised to the floor: its sprays swirl and spin one way, its shock ring echoed. */
-export function styleExplosion(X, seed = '') {
+export function styleExplosion(X, seed = '', F = FX_STYLE) {
   if (!X || !Array.isArray(X.parts)) return X;
-  const chir = hand(seed || 'blast'), F = FX_STYLE;
+  const chir = hand(seed || 'blast');
   const parts = X.parts.map((p) => ({ ...p, ...(p.swirl ? {} : { swirl: chir * F.swirl }), ...(p.spin ? {} : { spin: chir * F.spin }) }));
   // the ground's shock ring echoed: a second, tighter and later, when the ground has only the one
   const ground = Array.isArray(X.rings) ? X.rings.filter((g) => !g.air) : [];
   const rings = ground.length === 1 ? [...X.rings, { ...ground[0], r: +(ground[0].r * 0.7).toFixed(3), delay: +((ground[0].delay || 0) + 0.09).toFixed(3) }] : X.rings;
-  return { ...X, parts, ...(rings ? { rings } : {}) };
+  const out = { ...X, parts, ...(rings ? { rings } : {}) };
+  return F.composed ? composeExplosion(out, F) : out;
 }
 
-/** A world's lowered events with every beam and explosion raised to the floor; a beam's landing is re-read from it. */
-export function styleEvents(events) {
+// ── a composed floor (juice-style.js): the register's look and the game type's time over the floor's rules ─────────
+// the puffs a composed floor may restyle: sprays, a star and a light only (a bolt or a ring is the moment's own, global)
+const RESTYLED = new Set(Object.keys(MOMENTS).filter((k) => !MOMENTS[k].bolt && !MOMENTS[k].ring));
+/** A preset puff as an explosion's spec (its key parts named), so a composed floor can style it; null when it stays global. */
+export const puffSpec = (is) => (RESTYLED.has(is) ? { ...MOMENTS[is], key: MOMENT_KEYS[is] } : null);
+
+const sc = (v, k) => +(v * k).toFixed(4);
+// a spray played `r` times as fast: its speeds × r, its times ÷ r, its fall × r² (the same path, sooner)
+function fastSpray(p, r) {
+  if (r === 1) return p;
+  const o = { ...p };
+  for (const k of ['life', 'lag', 'delay', 'stagger']) if (num(o[k])) o[k] = sc(o[k], 1 / r);
+  for (const k of ['v', 'swirl', 'spin', 'drag']) if (num(o[k])) o[k] = sc(o[k], r);
+  if (num(o.gravity)) o.gravity = sc(o.gravity, r * r);
+  if (Array.isArray(o.go)) o.go = o.go.map((x) => sc(x, r));
+  return o;
+}
+const num = (v) => typeof v === 'number' && Number.isFinite(v);
+// a spray's shape through the floor's glyph map, its sparks counted by the floor's share
+const reshape = (p, F) => {
+  const glyph = F.glyphs[p.glyph] ?? p.glyph, sparky = p.glyph === 'spark' || p.glyph === 'streak';
+  return { ...p, glyph, ...(sparky && p.count > 1 ? { count: Math.max(1, Math.round(p.count * F.sparkK)) } : {}) };
+};
+
+/** An attack under a composed floor: its sparks reshaped, its preset impact made styleable, its shake, its pace and
+ * its drawings a second. Its landing is re-read by whoever lands it (styleEvents). */
+function composeBeam(B, seed, F) {
+  const r = F.rate, out = { ...B };
+  // a material register draws no ink line: an attack's own black edge becomes its glow
+  if (F.edge) out.strands = out.strands.map((S) => (S.edge && S.edge !== F.edge ? { ...S, edge: F.edge } : S));
+  if (out.sparks) out.sparks = fastSpray(reshape(out.sparks, F), r);
+  if (out.impact && !out.impactSpec) { const X = puffSpec(out.impact); if (X) out.impactSpec = X; }
+  if (num(out.shake)) out.shake = +Math.min(1, out.shake * F.shakeK).toFixed(3);
+  if (out.charge) out.charge = { ...out.charge, time: sc(out.charge.time, 1 / r) };
+  if (r !== 1) out.strands = out.strands.map((S) => ({ ...S, speed: sc(S.speed, r), ...['hold', 'delay', 'stagger'].reduce((a, k) => (num(S[k]) ? { ...a, [k]: sc(S[k], 1 / r) } : a), {}), ...['pulse', 'flicker'].reduce((a, k) => (num(S[k]) && S[k] ? { ...a, [k]: sc(S[k], r) } : a), {}) }));
+  if (F.fps) out.fps = F.fps;
+  return out;
+}
+
+// how long an explosion plays: its last part out (explosions.js readExplosion's reckoning)
+function durOf(X) {
+  const ends = [...X.parts.map((p) => (p.delay || 0) + (p.stagger || 0) + p.life * 1.15 + ((p.trail || 1) - 1) * (p.lag || 0)), ...(X.rings || []).map((g) => (g.delay || 0) + g.life),
+    X.star ? (X.star.delay || 0) + X.star.life : 0, X.scorch ? (X.scorch.delay || 0) + X.scorch.life : 0, X.comic ? (X.comic.delay || 0) + X.comic.life : 0];
+  return Math.round((Math.max(...ends) + 0.1) * 1000) / 1000;
+}
+
+// an explosion's own colour: its `color`, else its first key part's, else a warm white
+const ownColour = (X) => (Array.isArray(X.color) ? X.color : (X.key && X.parts[X.key[0]] && Array.isArray(X.parts[X.key[0]].color) ? X.parts[X.key[0]].color : [1, 0.95, 0.8]));
+// a grey pulled toward a tone (a colour of its own is left)
+const tintGrey = (c, pale, k) => (Array.isArray(c) && Math.max(...c) - Math.min(...c) < 0.15 ? c.map((x, i) => +(x + (pale[i] - x) * k).toFixed(3)) : c);
+
+/** An explosion under a composed floor: its sprays reshaped, its soft puffs lingering by the register (and tinted toward
+ * its colour), its flash and light, a halo ring and glints drifting up where the register draws them (a comic burst
+ * where it is asked for), its shake, its pace and its drawings a second. */
+function composeExplosion(X, F) {
+  const r = F.rate, t = (o) => (o ? { ...o, life: sc(o.life, 1 / r), ...(num(o.delay) ? { delay: sc(o.delay, 1 / r) } : {}) } : o);
+  const own = ownColour(X), pale = own.map((x) => +(x * 0.5).toFixed(3));   // a deeper tone of the colour: a warm cloud, not a cream one
+  // a fire's body (a soft puff whose ramp starts hot) burns as added light where the register glows; smoke and dust stay soft
+  const hot = (p) => Array.isArray(p.ramp) && Array.isArray(p.ramp[0]) && Math.min(...p.ramp[0]) > 0.4 && Math.max(...p.ramp[0]) > 0.95;
+  const soft = (p0) => {
+    if (p0.glyph !== 'soft') return p0;
+    // (its fire burns from its own colour, fewer puffs, so the added light does not blow out to white)
+    const p = { ...p0, life: sc(p0.life, F.smokeK), ...(F.glow && hot(p0) ? { glyph: 'dot', ramp: p0.ramp.slice(1), count: Math.max(1, Math.round(p0.count * 0.6)) } : {}) };
+    return { ...p, ...(F.tint && p.color ? { color: tintGrey(p.color, pale, F.tint) } : {}), ...(F.tint && Array.isArray(p.ramp) ? { ramp: p.ramp.map((c) => tintGrey(c, pale, F.tint)) } : {}) };
+  };
+  const parts = X.parts.map((p) => fastSpray(reshape(soft(p), F), r));
+  const out = { ...X, parts };
+  if (X.star) out.star = t({ ...X.star, size: sc(X.star.size, F.starK) });
+  if (X.light) out.light = t({ ...X.light, k: sc(X.light.k, F.lightK) });
+  if (X.rings) out.rings = X.rings.map(t);
+  // a halo: a clean ring of light where the blow lands, when it has no ring of air of its own
+  const flash = out.star || out.light;
+  if (F.halo && flash && !(X.rings || []).some((g) => g.air)) out.rings = [...(out.rings || []), { r: out.star ? sc(out.star.size, 0.9) : 1.2, life: sc(0.32, 1 / r), delay: flash.delay || 0, air: true }];
+  // motes: glints drifting up after the blow, in its colour (a cue's colour paints them: a key part)
+  if (F.motes && (out.star || out.light)) {
+    const at = (out.star && out.star.delay) || 0;
+    parts.push(fastSpray({ ...FX_STYLE.sparks, glyph: F.glyphs.spark ?? 'spark', count: 10, from: 'shell', r: 0.55, z: [0.4, 1.5], v: 0.5, el: [40, 90], gravity: -0.9, life: 1.2, size: 0.11, env: 'ends', delay: +(at * r + 0.12).toFixed(3), color: own }, r));
+    out.key = [...(X.key || []), parts.length - 1];
+  }
+  if (X.comic) out.comic = t(X.comic);
+  else if (F.comic && X.star) out.comic = { size: sc(out.star.size, 0.8), spikes: 12, life: sc(X.star.life * 1.6, 1 / r), delay: out.star.delay || 0 };
+  if (X.scorch && num(X.scorch.delay)) out.scorch = { ...X.scorch, delay: sc(X.scorch.delay, 1 / r) };
+  if (X.chain) out.chain = { ...X.chain, stagger: sc(X.chain.stagger, 1 / r) };
+  if (num(X.shake)) out.shake = +Math.min(1, X.shake * F.shakeK).toFixed(3);
+  if (F.fps) out.fps = F.fps;
+  out.dur = durOf(out);
+  return out;
+}
+
+/** A party battle's juice under a composed floor: its attacks styled (their landings re-read), its holds and flashes
+ *  at the game type's pace, its shakes by its share. */
+function styleJuice(J, F) {
+  if (!J || !J.fx) return J;
+  const beams = Object.fromEntries(Object.entries(J.fx.beams || {}).map(([k, B]) => { const S = styleBeam(B, k, null, F); return [k, S.impactSpec ? { ...S, impactSpec: styleExplosion(S.impactSpec, S.impact, F) } : S]; }));
+  const step = (s) => (s.beam && beams[s.beam] ? { ...s, land: beamLanding(beams[s.beam]) }
+    : s.hold ? { ...s, hold: sc(s.hold, 1 / F.rate) }
+      : s.shake ? { ...s, shake: +Math.min(1, s.shake * F.shakeK).toFixed(3), ...(num(s.for) ? { for: sc(s.for, 1 / F.rate) } : {}) }
+        : s.flash !== undefined && num(s.for) ? { ...s, for: sc(s.for, 1 / F.rate) } : s);
+  const each = (m) => Object.fromEntries(Object.entries(m || {}).map(([k, steps]) => [k, steps.map(step)]));
+  return { ...J, on: each(J.on), also: each(J.also), fx: { ...J.fx, beams } };
+}
+
+/** A world's lowered events with every beam and explosion raised to the floor (FX_STYLE, or a composed one,
+ *  juice-style.js juiceFloor); a beam's landing is re-read from it. A composed floor also styles the preset puffs it
+ *  can (puffSpec), the camera's shakes and a party battle's juice. */
+export function styleEvents(events, F = FX_STYLE) {
   if (!events || !Array.isArray(events.reactions)) return events;
   const reactions = events.reactions.map((r) => {
     if (r && r.op === 'beam' && r.spec) {
-      const styled = styleBeam(r.spec, r.name || r.by || r.who || '', r.color ?? null), spec = styled.impactSpec ? { ...styled, impactSpec: styleExplosion(styled.impactSpec, styled.impact) } : styled;
+      const styled = styleBeam(r.spec, r.name || r.by || r.who || '', r.color ?? null, F), spec = styled.impactSpec ? { ...styled, impactSpec: styleExplosion(styled.impactSpec, styled.impact, F) } : styled;
       return { ...r, spec, land: beamLanding(spec) };
     }
-    if (r && r.op === 'puff' && r.spec && Array.isArray(r.spec.parts)) return { ...r, spec: styleExplosion(r.spec, r.is || '') };
+    if (r && r.op === 'puff' && r.spec && Array.isArray(r.spec.parts)) return { ...r, spec: styleExplosion(r.spec, r.is || '', F), ...(F.composed && num(r.shake) ? { shake: +Math.min(1, r.shake * F.shakeK).toFixed(3) } : {}) };
+    if (F.composed && r && r.op === 'puff') { const X = puffSpec(typeof r.is === 'string' ? r.is : 'smoke'); return { ...r, ...(X ? { spec: styleExplosion(X, r.is || '', F) } : {}), ...(num(r.shake) ? { shake: +Math.min(1, r.shake * F.shakeK).toFixed(3) } : {}) }; }
+    if (F.composed && r && r.op === 'shake' && num(r.k)) return { ...r, k: +Math.min(1, r.k * F.shakeK).toFixed(3) };
     return r;
   });
-  return { ...events, reactions };
+  const rpg = F.composed && events.rpg && events.rpg.juice ? { rpg: { ...events.rpg, juice: styleJuice(events.rpg.juice, F) } } : {};
+  return { ...events, reactions, ...rpg };
 }

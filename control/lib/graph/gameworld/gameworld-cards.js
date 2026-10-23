@@ -56,6 +56,7 @@ import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
+import { JUICE_REGISTERS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -227,6 +228,31 @@ function feelCard() {
     ...[['a Mega Man X style run and gun', 'galaxy-boy'], ['a platformer between Mario and Mega Man', { pole: 'jumping-giuseppe', toward: 'galaxy-boy', t: 0.4 }]].flatMap(([brief, f]) => {
       const L = lowerFeel(feelCardOf(f)), R = L.rule;
       return [`  brief: "${brief}"`, `    feel: ${JSON.stringify(f)}`, `    lowers to: run ${R.speed} m/s, jump ${R.jumpSpeed} m/s on ${R.gravity}/${R.fallGravity} m/s², coyote ${R.coyote} s, buffer ${R.buffer} s${R.airJumps ? `, ${R.airJumps} air jump` : ''}; not carried: ${L.lost.map((x) => x.field).join(', ')}`];
+    }),
+  );
+}
+
+function juiceCard() {
+  return lines(
+    'THE JUICE — how the game\'s effects (attacks, blasts, puffs, a battle\'s beats) are drawn and timed:',
+    'juice: \'auto\' | false | { register?, flavor?, …dials }. Each level carries it as fxStyle, the effects\' floor composed',
+    'from two halves. REGISTER is the look, anime | western: the character book\'s direction, else the kit\'s pole as the',
+    'colour theorist leaves it (banded is anime, material is western). FLAVOR is the time, the game type\'s animation:',
+    'the feel\'s template, else the genre\'s. A word left out is the game\'s own. Absent, the effects stay as they were.',
+    'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
+    '',
+    'registers:',
+    ...Object.entries(JUICE_REGISTERS).map(([k, v]) => `  ${k}  ${v.says}`),
+    'game types:',
+    ...Object.entries(JUICE_FLAVORS).map(([k, v]) => `  ${k}  ${v.says}`),
+    `dials (one pinned over both): ${Object.entries(JUICE_DIALS).map(([k, d]) => (d === 'switch' ? `${k} true|false` : `${k} ${d[0]}..${d[1]}`)).join(', ')}.`,
+    'GLOBAL in every cell: a line stays a line, a laser one beam, an attack lands on its target, the white core reads',
+    'first in greys, a warm bolt burns and a pale ray crackles.',
+    '',
+    'A CONTRAST PAIR (the floor each lays, computed now):',
+    ...[['an anime brawler', 'anime', 'action'], ['a western racer', 'western', 'pinball']].map(([brief, register, flavor]) => {
+      const S = juiceSignature(juiceFloor({ register, flavor }));
+      return `  ${brief} (${register}, ${flavor}): ${S.look}; ${S.time}`;
     }),
   );
 }
@@ -609,6 +635,7 @@ const CARDS = [
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
+  ['gameworld-juice', 'The juice', 'how its effects are drawn and timed: its register (anime | western) and its game type', 'anime-style hit effects, punchier impacts, western explosions, snappier effects, effects on twos, a cartoon boop', juiceCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],

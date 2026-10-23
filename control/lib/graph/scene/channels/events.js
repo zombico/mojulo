@@ -15,6 +15,7 @@ import { momentKinds, momentScript } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
 import { styleEvents } from '../effect-style.js';
+import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
 
@@ -191,8 +192,10 @@ function __syncHud(t, incoming) {
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
 export function eventsChannelScript(events0, { fxDay = null } = {}) {
-  // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them
-  const events = events0 && events0.fxStyle === true ? styleEvents(events0) : events0;
+  // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
+  // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
+  const fxs = events0 && events0.fxStyle;
+  const events = fxs === true ? styleEvents(events0) : fxs && typeof fxs === 'object' ? styleEvents(events0, juiceFloor(fxs)) : events0;
   const { widgets } = normalizeHud(events.hud);
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
@@ -206,7 +209,10 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
   const fxl = events.fxLight === true && (mos.length > 0 || bms.length > 0);
-  const moments = mos.length ? momentScript(mos, { fx: fxl }) : '';
+  // a composed style floor's drawings a second on the moments it styled (a puff's spec, a beam's impact, a battle's)
+  const fpsOf = (X) => !!(X && X.fps), rpgBeams = Object.values((events.rpg && events.rpg.juice && events.rpg.juice.fx && events.rpg.juice.fx.beams) || {});
+  const mfps = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? fpsOf(r.spec) : r.op === 'beam' && r.spec ? fpsOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => fpsOf(B.impactSpec)));
+  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box

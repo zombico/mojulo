@@ -41,6 +41,9 @@ export function beamScript(specs, { fx = false } = {}) {
   // the noise effects (effects noise): lightning across a spine (`jag`, `forks`), a head drawn as flame (`fire`), a charge
   // drawn as a spell circle (`charge.form: 'circle'`). Only emitted when an attack carries them
   const jag = any('jag'), fire = any('fire'), circle = specs.some((B) => B.charge && B.charge.form === 'circle');
+  // drawings a second (a composed style floor's `fps`, scene/juice-style.js): the attack held on each drawing, limited
+  // animation; the world's clock (and so the landing) runs on. Only emitted when an attack carries it
+  const fps = specs.some((B) => B.fps);
   // `fx` (the world's fxLight, scene/effect-light.js): each head, a ray's body and a charging orb throw their light
   return `
 // BEAMS: attacks fired from a hand at a target, once each, on the world clock (ink, glow and a white core)
@@ -268,7 +271,7 @@ function __stepBeams() {
   for (const key in __bmLive) {
     const I = __bmLive[key], age = now - I.M.t0;
     if (age >= I.len || age < 0) { __bmDrop(I); delete __bmLive[key]; __bmDone[key] = 1; continue; }
-    __bmStep(I, age);
+    __bmStep(I, ${fps ? 'I.B.fps ? Math.floor(age * I.B.fps) / I.B.fps : age' : 'age'});
   }
 }
 window.__mojBeams = { live: () => Object.keys(__bmLive) };`;
