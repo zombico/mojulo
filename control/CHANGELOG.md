@@ -142,6 +142,9 @@ are: whole close by, stamped from a few templates further off, a cheap shell far
   through the same light, lock and detail and lifted out, a shade tint where the sun misses its crown, casting as its
   shell; past `far` a shell, each crown mass one coarse lumped blob, no leaf cards.
 - A `forest` biocube preset (era/biocube.js) turns both on: denser, taller clumps.
+- Leaf chips (`era/leaf-chips.js`, not yet drawn by a stage): a crown as its masses' dark core with rounded cupped chips
+  over it, each low, mid or high in the foliage ramp by the clump's light and the sun's reach; a gallery spike
+  (`scripts/spikes/geotown/chips.mjs`) settles their count, size and cup.
 - The page draws a repeat whose template is wholly textured (it was dropped), and a texture only a repeat's template
   uses is resolved (`scene-three.js`, `worlds/world-scene.js`).
 
