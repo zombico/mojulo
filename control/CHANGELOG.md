@@ -215,6 +215,13 @@ body catches up to what the authored one wears, and its principles are shared ba
   styled beard the same where its locks grow (`hairBeardCoat`, the chin's `hairBeardCoatJaw`, `BeardRoot`). As a
   tuft's base reads solid, no scalp shows between the blades on a head that has not lost its hair, on any renderer
   (the World page colours by the palette and wears no skin texture).
+- THE HAIR'S DEPICTION AND ITS SCORE (new epidermis/hair-depict.js `depictHair`, `stripMesh`, `capMesh`; new
+  epidermis/hair-score.js `scoreHair`, `rasterize`, `strandMesh`): the grass hat's blades and its coat as plain meshes
+  in the chart's frame, which the hero pins (hero-head-layers.js `pinMesh`) and the depiction solver measures: on the
+  head it grows on, from the front, the lateral, the back and the top, its COVERAGE (the hair-bearing scalp seen bare),
+  its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
+  (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
+  `hair-sweep.mjs` scores every style and draws them as a contact sheet.
 - THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
   blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
   blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the
