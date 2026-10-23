@@ -174,13 +174,22 @@ describe('the tie', () => {
   });
 });
 
-describe('the deep tones as albedo', () => {
-  it('keeps every swatch down to the knee, and below it lifts the deepest in order, red over blue like the knee', () => {
-    for (let t = 1; t <= 8; t++) expect(toneAlbedo(t)).toEqual(hexLin(MST[t - 1]));
+describe('the tones as albedo', () => {
+  // (re-pinned: the light knee, 2026-10-23: the swatches above MST 5 pressed and warmed; between the knees as before)
+  it('keeps every swatch between the knees, and below the deep one lifts the deepest in order, red over blue like the knee', () => {
+    for (let t = 5; t <= 8; t++) expect(toneAlbedo(t)).toEqual(hexLin(MST[t - 1]));
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], [a8, a9, a10] = [8, 9, 10].map(toneAlbedo);
     expect(lum(a8)).toBeGreaterThan(lum(a9)); expect(lum(a9)).toBeGreaterThan(lum(a10));
     expect(lum(a10)).toBeGreaterThan(lum(hexLin(MST[9])));
     expect(a10[0] / a10[2]).toBeGreaterThan(3);
+  });
+  it('presses the lightest swatches to fair skin\'s albedo, their order kept, red over blue', () => {
+    const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], A = [1, 2, 3, 4, 5].map(toneAlbedo), S = [1, 2, 3, 4, 5].map((t) => hexLin(MST[t - 1]));
+    for (const a of A.slice(0, 4)) { expect(lum(a)).toBeLessThan(0.65); expect(lum(a)).toBeGreaterThan(lum(A[4])); expect(a[0] / a[2]).toBeGreaterThan(1.6); }
+    // (the order of the swatches' own luminance kept)
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if (lum(S[i]) > lum(S[j])) expect(lum(A[i])).toBeGreaterThan(lum(A[j]));
+    // (a hex is a swatch too)
+    expect(toneAlbedo(MST[0])).toEqual(A[0]);
   });
 });
 

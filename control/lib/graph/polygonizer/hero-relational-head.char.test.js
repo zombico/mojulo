@@ -26,6 +26,9 @@
  *   closed mouth's lip line is cut to one depth along the lips (`SEAM`, the lips' fronts probed across the mouth) in place
  *   of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and left a groove under the surface net's cell in
  *   places (a row of dark notches along the lips). Both poles; the tunes as they were; an open mouth keeps its carve.
+ * - 2026-10-23, the cranium under the eyes (unified character, the operator: "male eyes disappeared"): under the visage
+ *   the cranium is let down from the deeper of the bare head and the face itself, so a deep-set eye's socket no longer
+ *   leaves the cranium standing in front of the globe (a rolled face's eye read shut, a pale sheet over it). Both poles.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -33,7 +36,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: 'e4e630874fc477b4', female: 'a05469bc7935876c' };
+const PINS = { male: 'c81c180b5903f7e7', female: 'c94db77c2ff00058' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

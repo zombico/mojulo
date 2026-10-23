@@ -220,10 +220,20 @@ const PALM = hexLin('#e3ad98'), NAIL = hexLin('#efc4b8');
 /** The tone as an ALBEDO (linear). A swatch is skin as a camera saw it, and the deepest swatches photograph near-black and
  * grey (MST 9 and 10 have less red over blue than MST 6), where measured deep skin stays a strongly red-sloped ~5 % (its
  * melanin takes the blue first). Below the deep knee (MST 8's luminance) the swatch keeps its order but is lifted
- * (luminance by a square root under the knee) and holds the knee's warmth. A tone at or above the knee is its swatch. */
+ * (luminance by a square root under the knee) and holds the knee's warmth. A tone between the two knees is its swatch. */
 const DEEP = hexLin(MST[7]), DEEP_L = lum(DEEP), DEEP_Q = DEEP.map((x) => x / DEEP_L);
+/** THE LIGHT KNEE, the deep knee's mirror: the lightest swatches photograph near-white and grey-yellow (MST 1 … 3 at a
+ * luminance of ~0.81 … 0.86, paper's), where measured fair skin is a red-sloped ~0.5 … 0.6 (its blood under thin melanin).
+ * Above the knee (MST 5's luminance) a swatch keeps its order but its rise is pressed to `press` of itself, and its colour
+ * drawn `warm` of the way to fair skin's (`fair`, a measured fair albedo's chromaticity) as it nears white. */
+const LIGHT = Object.freeze({ knee: lum(hexLin(MST[4])), press: 0.15, warm: 0.9, fair: '#dfb8a0' });
+const FAIR_Q = ((c) => c.map((x) => x / lum(c)))(hexLin(LIGHT.fair));
 export const toneAlbedo = (tone) => {
   const c = typeof tone === 'string' ? hexLin(tone) : hexLin(MST[tone - 1]), L = lum(c);
+  if (L > LIGHT.knee) {
+    const u = (L - LIGHT.knee) / (1 - LIGHT.knee), L2 = LIGHT.knee + (L - LIGHT.knee) * LIGHT.press, s = LIGHT.warm * smooth(0, 0.75, u);
+    return c.map((x, k) => L2 * (x / L + (FAIR_Q[k] - x / L) * s));
+  }
   if (!(L < DEEP_L) || L <= 0) return c;
   const L2 = DEEP_L * Math.sqrt(L / DEEP_L), s = smooth(0, 0.5, 1 - L / DEEP_L);
   return c.map((x, k) => L2 * (x / L + (DEEP_Q[k] - x / L) * s));

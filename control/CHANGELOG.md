@@ -223,6 +223,13 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE LIGHT TONES AS FAIR SKIN (dermal-map.js `toneAlbedo`'s light knee, `LIGHT`; dermal.test.js re-pinned): the
+  lightest Monk swatches photograph near-white and grey-yellow (MST 1 … 3 at a luminance of ~0.81 … 0.86, paper's),
+  and were taken as the skin's albedo as they are, so a fair hero read as plaster. Above MST 5's luminance a swatch's
+  rise is now pressed to 0.15 of itself (MST 1 … 4 at ~0.56 … 0.58, measured fair skin's ~0.5 … 0.6) and its colour
+  drawn toward a measured fair albedo's red slope (`#dfb8a0`'s) as it nears white, the swatches' order kept; a hex tone the same. MST 5
+  down to the deep knee are their swatches, as before. Every realistic hero of a light tone, a minted one too (its
+  skin regenerates), reads darker and warmer: the default presets' MST 3 among them.
 - THE SKIN ON THE WORLD PAGE (worlds/world-kinds.js; dermal-hero.js `heroSkinPaint`'s `light`): the realistic hero's
   dermal skin (the body's and the head's maps on one atlas) was an export's alone; the page drew one flat skin colour.
   The page now wears it too, on its static faces (each lit by its fill over the skin's flat colour, so the texel's
@@ -232,6 +239,15 @@ body catches up to what the authored one wears, and its principles are shared ba
   stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
   takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
   The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.
+- THE BROWS AS A FINE LAWN (hero-head-layers.js `BROW_BLADE`): every brow hair its own thin blade (0.5 mm at its root
+  to a point; the cards gathered hairs 2.5 mm apart into boxes 1.2 mm wide, read as bars), REPEATED once by a seeded
+  die (a twin a fraction of a millimetre across, lifted, shorter) so the brow reads full; its root darker down the
+  hair's ramp (`BrowRoot`, `Brow`), its colour the hair's with its grey, lit as the hair is, as one volume. The lashes
+  a fine open blade each where they were boxes, paying for it: the brows and lashes together cost fewer faces than
+  before (the brows ~12,000, the lashes ~1,400, where they were ~4,900 and ~9,200).
+- THE CRANIUM UNDER A DEEP-SET EYE (hero-relational-head.js; the relational head re-pinned): under the visage the
+  cranium is let down from the deeper of the bare head and the face itself. A rolled face whose eyes sit deeper than
+  the bare head's reach had the cranium stand in front of the globe, a pale sheet over a shut-looking eye.
 - THE HAIR LIT AS ONE VOLUME (station-loft-shade.js `volumeNormals`, a part's `volume: { heart, up }`; the hero's
   hair, its coat, the beard and the beard's coat: hero-head-layers.js `HAIR_VOLUME`): each corner's shading normal bent
   out from the head's centre (the cranium's, where it stands) and a fifth toward the sky, the grass's way
@@ -263,7 +279,7 @@ body catches up to what the authored one wears, and its principles are shared ba
 - THE FACE'S HAIR ON THE HERO (hero-head-layers.js `heroFaceHair`): a styled beard's locks (dermal-hair.js
   growBodyHair) as a lawn as the scalp's, a wedge a few millimetres apart (`BeardRoot`, `Beard`), those under the lip
   line on a face the jaw alone carries (`hairBeardJaw`), the moustache's and the cheeks' the head's (`hairBeard`); the
-  brows (a few hairs a card) and the lashes (a card a hair) from the epidermis, its grooms the ancestry's with the
+  brows and the lashes (see THE BROWS AS A FINE LAWN) from the epidermis, its grooms the ancestry's with the
   composed face's over them; `Beard` (its grey a third again), `Brow`, `Lash`. Stubble stays the skin's paint. The
   layers' colours lie over the plan's defaults and under the hero's own `palette` (a named `Hair` wins).
 - THE FACE'S OWN FIT (layered.js `withFaceFit`, the mint's; hero-relational-head.js `relationalHeadRecipe`'s `tune`):

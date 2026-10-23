@@ -329,7 +329,9 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   // THE VISAGE's frame first: the cranium is let down under it by its reach (`deflate`, eased out over its rim)
   const V = visageFrame(fH, fBare, toHero(mid3(head.points.sto, head.points.ls)), C);
   const under = (q) => { const { f, h } = V.f(q); return (C.deflate * (1 - ramp((f - 0.85 * C.inner) / (0.15 * C.inner))) + C.rimDeflate * (1 - ramp((f - C.inner) / (1 - C.inner)))) * ramp((h + 0.06) / 0.02); };
-  const fB = (q) => fBare(q) + under(q);
+  // (under the visage let down from the deeper of the bare head and the face itself: a deep-set eye's socket, sunk past
+  // the bare head's reach, would have the cranium stand in front of the globe)
+  const fB = (q) => { const u = under(q); return fBare(q) + u + (u > 0 ? Math.max(0, fH(q) - fBare(q)) : 0); };
 
   // THE SEAM: the highest neck ring standing wholly outside the head by the join's width (where the union is the neck's)
   let seam = -1;

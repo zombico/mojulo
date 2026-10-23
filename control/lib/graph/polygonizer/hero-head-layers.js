@@ -24,6 +24,7 @@ import { readScalp, growBodyHair, bladeOf, HAIR_LADDER } from '../epidermis/derm
 import { depictHair, stripMesh, capMesh, HAIR_RAMP } from '../epidermis/hair-depict.js';
 import { readDermis, hairMeanOf, hairColourOf as hairColourOfDermis, linHex, GREY_HAIR as GREY } from '../epidermis/dermal-map.js';
 import { growEpidermis, readEpidermis } from '../epidermis/epidermis.js';
+import { streamOf } from '../city/plan/dice.js';
 
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 /** the sites through the lower lip: they ride the jaw */
@@ -77,31 +78,6 @@ export function heroJewellery(recipe, piercings) {
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit3 = (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); };
 /**
- * CARDS as one pinned part: each card { pts (chart metres), side? (its across, per point; absent, square to the card and
- * to its way out from `centre`), width (m, a number or per point), group } a thin closed slab of CARD.points stations
- * along it, its corners a thickness apart about its middle, mapped by `toHero` and held in the pin's frame.
- */
-function slabPart(frame, toHero, cards, pin, group, centre = [0, 0, 0], points = CARD.points) {
-  const offsets = {}, faces = {}, groups = {};
-  let nv = 0, nf = 0;
-  const put = (p) => { const id = `v${nv++}`; offsets[id] = surfaceLocalOffset(frame, toHero(p)).map(r6); return id; };
-  const face = (a, b, c, g) => { const id = `f${nf++}`; faces[id] = [a, b, c]; if (g !== group) groups[id] = g; };
-  for (const c of cards) {
-    const N = c.pts.length - 1; if (N < 1) continue;
-    const M = Math.min(points, N), idx = Array.from({ length: M + 1 }, (_, i) => Math.round((i * N) / M)), g = c.group ?? group;
-    const ring = idx.map((j) => {
-      const p = c.pts[j], t = unit3(sub3(c.pts[Math.min(N, j + 1)], c.pts[Math.max(0, j - 1)]));
-      const sd = unit3(c.side ? c.side[j] : cross3(t, sub3(p, centre))), n = unit3(cross3(t, sd)), w = (Array.isArray(c.width) ? c.width[j] : c.width) / 2, h = CARD.thick / 2;
-      return [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([a, b]) => put([0, 1, 2].map((q) => p[q] + sd[q] * w * a + n[q] * h * b)));
-    });
-    for (let i = 0; i < M; i++) for (let e = 0; e < 4; e++) { const a = ring[i][e], b = ring[i][(e + 1) % 4], c2 = ring[i + 1][(e + 1) % 4], d = ring[i + 1][e]; face(a, d, c2, g); face(a, c2, b, g); }
-    // (closed at both ends)
-    face(ring[0][0], ring[0][1], ring[0][2], g); face(ring[0][0], ring[0][2], ring[0][3], g);
-    face(ring[M][0], ring[M][2], ring[M][1], g); face(ring[M][0], ring[M][3], ring[M][2], g);
-  }
-  return { layer: 2, closure: 'closed', pin, group, offsets, faces, ...(Object.keys(groups).length ? { groups } : {}) };
-}
-/**
  * A MESH (epidermis/hair-depict.js's, the chart's frame) as one pinned part: its points mapped by `toHero` and held in the
  * pin's frame, its faces' groups where they differ from the part's; an open mesh lists its boundary (every edge one face
  * uses), as the audit wants of an open part.
@@ -126,15 +102,13 @@ const BEARD_ROOT = 0.7;
 const HAIR_VOLUME = Object.freeze({ heart: 'cranium' });
 /** the beard's rung for the scalp's: one finer */
 const BEARD_RUNG = Object.freeze({ L2: 'L2', L1: 'L2', L0: 'L1' });
-/** a card on the hero: the points along it (every CARD.step-th of the guide's), its thickness (m, before the head's scale) */
-const CARD = Object.freeze({ points: 12, thick: 0.0006 });
 /**
  * The SCALP on the realistic hero: the groom (dermal-hair.js `readScalp`'s: a style word or its document, the cut, the
- * ties, the streaks) grown on the face's head as an engine's hair, its CARDS (one ribbon per guide, the strands left to a
- * render), each a thin closed slab along the guide (its width the card's, its points CARD.points of the guide's), mapped
- * into the hero's frame and pinned to the visage where the head alone carries it. `Hair` the hair's colour as the eye
- * averages it (its grey mixed in: dermal-map.js `hairMeanOf`), a streak's cards `HairStreak` in the dye. A buzz (under
- * 2 cm, lying on the scalp) grows no cards: the skin's painted scalp is the hair. `dermis` the hero's (its colour, its
+ * ties, the streaks) grown on the face's head as the grass hat (epidermis/hair-depict.js depictHair: its blades at the
+ * rung `level` and the coat under them), mapped into the hero's frame and pinned to the visage where the head alone
+ * carries it, lit as one volume. Its bands the hair's colour as the eye averages it (its grey mixed in: dermal-map.js
+ * `hairMeanOf`) down HAIR_RAMP, a streak's blades `HairStreak` in the dye. A buzz (under 2 cm, lying on the scalp) is
+ * the coat alone. `dermis` the hero's (its colour, its
  * hairline and loss). Deterministic.
  */
 export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
@@ -157,7 +131,22 @@ export function heroHair(recipe, dermis, scalp, { level = 'L1' } = {}) {
 }
 
 /** the face's hair cards' clump (m, the beard's locks gathered to one card a cell) and the brows' and lashes' widths (m) */
-const FACE_CARD = Object.freeze({ cell: 0.004, beardWidth: 1.9, beardStations: 3, coatMin: 3, browCell: 0.0025, brow: 0.0012, browPoints: 3, lash: 0.0002, lashPoints: 3 });
+const FACE_CARD = Object.freeze({ cell: 0.004, beardWidth: 1.9, beardStations: 3, coatMin: 3, lash: 0.0003, lashStations: 2 });
+/**
+ * THE BROWS as a fine lawn: every brow hair its own blade (no gathering), `width` at its root to a point over `stations`
+ * spans, and once REPEATED (`twin`: a copy `side` across from it, `lift` off the skin and `short` of its length, by a seeded
+ * die's side), so the brow reads full where the hairs alone would read sparse; its root `root` of the brow's colour (the
+ * hair's ramp), lit as the scalp is, as one volume. A blade is ~3 faces where a card's box was ~20.
+ */
+export const BROW_BLADE = Object.freeze({ width: 0.0005, stations: 3, turn: 12, twin: { side: 0.0003, lift: 0.00012, short: 0.85 }, root: 0.7 });
+const BROW_BANDS = Object.freeze([[0.4, 'BrowRoot'], [1.01, 'Brow']]);
+/** a brow hair's twin, a little across from it and off the skin, shorter (see BROW_BLADE) */
+function browTwin(st, centre, die) {
+  const P = st.pts, n = P.length - 1, T = BROW_BLADE.twin;
+  const out = unit3(sub3(P[0], centre)), side = unit3(cross3(unit3(sub3(P[n], P[0])), out)), s = (die() < 0.5 ? -1 : 1) * T.side * (0.6 + 0.8 * die());
+  const pts = P.map((p, i) => [0, 1, 2].map((q) => P[0][q] + (p[q] - P[0][q]) * T.short + side[q] * s + out[q] * T.lift));
+  return { pts: pts.slice(0, Math.max(2, pts.length)) };
+}
 /** strands gathered to one card a cell of `cell` (m) by their roots, the card the strand nearest the cell's middle */
 function clumps(strands, cell) {
   const cells = new Map();
@@ -208,14 +197,16 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
   // the BROWS and the LASHES, a card a hair (the epidermis's strands, in the head's own units)
   if (epidermis) {
     const E = growEpidermis(head, readEpidermis(epidermis)), M = (p) => [p.x * STAND_M, p.y * STAND_M, p.z * STAND_M];
-    // (the brows gathered a few hairs to a card, as the beard's locks are; the lashes a card each, they are few)
-    const brows = clumps(E.strands.filter((st) => st.groom === 'brow').map((st) => ({ pts: st.pts.map(M) })), FACE_CARD.browCell).map((st) => ({ pts: st.pts, width: FACE_CARD.brow, group: 'Brow' }));
-    const lashes = E.strands.filter((st) => /^lash/.test(st.groom)).map((st) => ({ pts: st.pts.map(M), width: FACE_CARD.lash, group: 'Lash' }));
+    // (the brows a blade a hair and its twin, BROW_BLADE; the lashes a fine blade each)
+    const hairs = E.strands.filter((st) => st.groom === 'brow' && st.pts.length > 1).map((st) => ({ pts: st.pts.map(M) }));
+    const die = streamOf(D.seed ?? 1, 'hero-brow-twin', 'brows'), B = BROW_BLADE;
+    const brows = [...hairs, ...hairs.map((st) => browTwin(st, centre, die))].map((st) => bladeOf(st, B.width, B.stations, B.turn));
+    const lashes = E.strands.filter((st) => /^lash/.test(st.groom) && st.pts.length > 1).map((st) => bladeOf({ pts: st.pts.map(M) }, FACE_CARD.lash, FACE_CARD.lashStations, 20));
     const pin = visagePin(visage, compiled, 'head', at(L.n));
     if (pin) {
       const frame = pinFrame(compiled, pin);
-      if (brows.length) { parts.hairBrows = slabPart(frame, toHero, brows, pin, 'Brow', centre, FACE_CARD.browPoints); palette.Brow = mean(0.7); }
-      if (lashes.length) { parts.hairLashes = slabPart(frame, toHero, lashes, pin, 'Lash', centre, FACE_CARD.lashPoints); palette.Lash = linHex(hairColourOfDermis(D).map((v) => v * 0.55)); }
+      if (brows.length) { parts.hairBrows = pinMesh(frame, toHero, stripMesh(brows, BROW_BANDS, { centre }), pin, 'BrowRoot', { volume: HAIR_VOLUME }); palette.Brow = mean(0.7); palette.BrowRoot = linHex(greyed(0.7).map((v) => v * B.root)); }
+      if (lashes.length) { parts.hairLashes = pinMesh(frame, toHero, stripMesh(lashes, [[1.01, 'Lash']], { centre }), pin, 'Lash'); palette.Lash = linHex(hairColourOfDermis(D).map((v) => v * 0.55)); }
     }
   }
   return { parts, palette };
