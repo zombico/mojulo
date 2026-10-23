@@ -21,7 +21,7 @@ import { moduleDir } from '../../module-dir.js';
 import { solveFighter } from './versus-solver.js';
 import { compileFighter } from './versus-compile.js';
 import { readRules } from './versus-core.js';
-import { FIGHT_KINDS } from './versus-kinds.js';
+import { FIGHT_KINDS, kindRecipe } from './versus-kinds.js';
 import { lawStamp } from './versus-laws.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
@@ -59,10 +59,11 @@ export function rosterEntry(entry, k = 0) {
 
 /** The game data the page carries. */
 export function versusGameData(manifest = {}) {
-  const roster = (manifest.roster ?? DEFAULT_ROSTER).map(rosterEntry);
+  const rules = rulesOf(manifest.rules);
+  // (what the rules' systems need of a fighter, filled in where its recipe has none: versus-kinds.js kindRecipe)
+  const roster = (manifest.roster ?? DEFAULT_ROSTER).map(rosterEntry).map((e) => ({ ...e, recipe: kindRecipe(e.recipe, rules) }));
   if (roster.length < 1) throw new Error('versus: a roster needs at least one fighter');
   const stages = manifest.stages ?? DEFAULT_STAGES;
-  const rules = rulesOf(manifest.rules);
   // a fight kind's look draws the swing trails (versus-kinds.js); no kind, no look
   const look = manifest.rules?.kind && FIGHT_KINDS[manifest.rules.kind] ? FIGHT_KINDS[manifest.rules.kind].look : null;
   // arenas: scapeshift stage worlds carrying the fight channel, hosted in a frame (`src`: their World page)
@@ -99,9 +100,10 @@ export function readVersusManifest(manifest = {}) {
 /** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire, and
  * each character's own body when the roster has one (versus-character.js characterBodies; none: nothing added). */
 export function versusArenaData(v = {}) {
-  const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry);
+  const rules = rulesOf(v.rules);
+  const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry).map((e) => ({ ...e, recipe: kindRecipe(e.recipe, rules) }));
   if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
-  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules: rulesOf(v.rules), wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}) };
+  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

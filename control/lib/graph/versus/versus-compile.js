@@ -41,7 +41,7 @@
  */
 
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 
 // movement defaults (mm per frame, frames)
@@ -552,6 +552,14 @@ function airBody(fam) {
   return { ...fam, load, strike };
 }
 
+/** A recipe's strings → each as its slots joined by '>' (versus-core.js reads a string's next press off them). */
+function readStrings(list, moves, id) {
+  if (!Array.isArray(list) || !list.every((s) => Array.isArray(s) && s.length >= 2 && s.length <= 10 && s.every((slot) => typeof slot === 'string' && moves[slot] && moves[slot].kind === 'normal'))) {
+    throw new Error(`versus: ${id} strings is a list of strings, each 2 to 10 of its normals' slots in order`);
+  }
+  return list.map((s) => s.join('>'));
+}
+
 /** A normal slot (`stand.M`) with its family, strength and tune → a compiled move. */
 export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null, rests = REST_POSES) {
   if (!FAMILIES[family]) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
@@ -867,6 +875,15 @@ export function compileFighter(recipe) {
     if (!n) throw new Error(`versus: ${recipe.id ?? 'fighter'} has no ${slot} (normals: ${NORMAL_SLOTS.join(', ')})`);
     moves[slot] = compileNormal(body, slot, n, weapon, rests);
   }
+  // the four limbs (system 'limbs'): a normal per limb at each ground stance, when the recipe carries them
+  if (recipe.limbs !== undefined) {
+    if (!recipe.limbs || typeof recipe.limbs !== 'object') throw new Error(`versus: ${recipe.id ?? 'fighter'} limbs is { ${LIMB_SLOTS.join(', ')} }`);
+    for (const slot of LIMB_SLOTS) {
+      const n = recipe.limbs[slot];
+      if (!n || !n.strength) throw new Error(`versus: ${recipe.id ?? 'fighter'} limbs has no ${slot} ({ family, strength })`);
+      moves[slot] = compileNormal(body, slot, n, weapon, rests);
+    }
+  }
   moves.throw = compileThrow(body, 'throw', { tune: recipe.throw?.tune, rests });
   for (const dir of SPECIAL_SLOTS) {
     const s = recipe.specials?.[dir];
@@ -879,6 +896,8 @@ export function compileFighter(recipe) {
   }
   if (recipe.super) moves.super = compileSuper(body, recipe.super.id, { lib: specials, supers, tune: recipe.super.tune, weapon, rests });
   for (const m of Object.values(moves)) m.adv = frameAdvantage(m);
+  // its strings (system 'strings'): slot lists, each press of the next following on from the last
+  const strings = recipe.strings === undefined ? null : readStrings(recipe.strings, moves, recipe.id ?? 'fighter');
   const jump = { ...MOVEMENT.jump, ...(recipe.jump ?? {}) };
   const stance = { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) };
   const idle = idleOf(body, stance, rests);
@@ -897,6 +916,7 @@ export function compileFighter(recipe) {
     jump,
     idle,
     stance,
+    ...(strings ? { strings } : {}),
     ...(own ? { tradition: recipe.tradition, poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, rhythm: TRADITIONS[recipe.tradition].rhythm } : {}),
     ...(weapon ? { weapon } : {}),
     moves,

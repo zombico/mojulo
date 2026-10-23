@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { compileFighter } from './versus-compile.js';
 import { newVersus, stepVersus, readRules } from './versus-core.js';
 import { solveFighter } from './versus-solver.js';
-import { SYSTEMS } from './versus-library.js';
-import { FIGHT_KINDS, FIGHT_KIND_IDS, kindRules, kindReport } from './versus-kinds.js';
+import { SYSTEMS, LIMB_POINTS } from './versus-library.js';
+import { FIGHT_KINDS, FIGHT_KIND_IDS, kindRules, kindReport, kindRecipe } from './versus-kinds.js';
 
 // MOJULO FIGHTER AS A HOST: the kinds of fighting game as words over versus's systems, and the systems a kind lacked
 const Z = { x: 0, y: 0, b: 0 };
@@ -95,5 +95,60 @@ describe('the reset (the Roman cancel)', () => {
       expect(r.events.some(([, e]) => e.t === 'reset')).toBe(false);
       expect(r.trace[4].mv).toBe('stand.H');
     }
+  });
+});
+
+describe('iron: the four limbs, strings, the bound, the sidestep', () => {
+  const ironK = compileFighter(kindRecipe(solveFighter({ id: 'kata', archetype: 'all-rounder' }).recipe, kindRules('iron')));
+  const duel = (d, systems, fighters = [ironK, ironK]) => {
+    const ctx = { fighters };
+    let s = newVersus(ctx, { rules: { intro: 1, systems } });
+    s = stepVersus(s, [Z, Z], ctx);
+    s.p[0].x = -Math.round(d / 2); s.p[1].x = Math.round(d / 2);
+    return { ctx, s };
+  };
+  it('a button a limb: the limbs scheme on both players; L, M, H and S start the lead hand, the rear hand, the lead leg and the rear leg', () => {
+    for (const [n, slot] of [[1, 'stand.1'], [2, 'stand.2'], [4, 'stand.3'], [8, 'stand.4']]) {
+      const { ctx, s } = duel(2400, ['limbs']);
+      expect(s.p.map((p) => p.scheme)).toEqual(['limbs', 'limbs']);
+      const r = run(s, ctx, 3, (k) => ({ x: 0, y: 0, b: k === 0 ? n : 0 }));
+      expect(r.trace.find((t) => t.mv)?.mv).toBe(slot);
+    }
+    const pts = [1, 2, 3, 4].map((n) => ironK.moves[`stand.${n}`].limb);
+    [1, 2, 3, 4].forEach((n, i) => expect(LIMB_POINTS[n]).toContain(pts[i]));
+  });
+  it('a string follows on in its order even on a whiff; out of order, or without the system, it does not', () => {
+    const follow = (systems, a, b) => {
+      const { ctx, s } = duel(2800, systems);
+      const r = run(s, ctx, 30, (k, st) => ({ x: 0, y: 0, b: k === 0 ? a : st.p[0].mv === `stand.${a === 1 ? 1 : 2}` && st.p[0].mf === ironK.moves[`stand.${a === 1 ? 1 : 2}`].startup ? b : 0 }));
+      return r.trace.some((t, i) => i > 0 && r.trace[i - 1].mv === `stand.${a === 1 ? 1 : 2}` && t.mv === `stand.${b === 2 ? 2 : 1}`);
+    };
+    expect(follow(['limbs', 'strings'], 1, 2)).toBe(true);    // 1, 2
+    expect(follow(['limbs', 'strings'], 2, 1)).toBe(false);   // 2, 1 is no string
+    expect(follow(['limbs'], 1, 2)).toBe(false);              // whiffed, and no strings
+  });
+  it('the bound: a heavy blow on a juggled body pops it back up once a combo; without it a normal does not juggle', () => {
+    const juggle = (systems) => {
+      const { ctx, s } = duel(500, systems);
+      Object.assign(s.p[1], { st: 'fall', y: 500, vy: 60, vx: 0, jug: 1, combo: 1 });
+      return run(s, ctx, 20, (k) => ({ x: 0, y: 0, b: k === 0 ? 8 : 0 }));
+    };
+    const on = juggle(['limbs', 'bound']), off = juggle(['limbs']);
+    const at = on.events.find(([, e]) => e.t === 'bound');
+    expect(at).toBeTruthy();
+    expect(on.events.filter(([, e]) => e.t === 'bound')).toHaveLength(1);
+    expect(off.events.some(([, e]) => e.t === 'hit' || e.t === 'bound')).toBe(false);
+  });
+  it('the sidestep: a tap of up steps aside, strikes passing through; held, it is a jump', () => {
+    const tap = (frames, systems = ['sidestep']) => { const { ctx, s } = duel(2400, systems); return run(s, ctx, 12, (k) => ({ x: 0, y: k < frames ? 1 : 0, b: 0 })); };
+    const t = tap(2), held = tap(8), off = tap(2, null);
+    expect(t.events.some(([, e]) => e.t === 'sidestep')).toBe(true);
+    expect(t.trace.some((x) => x.st === 'side')).toBe(true);
+    expect(held.trace.some((x) => x.st === 'side')).toBe(false); expect(held.trace.some((x) => x.st === 'air')).toBe(true);
+    expect(off.trace.some((x) => x.st === 'side')).toBe(false);
+    // a jab into the sidestep passes through
+    const jabbed = (up) => { const { ctx, s } = duel(700, ['sidestep']); let st = s; const ev = []; for (let k = 0; k < 14; k++) { st = stepVersus(st, [{ x: 0, y: k < up ? 1 : 0, b: 0 }, { x: 0, y: 0, b: k === 2 ? 1 : 0 }], ctx); ev.push(...st.events); } return ev.some((e) => e.t === 'hit' || e.t === 'counter'); };
+    expect(jabbed(0)).toBe(true);    // standing, the jab lands
+    expect(jabbed(2)).toBe(false);   // stepped aside, it passes through
   });
 });

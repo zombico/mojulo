@@ -267,6 +267,7 @@ function onEvent(m, e) {
     case 'parry': spark(m, e.x, e.y, '#7ad2ff', 12); m.flash = { text: 'PARRY', p: e.p, n: 40 }; blip('block'); break;
     case 'burst': spark(m, e.x, e.y, '#ffffff', 18); m.flash = { text: 'BURST', p: e.p, n: 50 }; m.shake = 10; blip('super'); break;
     case 'reset': spark(m, e.x, e.y, m.colors[e.p], 16); m.flash = { text: 'RESET', p: e.p, n: 40 }; blip('super'); break;
+    case 'bound': spark(m, e.x, e.y, '#ffffff', 14); m.shake = 9; blip('counter'); break;
     case 'crush': spark(m, e.x, e.y, '#ff5a3a', 14); m.flash = { text: 'GUARD CRUSH', p: e.p, n: 50 }; m.shake = 8; blip('counter'); break;
     case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; blip('block'); break;
     case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; blip('counter'); break;
@@ -320,6 +321,8 @@ function poseOf(p, F, t, rules) {
     case 'land': return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing)));
     case 'dashF': return POSES.dash;
     case 'dashB': return POSES.backdash;
+    // a sidestep (sidestep): the body turns side-on and steps off the line and back, in the round channels
+    case 'side': { const k = Math.sin(Math.PI * Math.min(1, p.sf / ((rules && rules.sidestepFrames) || 16))); return { ...guard, twist: 38 * k, sway: 30 * k, tilt: -5 * k }; }
     case 'burst': return lerpPose(crouch, POSES.burst, Math.min(1, p.sf / 4));
     case 'win': return lerpPose(guard, POSES.win, Math.min(1, p.sf / 20));
     case 'lose': return lerpPose(guard, POSES.lose, Math.min(1, p.sf / 30));

@@ -12,6 +12,10 @@
  *            236236 + a button the super; T (or L + M) the throw.
  *   simple   one attack button (L): pressing it again while a normal connects runs the auto-combo (M → H → the
  *            back special); S + direction a special; S + L the super; T the throw.
+ *   limbs    the four limbs (the 'limbs' system forces it on both players, never a menu's pick): L the lead hand, M the
+ *            rear hand, H the lead leg, S the rear leg, a normal each at a ground stance (`stand.1` … `crouch.4`), in the
+ *            air L / M / H; a motion + a limb a special (the hands at their strength, the legs heavy); 236236 + a limb
+ *            the super; T (or L + M) the throw.
  *
  * The history is facing-relative numpad directions (6 is toward the opponent) with each frame's new presses,
  * newest last; a press is good for BUFFER frames, and acting on it consumes it.
@@ -102,6 +106,23 @@ export function readCommand(hist, scheme, fighter, { stance, auto, hasShot, mete
   const sp = pressed(hist, BTN.S);
   const throwBtn = pressed(hist, BTN.T) || ((atk & BTN.L) && (atk & BTN.M) && scheme !== 'simple' ? 1 : 0);
 
+  if (scheme === 'limbs') {
+    const limb = pressed(hist, BTN.L | BTN.M | BTN.H | BTN.S);
+    if (limb && grounded && canSuper && traced(hist, '236236')) return { type: 'super', slot: 'super' };
+    if (limb && grounded) {
+      const st = limb & BTN.L ? 'L' : limb & BTN.M ? 'M' : 'H';
+      for (const dir of ['forward', 'down', 'back', 'neutral']) {
+        const m = fighter.moves[`special.${dir}.${st}`];
+        if (m && traced(hist, m.motion)) { const c = special(dir, st); if (c) return c; }
+      }
+    }
+    if (throwBtn && grounded) return { type: 'throw', slot: 'throw', back: now === 4 || now === 7 || now === 1 };
+    if (!limb) return null;
+    const n = limb & BTN.L ? 1 : limb & BTN.M ? 2 : limb & BTN.H ? 3 : 4;
+    if (!grounded) return { type: 'normal', slot: `air.${n === 1 ? 'L' : n === 2 ? 'M' : 'H'}` };
+    const slot = `${downish(now) ? 'crouch' : 'stand'}.${n}`;
+    return has(slot) ? { type: 'normal', slot } : null;
+  }
   if (scheme === 'classic') {
     if (atk && grounded && canSuper && traced(hist, '236236')) return { type: 'super', slot: 'super' };
     if (atk && grounded) {

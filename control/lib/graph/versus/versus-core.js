@@ -47,10 +47,12 @@ export const VERSUS_RULES = Object.freeze({
   airDashDist: 1100, airDashFrames: 14,   // mm an air dash covers, over frames
   airJumpVy: 90,    // an air jump's rise, % of the ground jump's
   resetCost: 500,   // meter a reset spends (reset)
+  boundVy: 80, boundJuggle: 2,   // the bound's pop (mm a frame up) and the juggle hits it gives back (bound)
+  sidestepFrames: 16, sidestepInvuln: 10,   // a sidestep's length and its frames strikes pass through (sidestep)
 });
 
 // the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
-const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0 };
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0, boundVy: 10, boundJuggle: 0, sidestepFrames: 4, sidestepInvuln: 0 };
 
 /** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
 export function readRules(r) {
@@ -93,11 +95,13 @@ function newPlayer(i, fighter, rules, meter = 0, scheme = 'modern') {
     hp: fighter.hp, meter, st: 'stand', sf: 0, mv: null, mf: 0, hs: 0, stun: 0, low: 0,
     hitN: 0, hitAt: 0, conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, jx: 0, airMove: 0, air: 0,
     landing: 0, inv: 0, tinv: 0, tb: 0, clinch: 0, techable: 0, throwDmg: 0, ko: 0, counter: 0, rx: 0,
-    hist: [], held: 0, scheme,
+    hist: [], held: 0, scheme: rules.systems && rules.systems.includes('limbs') ? 'limbs' : scheme,
     ...(rules.systems && rules.systems.includes('guard') ? { gd: rules.guardMax, gdT: 0 } : {}),
     ...(rules.systems && rules.systems.includes('burst') ? { burst: 0 } : {}),
     // the air actions (airdash, airjump): `aa` spent this jump, `ad` the air dash's frames left, `adv` its step
     ...(rules.systems && (rules.systems.includes('airdash') || rules.systems.includes('airjump')) ? { aa: 0, ad: 0, adv: 0 } : {}),
+    // the bound spent this combo (bound)
+    ...(rules.systems && rules.systems.includes('bound') ? { bnd: 0 } : {}),
   };
 }
 
@@ -236,10 +240,15 @@ function think(s, i, ctx) {
   // a connected move cancels into what its record allows, while the hit is fresh
   if (p.mv && (p.st === 'move' || p.st === 'air')) {
     const m = F.moves[p.mv];
-    if (!p.conn || p.mf > m.startup + m.active - 1 + R_CANCEL(s)) return;
+    // a string follows on hit, block or whiff, from its first active frame (strings); anything else only off a connect
+    const onString = !!(F.strings && p.spath && sys(s, 'strings'));
+    if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup))) return;
     const auto = p.scheme === 'simple' ? autoNext(F, p.mv) : null;
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: p.st === 'air' ? 'air' : (downish(dir) ? 'crouch' : 'stand'), auto });
     if (!cmd) return;
+    const path = onString && cmd.type === 'normal' ? stringStep(F, p.spath, cmd.slot) : null;
+    if (path) { start(s, i, ctx, cmd); p.spath = path; return; }
+    if (!p.conn) return;
     const kind = cmd.type === 'normal' ? cmd.slot : cmd.type;
     if (m.cancel.includes(kind) || m.chain.includes(cmd.slot) || (auto && cmd === auto) || gatling(s, p.mv, cmd)) start(s, i, ctx, cmd);
     return;
@@ -254,6 +263,7 @@ function think(s, i, ctx) {
   if (!NEUTRAL.has(p.st)) return;
   p.combo = 0;
   p.jug = 0;
+  if (p.bnd) p.bnd = 0;
   const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: downish(dir) ? 'crouch' : 'stand' });
   if (cmd) { start(s, i, ctx, cmd); return; }
   if (dir >= 7) {
@@ -266,6 +276,12 @@ function think(s, i, ctx) {
   if (next !== p.st) { p.st = next; p.sf = 0; }
 }
 const R_CANCEL = (s) => s.rules.cancelLate;
+// STRINGS: the path pressed so far (slots joined by '>') and the next press → the longer path when a string of the
+// fighter's goes on that way, else null
+function stringStep(F, path, slot) {
+  const next = `${path}>${slot}`;
+  return F.strings.some((st) => st === next || st.startsWith(`${next}>`)) ? next : null;
+}
 // GATLING: a normal cancels into a stronger normal of the same stance (stand.L → stand.M, crouch.M → stand.H …: the
 // stance is the stick's, as any normal's; an air normal into a stronger air normal)
 const RANK = { L: 0, M: 1, H: 2 };
@@ -310,6 +326,7 @@ function start(s, i, ctx, cmd) {
   p.hitAt = 0;
   p.air = 0;
   if (p.ad) p.ad = 0;
+  if (F.strings) p.spath = cmd.type === 'normal' ? cmd.slot : '';
   if (m.armor) p.armorN = 0;
   if (m.stance === 'air') { p.airMove = 1; return; }
   p.st = 'move';
@@ -344,6 +361,8 @@ function advance(s, i, ctx) {
     case 'walkF': p.x += F.walk.f * p.face; break;
     case 'walkB': p.x -= F.walk.b * p.face; break;
     case 'prejump':
+      // a tap of up let go before take-off steps aside (sidestep): strikes pass through while it is off the line
+      if (sys(s, 'sidestep') && p.sf < J.prejump && currentDir(p.hist) < 7) { p.st = 'side'; p.sf = 0; p.inv = s.rules.sidestepInvuln; s.events.push({ t: 'sidestep', p: i, x: p.x }); break; }
       if (p.sf >= J.prejump) { p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * J.vx * p.face; p.y = 0; if (p.aa !== undefined) { p.aa = 0; p.ad = 0; } }
       break;
     case 'air':
@@ -352,6 +371,7 @@ function advance(s, i, ctx) {
       if (p.y <= 0 && p.vy < 0) land(p, J.landing);
       break;
     case 'land': if (p.sf >= p.landing) { p.st = 'stand'; p.sf = 0; } break;
+    case 'side': if (p.sf >= s.rules.sidestepFrames) { p.st = 'stand'; p.sf = 0; } break;
     case 'dashF': {
       const d = F.dash.f;
       p.x += Math.round(d.dist / d.frames) * p.face;
@@ -646,7 +666,8 @@ function resolve(s, ctx) {
     if (!m || m.throw || o.ko || clashed[i]) continue;
     const hb = hitBox(p, F[i]);
     if (!hb) continue;
-    if (o.st === 'fall' && (!m.juggle || o.jug >= s.rules.juggle)) continue;
+    // (under the bound, the iron kind's juggles, a normal juggles too)
+    if (o.st === 'fall' && (!(m.juggle || (m.kind === 'normal' && sys(s, 'bound'))) || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - i], 'strike')) continue;
     if (hurtBoxes(o, F[1 - i]).some((h) => overlap(hb, h))) contacts.push({ a: i, m });
   }
@@ -802,6 +823,9 @@ function applyHit(s, ctx, { a, m, shot }) {
   p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20));
   d.meter = Math.min(METER_MAX, d.meter + Math.round((src.meter ?? 20) / 2));
   const knock = shot ? (shot.sup ? 'down' : 'none') : m.knock;
+  // the BOUND (bound): a heavy blow on a body already falling in a juggle slams it to the floor and it bounds back up,
+  // once a combo, the juggle given back boundJuggle hits
+  const bound = d.bnd === 0 && !shot && d.st === 'fall' && m.strength === 'H' && sys(s, 'bound');
   if (airborne || knock === 'launch' || knock === 'down') {
     d.st = 'fall'; d.sf = 0;
     react(d, knock === 'launch' ? 'launch' : airborne ? 'air' : guard === 'low' ? 'sweep' : 'down', at, hard, counter ? 1 : 0);
@@ -809,6 +833,7 @@ function applyHit(s, ctx, { a, m, shot }) {
     d.vx = face * (knock === 'launch' ? 10 : 20);
     if (d.y <= 0) d.y = 1;
     d.jug++;
+    if (bound) { d.bnd = 1; d.y = 1; d.vy = s.rules.boundVy; d.vx = face * 6; d.jug = Math.max(0, d.jug - s.rules.boundJuggle); s.events.push({ t: 'bound', p: a, x: d.x, y: 200 }); }
   } else {
     d.low = stanceOf(d) === 'crouch' ? 1 : 0;
     d.st = 'hit'; d.sf = 0; d.stun = src.hitstun + (counter ? 2 : 0);

@@ -147,6 +147,12 @@ export const NORMAL_SLOTS = Object.freeze([
   'stand.L', 'stand.M', 'stand.H', 'crouch.L', 'crouch.M', 'crouch.H', 'air.L', 'air.M', 'air.H',
 ]);
 
+// the FOUR LIMBS (system 'limbs', the iron kind's): a button a limb, a normal per limb at each ground stance (a recipe's
+// `limbs`, else the kind's defaults: versus-kinds.js limbsFor): 1 the lead hand, 2 the rear hand, 3 the lead leg, 4 the
+// rear leg
+export const LIMB_SLOTS = Object.freeze(['stand.1', 'stand.2', 'stand.3', 'stand.4', 'crouch.1', 'crouch.2', 'crouch.3', 'crouch.4']);
+export const LIMB_POINTS = Object.freeze({ 1: ['fistF'], 2: ['fistB'], 3: ['toeF', 'ankleF', 'kneeF'], 4: ['toeB', 'ankleB', 'kneeB'] });
+
 // ── throws ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const THROW = Object.freeze({
@@ -291,4 +297,8 @@ export const SYSTEMS = Object.freeze({
   airdash: 'forward twice in the air (back twice) dashes level through the air: an air action',
   airjump: 'up again in the air jumps again: an air action (rules.airActions a jump: one by default)',
   reset: 'L + M + H together during a move spends rules.resetCost of meter to end it at once: free again, on the ground or in the air (the Roman cancel)',
+  limbs: 'four buttons, a limb each (L the lead hand, M the rear hand, H the lead leg, S the rear leg): every player plays the limbs scheme',
+  strings: 'a fighter\'s strings (its recipe\'s `strings`): each press of the next in order follows on from the last, hit, block or whiff',
+  bound: 'normals juggle a falling body (up to rules.juggle hits), and a heavy blow on one slams it down so it bounds back up, once a combo: the juggle goes on',
+  sidestep: 'a tap of up steps aside (off the line, in 2D a dodge): strikes and shots pass through for rules.sidestepInvuln frames; a throw still catches',
 });

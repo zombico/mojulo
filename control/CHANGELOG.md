@@ -27,6 +27,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `airjump`: up again, a fresh press, jumps again at `airJumpVy` % of the ground jump.
   - `reset`: the Roman cancel. L + M + H together during a move spends `resetCost` of meter and ends the move at once:
     on the ground the fighter stands, in the air it floats free; the page flashes RESET in the fighter's colour.
+- **Iron, the Tekken-like kind.** It switches on four more versus systems:
+  - `limbs`: four buttons, a limb each (L the lead hand, M the rear hand, H the lead leg, S the rear leg). Every
+    player plays the limbs scheme, and each limb has its own normal at each ground stance: the recipe's `limbs`, else
+    the first family of its tradition that strikes with that limb (jab, straight, front kick, roundhouse, and the
+    crouching four).
+  - `strings`: a fighter's strings, each press of the next following on in order, on hit, block or whiff, up to ten.
+    Defaults over the limbs: 1,2; 1,2,4; 1,1,2; 3,4; and a ten-hit string.
+  - `bound`: normals juggle a falling body, and a heavy blow on one slams it so it bounds back up, once a combo.
+  - `sidestep`: a tap of up steps aside. Strikes and shots pass through for `sidestepInvuln` frames; a throw still
+    catches. In 2D it is a dodge; tracking moves and circling are listed as lacks.
+
+  A game's page fills in the limbs and strings a fighter's recipe lacks when its rules need them (`kindRecipe`).
 
   The air dash and the air jump share `airActions` per jump. Kombat is left out for now. An armed fighter's swing
   leaves a trail on the versus page in its kind's look, in the fighter's colour: flat hard bands held on twos (cel:
