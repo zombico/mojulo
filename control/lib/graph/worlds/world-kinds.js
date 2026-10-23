@@ -26,9 +26,10 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
-import { assembleCityScene } from '@/lib/graph/city/plan/scene';
+import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -103,6 +104,10 @@ import { assembleDnaProcessScene } from '@/lib/graph/views/bio/dna-process';
 import { assembleCellularScene } from '@/lib/graph/views/bio/cellular-view';
 import { assembleAtomScene } from '@/lib/graph/views/science/atom-view';
 import { assembleMechanicsScene } from '@/lib/graph/views/science/mechanics-view';
+import { assembleClassicalScene } from '@/lib/graph/science-worlds/classical/world';
+import { assembleMicroscopicScene } from '@/lib/graph/science-worlds/microscopic/world';
+import { assembleQuantumScene } from '@/lib/graph/science-worlds/quantum/world';
+import { assembleRelativisticScene } from '@/lib/graph/science-worlds/relativistic/world';
 import { assembleRocketScene } from '@/lib/graph/views/science/rocket-view';
 import { assembleAirplaneScene } from '@/lib/graph/views/science/airplane-view';
 import { assembleOrbitScene } from '@/lib/graph/views/science/orbit-view';
@@ -162,6 +167,7 @@ import { latestBoundRender } from '@/lib/graph/image-outcomes/render-store';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { loadSharp } from '@/lib/sharp-lazy';
+import { rigSpecies } from '@/lib/graph/mutagen/rig';
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
 
@@ -373,6 +379,10 @@ export const WORLD_KINDS = {
   'cellular-view': view(assembleCellularScene, 'mojulo cell'),
   'atom-view': view(assembleAtomScene, 'mojulo atom'),
   'mechanics-view': view(assembleMechanicsScene, 'mojulo mechanics'),
+  'classical-view': view(assembleClassicalScene, 'mojulo classical world'),
+  'microscopic-view': view(assembleMicroscopicScene, 'mojulo microscopic world'),
+  'quantum-view': view(assembleQuantumScene, 'mojulo quantum world'),
+  'relativistic-view': view(assembleRelativisticScene, 'mojulo relativistic world'),
   'rocket-view': view(assembleRocketScene, 'mojulo rocket'),
   'airplane-view': view(assembleAirplaneScene, 'mojulo airplane'),
   'orbit-view': view(assembleOrbitScene, 'mojulo orbit'),
@@ -444,6 +454,8 @@ export const WORLD_KINDS = {
   city: {
     title: 'mojulo city plan',
     walk: true,
+    // its masses as the volumetric fog's and the cloud deck's solids (`fog`, `clouds`: a level's segment and its ring)
+    fogBoxes: (m) => cityFogBoxes(m).map((b) => boxFromFootprint(b, { up: 'z' })),
     // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title }))),
   },
@@ -494,6 +506,18 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+  },
+  // a tactics board (board/board-scene.js): square spots over a geocube's ground (its diorama, rooms or land), units on
+  // them, played with the tactical camera. Not walked: the board owns the camera and the keys
+  board: {
+    title: 'mojulo board',
+    // a battle's units stood as figures (board/board-figures.js): each look a hero, resolved as the figures map resolves one
+    resolve: async (m, ctx) => {
+      const P = assembleBoardScene(m, { title: ctx.title === 'mojulo board' ? undefined : ctx.title });
+      if (!P.board.battle || m.battle?.figures === false) return P;
+      const [{ boardFigures }, { heroFigure }] = await Promise.all([import('@/lib/graph/board/board-figures'), import('@/lib/graph/worlds/world-scene')]);
+      return boardFigures(P, { heroFigure });
+    },
   },
   // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
   // its thread, side by side; characters are made from it by ref (create_character { egocube }). A cast's cube shows its
@@ -822,9 +846,10 @@ export const WORLD_KINDS = {
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
         // rigged recipe's so the preview, the GLB and Godot play it
         // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
-        const bugMotion = !!m.recipe.motion.bug;
-        const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
+        // (an oozed animal's motion names its species and its ooze: the body it was made with, mutagen/rig.js)
+        const bugMotion = !!m.recipe.motion.bug, motion = m.recipe.motion.ooze ? { ...m.recipe.motion, species: rigSpecies(m.recipe.motion) } : m.recipe.motion;
+        const B = bugMotion ? bugBones(motion) : faunaBones(motion.species), skin = bindLayered(mesh, m.recipe, B);
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It

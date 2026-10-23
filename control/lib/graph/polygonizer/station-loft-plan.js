@@ -56,6 +56,7 @@ import { bakeAdorn, validateKit } from './station-loft-adorn.js';
 import { paintParts, validatePaint } from './body-paint.js';
 import { validateSkin } from './skin-paint.js';
 import { garmentParts, validateGarments } from './body-garment.js';
+import { validateMaterialRef } from './materials.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => a.map((x, i) => x - b[i]); const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s);
@@ -285,6 +286,9 @@ export function validatePlan(plan) {
   for (const e of validateSkin(plan.skin)) fail(e);
   for (const e of validateGarments(plan.garments)) fail(e);
   if (plan.emissive != null && !(Array.isArray(plan.emissive) && plan.emissive.every((g) => typeof g === 'string'))) fail('emissive must be a list of palette group names (they render full-bright: a lens, a visor slit, a reactor)');
+  // `surfaces` (opt-in): palette group → a shelf material (`'*'` every other group), carried to the recipe as a statue's are
+  if (plan.surfaces != null) { if (typeof plan.surfaces !== 'object' || Array.isArray(plan.surfaces)) fail("surfaces must be { <group> | '*': <material> }");
+    for (const [g, m] of Object.entries(plan.surfaces)) { const e = validateMaterialRef(m); if (e) fail(`surfaces.${g}: ${e}`); } }
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
   return true;
 }
@@ -375,6 +379,7 @@ export function expandPlan(plan, { body = null } = {}) {
   const recipe = { schema: 'layered-v1', frame: plan.frame, symmetry: plan.symmetry || { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; side parts: right authored, left mirrored in x with R ↔ L renamed on the part and the slot' }, dials, parts, creases };
   if (palette) recipe.palette = palette;
   if (plan.emissive?.length) recipe.emissive = [...plan.emissive];   // groups that glow: baked full-bright, unshaded
+  if (plan.surfaces) recipe.surfaces = structuredClone(plan.surfaces);   // groups' materials (opt-in; absent ⇒ none)
   // details: authored in world space on the L1 form at rest; stored as local offsets in their pin frames
   if ((plan.details || []).length) {
     const l1 = Object.fromEntries(Object.entries(parts).filter(([, p]) => p.layer === 1));

@@ -33,7 +33,7 @@ export const controllableRules = () => Object.keys(composeControllable(EMISSION_
 
 export function platformRuleKeys() {
   const keys = new Set(['type']);
-  for (const f of ['rules-platform', 'maneuvers', 'combat-melee']) for (const x of SRC(`lib/graph/worlds/controllable/${f}.js`).matchAll(/\br\.([A-Za-z]+)/g)) keys.add(x[1]);
+  for (const f of ['rules-platform', 'maneuvers', 'combat-melee', 'wall', 'swing']) for (const x of SRC(`lib/graph/worlds/controllable/${f}.js`).matchAll(/\br\.([A-Za-z]+)/g)) keys.add(x[1]);
   return [...keys];
 }
 

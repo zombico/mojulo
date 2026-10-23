@@ -18,6 +18,7 @@
 
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld, verticalFov } from '@/lib/graph/scene/scene-three';
+import { payloadFrame } from '@/lib/graph/game/screen';
 import { cameraPathFor, CAMERA_MOTIONS } from './camera-path.js';
 import { renderWorldFrames, renderWorldTraversal, compileWorldWaypoints } from './world-frames.js';
 
@@ -181,16 +182,18 @@ async function planFrames({ sketch, params = {}, fps }) {
   const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
   const { sampleProgram } = await import('@/lib/graph/shoot/sample');
   const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
-  if (!sketch?.manifest?.shoot) {
+  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
+  if (!payload) throw new Error(`sketch '${sketch?.ref}' (kind '${sketch?.manifest?.kind}') has no three.js World form to shoot.`);
+  // the recipe's own plan, else the film the world kind proposes for itself (a science world's run, replay and end card)
+  const shoot = sketch.manifest.shoot ?? payload.defaultShoot;
+  if (!shoot) {
     throw new Error(`'${sketch?.ref}' has no shoot plan — forge_motion's shoot: { plan } puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
   }
-  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
-  if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);
   if (worldIsLive(payload)) {
     throw new Error(`'${sketch.ref}' plays live (entities / physics / events), so its shoot plan cannot be rendered frame by frame from a rewound clock yet — record it with a 'traversal' (shot.ticks), or watch it on the World page.`);
   }
   const subjects = shootSubjects(payload);
-  const { plan, warnings } = normalizeShoot(sketch.manifest.shoot, { subjects });
+  const { plan, warnings } = normalizeShoot(shoot, { subjects });
   if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);
   let shots = plan.shots.filter((s) => !s.cue);
   if (params.shot !== undefined && params.shot !== null) {
@@ -245,8 +248,10 @@ export async function renderWorldTraversalMotion({ sketch, ticks, waypoints, fps
   }
   if (params.camera && params.camera.rule) payload.camera = params.camera;   // inject a follow/FPV camera entity
 
-  const width = Math.round(params.width || DEFAULT_W);
-  const height = Math.round(params.height || DEFAULT_H);
+  // a game made for a screen (game/screen.js) is walked in its own frame, its long side the default's
+  const framed = payload.screen && !params.width && !params.height ? payloadFrame(payload.screen, Math.max(DEFAULT_W, DEFAULT_H)) : null;
+  const width = Math.round(params.width || framed?.width || DEFAULT_W);
+  const height = Math.round(params.height || framed?.height || DEFAULT_H);
 
   const html = emitThreeWorld({
     ...payload,

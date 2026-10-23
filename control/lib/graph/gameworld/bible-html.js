@@ -27,6 +27,7 @@ import { cubeOfWorld, intentReport, GENRES } from './intent.js';
 import { engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
+import { rtsRoster } from '../board/board-rts-tech.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
 import { natureCard, colorKey, landFor } from './nature.js';
@@ -110,6 +111,16 @@ function craftHtml(G, cid, kit, seed, stamp = () => '') {
     }
     return `<figure>${plate(`civ-${k}-${cid}-${id}`, drawStructures([b.faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.variant)} · ${esc(t.block.tier)}${r ? ` · <span title="${esc(r.why)}">${esc(r.rank)}</span>` : ''} · ${esc(t.block.functions.join(', '))}${t.carries ? ` · carried as the ${esc(t.carries)} (equipment)` : ''}${tunnelLog(t.tunnel)}</figcaption></figure>`;
   }).join('')}</div></div>`).join('');
+}
+/** What a civilization's technology fields in a skirmish (board/board-rts-tech.js): its roster, its ladder, and why. */
+function armyHtml(G, cid) {
+  const T = G.civilizations[cid].technology;
+  if (!T || !['vehicles', 'structures', 'weapons', 'things'].some((k) => T[k] && Object.keys(T[k]).length)) return '';
+  const r = rtsRoster(G, cid), L = r.research ?? {};
+  const units = Object.entries(r.units).map(([id, u]) => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.role)}${u.fly ? ', flies' : ''}</td><td>${u.tier ?? 1}</td><td>${u.hp}</td><td>${u.atk}${u.siege ? ` (× ${u.siege} on buildings)` : ''}</td><td>${u.range}</td><td>${u.speed}</td><td>${u.supply ?? ''}</td><td>${u.cost}${u.cost2 ? ` + ${u.cost2} ${esc(r.res2.toLowerCase())}` : ''}</td></tr>`).join('');
+  const houses = Object.values(r.buildings).map((b) => `${esc(b.name)} (${esc(b.role)}${b.cost ? `, ${b.cost} gold` : ''})`).join(' · ');
+  const ladder = (r.study ?? []).map((id) => `${esc(L[id].name)} (${L[id].cost} gold, ${L[id].time} s${L[id].gives.tier ? `: tier ${L[id].gives.tier}` : L[id].gives.buff ? `: ${L[id].gives.buff.atk ? `its fighters strike × ${L[id].gives.buff.atk}` : `its units take × ${L[id].gives.buff.ward}`}` : ': every trip pays more'})`).join(' → ');
+  return `<div class="tech tech-army"><h4>What it fields in a skirmish</h4><table class="vocab"><tr><th>unit</th><th>role</th><th>tier</th><th>hp</th><th>strike</th><th>reach</th><th>pace</th><th>supply</th><th>gold</th></tr>${units}</table><p><b>Buildings</b> ${houses}</p>${ladder ? `<p><b>Its ladder</b> ${ladder}, at the ${esc(r.buildings[Object.values(L)[0].at].name)}</p>` : ''}<ul class="ledger">${r.ledger.map((l) => `<li>${esc(l.line)}</li>`).join('')}</ul></div>`;
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
 const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace' };
@@ -300,7 +311,7 @@ export function gameworldBibleHtml(world) {
     return `<article class="civ" id="civ-${esc(cid)}"><div class="civ-h"><div><span class="eyebrow">Civilization · ${esc(cid)}</span><h3>${esc(C.name)}</h3></div><p class="muted mono">${esc(card.language.id)} · ${esc(card.fort.id)} · drawn in ${esc(kit)}</p></div>
 <p class="read">${esc(card.language.read)}</p><div class="houses">${houseRow(card.language.language, kit, G.seed)}</div>
 <div class="fort"><div class="fort-im">${plate(`civ-castle-${cid}`, castleAxon(castle, structurePaint(kit)))}</div><div><p class="read">${esc(card.fort.read)}</p><h4>What its language makes of a castle</h4><dl class="vocab"><dt>wall</dt><dd>${esc(I.read[0])}</dd><dt>towers</dt><dd>${esc(I.read[1])}</dd><dt>keep</dt><dd>${esc(I.read[2])}</dd></dl>
-<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div>${tunnelHtml(C, cid, kit, G.seed, G.style.kit)}${techHtml(C, cid, kit, G.seed)}${craftHtml(G, cid, kit, G.seed, civStamp)}</article>`;
+<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div>${tunnelHtml(C, cid, kit, G.seed, G.style.kit)}${techHtml(C, cid, kit, G.seed)}${craftHtml(G, cid, kit, G.seed, civStamp)}${armyHtml(G, cid)}</article>`;
   }).join('');
 
   // the gate: each part's stamp, its machine gate measured by the builders that drew it

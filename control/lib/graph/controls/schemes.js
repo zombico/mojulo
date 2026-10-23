@@ -70,6 +70,8 @@ const PILOT = {
     { id: 'flare', label: 'flare', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyX'], gamepad: ['lb'] } },
     { id: 'lock', label: 'target lock', group: 'combat', in: ARMED, bind: { keyboard: ['KeyC'], mouse: ['middle'], gamepad: ['rs'], xr: ['right.thumbstick'] } },
     { id: 'swapSuit', label: 'switch suit', group: 'world', in: MOVE, bind: { keyboard: ['KeyT'], gamepad: ['up'], xr: ['left.secondary'] } },
+    // a body with forms (controllable/forms.js): robot ↔ vehicle, on the press
+    { id: 'transform', label: 'transform', group: 'move', in: MOVE, bind: { keyboard: ['KeyB'], gamepad: ['ls'] } },
     { id: 'aiToggle', label: 'AI attack on / off', group: 'world', in: MOVE, bind: { keyboard: ['KeyG'], gamepad: ['select'] } },
     { id: 'reverseView', label: 'reverse view', group: 'camera', in: MOVE, bind: { keyboard: ['KeyV'] } },
     { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'] } },
@@ -96,6 +98,7 @@ const PILOT = {
       { ids: ['fire'], dev: 'mouse', label: 'fire', when: 'armed' },
       { ids: ['cycleWeapon'], range: ['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'], label: 'cycle · select weapon', when: 'armed' },
       { ids: ['lock'], with: 'mouse', label: 'target lock', when: 'lock' },
+      { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['swapSuit'], label: 'switch suit', when: 'suits' },
       { ids: ['aiToggle'], label: 'AI attack on / off', when: 'ai' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
@@ -111,6 +114,7 @@ const PILOT = {
       { ids: ['jump', 'tackle'], sep: ' · ', label: 'jump · tackle', unless: 'space' },
       { ids: ['swapSuit', 'aiToggle'], sep: ' · ', label: 'switch suit · AI toggle' },
       { ids: ['lock'], label: 'target lock', when: 'lock' },
+      { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
       { ids: ['pause'], label: 'pause' },
     ],
@@ -194,6 +198,43 @@ const GRID = {
   },
 };
 
+// A tactics board (lib/graph/board): the cursor steps a spot a press the way the screen shows it, whichever quarter
+// the view is turned to; the view turns, zooms and tilts by stops; confirm selects and moves, back lets go.
+const BOARD = {
+  id: 'board',
+  label: 'tactics board',
+  contexts: ['play'],
+  actions: [
+    { id: 'up', label: 'cursor up', group: 'move', in: ['play'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'cursor down', group: 'move', in: ['play'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'cursor left', group: 'move', in: ['play'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'cursor right', group: 'move', in: ['play'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'] } },
+    { id: 'confirm', label: 'select / move', group: 'act', in: ['play'], bind: { keyboard: ['Enter', 'Space'], mouse: ['left'], gamepad: ['confirm'] } },
+    { id: 'back', label: 'back', group: 'act', in: ['play'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'] } },
+    { id: 'turnLeft', label: 'turn the view', group: 'view', in: ['play'], bind: { keyboard: ['KeyQ'], gamepad: ['lb'] } },
+    { id: 'turnRight', label: 'turn the view back', group: 'view', in: ['play'], bind: { keyboard: ['KeyE'], gamepad: ['rb'] } },
+    { id: 'zoomIn', label: 'zoom in', group: 'view', in: ['play'], bind: { keyboard: ['KeyZ', 'Equal'], gamepad: ['north'] } },
+    { id: 'zoomOut', label: 'zoom out', group: 'view', in: ['play'], bind: { keyboard: ['KeyX', 'Minus'], gamepad: ['west'] } },
+    { id: 'tilt', label: 'tilt', group: 'view', in: ['play'], bind: { keyboard: ['KeyV'], gamepad: ['select'] } },
+  ],
+  legend: {
+    keyboard: [
+      { quad: ['up', 'left', 'down', 'right'], label: 'cursor' },
+      { ids: ['confirm'], label: 'select / move' },
+      { ids: ['back'], label: 'back' },
+      { all: ['turnLeft', 'turnRight'], label: 'turn' },
+      { all: ['zoomIn', 'zoomOut'], label: 'zoom' },
+      { ids: ['tilt'], label: 'tilt' },
+    ],
+    gamepad: [
+      { quad: ['up', 'left', 'down', 'right'], label: 'cursor' },
+      { ids: ['confirm', 'back'], label: 'select / back' },
+      { ids: ['turnLeft', 'turnRight'], label: 'turn' },
+      { ids: ['zoomIn', 'zoomOut'], label: 'zoom' },
+    ],
+  },
+};
+
 // Point-and-click and fixed-camera (walkmesh) scenes: the pointer is the verb, the keyboard walks the
 // hotspots in order so nothing is pointer-only; in VR the pointer is the controller's ray.
 const POINT = {
@@ -261,5 +302,5 @@ const SHELL = {
   legend: { gamepad: [{ ids: ['pause'], label: 'pause' }] },
 };
 
-export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, point: POINT, menu: MENU, shell: SHELL };
+export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL };
 export const SCHEME_IDS = Object.keys(SCHEMES);

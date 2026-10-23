@@ -13,6 +13,7 @@ import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
+import { HALDEN_REACH } from '@/lib/graph/gameworld/examples.js';
 import { groundOf } from '@/lib/graph/playscape/terrain.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
@@ -21,6 +22,8 @@ beforeEach(() => { closeDb(); });
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
 const mechanicsOf = (ref) => stored(ref).game.mechanics.map((m) => m.kind);
 
+// (a test of a genre's camera plays it on a screen on its side, where every camera is as authored: an upright screen
+// reframes them by rule, gameworld/screen.test.js)
 describe('design_game quick', () => {
   it('collect, first person: the coins lie on the trail\'s beats, the exit at its end, the game in one call', async () => {
     const out = await designGameHandler({ quick: { goal: 'collect', pickup: 'coin', world: { id: 'coins', name: 'Coin Run', style: { kit: 'trail-valley' } } }, ref: 'q' });
@@ -57,8 +60,23 @@ describe('design_game quick', () => {
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
   }, 240_000);
 
+  it('a runner: a hero made and run down lanes, its page carrying the run, the game made', async () => {
+    const out = await designGameHandler({ quick: { goal: 'runner', world: { id: 'dash' } }, ref: 'rn' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['hero', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
+    const L = stored('rn-level-run-0');
+    expect(L.runner).toMatchObject({ seed: expect.any(Number) });
+    expect(L.screen).toMatchObject({ pole: 'phone' });   // a new game is made for a phone
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rn-level-run-0'));
+    expect(payload.runner).toEqual(L.runner);
+    const html = emitThreeWorld({ ...payload, inline: true });
+    expect(html).toContain('function buildRunner(E)');
+    expect(html).toContain('function __updateRunner(dt)');
+    expect(html).toContain('swipe ← →');
+    expect(stored('rn-game').levels.map((l) => l.ref)).toEqual(['rn-level-run-0']);
+  }, 240_000);
+
   it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
-    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
+    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, screen: 'screen', world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
     const H = stored('m-hero');
     expect(H.plan.mascot).toMatchObject({ form: expect.any(String), height: expect.any(Number) });
@@ -335,7 +353,7 @@ describe('design_game quick', () => {
   }, 240_000);
   it('a field of racers: each in the machine its driver reads as, on its own physics, balanced; nothing to mint', async () => {
     const racers = ['hero', 'a grumpy old wizard', { archetype: 'innocent', build: 'brute' }];
-    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
+    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', screen: 'screen', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
     const L = stored('cr-level-run-0');
@@ -397,6 +415,60 @@ describe('design_game quick', () => {
     const log = sim.bus.log.map((r) => r.type);
     expect(log.filter((t) => t === 'down').length + log.filter((t) => t === 'leak').length).toBe(3);
     expect(log).toContain('down');
+  }, 240_000);
+
+  it('defend on a board: a tower defence over the stage\'s spots, nobody minted, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'defend', board: { gold: 60 }, waves: 2, lives: 7, world: { id: 'keep', style: { kit: 'trail-valley' } } }, ref: 'tdq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('tdq-level-run-0');
+    expect(L.board).toEqual({ td: { waves: 2, lives: 7, gold: 60 } });
+    expect(mechanicsOf('tdq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tdq-level-run-0'));
+    expect(payload.board.td).toMatchObject({ gold: 60, lives: 7 });
+    expect(payload.board.td.waves).toHaveLength(2);
+    expect(payload.board.camera).toMatchObject({ edge: true });
+    expect(payload.walk).toBe(false);
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    // what only a trail's defence takes, refused beside a board
+    await expect(designGameHandler({ quick: { goal: 'defend', board: true, pads: 2, world: { id: 'keep2' } }, ref: 'tdx' })).rejects.toThrow(/pads is the trail's defence/);
+    await expect(designGameHandler({ quick: { goal: 'reach', board: true, world: { id: 'keep3' } }, ref: 'tdy' })).rejects.toThrow(/board belongs to the defend goal/);
+  }, 240_000);
+
+  it('conquer: a real-time skirmish over the stage\'s spots, two bases and a purse, the level the board\'s to end', async () => {
+    const out = await designGameHandler({ quick: { goal: 'conquer', board: { gold: 200 }, world: { id: 'field', style: { kit: 'trail-valley' } } }, ref: 'rtq' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('rtq-level-run-0').board).toEqual({ rts: { gold: 200 } });
+    expect(mechanicsOf('rtq-level-run-0')).toEqual(['board']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rtq-level-run-0'));
+    expect(payload.board.rts).toMatchObject({ gold: 200 });
+    expect(payload.board.rts.bases.player).not.toBe(payload.board.rts.bases.enemy);
+    expect(payload.board.camera).toMatchObject({ edge: true, rotate: false });
+    expect(payload.game.on['board-won']).toEqual({ end: 'success' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', hero: false, world: { id: 'field2' } }, ref: 'rtx' })).rejects.toThrow(/conquer is a skirmish/);
+    // a whole match: the board's skirmish read as one (its lobby on the page), the fog and the melee rule by default
+    await designGameHandler({ quick: { goal: 'conquer', match: true, world: { id: 'field3', style: { kit: 'trail-valley' } } }, ref: 'rtm' });
+    expect(stored('rtm-level-run-0').board).toEqual({ rts: { match: true } });
+    const M = (await resolveWorldScene(SketchRepository.getByRef('rtm-level-run-0'))).payload.board.rts;
+    expect([M.match.expansions >= 0, M.fog, M.victory]).toEqual([true, true, 'melee']);
+    await expect(designGameHandler({ quick: { goal: 'reach', match: true, world: { id: 'field4' } }, ref: 'rty' })).rejects.toThrow(/match belongs to the conquer goal/);
+  }, 240_000);
+
+  it('conquer between two civilizations: the world\'s own by its id, another in words, each fielding what its technology crafts', async () => {
+    const corps = HALDEN_REACH.civilizations['survey-corps'];
+    await designGameHandler({ quick: { goal: 'conquer', doctrine: 'science', sides: ['survey-corps', 'armed attack helicopters, a bronze cannon, swords and crossbows, tracked ore haulers'], world: { id: 'reach', style: { kit: 'isekai-meadow' }, civilizations: { 'survey-corps': corps } } }, ref: 'civq' });
+    expect(stored('civq-level-run-0').board.rts.doctrine).toEqual({ player: 'science' });
+    await expect(designGameHandler({ quick: { goal: 'conquer', doctrine: 'chaos', world: { id: 'reach4' } }, ref: 'civz' })).rejects.toThrow(/doctrine 'chaos' is not a doctrine/);
+    // the level keeps each side in its own words, not its roster
+    const sides = stored('civq-level-run-0').board.rts.sides;
+    expect(sides.player).toMatchObject({ civ: corps, kit: 'isekai-meadow', team: expect.stringMatching(/^#/) });
+    expect(sides.enemy.civ.technology.vehicles).toEqual({ helicopter: 'armed attack helicopters' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('civq-level-run-0'));
+    const R = payload.board.rts.sides;
+    expect([R.player.worker, R.player.research.tier2.at, R.enemy.units.helicopter.fly, R.enemy.units.cannon.siege]).toEqual(['hauler', 'mast', true, 3]);
+    expect(Object.keys(R.player.looks)).toContain('walker');
+    // what it cannot field, said
+    await expect(designGameHandler({ quick: { goal: 'conquer', sides: ['grumpy neighbours'], world: { id: 'reach2' } }, ref: 'civx' })).rejects.toThrow(/neither a civilization of the world \(it keeps none\) nor words naming what one crafts/);
+    await expect(designGameHandler({ quick: { goal: 'reach', sides: ['survey-corps'], world: { id: 'reach3' } }, ref: 'civy' })).rejects.toThrow(/sides belongs to the conquer goal/);
   }, 240_000);
 
   it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {
@@ -654,7 +726,7 @@ describe('design_game quick', () => {
   }, 300_000);
 
   it('deathmatch over the shoulder: a hero played third-person, the camera off its right shoulder, its rounds converged', async () => {
-    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', screen: 'screen', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
     const L = stored('ov-level-run-0');
     expect(L.camera).toMatchObject({ rule: 'follow', target: 'hero', dist: 2.8, shoulder: 0.75, lead: 10 });
     expect(L.entities[0].weapon.converge).toBe(true);

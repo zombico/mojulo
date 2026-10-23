@@ -4,7 +4,7 @@
 // proof tests, its kernel files) stays in that engine's own test (godot-marks.test.js). No engine needed.
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
-import { MARKS, worstMark, CAMERA_RULE, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
+import { MARKS, worstMark, CAMERA_RULE, PAGE_CAMERAS, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
 import { ENGINES, MARKED_ENGINES, DEFAULT_ENGINE, ENGINE_OUT_DIRS, engineOf, marksOf, marksAcross } from './registry.js';
 import { pageInputs, controllableRules, platformRuleKeys, ledgerKeys, busRows, systemKinds, linkKinds, pageEventKeys } from './mark-sources.js';
 import { mechanicMarks, kitMark, carriedMechanics, carriedRules, assessPortability } from '../engine-portability.js';
@@ -63,7 +63,7 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
   it('every controllable rule, every camera, every figure overlay, events key, system and link', () => {
     expect(sorted(Object.keys(M.RULE_MARKS))).toEqual(sorted(controllableRules()));
     for (const rule of Object.values(CAMERA_RULE)) expect(marked(M.RULE_MARKS[rule]), rule).toBe(true);
-    expect(sorted(Object.keys(M.FIGURE_MARKS))).toEqual(['beams', 'juice', 'live', 'trails']);
+    expect(sorted(Object.keys(M.FIGURE_MARKS))).toEqual(['beams', 'forms', 'juice', 'live', 'trails']);
     expect(sorted(Object.keys(M.EVENT_MARKS))).toEqual(sorted(Object.keys(marksOf(DEFAULT_ENGINE).EVENT_MARKS)));
     // every events key the page reads is marked (the table also marks the bus's own keys, which the reducer reads)
     expect(pageEventKeys().filter((k) => !M.EVENT_MARKS[k]).sort()).toEqual([]);
@@ -113,10 +113,11 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
     const MECH = mechanicMarks(e);
     agree(reg.power.mechanics, (v) => MECH[v]?.[e]);
     agree(reg.power.rules, (v) => M.RULE_MARKS[v]?.[e]);
-    agree(reg.space.camera, (v) => M.RULE_MARKS[CAMERA_RULE[v]][e]);
+    agree(reg.space.camera, (v) => (PAGE_CAMERAS[v] ? 'absent' : M.RULE_MARKS[CAMERA_RULE[v]][e]));
     agree(reg.power.kit, (v) => kitMark(v, e)[e]);
     agree(reg.power.systems, (v) => M.SYSTEM_MARKS[v]?.[e]);
-    agree(reg.power.idiom, (v) => M.SYSTEM_MARKS[IDIOMS[v].system.kind][e]);
+    // (a planned idiom, not in the table yet, carries its own marks on its registry value)
+    agree(reg.power.idiom, (v) => (IDIOMS[v] ? M.SYSTEM_MARKS[IDIOMS[v].system.kind][e] : undefined));
     agree(reg.space.links, (v) => M.LINK_MARKS[v]?.[e]);
     agree(reg.space.traversal, (v) => M.traversalMark(v)[e]);
     agree(reg.soul.gaits, (v) => M.gaitMark(v, MOTION_GAITS[v])[e]);

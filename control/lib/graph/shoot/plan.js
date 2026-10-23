@@ -5,7 +5,7 @@
  *     fps: 24,
  *     cameras: [{ id, name?, type: 'two_node'|'one_node', film_mm: 36, path: 'smooth'|'linear',
  *                 keys: [{ t, pos, poi | yaw+pitch, roll, focal_mm, ease }] }],   // t: world-clock seconds
- *     shots: [{ name, camera, span: [t0, t1] }],
+ *     shots: [{ name, camera, span: [t0, t1], speed? }],
  *   }
  *
  * `normalizeShoot` reads the words people use (`lens: '35mm'`, `type: 'two-node'`, `ease: 'easy ease'`, a key's
@@ -28,6 +28,9 @@ export const DEFAULT_FOCAL_MM = 50;   // AE's default camera
 export const DEFAULT_FPS = 24;
 export const STATIC_SHOT_S = 3;       // a one-key camera's default shot length
 const MAX_CAMERAS = 8, MAX_KEYS = 64, MAX_SHOTS = 64, MAX_SECONDS = 600;
+// a shot's `speed` stretches its span on the program clock (an After Effects time stretch): 0.25 plays its span of the
+// world four times slower, a slow-motion replay; 2 plays it twice as fast. Absent (or 1), the shot plays in real time.
+export const MIN_SPEED = 0.05, MAX_SPEED = 4;
 const PALETTE = ['#f5a524', '#4fc3f7', '#e57cd8', '#7bd88f', '#ff7a59', '#b39ddb', '#ffd54f', '#80cbc4'];
 
 const v3 = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
@@ -164,7 +167,12 @@ export function normalizeShoot(raw, { subjects = null } = {}) {
       const tr = normalizeTransition(s.in);
       // `on`: the event pattern(s) that cut to this shot in a live world (`*` matches any run: 'goal:*', 'door:*')
       const on = [].concat(s.cue ?? s.on ?? []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 60)).slice(0, 8);
-      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}), ...(on.length ? { cue: on } : {}) });
+      let speed = null;
+      if (s.speed !== undefined) {
+        if (fin(s.speed) && s.speed >= MIN_SPEED && s.speed <= MAX_SPEED) { if (s.speed !== 1) speed = s.speed; }
+        else warn(`shot ${i}: speed ${s.speed} is outside ${MIN_SPEED}–${MAX_SPEED}, played in real time`);
+      }
+      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}), ...(on.length ? { cue: on } : {}), ...(speed ? { speed } : {}) });
     });
   }
   if (!shots.length) {
@@ -302,7 +310,7 @@ export function lowerShoot(plan, { subjects = null, live = false } = {}) {
       };
     }),
     ...(live ? { live: true } : {}),
-    shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span })),
+    shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span, ...(s.speed ? { speed: s.speed } : {}) })),
     ...(cued.length ? { cues: cued.map(({ s, i }) => ({ i, name: s.name, camera: s.camera, on: s.cue, length: s.span[1] - s.span[0], span: s.span })) } : {}),
     ...lowerSet(plan, subjects),
   };

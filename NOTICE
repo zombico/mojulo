@@ -4,6 +4,9 @@ Copyright 2026 Franz Ombico
 This product includes software developed by Franz Ombico
 (https://github.com/zombico/mojulo), licensed under the Apache License, Version 2.0.
 
+mojulo is a trademark of Franz Ombico. The Apache License grants no rights in the name; a fork that
+changes mojulo ships under its own name. Policy: https://github.com/zombico/mojulo/blob/main/TRADEMARKS.md
+
 control/lib/util/dmath.js is a port of fdlibm, from FreeBSD's msun library, which carries this notice:
 
   Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.

@@ -167,6 +167,22 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'What people wear is made of something: plate is worked steel, gilt is gold, and metal sits in the same light as the stone.',
     ],
   },
+  // the city stalker (10-19): a night city's look, painted onto a planned city (city/plan look.js readPaint)
+  'city-night': {
+    id: 'city-night', title: 'City night', reads: 'Concrete, asphalt and neon under a glowing night sky',
+    light: { reference: 'city-night', moon: { color: '#b4bce0', elevation: 40, azimuth: 220, gain: 0.7 }, outsideFog: 0.3 },
+    colour: { stone: '#5a606c', floor: '#33363c', trim: '#7a808c', accent: '#ff3d7f', grass: '#2e4a3e', foliage: '#2a4036', water: '#1c2a3e', sand: '#4e4c4a' },
+    register: { steps: 0, key: 0.3 },
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'Concrete is a cool grey and asphalt darker still: the warmth is only in the windows and the lamps.',
+      'One accent, a hot pink, on the signs alone.',
+      'Depth is air: a blue-black haze that swallows the far towers, thinner from the roofs.',
+      'The sky glows from below: the city lights its own clouds.',
+    ],
+  },
 });
 
 /**
@@ -182,6 +198,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
   'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'upland-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'guardhouse', enter: 'door' }] },
+  'city-night': { anchor: 'tiered', uses: [{ use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'lab', enter: 'door' }, { use: 'hall', enter: 'walk' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
 });
 /**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
@@ -195,9 +212,10 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'jungle-haze': { intent: 'olive concrete, mud and a soft hazy sun', key: 'mid', heat: 0.15, weight: 0.2, activity: -0.6, scheme: 'analogous', hue: '#767a64', hues: { sky: 120, accent: '#8a5f34' } },
   'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
   'upland-morning': { intent: 'limestone, red roofs and a rocky green upland in the morning', key: 'high', heat: 0.3, weight: 0, activity: 0.25, scheme: 'complementary', hues: { sky: 222, rock: 50, soil: 34, ground: 108, foliage: 126, accent: '#b8442c' } },
+  'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'city-night': [0, 1] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */

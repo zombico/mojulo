@@ -228,4 +228,4 @@ The paradigm loops (media · game · connected service · app) and the recipe fo
 
 ## License
 
-[Apache License 2.0](https://github.com/zombico/mojulo/blob/main/LICENSE)
+[Apache License 2.0](https://github.com/zombico/mojulo/blob/main/LICENSE). The name is a trademark: fork freely, under your own name ([TRADEMARKS.md](https://github.com/zombico/mojulo/blob/main/TRADEMARKS.md)).

@@ -18,6 +18,8 @@
  * with no traversable form (the caller then points the user back at /scene or /svg).
  */
 
+import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
+import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -85,7 +87,7 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
-async function heroFigure(name, spec) {
+export async function heroFigure(name, spec) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -408,6 +410,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     structureColliders = S.colliders;
   }
 
+  // science (science-worlds/setting.js): a science world stood in any world, a classical demo 1:1 or any other as a
+  // bench prop in a glass case. Its surfaces join before the material / AO passes; its readout and panel ride the
+  // page, with the placement's gates (the world's surfaces, its gravity). Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.science !== undefined && !String(sketch.manifest.kind || '').match(/^(classical|microscopic|quantum|relativistic)-view$/)) {
+    const { placeScience } = await import('@/lib/graph/science-worlds/setting.js');
+    try { placeScience(payload, sketch.manifest.science); } catch (err) { throw new Error(`${err.message} — see get_view_vocab({ id: 'science-setting' })`); }
+  }
+
   // generic, opt-in procedural VERTEX-COLOUR MATERIALS (materials/procedural-material.js): any face
   // carrying `material: '<preset>'` (or `{ kind, grid?, tint?, wear?, cloud?, seed? }`) is tessellated
   // and vertex-coloured through the layered material system (top-lit ramp + brushed cloud + weathering)
@@ -700,6 +710,45 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
           const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
           payload.figures[name] = supercarFigure(rawSpec.supercar);
+          continue;
+        }
+        // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
+        // (`transformer`: { robot?, vehicle?, scheme?, fold?, legs?, height? }): the robot a VARIABLE SUIT (`robot.variable`:
+        // { palette?, build? }, a suit drawn to fold into its own waverider), an ALIEN BODY (`robot.alien`, pointed shells
+        // folding into a hover jetski), a stored suit (`robot.unitRef`, baked as
+        // a unitRef is, its `targetH`/`aim`/`aimArms`/`swings`/`dodges` with it) or the inner frame made to the vehicle;
+        // the vehicle a stored build (`vehicle.vehicleRef`), a ride, a racer, a supercar or a craft off the shelf, or
+        // none (the suit's own flight form). Delivered as one rig figure carrying `forms`: the robot's clips, the
+        // vehicle's, and the transformation between them. Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.transformer && typeof rawSpec.transformer === 'object') {
+          const T = rawSpec.transformer;
+          const { bakeTransformer } = await import('@/lib/graph/transformation/index.js');
+          let robot = T.robot && T.robot.variable ? { variable: T.robot.variable } : T.robot && T.robot.alien ? { alien: T.robot.alien } : { frame: (T.robot && T.robot.frame) || {} };
+          if (T.robot && typeof T.robot.unitRef === 'string') {
+            const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+            const src = SketchRepository.getByRef(T.robot.unitRef);
+            if (!src || src.manifest?.kind !== 'assembler') throw new Error(`figures.${name}: transformer robot unitRef '${T.robot.unitRef}' is not a stored assembler unit`);
+            const { bakeUnitRig } = await import('@/lib/graph/worlds/unit-rig.js');
+            const R = T.robot;
+            robot = { figure: bakeUnitRig(src.manifest, {
+              keys: 12,
+              targetH: Number.isFinite(R.targetH) ? R.targetH : null,
+              aim: R.aim && typeof R.aim === 'object' ? R.aim : null,
+              aimArms: (R.aimArms && typeof R.aimArms === 'object') || typeof R.aimArms === 'string' ? R.aimArms : null,
+              swings: Array.isArray(R.swings) ? R.swings : null,
+              dodges: Array.isArray(R.dodges) ? R.dodges : null,
+            }) };
+          }
+          let vehicle = T.vehicle && typeof T.vehicle === 'object' ? T.vehicle : null;
+          if (vehicle && typeof vehicle.vehicleRef === 'string') {
+            const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+            const src = SketchRepository.getByRef(vehicle.vehicleRef);
+            if (!src || src.manifest?.kind !== 'assembler') throw new Error(`figures.${name}: transformer vehicleRef '${vehicle.vehicleRef}' is not a stored assembler build`);
+            const { bakeVehicleRig } = await import('@/lib/graph/vehicle-designer/vehicle-rig.js');
+            vehicle = { figure: bakeVehicleRig(src.manifest, { keys: 12, targetH: 1.5 }) };
+          }
+          const { figure } = await bakeTransformer({ robot, vehicle, scheme: T.scheme, fold: T.fold, legs: T.legs, height: T.height });
+          payload.figures[name] = figure;
           continue;
         }
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
@@ -1104,6 +1153,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.pixel = { scale: k };
   }
 
+  // the ENDLESS RUNNER (worlds/controllable/runner.js): the pilot runs on its own down lanes, the rows laid ahead of it
+  // as it plays; the page carries the runner's engine and view only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.runner != null && sketch.manifest.runner !== false) payload.runner = readRunner(sketch.manifest.runner);
+
+  // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
+  // fov is derived at it. Absent: the page's own box, every byte as it was.
+  if (payload && sketch.manifest.screen != null) {
+    const S = readScreen(sketch.manifest.screen);
+    payload.screen = screenPayload(S);
+    payload.viewBox = screenFrame(S, 1120);
+  }
+
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient
   // soundtrack (inline recipe or a stored beats artifact by `beatsRef`, inlined here so the page
   // stays self-contained), bus-event SFX cues, gait footsteps, and wind shaped by the scene's
@@ -1148,6 +1209,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+  }
+  // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
+  // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
+  // (a city's `board` is its plan's street grid, city/plan: never spots)
+  if (payload && kind !== 'board' && kind !== 'city' && sketch.manifest.board && typeof sketch.manifest.board === 'object') {
+    const [{ boardOverWorld }, { boardFigures }] = await Promise.all([import('@/lib/graph/board/board-scene.js'), import('@/lib/graph/board/board-figures.js')]);
+    Object.assign(payload, boardOverWorld(payload, sketch.manifest.board, { play: sketch.manifest.play }));
+    Object.assign(payload, await boardFigures(payload, { heroFigure, figures: sketch.manifest.board.battle?.figures }));
   }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade

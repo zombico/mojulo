@@ -20,13 +20,12 @@
  * by rig.
  */
 import { faunaSkeleton } from '../skeleton.js';
-import { speciesPlan, SPECIES } from '../species.js';
-import { locomotionFor } from '../locomotion/index.js';
 import { poseGait, prepare as prepareGait } from '../gait.js';
 import { limbsOf, hangLimb, blockStart } from '../limb.js';
 import { sub, add, mul, norm, unit, I3, mm, mv, rotX, rotY, rotZ, axisAngle, between } from '../vec.js';
 import { resolveBehavior } from './index.js';
 import { capabilitiesOf } from './capabilities.js';
+import { bodyPlan, bodyLocomotion } from '../body.js';
 
 const TAU = 2 * Math.PI, DEG = Math.PI / 180;
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -70,7 +69,7 @@ export function prepare(id) {
 
 /** The trunk's belly height (its lowest ring bottom) and its thickness (the deepest ring), from the plan it builds. */
 function trunkRings(id, S) {
-  const plan = speciesPlan(id);
+  const plan = bodyPlan(id);
   const onSpine = (name) => { const b = S.bind[name]; const ids = typeof b === 'string' ? [b] : b ? (b.stations || [b.from, b.to]) : []; return ids.some((x) => /^spine\d+$/.test(x)); };
   let belly = Infinity, girth = 0;
   for (const g of plan.segments) {
@@ -660,7 +659,7 @@ function surfaceTail(ctx, W, H) {
 // ── SWIMMING ON: the species' own swim gait ─────────────────────────────────────────────────────────────────────────
 
 function cruise(ctx, t) {
-  const L = locomotionFor(SPECIES[ctx.id].family, ctx.id);
+  const L = bodyLocomotion(ctx.id);
   const g = L.gaits.swim ? 'swim' : L.gaits.fly ? 'fly' : Object.keys(L.gaits)[0];
   ctx.gait ||= prepareGait(ctx.id);
   return poseGait(ctx.id, g, t, ctx.gait);

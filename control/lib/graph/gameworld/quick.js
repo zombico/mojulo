@@ -8,6 +8,16 @@
  *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
+ *     transformer?: { robot?, vehicle?, scheme?, fold?, legs?, height? },   // the hero TRANSFORMS (transformation/: B,
+ *                                           // the pad's L3): a robot that is a vehicle too. robot: { variable: { palette? } }
+ *                                           // a variable suit folding into its waverider, { alien: { palette? } } an alien
+ *                                           // body of pointed shells folding into a hover jetski; vehicle: { supercar } |
+ *                                           // { ride } | { racer } a car that stands up into a robot (scheme 'car-bot', or
+ *                                           // 'rear-foot': its legs together the rear, the head popping out of the
+ *                                           // middle), { craft } a jet that does ('jet-bot', or 'fuselage-fold' with fold
+ *                                           // 'front' | 'back' and legs 'stretch' | 'box'). A car's and a jetski's goals
+ *                                           // are a trail's (reach, collect, survive, avoid, race alone); a flier's the
+ *                                           // fly goal, flown from its seat in the air
  *     climb?: true,                         // a climb after the trail, the exit at its top
  *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):
  *                                           // entered at its way in, its goal room the end, pickups in its other rooms
@@ -40,6 +50,17 @@
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
+ *     board?: true | { cols?, rows?, gold? }   // conquer: the skirmish's board and its purse (board/board-rts.js)
+ *     sides?: [player, enemy?]              // conquer: each side a civilization of the world (its id) or one in
+ *                                           // words ('armoured walkers, laser carbines, a sentry turret'), fielding
+ *                                           // what its technology crafts (board/board-rts-tech.js); a side not
+ *                                           // named plays the plain worker, soldier and archer
+ *     doctrine?: 'economy' | 'aggression' | 'fortress' | 'science'   // conquer: how the player chose to play
+ *     match?: true                          // conquer: a whole match (board-rts.js rts.match): a lobby first, the
+ *                                           // fog, the melee rule, a field a side, results, rematch
+ *     board?: true | { cols?, rows?, gold? }   // defend: a TOWER DEFENCE on the stage's spots (board/board-td.js):
+ *                                           // towers on any free spot that keeps the road open, the waves the
+ *                                           // ladder's (waves: 1 to 5), no hero; without it, the trail's defence
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
  *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
@@ -68,6 +89,7 @@
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
+ *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // written to the world's own `screen` (game/screen.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
  *                                           // rolled order; a death ends the run (the play shell keeps the deepest)
  *   }
@@ -78,11 +100,14 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
+import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
+import { readScreen } from '../game/screen.js';
+import { readRunner } from '../worlds/controllable/runner.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { libraryFigure, foeFigure, beastLook, readBeastFoe, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -100,6 +125,10 @@ import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
+import { ALIEN_PALETTES } from '../transformation/alien-body.js';
+import { SCHEME_DIALS } from '../transformation/schemes.js';
+import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -107,6 +136,7 @@ import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
 import { fighterSpec, defaultFighters } from '../versus/versus-sheet.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
+import { RTS_DOCTRINES } from '../board/board-rts.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -126,6 +156,8 @@ export const QUICK_GOALS = Object.freeze({
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
+  conquer: 'a real-time skirmish on the stage\'s spots, seen from above: workers mine gold, a barracks trains soldiers and archers; select and order them (move, attack-move, hold) and take the enemy\'s base before it takes yours',
+  runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -156,7 +188,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'transformer', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -171,6 +203,80 @@ function readQuickCast(Q) {
   for (const k of Object.keys(C)) if (!QUICK_CAST_KEYS.includes(k)) throw fail(`.cast.${k} is not part of a quick game's cast (${QUICK_CAST_KEYS.join(', ')})`);
   if (C.scale !== undefined && !QUICK_CAST_SCALES.includes(C.scale)) throw fail(`.cast.scale is ${QUICK_CAST_SCALES.join(', ')} (a journey's cast is the book's: its sheets wait on the creator's approval)`);
   if (C.n !== undefined && !(Number.isInteger(C.n) && C.n >= 1 && C.n <= 4)) throw fail('.cast.n is the party beside you, 1 to 4');
+}
+
+// a quick transformer: which form its vehicle is (a car drives a trail; a jet or a variable suit's waverider flies),
+// and the goals each plays
+export const QUICK_TRANSFORMER_GOALS = Object.freeze({ ground: ['reach', 'collect', 'survive', 'avoid', 'race'], air: ['fly'] });
+export const transformerForm = (T) => (T.vehicle ? (T.vehicle.craft ? 'air' : 'ground') : T.robot && T.robot.alien ? 'ground' : 'air');
+// the ways a car and a craft may transform (a body drawn to fold has its own)
+export const QUICK_TRANSFORMER_SCHEMES = Object.freeze({ car: ['car-bot', 'rear-foot'], craft: ['jet-bot', 'fuselage-fold'] });
+function readQuickTransformer(Q) {
+  const T = Q.transformer;
+  const shape = '.transformer is { robot?, vehicle?, scheme?, fold?, legs?, height? }: robot { variable: { palette?, build? } } (a variable suit, folding into its waverider) or { alien: { palette?, build? } } (pointed shells folding into a hover jetski), vehicle one of { supercar: { preset? } }, { ride: \'car\' | \'coupe\' | \'van\' }, { racer: { … } }, { craft: \'<archetype>\' }';
+  if (!isObj(T)) throw fail(shape);
+  for (const k of Object.keys(T)) if (!['robot', 'vehicle', 'scheme', 'fold', 'legs', 'height'].includes(k)) throw fail(`.transformer.${k}: ${shape}`);
+  for (const k of ['hero', 'ride', 'racers', 'supercars', 'craft', 'rivals']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.transformer is the hero: no ${k} beside it`);
+  if (Q.climb || Q.building !== undefined) throw fail('.transformer runs a trail or flies a map: no climb, no building');
+  if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.transformer is followed from behind (camera third-person)');
+  if (T.height !== undefined && !(Number.isFinite(T.height) && T.height >= 2 && T.height <= 40)) throw fail('.transformer.height is the robot\'s height in metres, 2 to 40');
+  if (T.robot !== undefined) {
+    const kind = isObj(T.robot) && Object.keys(T.robot).length === 1 ? Object.keys(T.robot)[0] : null;
+    if (!['variable', 'alien'].includes(kind) || !isObj(T.robot[kind])) throw fail('.transformer.robot is { variable: { palette?, build? } } or { alien: { palette?, build? } } (a stored suit rides compose_world\'s figures.<name>.transformer)');
+    const P = T.robot[kind].palette, PAL = kind === 'alien' ? ALIEN_PALETTES : VARIABLE_PALETTES;
+    if (P !== undefined && !PAL[P]) throw fail(`.transformer.robot.${kind}.palette is one of ${Object.keys(PAL).join(', ')}`);
+    if (T.vehicle !== undefined) throw fail(`.transformer.robot { ${kind} } is its own vehicle (${kind === 'alien' ? 'its jetski' : 'its waverider'}): no vehicle beside it`);
+    for (const k of ['scheme', 'fold', 'legs']) if (T[k] !== undefined) throw fail(`.transformer.${k}: a body drawn to fold folds its own way (no ${k})`);
+  }
+  if (T.vehicle !== undefined) {
+    const V = T.vehicle, ks = isObj(V) ? Object.keys(V) : [];
+    if (!isObj(V) || ks.length !== 1 || !['supercar', 'ride', 'racer', 'craft'].includes(ks[0])) throw fail(shape);
+    if (V.ride !== undefined && !RIDES[V.ride]) throw fail(`.transformer.vehicle.ride is one of ${Object.keys(RIDES).join(', ')}`);
+    if (V.craft !== undefined && !CRAFT_ARCHETYPES[V.craft]) throw fail(`.transformer.vehicle.craft is a craft archetype (${Object.keys(CRAFT_ARCHETYPES).slice(0, 6).join(', ')}, …)`);
+    if (V.supercar !== undefined && !(isObj(V.supercar) && (V.supercar.preset === undefined || SUPERCAR_LIBRARY[V.supercar.preset]))) throw fail(`.transformer.vehicle.supercar is { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')} }`);
+    if (V.racer !== undefined && !isObj(V.racer)) throw fail('.transformer.vehicle.racer is a racer\'s recipe ({ seed?, facets?, brief? })');
+  }
+  if (T.vehicle !== undefined) {
+    const which = T.vehicle.craft !== undefined ? 'craft' : 'car', ok = QUICK_TRANSFORMER_SCHEMES[which];
+    if (T.scheme !== undefined && !ok.includes(T.scheme)) throw fail(`.transformer.scheme: a ${which} transforms as ${ok.join(' or ')}`);
+    const D = SCHEME_DIALS[T.scheme ?? ok[0]] || {};
+    for (const k of ['fold', 'legs']) {
+      if (T[k] === undefined) continue;
+      if (!D[k]) throw fail(`.transformer.${k} is a fuselage fold's (scheme 'fuselage-fold')`);
+      if (!D[k].includes(T[k])) throw fail(`.transformer.${k} is ${D[k].join(' or ')}`);
+    }
+  }
+  const form = transformerForm(T);
+  if (!QUICK_TRANSFORMER_GOALS[form].includes(Q.goal)) throw fail(`.transformer: a ${form === 'air' ? 'flier' : T.robot ? 'jetski' : 'car'}'s goals are ${QUICK_TRANSFORMER_GOALS[form].join(', ')}`);
+}
+
+/**
+ * The quick transformer's body and its robot form: the figure spec (world-scene.js figures.<name>.transformer), the
+ * robot's height, and its rule and camera, scaled to that height; a car's vehicle form too (a flier's is the airspace
+ * seat's, levels.js). → { transformer, H, forms: { robot, vehicle? } }
+ */
+export function quickTransformer(Q) {
+  const T = Q.transformer, form = transformerForm(T);
+  // a variable suit stands a mobile worker's height on a trail's land; an alien its jetski's length; a car-bot its car's
+  // length; a jet-bot its jet's
+  const alien = !!(T.robot && T.robot.alien);
+  const H = T.height ?? (alien ? 3.5 : T.robot ? 7 : T.vehicle.craft ? 14 : 4.5);
+  const spec = { ...(T.robot ? { robot: T.robot } : {}), ...(T.vehicle ? { vehicle: T.vehicle } : {}), ...(T.scheme ? { scheme: T.scheme } : {}), ...(T.fold ? { fold: T.fold } : {}), ...(T.legs ? { legs: T.legs } : {}), height: H };
+  const robot = {
+    rule: { type: 'platform', speed: r3(2 + 2.2 * Math.sqrt(H)), jumpSpeed: r3(2 + 3 * Math.sqrt(H)), stride: r3(0.55 * H), collideRadius: r3(0.12 * H), collideHeight: r3(0.9 * H) },
+    camera: { dist: r3(2.6 * H), height: r3(H), lead: r3(0.6 * H), lookH: r3(0.6 * H) },
+  };
+  if (form === 'air') return { transformer: spec, H, forms: { robot } };
+  // the car: its proportions (a wheelbase about 0.6 of its length, a wheel about 0.077), on a ride's drive (a rear-foot
+  // robot stands shorter than its car); a jetski skims on the same drive, quick to turn, no wheel to read
+  const L = T.scheme === 'rear-foot' ? H / 0.85 : H;
+  const vehicle = {
+    rule: alien
+      ? { type: 'drive', horsepower: 180, mass: 420, wheelbase: r3(0.5 * L), wheelRadius: r3(0.1 * L), topSpeed: 30, steerMax: 0.7, collideRadius: r3(0.25 * L) }
+      : { type: 'drive', horsepower: 320, mass: 1500, wheelbase: r3(0.6 * L), wheelRadius: r3(0.077 * L), topSpeed: 26, collideRadius: r3(0.22 * L) },
+    camera: { dist: r3(2.4 * L), height: r3(L), lead: 5, lookH: r3(0.27 * L) },
+  };
+  return { transformer: spec, H, forms: { robot, vehicle } };
 }
 
 /** Read the quick block and say what is wrong. */
@@ -194,6 +300,7 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
   }
+  if (Q.transformer !== undefined) readQuickTransformer(Q);
   if (Q.racers !== undefined) {
     if (Q.goal !== 'race') throw fail('.racers belongs to the race goal');
     if (Q.ride !== undefined || Q.hero) throw fail('.racers and a ride or hero: your racer is the first of the field');
@@ -235,11 +342,21 @@ export function readQuick(Q) {
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
   if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
+  // the RUNNER (worlds/controllable/runner.js): its settings, and a distance that wins it (absent: endless)
+  if (Q.goal !== 'runner' && (Q.runner !== undefined || Q.distance !== undefined)) throw fail('.runner and .distance belong to the runner goal');
+  if (Q.goal === 'runner') {
+    if (Q.runner !== undefined) { try { readRunner(Q.runner, 'quick.runner'); } catch (e) { throw fail(`: ${e.message}`); } }
+    if (Q.distance !== undefined && !(Number.isInteger(Q.distance) && Q.distance >= 10)) throw fail('.distance is the metres a run is won at, a whole number of 10 or more (leave it out: endless)');
+    if (Q.hero === false) throw fail('.runner runs a hero: leave hero out (a hero is made) or give one');
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.runner is followed from behind (camera third-person)');
+    for (const k of ['climb', 'building', 'run', 'ride', 'racers', 'supercars', 'roadway', 'airspace', 'craft']) if (Q[k] !== undefined) throw fail(`.${k}: a runner is the run alone`);
+  }
   for (const k of ['bots', 'frags', 'arena', 'pole', 'weapons', 'mode']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
   if (Q.mode !== undefined && !DEATHMATCH_MODES.includes(Q.mode)) throw fail(`.mode is ${DEATHMATCH_MODES.join(', ')} (two sides: team deathmatch, or a point held for time)`);
   if (Q.mode && Q.mode !== 'free-for-all' && (Q.bots ?? DEATHMATCH.bots) < 1) throw fail('.mode: two sides need a bot on the other side');
@@ -299,6 +416,24 @@ export function readQuick(Q) {
   for (const k of ['foe', 'tower']) if (Q[k] !== undefined && !isObj(Q[k])) throw fail(`.${k} is a hero-door spec, as .hero is`);
   if (beastLook(Q.foe)) readBeastFoe(Q.foe, ['battle', 'defend'].includes(Q.goal) ? null : `a ${Q.goal}'s foes carry guns: a person's hands`, '.foe', fail);
   if (Q.goal === 'defend' && (Q.building !== undefined || Q.climb)) throw fail('.defend holds a trail: no climb, no building');
+  if (Q.goal === 'conquer' && (Q.building !== undefined || Q.climb || Q.ride || Q.hero !== undefined || Q.run !== undefined)) throw fail('.conquer is a skirmish on the stage\'s spots, commanded from above: no hero, climb, building, ride or run');
+  if (Q.doctrine !== undefined && (Q.goal !== 'conquer' || !RTS_DOCTRINES[Q.doctrine])) throw fail(Q.goal !== 'conquer' ? '.doctrine belongs to the conquer goal: how the player chose to play' : `.doctrine '${Q.doctrine}' is not a doctrine (${Object.entries(RTS_DOCTRINES).map(([k, v]) => `${k}: ${v.read}`).join('; ')})`);
+  if (Q.match !== undefined && (Q.goal !== 'conquer' || typeof Q.match !== 'boolean')) throw fail(Q.goal !== 'conquer' ? '.match belongs to the conquer goal: a whole match, a lobby first and results after' : '.match is true (a whole match: a lobby first, results after) or false');
+  if (Q.sides !== undefined) {
+    if (Q.goal !== 'conquer') throw fail('.sides belongs to the conquer goal: the skirmish\'s two sides');
+    if (!Array.isArray(Q.sides) || !Q.sides.length || Q.sides.length > 2 || !Q.sides.every((v) => typeof v === 'string' && v.trim())) throw fail('.sides is [player, enemy?]: each a civilization of the world (its id) or one in words (\'armoured walkers, laser carbines\')');
+  }
+  if (Q.board !== undefined) {
+    if (Q.goal !== 'defend' && Q.goal !== 'conquer') throw fail('.board belongs to the defend goal (a tower defence on the stage\'s spots) and the conquer goal (the skirmish\'s board)');
+    if (Q.board !== true && !isObj(Q.board)) throw fail('.board is true, or { cols?, rows?, gold? }');
+    if (isObj(Q.board)) {
+      for (const k of Object.keys(Q.board)) if (!['cols', 'rows', 'gold'].includes(k)) throw fail(`.board.${k} is not part of it (cols, rows, gold)`);
+      for (const k of ['cols', 'rows']) if (Q.board[k] !== undefined && !(Number.isInteger(Q.board[k]) && Q.board[k] >= 6 && Q.board[k] <= 20)) throw fail(`.board.${k} is 6 to 20 spots`);
+      if (Q.board.gold !== undefined && !(Number.isInteger(Q.board.gold) && Q.board.gold >= 0 && Q.board.gold <= 999)) throw fail('.board.gold is 0 to 999');
+    }
+    for (const k of ['pads', 'tower']) if (Q[k] !== undefined) throw fail(`.${k} is the trail's defence; on a board a tower stands on any free spot that keeps the road open`);
+    if (Q.goal === 'defend' && Q.waves !== undefined && Q.waves > TD_WAVES.length) throw fail(`.waves is 1 to ${TD_WAVES.length} on a board (its ladder)`);
+  }
   if (Q.goal !== 'puzzle' && Q.boulders !== undefined) throw fail('.boulders belongs to the puzzle goal');
   if (Q.boulders !== undefined && !(Number.isInteger(Q.boulders) && Q.boulders >= 1 && Q.boulders <= 4)) throw fail('.boulders is 1 to 4');
   if (Q.goal === 'puzzle' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.puzzle lays its grid by a trail\'s start: no climb, building or ride');
@@ -323,7 +458,7 @@ export function readQuick(Q) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera', 'screen'];
 function readFight(Q) {
   for (const k of Object.keys(Q)) {
     if (k === 'stages') throw fail('.stages: a fight is fought on its arenas (name them as arenas)');
@@ -396,7 +531,8 @@ export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
 export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
-  const { camera: named, moves, ...quick } = given;
+  // (and the screen it is made for, beside it: game/screen.js)
+  const { camera: named, moves, screen, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
@@ -416,9 +552,18 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // a flight: the level is an airspace (skyscape/), its map flown by the craft, its course its laps
   // (a dogfight is a flight with no course: the foes are its goal)
   const dogfight = quick.goal === 'shoot' && quick.craft !== undefined;
-  const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
+  const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? (quick.transformer ? 'jet' : 'trainer') }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
   // (the race's mood: the roadway lit in it, roads/race-mood.js)
   const mood = quick.mood ? { mood: quick.mood } : {};
+  // a runner: the run is the level (its seed the world's), and a hero runs it (made when none is named)
+  if (quick.goal === 'runner') {
+    return {
+      id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(screen !== undefined ? { screen } : {}),
+      style: { ...(style ?? {}), kit },
+      levels: { run: { name: name ?? id, runner: quick.runner ?? true } },
+      quick: { ...quick, hero: quick.hero ?? {} },
+    };
+  }
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
@@ -426,7 +571,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}),
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}), ...(screen !== undefined ? { screen } : {}),
     style: { ...(style ?? {}), kit },
     levels,
     quick,
@@ -446,6 +591,8 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    case 'runner':
+      return [{ kind: 'runner', ...(quick.distance !== undefined ? { distance: quick.distance } : {}) }];
     case 'fly': {
       // the course's gates in three dimensions, then a landing on the runway (skyscape/course.js), round `laps` times; a
       // crash comes back at the last gate passed

@@ -41,7 +41,8 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // 4600 -> 4800 (2026-10-17): the geocube card took its `materials` line and contrast's `metal` term (look materials)
 // 4800 -> 5000 (2026-10-17): the geocube card took `materials.age` and `outside.crystals` (level age and crystals);
 // it stood at 4873 with them
-export const STAGE_CARD_BODY_CEILING = 5000;
+// 5000 -> 5200 (2026-10-19): the geocube card took the city-night preset's line (the city stalker); it stands at 5074
+export const STAGE_CARD_BODY_CEILING = 5200;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));

@@ -48,6 +48,16 @@ export const CONCERNS = Object.freeze([
     asks: 'a clock needs places with a time: a home to return to at night, a workplace for the day, paths between them the folk walk, landmarks that still read in the dark',
   },
   {
+    id: 'lanes', name: 'Lanes to read at speed',
+    when: ['power.mechanics=runner', 'space.levelForm=run'],
+    asks: 'a run needs lanes the eye reads at speed: rows spaced for a reaction at the speed reached, every row with a way through, low things to jump, high ones to slide under, coins drawing the eye to a safe lane (laid as it is played, worlds/controllable/runner.js)',
+  },
+  {
+    id: 'saga-curve', name: 'A curve across the map',
+    when: ['time.progression=saga'],
+    asks: 'a saga needs a curve: every level winnable in its moves by a steady player, the first generous, the moves thinning and the goals climbing, a goal the player reads at a glance (measured against a greedy player, philosophers-stone-saga.js)',
+  },
+  {
     id: 'circuit', name: 'A line to race',
     when: ['power.mechanics=laps'],
     asks: 'racing needs a line: checkpoints spaced so each leg is a stretch worth taking (twelve metres or more), a way wide enough to take at speed, the finish in sight of the last bend',

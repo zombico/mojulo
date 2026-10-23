@@ -243,6 +243,29 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'endless-runner',
+    name: 'Endless runner',
+    anchor: false,
+    why: 'a hero runs on its own down lanes, ever faster: change lane, jump and slide past what comes; a crash ends the run, the best kept',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', levelForm: 'run' },
+      power: { rules: ['platform'], mechanics: ['runner'] },
+      soul: { hero: 'hero', gaits: ['jump'] },
+      time: { progression: 'none' },
+    },
+  },
+  {
+    id: 'match-3-saga',
+    name: 'Match-3 saga',
+    anchor: false,
+    why: 'a map of short puzzle levels on a swap-to-match board, each a few moves to reach its goal, three stars to earn',
+    cube: {
+      reality: { medium: 'board' },
+      time: { progression: 'saga' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,
@@ -296,6 +319,33 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
+  {
+    id: 'tactics',
+    name: 'Tactics role-playing game',
+    anchor: false,
+    why: 'a party of classed units on a board of spots, a turn each on a charge-time clock: move, act, face; height and facing count; chapters travelled from a map, scenes told on the board, summons',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'tactical', board: 'spots', levelForm: 'trail' },
+      power: { combat: ['tactics'], stats: ['xp', 'level'], systems: ['equip'], summons: ['inferno'] },
+      soul: { party: 'party' },
+      mind: { squad: 'team-aware' },
+      time: { progression: 'map', chapters: 'epochs', shots: ['board', 'banter'] },
+    },
+  },
+  {
+    id: 'rts',
+    name: 'Real-time strategy',
+    anchor: false,
+    why: 'armies ordered from above in real time: select, move, attack, gather and build; unalike sides, each climbing its own technology',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'tactical', levelForm: 'arena' },
+      power: { combat: ['ranged', 'melee'], systems: ['orders', 'research', 'resource', 'place'], stats: ['buy'] },
+      mind: { pathing: 'navmesh', squad: 'team-aware' },
+      time: { progression: 'linear' },
+    },
+  },
   // the fighter (10-15): a side-on one-on-one in rounds, its own simulation on a stage arena
   {
     id: 'versus-fighter',
@@ -318,6 +368,21 @@ export const FIXTURES = Object.freeze([
       space: { camera: 'top-down', topology: 'linear', levelForm: 'rooms' },
       power: { mechanics: ['push', 'reach-exit'] },
       time: { progression: 'linear', advance: 'cues' },
+    },
+  },
+  // the city stalker (10-19): the open city as a primitive, its districts played one at a time
+  {
+    id: 'city-stalker',
+    name: 'City stalker',
+    anchor: false,
+    why: 'a hero who swings between towers and crawls their walls, fights on the roofs and streets, the gear\'s reach opening the city district by district',
+    cube: {
+      reality: { medium: '3d', look: 'city-night' },
+      space: { camera: 'third-person', topology: 'interconnected', levelForm: 'city', traversal: 'wall' },
+      power: { idiom: 'city-stalker-like', gear: 'swinger', rules: ['platform', 'follow'], combat: ['melee'], systems: ['unlock'] },
+      soul: { hero: 'hero' },
+      mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' },
+      time: { progression: 'gated' },
     },
   },
 ]);

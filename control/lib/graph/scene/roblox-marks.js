@@ -49,6 +49,7 @@ const PLATFORM_MOVES = {
   dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
   tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
   loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
+  wall: 'the wall (wall.js: any face held, crawled, mantled, jumped off)', metre: 'the wall and the gear', gear: 'the gear (swing.js: the swinger\'s line, its swing and zip)',
 };
 export const PLATFORM_KEYS = Object.freeze({
   ported: ['type', 'speed', 'eye', 'jumpSpeed', 'gravity'],
@@ -112,16 +113,16 @@ export const PAGE_MARKS = Object.freeze({
     'picks', 'tracers', 'planets', 'movers', 'comets', 'fields', 'surfaces', 'heatSpheres', 'starSurfaces',
     'buildups', 'transports', 'deforms', 'raymarch', 'signs', 'physics', 'actions',
     'spectate', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',
-    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'splats', 'audio', 'fx',
+    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'hazeHeight', 'splats', 'audio', 'fx',
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
     'doors', 'items', 'shallows', 'wetSand', 'softGround', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'wetRoad',
-    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast',
+    'weather', 'tone', 'liveGrass', 'pixel', 'versus', 'vertexContrast', 'screen', 'runner', 'board', 'science',
   ]),
 });
 
 // ── a rigged figure's page overlays ──────────────────────────────────────────────────────────────────────────────────
-export const FIGURE_MARKS = absent(['live', 'juice', 'beams', 'trails']);
+export const FIGURE_MARKS = absent(['live', 'juice', 'beams', 'trails', 'forms']);
 
 // ── the events manifest's keys ───────────────────────────────────────────────────────────────────────────────────────
 const BUS = 'kernel/bus.luau, held equal to the web by the bus and level corpora (Lune)';

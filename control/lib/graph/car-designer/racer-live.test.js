@@ -5,20 +5,18 @@
 // sparks and smoke in a hard corner, a boost's flame; its status and the big effects: brake lamps, a boost's shock and
 // the speed lines, impact stars and the dizzy ones, a white flash, a shield, a star's cycling colours.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import { rollEgocube } from '../egocube/egocube.js';
 import { racerFromSheet, solveRacer } from './racer.js';
 import { vehicleRule } from '../roads/vehicles.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
-import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
+import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
 let exe = null, browser = null, shots = null, juice = null;
 const S = solveRacer(racerFromSheet(rollEgocube({ facets: { archetype: 'explorer' }, seed: 4 }), { seed: 4 }), { seed: 4 });
 beforeAll(async () => {
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  const puppeteer = (await import(pathToFileURL(createRequire(import.meta.url).resolve('puppeteer-core')).href)).default;
-  browser = await puppeteer.launch({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  // launchChromium: the sandbox on, and off only where Chrome cannot keep it (a Linux container, root)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
   const html = emitThreeWorld({ faces: [{ corners: [[-200, -200, 0], [200, -200, 0], [200, 200, 0], [-200, 200, 0]], fill: '#8fb36a' }], cameras: [{ name: 'c', worldFraming: { cameraPosition: [-6, -6, 4], lookAt: [0, 0, 0.5], horizontalFov: 60, pictureCenter: [560, 390] } }], viewBox: { width: 640, height: 448 }, title: 'live', metersPerUnit: 1,
     entities: [{ id: 'car', pilotable: true, rule: vehicleRule('kart'), body: { type: 'figure-rig', figure: 'racer' }, transform: { pos: [0, 0, 0], heading: 0 } }], figures: { racer: S.figure }, pilot: 'car', fx: { states: { none: 'pulse' } }, inline: true, hud: false });
   const page = await browser.newPage();

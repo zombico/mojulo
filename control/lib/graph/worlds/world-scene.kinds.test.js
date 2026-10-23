@@ -20,6 +20,9 @@ import { withPngPixels } from '../../util/png-pixels.fixture.js';
  * (snapshot update = explicit acknowledgment).
  *
  * Re-pin log:
+ *   - 2026-10-19 science worlds (CHANGELOG "Science worlds"): the classical-view arm (added the same day) re-based when
+ *     its payload began carrying the film it proposes (`defaultShoot`) and the science block's film config, and again
+ *     when the science readout became rows; the microscopic-view, quantum-view and relativistic-view arms added.
  *   - 2026-09-26 furniture audit (CHANGELOG-2.x.md "Furniture audit"): the floorplan arm's rows re-based —
  *     sealed rooms are doored, interior leaves park against the wall with panels and a handle,
  *     share-mode chairs / wall pieces / entry / storage / tabletop meshes changed on purpose.
@@ -41,6 +44,11 @@ const FIXTURES = {
   'cellular-view': { kind: 'cellular-view' },
   'atom-view': { kind: 'atom-view' },
   'mechanics-view': { kind: 'mechanics-view' },
+  // a science world needs a model: one body under gravity is its smallest
+  'classical-view': { kind: 'classical-view', model: { bodies: [{ id: 'ball', mass: 1, radius: 0.1, at: [0, 0, 1], v: [3, 0, 4] }], laws: [{ law: 'gravity-uniform' }], duration: 1 } },
+  'microscopic-view': { kind: 'microscopic-view', model: { box: { size: ['5 µm', '5 µm', '5 µm'] }, species: [{ id: 'bead', radius: '0.2 µm', count: 10 }], laws: [{ law: 'brownian' }], duration: '1 s' } },
+  'quantum-view': { kind: 'quantum-view', model: { system: 'decay', laws: [{ law: 'decay', half_life: '2 s' }], state: { nuclei: 20 }, duration: '4 s' } },
+  'relativistic-view': { kind: 'relativistic-view', model: { system: 'clocks', laws: [{ law: 'schwarzschild', mass: '10 M☉' }, { law: 'clock', at: '100 km' }], duration: '1 ms' } },
   'orbit-view': { kind: 'orbit-view' },
   'comet-view': { kind: 'comet-view' },
   'field-view': { kind: 'field-view' },
@@ -123,7 +131,9 @@ const mix = (state, str) => {
 const hashWalk = (v, h) => {
   if (v === null || v === undefined) return mix(h, v === null ? 'null' : 'undef');
   const t = typeof v;
-  if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : 'float;');
+  // within 1e-9 of an integer reads as that integer: a cancellation residue (a normal's −9.98e-16) is exactly 0 on
+  // another libm build, and an int/float flip would move the hash (cellular-view did, 2026-10-19)
+  if (t === 'number') return mix(h, Number.isInteger(v) ? `int:${v};` : Math.abs(v - Math.round(v)) < 1e-9 ? `int:${Math.round(v) + 0};` : 'float;');
   if (t === 'boolean') return mix(h, `${t}:${v};`);
   if (t === 'string') return mix(h, `${t}:${withPngPixels(v)};`);   // a texture by its pixels: Node builds compress it differently
   if (t === 'function') return mix(h, 'fn;'); // payloads should not carry functions; hash presence only

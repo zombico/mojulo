@@ -6,6 +6,8 @@
  * `godot: { all }`, writes one engine's mark by that engine's id.
  */
 // a moment on the cast's clock (kernel/cast.gd), struck when a beam lands, drawn simpler than the page
+// the strategy board is the page's (board/*); no engine kernel plays it yet
+const WEB = { godot: 'absent' };
 const MOMENT = { all: 'approximated', how: 'a moment on the cast\'s clock (kernel/cast.gd), drawn simpler than the page' };
 export const POWER = Object.freeze({
   id: 'power',
@@ -34,6 +36,8 @@ export const POWER = Object.freeze({
         // Godot: the one-on-one play.battle runs on the bus, the world frozen while its menu is up (II5,
         // godot-story-rows.test.js: equal frame by frame); the party's rounds (play.rpg) stay on the web
         'turn-based': { status: 'built', godot: 'approximated', roblox: 'absent', lowers: 'lib/graph/playscape/rpg/rpg.js', note: 'a party of classed characters (classes switched, each with its own rank and skill tree) against packs of foes in rounds: attack, skills, items, guard, flee; elements, statuses, xp, levels, gold and drops (play.rpg); the one-on-one play.battle remains' },
+        // built 10-19 (strategy board): fought on the board's spots, not in a window over a frozen field
+        tactics: { status: 'built', requires: ['space.board=spots'], ...WEB, lowers: 'lib/graph/gameworld/board-levels.js', note: 'battles.on: board: each stage that meets packs a tactics battle on its own ground, the book\'s party deployed (classes, ranks, skills, gear carried), speed turns of move, act and face, facing and height, a plain foe mind, spoils into the party' },
         // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
         // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.
@@ -42,18 +46,35 @@ export const POWER = Object.freeze({
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS', godot: MOMENT } },
     explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS', godot: MOMENT } },
+    summons: { multi: true, source: { module: 'lib/graph/board/board-battle.js', table: 'BOARD_SUMMONS', godot: { all: 'absent', how: 'the board page only' } } },
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
     systems: {
       multi: true,
       source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS', marks: 'systemMarks' },
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
-      // defence's towers. Free placement anywhere on a grid is not built.
+      // defence's towers. Free placement on a board's spots: maze (10-19).
       planned: {
-        place: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+        place: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); on any free spot of a board: maze' },
+        // built 10-19 (the strategy board): the maze defence's placement
+        maze: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-td.js', note: 'a tower on any free spot of a board, paid from the purse, where every gate and every walking foe keeps a way to the base: the road bends round the towers (board td; quick defend with board)' },
+        // priced 10-19: the real-time strategist's verbs
+        // built 10-19 (the strategy board): the skirmish's orders
+        orders: { status: 'built', requires: ['space.camera=tactical'], ...WEB, lowers: 'lib/graph/board/board-rts.js', note: 'select a unit or a box of them and order it: move, attack-move, attack, hold, stop, gather; buildings train for gold and send out to a rally point; an enemy mind plays the other side (board rts; quick conquer)' },
+        // built 10-19 (the strategy board): a side's ladder, its technology what it fields
+        research: { status: 'built', requires: ['power.systems=orders'], ...WEB, lowers: 'lib/graph/board/board-rts-tech.js', note: 'each side a civilization whose technology is its roster (hand weapons arm infantry, armour is heavy, machine weapons are siege, a turret shoots), climbing a ladder researched one step at a time: its machines, then its showpieces, and income steps; drawn as crafted (quick conquer sides)' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' }, roblox: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
+    // the gear that moves the hero through the air, its directions held by the gear: a line to a face above and ahead (a
+    // swinger), and later one to an edge or a roof (a grapnel) or two to any face in a cone (a twin hook). The city stalker (10-19)
+    gear: {
+      values: {
+        none: { status: 'built', godot: 'built', roblox: 'built', note: 'the hero\'s own legs: jumps, glides and climbs' },
+        // built 10-19 (phase 3): a body owner after the wall, the line to a face found for the hero; web only
+        swinger: { status: 'built', lowers: 'lib/graph/worlds/controllable/swing.js', godot: 'absent', roblox: 'absent', note: 'a line to a building\'s face above and ahead, found for the hero (rule.gear), swung on under a pivot drawn toward the hero\'s line, its arc clear of the street, released with its speed; a zip to the face from the ground; no face in reach, no swing' },
+      },
+    },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
   },
 });

@@ -91,6 +91,9 @@ export function levelCameras(payload = {}) {
     ? payload.viewBox
     : { width: 1120, height: 780 };
   const aspect = vb.width / vb.height;
+  // a game made for a screen (game/screen.js): the frame's own vertical fov when its screen names one (the camera
+  // table's, upright), as the live page draws it; absent, the solve as it was
+  const v0 = payload.screen && Number.isFinite(payload.screen.v0) ? (payload.screen.v0 * Math.PI) / 180 : null;
   const out = [];
   cams.forEach((cam, i) => {
     const wf = cam && cam.worldFraming;
@@ -102,7 +105,7 @@ export function levelCameras(payload = {}) {
       name: typeof cam.name === 'string' && cam.name ? cam.name : `view ${i}`,
       translation: [pos[0], pos[1], pos[2]],
       rotation: lookAtRotation(pos, target),
-      yfov: 2 * Math.atan(Math.tan(h / 2) / aspect),
+      yfov: v0 ?? 2 * Math.atan(Math.tan(h / 2) / aspect),
       aspectRatio: aspect,
       znear: 0.1,
       zfar: 8000,

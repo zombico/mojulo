@@ -42,6 +42,13 @@ export const FIXTURE = [
   // game buildings: a building's rooms laid from its use, in a cube's look
   ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
+  // science worlds: a demo composed from laws, the kind carried as the mode
+  ['make a demo for my physics class of a weight on a spring bobbing in thick oil', 'create_view', 'classical'],
+  ['simulate two moons going around a planet so my students can watch the orbits', 'create_view', 'classical'],
+  ['show my biology class how a drop of dye spreads out through water, molecule by molecule', 'create_view', 'microscopic'],
+  ['show my chemistry students what the 2p and 3d orbitals of hydrogen actually look like', 'create_view', 'quantum'],
+  ['a demo of an electron getting through a wall it does not have the energy to climb', 'create_view', 'quantum'],
+  ['show my class why the clocks on GPS satellites tick faster than ours on the ground', 'create_view', 'relativistic'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
   ['an orchestral cue with pizzicato strings and a timpani roll', 'create_beats'],
@@ -57,6 +64,11 @@ export const FIXTURE = [
   ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
   ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
+  // a board game against the computer: create_game's tabletop, not its levels
+  ['I want to play chess against the computer', 'create_game', 'tabletop'],
+  ['a board game where I build roads and towns from dice and resources, against bots', 'create_game', 'tabletop'],
+  // mobile genres: the match-3 saga is a reducer game, not a world game
+  ['a candy crush kind of game with a level map and stars', 'create_pixelizer_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
@@ -180,7 +192,12 @@ export const COLLISION_FIXTURE = [
   ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
+  // the strategy board: a tactics campaign is the book's (battles on boards), a maze defence and a skirmish the quick path's
+  ['a tactics RPG where my party fights turn by turn on a grid of squares, like Final Fantasy Tactics', 'design_game'],
+  ['a tower defence where the towers I build bend the path the enemies walk', 'design_game'],
+  ['a real-time strategy game where I select units, order them around and train an army to take the enemy base', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
+  ['an endless runner for my phone where you swipe to dodge', 'design_game'],
   ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
   ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],

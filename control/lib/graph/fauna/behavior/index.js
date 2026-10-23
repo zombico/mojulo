@@ -19,6 +19,7 @@
 import { SPECIES } from '../species.js';
 import { CAPABILITIES, capabilitiesOf } from './capabilities.js';
 import { TAGS, tagsOf } from './tags.js';
+import { bodySpecies } from '../body.js';
 
 export { CAPABILITIES, capabilitiesOf, TAGS, tagsOf };
 
@@ -212,9 +213,9 @@ const shape = (behavior, B, st, T, passed) => ({
 });
 
 function qualifying(id, behavior) {
-  const s = SPECIES[id]; if (!s) throw new Error(`behavior: unknown species '${id}'`);
+  const s = SPECIES[bodySpecies(id)]; if (!s) throw new Error(`behavior: unknown species '${id}'`);
   const B = BEHAVIORS[behavior]; if (!B) throw new Error(`behavior: unknown behavior '${behavior}' (have ${Object.keys(BEHAVIORS).join(', ')})`);
-  const C = capabilitiesOf(id), T = tagsOf(s.family, id) || [];
+  const C = capabilitiesOf(id), T = tagsOf(s.family, bodySpecies(id)) || [];
   const passed = [], ok = [];
   for (const st of STRATEGIES[behavior]) {
     const no = disqualifies(st, C, T);

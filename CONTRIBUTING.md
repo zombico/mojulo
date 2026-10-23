@@ -194,7 +194,7 @@ Least glamorous, most useful. A minted recipe that renders wrong, plus the `ref`
 
 Concept PRs — new rings, new paradigms, new core abstractions, changes to deliberation surfaces, anything that shifts *how* mojulo works rather than *what* it offers — will likely sit. The reason isn't that the work is insufficient, and often I won't even disagree with it. It's a maintenance-burden veto: if I can't carry the implications going forward and can't explain *why* the change is shaped the way it is, the PR stays unmerged. AI-assisted review can call a PR safe; that's not the same as the maintainer being able to live with it.
 
-If you have a concept PR you believe in, **fork it**. Mojulo is Apache 2.0 for exactly this reason — apply the idea deeply on your own line, extract value, ship something. The license is the open door; the merge bar is the maintainer's. Those are two different doors and both are real.
+If you have a concept PR you believe in, **fork it**. Mojulo is Apache 2.0 for exactly this reason — apply the idea deeply on your own line, extract value, ship something, under a name of your own ([TRADEMARKS.md](TRADEMARKS.md): "powered by mojulo" is fine as a description, never as the name). The license is the open door; the merge bar is the maintainer's. Those are two different doors and both are real.
 
 ## Running tests
 

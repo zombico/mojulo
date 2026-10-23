@@ -818,11 +818,62 @@ const MECHANICS = {
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
   // numbers only). The level's rpg channel loads the roster as it starts, and puts each changed number back as a
   // setStat after every fight, class switch, skill bought and rest
+  // a BOARD battle (a terminal): the level is a tactics battle on its own ground (its `board.battle`, board/), won and
+  // lost where the board page says so on the bus (board-won; board-lost, or a draw at the turn cap)
+  // `exit`: the way the level is left when won (a map game's: back to its epoch's map)
+  board: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p) {
+      const won = { end: 'success', ...(typeof p.exit === 'string' && p.exit ? { exit: p.exit } : {}) };
+      return { on: { 'board-won': won, 'board-lost': { end: 'fail' }, 'board-draw': { end: 'fail' } } };
+    },
+  },
+
+  // an epoch's MAP (a terminal): the level is the map a tactics game is travelled from (board/board-map.js); choosing a
+  // dot leaves it by that dot's exit (map-go:<dot> on the bus), the game travelling to the dot's level. It reads which
+  // levels are cleared from the progression slice (`slice`), so the roads open as the story moves.
+  map: {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const dots = Array.isArray(p.dots) ? p.dots.filter((d) => typeof d === 'string' && d) : [];
+      if (!dots.length) throw new Error(`map[${ctx.i}]: dots are the ids of the map's dots, each a way out`);
+      const slice = ctx.resolve('progression', p.slice, `map[${ctx.i}]`);
+      return { on: Object.fromEntries(dots.map((d) => [`map-go:${d}`, { end: 'success', exit: d }])), consumes: [{ slice }], world: { vars: { 'map-ready': 1 } } };
+    },
+  },
+
   party: {
     role: 'emitter', requires: ['party'],
     lower(p, ctx) {
       const slice = ctx.resolve('party', p.slice, `party[${ctx.i}]`);
       return { produces: [{ type: 'setStat', slice }], consumes: [{ slice }], party: { slice } };
+    },
+  },
+
+  // the RUN (a terminal): an endless runner's (worlds/controllable/runner.js), scored off its bus: ten metres a `run`,
+  // a coin a `coin`; the distance, the coins and the score shown, the best kept. With `distance` (metres) reaching it
+  // wins and a crash fails; without, the run is endless and its crash ends it, the score its result.
+  runner: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const goal = p.distance === undefined ? null : p.distance;
+      if (goal !== null && !(Number.isInteger(goal) && goal >= 10)) throw new Error(`runner[${ctx.i}]: distance is the metres a run is won at, a whole number of 10 or more (or leave it out: endless)`);
+      const coin = Number.isFinite(p.coin) ? p.coin : 25, metres = Number.isFinite(p.metres) ? p.metres : 10;
+      return {
+        world: {
+          vars: { distance: 0, coins: 0, score: 0 },
+          reactions: [
+            { on: 'runner:run', do: 'inc', var: 'distance', by: 10 },
+            { on: 'runner:run', do: 'inc', var: 'score', by: metres },
+            { on: 'runner:coin', do: 'inc', var: 'coins', by: 1 },
+            { on: 'runner:coin', do: 'inc', var: 'score', by: coin },
+          ],
+          ...(goal !== null ? { watches: [{ type: 'run-won', when: { var: 'distance', gte: goal } }] } : {}),
+          hud: [{ var: 'score', label: 'Score', as: 'counter' }, { var: 'distance', label: 'Metres' }, { var: 'coins', label: 'Coins' }],
+        },
+        on: goal !== null ? { 'run-won': { end: 'success' }, 'runner:crash': { end: 'fail' } } : { 'runner:crash': { end: 'success' } },
+        keep: [{ var: 'score', label: 'Score', best: 'high' }, { var: 'distance', label: 'Distance', best: 'high' }],
+      };
     },
   },
 

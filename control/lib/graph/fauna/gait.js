@@ -23,11 +23,11 @@
  *    tail along it rather than through it.
  */
 import { faunaSkeleton } from './skeleton.js';
-import { locomotionFor, PATTERNS, TAILS, TAIL_BUILDS } from './locomotion/index.js';
-import { SPECIES, speciesParams, speciesPlan } from './species.js';
+import { PATTERNS, TAILS, TAIL_BUILDS } from './locomotion/index.js';
 import { buildWing } from './wing.js';
 import { sub, add, mul, dot, cross, norm, unit, I3, mm, mv, rotX, rotY, rotZ, between } from './vec.js';
 import { limbsOf, hangLimb } from './limb.js';
+import { bodyParams, bodyPlan, bodyLocomotion } from './body.js';
 
 const TAU = 2 * Math.PI;
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -365,7 +365,7 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
 /** The pieces poseGait reuses across frames. */
 export function prepare(id) {
   const S = faunaSkeleton(id); if (!S) throw new Error(`gait: unknown species '${id}'`);
-  const L = locomotionFor(SPECIES[id].family, id);
+  const L = bodyLocomotion(id);
   const byId = Object.fromEntries(S.bones.map((b) => [b.id, b]));
   const limbs = limbsOf(S);
   const hipRoot = limbs.RH?.[0] || limbs.RF?.[0];
@@ -380,7 +380,7 @@ export function prepare(id) {
  * each ring's mass ∝ its cross-section, a tail's times its build's `core` (a bushy tail is mostly hair).
  */
 function tailPhysics(id, S, L) {
-  const plan = speciesPlan(id), B = TAIL_BUILDS[L.axial.tailBuild] || TAIL_BUILDS.stub, J = plan.joints;
+  const plan = bodyPlan(id), B = TAIL_BUILDS[L.axial.tailBuild] || TAIL_BUILDS.stub, J = plan.joints;
   const area = (r) => (Array.isArray(r) ? r[0] * r[1] : r * r);
   const rings = (seg) => {
     if (seg.kind === 'segment' && J[seg.from] && J[seg.to]) {
@@ -417,8 +417,8 @@ function tailPhysics(id, S, L) {
 
 /** The worn wing, rebuildable at any fold: bones relative to the root (scaled), and the root as the body carries it. */
 export function wingOf(id, S, byId) {
-  const P = speciesParams(id); if (!P.wings) return null;
-  const Wp = { scale: P.scale || 1, ...P.wings }, at = speciesPlan(id).joints[Wp.at || 'wingRoot'];
+  const P = bodyParams(id); if (!P.wings) return null;
+  const Wp = { scale: P.scale || 1, ...P.wings }, at = bodyPlan(id).joints[Wp.at || 'wingRoot'];
   const first = `${Wp.wing.arm[0].id}R`; if (!byId[first]) return null;
   const cache = new Map();
   return {

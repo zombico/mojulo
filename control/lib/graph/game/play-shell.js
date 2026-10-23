@@ -33,6 +33,7 @@ import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
+import { readScreen } from './screen.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -40,6 +41,25 @@ const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).b
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // JSON inside <script>: a `</script>` in a title must not close the tag
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+// the shell made for a screen (screen.js): the safe area (the notch's, the home bar's) held clear by the menus and the
+// fixed chrome, buttons no smaller than a thumb, the level's frame standing on the black of its bars; upright, the
+// front's title and menu stand in the thumbs' reach at the foot of the screen, its cover above them
+const SCREEN_CSS = `:root{--safe-t:env(safe-area-inset-top,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px);--safe-l:env(safe-area-inset-left,0px)}
+  html,body{height:100dvh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  body{touch-action:manipulation}
+  button{min-height:44px}
+  button.link{min-height:44px}
+  #app{min-height:100dvh;padding:calc(32px + var(--safe-t)) calc(16px + var(--safe-r)) calc(32px + var(--safe-b)) calc(16px + var(--safe-l))}
+  #pauseBtn{top:calc(12px + var(--safe-t));right:calc(12px + var(--safe-r));min-width:44px}
+  #playtag{top:calc(12px + var(--safe-t));left:calc(12px + var(--safe-l))}
+  #toast{bottom:calc(22px + var(--safe-b))}
+  #debug{right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b))}
+  html[data-screen] #front .fx-skip{right:calc(16px + var(--safe-r));bottom:calc(14px + var(--safe-b))}
+  html[data-orientation=portrait] #front .fx-stage.cover{left:0;top:calc(6vh + var(--safe-t));transform:none;width:100vw}
+  html[data-orientation=portrait] #front .fx-zone{position:fixed;left:50%!important;top:auto!important;bottom:calc(8vh + var(--safe-b));width:min(320px,calc(100vw - 32px))!important;height:auto!important;transform:translateX(-50%)}
+  html[data-orientation=portrait] #front .fx-col:not(.fx-hide){left:50%;right:auto;top:auto;bottom:calc(8vh + var(--safe-b));transform:translateX(-50%);align-items:center;text-align:center;width:calc(100vw - 32px)}
+  html[data-orientation=portrait] #front .fx-menu{width:100%;min-width:0}`;
+
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
 export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
@@ -94,9 +114,13 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
   };
   const front = !!cfg.front;
+  // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
+  // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
+  // Absent: no attribute, no rule, the page as it was
+  const screen = manifest.screen != null ? readScreen(manifest.screen) : null;
 
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"${screen ? ` data-screen="${screen.pole}" data-orientation="${screen.orientation}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1${screen ? ', viewport-fit=cover' : ''}">
 <title>${esc(manifest.title)}${playtest ? ' · playtest' : ''}</title>
 <style>
   :root{--bg:${c.bg};--ink:${c.ink};--accent:${c.accent};--accent2:${c.accent2};--line:${c.line};--panel:${panel};--dim:color-mix(in srgb,var(--ink) 58%,transparent)}
@@ -149,7 +173,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #debug summary{cursor:pointer;font-size:12px;color:var(--dim);text-align:right;list-style:none}
   #debug .body{margin-top:6px;max-height:56vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,Menlo,monospace}
   #debug pre{margin:4px 0 10px;white-space:pre-wrap;word-break:break-word}
-  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${front ? `
+  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
+  ${SCREEN_CSS}` : ''}${front ? `
   ${FRONT_CSS}` : ''}
 </style></head>
 <body>
@@ -458,7 +483,8 @@ export function playShellRuntime(cfg, K) {
     }
     if (d.moj === W.outcome && !session.ended) {
       session.ended = true;
-      const before = front && allCleared();
+      // THE END: a game with a final level (M.final) is cleared by its first win alone
+      const before = (front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
@@ -474,16 +500,17 @@ export function playShellRuntime(cfg, K) {
       }
       // a RUN: on to its next level, or its end
       if (run) { const sess = session; setTimeout(() => { if (session === sess) runOutcome(env, r.ok); }, 1400); return; }
+      // the game first completed: the end, not on through the level's exit
+      const fin = (front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
       // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
-      const to = r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      const to = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       const onward = to && LEVELS.find((l) => l.ref === to);
       if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       const sess = session;
       // the last level first cleared: the front's end (its card, then the roll) in place of the result
-      const fin = front && !before && r.ok && env.result === 'success' && allCleared();
       // the level shows its own end card first; the result follows it
-      setTimeout(() => { if (session !== sess) return; if (fin && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok); }, env.stats ? 2400 : 1600);
+      setTimeout(() => { if (session !== sess) return; if (fin && front && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok, fin); }, env.stats ? 2400 : 1600);
     }
   });
 
@@ -593,7 +620,7 @@ export function playShellRuntime(cfg, K) {
       return el('li', { text: k.label + ' ' + fmt(k, v) + tail });
     }));
   }
-  function renderResult(lv, env, applied) {
+  function renderResult(lv, env, applied, done) {
     session = null;
     show('result');
     const res = env.result === 'success' ? 'cleared' : env.result === 'fail' ? 'failed' : 'left';
@@ -605,6 +632,7 @@ export function playShellRuntime(cfg, K) {
       el('h1', { text: lv.title }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
+      done && M.final ? el('div', { cls: 'badge', text: 'the game is complete' }) : null,
       shut && shut.gate ? el('div', { cls: 'muted', text: 'The way to ' + levelTitle(shut.to) + ' is shut: ' + needs(shut.gate) + '.' }) : null,
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(lv, env) : null,
@@ -619,7 +647,7 @@ export function playShellRuntime(cfg, K) {
   }
 
   // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
-  const allCleared = () => !!progression && LEVELS.every((l) => cleared(l.ref));
+  const allCleared = () => !!progression && (M.final ? cleared(M.final) : LEVELS.every((l) => cleared(l.ref)));
   const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
     el, app, show, home, launch, startRun, renderLevels, cleared, isOpen, saveSettings, pushPrefs,
     levels: LEVELS, run: !!RUN, playtest: PLAYTEST, title: M.title,

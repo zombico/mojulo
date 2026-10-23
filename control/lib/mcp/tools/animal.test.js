@@ -119,6 +119,80 @@ describe("mint_solid kind 'animal'", () => {
   });
 });
 
+// OOZES (graph/mutagen): the door half. The law and the form are the mutagen suite's; here a species takes an ooze,
+// the stored plan is the mutated body, the manifest keeps the list, and every other door refuses it.
+describe("mint_solid kind 'animal' — oozes", () => {
+  it('mints an oozed species: the stored plan is the mutated body and the manifest keeps the oozes', async () => {
+    const { OOZES, resolveMutagen, oozeFauna } = await import('@/lib/graph/mutagen/index');
+    const { speciesParams } = await import('@/lib/graph/fauna/species');
+    const id = Object.keys(OOZES).find((o) => OOZES[o].form?.scale);
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_oozed', spec: { species: 'wolf', ooze: [id] } });
+    expect(res.ooze.oozes).toEqual([{ id, strength: 1 }]);
+    expect(res.ooze.form.scale).toBe(OOZES[id].form.scale);
+    const m = SketchRepository.getByRef('an_oozed').manifest;
+    expect(m.ooze).toEqual({ oozes: [{ id, strength: 1 }], seed: res.ooze.seed });
+    expect(m.plan).toEqual(oozeFauna(speciesParams('wolf'), resolveMutagen([id], { key: 'wolf' })));
+    expect(m.species).toBe('wolf');
+  });
+
+  it('nothing acts ⇒ the plain species, byte-identical, with no ooze stored', async () => {
+    const { OOZES } = await import('@/lib/graph/mutagen/index');
+    const id = Object.keys(OOZES)[0];
+    await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_plain', spec: { species: 'wolf' } });
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_zero', spec: { species: 'wolf', ooze: { id, strength: 0 } } });
+    expect(res.ooze).toBeUndefined();
+    const [a, b] = ['an_plain', 'an_zero'].map((r) => SketchRepository.getByRef(r).manifest);
+    expect(b.ooze).toBeUndefined();
+    expect(JSON.stringify(b.plan)).toBe(JSON.stringify(a.plan));
+  });
+
+  it('a stylism styles a species with or without oozes: stored beside them, its design notes in the result', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_styled', spec: { species: 'wolf', stylism: { register: 'heroic', detail: 'rich' } } });
+    expect(res.ooze.oozes).toEqual([]);
+    expect(res.ooze.notes.map((n) => n.stage)).toContain('detail');
+    expect(SketchRepository.getByRef('an_styled').manifest.ooze.stylism).toEqual({ register: 'heroic', detail: 'rich' });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', stylism: { register: 'epic' } } })).rejects.toThrow(/stylism\.register/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { archetype: 'canine', stylism: { detail: 'rich' } } })).rejects.toThrow(/mutate a `species`/);
+  });
+
+  it('an oozed animal moves on its own body: its motion stored with its species and ooze, its grafts\' gaits its own', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_moving', spec: { species: 'wolf', ooze: 'dire', stylism: { register: 'mythic', chimera: 'chimera' }, motion: ['walk', 'fly'] } });
+    expect(res.motion.gaits).toEqual(['walk', 'fly']);
+    const M = SketchRepository.getByRef('an_moving').manifest.recipe.motion;
+    expect(M).toMatchObject({ species: 'wolf', gaits: ['walk', 'fly'], ooze: { oozes: [{ id: 'dire', strength: 1 }], stylism: { register: 'mythic', chimera: 'chimera' } } });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'dire', motion: 'fly' } })).rejects.toThrow(/no gait 'fly'/);
+  });
+
+  it('refuses an ooze off a fauna species, or that it cannot read', async () => {
+    const { OOZES } = await import('@/lib/graph/mutagen/index');
+    const { BUG_SPECIES } = await import('@/lib/graph/bugs/species');
+    const id = Object.keys(OOZES)[0], bug = Object.keys(BUG_SPECIES)[0];
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'ectoplasm' } })).rejects.toThrow(/unknown ooze[\s\S]*Oozes/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { archetype: 'canine', ooze: id } })).rejects.toThrow(/mutate a `species`/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', ooze: id } })).rejects.toThrow(/mutate a `species`/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: bug, ooze: id } })).rejects.toThrow(/is a bug/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', seed: 3 } })).rejects.toThrow(/pass it with `ooze`/);
+  });
+
+  // A GAME'S SETTING (mutagen/setting.js): the tradition's light stored on the row, the made colours dressed, the report
+  it("takes its game's setting: anime stores the character light and is lit as a creature; western keeps the studio's", async () => {
+    const { resolveCharacterLight, CREATURE_KEY } = await import('@/lib/graph/polygonizer/station-loft-shade');
+    const ramps = [{ name: 'timber', stops: ['#3a2a1e', '#6a4a30', '#9a7048'] }];
+    const res = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_set_anime', spec: { species: 'wolf', ooze: 'herobot', setting: { tradition: 'anime', ramps } } });
+    expect(res.ooze.setting).toMatchObject({ tradition: 'anime', light: 'character' });
+    const m = SketchRepository.getByRef('an_set_anime').manifest;
+    expect(m.toon).toEqual({ light: true });
+    expect(m.ooze.setting.tradition).toBe('anime');
+    const L = resolveCharacterLight(m), k = Math.hypot(...CREATURE_KEY);
+    L.toLight.forEach((v, i) => expect(v).toBeCloseTo(CREATURE_KEY[i] / k, 6));
+    const w = await mintSolidHandler({ kind: 'animal', title: 'x', ref: 'an_set_west', spec: { species: 'wolf', ooze: 'herobot', setting: { tradition: 'western', ramps } } });
+    expect(w.ooze.setting.light).toBe('studio');
+    expect(SketchRepository.getByRef('an_set_west').manifest.toon).toBeUndefined();
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', ooze: 'dire', setting: { tradition: 'noir' } } })).rejects.toThrow(/In a game's look/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', setting: { tradition: 'anime' } } })).rejects.toThrow(/dresses a `species`/);
+  });
+});
+
 describe("mint_solid kind 'animal' — the maker door", () => {
   const closed = async (plan) => {
     const { expandPlan } = await import('@/lib/graph/polygonizer/station-loft-plan.js');

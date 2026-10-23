@@ -58,6 +58,7 @@ export const PLATFORM_KEYS = Object.freeze({
     dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
     tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
     loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
+    wall: 'the wall (wall.js: any face held, crawled, mantled, jumped off)', metre: 'the wall and the gear', gear: 'the gear (swing.js: the swinger\'s line, its swing and zip)',
   },
 });
 // the `ai` rule's opt-in moves the kernel's mind does not run (yet): the match player and the arena shooter's moves
@@ -138,6 +139,7 @@ export const PAGE_MARKS = Object.freeze({
   events: m(B, 'bus.json and score.json carry what the kernel runs; the keys they drop are named by EVENT_MARKS'),
   fog: m(A, 'the page\'s fog rides only on weather (weather-score.js)'),
   haze: m(P, 'score.haze: exponential fog in the horizon colour, the background with it, the sky clear of it; Godot\'s exponential curve is not three\'s squared one, so the falloff differs'),
+  hazeHeight: m(A, 'the haze does not thin with the camera\'s height (a city stalker\'s district): Godot keeps its density'),
   splats: m(A, 'fur and grass splats are not drawn'),
   audio: m(P, 'the soundtrack and one-shot sounds play (kernel/sound.gd); positional sound and weather beds are the web\'s'),
   fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),
@@ -162,13 +164,18 @@ export const PAGE_MARKS = Object.freeze({
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
   versus: m(A, 'the side-on fighter (versus/versus-core.js, scene/channels/versus.js) is the page\'s own frame simulation: nothing in the kernel fights it'),
+  board: m(A, 'the strategy board (board/*: tactics, a maze defence, a skirmish) is the page\'s own: nothing in the kernel plays it'),
+  screen: m(P, 'project.godot\'s [display] holds the frame the game is made for (its viewport, stretch and handheld orientation) and an upright screen\'s cameras hold its width (kernel/level.gd); the touch pad and the safe-area zones are the page\'s'),
+  runner: m(A, 'the endless run (its lanes, rows, hurdles and crash: worlds/controllable/runner.js) is the page\'s'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
+  science: m(A, 'a science world\'s readout, honesty panel and body labels (scene/channels/science.js) are the page\'s; no engine leg plays a science world'),
 });
 
 // ── a rigged figure's page overlays (scene/channels/controllable: what the page does to a figure beyond its clips) ──
 // The skinned figure and its clips ride the GLB (PAGE_MARKS.figures); these are read off each figure in payload.figures
 // (engines/marks.js figureOverlays).
 export const FIGURE_MARKS = Object.freeze({
+  forms: m(A, 'a body in two forms (transformation/) plays as its starting form, its rule and its clips: the other form and the transform beat (B) are the page\'s'),
   live: m(A, 'a vehicle\'s live overlay (the front wheels steering, the body leaning, squatting and diving off the drive) is the page\'s: the car holds its rest pose'),
   juice: m(A, 'a racer\'s juice (flames, smoke, sparks, dust, the landing ring, the lamps lit by its status) is the page\'s'),
   beams: m(A, 'the headlamps\' pool on the road (a dark race mood) is not drawn'),

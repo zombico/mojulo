@@ -401,7 +401,17 @@ const DESCRIPTION_ALLOWLIST = {
 // `preset` enum (the palette's own list, a place a flight world names) and its line naming them.
 // Raised 2026-10-15 (211_100 -> 211_300; measured 211,171) for the level demo: design_game's `compose` (the interpreter as a
 // door: a world read from a few words), one schema property and its clause in the description. No new tool.
-const PAYLOAD_CEILING = 211_300;
+// Raised 2026-10-19 (211_300 -> 211_600; measured 211,490) for traditional board games: create_game's `tabletop` (chess,
+// checkers or a game written out, played against the computer as its own page), one schema property. No new tool.
+// Raised 2026-10-19 (211_600 -> 211_800; measured 211,664) merging the strategy board with the board games: create_game's
+// `final` (the game's last level, its first win completing it) beside `tabletop`, each pinned on its own branch. No new tool.
+// Raised 2026-10-19 (211_800 -> 212_000; measured 211,872) merging 1019-resolution-lock over the strategy board: the mobile
+// genres' create_pixelizer_game `saga` (the match-3 saga) and its tool line, each pinned against the release on its own
+// branch. No new tool.
+// Held 2026-10-20 at 212_000 (measured 211,923) merging 1019-science-worlds: create_view's `kind` gains 'classical',
+// 'microscopic', 'quantum' and 'relativistic' (laws composed into a demo, each an argument on the view door; on its own
+// branch it raised the pin 211_300 -> 211_500). No new tool.
+const PAYLOAD_CEILING = 212_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

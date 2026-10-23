@@ -47,12 +47,18 @@ export const TIME = Object.freeze({
         // number, a death ends it, the store carries over, the deepest is kept; a quick game's run lays a pool of trails
         // Godot: kernel/game.gd draws a run with the web shell's own roll and keeps the deepest (III-c)
         runs: { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
+        // built 10-19 (the strategy board): a tactics book is travelled from its map, a diorama of dots
+        map: { status: 'built', ...WEB, requires: ['space.board=spots'], lowers: 'lib/graph/board/board-map.js', note: 'a map level: a diorama with a dot a level, roads between, a dot open once the one before it is won; the party walks there and the game travels by the dot (the map mechanic); skirmishes to fight again' },
+        // local 10-19 (mobile genres): the match-3 saga's map (a level a time, each a move budget for a goal, three stars)
+        saga: { status: 'local', ...WEB, effort: 'M', lowers: 'lib/graph/pixelizer/philosophers-stone-saga.js', note: 'Stone Saga\'s map: levels generated from its seed, opened one at a time, three stars each kept in the browser; a world game\'s levels do not take stars or a map yet' },
       },
     },
     chapters: {
       values: {
         none: { status: 'built', godot: 'built', roblox: 'built' },
         overlays: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
+        // built 10-19 (the strategy board): FFT's shape, a book cut into chapters each travelled from its own map
+        epochs: { status: 'built', ...WEB, requires: ['time.progression=map'], lowers: 'lib/graph/gameworld/board-levels.js', note: 'battles.board.epochs: a map each; an epoch\'s last stage leads to the next map, the party and bag carried; the final epoch\'s last stage the game\'s final, its map left open; begin and end story slots' },
       },
     },
     passage: {
@@ -88,7 +94,9 @@ export const TIME = Object.freeze({
         'in-world': { ...SHOT, roblox: 'absent', status: 'built', lowers: SCENES, note: 'a scene takes the camera (the shot rule), moves the cast and hands the camera back' },
         staged: { ...SHOT, roblox: 'approximated', status: 'built', lowers: SCENES, note: 'beats in order: shots, the cast, waits, lines; letterboxed, input held, skippable to its end state' },
         // banter rides the shot (10-11: the sweep paired them in worlds neither made alone): one package, one build
-        banter: { ...SHOT, roblox: 'approximated', status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; no portraits or face set yet' },
+        banter: { ...SHOT, roblox: 'approximated', status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; a portrait beside them on a board (shots board); no face set yet' },
+        // built 10-19 (the strategy board): a scene told on the board itself, its slots before and after a battle
+        board: { ...SHOT, ...WEB, status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/board/board-page.js', note: 'the tactical camera cut to whoever the shot names, from the front; the words over the speaker; a speaking figure gestures; a close portrait beside (talk.portrait); a battle held for its before and after slots' },
       },
     },
     framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, godot: { all: 'built' }, roblox: { all: 'absent' }, status: 'built', note: 'the shot rule frames its subjects by these words' } },

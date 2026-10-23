@@ -192,6 +192,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Godot kernel runs it too (`rules.gd`, held by a new `platform-accel` conformance scenario); Roblox leaves it to the
   Humanoid's own feel. The `controllable` vocab card names it.
 
+### Trademark policy
+
+- **`TRADEMARKS.md`** says how the mojulo name may be used: fork freely under your own name; "powered by
+  mojulo" as a description, never in a product, package, domain or handle. The README, `NOTICE` (shipped in the
+  package), `TERMS.md` and `CONTRIBUTING.md` point to it. The code stays Apache 2.0.
+
 ### Animation games spike: one take, four flavors
 
 - **A research spike, nothing registered** (`scripts/spikes/animation-games/`). A *flavor* renders a take the hero
@@ -1212,6 +1218,359 @@ Opt-in and versioned: a default hero keeps its bytes.
   0.1 mm (0.11 the most); of Shalla's 11,316, 22, and 2 over a millimetre, in the fold under the bust, where a point
   settles a few millimetres along the crease either way (the fold reads the same).
 
+### Science worlds: a demo composed from laws, not authored per experiment
+
+- `create_view` gains three kinds that compose a demo from a closed table of laws instead of
+  one hand-authored experiment per kind: `classical` (Newtonian laws, body scale to orbits), `microscopic` (cells
+  down to molecules; DNA is the floor) and `quantum` (states in concept space, faithful to the model and claiming
+  nothing about reality; it supersedes `atom` for new asks). Chemistry goes to the scale its explanation needs.
+  A recipe has two halves: a `model` that is dimension-checked, machine-gated and measurable through
+  `measure_view`, and a `dress` that only sells the picture, light and explorable on the interactive page,
+  choreographed with timed callouts on film. Every exaggeration is a declared liberty the page shows. A law the
+  table lacks is named as a gap, never approximated silently.
+- **The classical solver** (`lib/graph/science-worlds/`). A table of
+  laws (uniform and universal gravity, springs, rods and ropes, linear and quadratic drag, buoyancy, Coulomb, the
+  Lorentz force, planes with restitution and friction, sphere collisions) composes a model; the solver picks velocity
+  Verlet or RK4 and a step from the fastest motion, runs it, and checks it: energy conserved (or never gained when
+  something loses it), momentum and angular momentum where nothing outside acts, rods held, no tunnelling, and the
+  textbook answer wherever one exists (a projectile's apex and range, a spring's and a pendulum's period at any
+  amplitude, a Kepler orbit, a cyclotron turn, terminal speed, a slide down a ramp, a head-on collision). Two regime
+  checks say when a model has left Newton's ground: near light speed, or a wavelength as large as the path. Units are
+  read with their dimension, so a mass in m/s is an error. `machina/quantities` gains charge, temperature and amount,
+  and the units the sciences use.
+- **`create_view({ kind: 'classical' })`**: the solver as a door. The recipe (`params: { model, dress?,
+  liberties? }`) is stored as given and solved again on every render; the mint returns every gate with what it wanted
+  and what it saw, and says nobody has looked yet. The page plays the run on equal-time samples (bodies, their trails,
+  optional velocity and acceleration arrows, rods, ropes and springs as bars, surfaces as patches) with a system
+  readout (the model's own clock, kinetic and potential energy and the total, momentum when nothing outside acts, the
+  speeds asked for) and a **What's real · what's drawn** panel: the laws, the checks and their numbers, what the model
+  leaves out, and every liberty, the drawing's own included (a scale other than a metre per unit, a body drawn larger
+  to be seen, time sped up or slowed). The readout and panel are a new opt-in page block (`scene/channels/science.js`)
+  that adds nothing to a page without it. `measure_view` reads a classical world at tier `si`: every body's samples
+  and the system's energy, momentum and angular momentum. The `classical` vocab card prints the law and closed-form
+  tables from the code (`node scripts/science-cards.mjs`; a test fails when they drift), and its worked examples are
+  tested to hold. The same setups composed from the table agree with the mechanics kind (a projectile, a wide
+  pendulum, a spring, a rough ramp) and the orbit kind (an ellipse's period and apsides) to a thousandth.
+- **The film.** A classical world proposes its own film when its recipe has no shoot plan: a wide shot of the run,
+  a close replay of the key moment slowed down (the sharpest change in motion, such as a bounce or a collision, else
+  the fastest moment), and an end card that is the honesty panel held on the last frame; `forge_motion` with
+  `shot: { motion: 'plan' }` renders it to MP4 or GIF. The film dress (`dress.film`) adds callouts on the model's own
+  clock (a caption, or one pinned beside a body), picks the replay's moment and speed, or drops the replay and the
+  card. Slow motion is tagged on screen while it plays and listed on the end card; the interactive page never shows
+  the film dress, and the film never shows the panel. Any world kind may now propose a film (`defaultShoot` on its
+  payload); a recipe's own shoot plan always wins.
+- **A shot's `speed`.** Shoot plans gain a time stretch per shot (`speed`, 0.05 to 4): `{ span: [2, 3], speed: 0.25 }`
+  is a four-second slow-motion replay of one second of the world, on the World page and in renders alike;
+  `set_shot { speed }` edits it. A plan without one is unchanged, byte for byte.
+- **`create_view({ kind: 'microscopic' })`**: cells down to molecules, composed from a table of laws (Brownian
+  motion with Stokes–Einstein diffusion, drift from a flow or a force, partially permeable membranes, reactions by
+  mass action drawn exactly by Gillespie's algorithm in a well-mixed volume). A model is a box, its species (by count
+  or concentration; each sphere may stand for many molecules, and the page says what that does to the noise) and
+  their laws, run with seeded dice. It is checked: the spread grows as 6·D·t, a drift carries the cloud at v·t, a
+  reversible reaction settles at its equilibrium constant, what no reaction can change stays exactly as it began, a
+  species that crosses a membrane evens out in proportion to the volumes while one that cannot never crosses; and it
+  says when counting stops standing for the volume (reactions outpace mixing) and when a model leaves the scale
+  (inertia that lasts, a radius smaller than an atom, flow fast enough for wakes). Statistical checks allow four to
+  five standard errors, so a sound run passes for any seed. An enzyme is two reaction rows (E + S ⇌ ES → E + P); an
+  unknown law names its scale or what to compose instead. The page draws every shown molecule (up to 300) walking
+  its recorded path, changing colour when it reacts, inside a see-through box with each membrane a lattice, counts
+  in the readout; its film replays the first reaction slowed. `measure_view` reads every species' count, its count
+  on each side of a membrane and its spread at tier `si`. The science readout became rows, shared by both scales,
+  and the page helpers moved to `science-worlds/page.js`. `machina/quantities` gains concentration, rate constants,
+  diffusivity and the small units.
+- **`create_view({ kind: 'quantum' })`**: states and the rules they follow, faithful to the model and claiming
+  nothing about reality. A world is one system: a particle on a line (an infinite well, a harmonic well, a
+  rectangular barrier, a step, summed into one potential) stepped by Crank–Nicolson; the hydrogen atom's orbitals
+  as the exact functions, each drawn as a cloud of points sampled from |ψ|² and coloured by the wavefunction's sign;
+  spin-½ atoms through a chain of Stern–Gerlach magnets, each outcome drawn with its odds; unstable nuclei with a
+  half-life. It is checked: the total probability and the energy stay as they began, a well's and an oscillator's
+  levels, a two-level beat, a displaced packet swinging like a classical mass, a free packet's spreading, a
+  barrier's or step's transmission averaged over the packet, an orbital's nodes, norm and mean radius and a χ² that
+  its cloud follows |ψ|², each magnet's counts against cos²(θ/2), the measured half-life; and it advises when the
+  waves are tiny next to the features, so a classical world would do. Every row carries its sources and the date it
+  was last reviewed, and the page lists them. A quantum word that is not a row (tunnelling, superposition, bond)
+  comes back as a gap naming the row that is or why there is none. `measure_view` reads each system back. It
+  supersedes the curated `atom` kind for orbitals at the door (the routing cards and the atom card point there);
+  the `atom` kind still renders. An atom's proposed film circles one orbital, or sways across the front of several. The science readout gains a femto
+  prefix and a page without a clock; `machina/quantities` gains eV, Å, pm, fs, ps and the atomic mass unit.
+- **Docs.** `docs/AGENT-REFERENCE.md` describes the science worlds (the model and dress split, gaps, the science block,
+  the proposed film, the generated cards); the `get_substrate` drawer says in one line that a composed science view
+  returns its solver's gates and that its page says what is the model and what is drawn. The `tools/list` payload pin
+  rises by 200 bytes for the three new `create_view` kinds (no new tool).
+- **The `physics-demo-for-a-class` catalyst**: a teacher's ask to a checked interactive demo and a film. It decides
+  the scale first, writes the claim as a measured quantity, keeps exaggerations out of the model, reads the gates,
+  measures what the lesson cites, captions from measured numbers, and reports that the eyes gate is the teacher's.
+- The ready-made views a composed kind overlaps say when to compose instead, as atom, black-hole and double-slit do:
+  mechanics (a demo whose bodies, springs or start are the teacher's → `classical`), orbit (bodies the teacher sets →
+  `classical`; an orbit that turns because spacetime curves → `relativistic`) and wavepacket (a well, step or barrier
+  the teacher sets → `quantum`). Each keeps its ready-made picture.
+
+### Science worlds further: spacetime, volumes and settings
+
+- **What it is.** Raymarched depictions where a mesh cannot show the model, and science worlds placed in any world.
+  The law always lives in JS where the gates run; a shader is generated from the same numbers and held to them by
+  a shader conformance gate in headless Chrome ("not run" without a browser). A setting is dress: anything a body
+  touches is a law in the model, a gate advises when a body passes through scenery no law covers, and the world
+  never changes the physics silently. In order: a fourth scale, `relativistic` (Schwarzschild spacetime: light
+  bent round one mass, orbits on geodesics, clocks), a `science` world channel that stands a science world in any
+  world, quantum orbitals as volumes and the two-slit plane, and classical field lines and field volumes.
+- **The shader conformance gate** (`science-worlds/shader.js`, `conformance.js`). A shader-drawn science page is
+  written once as GLSL that defines the picture (`sciImage`, the colour along a ray) and the model quantity it
+  computes (`sciValue`); one source makes both the page's full-frame `effects[]` layer and a probe shader, with the
+  model's numbers declared once as uniforms. On a capture run the science channel adds a probe bridge that evaluates
+  `sciValue` at given inputs into a float target and reads a rendered frame back; an ordinary page carries none of
+  it, byte for byte. The gate (`shader-conformance`) compares both with JS: values at probe points, and features
+  measured on frames (a dark disk's radius) against their projection. It advises; without a browser it is "not
+  run", never a pass. The mint never launches a browser: the e2e tier and `node scripts/science-conformance.mjs
+  --selftest` run it, and the self-test holds that a faithful shader agrees and a shader with a hand-typed factor
+  in its GLSL disagrees. Shader pages ride the normal World page, so the readout, the honesty panel and film
+  capture come with them.
+- **`create_view({ kind: 'relativistic' })`**: a fourth scale, the spacetime round one non-rotating mass
+  (Schwarzschild), composed from a table of laws with their sources and review dates. One system per world:
+  - `light`: what an observer held still sees, drawn by a shader that traces each pixel's light back with the JS
+    scheme step for step. You get the shadow (seen at Synge's angle), the photon ring, the sky bent round the mass
+    (a grid every 15° or stars), and a thin disk's direct and lensed images, shifted by g (Doppler and gravitational
+    together) and brightened by g⁴. Its film swings the eye toward the disk's plane.
+  - `orbit`: test bodies on geodesics (RK4 in their own time, played on the far clock's).
+  - `clocks`: clocks held at radii or let fall.
+
+  It is checked against the closed forms: the shadow's edge at 3√3/2 Rs by bisection, the bending of light against
+  the exact orbit integral, the drawn step against both, the perihelion advance against its elliptic integral each
+  lap, each body's fate against its effective potential, the innermost stable orbit at 3 Rs, and a falling clock's
+  own time against the cycloid. Mercury comes out at 43″ a century, and the GPS clocks 45.7 µs a day apart. The
+  light shader agrees with JS at every probe in Chrome, and one that bends light 3% too little does not.
+  `measure_view` reads orbits and clocks back in SI. Lengths may be given in Schwarzschild radii (`'20 Rs'`);
+  `machina/quantities` gains `M☉`, `ly`, `pc` and `c`. Relativity, lensing, time dilation and precession now name
+  this scale as gaps elsewhere. A spinning hole, gravitational waves and special relativity are gaps saying they
+  are not in the table yet. The curated `black-hole` kind keeps its picture, and its card points at this one.
+- **A science world in any world**: the `science` world channel (`compose_world` `overrides.science`, or `science`
+  on a stored world's recipe; manual: the `science-setting` card) stands a composed demo in any world kind. How it
+  stands:
+  - A classical demo drawn at one metre per unit stands 1:1 at `at`, turned by `yaw`. Its readout and its "what's
+    real · what's drawn" panel ride the world page, the page opens on its camera, and its film is moved into the
+    world.
+  - Anything else (a microscopic box, an orbital, an orbit or clocks world round a black hole, a solar system drawn
+    shrunk) is a bench prop in a glass case, its true magnification on the panel in place of its own scale. A
+    light world cannot stand in a world: its shader fills the frame.
+
+  The setting is dress, and what a body touches is a law:
+  - `ground: 'from-world'` makes the world's own surface under `at` a plane law at its height, and the panel says
+    so.
+  - `scenery-clear` checks every body's recorded path against the world's faces near the demo and names any surface
+    one passes through that no law covers.
+  - `setting-agrees` holds the model's g to the setting's (Earth, Moon, Mars, from the same table as the classical
+    frame's presets), and `setting-air` advises on drag where there is no air.
+
+  `compose_world` solves the demo at mint (a bad model refuses the mint) and stamps the setting from the theme
+  (`mars-colony` is Mars). The world's surfaces are checked when it renders. Each scale's card gains "In a world",
+  and the classical, microscopic, quantum and relativistic assemblers take a plan they were handed. Absent, every
+  world is byte-identical.
+- **Orbitals as a volume** (`dress.render: 'volume'` on a quantum atom world). Each orbital is ray-marched as a
+  density, gold where ψ is positive and blue where it is negative, several side by side in one shader, for every
+  orbital up to n = 7. The GLSL is generated from the orbital's own numbers (its Laguerre polynomial's coefficients
+  and its real solid harmonic as a polynomial in x, y and z), so nothing in it is a hand-typed twin of the JS. The
+  points stay the default, since they are the picture the χ² checks; the volume is a second picture of the same ψ,
+  and the panel says which checks are of what. `exposure` sets how strongly it glows. A volume is refused off an
+  atom world and in a setting. Its conformance probes are ψ at points of each orbital's cloud against the exact
+  function, within a thousandth of the orbital's brightest |ψ|; the worst in Chrome is about 2e-7 of it, out to
+  n = 7, and a shader whose ψ falls off 2% too slowly disagrees. `node scripts/science-conformance.mjs --examples`
+  runs it, and `--ref` takes a stored volume.
+- **The two-slit plane** (the quantum `plane` system and its `slits` row). A packet on a plane, ψ(x, y, t), stepped
+  by split-step Fourier, meets a wall with one to six slits. The plane's edge is an absorbing rim whose take is
+  counted as it is taken, so what is on the plane and what was taken add to one to round-off. The far field is read
+  from the passed wave's transform, zero-padded 4× and integrated along each direction over the packet's spread of
+  wavenumbers. Detections are drawn from it one at a time (seeded), and a χ² holds them to it. The checks:
+  - fringes against the thin-screen pattern of the grid's own slits, within 3%, with the textbook λ/d beside them
+    (two slits come out 0.211 against 0.212, λ/d 0.217; three slits 0.284 against 0.286);
+  - `wall-opaque`: the wall struck head on by a packet at the same energy, on the same grid and step;
+  - `far-field-settled` and `edges-quiet`: the far field is read once the wave has come through and before the rim
+    takes it;
+  - `grid-resolves`.
+
+  What the build found:
+  - A wall sharp to the cell lets the wave through by the split step's own error: 1e-4 at 20 eV, rising with the
+    wall's height, far above its tunnelling. That wave is as wide as the plane and floods the centre of the pattern
+    with a spike or a dip. The wall's edges now rise over two cells, which cuts the leak about a thousandfold.
+  - A slit in a wall is a short channel, not a thin screen, so one slit's central band comes out 11 to 26% wider than
+    λ/w gives. No zero is claimed for it: its `envelope` gate allows up to 35% wider and says why.
+
+  The page plays |ψ|² on a sheet from the solver's own frames (48 frames, 64 cells a side, four to a texel of a float
+  texture) through a shader drawn over the page's meshes. A depth prepass keeps the far screen in front of it. The
+  wall is a raised slab, and dots arrive at a far screen one at a time over the run's second half, each at its
+  detection's angle. The shader conformance gate holds the sheet to the frames (worst 9e-8) and the wall to the
+  model's either side of every slit edge. A shader that plays the frames backward between samples and drops the wall
+  disagrees. A solve takes about 1.3 s at 128 cells a side; the work is capped at 128² × 1500 grid-steps. `measure_view`
+  reads the run, the far field and the detections back. A plane cannot stand in a world. Interference, the double
+  slit, diffraction and gratings now name the slits row, and the curated `double-slit` card points here. Whether the
+  plane supersedes `double-slit` or `wavepacket` at the door is left to the routing eval.
+- **Shader pages over meshes.** `shaderPage` gains `output: 'layer'` (premultiplied, over the page's meshes),
+  `dataTextures` (float RGBA, into both the image and the probe shader) and `depthClip` (`sciSceneDistance`, from the
+  page's depth prepass). A page without them is byte-identical.
+- **Classical fields drawn** (`dress.field` on a classical world). The electric field the `coulomb` and `lorentz`
+  rows make, read off the same model at any moment of the run (`classical/field.js`), drawn three ways:
+  - `'lines'`: field lines traced by RK4 from the charges where the run starts, as many from each as its share of
+    the largest charge, in the charges' plane when they lie in one. Each ends on a charge of the other sign or leaves
+    the frame, and a negative charge adds only the lines it still lacks. A uniform E or B is drawn as even lines.
+  - `'volume'`: the field's strength glowing on a log scale (from its median in the region to its 99th
+    percentile), warm where the potential is positive and cool where negative.
+  - `'shells'`: the potential's shells where its size doubles.
+
+  The volume and the shells are a shader layer over the meshes. It reads the charges' paths from a float texture on
+  the movers' own clock and interpolation, so the field moves with the bodies. A drawn field adds two gates to the
+  page and the mint:
+  - `gauss`: the flux through a sphere round each charge is q/ε₀, and none through one round no charge, by a
+    Gauss–Legendre surface integral of the field drawn (worst about 4e-16 on the coulomb row's example);
+  - `field-lines`: no line stops short, and each charge carries lines in proportion to its charge, within one line
+    or a fifth.
+
+  The shader's E and V agree with JS at 48 points and moments through the run as the charge orbits, and one whose
+  field falls off as 1/r disagrees. The solver never sees the dress, and a world without a field is byte-identical.
+  A volume or shells cannot stand in a world; lines can.
+- **Docs.** `docs/AGENT-REFERENCE.md` states the shader rule (the law in JS, the shader generated from the same
+  numbers and held to them) beside the setting rule and the channel, and says a page drawn by a shader cannot stand
+  in a world. `docs/raymarch-effects-layer.md` gains the science pages as a worked example: the four shader pages,
+  the pattern for a picture a gate has to vouch for, and two gotchas: a probe must run on the page's own inputs,
+  and a Chrome test that finds no browser passes without proving anything (`MOJULO_CHROMIUM`). The
+  `physics-demo-for-a-class` catalyst's scale table names the two-slit plane, orbital volumes and drawn fields, and
+  its last step says which demos can stand in a world. The `get_substrate` sentence already named the fourth
+  scale. The routing eval that would decide whether `relativistic` supersedes `black-hole`, or the plane supersedes
+  `double-slit`, at the door was not run: the curated kinds keep the door, and their cards point at the composed
+  ones.
+
+### City hunter: the swinger in a district
+
+- **In progress, nothing built yet.** The city-stalker open world as a primitive: a third-person hero in a city
+  district (one `city` segment played as a level). The hero:
+  - sticks to any building's wall and launches from it;
+  - swings on a gear whose directions its profile constrains (the swinger first: a line to a face above and ahead);
+  - fights with the controllable engine's combat.
+
+  Other parts of the theme:
+  - **Progression:** gear upgrades open districts, and the reach of the gear is measured against the city's roofs.
+  - **Distance:** a planned air (height-aware haze, street smog, a cloud deck, a skyline past the plan) carries the
+    city past the district's edge.
+  - **Characters** plug into the hero's slot; each new movement state falls back to one every model already has.
+
+  Every key is opt-in; absent, every city level and game renders as before.
+- **The probe.** The capability registry (`lib/graph/cosmos`) names the genre, so the hill-climb page measures what it
+  waits on:
+  - A **City stalker** fixture.
+  - `space.levelForm=city`: a city segment played as a level, which is built today (first person, no roofs).
+  - Four planned gaps, priced: `power.gear` (a new setting: `none`, built, and `swinger`), `space.traversal=wall`,
+    `power.idiom=city-stalker-like` (it requires the swinger and the wall), and `reality.look=city-night`.
+
+  The probe reads blocked on exactly those four. Its Godot export would lose the city level, which no Godot fixture
+  plays yet.
+- **The district as a stage.** A city segment can be played by a hero, third person (`level.hero: { ref?, gaits? }` on
+  a city level; a gameworld's `city.stalker: true` names the world's hero on every segment).
+  - **The hero** is the player slot every game uses: the platform rule, a figure-rig body and its clips. It is tuned in
+    metres (`CITY_HERO`) and turned into the city's units once (`ruleInUnits`). With no `ref`, a stand-in box plays it.
+  - **Roofs are ground.** A lot's box top is ground on the page and in the headless sim alike.
+  - **The edges rise to the sky:** over the tallest mass in reach, so only a street leads out.
+  - **The camera** chases the hero. The page's own wall pull-in keeps towers out of the frame: its stand-off is read off
+    the hero's capsule, so it holds in the city's units.
+
+  One engine addition, opt-in: a rig body's `body.scale`. The page draws the body at that scale, and the code is emitted
+  only when some body carries one.
+
+  Without `level.hero`, the walker plays the segment as before.
+- **The wall.** A platform body with `rule.wall` holds any collider's face (`worlds/controllable/wall.js`, a body
+  owner beside the ladder's climb). Nothing is authored: a box's side is a plane with a known normal.
+  - **Taking hold:** pressing forward into a face, in the air, or from the street when the face stands higher than the
+    body. A low box, a narrow one (a tree's trunk) or a box marked `hold: false` (a hero level's edge) is not held.
+  - **The crawl:** up and down the face, and across it with A / D. It rounds an outside corner onto the box's next
+    face, unless another box stands there. A face of stacked boxes climbs as one.
+  - **The top:** up past it, the body mantles over the lip onto the roof. Down at the foot it lets go.
+  - **Off the wall:** a tapped jump is a wall-jump, out and up. A held jump is a wall-launch, its speed growing to
+    twice the jump's.
+  - **Between holds:** standing still at a roof's lip is a perch; falling fast off a roof is a dive.
+
+  The wall's defaults are in metres, scaled by the rule's `metre` (world units per metre), so `wall: true` holds in a
+  city level's units too.
+  - **The city hero** has the wall unless `level.hero.wall: false`. Each of its new states (`wall_crawl`, `mantle`,
+    `perch`, `dive`) plays the figure's first fallback clip it has (`TRAVERSAL_FALLBACK` in `playscape/player.js`).
+  - **Godot and Roblox** name the wall lost.
+  - **The registry** marks `space.traversal=wall` built on the web. The City stalker probe now waits on the swinger,
+    the idiom and the look.
+- **The swinger.** A platform body with `rule.gear: 'swinger'` casts a line to a building's face and swings on it
+  (`worlds/controllable/swing.js`, a body owner after the wall). A gear is a set of direction constraints on where
+  its line lands; the swinger's are a face above and ahead.
+  - **The anchor** is found for the hero, never aimed. It is the face point nearest an ideal one (55° up, out along
+    the heading), within reach, at least 25° up, inside a 75° cone either side of the heading, with a clear line.
+    With no face in reach (an open plaza, a park) there is no line. A `hold: false` box takes none.
+  - **The swing:** the gear's key (`boost`, F) held in the air. The line cannot stretch; gravity pulls the body; A / D
+    steer and forward pumps. Its pivot is the anchor drawn three quarters of the way toward the hero's own line, so
+    the arc runs down the street rather than into the wall the line is on. Its length keeps the arc's bottom clear of
+    the street.
+  - **Letting go:** the key let go, a jump (with a lift), a box across the line, a box met (the wall then takes the
+    body), or the ground. The body flies on with the swing's speed.
+  - **The zip:** the key pressed on the ground pulls the hero straight to the face, where the wall takes hold.
+
+  Supporting pieces:
+  - **The page** draws the line from the hand to the anchor, emitted only where a body has a gear.
+  - **The new states** (`swing`, `swing_release`, `zip`) fall back to the leap.
+  - **The city hero** carries the swinger unless `level.hero.gear: false`, and its controls legend names F.
+  - **Godot and Roblox** name the gear lost.
+  - **The registry** marks `power.gear=swinger` built on the web. The City stalker probe now waits on the idiom and
+    the look.
+- **The air: distance and scale.** A hero's district is a few hundred metres across; from its tallest roof the city
+  goes on for kilometres. The stalker's eye (`city/plan/eye.js`) plans the air that carries it past the edge, on the
+  pilot's eye's law (`skyscape/map.js`): fog opaque where ρ·d reaches 1.978, its density thinning with height.
+  - **The plan:** from the street the hero sees the district and the 140 m ring of real masses round it; from the
+    tallest roof, out to a skyline past the plan's edge.
+  - **The far ring:** the rest of the plan stands round the district as massing, one instance a lot (two instanced
+    meshes in all), lit as the city is and tinted with each lot's own colours.
+  - **The skyline band:** seeded cards past the plan's edge, so the city never visibly ends.
+  - **The page** thins the haze with the camera's height (`hazeHeight`), composed with any other writer of the fog
+    (the weather), and emitted only where a world asks.
+  - **A cloud deck** over the district by default (`clouds`: the recipe's own wins), dark by night.
+  - **The city kind** now honours `fog` (street smog, clipped to the level) and `clouds`. Both were accepted in a
+    recipe before and silently dropped.
+  - **The `city-night` look:** concrete, asphalt and neon under a glowing night sky, no sun, so the windows light.
+    Its reference card is Midnight Club II. A `city-night` geocube preset carries its colours, buildings and palette.
+    The registry marks `reality.look=city-night` built.
+  - **Godot and Roblox** name the height thinning lost.
+
+- **Indoors: a warehouse, a dungeon.** The wall and the swinger play under a roof, in any gameworld level.
+  - **A hero's starting moves:** `characters.hero.actions.moves: ['wall', 'swinger']` (`HERO_MOVES` in
+    `gameworld/actions.js`) puts them on its platform rule in every level it plays: a trail, a building, an inside
+    behind a door. Its clips fall back for their states, and F is named on its controls.
+  - **Ceilings as colliders:** a building level such a hero plays lays each room's ceiling as a collider
+    (`ceilings: true` on a stage; `stageColliders` in `era/anchors.js`). They are never laid over a room a stair rises
+    out of, nor under an open sky.
+  - **The swinger indoors** also casts to a box's underside over the hero (a ceiling, a beam), aimed where its ideal
+    ray meets that plane. Its arc's clearance shrinks with the room under the pivot, and no line shorter than the hero
+    casts (a low room swings nothing).
+  - **The wall indoors** keeps the head under a lid (a ceiling, a tower's setback) as it climbs.
+  - **A warehouse** is a barn with a great floor: `building: { use: 'barn', rooms: { floor: { w: 30, d: 20, h: 12 } } }`.
+  - **A dungeon:** a crypt's chain of rooms plays with the moves, and so does a tower up its storeys, its stair rooms
+    left open overhead.
+
+- **The reach: progression the map measures.** `game/reach.js` works out which surfaces a hero's moves carry it to: the
+  grounds, and every box top with room to stand. It reads the engine's own dials (the platform rule's run and jump,
+  the wall's, the gear's).
+  - **Its moves:** walk, jump (air jumps added), drop, the wall (a holdable face up to its top, stacked boxes as one)
+    and the swing (across a gap under an anchor the line can take, rising a jump and the gear's clearance).
+  - **Each law is held to the engine's own runs:** the hero climbs the tower the wall reaches; it swings across the
+    gap the line crosses and lands on the far roof; a street swing rises past the law's bound.
+  - **What it answers:** `reachUpgrades` says what each move opens; on a district the wall opens every roof. The
+    solver is analytic, a law per move: a move it allows the engine makes, and one it refuses a player's skill may
+    still find.
+  - **The moves as powers:** `wall` and `swinger` are moves a power gives (`TRAVERSAL_MOVES`), so a map world can hide
+    them and gate by them. The level contract takes a grant of `true` or a preset's name. The page draws a granted line
+    (the drawer is emitted where a grant carries a gear), and the pilot's figure plays the moves' fallback clips.
+  - **Keys in a city:** a map world may lay a key in a city level. It lies on the segment's tallest roof the hero's
+    own moves reach, by the solver, and is taken only up there. A power found there gives its move in the city's
+    units. City levels refused keys before.
+  - **The idiom** `city-stalker-like` ("the gear's reach gates the city", an unlock system) is built. **The City
+    stalker probe is makeable.**
+  - **The swinger's line** is now reeled in at `reel` (20 m/s) from the cast's length. Before, it snapped to its own
+    length across the gap, a 12 m jump on the first step.
+
+  The City stalker probe now waits on the idiom alone, and a brief's words find it (`gameworld/intent.js`: rooftops,
+  swinging between skyscrapers, a superhero). A hero level with a made character (`level.hero.ref`) now
+  draws: the plan read off the lowered level no longer takes the level's `figures` as a city setting.
+
 ### Epidermis cube: skin and hair as a recipe
 
 - **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
@@ -1440,6 +1799,61 @@ Opt-in and versioned: a default hero keeps its bytes.
   stood about 19 mm proud of the cornea right down to the lid margin, which hid the lid, the crease and the hood. The
   `hood` channel lowers the crease and draws the fold down, and the crease is a groove along it. `--rig` draws the
   bridge, the strings and the arcs in red on the skin.
+
+### More than meets: one body in two forms
+
+A hero can now transform: the robot you walk and fight in folds into the vehicle you drive or fly, and back, on one
+button, the way a Transformers or a transforming mobile suit does. The transformation keeps the parts that exist and
+reorients them; it aims at visual plausibility, not mechanical fidelity.
+
+- **One skeleton, two poses** (`lib/graph/transformation/`). The robot is a skeleton: an operator's suit (`unitRef`)
+  or an inner frame made to the vehicle's size. The vehicle form is a pose of the same skeleton (the stow), and the
+  vehicle's shell is cut into panels along its length, width and height, each panel riding the bone it lies over.
+  The sequence between the forms is the skeleton moving joint by joint, staggered, its panels carried. It all bakes
+  into one rig figure: the robot's clips, the vehicle form's clips and the two once-clips of the transformation.
+- **The ways of transforming are rows** (`transformation/schemes.js`): a car-bot (the hood and nose its chest, the
+  roof its back, the doors its forearms, the rear its legs, the front wheels its shoulders), a jet-bot (the nose and
+  canopy its chest, the engines its legs, the wings on its back), a waverider (a suit alone, folded into its own
+  flight form) and the variable suit's. A row names the stow, the regions the shell is cut into and where each sits
+  on the robot.
+- **The variable suit** (`transformation/variable-suit.js`): the primitive between a Transformer and a Gundam, a suit
+  drawn to fold. Its kit moves apart as it transforms: the kite shield on its forearm becomes the nose, the flight
+  binders on its back spread into swept wings, the hip fins flip up into the tail, and the legs close into the engine
+  pods, their heel jets the engines. Three palettes (`federal`, `titans`, `crimson`) and breadth dials.
+- **Three more ways of transforming.** The REAR FOOT (`rear-foot`, a car): the legs together are the car's rear, its
+  bumper split between the feet, the hood the chest, the head folded down into the chest under the middle of the car
+  and the last thing out on the way up. The FUSELAGE FOLD (`fuselage-fold`, a jet; its dials `fold` and `legs`): lying
+  face down in the jet, the nose and cockpit hinge down onto the chest (`front`) or the tail hinges down behind as a
+  pack and the front of the fuselage stands up as the chest (`back`); the legs stretch back as the engine nacelles
+  (`stretch`) or tuck up into a box under the fuselage (`box`). A panel may now SWING about a hinge on its way between
+  its places. The ALIEN JETSKI (`alien-jetski`): the alien body below, folded.
+- **The alien body** (`transformation/alien-body.js`): a humanoid formed of pointed ellipsoid shells and their
+  relations, no part a vehicle's or a suit's: shoulders thrown out and up, forearms fattening to blades, a head
+  leaning forward like a dart, feet long spurs. Folded face down it is a hover jetski: a long keel (a blade down its
+  back standing) runs under it as the hull, the thigh shells slide up beside it as sponsons, the feet hang as skegs,
+  its blades, spikes and spine swing back as fins; it skims a hand's breadth over the ground on a light, quick drive.
+  Palettes `void`, `chrome`, `ember`.
+- **The craft rig** (`craft-shelf/craft-rig.js`): a craft archetype as a rig figure, one bone per item, so a jet form
+  is the shelf's jet.
+- **Forms in the engine** (`worlds/controllable/forms.js`): an entity carries `forms`, a rule per form, and B (the
+  pad's L3) turns it into the next: an owned, invincible beat plays the figure's sequence, then the form's rule and
+  pilot rule take over with the speed carried across (a walker's motion is a car's speed and a craft's airspeed, at
+  least its take-off speed). A form may name its follow camera's stand-off; a flying form burns its jets with its
+  throttle. A body mid-swing, mid-dodge, reeling or downed does not transform.
+- **The World page** plays each form's own clips (`vehicle:drive`, `vehicle:idle`), a flying form's attitude on its
+  rig and the flight HUD for a body whose form flies, all emitted only when an entity or figure carries `forms`.
+- **The doors.** `figures.<name>.transformer: { robot?, vehicle?, scheme?, height? }` bakes the body at resolve (a
+  variable suit, a stored suit by `unitRef`, a stored build by `vehicleRef`, a ride, racer, supercar or craft);
+  `compose_world` entities take `forms`, refused unless each names a rule the engine knows. A quick game's
+  `transformer` is its hero (its `scheme`, `fold` and `legs` read and refused by what the vehicle is): a car-bot or an
+  alien jetski plays a trail's goals, a flier the fly goal from its seat in the air. The cosmos
+  counts `soul.hero=transformer` (web only; Godot and Roblox have no forms).
+- A transformer exports to Godot and Roblox as its starting form. Its hero carries `forms` and no rule of its own (the
+  page picks the rule as it starts), so an engine export found no pilot: the pack had nothing to drive. Every engine
+  now takes such a body with its starting form's rule, chosen as the page chooses it (`engines/pack.js`
+  `startingForms`), and the export names the rest as the page's: `forms` is a figure overlay, absent in both engines
+  (the other form and the transform beat). A world without a body in two forms reaches the engines as before.
+
 ### Engine legs: the engines as translations, declared
 
 Every engine pack is a translation of the web game. Which engines exist, what each one carries, and how each is
@@ -2100,6 +2514,600 @@ renders byte-identically without them.
   (a seating bowl); `stretch` makes a plan oval; a `top` echo stands a lantern on the crown. New presets come of
   it: `column`, `rotunda` (a tholos with its lantern), `cloister`, `hall` (a pillared hall under a stepped roof) and
   `arena` (an oval bowl behind a storeyed, columned wall). The stepped-circle spire is now `beehive`.
+
+### Mutagenic oozes: base animals made into game creatures
+
+- **An animal takes oozes.** `create_character({ as: 'animal', spec: { species, ooze } })` turns a real species
+  into a game creature, drawn to read in a game rather than a field guide: `dire` (bigger and front-heavy, a crest of
+  hackles, a snarling face and glowing eyes, still the animal), `skeletal`, `zombie`, `techno`, `crystal`,
+  `mythical` (boss size), `herobot` (a toy hero robot in the animal's own colours: a helmeted big head, antennae, ball
+  joints and pauldrons, panel seams and vents, flared boots, plastic), `transmetal` (the animal's outline and fur, its details machined: chrome faceplate, plates, pistons), and
+  the elements `fire`, `frost`, `storm`, `venom`, `shadow`, and `mascot` (the animal as its own mascot on its own legs,
+  by the mascot laws and its family's mascot card: a big round head, toon eyes, a short face, stumpy limbs, owned
+  colours and one signature piece its folk promise says). Oozes compose
+  (`['dire', 'frost']`), each with a `strength`, in four layers run in a fixed order: form (girth, and size only
+  uniformly), sites (what grows at the joints and on seeded spots), surface (palette, metal, glow) and aura (the
+  live elemental look). One `seed` places every spot. Absent, every animal is byte-identical.
+- **Design notes style a creature up.** `stylism: { register, detail, focal, motif }` on an animal, with or without
+  oozes, is the hero door's stylism tuner compressed for a beast: the register heightens every push together, the
+  detail budget spends ornaments (horns, spurs, spikes, a ruff, bands, a burning tail) from the focal out by the
+  tuner's laws (hierarchy, one echo, rest, an accent from heroic up), all in one motif a clear value step from the coat,
+  and the mint returns its design notes. `mythical` (a boss) carries its own mythic, rich stylism.
+- **From pure to chimera.** `stylism.chimera` (pure · touched · hybrid · chimera) grafts what the animal should not
+  have, in the order it breaks the silhouette: horns, a ridge of plates down the back and tail, another creature's tail
+  (serpent, scorpion, lion, dragon), wings (feathered or membrane by the motif, carried half raised), a second crown.
+  The seed and the motif choose the kinds; a mythic register is hybrid unless told.
+- **An oozed creature takes its game's look.** `spec.setting` (the setting the game rail hands its people: tradition and
+  ramps) gives an anime world's creature the character light, lit as a creature is, and dresses what the oozes make
+  (pieces, armour, panels, marks, ornaments) from the world's ramps, keeping its values; the coat, glows, metals and
+  signal colours stay their own, and the result ledgers every move. A shelf metal named by its word (`'gold'`,
+  `'chrome'`, `'gunmetal'`) now draws under the character light instead of throwing.
+- **A plan names its materials.** A ring plan's `surfaces` (`{ <group> | '*': <material> }`, validated against the
+  material shelf) reach its recipe as a statue's do, so a techno creature is real gunmetal on the World page and in
+  the exports. Absent, nothing changes.
+- **The creature's own rig.** An oozed animal with `motion` moves on its own body: the fauna rig reads a body
+  registry (`lib/graph/fauna/body.js`), so its skeleton is derived from the mutated plan (a grown creature's bones are
+  its species' at its size, its clips the same turns), a grafted tail is carved into bones of its own and swings, and
+  grafted wings get wing bones and the `fly` and `glide` gaits. Ornaments ride the bone at their root. The stored motion
+  keeps the species and the ooze, so the World page and the GLB, Godot and other exports rebuild the same body. Every
+  species is byte-identical. Manual: the `ooze` section of the animal vocab card; kernel: `lib/graph/mutagen/`.
+- **Articulated wings.** `wearWings(…, { articulated: true })` weighs every wing point to the wing bones it hangs from
+  (an arm or digit its bone, a feather its ray's, the membrane each sub-ray's blend), honoured by `bindLayered` as a
+  pinned part's `boneWeights`, so a wing folds and beats along its bones. Grafted wings take it; birds and bats keep
+  their rigid wings until they opt in.
+
+### Strategy board: spots on the map for tactics and tower defence
+
+A game can carry a board: square spots laid over its terrain as their own layer, each with a height, a terrain type
+and at most one unit. From any state the board lists every legal move, so a player can run out of options. Turn-based
+tactics (in the manner of Final Fantasy Tactics), tower defence and real-time strategy share it. A board lies over a geocube's level,
+indoors (its rooms) or out (its land), or is a diorama the cube paints. Web only. In progress:
+
+- **Real-time strategy on the board** (`lib/graph/board/board-rts.js`, `board-rts-page.js`), built, North star
+  StarCraft at a spike's depth: two bases on the board's spots, workers mining gold nodes, a barracks raised over
+  time, soldiers and archers trained for gold and sent to a rally point. Units take orders, one or a box of them:
+  move, attack-move, attack, hold, stop, gather. Paths walk round buildings and nodes. The other side is played by a
+  plain mind (workers to a count, a barracks, waves that grow), and the game ends when a base falls. A fixed step
+  and no dice: the same orders at the same times make the same game, however the time is cut. On the page: click,
+  shift-click or drag a box; right-click to move, attack, gather or set a rally; A attack-move, B build, H hold, S
+  stop, Q / W train, Ctrl+A the army. The board kind and a board over a stage take `rts` (one of `td`, `rts`, a
+  battle or units), with `enemy` for a handicap. The quick goal `conquer` is a skirmish on the stage's spots
+  (`board: { cols, rows, gold }`), the level the board's to end. Web only.
+- **Civilizations as skirmish sides** (`lib/graph/board/board-rts-tech.js`), built: a gameworld civilization's
+  technology read into the roster it fields, as StarCraft's sides are unalike. Its hand weapons arm its infantry
+  (melee, ranged, a shield's guard); what moves and carries is its worker; armoured vehicles are heavy, small ones
+  scout, armed ones fight, armed flyers cross any spot out of melee's reach; machine weapons are siege, three times
+  as hard on a building; a turret is a defence that shoots, a barrier a wall, a thing that stores a depot, a thing
+  that makes the works its vehicles come from (after a barracks). Stats move with the words (armour, energy, a size,
+  a showpiece's rank), and every cost comes from one worth formula, so no side buys more fight for its gold. What a
+  civilization lacks is filled from the plain worker, soldier and archer, and every crafted thing says what it
+  fields as or why not (a vessel waits for water). The skirmish kernel takes a roster per side; a side without one
+  plays as before. The mind raises what it builds in order, past the first only once it has sent a wave, and sends
+  everything it has once the gold nodes are spent; a skirmish where the gold is gone and nobody stands is a draw.
+  Its ladder: infantry from the start, its machines once researched (tier 2: the works stands only then), its
+  showpieces after (tier 3: what its technology ranks its focus, the armoured walker), researched one step at a time
+  at what it crafts that signals, senses or lifts (a relay mast, a dish), else a plain lab; its power and growing
+  things are income steps, each making a trip pay a fifth more. The mind climbs the ladder after its first wave,
+  keeping back what the next step costs. A base now defends itself (it shoots at units in range), stands longer, and
+  the gold nodes hold more, so a first wave seldom ends a skirmish and the machines come out.
+  On the page (`lib/graph/board/board-rts-look.js`), each side is drawn as its technology crafted it: its walkers,
+  crawlers, haulers, masts and turrets as their chassis and adornment (or their block), painted in the
+  civilization's finish, cut to the largest faces that read from the RTS camera and fitted to a spot, the main mass
+  leaning to the side's team colour; its infantry carries its crafted weapon; a flyer flies over its shadow. What
+  a civilization did not craft (a plain base, barracks, lab) is drawn as before. The panel names the roster's
+  units, marks what its tier still locks, and shows the next research; B builds (again for the next building),
+  Q W E R train, T researches. Defences, siege and flyers shoot their own effects.
+  In the flow: quick `conquer` takes `sides: [player, enemy?]`, each a civilization of the world by its id or one in
+  words ("armed attack helicopters, a bronze cannon, swords and crossbows"). The level keeps each side as its
+  civilization's own words with the kit, seed and team colour it is tunnelled on (`rts.sides`), and the board reads
+  them into rosters and looks as it renders, met through the top-down camera (technology's LOD). A world's bible
+  shows, on each civilization's technology page, what it fields in a skirmish: its units, buildings, ladder and the
+  ledger of why. The registry holds `power.systems=research`, and the real-time strategy probe asks for it.
+- **The skirmish's principles: jobs and capabilities**, built: a building is its capabilities, any of them
+  together (a factory training over time, research over time, a stationary unit that shoots, a depot), and one lock
+  serves buildings, units and research steps alike (a building standing or a step known, then a tier). Workers
+  build at the site: a building laid is a foundation, raised only while workers build it (faster with more); the
+  nearest worker goes when none is named, and goes back to mining after. Workers repair buildings and machines,
+  paying a gold for every ten hp mended. An idle worker keeps to its work instead of picking fights; the mind trains
+  the best its factories have opened and sends a worker to any foundation left unbuilt.
+  Fighters without a weapon: what carries, shelters or lifts, unarmed (or what its words call a carrier: a troop
+  transport, a shuttle), is a transport: units board it (right-click it), ride where it goes, a flyer's over what
+  they cannot cross, and unload (U); what it carries falls with it. What its words call medical (a medic, an
+  ambulance) mends its own nearby, never a machine. Each is priced by what it carries or mends.
+  Transforms: siege deploys to fire (farther and harder, but still until it packs up: D); a building grows in place
+  into another (the base into its civilization's fort once its machines are known, harder and shooting farther: G);
+  what technology calls deployable (a deployable sentry turret) comes out of the works folded and is set up where
+  it stops. The mind deploys its siege where a foe is in reach and packs it to walk on, and grows its fort last. A
+  side counts as spent when nothing more can come (it cannot earn, nothing is queued and nothing is in its purse's
+  reach), and a skirmish where neither side can is a draw.
+- **The skirmish's abilities and effects**, built: a unit or building is a light, armoured or structure class, and a
+  blow is multiplied by its striker's bonus against that class (a polearm or launcher pierces machines, a blade or
+  axe cuts the unarmoured, siege on structures); siege bursts, half its blow on those round what it hits. Statuses
+  run on a timer: a stun (it does nothing), poison (the tactics battles' too, biting on), a slow, a stim, a shield
+  that takes blows first; they come on hit (energy weapons stun every fourth hit, poisoned words poison, frost words
+  slow) or are cast (F: stim where its words say berserk or stim, paid in hp; a shield where it carries a field),
+  each with its cooldown. A cloaked unit (stealth words) is unseen and untouched but by a detector (a sensor, a dish
+  that now watches); auras lift a side's own (a banner) or slow its foes (a jammer); researched upgrades lift a side
+  at once (its charged or honed weapons, its plating in its finish). Every one is read from the technology's words
+  and dials, said in its ledger, and priced by the same worth formula. On the page each status has a mark on whom
+  it is on (a spinning ring for a stun, a ring at the feet for a slow, poison or stim, a bubble for a shield), an
+  aura its ring on the ground, a selected unit its reach; a struck unit flashes; a cloaked foe shows only once seen.
+  The mind casts when a foe is in sight, trains its latest factory's best first and saves for what a tier opened,
+  spends what it has when it can earn no more; a worker stopped between spots by its depot steps back to drop off.
+- **The skirmish's tree and economy**, built: past its machines a civilization's research branches (flight opens what
+  flies, siege works its siege; the showpieces their own step), and its upgrades run in lines (weapons II, plating II
+  after the first and its top tier). A civilization may write its own steps in `technology.research` (what each
+  opens of what it crafts, what it follows: a step, by name or as machines / showpieces, or a building it raises; a
+  buff across its side), every name it uses read against what it fields and refused with what it could name. The
+  mind passes over a step that opens only what it never fields, and saves for one that opens what it does.
+  Doctrines, chosen before a skirmish (`rts.doctrine`, quick conquer's `doctrine`): economy (two more workers, a
+  tenth more a trip), aggression (fighters a tenth harder and faster), fortress (buildings a quarter sturdier,
+  defences a quarter cheaper), science (research a quarter quicker, 15% cheaper); a civilization may name the ones
+  it allows (`technology.doctrines`), refused otherwise.
+  A second resource, named for what a civilization powers itself with (power, else biomass, else crystal), mined
+  from its own nodes a step beyond the gold (`nodes2`, laid by default when a side's things cost it): its machines
+  and its research cost some, said with the gold when either is short. A supply cap: each unit takes some (the
+  bigger, the more), the base and fort hold some, and quarters (what it crafts that shelters, else plain) hold more;
+  a unit past the cap is refused, naming what to raise. The mind keeps a third of its workers on the second
+  resource, raises quarters as it nears its cap, and is spent when nothing more can come (a board with no nodes at
+  all has nothing to run out of; an idle worker's odd load, or a worker with nothing to mine, is nothing more).
+- **The skirmish's clock and hand**, built: every action the player takes goes through the kernel's one way in
+  (`act`: an order, a training, a building, a step, an upgrade, a rally, a standing order) and is logged by the
+  step it was taken before, so a game replays from its log (`replay`), however the page's frames cut the time. Each
+  side's actions a minute (APM, over game time) beside a game clock in the panel, the mind's counted as it plays.
+  P pauses; [ and ] slow and speed the clock (half, normal, faster, double). Control groups: Ctrl+1 to 9 keep the
+  selection (or a building), Shift adds, the digit takes it again, twice running the camera goes there; `.` selects
+  the next idle worker and goes to it. Standing orders: what a kind does when idle (I: a worker waits, gathers at
+  the nearest node or repairs, a foundation first; a fighter waits or holds), a factory that repeats what it trains
+  while it can pay (Y), a kind that casts its abilities on its own when a foe is in sight (C). A mind plays at a
+  level (`rts.level`: easy, normal, hard, or one each side): its workers, its first wave and how fast the next
+  grow, its actions a minute (easy is held to 40, a few seconds' worth in hand) and how often it thinks; each
+  side's waves now its own.
+- **The match**, built: a skirmish played end to end as a match, not a campaign's battle. Expansions
+  (`rts.expansions`: up to three fields a side, two nodes and a hall's spot each, the same for both sides, mirrored
+  through the board's middle and chosen by `rts.seed`) are claimed by a hall, a second depot that trains workers;
+  the mind raises one on the nearest field once its own nodes run low. The victory rule (`rts.victory`): a side
+  loses when its base falls, or under the melee rule only when its last building does. A side may give up
+  (`act({ k: 'surrender' })`). Each side's match is counted: trained, units lost, raised, buildings lost, mined,
+  research done, and its army's worth every ten seconds. The fog (`rts.fog`): each side sees what its units and
+  buildings see (a flyer a step farther), keeps the ground it explored and the foe's buildings as it last saw them;
+  a unit strikes only what its side sees (a siege out of sight needs a spotter), and the mind plays under the same
+  fog, its waves sent where it last saw the foe, else where the foe started, then the fields. On the page the
+  unexplored ground is dark, the explored dim, the foe hidden out of sight and its buildings remembered as ghosts.
+  A match (`rts.match`, quick conquer's `match: true`) is the closed loop: a lobby before the clock (your side and
+  the opponent's: as minted, the other's, the plain tables or random; the opponent's level; the purse; the workers;
+  the victory rule; the fog), the match under the fog and the melee rule with a field a side unless said, End twice
+  to give up, then the results (the winner, the time, each side's count, its APM and its army over time) with
+  Rematch (the same setup, its fields laid anew by the next seed), New match (the lobby) and Leave (the level ends as
+  the last match went). The lobby's choices are the match's setup (`setup`), so a match replays from them and its log.
+- **The command card**, built: the skirmish is commanded as an RTS is. Clicking a building shows it (its health,
+  queue with progress, research, upgrade, rally, repeat); clicking a unit shows it (health, attack, range, speed,
+  armour, statuses, cooldowns, its idle rule); a box dragged over the ground picks the player's units, never
+  buildings, shown a tile each (a click on one picks it). Beside it a command card of buttons, each with its hotkey:
+  Move, Stop, Hold, Attack, Attack-move and Patrol for units, then what the kind can (its abilities, Unload, Deploy,
+  Build, Gather, Repair); train, research, upgrade, repeat and rally for a building. A command that needs a target
+  arms the next click on the board; a button that cannot act says why. Patrol is a new order: an attack-move back and
+  forth between where the units were and where they were sent. Every action's key can be rebound in the card's Keys
+  panel (kept in the browser), and a game may set its own defaults (`rts.keys`).
+- **The genre sweep asks for it, and now finds it.** Probes for a tactics game and a real-time strategy game, and
+  registry values for what the board makes: the board's spots, the tactical camera, tactics combat, the epoch map
+  (`progression: map`) and its chapters (`chapters: epochs`), scenes told on the board (`shots: board`), the maze
+  defence's placement (`systems: maze`) and the summons. The tactics probe asks for FFT's whole shape and is
+  makeable; so is the real-time strategy probe, with unit orders built (`systems: orders`). Re-swept on
+  `docs/tool-surface/hillclimb.md`: more rolled worlds makeable, the board no longer the top gap.
+
+- **The board kernel** (`lib/graph/board/board-kernel.js`), built: square spots with heights and terrain types, one
+  unit a spot; reach by move and jump (through allies, never foes); aim (a diamond or a line, between a reach's
+  bounds, within a height) and area; facing (a blow from the side or behind hits harder) and height; every legal
+  move listed, ending always among them. The turn is FFT's: move once and act once, in either order, then face; a
+  charge-time clock on the party battles' timeline rule, a turn costing less for not moving or not acting. Blows
+  follow the party battles' formula. Pure and seeded, a self-contained closure a page can carry.
+- **Boards from a geocube** (`lib/graph/board/board-lay.js`), built, indoors and out:
+  - a diorama the cube paints: seeded columns in whole steps, banded a step at a time so a height reads at a
+    glance, grass and stone outside, floor and trim inside, water optional;
+  - over the cube's rooms: spots on the floor, props shutting theirs, the rooms joined only through their
+    doorways;
+  - over the cube's land (a trail's valley by default): heights and types read off the ground, trees shutting
+    their spots, laid inside the site where the most ground can be stood on.
+- **The board on the World page**, built: a `board` world kind (`{ board, units, camera, cursor }`) shows a board over
+  its ground with a faint grid of its spots, highlights for reach, aim and area, a cursor and the units, and plays it
+  with **the tactical camera**: a locked pitch with two stops, quarter turns (Q / E), zoom stops (Z / X or the
+  wheel), the cursor moving the way the screen shows whichever way the view is turned. The widest stop holds the
+  whole board; the closer ones follow the cursor. Selecting a unit shows its reach from the board kernel, and moving
+  it hops the kernel's path. A room is seen as a dollhouse (no ceiling, its walls cut at the waist); over land the
+  overlay drapes on the ground. An RTS form pans and scrolls at the edge instead of turning. A page without a board
+  keeps every byte. The `board` input scheme names its keys.
+- **Battles on the board**, built: a board world kind's `battle` (`{ party, foes, bag?, players? }`) is played on
+  the page. The party stands in its classes and the foes by preset, read from the party battles' own book (stats,
+  gear, skills, weaknesses), with only the board's numbers added: how far each moves and climbs, the shape of each
+  skill (a blow the next spot, a spell four, a mending three, an area for many). Skills, items, statuses and buffs
+  work as in party battles, and a blow lands for exactly what a party battle's would on the same dice; from the side or
+  behind it lands harder (a spell lands the same from anywhere). The player's units take a menu (Move, Act, Wait,
+  then a facing) with the reach and aim shown and a forecast of each act; the other side is a plain mind that weighs
+  every spot and act. A turn-order bar, the active unit's card, numbers off the units, and the level hears
+  `board-won` or `board-lost`. Classes and humanoid foes stand as figures that walk spot to spot; beasts stay tokens.
+- **Tactics games through the game book**, built: `battles: { on: 'board' }` makes each stage that meets packs a
+  battle level, fought on spots laid over the stage's own ground, indoors or out (any level can carry a `board`). The
+  book's party (the hero and the cast who join, standing as themselves) deploys on the near rows, up to four, before
+  the first turn; the stage's packs stand in the far rows. A battle is won when every foe is down (or by its rules: a
+  leader down, turns survived, a guest to protect) and lost when the hero falls; the level ends there (the `board`
+  mechanic). The party is carried as party battles carry it: each battle stands it as the store has it, at full HP,
+  and puts its spoils back (xp, class points and the skills they teach, gold, drops), counted exactly as party battles
+  count them. FFT's permadeath countdown is a rule, off by default. A world whose intent fights tactics gets board
+  battles without writing them.
+- **The epoch map**, built: a tactics book is travelled from a map, its first level: a diorama in the first stage's
+  geocube, each stage a dot on it in story order (a battle or a story stop), joined by roads laid spot by spot. A dot
+  opens when the one before it is won; the party's marker walks the open roads to the dot chosen, and the map is left
+  by that dot (the `map` mechanic). Every dot's level, when won, goes back to the map, where the party stands at the
+  dot it came from.
+- **Epochs**, built: a tactics book is played in epochs (chapters), each with its own map. By default each of the
+  book's levels is an epoch; `battles.board.epochs` cuts them into chapters of its own. Winning an epoch's last stage
+  goes on to the next epoch's map, the party and bag carried; a later epoch's skirmishes draw from the harder packs
+  met by then. The final epoch's last stage completes the game, and its map stays open for what is left.
+- **Story slots**, built: places in a tactics game where a scene or dialogue goes, empty until the story fills them.
+  A battle holds for a scene before its first turn and after its win (the level ends once it has played); a walked
+  stage plays its before at its start and its after at its exit; an epoch's map plays its begin as it opens, once a
+  game, and an epoch's end follows its last stage's own after. The book fills one with a story moment
+  (`when: { slot }`, `where: { level }` or `where: { epoch }`), bound and reported as other moments are. A slot
+  nobody fills adds nothing to the page.
+- **Scenes told on the board**, built: a scene's shot on a board cuts the tactical camera to whoever it names (a unit,
+  a dot, the party on a map, a spot), turned to see them from the front, and gives the player's view back after. The
+  words float over whoever speaks, a speaking figure gestures, and `talk: { portrait: true }` (on a board, or the
+  book's `battles.board.talk`) adds a close portrait of the speaker, their own figure drawn live beside the words. The
+  camera also shakes (the same way every time) and orbits, for what comes next.
+- **Special animations on the board**, built: every act plays on the map itself (a spell its element's effect: fire
+  rises in a pillar, ice spikes from the ground, a bolt falls; a mending glows, a blow sparks), and its numbers land
+  with its strike. Effects are timelines of camera moves (shake, orbit, a shot), light (the world dimmed, a flash) and
+  3D pieces (rings, rune circles, pillars, orbs, shards, spikes, bolts), seeded, so the same act plays the same way. A
+  scene plays one by the bus (`fx:quake:<who>`, `fx:meteor`).
+- **Summons**, built: a summoner class (the board's own book beside the party battles' presets) calls five beings,
+  each built in 3D and animated on the map: an inferno giant raining fire, a glacier colossus raising ice, a tempest
+  crown calling bolts, a stone colossus whose fist quakes the ground, a wyrm of light that circles and breathes. The
+  world dims, the camera circles the place, the map shakes; then the view settles back on its quarter. A summon hurts
+  exactly as the party battles' formula says. Any member may know one (`skills`); a book gives the class with
+  `battles.party.<id>.class: 'summoner'`.
+- **A game's final level** (`final` on `create_game`, the light shell): its first win completes the game. The front's
+  end plays (or the result says the game is complete) instead of travelling on, and the game counts as cleared by
+  that level alone, not every level. A game without one is unchanged.
+- **Skirmishes to fight again**, built: each area of the map gets a skirmish dot after its first battle, open once
+  that battle is won and fought as often as the party likes. A skirmish draws its foes from the book's packs when it
+  starts, scaled to the party (its mean level, give or take one); win and the next visit meets another pack, lose and
+  the same one waits. Any board battle can draw (`draw`: packs, weakest first, in place of `foes`);
+  `battles.board.skirmish: false` leaves them off.
+- **Tower defence on the board**, built: a board's `td` (or the quick path's `defend` with `board: true`) is a tower
+  defence on its spots. Foes come in waves from gates in the far row and walk to the base in the near row; towers
+  (arrow: long range; cannon: a blast on everyone near; frost: slows) stand on any free spot, paid from the purse,
+  and the road bends round them. A tower may only stand where every gate, and every foe already walking, still has a
+  way to the base, so the player runs out of spots as well as gold. Bounties pay for kills, a tower sells for half,
+  and the next wave can be called early for gold. Foes reaching the base cost lives; holding every wave wins the
+  level. Its own kernel (`board-td.js`), the same game in Node and on the page: no dice, a fixed step. Seen from
+  above as a commander would (the camera pans and scrolls at the edge). Without `board`, `defend` is the trail's as
+  before.
+
+### Traditional board games: a board world of tiles, pieces and rules
+
+Board games composed, not coded: a board is a connection of tiles, and chess, checkers and euro games of resources,
+dice and trading are put together from the same systems and meeples (pieces, move rules, turns and exceptions; places,
+resources, building, cards, trading, scores), played against the computer. The book holds only games nobody owns: a
+published game asked for by name is written out from the rules the person explains, never guessed. The board is
+abstract (representational state, heights allowed, no map yet), drawn as an SVG plan and, where it is good enough,
+in CSS 3D. In progress:
+
+- **The lattice** (`lib/graph/polygonizer/lattice.js`), built: mandala-space tiled. Square and hex boards (pointy or
+  flat, a rectangle or a hexagon of hexes, carved by holes or a heights grid) as cells, corners and edges with shared
+  ids, so a piece can stand on a cell, a corner (a settlement) or an edge (a road). The relations are explicit: each
+  cell's neighbour by direction, in manji names (N E S W on a square; E NE NW W SW SE on a pointy hex), its corners
+  and edges in order round it, each corner's cells and edges, each edge's two corners and its cells. Heights stand on
+  the meru. Cells are named as on a chessboard (`C4`), a corner or an edge by any cell it touches and the way to it
+  (`C4.ne`), every alias the same record. Lattice vectors move on it (a step, a slide until the board or a hole
+  ends it, a jump) and turn and mirror with the board, so a piece's moves are one vector under the board's symmetry:
+  a knight is eight moves from one, and the same piece plays on a hex. The relations' invariants are checked
+  (`latticeLaws`), and Euler counts the holes.
+- **The board drawn** (`lattice-svg.js`, `lattice-css3d.js`), built: the plan as SVG (cells in the board's own
+  colouring, corners, edges and names, highlights over them), and the board in CSS 3D, a top a cell, sides where a
+  cell stands above its neighbour or the rim, a seat at the table and a view from above.
+- **The tabletop kernel** (`lib/graph/tabletop/tabletop-kernel.js`), built: a game as a pure function of its moves,
+  composed from data. A piece is what it can do: a vector (or a way) under the board's symmetry, stepped, slid or
+  leapt, landing on an empty cell, a foe or either, the cells it crosses empty, held by a foe or anything, taking what
+  it lands on, what it jumps or what left a mark. Exceptions are conditions (unmoved, a row counted from the player's
+  own side, a mark the last move left), marks, a partner piece that moves with it and a path that must not be
+  attacked; promotion offers each piece a pawn may become; a chain lets the same piece go again (a multi-jump). A
+  rule is written once for the first player and turned to face each other one. The game's rules: a royal piece that
+  may not be left attacked (mate and stalemate follow), compulsory capture, no move loses or draws, repetition, a
+  quiet count, a turn cap, moves a turn and passing, and a clock (base, increment, delay) that spends the time the
+  page measured, the kernel never reading one. One self-contained closure, as the strategy board's, so a page can
+  carry it.
+- **Chess and checkers as data** (`lib/graph/tabletop/games/`), built: written in those words alone, chess with
+  castling, en passant, promotion, check, the fifty-move rule and threefold repetition, and English draughts with
+  compulsory and chained jumps and crowning. A chess position loads from FEN. Their move counts match the published
+  perft tables (chess from the start, Kiwipete and the standard test positions; checkers from the start).
+- **The computer across the table** (`lib/graph/tabletop/tabletop-mind.js`), built: alpha-beta over the kernel's
+  moves, captures followed past the horizon, scored by what the game declares (its pieces' values, a promoting
+  piece's progress, the middle of the board), three levels (easy, fair, hard) by depth and by how far below the best
+  a pick may fall. Bounded by a count of positions, never a clock, with seeded dice between equal moves: the same
+  position and seed give the same move on any machine. A closure over the kernel, so a page carries both. The attack
+  test walks each capturing rule backwards from the square, which made the search about three times faster.
+- **The game to play** (`lib/graph/tabletop/tabletop-page.js`), built: one self-contained page against the computer,
+  carrying the board, the game, the kernel and the mind. Two views of one board: the plan (SVG) and the table (CSS 3D,
+  every cell's top a div played by clicking, a piece a token that slides from cell to cell). Select a piece to see
+  where it may go, a promotion picker, the last move marked, check and the outcome in the status, the move list, undo,
+  a new game, the level (easy, fair, hard), and the clocks when the game has one (the page measures a move's time and
+  hands the kernel the number). The person sits at their own side: playing black turns the plan and the table.
+- **The economy** (the tabletop kernel, grown), built: a game with building, dice or an opening is played on places,
+  a cell, a corner or an edge, so a settlement stands on a corner and a road on an edge. Stocks (a player's pieces
+  off the board), hands and a bank, costs; building as data, with conditions over the place graph (no building within
+  so many steps, beside the player's own kinds, a road reaching from the player's net and not through a foe's
+  settlement) and upgrades (a city on a settlement). Seeded dice at the turn's start; production (each hex showing
+  the roll pays the pieces on its corners, not under the robber, the bank's shortage rule); rolls that do something
+  else (a seven: half a hand over seven given up, the robber moved, a card stolen). Forced choices queue, even out of
+  turn, one move at a time. Decks shuffled from the seed, cards bought and held, played one a turn and never the turn
+  bought, their effects in a few verbs (the robber, free placements, gain from the bank, claim from every other
+  player). An opening in rounds (the snake), then roll and build. Scores from pieces, cards and awards (the longest
+  trail of a kind, broken by a foe's building; the most of a card played), a win on one's own turn. A view per player
+  deals what it cannot see again from what is unseen, so a computer never reads a hidden card or the dice ahead. A
+  bank exchange is an option. Chess and checkers keep their counts.
+- **The deal**, built: a system for a seeded setup. Cell types and numbers shuffled onto the board from the game's
+  seed, numberless types left bare, chosen numbers kept off neighbouring cells, neutral pieces set on a type; the same
+  seed, the same board.
+- **Trading between players**, built: a system (`trade: { offers, shapes }`). After the roll the player to move offers
+  any whole cards it holds for others; each other player answers in turn, accepting only what it can pay; the offerer
+  deals with one who accepted or calls it off; a few offers a turn, so a game always ends. The computer answers by
+  expected value and the table: what the trade does for its own position (points, income, hand, and how many rolls
+  it now stands from its next build) less what it does for the offerer's, weighed heavier when the offerer is ahead
+  of it and heavier again when the offerer leads, and never a trade with a player two points from winning. It offers
+  only what it foresees accepted and helpful, and deals with the partner its own position likes best. Four computers
+  with trading finish a dealt island in fewer turns than without (56, 128 and 66 turns against 96, 114 and 107 on
+  three seeds).
+- **An island economy, as a test fixture** (`lib/graph/tabletop/fixtures/island-economy.js`), built: nineteen hexes
+  dealt by the deal system, settlements, cities and roads, dice, production and the seven's robber, development cards,
+  the longest road and the largest army, an opening in rounds, and trading when asked: written in the systems alone,
+  the way a person's own rules would be once explained. Not in the book and not reachable from the tools.
+- **The computer at a euro game**, built: a turn planner. From its own view it weighs lines of its own actions this
+  turn, the best few at each step, each forced choice on the way taken greedily, and plays the first action of the
+  best line. A seat's worth is its points, what its pieces earn a roll (a spread of resources over a pile), its hand,
+  the builds it can pay for, the corners it can settle next, its cards, its army and its road, less a share of the
+  leader's. Four computers play a dealt island to a winner.
+- **A euro game to play** (`lib/graph/tabletop/tabletop-euro-page.js`), built: the same page for a euro game. The island
+  on the plan and the table, its numbers, the pieces in the players' colours; the corners, edges and hexes that can
+  be taken now marked and clicked; the person's hand and cards, the roll, the builds, buying and playing cards, and
+  the forced choices as prompts (what to give up, where the robber goes, whom to rob); every seat's open points,
+  cards and awards; a log; with trading, an offer drafted card by card (checked by the kernel's own rule), the
+  computers' offers to accept or decline, and the partner chosen from those who accepted. The computers play their
+  turns a beat apart, so their moves can be followed.
+- **Meeple shapes** (`lib/graph/tabletop/tabletop-shapes.js`, `tabletop-bodies.js`), built: a piece given a body, not
+  only a cube or a flat token. A shape is a cut-out with thickness (a meeple, a house, a city, a tower, a barn, a ship,
+  a horse's head), a turned profile (a checker, a stack, the chess set, a robber), a box (a cube, a road) or a group
+  of those, named from a shelf or written out in cell units. The table view stands each piece as a body of panels lit
+  in its owner's colour and turned to face its player, a road lying along its edge; the plan draws each piece's side
+  silhouette, as a diagram does. A turned piece's tapering bands are unmasked rectangles, so a full chess set of 32
+  bodies draws in a few seconds where masked bands took minutes. Chess, checkers and the island economy wear them; a
+  shape is checked when the game is made.
+- **Placement and groups**, built: pieces put down rather than moved. A kind may be dropped from the player's stock onto
+  an empty cell, falling a way until something stops it, or turning the lines of foes it closes. One groups engine
+  (a side's pieces joined across edges, and the empty cells beside them) serves enclosure (a group with no empty
+  neighbour is taken; no suicide; no ko: the board may not return to how it stood before the other player's move),
+  connection (a group joining a player's own two sides wins) and the scorers. A line of k along any axis wins.
+  Passes in a row or a full board end a game by its points: pieces counted, territory (empty areas one side alone
+  borders), majorities in named regions (first and second, ties sharing the places' points), the largest group, an
+  added half point. A rhombus of hexes joins the lattice. The computer reads each game by what wins it: open lines
+  toward k, the shortest way left to join two sides, groups down to their last empty neighbour, and the game's own
+  points; it narrows a wide board to the cells near the play. Five fixtures, each named by its principle (enclosure,
+  lines with and without falling, connection, sandwiching, majorities), are played by clicking on the plan or the
+  table, with a pass, the score in the status and the regions tinted.
+- **Tile placement**, built: a board grown a tile at a time. Tile types are segments of feature types over a tile's
+  edges (an area, a line) or its centre; tiles come from a seeded bag, one drawn a turn, laid beside the laid ones,
+  turned any of the board's turns, every shared edge's label matching (square or hex alike); a tile that fits nowhere
+  is set aside. A segment of the tile just laid may be claimed with a piece from stock if its feature has none. A
+  feature (segments joined across edges) with no open edge pays at once, its tiles times its rate, to the most claims
+  in it, a tie paying each, and its claims return; a centre feature is done when every cell round it is laid. An empty
+  bag ends the game, open features paying their lower rate. A player's view deals the bag again. The computer weighs
+  every placement and turn with the best claim it allows: points, each feature it leads at its chance of being done,
+  a claim in hand worth more the fuller the bag, less a share of the leader's. A tile-placement fixture named by its
+  principle (walls, paths, shrines). The page draws each tile from its segments on the plan (cropped to what is laid)
+  and on the table (the art on the cell's top, claims as standing bodies, the view following the play); the drawn tile
+  is turned by hand and laid where it fits, then a claim chosen or not.
+- **Piles, hands and markets**, built: card games, with no board (`piles`). Card types are data (a cost, coins, points, a
+  treasure, effects to play in a few verbs: draw, coins, actions, buys, points, gain a card up to a cost, trash from
+  the hand; tags). Each player has a deck, a hand, a discard, the cards played this turn and a tableau; a supply of
+  piles and a market, a row face up refilled from its own seeded deck. Deck building: a hand drawn, treasures played
+  freely and others for one of the turn's actions, buys into the discard, the turn's cards to the discard and a new
+  hand, the discard shuffled into a deck when it runs out; a gain or a trash owed is chosen one card at a time.
+  Drafting: a turn takes one card from the row to the tableau. Set collection scorers: the cards' points, different
+  values of a tag held, the same value held so many times, a tag's numbers summed, the most of a value (a tie sharing
+  the bonus). The game ends as a turn ends (a pile gone, so many piles gone, the market empty, a turn count). A
+  player's view keeps its own hand and deals deck order, the others' hands and the market's deck again. The computer
+  plays what leaves its turn the most to buy with (an action that keeps the actions going first), then buys what
+  leaves its seat worth most: its points weighed more as the end nears, the average hand its deck draws weighed less;
+  at a draft, the card worth most to it less half the next seat's best take. Against fixed strategies (a money-only
+  buyer, a buyer of the dearest card) it wins about half its games; it beats random play every time. Two fixtures
+  named by principle (deck building; drafting and set collection), played on a card page: the supply and the market
+  lit where a buy, a take or a gain may go, the hand lit where a play or a trash may, the others' piles as counts and
+  their tableaux face up, actions, buys and coins, every seat's points as the game scores them now, a log.
+- **The engine, stage 1: one object model**, built. The thesis behind the next stages: every board game is the same
+  duel of objects (things with characteristics in zones; a turn of phases; windows to act; a chain of responses;
+  triggers; world effects; rules checked between actions), so the kernel grows that engine rather than one feature per
+  paradigm. Stage 1 unifies what things are. Every piece, card and laid tile is now an object in one table: a board
+  piece as before, a card in its owner's zones (deck, hand, discard, played, tableau; zones hold object ids in order),
+  a laid tile and a claim at their cell, an economy card held or played. A shared supply of like things (a supply
+  pile, a bag of tiles, a bank, a stock of meeples) stays counted by kind until one comes out of it. Pieces, card types,
+  tile types and economy cards share one namespace (a name used twice is refused). One function derives an object's
+  characteristics: its definition, then its modifiers in a fixed order (set, add, counters, grant and remove
+  abilities, by timestamp within each); with no counters and no modifiers it is the definition itself, so a game that
+  uses neither pays nothing, and an object leaving play keeps none of them. Machine gates: the seeded mind-against-mind
+  games of every mode (chess, enclosure, tiles, deck building, drafting, three island games, one with trading) replay
+  move for move as before the change; perft's counts and time are unchanged; the kernel grew by 8.7 per cent.
+- **The engine, stage 2: rounds of phases, sealed choices and utilization**, built. A game with `round` is played in
+  rounds, each a list of phases written as data: taken in turns from the first seat while anyone can act, together
+  (each player's choice sealed and hidden from every other player's view, all revealed and resolved at once, the
+  phase repeating while what it acts on lasts), or by itself (workers made ready, cards dealt, a lot revealed, upkeep
+  paid, lots nobody took cleared). Its moves: a worker placed on a space (exhausted; a space holds so many; its
+  effects at once: resources, points, another worker, the first seat), a sealed bid (the highest pays and takes the
+  lot, a tie to the first in order, nothing on all zeros), a sealed pick (kept, the hands passed on), a pass. Workers
+  are objects; resources are pools that carry over; cards and their scorers are the card mode's; the first seat may
+  pass on each round. **Utilization**: capacity that expires (a deck turn's actions, buys and coins; workers in a
+  round) is kept in a ledger per player, spent and idle (left when it expired while a move could still have spent
+  it), and `utilization` reports the share used. The computer optimizes it (a small term preferring capacity used
+  over idle when worths are close) and is tuned by it: a level's `use` is how often an option that spends capacity is
+  seen at all, so a weaker computer leaves capacity idle where idling is allowed and misplaces where spending is
+  forced, the way a weaker player forgets the card in hand (easy 0.7, fair 0.92, hard 1). The computer in a round
+  game places a worker where its seat's worth gains most (resources valued by the game's own conversions, upkeep and
+  end rates; workers by the spaces' yield for the rounds left), bids by expected value (the lot's worth to it, the
+  coins, whether it beats what each rival would pay by the same reckoning, half a rival's gain), and picks what is
+  worth most to it less half what the next seat could take from the hand it passes. Three fixtures named by
+  principle (worker placement, sealed bids, drafting by passing) and a round page (spaces and their workers, the lot
+  and the bids, the hand, pools, every seat's points and utilization, sealed choices shown only as made until
+  revealed). Machine gates: hard beats easy 12 of 12 deck games, easy using 72 per cent of its capacity to hard's 96,
+  and hard beats easy 9 of 10 worker games; the computer beats random play in every round paradigm; chess,
+  enclosure, tiles, drafting and the island games replay move for move as before; perft unchanged; the kernel grew
+  to 103,295 bytes (from 85,992) and the mind to 31,575 (from 24,059).
+- **The engine, stage 3: a player's own turn, the chain, the initiative and triggers**, built. A round game may give
+  each seat a turn of its own (`round.turn`): auto phases acting for the player whose turn it is (ready its objects,
+  a pool that grows by one each turn and is refilled, what was left gone; a draw; damage mended) and an active phase
+  where it casts cards and uses abilities. Players have a deck, a hand, a discard and a field. A summon enters the
+  field exhausted; a spell resolves and goes to the discard; an ability may exhaust its object and cost from a pool.
+  Everything cast or used goes on the chain, resolved last in, first out. After a link goes on, the initiative passes
+  round, but only to a player who can answer (a fast card it can pay for, a fast ability), never to the one whose own
+  link is on top; when all have passed the top link resolves, and with nobody able to answer, links resolve at once,
+  so neither a person nor the computer is asked to pass for nothing. Triggers (enters, dies, at its controller's turn
+  start, when a foe casts) go on after each action, the active player's first. Checks between actions: damage
+  reaching guard kills, a player at the floor of its `lose` pool loses. One target chosen at casting, skipped if gone
+  by resolution; a counter cancels the spell beneath it; an ability's power is the source's as it was when used. A
+  loop guard: past `cap` actions in a turn or a hundred links, a draw. Energy left at a turn's end while a card could
+  have been paid for is idle (utilization). The overlooking dial now holds for the whole turn, decided by a hash of
+  the game, the turn, the seat and the option (a forgotten card stays forgotten), so in the deck game hard beats easy
+  10 of 10 (95 per cent used against 70). The computer: a duel planner that plays each move and settles the chain
+  before weighing the seat (life, the field's power and guard, the hand), and Monte Carlo tree search for any game,
+  seeded and bounded by playouts, each from a fresh determinization of its own view, opt in by `search: 'mcts'`. A
+  fixture by principle, a response duel (summons, spells, fast answers, a fast ability, four kinds of trigger, a
+  counter, strikes), and the round page grown for it (fields, the chain top first, targets, answer or pass). Machine
+  gates: forty random duels keep every invariant (each card in one zone, its zone its list, the chain's cards nowhere
+  else, no negative pool, no stall); the duel planner beats random play 11 of 12 and hard beats easy 9 of 12; search
+  wins 4 of 10 against the planner at about 67 ms a move (it stays opt in); every other mode replays move for move
+  except where the dial plays (deck building, worker placement); perft unchanged; the kernel grew to 120,163 bytes
+  and the mind to 38,442. A test now refuses two top-level declarations of one name in either closure (a second
+  `settle` had silently replaced the first). Re-expressing the existing modes' turn loops as phases was dropped: none
+  needs a response window.
+- **The engine, stage 4: world effects, counters, ready and exhausted**, built. An object's characteristics now
+  gather the world effects that cover it: static abilities of objects in play (an aura on one's own summons, a curse
+  on the foe's, a cost cut on the hand) and the game's own (`world`). They apply in one fixed order, written down and
+  not pretending to be layered: set, then add (numbers, or objects of numbers summed key by key, a cost never below
+  nothing), then counters, then grant and remove abilities, by timestamp within each (the time a source entered play,
+  or a modifier was made). A world effect's sources are read from their definitions and their own modifiers, never
+  from other world effects, so nothing depends on anything; copies and changes of control are left out. A game with
+  no static ability takes the shared definition as before. Effects gain a boost (lasting, or until the turn ends,
+  when it is taken off), counters placed or removed, and readying; an ability may cost counters from its own object,
+  and a card may enter play with counters (a wand with three charges); a step may empty a pool; damage never goes
+  below nothing. Utilization gains ready objects: a summon left ready at the turn's end while it could have struck is
+  idle, so the dial now reaches forgotten strikes (in the duel hard beats easy 11 of 12, easy using 84 per cent). The
+  duel grows eight cards that use each (an aura, a foe aura, a cost cut, a rally until the turn ends, growth
+  counters, a charged wand, a readying spell, a curse that sets power and strips abilities), and the page shows stats
+  as derived (raised green, lowered brown) and counters. Machine gates: forty random duels keep every invariant with
+  the new cards; every other mode replays move for move as before (the world-effect path costs nothing where there is
+  none); perft unchanged; the kernel grew to 125,634 bytes.
+- **The engine, stage 5: fixtures that join the systems**, built. *A summoning duel on a board*: a turn game given
+  a board puts its summons on the lattice. A summon card names a piece, whose rules (vectors under the board's
+  symmetry, as chess's) move it; it is cast onto an empty cell of its controller's home row; a ready summon goes (a
+  move onto an empty cell, which simply happens) or attacks (a move onto a foe, which goes on the chain so the foe can
+  answer before blows land), either exhausting it; blows are struck together, each its power, and an attacker takes
+  the cell of a defender that dies; an ability may need its object's row, so a summon strikes the foe only from the
+  far row; a summon leaving play leaves its cell. The fixture (footmen, outriders that leap as knights, lancers that
+  charge forward two, a captain's aura, bolts, a counter, a snare) on a five by five board. *Deck building on the turn
+  engine*: the card mode's deck game built from its own cards and played on turns, a treasure a card cast for
+  nothing that gives coins, an action costing one of the turn's actions, buying a move from a counted supply (a
+  card's price, one of the buy pool), cast cards waiting in play until cleanup, a step that discards the hand and
+  what was played, pools set each turn, the discard reshuffled into the deck when it runs out, the game ended by the
+  supply's piles, every owned card scored (the cards that trash or gain, a choice of several cards, are left out). A
+  scripted turn gives the same coins, the same purchase, the same discard and the same next hand in both engines.
+  *Worker placement as exhaust and ready* had already been built so in stage 2. The round page shows the board (the
+  summons standing on their cells; a summon picked lights where it may go, green, and whom it may attack, red; a
+  summon cast lights the cells it may enter), a supply to buy from, and card faces drawn from data (a summon's piece's
+  silhouette, a card's glyph); a cell's name no longer swallows the click meant for its cell. Machine gates: thirty
+  board duels, random and computer, keep every board invariant (a cell's object stands there, a summon in play stands
+  on its cell, nothing off the field holds one); on the board the computer beats random play 12 of 12 and hard beats
+  easy 8 of 12; on turns deck building the computer beats random 6 of 6 and hard beats easy 6 of 6; every other mode,
+  the response duel too, replays move for move; perft unchanged; the kernel grew to 132,580 bytes and the mind to
+  42,449.
+- **The engine, stage 6: Monte Carlo search as the third mind**, built, and placed where it measured stronger. The
+  search gains priors (the game's own judgement one move deep orders the untried moves and biases the choice, fading
+  with visits; a move legal only in some deals of what is hidden counts as even) and centred values (a worth counted
+  as its change since the root, so a game whose worths run large is not flattened). Measured against each game's
+  hard planner: tiles 9 of 12 (500 playouts, about a second a move), placement whose drops flip lines 8 of 8 (the
+  planner's terms do not read it), four in a row about even, the duels about even at fifty to three hundred times
+  the cost, deck building and connection and enclosure lost (long one-player turns it could not order; alpha-beta
+  with the game's own terms on small perfect-information boards). So hard (`search: 'auto'`) searches the tile game
+  (400 playouts) and games whose drops flip, and keeps the planners everywhere else; easier levels keep the
+  planners, which carry the difficulty dials; a written game may decide for itself (`mind: { search: 'mcts' | 'plan',
+  playouts }`). Seeded and bounded by playouts, never a clock: the same position and seed give the same move. On the
+  tile page the computer at hard takes about a second and a half a turn in the browser. Every game at fair replays
+  move for move as before.
+- **The door** (`create_game`'s `tabletop`), built: `create_game({ title, tabletop: { game } })` makes a board game
+  against the computer, chess or checkers from the book or a game written out from the systems, with the person's
+  side, the level, the view, a seed and a clock. A published game asked for by name sends the agent to ask the person
+  for its rules first. It is a recipe: a game row (`engine:
+  'tabletop'`) whose page is made again on every read, played at `/api/sketches/<ref>/game`, edited with
+  `update_sketch` (the kernel checks the edit) and exported by `export_game` as one page and its recipe. A game the
+  kernel cannot play is refused when it is made. A routing card, two routing rows, and a vocab card
+  (`get_game_vocab({ id: 'tabletop' })`) with the systems' grammar and the book's own chess pieces; the cosmos registry's board
+  learns `lattice`. The `tools/list` payload pin is raised for the one schema property.
+
+### Mobile genres
+
+- **Swipe.** One reader turns a finger's flick into a tap or a direction, shared by every touch game.
+- **A match-3 saga.** `create_pixelizer_game({ reducer: 'stone-saga' })` makes Philosopher's Stone a saga: a map of
+  levels (thirty by default, `saga: { seed, levels }`), each a few moves to reach a score or to dissolve so many of one
+  reagent, with a bonus for every move left and up to three stars. The map opens a level at a time and remembers the
+  stars in the browser; there are no lives, a level is retried as often as you like. The map is made from the
+  recipe's seed (the title's, unless you name one), so the same game is the same map everywhere, and its curve was
+  measured against a steady player: the first levels are generous, the last leave little to spare. A gem is swiped
+  toward its neighbour, or tapped twice. Philosopher's Stone without a saga is unchanged.
+- **An endless runner.** `design_game({ quick: { goal: 'runner' } })` makes a game where your hero runs on its own down
+  three lanes, faster and faster: swipe left or right to change lane, up to jump a hurdle, down to slide under a bar
+  (A / D, Space and S on a keyboard), and take the coins. The rows come from the level's seed as you run, each with a
+  way through; a crash ends the run and the best score and distance are kept. `distance: n` makes reaching it the win;
+  `runner: { lanes, speed, max, palette, … }` tunes the run. A level of a world can be a run too (`levels.<id>.runner`).
+  It plays in the browser (not in an engine export). Worlds without a runner are unchanged.
+- **What can be made, measured.** The capability page gains the two genres: the endless runner is makeable; the
+  match-3 saga is made by Stone Saga, and a world game's levels taking stars and a map is the next step it names.
+
+### Resolution lock
+
+- **A game is made for a screen.** A gameworld's `screen` (beside `camera`; `quick.screen` too) names the screen it is
+  designed for: `'phone'` (upright, 9:16), `'tablet'` (an iPad on its side, 4:3; `{ pole: 'tablet', orientation:
+  'portrait' }` stands it up), `'screen'` (a monitor, 16:9), or `{ aspect: [w, h] }`. A new game `design_game` starts
+  is made for a phone unless another screen is named; `screen: null` asks for none. A stored game without one plays
+  exactly as it did.
+- **The frame is held.** Each level plays in the screen's frame, the least a player sees: a longer device shows more
+  world along the frame's long axis (up to a third more), and bars past that or on a shorter device. The camera's
+  field of view across the frame's short side never changes, so an upright phone keeps the view it was designed with.
+  The game's pages leave room for the notch and the home bar.
+- **The gates measure it.** The first-frame check and traversals render each level at its screen's frame.
+- **Cameras framed for an upright screen.** On a phone (or any upright frame) each camera is framed by its kind, never
+  by genre: a chase camera is pulled back and looks a little higher, so the hero stands about a third of the way up
+  the screen, clear of the thumbs, with the way ahead above; the top-down and side cameras pull back; the view across
+  the width narrows so the screen's height does not stretch. A frame on its side plays every camera as authored.
+  `screen: { pole: 'phone', fov }` names the view across the short side yourself.
+- **Touch controls.** A game made for a screen draws a touch pad on a touch device: a stick that rises where the left
+  thumb lands, a look zone the right thumb drags (a first-person camera, a craft), and the buttons the hero answers
+  to (jump; up and down in flight; fire when armed; use while standing where something is used). The layout follows
+  the hero's kind of movement and the camera, never the genre: a side-scroller's stick runs left and right only. The
+  pad is a gamepad drawn on the screen, so a remapped gamepad control moves with it, and a real gamepad, once
+  connected, takes over. `?touch=1` shows it on any device, `?touch=0` hides it.
+- **The screens laid out for it.** A game made for a screen lays out its UI once by that screen, never per game. The
+  HUD's corners stay clear of the notch and the home bar, and its bottom row rises over the touch pad while the pad
+  shows. Upright, a long banner wraps to the width, the battle menu stacks, and the title screen stands its title and
+  menu at the foot of the screen in reach of the thumbs, with the cover above. On touch, the level's control hint and
+  the pause sheet say what the thumbs do instead of naming keys, and the pad steps aside while a menu, a battle or the
+  journal is open.
+- **The exports carry it.** The desktop app opens in the screen's shape (a phone game upright at 450×800, a monitor
+  game at 1280×720). The Godot project holds the frame (`[display]`: the base viewport, `canvas_items` + `expand`, the
+  handheld orientation), and its kernel (0.30.0) keeps an upright game's view across the width, as the browser does.
+  Roblox does not carry the screen: `screen` is a World page input marked approximated in Godot (the project file
+  holds the frame; the touch pad and the safe-area zones are the page's) and absent in Roblox, and an endless run is
+  the page's in both (`runner`, and the runner mechanic, whose events only the page's lanes send).
+  The level cameras every engine reads take the screen's view. The Unity and Unreal guides add the two steps that match
+  the editor's play view and a mobile build's orientation. The touch pad and the screen's UI layout stay in the browser.
+- **Told when a screen fits badly.** A side-scroller or a fight on an upright phone is advised in the run's readout
+  (a tablet or a screen frames them better); it is never refused.
 
 ## [3.1.1] - 2026-10-16
 

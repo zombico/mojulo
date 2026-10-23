@@ -29,6 +29,9 @@ export const BUS_STATUS_MARK = Object.freeze({ built: 'built', partial: 'approxi
 
 // space.camera's values, by the camera rule each lowers to (gameworld/cameras.js)
 export const CAMERA_RULE = Object.freeze({ 'third-person': 'follow', 'first-person': 'eye', 'top-down': 'overhead', side: 'side', fixed: 'fixed' });
+// space.camera values no controllable rule plays: the board page owns its camera (board/board-camera.js), and no engine
+// kernel plays a board, so it is absent in every engine
+export const PAGE_CAMERAS = Object.freeze({ tactical: 'the board page\'s own camera (board/board-camera.js); no engine kernel plays a board' });
 
 // space.traversal (playscape/objects ENTRIES): the runtime rule each lowers to, if any
 export const TRAVERSAL_RULE = Object.freeze({ door: null, platform: 'mover', lift: 'mover', catapult: 'launcher', bridge: null, ladder: 'platform', stairs: null });
@@ -47,12 +50,13 @@ export const LEDGER_INFO = Object.freeze([
 // the game manifest's shell keys that carry nothing to judge (a soundtrack plays wherever a level plays)
 export const SHELL_INFO = Object.freeze(['music']);
 
-/** The overlays a payload's rigged figures carry: a vehicle's live overlay, a racer's juice and its lamps (sorted). */
+/** The overlays a payload's rigged figures carry: a vehicle's live overlay, a racer's juice and its lamps, a body's forms (sorted). */
 export function figureOverlays(figures) {
   const on = new Set();
   for (const f of Object.values(figures && typeof figures === 'object' ? figures : {})) {
     if (!f || !f.rig) continue;
     if (f.live) on.add('live');
+    if (f.forms) on.add('forms');
     if (f.juice) { on.add('juice'); if (f.juice.beams) on.add('beams'); if (f.juice.trails) on.add('trails'); }
   }
   return [...on].sort();

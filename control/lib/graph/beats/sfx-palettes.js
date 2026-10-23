@@ -152,6 +152,9 @@ export const MECHANIC_SFX = {
   aftermath: { 'broke:*': 'thud' },
   frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
   control: { 'control:won': 'goal', 'control:lost': 'lose' },
+  board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
+  map: { 'map-go:*': 'door' },
+  runner: { 'run-won': 'goal', 'runner:crash': 'death' },
 };
 
 // shift every pitched gesture by `k` semitones (note names only; Hz, materials sized in metres and noise stay put)

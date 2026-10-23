@@ -80,7 +80,8 @@ The built-in defaults are deliberately a starting point. A distinctive result ta
   [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) to the extent the maintainer holds rights in them. The
   software itself stays under the Apache License 2.0. Third-party content keeps its own licence (see [NOTICE](NOTICE)).
 - **Forks.** This dedication covers the maintainer's work, wherever it is copied. A fork that keeps this section offers
-  the same for its own additions; a fork's maintainers speak only for themselves.
+  the same for its own additions; a fork's maintainers speak only for themselves. The name is not part of the
+  licence: a fork that changes mojulo ships under its own name ([TRADEMARKS.md](TRADEMARKS.md)).
 - **Receipts are evidence, not title.** `sign_asset` gives an exported file a receipt signed with a key on your machine
   ([docs/asset-receipts.md](docs/asset-receipts.md)), so you can show that you held that file when you signed it, for
   example when you license it to someone. The maintainer issues no receipts, keeps no register and takes no part in any

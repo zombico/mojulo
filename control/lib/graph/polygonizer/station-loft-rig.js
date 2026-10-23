@@ -494,7 +494,16 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
     const gid = (pid) => ((parent.layer ?? 1) === 1 ? pid : `${part.pin.parent}/${pid}`);   // an L2+ parent's faces carry its LOCAL point ids
     const acc = {}; tri.forEach((pid, k) => { const w = part.pin.weights[k]; const src = per[idx[gid(pid)]]; if (!src) throw new Error(`station-loft-rig: ${name} inherits from unbound ${pid}`); for (const [bi, ww] of src) acc[bi] = (acc[bi] || 0) + w * ww; });
     const inherited = topFour(acc);
-    for (let i = 0; i < n; i++) if (mesh.provenance[i].part === name) per[i] = inherited;
+    // a pinned part may weigh its own points (opt-in `boneWeights`: { <point id>: [[bone, w], …] }, an articulated
+    // wing's): those points ride their bones, the rest inherit the pin face
+    const own = recipe.parts[name]?.boneWeights;
+    for (let i = 0; i < n; i++) if (mesh.provenance[i].part === name) {
+      const pid = mesh.provenance[i].id, e = own?.[pid.startsWith(`${name}/`) ? pid.slice(name.length + 1) : pid];   // a pinned part's points are `<part>/<id>`
+      if (!e) { per[i] = inherited; continue; }
+      const sum = e.reduce((t, [, w]) => t + w, 0);
+      if (!e.length || e.length > 4 || !(sum > 0)) throw new Error(`station-loft-rig: ${name} point ${pid} weighs ${e.length} bones (1 to 4, a positive sum)`);
+      per[i] = e.map(([b, w]) => [boneOf(b, `${name}.${pid}`), w / sum]);
+    }
   }
   const joints = [], weights = [], dominant = [];
   for (let i = 0; i < n; i++) { const e = per[i]; if (!e) throw new Error(`station-loft-rig: vertex ${mesh.pointIds[i]} unbound`); const j = [0, 0, 0, 0], w = [0, 0, 0, 0]; e.forEach(([bi, ww], k) => { j[k] = bi; w[k] = ww; }); joints.push(j); weights.push(w); dominant.push(e.reduce((b, x) => (x[1] > b[1] ? x : b), e[0])[0]); }

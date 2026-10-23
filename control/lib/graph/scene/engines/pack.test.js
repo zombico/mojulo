@@ -11,7 +11,8 @@ vi.mock('../engine-audio.js', () => ({
   renderBed: async (id, { loop = true } = {}) => { renders.push(`${id}:${loop ? 'loop' : 'once'}`); return Buffer.from(`${id}:${loop ? 'loop' : 'once'}`); },
   renderSound: async () => [],
 }));
-const { bedWriter, emitFolder, refusePixelizer, gameLevels, packPosture, shellExtras, packHash } = await import('./pack.js');
+const { bedWriter, emitFolder, refusePixelizer, gameLevels, packPosture, shellExtras, packHash, startingForms } = await import('./pack.js');
+const { engineReading } = await import('../engine-score.js');
 
 describe('bedWriter', () => {
   it('renders a music once, writes it at every path asked for, and never hands a stinger a looped render', async () => {
@@ -59,5 +60,35 @@ describe('the guards', () => {
     expect(shellExtras({ menu: {}, front: {}, music: {} })).toEqual(['menu', 'front']);
     // the recipe's identity: a stamped quality grade never moves the hash
     expect(packHash({ kind: 'game', quality: 'A' })).toBe(packHash({ kind: 'game' }));
+  });
+});
+
+// A transformer's hero (worlds/controllable/forms.js) carries `forms` and no rule: the page picks the rule when it
+// starts. No engine kernel has forms, so every engine takes the hero as its starting form, and names the rest.
+describe('startingForms', () => {
+  const hero = { id: 'hero', pilotable: true, forms: { robot: { rule: { type: 'walk', speed: 4 } }, vehicle: { rule: { type: 'drive' } } }, transform: { pos: [0, 0, 0] } };
+  const level = (e) => ({ entities: [e, { id: 'crate', rule: { type: 'walk' } }], camera: { rule: 'follow', target: 'hero' } });
+
+  it('gives a body in two forms its starting form\'s rule, the page\'s choice of it', () => {
+    expect(startingForms(level(hero)).entities[0]).toMatchObject({ form: 'robot', rule: { type: 'walk', speed: 4 } });
+    expect(startingForms(level({ ...hero, form: 'vehicle' })).entities[0]).toMatchObject({ form: 'vehicle', rule: { type: 'drive' } });
+    // a form named that is not one of them falls back to the first, as on the page
+    expect(startingForms(level({ ...hero, form: 'boat' })).entities[0].form).toBe('robot');
+  });
+
+  it('so an engine finds its pilot, walking and watched', () => {
+    const before = engineReading(level(hero), 'godot').rules;
+    expect(Object.values(before).some((r) => r.pilot)).toBe(false);
+    const after = engineReading(startingForms(level(hero)), 'godot').rules;
+    expect(after.walk.pilot).toBe(true);
+    expect(after.follow.unwatched).toBeUndefined();
+  });
+
+  it('leaves every other payload as it is, the same object', () => {
+    for (const p of [level({ ...hero, rule: { type: 'fly' } }), level({ id: 'hero', pilotable: true, rule: { type: 'walk' } }), { faces: [] }, null]) {
+      expect(startingForms(p)).toBe(p);
+    }
+    // one form is no transformer: the page leaves it be, and so does this
+    expect(startingForms(level({ ...hero, forms: { robot: hero.forms.robot } })).entities[0].rule).toBeUndefined();
   });
 });

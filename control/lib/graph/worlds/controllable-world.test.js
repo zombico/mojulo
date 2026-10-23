@@ -1127,15 +1127,22 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // Skyscape added 'missiles' after 'weapon' (a craft's lock, launch and flares: combat-ranged.js stepMissiles; a no-op
     // without rule.missiles).
     // Ground acceleration added the 'drive-stop' suppressed tick (an owned body's drive stops; a no-op without rule.accel).
+    // More-than-meets added the forms: 'transform' after the pilot swap (the B press, a body's own ask) and the
+    // 'transform' body owner after the tackle cine (the beat; it measures a walker's motion and owns nothing
+    // without `forms`), and 'form-thrust' among the entity actions (a flying form burns its jets).
+    // The city stalker added the 'wall' body owner after the climb (a platform body with rule.wall holds any collider's
+    // face: wall.js; a ladder's climb wins) and the 'wall-pose' pass after the launch (perch and dive labels); both are
+    // no-ops without rule.wall. Its gear added the 'swing' body owner after the wall (the swinger's line: swing.js; a held
+    // wall wins) and the 'gear-pose' pass after 'wall-pose'; no-ops without rule.gear.
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
-      preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
+      preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'transform', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'transform', 'drop', 'climb', 'wall', 'swing', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery', 'drive-stop'],
-      entityActions: ['weapon', 'missiles', 'melee', 'tackle'],
-      worldPasses: ['body-collisions', 'carry', 'launch', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
+      entityActions: ['weapon', 'missiles', 'melee', 'tackle', 'form-thrust'],
+      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });
 

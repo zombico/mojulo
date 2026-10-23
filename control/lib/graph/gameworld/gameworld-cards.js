@@ -20,7 +20,7 @@ import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
-import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES } from './actions.js';
+import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
@@ -38,6 +38,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
@@ -132,13 +133,14 @@ function worldCard() {
     `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
     '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
-    '  or city: { grammar?, civilization?, from?, to?, … } (card city-plan), played by its segments.',
+    '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
-    '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
-    '  a key that is a hero\'s power opens the door and gives the hero its move.',
+    '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
+    '  a hero\'s power as the key also gives the hero its move.',
+    `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
   );
@@ -232,8 +234,9 @@ function feelCard() {
 function actionsCard() {
   return lines(
     'THE ACTIONS — what the hero can DO beyond platforming; this decides the systems.',
-    'hero.actions { idiom?, system?: { kind, resource?, source?, rule? }, powers: [{ id, verb, element?, look?, attack?, move? }], progression: [{ stage, gains, gate? }] }',
+    'hero.actions { idiom?, system?: { kind, resource?, source?, rule? }, powers: [{ id, verb, element?, look?, attack?, move? }], progression: [{ stage, gains, gate? }], moves? }',
     `move: what a power lets the hero do, given when it is found as a map key: ${Object.entries(TRAVERSAL_MOVES).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
+    `moves: what the hero starts with, in every level, outdoors and in (a building's rooms roofed for them): ${Object.entries(HERO_MOVES).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
     '',
     `idioms (a design convention, "-like", never a title): ${Object.entries(IDIOMS).map(([k, v]) => `${k} (${v.read})`).join('; ')}.`,
     `system kinds: ${Object.entries(SYSTEM_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
@@ -305,6 +308,11 @@ const QUICK_LEVERS = {
   reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
   collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
   survive: () => ['  seconds: n (5..600)   how long to last'],
+  runner: () => [
+    '  distance: n (10+)   metres a run is won at (absent: endless, a crash ends it, the best kept)',
+    '  runner: { lanes?, speed?, accel?, max?, seed?, palette? }   the run itself; a hero runs it (made when none is named)',
+    '  played by swipe on a phone (left and right a lane, up a jump, down a slide), A / D, Space and S on a keyboard',
+  ],
   avoid: () => [],
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
@@ -319,7 +327,9 @@ const QUICK_LEVERS = {
   ],
   sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],
   rhythm: () => [`  music: ${RHYTHM_MOODS.join(' | ')}   a field score with a steady beat; misses: n (1..99) presses off the beat that end it`],
-  defend: () => [`  waves: n (1..${DEFEND.perWave.length}, 3), lives: n (1..20, 5), pads: n (1..8, 4), foe / tower: ${HERO_WORDS}   no climb, no building`],
+  defend: () => [`  waves: n (1..${DEFEND.perWave.length}, 3), lives: n (1..20, 5), pads: n (1..8, 4), foe / tower: ${HERO_WORDS}   no climb, no building`,
+    '  board: true | { cols?, rows?, gold? }: a TOWER DEFENCE on the stage\'s spots instead: towers (arrow, cannon, frost) on any',
+    '  free spot that keeps the road open (the foes walk round them), waves 1..5, no hero, no pads'],
   puzzle: () => ['  boulders: n (1..4, 2)   no climb, building or ride'],
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
@@ -348,6 +358,21 @@ const QUICK_LEVERS = {
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
     '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
   ],
+  conquer: () => [
+    '  board: true | { cols?, rows?, gold? }   the skirmish\'s board (the stage\'s spots) and the purse each side starts with',
+    '  sides: [player, enemy?]   each a civilization of the world (its id) or one in words (\'armoured walkers, laser',
+    '    carbines, a sentry turret\'): it fields what its technology crafts (hand weapons arm infantry, what carries mines,',
+    '    armour is heavy, machine weapons are siege, a turret shoots), climbs a ladder (machines, then its showpieces)',
+    '    researched where it signals, and is drawn as crafted; a side not named plays a plain worker, soldier, archer',
+    '  doctrine: economy | aggression | fortress | science   how you chose to play (more workers, harder fighters, sturdier',
+    '    buildings, quicker research); a civilization may name the ones it allows (technology.doctrines)',
+    '  match: true   a whole match: a lobby first (the sides, their level, the purse, the rule, the fog), the fog, the',
+    '    melee rule, a field a side for a hall, results after (each side\'s count, APM, army) with rematch or leave',
+    '  you: a base, three workers; them: the same and a mind that mines, builds, climbs and attacks in growing waves',
+    '  orders: click / drag to select, right-click to move, attack, gather or rally; A attack-move, S stop, H hold,',
+    '  B build (again: the next), Q W E R train, T research; P pause, [ ] speed, Ctrl+1-9 groups, End twice: give up.',
+    '  No hero, climb, building, ride or run',
+  ],
   fly: () => [
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
     '  assist: arcade (never stalls, the wings level quickly) | sim (the bank holds where it is put); laps: n (not a glider)',
@@ -364,6 +389,7 @@ const quickShared = () => [
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
+  `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
   '  cast: true | { scale?: hero | rival | party, n?, cast?, bodies?, … }   on foot: people rolled for the game (the casting',
@@ -383,7 +409,7 @@ const quickShared = () => [
 
 function battlesCard() {
   return lines(
-    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { party?, packs?, per?, boss?, foe?, rest?,',
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, rest?,',
     '  random?, classes?, skills?, foes?, items?, rules? }. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
@@ -407,6 +433,8 @@ function battlesCard() {
     '        steps puff, beam, shake (on the map), flash, jolt, pop (the window), hold, emit (a bus event any cue answers).',
     '        Happenings: hit, crit, weak, element:<el>, skill:<id>, cast:<skill>, ko:<foe>, start:boss, victory … ; each',
     '        beat also says rpg-on:<happening> on the bus, for the world\'s own systems. A skill\'s own: juice: { cast, land }.',
+    'on      \'board\': each stage that meets packs a TACTICS battle on its ground, the game travelled in EPOCHS from',
+    '        MAPS; board: { … } and the rest: get_game_vocab({ id: \'board\' }). Absent: the fights are met on the trail.',
     'A world whose intent fights turn by turn is laid with battles, written or not.',
     'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
     '  worn, gold) in its bag slice, two potions to start.',
@@ -476,6 +504,8 @@ function storyCard() {
     '  stand   where each person stands (else the moment\'s place, else beside the start), placed for the level\'s run.',
     '  the rest is a scene (get_play_vocab({ id: \'ui-scenes\' })): when, if, sets, beats; the cast names are the box\'s.',
     '  if also takes { has: \'<item>\' } (held in the store\'s bag, powers or gear, or picked up there) and { done: \'<level>\' }.',
+    'SLOTS (a tactics book\'s): when: { slot: before | after } on a level, where: { epoch }, when: { slot: begin | end } on',
+    '  an epoch\'s map; shots and effects on the board itself: get_game_vocab({ id: \'board\' }).',
     'The story names the world, never its coordinates: rebuild or reshape the world and each moment binds again. A moment',
     'that cannot find its level, stage, place or people is UNPLACED: design_game\'s readout lists it with what is missing',
     '(next: { step: \'story\' }) and the rest of the world builds. Fix the moment or the world, then run again.',

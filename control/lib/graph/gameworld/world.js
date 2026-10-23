@@ -38,16 +38,20 @@
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
  *                                         // civilization's language, entered at its way in, played to its goal room
-       city?: { grammar?, board?, sites?, segments?, cars?, …, civilization?, from?, to? },
+       city?: { grammar?, board?, sites?, segments?, cars?, …, civilization?, from?, to?, stalker? },
                                          // in place of `walk`: the level is a planned city (city/plan/) in its
                                          // civilization's language, painted by the level's geocube, played by its
                                          // segments from `from` (the core's) to `to` (the farthest): a line of them
-                                         // along the way in a linear world, all of them joined at their portals in a map
+                                         // along the way in a linear world, all of them joined at their portals in a map;
+                                         // `stalker: true` plays each by the world's hero, third person (city/plan/level.js)
        roadway?: { form?: 'circuit' | 'stage', course?, dress?, kit?: true | '<kit id>', scape?: true | { set?, seed?, landmark?, surrounds? } },
                                          // in place of `walk`: the level is a roadway built for driving (roads/track.js)
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
        airspace?: { map?: { form?, field?, craft?, ceiling? }, ground?: { land?, heartbeat?, scale?, pads?, geocube? }, course?: true | { gates?, laps?, land? } },
+       runner?: true | { lanes?, laneW?, speed?, accel?, max?, seed?, palette?, … },
+                                         // in place of `walk`: the level is an endless run down lanes (worlds/controllable/
+                                         // runner.js): the hero runs on its own, its rows laid ahead as it is played
                                          // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
                                          // rings, its ground laid by scapeshift, a runway (one by default) and a gate
                                          // course (by default); a flight on it flies the course and lands
@@ -70,6 +74,8 @@
  *     front?,                             // the game's title over a cover, start menu, credits, end (game/play-front.js),
  *                                         // carried whole onto the game the run makes
  *     intent?: { from?, cube?, why? },    // what game it is, as a cosmos cube (intent.js): what the levels are laid for
+ *     camera?, screen?,                   // the camera it plays through (cameras.js) and the screen it is made for
+ *                                         // (game/screen.js): each level carries the screen, and the game
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -96,6 +102,8 @@ import { paletteLook } from '../color-theorist/look.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
+import { readScreen } from '../game/screen.js';
+import { readRunner } from '../worlds/controllable/runner.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
@@ -171,8 +179,8 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'goal'];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'story', 'quests', 'front', ...RESERVED];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -183,7 +191,7 @@ const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // (roads/race-mood.js: golden, dusk, night, rain, night-rain: the light it is raced in)
 const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
-const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
+const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -250,7 +258,9 @@ function readCivilization(c, at) {
   if (out.technology !== undefined) {
     const T = out.technology;
     if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, direction?, ${TECH_LISTS.join('?, ')}? }`);
-    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, ${TECH_LISTS.join(', ')})`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', 'research', 'doctrines', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, research, doctrines, ${TECH_LISTS.join(', ')})`);
+    if (T.doctrines !== undefined && !(Array.isArray(T.doctrines) && T.doctrines.length && T.doctrines.every((d) => typeof d === 'string' && ID.test(d)))) throw new Error(`gameworld: ${at}.technology.doctrines is a list of the doctrines it may choose before a skirmish (economy, aggression, fortress, science)`);
+    if (T.research !== undefined) readResearch(T.research, `${at}.technology.research`);
     if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
     if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
     // every list is { <id>: words }: one library, so a crafted thing's id names it alone (things keep their old
@@ -271,9 +281,29 @@ function readCivilization(c, at) {
       return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
     }));
     for (const k of TECH_LISTS) if (T[k] !== undefined && !isObj(T[k])) throw new Error(`gameworld: ${at}.technology.${k} is { <id>: words | { intent, seed? } }`);
-    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}) };
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}), ...(T.research !== undefined ? { research: T.research } : {}), ...(T.doctrines !== undefined ? { doctrines: [...T.doctrines] } : {}) };
   }
   return out;
+}
+// a civilization's own research, its steps in a skirmish (board/board-rts-tech.js): shape only; what a step opens and
+// follows is read against what it fields there
+const RESEARCH_KEYS = ['name', 'after', 'opens', 'cost', 'time', 'buff'], BUFF_KEYS = ['who', 'atk', 'rate', 'speed', 'ward', 'range'];
+function readResearch(R, at) {
+  const shape = `${at} is { <id>: { name?, after?: <step or building> | [..], opens?: [<crafted id>, ..], cost?, time?, buff?: { who?, atk?, rate?, speed?, ward?, range? } } }`;
+  if (!isObj(R)) throw new Error(`gameworld: ${shape}`);
+  for (const [id, r] of Object.entries(R)) {
+    if (!ID.test(id)) throw new Error(`gameworld: ${at} '${id}': an id is a short lower-case name`);
+    if (!isObj(r)) throw new Error(`gameworld: ${shape}`);
+    for (const k of Object.keys(r)) if (!RESEARCH_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.${k} is not part of a step (${RESEARCH_KEYS.join(', ')})`);
+    if (r.name !== undefined && (typeof r.name !== 'string' || !r.name.trim())) throw new Error(`gameworld: ${at}.${id}.name is a few words`);
+    for (const k of ['after', 'opens']) if (r[k] !== undefined && !([].concat(r[k]).length && [].concat(r[k]).every((x) => typeof x === 'string' && ID.test(x)))) throw new Error(`gameworld: ${at}.${id}.${k} is an id or a list of them`);
+    for (const k of ['cost', 'time']) if (r[k] !== undefined && !(Number.isFinite(r[k]) && r[k] >= 0 && r[k] <= 2000)) throw new Error(`gameworld: ${at}.${id}.${k} is 0 to 2000`);
+    if (r.buff !== undefined) {
+      if (!isObj(r.buff)) throw new Error(`gameworld: ${at}.${id}.buff is { who?, atk?, rate?, speed?, ward?, range? }`);
+      for (const k of Object.keys(r.buff)) if (!BUFF_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is not part of a buff (${BUFF_KEYS.join(', ')})`);
+      for (const k of BUFF_KEYS.slice(1)) if (r.buff[k] !== undefined && !(Number.isFinite(r.buff[k]) && r.buff[k] > 0 && r.buff[k] <= 4)) throw new Error(`gameworld: ${at}.${id}.buff.${k} is a factor (range: metres added), above 0 to 4`);
+    }
+  }
 }
 const intentOf = (v, at) => {
   const o = typeof v === 'string' ? { intent: v } : isObj(v) ? { ...v } : null;
@@ -384,6 +414,21 @@ function differences(base, top, scope, at) {
 
 /** Read a gameworld and say what is wrong. → { id, name, seed, style, civilizations, civIds, levels, ids, links, start }. */
 const READ = Symbol('read gameworld');
+/**
+ * Civilizations read and tunnelled on their own, outside a world (a skirmish's sides, board/board-rts-tech.js): each as
+ * readGameworld reads it, on the kit and seed given. → { civilizations, civIds }, the shape tech-direction.js reads.
+ */
+export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}) {
+  if (!isObj(civs) || !Object.keys(civs).length) throw new Error('gameworld: civilizations is { <id>: { name?, builds?, technology? } }, at least one');
+  const civilizations = {}, civIds = Object.keys(civs);
+  for (const id of civIds) {
+    if (!ID.test(id)) throw new Error(`gameworld: civilization '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
+    civilizations[id] = { name: id, ...readCivilization(civs[id], `civilizations.${id}`) };
+    if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, kit, seed);
+  }
+  return { civilizations, civIds };
+}
+
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
@@ -394,6 +439,7 @@ export function readGameworld(W) {
   const seed = W.seed ?? 1;
   if (W.topology !== undefined && !TOPOLOGIES[W.topology]) throw new Error(`gameworld: topology is one of ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (W.camera !== undefined && !CAMERAS[W.camera]) throw new Error(`gameworld: camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  const screen = readScreen(W.screen, 'gameworld: screen');   // the screen it is made for (game/screen.js); null: none
 
   // CIVILIZATIONS: as many as the world keeps; the kit's own when it keeps none
   if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle?, builds?, technology? } }, at least one (or leave it out)');
@@ -439,7 +485,11 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.airspace !== undefined) {
+    if (L.runner !== undefined) {
+      // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
+      try { readRunner(L.runner, 'runner'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+    } else if (L.airspace !== undefined) {
       // an airspace level: a flight map on its own ground (skyscape/), checked as the kind checks it
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined || L.roadway !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city, a roadway or an airspace, one of them`);
       if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: an airspace lays its own ground and holds no town`);
@@ -470,6 +520,7 @@ export function readGameworld(W) {
       if (!isObj(Cy)) throw new Error(`gameworld: ${at}.city is { ${CITY_LEVEL_KEYS.join(', ')} } (every one optional)`);
       for (const k of Object.keys(Cy)) if (!CITY_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.city.${k} is not a city level setting (${CITY_LEVEL_KEYS.join(', ')})`);
       if (Cy.civilization !== undefined) civ(Cy.civilization, `${at}.city.civilization`);
+      if (Cy.stalker !== undefined && typeof Cy.stalker !== 'boolean') throw new Error(`gameworld: ${at}.city.stalker is true or false: true plays each segment by the world's hero, third person, its roofs ground (city/plan/level.js), not by a first-person walker`);
       for (const k of ['from', 'to']) if (Cy[k] !== undefined && typeof Cy[k] !== 'string') throw new Error(`gameworld: ${at}.city.${k} names a segment ('r1c2': the city book's Segments sheet), where the level is ${k === 'from' ? 'entered' : 'left'}`);
       // the plan itself is held to the city card where it is laid (levels.js cityStages)
     } else if (L.building !== undefined) {
@@ -582,7 +633,7 @@ export function readGameworld(W) {
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**
@@ -603,6 +654,8 @@ export function resolveLevel(world, id) {
     const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
   }
+  // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
+  if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {
     const { course = 'kart-oval', dress, form, kit, scape, mood } = L.roadway;
@@ -615,14 +668,14 @@ export function resolveLevel(world, id) {
   // a city level: its plan, built in its civilization's language (unless it names a grammar document of its own), painted
   // by the level's geocube, cut into the segments it is played by (levels.js lays them)
   if (L.city) {
-    const { civilization, from, to, ...plan } = L.city, civId = civilization ?? style.civilization, C = G.civilizations[civId];
+    const { civilization, from, to, stalker, ...plan } = L.city, civId = civilization ?? style.civilization, C = G.civilizations[civId];
     if (civId !== style.civilization) ledger.push({ scope: 'level', at: `${id}/city`, key: 'civilization', world: style.civilization, local: civId });
     const kit = hasStructureRails(style.kit) ? style.kit : 'isekai-meadow', anchor = C.anchor ?? STRUCTURE_RAILS[kit]?.anchor ?? null;
     const grammar = isObj(plan.grammar) ? plan.grammar : civilizationGrammar(anchor, kit, seed, typeof plan.grammar === 'string' ? { base: plan.grammar } : {});
     // its buildings walked into, not entered by a door: a door's inside is not a level of this world yet
     const sg = plan.segments === undefined || plan.segments === true ? {} : plan.segments;
     const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: cubeInPalette(style.geocube, style.palette) } } : {}) };
-    return { id, name: L.name ?? id, seed, style, built: { city: civId }, ledger, level: null, town: null, city: { plan: city, civilization: civId, ...(from !== undefined ? { from } : {}), ...(to !== undefined ? { to } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: { city: civId }, ledger, level: null, town: null, city: { plan: city, civilization: civId, ...(from !== undefined ? { from } : {}), ...(to !== undefined ? { to } : {}), ...(stalker ? { stalker: true } : {}) } };
   }
 
   // a building level: who built it, in what language, and the program it is laid from (levels.js lays it)

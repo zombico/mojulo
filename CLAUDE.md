@@ -99,7 +99,9 @@ node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lan
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
 entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
 
-Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
+Test tiers: a change to prose only (root docs, `docs/`, the changelog, a README, `NOTICE`) runs no tests and needs no
+`npm install` (generated pages such as the hillclimb page are code: regenerate them). Otherwise,
+while iterating, run the test folder next to the change; before a commit, `test:critical`, that
 folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
 kernels; the whole suite and `test:e2e` once before merging into the release candidate (CI runs both and `test:deep`,
 the e2e tier in its own job on one leg).
@@ -186,6 +188,12 @@ Pointers only; each target carries its own design notes.
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
+- Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
+  `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
+  `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
+- Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
+  law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
+  picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).

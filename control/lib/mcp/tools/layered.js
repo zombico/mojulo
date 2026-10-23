@@ -55,6 +55,8 @@ import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
+import { mutagenErrors } from '@/lib/graph/mutagen/index';
+import { rigSpecies } from '@/lib/graph/mutagen/rig';
 import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
 import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
@@ -159,7 +161,8 @@ export function planLayered(manifest) {
   // from the gait and behavior solvers at read time)
   if (manifest.recipe.motion && !manifest.recipe.rig) {
     try {
-      const M = manifest.recipe.motion, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
+      // an oozed animal's motion names its species and the ooze it was made with: its own body (mutagen/rig.js)
+      const M0 = manifest.recipe.motion, M = M0.ooze ? { ...M0, species: rigSpecies(M0) } : M0, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
       if (!B) throw new Error(`unknown species '${M.species}'`);
       // a bug's motion carries its bauplan (bugs/rig.js): its gaits are the ones its parts move by, every behavior word
       const have = bug ? bugMotionGaits(M.bug, M.species || null) : motionGaits(M.species), who = bug ? 'this bug' : `'${M.species}'`;
@@ -170,7 +173,7 @@ export function planLayered(manifest) {
       const skin = bindLayered(mesh, manifest.recipe, B);
       let bad = 0; skin.weights.forEach((w) => { if (Math.abs(w.reduce((a, b) => a + b, 0) - 1) > 1e-9 || w.some((x) => !(x >= 0))) bad++; });
       if (bad) throw new Error(`${bad} vertices with bad weights`);
-      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M.species ?? null, ...(bug ? { bug: true } : {}) };
+      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M0.species ?? null, ...(bug ? { bug: true } : {}) };
     } catch (err) { throw new Error(`animal motion: ${err.message} — the species' gaits and behaviors: get_solid_vocab({ id: 'animals' }).`); }
   }
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
@@ -1292,7 +1295,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, egocube, geocube, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, ooze, egocube, geocube, ref, folder_ref: folderRef } = input;
   const cubeErrs = creatureCubeErrors(input);
   if (cubeErrs.length) throw new Error(`layered refused:\n - ${cubeErrs.join('\n - ')}`);
   // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
@@ -1300,6 +1303,13 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (statue !== undefined) {
     if (hero) throw new Error("a hero's statue is its build: /hero/statue (the layered kind's STATUE section)");
     const errs = validateCreatureStatue(statue);
+    if (errs.length) throw new Error(`layered: ${errs.join('; ')}`);
+  }
+  // the OOZES a species was mutated by (graph/mutagen, the animal door): its form is already the stored plan's; kept for
+  // provenance and the read-time layers, and only on an animal
+  if (ooze !== undefined) {
+    if (typeof species !== 'string' || !species || !ooze || typeof ooze !== 'object') throw new Error("`ooze` is an animal's: create_character({ as: 'animal', spec: { species, ooze } })");
+    const errs = mutagenErrors(ooze.oozes, ooze.seed, ooze.stylism);
     if (errs.length) throw new Error(`layered: ${errs.join('; ')}`);
   }
   const fieldErrs = validateFieldPaint(fieldPaint);
@@ -1332,6 +1342,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
     ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
     ...(statue !== undefined ? { statue } : {}),   // a creature carved (above); absent ⇒ byte-identical
+    ...(ooze !== undefined ? { ooze } : {}),   // { oozes, seed } (above); absent ⇒ byte-identical
     ...(typeof species === 'string' && species ? { species } : {}),   // the species a ring plan was minted as (animal.js): the row is an animal; never read by the resolve
     ...(egocube && typeof egocube === 'object' && typeof egocube.ref === 'string' ? { egocube } : {}),   // the sheet it was made from { ref, rev, print, years?, member? } (create_character { egocube }); never read by the resolve
     ...(geocube !== undefined && geocube !== null ? { geocube } : {}),   // a creature's level (above): its materials, drawn in its light

@@ -53,11 +53,16 @@ const WORDS = Object.freeze({
   'space-shooter': ['space', 'spaceship', 'starfighter', 'star fighter', 'space shooter', 'space combat', 'asteroid', 'asteroids', 'trench run', 'trench', 'x-wing', 'battle station', 'exhaust port'],
   'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat', 'ace combat', 'fighter jet', 'jet fighter', 'fighter jets', 'shoot down', 'enemy planes', 'top gun'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
+  'endless-runner': ['runner', 'endless', 'lanes', 'swipe', 'dash'],
+  'match-3-saga': ['match-3', 'saga', 'candy', 'swap', 'stars'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
   'tower-defense': ['tower defence', 'tower defense', 'towers', 'waves', 'defend', 'base'],
   'block-puzzle': ['boulder', 'boulders', 'push', 'sokoban', 'block puzzle', 'plates'],
+  tactics: ['tactics', 'tactical', 'final fantasy tactics', 'fire emblem', 'srpg', 'strategy rpg', 'grid', 'squares', 'high ground', 'positioning'],
+  rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
+  'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));
@@ -66,7 +71,7 @@ export const genreCube = (id) => (CUBES[id] ? clone(CUBES[id]) : null);
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
   puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter', fly: 'flight-sim',
-  fight: 'versus-fighter',
+  fight: 'versus-fighter', conquer: 'rts', runner: 'endless-runner',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -109,6 +114,7 @@ export function cubeOfWorld(world) {
   if (world?.camera) put(cube, 'space', 'camera', world.camera);
   if (world?.topology) put(cube, 'space', 'topology', world.topology);
   if (Q?.ride) put(cube, 'soul', 'hero', 'vehicle');
+  if (Q?.transformer) put(cube, 'soul', 'hero', 'transformer');
   if (Q?.track) put(cube, 'space', 'levelForm', Q.track === 'loop' ? 'circuit' : 'trail');
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');

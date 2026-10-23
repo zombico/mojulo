@@ -126,16 +126,21 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const painterly = anime && !!manifest.hero.painterly;
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
+  // a BUILT ANIMAL asking for the default light (`toon.light: true`: a game's anime setting, mutagen/setting.js) is lit
+  // as a creature is, square to its own key, its shades by value and its materials drawn
+  if (own && !anime && (manifest?.toon ?? manifest?.scene?.toon)?.light === true && isBuiltAnimal(manifest)) return creatureLight(manifest);
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return withToonMaterials(brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l), manifest, anime); }
   // a CREATURE (a layered plan that is no hero and no built animal: create_character's `as: 'creature'`, drawn or designed
   // by hand) takes the character light too, as a hero does: the toon step (a drawn one's markings stepped in it), the ink,
   // the metal's gloss when it wears plate. A carved creature (a statue) keeps the stone's light
-  if (!anime) { if (!isCreature(manifest)) return null;
-    const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
-    return withToonMaterials(wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base, manifest, true); }
+  if (!anime) return isCreature(manifest) ? creatureLight(manifest) : null;
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
   const lit = wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
   return withToonMaterials(lit, manifest, anime);
+}
+function creatureLight(manifest) {
+  const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
+  return withToonMaterials(wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base, manifest, true);
 }
 /** A hero (or a creature) wearing its cube's MATERIALS (recipe.surfaces, materials/dress-materials.js) under the
  * character light takes them DRAWN: each group's step, shade and highlight from its material (materials/toon-materials.js),
@@ -174,6 +179,8 @@ export function valueShades(palette = {}, unlit = [], skin = []) {
 }
 /** a creature's manifest: a layered plan worn by no hero, not a built animal (`fauna`, `species`, kind `animal`), not carved */
 export const isCreature = (m) => !!m?.plan && !m.hero && m.kind !== 'animal' && !m.fauna && !m.species && !m.plan.statue && !m.statue;
+/** a built animal's manifest (a species' ring plan, oozed or not), not carved */
+export const isBuiltAnimal = (m) => !!m?.plan && !m.hero && !!(m.species || m.fauna || m.kind === 'animal') && !m.plan.statue && !m.statue;
 /** WORKED METAL'S HOT SPOT: a hero that wears plate (an armour build, or a designed piece in the `metal` role) takes a
  * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve
  * and not one flat tone. A hero wearing none keeps the light it had. */

@@ -260,4 +260,4 @@ One maintainer, no SLA. The easy contribution is a [recipe book](control/book/) 
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](LICENSE). The name is a trademark: fork freely, under your own name ([TRADEMARKS.md](TRADEMARKS.md)).

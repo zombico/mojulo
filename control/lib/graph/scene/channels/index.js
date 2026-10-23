@@ -17,6 +17,7 @@ import { fieldChannelScript } from './field.js';
 import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
 import { versusChannelScript } from './versus.js';
+import { boardChannelScript } from './board.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
@@ -148,7 +149,7 @@ export const RUNTIME_CHANNELS = [
       `// emitted; it runs AFTER stepPhysics in __mojStep so it reacts to the freshest per-step facts.`],
     lets: `let stepEvents = () => {};`, step: `stepEvents(t);`,
     normalizeIn: 'emitThreeWorld',   // reacts to physics facts + controllable entities; couples to both
-    provides: ['__BUS', '__busState', '__mojBus'],
+    provides: ['__BUS', '__busState', '__mojBus', '__inputQueue'],   // the audio channel's beats probe the queue (typeof-guarded)
     requiresOptional: ['__mojSim', '__mojCtrl'] },
   { key: 'controllable',
     comment: [`// controllable channel (opt-in, LIVE): the unified control primitive. stepControllable stays inert`,
@@ -242,6 +243,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // a side-view fight on an arena (lib/graph/versus); it owns the camera
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojVersus'] },       // the match and its phase, for probes
+  { key: 'board', anchor: 'post-capture', script: boardChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a tactics board over the ground (lib/graph/board); it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojBoard'] },        // the board, the camera, the cursor and the selection, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -326,6 +331,7 @@ export { marksChannelScript, normalizeMarks } from './marks.js';
 export { shootChannelScript } from './shoot.js';
 export { shootSetScript } from './shoot-set.js';
 export { versusChannelScript } from './versus.js';
+export { boardChannelScript } from './board.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';

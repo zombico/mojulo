@@ -96,6 +96,9 @@ spec: {
   elev?:      <camera elevation°, -89…89; default 12>,
   crop?:      'head',          // a face study close-up instead of the whole animal
   statue?:    true | { type: 'statue', material?, base?, dials?: { wear } },   // carved as sculpture (below)
+  ooze?:      <word> | { id, strength? } | [<either>],   // species only: a game creature made of it (Oozes, below)
+  stylism?:   { register?, detail?, focal?, motif?, chimera? },   // species only: design notes that style it up (below)
+  seed?:      <integer ≥ 0>,   // with ooze: places its spots (default from the species and the oozes)
   background?: <boolean>
 }
 ```
@@ -156,6 +159,94 @@ body) is already a closed solid and carries the statue on its layered manifest; 
 `statue` with `motion` refuses. Absent, the animal is byte-identical. An equestrian statue is a hero statue with
 `stand: 'mounted'` (the layered kind's STATUE section): its horse is this filter over the layered kind's horse ring plan
 (`docs/examples/ring-plans/horse.plan.json`).
+
+## Oozes — a species made into a game creature
+
+`ooze` turns a ring-plan species into an enemy or a beast for a game, keeping its limbs and its rig: `{ species: 'wolf',
+ooze: 'dire' }`. Reach for it when a world needs creatures that belong to it; nobody voices the word. An ooze draws
+the animal for a game, not a field guide: one dominant mass, one hook that breaks the outline, contrast at the eyes
+and mouth, the proportions exaggerated but never reversed. The shelf (`lib/graph/mutagen/oozes/`, one row each):
+
+| ooze | reads as |
+|---|---|
+| `dire` | grown ×1.45 and front-heavy: chest, shoulders, forelegs and paws up, haunch lean, a hackle crest, a low wide skull under a heavy brow, fangs, a rest snarl, a dark coat, glowing eyes |
+| `skeletal` | bone-thin and bone-white, the ribs as dark gaps, a row of spine processes, an earless skull, burning sockets |
+| `zombie` | wasted, greyed toward rot, seeded wounds and bare ribs, drooping ears, a slack jaw, a sick glow |
+| `frost` | an element: a pale blue coat, rime down the spine, a crest of glowing ice spikes, eyes of cold light |
+| `techno` | gunmetal (a real metal surface), dark seams, glowing rings at the limbs' joints, fins, sensor ears, cyan eyes |
+| `crystal` | a slate coat, a ridge of glowing crystal shards, shards in the skin, violet eyes |
+
+| `mythical` | a boss: twice the size, front-heavy, great horns, a gold crest, three runes burning on each flank, a burning tail, white-gold eyes; mythic and rich by its own stylism |
+| `fire` | an element: a charred coat cracked with glowing lava, flame-tongues down the back, a burning tail, eyes of fire |
+| `storm` | an element: a slate coat, lightning chevrons, tall sparking prongs, eyes of white light |
+| `venom` | an element: a dark green coat, glowing acid spots and belly, barbs, long fangs, acid eyes |
+| `shadow` | an element: a near-black coat, a violet line down the spine, a wisping crest, pale violet eyes |
+| `herobot` | a toy hero robot in the herobot language, its face its own, in its own colours: a big round head under a helmet, ear domes, a brow gem, twin antennae, ball pauldrons, ball joints at every elbow, knee and hock, a chest plate, panel seams and vent grilles, a segmented tail, flared boots, LED eyes, glossy plastic |
+| `transmetal` | beast mode: the animal's outline and fur kept, its details machined: a chrome faceplate (cheeks left fur), chrome lower legs, teeth and back plate, joint rings, pistons along the upper limbs, a segmented chrome tail, red visor eyes |
+| `mascot` | its own mascot on its own legs, read from its family's mascot card: a big round head, big toon eyes in a happy face, the face shortened (a muzzle that is the name kept), its identifiers drawn big, thick limbs on big paws, its coat saturated, no fur cards, satin, and one signature piece its folk promise says (a bell, scarf, bow, bandana, medal, studded collar or pack) in the colour across the wheel from its coat |
+
+The machine oozes paint in the animal's own colours, never one fixed hue: a light suit, the coat darkened into armour,
+darker seams, and one warm accent from the coat's hue (amber on a brown, red on a grey or an orange).
+
+They mix: `['dire', 'frost']` is a winter dire wolf, `['zombie', 'dire']` a rotting brute, `['techno', 'dire']` a war
+machine, `['mythical', 'fire']` a boss of the flame, `['transmetal', 'dire']` a machined brute, `['mascot', 'frost']` a
+winter mascot. `mascot` keeps the animal's stance (a plush, a game's critter); `create_character({ as: 'mascot' })` stands
+it up as a biped. Its result's `ooze.notes` say what the card read: the promise, the piece, what was drawn big and let go.
+
+### In a game's look: `setting`
+
+`spec.setting` stands an oozed creature in its game's light and colours, as the game's people stand: the same shape the
+game rail hands every character it rolls (`{ tradition?, ramps?, era?, genre? }`; a game book's own comes from its world,
+`settingOfGame`). `tradition: 'anime'` gives it the character light (a two-tone step, the silhouette ink, its metals drawn
+in bands), lit as the book's creatures are; `'western'` keeps the studio light and real materials. `ramps` dress what the
+oozes make (a piece, armour, panels, marks, ornaments) in the world's colours: each takes the stop of a ramp of its own
+hue and value, so the creature keeps its three values. The animal's own coat, a glow, a colour drawn in a metal (chrome
+stays chrome) and a signal colour the world has no ramp for stay their own. The result's `ooze.setting` lists every
+colour it moved, from what, to which ramp's stop, and the light it took. Absent: as before.
+
+### stylism: design notes that style a creature up
+
+`stylism: { register?, detail?, focal?, motif? }` (with or without `ooze`) is the hero door's stylism tuner compressed
+for a beast. `register` (grounded · storybook · heroic · mythic, or 0 … 1) heightens: storybook is the design itself;
+above it every push is exaggerated together and the creature grows. `detail` (plain · considered · rich · ornate) is a
+budget of ornaments, never their size, spent from the `focal` (head by default; shoulders, back, forelegs, tail) out:
+the focal's richest ornaments first until it outweighs every other zone, the motif echoed once elsewhere smaller,
+quiet bands with what is left, and from heroic up the ornaments burning as the one accent. The ornaments (horns,
+cheek spurs, a hackle crest, shoulder spikes, a ruff, elbow spurs, tail spikes, leg bands, a burning tail tip) are made
+in one `motif` (horn, bone, ice, crystal, metal, flame, spark, toxin, shade, gold; the oozes choose one), moved a clear
+value step from the coat. The result's `ooze.notes` are the design notes: what each stage chose and why. A worn head
+mesh takes no horns: the focal moves and the notes say so; an ooze's own hook heavier than the budget can outrank is
+noted as `stalled`.
+
+`chimera` (pure · touched · hybrid · chimera, or 0 … 1) is the griffinizing dial: grafts the animal should not have,
+in the order they break the silhouette. Touched brings horns (horns on a hornless head are a graft: the detail budget
+spends them only from here); hybrid a ridge of plates nape to tail tip (standing in for a crest), another creature's
+tail (serpent, scorpion, lion or dragon, rooted where the old one was) and wings (feathered for gold, ice and spark,
+membrane otherwise, carried half raised); chimera a second crown of horns and wider wings. The seed and the motif
+choose among the kinds, so two chimeras of one species differ. Absent, a mythic register is hybrid and below it pure;
+`mythical` is hybrid. A winged animal keeps its own wings. The grafts stand on joints of their own: no species joint
+moves; under `motion` a grafted tail is carved into bones of its own and swings, grafted wings get wing bones,
+beat in `fly` and hold spread in `glide` (both added to the creature's gaits), and every ornament rides the bone at its
+root.
+
+- A list composes (`['dire', …]`), each entry a word or `{ id, strength }` with strength in [0, 1] (default 1). Form
+  multiplies: each ooze's multiplier raised to its strength, the product clamped (size ×0.5 to ×3, girth ×0.3 to
+  ×2.5). An ooze is named once; its strength says how much.
+- A form moves no joint but by uniform size, so the creature is the species' skeleton grown; girth is ring radius.
+  The pushes (`lib/graph/mutagen/push.js`) move rings, the head's own rows, the palette and paint, a material per
+  group, and ornaments on joints of their own (`ooze…`). Colours stack in list order (darken, grey, then each tint);
+  marks are placed by the seed, each ooze's by its own dice. A beaked or billed head takes no fangs; a worn head mesh
+  (a house cat's) grows with the body and takes the colours, not the face's reshaping.
+- A head too small or tight for the whole face steps it back until it seats: the result's `ooze.face` (with a
+  `note`) says the share drawn when it is under 1.
+- The stored plan is the mutated body (`/plan/...` patches retune it); the manifest keeps `ooze: { oozes, seed }`.
+  The result says the form it composed to.
+- Strength 0 or an empty list is the plain species, byte-identical, with nothing stored.
+- `motion` beside `ooze` animates the creature on its OWN body: its skeleton is derived from the mutated plan (a grown
+  creature's bones are its species' at its size, its clips the same turns), its gaits and behaviors its species' plus
+  what its grafts bring. The stored motion keeps the species and the ooze, so the World and every export rebuild the
+  same body. Grafted wings are articulated (each point weighed to the wing bones it hangs from).
+- Not yet: the `maker`, `archetype` and `bug` doors.
 
 ## Honest limits
 

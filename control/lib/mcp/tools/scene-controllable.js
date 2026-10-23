@@ -115,6 +115,15 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
     if (!e || typeof e !== 'object') throw new Error('each entity must be an object');
     const rt = e.rule && e.rule.type;
     if (rt && !KNOWN_RULES.has(rt)) throw new Error(`entity '${e.id || '?'}' has unknown rule '${rt}' (known: ${[...KNOWN_RULES].join(', ')})`);
+    // a body in two forms (controllable/forms.js): two or more forms, each with a rule the engine knows
+    if (e.forms !== undefined) {
+      const F = e.forms && typeof e.forms === 'object' && !Array.isArray(e.forms) ? Object.entries(e.forms) : [];
+      if (F.length < 2) throw new Error(`entity '${e.id || '?'}' forms names two or more forms, each { rule, camera? } ({ robot: { rule: { type: 'platform' } }, vehicle: { rule: { type: 'fly' } } })`);
+      for (const [k, f] of F) {
+        const ft = f && f.rule && f.rule.type;
+        if (!ft || !KNOWN_RULES.has(ft)) throw new Error(`entity '${e.id || '?'}' form '${k}' needs a rule the engine knows (known: ${[...KNOWN_RULES].join(', ')})`);
+      }
+    }
   }
   // a body the page cannot draw is refused, naming the types it can (worlds/controllable/body-types.js): an unknown
   // type used to mint ok:true and play an invisible hero
