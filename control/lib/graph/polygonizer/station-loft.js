@@ -65,22 +65,6 @@ const stationOf = (id) => { const m = id.match(/\/(st[^.]+)\.[^.]+$/); if (m) re
 const slotOf = (id) => id.match(/\/[^.]+\.([^.]+)$/)?.[1] ?? null;
 
 /** A closed station loft: right half generated, left half mirrored by name; outward winding per family. */
-/**
- * A layer-1 part given as a MESH (`mesh: { points: { <id>: [x, y, z] }, faces: { <fid>: [id, id, id] }, groups?,
- * boundary?: [[id, id]] }`), compiled as given, not lofted: its points named as one station's slots (`<name>/st0.<id>`),
- * so a `bind.blend` keyed `st0.<id>` weighs each point, a station's `normals` are its own (`mesh.normals`), and the
- * audit reads its declared boundary (an open part) by the same ids. A part with no `mesh` lofts as before.
- */
-function meshPart(name, part) {
-  const M = part.mesh, pid = (id) => `${name}/st0.${id}`, points = {}, faces = {}, groups = {};
-  for (const [id, p] of Object.entries(M.points || {})) { if (!Array.isArray(p) || p.length !== 3 || !p.every(Number.isFinite)) throw new Error(`station-loft: ${name}.mesh point ${id} missing or not finite`); points[pid(id)] = [p[0], p[1], p[2]]; }
-  for (const [fid, f] of Object.entries(M.faces || {})) {
-    if (!Array.isArray(f) || f.length !== 3 || f.some((id) => !points[pid(id)])) throw new Error(`station-loft: ${name}.mesh face ${fid} names a point it lacks`);
-    faces[`${name}/${fid}`] = f.map(pid); groups[`${name}/${fid}`] = M.groups?.[fid] ?? part.group ?? 'Body';
-  }
-  return { points, faces, groups, ...(M.boundary ? { boundary: M.boundary.map((e) => e.map(pid)) } : {}) };
-}
-
 function loft(name, part) {
   const slots = part.slots; const n = slots.length; const half = n / 2;
   if (!Array.isArray(slots) || n < 4 || n % 2) throw new Error(`station-loft: ${name}.slots must be an even list of ≥ 4 slot names`);
@@ -208,7 +192,7 @@ export function compileLayered(recipe, dials = {}, { details = true, creases = t
   if (!recipe || typeof recipe !== 'object' || !recipe.parts || typeof recipe.parts !== 'object') throw new Error('station-loft: recipe needs a parts object');
   const D = resolveLayeredDials(recipe.dials || {}, dials);
   const built = {};
-  for (const [name, part] of Object.entries(recipe.parts)) if (part.layer === 1) built[name] = { ...part, ...(part.mesh ? meshPart(name, part) : loft(name, part)) };
+  for (const [name, part] of Object.entries(recipe.parts)) if (part.layer === 1) built[name] = { ...part, ...loft(name, part) };
   if (!Object.keys(built).length) throw new Error('station-loft: recipe has no layer-1 part');
   const place = (name, part, parent) => {   // a pinned part's points on its parent's frame (stretch in pin-local coords)
     const frame = pinFrame(parent, part.pin); pins[name] = { ...frame, parent: part.pin.parent, face: part.pin.face };

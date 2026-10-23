@@ -94,14 +94,13 @@ describe('the realistic hero at the door', () => {
     for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR']) expect(lost.parts[k], k).toBeUndefined();
     expect(lost.parts.neck && lost.parts.torso && lost.parts.footR).toBeTruthy();
     const bust = carve('roman-bust');
-    expect(bust.statue.crop).toBe('bust'); expect(bust.parts.visage && bust.parts.torso).toBeTruthy();
+    expect(bust.statue.crop).toBe('bust'); expect(bust.parts.visage && bust.parts.nose && bust.parts.torso).toBeTruthy();
     expect(Object.keys(bust.parts).filter((k) => /upperArm|pelvis|thigh/.test(k))).toEqual([]);
   }, 240_000);
 
   it('dressed, wears its whole head: the parts of the face the plan has no name for kept, the fit its skin maps back by', () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt'] }) }).recipe;
-    // (the face one skin, the visage: hero-relational-head.js oneSkinFace)
-    for (const k of ['cranium', 'jaw', 'visage', 'earR', 'earL']) expect(r.parts[k], k).toBeTruthy();
+    for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL']) expect(r.parts[k], k).toBeTruthy();
     expect(r.headFit).toMatchObject({ sex: 'female' });
     for (const k of ['k', 'ty', 'men']) expect(Number.isFinite(r.headFit[k]), k).toBe(true);
   }, 120_000);
