@@ -56,7 +56,7 @@ import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
-import { JUICE_REGISTERS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
+import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -235,14 +235,16 @@ function feelCard() {
 function juiceCard() {
   return lines(
     'THE JUICE — how the game\'s effects (attacks, blasts, puffs, a battle\'s beats) are drawn and timed:',
-    'juice: \'auto\' | false | { register?, flavor?, …dials }. Each level carries it as fxStyle, the effects\' floor composed',
+    'juice: \'auto\' | false | { register?, look?, flavor?, …dials }. Each level carries it as fxStyle, the effects\' floor composed',
     'from two halves. REGISTER is the look, anime | western: the character book\'s direction, else the kit\'s pole as the',
     'colour theorist leaves it (banded is anime, material is western). FLAVOR is the time, the game type\'s animation:',
     'the feel\'s template, else the genre\'s. A word left out is the game\'s own. Absent, the effects stay as they were.',
+    'The characters near an effect take its rim light (the look\'s kind: a soft glow, a cel band, a thin line; the game',
+    'type\'s strength), and a status\'s coat the look\'s rim; rim: 0 turns it off.',
     'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
     '',
-    'registers:',
-    ...Object.entries(JUICE_REGISTERS).map(([k, v]) => `  ${k}  ${v.says}`),
+    'registers and their looks (look: a register\'s first is its own; an anime fighter or brawler is drawn cel):',
+    ...Object.entries(JUICE_REGISTERS).flatMap(([r, R]) => R.looks.map((l) => `  ${r} · ${l}  ${JUICE_LOOKS[l].says}`)),
     'game types:',
     ...Object.entries(JUICE_FLAVORS).map(([k, v]) => `  ${k}  ${v.says}`),
     `dials (one pinned over both): ${Object.entries(JUICE_DIALS).map(([k, d]) => (d === 'switch' ? `${k} true|false` : `${k} ${d[0]}..${d[1]}`)).join(', ')}.`,
@@ -250,9 +252,9 @@ function juiceCard() {
     'first in greys, a warm bolt burns and a pale ray crackles.',
     '',
     'A CONTRAST PAIR (the floor each lays, computed now):',
-    ...[['an anime brawler', 'anime', 'action'], ['a western racer', 'western', 'pinball']].map(([brief, register, flavor]) => {
-      const S = juiceSignature(juiceFloor({ register, flavor }));
-      return `  ${brief} (${register}, ${flavor}): ${S.look}; ${S.time}`;
+    ...[['an anime fighter', 'anime', 'cel', 'action'], ['a western racer', 'western', 'material', 'pinball']].map(([brief, register, look, flavor]) => {
+      const S = juiceSignature(juiceFloor({ register, look, flavor }));
+      return `  ${brief} (${register} · ${look}, ${flavor}): ${S.look}; ${S.time}`;
     }),
   );
 }

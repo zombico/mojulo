@@ -312,6 +312,9 @@ function elementsCard() {
     '  bright: white-hot); fire { size: 1 licks, 3.5 engulfs, color } the',
     '  world\'s own fire; ice { mode: encase | spikes }; water {} drops that fall and ring out; steam {} vapour rising;',
     '  shield { r, cells } a half-sphere of hex cells round the feet, rippling where a beam lands (the ward preset).',
+    '  aura \'power-up\' | { onions: [{ r, h, petals, turn, twist }], spikes: [{ count, r, z, len, tilt, turn }] } spirit onions:',
+    '    overlapping onion shells spinning their own ways round the body, rings of spikes turning at their own intervals,',
+    '    flat cel bands (the power-up preset).',
     'A WAVE (every orbiting light): { count, trail, lag, cycle (s), turn (a cycle; 0 straight, < 0 the other way), r, z',
     '  (a number, or [from, to] over a cycle: in, out, up, down), arc, tilt (90: a ring), wobble [amp, per turn],',
     '  spread: even | random, env: steady | ends | in | out, tail, pulse, size, scatter [sx, sy, sz] (twinkling), color }',
@@ -347,7 +350,8 @@ function beamsCard() {
     '  head stretched along its flight, sparks, its ink in its own darkened colour; a laser may stay one beam; a warm bolt',
     '  burns, a pale ray crackles). fxStyle: { register: anime | western, flavor: realistic | action | platformer |',
     '  pinball, …dials } composes that floor for the game: its register draws it (the anime game\'s glints, halo and rising',
-    '  motes, or material streaks, light and lingering smoke), its game type times it (rate, charge, stretch, echoes).',
+    '  motes, or material streaks, light and lingering smoke), its game type times it (rate, charge, stretch, echoes), and the',
+    '  characters near an effect take its rim light (a soft glow, a cel band or a thin line, by the look; rim: 0 for none).',
     `example: ${JSON.stringify({ beams: { twin: { color: '#66ccff', charge: { time: 0.8, size: 0.3 }, strands: [{ form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0] }, { form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0], phase: 0.5, color: '#ff66cc' }], impact: 'flash' } }, cues: [{ id: 'fire', when: { use: 'altar' }, then: { beam: { who: 'hero', to: 'golem', is: 'twin' } } }, { id: 'hit', when: { struck: 'golem' }, then: { hurt: { who: 'golem', by: 30 } } }] })}`,
   );
 }
@@ -388,7 +392,7 @@ export function playCards() {
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
     ['ui-scenes', 'Scenes', 'a directed moment: the camera taken, the cast moved, two talking, the camera handed back', 'a cutscene, an arrival, two characters talking, a reveal, a boss entrance', scenesCard()],
     ['ui-chapters', 'Chapters', 'the same world later: a difference turned by a happening, carried to the next level', 'a story that moves on, a town after the siege, a level that remembers what you did', chaptersCard()],
-    ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
+    ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam, a power-up aura) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
     ['play-beams', 'Beams and attacks', 'an attack is strands (rays and bolts, one function of time each) fired from a hand, landing with struck', 'a ki wave, a fireball, a fire dragon, a death ball, a laser barrage, braided beams, any attack you design', beamsCard()],
     ['play-explosions', 'Explosions', 'an explosion is parts (flash, fireball, smoke, debris, rings, scorch, a comic burst, a chain), set off at a spot or a beam\'s landing', 'a grenade, a mushroom cloud, a comic BOOM, a chain of blasts, an implosion, any blast you design', explosionsCard()],
     ['ui-pace', 'Pace', 'glance, scan or study: how densely the UI may be read', 'a twitch HUD vs a management screen', paceCard()],

@@ -17,7 +17,8 @@
  *
  *   FX_LIGHT, MOMENT_TINT     the rules' numbers
  *   fxDay(rgb)                how much an effect adds under a sky of this colour (0–255 or 0–1 channels)
- *   fxLightScript({ day })    the page's block: __fxlPush(p, rgb, k, r2), __stepFxLight()
+ *   fxLightScript({ day, world })  the page's block: __fxlPush(p, rgb, k, r2), __stepFxLight(); world: false gathers
+ *                             the lights without lighting the world with them (the effect rim's, effect-rim.js, alone)
  */
 
 export const FX_LIGHT = Object.freeze({
@@ -45,7 +46,7 @@ export function fxDay(rgb) {
 }
 
 /** The page's block: the frame's lights (__fxlPush), and every basic material taking the strongest. */
-export function fxLightScript({ day = FX_LIGHT.night } = {}) {
+export function fxLightScript({ day = FX_LIGHT.night, world = true } = {}) {
   const N = FX_LIGHT.max;
   return `
 // --- effect light (fxLight): what the beams and moments throw on the world, every frame (scene/effect-light.js) ---
@@ -76,9 +77,9 @@ function __fxlPatch(m) {
 }
 // patched as it steps, so meshes made after load (a rig's bones, a beam's target) learn it, wrapping every patch before
 let __fxlSeen = -1;
-function __stepFxLight() {
+function __stepFxLight() {${world ? `
   let n = 0; scene.traverse(() => { n++; });
-  if (n !== __fxlSeen) { __fxlSeen = n; scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__fxlPatch); }); }
+  if (n !== __fxlSeen) { __fxlSeen = n; scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(__fxlPatch); }); }` : ''}
   __fxlL.sort((a, b) => b[6] - a[6]);
   for (let i = 0; i < ${N}; i++) {
     const L = __fxlL[i];

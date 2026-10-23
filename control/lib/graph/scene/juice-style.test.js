@@ -6,18 +6,20 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { JUICE_REGISTER_IDS, JUICE_FLAVOR_IDS, readJuiceStyle, juiceFloor, juiceSignature } from './juice-style.js';
+import { JUICE_REGISTER_IDS, JUICE_FLAVOR_IDS, JUICE_LOOKS, readJuiceStyle, juiceFloor, juiceSignature } from './juice-style.js';
 import { FX_STYLE, styleBeam, styleExplosion, styleEvents, puffSpec } from './effect-style.js';
 import { BEAMS, beamLanding, strandPoints } from '../playscape/elements/beams.js';
 import { EXPLOSIONS } from '../playscape/elements/explosions.js';
 import { readJuice } from '../playscape/rpg/juice.js';
 import { beamScript } from './channels/beam-channel.js';
-import { momentScript } from './channels/moment-channel.js';
+import { momentScript, CEL_GLYPHS } from './channels/moment-channel.js';
 import { eventsChannelScript } from './channels/events.js';
+import { statusScript } from './channels/status-channel.js';
+import { LOOKS } from '../playscape/elements/elements.js';
 import { FLAVOR_NAMES } from '../gameworld/feel/flavor.js';
 import { TRADITIONS } from '../gameworld/characters.js';
 
-const CELLS = JUICE_REGISTER_IDS.flatMap((register) => JUICE_FLAVOR_IDS.map((flavor) => ({ register, flavor })));
+const CELLS = Object.keys(JUICE_LOOKS).flatMap((look) => JUICE_FLAVOR_IDS.map((flavor) => ({ register: JUICE_LOOKS[look].register, look, flavor })));
 const floor = (register, flavor, dials = {}) => juiceFloor({ register, flavor, ...dials });
 const A = [0, 0, 1], T = [8, 0, 1];
 const landAt = (B) => { const [a, b] = beamLanding(B)[0]; return a + b * 8; };
@@ -32,7 +34,10 @@ describe('juice style: the cards', () => {
     expect(() => readJuiceStyle({ flavor: 'opera' })).toThrow(/realistic/);
     expect(() => readJuiceStyle({ rate: 9 })).toThrow(/0.25 to 4/);
     expect(() => readJuiceStyle({ glow: 1 })).toThrow(/has no glow/);
-    expect(readJuiceStyle({})).toEqual({ register: 'anime', flavor: 'action' });
+    expect(readJuiceStyle({})).toEqual({ register: 'anime', look: 'isekai', flavor: 'action' });
+    expect(readJuiceStyle({ look: 'cel' })).toMatchObject({ register: 'anime', look: 'cel' });   // a look names its register
+    expect(() => readJuiceStyle({ register: 'western', look: 'cel' })).toThrow(/the anime register's/);
+    expect(() => readJuiceStyle({ look: 'baroque' })).toThrow(/isekai \| cel/);
   });
 
   it('leaves the plain floor as it was: true is FX_STYLE, byte for byte', () => {
@@ -48,7 +53,7 @@ describe('juice style: the cards', () => {
 describe('juice style: what stays global, in every cell', () => {
   it('lands every attack on its target, its landing re-read, and keeps a line a line and a laser one beam', () => {
     for (const c of CELLS) {
-      const F = floor(c.register, c.flavor);
+      const F = floor(c.register, c.flavor, { look: c.look });
       for (const name of ['orb', 'serpent', 'ray']) {
         const B = styleBeam(BEAMS[name], name, null, F), core = B.strands[0], t = landAt(B) - 0.5 / 60;
         const R = strandPoints(core, A, T, t, 0, 24);
@@ -100,6 +105,96 @@ describe('juice style: the register is the look', () => {
   });
 });
 
+describe('juice style: full anime, cel-shaded', () => {
+  it('draws the anime fighter\'s high-res colour in hard shapes: flat bands, accent hues, fire as spirit onions, debris, no outline, on twos', () => {
+    const F = floor('anime', 'action', { look: 'cel' }), B = styleBeam(BEAMS.orb, 'orb', null, F);
+    expect(B.strands.every((S) => S.cel)).toBe(true);
+    expect(B.strands.every((S) => S.edge === 'glow' && S.ink === undefined)).toBe(true);   // no outline
+    const comp = B.strands.filter((S) => S.hue);
+    expect(comp).toHaveLength(2);
+    expect(Math.abs(comp[0].hue)).toBeGreaterThan(90);   // an accent hue, not a near one (the isekai look's)
+    expect(B.fps).toBe(12);
+    expect(B.sparks.glyph).toBe('streak');   // speed lines
+    const X = styleExplosion(EXPLOSIONS.blast, 'b', F), W = styleExplosion(EXPLOSIONS.blast, 'b', floor('western', 'action'));
+    expect(X.comic).toBeUndefined();
+    // its fire as spirit onions: the fire's body gone from the sprays, overlapping shells spinning both ways, rings of
+    // spikes turning at their own intervals, sized to the blast, as long as the fire burned
+    expect(X.aura.A.onions.length).toBeGreaterThan(1);
+    expect(new Set(X.aura.A.onions.map((o) => Math.sign(o.turn))).size).toBe(2);
+    expect(new Set(X.aura.A.spikes.map((s) => s.turn)).size).toBe(X.aura.A.spikes.length);
+    const hot = (q) => ['soft', 'cblob'].includes(q.glyph) && Array.isArray(q.ramp) && Math.max(...q.ramp[0]) > 0.95 && Math.min(...q.ramp[0]) > 0.4;
+    expect(EXPLOSIONS.blast.parts.some(hot)).toBe(true);
+    expect(X.parts.some(hot)).toBe(false);   // the fire's body is the onions now, not a spray
+    expect(X.dur).toBeGreaterThanOrEqual(X.aura.delay + X.aura.life);
+    expect(X.parts.some((p) => p.glyph === 'soft')).toBe(false);
+    const dark = (p) => p.glyph === 'chip' && Math.max(...p.color) < 0.2;
+    expect(X.parts.filter(dark).length).toBeGreaterThan(W.parts.filter(dark).length);   // dark debris specks
+    expect(X.rings.some((g) => g.air)).toBe(true);
+    const iso = floor('anime', 'action');
+    expect(styleBeam(BEAMS.orb, 'orb', null, iso).strands.some((S) => S.cel)).toBe(false);
+    expect(styleExplosion(EXPLOSIONS.blast, 'b', iso).aura).toBeUndefined();
+  });
+
+  it('keeps a platformer\'s round shapes round, in the cel look\'s flat version', () => {
+    const X = styleExplosion(EXPLOSIONS.pop, 'pop', floor('anime', 'platformer', { look: 'cel' }));
+    expect(X.parts.every((p) => !['spark', 'streak', 'dot'].includes(p.glyph))).toBe(true);
+    expect(X.parts.some((p) => p.glyph === 'cdot')).toBe(true);
+  });
+
+  it('draws its bands and its cel glyphs only where a cel effect is, and the page parses', () => {
+    const plain = eventsChannelScript({ cast: true, reactions: [{ do: 'ctrl', op: 'beam', name: 'orb', spec: BEAMS.orb, land: beamLanding(BEAMS.orb) }, { do: 'ctrl', op: 'puff', is: 'sparks' }], fxStyle: { register: 'anime', flavor: 'action' } });
+    for (const w of ['celGlow', 'cdot', 'cblob']) expect(plain).not.toContain(w);
+    const cel = eventsChannelScript({ cast: true, reactions: [{ do: 'ctrl', op: 'beam', name: 'orb', spec: BEAMS.orb, land: beamLanding(BEAMS.orb) }, { do: 'ctrl', op: 'puff', is: 'smoke' }], fxStyle: { look: 'cel', flavor: 'action' } });
+    for (const w of ['celGlow', 'celCore', 'cdot', 'cblob']) expect(cel).toContain(w);
+    expect(plain).not.toContain('__mojAura');
+    const boom = eventsChannelScript({ cast: true, reactions: [{ do: 'ctrl', op: 'puff', is: 'blast', spec: EXPLOSIONS.blast }], fxStyle: { look: 'cel', flavor: 'action' } });
+    expect(boom).toContain('__moAU');   // a cel blast's fire, drawn as spirit onions
+    expect(CEL_GLYPHS).toEqual(['cdot', 'cblob']);
+    const bs = beamScript([styleBeam(BEAMS.orb, 'orb', null, floor('anime', 'action', { look: 'cel' }))]);
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', 'window', 'document', `${bs}; return 1;`)).not.toThrow();
+  });
+});
+
+describe('juice style: the characters\' rim light', () => {
+  const ev = (fxStyle, more = {}) => ({ cast: true, reactions: [{ do: 'ctrl', op: 'beam', name: 'orb', spec: BEAMS.orb, land: beamLanding(BEAMS.orb) }], looks: { 'power-up': LOOKS['power-up'] }, fxStyle, ...more });
+  it('rims the characters in the look\'s way at the game type\'s strength: a cel band, a soft wide glow, a thin faint line', () => {
+    const cel = floor('anime', 'action', { look: 'cel' }).rim, iso = floor('anime', 'action').rim, mat = floor('western', 'action').rim;
+    expect(cel.band).toBeGreaterThan(0);
+    expect(iso.band).toBe(0);
+    expect(mat.p).toBeGreaterThan(iso.p);   // narrower
+    expect(mat.k).toBeLessThan(iso.k);      // fainter
+    expect(floor('anime', 'action').rim.k).toBeGreaterThan(floor('anime', 'realistic').rim.k);
+    expect(floor('anime', 'action', { rim: 0 }).rim.k).toBe(0);
+  });
+
+  it('carries the rim on a composed floor\'s events and lays the look\'s rim on a status\'s coat; the plain floor neither', () => {
+    const F = floor('anime', 'action', { look: 'cel' }), S = styleEvents(ev(), F);
+    expect(S.rim).toEqual({ k: F.rim.k, p: F.rim.p, band: F.rim.band });
+    expect(S.looks['power-up'].coat).toMatchObject({ p: F.rim.p, band: F.rim.band });
+    expect(S.looks['power-up'].coat.k).toBeGreaterThan(LOOKS['power-up'].coat.k);
+    const E = ev(), plain = styleEvents(E);
+    expect(plain.rim).toBeUndefined();
+    expect(plain.looks).toBe(E.looks);
+    expect(styleEvents(ev(), floor('anime', 'action', { rim: 0 })).rim).toBeUndefined();
+  });
+
+  it('draws the rim (gathering the effect lights without lighting the world) only where asked, and the page parses', () => {
+    const none = eventsChannelScript(ev(true));
+    expect(none).not.toContain('__stepRim');
+    const rim = eventsChannelScript(ev({ look: 'cel', flavor: 'action' }));
+    expect(rim).toContain('__stepRim');
+    expect(rim).toContain('__fxlPush');
+    expect(rim).not.toContain('forEach(__fxlPatch)');   // the world is not lit: fxLight is not on
+    const both = eventsChannelScript(ev({ look: 'cel', flavor: 'action' }, { fxLight: true }));
+    expect(both).toContain('forEach(__fxlPatch)');
+    expect(both).toContain('__stepRim');
+    const band = statusScript(styleEvents(ev(), floor('anime', 'action', { look: 'cel' })).looks);
+    expect(band).toContain('uRimBand');
+    expect(statusScript({ 'power-up': LOOKS['power-up'] })).not.toContain('uRimBand');
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', 'window', 'document', 'location', `${band}; return 1;`)).not.toThrow();
+  });
+});
+
 describe('juice style: the game type is the time', () => {
   it('lands soonest at speed, snaps after the deepest charge in action, adds nothing it was not given when realistic', () => {
     const at = (flavor) => landAt(styleBeam(PLAIN, 'p', null, floor('anime', flavor)));
@@ -129,9 +224,9 @@ describe('juice style: the game type is the time', () => {
 
 describe('juice style: compositions', () => {
   it('gives every cell its own signature and its own orb', () => {
-    const sigs = CELLS.map((c) => { const s = juiceSignature(floor(c.register, c.flavor)); return `${s.look} / ${s.time}`; });
+    const sigs = CELLS.map((c) => { const s = juiceSignature(floor(c.register, c.flavor, { look: c.look })); return `${s.look} / ${s.time}`; });
     expect(new Set(sigs).size).toBe(CELLS.length);
-    const orbs = CELLS.map((c) => JSON.stringify(styleBeam(BEAMS.orb, 'orb', null, floor(c.register, c.flavor))));
+    const orbs = CELLS.map((c) => JSON.stringify(styleBeam(BEAMS.orb, 'orb', null, floor(c.register, c.flavor, { look: c.look }))));
     expect(new Set(orbs).size).toBe(CELLS.length);
   });
 

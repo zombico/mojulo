@@ -199,6 +199,7 @@ export const EVENT_MARKS = Object.freeze({
   rpg: m(A, 'the party\'s battles and its menu (play.rpg, playscape/rpg) are the page\'s: the kernel runs play.battle\'s one on one (power.combat turn-based)'),
   minigames: m(A, 'the games inside the game (playscape/ui/minigames.js: blocks, match, fishing in a pixel window) are the page\'s: minigame-won and minigame-lost never come back'),
   fxStyle: m(A, 'the style floor (scene/effect-style.js) raises the page\'s beams and explosions as it draws them: the moments travel as authored'),
+  rim: m(A, 'the characters\' rim light from the effects round them (scene/effect-rim.js) is the page\'s: the kernel\'s characters wear none'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */
 export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS));

@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { AURA_SRC } from './aura-src.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { sprayPoints } from '../../playscape/elements/elements.js';
 import { MOMENTS, MOMENT_KEYS, strikeBolt } from '../../playscape/elements/moments.js';
@@ -32,6 +33,22 @@ export function momentKinds(events) {
   if (fx) { for (const k of fx.puffs || []) if (MOMENTS[k]) add(k); if (fx.shake) add('shake'); }
   return out;
 }
+
+// the cel glyphs (a composed style floor's cel look, scene/juice-style.js): flat value bands with hard edges, the shared
+// table extended in place, so every channel's glyphs see them. Emitted only where a cel glyph is used
+//   cdot    added light in three flat bands (a white core, a mid band, a faint rim), hard-edged
+//   cblob   a cel puff: a lumpy flat shape, its shaded crescent a flat darker band (no rim: overlapping puffs read as
+//           one cloud, not a pile of bubbles)
+export const CEL_GLYPHS = Object.freeze(['cdot', 'cblob']);
+export const CEL_GLYPHS_SRC = `(window.__mojGlyphs.cdot || Object.assign(window.__mojGlyphs, (() => {
+  const mk = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = x.strokeStyle = '#fff'; draw(x); return new THREE.CanvasTexture(cv); };
+  const disc = (x, r, c) => { x.fillStyle = c; x.beginPath(); x.arc(32, 32, r, 0, 7); x.fill(); };
+  const lumps = (x) => { x.beginPath(); x.arc(32, 36, 20, 0, 7); x.arc(20, 30, 13, 0, 7); x.arc(44, 28, 14, 0, 7); x.arc(32, 20, 12, 0, 7); };
+  return {
+    cdot: { tex: mk((x) => { disc(x, 30, 'rgba(255,255,255,0.22)'); disc(x, 21, 'rgba(255,255,255,0.55)'); disc(x, 11, '#fff'); }), add: true },
+    cblob: { tex: mk((x) => { lumps(x); x.fillStyle = '#fff'; x.fill(); x.clip(); x.fillStyle = '#9a9a9a'; x.beginPath(); x.ellipse(40, 50, 30, 18, -0.35, 0, 7); x.fill(); }), add: false },
+  };
+})()))`;
 
 // the particle glyphs, drawn white (a sprite's colour tints them); additive ones glow, the rest lie over the scene
 export const GLYPHS_SRC = `window.__mojGlyphs || (window.__mojGlyphs = (() => {
@@ -84,7 +101,7 @@ function __sprStep(P, pts, fade, show) {
 }
 function __sprDrop(P) { for (const s of P.sprs) { scene.remove(s); s.material.dispose(); } for (const r of P.rings) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); } }`;
 
-export function momentScript(kinds, { fx = false, fps = false } = {}) {
+export function momentScript(kinds, { fx = false, fps = false, cel = false, aura = false } = {}) {
   const K = kinds.filter((k) => MOMENTS[k]), shake = kinds.includes('shake'), boom = kinds.includes('explosion');
   const spec = Object.fromEntries(K.map((k) => [k, { ...MOMENTS[k], key: MOMENT_KEYS[k] }]));
   const bolt = K.some((k) => MOMENTS[k].bolt), light = boom || K.some((k) => MOMENTS[k].light);
@@ -94,7 +111,8 @@ const __MO = ${safeJson(spec)};${fx ? `
 const __moTint = (M) => { const c = M.color; if (Array.isArray(c)) return c; if (typeof c === 'string' && c[0] === '#') return [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255); return __FXLR.tint[M.spec ? 'explosion' : M.is] || [1, 0.92, 0.8]; };` : ''}
 const __moCol = ${safeJson(FIRE_COLORANTS)};
 const __moRgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __moCol[c] ? __moCol[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
-const __moGlyph = ${GLYPHS_SRC};
+const __moGlyph = ${GLYPHS_SRC};${cel ? `
+${CEL_GLYPHS_SRC};` : ''}${aura ? `\n// an aura: a blast's fire as spirit onions and rings of spikes (playscape/elements/aura.js)\nconst __moAU = ${AURA_SRC};` : ''}
 const __moSpray = ${sprayPoints.toString()};
 ${SPRAY_SRC.replace(/__spr/g, '__moSpr')}${bolt ? `
 const __moBolt = ${strikeBolt.toString()};
@@ -145,11 +163,14 @@ function __moMake(M) {
     const rib = (m, order) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(segs * 18), 3)); const r = new THREE.Mesh(g, mat(m)); r.frustumCulled = false; r.raycast = function () {}; r.renderOrder = order; scene.add(r); I.extra.push(r); return r; };
     I.glow = rib(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 0.7, 1), side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 10);
     I.core = rib(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 11);
-  }` : ''}
+  }` : ''}${aura ? `
+  if (S.aura) I.aura = __moAU.make(S.aura.A, col || S.color || [1, 0.6, 0.2]);` : ''}
   return I;
 }
 function __moStep(I, age) {
-  const S = I.S, at = I.at, sc = I.sc, sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  const S = I.S, at = I.at, sc = I.sc, sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };${aura ? `
+  // the aura blooms (fast, easing out), holds, and fades over its last third
+  if (I.aura) { const Q = S.aura, u = (age - Q.delay) / Q.life; __moAU.step(I.aura, at, age, (u <= 0 ? 0 : Math.min(1, Math.sqrt(u / 0.18))) * sc, u > 0 && u < 1, u > 0.65 ? Math.max(0, (1 - u) / 0.35) : 1); }` : ''}
   // a scaled one: every point out from the spot, every size, by its scale
   const big = (pts) => (sc === 1 ? pts : pts.map((q) => ({ ...q, p: [at[0] + (q.p[0] - at[0]) * sc, at[1] + (q.p[1] - at[1]) * sc, at[2] + (q.p[2] - at[2]) * sc], s: q.s * sc })));
   I.sprays.forEach((P) => __moSprStep(P, big(__moSpray(P.S, at, age, false)), 1, true));
@@ -175,7 +196,7 @@ function __moStep(I, age) {
     if (on) { const bs = __moBolt(at, B.h, n); __moStroke(I.core, bs, B.width); __moStroke(I.glow, bs, B.width * 3.2); I.glow.material.opacity = 0.6; }
   }` : ''}
 }
-function __moDrop(I) { I.sprays.forEach(__moSprDrop); for (const m of I.extra) { scene.remove(m); if (m.geometry) m.geometry.dispose(); m.material.dispose(); } }
+function __moDrop(I) {${aura ? ' if (I.aura) __moAU.drop(I.aura);' : ''} I.sprays.forEach(__moSprDrop); for (const m of I.extra) { scene.remove(m); if (m.geometry) m.geometry.dispose(); m.material.dispose(); } }
 function __stepMoments() {
   const W = window.__mojCtrl && window.__mojCtrl.world; if (!W) return;
   const now = W.time || 0;${light ? `

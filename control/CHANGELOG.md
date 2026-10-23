@@ -16,7 +16,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Juice styling: the effects drawn in the game's register, timed by its game type
 
-- **The effects' floor is a composition.** `fxStyle: { register, flavor, …dials }` composes the floor every beam,
+- **The effects' floor is a composition.** `fxStyle: { register, look?, flavor, …dials }` composes the floor every beam,
   explosion and puff is raised to from two halves. The REGISTER is the art direction, anime or western, and sets
   the look. Anime is the contemporary anime game's (the gacha action RPG's effects): no ink line, a white-hot core
   into saturated ribbons in a near hue, soft trails, glints for sparks, a halo ring where a blow lands and glints
@@ -31,7 +31,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a laser one beam, a warm bolt burns and a pale ray crackles. A composed floor also styles the preset puffs it can,
   a beam's preset impact, the camera's shakes and a party battle's juice (its attacks, its holds and flashes at the
   game type's pace). `fxStyle: true` is the floor as it was, byte for byte.
-- **A gameworld's `juice`.** `juice: 'auto' | false | { register?, flavor?, …dials }` lays the composed floor on
+- **Full anime, cel-shaded: a second anime look.** A register is drawn in one of its looks (`look`): anime's
+  `isekai` (the contemporary anime RPG's, its default) or `cel` (full anime, the anime fighter's: the isekai look's
+  high-res colour drawn in hard painterly shapes), western's `material`. Cel lays flat colour in hard bands round a
+  hard white core across every strand, with companions in an accent hue, smears its afterimages, draws its sparks as
+  speed lines, throws dark debris specks and a swirl ring from the blow, draws a blast's fire as spirit onions (below)
+  and its smoke as a few bold flat puffs tinted its colour, glows as hard three-band discs, has no outline and no grey,
+  and holds on twos. The page emits its bands and its cel glyphs only where a cel effect is. A gameworld's anime
+  fighter or brawler is drawn cel unless it names a look.
+- **Spirit onions: the form of a power-up.** `playscape/elements/aura.js`: overlapping onion shells round a centre,
+  each a ring of flat cel petals along an onion's profile (a round bulb rising to a point), each spinning its own way
+  at its own rate, and rings of spikes round them turning at their own intervals; each petal is shaded flat by how it
+  faces the eye. A look wears one as its `aura` layer (the `power-up` look: a fast gold rim, the aura, sparks rising),
+  and the cel look draws a blast's fire as one (the `burst` aura, sized to the fire, blooming and fading as it burns)
+  in place of a spray. The page draws an aura only where a look or a blast carries one.
+- **The characters' rim light: an effect expressed on the bodies it plays among.** `scene/effect-rim.js`: a composed
+  floor rims every character at its edges with the effects round it (a beam's head going by, a charge at the hand, a
+  blast beside it), each light's colour falling off with distance, on the side of the body that faces it, at the
+  silhouette. The look decides how (isekai a soft wide glow, cel a flat hard band, material a thin faint line) and the
+  game type how strongly (action strongest, realistic least); a status's coat takes the look's rim too (a cel band on a
+  cel look). The `rim` dial sets it (0: none). It reads the effect light's lights of the frame, gathering them even
+  where the world is not lit by them (`fxLight` off), takes each face's normal from its derivatives (a character's
+  faces carry none), and exposes the characters' bodies only where it is on. The proving ground's `--rig` stands the
+  caster and target up as live characters and `--close caster|target` frames one.
+- **A gameworld's `juice`.** `juice: 'auto' | false | { register?, look?, flavor?, …dials }` lays the composed floor on
   every level as `fxStyle`. The register comes from the game's tradition: the character book's direction, else the
   kit's pole as the colour theorist leaves it. The game type comes from the feel's template, else the genre's. A
   composed world writes `'auto'`; design_game's readout reports the floor a world lays, or suggests one (a `juice`

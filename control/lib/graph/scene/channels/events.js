@@ -11,9 +11,10 @@ import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
-import { momentKinds, momentScript } from './moment-channel.js';
+import { momentKinds, momentScript, CEL_GLYPHS } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
+import { rimScript } from '../effect-rim.js';
 import { styleEvents } from '../effect-style.js';
 import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
@@ -208,11 +209,20 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
-  const fxl = events.fxLight === true && (mos.length > 0 || bms.length > 0);
+  // the effect rim (a composed floor's `rim`, scene/effect-rim.js): the characters lit at their edges by the same lights, so
+  // it gathers them even where the world is not lit by them
+  const rimOn = !!(cast && events.rim && events.rim.k > 0) && (mos.length > 0 || bms.length > 0);
+  const fxl = (events.fxLight === true || rimOn) && (mos.length > 0 || bms.length > 0);
   // a composed style floor's drawings a second on the moments it styled (a puff's spec, a beam's impact, a battle's)
   const fpsOf = (X) => !!(X && X.fps), rpgBeams = Object.values((events.rpg && events.rpg.juice && events.rpg.juice.fx && events.rpg.juice.fx.beams) || {});
   const mfps = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? fpsOf(r.spec) : r.op === 'beam' && r.spec ? fpsOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => fpsOf(B.impactSpec)));
-  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}) }) : '';
+  // and its cel glyphs (a cel look's flat puffs and bands)
+  const celOf = (X) => !!(X && Array.isArray(X.parts) && X.parts.some((p) => CEL_GLYPHS.includes(p.glyph)));
+  const mcel = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? celOf(r.spec) : r.op === 'beam' && r.spec ? celOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => celOf(B.impactSpec)));
+  // and its auras (a cel look's blast drawn as spirit onions)
+  const auraOf = (X) => !!(X && X.aura);
+  const maura = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? auraOf(r.spec) : r.op === 'beam' && r.spec ? auraOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => auraOf(B.impactSpec)));
+  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
@@ -326,7 +336,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${fxl ? fxLightScript(fxDay == null ? {} : { day: fxDay }) : ''}${moments}${beams}
+${hudBlock}${reach}${status}${fxl ? fxLightScript({ ...(fxDay == null ? {} : { day: fxDay }), ...(events.fxLight === true ? {} : { world: false }) }) : ''}${rimOn ? rimScript(events.rim) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -373,7 +383,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }

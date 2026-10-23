@@ -2,7 +2,7 @@ import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints } from '../../playscape/elements/elements.js';
 import { strandPoints, beamLength } from '../../playscape/elements/beams.js';
-import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
+import { GLYPHS_SRC, SPRAY_SRC, CEL_GLYPHS_SRC, CEL_GLYPHS } from './moment-channel.js';
 import { GNOISE2_PAGE_SRC } from '../../noise/noise.js';
 import { NOISE_GLSL } from '../../noise/noise-glsl.js';
 
@@ -44,6 +44,9 @@ export function beamScript(specs, { fx = false } = {}) {
   // drawings a second (a composed style floor's `fps`, scene/juice-style.js): the attack held on each drawing, limited
   // animation; the world's clock (and so the landing) runs on. Only emitted when an attack carries it
   const fps = specs.some((B) => B.fps);
+  // the cel look (a composed floor's, scene/juice-style.js): flat bands with hard edges across a ribbon and a head, and
+  // the cel glyphs for its sparks. Only emitted when an attack carries it
+  const cel = specs.some((B) => B.strands.some((S) => S.cel)) || specs.some((B) => B.sparks && CEL_GLYPHS.includes(B.sparks.glyph));
   // `fx` (the world's fxLight, scene/effect-light.js): each head, a ray's body and a charging orb throw their light
   return `
 // BEAMS: attacks fired from a hand at a target, once each, on the world clock (ink, glow and a white core)
@@ -127,20 +130,24 @@ const __bmHue = (c, deg) => { const a = deg * Math.PI / 180, co = Math.cos(a), s
 const __bmP0 = new THREE.Vector3(), __bmP1 = new THREE.Vector3();` : ''}
 const __bmLength = ${beamLength.toString()};${charge ? `
 const __bmWave = ${wavePoints.toString()};` : ''}
-const __bmGlyph = ${GLYPHS_SRC};${sparks ? `
+const __bmGlyph = ${GLYPHS_SRC};${cel ? `
+${CEL_GLYPHS_SRC};` : ''}${sparks ? `
 const __bmSpray = ${sprayPoints.toString()};
 ${SPRAY_SRC.replace(/__spr/g, '__bmSpr')}` : ''}
 // across a ribbon: soft (glow), firm (core), hard (ink)
 const __bmAcross = (edge) => { const cv = document.createElement('canvas'); cv.width = 4; cv.height = 64; const x = cv.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 64); for (const [o, a] of edge) g.addColorStop(o, 'rgba(255,255,255,' + a + ')'); x.fillStyle = g; x.fillRect(0, 0, 4, 64); return new THREE.CanvasTexture(cv); };
-const __bmTex = { glow: __bmAcross([[0, 0], [0.3, 0.35], [0.5, 1], [0.7, 0.35], [1, 0]]), core: __bmAcross([[0, 0], [0.2, 0.9], [0.5, 1], [0.8, 0.9], [1, 0]]), ink: __bmAcross([[0, 0], [0.08, 1], [0.92, 1], [1, 0]]) };
+const __bmTex = { glow: __bmAcross([[0, 0], [0.3, 0.35], [0.5, 1], [0.7, 0.35], [1, 0]]), core: __bmAcross([[0, 0], [0.2, 0.9], [0.5, 1], [0.8, 0.9], [1, 0]]), ink: __bmAcross([[0, 0], [0.08, 1], [0.92, 1], [1, 0]]) };${cel ? `
+// cel: the glow in two flat bands, the core a hard white stripe (stops laid on each other: the edges are hard)
+__bmTex.celGlow = __bmAcross([[0, 0], [0.12, 0], [0.12, 0.45], [0.3, 0.45], [0.3, 1], [0.7, 1], [0.7, 0.45], [0.88, 0.45], [0.88, 0], [1, 0]]);
+__bmTex.celCore = __bmAcross([[0, 0], [0.28, 0], [0.28, 1], [0.72, 1], [0.72, 0], [1, 0]]);` : ''}
 const __bmDisc = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.beginPath(); x.arc(32, 32, 29, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
 const __BM_N = 48;
 // the passes a strand draws, outermost first: [kind, width ×, colour, additive?]
 function __bmPasses(S, rgb) {
   const out = [];
-  if (S.edge !== 'ink') out.push(['glow', S.edge === 'both' ? 2.9 : 2.6, rgb, true]);
+  if (S.edge !== 'ink') out.push([${cel ? "S.cel ? 'celGlow' : 'glow'" : "'glow'"}, S.edge === 'both' ? 2.9 : 2.6, rgb, true]);
   if (S.edge !== 'glow') out.push(['ink', 1.22, ${ink ? 'S.ink != null ? rgb.map((v) => v * S.ink) : ' : ''}[0, 0, 0], false]);
-  out.push(['core', S.edge === 'glow' ? 0.8 : 0.9, [1, 1, 1], S.edge === 'glow']);
+  out.push([${cel ? "S.cel ? 'celCore' : 'core'" : "'core'"}, S.edge === 'glow' ? 0.8 : 0.9, [1, 1, 1], S.edge === 'glow']);
   return out;
 }
 function __bmRibbon(kind, rgb, add, order) {
@@ -152,7 +159,7 @@ function __bmRibbon(kind, rgb, add, order) {
   const r = new THREE.Mesh(g, m); r.frustumCulled = false; r.raycast = function () {}; r.renderOrder = order; r.visible = false; scene.add(r); return r;
 }
 function __bmHead(kind, rgb, add, order) {
-  const m = new THREE.SpriteMaterial({ map: kind === 'glow' ? __bmGlyph.dot.tex : __bmDisc, color: new THREE.Color(rgb[0], rgb[1], rgb[2]), transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
+  const m = new THREE.SpriteMaterial({ map: ${cel ? "kind === 'celGlow' ? __bmGlyph.cdot.tex : " : ''}kind === 'glow' ? __bmGlyph.dot.tex : __bmDisc, color: new THREE.Color(rgb[0], rgb[1], rgb[2]), transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending });
   m.userData.__fire = true; if (kind === 'core') m.opacity = 0.95;
   const s = new THREE.Sprite(m); s.raycast = function () {}; s.renderOrder = order; s.visible = false; scene.add(s); return s;
 }

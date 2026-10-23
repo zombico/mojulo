@@ -2,6 +2,7 @@ import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
 import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
+import { AURA_SRC } from './aura-src.js';
 import { NOISE_GLSL } from '../../noise/noise-glsl.js';
 
 /**
@@ -360,14 +361,16 @@ export function transitKinds(events) {
 
 export function statusScript(looks, transits = []) {
   const L = looks || {}, all = Object.values(L);
-  const shield = all.some((x) => x.shield);
+  const shield = all.some((x) => x.shield), aura = all.some((x) => x.aura), band = all.some((x) => x.coat && x.coat.band);
   const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
   return `
 // STATUS: what the cast carries, drawn on their bodies in its look (coat, motes, bolts, ice, water, steam; fire is the fire channel's)
 const __LOOK = ${safeJson(L)};
 const __FCOL = ${safeJson(FIRE_COLORANTS)};
 const __rgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __FCOL[c] ? __FCOL[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
-const __wave = ${wavePoints.toString()};${drift ? `
+const __wave = ${wavePoints.toString()};${aura ? `
+// an AURA: spirit onions and rings of spikes round the body (playscape/elements/aura.js)
+const __elAU = ${AURA_SRC};` : ''}${drift ? `
 const __elGlyph = ${GLYPHS_SRC};
 const __spray = ${sprayPoints.toString()};
 ${SPRAY_SRC}` : ''}${bolts ? `
@@ -419,13 +422,14 @@ function __elShieldStep(d, e, age, fade, show) {
   }
   for (let i = n; i < 4; i++) U.uRip.value[i].w = -1;
 }
-` : ''}function __elCoatMat(color, dark, p) {
+` : ''}function __elCoatMat(color, dark, p${band ? ', band' : ''}) {
   const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color[0], color[1], color[2]), transparent: true, depthWrite: false, blending: dark ? THREE.NormalBlending : THREE.AdditiveBlending });
   m.userData.uK = { value: 0 }; m.userData.__fire = true;   // its own light: the fire channel leaves it unlit
   m.onBeforeCompile = (sh) => {
-    sh.uniforms.uRimK = m.userData.uK; sh.uniforms.uRimP = { value: p }; sh.uniforms.uRimDark = { value: dark ? 1 : 0 };
+    sh.uniforms.uRimK = m.userData.uK; sh.uniforms.uRimP = { value: p }; sh.uniforms.uRimDark = { value: dark ? 1 : 0 };${band ? `
+    sh.uniforms.uRimBand = { value: band || 0 };` : ''}
     sh.vertexShader = 'varying vec3 vRimN;\\nvarying vec3 vRimV;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\ntransformed += normal * 0.015;').replace('#include <project_vertex>', '#include <project_vertex>\\nvRimN = normalize(normalMatrix * normal);\\nvRimV = normalize(-mvPosition.xyz);');
-    sh.fragmentShader = 'uniform float uRimK;\\nuniform float uRimP;\\nuniform float uRimDark;\\nvarying vec3 vRimN;\\nvarying vec3 vRimV;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\\nfloat rim = clamp(pow(1.0 - abs(dot(normalize(vRimN), normalize(vRimV))), uRimP) * uRimK, 0.0, 1.0);\\ngl_FragColor = uRimDark > 0.5 ? vec4(0.0, 0.0, 0.0, rim) : vec4(gl_FragColor.rgb * rim, 1.0);');
+    sh.fragmentShader = 'uniform float uRimK;\\nuniform float uRimP;\\nuniform float uRimDark;\\n${band ? 'uniform float uRimBand;\\n' : ''}varying vec3 vRimN;\\nvarying vec3 vRimV;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\\n${band ? `float rimF = pow(1.0 - abs(dot(normalize(vRimN), normalize(vRimV))), uRimP);\\nfloat rim = clamp((uRimBand > 0.0 ? step(uRimBand, rimF) : rimF) * uRimK, 0.0, 1.0);` : 'float rim = clamp(pow(1.0 - abs(dot(normalize(vRimN), normalize(vRimV))), uRimP) * uRimK, 0.0, 1.0);'}\\ngl_FragColor = uRimDark > 0.5 ? vec4(0.0, 0.0, 0.0, rim) : vec4(gl_FragColor.rgb * rim, 1.0);');
   };
   return m;
 }
@@ -437,7 +441,7 @@ function __elMake(e, is, st) {
   if (body) body.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.normal && !(o.userData && (o.userData.ink || o.userData.coat))) meshes.push(o); });
   D.meshes = meshes;
   if (K.coat) {
-    D.mat = __elCoatMat(K.coat.color != null && st.color == null ? __rgb(K.coat.color) : base, !!K.coat.dark, K.coat.p);
+    D.mat = __elCoatMat(K.coat.color != null && st.color == null ? __rgb(K.coat.color) : base, !!K.coat.dark, K.coat.p${band ? ', K.coat.band' : ''});
     for (const o of meshes) { const c = new THREE.Mesh(o.geometry, D.mat); c.userData.coat = true; c.raycast = function () {}; c.renderOrder = 4; o.add(c); D.coats.push(c); }
   }
   // each wave's lights: a pool of sprites as large as its count × trail
@@ -466,7 +470,8 @@ function __elMake(e, is, st) {
     if (K.steam) D.surf.push(__elSurfMake({ kind: 'vapor', count: K.steam.count }, meshes, base));
   }` : ''}${encase ? `
   if (body && K.ice && K.ice.mode === 'encase') D.encase = __elEncase(body, __elSeed(e.id + is), base);` : ''}${shield ? `
-  if (K.shield) { D.shield = __elShield(K.shield, base); D.shield.userData.r = K.shield.r; }` : ''}
+  if (K.shield) { D.shield = __elShield(K.shield, base); D.shield.userData.r = K.shield.r; }` : ''}${aura ? `
+  if (K.aura) D.aura = __elAU.make(K.aura, base);` : ''}
   return D;
 }
 function __elDrop(D) {
@@ -476,7 +481,8 @@ function __elDrop(D) {
   D.drifts.forEach(__sprDrop); for (const q of D.cloud) { scene.remove(q.c); q.c.material.dispose(); }` : ''}${surf ? `
   for (const U of D.surf) __elSurfDrop(U);` : ''}${encase ? `
   if (D.encase) __elEncaseDrop(D.encase);` : ''}
-  if (D.mat) D.mat.dispose();${shield ? `
+  if (D.mat) D.mat.dispose();${aura ? `
+  if (D.aura) __elAU.drop(D.aura);` : ''}${shield ? `
   if (D.shield) { scene.remove(D.shield); D.shield.geometry.dispose(); D.shield.material.dispose(); }` : ''}${surf ? `
   if (D.boil) __elSurfDrop(D.boil);` : ''}
 }${bolts ? `
@@ -530,7 +536,9 @@ function __elDraw(D, e, K, age, fade, show, melt) {${shield ? `
       : 0.7 + 0.3 * Math.sin(age * C.hz * 6.283));
     for (const c of D.coats) c.visible = show;
   }
-  const cc = __elFoot(e);
+  const cc = __elFoot(e);${aura ? `
+  // the aura grows in over its first third of a second and goes with the look
+  if (D.aura) __elAU.step(D.aura, cc, age, Math.min(1, Math.sqrt(age / 0.35)), show, fade);` : ''}
   for (const { W: wv, sprs } of D.waves) {
     const bs = __wave(wv, cc, age);
     for (let i = 0; i < sprs.length; i++) {

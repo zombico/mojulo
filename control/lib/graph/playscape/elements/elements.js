@@ -20,6 +20,8 @@
  *   steam    vapour rises off it, swells and thins: {} or { count }
  *   shield   a half-sphere of hex cells over the body (a fresnel rim, a shimmer), rippling where a beam lands on it:
  *            { r?: metres, cells?: across, color? }
+ *   aura     SPIRIT ONIONS round the body (aura.js): overlapping onion shells spinning their own ways, rings of spikes
+ *            round them turning at their own intervals, flat cel bands: a preset's name (power-up) or { onions, spikes }
  *
  * A WAVE: `count` streams of lights, each a head and `trail` lights behind it, travelling one path per `cycle`
  * seconds; at u (0 → 1 along a cycle) a light stands at angle a0 + turn·u turns, radius r(u), height z(u) above the
@@ -55,6 +57,7 @@
  * its lights move. Colour comes last.
  */
 import { FIRE_COLORANTS } from '../../fire/fire.js';
+import { readAura, auraSignature } from './aura.js';
 
 const TAU = Math.PI * 2;
 const frac = (x) => x - Math.floor(x);
@@ -161,7 +164,7 @@ export const BOLT_SHAPE = Object.freeze({ arcR: 0.6, zBase: 0.3, zSpan: 1.3 });
 const COAT_SHAPES = ['breathe', 'grow', 'flash', 'flicker', 'hold'];
 const ENVS = ['steady', 'ends', 'in', 'out'];
 const ICE_MODES = ['encase', 'spikes'];
-export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'drift', 'bolts', 'fire', 'ice', 'water', 'steam', 'shield']);
+export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'drift', 'bolts', 'fire', 'ice', 'water', 'steam', 'shield', 'aura']);
 export const GLYPHS = Object.freeze(['dot', 'soft', 'streak', 'drop', 'flake', 'leaf', 'spark', 'chip']);
 const SPRAY_FROM = ['point', 'ground', 'shell', 'cloud'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -297,6 +300,8 @@ export function readLook(v, where, looks = null) {
     if (!isObj(c) || (c.r !== undefined && !(num(c.r) && c.r >= 0.4 && c.r <= 8)) || (c.cells !== undefined && !(num(c.cells) && c.cells >= 2 && c.cells <= 20))) throw new Error(`${where}.shield is { r?: metres 0.4 to 8, cells?: 2 to 20 across, color? }`);
     out.shield = { r: c.r ?? 1.3, cells: c.cells ?? 6, ...(c.color !== undefined ? { color: readColor(c.color, `${where}.shield.color`) } : {}) };
   }
+  // an AURA: spirit onions and rings of spikes round the body (only when given, so a look without one is the one it was)
+  if (v.aura !== undefined && v.aura !== false) out.aura = readAura(v.aura, `${where}.aura`);
   for (const k of ['water', 'steam']) if (v[k] !== undefined && v[k] !== false) {
     const c = v[k] === true ? {} : v[k];
     if (!isObj(c) || (c.count !== undefined && !(num(c.count) && c.count >= 1 && c.count <= 40))) throw new Error(`${where}.${k} is {} or { count: 1 to 40 }`);
@@ -352,6 +357,8 @@ export const LOOKS = Object.freeze({
   embers: P({ color: [1, 0.55, 0.2], coat: { k: 0.45, hz: 1.4, p: 2.4 }, drift: { glyph: 'spark', count: 22, from: 'shell', r: 0.3, z: [0.1, 1.2], v: 0.3, el: [30, 90], gravity: -0.9, swirl: 0.08, life: 2, size: 0.07, env: 'ends' } }),
   ward: P({ color: [0.45, 0.85, 1], coat: { k: 0.3, hz: 0.5, p: 2.6 }, shield: { r: 1.3, cells: 6 } }),
   dusty: P({ color: [0.72, 0.62, 0.48], coat: false, drift: { glyph: 'soft', count: 14, from: 'ground', r: 0.55, z: 0.06, v: 0.35, el: [0, 25], life: 1.8, grow: 1.8, size: 0.28, env: 'ends' } }),
+  // powering up: a gold rim breathing fast, spirit onions spinning round the body, spikes turning round them, sparks rising
+  'power-up': P({ color: [1, 0.84, 0.28], coat: { k: 0.75, hz: 2.2, p: 1.5 }, aura: 'power-up', drift: { glyph: 'spark', count: 16, from: 'shell', r: 0.5, z: [0.1, 1.6], v: 0.4, el: [60, 90], gravity: -2.2, life: 0.9, size: 0.08, env: 'ends' } }),
 });
 export const LOOK_NAMES = Object.freeze(Object.keys(LOOKS));
 
@@ -365,5 +372,5 @@ const band = (x, cuts) => cuts.findIndex((c) => x <= c);
 export function valueSignature(L) {
   const c = L.coat;
   return [c && c.dark ? 'dark' : L.bolts && !L.bolts.bright ? 'dark' : 'light', c ? c.shape : 'none', c ? band(c.k, [0.4, 0.7, 2]) : -1, c ? band(c.hz, [0, 0.5, 1, 99]) : -1,
-    L.motes.map(waveSig).join(' + ') || 'still', (L.drift || []).map(spraySig).join(' + '), L.bolts ? (L.bolts.bright ? 'bright bolts' : 'bolts') : '', L.fire ? `fire ${L.fire.size > 2.5 ? 'big' : 'small'}` : '', L.ice ? `ice ${L.ice.mode}` : '', L.water ? 'water' : '', L.steam ? 'steam' : ''].join(' | ');
+    L.motes.map(waveSig).join(' + ') || 'still', (L.drift || []).map(spraySig).join(' + '), L.bolts ? (L.bolts.bright ? 'bright bolts' : 'bolts') : '', L.fire ? `fire ${L.fire.size > 2.5 ? 'big' : 'small'}` : '', L.ice ? `ice ${L.ice.mode}` : '', L.water ? 'water' : '', L.steam ? 'steam' : '', ...(L.aura ? [`aura ${auraSignature(L.aura)}`] : [])].join(' | ');
 }

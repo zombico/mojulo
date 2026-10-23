@@ -29,9 +29,12 @@
  *   styleExplosion(X, seed, F?)          an explosion's moment spec raised to the floor
  *   styleEvents(events, F?)              a world's lowered events with every beam and explosion raised (its landings re-read)
  *   puffSpec(is)                   a preset puff as an explosion's spec, or null when it stays the moment's own
+ *   (a composed floor's events also carry `rim`, the characters' rim light from the effects (effect-rim.js), and their
+ *   statuses' coats in the look's rim)
  */
 import { beamLanding } from '../playscape/elements/beams.js';
 import { MOMENTS, MOMENT_KEYS } from '../playscape/elements/moments.js';
+import { AURAS, scaleAura } from '../playscape/elements/aura.js';
 
 export const FX_STYLE = Object.freeze({
   thin: 0.03,                     // metres: a strand this narrow is a line
@@ -146,8 +149,11 @@ const reshape = (p, F) => {
  * its drawings a second. Its landing is re-read by whoever lands it (styleEvents). */
 function composeBeam(B, seed, F) {
   const r = F.rate, out = { ...B };
-  // a material register draws no ink line: an attack's own black edge becomes its glow
-  if (F.edge) out.strands = out.strands.map((S) => (S.edge && S.edge !== F.edge ? { ...S, edge: F.edge } : S));
+  // a look with no ink line turns an attack's own black edge to its glow; a cel look outlines its core (not its
+  // companions or echoes) in its own dark tone, and lays flat bands across every strand
+  if (F.edge === 'glow') out.strands = out.strands.map((S) => (S.edge && S.edge !== 'glow' ? { ...S, edge: 'glow' } : S));
+  else if (F.edge) out.strands = out.strands.map((S) => (S.alpha == null && S.hue == null && S.edge !== F.edge ? { ...S, edge: F.edge, ...(F.ink && S.ink == null ? { ink: F.ink } : {}) } : S));
+  if (F.cel) out.strands = out.strands.map((S) => ({ ...S, cel: true }));
   if (out.sparks) out.sparks = fastSpray(reshape(out.sparks, F), r);
   if (out.impact && !out.impactSpec) { const X = puffSpec(out.impact); if (X) out.impactSpec = X; }
   if (num(out.shake)) out.shake = +Math.min(1, out.shake * F.shakeK).toFixed(3);
@@ -160,7 +166,7 @@ function composeBeam(B, seed, F) {
 // how long an explosion plays: its last part out (explosions.js readExplosion's reckoning)
 function durOf(X) {
   const ends = [...X.parts.map((p) => (p.delay || 0) + (p.stagger || 0) + p.life * 1.15 + ((p.trail || 1) - 1) * (p.lag || 0)), ...(X.rings || []).map((g) => (g.delay || 0) + g.life),
-    X.star ? (X.star.delay || 0) + X.star.life : 0, X.scorch ? (X.scorch.delay || 0) + X.scorch.life : 0, X.comic ? (X.comic.delay || 0) + X.comic.life : 0];
+    X.star ? (X.star.delay || 0) + X.star.life : 0, X.aura ? X.aura.delay + X.aura.life : 0, X.scorch ? (X.scorch.delay || 0) + X.scorch.life : 0, X.comic ? (X.comic.delay || 0) + X.comic.life : 0];
   return Math.round((Math.max(...ends) + 0.1) * 1000) / 1000;
 }
 
@@ -174,16 +180,23 @@ const tintGrey = (c, pale, k) => (Array.isArray(c) && Math.max(...c) - Math.min(
  * where it is asked for), its shake, its pace and its drawings a second. */
 function composeExplosion(X, F) {
   const r = F.rate, t = (o) => (o ? { ...o, life: sc(o.life, 1 / r), ...(num(o.delay) ? { delay: sc(o.delay, 1 / r) } : {}) } : o);
-  const own = ownColour(X), pale = own.map((x) => +(x * 0.5).toFixed(3));   // a deeper tone of the colour: a warm cloud, not a cream one
+  // the tone grey smoke is pulled toward: a deeper tone of the colour (a warm cloud, not a cream one), a lighter one in a
+  // cel look (its flat two-tone puff in a light tone of the fire, not mud)
+  const own = ownColour(X), pale = own.map((x) => +(F.cel ? x + (1 - x) * 0.3 : x * 0.5).toFixed(3));
   // a fire's body (a soft puff whose ramp starts hot) burns as added light where the register glows; smoke and dust stay soft
   const hot = (p) => Array.isArray(p.ramp) && Array.isArray(p.ramp[0]) && Math.min(...p.ramp[0]) > 0.4 && Math.max(...p.ramp[0]) > 0.95;
   const soft = (p0) => {
     if (p0.glyph !== 'soft') return p0;
     // (its fire burns from its own colour, fewer puffs, so the added light does not blow out to white)
-    const p = { ...p0, life: sc(p0.life, F.smokeK), ...(F.glow && hot(p0) ? { glyph: 'dot', ramp: p0.ramp.slice(1), count: Math.max(1, Math.round(p0.count * 0.6)) } : {}) };
+    const p = { ...p0, life: sc(p0.life, F.smokeK), ...(F.glow && hot(p0) ? { glyph: 'dot', ramp: p0.ramp.slice(1), count: Math.max(1, Math.round(p0.count * 0.6)) } : {}),
+      // (a cel look draws a cloud as a few bold flat shapes: fewer, larger puffs)
+      ...(F.cel ? { count: Math.max(1, Math.round(p0.count * 0.35)), size: sc(p0.size, 1.5) } : {}) };
     return { ...p, ...(F.tint && p.color ? { color: tintGrey(p.color, pale, F.tint) } : {}), ...(F.tint && Array.isArray(p.ramp) ? { ramp: p.ramp.map((c) => tintGrey(c, pale, F.tint)) } : {}) };
   };
-  const parts = X.parts.map((p) => fastSpray(reshape(soft(p), F), r));
+  // a look that draws fire as spirit onions (aura.js): the fire's body (a soft puff whose ramp starts hot) becomes overlapping
+  // onion shells spinning their own ways with rings of spikes round them, sized to the fire, for as long as it burns
+  const fire = F.onions ? X.parts.find(hot) : null;
+  const parts = X.parts.filter((p) => p !== fire).map((p) => fastSpray(reshape(soft(p), F), r));
   const out = { ...X, parts };
   if (X.star) out.star = t({ ...X.star, size: sc(X.star.size, F.starK) });
   if (X.light) out.light = t({ ...X.light, k: sc(X.light.k, F.lightK) });
@@ -194,9 +207,12 @@ function composeExplosion(X, F) {
   // motes: glints drifting up after the blow, in its colour (a cue's colour paints them: a key part)
   if (F.motes && (out.star || out.light)) {
     const at = (out.star && out.star.delay) || 0;
-    parts.push(fastSpray({ ...FX_STYLE.sparks, glyph: F.glyphs.spark ?? 'spark', count: 10, from: 'shell', r: 0.55, z: [0.4, 1.5], v: 0.5, el: [40, 90], gravity: -0.9, life: 1.2, size: 0.11, env: 'ends', delay: +(at * r + 0.12).toFixed(3), color: own }, r));
+    parts.push(fastSpray({ ...FX_STYLE.sparks, glyph: F.cel ? F.glyphs.dot ?? 'cdot' : F.glyphs.spark ?? 'spark', count: 10, from: 'shell', r: 0.55, z: [0.4, 1.5], v: 0.5, el: [40, 90], gravity: -0.9, life: 1.2, size: 0.11, env: 'ends', delay: +(at * r + 0.12).toFixed(3), color: own }, r));
     out.key = [...(X.key || []), parts.length - 1];
   }
+  // debris: dark specks thrown from the blow (not a key part: a cue's colour leaves them dark)
+  if (F.debris && flash) parts.push(fastSpray({ ...FX_STYLE.sparks, glyph: 'chip', count: 16, from: 'point', z: [0.3, 0.3], v: 6.5, el: [15, 75], gravity: 9.8, spin: 3, life: 0.9, size: 0.07, env: 'steady', delay: +(((flash.delay || 0) * r)).toFixed(3), color: [0.11, 0.11, 0.13] }, r));
+  if (fire) out.aura = { A: { ...scaleAura(AURAS.burst, +(fire.size / 0.75).toFixed(3)), color: own.map((x, i) => +(x + ([1, 0.82, 0.15][i] - x) * 0.35).toFixed(3)) }, life: sc(fire.life, 0.9 / r), delay: sc(fire.delay || 0, 1 / r) };
   if (X.comic) out.comic = t(X.comic);
   else if (F.comic && X.star) out.comic = { size: sc(out.star.size, 0.8), spikes: 12, life: sc(X.star.life * 1.6, 1 / r), delay: out.star.delay || 0 };
   if (X.scorch && num(X.scorch.delay)) out.scorch = { ...X.scorch, delay: sc(X.scorch.delay, 1 / r) };
@@ -236,5 +252,9 @@ export function styleEvents(events, F = FX_STYLE) {
     return r;
   });
   const rpg = F.composed && events.rpg && events.rpg.juice ? { rpg: { ...events.rpg, juice: styleJuice(events.rpg.juice, F) } } : {};
-  return { ...events, reactions, ...rpg };
+  // the characters' rim (effect-rim.js): the look's rim at the game type's strength; a status's coat in the look's rim
+  // (as narrow, a cel band where the look draws one, lifted by its share)
+  const rim = F.composed && F.rim && F.rim.k > 0 ? { rim: { k: F.rim.k, p: F.rim.p, band: F.rim.band } } : {};
+  const looks = F.composed && F.rim && events.looks ? { looks: Object.fromEntries(Object.entries(events.looks).map(([n, L]) => [n, L && L.coat ? { ...L, coat: { ...L.coat, p: F.rim.p, k: +Math.min(1.5, L.coat.k * F.rim.coat).toFixed(3), ...(F.rim.band ? { band: F.rim.band } : {}) } } : L])) } : {};
+  return { ...events, reactions, ...rpg, ...rim, ...looks };
 }

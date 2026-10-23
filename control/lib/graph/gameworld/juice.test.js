@@ -47,6 +47,14 @@ describe('a gameworld\'s juice', () => {
     expect(juiceOfGame(G).fxStyle.flavor).toBe('realistic');
   });
 
+  it('draws an anime fighter cel-shaded and an anime RPG in the isekai look; a western game in its material', () => {
+    const G = readGameworld({ ...MEADOWMARK, juice: 'auto' }), anime = { ...G, characters: { direction: { tradition: 'anime' } } };
+    expect(juiceOfGame({ ...anime, intent: { from: 'versus-fighter' } })).toMatchObject({ fxStyle: { look: 'cel' }, from: { look: 'versus-fighter' } });
+    expect(juiceOfGame({ ...anime, intent: { from: 'jrpg' } }).fxStyle.look).toBe('isekai');
+    expect(juiceOfGame({ ...anime, characters: { direction: { tradition: 'western' } }, intent: { from: 'versus-fighter' } }).fxStyle.look).toBe('material');
+    expect(juiceOfGame({ ...anime, intent: { from: 'jrpg' }, juice: { look: 'cel' } })).toMatchObject({ fxStyle: { register: 'anime', look: 'cel' }, from: { look: 'operator' } });
+  });
+
   it('suggests what auto would lay to a world that writes none, and nothing to one that writes it or false', () => {
     const G = readGameworld(MEADOWMARK);
     expect(juiceSuggestion(G).fxStyle).toEqual(juiceOfGame({ ...G, juice: 'auto' }).fxStyle);
