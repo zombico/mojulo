@@ -40,9 +40,14 @@ describe('the realistic face rig', () => {
     expect(rebase).toBeLessThan(1e-3);
   });
   it('moves what each action moves: a blink the eyes and their lashes, one eye its own side; a brow its hairs, hardly the scalp\'s', () => {
-    expect(move('blink', /^eye[RL]$/)).toBeGreaterThan(0.003);
+    // (the ONE SKIN, realistic laws 2: the lids are the skin's own points, turned over the globes, which stay)
+    expect(move('blink', /^headSkin$/)).toBeGreaterThan(0.003);
     expect(move('blink', /^hairLashes$/)).toBeGreaterThan(0.002);
-    expect(move('blink', /^(cranium|jaw|ear[RL])$/)).toBe(0);
+    expect(move('blink', /^(globe[RL]|mouth|ear[RL])$/)).toBe(0);
+    // (and nothing of the skin far from the eyes)
+    const tb = F.targets.indexOf('blink'), eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(m.recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
+    let far = 0; mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || mesh.provenance[i].part !== 'headSkin' || eyes.some((e) => Math.hypot(v[0] - e[0], v[1] - e[1], v[2] - e[2]) < 0.04)) return; const o = k * W + 3 + tb * 3; far = Math.max(far, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
+    expect(far).toBeLessThan(1e-4);
     // (one eye: the left's target leaves the right's side still)
     const ti = F.targets.indexOf('blinkLeft'); let right = 0;
     mesh.vertices.forEach((v, i) => { const k = F.sub[i]; if (k < 0 || v[0] < 0.01) return; const o = k * W + 3 + ti * 3; right = Math.max(right, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); });
@@ -52,7 +57,7 @@ describe('the realistic face rig', () => {
     const ti2 = F.targets.indexOf('browRaise'); let hair = 0, moved = 0;
     mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part !== 'hair') return; hair++; const k = F.sub[i]; if (k < 0) return; const o = k * W + 3 + ti2 * 3; if (Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2]) > 5e-4) moved++; });
     expect(moved / hair).toBeLessThan(0.2);
-    expect(move('smile', /^visage$/)).toBeGreaterThan(0.003);
+    expect(move('smile', /^headSkin$/)).toBeGreaterThan(0.003);
   });
   it('wears the hero\'s expression as its default weights; a hero without the relational head has none', () => {
     expect(F.meta.weights).toEqual(RELATIONAL_FACE_TARGETS.map(() => 0));

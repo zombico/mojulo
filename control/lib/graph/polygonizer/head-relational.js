@@ -961,9 +961,12 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * is the eyes' spec (head-relational-eye.js: a word, channels, a side's own), the actions adding to it. `paint(p)`
  * names a surface point's part (the globe's 'sclera' | 'iris' | 'pupil'; null the skin). `ears: false` leaves the ears out
  * of the field (a surface sampled by rays from inside cannot carry a plate standing off the head: the hero's head,
- * hero-relational-head.js); the landmarks keep the ear canal where the ears would hang it.
+ * hero-relational-head.js); the landmarks keep the ear canal where the ears would hang it. `globes: false` leaves the
+ * eyes' globes out of the field (the lids, their opening and the socket behind it kept): a skin netted whole would
+ * otherwise join each lid's margin to the globe it rests on in one surface, and pinch there; `globes` hands each
+ * globe's own field and paint, to be built as its own part (hero-relational-head.js's one skin).
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null, ears: withEars = true, globes: withGlobes = true } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
   // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
@@ -1209,7 +1212,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
       if (e.crease) d = smax(d, -e.crease(p), 0.002 * sc);
-      d = smin(d, e.globe(p), 0.0015 * sc);
+      if (withGlobes) d = smin(d, e.globe(p), 0.0015 * sc);
     }
     return d;
   } : skinField;
@@ -1255,5 +1258,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // each ear's own field, its bowl and canal cut (the ear alone, not joined to the head)
   const bare = skin ? (p) => skinField(p, true) : null;
   const earFields = hung.map((e) => ({ side: e.side, field: (p) => { const d = e.f(p); if (d === Infinity) return d; const c = e.carve(p); return c === Infinity ? d : smax(d, -c, 0.004 * sc); }, top: e.top, tragion: e.tragion }));
-  return { field, bare, earFields, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
+  // each eye's globe as its own field (STAND units), its paint and its tone, and its centre and look
+  const globes = eyeRigs.map((e) => ({ side: e.side, field: e.globe, paint: e.paint, tone: e.irisTone, near: e.near, gaze: e.gaze, centre: S({ ...Pt[`eye${e.side}`], y: Pt[`eye${e.side}`].y - GLOBE.back }) }));
+  return { field, bare, earFields, paint, paintTone, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth, eyes: eyeRigs.map((e) => e.channels), vergence, relational, globes };
 }

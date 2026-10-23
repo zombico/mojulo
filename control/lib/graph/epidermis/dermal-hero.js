@@ -41,9 +41,10 @@ const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const toHex = (c) => `#${c.map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
 
 /** the relational head's parts on the hero */
-const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/;
-/** what the head wears of its own (hero-head-layers.js: its jewellery, its hair): never a garment over the body's skin */
-const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*)$/;
+const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|headSkin)$/;
+/** what the head wears of its own (hero-head-layers.js: its jewellery, its hair) and what is set in its one skin (the
+ * globes, the mouth: hero-one-skin.js): never a garment over the body's skin */
+const HEAD_LAYER = /^(jewel|jewelJaw|hair\w*|globe[RL]|mouth)$/;
 /** the body's skin parts (dermal-body.js charts them) */
 const BODY = /^(torso|neck|pelvis|upperArm[RL]|foreArm[RL]|hand[RL]|thumb[RL]|index[RL]|middle[RL]|ring[RL]|little[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL])$/;
 /** a head point this far inside its field (m) is let down under another part's skin */
@@ -156,16 +157,18 @@ function headSkin(mesh, recipe, D, page) {
   const normals = vertexNormals(vertices, faces), byPart = new Map();
   src.forEach((v, i) => {
     const id = mesh.pointIds[v], part = mesh.provenance[v].part, rest = id.slice(part.length + 1), d = rest.lastIndexOf('.'); if (d < 0) return;
-    let m = byPart.get(part); if (!m) { m = new Map((recipe.parts[part]?.stations || []).map((st) => [st.id, st.normals])); byPart.set(part, m); }
+    let m = byPart.get(part); if (!m) { const P = recipe.parts[part]; m = P?.mesh ? new Map([['st0', P.mesh.normals]]) : new Map((P?.stations || []).map((st) => [st.id, st.normals])); byPart.set(part, m); }
     const n = m.get(rest.slice(0, d))?.[rest.slice(d + 1)]; if (n) normals[i] = n;
   });
   // skin: every point but a globe's (a layer let down under another is skin too: unseen, its texels cost nothing, and
   // where two cross the one on top is a little inside the field); SHOWN: on the head's surface (an ear on the ear's), not
   // let down inside it, so the layers under the face neither cast occlusion on it nor take any
-  const skin = src.map((v) => !H.paint?.(stand(mesh.vertices[v])));
+  // (the ONE SKIN, hero-one-skin.js, holds no globe: its lids' margins touch the globes, and the paint there names the
+  // globe; its Mouth, the lips turned in, is no skin)
+  const one = recipe.headFit.skin === 'one', skin = src.map((v) => one || !H.paint?.(stand(mesh.vertices[v])));
   const shown = src.map(shownAt);
   const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi] });
-  const skinFace = faces.map((t) => t.every((vi) => skin[vi]));
+  const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout);
   return { chart, layout, maps, local, skinFace };
 }

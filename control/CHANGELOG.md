@@ -14,6 +14,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic head as one skin
+
+- REALISTIC LAWS 2: A HERO MINTED NOW WEARS ITS HEAD AS ONE SKIN (hero-one-skin.js). The relational head's field is
+  netted whole, globes and ears left out, in place of the pieces the head was cast in (the cranium, the jaw, the visage,
+  the nose, the eyes), whose hand-overs read on the World page as torn sclera at the lower lid, patches at the nose and
+  the lips, and a crescent under each eye. The skin is joined smoothly to the neck and cut off on the neck's seam ring,
+  every seam point a point of its rim. It is netted along its surface (skin-net.js `netSkin`), made sound where the net
+  pinches (`soundMesh`, `closeHoles`), and quadric-simplified (`simplifyMesh`). The eyes, the nose and the mouth keep
+  more of the faces. A layer-1 part may now be given as a mesh (station-loft.js `meshPart`), bound per point and shaded
+  by its own normals. A hero stored under laws 1 keeps its pieces, byte for byte.
+- THE LIPS are cut exactly on their line: each face across it is split there and the points on it doubled, the upper
+  lip's the head's and the lower's the jaw's, so the jaw bone parts them. Each lip is turned in along the cut, and a
+  closed mouth bag sits behind them (`mouth`). A collapse never carries a point across the line, and a point is bound
+  by its side of the cut.
+- THE EYES: each globe is its own closed part (`globeR`, `globeL`), built as rings about its gaze set on its field. The
+  pupil's and the iris's edges are rings of their own, so they read crisp at any count. The skin texture paints the
+  whole skin, and the eyes' paint no longer takes the lids' margins (where the crescents came from).
+- THE FACE RIG on one skin (`oneSkinFollow`): each action moves the rest skin's own points, never re-nets it, so its
+  faces stay. The muscles' beads carry the face. The lids turn about the globe's centre as far as the eye rig's own
+  margins moved: a blink shuts them over the globe, a raised brow lifts the upper lid, a smile's squint the lower. The
+  hair, the brows, the lashes, the beard and the piercings ride the skin (pinned to its faces).
+- Still open: the shut lid's fold creases where the upper lid's crease folds under itself, and the hair's per-target
+  budget is unchanged.
+
 ### The realistic hero's face: rolled, bounded, aimed
 
 - A REALISTIC HERO WEARS A COMPOSED FACE (face-compose.js, from face harmony): `face: { seed?, ethnicity?, want?,

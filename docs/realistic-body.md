@@ -80,8 +80,17 @@ is refused: it is the authored body's own clothing, fitted to its rings, and an 
 over the tailor's cloth (their `over`). It depicts adults: a child or chibi cast asked of it is that cast's stylized
 figure instead, its colours keyed the same.
 
-The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own,
-each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
+The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own.
+Under realistic laws 2 (a hero minted now) it is ONE SKIN (`hero-one-skin.js`): the head's field netted whole
+(`skin-net.js`), globes and ears left out, joined to the neck and cut off on the neck's seam ring (every seam point a
+point of its rim), simplified with the eyes, the nose and the mouth keeping more of the faces. It is one layer-1 mesh
+part, `headSkin`, bound per point: the seam's blend easing up to the jaw's share. The lips are cut exactly on their
+line, the upper lip the head's and the lower the jaw's, each turned in along the cut, with a closed `mouth` bag behind
+them. Each globe is its own closed part (`globeR`, `globeL`: rings about its gaze, the pupil's and the iris's edges
+rings of their own), and the ears are as below. The hair, the brows, the lashes, the beard and the piercings are pinned
+to the skin's faces. Its face rig moves the rest skin's own points per action (`oneSkinFollow`): the muscles' beads
+carry the face, and the lids turn about the globe's centre as far as the eye rig's margins moved. Under laws 1 the head
+is in pieces, each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,
 the brow), `nose` and `eyeR/L` (rings following the nose's outline and each eye's opening: the wings' creases and the

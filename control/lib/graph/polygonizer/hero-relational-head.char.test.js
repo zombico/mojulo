@@ -33,6 +33,9 @@
  *   an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look sees it
  *   (`eyeGlobeIn`), and the cranium let down `eyeDeflate` more about each globe: the lower lid is a ledge over the globe,
  *   and faces bridging its front and the globe beside it cut in front of the eye as spikes. Both poles.
+ * - 2026-10-23, the ONE SKIN (realistic laws 2, the operator: "the face in 3D has become confused"): a hero minted now
+ *   wears the head's field netted whole (hero-one-skin.js) in place of the pieces; the pieces stay pinned under laws 1,
+ *   byte for byte, and the one skin is pinned beside them.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -41,11 +44,19 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
 const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
+// the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
+const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
+const ONE_PINS = { male: '5d307c58fc3c85cd', female: '961106f2d05b20fe' };
+const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
+  // (the pieces: realistic laws 1, as a hero minted before the one skin reads)
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 1 } }) }).recipe;
+    expect(pinOf(r, PARTS)).toBe(pin);
+  });
+  for (const [cast, pin] of Object.entries(ONE_PINS)) it(`${cast}, one skin`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational' }) }).recipe;
-    const pick = { parts: Object.fromEntries(PARTS.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] };
-    expect(createHash('sha256').update(JSON.stringify(pick)).digest('hex').slice(0, 16)).toBe(pin);
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });
 });

@@ -88,7 +88,7 @@ export function roleOf(A) {
   if (A.part === 'torso' && A.mode === 'shell' && Array.isArray(A.t) && !A.pin) return 'panel';
   return null;
 }
-const HEAD_PARTS = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|head)$/;
+const HEAD_PARTS = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|head|headSkin|globe[RL]|mouth)$/;
 /** a plate's cloth as a field shell: taut over every dip shorter than 20 cm (the chest one form, not its muscles) */
 const PLATE_CLOTH = { looser: 4, reach: 0.08, taut: true, span: 0.2, along: 2 };
 const CUIRASS_COVERS = ['collar', 'shoulderTop', 'chest', 'breast', 'armpit', 'flank', 'abdomen', 'upperBack', 'back', 'lowerBack'];

@@ -1,5 +1,6 @@
-// hero-relational-head.test.js — the relational head worn by the realistic hero (`head: 'relational'`): a cranium and a
-// jaw that close, sealed to the neck on one ring, the face's parts over them (the visage, the nose, the eyes, the ears), bound with four influences at most, the jaw on the rig's jaw bone so the mouth
+// hero-relational-head.test.js — the relational head worn by the realistic hero (`head: 'relational'`): under realistic
+// laws 2 ONE SKIN (hero-one-skin.js) sealed to the neck on its seam ring, its lips cut and parted by the jaw bone; under
+// laws 1 a cranium and a jaw that close, sealed to the neck on one ring, the face's parts over them (the visage, the nose, the eyes, the ears), bound with four influences at most, the jaw on the rig's jaw bone so the mouth
 // opens, the mouth's ring shut behind its corners whatever turns the head. (Beside the slice, not in the critical tier:
 // a realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
@@ -19,8 +20,8 @@ describe('the relational head on the realistic body', () => {
     expect(heroRecord({ cast: 'female', form: 'realistic', head: 'relational' })).not.toHaveProperty('face');
   });
 
-  it('mints: closes, binds, seals to the neck and opens its jaw', { timeout: 240000 }, () => {
-    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', head: 'relational' }) });
+  it('mints in pieces under laws 1: closes, binds, seals to the neck and opens its jaw', { timeout: 240000 }, () => {
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 1 } }) });
     const P = m.recipe.parts;
     // the landmark head and everything pinned on it are gone; its jaw dial with it
     expect(Object.values(P).filter((p) => p.pin && /^(cranium|jaw)$/.test(p.pin.parent))).toEqual([]);
@@ -58,5 +59,36 @@ describe('the relational head on the realistic body', () => {
       const V = pose(p);
       for (const s of behind) expect(gap(V, s), `${JSON.stringify(p)} ${s}`).toBeLessThan(1e-5);
     }
+  });
+
+  it('mints as ONE SKIN under laws 2: sound, sealed to the neck on its seam ring, its lips parted by the jaw bone', { timeout: 240000 }, () => {
+    const hero = heroRecord({ cast: 'male', form: 'realistic', head: 'relational' });
+    expect(hero.physique.laws).toBe(2);
+    const m = expandLayeredManifest({ kind: 'layered', hero }), P = m.recipe.parts;
+    // the pieces gone, the skin, the mouth and the globes in their place
+    for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL']) expect(P[k], k).toBeUndefined();
+    expect(m.recipe.headFit.skin).toBe('one');
+    const mesh = compileLayered(m.recipe, m.dials), A = auditLayered(mesh);
+    for (const k of ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL']) expect(A[k]?.pass, k).toBe(true);
+    // (its faces held to the budget: the skin's and the lips' turn-in)
+    expect(Object.keys(P.headSkin.mesh.faces).length).toBeLessThan(34000);
+    const R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
+    expect(Math.max(...skin.weights.map((w) => w.filter((x) => x > 0).length))).toBeLessThanOrEqual(4);
+    // THE SEAM: every point of the neck's last ring is a point of the skin's rim
+    const pts = Object.values(P.headSkin.mesh.points).map((p) => p.join());
+    for (const p of Object.values(P.neck.stations.at(-1).points)) expect(pts).toContain(p.join());
+    // THE LIPS: the cut's two sides, one point twice (the head's above, the jaw's below), together at rest, apart opened
+    const blend = P.headSkin.bind.blend, at = new Map(), pairs = [];
+    for (const [id, p] of Object.entries(P.headSkin.mesh.points)) { const k = p.join(), j = blend[`st0.${id}`]?.jaw ?? 0; if (at.has(k) && Math.abs(at.get(k).j - j) === 1) pairs.push([at.get(k).id, id]); else at.set(k, { id, j }); }
+    expect(pairs.length).toBeGreaterThan(20);
+    const idx = Object.fromEntries(mesh.pointIds.map((id, i) => [id, i])), pose = (p) => poseLayered(mesh, m.recipe, p, { R, skin }).mesh.vertices;
+    const open = pose({ jaw: 15 }), rest = pose({}), gap = (V, [a, b]) => { const u = V[idx[`headSkin/st0.${a}`]], w = V[idx[`headSkin/st0.${b}`]]; return Math.hypot(u[0] - w[0], u[1] - w[1], u[2] - w[2]); };
+    expect(Math.max(...pairs.map((q) => gap(rest, q)))).toBeLessThan(1e-5);
+    expect(Math.max(...pairs.map((q) => gap(open, q)))).toBeGreaterThan(0.008);
+    // the crown stays, the globes stay
+    const crown = mesh.vertices.reduce((b, v, i) => (mesh.provenance[i].part === 'headSkin' && (b < 0 || v[2] > mesh.vertices[b][2]) ? i : b), -1);
+    expect(Math.hypot(...[0, 1, 2].map((q) => open[crown][q] - rest[crown][q]))).toBeLessThan(1e-9);
+    const g = idx['globeR/st0.front'];
+    expect(Math.hypot(...[0, 1, 2].map((q) => open[g][q] - rest[g][q]))).toBeLessThan(1e-9);
   });
 });

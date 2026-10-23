@@ -48,7 +48,7 @@ export const FIT_CLASSES = Object.freeze([['skin', 0.02], ['fitted', 0.11], ['se
 const fitClass = (e) => FIT_CLASSES.find(([, hi]) => e <= hi)[0];
 
 const BODY = /^(torso|pelvis|neck|upperArm|foreArm|hand|thumb|index|middle|ring|little|thigh|shank|foot|toes)[RL]?$/;
-const HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face|visage|nose)/;
+const HEAD = /^(cranium|jaw|eye|iris|pupil|lid|brow|ear|nostril|upperLip|mouth|hair|face|visage|nose|headSkin|globe)/;
 const ARM = /^(upperArm|foreArm|hand|thumb|index|middle|ring|little|elbowFold)/, UPPER_ARM = /^(upperArm|elbowFold)/, LEG = /^(thigh|shank|foot|toes|kneeFold|hipFold)/;
 const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
 

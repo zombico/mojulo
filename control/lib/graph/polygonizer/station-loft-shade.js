@@ -229,7 +229,8 @@ function triFrame(V, t) {
  * one where they hand over, and a feature finer than the rings reads smooth. Absent, the weld's, every byte. In place. */
 function authoredNormals(mesh, rest, out) {
   const P = rest.parts || mesh.parts || {}, by = new Map();
-  for (const [name, p] of Object.entries(P)) if (p.layer === 1 && p.stations?.some((st) => st.normals)) by.set(name, new Map(p.stations.map((st) => [st.id, st.normals])));
+  for (const [name, p] of Object.entries(P)) if (p.layer === 1 && p.mesh?.normals) by.set(name, new Map([['st0', p.mesh.normals]]));
+  else if (p.layer === 1 && p.stations?.some((st) => st.normals)) by.set(name, new Map(p.stations.map((st) => [st.id, st.normals])));
   if (!by.size) return;
   const posed = rest !== mesh, RV = rest.vertices, V = mesh.vertices, ids = mesh.pointIds;
   mesh.faces.forEach((t, fi) => {

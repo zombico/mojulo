@@ -21,7 +21,7 @@
  * on disk (relational-face-store.js), so a head pays them (most of a minute) once per machine.
  */
 import { compileLayered } from './station-loft.js';
-import { relationalHeadRecipe } from './hero-relational-head.js';
+import { relationalHeadRecipe, oneSkinFollow } from './hero-relational-head.js';
 import { resolveWesternExpression, CHANNEL_RANGES } from './humanoid-head.js';
 import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
@@ -37,7 +37,7 @@ const BLINK_SINK = 0.003;
 const GLOBE = /^(Sclera|Iris|Pupil)$/;
 /** the head's parts the actions move (hero-relational-head.js: the face over the cranium and the jaw, which lie under it
  * and are kept as stored; the ears are still) */
-const HEAD = /^(visage|nose|eye[RL])$/;
+const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/;
 const R = CHANNEL_RANGES;
 
 const MIDLINE = 0.004;
@@ -96,7 +96,9 @@ function carriedBy(V, face) {
  */
 export function relationalFaceRig(m, mesh) {
   const hero = m?.hero, fit = m?.recipe?.headFit;
-  if (!hero || hero.head !== 'relational' || !fit || !m.recipe.parts?.visage) return null;
+  // (the ONE SKIN, hero-one-skin.js: its own points moved per action, never re-netted, so its faces stay)
+  const skin = m?.recipe?.parts?.headSkin?.mesh ?? null, HEAD = skin ? SKIN_PART : PIECES;
+  if (!hero || hero.head !== 'relational' || !fit || !(m.recipe.parts?.visage || skin)) return null;
   const P = m.recipe.parts;
   // the head's parts and everything pinned to them, in the recipe's order (the figure's vertex order)
   const X = Object.keys(P).filter((n) => HEAD.test(n) || (P[n]?.layer === 2 && HEAD.test(P[n].pin?.parent ?? '')));
@@ -110,7 +112,9 @@ export function relationalFaceRig(m, mesh) {
     if (!T) {
       const V = {}, layout = X.map((n) => layoutOf(P[n]));
       for (const [name, actions] of Object.entries(BUILDS)) {
-        const r = relationalHeadRecipe(m.recipe, { ...words, actions, fit: { k: fit.k, ty: fit.ty, men: fit.men }, faceOnly: true });
+        const fitOnly = { k: fit.k, ty: fit.ty, men: fit.men };
+        const r = skin ? { parts: { headSkin: name === 'rest' ? P.headSkin : { ...P.headSkin, mesh: { ...skin, points: oneSkinFollow({ ...words, fit: fitOnly, actions, points: skin.points, normals: skin.normals }) } } } }
+          : relationalHeadRecipe(m.recipe, { ...words, actions, fit: fitOnly, faceOnly: true });
         const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? r.parts[n] : P[n]]));
         if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }
         const C = compileLayered({ ...m.recipe, parts, dials: {}, creases: {} }, {}, {});
@@ -118,7 +122,9 @@ export function relationalFaceRig(m, mesh) {
         if (name === 'rest') { V.part = C.provenance.map((p) => p.part); V.globe = new Uint8Array(C.vertices.length); C.faces.forEach((t, fi) => { if (GLOBE.test(C.groups[fi])) for (const v of t) V.globe[v] = 1; }); }
       }
       if (!T) {
-        const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), near = carriedBy(V0, face);
+        // (the one skin's socket behind each globe carries nothing: it is still while the lids over it move)
+        const balls = skin ? ['globeR', 'globeL'].filter((g) => P[g]?.mesh).map((g) => { const pts = Object.values(P[g].mesh.points), c = [0, 1, 2].map((a) => pts.reduce((t, q) => t + q[a], 0) / pts.length); return { c, r: Math.max(...pts.map((q) => Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]))) }; }) : [];
+        const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), carrier = face.map((f, i) => f && !balls.some((b) => Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) < b.r)), near = carriedBy(V0, carrier);
         for (const name of Object.keys(BUILDS)) {
           if (name === 'rest') continue;
           const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) if (face[i]) for (let c = 0; c < 3; c++) d[i * 3 + c] = V[name][i][c] - V0[i][c];

@@ -53,14 +53,14 @@ describe('the skin under what the hero wears', () => {
     const hid = heroHidden(mesh, recipe), part = (v) => mesh.provenance[v].part;
     mesh.faces.forEach((t, fi) => { if (GLOBE.test(mesh.groups[fi])) for (const v of t) expect(hid[v]).toBe(1); });
     const count = (k) => mesh.provenance.reduce((n, p, v) => n + (p.part === k && hid[v] ? 1 : 0), 0);
-    expect(count('cranium')).toBeGreaterThan(50);   // under the face
+    expect(count('headSkin')).toBeGreaterThan(50);   // the one skin's sockets, behind the globes
     expect(count('torso') + count('handR')).toBe(0);
-    // the seen corners: the lids buried less once the globes and the layers under them cast nothing; the jaw over the
-    // neck's seam no longer read as a fold once its normals are the field's
+    // the seen corners: the lids buried less once the globes and the sockets behind them cast nothing
     const before = bakeChannels(mesh), after = bakeChannels(mesh, { hidden: hid, normals: layeredShadingNormals(mesh, recipe, { proxy: false }) });
-    const read = (ch, k, f) => { let s = 0, n = 0; mesh.provenance.forEach((p, v) => { if (p.part === k && !hid[v]) { s += f(ch.occlusion[v]); n++; } }); return s / n; };
-    expect(read(after, 'eyeR', (o) => o)).toBeLessThan(read(before, 'eyeR', (o) => o) * 0.85);
-    expect(read(after, 'jaw', (o) => o > 0.5)).toBeLessThan(read(before, 'jaw', (o) => o > 0.5) / 2);
+    const eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
+    const lid = (v) => mesh.provenance[v].part === 'headSkin' && !hid[v] && eyes.some((e) => Math.hypot(...mesh.vertices[v].map((x, a) => x - e[a])) < 0.02);
+    const read = (ch) => { let s = 0, n = 0; mesh.provenance.forEach((_, v) => { if (lid(v)) { s += ch.occlusion[v]; n++; } }); return s / n; };
+    expect(read(after)).toBeLessThan(read(before) * 0.95);
   }, 240_000);
   it('is on the World page: its skin faces textured by the atlas, lit by their fill over the skin\'s colour', async () => {
     const P = heroSkinPaint(mesh, recipe, { page: 512, headPage: 512 });
@@ -81,7 +81,7 @@ describe('the skin under what the hero wears', () => {
     const P = heroSkinPaint(mesh, recipe, { page: 256, headPage: 512 });
     expect(P.atlas.w).toBe(512);
     let body = 0;
-    mesh.faces.forEach((t, fi) => { if (P.painted(fi) && !/^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/.test(mesh.provenance[t[0]].part)) { body++; for (const vi of t) expect(P.uvAt({ vi })[0]).toBeLessThanOrEqual(0.5); } });
+    mesh.faces.forEach((t, fi) => { if (P.painted(fi) && !/^(cranium|jaw|visage|nose|eye[RL]|ear[RL]|headSkin)$/.test(mesh.provenance[t[0]].part)) { body++; for (const vi of t) expect(P.uvAt({ vi })[0]).toBeLessThanOrEqual(0.5); } });
     expect(body).toBeGreaterThan(100);
   }, 240_000);
 });
