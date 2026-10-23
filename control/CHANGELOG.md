@@ -200,26 +200,15 @@ body catches up to what the authored one wears, and its principles are shared ba
   lower lip's labret and lip ring `jewelJaw`, on a face the jaw alone carries, so they follow it), each piece's group its
   metal's or its gem's (`JewelGold`, `GemRuby` …) with its colour in the palette under the hero's own. A hero with no
   face, or a face that rolled none, wears none. The readout's `realisticFace.notYet` no longer lists them.
-- THE SCALP ON THE HERO (hero-head-layers.js `heroHair`): a realistic hero's composed face grows its hair: the cut it
-  rolled (face-compose.js's, a style) or its ancestry's with the face's hint over it, grown on the face's head
-  (dermal-hair.js `growScalp`, the guides alone) as an engine's hair cards, each a thin closed slab along a guide (its
-  width the card's), pinned to the visage where the head alone carries it: `Hair` in the hair's colour as the eye
-  averages it (its grey mixed in), a streak's cards `HairStreak` in the dye. A buzz grows none (the painted scalp is the
-  hair). A hero with no face wears none.
-- THE FACE'S HAIR ON THE HERO (hero-head-layers.js `heroFaceHair`): a styled beard's locks (dermal-hair.js
-  growBodyHair) gathered to one card a cell, those under the lip line on a face the jaw alone carries (`hairBeardJaw`),
-  the moustache's and the cheeks' the head's (`hairBeard`); the brows (a few hairs a card) and the lashes (a card a
-  hair) from the epidermis, its grooms the ancestry's with the composed face's over them; `Beard` (its grey a third
-  again), `Brow`, `Lash`. Stubble stays the skin's paint. The layers' colours lie over the plan's defaults and under the
-  hero's own `palette` (a named `Hair` wins). The scalp's, the beard's and the brows' cards share one slab builder.
-- THE FACE'S OWN FIT (layered.js `withFaceFit`, the mint's; hero-relational-head.js `relationalHeadRecipe`'s `tune`):
-  the mint solves the realistic face's own tune for its composed relations (head-relational.js `solveTune`, ~45 s,
-  once) and stamps it beside its words, `face.fit: { tune, of }` (`of` the relations' fingerprint), so the hero's head
-  is the face the studies show, not the face on its pole's tune. It rides `headFit.tune`, so the skin (dermal-hero.js),
-  the piercings and the hair chart the same head. A face whose words change since reads a stamp not its own and wears
-  the pole's tune until it is minted again (the readout's `realisticFace.fit` says which). A hero minted before keeps
-  the pole's tune, byte for byte, until reminted.
-- dermal-hair.js `growScalp`'s `strands: false`: the guides and their cards alone, without the strands a render draws.
+- THE SCALP ON THE HERO, A GRASS HAT (hero-head-layers.js `heroHair`; dermal-hair.js `grassHat`, `bladeOf`,
+  `GRASS_HAT`): the stylized meadow's way (vegetation/grass.js) on a head. The scalp is planted as a lawn, a blade from
+  a root every few millimetres (growScalp's strands at that gap: combed down the head, cut by the stylist, hung by
+  their weight, a curl's wound by the lock's keratin hand), each blade a wedge tapering to a point that keeps its
+  strand's shape over the top of the skull and thins along its fall. Dense at the roots, the blades overlap into one
+  dark mass, and their ends read as the strands; coloured up a ramp root to tip (`HairRoot`, `HairShade`, `Hair`,
+  `HairTip` from the hair's colour as the eye averages it), a streak's blades `HairStreak`. Open, double-sided strips,
+  pinned to the visage where the head alone carries it. The cut the face rolled, else its ancestry's with the face's
+  hint over it; a buzz grows none (the painted scalp is the hair). A hero with no face wears none.
 - dermal-jewel.js: each face of the mesh names its piece (`mesh.piece`); the wires are capped and the balls fanned to a
   single pole point, so every piece is a closed solid with no collapsed face (the hero's audit).
 - dermal-hero.js: what the head wears of its own (`jewel`, `jewelJaw`, the hair to come) never counts as a garment over

@@ -955,3 +955,35 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
   const cards = guides.map((g, gi) => { const N = g.pts.length - 1; return dyed({ guide: gi, pts: g.pts, side: g.pts.map((p, i) => unit(cross(unit(sub(g.pts[Math.min(N, i + 1)], g.pts[Math.max(0, i - 1)])), unit(sub(p, c0))), roots[gi].tr)), width: g.pts.map((_, i) => S.spacing * 1.5 * (1 - 0.5 * (i / N))), v: g.pts.map((_, i) => i / N) }, roots[gi], `g${gi}`); });
   return { guides, strands: greying(strands, D, S.seed, 'dermal-grey-scalp'), cards, shade, bands: tails.flatMap((t) => t.bands), counts: { ties: TIES.length, guides: guides.length, strands: strands.length, scalpCm2: Math.round(total * 1e4), shrink: k, hairsPerStrand: Math.round(200 * (S.strandGap * 100) ** 2 * 10) / 10 } };
 }
+
+/**
+ * THE GRASS HAT (the stylized meadow's way, vegetation/grass.js: chunky blades, dense, a colour ramp up each one): the
+ * scalp planted as a LAWN, a blade growing from a root every `gap` (growScalp's strands at that gap: each rooted on the
+ * scalp, its line its nearest guides', so COMBED down the head, CUT by the stylist and HUNG by its weight, a curl's
+ * wound by the lock's own hand), each blade a WEDGE `width` × the gap wide at the root tapering to a point, of
+ * `stations` along it. Dense at the roots, the blades overlap into one dark mass at the base, as a tuft's base reads
+ * solid; their ends, lighter up the ramp, read as the strands. A few thousand blades where a render needs ~15,000
+ * strands. → [{ pts, half (half-width a station, 0 at the tip), streak? }], metres in the chart's frame.
+ */
+export const GRASS_HAT = Object.freeze({ gap: 0.0045, width: 1.7, stations: 10, ease: 1.8 });
+export function grassHat(chart, D, S, { colliders = ['head'], gap = GRASS_HAT.gap, width = GRASS_HAT.width, stations = GRASS_HAT.stations } = {}) {
+  const G = growScalp(chart, D, { ...S, strandGap: Math.min(gap, S.spacing) }, { colliders });
+  return { counts: G.counts, blades: G.strands.map((st) => bladeOf(st, gap * width, stations, GRASS_HAT.ease)) };
+}
+/** a strand as a blade that keeps its strand's SHAPE: its points kept wherever it turns (over the top of the skull, where
+ * the comb lays it along the head: never a chord cut through it), thinned along its straight fall to about `stations`
+ * spans, its half-width `w`/2 at the root to 0 at the tip by its share of the length */
+export function bladeOf(st, w, stations) {
+  const P = st.pts, n = P.length - 1, cum = [0];
+  for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1], P[i][2] - P[i - 1][2]));
+  const L = cum[n] || 1e-9, span = L / stations, dir = (a, b) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(...d) || 1; return d.map((x) => x / l); };
+  const keep = [0];
+  for (let i = 1; i < n; i++) {
+    const a = dir(P[keep.at(-1)], P[i]), b = dir(P[i], P[i + 1]), turn = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    if (turn < BLADE_TURN || cum[i] - cum[keep.at(-1)] > span) keep.push(i);
+  }
+  keep.push(n);
+  return { pts: keep.map((i) => P[i]), half: keep.map((i, k) => (k === keep.length - 1 ? 0 : (w / 2) * (1 - cum[i] / L) ** 0.75)), ...(st.streak ? { streak: st.streak } : {}) };
+}
+/** a blade keeps a strand's point where it turns more than this (the cosine: ~4°) */
+const BLADE_TURN = Math.cos((4 * Math.PI) / 180);

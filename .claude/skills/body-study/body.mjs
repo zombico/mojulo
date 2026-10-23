@@ -316,8 +316,8 @@ function measures(H) {
   };
   const sections = Object.fromEntries(Object.entries(cuts).map(([k, [re, { o, n }]]) => [k, section(H, V, re, o, n)]));
   const partsZ = (re) => V.filter((_, i) => re.test(H.mesh.provenance[i].part)).map((v) => v[2]);
-  const zs = V.map((v) => v[2]), stature = Math.max(...zs) - Math.min(...zs);
-  const head = Math.max(...zs) - Math.min(...partsZ(/^(cranium|jaw|face|head)/));
+  const zs = V.map((v) => v[2]), stature = zs.reduce((a, z) => Math.max(a, z), -Infinity) - zs.reduce((a, z) => Math.min(a, z), Infinity);
+  const head = zs.reduce((a, z) => Math.max(a, z), -Infinity) - partsZ(/^(cranium|jaw|face|head)/).reduce((a, z) => Math.min(a, z), Infinity);
   const band = (re, z0, z1) => { const xs = V.filter((v, i) => re.test(H.mesh.provenance[i].part) && v[2] >= z0 && v[2] <= z1).map((v) => v[0]); return xs.length ? Math.max(...xs) - Math.min(...xs) : 0; };
   const mm = (x) => Math.round(x * 1000);
   return {
