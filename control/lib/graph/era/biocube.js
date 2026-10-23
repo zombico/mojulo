@@ -7,7 +7,9 @@
  *   flora.trees    { clusters, perCluster: [lo, hi], spread, heights: [lo, hi] m, clearTrail, clearCliff, crown?, hero? }
  *                  the card's `trees` (era/nature.js treeItems: `clusters` groves of `perCluster` trees, `spread` m
  *                  round each; `crown` the masses' shape, era/style/isekai-meadow.js; `hero` the one big tree or null).
- *                  The tree's form (a blob's masses, bamboo, blossom) stays the kit's
+ *                  The tree's form (a blob's masses, bamboo, blossom) stays the kit's. `compose: 'ikebana'` arranges each
+ *                  clump (nature.js arrangedClump); `bands` (true or { hero, far, stock }) builds a tree by how far it
+ *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far
  *   flora.grass    { clusters, perCluster, spacing, scatter, fringeEvery, height: [lo, hi] m, kinds?, field? } | null
  *                  the card's `grass` (nature.js grassTufts: `clusters` tussock groups of `perCluster` tufts `spacing`
  *                  m apart, `scatter` a loose share, a tuft every `fringeEvery` m along the trail's fringe; `kinds` the
@@ -19,7 +21,7 @@
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
  *
- *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, bare
+ *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare
  *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged) → checked
  *   withFlora(card, cube)    an isekai or nature card with the cube's flora laid over its trees and grass
  *
@@ -52,6 +54,12 @@ export const BIOCUBE_PRESETS = fz({
     trees: fz({ clusters: 9, perCluster: [3, 6], spread: 4, heights: [7, 12], clearTrail: 3, clearCliff: 4 }),
     grass: fz({ clusters: 35, perCluster: [6, 12], spacing: 0.3, scatter: 0.12, fringeEvery: 0.6, height: [0.4, 0.8], field: fz({ reach: 3, every: 0.9, height: [0.45, 0.8] }), live: fz({ kind: 'meadow', density: 3.5, height: [0.35, 0.75] }) }),
     shrubs: fz({ count: 18, bloom: 0.3, fruit: 0.3 }), flowers: null }) }),
+  // a forest: clumps arranged (tallest at the back, open toward the trail) close across the level, built by the trail's
+  // bands (whole near it, stamped further off, a shell far away: era/isekai.js treeBands)
+  forest: fz({ title: 'Forest', reads: 'a forest of arranged clumps, the near trees whole and the far ones their shapes', flora: fz({
+    trees: fz({ clusters: 14, perCluster: [3, 7], spread: 5, heights: [8, 14], clearTrail: 3, clearCliff: 4, compose: 'ikebana', bands: true }),
+    grass: fz({ clusters: 30, perCluster: [6, 12], spacing: 0.3, scatter: 0.12, fringeEvery: 0.6, height: [0.4, 0.8], field: fz({ reach: 3, every: 0.9, height: [0.45, 0.8] }), live: fz({ kind: 'meadow', density: 3, height: [0.35, 0.75] }) }),
+    shrubs: fz({ count: 14, bloom: 0.25, fruit: 0.3 }), flowers: null }) }),
   // bare ground: no trees, no grass
   bare: fz({ title: 'Bare', reads: 'bare ground: rock and earth, nothing growing', flora: fz({ trees: fz({ clusters: 0, perCluster: [1, 1], spread: 3, heights: [6, 10], clearTrail: 3.5, clearCliff: 5, hero: null }), grass: null, shrubs: null, flowers: null }) }),
 });
@@ -65,7 +73,16 @@ const keys = (o, ok, at) => { for (const k of Object.keys(o)) if (!ok.includes(k
 
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
-  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero'], 'flora.trees');
+  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands'], 'flora.trees');
+  if (t.compose !== undefined && t.compose !== 'ikebana') no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump)");
+  if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
+    if (!isObj(t.bands)) no('flora.trees.bands is true or { hero?, far?, stock? } (era/isekai.js treeBands)');
+    keys(t.bands, ['hero', 'far', 'stock'], 'flora.trees.bands');
+    if (t.bands.hero !== undefined) num(t.bands.hero, 0, 60, 'flora.trees.bands.hero');
+    if (t.bands.far !== undefined) num(t.bands.far, 1, 200, 'flora.trees.bands.far');
+    if (t.bands.stock !== undefined) int(t.bands.stock, 1, 8, 'flora.trees.bands.stock');
+    if ((t.bands.hero ?? 6) >= (t.bands.far ?? 15)) no('flora.trees.bands: hero is nearer than far');
+  }
   int(t.clusters, 0, 40, 'flora.trees.clusters'); range(t.perCluster, 1, 20, 'flora.trees.perCluster', true); num(t.spread, 0.5, 20, 'flora.trees.spread');
   range(t.heights, 1, 40, 'flora.trees.heights'); num(t.clearTrail, 0, 20, 'flora.trees.clearTrail'); num(t.clearCliff, 0, 20, 'flora.trees.clearCliff');
   if (t.crown !== undefined) {

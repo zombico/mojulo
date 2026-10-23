@@ -125,6 +125,26 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Forest: hollow crowns, clumps arranged, the hero near and the stock far
+
+A gritty crown no longer builds the parts of itself buried inside its other lobes or its neighbours'. A forest's trees
+can stand in arranged clumps, tallest at the back and open toward the trail, and be built by how near the trail they
+are: whole close by, stamped from a few templates further off, a cheap shell far away.
+
+- Every gritty crown is hollowed (`era/isekai.js` `hollowed`): a lobe face whose corners all lie inside another lobe,
+  its own tree's or a neighbour's, is not built, tested against that lobe's own facets. Crown faces fall by about a
+  quarter on a meadow and two fifths in a grove; nothing seen changes. An emission change for every gritty land.
+- Clumps arranged (`trees.compose: 'ikebana'`, `era/nature.js` `arrangedClump`): an odd count of trees, the tallest at
+  the back away from the trail, the next two stepping 0.75 and 0.56 of it out to the sides, fillers lower round the
+  back, the trail's side left open; neighbouring clumps alternate hands.
+- Trees banded by the trail (`trees.bands`, `treeBands`): within `hero` m of the trail's edge (and the named hero)
+  built whole; to `far` m stamped from a few templates as the page's instanced repeats, each template built off the map
+  through the same light, lock and detail and lifted out, a shade tint where the sun misses its crown, casting as its
+  shell; past `far` a shell, each crown mass one coarse lumped blob, no leaf cards.
+- A `forest` biocube preset (era/biocube.js) turns both on: denser, taller clumps.
+- The page draws a repeat whose template is wholly textured (it was dropped), and a texture only a repeat's template
+  uses is resolved (`scene-three.js`, `worlds/world-scene.js`).
+
 ### Rock ground: bare rock and scree drawn, and what grows on them
 
 A cube that names its rock now draws its bare rock and its scree as rock: a limestone cube's pavement in its stone,

@@ -475,7 +475,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // manifest.textures (custom dataURL / an image-worker bound PNG). emitThreeWorld + facesToGlb read
   // payload.textures. Additive: a face list with no `texture` opt-ins leaves the payload untouched.
   if (payload && Array.isArray(payload.faces) && payload.faces.length) {
-    const textures = collectFaceTextures(payload.faces, { ...(payload.textures || {}) });
+    // (and the instanced repeats' templates: a key only a template draws, a stock tree's leaves, is resolved too)
+    const reps = Array.isArray(payload.repeats) ? payload.repeats : Array.isArray(sketch.manifest.repeats) ? sketch.manifest.repeats : [];
+    const repeatFaces = reps.flatMap((r) => (Array.isArray(r?.template) ? r.template : []));
+    const textures = collectFaceTextures(repeatFaces.length ? [...payload.faces, ...repeatFaces] : payload.faces, { ...(payload.textures || {}) });
     const manifestTex = sketch.manifest.textures;
     if (manifestTex && typeof manifestTex === 'object') {
       for (const [k, v] of Object.entries(manifestTex)) if (typeof v === 'string') textures[k] = v;

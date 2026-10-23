@@ -325,7 +325,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       const tpl0 = aoOpts ? bakeAmbientOcclusion(repEntries[i].tpl, aoOpts) : repEntries[i].tpl;
       const tplFaces = vertexContrast ? contrastFaces(tpl0, vertexContrast) : tpl0;
       const gm = faceListToMesh(tplFaces);
-      return gm.positions.length ? { r, gm, i } : null;
+      // (a template all of whose faces are textured — a gritty crown's leaves, its bark — still draws: its textured
+      // instances below)
+      return gm.positions.length || Object.keys(gm.textureGroups || {}).length ? { r, gm, i } : null;
     })
     .filter(Boolean);
   let ambAll = null;
