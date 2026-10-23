@@ -61,6 +61,7 @@ import { detailKey, layDetail } from '../matte-paint/detail.js';
 import { screeKey } from './scree-tiles.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
+import { leafChips, CHIP_DEFAULTS } from './leaf-chips.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -435,6 +436,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const inset = (it) => (f) => ({ ...f, corners: f.corners.map((c) => [it.x + (c[0] - it.x) * 0.88, it.y + (c[1] - it.y) * 0.88, it.z0 + (c[2] - it.z0) * 0.88]) });
   const casters = broken ? rocks.flatMap((it) => { const b = boulderFaces(st, it, seed); return [...b.sides, ...b.cap].map(inset(it)); }) : boulders.flatMap((b) => [...b.sides, ...b.cap]);
   // (a stock tree casts as its shell does: its template is drawn, not cast, off the map)
+  // (a gritty crown's core, treeFaces: it casts as the crown, and is drawn in its own stops, below, not baked)
+  const coreG = broken ? wood.filter((f) => f.group === CORE_GROUP) : [], woodDrawn = broken ? wood.filter((f) => f.group !== CORE_GROUP) : wood;
   const woodCast = TB ? [...wood.filter((f) => !TB.isPhantom(f)), ...treeFaces(st, site, TB.stock.map((t) => ({ ...t, band: 'far' })), broken)] : wood;
   const solid = [...ground.faces, ...ribbon, ...casters, ...woodCast, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   boulders.push(...strewn);
@@ -555,13 +558,28 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
     }
   }
+  // a gritty crown CHIPPED (era/leaf-chips.js; the stage's crowns are never plain balls on a gritty land): its core in its
+  // two darkest stops by the sun, and over it the chips, each low, mid or high by the crown's light and the sun's reach,
+  // those buried in a neighbouring core left out; a far tree its core alone (treeBands)
+  if (broken && coreG.length) {
+    const C = st.trees.crown, ramp = st.palette[st.lock[st.trees.form === 'blossom' ? 'isekai:blossom' : 'isekai:crown']] ?? st.palette.foliage, hexOf = (c) => rgbHex(c.map((v) => v / 255));
+    const dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.min(1, ramp.length - 1)]);
+    for (const { tint: _t, ...f } of coreG) { const c = mean(f.corners); cel.push({ ...f, fill: dot(f.normal, dir) > 0.15 && shadow(addv(c, mul(f.normal, 0.05)), f.normal) > 0.5 ? lite : dark }); }
+    const crowned = (TB ? [...TB.built, ...TB.phantoms] : trees).filter((t) => t.masses), cores = crowned.flatMap((t) => t.masses.map((m) => ({ ...m, t })));
+    const buried = (p, t) => cores.some((m) => Math.abs(m.at[0] - p[0]) < m.r && Math.abs(m.at[1] - p[1]) < m.r && Math.hypot((p[0] - m.at[0]) / m.r, (p[1] - m.at[1]) / m.r, (p[2] - m.at[2]) / (m.r * C.squash)) < CHIP_DEFAULTS.shrink * CHIP_BURIED);
+    for (const t of crowned) {
+      if (t.band === 'far') continue;
+      for (const f of leafChips(t.masses, { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp, seed: Math.round(t.x * 17 + t.y * 5) })) if (!buried(mean(f.corners), t)) cel.push(f);
+    }
+  }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
   // leaf die — dense at the foot on the crown, ragged at the tip — so a crown's edge is leaves, not a blob's curve
   // (and on a gritty land, gritty-flora.js: the same cards, each its band's tile drawn hi-def in the foliage's own stops
   // rather than lit by the vertex, so a crown's outline is leaves on either pole)
   if ((MAT || broken) && st.tiles.leafcard) {
     const fillL = lumaOf(fill0);
-    for (const t of [...(TB ? [...TB.built.filter((q) => q.band !== 'far'), ...TB.phantoms] : trees), ...bushes]) for (const [mi, m] of (t.masses ?? []).entries()) {
+    // (a gritty land's trees are chipped, above: its bushes keep their cards)
+    for (const t of [...(broken ? [] : TB ? [...TB.built.filter((q) => q.band !== 'far'), ...TB.phantoms] : trees), ...bushes]) for (const [mi, m] of (t.masses ?? []).entries()) {
       const N = 6 + Math.round(m.r * 4);
       for (let i = 0; i < N; i++) {
         const zc = 1 - 1.7 * ((i + 0.5) / N), rr = Math.sqrt(Math.max(0, 1 - zc * zc)), az = i * 2.39996 + hash3(mi, i, 1201) * 0.6, d = unit([Math.cos(az) * rr, Math.sin(az) * rr, zc]);
@@ -583,7 +601,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the trail ribbon too: the old bake of it is kept only as what the trail blend reads its stops from)
   const bare = ground.faces.filter((f) => !f.cel), real = st.ground && !SH ? realGround(st, site, [...bare.map((f) => ({ ...f, grid: true })), ...ribbon], shadow, sun, ambient, isekaiMarks(st, site, S), S) : [];
   // the trees on the material pole: their faces light only (white), then the bark's grain and the leaf's tile on
-  const woodM = MAT ? wood.map((f) => ({ ...f, tint: [1, 1, 1], mat: f.group === 'isekai:wood' ? 'grain' : 'leaf' })) : wood;
+  const woodM = MAT ? woodDrawn.map((f) => ({ ...f, tint: [1, 1, 1], mat: f.group === 'isekai:wood' ? 'grain' : 'leaf' })) : woodDrawn;
   // (the polygon land: the land baked and ruled as the island's, the rest as before)
   const land = SH ? ruleLand(bakeLand([...[...bare, ...ribbon].map(({ cls: _c, ...f }) => ({ ...f, tint: landTint[f.group] ?? f.tint })), ...rockFaces], ambient, sun, SH), SH, landTint, { cell: site.grid.dx, seed: seed + 517, ...(SH.valley > 0 ? { valley: valleyOf({ ...site.grid, z: zG }) } : {}) }) : [];
   const plain = SH ? woodM : [...(st.ground ? [] : bare), ...ribbon, ...woodM];
@@ -804,7 +822,9 @@ const REAL_GRASS = Object.freeze({ ao: 0.45, back: 0.7, dry: 0.22 });
 function grittyGrass(LG, grit, st) {
   if (!LG || !grit) return LG;
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS)));
-  return { ...LG, real: { ...(LG.real ?? {}), ao: r5(0.6 - 0.3 * t), back: r5(0.6 + 0.4 * t), dry: 0, sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } };
+  return { ...LG, real: { ...(LG.real ?? {}), ao: r5(0.6 - 0.3 * t), back: r5(0.6 + 0.4 * t), dry: 0, sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) },
+    // (its crowns are chipped: the core and the chips sway with the wood)
+    ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP] } } : {}) };
 }
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers'];
 /**
@@ -1223,7 +1243,6 @@ function limb(out, pts, radii, sides, scale) {
  */
 // a gritty crown's lobes: each mass three overlapping lobes about its middle (a little out from the crown's),
 // every vertex pushed by a lumpy noise, and a face's tint darkened by how deep in the crown it lies (the dark core)
-const LOBES = 3;
 // a bush's middle and reach, from its faces (each carries its bush's id, `node`): a crown's mass for the leaf cards
 function bushMasses(faces) {
   const by = new Map();
@@ -1242,15 +1261,6 @@ function lumpBushes(faces, bushes, grit) {
     const cs = f.corners.map((v) => { const q = 1 + lump * (2 * vnoise(v[0] / (0.3 * R), v[1] / (0.3 * R) + v[2] / (0.3 * R), 1321) - 1); return P([c[0] + (v[0] - c[0]) * q, c[1] + (v[1] - c[1]) * q, c[2] + (v[2] - c[2]) * q]); });
     return { ...f, corners: cs, normal: facetN(cs.length === 3 ? cs : cs.slice(0, 3), sub(mean(cs), c)) };
   });
-}
-function crownLobes(m, c, Rc, k, mi, grit) {
-  const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS))), out = unit(sub(m.at, c)), lobes = [];
-  for (let j = 0; j < LOBES; j++) {
-    const a = 2 * Math.PI * ((j + hash3(k, 200 + mi, 1301)) / LOBES), e = mix(-0.2, 0.7, hash3(k * 7 + j, 210 + mi, 1303));
-    const d = unit([Math.cos(a) * Math.cos(e) + 0.3 * out[0], Math.sin(a) * Math.cos(e) + 0.3 * out[1], Math.sin(e) + 0.3 * out[2]]);
-    lobes.push({ at: [m.at[0] + d[0] * 0.28 * m.r, m.at[1] + d[1] * 0.28 * m.r, m.at[2] + d[2] * 0.28 * m.r], r: m.r * mix(0.74, 0.84, hash3(k * 11 + j, 220 + mi, 1307)) });
-  }
-  return { lobes, lump: 0.16 + 0.18 * t, deep: 0.25 + 0.2 * t };
 }
 /**
  * THE TREES BANDED by the trail (a card's `trees.bands`: true, or { hero, far, stock }): every tree in one band by how
@@ -1315,24 +1325,24 @@ function treeFaces(st, site, trees, grit = 0) {
       const cs = tri.p.map(P), nn = facetN(cs, sub(mean(cs), m.at));
       out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: crownGroup });
     }
-    // (a gritty crown: lobes, lumped, its core dark)
-    else masses.forEach((m, mi) => {
-      const { lobes: L0, lump, deep } = crownLobes(m, c, Rc, k, mi, grit), lobes = far ? [{ at: m.at, r: m.r }] : L0;
-      // (each lobe coarse, twenty facets: the leaf cards carry the outline, the lobes its clumps)
-      for (const L of lobes) {
-        const lobe = { at: L.at, r: L.r * (1 + lump), tris: [], id: lobesAll.length };
-        lobesAll.push(lobe);
-        for (const tri of blobTris(L.at, [L.r, L.r, L.r * C.squash], null, { detail: 0 })) {
-        const cs = tri.p.map((v) => { const n = vnoise(v[0] / (0.16 * Rc) + 3.1 * ti, v[1] / (0.16 * Rc) + v[2] / (0.16 * Rc), k + 1311), q = 1 + lump * (2 * n - 1); return P([L.at[0] + (v[0] - L.at[0]) * q, L.at[1] + (v[1] - L.at[1]) * q, L.at[2] + (v[2] - L.at[2]) * q]); });
-        const nn = facetN(cs, sub(mean(cs), L.at)), depth = Math.min(1, Math.hypot(...sub(mean(cs), c)) / (Rc * 1.1)), dk = 1 - deep * (1 - depth);
+    // (a gritty crown, era/leaf-chips.js: its masses the dark CORE, hollowed across the clump; the chips over it and the
+    // core's colour come once the sun's shadow is known, assembleIsekaiScene)
+    else for (const m of masses) {
+      const r = m.r * CHIP_DEFAULTS.shrink, lobe = { at: m.at, r, tris: [], id: lobesAll.length };
+      lobesAll.push(lobe);
+      for (const tri of blobTris(m.at, [r, r, r * C.squash], null, { detail: 1 })) {
+        const cs = tri.p.map(P), nn = facetN(cs, sub(mean(cs), m.at));
         lobe.tris.push(cs);
-        out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint.map((v) => r5(v * dk)), group: crownGroup, _lobe: lobe.id });
-        }
+        out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: CORE_GROUP, _lobe: lobe.id });
       }
-    });
+    }
   });
   return grit ? hollowed(out, lobesAll) : out;
 }
+// a gritty crown's core and its chips (era/leaf-chips.js): drawn in their own stops, never baked, textured or locked; a
+// chip whose middle lies within this share of a core's radius (its own mass's or a neighbour's) is buried in it
+export const CORE_GROUP = 'isekai:core', CHIP_GROUP = 'isekai:chips';
+const CHIP_BURIED = 0.92;
 /**
  * HOLLOW: a gritty crown's lobe faces buried inside another lobe — its own tree's, or a neighbour's in the clump — are
  * never seen (every corner inside that lobe's own facets), so they are not built. The crown's shape is its outer

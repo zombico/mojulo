@@ -40,7 +40,8 @@ try {
     const inst = (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), tpl = (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0);
     // (the trail's line from its own faces; the crowns' centres)
     const trail = P.faces.filter((f) => f.group === 'isekai:trail').map((f) => mean(f.corners)), along = (y) => { const q = trail.filter((c) => Math.abs(c[1] - y) < 0.6); return mean(q.length ? q : trail); };
-    const crowns = P.faces.filter((f) => f.group === 'isekai:crown').map((f) => mean(f.corners));
+    // (a gritty crown is chipped: its core's faces; a quiet one its crown's)
+    const cg = P.faces.some((f) => f.group === 'isekai:core') ? 'isekai:core' : 'isekai:crown', crowns = P.faces.filter((f) => f.group === cg).map((f) => mean(f.corners));
     const A = along(4), Bp = along(26), eye = [A[0], A[1], A[2] + 1.7];
     // the crown nearest the trail between y 8 and 30
     const near = crowns.filter((c) => c[1] > 8 && c[1] < 30).sort((a, b) => Math.abs(a[0] - along(a[1])[0]) - Math.abs(b[0] - along(b[1])[0]))[0] ?? Bp;
@@ -50,7 +51,7 @@ try {
       cam('crown', [near[0] - side * 4, near[1] - 4, near[2] + 0.5], near, 55), cam('above', [A[0] + 20, A[1] - 22, A[2] + 38], [A[0] + 4, A[1] + 34, A[2]], 70)];
     const cells = [];
     for (const c of cams) cells.push({ cap: c.name, src: await shoot(P, c) });
-    rows.push({ cap: `${caption} — ${P.faces.length} faces (crown ${g['isekai:crown'] ?? 0}, leaves ${g['isekai:leaves'] ?? 0}, wood ${g['isekai:wood'] ?? 0}; repeats ${tpl} template faces × ${inst} instances), ${((Date.now() - t0) / 1000).toFixed(1)} s`, cells });
+    rows.push({ cap: `${caption} — ${P.faces.length} faces (crown ${g['isekai:crown'] ?? 0}, core ${g['isekai:core'] ?? 0}, chips ${g['isekai:chips'] ?? 0}, leaves ${g['isekai:leaves'] ?? 0}, wood ${g['isekai:wood'] ?? 0}; repeats ${tpl} template faces × ${inst} instances), ${((Date.now() - t0) / 1000).toFixed(1)} s`, cells });
     console.log(rows[rows.length - 1].cap);
   }
 } finally { await browser.close(); }

@@ -142,9 +142,14 @@ are: whole close by, stamped from a few templates further off, a cheap shell far
   through the same light, lock and detail and lifted out, a shade tint where the sun misses its crown, casting as its
   shell; past `far` a shell, each crown mass one coarse lumped blob, no leaf cards.
 - A `forest` biocube preset (era/biocube.js) turns both on: denser, taller clumps.
-- Leaf chips (`era/leaf-chips.js`, not yet drawn by a stage): a crown as its masses' dark core with rounded cupped chips
-  over it, each low, mid or high in the foliage ramp by the clump's light and the sun's reach; a gallery spike
+- Leaf chips (`era/leaf-chips.js`): a crown as its masses' dark core with rounded cupped chips over it, each low, mid
+  or high in the foliage ramp by the clump's light and the sun's reach; a gallery spike
   (`scripts/spikes/geotown/chips.mjs`) settles their count, size and cup.
+- Every gritty land's trees are chipped (`era/isekai.js`): a blob crown's masses its core, hollowed across the clump,
+  casting the crown's shadow and drawn in its two darkest stops by the sun; the chips over it lit by the stage's own
+  sun and shadow, those buried in a neighbouring core left out; leaf cards only on bushes now. With the bands, the hero
+  and the stock templates are chipped and a far tree is its core alone. The horizon's clumps keep two flat stops (the
+  gritty leaf texture on crowns is retired). Quiet lands' crowns stay the sixth-gen balls, byte for byte.
 - The page draws a repeat whose template is wholly textured (it was dropped), and a texture only a repeat's template
   uses is resolved (`scene-three.js`, `worlds/world-scene.js`).
 

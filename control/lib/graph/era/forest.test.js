@@ -67,6 +67,11 @@ describe('a forest\'s clumps and bands', () => {
     const d = (t) => site.trailDist(t.x, t.y) - site.halfWAt(t.y);
     const stock = trees.filter((t) => !t.hero && d(t) >= TREE_BANDS.hero && d(t) <= TREE_BANDS.far).length;
     expect(P.repeats.reduce((a, r) => a + r.transforms.length, 0)).toBe(stock);
+    // (gritty: the stock's templates chipped; a far tree its core alone, no chip within its crown)
+    expect(P.repeats.every((r) => r.template.some((f) => f.group === 'isekai:chips'))).toBe(true);
+    const far = trees.filter((t) => !t.hero && d(t) > TREE_BANDS.far), chips = P.faces.filter((f) => f.group === 'isekai:chips');
+    expect(far.length).toBeGreaterThan(0);
+    expect(far.every((t) => !chips.some((f) => Math.hypot(f.corners[0][0] - t.x, f.corners[0][1] - t.y) < t.h * 0.12))).toBe(true);
   }, 60000);
 
   it('reads its bands and composition, and refuses what is not one', () => {

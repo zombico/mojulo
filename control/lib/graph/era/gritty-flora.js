@@ -3,8 +3,8 @@
  * each face's own colour and light (matte-paint/detail.js layDetail, the natural cuts of matte-paint/dressed.js), its
  * strength the land's grit. No colour of its own: the face's paint and light come back, the relief rides on them.
  *
- *   crowns   (isekai:crown) the `leaves` cut: leaves over one another in masses, a crown's top laid as a floor and its
- *            sides as a wall, so a mass reads from the street and its leaves near it
+ *   crowns   not here: a gritty crown is chipped (era/leaf-chips.js, era/isekai.js), and a crown still a ball on a
+ *            gritty land (the far skirt's clumps) keeps its two flat stops, the far band's look
  *   trunks   (isekai:wood) the `bark` cut up the trunk: plates between furrows
  *   the path (isekai:trail) the `path` cut: packed earth, crumbs, stones pressed into it
  *   the ground (isekai:ground, the talus) the `turf` cut: blades in tussocks; sand (isekai:sand) the `sand` cut; a
@@ -27,7 +27,6 @@ import { normalizeTileSpec } from './tile-specs.js';
 const GREY = [200, 200, 200], DIM = [120, 120, 120];
 // each group's cut: its metres a repeat, its tone's spread, its seed
 export const FLORA_CUTS = Object.freeze({
-  'isekai:crown': Object.freeze({ cut: 'leaves', metres: 3, vary: 22, seed: 73 }),
   'isekai:wood': Object.freeze({ cut: 'bark', metres: 1, vary: 10, seed: 79, wall: true }),
 });
 /** A formation's talus (era/isekai.js formationGround): its scree's stones by the rock (limestone in blocks, flagstone

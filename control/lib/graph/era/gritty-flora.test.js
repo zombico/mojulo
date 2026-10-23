@@ -20,18 +20,16 @@ describe('gritty flora', () => {
     expect(withGrittyFlora(F, undefined)).toBe(F);
   });
 
-  it('lays leaves on crowns (top and side) and bark up trunks, over the face\'s own colour', () => {
+  it('lays bark up trunks over the face\'s own colour; a crown is chipped (leaf-chips.js), never laid', () => {
     const [top, side, trunk, cut, ground] = withGrittyFlora(faces(), 0.7);
-    for (const f of [top, side, trunk]) { expect(f.texture).toMatch(/^detail:dressed-/); expect(f.textureLit).toBe(true); expect(f.uv).toHaveLength(4); }
-    expect(top.texture).not.toBe(trunk.texture);
-    // (a trunk's level cut, its top, is no bark; the ground is not flora)
-    expect(cut.texture).toBeUndefined();
-    expect(ground.texture).toBeUndefined();
-    expect(Object.keys(FLORA_CUTS)).toEqual(['isekai:crown', 'isekai:wood']);
+    expect(trunk.texture).toMatch(/^detail:dressed-/); expect(trunk.textureLit).toBe(true); expect(trunk.uv).toHaveLength(4);
+    // (a crown still a ball on a gritty land keeps its flat stops; a trunk's level cut is no bark; the ground is not flora)
+    for (const f of [top, side, cut, ground]) expect(f.texture).toBeUndefined();
+    expect(Object.keys(FLORA_CUTS)).toEqual(['isekai:wood']);
   });
 
   it('its strength is the land\'s grit: another grit, another relief', () => {
-    expect(withGrittyFlora(faces(), 0.9)[0].texture).not.toBe(withGrittyFlora(faces(), 0.5)[0].texture);
+    expect(withGrittyFlora(faces(), 0.9)[2].texture).not.toBe(withGrittyFlora(faces(), 0.5)[2].texture);
     expect(withGrittyFlora(faces(), 0.7)).toEqual(withGrittyFlora(faces(), 0.7));
   });
 
@@ -49,15 +47,14 @@ describe('gritty flora', () => {
     // (one gritty stage: its broken rock's strewn stones make it a heavy one)
     const M = { kind: 'stage', kit: 'isekai-meadow' }, G = assembleStageScene({ ...M, shading: { grit: 0.7 } }), Q = assembleStageScene({ ...M, shading: true });
     const of = (P, g) => P.faces.filter((f) => f.group === g), detailed = (f) => /^detail:/.test(f.texture || '');
-    expect(of(G, 'isekai:crown').some(detailed)).toBe(true);
-    expect(of(Q, 'isekai:crown').some(detailed)).toBe(false);
+    // (its trees chipped: a core in two stops and chips over it; a quiet land's crowns balls, no chip)
+    expect(of(G, 'isekai:core').length).toBeGreaterThan(0);
+    expect(new Set(of(G, 'isekai:chips').map((f) => f.fill)).size).toBeGreaterThan(2);
+    expect(of(G, 'isekai:crown').some(detailed)).toBe(false);
+    expect(of(Q, 'isekai:core').length + of(Q, 'isekai:chips').length).toBe(0);
+    expect(of(Q, 'isekai:crown').length).toBeGreaterThan(0);
     expect(of(G, 'isekai:trail').every((f) => detailed(f) || Math.abs(f.normal[2]) <= 0.7)).toBe(true);
     expect(of(Q, 'isekai:trail').some(detailed)).toBe(false);
-    // (its crowns in lumped lobes, not the quiet one's spheres, their tints darker toward the core)
-    const shape = (P) => of(P, 'isekai:crown').map((f) => JSON.stringify(f.corners)).sort().join('|');
-    expect(shape(G)).not.toBe(shape(Q));
-    const tints = (P) => new Set(of(P, 'isekai:crown').map((f) => f.fill)).size;
-    expect(tints(G)).toBeGreaterThan(1);
     // (its clouds hi-def, the cutouts with them; a quiet land's pixel-locked)
     const clouds = (P) => P.faces.filter((f) => /:cumulus-/.test(f.texture || '')).map((f) => f.texture);
     expect(clouds(G).length).toBeGreaterThan(0);
@@ -92,19 +89,19 @@ describe('gritty flora', () => {
     expect(Q.real).toBeUndefined();
   }, 60000);
 
-  it('a gritty look carries the leaf card; a gritty land stands leaf cards out of its crowns, hi-def, in the foliage\'s stops', () => {
+  it('a gritty look carries the leaf card; a gritty land\'s bushes stand leaf cards, hi-def, in the foliage\'s stops (its trees are chipped)', () => {
     expect(lookOf(lowerGeocube(readGeocube('limestone-crags'), 'outside').kit).card.tiles.leafcard).toMatchObject({ ramp: 'foliage', paint: 'leafcard' });
     expect(lookOf(lowerGeocube(readGeocube('valley-morning'), 'outside').kit).card.tiles.leafcard).toBeUndefined();
     const id = 'gritty-flora-leafcard-test', n = ISEKAI_MEADOW.palette.foliage.length, m = Math.floor((n - 1) / 2);
     registerLook({ id, base: 'isekai-meadow', read: 'a test look', card: { ...ISEKAI_MEADOW, tiles: { ...ISEKAI_MEADOW.tiles, leafcard: { ramp: 'foliage', lit: [m - 1, m, m + 1], shade: [m - 1, m, m + 1], scale: 2.4, paint: 'leafcard' } } }, swatches: {} });
     const G = assembleIsekaiScene({ style: id, shading: { grit: 0.7 } }), Q = assembleIsekaiScene({ style: id, shading: true });
     const cards = (P) => P.faces.filter((f) => f.group === 'isekai:leaves');
-    expect(cards(G).length).toBeGreaterThan(0);
-    expect(cards(G).every((f) => /:leafcard-b[0-3]\+hd$/.test(f.texture) && !f.textureLit && G.cutouts.includes(f.texture))).toBe(true);
+    expect(cards(G)).toHaveLength(0);
     expect(cards(Q)).toHaveLength(0);
-    // (a bush is a crown's kin: it stands leaf cards too, and its faces are lumped, not the design's)
+    // (a bush stands leaf cards, and its faces are lumped, not the design's)
     const B = assembleIsekaiScene({ style: id, shading: { grit: 0.7 }, shrubs: { count: 6 } }), QB = assembleIsekaiScene({ style: id, shading: true, shrubs: { count: 6 } });
-    expect(cards(B).length).toBeGreaterThan(cards(G).length);
+    expect(cards(B).length).toBeGreaterThan(0);
+    expect(cards(B).every((f) => /:leafcard-b[0-3]\+hd$/.test(f.texture) && !f.textureLit && B.cutouts.includes(f.texture))).toBe(true);
     const bush = (P) => P.faces.filter((f) => f.group === 'flora:bush').map((f) => JSON.stringify(f.corners)).sort().join('|');
     expect(bush(B)).not.toBe(bush(QB));
   }, 90000);
