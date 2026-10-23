@@ -4,6 +4,7 @@
 // own render. The eyes gate's look at the page.
 //
 //   node .claude/skills/body-study/world-skin.mjs [--cast male|female] [--hero '{…}'] [--size 640] [--out dir]
+//   e.g. --hero '{"face":{"seed":3,"age":55}}'
 //
 // Writes face-front.png, face-three.png, body-front.png, body-three.png and sheet.png.
 import { register } from 'node:module';
@@ -18,7 +19,7 @@ const CONTROL = resolve(dirname(new URL(import.meta.url).pathname), '../../../co
 register(pathToFileURL(`${CONTROL}/scripts/mcp-stdio-loader.mjs`).href);
 process.chdir(CONTROL);
 const sharp = createRequire(join(CONTROL, 'package.json'))('sharp');
-const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+const { heroRecord, expandLayeredManifest, withRolledFace } = await import('@/lib/mcp/tools/layered.js');
 const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three.js');
 const { renderWorldFrames } = await import('@/lib/motion/world-frames.js');
@@ -34,7 +35,8 @@ for (let i = 0; i < args.length; i++) {
   else throw new Error(`world-skin: unknown flag ${a}`);
 }
 mkdirSync(out, { recursive: true });
-const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', ...extra }) });
+// (a `face` in --hero is rolled as the mint rolls it, layered.js withRolledFace; its own fit is left to a mint)
+const M = expandLayeredManifest({ kind: 'layered', hero: heroRecord(withRolledFace({ cast, form: 'realistic', ...extra })) });
 const t0 = Date.now(), { payload } = await resolveWorldScene({ ref: 'world-skin', title: 'world skin', manifest: M });
 const faces = (payload.faces ?? []).filter((f) => !f.studio);
 console.error(`world-skin: resolved in ${Date.now() - t0} ms; textures ${Object.keys(payload.textures || {}).join(', ') || 'none'}; ${faces.filter((f) => f.texture).length} of ${faces.length} faces textured`);
