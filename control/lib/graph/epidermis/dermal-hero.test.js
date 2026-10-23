@@ -74,8 +74,15 @@ describe('the skin under what the hero wears', () => {
     const lit = payload.faces.filter((f) => f.texture === 'heroSkin');
     expect(lit.length).toBeGreaterThan(1000);
     expect(lit.every((f) => f.textureLit && f.uv.length === 3)).toBe(true);
-    // (the page's atlas a size down from an export's)
-    expect(payload.figures.body.paintTex.w).toBe(1024);
+    // (the page's atlas: the body's page a size down from an export's, the head's twice it, the atlas as wide as it)
+    expect(payload.figures.body.paintTex.w).toBe(2048);
   }, 600_000);
+  it('lays a head page wider than the body\'s beside white: the atlas the head\'s width, the body\'s corners in its left', () => {
+    const P = heroSkinPaint(mesh, recipe, { page: 256, headPage: 512 });
+    expect(P.atlas.w).toBe(512);
+    let body = 0;
+    mesh.faces.forEach((t, fi) => { if (P.painted(fi) && !/^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/.test(mesh.provenance[t[0]].part)) { body++; for (const vi of t) expect(P.uvAt({ vi })[0]).toBeLessThanOrEqual(0.5); } });
+    expect(body).toBeGreaterThan(100);
+  }, 240_000);
 });
 

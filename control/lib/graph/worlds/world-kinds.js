@@ -58,8 +58,9 @@ import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
-/** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's and the head's a side */
-const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 1024 });
+/** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's a side, and the
+ * head's, where the face's detail is (its moles, its marks, its fine lines), twice that */
+const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 2048 });
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
 import { planHeight } from '@/lib/graph/era/cast-density';
 /** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
@@ -735,8 +736,8 @@ export const WORLD_KINDS = {
       // under the character light. Absent ⇒ byte-identical
       const skinPaint = !facePaint0 && character && !m.hero && Array.isArray(m.plan?.skin) && m.plan.skin.length ? skinPaintOf(mesh, m.plan.skin, { ppm: skinPpm(m.plan) }) : null;
       // the REALISTIC HERO'S SKIN (epidermis/dermal-hero.js): its body's and its head's dermal maps on one atlas, on the
-      // World page as in an export (the page's pages a size down, PAGE_SKIN: the face's grain kept, the payload a page's
-      // PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
+      // World page as in an export (the page's own sizes, PAGE_SKIN: the body's a size down, the head's where the face's
+      // detail is; the payload a PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
       // realistic hero with a head's fit, as before
       const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
       const facePaint = facePaint0 ?? skinPaint ?? heroSkin;

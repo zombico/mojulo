@@ -226,8 +226,9 @@ body catches up to what the authored one wears, and its principles are shared ba
 - THE SKIN ON THE WORLD PAGE (worlds/world-kinds.js; dermal-hero.js `heroSkinPaint`'s `light`): the realistic hero's
   dermal skin (the body's and the head's maps on one atlas) was an export's alone; the page drew one flat skin colour.
   The page now wears it too, on its static faces (each lit by its fill over the skin's flat colour, so the texel's
-  colour is lit, not tinted twice) and on its clips' pack, at a page a size down from an export's (`PAGE_SKIN`, a
-  1024 atlas a side; the export's own unchanged): the skin's tone and grain, the lips, the marks, the painted hair and
+  colour is lit, not tinted twice) and on its clips' pack, at the page's own sizes (`PAGE_SKIN`: the body's page 1024
+  a side, the head's 2048, so a mole or a birthmark reads at a face's distance; the export's own unchanged; the atlas as
+  wide as its wider page, a narrower one beside white): the skin's tone and grain, the lips, the marks, the painted hair and
   stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
   takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
   The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.

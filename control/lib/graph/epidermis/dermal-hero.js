@@ -178,12 +178,14 @@ function headSkin(mesh, recipe, D, page) {
  */
 export function heroSkinPaint(mesh, recipe, opts = {}) {
   const H = heroDermis(mesh, recipe, opts), B = H.pages.body, Hd = H.pages.head ?? null;
-  const W = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, TH = BH + HH;
+  // (the atlas as wide as the wider page: the body's at the top left, the head's under it; a page narrower than the
+  // atlas leaves white beside it)
+  const BW = B.page, BH = B.pageH ?? B.page, HW = Hd ? Hd.page : 0, HH = Hd ? Hd.pageH ?? Hd.page : 0, W = Math.max(BW, HW), TH = BH + HH;
   const px = new Uint8Array(W * TH * 4).fill(255);
-  px.set(B.albedo.subarray(0, W * BH * 4), 0);
+  for (let y = 0; y < BH; y++) px.set(B.albedo.subarray(y * BW * 4, (y + 1) * BW * 4), y * W * 4);
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
   // (a page's [s, t], t up, onto the atlas's)
-  const onBody = ([s, t]) => [s, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
+  const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
   // (each corner's place to a tenth of a texel: the page writes them as text)
   const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
