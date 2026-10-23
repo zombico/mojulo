@@ -74,6 +74,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // meshes, driven per frame by the state's facial track, the ambient blink over the states that hold the face. No
   // faced body → the emitted channel is byte-identical.
   const figHasFace = Object.values(figures || {}).some((f) => f && f.rig && f.face && Array.isArray(f.face.targets) && Array.isArray(f.parts) && f.parts.some((p) => p && p.morph));
+  // a PAINTED body (the realistic hero's skin, dermal-hero.js heroSkinPaint, packed as station-loft-rig.js `paintTex` and
+  // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
+  // No painted body → the emitted channel is byte-identical.
+  const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -444,6 +448,8 @@ function __rigFace(rig, clipName, phase) {
   const ws = w || F.weights; if (!ws) return;
   for (const mesh of rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
 }
+` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
+function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
 ` : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
@@ -459,10 +465,12 @@ function __rigFace(rig, clipName, phase) {
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));`}
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasFace ? `
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasPaint ? `
+    const map = fig.paintTex && part.uv && !part.q ? __rigTex(fig) : null;
+    if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}${figHasFace ? `
     if (fig.face && part.morph && !part.q) __rigMorph(fig, part, geo);` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${figHasFace ? `
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? ', ...(map ? { map } : {})' : ''} }));${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame

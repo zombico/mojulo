@@ -233,6 +233,8 @@ body catches up to what the authored one wears, and its principles are shared ba
   clip's track under the state's name. A point no target moves 0.1 mm carries no row (the scalp's far hair), which trims
   the export too. A page or a level without a realistic hero emits none of it, byte-identical; one with it resolves the
   face's rig on its first build (a minute or two, once per head) and carries its rows.
+  The hero in a level wears its skin too (the controllable player draws a painted body's parts on its atlas, texel ×
+  its lit colour, as the World page draws it), where it played flat grey.
 - THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
   `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
   ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and

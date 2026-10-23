@@ -1,6 +1,7 @@
 // The realistic hero's FACE in play: the controllable channel builds morph targets on a faced body's parts and drives
 // them by the state's facial track (the ambient blink on the world's clock); a page with no faced body emits none of
-// it. And a hero's face under the runtime's state names (world-scene.js stateFace).
+// it; a painted body is drawn on its skin's atlas, as the World page draws it. And a hero's face under the runtime's state
+// names (world-scene.js stateFace).
 import { describe, it, expect } from 'vitest';
 import { controllableChannelScript } from './index.js';
 import { stateFace } from '../../../worlds/world-scene.js';
@@ -16,6 +17,12 @@ describe('the face in play', () => {
     const faced = { ...fig, face: { targets: ['blink'], weights: [0], tracks: { idle: { t: [0], w: [[0]] } }, ambient: { seconds: 2, t: [0, 1], w: [[0], [1]] }, ambientOver: ['idle'] }, parts: [{ ...fig.parts[0], morph: { i: Buffer.from(Uint32Array.from([0]).buffer).toString('base64'), q, s: 1e-3 } }] };
     const js = controllableChannelScript(ent, null, { hero: faced });
     for (const needle of ['__rigMorph(fig, part, geo)', 'mesh.updateMorphTargets()', '__rigFace(rig,', '__world.time || 0', '__mq(']) expect(js).toContain(needle);
+  });
+  it('draws a painted body on its skin\'s atlas, a page with none emitting none of it', () => {
+    expect(controllableChannelScript(ent, null, { hero: fig })).not.toContain('__rigTex');
+    const painted = { ...fig, paintTex: { url: 'data:image/png;base64,AA', w: 2, h: 2, white: [0, 0] }, parts: [{ ...fig.parts[0], uv: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' }] };
+    const js = controllableChannelScript(ent, null, { hero: painted });
+    for (const needle of ['function __rigTex(fig)', "geo.setAttribute('uv'", '...(map ? { map } : {})']) expect(js).toContain(needle);
   });
   it('plays each state\'s clip\'s track under the state\'s name, the ambient blink over the rest', () => {
     const own = { idle: { k: 1 }, walk: { k: 2 } }, lib = { k: 3 };
