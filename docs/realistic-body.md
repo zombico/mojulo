@@ -80,7 +80,9 @@ is refused: it is the authored body's own clothing, fitted to its rings, and an 
 over the tailor's cloth (their `over`). It depicts adults: a child or chibi cast asked of it is that cast's stylized
 figure instead, its colours keyed the same.
 
-The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own,
+The relational head (`head: 'relational'`, `hero-relational-head.js`) replaces the landmark head's parts with its own;
+its face is ONE SKIN, the head's field netted over the visage's reach (`oneSkinFace`, a station-loft mesh part) in place
+of the visage, the nose and the eyes below (`oneSkin: false` builds those pieces). As pieces,
 each sampled from the direction that sees it: `cranium` and `jaw` (rays from one centre inside the head, on the head's
 bare field, three head slots to a neck slot, sharing the mouth's ring; the neck ends on their seam ring), let down
 under the face; over them `visage` (rings about the mouth cast along the face's look: the lips, the cheeks, the chin,
@@ -90,6 +92,6 @@ eyes over the nose over the visage over the cranium), and `earR/L` (a tube up ea
 rig's `jawHinge` and `jawTip` move to the head's condyles and gnathion. Every head part's stations carry `normals` (each
 point's unit gradient of its field at rest), which the shading takes in place of the facets' (`authoredNormals`); the lower face (the jaw part, the visage under
 the lips' line) is bound to the jaw. Its face rides an export as morph targets (`relational-face-rig.js`: a blink, one eye's, a smile, a brow raised and
-lowered, each the head rebuilt at its fit with one of its own actions; what is pinned to the face carried by the skin
-under it), weighed by the western expression channels; the World page plays no face morphs yet. The lips stretch as the
+lowered, the one skin's own points moved by the head's actions, `oneSkinFollow`; what is pinned to the face carried by
+the skin under it), weighed by the western expression channels; the World page plays no face morphs yet. The lips stretch as the
 jaw opens.

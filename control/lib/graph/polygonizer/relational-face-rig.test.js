@@ -36,7 +36,7 @@ describe('the realistic face rig', () => {
     expect(rebase).toBeLessThan(1e-3);
   });
   it('moves what each action moves: a blink the eyes and their lashes, one eye its own side; a brow its hairs, hardly the scalp\'s', () => {
-    expect(move('blink', /^eye[RL]$/)).toBeGreaterThan(0.003);
+    expect(move('blink', /^visage$/)).toBeGreaterThan(0.003);
     expect(move('blink', /^hairLashes$/)).toBeGreaterThan(0.002);
     expect(move('blink', /^(cranium|jaw|ear[RL])$/)).toBe(0);
     // (one eye: the left's target leaves the right's side still)

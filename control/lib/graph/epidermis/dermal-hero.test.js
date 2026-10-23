@@ -59,7 +59,12 @@ describe('the skin under what the hero wears', () => {
     // neck's seam no longer read as a fold once its normals are the field's
     const before = bakeChannels(mesh), after = bakeChannels(mesh, { hidden: hid, normals: layeredShadingNormals(mesh, recipe, { proxy: false }) });
     const read = (ch, k, f) => { let s = 0, n = 0; mesh.provenance.forEach((p, v) => { if (p.part === k && !hid[v]) { s += f(ch.occlusion[v]); n++; } }); return s / n; };
-    expect(read(after, 'eyeR', (o) => o)).toBeLessThan(read(before, 'eyeR', (o) => o) * 0.85);
+    // (the lids: the face's skin about the globes, one skin with them)
+    const lid = new Set(); mesh.faces.forEach((t, fi) => { if (GLOBE.test(mesh.groups[fi])) for (const v of t) lid.add(v); });
+    const lids = new Set(); mesh.faces.forEach((t, fi) => { if (!GLOBE.test(mesh.groups[fi]) && t.some((v) => lid.has(v))) for (const v of t) if (!lid.has(v)) lids.add(v); });
+    const readLids = (ch) => { let s = 0, n = 0; for (const v of lids) if (!hid[v]) { s += ch.occlusion[v]; n++; } return s / n; };
+    expect(lids.size).toBeGreaterThan(20);
+    expect(readLids(after)).toBeLessThan(readLids(before) * 0.85);
     expect(read(after, 'jaw', (o) => o > 0.5)).toBeLessThan(read(before, 'jaw', (o) => o > 0.5) / 2);
   }, 240_000);
   it('is on the World page: its skin faces textured by the atlas, lit by their fill over the skin\'s colour', async () => {

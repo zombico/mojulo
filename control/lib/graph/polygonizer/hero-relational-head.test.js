@@ -1,5 +1,5 @@
 // hero-relational-head.test.js — the relational head worn by the realistic hero (`head: 'relational'`): a cranium and a
-// jaw that close, sealed to the neck on one ring, the face's parts over them (the visage, the nose, the eyes, the ears), bound with four influences at most, the jaw on the rig's jaw bone so the mouth
+// jaw that close, sealed to the neck on one ring, the face over them (one skin through the lids, the nose and the lips) and the ears, bound with four influences at most, the jaw on the rig's jaw bone so the mouth
 // opens, the mouth's ring shut behind its corners whatever turns the head. (Beside the slice, not in the critical tier:
 // a realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
@@ -26,7 +26,9 @@ describe('the relational head on the realistic body', () => {
     expect(Object.values(P).filter((p) => p.pin && /^(cranium|jaw)$/.test(p.pin.parent))).toEqual([]);
     expect(m.recipe.dials.jawOpen).toBeUndefined();
     const mesh = compileLayered(m.recipe, m.dials), A = auditLayered(mesh);
-    for (const k of ['neck', 'jaw', 'cranium', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL']) expect(A[k]?.pass, k).toBe(true);
+    // (the face one skin: hero-relational-head.js oneSkinFace, in place of the visage, the nose and the eyes as pieces)
+    for (const k of ['neck', 'jaw', 'cranium', 'visage', 'earR', 'earL']) expect(A[k]?.pass, k).toBe(true);
+    expect(P.visage.mesh).toBeTruthy(); expect(P.nose ?? P.eyeR ?? P.eyeL).toBeUndefined();
     const R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
     expect(Math.max(...skin.weights.map((w) => w.filter((x) => x > 0).length))).toBeLessThanOrEqual(4);
 
@@ -49,10 +51,13 @@ describe('the relational head on the realistic body', () => {
     const chin = idx[`jaw/st${Math.round(P.jaw.stations.length / 2)}.front`], crown = idx['cranium/tip'];
     expect(rest[chin][2] - open[chin][2]).toBeGreaterThan(0.005);
     expect(Math.hypot(...[0, 1, 2].map((q) => open[crown][q] - rest[crown][q]))).toBeLessThan(1e-9);
-    // the visage opens with it: under the lips (straight down from its middle) it drops, the nose and the eyes stay
-    const moved = (id) => Math.hypot(...[0, 1, 2].map((q) => open[idx[id]][q] - rest[idx[id]][q]));
-    expect(moved(`visage/st${Math.round(0.6 * P.visage.stations.length)}.back`)).toBeGreaterThan(0.003);
-    for (const id of ['nose/tip', 'eyeR/tip', 'eyeL/tip', `visage/st${Math.round(0.6 * P.visage.stations.length)}.front`]) expect(moved(id), id).toBeLessThan(1e-9);
+    // the face opens with it: its midline's lowest point (the chin) drops, its foremost (the nose's tip) and its highest
+    // (the brow) stay
+    const moved = (i) => Math.hypot(...[0, 1, 2].map((q) => open[i][q] - rest[i][q]));
+    const mid = mesh.pointIds.map((id, i) => [id, i]).filter(([id, i]) => id.startsWith('visage/') && Math.abs(rest[i][0]) < 0.003).map(([, i]) => i);
+    const by = (f) => mid.reduce((b, i) => (f(rest[i]) > f(rest[b]) ? i : b), mid[0]);
+    expect(moved(by((v) => -v[2]))).toBeGreaterThan(0.003);
+    for (const i of [by((v) => v[1]), by((v) => v[2])]) expect(moved(i), mesh.pointIds[i]).toBeLessThan(1e-9);
     // behind the corners the ring stays shut, opened and under a head and neck turn
     for (const p of [{ jaw: 15 }, { jaw: 15, head: { yaw: 25, pitch: 10 }, neck: { yaw: -15 } }]) {
       const V = pose(p);

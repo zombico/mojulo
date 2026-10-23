@@ -33,6 +33,9 @@
  *   an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look sees it
  *   (`eyeGlobeIn`), and the cranium let down `eyeDeflate` more about each globe: the lower lid is a ledge over the globe,
  *   and faces bridging its front and the globe beside it cut in front of the eye as spikes. Both poles.
+ * - 2026-10-23, the face as ONE SKIN (unified character, the operator: "its way too rough"): the head's field netted
+ *   over the visage's reach (`oneSkin`, `skinCell`: the studies' surface net) in place of the visage, the nose and the
+ *   eyes cast as pieces, its rim let down under the cranium; the part a station-loft MESH part. Both poles.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -40,7 +43,7 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
+const PINS = { male: 'fad238593cce3890', female: '6c6fd575e800de46' };
 
 describe('the relational head, pinned', () => {
   for (const [cast, pin] of Object.entries(PINS)) it(cast, { timeout: 240000 }, () => {

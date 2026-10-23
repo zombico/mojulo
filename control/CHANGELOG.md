@@ -223,18 +223,38 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE FACE AS ONE SKIN (hero-relational-head.js `oneSkinFace`, `RELATIONAL_HEAD.oneSkin`, `skinCell`, `netSound`;
+  station-loft.js's MESH part; the relational head re-pinned): the realistic hero's face is the head's field netted over
+  the visage's reach (the studies' surface net, field-mesh.js surfaceNetFaces, ~1.3 mm a cell, ~26,000 faces), one
+  surface through the brow, the lids and the globes, the nose, the lips and the chin, in place of the visage, the nose
+  and the eyes cast as pieces along different looks, whose hand-overs showed as seams (the eyes' "goggles", the nose's
+  outline) and sawtooth edges. Its faces are grouped by the head's paint (Sclera, Iris, Pupil, else Skin), its points
+  shaded by the field's gradient and bound as the visage's were (the jaw's share under the lips' line), its rim let
+  down under the cranium; where a net pinches (the lips' meeting, the lids' margins) its faces are made sound (no edge
+  three faces share, each piece wound outward, a crumb dropped). `oneSkin: false` builds the pieces as before.
+- A MESH PART (station-loft.js `meshPart`; station-loft-shade.js authored normals): a layer-1 part may be given as
+  `mesh: { points, faces, groups?, normals?, boundary? }`, compiled as given, not lofted; its points are named as one
+  station's slots (`<part>/st0.<id>`), so a bind blend (`st0.<id>`), the shading's authored normals and the audit's
+  declared boundary address each point as a loft's do. Every lofted part as before.
+- THE ONE SKIN'S RIG (hero-relational-head.js `oneSkinFollow`, `SKIN_FOLLOW`; relational-face-rig.js): a net's faces
+  would change with every action, so the rig moves the rest skin's own points: each carried by the head's muscle beads
+  near it (their vajra units read as the head's, `HEAD_V`; a bead's reach at least `beadMin`, so the brow's small deep
+  pad lifts the brow's skin) and settled onto the acted skin along its normal at the depth it had (the rim stays under
+  the cranium; the whole settle held to `settle`); within the eye's footprint the beads let go (eased over `eyeEase`),
+  the eye is its own; a blink shuts the lids along a line a quarter up the opening, column by column across the eye,
+  and draws the globe behind it. A rig now costs ~15 s, where re-netting a head per action would cost minutes.
 - THE REALISTIC FACE AS BLEND SHAPES (new polygonizer/relational-face-rig.js `relationalFaceRig`, `relationalWeights`,
   `RELATIONAL_FACE_TARGETS`; hero-relational-head.js `relationalHeadRecipe`'s `actions` and `fit`; head-relational.js
   ACTIONS' `smileEyes`): the realistic hero's face rides an export as morph targets an engine plays, as the anime and
   the landmark heads' do: `blink`, `blinkLeft`, `blinkRight`, `smile`, `browRaise`, `browLower`, each the head rebuilt
   at its own fit with one of its actions at full (the lids, the zygomaticus, the frontalis, the corrugator) less the
-  head at rest; the face alone rebuilt (the visage, the nose, the eyes), the cranium and the jaw under it as stored.
+  head at rest (the face of one skin: its own points moved, THE ONE SKIN'S RIG); the cranium and the jaw as stored.
   What rides the face moves as the skin under it moves (a Gaussian of the face's points near each, `CARRY`), not as the
   one face it is pinned to tilts: a blink carries its lashes, a raised brow its hairs, a smile the beard on the cheeks,
   and the scalp's hair stays. A blink also sinks the globe behind the shut lid; the smile keeps a seventh of the head's
   squint (`smileEyes`). The weights are the western expression channels' (the door's `expression`, a clip key's words,
   the tracks), so the realistic hero blinks and acts as the landmark hero does; the jaw opens by its bone. A rig costs
-  a few head builds (~2 min, once per head; the World page never asks: it plays no face morphs yet).
+  a few head builds (once per head; the World page never asks: it plays no face morphs yet).
 - THE EYE'S SURROUND (hero-relational-head.js `eyeGlobeIn`, `eyeDeflate`, `eyeAround`; the relational head re-pinned):
   within an eye's footprint the visage and the nose are held `eyeSink` behind the globe's front as the eye's own look
   sees it, easing back out to the skin, and the cranium let down further about each globe. The lower lid is a ledge

@@ -19,7 +19,7 @@
  * deterministic; cached per head (a build costs seconds: an export pays it, the World page never asks).
  */
 import { compileLayered } from './station-loft.js';
-import { relationalHeadRecipe } from './hero-relational-head.js';
+import { relationalHeadRecipe, oneSkinFollow } from './hero-relational-head.js';
 import { resolveWesternExpression, CHANNEL_RANGES } from './humanoid-head.js';
 import { westernKnots, westernState } from './western-face-rig.js';
 import { FACE_FPS, drawEye } from './anime-face-rig.js';
@@ -95,11 +95,20 @@ export function relationalFaceRig(m, mesh) {
   const key = JSON.stringify([words, fit.k, fit.ty, fit.men, X, X.map((n) => layoutOf(P[n]))]);
   let T = RIGS.get(key);
   if (T === undefined) {
-    const V = {}, layout = X.map((n) => layoutOf(P[n]));
+    const V = {}, layout = X.map((n) => layoutOf(P[n])), fitOnly = { k: fit.k, ty: fit.ty, men: fit.men };
     T = null;
+    // (a face of ONE SKIN, hero-relational-head.js oneSkinFace, keeps its own points: each action moves them, never
+    // re-nets them, so its faces stay; the pieces are rebuilt per action, their rings in the same slots)
+    const skin = P.visage?.mesh ?? null, globe = skin ? new Set(Object.entries(skin.faces).filter(([fid]) => /^(Sclera|Iris|Pupil)$/.test(skin.groups?.[fid] ?? '')).flatMap(([, t]) => t)) : null;
+    let built = null, building = null;
+    const actedPart = (n) => {
+      if (skin) return building === null ? P[n] : { ...P[n], mesh: { ...skin, points: oneSkinFollow({ ...words, fit: fitOnly, actions: building, points: skin.points, normals: skin.normals, globe }) } };
+      return built.parts[n];
+    };
     for (const [name, actions] of Object.entries(BUILDS)) {
-      const r = relationalHeadRecipe(m.recipe, { ...words, actions, fit: { k: fit.k, ty: fit.ty, men: fit.men } });
-      const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? r.parts[n] : P[n]]));
+      building = actions;
+      if (!skin) built = relationalHeadRecipe(m.recipe, { ...words, actions, fit: fitOnly });
+      const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? actedPart(n) : P[n]]));
       if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }
       const C = compileLayered({ ...m.recipe, parts, dials: {}, creases: {} }, {}, {});
       V[name] = C.vertices;
