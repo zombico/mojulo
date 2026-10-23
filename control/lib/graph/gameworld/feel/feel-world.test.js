@@ -25,4 +25,12 @@ describe('a gameworld\'s feel', () => {
     const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)) });
     expect(strip(felt)).toBe(strip(plain));
   });
+
+  it('a written feel wins over a goal\'s own feet (a deathmatch\'s shooter pole); without one the goal\'s feet stand', () => {
+    const feet = () => ({ pilot: { rule: { speed: 1.23, jumpSpeed: 3.21, loadout: ['kept'] } } });
+    const at = (W) => { const G = readGameworld(W); return stageLevelOrder(G, gameStages(W)[0], { ref: 'lv_0', heroRef: 'gw-hero', extra: feet }).args.manifest.entities[0].rule; };
+    const own = at(MEADOWMARK), felt = at({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole)).rule;
+    expect([own.speed, own.jumpSpeed]).toEqual([1.23, 3.21]);
+    expect([felt.speed, felt.jumpSpeed, felt.loadout]).toEqual([want.speed, want.jumpSpeed, ['kept']]);
+  });
 });

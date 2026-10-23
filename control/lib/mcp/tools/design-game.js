@@ -31,6 +31,7 @@ import {
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
+import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
@@ -277,6 +278,9 @@ function readout(ref, world, context = {}) {
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
   const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
   if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });
+  // none written: the template its brief, its shooter pole or its genre points at, suggested (a default is written, never laid)
+  const feelSuggest = feel ? null : feelSuggestion(world);
+  if (feelSuggest) next.push({ step: 'feel', suggest: feelSuggest.feel, why: feelSuggest.why, from: feelSuggest.from, card: 'gameworld-feel' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });

@@ -436,7 +436,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const X = extra ? extra(ends) : goalCast ? goalCast(ends) : null;
   if (X) {
     const p0 = pilotPart.entities[0];
-    const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
+    // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
+    const feelOver = X.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+    const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
     pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
     extraPlay = X.play ?? null;

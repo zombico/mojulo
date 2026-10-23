@@ -23,6 +23,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   runtime does not carry yet (hitstop, the parry, the hold-release charge, offense armor, a roll's invincible frames,
   the runner) is said in the game's readout, never dropped silently. The cards and templates moved from the lab into
   `lib/graph/gameworld/feel/`, so the card a game is made from is the one the lab plays and holds to its laws.
+- **Genre defaults, suggested and written.** A world that writes no feel is suggested one in `design_game`'s readout
+  (a `feel` step with its reason): from the brief's words ("souls-like", "mega man", "endless runner"), from a
+  deathmatch's shooter pole, or from its genre (a collectathon plays Jumping Giuseppe, a metroidvania Galaxy Boy, an
+  arena shooter Infinity Crisis, a brawler Fallen Angel; a genre off its feet suggests none). A world composed from a
+  prompt that names a template has it written. Nothing is laid behind the recipe's back: a world plays the feel it
+  writes, so games already made move as they did. The shooter pole is one dial with the feel (Conscription toward
+  Infinity Crisis), and a written feel wins over a quick game's own feet. Each genre's card names its feel.
 
 ### Action game unification: one feel for the button, the body and the clip
 

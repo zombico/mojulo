@@ -19,6 +19,7 @@ import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
+import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
@@ -214,6 +215,11 @@ function feelCard() {
     'toward + t tunes between two (every number blended, the rest the nearer\'s); set lays the card\'s own fields over it',
     '(ground { walk, run, sprint, accel, decel, turn }, jump { commit, height, gRise, gFall, cut, coyote, buffer, air }, air { jumps, mult }).',
     'The template\'s viewer is advice: the camera is the world\'s (camera, or the quick game\'s).',
+    'DEFAULTS are suggested, never laid: a world plays the feel it writes. design_game\'s readout suggests one (a `feel`',
+    'step) from the brief\'s words, a deathmatch\'s shooter pole, or the genre; a world composed from a prompt that names',
+    'a template has it written. Each genre\'s is on its card (gameworld-intent-<genre>). A written feel wins over a',
+    'quick game\'s own feet (a deathmatch\'s shooter pole).',
+    `brief words: ${Object.entries(FEEL_WORDS).map(([p, w]) => `${p} (${w.slice(0, 3).join(', ')})`).join('; ')}.`,
     '',
     'A CONTRAST PAIR (two briefs; the hero rule each lowers to, computed now):',
     ...[['a Mega Man X style run and gun', 'galaxy-boy'], ['a platformer between Mario and Mega Man', { pole: 'jumping-giuseppe', toward: 'galaxy-boy', t: 0.4 }]].flatMap(([brief, f]) => {
@@ -510,8 +516,9 @@ function nextCard() {
     '  target     the intent names an engine (intent.target) and `lost` are values it does not carry: advice, not a',
     '             refusal (gameworld-intent). Change one or keep it; the export says the same.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
-    '  feel       the world\'s feel has card fields the runtime does not carry yet (`lost`): advice (gameworld-feel).',
-  '             Keep it, pick a template closer to what the runtime plays, or wait for the port.',
+    '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
+  '             write it (feel: …) or leave the hero its own rule. Written, `lost` are card fields the runtime does not',
+  '             carry yet: advice (gameworld-feel). Keep it, pick a template closer to what the runtime plays, or wait.',
   '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
   );
@@ -552,6 +559,7 @@ function genreCard(id) {
     'its cube:',
     ...Object.entries(cube).map(([facet, set]) => `  ${facet.padEnd(8)}{ ${Object.entries(set).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }`),
     `what it asks of the world: ${concernsOf(cube).map((c) => c.id).join(', ') || 'nothing past a walk'} (gameworld-intent says what raises each).`,
+    ...(GENRE_FEEL[id] ? [`its feel: '${GENRE_FEEL[id].pole}' (${GENRE_FEEL[id].why}); write feel to play it (gameworld-feel)`] : []),
   );
 }
 
