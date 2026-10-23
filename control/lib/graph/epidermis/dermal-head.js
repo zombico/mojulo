@@ -55,8 +55,7 @@ export function headMarks(head) {
   const points = {};
   for (const k of names) if (L[k]) points[k] = at(L[k]);
   for (const k of sided) for (const s of ['L', 'R']) if (L[k + s]) points[k + s] = at(L[k + s]);
-  // (an open mouth said so: its lips parted, no seam is painted between them)
-  return { r0, length, cy, points, ...(head.mouth ? { open: true } : {}) };
+  return { r0, length, cy, points };
 }
 
 /**

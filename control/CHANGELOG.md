@@ -513,9 +513,6 @@ body catches up to what the authored one wears, and its principles are shared ba
   the mouth, fading at the corners) in place of the lip-line carve, whose depth swung from ~0.6 to ~2.4 mm and, where
   thin lips parted from it, left a groove under the surface net's cell: drawn as a row of dark notches along the lips,
   plainest on the men and the old. An open mouth keeps its carve.
-- THE LIP LINE PAINTED (dermal-texture.js `LIP_LINE`): a closed mouth's seam painted as one even line (a thin dark core
-  in a soft edge, a little deeper at the corners), an arc from corner to corner through the stomion at the seam's
-  measured height; an open mouth (`marks.open`, dermal-head.js) none.
 - GREY BROWS AND LASHES (epidermis.js `hair.grey`): the brows' hairs silver at 0.7 of the scalp's share, the lashes' at
   0.3, each by its own die; the composer passes the years' `grey` on. Absent, none.
 - GREY HAIR (dermal-map.js `grey`, 0 … 1, `GREY_HAIR`, `hairMeanOf`): a share of the strands silver, each by its own die
