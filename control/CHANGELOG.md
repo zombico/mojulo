@@ -222,6 +222,19 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE DEPICTION SOLVER (new epidermis/hair-solve.js `solveClass`, `candidatesFor`, `prepareCase`; hair-depict.js
+  `hairClass`, `HAIR_DEPICTION`, `depictionOf`): how a groom is cut into the hat's blades is a CLASS's, never a style's
+  own: `rope` (locs, rows), `tied` (a tail, a braid, a bun), `coil`, `standing` (gel, a crest), `cropped`, `short`,
+  `long`. The solver scores each candidate (the blades' width, the turn a kept point needs, how flat a short blade
+  lies, the most spans a blade keeps) on every style of the class and keeps the one every style passes on (no bald
+  spot; the outline within a point of the rung's own) that reads best for its faces; its rows are `HAIR_DEPICTION`,
+  which the hero's hair wears, and a new style is covered by its class's row. The dermis study's `hair-solve.mjs` runs
+  it over the catalog; `hair-sweep.mjs --raw` draws the rung without it.
+- THE BLADE'S RULES (dermal-hair.js `bladeOf`'s `lie`, `cap`, `rope`; `hatStrands`, `hatBlades`, `ROPE_TAILS`): a
+  short blade LIES along the comb, its rise off the head pressed into the head's tangent, its length kept, fading out
+  over 6 … 12 cm (a standing short blade showed its edge: a crop read stippled); a loc's, a row's and a braid's
+  blades are ROPES, as wide to their last span as at the tie; a coil's blade keeps at most `cap` spans. The hat's
+  strands grow once (`hatStrands`) for every way of cutting them (`hatBlades`); a gathered strand names its tail.
 - THE HAT'S LADDER, THE GRASS'S TRICK (dermal-hair.js `HAIR_LADDER`, `hairLevel`; layered.js `heroHairLevel`): fewer
   blades the smaller the head stands on screen, the survivors wider so the cover holds, as a tuft thins: `L2` every
   blade (a close-up), `L1` a third of them rooted 1/√⅓ as far apart and wider again (a sixth of L2's faces, the

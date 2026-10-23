@@ -928,7 +928,7 @@ export function growScalp(chart, D, scalp, { colliders = ['head', 'neck', 'trunk
       // (a row's strand runs in its plait from where it joins it)
       const u0 = TIES[st].path ? TIES[st].pathCum[alongRow(TIES[st], at.p).j] / tl.Lt : 0;
       for (let j = 0; j <= NT; j++) { const u = u0 + (end - u0) * (j / NT); pts.push(tl.point(th + (dice() - 0.5) * 0.05, rho, u)); }
-      strands.push(dyed({ pts, r: 0.00004, groom: 'scalp' }, at, `s${si}`));
+      strands.push(dyed({ pts, r: 0.00004, groom: 'scalp', tail: tl.kind }, at, `s${si}`));
       return;
     }
     const sd = sideOf(at.address), ns = nearestK(G, at.p, 3, (j) => tieOf[j] < 0 && (sd === 0 ? side[j] === 0 || nearestK(G, at.p, 1)[0].i === j : side[j] === sd));
@@ -985,30 +985,62 @@ export const HAIR_LADDER = Object.freeze({
   L0: { guides: true, turn: 15, stations: 3, width: 1.5 },
 });
 export const hairLevel = (px) => (px >= 200 ? 'L2' : px >= 80 ? 'L1' : 'L0');
-export function grassHat(chart, D, S, { colliders = ['head'], level = 'L2' } = {}) {
+/** the tails whose blades are ROPES (a loc, a cornrow's plait, a braid: as wide at the end as at the tie, never a wedge's
+ * point) */
+export const ROPE_TAILS = Object.freeze(['loc', 'row', 'braid']);
+/** THE HAT's strands at `level` (growScalp at the rung's gap, or its guides alone): the costly half, grown once for every
+ * way of cutting them into blades (hatBlades) */
+export function hatStrands(chart, D, S, { colliders = ['head'], level = 'L2' } = {}) {
   const R = HAIR_LADDER[level] || HAIR_LADDER.L2;
   if (R.guides) {
     // (the outline: each guide a wedge as wide as its card)
     const G = growScalp(chart, D, S, { colliders, strands: false });
-    return { counts: G.counts, level, blades: G.guides.map((g, i) => bladeOf({ pts: g.pts, ...(G.cards[i]?.streak ? { streak: G.cards[i].streak } : {}) }, S.spacing * R.width, R.stations, R.turn)) };
+    return { counts: G.counts, level, width: S.spacing * R.width, strands: G.guides.map((g, i) => ({ pts: g.pts, ...(G.cards[i]?.streak ? { streak: G.cards[i].streak } : {}) })) };
   }
   const gap = GRASS_HAT.gap / Math.sqrt(R.keep);
   const G = growScalp(chart, D, { ...S, strandGap: Math.min(gap, S.spacing) }, { colliders });
-  return { counts: G.counts, level, blades: G.strands.map((st) => bladeOf(st, gap * GRASS_HAT.width * (R.widen ?? 1), R.stations, R.turn)) };
+  return { counts: G.counts, level, width: gap * GRASS_HAT.width, strands: G.strands };
 }
+/** the hat's strands as blades by the rung's numbers, `rules` over them (hair-depict.js HAIR_DEPICTION: `widen`, `turn`,
+ * `stations`, `lie`, `cap`); `centre` the head's middle (a blade lies flat round it) */
+export function hatBlades(G, { level = G.level, centre = [0, 0, 0], rules = {} } = {}) {
+  const R = { ...(HAIR_LADDER[level] || HAIR_LADDER.L2), ...rules };
+  const w = G.width * (R.guides ? 1 : R.widen ?? 1);
+  return G.strands.map((st) => bladeOf(st, w, R.stations, R.turn, { lie: R.lie ?? 0, cap: R.cap ?? Infinity, rope: ROPE_TAILS.includes(st.tail), centre }));
+}
+export function grassHat(chart, D, S, { colliders = ['head'], level = 'L2', centre = [0, 0, 0], rules = {} } = {}) {
+  const G = hatStrands(chart, D, S, { colliders, level });
+  return { counts: G.counts, level, blades: hatBlades(G, { level, centre, rules }) };
+}
+/** a blade LIES (`lie` 0 … 1) when it is short: the share of its rise off the head (out from `centre`) pressed into the
+ * head's tangent, its length kept, so a crop's blades lie flat along the comb (a standing short blade shows its edge, a
+ * stipple), fading out over 6 … 12 cm, where the comb already lays the hair along the head */
+export const BLADE_LIE = Object.freeze({ from: 0.06, to: 0.12 });
 /** a strand as a blade that keeps its strand's SHAPE: its points kept wherever it turns (over the top of the skull, where
  * the comb lays it along the head: never a chord cut through it), thinned along its straight fall to about `stations`
- * spans (a point kept where it turns more than `turnDeg`), its half-width `w`/2 at the root to 0 at the tip by its share
- * of the length */
-export function bladeOf(st, w, stations, turnDeg = 4) {
-  const P = st.pts, n = P.length - 1, cum = [0];
+ * spans (a point kept where it turns more than `turnDeg`), at most `cap` spans (a coil's every turn is more than a blade
+ * can show), its half-width `w`/2 at the root to 0 at the tip by its share of the length (a `rope` as wide to its last
+ * span); `lie` above */
+export function bladeOf(st, w, stations, turnDeg = 4, { lie = 0, cap = Infinity, rope = false, centre = [0, 0, 0] } = {}) {
+  let P = st.pts;
+  const n = P.length - 1, cum = [0];
   for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1], P[i][2] - P[i - 1][2]));
   const L = cum[n] || 1e-9, span = L / stations, dir = (a, b) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(...d) || 1; return d.map((x) => x / l); };
-  const keep = [0];
+  const lies = lie * (1 - smooth(BLADE_LIE.from, BLADE_LIE.to, L));
+  if (lies > 0) {
+    const r0 = P[0], o = dir(centre, r0);
+    P = P.map((p, i) => {
+      if (!i) return p;
+      const d = sub(p, r0), l = Math.hypot(...d), h = Math.max(0, d[0] * o[0] + d[1] * o[1] + d[2] * o[2]), q = sub(d, scl(o, lies * h)), lq = Math.hypot(...q);
+      return lq > 1e-9 ? add(r0, scl(q, l / lq)) : p;
+    });
+  }
+  let keep = [0];
   for (let i = 1; i < n; i++) {
     const a = dir(P[keep.at(-1)], P[i]), b = dir(P[i], P[i + 1]), turn = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     if (turn < Math.cos((turnDeg * Math.PI) / 180) || cum[i] - cum[keep.at(-1)] > span) keep.push(i);
   }
   keep.push(n);
-  return { pts: keep.map((i) => P[i]), half: keep.map((i, k) => (k === keep.length - 1 ? 0 : (w / 2) * (1 - cum[i] / L) ** 0.75)), ...(st.streak ? { streak: st.streak } : {}) };
+  if (keep.length - 1 > cap) keep = Array.from({ length: cap + 1 }, (_, k) => keep[Math.round((k * (keep.length - 1)) / cap)]);
+  return { pts: keep.map((i) => P[i]), half: keep.map((i, k) => (k === keep.length - 1 ? 0 : (w / 2) * (rope ? 1 : (1 - cum[i] / L) ** 0.75))), ...(st.streak ? { streak: st.streak } : {}) };
 }

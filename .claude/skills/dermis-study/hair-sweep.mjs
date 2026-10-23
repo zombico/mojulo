@@ -4,10 +4,10 @@
 // lateral, the back and the top in the hat's flat colours over a grey head. The depiction solver's eyes and its table.
 //
 //   node .claude/skills/dermis-study/hair-sweep.mjs [--styles a,b,…] [--type straight|wavy|curly|coily] [--level L2|L1|L0]
-//                                                   [--sex male|female] [--px 160] [--out dir]
+//                                                   [--sex male|female] [--px 160] [--out dir] [--raw]
 //
 // Without --styles: every style. --sex: the head (default: female for a style past the shoulder, else male). --type
-// over each style's own. Writes sheet.png and scores.json; prints the table.
+// over each style's own. --raw: the ladder's rung alone, not its class's solved row (hair-depict.js HAIR_DEPICTION). Writes sheet.png and scores.json; prints the table.
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -23,11 +23,11 @@ const { HEAD_TUNES } = await import('@/lib/graph/polygonizer/hero-relational-hea
 const { relationalHeadChart, STAND_M } = await import('@/lib/graph/epidermis/dermal-head.js');
 const { readDermis, hairColourOf, toSrgb } = await import('@/lib/graph/epidermis/dermal-map.js');
 const { readScalp, growScalp, SCALP_STYLES } = await import('@/lib/graph/epidermis/dermal-hair.js');
-const { depictHair, HAIR_RAMP } = await import('@/lib/graph/epidermis/hair-depict.js');
+const { depictHair, hairClass, HAIR_RAMP } = await import('@/lib/graph/epidermis/hair-depict.js');
 const { scoreHair, rasterize, strandMesh, SCORE_VIEWS } = await import('@/lib/graph/epidermis/hair-score.js');
 
 const args = process.argv.slice(2);
-let styles = null, type = null, level = 'L1', sexArg = null, px = 160, out = '/tmp/hair-sweep';
+let raw = false, styles = null, type = null, level = 'L1', sexArg = null, px = 160, out = '/tmp/hair-sweep';
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--styles') styles = args[++i].split(',');
@@ -36,6 +36,7 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--sex') sexArg = args[++i];
   else if (a === '--px') px = +args[++i];
   else if (a === '--out') out = args[++i];
+  else if (a === '--raw') raw = true;
   else throw new Error(`hair-sweep: unknown flag ${a}`);
 }
 styles ??= Object.keys(SCALP_STYLES);
@@ -48,7 +49,7 @@ for (const style of styles) {
   const t0 = Date.now(), S0 = readScalp(style), S = readScalp({ style, ...(type ? { type } : {}) });
   const sex = sexArg ?? (S0.length > 0.25 ? 'female' : 'male'), { h, chart } = headOf(sex), D = readDermis({ from: sex });
   const centre = [0, h.landmarks.eyeR.y * STAND_M * 0.3, h.landmarks.eyeR.z * STAND_M];
-  const dep = depictHair(chart, D, S, { level, centre });
+  const dep = depictHair(chart, D, S, { level, centre, ...(raw ? { rules: {} } : {}) });
   // the reference: the study's strands (every other), thin, for the outline
   const ref = S.length < 0.02 ? null : strandMesh(growScalp(chart, D, S, { colliders: ['head'] }).strands.filter((_, i) => i % 2 === 0), 0.0012);
   const sc = scoreHair(chart, D, dep, { reference: ref, px });
@@ -67,14 +68,14 @@ for (const style of styles) {
     }
   });
   rows.push({ style, img, sc, sex, type: S.type });
-  const row = { style, type: S.type, sex, length: S.length, coverage: sc.coverage, bladeCover: sc.bladeCover, silhouette: sc.silhouette, faces: sc.faces, ms: Date.now() - t0 };
+  const row = { style, class: hairClass(S), type: S.type, sex, length: S.length, coverage: sc.coverage, bladeCover: sc.bladeCover, silhouette: sc.silhouette, faces: sc.faces, ms: Date.now() - t0 };
   table.push(row);
   console.log(`${style.padEnd(20)} ${S.type.padEnd(8)} cover ${sc.coverage.toFixed(3)} blades ${sc.bladeCover.toFixed(3)} outline ${sc.silhouette === null ? '  —  ' : sc.silhouette.toFixed(3)} faces ${String(sc.faces).padStart(6)} ${row.ms} ms`);
 }
 // the sheet: a row a style, its name and scores in a margin
 const W = 230 + px * VIEWS.length, H = px * rows.length;
 const composites = rows.map((r, i) => ({ input: r.img, raw: { width: px * VIEWS.length, height: px, channels: 3 }, top: i * px, left: 230 }));
-const label = rows.map((r, i) => `<text x="8" y="${i * px + 22}" font-family="monospace" font-size="14" fill="#222">${r.style}</text><text x="8" y="${i * px + 42}" font-family="monospace" font-size="11" fill="#444">${r.type} · ${r.sex}</text><text x="8" y="${i * px + 62}" font-family="monospace" font-size="11" fill="${r.sc.coverage < 0.97 ? '#b00' : '#444'}">cover ${r.sc.coverage.toFixed(3)}</text><text x="8" y="${i * px + 78}" font-family="monospace" font-size="11" fill="#444">blades ${r.sc.bladeCover.toFixed(3)}</text><text x="8" y="${i * px + 94}" font-family="monospace" font-size="11" fill="#444">outline ${r.sc.silhouette === null ? '—' : r.sc.silhouette.toFixed(3)}</text><text x="8" y="${i * px + 110}" font-family="monospace" font-size="11" fill="#444">${r.sc.faces} faces</text>`).join('');
+const label = rows.map((r, i) => `<text x="8" y="${i * px + 22}" font-family="monospace" font-size="14" fill="#222">${r.style}</text><text x="8" y="${i * px + 42}" font-family="monospace" font-size="11" fill="#444">${r.type} · ${r.sex} · ${hairClass(readScalp(r.style))}</text><text x="8" y="${i * px + 62}" font-family="monospace" font-size="11" fill="${r.sc.coverage < 0.97 ? '#b00' : '#444'}">cover ${r.sc.coverage.toFixed(3)}</text><text x="8" y="${i * px + 78}" font-family="monospace" font-size="11" fill="#444">blades ${r.sc.bladeCover.toFixed(3)}</text><text x="8" y="${i * px + 94}" font-family="monospace" font-size="11" fill="#444">outline ${r.sc.silhouette === null ? '—' : r.sc.silhouette.toFixed(3)}</text><text x="8" y="${i * px + 110}" font-family="monospace" font-size="11" fill="#444">${r.sc.faces} faces</text>`).join('');
 composites.push({ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${label}</svg>`), top: 0, left: 0 });
 await sharp({ create: { width: W, height: H, channels: 3, background: '#e9e7e3' } }).composite(composites).png().toFile(join(out, 'sheet.png'));
 writeFileSync(join(out, 'scores.json'), JSON.stringify(table, null, 2));

@@ -6,12 +6,13 @@
  *   stripMesh(blades, bands, { streakGroup, centre })  the blades as open strips, banded root to tip
  *   capMesh(chart, D, { tract, S, min, where })        the tuft's base: a coat over the skin that grows the tract's hair
  *   depictHair(chart, D, S, { level })                 the hat on a head: { blades, strips, cap, counts }
+ *   hairClass(S) / depictionOf(S, level)               the groom's class and its solved numbers (HAIR_DEPICTION)
  *
  * A mesh is { vertices: [[x, y, z]], faces: [[a, b, c]], groups: [group a face], closure: 'open' | 'closed' }.
  * Deterministic: the same chart, dermis and groom give the same mesh.
  */
 import { dermisAt } from './dermal-map.js';
-import { grassHat, partDistance } from './dermal-hair.js';
+import { hatStrands, hatBlades, partDistance } from './dermal-hair.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -88,10 +89,35 @@ export function capMesh(chart, D, { tract = 'scalp', group = 'HairRoot', S = nul
   return { vertices, faces, groups: faces.map(() => group), closure: 'closed' };
 }
 
-/** THE HAT on a head: the groom's blades at `level` on the ladder (dermal-hair.js HAIR_LADDER) as strips, and the coat
- * under them (a buzz, lying on the scalp, is the coat alone). `centre` the head's middle the blades lie round. */
-export function depictHair(chart, D, S, { level = 'L1', centre = [0, 0, 0] } = {}) {
-  const { blades, counts } = grassHat(chart, D, S, { level });
-  const strips = counts.lying || !blades.length ? null : stripMesh(blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), HAIR_BANDS, { streakGroup: 'HairStreak', centre });
-  return { blades: counts.lying ? [] : blades, strips, cap: capMesh(chart, D, { S }), counts };
+/**
+ * A GROOM'S CLASS, how its hat is cut into blades (one procedure a class: the depiction solver's unit, never a style's
+ * own): `rope` its hair in locs or rows, `tied` gathered into a tail, a braid or a bun, `coil` curly or coily, `standing`
+ * gelled or stood up (a spike, a crest), `cropped` under 6 cm, `short` under 15 cm, `long` the rest.
+ */
+export function hairClass(S) {
+  const tails = (S.ties || []).map((T) => T.tail?.kind ?? 'tail');
+  if (tails.some((k) => k === 'loc' || k === 'row')) return 'rope';
+  if (tails.length) return 'tied';
+  if (S.type === 'curly' || S.type === 'coily') return 'coil';
+  if ((S.stand ?? 0) >= 0.5 || (S.gel ?? 0) >= 0.6 || S.cut?.strip) return 'standing';
+  return S.length < 0.06 ? 'cropped' : S.length < 0.15 ? 'short' : 'long';
+}
+/**
+ * THE DEPICTION's numbers a class and rung (over HAIR_LADDER's: `widen` the blades' width, `turn` the degrees a kept
+ * point needs, `stations` the spans of a straight fall, `lie` how flat a short blade lies, `cap` the most spans a blade
+ * keeps), solved by the depiction solver (epidermis/hair-solve.js: the fewest faces whose coat and blades leave no bald
+ * spot and hold the strands' outline) and written here; a rung a class has no row for is the ladder's own.
+ */
+export const HAIR_DEPICTION = Object.freeze({});
+export const depictionOf = (S, level = 'L1') => HAIR_DEPICTION[hairClass(S)]?.[level] ?? {};
+/** the hat's blades as its strips (a grey streak's blade in the hair's own bands) */
+export const stripsOf = (blades, centre) => (blades.length ? stripMesh(blades.map((b) => (b.streak?.grey ? { pts: b.pts, half: b.half } : b)), HAIR_BANDS, { streakGroup: 'HairStreak', centre }) : null);
+
+/** THE HAT on a head: the groom's blades at `level` on the ladder (dermal-hair.js HAIR_LADDER), by its class's solved
+ * numbers (`rules` over them), as strips, and the coat under them (a buzz, lying on the scalp, is the coat alone).
+ * `centre` the head's middle the blades lie round. */
+export function depictHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], rules = null } = {}) {
+  const G = hatStrands(chart, D, S, { level });
+  const blades = G.counts.lying ? [] : hatBlades(G, { level, centre, rules: rules ?? depictionOf(S, level) });
+  return { blades, strips: stripsOf(blades, centre), cap: capMesh(chart, D, { S }), counts: G.counts };
 }
