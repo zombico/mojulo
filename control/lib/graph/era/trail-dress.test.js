@@ -13,6 +13,8 @@ const M = { kind: 'stage', kit: 'isekai-meadow', seed: 1 };
 const rocks = (P) => P.faces.filter((f) => f.group === 'isekai:rock').length;
 const patches = (P) => P.faces.filter((f) => f.patch);
 const trail = (P) => P.faces.filter((f) => f.group === 'isekai:trail' && !f.patch);
+// (each stage built once in this file and shared: the tests only read them)
+const built = new Map(), stage = (m) => { const k = JSON.stringify(m); if (!built.has(k)) built.set(k, assembleStageScene(m)); return built.get(k); };
 const hue = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)); return r - b; };
 
 describe('reading a trail\'s dress', () => {
@@ -45,13 +47,13 @@ describe('reading a trail\'s dress', () => {
 
 describe('a trail dressed on a stage', () => {
   it('a quiet dirt trail is as it came, whatever its rubble and patches say', () => {
-    const Q = JSON.stringify(assembleStageScene({ ...M, trail: {}, shading: true }));
-    expect(JSON.stringify(assembleStageScene({ ...M, trail: { rubble: false, patches: ['puddle'] }, shading: true }))).toBe(Q);
+    const Q = JSON.stringify(stage({ ...M, trail: {}, shading: true }));
+    expect(JSON.stringify(stage({ ...M, trail: { rubble: false, patches: ['puddle'] }, shading: true }))).toBe(Q);
   });
 
   it('a gritty dirt trail: rubble at its edges, patches on it in its own colours; each off by its own word', () => {
-    const G = assembleStageScene({ ...M, trail: {}, shading: { grit: 0.7 } });
-    const bare = assembleStageScene({ ...M, trail: { rubble: false, patches: false }, shading: { grit: 0.7 } });
+    const G = stage({ ...M, trail: {}, shading: { grit: 0.7 } });
+    const bare = stage({ ...M, trail: { rubble: false, patches: false }, shading: { grit: 0.7 } });
     expect(rocks(G)).toBeGreaterThan(rocks(bare));
     expect(patches(bare)).toHaveLength(0);
     expect(new Set(patches(G).map((f) => f.patch))).toEqual(new Set(PATCH_DEFAULT));
@@ -73,17 +75,15 @@ describe('a trail dressed on a stage', () => {
     const inner = verge.flatMap((f) => f.corners.filter((c, k) => f.uv[k][1] === 0 && at.has(key(c))).map((c) => [f.cornerFills[f.corners.indexOf(c)], at.get(key(c))]));
     expect(inner.length).toBeGreaterThan(0);
     expect(inner.every(([a, b]) => a === b)).toBe(true);
-    // (the same dress builds the same trail)
-    expect(JSON.stringify(assembleStageScene({ ...M, trail: {}, shading: { grit: 0.7 } }).faces.length)).toBe(JSON.stringify(G.faces.length));
   }, 90000);
 
   it('a paved trail leans to its word, quiet or gritty; gritty, its tile laid; no rubble, patches or verge', () => {
     const word = 'brick-paving', toward = hue(MATERIAL_WORDS[word].colour);
-    const Q = assembleStageScene({ ...M, trail: {}, shading: true }), QB = assembleStageScene({ ...M, trail: { surface: word }, shading: true });
+    const Q = stage({ ...M, trail: {}, shading: true }), QB = stage({ ...M, trail: { surface: word }, shading: true });
     expect(trail(QB).every((f) => f.texture === undefined)).toBe(true);
     expect(hue(trail(QB)[0].fill) - hue(trail(Q)[0].fill)).toBeGreaterThan(0);
     expect(toward).toBeGreaterThan(0);
-    const B = assembleStageScene({ ...M, trail: { surface: word }, shading: { grit: 0.7 } }), D = assembleStageScene({ ...M, trail: { rubble: false, patches: false }, shading: { grit: 0.7 } });
+    const B = stage({ ...M, trail: { surface: word }, shading: { grit: 0.7 } }), D = stage({ ...M, trail: { rubble: false, patches: false }, shading: { grit: 0.7 } });
     const tex = (P) => new Set(trail(P).map((f) => f.texture));
     expect([...tex(B)].every((k) => /^detail:/.test(k) && !tex(D).has(k))).toBe(true);
     expect(patches(B)).toHaveLength(0);
@@ -95,8 +95,8 @@ describe('a trail dressed on a stage', () => {
   }, 90000);
 
   it('an outdoor surface is laid in the dirt: its stones leant part way, one tile running on, its edge the dirt trail\'s', () => {
-    const R = assembleStageScene({ ...M, trail: { surface: 'stone-road' }, shading: { grit: 0.7 } });
-    const D = assembleStageScene({ ...M, trail: { patches: false }, shading: { grit: 0.7 } });
+    const R = stage({ ...M, trail: { surface: 'stone-road' }, shading: { grit: 0.7 } });
+    const D = stage({ ...M, trail: {}, shading: { grit: 0.7 } });
     const laid = trail(R).filter((f) => !f.spill && !f.sand);
     expect(new Set(laid.map((f) => f.texture)).size).toBe(1);
     // (its edge: the dirt spilled over it with the dirt's own relief, the verge laid across, the rubble beside it)
@@ -123,12 +123,13 @@ describe('a trail dressed on a stage', () => {
   }, 90000);
 
   it('a geocube\'s street hands its `path` to the trail it lies on; no stone or patch on ground a town has claimed', () => {
-    let low;
-    assembleGeocubeScene({ kind: 'geocube', cube: 'limestone-crags', show: 'town', walk: false, path: { surface: 'setts', rubble: false } }, {}, (m, c) => { low = m; return assembleStageScene(m, c); });
+    // (the stage the street lowers to, read and not built)
+    let low; const STOP = new Error('lowered');
+    try { assembleGeocubeScene({ kind: 'geocube', cube: 'limestone-crags', show: 'town', walk: false, path: { surface: 'setts', rubble: false } }, {}, (m) => { low = m; throw STOP; }); } catch (e) { if (e !== STOP) throw e; }
     expect(low.trail).toMatchObject({ surface: 'setts', rubble: false });
     // (the middle of the trail claimed: nothing strewn or worn in it, the rest as before)
     const box = [0, 24, 60, 48], inBox = (c) => c[0] > box[0] && c[0] < box[2] && c[1] > box[1] && c[1] < box[3];
-    const K = assembleStageScene({ ...M, trail: {}, shading: { grit: 0.7 }, _keepOut: [box] });
+    const K = stage({ ...M, trail: {}, shading: { grit: 0.7 }, _keepOut: [box] });
     expect(patches(K).length).toBeGreaterThan(0);
     expect(patches(K).some((f) => f.corners.some(inBox))).toBe(false);
   }, 90000);

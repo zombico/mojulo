@@ -14,6 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Faster gritty builds, and the tests that build them
+
+Byte-identical output throughout: the same stages, faces and texture bytes, checked by hash before and after.
+
+- **The sun's shadow test** (`era/sun.js`) works what a triangle and the sun fix (its edges, `L × ac`, `1/det`) once
+  per triangle, and a query's arithmetic in scalars in the same order, so it allocates nothing. A gritty stage builds
+  in about 60% of the time it took; every sunlit world shares it (stages, jungle, local meru, the road looks).
+- **A detail tile is painted once while it is in use** (`matte-paint/detail.js`): its texels and its shown tile are
+  kept for the few keys in use, and a scree's dice for its levels (`era/scree-tiles.js`), so the page's resolver, the
+  sand and turf cutouts and the scree's levels stop repainting the same 512-texel tile. A gritty stage's textures
+  resolve in under half the time.
+- **The era tests share their builds within a file**: a stage or a street several tests read is built once, the
+  determinism rebuilds left to the suites that own that law, and a street read only for the stage it lowers to is not
+  built at all.
+
 ### Creases: the vgl rule as a shader in the World
 
 The vgl rule inks a concave crease (a wall's foot, a tier on the one below, a column on its plinth) and never a convex

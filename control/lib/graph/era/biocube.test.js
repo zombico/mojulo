@@ -6,6 +6,9 @@ import { assembleGeocubeScene, readGeocube } from './geocube.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 
 const M = { kind: 'stage', kit: 'isekai-meadow' };
+// (each world built once in this file and shared: the tests only read them)
+const built = new Map(), once = (m, make) => { const k = JSON.stringify(m); if (!built.has(k)) built.set(k, make(m)); return built.get(k); };
+const stage = (m) => once(m, (x) => assembleStageScene(x)), street = (m) => once(m, (x) => assembleGeocubeScene(x, {}, assembleStageScene));
 const count = (P, g) => P.faces.filter((f) => f.group === g).length;
 
 describe('reading a biocube', () => {
@@ -28,22 +31,22 @@ describe('reading a biocube', () => {
 });
 
 describe('the flora on a stage', () => {
-  const plain = assembleStageScene(M);
+  const plain = stage(M);
 
   it('the meadow preset is the meadow card\'s own flora: its land as it was, its grass a carpet by default', () => {
     const card = withFlora(ISEKAI_MEADOW, readBiocube('meadow'));
     expect(card.trees).toEqual(ISEKAI_MEADOW.trees);
     expect(card.grass).toEqual(ISEKAI_MEADOW.grass);
     expect(card.live).toEqual(ISEKAI_MEADOW.live);
-    const P = assembleStageScene({ ...M, biocube: 'meadow' });
+    const P = stage({ ...M, biocube: 'meadow' });
     expect(JSON.stringify(P.faces)).toBe(JSON.stringify(plain.faces));
     expect(plain.liveGrass).toBeUndefined();
     expect(P.liveGrass.density).toBe(ISEKAI_MEADOW.live.density);
-    expect(assembleStageScene({ ...M, biocube: { from: 'meadow', flora: { grass: { live: null } } } }).liveGrass).toBeUndefined();
+    expect(stage({ ...M, biocube: { from: 'meadow', flora: { grass: { live: null } } } }).liveGrass).toBeUndefined();
   });
 
   it('grows the cube\'s trees, grass and bushes: a grove denser, bare ground nothing', () => {
-    const grove = assembleStageScene({ ...M, biocube: 'grove' }), bare = assembleStageScene({ ...M, biocube: 'bare' });
+    const grove = stage({ ...M, biocube: 'grove' }), bare = stage({ ...M, biocube: 'bare' });
     expect(count(grove, 'isekai:wood')).toBeGreaterThan(count(plain, 'isekai:wood'));
     expect(grove.anchors.some((a) => a.kind === 'shrub')).toBe(true);
     expect(count(bare, 'isekai:wood')).toBe(0);   // (a trunk: the far layers' silhouettes are crowns alone)
@@ -51,7 +54,7 @@ describe('the flora on a stage', () => {
   });
 
   it('brings the grass back to a polygon land, as the cube grows it: the tufts, the hats and the lips\' fringes', () => {
-    const bare = assembleStageScene({ ...M, shading: true }), grown = assembleStageScene({ ...M, shading: true, biocube: 'meadow' });
+    const bare = stage({ ...M, shading: true }), grown = stage({ ...M, shading: true, biocube: 'meadow' });
     for (const g of ['isekai:grass', 'isekai:hat', 'isekai:lip']) { expect(count(bare, g)).toBe(0); expect(count(grown, g), g).toBeGreaterThan(0); }
     expect(grown.liveGrass).toBeDefined();
   });
@@ -59,7 +62,7 @@ describe('the flora on a stage', () => {
   it('a cube carries its own: checked when the cube is read, grown on its streets unless the recipe names another', () => {
     expect(readGeocube('valley-morning').biocube).toBe('meadow');
     expect(() => readGeocube({ from: 'valley-morning', biocube: 'jungle' })).toThrow(/biocube/);
-    const own = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
+    const own = street({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false });
     expect(count(own, 'isekai:grass')).toBeGreaterThan(0);
     expect(own.liveGrass).toBeDefined();
   });
@@ -87,11 +90,11 @@ describe('nothing grows on a path', () => {
   };
 
   it('a trail: its fringe beside it where it slants as where it runs straight, the carpet a whole cell clear of it', () => {
-    expect(grownOn(assembleStageScene({ ...M, biocube: 'meadow' }))).toEqual({ tufts: 0, cells: 0 });
+    expect(grownOn(stage({ ...M, biocube: 'meadow' }))).toEqual({ tufts: 0, cells: 0 });
   });
 
   it('a town\'s street: no tuft or cell on its paving or its door paths, no land left under its paving', () => {
-    const T = assembleGeocubeScene({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false }, {}, assembleStageScene);
+    const T = street({ kind: 'geocube', cube: 'valley-morning', show: 'town', walk: false });
     expect(grownOn(T)).toEqual({ tufts: 0, cells: 0 });
     const paved = T.faces.filter((f) => /^street:(road|walk)$/.test(f.group) && f.normal[2] > 0.7).map((f) => f.corners.map((c) => [c[0], c[1]]));
     expect(T.faces.filter((f) => /:ground$/.test(f.group || '') && f.corners.every((c) => onPath(paved, c[0], c[1]))).length).toBe(0);

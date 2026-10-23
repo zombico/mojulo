@@ -17,12 +17,15 @@ import { encodePngRgba, registerTextureResolver } from '../landscape/surface-tex
 
 export const screeKey = (detailKey, level) => `scree:${detailKey}~${Math.round(level * 100)}`;
 
-const PAINTED = new Map();
+const PAINTED = new Map(), DICE = new Map();
 export function screeTexels(key) {
   const m = /^scree:(.+?)~(\d+)$/.exec(key);
   const S = m ? detailSpec(m[1]) : null;
   if (!S || S.cfg.cut !== 'scree') return null;
-  const T = detailShown(m[1]), level = +m[2] / 100, dice = screeDice(S.cfg, { size: T.W, seed: S.seed }), a = new Uint8Array(T.W * T.H);
+  // (a scree's dice, one tile's worth, kept for its few levels: read only)
+  const T = detailShown(m[1]), level = +m[2] / 100, a = new Uint8Array(T.W * T.H);
+  if (!DICE.has(m[1])) { if (DICE.size >= 8) DICE.clear(); DICE.set(m[1], screeDice(S.cfg, { size: T.W, seed: S.seed })); }
+  const dice = DICE.get(m[1]);
   for (let k = 0; k < a.length; k++) a[k] = dice[k] >= 0 && dice[k] < level ? 255 : 0;
   return { W: T.W, H: T.H, rgb: T.rgb, a };
 }

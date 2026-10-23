@@ -12,7 +12,10 @@ import { assembleCityScene } from '../city/plan/scene.js';
 import { dummyWalker } from '../local-meru/dummy.js';
 import { CITY_METERS_PER_UNIT } from '../city/fractal-city.js';
 
-const town = (m) => assembleGeocubeScene({ kind: 'geocube', cube: 'gothic-night', show: 'town', ...m }, {}, assembleStageScene);
+// (each world built once in this file and shared: the tests only read them)
+const built = new Map(), once = (k, make) => (built.has(k) ? built.get(k) : built.set(k, make()).get(k));
+const cube = (m) => once(JSON.stringify(m), () => assembleGeocubeScene(m, {}, assembleStageScene));
+const town = (m) => cube({ kind: 'geocube', cube: 'gothic-night', show: 'town', ...m });
 
 describe('the micro-town', () => {
   it('stands a hamlet\'s houses on a short trail; the walk runs the street and steps up to every door', () => {
@@ -27,8 +30,7 @@ describe('the micro-town', () => {
       const f = [h.at[0] + h.N[0] * 1.5, h.at[1] + h.N[1] * 1.5], { min, max } = h.box;
       expect(f[0] > min[0] && f[0] < max[0] && f[1] > min[1] && f[1] < max[1]).toBe(false);
     }
-    // the same seed lays the same street
-    expect(JSON.stringify(town({ seed: 3 }).route)).toBe(JSON.stringify(P.route));
+    // (the same seed laying the same street is stage-buildings.test.js's)
     // seen first for its architecture: from the road before the first house, at a person's eye over the paving, then
     // down the street from its walk
     expect(P.cameras.slice(0, 2).map((c) => c.name)).toEqual(['house', 'street']);
@@ -47,6 +49,7 @@ describe('the micro-town', () => {
 });
 
 describe('the micro-city', () => {
+  const gothicCity = () => once('gothic-city', () => assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 }).city, { route: true }));
   it('lays the smallest city in the cube\'s builders\' language, painted by the cube', () => {
     const { city, anchor } = geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 });
     expect(city).toMatchObject({ kind: 'city', seed: 3, board: MICRO_CITY.board, paint: { geocube: 'gothic-night', amount: 1 }, cars: false, people: 0 });
@@ -70,14 +73,14 @@ describe('the micro-city', () => {
 
   it('is seen first from its sidewalk, a person\'s eye looking down the block', async () => {
     const { withSidewalkCamera } = await import('./geocube-city.js');
-    const P = withSidewalkCamera(assembleCityScene(geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 }).city, { route: true }), { metersPerUnit: CITY_METERS_PER_UNIT });
+    const P = withSidewalkCamera(gothicCity(), { metersPerUnit: CITY_METERS_PER_UNIT });
     expect(P.cameras[0].name).toBe('sidewalk');
     expect(P.cameras[0].worldFraming.cameraPosition[2] * CITY_METERS_PER_UNIT).toBeCloseTo(1.7, 2);
   });
 
   it('walks the sidewalk round one block, closed, at a person\'s height; a city without a route is as it was', () => {
     const { city } = geocubeCity({ kind: 'geocube', cube: 'gothic-night', show: 'city', seed: 3 });
-    const P = assembleCityScene(city, { route: true });
+    const P = gothicCity();
     expect(P.route.length).toBe(5);
     expect(P.route[0]).toEqual(P.route[4]);
     expect(assembleCityScene(city).route).toBeUndefined();
@@ -91,7 +94,7 @@ describe('the micro-city', () => {
 
 describe('the cube paints its architecture', () => {
   const walls = (cube) => {
-    const P = assembleGeocubeScene({ kind: 'geocube', cube, show: 'town', seed: 3 }, {}, assembleStageScene);
+    const P = town({ cube, seed: 3 });
     return [...new Set(P.faces.filter((f) => f.group === 'town:roof').map((f) => f.fill))].sort();
   };
   it('a street\'s houses take the cube\'s colours: two cubes on one base kit paint their roofs apart', () => {

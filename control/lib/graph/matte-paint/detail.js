@@ -40,20 +40,25 @@ export function detailKey(params, seed, metres, v) {
   if (!SPECS.has(key)) SPECS.set(key, { cfg: { ...params, metres }, seed: detailSeed(seed, v) });
   return key;
 }
+// (a tile's texels, painted and shown, kept for the few keys in use: the page's resolver, the cutouts painted from a
+// tile (era/sand-tiles.js, era/scree-tiles.js) and the readers of its pattern each ask again; read only, never written)
+const TEXELS = new Map(), SHOWN = new Map();
+const kept = (M, key, make) => { if (M.has(key)) return M.get(key); const T = make(); if (!T) return T; if (M.size >= 24) M.clear(); M.set(key, T); return T; };
 /** A detail key's tile as painted, before it is set to its mean: { rgb, W, H }, or null for a key never made. */
 export function detailTexels(key) {
   const S = SPECS.get(key);
   if (!S) return null;
   // (a brick floor's tile, landscape/surface-textures.js stone-brick in a bond, as the rooms lay it; else dressed stone)
-  return S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed });
+  return kept(TEXELS, key, () => (S.cfg.gen === 'stone-brick' ? bondedBrickTile(S.cfg, { size: 512, seed: S.seed }) : dressedTile(S.cfg, { size: 512, seed: S.seed })));
 }
 /** A detail key's spec ({ cfg, seed }: what its tile is painted from), or null for a key never made. */
 export const detailSpec = (key) => SPECS.get(key) ?? null;
 /** A detail key's tile as the page draws it: set to its mean (DETAIL_MEAN, each channel), { rgb, W, H }; null for a key
  *  never made. What a face laid with it shows, its fill lifted to match (layDetail). */
 export function detailShown(key) {
-  const T = detailTexels(key);
-  if (!T) return null;
+  return SPECS.has(key) ? kept(SHOWN, key, () => shownOf(detailTexels(key))) : null;
+}
+function shownOf(T) {
   const n = T.W * T.H, m = [0, 0, 0], L = new Float32Array(n * 3);
   for (let k = 0; k < n * 3; k++) { L[k] = lin(T.rgb[k]); m[k % 3] += L[k]; }
   for (let c = 0; c < 3; c++) m[c] = m[c] / n || 1;
