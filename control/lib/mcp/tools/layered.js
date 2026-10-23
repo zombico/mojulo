@@ -945,7 +945,7 @@ export function withFaceFit(spec) {
 function faceReadout(hero) {
   const C = realisticFaceOf(hero); if (!C) return null;
   return { words: hero.face, ethnicity: hero.face.ethnicity ?? 'western', rolled: C.bucket, ...(C.mixed ? { mixed: C.mixed } : {}), ...(C.hybrid ? { hybrid: C.hybrid } : {}), ancestry: C.ancestry, picks: C.picks, character: C.character, accent: C.accent, hairLevel: heroHairLevel(hero), fit: C.tune ? 'its own (solved at mint)' : 'its pole\'s (minted before the fit, or its words changed since: mint it again to solve its own)',
-    shown: `the head\'s shape and its skin (tone, hairline, marks, beard, the years), its hair${C.piercings?.length ? ', its piercings' : ''}`, notYet: 'the brows, the lashes and a styled beard are read here but not yet grown on the hero (the beard is painted)' };
+    shown: `the head\'s shape and its skin (tone, hairline, marks, stubble, the years), its hair, its brows and lashes, a styled beard${C.piercings?.length ? ', its piercings' : ''}` };
 }
 
 /** The realistic form's refusals: what it takes (a `physique`), and what it does not wear yet. Dress, armour, kits,

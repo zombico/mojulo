@@ -199,7 +199,8 @@ body catches up to what the authored one wears, and its principles are shared ba
   (epidermis/dermal-jewel.js), mapped into the hero's frame and carried as a pinned part on the visage (`jewel`; the
   lower lip's labret and lip ring `jewelJaw`, on a face the jaw alone carries, so they follow it), each piece's group its
   metal's or its gem's (`JewelGold`, `GemRuby` …) with its colour in the palette under the hero's own. A hero with no
-  face, or a face that rolled none, wears none. The readout's `realisticFace.notYet` no longer lists them.
+  face, or a face that rolled none, wears none. The readout's `realisticFace.shown` names what the hero wears of its
+  face (its hair, brows, lashes, a styled beard, its piercings); `notYet` is gone, everything it listed now grown.
 - THE SCALP ON THE HERO, A GRASS HAT (hero-head-layers.js `heroHair`; dermal-hair.js `grassHat`, `bladeOf`,
   `GRASS_HAT`): the stylized meadow's way (vegetation/grass.js) on a head. The scalp is planted as a lawn, a blade from
   a root every few millimetres (growScalp's strands at that gap: combed down the head, cut by the stylist, hung by
