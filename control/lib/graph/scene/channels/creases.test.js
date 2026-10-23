@@ -73,7 +73,10 @@ describe('creases: the roles a world\'s groups take (crease-roles.js)', () => {
     const { creaseRole, tagCreaseRoles } = await import('../crease-roles.js');
     for (const g of ['isekai:sand', 'isekai:cliff', 'isekai:rock', 'isekai:water', 'terrain-bake', 'rocks']) expect(creaseRole(g)).toBe('land');
     for (const g of ['oak-L1', 'fir-L3', 'city:tree-oak-L2', 'isekai:sprig', 'isekai:petals']) expect(creaseRole(g)).toBe(true);
-    for (const g of ['isekai:wood', 'meru:stone', 'stage:wall', 'static', undefined, '']) expect(creaseRole(g)).toBeNull();
+    // (a gritty crown's core and chips, the grass, the strand's wrack, a rock's moss and the stage's bushes are foliage)
+    for (const g of ['isekai:crown', 'isekai:core', 'isekai:chips', 'isekai:grass', 'isekai:strand', 'isekai:rockflora', 'flora:bush']) expect(creaseRole(g)).toBe(true);
+    for (const g of ['isekai:dune', 'isekai:talus', 'isekai:pavement']) expect(creaseRole(g)).toBe('land');
+    for (const g of ['isekai:wood', 'isekai:culm', 'meru:stone', 'stage:wall', 'static', undefined, '']) expect(creaseRole(g)).toBeNull();
     const p = tagCreaseRoles({ faces: [quad('#888888', { group: 'isekai:sand' }), quad('#888888', { group: 'stage:wall' }), quad('#888888', { group: 'oak-L1', organic: 'land' })],
       repeats: [{ group: 'oak-L1', template: [quad('#3a6a32')], transforms: [] }] });
     expect(p.faces.map((f) => f.organic)).toEqual(['land', undefined, 'land']);   // a face already tagged keeps its tag

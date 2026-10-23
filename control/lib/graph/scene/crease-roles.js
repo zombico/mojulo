@@ -6,8 +6,11 @@
  * when creases are on (world-scene.js): a world without them is never touched.
  *
  *   organic (true)   never inked: a plant pool's species ('<species>-L<n>', '<species>-culm-L<n>', 'city:tree-…'),
- *                    the land's sprigs, petals and spray
+ *                    the land's foliage (crowns, their core and chips, blossom, leaves, sprigs, petals, spray), its grass
+ *                    and the drapes over a cliff's edge (hat, lip), the strand's wrack, a rock's moss, the sky's clouds,
+ *                    and the stage's flora (flora:*: bushes, ikebana)
  *   land ('land')    inked only where something built meets it: the polygon land (isekai:*), a terrain's bake, rocks
+ *   (built) null     a tree's trunk and a bamboo's culm (isekai:wood, isekai:culm), so a trunk is grounded
  *   (else) null      angular: what is built, the default
  *
  *   creaseRole(group)          → true | 'land' | null
@@ -15,8 +18,8 @@
  */
 import { SPECIES } from '../vegetation/species.js';
 
-const ORGANIC_LAND = /^isekai:(sprig|petals|spray)/;
-const BUILT_LAND = /^isekai:wood/;
+const ORGANIC_LAND = /^(?:isekai:(?:sprig|petals|spray|crown|core|chips|blossom|leaves|grass|hat|lip|strand|rockflora|cloud)|flora:)/;
+const BUILT_LAND = /^isekai:(?:wood|culm)/;
 const LAND = [/^isekai:/, /^terrain-bake$/, /^rocks?\b/];
 
 export function creaseRole(group) {

@@ -48,7 +48,9 @@ mark angular, with a falloff that blends from the corner out. Opt-in: a world th
 - **Land.** A face may be `organic: 'land'`: inked only where something built meets it, and outlined against what lies
   behind it but not against the sky at the world's edge. When a world draws creases its land and plant pools take their
   class from their groups (`scene/crease-roles.js`: the polygon land, a terrain's bake, rocks; the plant pools'
-  species), so nothing is threaded through the land's builders. A water sheet hides the bed under it from the pass, and
+  species), so nothing is threaded through the land's builders. A gritty land's foliage is organic too: a crown, its
+  core and chips, blossom, grass and the drapes over a cliff's edge, the strand's wrack, a rock's moss, the clouds and
+  the stage's flora (`flora:*`); a trunk and a bamboo's culm are built, so a tree is grounded. A water sheet hides the bed under it from the pass, and
   the sky dome is no surface behind anything. The scene's fog takes the ink as it takes the surface under it.
 - **Fixed: vertex contrast in a world not measured in metres.** The contrast's foot and its drift are metres; a city
   plan's unit is 3.66 m, so the foot covered a whole storey. The payload now carries the world's unit to it.
