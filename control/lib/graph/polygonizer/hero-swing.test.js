@@ -24,10 +24,19 @@ function heldAt(R, g, pose) {
 }
 
 describe('the phases and law 8', () => {
-  it('the impact at 3/7 (normal), 2/6 (light), 4/8 (heavy); the window from the cock to the end of the follow', () => {
-    expect(swingKeys('chop', 'normal')).toMatchObject({ strike: 0.429, window: [0.286, 0.571] });
-    expect(swingKeys('chop', 'light').strike).toBe(0.333);
-    expect(swingKeys('chop', 'heavy').strike).toBe(0.5);
+  it('the impact at 3/6 (normal), 2/5 (light), 4/7 (heavy); the window from the cock to the end of the follow', () => {
+    expect(swingKeys('chop', 'normal')).toMatchObject({ strike: 0.5, window: [0.333, 0.667] });
+    expect(swingKeys('chop', 'light').strike).toBe(0.4);
+    expect(swingKeys('chop', 'heavy').strike).toBe(0.571);
+  });
+  it('the phases are where the player puts the keys: at the strike phase the clip stands on the strike key', () => {
+    const R = validateRig(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', gesture: 'chop', gear: { right: { item: 'sword' } } }) }).recipe.rig);
+    const wrist = (pose) => rigNodesAt(R, pose).nodes.wristR;
+    for (const cls of ['light', 'normal', 'heavy']) {
+      const S = swingKeys('chop', cls), clip = layeredClip(S.keys, R), k = S.keys.length - 3, want = wrist(layeredClip([S.keys[k]], R)(0));
+      wrist(clip(S.strike + 1e-9)).forEach((v, i) => expect(v, cls).toBeCloseTo(want[i], 3));
+      expect(S.window[0]).toBeCloseTo((k - 1) / S.keys.length, 3); expect(S.window[1]).toBeCloseTo((k + 1) / S.keys.length, 3);
+    }
   });
   it('the class follows the item: a dagger is light, a greatsword heavy, a heavy sword heavy', () => {
     expect(swingClass({ item: 'dagger', share: 0.22 })).toBe('light');
@@ -149,5 +158,25 @@ describe('the swing in its game type (swingTiming)', () => {
     expect(action.k).toBe(24);
     // the ready key opens both (the warp starts at the swing's own phase 0)
     expect(action.b.slice(0, 7)).toEqual(own.b.slice(0, 7));
+  });
+  it('the swing packs knowing its blow: word, hand, class, strike and window, and the blade tip riding its bone within 1 mm of the posed point', async () => {
+    const hero = heroRecord({ cast: 'female', gesture: 'chop', gear: { right: { item: 'sword' } } });
+    const m = expandLayeredManifest({ kind: 'layered', hero }), R = validateRig(m.recipe.rig), [g] = gearMounts(hero, R);
+    const quatToMat = ([x, y, z, w]) => [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]];
+    for (const swing of [null, 'action']) {
+      const body = (await WORLD_KINDS.layered.resolve(m, { title: 'x', ...(swing ? { swing } : {}) })).figures.body, c = body.clips.chop, M = c.move;
+      expect(M).toMatchObject({ family: 'swing', word: 'chop', hand: 'R', class: 'normal', tip: { bone: 'handR' } });
+      if (!swing) { const { strike, window } = swingKeys('chop', 'normal'); expect(M).toMatchObject({ strike, window }); }
+      else expect(M).toMatchObject({ flavor: 'action', strike: swingTiming('normal', 'action').strike });
+      const bi = body.bones.findIndex((b) => b.id === 'handR'), nb = body.bones.length, restHead = body.bones[bi].head;
+      const own = layeredClip(m.recipe.clips.chop ?? heroPlanOf(hero).clips.chop, R), T = swing ? swingTiming('normal', swing) : null;
+      const dz = body.bones[0].head[2] - R.joints[R.bones[0].head][2];
+      for (let f = 0; f < c.k; f++) {
+        const o = (f * nb + bi) * 7, q = c.b.slice(o, o + 4), head = c.b.slice(o + 4, o + 7), Mq = quatToMat(q), d = sub(M.tip.at, restHead);
+        const rode = [0, 1, 2].map((r) => head[r] + Mq[r][0] * d[0] + Mq[r][1] * d[1] + Mq[r][2] * d[2]);
+        const u = f / c.k, posed = heldAt(R, g, own(T ? T.warp(u) : u)).end;
+        expect(len(sub(rode, [posed[0], posed[1], posed[2] + dz])), `${swing} frame ${f}`).toBeLessThan(1e-3);
+      }
+    }
   });
 });

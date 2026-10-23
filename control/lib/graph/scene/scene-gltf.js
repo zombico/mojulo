@@ -1112,8 +1112,10 @@ class GlbBuilder {
     // a rest's getting down or up (hero-motion.js, hero-rise.js) rides as `moj:rest`: the rest, the phase, its beats
     // (seconds) and the props it needs (boxes in the figure's frame under the root's z-up → y-up, scaled by the units)
     // a move (hero-motion.js MOVE_FAMILIES: a showcase pose, a stance, a strike) rides as `moj:move`: its family, that it
-    // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds)
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}), ...(clip.held ? { 'moj:held': clip.held } : {}) };
+    // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds); a hero's swing
+    // (family 'swing', world-kinds.js) its word, hand, class, the impact's phase and window (shares of the clip) and the
+    // blade's tip at rest on its bone (the figure's frame, scaled by the units)
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move.tip ? { ...clip.move, tip: { ...clip.move.tip, at: clip.move.tip.at.map((v) => r4(v * mpu)) } } : clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}), ...(clip.held ? { 'moj:held': clip.held } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }

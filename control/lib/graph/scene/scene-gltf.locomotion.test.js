@@ -75,6 +75,12 @@ describe('the hero door\'s motion', () => {
     expect(anims.find((a) => a.name === 'body:jab').extras['moj:move']).toEqual(clips.jab.move);
     expect(anims.find((a) => a.name === 'body:walk').extras?.['moj:move']).toBeUndefined();
   });
+  it('a swing carries its blow as moj:move: the impact and the window as shares of the clip, the blade tip on its bone in the units', async () => {
+    const payload = await resolve(heroManifest({ cast: 'female', gesture: 'chop', gear: { right: { item: 'sword' } } }));
+    const move = payload.figures.body.clips.chop.move, anim = glbJson(glb(payload)).animations.find((a) => a.name === 'body:chop');
+    expect(anim.extras['moj:move']).toMatchObject({ family: 'swing', word: 'chop', hand: 'R', strike: move.strike, window: move.window, tip: { bone: 'handR' } });
+    expect(anim.extras['moj:move'].tip.at).toHaveLength(3);
+  });
 
   it('a rest packs its getting down and up as one-shots with its beats and the props it needs; the GLB carries moj:rest; a rest takes only true', async () => {
     expect(validateHeroSpec({ motion: { lieBack: { seconds: 2 } } }).join(' ')).toMatch(/motion\.lieBack: true \(a rest's getting down and up are studied, hero-rise\.js; its clips are lieBackDown and lieBackUp\)/);

@@ -53,7 +53,7 @@ import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, chara
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
-import { isSwing, swingClassOfKeys, swingTiming } from '@/lib/graph/polygonizer/hero-swing';
+import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming } from '@/lib/graph/polygonizer/hero-swing';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -67,7 +67,7 @@ const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.styl
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
-import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
+import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
 import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue, carveCreatureRecipe, creatureBaseOf } from '@/lib/graph/statue/creature';
@@ -819,11 +819,21 @@ export const WORLD_KINDS = {
         // the hero's own of that name, with its seconds and its ground speed (`v` on the packed clip). Absent ⇒ as before.
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
-        // THE SWING IN ITS GAME (hero-swing.js swingTiming): a world whose composed juice names a game type (ctx.swing, the
-        // world's fxStyle flavor) plays the hero's swing at that type's timing, its own keys re-timed (a dense clip the
-        // packer samples, as a gait's). Realistic or absent ⇒ the swing's own even keys, byte-identical.
-        const swingT = ctx.swing && isSwing(m.hero?.gesture) && Array.isArray(clipsIn[m.hero.gesture]) ? swingTiming(swingClassOfKeys(clipsIn[m.hero.gesture].length), ctx.swing) : null;
-        if (swingT) { const own = layeredClip(clipsIn[m.hero.gesture], R), fn = (u) => own(swingT.warp(u)); fn.keys = 24; clipsIn = { ...clipsIn, [m.hero.gesture]: fn }; }
+        // THE SWING (hero-swing.js): a hero's swing clip packs knowing its blow, `move` on the packed clip (the GLB's
+        // `moj:move`): its word, hand and class, the impact's phase and the contact window (shares of the clip), and the blade's
+        // TIP (the item's point at rest on the hand's bone, which carries it rigidly: a game's hit test and a trail ride it).
+        // A world whose composed juice names a game type (ctx.swing, the world's fxStyle flavor) plays the swing at that
+        // type's timing (swingTiming), its own keys re-timed in a dense clip the packer samples, as a gait's; realistic or
+        // none plays the keys as they are (the same frames).
+        const swingWord = isSwing(m.hero?.gesture) && Array.isArray(clipsIn[m.hero.gesture]) ? m.hero.gesture : null;
+        if (swingWord) {
+          const n = clipsIn[swingWord].length, cls = swingClassOfKeys(n), T = ctx.swing ? swingTiming(cls, ctx.swing) : null, P = T ?? swingPhases(n);
+          const own = layeredClip(clipsIn[swingWord], R), fn = T ? (u) => own(T.warp(u)) : own; fn.keys = T ? 24 : 12;
+          const g = gear?.find((x) => x.slot === SWING_HAND[swingWord]), q = g && (g.sockets.tip?.origin ?? g.sockets.focal?.origin);
+          const tip = q ? gearRestPoint(g, q) : null;
+          fn.move = { family: 'swing', word: swingWord, hand: SWING_HAND[swingWord] === 'left' ? 'L' : 'R', class: cls, strike: P.strike, window: P.window, ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: g.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
+          clipsIn = { ...clipsIn, [swingWord]: fn };
+        }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, in an export: its body's and its head's dermal maps on one
         // atlas, the GLB's base colour, under the lit export's plain corners or the unlit's baked light; the World page

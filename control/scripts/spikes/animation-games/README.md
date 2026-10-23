@@ -323,8 +323,8 @@ thrust 4.0). A register that slows the swing to show its weight does not weaken 
    | heavy | 0.500 | 0.571 |
 
    The contact window a game reads is computed from the reported numbers. It still contains the played strike for every
-   class, but the moment it calls the impact is about 7 % of the cycle early. This is a library bug; the spike reports it
-   and does not fix it.
+   class, but the moment it calls the impact is about 7 % of the cycle early. This was a library bug, since fixed:
+   `swingKeys` now reads its phases where the player puts the keys (`swingPhases`), so the two columns agree.
 2. **The force is the body's, not the register's.** A first pass computed the tip's speed on the register's own clock.
    Action's slowed greatsword then handed on *less* than its sword, the opposite of what slowing it was for. The blow now
    reads the realistic swing's speed (`bodySeconds`) whatever the register shows. The same rule was already true of the

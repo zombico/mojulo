@@ -2,13 +2,15 @@
 // the swing's ready key and adds a looping clip of that name. Keys are the gesture's own pose words, evenly spaced and
 // smoothstep-eased by the rig's clip player, so the phases are counted in keys:
 //   ready → (load) → coil → COCK → STRIKE → follow → recover → (ready)
-// with the strike one segment (the fastest: the largest arc in one key), never a key inside it. Seven keys put the cock
-// at 2/7 ≈ .29 and the impact at 3/7 ≈ .43 — the mecha shelf's windup : strike : follow : recover of 28 : 14 : 14 : 44.
+// with the strike one segment (the fastest: the largest arc in one key), never a key inside it. The player spaces n keys
+// over n segments (the last back to ready), so a normal swing's six keys put the cock at 2/6 ≈ .33 and the impact at
+// 3/6 = .5; a game type re-times the segments (swingTiming: action's windup : strike : follow : recover nearer the mecha
+// shelf's 28 : 14 : 14 : 44).
 //
 // Law 8, the swing follows the mass: the item's class sets the key count and the arc. A light item (a dagger, or a
-// short one) drops the coil and strikes at 2/6 ≈ .33 with a smaller cock; a heavy one (a greatsword, a mass ≥ 1.2, or an
+// short one) drops the coil and strikes at 2/5 = .4 with a smaller cock; a heavy one (a greatsword, a mass ≥ 1.2, or an
 // item past three quarters of the figure's height) adds a LOAD key (a held cock, the body sinking and coiling deeper), so it
-// cracks at 4/8 = .5 (the mecha's heavy cleave, +.06). The body drives: the shoulders and the spine coil toward the
+// cracks at 4/7 ≈ .57. The body drives: the shoulders and the spine coil toward the
 // weapon at the cock and uncoil through the strike, the trunk hinges over, the knees sink; both feet stay planted.
 //
 // The hand has no roll: a blade held tip-down at rest (hero-gear.js) is carried by the arm's arc, so the verbs keep to
@@ -103,9 +105,11 @@ export function swingKeys(word, cls = 'normal') {
     const cock = pose(V.cock); const load = { ...cock, crouch: Math.min(0.3, (cock.crouch ?? 0) + 0.08), ...(cock.spine?.twist ? { spine: { ...cock.spine, twist: [cock.spine.twist[0], Math.min(0.45, cock.spine.twist[1] + 0.1)] } } : {}) };
     keys = [READY, pose(V.coil), cock, load, pose(V.strike), pose(V.follow), pose(V.recover)];
   } else keys = [READY, pose(V.coil), pose(V.cock), pose(V.strike), pose(V.follow), pose(V.recover)];
-  const n = keys.length + 1;   // the loop's wrap back to ready is the last segment
-  return { keys, cls, strike: +((keys.length - 3) / n).toFixed(3), window: [+((keys.length - 4) / n).toFixed(3), +((keys.length - 2) / n).toFixed(3)] };
+  return { keys, cls, ...swingPhases(keys.length) };
 }
+/** Where a swing clip's phases fall as the player plays its `n` keys (n segments, the loop's wrap back to ready the last):
+ * the impact where the clip reaches its strike key, the window from the cock to the end of the follow-through. */
+export const swingPhases = (n) => ({ strike: +((n - 3) / n).toFixed(3), window: [+((n - 4) / n).toFixed(3), +((n - 2) / n).toFixed(3)] });
 
 /**
  * The swing a hero record plays, or null: its gesture word, the hand's gear, the item's class (law 8: its type, its mass

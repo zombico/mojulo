@@ -16,6 +16,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
+- **A swing knows its blow.** A hero's swing clip carries its contact data when packed (`move` on the clip, the GLB's
+  `moj:move`): its word, hand and class, the impact's phase and the contact window as shares of the clip, its game type
+  when timed, and the blade's tip (the item's point at rest on the hand's bone, which carries it rigidly), so an engine's
+  hit test or trail can put a locator there. The tip, ridden by the packed hand frames, stays within a millimetre of the
+  posed blade point at every frame. The phases a swing reports (`swingKeys`, the hero readout's `gear.<hand>.swing`) now
+  fall where the player puts its keys: a normal swing strikes at 0.5, a light at 0.4, a heavy at 0.571. They used to read
+  about 7 % of the cycle early.
 - **The default swing, timed by its game type.** A hero's swing word (chop, thrust, cleave …) plays in a world at that
   world's game type: a composed floor's flavor (`fxStyle`, a gameworld's `juice`) re-times the swing's own keys when the
   World packs the hero (`hero-swing.js` `swingTiming`). Each role of the swing (the wind-up, the strike, the
