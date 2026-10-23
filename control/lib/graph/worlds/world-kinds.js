@@ -441,7 +441,7 @@ export const WORLD_KINDS = {
     },
     // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
     // assembler; absent it, every field is byte-identical to before.
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded, toon: ctx.toon }))),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded, toon: ctx.toon, creases: ctx.creases }))),
   },
   // a city on rails (city/plan/): a plan laid layer by layer on a board of cells, shown as its massing and walked.
   // The legacy 'fractal-city' above is frozen; new city work lands here.
@@ -449,7 +449,7 @@ export const WORLD_KINDS = {
     title: 'mojulo city plan',
     walk: true,
     // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
-    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title }))),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title, creases: ctx.creases }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).

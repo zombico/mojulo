@@ -14,6 +14,7 @@
  *   measureAvoid(cube, checks) the list with its readout; `checks` the solved contract's, or null
  */
 import { PALETTE_LAWS } from '../color-theorist/solve.js';
+import { registerInkLaw } from './colour-register.js';
 
 // the noise a quiet surface keeps under: a block's own shift (`vary`) and the speckle in every texel (`grain`), on the
 // 0–255 scale the tile generators take them (the cube's stock stone is 28 and 11; a quiet one about half)
@@ -30,6 +31,11 @@ export const CUBE_LAWS = Object.freeze({
       }
       return { ok: !loud.length, value: `${loud.length ? `loud: ${loud.join(', ')}` : 'all quiet'}${open.length ? ` · its generator's own: ${open.join(', ')}` : ''}` };
     },
+  },
+  // the register's inks (colour-register.js): under every colour the world is painted in, the creases in the shade's hue
+  'register-ink': {
+    want: 'the register\'s inks sit under the darkest stop of every ramp, and the creases\' ink keeps to the shade\'s hue',
+    test: (cube) => registerInkLaw(cube),
   },
 });
 

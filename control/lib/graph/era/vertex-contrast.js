@@ -181,7 +181,7 @@ function floorFinder(faces, idx, normals) {
 
 /**
  * A face list shaped by a resolved contrast (`vc`: the terms plus `sky`, `ground`, `shade`, `key` colours, `toLight`,
- * `seed` and `mode`). Faces it leaves alone come back as they are; a shaped face comes back with a colour per corner
+ * `seed`, `mode`, and `unit` (metres a world unit) when the world is not measured in metres). Faces it leaves alone come back as they are; a shaped face comes back with a colour per corner
  * (`cornerFills`), its `fill` their mean, and its `vao` folded in when the contrast takes the contact.
  */
 export function contrastFaces(faces, vc) {
@@ -199,6 +199,9 @@ export function contrastFaces(faces, vc) {
   const sky = hat(vc.sky), ground = hat(vc.ground), shade = hat(vc.shade), key = hat(vc.key), toLight = unit(vc.toLight);
   const cav = vc.crevice > 0 || vc.ridge > 0 ? concavity(faces, idx, normals) : null;
   const foot = vc.foot && vc.foot.depth > 0 ? vc.foot : null, floorOf = foot ? floorFinder(faces, idx, normals) : null;
+  // the terms in metres (the foot's rise, the drift's patches) in the world's units: `unit` is metres a unit (a city's
+  // 3.66), absent in a world measured in metres
+  const U = vc.unit > 0 ? vc.unit : 1, footH = foot ? foot.height / U : 0;
   // a darkening drops value and leans halfway to the shade's hue: a shadow keeps the surface's saturation, cooled
   const lean = shade.map((v) => 0.5 + 0.5 * v);
   const dark = (m, x) => { if (x <= 0) return; const t = Math.min(1, x); for (let j = 0; j < 3; j++) m[j] *= (1 - t) + t * DEEP * lean[j]; };
@@ -217,7 +220,7 @@ export function contrastFaces(faces, vc) {
       const w = vc.metal, wall = 1 - Math.max(0, n[2]);
       const cornerFills = cs.map((c, k) => {
         const m = [1, 1, 1];
-        if (foot && wall > 0) { const h = c[2] - floorOf(c); if (Number.isFinite(h)) dark(m, w * foot.depth * wall * (1 - smooth(0, foot.height, h)) / (1 - DEEP)); }
+        if (foot && wall > 0) { const h = c[2] - floorOf(c); if (Number.isFinite(h)) dark(m, w * foot.depth * wall * (1 - smooth(0, footH, h)) / (1 - DEEP)); }
         if (cav) { const v = cav(c); if (v > 0) dark(m, w * Math.min(1, v * K) * vc.crevice); }
         if (vao) dark(m, w * (vc.contact * (1 - (k < vao.length ? vao[k] : vaoMean))) / (1 - DEEP));
         if (value) { const s = lum(m); m[0] = s; m[1] = s; m[2] = s; }
@@ -247,7 +250,7 @@ export function contrastFaces(faces, vc) {
       const m = [...m0];
       if (foot && wall > 0) {
         const h = c[2] - floorOf(c);
-        if (Number.isFinite(h)) dark(m, foot.depth * wall * (1 - smooth(0, foot.height, h)) / (1 - DEEP));
+        if (Number.isFinite(h)) dark(m, foot.depth * wall * (1 - smooth(0, footH, h)) / (1 - DEEP));
       }
       if (cav) {
         const v = cav(c);
@@ -257,7 +260,7 @@ export function contrastFaces(faces, vc) {
       if (vao) dark(m, (vc.contact * (1 - (k < vao.length ? vao[k] : vaoMean))) / (1 - DEEP));
       if (vc.variation > 0) {
         // patches about six metres across, up to a quarter of the value apart at full variation
-        const s = 6, nz = vnoise((c[0] + c[2] * 0.37) / s, (c[1] - c[2] * 0.21) / s, vc.seed | 0);
+        const s = 6 / U, nz = vnoise((c[0] + c[2] * 0.37) / s, (c[1] - c[2] * 0.21) / s, vc.seed | 0);
         const g = 1 + vc.variation * 0.5 * (nz - 0.5);
         for (let j = 0; j < 3; j++) m[j] *= g;
       }

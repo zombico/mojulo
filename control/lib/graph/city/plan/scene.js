@@ -241,7 +241,8 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
     // the leaves through the year and in the paint's colours (foliage.js); the shrubs grown here so they turn with them
     const leaves = { season: readSeason(d.plan.season), foliage: paint?.cube.colour.foliage ?? null, amount: paint?.amount ?? 0 };
-    for (const b of plants.boxes) grown.push(...seasonFaces(plantBoxToFaces(b, { light: LIT }), { ...leaves, deciduous: leaves.season === 'autumn' }));
+    // a world drawing creases (ctx.creases) tags its trees organic, so the crease pass leaves them alone
+    for (const b of plants.boxes) grown.push(...seasonFaces(plantBoxToFaces(b, { light: LIT, organic: !!ctx.creases }), { ...leaves, deciduous: leaves.season === 'autumn' }));
     const laid = ground.map(toUnits);
     scene = assembleBoxCityScene({ boxes: built, faces: [...laid, ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
     // the ground first: the World lifts a face stacked on another of its plane over it (face-mesh decollideFaces), so a

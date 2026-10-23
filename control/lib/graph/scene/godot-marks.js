@@ -116,6 +116,8 @@ export const PAGE_MARKS = Object.freeze({
   soft: m(B, 'soft groups carry no colliders, as on the page'),
   repeats: m(B, 'baked into the GLB, one mesh per template'),
   ao: m(B, 'baked into the vertex colours'),
+  fabric: m(A, 'the rock\'s fabric is drawn by the page\'s channel (channels/fabric.js) over the cliff faces; no engine leg draws it'),
+  creases: m(A, 'the crease pass reads the page\'s depth in a screen-space shader (channels/creases.js); no engine leg draws it yet'),
   vertexContrast: m(P, 'the geocube\'s contrast shapes the faces before scene-gltf.js bakes them (contrastFaces), as the page shapes them; no Godot leg plays a geocube world yet, so it is not proven built'),
   walk: m(P, 'kernel/walker.gd walks it, standing on a flat plane at score.ground and the box colliders: the page casts its ground onto the land\'s faces (a hill is walked through, a hollow floated over); a level\'s pilot on the walk or platform rule stands on the faces (RULE_MARKS)'),
   picks: m(A, 'pick popups are the page\'s'),

@@ -25,6 +25,7 @@ import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest
 import { validateFire } from '@/lib/graph/fire/fire';
 import { validateStructures } from '@/lib/graph/fractal-structure';
 import { readWeather } from '@/lib/graph/weather/weather';
+import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintFractalCity, createFractalCityHandler } from '@/lib/mcp/tools/scene-city';
@@ -156,6 +157,14 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     try { readWeather(slots.weather, 'overrides.weather'); } catch (err) { throw new Error(`compose_world: ${err.message}. Manual: get_view_vocab({ id: 'weather' }).`); }
     weather = slots.weather;
   }
+  // `creases` is kind-generic as well (world-scene.js hands it to the World page for every kind): true or
+  // { ink, line, wash, reach }, read here (a setting that does not read refuses the mint, teaching) and stamped like
+  // fire. Manual: get_view_vocab({ id: 'creases' }).
+  let creases;
+  if (slots.creases !== undefined && slots.creases !== null && slots.creases !== false) {
+    try { readCreases(slots.creases); } catch (err) { throw new Error(`compose_world: overrides.${err.message}. Manual: get_view_vocab({ id: 'creases' }).`); }
+    creases = slots.creases;
+  }
   const params = b.adapt(slots);
   // Only spread top-level fields the caller actually set, so an
   // overrides-supplied seed/title isn't clobbered by `undefined`.
@@ -193,6 +202,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
       if (result.recipe && typeof result.recipe === 'object') result.recipe.structures = structures;
     }
   }
+  if (creases && result && result.ref && !(result.recipe && result.recipe.creases)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, creases } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.creases = creases;
+    }
+  }
   // Silent-swallow guard (0813 first-contact reports): every mint destructures a
   // parameter whitelist, so an override key the base doesn't know — or a value that
   // fails its validation — used to vanish without a trace. Surface a soft note for
@@ -200,7 +216,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'structures', 'plan']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'structures', 'creases', 'plan']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed

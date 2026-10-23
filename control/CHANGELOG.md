@@ -14,6 +14,45 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Creases: the vgl rule as a shader in the World
+
+The vgl rule inks a concave crease (a wall's foot, a tier on the one below, a column on its plinth) and never a convex
+edge or a silhouette. Until now it was baked geometry for box massings only: the stepped pyramid's hairlines and the
+city's `creaseSeams` feather. It is now a pass in the World page over the scene's depth, for any geometry the builders
+mark angular, with a falloff that blends from the corner out. Opt-in: a world that does not ask emits the same bytes.
+
+- **`creases` on any world manifest** (`true`, or `{ ink, line, wash, reach }`). Built for the outcomes outside the game
+  loop: the fractal city (its metro profile too), the city plan, edifices, historic places, the transit kinds and the
+  building interiors. The exported unshaded base drops it, as it drops the other baked shading. `compose_world` takes
+  it as `overrides.creases` on any base, and a stored world takes it by patch (`set /creases true`); the manual is the
+  `creases` view-vocab card. Engines do not draw it yet (marked absent).
+- **How it draws** (`scene/channels/creases.js`). One prepass draws every solid's linear depth and an angular mask
+  into a float target. A pass then reads each pixel's neighbours against its plane: a small disc for the line, a disc
+  of the world reach for the blend. Only rises taller than two pixels count, and the ink fades where the reach spans
+  only a few pixels, so a far facade's window reveals are not hatched. A depth-aware 4x4 composite blends the sampling
+  jitter out.
+- **Only angular surfaces take ink.** A face marked `organic` (the city's trees) is drawn black in the crease mask, so
+  neither it nor the ground at its foot is inked; figures, walkers, cars, water and the sky are never inked.
+- **The colour register** (`era/colour-register.js`). A geocube's `register` was the tone's bands and key; it can now be
+  a NAME that renders the world as a drawing: `cel` (three bands along each ramp, an outline round every form, crisp
+  creases), `ink-wash` (a broad wash pooling in every corner, a fine outline), `wii` (soft creases, the light shaped in
+  the vertex) and `continuous` (the light alone). `{ from, …changes }` varies one; its terms are `steps`, `key`,
+  `outline`, `creases` and `contrast`, and a name keeps the key the cube had or the palette solves. The colour theorist
+  inks it: the outline in the stone's hue and the creases in the shade's, both under every ramp's darkest stop, checked
+  by a cube law, `register-ink`. A world painted by the cube (a stage's `geocube`, the geocube kind, a city plan's
+  `paint.geocube`) draws the register's creases and outline; the world's own `creases` wins, and `false` turns them off.
+  A register's `contrast` is lent to a cube that names none of its own. A cube whose register is `{ steps, key }`
+  reads, lowers and renders as before.
+- **The outline** is a term of the crease pass (`creases.outline`): a line round every silhouette, where a pixel's
+  neighbours find the sky or a surface well behind it. The toon dial's ink hull stays the figures' outline.
+- **Land.** A face may be `organic: 'land'`: inked only where something built meets it, and outlined against what lies
+  behind it but not against the sky at the world's edge. When a world draws creases its land and plant pools take their
+  class from their groups (`scene/crease-roles.js`: the polygon land, a terrain's bake, rocks; the plant pools'
+  species), so nothing is threaded through the land's builders. A water sheet hides the bed under it from the pass, and
+  the sky dome is no surface behind anything. The scene's fog takes the ink as it takes the surface under it.
+- **Fixed: vertex contrast in a world not measured in metres.** The contrast's foot and its drift are metres; a city
+  plan's unit is 3.66 m, so the foot covered a whole storey. The payload now carries the world's unit to it.
+
 ### Micro matte painting: surfaces painted from relief
 
 Every surface mark becomes relief, painted from a light: an element's face is a seeded height field, lit from a

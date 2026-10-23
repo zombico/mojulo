@@ -2421,7 +2421,7 @@ function buildingExtrasOn(b, f, floors, bays, front) {
   };
 }
 
-export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], faces: extraFaces = [], sources = [], diffusion = {}, moonlight, cameras = DEFAULT_CITY_CAMERAS, viewBox = { width: 1120, height: 780 }, unitScale = 22, title = 'mojulo fractal city', light, bg = '#0e1014', sky, groundShadows = false, creaseSeams = false } = {}) {
+export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], faces: extraFaces = [], sources = [], diffusion = {}, moonlight, cameras = DEFAULT_CITY_CAMERAS, viewBox = { width: 1120, height: 780 }, unitScale = 22, title = 'mojulo fractal city', light, bg = '#0e1014', sky, groundShadows = false, creaseSeams = false, organic = false } = {}) {
   const L = light || makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
   const camHint = cameras[0]?.worldFraming?.cameraPosition || [-7, 31, 9];
   let faces = [];
@@ -2515,7 +2515,8 @@ export function assembleBoxCityScene({ boxes = [], grounds = [], ribbons = [], f
     } else if (isPlantShape(b.shape)) {
       // city/scene tree: a taiji plant meshed to baked faces, lit by the scene's L
       // (so day/night is correct), then dressed by moonlight/diffusion like any face.
-      faces.push(...plantBoxToFaces(b, { light: L }));
+      // `organic` (a world drawing creases): its faces are tagged so the crease pass leaves the tree alone
+      faces.push(...plantBoxToFaces(b, { light: L, organic }));
     } else if (['building', 'anchor', 'midtower'].includes(b.kind)) {
       // `b.program` (an operator block's industrial shed) names the facade program; absent it is the hash's own draw, as before
       const facade0 = b.facade || makeFacade(cityHash(`${b.x.toFixed(1)},${b.y.toFixed(1)},${(b.z1 - b.z0).toFixed(1)}`), { height: b.z1 - b.z0, program: b.condo ? 'slab-block' : b.program });
