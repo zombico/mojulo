@@ -163,13 +163,15 @@ describe('juice style: the characters\' rim light', () => {
     expect(iso.band).toBe(0);
     expect(mat.p).toBeGreaterThan(iso.p);   // narrower
     expect(mat.k).toBeLessThan(iso.k);      // fainter
+    expect(cel.gap).toBeGreaterThan(iso.gap);   // the field stands off the body: widest in cel, a hairline in material
+    expect(iso.gap).toBeGreaterThan(mat.gap);
     expect(floor('anime', 'action').rim.k).toBeGreaterThan(floor('anime', 'realistic').rim.k);
     expect(floor('anime', 'action', { rim: 0 }).rim.k).toBe(0);
   });
 
   it('carries the rim on a composed floor\'s events and lays the look\'s rim on a status\'s coat; the plain floor neither', () => {
     const F = floor('anime', 'action', { look: 'cel' }), S = styleEvents(ev(), F);
-    expect(S.rim).toEqual({ k: F.rim.k, p: F.rim.p, band: F.rim.band });
+    expect(S.rim).toEqual({ k: F.rim.k, p: F.rim.p, band: F.rim.band, gap: F.rim.gap });
     expect(S.looks['power-up'].coat).toMatchObject({ p: F.rim.p, band: F.rim.band });
     expect(S.looks['power-up'].coat.k).toBeGreaterThan(LOOKS['power-up'].coat.k);
     const E = ev(), plain = styleEvents(E);
@@ -183,6 +185,8 @@ describe('juice style: the characters\' rim light', () => {
     expect(none).not.toContain('__stepRim');
     const rim = eventsChannelScript(ev({ look: 'cel', flavor: 'action' }));
     expect(rim).toContain('__stepRim');
+    expect(rim).toContain('__rimField');   // a smooth field off the body, purely fresnel
+    expect(rim).not.toContain('dFdx');
     expect(rim).toContain('__fxlPush');
     expect(rim).not.toContain('forEach(__fxlPatch)');   // the world is not lit: fxLight is not on
     const both = eventsChannelScript(ev({ look: 'cel', flavor: 'action' }, { fxLight: true }));

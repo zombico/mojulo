@@ -254,7 +254,7 @@ export function styleEvents(events, F = FX_STYLE) {
   const rpg = F.composed && events.rpg && events.rpg.juice ? { rpg: { ...events.rpg, juice: styleJuice(events.rpg.juice, F) } } : {};
   // the characters' rim (effect-rim.js): the look's rim at the game type's strength; a status's coat in the look's rim
   // (as narrow, a cel band where the look draws one, lifted by its share)
-  const rim = F.composed && F.rim && F.rim.k > 0 ? { rim: { k: F.rim.k, p: F.rim.p, band: F.rim.band } } : {};
+  const rim = F.composed && F.rim && F.rim.k > 0 ? { rim: { k: F.rim.k, p: F.rim.p, band: F.rim.band, gap: F.rim.gap } } : {};
   const looks = F.composed && F.rim && events.looks ? { looks: Object.fromEntries(Object.entries(events.looks).map(([n, L]) => [n, L && L.coat ? { ...L, coat: { ...L.coat, p: F.rim.p, k: +Math.min(1.5, L.coat.k * F.rim.coat).toFixed(3), ...(F.rim.band ? { band: F.rim.band } : {}) } } : L])) } : {};
   return { ...events, reactions, ...rpg, ...rim, ...looks };
 }

@@ -47,26 +47,27 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
  *  (its smoke and dust stay soft); `onions` a fire's body as spirit onions (aura.js: overlapping shells spinning their own ways, rings of spikes round them); `debris` dark specks thrown
  *  from a blow; `tint` how far an explosion's grey smoke is pulled toward a deeper tone of its own
  *  colour; `comic` the manga ink burst; `rim` the characters' rim light from the effects round them (effect-rim.js: `k`
- *  its strength, `p` how narrow, `band` above 0 a cel band where the fresnel passes it) and what it does to a status's
+ *  its strength, `p` how narrow, `band` above 0 a cel band where the fresnel passes it, `gap` metres the field stands off
+ *  the body) and what it does to a status's
  *  coat (`coat`: its strength ×, with the rim's narrowness and band). */
 export const JUICE_LOOKS = Object.freeze({
   isekai: {
     register: 'anime',
     says: 'the contemporary anime RPG: no ink line; a white-hot core into saturated ribbons in a near hue, soft trails, glints for sparks, fire that burns as glowing light, a halo ring on the blow and glints drifting up after it; smoke short and tinted its colour; smooth, every frame',
     ink: null, companions: true, hue: 35, echoes: 3, echoLag: 0.05, echoShrink: 0.8, echoFade: 0.55,
-    rim: { k: 1.1, p: 2.2, band: 0, coat: 1.15 }, glyphs: { streak: 'spark', chip: 'spark' }, draw: {}, comic: false, halo: true, motes: true, glow: true, onions: false, debris: false, tint: 0.6, smoke: 0.35, light: 1.2, star: 1.35, fps: null, edge: 'glow', cel: false,
+    rim: { k: 1.1, p: 2.2, band: 0, gap: 0.02, coat: 1.15 }, glyphs: { streak: 'spark', chip: 'spark' }, draw: {}, comic: false, halo: true, motes: true, glow: true, onions: false, debris: false, tint: 0.6, smoke: 0.35, light: 1.2, star: 1.35, fps: null, edge: 'glow', cel: false,
   },
   cel: {
     register: 'anime',
     says: 'full anime, cel-shaded (the anime fighter\'s, high-res colour in hard painterly shapes): flat bands with hard edges round a white-hot core, accent hues beside the attack\'s own, fire as overlapping spinning spirit onions ringed by spikes, speed lines, dark debris specks and a swirl ring on the blow, smoke short and coloured; no outline, no grey; drawn on twos',
     ink: null, companions: true, hue: 150, echoes: 3, echoLag: 0.06, echoShrink: 0.82, echoFade: 0.6,
-    rim: { k: 1.3, p: 1.5, band: 0.45, coat: 1.25 }, glyphs: { spark: 'streak' }, draw: { dot: 'cdot', soft: 'cblob' }, comic: false, halo: true, motes: true, glow: false, onions: true, debris: true, tint: 0.8, smoke: 0.25, light: 0.8, star: 1.3, fps: 12, edge: 'glow', cel: true,
+    rim: { k: 1.3, p: 1.5, band: 0.45, gap: 0.04, coat: 1.25 }, glyphs: { spark: 'streak' }, draw: { dot: 'cdot', soft: 'cblob' }, comic: false, halo: true, motes: true, glow: false, onions: true, debris: true, tint: 0.8, smoke: 0.25, light: 0.8, star: 1.3, fps: 12, edge: 'glow', cel: true,
   },
   material: {
     register: 'western',
     says: 'material: no ink, the glow and the light it throws carry it; one colour, the material\'s; motion blur, not afterimages; streaks and chips; grey smoke that lingers; every frame',
     ink: null, companions: false, hue: 40, echoes: 4, echoLag: 0.035, echoShrink: 0.9, echoFade: 0.42,
-    rim: { k: 0.5, p: 3.6, band: 0, coat: 0.8 }, glyphs: { spark: 'streak' }, draw: {}, comic: false, halo: false, motes: false, glow: false, onions: false, debris: false, tint: 0, smoke: 1.5, light: 1.6, star: 0.9, fps: null, edge: 'glow', cel: false,
+    rim: { k: 0.5, p: 3.6, band: 0, gap: 0.01, coat: 0.8 }, glyphs: { spark: 'streak' }, draw: {}, comic: false, halo: false, motes: false, glow: false, onions: false, debris: false, tint: 0, smoke: 1.5, light: 1.6, star: 0.9, fps: null, edge: 'glow', cel: false,
   },
 });
 export const JUICE_LOOK_IDS = Object.freeze(Object.keys(JUICE_LOOKS));
@@ -181,7 +182,7 @@ export function juiceFloor(style) {
     starK: r3(pick('star', Rg.star * Fl.star)),
     // the characters' rim: the look's (how narrow, a soft fade or a cel band, how a status's coat is lifted) at the game
     // type's strength
-    rim: Object.freeze({ k: r3(pick('rim', Rg.rim.k * Fl.rim)), p: Rg.rim.p, band: Rg.rim.band, coat: Rg.rim.coat }),
+    rim: Object.freeze({ k: r3(pick('rim', Rg.rim.k * Fl.rim)), p: Rg.rim.p, band: Rg.rim.band, gap: Rg.rim.gap, coat: Rg.rim.coat }),
   });
 }
 

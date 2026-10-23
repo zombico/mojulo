@@ -46,14 +46,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   and the cel look draws a blast's fire as one (the `burst` aura, sized to the fire, blooming and fading as it burns)
   in place of a spray. The page draws an aura only where a look or a blast carries one.
 - **The characters' rim light: an effect expressed on the bodies it plays among.** `scene/effect-rim.js`: a composed
-  floor rims every character at its edges with the effects round it (a beam's head going by, a charge at the hand, a
-  blast beside it), each light's colour falling off with distance, on the side of the body that faces it, at the
-  silhouette. The look decides how (isekai a soft wide glow, cel a flat hard band, material a thin faint line) and the
-  game type how strongly (action strongest, realistic least); a status's coat takes the look's rim too (a cel band on a
-  cel look). The `rim` dial sets it (0: none). It reads the effect light's lights of the frame, gathering them even
-  where the world is not lit by them (`fxLight` off), takes each face's normal from its derivatives (a character's
-  faces carry none), and exposes the characters' bodies only where it is on. The proving ground's `--rig` stands the
-  caster and target up as live characters and `--close caster|target` frames one.
+  floor gives every character a FIELD, a smooth shell a little off its body (its faces' corners welded where they meet
+  and their normals averaged, so it is smooth over the whole model whatever its faces are; pushed out by the look's
+  gap), its back faces only and kept off the body by the stencil the body marks, so it is one field round the whole
+  silhouette, never an outline round each piece. It is drawn purely by its fresnel, in the colour of the effects round
+  it (a beam's head going by, a charge at the hand, a blast beside it), falling off with distance. The look decides how
+  (isekai a soft halo with a small gap, cel a hard band with the widest, material a hairline) and the game type how
+  strongly (action strongest, realistic least); a status's coat takes the look's rim too (a cel band on a cel look). The
+  `rim` dial sets it (0: none). It reads the effect light's lights of the frame, gathering them even where the world is
+  not lit by them (`fxLight` off), follows the bodies only while a light is live, and exposes the characters' bodies only
+  where it is on. The proving ground's `--rig` stands the caster and target up as live characters and
+  `--close caster|target` frames one.
 - **A gameworld's `juice`.** `juice: 'auto' | false | { register?, look?, flavor?, …dials }` lays the composed floor on
   every level as `fxStyle`. The register comes from the game's tradition: the character book's direction, else the
   kit's pole as the colour theorist leaves it. The game type comes from the feel's template, else the genre's. A
