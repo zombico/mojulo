@@ -7,7 +7,7 @@
  *   CLIMATES         the climates a kind suits (terrain-plants.js PLANT_CLIMATES' names)
  *   SUBSTRATE_FLORA  { <substrate>: { <role>: [[ref, climates], …] } }: a ref is in the library (`grass:sedge`,
  *                    `flower:poppy`, `species:reed`, `form:fingers/saguaro`, `shrub`, `patch:puddle`, `stone:strewn`,
- *                    `stone:edge`) or wanted, not yet built (`want:marram`, its read in WANTS)
+ *                    `stone:edge`, `strand:shells`, `cut:sand`) or wanted, not yet built (`want:marram`, its read in WANTS)
  *   floraLibrary()   → the library's refs, read off its own registries
  *   floraGaps()      → { matrix: [{ substrate, role, have, want }], gaps: [{ want, read, substrates, climates, slots,
  *                    fills, score }] (ranked: the ground and climates a kind opens, and the empty slots it fills), empty
@@ -15,11 +15,15 @@
  *
  * Pure: read off the registries. The report a page is made of (docs/flora-gaps.md, scripts/flora-gaps.mjs).
  */
+// (the stage first, as every other reader loads it: the era's modules import one another in a ring)
+import './stage.js';
 import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWERS } from '../vegetation/wildflowers.js';
 import { SPECIES } from '../vegetation/species.js';
 import { FLORA_FORMS } from './out-flora.js';
 import { PATCH_KINDS } from './trail-dress.js';
+import { STRAND } from './strand.js';
+import { GROUND_CUTS } from './gritty-flora.js';
 import { SUBSTRATE_IDS } from './substrate.js';
 
 export const ROLES = Object.freeze(['cover', 'clump', 'accent', 'interspacing', 'canopy']);
@@ -42,16 +46,11 @@ export const WANTS = Object.freeze({
   'crevice-fern': 'small ferns rooted in the joints',
   stonecrop: 'fleshy rosettes of sedum and houseleek in the cracks',
   'rock-flower': 'thrift, rock rose and harebell from the crevices',
-  'dune-grass': 'marram in long tufts, holding the dune',
-  'sand-ripples': 'the wind\'s ripples drawn in the sand',
   'desert-scrub': 'saltbush and creosote, each a ring of bare sand round it',
   'sea-lyme': 'blue-grey lyme grass in clumps behind the beach',
   'sea-holly': 'blue thistle-heads of sea holly and the pink cushions of thrift',
   'beach-pea': 'a mat of sea pea and sandwort over the sand',
   'desert-bloom': 'the brief flowers after rain',
-  shells: 'shells in drifts along the tide line',
-  driftwood: 'bleached driftwood thrown up on the sand',
-  'sea-pebbles': 'rounded pebbles lying in drifts',
   tumbleweed: 'dry balls of brush caught against the stones',
   sphagnum: 'a bog\'s moss carpet, red and green',
   rush: 'stiff dark tufts of rush',
@@ -90,10 +89,10 @@ export const SUBSTRATE_FLORA = Object.freeze({
     canopy: [r('species:pine', ['temperate', 'alpine', 'boreal']), r('species:strangler', ['tropical'])],
   },
   sand: {
-    cover: [r('want:dune-grass', TB), r('want:sand-ripples'), r('want:desert-scrub', ['arid'])],
+    cover: [r('grass:marram', TB), r('cut:sand'), r('want:desert-scrub', ['arid'])],
     clump: [r('want:sea-lyme', TB), r('form:fingers/saguaro', ['arid']), r('form:fingers/pads', ['arid']), r('grass:needlegrass', ['arid'])],
     accent: [r('want:sea-holly', T), r('want:beach-pea', TB), r('want:desert-bloom', ['arid']), r('form:flower/plume', ['arid'])],
-    interspacing: [r('want:shells', TT), r('want:driftwood', TBT), r('want:sea-pebbles', TB), r('form:stone/slab', ['arid']), r('want:tumbleweed', ['arid'])],
+    interspacing: [r('strand:shells', TT), r('strand:driftwood', TBT), r('strand:sea-pebbles', TB), r('form:stone/slab', ['arid']), r('want:tumbleweed', ['arid'])],
     canopy: [r('species:coconut', ['tropical']), r('species:date', ['arid']), r('species:washingtonia', ['arid', 'tropical']), r('species:pine', T)],
   },
   wet: {
@@ -120,6 +119,9 @@ export function floraLibrary() {
   for (const k of Object.keys(SPECIES)) refs.add(`species:${k}`);
   for (const [f, F] of Object.entries(FLORA_FORMS)) for (const v of Object.keys(F.variants || {})) refs.add(`form:${f}/${v}`);
   for (const k of PATCH_KINDS) refs.add(`patch:${k}`);
+  for (const k of Object.keys(STRAND)) refs.add(`strand:${k}`);
+  // (a ground's own cut, drawn on a gritty land: era/gritty-flora.js)
+  for (const C of Object.values(GROUND_CUTS)) refs.add(`cut:${C.cut}`);
   return refs;
 }
 

@@ -34,7 +34,7 @@ const shoot = async (P, cam) => {
 };
 try {
   for (const [cube, dress = '{}', caption] of SETS) {
-    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'trail', manifest: { kind: 'stage', geocube: cube, trail: JSON.parse(dress), seed: 3 } });
+    const t0 = Date.now(), { payload: P } = await resolveWorldScene({ title: 'trail', manifest: { kind: 'stage', geocube: cube.startsWith('{') ? JSON.parse(cube) : cube, trail: JSON.parse(dress), seed: 3 } });
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false }));
     // (the stretch from y 20 to 28, its line read off the trail's own faces: the same stretch every set)
     const mid = (y) => { const fs = P.faces.filter((f) => f.group === 'isekai:trail' && !f.patch && Math.abs(f.corners.reduce((a, c) => a + c[1], 0) / f.corners.length - y) < 0.5); return [0, 1, 2].map((k) => fs.reduce((a, f) => a + f.corners.reduce((b, c) => b + c[k], 0) / f.corners.length, 0) / fs.length); };

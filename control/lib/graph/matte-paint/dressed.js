@@ -48,7 +48,8 @@
  * in every direction standing in tussocks, bare earth worn through in patches at grit; `'leaves'` a crown's skin, leaves
  * laid over one another, domed, grooved down the midrib, the dark between them; `'bark'` (u round a trunk, v up it)
  * rounded plates between furrows running up and forking; `'path'` (a floor) packed earth, crumbs, pebbles pressed into
- * it, worn hollows; `'gravel'` (a floor) small stones lying close in a bed of grit; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
+ * it, worn hollows; `'gravel'` (a floor) small stones lying close in a bed of grit; `'sand'` (a floor) wind ripples
+ * wandering across fine grains, a bright fleck here and there; `'verge'` a path's edge laid across it (v from the path's side to the land's): earth and pebbles
  * giving way to turf. Each is painted in its stone's
  * ramp alone (a grey, laid as a detail, rides on the face's own colour).
  *
@@ -553,6 +554,20 @@ const NATURAL = {
       peb[k] = p > 0 ? 1 : 0;
       return z + p - 0.002 * cr;
     }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.2 + 0.05 * sfbm(x, y, M, 0.4, 0.4, 3, seed + 13) + 0.06 * peb[k] - 0.35 * lit.cavity[k] * (0.6 + 0.4 * g)));
+  },
+  // SAND from above: wind ripples across it (a crest every few centimetres, wandering and forking as the wind shifts),
+  // the grains fine between them, a bright grit here and there (a shell's fleck)
+  sand(c, size, seed) {
+    const M = c.metres, g = c.grit, body = rampOf(c.stone), fleck = new Float32Array(size * size);
+    return paintedTile(c, size, TURF_LIGHT, (x, y, k) => {
+      // (the ripples run across the tile's v, wavelength ~7 cm, their line warped by a slow noise so they wander)
+      const warp = 0.06 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 3), ph = ((y + warp) / M) * Math.round(M / 0.07) * 2 * Math.PI;
+      const crest = Math.pow(0.5 + 0.5 * Math.sin(ph + 0.4 * Math.sin(ph * 0.5)), 2.2) * (0.6 + 0.4 * smoothstep(-0.3, 0.3, sfbm(x, y, M, 0.3, 0.3, 2, seed + 7)));
+      let f = 0;
+      marksNear(x, y, M, 0.05, 1, seed + 11, (cx, cy, h, cs) => { if (h(3) > 0.08 + 0.1 * g) return; if (Math.hypot(x - cx, y - cy) < cs * 0.08) f = 1; });
+      fleck[k] = f;
+      return 0.0022 * crest + 0.0004 * sfbm(x, y, M, 0.008, 0.008, 2, seed + 5);
+    }, (x, y, k, lit) => rampAt(body, 0.56 + (lit.value[k] - 1) * 1.3 + 0.03 * sfbm(x, y, M, 0.4, 0.4, 2, seed + 13) + 0.12 * fleck[k] - 0.25 * lit.cavity[k] * (0.6 + 0.4 * g)));
   },
   // GRAVEL from above: small stones lying close in a bed of grit, their crowns proud and rounded, a few larger among them,
   // the grit showing between (less of it with grit)

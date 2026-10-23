@@ -7,7 +7,7 @@
  *            sides as a wall, so a mass reads from the street and its leaves near it
  *   trunks   (isekai:wood) the `bark` cut up the trunk: plates between furrows
  *   the path (isekai:trail) the `path` cut: packed earth, crumbs, stones pressed into it
- *   the ground (isekai:ground, the talus) the `turf` cut: blades in tussocks
+ *   the ground (isekai:ground, the talus) the `turf` cut: blades in tussocks; sand (isekai:sand) the `sand` cut
  *   its edge (the trail's fringe lanes) the `verge` cut laid ACROSS the lane: earth and stones at the path's side giving
  *            way to turf at the land's, so the two meet in a band, not a line
  *
@@ -32,6 +32,9 @@ export const GROUND_CUTS = Object.freeze({
   'isekai:trail': Object.freeze({ cut: 'path', metres: 1.5, vary: 14, seed: 83 }),
   'isekai:ground': Object.freeze({ cut: 'turf', metres: 1.5, vary: 12, seed: 71 }),
   'isekai:scree': Object.freeze({ cut: 'turf', metres: 1.5, vary: 12, seed: 71 }),
+  // (sand, where the substrate is: era/substrate.js)
+  // (one variant: its ripples run on across the faces, where a change of tile would show as a square)
+  'isekai:sand': Object.freeze({ cut: 'sand', metres: 1.2, vary: 10, seed: 97, one: true }),
   verge: Object.freeze({ cut: 'verge', metres: 1, vary: 12, seed: 89 }),
 });
 
@@ -90,7 +93,7 @@ export function withGrittyGround(faces, grit, { verge = () => false, nearTrail =
     if (!C || Math.abs(f.normal[2]) <= 0.7) return f;
     // (one variant only: a paving's joints run on across the faces, where a path's noise would hide a change)
     if (paved && f.group === 'isekai:trail') { const out = layDetail(withFills(f), { key: paved[0], metres: trail.metres, as: 'floor' }); return out.texture ? out : f; }
-    const out = layDetail(withFills(f), { key: keyOf(C, variantOf(f)), metres: C.metres, as: 'floor' });
+    const out = layDetail(withFills(f), { key: keyOf(C, C.one ? 0 : variantOf(f)), metres: C.metres, as: 'floor' });
     return out.texture ? out : f;
   });
 }

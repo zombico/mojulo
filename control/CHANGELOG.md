@@ -125,6 +125,26 @@ on the road. Existing tiles are untouched: a cube, stage or road that does not a
   through the ramps. A surface named in another generator is kept; a quiet cube's room is as it was. `limestone-crags`
   is the first.
 
+### Sand: the ground drawn as sand, and what lies on it
+
+Where a level's ground is sand, the stage now draws sand there, in the cube's own sand colour, with no grass on it and
+wind ripples on a gritty cube. A new library of what lies on sand (shells, driftwood, sea pebbles) and a dune grass
+fill the gap report's sand row. A land with no sand is drawn as before.
+
+- A sandstone cube's flats are sand on its stage (`era/substrate.js` `turnField`, the formation's turn as a field): the
+  line between sand and turf is cut through the land's cells where the field crosses, not along the grid; no tufts,
+  field or live grass stand on it. A gritty land lays it with the new `sand` cut (`matte-paint/dressed.js`): wind
+  ripples wandering across fine grain, a bright fleck here and there.
+- The strand (`era/strand.js`): `shells`, `driftwood` and `sea-pebbles`, each a row and a builder of small faces in the
+  kit's own ramps (a shell the sand's light end or, a mussel, the rock's dark; driftwood the rock's light end bleached
+  toward the sand; a pebble the rock's). Shells only where a shore says the tide reaches.
+- `marram` joins the grasses (`vegetation/grass.js`): stiff grey-green tufts with a pale spike.
+- Inland sand is dressed: pebbles in drifts, driftwood now and then, marram in sparse clumps in the kit's grass leaned
+  to its sand. A gritty island's beach takes shells along its tide line, driftwood and pebbles above it, and its line
+  with the turf is cut through the cells at the beach's height (`cutFace`) rather than stepping round them. The sand cut
+  is laid in one variant, so its ripples run on across the faces.
+- The gap report reads the strand and the ground cuts (`strand:`, `cut:` refs); the sand's cover is no longer empty.
+
 ### The substrate map and the flora gap report
 
 The geocube now says what its ground is (bedrock, scree, soil, sand, wet ground, the path), cell by cell, from what

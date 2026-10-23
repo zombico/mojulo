@@ -58,6 +58,8 @@ import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
 import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, turfBands, IN_DIRT } from './trail-dress.js';
 import { detailKey } from '../matte-paint/detail.js';
+import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
+import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
 import { rockFabric, FABRIC_GROUPS, GRIT_PIXELS } from '../matte-paint/fabric.js';
@@ -366,6 +368,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // rest is placed on keeps its own)
   const zG = SH && SH.facet > 0 ? facetedZ(st, site.grid, SH.facet) : site.grid.z;
   const ground = isekaiGround(st, site, zG);
+  // (the SAND, era/substrate.js: on a polygon land whose formation turns its flats to sand, those cells' ground is drawn
+  // as sand and no grass stands on it; no sand cell, nothing changes)
+  const SA = SH ? sandOf(st, site, SH, seed) : null, onSand = SA?.at ?? null;
+  if (SA) ground.faces = ground.faces.flatMap((f) => (f.cel || f.group !== 'isekai:ground' ? [f] : SA.cut(f)));
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // a named stone (the trail's landmark) carries its node on every face
@@ -447,7 +453,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the polygon land: the rock untiled, lit with the land below; its albedo the rock ramp's middle, as the island's; the
   // talus apron is ground, as the island's is)
   const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
-  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil) } : null;
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:scree': mid(st.palette.grass), 'isekai:trail': mid(st.palette.soil), ...(onSand ? { 'isekai:sand': mid(st.palette.sand ?? st.palette.soil) } : {}) } : null;
   const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, key: _k, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // (on a polygon land the grass is a biocube's: the island grows none of its own; with it, a boulder big enough wears
   // its hat again, its top the ground's)
@@ -497,7 +503,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
   for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = grows ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
+  const tufts = grows ? grassTufts(st, site, near, rocks, sun, seed).filter((t) => !onSand?.(t.pos)) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -511,13 +517,24 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
       const px = x + (hash3(i, 71, S + 181) - 0.5) * F.every, py = y + (hash3(i, 73, S + 191) - 0.5) * F.every, d = site.trailDist(px, py), edge = site.halfWAt(py) + site.fringeAt(py);
       if (d < edge || d > edge + F.reach * (0.75 + 0.5 * vnoise(px * 0.2, py * 0.2, S + 193))) continue;
-      if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1) continue;
+      if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1 || onSand?.([px, py])) continue;
       if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - px, r.y - py) < r.size * st.rubble.unit * 0.55) || near.some((t) => Math.hypot(t.x - px, t.y - py) < 0.5)) continue;
       const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0 || (Gl ? glowAt([px, py, z + 0.3]) >= st.cel : false), h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
       const raw = [];
       crossed(raw, [px, py, z - 0.03], Math.PI * hash3(i, 77, S + 199), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
       for (const { tint, textureLit, ...f } of raw) cel.push(MAT ? put(f, 'blades', lt) : { ...f, fill: stopFill(st, 'blades', lt) });
     }
+  }
+  // the SAND dressed (era/strand.js): pebbles in drifts and driftwood lying on it, dune grass in clumps (no shells: no
+  // shore inland); each piece a stop up where the sun reaches it, and cast nothing
+  if (SA) {
+    for (const p of strewStrand(st, { cells: SA.cells, cell: SA.cell, heightAt: site.ground, seed, grit: broken, keep, on: SA.at })) {
+      const isLit = lit([p.at[0], p.at[1], site.ground(p.at[0], p.at[1]) + 0.15], [0, 0, 1]);
+      for (const { part: _p, value: _v, ...f } of p.faces) cel.push({ ...f, fill: rgbHex(strandFill(st, { part: _p, value: _v }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
+    }
+    const avoid = [...rocks.filter((r) => r.role !== 'pebble').map((r) => ({ x: r.x, y: r.y, r: r.size * st.rubble.unit * 0.6 })), ...near.map((t) => ({ x: t.x, y: t.y, r: 0.6 }))];
+    const dune = duneGrass(st, { cells: SA.cells, cell: SA.cell, heightAt: site.ground, seed, keep, avoid, on: SA.at });
+    for (const { rgb, ...f } of duneGrassFaces(st, dune, (p) => lit(p, [0, 0, 1]), site.inRadius)) cel.push({ ...f, fill: rgbHex(rgb.map((v) => v / 255)) });
   }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
   // leaf die — dense at the foot on the crown, ragged at the tip — so a crown's edge is leaves, not a blob's curve
@@ -628,7 +645,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     glow: !!Gl,
     pack: true,
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
-    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st) } : {}),
+    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st), onSand) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };
@@ -807,6 +824,32 @@ function flowerConfig(st, F, seed) {
 }
 
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
+/** Where a polygon land's ground is SAND (era/substrate.js: its formation's turn): { at (a test on a point's (x, y)),
+ *  cut (a ground face → its sand and its ground, the line between them the turn's), cells (the sand cells' centres),
+ *  cell (m) }; null when no cell is. */
+function sandOf(st, site, SH, seed) {
+  const skin = typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin]?.to === 'sand' ? SH.skin : null;
+  if (!skin) return null;
+  const M = substrateMap(st, site, { formation: skin, seed }), S = SUBSTRATE_IDS.indexOf('sand'), field = turnField(skin, seed);
+  if (!M.shares.sand) return null;
+  const turnable = (p) => {
+    const i = Math.floor((p[0] - M.x0) / M.cell), j = Math.floor((p[1] - M.y0) / M.cell);
+    return i >= 0 && j >= 0 && i < M.nx && j < M.ny && M.turnable[j * M.nx + i] === 1;
+  };
+  const at = (p) => turnable(p) && field(p[0], p[1]) > 0;
+  // a ground face of a turnable cell: sand where the field is past its turn, the line between drawn through the cell
+  const cut = (f) => (turnable(mean(f.corners)) ? cutFace(f, f.corners.map((c) => field(c[0], c[1])), 'isekai:sand') : [f]);
+  const cells = [];
+  for (let k = 0; k < M.cells.length; k++) if (M.cells[k] === S) cells.push([M.x0 + (k % M.nx + 0.5) * M.cell, M.y0 + (Math.floor(k / M.nx) + 0.5) * M.cell]);
+  return { at, cut, cells, cell: M.cell };
+}
+/** The live grass kept off the sand: its mask's cells there cleared (the same landform cells). */
+function offSand(LG, onSand) {
+  if (!LG || !onSand) return LG;
+  const g = LG.grid, m = Uint8Array.from(Buffer.from(g.m.__b64, 'base64')), w = g.nx - 1;
+  for (let k = 0; k < m.length; k++) if (m[k] && onSand([g.x0 + (k % w + 0.5) * g.cell, g.y0 + (Math.floor(k / w) + 0.5) * g.cell])) m[k] = 0;
+  return { ...LG, grid: { ...g, m: b64(m) } };
+}
 /**
  * The LIVE GRASS the World page stands round the walker with `wind` (scene/channels/stage-grass.js): the ground as the
  * landform grid's heights, and per cell a mask — bit 0: grass may stand (not the cliff, the scree apron, the trail's

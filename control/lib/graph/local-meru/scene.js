@@ -36,6 +36,8 @@ import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
 import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
 import { breakRims, strewStones } from './broken-land.js';
+import { strewStrand, strandFill } from '../era/strand.js';
+import { cutFace } from '../era/substrate.js';
 import { valleyOf, planarise, FACET_PASSES } from './land-form.js';
 
 export { valleyOf };
@@ -54,6 +56,9 @@ const stopFill = (st, tile, lit) => { const T = st.tiles[tile], ramp = st.palett
 
 // how far the level ground runs past the widest foot, how far the seam eases into it, the walk's lift off the ground
 const APRON = 14, SEAM = 12, LIFT = 0.04;
+// the beach: how high over the sea the sand runs (m); the tide line, how high a gritty beach's shells lie
+const BEACH = 0.6;
+const STRAND_TIDE = 0.35;
 
 // a mound's surface at (x, y): its foot's height plus its flank's, or nothing past its foot
 const moundAt = (t, x, y) => {
@@ -223,7 +228,7 @@ function groundFaces(st, p, heightAt, S = null) {
   // the cliff rule: steeper than the card's slope.rock is cliff; on a geology island, so is every face of the raised
   // land that is not a flat bench or top, so a mountain reads as rock, never as a turned (lathed) mound
   const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]));
-  const F = p.recipe.shading ? p.recipe.shading.facet : 0;
+  const F = p.recipe.shading ? p.recipe.shading.facet : 0, gritty = p.recipe.shading?.grit !== undefined && p.recipe.shading.grit >= GRIT_PIXELS;
   if (F > 0) for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, F);
   const bed = S && S.seabed === 'merged' ? seabedCells(g, z, S.bed) : null;
   if (bed) for (const R of bed.rects) {
@@ -236,7 +241,12 @@ function groundFaces(st, p, heightAt, S = null) {
     if (isCliff(cs, n)) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0;
       out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, uv: cs.map((q) => [r5(q[h] / sc), r5(q[2] / sc)]), group: 'isekai:cliff' });
-    } else if (S && mean(cs)[2] < S.sea + 0.6) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
+    } else if (S && gritty) {
+      // (a gritty island's beach: the line between sand and turf drawn through the cells at the beach's height, not
+      // round them, so its edge is a curve and not the grid's steps)
+      const f = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground', flat: n[2] };
+      for (const q of cutFace(f, f.corners.map((c) => S.sea + BEACH - c[2]), 'isekai:sand')) out.push(q.group === 'isekai:sand' ? { ...q, tint: st.tint.trail } : q);
+    } else if (S && mean(cs)[2] < S.sea + BEACH) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
     else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground', flat: n[2] });
   }
   return { faces: out, grid: { ...g, z } };
@@ -425,6 +435,16 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     crossed(raw, [q[0], q[1], q[2] - 0.03], Math.PI * hash3(i, 17, seed + 427), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
     for (const { tint, textureLit, ...g } of raw) cel.push({ ...g, fill: stopFill(st, 'blades', lt) });
   });
+  // a gritty island's BEACH (era/strand.js): shells along the tide line, driftwood thrown up and pebbles in drifts on its
+  // sand above the sea; each piece a stop up where the sun reaches it, and cast nothing
+  if (broken && S) {
+    const dry = (q) => heightAt(q[0], q[1]) > S.sea + 0.04, cells = ground.faces.filter((f) => f.group === 'isekai:sand' && dry(mean(f.corners))).map((f) => mean(f.corners));
+    const shore = (x, y) => heightAt(x, y) < S.sea + STRAND_TIDE;
+    for (const q of strewStrand(st, { cells, cell: ground.grid.dx, heightAt, seed, grit: broken, shore, on: dry })) {
+      const isLit = lit([q.at[0], q.at[1], heightAt(q.at[0], q.at[1]) + 0.15], [0, 0, 1]);
+      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(strandFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
+    }
+  }
   // the bake, then the lock: the land to the card's ramps, what people build to the kit's made ramps
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   const plain = [...ground.faces.filter((f) => !f.cel).map(({ flat, ...f }) => f), ...walk.faces, ...built];

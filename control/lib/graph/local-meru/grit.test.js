@@ -1,6 +1,6 @@
 /**
  * Rock takes pixels when the style is gritty (shading `grit`): at GRIT_PIXELS or over, the land's faces are the quiet
- * style's byte for byte and the page is handed the rock's own fabric (matte-paint/fabric.js) to draw on the near cliffs;
+ * style's byte for byte (but its broken rims, its beach's line cut through the cells and what lies on its beach) and the page is handed the rock's own fabric (matte-paint/fabric.js) to draw on the near cliffs;
  * under it, or absent, the land is as it was. On one small island.
  */
 import { describe, expect, it } from 'vitest';
@@ -21,19 +21,25 @@ describe('rock takes pixels in a gritty style', () => {
     expect(base.fabric).toBeUndefined();
   });
 
-  it('a gritty style\'s land is the quiet style\'s but its broken rims, its boulders and its stones', () => {
-    // the same faces in the same order; a corner that moved is a cliff's rim vertex, pushed a little into the land
-    const land = (P) => P.faces.filter((f) => f.group !== 'isekai:rock'), a = land(base), b = land(gritty);
-    expect(b.map((f) => f.group)).toEqual(a.map((f) => f.group));
-    let moved = 0;
-    a.forEach((f, i) => f.corners.forEach((c, j) => {
-      const d = b[i].corners[j];
-      if (d.join() === c.join()) return;
-      moved++;
-      expect(Math.hypot(d[0] - c[0], d[1] - c[1])).toBeLessThan(0.8 * 0.7 * 0.5 + 1e-3);
-      expect(d[2]).toBeLessThanOrEqual(c[2]);
-    }));
+  it('a gritty style\'s land is the quiet style\'s but its broken rims, its beach\'s line, its boulders, its stones and its strand', () => {
+    // the same faces in the same order; a corner that moved is a cliff's rim vertex, pushed a little into the land; a
+    // cell the beach's line crosses is cut in two along it, its turf and its sand (era/substrate.js cutFace)
+    const land = (P) => P.faces.filter((f) => f.group !== 'isekai:rock' && f.group !== 'isekai:strand'), a = land(base), b = land(gritty);
+    let moved = 0, cut = 0, j = 0;
+    const near = (c, d) => Math.hypot(d[0] - c[0], d[1] - c[1]) < 0.8 * 0.7 * 0.5 + 1e-3 && d[2] <= c[2];
+    for (const f of a) {
+      const g = b[j];
+      if (g.group === f.group && g.corners.length === f.corners.length && f.corners.every((c, k) => near(c, g.corners[k]))) {
+        f.corners.forEach((c, k) => { if (g.corners[k].join() !== c.join()) moved++; });
+        j++; continue;
+      }
+      expect([b[j].group, b[j + 1].group]).toEqual(['isekai:ground', 'isekai:sand']);
+      cut++; j += 2;
+    }
+    expect(j).toBe(b.length);
     expect(moved).toBeGreaterThan(0);
+    expect(cut).toBeGreaterThan(0);
+    expect(gritty.faces.some((f) => f.group === 'isekai:strand')).toBe(true);
     // and small stones lie about: more rock than the boulders' alone
     expect(gritty.faces.filter((f) => f.group === 'isekai:rock').length).toBeGreaterThan(base.faces.filter((f) => f.group === 'isekai:rock').length);
     expect(JSON.stringify(build({ grit: 0.7 }).faces)).toBe(JSON.stringify(gritty.faces));

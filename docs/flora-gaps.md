@@ -26,13 +26,13 @@ A cube's rock formation turns its soil: limestone (thin soil over limestone give
 | bedrock | *lichen-crust*, *rock-moss* | *crevice-fern*, *stonecrop*, *cushion-plant* | `form:fingers/tubes`, *rock-flower* | `form:stone/slab`, `form:stone/outcrop`, `form:stone/boulder`, `stone:strewn` | `species:pine`, `species:strangler` |
 | scree | *scree-lichen* | `grass:needlegrass`, *cushion-plant* | *alpine-flower*, *scree-runner* | `stone:strewn`, `stone:edge`, `form:stone/stack` | `species:pine`, *krummholz* |
 | soil | `grass:meadow`, `grass:lawn`, `grass:fescue`, `grass:elephant`, *steppe-grass* | `grass:tussock`, `grass:fountain`, `grass:pampas`, `form:tuft/flowering` | `flower:daisy`, `flower:buttercup`, `flower:clover`, `flower:lupine`, `flower:poppy`, `shrub`, `form:flower/spike`, `form:flower/umbel`, `form:flower/plume` | `form:mushroom/toadstool`, `form:fungi/puffball`, `form:ground/mound`, *leaf-litter*, *fallen-log* | `species:oak`, `species:beech`, `species:cherry`, `species:fir`, `species:spruce`, `species:silverfir`, `species:pine`, `species:schefflera`, `species:banyan`, `species:rubberfig`, `species:treefern`, `species:moso`, `form:broccoli/lollipop` |
-| sand | *dune-grass*, *sand-ripples*, *desert-scrub* | `form:fingers/saguaro`, `form:fingers/pads`, `grass:needlegrass`, *sea-lyme* | `form:flower/plume`, *sea-holly*, *beach-pea*, *desert-bloom* | `form:stone/slab`, *shells*, *driftwood*, *sea-pebbles*, *tumbleweed* | `species:coconut`, `species:date`, `species:washingtonia`, `species:pine` |
+| sand | `grass:marram`, `cut:sand`, *desert-scrub* | `form:fingers/saguaro`, `form:fingers/pads`, `grass:needlegrass`, *sea-lyme* | `form:flower/plume`, *sea-holly*, *beach-pea*, *desert-bloom* | `strand:shells`, `strand:driftwood`, `strand:sea-pebbles`, `form:stone/slab`, *tumbleweed* | `species:coconut`, `species:date`, `species:washingtonia`, `species:pine` |
 | wet | `grass:sedge`, *sphagnum* | `species:reed`, *rush*, *cattail* | *marsh-marigold*, *iris*, *water-lily* | `form:stone/slab`, `patch:puddle`, *lily-pads* | `species:treefern`, *willow*, *alder* |
 | path | `patch:worn`, `patch:damp`, `patch:gravel` | `patch:crown`, `grass:tussock` | *path-weeds* | `stone:edge`, `patch:puddle` | · |
 
 ## Empty slots
 
-Where nothing in the library grows yet: `bedrock.cover`, `bedrock.clump`, `scree.cover`, `scree.accent`, `sand.cover`, `wet.accent`, `path.accent`.
+Where nothing in the library grows yet: `bedrock.cover`, `bedrock.clump`, `scree.cover`, `scree.accent`, `wet.accent`, `path.accent`.
 
 ## The gaps, ranked
 
@@ -42,20 +42,16 @@ Ranked by the ground and climates a kind would open, and the empty slots it woul
 | --- | --- | --- | --- | --- |
 | cushion-plant | tight domes of moss campion and saxifrage between the stones | bedrock, scree | alpine, boreal | bedrock.clump |
 | lichen-crust | flat crusts and rosettes painted over bare rock | bedrock | temperate, alpine, boreal, arid, tropical | bedrock.cover |
-| sand-ripples | the wind's ripples drawn in the sand | sand | temperate, alpine, boreal, arid, tropical | sand.cover |
 | rock-moss | moss cushions where the rock stays damp | bedrock | temperate, boreal, tropical | bedrock.cover |
 | scree-lichen | grey and orange crusts on the loose stones | scree | temperate, alpine, boreal | scree.cover |
 | stonecrop | fleshy rosettes of sedum and houseleek in the cracks | bedrock | temperate, alpine, arid | bedrock.clump |
 | crevice-fern | small ferns rooted in the joints | bedrock | temperate, tropical | bedrock.clump |
-| dune-grass | marram in long tufts, holding the dune | sand | temperate, boreal | sand.cover |
 | marsh-marigold | yellow cups of marsh marigold at the water's edge | wet | temperate, boreal | wet.accent |
 | scree-runner | creeping stems running over the stones and rooting where they touch | scree | temperate, alpine | scree.accent |
 | water-lily | lilies flowering on still water | wet | temperate, tropical | wet.accent |
 | alpine-flower | gentian, edelweiss and alpine poppy in the gaps | scree | alpine | scree.accent |
-| desert-scrub | saltbush and creosote, each a ring of bare sand round it | sand | arid | sand.cover |
 | iris | yellow flag iris in the shallows | wet | temperate | wet.accent |
 | path-weeds | plantain and dandelion where the feet miss | path | temperate | path.accent |
-| driftwood | bleached driftwood thrown up on the sand | sand | temperate, boreal, tropical | · |
 | fallen-log | a trunk down in the grass, mossed and split | soil | temperate, boreal, tropical | · |
 | leaf-litter | fallen leaves and twigs drifted under the trees | soil | temperate, boreal, tropical | · |
 | rush | stiff dark tufts of rush | wet | temperate, alpine, boreal | · |
@@ -66,11 +62,10 @@ Ranked by the ground and climates a kind would open, and the empty slots it woul
 | lily-pads | round pads floating on still water | wet | temperate, tropical | · |
 | rock-flower | thrift, rock rose and harebell from the crevices | bedrock | temperate, alpine | · |
 | sea-lyme | blue-grey lyme grass in clumps behind the beach | sand | temperate, boreal | · |
-| sea-pebbles | rounded pebbles lying in drifts | sand | temperate, boreal | · |
-| shells | shells in drifts along the tide line | sand | temperate, tropical | · |
 | sphagnum | a bog's moss carpet, red and green | wet | temperate, boreal | · |
 | willow | a willow leaning over the bank | wet | temperate, boreal | · |
 | desert-bloom | the brief flowers after rain | sand | arid | · |
+| desert-scrub | saltbush and creosote, each a ring of bare sand round it | sand | arid | · |
 | sea-holly | blue thistle-heads of sea holly and the pink cushions of thrift | sand | temperate | · |
 | steppe-grass | short dry bunchgrass over bare earth | soil | arid | · |
 | tumbleweed | dry balls of brush caught against the stones | sand | arid | · |
