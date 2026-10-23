@@ -3,7 +3,10 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [main]
+    # main, and the release-candidate branches (`<MMDD>-consolidated`): the whole suite, the deep sweeps and the e2e
+    # tier run here, not on a contributor's machine (CLAUDE.md "Test tiers": locally, `npm run test:changed`)
+    branches: [main, '*-consolidated']
+  workflow_dispatch:
 
 # Cancel in-progress runs on the same branch / PR when a new commit lands.
 concurrency:
@@ -12,19 +15,21 @@ concurrency:
 
 jobs:
   test:
-    name: tests / ${{ matrix.os }} / node ${{ matrix.node }}
+    name: tests / ${{ matrix.os_node.os }} / node ${{ matrix.os_node.node }} / shard ${{ matrix.shard }}
     strategy:
       fail-fast: false
       # The byte pins hold on every CPU and Node major they record (lib/util/dmath.js for 3.0's
       # generators, per-CPU-and-Node tables for 2.1.0's), so CI runs both architectures, both
-      # Node majors, and the engines floor itself.
+      # Node majors, and the engines floor itself. Each leg's suite is split three ways (vitest --shard): the whole
+      # suite is about three quarters of an hour on four cores, too long for one runner.
       matrix:
-        include:
+        os_node:
           - { os: ubuntu-latest, node: '22.14.0' }   # the engines floor (22.12 and 22.13 crash in better-sqlite3)
           - { os: ubuntu-latest, node: '22' }
           - { os: ubuntu-latest, node: '24' }
           - { os: macos-latest, node: '22' }
-    runs-on: ${{ matrix.os }}
+        shard: [1, 2, 3]
+    runs-on: ${{ matrix.os_node.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,21 +39,24 @@ jobs:
       # skips it and the beats tests fail with ERR_MODULE_NOT_FOUND.
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: ${{ matrix.os_node.node }}
 
       - name: Install control
         working-directory: control
         run: npm install
 
-      - name: Test control
+      - name: Test control (shard ${{ matrix.shard }} of 3)
         working-directory: control
-        run: npm test
+        run: npx vitest run --shard=${{ matrix.shard }}/3
 
+      # the deep sweeps and the book once a leg, on its first shard
       - name: Deep sweeps (*.deep.test.js)
+        if: matrix.shard == 1
         working-directory: control
         run: npm run test:deep
 
       - name: Test the bundled recipe book
+        if: matrix.shard == 1
         working-directory: control
         run: npm run test:book
 
@@ -56,8 +64,13 @@ jobs:
   # level in headless Chrome. A third of the suite's time, so `npm test` leaves it out and it runs here, once, on
   # one leg; the byte pins it rests on still run on every leg of the matrix above.
   e2e:
-    name: e2e / ubuntu-latest / node 22
+    name: e2e / ubuntu-latest / node 22 / shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    # two hours and more on one runner: split two ways
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
 
@@ -69,9 +82,9 @@ jobs:
         working-directory: control
         run: npm install
 
-      - name: Test the e2e tier
+      - name: Test the e2e tier (shard ${{ matrix.shard }} of 2)
         working-directory: control
-        run: npm run test:e2e
+        run: npx vitest run --config vitest.e2e.config.js --shard=${{ matrix.shard }}/2
 
   lint-hygiene:
     name: lint hygiene (node --check + locale validator + manifest pins)

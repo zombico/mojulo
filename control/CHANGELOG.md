@@ -14,6 +14,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Test tiers: the tests a change reaches, the whole suite in CI
+
+- **`npm run test:changed`** runs the tests a change needs, picked off the import graph of control's own sources
+  (`scripts/test-graph.mjs`, read statically in under half a second). It runs:
+  - the test files within two import hops of a changed module, and a changed test itself;
+  - every byte pin (`*.char` / `*.trace`) the change reaches at any depth;
+  - its deep sweeps under the deep config.
+
+  A source a module reads as text (inlined into a page, scanned for its keys) counts as a change to that reader. A
+  changed data file runs the tests beside it, and a changed config runs the critical tier. Prose runs nothing. The
+  e2e suites the change reaches are named, not run. `--since <ref>` adds a branch's commits, `--depth` reaches
+  further, `--files` replays a change, `--list` shows the pick. A guard test fails when a module starts reading files
+  beside it without being declared a reader of code or of data, so a hidden dependency cannot slip past the graph.
+- **CI runs the whole suite, sharded**, three ways on each leg of the matrix, the e2e tier two ways, and the deep
+  sweeps and the book once a leg. It runs on pull requests, on pushes to `main` and the release-candidate branches
+  (`*-consolidated`), and on demand.
+
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
 - **Mojulo Fighter hosts kinds of fighting game.** A versus game's rules may name a `kind` (`versus-kinds.js`): street
