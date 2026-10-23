@@ -8,7 +8,8 @@
  *   heroDermis(mesh, recipe, { sex, dermis, page, headPage }) → { pages: { body, head? }, faceOf(fi) → { page, uv } | null }
  *   heroSkinPaint(mesh, recipe, opts)  → the PAINT a figure's pack carries (station-loft-rig.js packLayeredRig `paint`, as
  *                                        skin-paint.js's): the two pages' albedo on one atlas (the body's over the head's),
- *                                        each skin face's corners on it, the rest on its white texel; the GLB's base colour
+ *                                        each skin face's corners on it, the rest on its white texel; the GLB's base colour,
+ *                                        and the World page's (its static faces lit by `light`, layeredFaces `paint`)
  *
  * A face is the skin's when its part is the body's or the head's and its group is `Skin` (a painted band, a garment, an
  * eye's globe or the mouth keep their colours: null). The head's points let down inside another part's skin (the
@@ -17,7 +18,7 @@
  */
 import { relationalHead } from '../polygonizer/head-relational.js';
 import { HEAD_TUNES } from '../polygonizer/hero-relational-head.js';
-import { readDermis, skinBase } from './dermal-map.js';
+import { readDermis, skinBase, toSrgb } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
@@ -34,6 +35,10 @@ export function heroDermisSpec(hero) {
   const spec = { from: sex, ...BODY_DERMIS[sex], ...(hero.palette?.Skin && skin.tone === undefined ? { tone: hero.palette.Skin.toLowerCase() } : {}), ...skin };
   return { spec, base: skinBase(readDermis(spec)) };
 }
+
+const hex3 = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const toHex = (c) => `#${c.map((x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
 
 /** the relational head's parts on the hero */
 const HEAD = /^(cranium|jaw|visage|nose|eye[RL]|ear[RL])$/;
@@ -180,10 +185,16 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [s, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
-  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) fis.set(fi, f.uv.map(f.page === 'head' ? onHead : onBody)); });
+  // (each corner's place to a tenth of a texel: the page writes them as text)
+  const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
+  mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); });
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
-  return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt,
+  // (a static face's LIGHT, the World page's: its lit fill over the skin's flat colour, the palette's Skin, so the texel,
+  // which carries the skin's colour, is lit and not tinted twice; the pack's corners are the light alone already)
+  const base = hex3(typeof recipe.palette?.Skin === 'string' ? recipe.palette.Skin : '#d9a77e').map(lin), lights = new Map();
+  const light = (fill) => { let h = lights.get(fill); if (!h) lights.set(fill, h = toHex(hex3(fill).map((c, i) => toSrgb(Math.min(1, lin(c) / Math.max(1e-6, base[i])))))); return h; };
+  return { key: 'heroSkin', url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
     atlas: { url, w: W, h: TH }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0 };
 }

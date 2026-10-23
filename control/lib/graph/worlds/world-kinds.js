@@ -58,6 +58,8 @@ import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
+/** the realistic skin's pages on the World page (an export's are dermal-hero.js's own): the body's and the head's a side */
+const PAGE_SKIN = Object.freeze({ page: 1024, headPage: 1024 });
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
 import { planHeight } from '@/lib/graph/era/cast-density';
 /** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
@@ -732,7 +734,12 @@ export const WORLD_KINDS = {
       // a creature's SKIN TEXTURE (skin-paint.js, the plan's `skin`): its scales, plates and scutes painted as the face is,
       // under the character light. Absent ⇒ byte-identical
       const skinPaint = !facePaint0 && character && !m.hero && Array.isArray(m.plan?.skin) && m.plan.skin.length ? skinPaintOf(mesh, m.plan.skin, { ppm: skinPpm(m.plan) }) : null;
-      const facePaint = facePaint0 ?? skinPaint;
+      // the REALISTIC HERO'S SKIN (epidermis/dermal-hero.js): its body's and its head's dermal maps on one atlas, on the
+      // World page as in an export (the page's pages a size down, PAGE_SKIN: the face's grain kept, the payload a page's
+      // PNG), so the page shows the skin's tone, its grain, its lips, marks and fine lines, not one flat colour. Absent a
+      // realistic hero with a head's fit, as before
+      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN) }) : null;
+      const facePaint = facePaint0 ?? skinPaint ?? heroSkin;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
@@ -796,10 +803,8 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        // (the REALISTIC HERO'S SKIN, epidermis/dermal-hero.js, in an export: its body's and its head's dermal maps on one
-        // atlas, the GLB's base colour, under the lit export's plain corners or the unlit's baked light; the World page
-        // never asks; absent an export or a head's fit, as before)
-        const heroSkin = (light.flat || ctx.face) && m.hero?.form === 'realistic' && !character && m.recipe.headFit ? heroSkinPaint(mesh, m.recipe, m.recipe.dermis ? { dermis: m.recipe.dermis } : {}) : null;
+        // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
+        // light, and the page's clips' the same atlas)
         const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)

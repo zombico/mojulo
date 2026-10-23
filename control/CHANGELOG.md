@@ -214,7 +214,7 @@ body catches up to what the authored one wears, and its principles are shared ba
   the hairline, a peak and a loss its edge, a bald crown left bare), the groom's part left open so it reads; under a
   styled beard the same where its locks grow (`hairBeardCoat`, the chin's `hairBeardCoatJaw`, `BeardRoot`). As a
   tuft's base reads solid, no scalp shows between the blades on a head that has not lost its hair, on any renderer
-  (the World page colours by the palette and wears no skin texture).
+  (the coat is geometry in the hair's colour, so it holds where a renderer draws no skin texture).
 - THE HAIR'S DEPICTION AND ITS SCORE (new epidermis/hair-depict.js `depictHair`, `stripMesh`, `capMesh`; new
   epidermis/hair-score.js `scoreHair`, `rasterize`, `strandMesh`): the grass hat's blades and its coat as plain meshes
   in the chart's frame, which the hero pins (hero-head-layers.js `pinMesh`) and the depiction solver measures: on the
@@ -222,6 +222,14 @@ body catches up to what the authored one wears, and its principles are shared ba
   its BLADES' own cover (where the coat alone shows, the hair reads painted), its OUTLINE against the study's strands
   (IoU) and its faces. A buzz is now the coat (it grew nothing on the hero before). The dermis study's
   `hair-sweep.mjs` scores every style and draws them as a contact sheet.
+- THE SKIN ON THE WORLD PAGE (worlds/world-kinds.js; dermal-hero.js `heroSkinPaint`'s `light`): the realistic hero's
+  dermal skin (the body's and the head's maps on one atlas) was an export's alone; the page drew one flat skin colour.
+  The page now wears it too, on its static faces (each lit by its fill over the skin's flat colour, so the texel's
+  colour is lit, not tinted twice) and on its clips' pack, at a page a size down from an export's (`PAGE_SKIN`, a
+  1024 atlas a side; the export's own unchanged): the skin's tone and grain, the lips, the marks, the painted hair and
+  stubble, and age's fine lines. The atlas's corners are written to a tenth of a texel. A realistic hero's page
+  takes a few seconds more to resolve once (the World page caches it) and carries the atlas and its corners.
+  The body study's `world-skin.mjs` photographs the page itself, the face close and the whole figure.
 - THE DEPICTION SOLVER (new epidermis/hair-solve.js `solveClass`, `candidatesFor`, `prepareCase`; hair-depict.js
   `hairClass`, `HAIR_DEPICTION`, `depictionOf`): how a groom is cut into the hat's blades is a CLASS's, never a style's
   own: `rope` (locs, rows), `tied` (a tail, a braid, a bun), `coil`, `standing` (gel, a crest), `cropped`, `short`,

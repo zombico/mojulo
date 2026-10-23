@@ -1,4 +1,4 @@
-// The realistic hero's skin as an export wears it (dermal-hero.js), on one dressed hero at a small page: what it wears
+// The realistic hero's skin as an export and the World page wear it (dermal-hero.js), on one dressed hero at a small page: what it wears
 // covers its skin (rays out along the normal, a garment on the same bone or one near it; never a hand by the trousers),
 // the body's islands keep only the rings that show, each kept ring's address the whole part's, and a covered face takes
 // no texel; the bake's occlusion (polygonizer/surface-bake.js) cast by what is seen alone, on the field's normals.
@@ -6,7 +6,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
-import { coveredSkin, heroDermis, heroHidden, GLOBE } from './dermal-hero.js';
+import { coveredSkin, heroDermis, heroHidden, heroSkinPaint, GLOBE } from './dermal-hero.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
 import { bakeChannels } from '../polygonizer/surface-bake.js';
 import { layeredShadingNormals } from '../polygonizer/station-loft-shade.js';
 import { bodyChart } from './dermal-body.js';
@@ -61,4 +62,20 @@ describe('the skin under what the hero wears', () => {
     expect(read(after, 'eyeR', (o) => o)).toBeLessThan(read(before, 'eyeR', (o) => o) * 0.85);
     expect(read(after, 'jaw', (o) => o > 0.5)).toBeLessThan(read(before, 'jaw', (o) => o > 0.5) / 2);
   }, 240_000);
+  it('is on the World page: its skin faces textured by the atlas, lit by their fill over the skin\'s colour', async () => {
+    const P = heroSkinPaint(mesh, recipe, { page: 512, headPage: 512 });
+    expect(P.light(recipe.palette.Skin)).toBe('#ffffff');
+    // (a face lit to half the skin's colour is half lit, its texel carrying the colour)
+    const half = '#' + [1, 3, 5].map((i) => parseInt(recipe.palette.Skin.slice(i, i + 2), 16)).map((c) => Math.round(255 * ((((c / 255 + 0.055) / 1.055) ** 2.4 * 0.5) ** (1 / 2.4) * 1.055 - 0.055))).map((c) => c.toString(16).padStart(2, '0')).join('');
+    expect(Math.abs(parseInt(P.light(half).slice(1, 3), 16) - 186)).toBeLessThan(4);
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'realistic', outfit: ['fittedShirt', 'trousers'] }) });
+    const { payload } = await resolveWorldScene({ ref: 'skin-page', title: 'skin', manifest: m });
+    expect(Object.keys(payload.textures)).toContain('heroSkin');
+    const lit = payload.faces.filter((f) => f.texture === 'heroSkin');
+    expect(lit.length).toBeGreaterThan(1000);
+    expect(lit.every((f) => f.textureLit && f.uv.length === 3)).toBe(true);
+    // (the page's atlas a size down from an export's)
+    expect(payload.figures.body.paintTex.w).toBe(1024);
+  }, 600_000);
 });
+
