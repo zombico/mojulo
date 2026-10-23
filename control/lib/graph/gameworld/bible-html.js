@@ -231,18 +231,17 @@ ${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) 
 ${R.target ? `<p class="muted">Meant for <b>${esc(engineOf(R.target.engine).name)}</b> (advice only): ${esc(R.target.says)}</p>` : ''}</details>`;
 }
 
-// how the hero moves (feel/): the template, what the game's runtime carries of its card, and the feel book to sample it
-// (its sibling page, `?book=feel`); a world that writes none shows what it would be suggested
+// how the hero moves (feel/): the template, its viewer and the feel book to play it (its sibling page, `?book=feel`), what
+// the runtime does not carry yet; a world that writes none shows what it would be suggested
 function feelHtml(world) {
   if (world.feel === undefined || world.feel === null) {
     const S = feelSuggestion(world);
-    return S ? `<details class="brief" id="feel"><summary>How the controls play (not yet said)</summary><p class="muted">Suggested: <b>${esc(typeof S.feel === 'string' ? POLES[S.feel].name : `${POLES[S.feel.pole].name} toward ${POLES[S.feel.toward]?.name ?? ''}`)}</b>, ${esc(S.why)}. Write it as the world's feel to play it.</p></details>` : '';
+    return S ? `<details class="brief" id="feel"><summary>Feel (not yet said)</summary><p class="muted">Suggested: <b>${esc(typeof S.feel === 'string' ? POLES[S.feel].name : `${POLES[S.feel.pole].name} → ${POLES[S.feel.toward]?.name ?? ''}`)}</b></p></details>` : '';
   }
-  const R = feelReport(world.feel), list = (xs) => xs.map((x) => esc(x.field ?? x)).join(', ');
-  return `<details class="brief" id="feel" open><summary>How the controls play</summary>
-<p>Plays <b>${esc(R.name)}</b> (after ${esc(R.after)})${R.variant ? `, ${esc(R.variant)}` : ''}${R.toward ? `, ${Math.round(R.t * 100)}% toward ${esc(POLES[R.toward].name)}` : ''}: ${esc(POLES[R.pole].says)}. Seen through its ${esc(R.view)} viewer.</p>
-<ul class="decided"><li><b>carried</b> ${list(R.carried)}</li>${R.partly.length ? `<li><b>partly</b> ${R.partly.map((x) => `${esc(x.field)} <span class="muted">(${esc(x.why)})</span>`).join('; ')}</li>` : ''}${R.lost.length ? `<li class="muted">not carried yet: ${list(R.lost)}</li>` : ''}</ul>
-<p><a href="?book=feel">Sample it in the feel book</a> <span class="muted">(the stick view of these controls: run, jump and strike as the game will)</span></p></details>`;
+  const R = feelReport(world.feel);
+  return `<details class="brief" id="feel" open><summary>Feel</summary>
+<p><b>${esc(R.name)}</b>${R.variant ? ` · ${esc(R.variant)}` : ''}${R.toward ? ` → ${esc(POLES[R.toward].name)} ${Math.round(R.t * 100)}%` : ''} · ${esc(R.view)} · <a href="?book=feel">Play it</a></p>
+${R.lost.length ? `<p class="muted">not carried yet: ${R.lost.map((x) => esc(x.field)).join(', ')}</p>` : ''}</details>`;
 }
 
 export function gameworldBibleHtml(world) {

@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { MEADOWMARK } from '../index.js';
 import { gameworldBibleHtml } from '../bible-html.js';
-import { POLES, POLE_IDS } from './cards.js';
+import { POLES, POLE_IDS, DEMO_ABILITIES, poleCard } from './cards.js';
 import { feelCard, feelReport } from './lower.js';
 import { feelSample, feelBookHtml } from './book.js';
 
@@ -33,6 +33,30 @@ describe('the sample', () => {
   });
 });
 
+describe('what each template shows', () => {
+  // an ability shown is one the template's card has: its book shows the controls the game is about, and they work
+  const backed = {
+    move: (c) => c.ground.run > 0, sprint: (c) => c.ground.sprint > c.ground.run, jump: (c) => c.jump.height > 0, air: (c) => c.air?.jumps > 0,
+    wall: (c) => !!c.cling, attack: (c) => c.moves.string.length > 0, charge: (c) => !!c.charge && !c.charge.tap, buster: (c) => !!c.charge?.tap,
+    shoot: (c) => !!c.loadout?.slots?.length, switch: (c) => c.loadout?.slots?.length > 1, dodge: (c) => !!c.dodge, dash: (c) => !!c.dash, boost: (c) => !!c.boost,
+    chargeJump: (c) => !!c.chargeJump, guard: (c) => !!c.guard, lock: (c) => !!c.lock, pound: (c) => !!c.pound, stomp: (c) => c.land?.model === 'stomp', lanes: (c) => !!c.runner, spar: (c) => !!c.guard,
+    glide: (c, P) => P.gear === 'glide', jet: (c, P) => P.gear === 'jet',
+  };
+  it('every template names what it is about, each an ability its card has', () => {
+    expect(Object.keys(backed).sort()).toEqual([...DEMO_ABILITIES].sort());
+    for (const id of POLE_IDS) {
+      const P = POLES[id], c = poleCard(id);
+      expect([id, P.demo.length > 0]).toEqual([id, true]);
+      for (const a of P.demo) expect([id, a, backed[a](c, P)]).toEqual([id, a, true]);
+    }
+  });
+
+  it('the sample carries its template\'s list (a blend, the nearer\'s)', () => {
+    expect(feelSample(W(lane)).demo).toEqual(POLES[lane].demo);
+    expect(feelSample(W({ pole: lane, toward: geared, t: 0.8 })).demo).toEqual(POLES[geared].demo);
+  });
+});
+
 describe('the page', () => {
   it('carries the sample and the takes it is handed, steps the inlined kernel, and is the lab\'s page put to one game', () => {
     const html = feelBookHtml(W(lane), { data: { male: { stub: true } } });
@@ -46,10 +70,10 @@ describe('the page', () => {
 });
 
 describe('the bible', () => {
-  it('says how the controls play, what is carried, and links to the feel book; a world with none says nothing of it', () => {
+  it('names the feel and links to the feel book to play it; a world with none says nothing of it', () => {
     const page = gameworldBibleHtml(W(lane));
-    expect(page).toMatch(/How the controls play<\/summary>/);
-    expect(page).toMatch(new RegExp(`Plays <b>${POLES[lane].name}</b>`));
+    expect(page).toMatch(/<summary>Feel<\/summary>/);
+    expect(page).toMatch(new RegExp(`<b>${POLES[lane].name}</b>`));
     expect(page).toMatch(/href="\?book=feel"/);
     expect(gameworldBibleHtml(MEADOWMARK)).not.toMatch(/id="feel"/);
   });

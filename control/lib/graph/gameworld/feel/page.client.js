@@ -38,6 +38,9 @@ addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
   const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
   if (/^Digit[1-4]$/.test(e.code)) { if (!SAMPLE) setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
+  // a game's sample: the lab's toggles answer only where the template shows them (spar, the critter)
+  if (SAMPLE && ['KeyV', 'KeyY', 'KeyE', 'KeyM', 'KeyO', 'KeyG', 'KeyC'].includes(e.code)) return;
+  if (SAMPLE && ((e.code === 'KeyT' && !shows.header.has('spar')) || (e.code === 'KeyH' && !shows.header.has('critter')))) return;
   if (e.code === 'KeyR') reset();
   else if (e.code === 'KeyB' && vs) VS.RT.showBoxes = !VS.RT.showBoxes;
   else if (e.code === 'KeyV') setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
@@ -87,6 +90,7 @@ function readPad() {
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
+  if (shows) b &= shows.mask;   // a game's sample: only the buttons its template's abilities use
   // versus reads the screen's stick (its plane is the screen's): unrotated
   if (vs) return [Math.round(Math.max(-1, Math.min(1, x)) * 127), Math.round(Math.max(-1, Math.min(1, y)) * 127), b];
   // the stick is the camera's: up the screen is the way the camera looks (behind the hero at the target, when locked)
@@ -646,7 +650,7 @@ function renderFeel() {
   $('spar').setAttribute('aria-pressed', String(spar)); $('shooter').setAttribute('aria-pressed', String(!!shooter)); $('shooter').textContent = shooter ? `Shooter: ${shooter}` : 'Shooter'; $('onehit').setAttribute('aria-pressed', String(!!S?.card.life?.oneHit)); $('gearbtn').setAttribute('aria-pressed', String(!!gear)); $('mountbtn').setAttribute('aria-pressed', String(mount != null)); $('mountbtn').textContent = mount == null ? 'Mech' : `Mech: ${mount === 1 ? 'heavy' : mount === 0 ? 'swift' : `weight ${mount}`}`; $('gearbtn').textContent = gear ? `Gear: ${gear === 'glide' ? 'glider' : 'jetpack'}` : 'Gear'; $('guard').setAttribute('aria-pressed', String(guard)); $('critter').setAttribute('aria-pressed', String(critter));
   $('view').textContent = VIEW_LABEL[view] ?? view; $('pause').textContent = paused ? 'Resume' : 'Pause';
   for (const el of document.querySelectorAll('.vsonly')) el.hidden = !vs;
-  $('rec').disabled = !!vs; $('keys').textContent = vs ? VS_KEYS_HELP : LAB_KEYS_HELP;
+  $('rec').disabled = !!vs; $('keys').textContent = vs ? VS_KEYS_HELP : shows ? shows.keyLine : LAB_KEYS_HELP;
   if (vs) { $('spar').textContent = spar ? 'Spar: CPU' : 'Spar'; $('guard').textContent = 'Guard'; $('vsP1').value = vsPick.p1; $('vsP2').value = vsPick.p2; $('vsScheme').value = vsPick.scheme; $('vsSuper').value = vsPick.super; }
   else $('spar').textContent = 'Spar';
 }
@@ -672,7 +676,10 @@ function renderDials() {
     box.append(row);
   }
   let group = null;
-  for (const [g, path, label, min, max, st, unit] of DIALS) {
+  // the dials by group, each group in the order it first appears
+  const order = [...new Set(DIALS.map((d) => d[0]))], grouped = order.flatMap((g) => DIALS.filter((d) => d[0] === g));
+  for (const [g, path, label, min, max, st, unit] of grouped) {
+    if (shows && !shows.dials.has(g)) continue;   // a game's sample: its template's dials only
     const v = getPath(S.card, path); if (v == null) continue;
     if (g !== group) { group = g; const h = document.createElement('div'); h.className = 'dgroup'; h.textContent = g; box.append(h); }
     const id = `dial-${path.replace(/\./g, '-')}`;
@@ -706,7 +713,7 @@ function renderLast() {
 function renderState() {
   if (vs) { renderVsState(); return; }
   const H = S.hero, v = Math.hypot(H.v[0], H.v[1]), d = poseOf(S, 'hero');
-  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['gear', gear ? `${gear === 'glide' ? S.card.glide?.kind : `jetpack (${S.card.jet?.kind})`}${gear === 'jet' ? `, fuel ${Math.round(S.hero.fuel)}` : ''}` : 'none'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
+  $('st').innerHTML = [['frame', S.f], ['clip', d.clip + (d.clip === 'move' ? ` ${d.i + 1}` : '')], ['speed', `${v.toFixed(2)} m/s`], ['height', `${H.p[2].toFixed(2)} m`], ['ground', H.grounded ? 'yes' : H.coyote ? `coyote ${H.coyote}` : 'no'], ['buffer', S.queue.map((q) => `${q.button} ${q.buffer - q.age}`).join(', ') || '–'], ['dummy', S.dummy.stun ? `stun ${S.dummy.stun}` : S.dummy.mercy ? `mercy ${S.dummy.mercy}` : S.dummy.alert ? 'alert' : 'idle'], ['lock', S.lock ? `on, ${util.targetDist(S).toFixed(1)} m` : S.card.lock ? 'off' : 'none'], ['guard', S.card.guard ? (S.hero.stamina != null ? `stamina ${Math.round(S.hero.stamina)}` : H.act?.kind === 'block' ? 'up' : 'down') : 'none'], ['witch', S.witch ? `${S.witch} f` : '–'], ['life', S.card.life ? `${S.card.life.kind === 'rings' ? 'rings ' : ''}${H.hp}${H.mercy ? `, mercy ${H.mercy}` : ''}` : '–'], ['shooter', shooter ?? 'off'], ['gear', gear ? `${gear === 'glide' ? S.card.glide?.kind : `jetpack (${S.card.jet?.kind})`}${gear === 'jet' ? `, fuel ${Math.round(S.hero.fuel)}` : ''}` : 'none'], ['charge', S.card.charge ? (H.charge ? `${H.charge.held} f, level ${H.charge.lv}` : S.card.charge.kind) : 'none']].filter(([k]) => !shows || shows.state.has(k)).map(([k, x]) => `<div><dt>${k}</dt><dd>${x}</dd></div>`).join('');
   const [x, y, b] = lastPad;
   $('knob').setAttribute('cx', String(20 + (x / 127) * 14)); $('knob').setAttribute('cy', String(20 - (y / 127) * 14));
   for (const [id, bit] of [['bJ', BTN.JUMP], ['bA', BTN.ATTACK], ['bD', BTN.DODGE], ['bX', BTN.DASH], ['bL', BTN.LOCK], ['bG', BTN.GUARD], ['bS', BTN.SPRINT], ['bF', BTN.SHOOT]]) $(id).classList.toggle('on', !!(b & bit));
@@ -917,12 +924,47 @@ function frame(now) {
 }
 // a read-only window for headless checks (the lab's own scripts drive the page and read what it shows)
 window.__lab = { state: () => S, versus: () => vs, pose: (who) => { const r = poseFrames(who); return { d: r.d, world: toWorld(r.d, r.a) }; } };
-// a game's sample: the lab's pickers and its recorder put away; what the game's runtime carries of the card said
+// a game's sample shows what its template is about and nothing else (SAMPLE.demo, cards.js DEMO_ABILITIES): each
+// ability its keys, its pad chip, its touch button, its dials, its readouts and its strip colours; no prose
+const ABILITY = {
+  move: { keys: 'WASD move', dials: ['Ground'], state: ['speed'] },
+  lanes: { keys: () => (SAMPLE.card.runner?.lanes ? 'A D change lanes' : 'A D steer'), state: ['speed'] },
+  sprint: { keys: 'Shift run', chip: 'bS', touch: 'SPRINT' },
+  jump: { keys: 'Space jump (hold: higher)', chip: 'bJ', touch: 'JUMP', dials: ['Jump'], state: ['height', 'ground', 'buffer'], legend: ['air', 'gather'] },
+  chargeJump: { keys: 'Space hold: charge jump', chip: 'bJ', touch: 'JUMP', dials: ['Jump'], state: ['height', 'ground'], legend: ['air', 'gather'] },
+  air: { keys: 'Space in the air: again', dials: ['Air'] },
+  wall: { keys: 'Space on a wall: kick off', dials: ['Wall'], legend: ['cling'] },
+  attack: { keys: 'J attack', chip: 'bA', touch: 'ATTACK', dials: ['Moves', 'Hit'], state: ['dummy'], legend: ['startup', 'active', 'recovery', 'stop', 'stun'], panel: 'fd' },
+  charge: { keys: 'J hold, release: charged', dials: ['Charge'], state: ['charge'], legend: ['gather', 'armor', 'hyper'] },
+  buster: { keys: 'J shoot · hold, release: charge shot', chip: 'bA', touch: 'ATTACK', dials: ['Charge'], state: ['charge'], legend: ['stop', 'stun'] },
+  shoot: { keys: 'F fire', chip: 'bF', touch: 'SHOOT' },
+  switch: { keys: 'Z switch weapon', touch: 'SWITCH' },
+  dodge: { keys: 'K roll', chip: 'bD', touch: 'DODGE', dials: ['Roll'], legend: ['inv'] },
+  dash: { keys: 'L dash', chip: 'bX', touch: 'DASH', dials: ['Dash'] },
+  boost: { keys: 'L hold: boost', chip: 'bX', touch: 'DASH' },
+  guard: { keys: 'U guard · tap as a blow lands: parry', chip: 'bG', touch: 'GUARD', dials: ['Guard'], state: ['guard', 'witch'], legend: ['guard'] },
+  lock: { keys: 'Q lock on', chip: 'bL', touch: 'LOCK', state: ['lock'] },
+  glide: { keys: 'Space held in the air: glide', dials: ['Gear'], state: ['gear'] },
+  jet: { keys: 'Space held in the air: jetpack', dials: ['Gear'], state: ['gear'] },
+  pound: { keys: 'J in the air: ground pound' },
+  stomp: { keys: 'land on its head: stomp', header: 'critter' },
+  spar: { keys: 'T spar', header: 'spar' },
+};
+const shows = SAMPLE ? (() => {
+  const on = (SAMPLE.demo ?? []).map((a) => ABILITY[a]).filter(Boolean), pick = (k) => new Set(on.flatMap((a) => (Array.isArray(a[k]) ? a[k] : a[k] ? [a[k]] : [])));
+  const B = { JUMP: ['jump', 'chargeJump', 'air', 'wall', 'glide', 'jet'], ATTACK: ['attack', 'charge', 'buster', 'pound'], DODGE: ['dodge'], DASH: ['dash', 'boost'], GUARD: ['guard'], LOCK: ['lock'], SHOOT: ['shoot'], SWITCH: ['switch'], SPRINT: ['sprint'] };
+  const mask = Object.entries(B).reduce((m, [bit, abilities]) => (abilities.some((a) => (SAMPLE.demo ?? []).includes(a)) ? m | BTN[bit] : m), 0);
+  return { mask, keyLine: [...on.map((a) => (typeof a.keys === 'function' ? a.keys() : a.keys)).filter(Boolean), 'R reset · P pause'].join(' · '), chips: pick('chip'), touch: pick('touch'), dials: pick('dials'), state: new Set(['frame', 'clip', ...pick('state')]), legend: pick('legend'), header: pick('header'), panels: pick('panel') };
+})() : null;
 if (SAMPLE) {
-  for (const id of ['pole', 'toward', 'blendT', 'variant', 'mountbtn', 'shooter', 'onehit', 'cast']) $(id).hidden = true;
+  for (const id of ['pole', 'toward', 'blendT', 'variant', 'mountbtn', 'shooter', 'onehit', 'cast', 'view', 'guard', 'gearbtn', 'says', 'poleSays', 'jd']) $(id).hidden = true;
+  for (const id of ['spar', 'critter']) $(id).hidden = !shows.header.has(id);
   document.querySelector('.feels').hidden = true; $('rec').closest('.card').hidden = true;
-  const R = SAMPLE.report, list = (xs) => xs.map((x) => x.field ?? x).join(', ');
-  $('poleSays').textContent = `In the game: ${list(R.carried)} carried${R.partly.length ? `; partly: ${list(R.partly)}` : ''}${R.lost.length ? `; not carried yet (here only): ${list(R.lost)}` : ''}. The dials try changes on this page only; the game's feel is in its recipe.`;
+  for (const el of document.querySelectorAll('.note')) el.hidden = true;
+  for (const el of document.querySelectorAll('.btns span')) el.hidden = !shows.chips.has(el.id);
+  for (const el of document.querySelectorAll('[data-tbtn]')) el.hidden = !shows.touch.has(el.dataset.tbtn);
+  for (const el of document.querySelectorAll('.legend [data-k]')) el.hidden = !shows.legend.has(el.dataset.k);
+  if (!shows.panels.has('fd')) $('fd').closest('.card').hidden = true;
 }
 fit(); reset(); renderRec();
 requestAnimationFrame(frame);

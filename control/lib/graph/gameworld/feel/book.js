@@ -30,6 +30,7 @@ export function feelSample(world, { cast = 'male' } = {}) {
   const blend = F.toward ? `, ${Math.round(F.t * 100)}% toward ${POLES[F.toward].name}` : '';
   return {
     name, cast, base: POLES[F.pole].base, card: carded(card), stage: P.stage, view: P.view.camera, gear: P.gear ?? null,
+    demo: P.demo,
     says: `${name} plays ${R.name} (after ${R.after})${R.variant ? `, ${R.variant}` : ''}${blend}: ${POLES[F.pole].says}`,
     report: { carried: R.carried, partly: R.partly, lost: R.lost },
   };

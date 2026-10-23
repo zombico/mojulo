@@ -340,51 +340,51 @@ export function fighterCard(K) {
  * kind of game it echoes), needs (what it names that the lab has not built).
  */
 export const POLES = Object.freeze({
-  'fallen-angel': { name: 'Fallen Angel', after: 'Devil May Cry', base: 'action', view: { camera: 'third-person', D: 5, h: 2.6 }, stage: 'courtyard',
+  'fallen-angel': { demo: ['move', 'jump', 'air', 'attack', 'charge', 'dodge', 'dash', 'guard', 'lock', 'spar'], name: 'Fallen Angel', after: 'Devil May Cry', base: 'action', view: { camera: 'third-person', D: 5, h: 2.6 }, stage: 'courtyard',
     says: 'offense first: twitchy movement, long strings, a hard freeze on every blow, the launcher, the air; the guard and the parry there, but attack is the answer',
     set: { ground: { walk: 2.2, run: 7, sprint: 9.5, accel: 60, decel: 80, turn: 1800 }, jump: { commit: 2, height: 1.5, hang: 6 }, air: { jumps: 1, mult: 0.85 }, hit: { hitstop: { base: 5, perMs: 0.7, max: 16 } }, look: { squash: 0.08, smear: 0.12 }, guard: { parry: 10 } },
     needs: ['melee weapon switching (a moveset a weapon)', 'juggle physics (a floatier air hitstun, combo decay)', 'jump cancel'] },
-  'ebon-spirits': { name: 'Ebon Spirits', after: 'God of War, Dark Souls', base: 'realistic', view: { camera: 'shoulder', D: 3.8, h: 2.3, off: 0.55, pitch: 0.16 }, stage: 'ruins',
+  'ebon-spirits': { demo: ['move', 'sprint', 'attack', 'charge', 'dodge', 'guard', 'lock', 'spar'], name: 'Ebon Spirits', after: 'God of War, Dark Souls', base: 'realistic', view: { camera: 'shoulder', D: 3.8, h: 2.3, off: 0.55, pitch: 0.16 }, stage: 'ruins',
     says: 'offense and defense, leaning to defense: slower deliberate movement, committed blows with a short freeze, a roll with invincible frames, the lock-on, the parry and stamina',
     set: { ground: { walk: 1.6, run: 4.2, sprint: 6.2, accel: 9, decel: 13, turn: 720 }, jump: { commit: 8, height: 0.5 }, dodge: { kind: 'roll', frames: 26, speed: 5, iframes: [3, 16], back: { speed: 0.7, frames: 0.8 }, cancel: false }, hit: { hitstop: { base: 2, perMs: 0.4, max: 7 } } },
     needs: ['one stamina pool for rolls, attacks and the sprint', 'heals that commit', 'enemy health and poise'] },
-  'cogs-of-combat': { name: 'Cogs of Combat', after: 'Gears of War', base: 'realistic', view: { camera: 'shoulder', D: 3.2, h: 2.1, off: 0.75, pitch: 0.14 }, stage: 'cover',
+  'cogs-of-combat': { demo: ['move', 'sprint', 'dodge', 'shoot', 'switch'], name: 'Cogs of Combat', after: 'Gears of War', base: 'realistic', view: { camera: 'shoulder', D: 3.2, h: 2.1, off: 0.75, pitch: 0.14 }, stage: 'cover',
     says: 'Ebon Spirits as a hard shooter: heavy bodies, a roadie run, an evade roll, landings that weigh, the guns',
     set: { ground: { walk: 1.6, run: 3.8, sprint: 7, accel: 9, decel: 12, turn: 540 }, jump: { commit: 10, height: 0.4 }, dodge: { kind: 'roll', frames: 22, speed: 6, iframes: null, back: { speed: 0.7, frames: 0.8 }, cancel: false }, landing: { per: 2, max: 10 } },
     needs: ['cover (snap, blind fire, pop out)', 'aiming apart from the facing', 'active reload', 'the roadie run\'s camera'] },
-  'infinity-crisis': { name: 'Infinity Crisis', after: 'arena and hero shooters', base: 'action', gear: 'jet', view: { camera: 'first-person' }, stage: 'levels',
+  'infinity-crisis': { demo: ['move', 'jump', 'air', 'dash', 'jet', 'shoot', 'switch'], name: 'Infinity Crisis', after: 'arena and hero shooters', base: 'action', gear: 'jet', view: { camera: 'first-person' }, stage: 'levels',
     says: 'movement and abilities over aim: fast, a double jump, a jetpack, dashes, the guns',
     set: { ground: { walk: 2.5, run: 6.5, sprint: 8.5, accel: 70, decel: 70, turn: 1800 }, jump: { commit: 0, height: 1.3, hang: 0, cut: 0.6, air: 0.9 }, air: { jumps: 1, mult: 0.85 }, look: { squash: 0.03, smear: null } },
     needs: ['ability slots with cooldowns and an ultimate', 'air-strafe acceleration', 'shields and healing'] },
-  conscription: { name: 'Conscription: Contemporary Combat', after: 'the contemporary FPS', base: 'realistic', view: { camera: 'first-person' }, stage: 'urban',
+  conscription: { demo: ['move', 'sprint', 'jump', 'shoot', 'switch'], name: 'Conscription: Contemporary Combat', after: 'the contemporary FPS', base: 'realistic', view: { camera: 'first-person' }, stage: 'urban',
     says: 'the general FPS: a soldier\'s run and sprint, a short jump, the guns, no lock-on',
     set: { ground: { walk: 1.6, run: 4.6, sprint: 7.2, accel: 16, decel: 20, turn: 1080 }, jump: { commit: 3, height: 0.55, air: 0.3 }, lock: null },
     needs: ['aim-down-sights', 'the sprint-to-fire delay', 'the slide', 'the mantle', 'recoil and spread'] },
-  'steel-serpents': { name: 'Steel Serpents', after: 'Metal Gear', base: 'realistic', view: { camera: 'overhead' }, stage: 'compound',
+  'steel-serpents': { demo: ['move', 'sprint', 'attack', 'dodge', 'guard', 'spar'], name: 'Steel Serpents', after: 'Metal Gear', base: 'realistic', view: { camera: 'overhead' }, stage: 'compound',
     says: 'stealth action, a stretch of realistic: a careful walk, a dive roll, the counter',
     set: { ground: { walk: 1.3, run: 4.2, sprint: 5.8, accel: 8, decel: 12, turn: 720 }, jump: { commit: 10, height: 0.4 }, dodge: { kind: 'roll', frames: 28, speed: 4, iframes: null, back: { speed: 0.7, frames: 0.8 }, cancel: false }, guard: { parry: 8 } },
     needs: ['crouch and prone', 'enemy senses and alert (mojulo\'s mind.js perception)', 'grab and takedown', 'wall-hug'] },
-  'vigilante-justice': { name: 'Vigilante Justice', after: 'superhero games', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 5.5, h: 3.2 }, stage: 'rooftops',
+  'vigilante-justice': { demo: ['move', 'sprint', 'jump', 'glide', 'attack', 'guard', 'lock', 'spar'], name: 'Vigilante Justice', after: 'superhero games', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 5.5, h: 3.2 }, stage: 'rooftops',
     says: 'action with stealth, toward action: a fast run, a high jump, the cape glide, counters on a lenient window, the lock-on on the crowd',
     set: { ground: { walk: 2, run: 7, sprint: 10, accel: 25, decel: 30, turn: 900 }, jump: { commit: 3, height: 1.6, hang: 4 }, glide: { kind: 'glide', fall: 2.5, speed: 10, accel: 8, turn: 120, time: null }, guard: { parry: 14 }, lock: { range: 10, turn: 1440, strafe: 0.85 } },
     needs: ['free-flow: the lunge from target to target', 'grapple and swing', 'parkour', 'stealth (as Steel Serpents)'] },
-  'mech-battle-kai': { name: 'Mech Battle Kai', after: 'mobile-suit-arena', base: 'action', mount: 1, view: { camera: 'mech' }, stage: 'battlefield',
+  'mech-battle-kai': { demo: ['move', 'chargeJump', 'boost', 'shoot', 'switch'], name: 'Mech Battle Kai', after: 'mobile-suit-arena', base: 'action', mount: 1, view: { camera: 'mech' }, stage: 'battlefield',
     says: 'MSA\'s principles: the heavy mech, the boost on its gauge, the hover, the charge jump, the landings',
     set: {}, needs: ['the kneel', 'the tackle'] },
-  'jumping-giuseppe': { name: 'Jumping Giuseppe', after: 'the mascot platformer', base: 'platformer', view: { camera: 'side' }, stage: 'platforms',
+  'jumping-giuseppe': { demo: ['move', 'sprint', 'jump', 'air', 'wall', 'pound', 'stomp'], name: 'Jumping Giuseppe', after: 'the mascot platformer', base: 'platformer', view: { camera: 'side' }, stage: 'platforms',
     says: 'the mascot platformer: movement first, a springy squash and stretch, the stomp, the ground pound, the wall jump',
     set: { look: { squash: 0.28, smear: null }, lane: { x: 0, face: false } }, needs: ['context jumps (the long jump, the backflip, the triple jump)', 'power-ups'] },
-  'isekai-party': { name: 'Isekai Party', after: 'the RPG', base: 'realistic', view: { camera: 'iso' }, stage: 'field',
+  'isekai-party': { demo: ['move', 'sprint', 'attack', 'lock'], name: 'Isekai Party', after: 'the RPG', base: 'realistic', view: { camera: 'iso' }, stage: 'field',
     says: 'controlled, not collision: an even walk, no freeze, no knockback, no stun; what lands is resolved, not shoved',
     set: { ground: { walk: 1.6, run: 4.5, sprint: 6, accel: 20, decel: 30, turn: 900 }, jump: { commit: 4, height: 0.5 }, hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'momentum', gain: 0, lift: 0 } }, hurt: { stun: 0, knock: 0, slow: null, mercy: 0, charge: 'keep' } },
     needs: ['targeted resolution (by range and stats, no hit areas)', 'cast bars and a global cooldown', 'the party'] },
-  'mojulo-fighter': { name: 'Mojulo Fighter', after: 'the 2D fighter', base: 'action', view: { camera: 'side' }, stage: 'stage',
+  'mojulo-fighter': { demo: ['move', 'jump', 'attack'], name: 'Mojulo Fighter', after: 'the 2D fighter', base: 'action', view: { camera: 'side' }, stage: 'stage',
     says: 'mojulo\'s versus loop itself (lib/graph/versus): a walk forward and back, a fixed jump arc after its prejump, facing the foe, blocking by holding back, high, low and the throw, the specials, meter and the super, rounds; played on the lab\'s keys, watched by the lab\'s gate',
     // the card the lab's kernel plays when the template is blended toward another: Kata's numbers (versus units, below) in the lab's
     set: { ...fighterCard(KATA), air: null, cling: null, lock: null, glide: null, jet: null, lane: { x: 0, face: true } },
     versus: { p1: 'kata', p2: 'brisk', scheme: 'modern' },
     needs: ['the lab\'s baked takes on the versus bodies (they wear the 2D rig)', 'a dropped press that versus reports itself (the lab watches it from outside)', 'hold-release charge moves', 'the lab\'s offense-armor tags on versus moves', 'a ¾ camera that turns with the fighters (2.5D)'] },
-  'galaxy-boy': { name: 'Galaxy Boy', after: 'Mega Man X', base: 'platformer', view: { camera: 'side' }, stage: 'highway',
+  'galaxy-boy': { demo: ['move', 'jump', 'wall', 'dash', 'buster', 'shoot', 'switch'], name: 'Galaxy Boy', after: 'Mega Man X', base: 'platformer', view: { camera: 'side' }, stage: 'highway',
     says: 'the run-and-gun: the buster\'s tap shot (three out at most) and its charge, held through anything, the dash and the dash jump that keeps its speed, the wall slide and the wall kick, the air dash; no stomp, no double jump',
     set: {
       ground: { walk: 1.6, run: 5.5, sprint: 5.5, accel: 120, decel: 120 }, jump: { height: 1.6, cut: 0.35, coyote: 4 }, air: { jumps: 0, mult: 0.9 },
@@ -397,7 +397,7 @@ export const POLES = Object.freeze({
       life: { hp: 16, oneHit: false, ko: 90 }, lane: { x: 0, face: false },
     },
     needs: ['ladders', 'a boss\'s weapon got (a weapon a boss)', 'sub-tanks and heart tanks', 'armor parts (the legs earn the air dash)'] },
-  'commuter-rail-runner': { name: 'Commuter Rail Runner', after: 'the infinite runner', base: 'pinball', view: { camera: 'third-person', D: 5.5, h: 2.8, pitch: 0.22 }, stage: 'rail',
+  'commuter-rail-runner': { demo: ['lanes', 'jump', 'dodge', 'dash'], name: 'Commuter Rail Runner', after: 'the infinite runner', base: 'pinball', view: { camera: 'third-person', D: 5.5, h: 2.8, pitch: 0.22 }, stage: 'rail',
     says: 'the endless run, pinball\'s body: the track comes at you faster and faster; on the rails a flick switches lanes, a jump clears a barrier, a roll or a boost goes under an overhead, a train is dodged, coins gathered, a hit stumbles and a second ends it; on the slope the ball steers free between rocks and pillars, one hit and the run is over',
     set: {
       runner: { speed: 9, ramp: 0.08, max: 18, lanes: [-1.6, 0, 1.6], shift: 8, steer: 7, width: 4.5, every: 16, ahead: 90, lead: 30, seed: 11, low: 0.8, kinds: { barrier: 3, overhead: 2, train: 2, coin: 3 }, crash: 'stumble', stumble: { slow: 0.6, mercy: 50, window: 120 } },
@@ -410,6 +410,14 @@ export const POLES = Object.freeze({
     needs: ['the chaser (the guard who catches a second stumble)', 'ramps onto the trains\' roofs', 'power-ups (the magnet, the jetpack, the super sneakers)', 'the track\'s turns (the free runner\'s corners)'] },
 });
 export const POLE_IDS = Object.freeze(Object.keys(POLES));
+/**
+ * What a template is ABOUT, the abilities its feel book shows (POLES[].demo; every other control, dial and readout put
+ * away): move, sprint, jump, air (an air jump), wall (slide and kick), attack (the string), charge (hold-release),
+ * buster (the tap shot and its charge), shoot and switch (the loadout), dodge (the roll), dash, boost, chargeJump, guard
+ * (the block and the parry), lock, glide, jet, pound, stomp (a body's head), lanes (the runner's), spar (a dummy that
+ * swings back). Each is on the template's card (the gate checks it).
+ */
+export const DEMO_ABILITIES = Object.freeze(['move', 'sprint', 'jump', 'air', 'wall', 'attack', 'charge', 'buster', 'shoot', 'switch', 'dodge', 'dash', 'boost', 'chargeJump', 'guard', 'lock', 'glide', 'jet', 'pound', 'stomp', 'lanes', 'spar']);
 /** a pole's variants (its first the default): each the fields it changes over the pole's own */
 export const variantsOf = (id) => Object.keys(POLES[id]?.variants ?? {});
 /** the viewers a pole may name (the page draws each): ¾ follow, isometric, overhead, side, third-person chase, over-the-shoulder, first-person, the mech's chase */

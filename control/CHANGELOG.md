@@ -26,8 +26,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The feel book: sample a made game's controls.** A world that writes a feel has a third book beside its world
   and character bibles (`/api/sketches/<ref>/bible?book=feel`, a `feel` exit on its project page): the action lab's
   stick view locked to the game's own card, on its template's stage and viewer, to run, jump and strike as the game
-  will, with what the runtime carries said beside it (the dials try changes on the page only). The gameworld bible
-  says how the controls play and links to it. The stick view's kernel, page, takes and the hero library's flavors moved
+  will. Each template shows only what it is about (its `demo`: Galaxy Boy the run, the jump, the wall kick, the dash
+  and the buster; the runner its lanes, the jump, the roll and the boost): those keys, buttons, dials, readouts and
+  strip colours, and only their buttons answer; no prose, the demo speaks for itself (the dials try changes on the
+  page only). The gameworld bible names the feel and links to it. The stick view's kernel, page, takes and the hero library's flavors moved
   from the spikes into `lib/graph/gameworld/feel/` (the lab and the animation spike re-export them), and the takes bake
   only the game's base feel on one body, once per process.
 - **Genre defaults, suggested and written.** A world that writes no feel is suggested one in `design_game`'s readout
