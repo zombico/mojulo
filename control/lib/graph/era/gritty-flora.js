@@ -54,6 +54,8 @@ const laid = (f) => !f.texture && Array.isArray(f.normal) && typeof f.fill === '
 
 /** The trail's own path tile at a grit, variant `v` (0 | 1): what its edge's spill is laid with (era/trail-dress.js). */
 export const trailKey = (grit, v) => keysFor(grit)(GROUND_CUTS['isekai:trail'], v);
+/** The land's own turf tile at a grit, variant `v`: what the verge's outer edge is turfed with (era/trail-dress.js). */
+export const turfKey = (grit, v) => keysFor(grit)(GROUND_CUTS['isekai:ground'], v);
 
 /** The faces with the flora's relief laid on them, as strong as the land is gritty. */
 export function withGrittyFlora(faces, grit) {

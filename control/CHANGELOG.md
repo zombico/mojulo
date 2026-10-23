@@ -153,12 +153,16 @@ before.
   trail's lanes lean to its word's colour (a stone word without one to the kit's rock), on a gritty land laid with its
   word's tile for the path's, one tile across the lanes so its joints run on (`matte-paint/detail.js` lays a
   `stone-brick` spec as a detail, painted in greys under the word's colour; `landscape/surface-textures.js`
-  `bondedBrickTile` its texels). An outdoor one leans part of the way and keeps the dirt trail's edge (the verge from
-  the dirt, a narrower spill, the rubble beside it and more of it in on its border), and its border has sand worked into
-  it (`sandBands`): three bands along each edge, each a cutout of the road's own tile (`era/sand-tiles.js`: opaque in
-  its cracks, then in broken patches), from the cracks alone furthest in to mostly sand at the edge, so the road reads
-  its whole width and shows through beneath the sand. A made one keeps its own: its
-  fringe turf to its edge, with no rubble, patches or pebbles.
+  `bondedBrickTile` its texels). A made one keeps its own edge: its fringe turf to its edge, with no rubble, patches or
+  pebbles. An outdoor one leans part of the way and keeps the dirt trail's edge (the verge from the dirt, a narrower
+  spill, the rubble beside it and more of it in on its border), and its border has sand worked into it (`sandBands`):
+  seven bands along each edge over a metre, each a cutout of the road's own tile (`era/sand-tiles.js`: a share of its
+  cracks in broken runs, then all of them, then broken patches over the stones), the sand coming in a crack at a time
+  from furthest in to mostly sand at the edge, so the road reads its whole width and shows through beneath the sand
+  with no line where the sand begins.
+- **The verge's outer edge** (any gritty trail in the dirt), done the same way (`turfBands`): seven bands of the land's
+  own turf tile cut to its blades, a share of them furthest in on the verge, then all, then patches of sward, a little
+  past the edge onto the land, in the land's colour, so the verge meets the land with no line.
 - The geocube vocab card names the glazings (arabesque, ornamental, stained) and the trail's dress. Tests:
   `trail-dress.test.js`. The study spike `scripts/spikes/geotown/trail.mjs` frames one stretch of a stage trail on a
   cube, per dress.

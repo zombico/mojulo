@@ -232,29 +232,58 @@ export function verged(land, lane) {
 
 /**
  * The border of a road laid in the dirt, sand worked into it: bands along each edge, from `from` m in from it to the
- * next band's, each a cutout of the road's own tile at its sand `level` (era/sand-tiles.js: its cracks, then broken
- * patches): the cracks alone furthest in, the stones mostly sanded over at the edge, so the road shows through beneath
- * the sand and reads its whole width. Each band's inner line wanders along the trail. In the dirt's colour.
+ * next band's, each a cutout of the road's own tile at its sand `level` (era/sand-tiles.js: a share of its cracks, all
+ * of them, then broken patches): a few cracks furthest in, the stones mostly sanded over at the edge, so the road
+ * shows through beneath the sand and reads its whole width. Seven bands, the sand coming in a crack at a time from a
+ * metre in; each band's inner line wanders along the trail. In the dirt's colour.
  */
-export const SAND_BANDS = Object.freeze([{ from: 0.55, level: 0 }, { from: 0.3, level: 0.35 }, { from: 0.13, level: 0.7 }]);
+export const SAND_BANDS = Object.freeze([{ from: 1, level: 0.08 }, { from: 0.8, level: 0.2 }, { from: 0.62, level: 0.34 },
+  { from: 0.46, level: 0.5 }, { from: 0.33, level: 0.6 }, { from: 0.21, level: 0.7 }, { from: 0.1, level: 0.82 }]);
+/**
+ * The verge's outer edge, the land's turf worked into its dirt the same way: bands from `from` m in from the fringe's
+ * outer edge (on the verge) out to a little past it (on the land), each a cutout of the land's own turf tile at its
+ * level (its blades, a share of them, then all, then patches of sward), a few blades furthest in, the sward whole at
+ * the land, in the land's colour.
+ */
+export const TURF_BANDS = Object.freeze([{ from: 0.62, level: 0.08 }, { from: 0.5, level: 0.2 }, { from: 0.39, level: 0.34 },
+  { from: 0.29, level: 0.5 }, { from: 0.2, level: 0.6 }, { from: 0.12, level: 0.7 }, { from: 0.05, level: 0.82 }]);
 
-/** { site, lanes (as the land coloured them, each its `cls`: the dirt's colours), roadKey, metres, seed, keep } → faces. */
-export function sandBands({ site, lanes, roadKey, metres, seed, keep = null }) {
-  const { xyAt, ribbonZ } = ribbonOf(site), under = colourUnder(lanes), out = [], step = 0.375, r4 = (v) => Math.round(v * 1e4) / 1e4;
-  // (a band's inner line at station y: its `from`, wandering a third either way; the outermost band's outer line a hair
-  // past the edge)
-  const line = (k, y, side) => (k === SAND_BANDS.length ? -0.03 : SAND_BANDS[k].from * (0.7 + 0.6 * vnoise(y * 0.55 + k * 3.7, side * 5.3, seed + 1409 + k)));
+// bands along both edges of a line `base(y)` out from the trail's middle: band k from `d` = its wandering `from` in
+// from the line to the next band's, the last out to `past` beyond it, never deeper than `deepest(y)`; each a cutout
+// `keyOf(level)` laid with the world-locked uv of a tile `metres` a repeat, coloured by `under`
+function layBands({ site, bands, base, past, deepest, under, keyOf, metres, seed, keep, group, flag, rise }) {
+  const { xyAt, ribbonZ } = ribbonOf(site), out = [], step = 0.375, r4 = (v) => Math.round(v * 1e4) / 1e4;
+  // (a band's inner line at station y: its `from`, wandering two fifths either way, never past the next band's)
+  const line = (k, y, side) => (k === bands.length ? -past : Math.min(deepest(y), Math.max(line(k + 1, y, side) + 0.02, bands[k].from * (0.6 + 0.8 * vnoise(y * 0.55 + k * 3.7, side * 5.3, seed + k)))));
   for (const side of [-1, 1]) for (let y = 0; y < site.D - 1e-6; y += step) {
     const y1 = Math.min(site.D, y + step);
     if (site.gapAt && (site.gapAt(y) || site.gapAt(y1))) continue;
-    for (let k = 0; k < SAND_BANDS.length; k++) {
-      const P = (yy, d) => { const off = side * (site.halfWAt(yy) - d), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + 0.006 + 0.001 * k)]; };
+    for (let k = 0; k < bands.length; k++) {
+      const P = (yy, d) => { const off = side * (base(yy) - d), [x, y2] = xyAt(yy, off); return [r5(x), r5(y2), r5(ribbonZ(yy, off) + rise + 0.001 * k)]; };
       const cs = [P(y, line(k, y, side)), P(y, line(k + 1, y, side)), P(y1, line(k + 1, y1, side)), P(y1, line(k, y1, side))];
       if (cs.some((c) => !kept(keep, c[0], c[1], 0.3))) continue;
       const n = upOf(cs), C = n[2] < 0 ? cs.reverse() : cs, fills = C.map((c) => under(c[0], c[1]));
       if (fills.some((f) => !f)) continue;
-      out.push({ corners: C, normal: upOf(C), group: 'isekai:trail', fill: fills[0], cornerFills: fills, texture: sandKey(roadKey, SAND_BANDS[k].level), textureLit: true, uv: C.map((c) => [r4(c[0] / metres), r4(c[1] / metres)]), sand: true });
+      out.push({ corners: C, normal: upOf(C), group, fill: fills[0], cornerFills: fills, texture: keyOf(bands[k].level), textureLit: true, uv: C.map((c) => [r4(c[0] / metres), r4(c[1] / metres)]), [flag]: true });
     }
   }
   return out;
+}
+
+/** { site, lanes (as the land coloured them, each its `cls`: the dirt's colours), roadKey, metres, seed, keep } → faces. */
+export function sandBands({ site, lanes, roadKey, metres, seed, keep = null }) {
+  return layBands({ site, bands: SAND_BANDS, base: (y) => site.halfWAt(y), past: 0.03, deepest: () => Infinity, under: colourUnder(lanes),
+    keyOf: (level) => sandKey(roadKey, level), metres, seed: seed + 1409, keep, group: 'isekai:trail', flag: 'sand', rise: 0.006 });
+}
+
+/** { site, lanes, turfKey (the land's turf tile), metres, seed, keep } → the verge's outer edge's faces, in the land's
+ *  colour (its fringe lanes' outer corners'). */
+export function turfBands({ site, lanes, turfKey, metres, seed, keep = null }) {
+  // (the land's colour: the fringe lanes' corners at their outer edge only)
+  const outer = lanes.filter((f) => f.cls === 'fringe' && typeof f.fill === 'string').map((f) => {
+    const ks = f.corners.map((c, k) => k).filter((k) => site.trailDist(f.corners[k][0], f.corners[k][1]) > site.halfWAt(f.corners[k][1]) + 0.5 * site.fringeAt(f.corners[k][1]));
+    return { cls: 'fringe', fill: f.fill, corners: ks.map((k) => f.corners[k]), cornerFills: ks.map((k) => f.cornerFills?.[k] ?? f.fill) };
+  });
+  return layBands({ site, bands: TURF_BANDS, base: (y) => site.halfWAt(y) + site.fringeAt(y), past: 0.18, deepest: (y) => site.fringeAt(y) - 0.05, under: colourUnder(outer),
+    keyOf: (level) => sandKey(turfKey, level, 'light'), metres, seed: seed + 1423, keep, group: 'isekai:ground', flag: 'turf', rise: 0.006 });
 }

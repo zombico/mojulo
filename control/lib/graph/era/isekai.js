@@ -53,10 +53,10 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
-import { withGrittyFlora, withGrittyGround, trailKey, GROUND_CUTS } from './gritty-flora.js';
+import { withGrittyFlora, withGrittyGround, trailKey, turfKey, GROUND_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
-import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, IN_DIRT } from './trail-dress.js';
+import { readTrailDress, trailPatches, surfaceDress, edgeSpill, verged, sandBands, turfBands, IN_DIRT } from './trail-dress.js';
 import { detailKey } from '../matte-paint/detail.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -587,7 +587,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const lanes = broken && inDirt ? landV.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })) : null;
   // (a road laid in the dirt: its border sand worked into its cracks, the road showing through beneath)
   const sand = broken && SD?.dirt && SD.tile ? sandBands({ site, lanes, roadKey: detailKey(SD.tile.params, SD.tile.seed, SD.tile.metres, 0), metres: SD.tile.metres, seed, keep }) : [];
-  const patches = broken && inDirt ? [...sand, ...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, scale: IN_DIRT[TD.surface]?.spill ?? 1 }),
+  // (and any trail in the dirt: the land's turf worked into its verge's outer edge)
+  const turf = broken && inDirt ? turfBands({ site, lanes, turfKey: turfKey(broken, 0), metres: GROUND_CUTS['isekai:ground'].metres, seed, keep }) : [];
+  const patches = broken && inDirt ? [...sand, ...turf, ...edgeSpill({ site, lanes, grit: broken, seed, keep, key: (v) => trailKey(broken, v), metres: GROUND_CUTS['isekai:trail'].metres, scale: IN_DIRT[TD.surface]?.spill ?? 1 }),
     ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
   const faces = [...landD, ...patches, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (!f.textureLit && st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...real, ...(site.out ? streamFaces(site, st) : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);

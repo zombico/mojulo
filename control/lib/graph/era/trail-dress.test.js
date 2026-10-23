@@ -1,7 +1,7 @@
 // Trail dress (trail-dress.js): a gritty dirt trail strewn at its edges and worn in patches in its own colours; a paved
 // trail in the street's ground words; a quiet trail as it came.
 import { describe, expect, it } from 'vitest';
-import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES, IN_DIRT, SAND_BANDS } from './trail-dress.js';
+import { readTrailDress, surfaceDress, PATCH_KINDS, PATCH_DEFAULT, TRAIL_SURFACES, IN_DIRT, SAND_BANDS, TURF_BANDS } from './trail-dress.js';
 import { sandKey, sandTexels } from './sand-tiles.js';
 import { readOutTrail, outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
@@ -114,6 +114,12 @@ describe('a trail dressed on a stage', () => {
     const T = SAND_BANDS.map((b) => sandTexels(sandKey(road, b.level))), cover = (t) => t.a.reduce((n, v) => n + (v ? 1 : 0), 0) / t.a.length;
     expect(T.every((t, i) => i === 0 || cover(t) > cover(T[i - 1]))).toBe(true);
     expect(cover(T[T.length - 1])).toBeLessThan(1);
+    // (and the land's turf worked into its verge's outer edge the same way, its blades a share at a time)
+    const turf = R.faces.filter((f) => f.turf), U = [...new Set(turf.map((f) => f.texture))].sort((a, b) => +a.split('~')[1] - +b.split('~')[1]).map(sandTexels);
+    expect(turf.length).toBeGreaterThan(0);
+    expect(turf.every((f) => /~light$/.test(f.texture) && R.cutouts.includes(f.texture) && f.group === 'isekai:ground')).toBe(true);
+    expect(U).toHaveLength(TURF_BANDS.length);
+    expect(U.every((t, i) => i === 0 || cover(t) > cover(U[i - 1]))).toBe(true);
   }, 90000);
 
   it('a geocube\'s street hands its `path` to the trail it lies on; no stone or patch on ground a town has claimed', () => {
