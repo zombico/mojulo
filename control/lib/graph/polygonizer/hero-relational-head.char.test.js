@@ -39,6 +39,9 @@
  * - 2026-10-24, the one skin over rolled faces (hero-one-skin.deep.test.js): a rim the net's pinches left touching itself
  *   is split into simple loops and fanned shut (holes at the nostrils, the canthi and the sockets), crossings on the lips'
  *   line within a weld are one point, and no collapse leaves a face flat. The one skin's two poles; the pieces as pinned.
+ * - 2026-10-24, the lids' crease (the operator: the blink's fold): the skin netted at 1 mm (the upper lid's fold is
+ *   thinner than 1.5 mm and pinched ragged), the rim's untangle read only about the seam ring (it had smoothed the
+ *   nostrils and the sockets). The one skin's two poles; the pieces as pinned.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -49,7 +52,7 @@ const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR
 const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
 // the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
 const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
-const ONE_PINS = { male: '5b3da8fa99999eff', female: '30b088ba868ee785' };
+const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {

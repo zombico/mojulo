@@ -204,20 +204,23 @@ export function simplifyMesh(V0, F0, { target, locked = null, weight = null, tur
   // ends and its middle; a locked end stays where it is
   const place = (a, b) => {
     if (lock[a] && lock[b]) return null;
-    const q = sumQ(a, b);
-    if (lock[a]) return [V[a], qerr(q, V[a])];
-    if (lock[b]) return [V[b], qerr(q, V[b])];
-    const A = [[q[0], q[1], q[2]], [q[1], q[4], q[5]], [q[2], q[5], q[7]]], r = [-q[3], -q[6], -q[8]];
-    const det = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
-    const cands = [V[a], V[b], V[a].map((x, k) => (x + V[b][k]) / 2)];
+    const q = sumQ(a, b), A = V[a], B = V[b];
+    if (lock[a]) return [A, qerr(q, A)];
+    if (lock[b]) return [B, qerr(q, B)];
+    // (the quadric's minimum by Cramer's rule, kept when it lies within the edge's length of its middle)
+    const m00 = q[0], m01 = q[1], m02 = q[2], m11 = q[4], m12 = q[5], m22 = q[7], r0 = -q[3], r1 = -q[6], r2 = -q[8];
+    const c00 = m11 * m22 - m12 * m12, c01 = m01 * m22 - m12 * m02, c02 = m01 * m12 - m11 * m02, det = m00 * c00 - m01 * c01 + m02 * c02;
+    const M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
+    let best = null, be = Infinity;
     if (Math.abs(det) > 1e-18) {
-      const s = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-      const col = (k) => A.map((row, i) => row.map((x, j) => (j === k ? r[i] : x)));
-      const p = [s(col(0)) / det, s(col(1)) / det, s(col(2)) / det], len = Math.hypot(...sub(V[a], V[b]));
-      const mid = cands[2]; if (Math.hypot(...sub(p, mid)) <= len) cands.unshift(p);
+      const x = (r0 * c00 - m01 * (r1 * m22 - m12 * r2) + m02 * (r1 * m12 - m11 * r2)) / det;
+      const y = (m00 * (r1 * m22 - m12 * r2) - r0 * c01 + m02 * (m01 * r2 - r1 * m02)) / det;
+      const z = (m00 * (m11 * r2 - r1 * m12) - m01 * (m01 * r2 - r1 * m02) + r0 * c02) / det;
+      const len = Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]);
+      if (Math.hypot(x - M[0], y - M[1], z - M[2]) <= len) { best = [x, y, z]; be = qerr(q, best); }
     }
-    let best = null; for (const p of cands) { const e = qerr(q, p); if (!best || e < best[1] - 1e-30) best = [p, e]; }
-    return best;
+    for (const p of [A, B, M]) { const e = qerr(q, p); if (!best || e < be - 1e-30) { best = p; be = e; } }
+    return [best, be];
   };
   const heap = new Heap(), pushEdge = (a, b) => { if (a > b) [a, b] = [b, a]; const pl = place(a, b); if (pl) heap.push([pl[1], a, b, stamp[a] * 65536 + stamp[b]]); };
   const seenE = new Set(); F.forEach((t) => { for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3], key = ek(a, b); if (seenE.has(key)) continue; seenE.add(key); pushEdge(a, b); } });
@@ -322,20 +325,23 @@ export function closeHoles(V0, F0, field, { keep = () => false, project = 3 } = 
 }
 
 /** Faces turned inward (their normal against `out(centre)`) UNTANGLED: each one's free points (not `fixed`) moved to the
- * mean of their neighbours and set back onto `field`, `passes` times over or until none is turned. In place; → how
- * many were still turned. (A rim set onto a ring a cell away can fold the face beside it.) */
-export function untangle(V, F, { out, fixed = () => false, field, passes = 8 } = {}) {
-  const nb = new Map(); for (const t of F) for (let a = 0; a < 3; a++) { const u = t[a]; let s = nb.get(u); if (!s) nb.set(u, s = new Set()); s.add(t[(a + 1) % 3]); s.add(t[(a + 2) % 3]); }
-  const turned = () => F.filter((t) => { const c = [0, 1, 2].map((k) => (V[t[0]][k] + V[t[1]][k] + V[t[2]][k]) / 3); return dot(normal(V, t), out(c)) < 0; });
-  let bad = turned();
+ * mean of their neighbours and set back onto `field`, `passes` times over or until none is turned. Only the faces about
+ * `around` (points: a moved rim's; a whole head has many faces that rightly face its centre, the nostrils', the
+ * sockets') are read. In place; → how many were still turned. (A rim set onto a ring a cell away can fold the face
+ * beside it.) */
+export function untangle(V, F, { out, fixed = () => false, field, passes = 8, around } = {}) {
+  const vf = new Map(); F.forEach((t, fi) => { for (const v of t) (vf.get(v) || vf.set(v, []).get(v)).push(fi); });
+  const facesAbout = (vs) => [...new Set([...vs].flatMap((v) => vf.get(v) || []))].sort((x, y) => x - y);
+  const turned = (fs) => fs.filter((fi) => { const t = F[fi], c = [0, 1, 2].map((k) => (V[t[0]][k] + V[t[1]][k] + V[t[2]][k]) / 3); return dot(normal(V, t), out(c)) < 0; });
+  let bad = turned(facesAbout(around));
   for (let pass = 0; pass < passes && bad.length; pass++) {
-    const move = [...new Set(bad.flat())].filter((v) => !fixed(v)).sort((a, b) => a - b);
+    const move = [...new Set(bad.flatMap((fi) => F[fi]))].filter((v) => !fixed(v)).sort((x, y) => x - y);
     for (const v of move) {
-      const ns = [...nb.get(v)]; let c = [0, 1, 2].map((k) => ns.reduce((s, w) => s + V[w][k], 0) / ns.length);
+      const ns = [...new Set(vf.get(v).flatMap((fi) => F[fi]))].filter((w) => w !== v); let c = [0, 1, 2].map((k) => ns.reduce((sum, w) => sum + V[w][k], 0) / ns.length);
       for (let it = 0; it < 2; it++) { const f = field(P3(c[0], c[1], c[2])), g = grad(field, c[0], c[1], c[2], 1e-5), g2 = dot(g, g); if (!(g2 > 1e-12)) break; c = [c[0] - (f * g[0]) / g2, c[1] - (f * g[1]) / g2, c[2] - (f * g[2]) / g2]; }
       V[v] = c;
     }
-    bad = turned();
+    bad = turned(facesAbout(new Set([...move, ...bad.flatMap((fi) => F[fi])])));
   }
   return bad.length;
 }

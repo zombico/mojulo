@@ -31,18 +31,19 @@ import { smin } from './vajra.js';
  * (`turn`, the cosine), the globe's rings and slots, the mouth bag (its gap behind the turn-in, its depth and height,
  * how far `wide` past the corners, its rings and slots) */
 export const ONE_SKIN = Object.freeze({
-  cell: 0.0015, weld: 0.0002, faces: 30000, feature: 12, reach: { eye: 0.02, nose: 0.016, mouth: 0.02 }, lipDepth: 0.005, lipEase: 0.003, lipWindow: 0.006, turn: 0.5,
+  cell: 0.001, weld: 0.0002, faces: 30000, feature: 12, reach: { eye: 0.02, nose: 0.016, mouth: 0.02 }, lipDepth: 0.005, lipEase: 0.003, lipWindow: 0.006, turn: 0.5,
   globeSlots: 48, globeRings: { pupil: 2, iris: 5, sclera: 14 },
   bag: { gap: 0.001, depth: 0.026, height: 0.024, wide: 0.004, rings: 10, slots: 24 },
 });
 
 /** the one skin by the head's rung on screen (dermal-hair.js `hairLevel`, from the hero's target: L2 a head 200 px tall
- * and over, L1 80 and over, L0 under): its faces and its globes', over ONE_SKIN. A hero drawn for no target wears
+ * and over, L1 80 and over, L0 under): its faces, its net's cell (the lids' fold is thinner than a 1.5 mm cell, and
+ * pinches into a ragged crease a close head shows) and its globes', over ONE_SKIN. A hero drawn for no target wears
  * ONE_SKIN as it is (a hero's export: the eyes gate's) */
 export const ONE_SKIN_RUNGS = Object.freeze({
   L2: Object.freeze({ faces: 30000 }),
-  L1: Object.freeze({ faces: 18000 }),
-  L0: Object.freeze({ faces: 8000, globeSlots: 24, globeRings: Object.freeze({ pupil: 1, iris: 3, sclera: 8 }) }),
+  L1: Object.freeze({ faces: 18000, cell: 0.0012 }),
+  L0: Object.freeze({ faces: 8000, cell: 0.0015, globeSlots: 24, globeRings: Object.freeze({ pupil: 1, iris: 3, sclera: 8 }) }),
 });
 
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
@@ -155,7 +156,7 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   }
   // (a rim point moved onto the ring can fold the face beside it: those faces' free points relaxed back)
   const outward = (q) => [q[0] - O[0], q[1] - O[1], q[2] - O[2]], rimSet = new Set(rim);
-  untangle(V, F, { out: outward, fixed: (v) => rimSet.has(v), field: (p) => fU([p.x, p.y, p.z]) });
+  untangle(V, F, { out: outward, fixed: (v) => rimSet.has(v), field: (p) => fU([p.x, p.y, p.z]), around: rimSet });
   // THE LIPS' CUT, exactly on the lips' line: each edge across it (between the corners, at the mouth's front, its ends
   // within `lipWindow` of it) split where it crosses (the point set back onto the skin along the look: the groove faces
   // forward), each face across it split on those points; the points on the line then doubled, the lower lip's faces

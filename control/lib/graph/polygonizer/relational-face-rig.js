@@ -113,7 +113,7 @@ export function relationalFaceRig(m, mesh) {
       const V = {}, layout = X.map((n) => layoutOf(P[n]));
       for (const [name, actions] of Object.entries(BUILDS)) {
         const fitOnly = { k: fit.k, ty: fit.ty, men: fit.men };
-        const r = skin ? { parts: { headSkin: name === 'rest' ? P.headSkin : { ...P.headSkin, mesh: { ...skin, points: oneSkinFollow({ ...words, fit: fitOnly, actions, points: skin.points, normals: skin.normals }) } } } }
+        const r = skin ? { parts: { headSkin: name === 'rest' ? P.headSkin : { ...P.headSkin, mesh: { ...skin, points: oneSkinFollow({ ...words, fit: fitOnly, actions, points: skin.points, normals: skin.normals, faces: skin.faces }) } } } }
           : relationalHeadRecipe(m.recipe, { ...words, actions, fit: fitOnly, faceOnly: true });
         const parts = Object.fromEntries(X.map((n) => [n, HEAD.test(n) ? r.parts[n] : P[n]]));
         if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }

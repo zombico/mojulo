@@ -55,8 +55,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   it rides: the one skin has no cranium, and the hair had been lit facet by facet. The scalp's strips lose their faces
   without area (a blade's segment of no length), so the hair passes its audit. The skin's count rides the head's fit,
   so what is pinned to it is never worn on another count's faces.
-- Still open: the shut lid's fold creases where the upper lid's crease folds under itself (the net pinches the fold:
-  it is thinner than a cell).
+- THE LIDS' CREASE AND THE BLINK. The upper lid's fold is thinner than a 1.5 mm cell, and the net pinched it into a
+  ragged crease. The skin is now netted at 1 mm (1.2 at L1; L0's head is too small to show it). To afford that, the
+  rim's untangle reads only the faces about the seam ring: it had read the whole head, smoothing the nostrils and
+  the sockets that rightly face its middle. The simplifier also solves its quadric inline. A lid is now its margin's
+  by the distance ALONG the skin from the margin (`oneSkinFollow`'s `faces`): over the lid, into its crease and out
+  over the fold that distance only grows, where the elevation and the radius fold back. The lid turns over the globe
+  and slides under the fold, which stays. The lower lid is held to its margin's radius, so the cheek in front of it is
+  never swung up across the eye. A lid's points are the lid's for every action, so a smile's beads never draw the
+  upper lid down. The beads carry what the lids leave (the fold follows a raised brow, with no tear), and the settle
+  reaches a tenth as far in the eye's footprint, where the fold's layers lie closer than its reach.
+- Still open: the shut lid ripples a little; a full smile's cheek stands over the lower iris, as the face's field
+  draws it.
 
 ### The realistic hero's face: rolled, bounded, aimed
 

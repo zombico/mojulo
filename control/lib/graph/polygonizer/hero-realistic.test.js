@@ -173,7 +173,7 @@ describe('the realistic hero at the door', () => {
     expect(ro).toMatchObject({ words: hero.face, ethnicity: 'east-asian', picks: F.picks, ancestry: F.ancestry });
     expect(realisticFaceOf({ ...hero, face: { seed: 3, ethnicity: ['western', 'african'] } }).hybrid).toBeTruthy();
     expect(realisticFaceOf({ form: 'realistic', head: 'relational', cast: 'male' })).toBeNull();
-  });
+  }, 240_000);
   it('its face shapes its head and lies under its skin: the composed relations on the relational head, the ancestry\'s tone, the hero\'s own skin over it', () => {
     const at = (face, extra = {}) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', ...(face ? { face } : {}), ...extra }) }).recipe;
     const plain = at(null), a = at({ seed: 1, ethnicity: 'african' }), b = at({ seed: 2, ethnicity: 'african' });
