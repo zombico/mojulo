@@ -26,7 +26,8 @@
  * strews stones (local-meru/broken-land.js), and the page draws its rock's fabric near the eye (matte-paint/fabric.js:
  * the site's own strata and joints, the land's `skin` and `rocks`). Absent, every face is as it was.
  * A stage's `biocube` (era/biocube.js) lays its flora over the card's trees and grass and grows its bushes; on a polygon
- * land it brings the grass back (tufts and the field; the lips' and hats' fringes stay the island's: none).
+ * land it brings the grass back (tufts and the field; the lips' and hats' fringes stay the island's: none). Its `fauna`
+ * (era/biocube-fauna.js) lays the field's swarms and birds on the page.
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
 import { reserveSite, kept, CROWN } from './reserve.js';
@@ -53,6 +54,7 @@ import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-p
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
+import { placeFauna } from './biocube-fauna.js';
 import { withGrittyFlora, withGrittyGround, trailKey, turfKey, groundKey, pavementJoints, GROUND_CUTS, TALUS_CUTS } from './gritty-flora.js';
 import { bakeLand, ruleLand } from '../local-meru/shading.js';
 import { breakRims, strewStones, strewEdge } from '../local-meru/broken-land.js';
@@ -728,6 +730,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // anchor an engine can find
   if (shr.anchors.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...shr.colliders], anchors: [...(payload.anchors ?? []), ...shr.anchors] });
   if (ike) Object.assign(payload, { soft: [SOFT_GROUP], colliders: [...(payload.colliders ?? []), ...ike.colliders], anchors: [...(payload.anchors ?? []), ...ike.anchors] });
+  // a biocube's FAUNA (era/biocube-fauna.js): the field's swarms and birds on the page (scene/channels/fauna.js), each on
+  // its own ground; none, not one byte
+  if (B?.fauna) payload.fauna = placeFauna(B.fauna, { st, site, trees, seed, formation: SH && typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin] ? SH.skin : null });
   return payload;
 }
 

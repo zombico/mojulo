@@ -159,6 +159,7 @@ export const PAGE_MARKS = Object.freeze({
   shallows: m(A, 'shallows are not drawn'), wetSand: m(A, 'wet sand is not drawn'), softGround: m(A, 'soft ground is not drawn'),
   jets: m(A, 'jets are not drawn'), jetLight: m(A, 'jet light is not drawn'), sway: m(A, 'vegetation does not sway'),
   flicker: m(A, 'lights do not flicker'), motes: m(A, 'motes are not drawn'),
+  fauna: m(A, 'the field fauna (gnats, fireflies, butterflies, birds overhead: scene/channels/fauna.js) are the page\'s own: none is drawn'),
   wetRoad: m(A, 'a wet road\'s film is not drawn: the road keeps its baked dark, no sky or lamp thrown back off it'),
   weather: m(P, 'fog, colour and light (kernel/weather.gd); falls, landings and lightning are the web\'s'),
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),

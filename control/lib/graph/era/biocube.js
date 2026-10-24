@@ -2,7 +2,7 @@
  * BIOCUBE — what grows in a level, as data: the sibling of the geocube (era/geocube.js), which holds its look. A cube
  * holds no placement and no colour (a plant is painted in the look's ramps); it holds the flora a stage grows, in the
  * kit card's own vocabulary, so a stage reads it by laying it over its card (`withFlora`), not by a drawer of its own.
- * Fauna will be a property beside `flora`.
+ * What lives there is `fauna`, beside `flora` (era/biocube-fauna.js).
  *
  *   flora.trees    { clusters, perCluster: [lo, hi], spread, heights: [lo, hi] m, clearTrail, clearCliff, crown?, hero? }
  *                  the card's `trees` (era/nature.js treeItems: `clusters` groves of `perCluster` trees, `spread` m
@@ -25,8 +25,12 @@
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
  *
+ *   fauna          a fauna preset id (summer-day, summer-night), a document { swarms }, { from, …changes }, or null
+ *                  (none: every preset's): what lives in the level, never an enemy (era/biocube-fauna.js readFauna)
+ *
  *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare
- *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged) → checked
+ *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged, the
+ *                            fauna in its place) → checked
  *   withFlora(card, cube)    an isekai or nature card with the cube's flora laid over its trees and grass
  *
  * Pure. Absent a biocube, a stage grows its card's own flora, byte for byte as before.
@@ -37,6 +41,7 @@ import { validateShrubs } from './shrubs.js';
 import { LEAF_FORMS, LEAF_FORM_IDS, TREE_KIND_KEYS } from './leaf-forms.js';
 import { LEAF_OFFER, BARK_OFFER, HARMONIES, CLUMP_ROLES } from './flora-colours.js';
 import { BARK_FORM_IDS } from '../matte-paint/dressed.js';
+import { readFauna } from './biocube-fauna.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -181,7 +186,7 @@ function checkFlowers(f) {
 export function readBiocube(spec) {
   if (typeof spec === 'string') { if (!BIOCUBE_PRESETS[spec]) no(`'${spec}' is not a biocube (${BIOCUBE_IDS.join(', ')})`); return readBiocube({ from: spec }); }
   if (!isObj(spec)) no(`a biocube is a preset id (${BIOCUBE_IDS.join(', ')}), a document or { from, …changes }`);
-  keys(spec, ['id', 'from', 'title', 'reads', 'flora'], 'biocube');
+  keys(spec, ['id', 'from', 'title', 'reads', 'flora', 'fauna'], 'biocube');
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
   if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers? }');
@@ -192,7 +197,9 @@ export function readBiocube(spec) {
   if (flora.trees === undefined) no('flora.trees is wanted (a document names its trees, or builds from a preset)');
   checkTrees(flora.trees); checkGrass(flora.grass); checkFlowers(flora.flowers);
   if (flora.shrubs !== null) { const e = validateShrubs(flora.shrubs); if (e.length || !isObj(flora.shrubs)) no(`flora.shrubs: ${e.join('; ') || 'is null or { count, bloom, fruit }'}`); }
-  return { id: spec.id ?? spec.from ?? 'biocube', title: spec.title ?? base?.title ?? 'Biocube', reads: spec.reads ?? base?.reads ?? '', flora };
+  // (what lives there: none unless asked, a preset grows no fauna)
+  const fauna = spec.fauna === undefined || spec.fauna === null ? null : readFauna(spec.fauna);
+  return { id: spec.id ?? spec.from ?? 'biocube', title: spec.title ?? base?.title ?? 'Biocube', reads: spec.reads ?? base?.reads ?? '', flora, fauna };
 }
 
 /** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none). */

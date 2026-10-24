@@ -14,6 +14,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Biocube fauna: what lives in a level, beside what grows
+
+A biocube said what grows in a level. It now says what lives there too (`fauna`, beside `flora`). Fauna are never
+enemies: an animal that hunts is a game's foe. There are two tiers. UNIT fauna take up room (a sheep, a deer, a duck)
+and are not placed yet. FIELD fauna are scenery that is never in the way, and this lands them. Not every level wants
+fauna: a biocube grows none unless asked, and every preset's is none, so the geocubes that grow `meadow`, `upland` or
+`grove` are byte for byte as before.
+
+- **Size classes** (`fauna/size-class.js`): `mini` (insects), `smol` (a mouse to a pet), `chonky` (to a person or
+  cattle), `behemoth` (a hippo, a rhino), `gargantuan` (an elephant and up). Measured, never tagged: a bug by its
+  bauplan's length, an animal by its skeleton's longest extent, so a new species gets its class from the bones it
+  builds.
+- **The document** (`era/biocube-fauna.js`): a preset (`summer-day`: butterflies, gnats, a flock crossing;
+  `summer-night`: fireflies, a few gnats), a document `{ swarms: { <kind>: true | { …settings } | null } }`, or
+  `{ from, swarms }` kind by kind. Every setting is on its rail and told when it is off. Each field kind stands for an
+  animal in the rosters, takes its size class, and keeps to its grounds of the substrate map (`faunaOn`).
+- **The field on a stage** (`placeFauna`, an isekai stage's `biocube.fauna`): gnat clouds over the grass near the way,
+  fireflies by the trees, butterflies over the grass, all on their own ground, off the way and off claimed ground, by
+  the site's dice. The colours are the world's ramps: the soil's darkest for gnats, the gold for fireflies, the gold,
+  violet and fruit for butterflies, the rock's darkest for birds.
+- **The page draws them** (`scene/channels/fauna.js`, `emitThreeWorld({ fauna })`). Each kind is a closed form of the
+  clock, so a pinned frame is reproducible:
+  - gnats are dark specks jittering in a swaying column;
+  - fireflies are glowing points drifting and blinking, a hard core with a soft halo;
+  - butterflies are two wing cards beating along a wandering loop above the grass;
+  - birds are a loose V of beating and gliding silhouettes crossing high overhead every `every` seconds, each pass its
+    own heading, height and count.
+
+  Absent fauna, not one byte. Godot and Roblox mark it absent.
+
 ### Composed clumps: an ikebana clump cast and coloured by role
 
 An arranged clump (`compose: 'ikebana'`) placed its trees in roles but drew them all one kind and one colour. Now a

@@ -1,5 +1,5 @@
 ---
-{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass; composed clumps (ikebana), harmonious tree colours, a dominant tree with accents", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers) and its fauna (gnats, fireflies, butterflies, birds overhead), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass; composed clumps (ikebana), harmonious tree colours, a dominant tree with accents; wildlife, butterflies, gnats, midges, fireflies, birds flying overhead, a level that feels alive", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
 A biocube says WHAT grows in a level; the geocube says how the level LOOKS. Colours stay the cube's: the colour
@@ -80,6 +80,28 @@ the low anchor in front, `filler` round them, the trail's side left open. Cast t
   harmony colour wins over its kind's `leaf`.
 
 Stamped trees vary a little in value each, so no two read the same.
+
+## Fauna
+
+`fauna`: what lives in the level, beside what grows. Fauna are never enemies (a hunting animal is a game's foe), and
+not every level wants them: a biocube grows none unless asked, every preset's is none. A preset (`FAUNA_IDS`):
+`summer-day` (butterflies, gnats, a flock crossing), `summer-night` (fireflies, a few gnats); a document `{ swarms:
+{ <kind>: true | { …settings } | null } }`; or `{ from: <preset>, swarms: { …changes } }`, kind by kind, null for none.
+
+The field's kinds: scenery that is never in the way, each on its own ground, in the world's own colours:
+
+- **gnats** `{ clouds (1–24), per (6–80) }`: dark specks jittering in a column over the grass by the way;
+- **fireflies** `{ count (1–400) }`: glowing specks drifting low by the trees, each blinking: a night's light;
+- **butterflies** `{ count (1–60) }`: wings beating on a wandering loop above the grass;
+- **birds** `{ flock: [lo, hi], every s, height: [lo, hi] m }`: a loose V crossing high overhead every `every` seconds.
+
+Each stands for an animal in the encyclopedia, and its size class is that animal's, measured: `mini` (insects), `smol`
+(a mouse to a pet), `chonky` (to a person or cattle), `behemoth` (a hippo), `gargantuan` (an elephant and up). Animals
+that take up room in a level (a sheep, a deer, a duck) are not placed yet.
+
+```
+biocube: { from: 'grove', fauna: { from: 'summer-night', swarms: { fireflies: { count: 150 } } } }
+```
 
 ## Example
 
