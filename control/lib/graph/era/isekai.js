@@ -49,7 +49,7 @@ import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-c
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
-import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
+import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP, SOLID_GROUP } from './ikebana-place.js';
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
@@ -256,6 +256,37 @@ function brokenBoulder(st, rings, centre, k, S, s, broken) {
 const lumaOf = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
 /** A light (rgb 0…1) as a canopy BAND (0 lit … 3 deep shade, between the sky's fill and the full sun) and the light left
  *  over once the band's skin has drawn its value: the light over the band's own, its hue kept. */
+/**
+ * THE HOUR'S SHIFT along a ramp: where the stage's bake lands a tint in full light under the hour's light, against where
+ * it lands under the cube's OWN light (its reference, `ownLight`, era/geocube.js outsideAt), in stops, never above 0.
+ * What is drawn in a ramp's stops rather than baked (a gritty crown's chips and core, the live grass's windows) moves by
+ * it, so a cube's own palette at dusk or night darkens as its land does; a cube at its own hour (a night palette under
+ * its own moon, a day cube at noon) and a kit's own card move by none.
+ */
+// the flora drawn in swatch colours, not a ramp's stops: dimmed by the hour (hourDim) where the ramp-drawn moves by stops
+// (a leaf card's tile and fill are its window of the foliage, moved by the shift itself: era/geocube.js outsideOf)
+const SWATCH_FLORA = new Set([SHRUB_GROUP, SOFT_GROUP, SOLID_GROUP]);
+/** How far the world's foliage comes down at the stage's hour, as a share of its light (1 by day, at the cube's own). */
+export function hourDim(st) {
+  const R = st.palette?.foliage, s = R ? hourShift(st, st.tint.crown, R) : 0;
+  if (!s) return 1;
+  const L = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], i = Math.floor(R.length / 2);
+  return L(R[Math.max(0, i + s)]) / Math.max(1, L(R[i]));
+}
+const dimmed = (f, k) => ({ ...f, ...(f.fill ? { fill: rgbHex(hexRgb(f.fill).map((v) => v * k)) } : {}), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => rgbHex(hexRgb(c).map((v) => v * k))) } : {}) });
+// a live grass's windows moved by the hour's shift (the same object by day)
+export const hourWin = (w, s) => (s ? { lit: w.lit.map((v) => Math.max(0, v + s)), shade: w.shade.map((v) => Math.max(0, v + s)) } : w);
+export function hourShift(st, tint, ramp) {
+  const day = st.ownLight;
+  if (!day || !ramp || !tint) return 0;
+  const E = st.ground?.exposure ?? 1;
+  const at = (L) => {
+    const A = hexRgb(L.ambient).map((v) => v * L.fill), K = hexRgb(L.key.color), c = tint.map((a, k) => Math.min(1, a * (A[k] + K[k] * L.sunGain) * E) * 255);
+    let b = 0, bd = Infinity; ramp.forEach((q, i) => { const d = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]); if (d < bd) { bd = d; b = i; } });
+    return b;
+  };
+  return Math.min(0, at(st.light) - at(day));
+}
 function canopyBand(light, shadeL, litL) {
   const t = Math.max(0, Math.min(1, (lumaOf(light) - shadeL) / Math.max(0.01, litL - shadeL))), band = t > 0.72 ? 0 : t > 0.45 ? 1 : t > 0.2 ? 2 : 3;
   const nominal = shadeL + (litL - shadeL) * [0.88, 0.6, 0.32, 0.08][band];
@@ -567,9 +598,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (GF) {
     const caps = boulders.flatMap((b) => b.cap).filter((f) => f.normal[2] > 0.6), talus = ground.faces.filter((f) => f.group === 'isekai:talus' || f.group === 'isekai:rubble').map((f) => mean(f.corners));
     const shadeAt = (p) => shadow([p[0], p[1], p[2] + 0.2], [0, 0, 1]) <= 0;
+    // (drawn in its ramps' stops: down its ramps as far as the world's foliage dims at the hour, hourDim)
+    const rs = hourDim(st);
     for (const q of growRockFlora(st, { cells: GF.to === 'bedrock' ? GF.cells : [], cell: GF.cell, talus, caps, heightAt: site.ground, seed, grit: broken || 0.5, keep, on: GF.at, joints: broken ? pavementJoints() : null, shadeAt })) {
       const isLit = lit([q.at[0], q.at[1], site.ground(q.at[0], q.at[1]) + 0.15], [0, 0, 1]);
-      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
+      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2, rs).map((v) => v / 255)) });
     }
   }
   // a gritty crown CHIPPED (era/leaf-chips.js; the stage's crowns are never plain balls on a gritty land): its core in its
@@ -577,9 +610,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // those buried in a neighbouring core left out; a far tree its core alone (treeBands)
   if (broken && coreG.length) {
     const C = st.trees.crown, ramp = st.palette[st.lock[st.trees.form === 'blossom' ? 'isekai:blossom' : 'isekai:crown']] ?? st.palette.foliage, hexOf = (c) => rgbHex(c.map((v) => v / 255));
-    const dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.min(1, ramp.length - 1)]);
+    // (the hour's shift along the foliage: a core's lit stop and every chip's stops come down at dusk and night)
+    // (the hour's light is one: measured on the world's foliage, every picked foliage moves the same stops)
+    const hs = hourShift(st, st.tint.crown, ramp), dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.max(0, Math.min(1, ramp.length - 1) + hs)]);
     // (a tree kind's core in the foliage it picked: its ramp's two darkest stops)
-    const stopsOf = (f) => (f._ramp && st.palette[f._ramp] ? [hexOf(st.palette[f._ramp][0]), hexOf(st.palette[f._ramp][1])] : [dark, lite]);
+    const stopsOf = (f) => (f._ramp && st.palette[f._ramp] ? [hexOf(st.palette[f._ramp][0]), hexOf(st.palette[f._ramp][Math.max(0, 1 + hs)])] : [dark, lite]);
     for (const { tint: _t, ...f } of coreG) { const c = mean(f.corners), [dk, lt] = stopsOf(f); cel.push({ ...f, fill: dot(f.normal, dir) > 0.15 && shadow(addv(c, mul(f.normal, 0.05)), f.normal) > 0.5 ? lt : dk }); }
     const crowned = [...(TB ? [...TB.built, ...TB.phantoms] : trees), ...(TH ? TH.items : [])].filter((t) => t.masses || t.lobes), cores = crowned.flatMap((t) => (t.lobes ? [] : t.masses.map((m) => ({ ...m, t }))));
     // (a species' lobes, era/leaf-forms.js: buried in a lobe of another tree by the same share of the lobe as a ball's)
@@ -588,7 +623,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       || (lobes.length > 0 && lobes.some((q) => q.t !== t && Math.abs(q.L.at[0] - p[0]) < q.r && Math.abs(q.L.at[1] - p[1]) < q.r && withinLobe(p, q.L, CHIP_DEFAULTS.shrink * CHIP_BURIED)));
     for (const t of crowned) {
       if (t.band === 'far') continue;
-      const opts = { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp: (t.leafRamp && st.palette[t.leafRamp]) || ramp, seed: Math.round(t.x * 17 + t.y * 5) };
+      const opts = { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp: (t.leafRamp && st.palette[t.leafRamp]) || ramp, seed: Math.round(t.x * 17 + t.y * 5), ...(hs ? { shift: hs } : {}) };
       const chips = t.lobes ? formChips(t.lobes, { ...opts, grain: LEAF_FORMS[t.form].grain, lean: LEAF_FORMS[t.form].lean }) : leafChips(t.masses, opts);
       for (const f of chips) if (!buried(mean(f.corners), t)) cel.push(t.soft ? { ...f, _soft: true } : f);
     }
@@ -688,7 +723,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (a gritty polygon land's flora in detail, as its rock: leaves on the crowns, bark up the trunks, gritty-flora.js; its
   // clouds' cards drawn hi-def in their own stops, isekai-tiles.js `+hd`)
   const hdCloud = (k) => (broken && /:cumulus-/.test(k || '') ? `${k}+hd` : k);
-  const drawnFaces0 = (broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces).map(softBrush);
+  // (the older flora drawn in swatch colours rather than a ramp, the shrubs, their leaf cards and the ikebana, darkened at
+  // the hour as far as the world's foliage comes down its ramp: hourShift)
+  const nightDim = hourDim(st);
+  const drawnFaces0 = (broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces).map(softBrush).map((f) => (nightDim < 1 && SWATCH_FLORA.has(f.group) ? dimmed(f, nightDim) : f));
   // (the stock's templates lifted out of the drawn faces, each stamped where its trees stand, in the shade a step down)
   const drawnFaces = TB ? drawnFaces0.filter((f) => !TB.isPhantom(f)) : drawnFaces0;
   const treeRepeats = TB ? TB.repeats(drawnFaces0.filter((f) => TB.isPhantom(f)), (p) => shadow(p, [0, 0, 1])) : [];
@@ -1035,7 +1073,7 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
   const fl = !G.flowers ? null : flowerConfig(st, { ...FLOWERS_DEFAULT, ...(L.flowers || {}), ...(G.flowers && G.flowers !== true ? G.flowers : {}) }, seed);
   return {
     grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
-    ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
+    ramp: st.palette.grass, win: hourWin(L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] }, hourShift(st, st.tint.ground, st.palette.grass)),
     templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: G.density ?? L.density, height: G.height ?? L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
     sheen: L.sheen, taker: W.grass[0],
     // CONTACT: what walks, lands or strikes in the grass lays it (vegetation/grass-contact.js); `contact: false` ⇒ none

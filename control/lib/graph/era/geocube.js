@@ -85,7 +85,7 @@
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
 import { rampFrom, resample } from './look-facets.js';
-import { ISEKAI_STYLES } from './isekai.js';
+import { ISEKAI_STYLES, hourShift } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
 import { readBiocube } from './biocube.js';
@@ -817,7 +817,10 @@ function lowerOutside(cube0, terrain, hour, clouds) {
   const fit = (hex, name) => resample(rampFrom(rgbOf(hex), 7, { shadow }), land0[name].length);
   // at an hour, its light (geocube-hours.js), under clouds (matte-paint/sky.js) at the reference's own hour if it
   // names none; absent both, the cube's own, as it always was
-  if (hour !== undefined || clouds !== undefined) return outsideAt(cube, hour ?? referenceHour(ref), clouds, { base, card, sw, land0, fit, shadow });
+  // (the cube's OWN light, at its reference: what an hour's light is measured against, era/isekai.js hourShift)
+  const ownKey = ref.light.key ? { color: ref.light.key.color, elevation: ref.light.key.elevation, azimuth: ref.light.key.azimuth ?? 225 } : { color: cube.light.moon.color, elevation: cube.light.moon.elevation, azimuth: cube.light.moon.azimuth };
+  const ownLight = { ...card.light, key: ownKey, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
+  if (hour !== undefined || clouds !== undefined) return outsideAt(cube, hour ?? referenceHour(ref), clouds, { base, card, sw, land0, fit, shadow, ownLight });
   // the sky: the cube's own (a solved cube's is its palette's), else the reference's dome
   const S = cube.light.sky, dome = S ? { zenith: rgbOf(S.zenith), horizon: rgbOf(S.horizon) } : ref.air.dome, sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
   const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
@@ -836,7 +839,7 @@ function lowerOutside(cube0, terrain, hour, clouds) {
  * the cube's), the water darkened into the night. A moonlit hour draws the card's night: the moon where the key is, the
  * stars out as far as the night has come.
  */
-function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow }) {
+function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, ownLight }) {
   const A = hourAir(cube, hour, clouds), H = A.H, dome = A.dome;
   const sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
   const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
@@ -851,7 +854,9 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow }) {
   // the cloud band the dome draws: the sky's sheets in the hour's light
   const band = A.band ? { cloudBand: A.band } : {};
   // (the disc dropped where it stands: the card's keys keep their order, so its print, and the look's id, hold)
-  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band };
+  // (and the cube's own light beside the hour's: what is drawn in its ramps' stops rather than baked moves by the
+  // difference, era/isekai.js hourShift)
+  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band, ownLight };
   if (!A.disc) delete lookCard.sun;
   return outsideOf(cube, base, sw, land, lookCard);
 }
@@ -869,7 +874,9 @@ export const CUBE_STREET_PAINT = Object.freeze({ 'str:timber': 'cube-trim', 'str
 function outsideOf(cube, base, sw, land, lookCard0) {
   // a gritty cube's look draws its crowns' outline as leaves (era/isekai.js leaf cards, gritty-flora.js): the leaf card's
   // tile on its own foliage ramp, one window round its middle, the light the band
-  const n = land.foliage?.length ?? 0, m = Math.floor((n - 1) / 2), r = Math.min(2, m, n - 1 - m), win = Array.from({ length: 2 * r + 1 }, (_, i) => m - r + i);
+  // (at an hour, the window down the ramp by the hour's shift, as a crown's chips are: era/isekai.js hourShift)
+  const n = land.foliage?.length ?? 0, m = Math.floor((n - 1) / 2), r = Math.min(2, m, n - 1 - m), hs = n ? hourShift(lookCard0, lookCard0.tint?.crown, land.foliage) : 0;
+  const win = Array.from({ length: 2 * r + 1 }, (_, i) => Math.max(0, m - r + i + hs));
   const lookCard = grittyOf(cube) !== null && n && !lookCard0.tiles?.leafcard ? { ...lookCard0, tiles: { ...lookCard0.tiles, leafcard: { ramp: 'foliage', lit: win, shade: win, scale: 2.4, paint: 'leafcard' } } } : lookCard0;
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;

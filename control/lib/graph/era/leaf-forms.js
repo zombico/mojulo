@@ -24,7 +24,8 @@
  *                                      each lobe's triangles and bounding radius for hollowed (era/isekai.js)
  *   formChips(lobes, opts)           → the chips over the lobes (leafChips' light bands), none buried in another lobe
  *
- *   opts: { crown: { c, Rc, squash }, toSun, shadow(p, n), ramp, seed, …CHIP_DEFAULTS, grain, lean }
+ *   opts: { crown: { c, Rc, squash }, toSun, shadow(p, n), ramp, seed, …CHIP_DEFAULTS, grain, lean, shift (the hour's,
+ *         along the ramp: era/isekai.js hourShift) }
  *
  * Pure: hashed dice only.
  */
@@ -213,7 +214,8 @@ export function formCore(lobes, opts) {
  *  each grained along its lobe and leant as the form holds its leaves; none whose middle another lobe buries. */
 export function formChips(lobes, opts) {
   const o = { ...CHIP_DEFAULTS, grain: 0, lean: [0, 0, 0], ...opts }, { c, Rc, squash = 1 } = o.crown, out = [], ramp = o.ramp, S = o.seed | 0;
-  const stop = { low: ramp[Math.min(1, ramp.length - 1)], mid: ramp[Math.floor(ramp.length / 2)], high: ramp[Math.max(0, ramp.length - 2)], glint: ramp[ramp.length - 1] };
+  const at = (i) => ramp[Math.max(0, Math.min(ramp.length - 1, i + (o.shift | 0)))];
+  const stop = { low: at(Math.min(1, ramp.length - 1)), mid: at(Math.floor(ramp.length / 2)), high: at(Math.max(0, ramp.length - 2)), glint: at(ramp.length - 1) };
   lobes.forEach((L, li) => {
     const n = Math.round((o.count * areaOf(L.axes)) / (4 * Math.PI * Rc * Rc));
     for (let i = 0; i < n; i++) {

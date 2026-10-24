@@ -14,6 +14,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Flora at night: what is drawn in a ramp's stops comes down with the hour
+
+A cube lowered at an hour bakes its land under the hour's light, but a gritty crown's chips and cores, the live grass's
+windows and the rock flora are drawn in a ramp's stops rather than baked, so at dusk and night they kept their noon
+colours over a darkened land. They now come down the ramp by the hour.
+
+- **Measured against the cube's own light**: a cube lowered at an hour keeps its reference's light beside the hour's
+  (`ownLight` on the look's card, `era/geocube.js`); the shift (`hourShift`, `era/isekai.js`) is where the bake lands the
+  foliage under the hour's light against where it lands under the cube's own, in stops, never above 0. A cube at its own
+  hour (a night palette under its own moon, a day cube at noon) and a kit's card move by none.
+- **What moves**: chips and cores by the world foliage's shift, every picked foliage the same stops; the live grass's
+  lit and shade windows; the rock flora down its ramps as far as the foliage dims (`hourDim`), so a bright gold comes
+  as far down as a dark fern; a gritty cube's leaf card tile its window of the foliage moved by the shift; the
+  swatch-coloured flora (shrubs, ikebana solids) dimmed by the same share.
+- **Unchanged**: a cube lowered with no hour, and a kit, are byte-identical. A cube lowered at its own hour draws the same
+  colours, but its look's card carries a new key, so the look's id changes.
+
+The gallery: `scripts/spikes/geotown/night.mjs` (a cube's own palette at noon, dusk and night, and a night palette
+altogether at its own hour).
+
 ### Bushes and shrubs: composed in sections, blocking or walked through
 
 A biocube composes a level's bushes (`flora.bushes`, `era/thickets.js`): tree kinds with the trunk taken away (a few

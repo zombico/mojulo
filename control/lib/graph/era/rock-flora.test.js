@@ -33,6 +33,15 @@ describe('the rock flora', () => {
     expect(lichen.every((p) => J.dist(p.at[0], p.at[1]) > KARST_GRIKE.half + KARST_GRIKE.lip - 1e-4)).toBe(true);
   });
 
+  it('comes down its ramp at an hour that dims the land, a bright part as far as a dark one; by day as it was', () => {
+    const L = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    for (const part of ['gold', 'fern']) {
+      const f = { part, value: 1 }, day = rockFloraFill(st, f, true, false);
+      expect(rockFloraFill(st, f, true, false, 1)).toEqual(day);
+      expect(L(rockFloraFill(st, f, true, false, 0.4))).toBeLessThan(L(day) * 0.75);
+    }
+  });
+
   it('finds its ferns in the shade', () => {
     const ferns = (shade) => growRockFlora(st, { cells, cell: 1, heightAt: flat, seed: 3, grit: 0.7, shadeAt: () => shade }).filter((p) => p.kind === 'crevice-fern').length;
     expect(ferns(true)).toBeGreaterThan(ferns(false));
