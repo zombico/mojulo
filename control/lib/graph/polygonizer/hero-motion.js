@@ -38,6 +38,7 @@ import { faceColorLinear } from '../figures/face-mesh.js';
 import { boneFrames } from './station-loft-rig.js';
 import { heroRise } from './hero-rise.js';
 import { REACTS, heroReact } from './hero-react.js';
+import { legClearance, swingBump } from './hero-stride.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -59,6 +60,10 @@ const HEEL_MAX = 40;    // the trailing heel rises up to this (degrees) at push-
 const CLEAR = 0.04;     // the swing toe's least clearance mid-swing (metres): it leaves the floor at lift-off and meets it at landing
 const HARMONICS = 4;    // the root's sink keeps this many harmonics of the cycle: the bob (two steps a cycle) and its overtone, never a jolt
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const r4 = (x) => Math.round(x * 1e4) / 1e4;
+/** the pass's solve (hero-stride.js): its samples over a swing and the widest excursion it may take (m) */
+const PASS_SAMPLES = 24, PASS_MAX = 0.14;
+const PASSES = new Map(), PASSES_MAX = 32;
 
 /** a leg's reach problem: the hock for a toe at `toe` with the heel up `heel` degrees, and the root drop it needs */
 function needAt(hip, toe, heelRest, heel, reach) {
@@ -78,7 +83,7 @@ function needAt(hip, toe, heelRest, heel, reach) {
  *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone; `swingFoot` a timed
  *   swing's foot following its own shank (HERO_RUN)
  */
-export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null, swingFoot = false } = {}) {
+export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null, swingFoot = false, flare = {} } = {}) {
   const { plant, support, heelLift: _heel, ...own } = dof || {};   // the rig lifts its own heels (heelL / heelR, below)
   const free = rigNodesAt(R, { ...own, support: 'none' }).nodes;
   const sides = Object.keys(R.legs); const rest = R.joints; const legs = {};
@@ -127,12 +132,15 @@ export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = nu
     let z = Math.max(floor, (1 - w) * (fk[2] - sink) + w * floor);
     // a timed swing (0 at lift-off … 1 at landing) is off the floor between its ends, whatever the forward toe does
     if (Number.isFinite(swing[S])) z = Math.max(z, floor + CLEAR * Math.sin(Math.PI * swing[S]));
+    // `flare` (heroLocomotion's PASS, hero-stride.js): a foot in its swing carried out from its line by this much (m,
+    // signed along x), so the leg goes round the planted one
+    const x = fk[0] + (Number.isFinite(swing[S]) && Number.isFinite(flare[S]) ? flare[S] : 0);
     // still out of reach (a long stride at a light plant): the foot rises along its line until the leg reaches
     const hv = rotX(heelRest, -heel);
-    const dh = Math.hypot(hip[0] - fk[0] - hv[0], hip[1] - y - hv[1]);
+    const dh = Math.hypot(hip[0] - x - hv[0], hip[1] - y - hv[1]);
     const zMin = hip[2] - hv[2] - Math.sqrt(Math.max(0, reach * reach - dh * dh));
     if (z < zMin) z = zMin;
-    feet[S] = [fk[0], y, z]; heels[`heel${S}`] = -Math.round(heel * 1000) / 1000;   // the rig's heel word: negative raises the heel
+    feet[S] = [x, y, z]; heels[`heel${S}`] = -Math.round(heel * 1000) / 1000;   // the rig's heel word: negative raises the heel
     // (the turned toes keep their tip off the floor: just after the lift-off the ball is barely up, and a full turn
     // would sink the tip through it, so the turn is cut to what the clearance allows)
     if (turn) {
@@ -154,7 +162,7 @@ export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = nu
  * @param {object} R            a validated rig
  * `tilt` (degrees) leans the body into the gait.
  */
-export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = {}) {
+export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0, girths = null } = {}) {
   const gaitMove = resolveMotion(spec, { frames, base: rigCore(R) });
   // the TILT: the trunk hinged forward over the hips, the spine straight (the pose engine's `hinge`), the head taking
   // back GAZE_HOLD of it; the legs then reach their footfalls from the tilted body (0 ⇒ the gait as it is)
@@ -258,10 +266,34 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
   const series = (phase) => coef.reduce((o, [re, im], h) => { const a = 2 * Math.PI * h * phase; return o + (h ? 2 : 1) * (re * Math.cos(a) - im * Math.sin(a)); }, 0);
   const lift = Math.max(0, ...need.map((x, i) => x - series(i / fine)), ...need.map((_, i) => -series(i / fine)));
   const sinkOf = (phase) => series(phase) + lift;
-  const fn = (phase) => groundedPose(R, move(phase), { ...timing(phase), sink: sinkOf(phase), heel: Object.fromEntries(sides.map((S) => [S, heelOf(S, phase)])), swingFoot }).pose;
+  const grounded = (phase, flare) => groundedPose(R, move(phase), { ...timing(phase), sink: sinkOf(phase), heel: Object.fromEntries(sides.map((S) => [S, heelOf(S, phase)])), swingFoot, ...(flare ? { flare } : {}) }).pose;
+  // THE PASS (hero-stride.js; `swingClear`, a hero walk dial: the least gap, m, the legs keep as they pass, with the
+  // body's leg `girths` the caller reads off its recipe): each foot in its swing goes round the planted leg, out from its
+  // line after the lift-off, held wide through the pass and back onto the line late, past the planted foot (swingBump),
+  // by the least excursion that keeps the gap at every phase of its swing. Absent either, the walk as it was.
+  const gap = walked && Number.isFinite(W.swingClear) && W.swingClear >= 0 && girths ? W.swingClear : null, flare = {};
+  // (solved once per rig, gait and body: a World page compiles its clips on every read)
+  const passKey = gap !== null ? JSON.stringify([rigKey(R), spec, tilt, frames, fine, girths]) : null, known = passKey ? PASSES.get(passKey) : null;
+  const pass = known ? known.pass : {};
+  if (known) Object.assign(flare, known.flare);
+  else if (gap !== null) for (const S of sides) {
+    const st = stance[S]; if (!st) continue;
+    const out = Math.sign(rest[R.legs[S].hip][0]) || 1, phases = Array.from({ length: PASS_SAMPLES }, (_, k) => (st.t0 + st.span + ((k + 0.5) / PASS_SAMPLES) * (1 - st.span)) % 1);
+    const least = (D) => Math.min(...phases.map((ph) => legClearance(R, rigNodesAt(R, grounded(ph, D ? { [S]: out * D * swingBump(swingOf(S, ph)) } : null)).nodes, girths).clear));
+    const before = least(0);
+    if (before >= gap) { pass[S] = { flare: 0, clear: r4(before), before: r4(before) }; continue; }
+    let lo = 0, hi = PASS_MAX;
+    if (least(hi) < gap) lo = hi;
+    else for (let k = 0; k < 10; k++) { const m = (lo + hi) / 2; if (least(m) >= gap) hi = m; else lo = m; }
+    const D = hi; flare[S] = out * D;
+    pass[S] = { flare: r4(D), clear: r4(least(D)), before: r4(before) };
+  }
+  if (passKey && !known) { if (PASSES.size >= PASSES_MAX) PASSES.delete(PASSES.keys().next().value); PASSES.set(passKey, { flare: { ...flare }, pass }); }
+  const flaring = Object.keys(flare).length > 0;
+  const fn = (phase) => grounded(phase, flaring ? Object.fromEntries(Object.entries(flare).map(([S, D]) => { const sw = swingOf(S, phase); return [S, sw === undefined ? 0 : D * swingBump(sw)]; })) : null);
   const speeds = sides.map((S) => stance[S]).filter(Boolean).map((st) => (st.y0 - st.y1) / st.span);   // metres per cycle
   const travel = speeds.length ? Math.max(0, speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
-  return { fn, travel, stance, need, v: (seconds) => (seconds > 0 ? travel / seconds : 0) };
+  return { fn, travel, stance, need, ...(gap !== null ? { pass } : {}), v: (seconds) => (seconds > 0 ? travel / seconds : 0) };
 }
 
 // ─── the hero door's `motion` ──────────────────────────────────────────────
@@ -479,7 +511,7 @@ export function stampHeroMotion(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard, girths }] of Object.entries(locomotion || {})) {
     if (hold || guard) {
       // a held thing: a hold eases from the stand into the solved hold (hero-carry heroHold: the pose its effort answers),
       // a guard plays its own clip (hero-grip heroGuard: the stance entered, the arms closing); one-shot. `held` rides the
@@ -575,7 +607,7 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       clips[name] = fn; seconds[name] = J.seconds; continue;
     }
     let loco;
-    try { loco = heroLocomotion(spec, R, { frames: keys, tilt }); for (let k = 0; k < keys; k++) rigNodesAt(R, loco.fn(k / keys)); }
+    try { loco = heroLocomotion(spec, R, { frames: keys, tilt, ...(girths ? { girths } : {}) }); for (let k = 0; k < keys; k++) rigNodesAt(R, loco.fn(k / keys)); }
     catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
     const fn = (phase) => loco.fn(phase); fn.keys = keys;
     clips[name] = fn; seconds[name] = s; speeds[name] = Math.round(loco.v(s) * 1e4) / 1e4;

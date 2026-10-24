@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The legs pass each other: the walk's swing goes round the planted leg
+
+The hero's calibrated walk (the door's default, figure-posing.js WALK_MINT and hero-gaits.js HERO_WALK) sets the feet
+on a narrow base, about 5 cm apart, and swings each leg straight forward in its own plane. On every body the swing
+leg's calf ran through the planted one for about a third of each step (measured on the legs' own girths: up to 58 mm
+deep on the realistic woman, 52 mm on the realistic man, 57 mm on the game body's woman), the fuller thighs and the
+wider hips reading it worst.
+
+- THE PASS (hero-stride.js, heroLocomotion). People keep that line without tripping because the swing leg goes AROUND
+  the stance leg: the foot leaves its line after the lift-off (a little hip abduction, circumduction), passes wide at
+  mid-swing with the knee bent and the thigh already ahead of the upright stance thigh, and comes back onto the line
+  only late in the swing, past the planted foot, landing in front of it, the weight over the planted foot the while.
+  The walk now does that: `swingBump` times the excursion (out over the swing's first third, held through the pass,
+  in over its last), and heroLocomotion solves its size, the least that keeps the legs `swingClear` apart (8 mm) at
+  every phase of the swing, on the legs' capsules (`legGirths`, `legClearance`: each leg's radius by its bone's share,
+  read off the body's own rings; the inner thighs' contact under the groin is the body's, never a collision). On the
+  realistic woman the foot goes about 8 cm out at the pass and the legs keep the gap at every phase.
+- A walk minted now carries the dial (HERO_WALK `swingClear`, stamped with the walk) and the body's girths ride its
+  recipe's `locomotion` (layered.js), so the World page, the export and every reader compile the same walk; the solve
+  is kept per rig and body (a page compiles its clips on every read). A walk stored before passes straight through,
+  as it did.
+
 ### The cervical chain: a head aim within the neck's range
 
 HERO LAWS 15 (hero-form.js; the rig's `cervical`, figure-vajra.js `CERVICAL_CAP`). A `head` pose word aims the skull's

@@ -16,8 +16,12 @@ export const GAITS = Object.freeze({
  * in the rig's metres. Tuned
  * on the cast heroes: about 1.05 m/s, a 3.3 cm bob, a 58 % stance, the body no longer held low all cycle (the studied
  * walk: 0.70 m/s, 5.5 cm, the hips never less than 5.5 cm down). The figure's gait ignores the hero dials.
+ * `swingClear` (m) is the least gap the legs keep as the swing leg passes the planted one (hero-stride.js): on the walk's
+ * narrow base the swing foot goes round the planted leg by the least excursion that keeps it, out after the lift-off and
+ * back onto its line late, past the planted foot. It needs the body's leg girths (the recipe's `locomotion` carries them,
+ * layered.js); a walk stored before it passes straight through, as it did.
  */
-export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true });
+export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true, swingFoot: true, swingClear: 0.008 });
 
 /**
  * The hero's own run dials (the jog and the sprint), over the figure's mint table (figure-posing.js SPRINT_MINT):

@@ -106,6 +106,7 @@ import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swi
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateHeroMotion, motionPlan, locomotionClips } from '../../graph/polygonizer/hero-motion.js';
+import { legGirths } from '../../graph/polygonizer/hero-stride.js';
 import { targetError, readTarget, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/era/target.js';
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
@@ -196,6 +197,16 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
 }
+/** A recipe whose walk keeps the legs clear as they pass (hero-gaits.js HERO_WALK `swingClear`) carries the body's leg
+ * girths on that gait (hero-stride.js legGirths), read off the recipe as built (the realistic body's own legs), so every
+ * reader compiles the same walk. Any other recipe: as it was. */
+function withLegGirths(recipe) {
+  const L = recipe?.locomotion; if (!L || !recipe.rig) return recipe;
+  const wants = Object.entries(L).filter(([, g]) => Number.isFinite(g?.spec?.walk?.swingClear));
+  if (!wants.length) return recipe;
+  const girths = legGirths(recipe, validateRig(recipe.rig)); if (!girths) return recipe;
+  return { ...recipe, locomotion: { ...L, ...Object.fromEntries(wants.map(([n, g]) => [n, { ...g, girths }])) } };
+}
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
 function expandHeroAwarePlan(plan, hero, geocube = null) {
@@ -204,7 +215,7 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withDressMaterials(expandAware(plan, hero), hero, plan, geocube);
+  return withLegGirths(withDressMaterials(expandAware(plan, hero), hero, plan, geocube));
 }
 /** The realistic form's build (body-relational.js): the cast's pole's (male: norrin, female: shalla) under the record's
  * physique (its laws aside) */
