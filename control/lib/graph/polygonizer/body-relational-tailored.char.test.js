@@ -4,6 +4,8 @@
  * primitives is proven to change no byte. One case per procedure: the gathered trousers, the open trousers falling to
  * the floor, the jacket over the trousers (its skirt cleared over them, their sash taken by its belt) on the male and on
  * the female, a boot (its shaft, sole and straps) and a sandal (a sole and straps alone).
+ * Worn on the body of realistic laws 3, before the round-out (body-relational-builds.js ROUND_OUT) reshaped the limbs
+ * they wrap: a change to the body under them is the body's pin, as the footwear's.
  * (Out of the critical tier, as the plants' pin: each case mints a realistic body.)
  */
 import { createHash } from 'node:crypto';
@@ -12,7 +14,7 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const OF = /^(martialPants|wideTrousers|gi|boots|shoes|sandals)/;
 const hash = (cast, outfit) => {
-  const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', outfit }) }).recipe;
+  const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', outfit, physique: { from: 'athletic', laws: 3 } }) }).recipe;
   const parts = Object.fromEntries(Object.entries(r.parts).filter(([k]) => OF.test(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0, 16);
 };

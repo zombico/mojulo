@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic body rounded out
+
+REALISTIC LAWS 4 (body-relational-builds.js `ROUND_OUT`, read by layered.js realisticBuild). Read off each limb's rings
+and the body's CT stack (horizontal cuts every centimetre, the front and side silhouettes and each contour's peaks),
+the athletic builds read as an action figure's in their limbs: each joint pinched between its bellies (the man's thigh
+5.3 cm of girth under his knee just above it, hers 4.2), the wrist half the forearm's belly (14.3 cm against 29; people
+about 0.6), the forearm dropping from its belly to the wrist in a step (2.4 cm of girth per cm), a knot of the
+adductors' origin under the groin, and every limb mass joined in a tight crease.
+
+- The limbs' masses re-proportioned, data only, by mass id: the blend between a limb's masses widened (× 1.35); the
+  forearm's bone fuller at the wrist and its bellies reaching toward it; the outer quadriceps and the hamstrings reaching
+  nearer the knee, the knee's knob slimmer; the adductors' origin a long flat sheet into fuller adductors; the calf's
+  outer head higher and reaching up to the knee, its inner head lower and fuller, the soleus less wide.
+- The rhythm the bellies had is kept, not made a cylinder: the thigh's outside still peaks high (0.45 of the thigh) and
+  its inside low over the knee (0.81), the calf behind at a third of the shank, its inner head the lower.
+- Measured on his limbs: the pinch over the knee 1.8 cm (was 5.3), the wrist 18.7 cm against a 30 cm belly (0.62), the
+  forearm's steepest fall 1.5 cm per cm (was 2.4), the pinch under the knee 0.6 cm (was 1.4); hers 2.5 at the thigh's
+  top (was 4.2 over her knee), the wrist 0.59 of her forearm.
+- Not here: the shading seam where one part meets the next (the knee, the elbow, the wrist, the shoulder) and the hip's
+  line, which still read the segments; they are the slice's, not the builds'.
+- A realistic hero stored before keeps its laws and its limbs.
+
 ### The game body's head seated on its neck
 
 HERO LAWS 16 (hero-form.js `CERVICAL_LEAN`, tiered-form.js `TIERED_OCCIPUT`, humanoid-head-fit.js's `occiput` move).

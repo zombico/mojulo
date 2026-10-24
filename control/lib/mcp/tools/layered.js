@@ -70,7 +70,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
-import { cervicalNeck } from '@/lib/graph/polygonizer/body-relational-builds';
+import { cervicalNeck, roundOut } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -224,8 +224,10 @@ function realisticBuild(hero) {
   // (a word patched in, `set /hero/physique 'jacked'`, reads as itself)
   const p = hero.physique ?? 'athletic', { laws = 1, ...dials } = typeof p === 'string' ? { from: p } : p;
   const name = femaleOf(hero) ? 'shalla' : 'norrin', B = physiqueBuild(name, Object.keys(dials).length ? dials : 'athletic');
-  // (realistic laws 3: the neck's column leaning forward up to the skull, body-relational-builds.js CERVICAL_NECK)
-  return laws >= 3 ? cervicalNeck(B, name) : B;
+  // (realistic laws 3: the neck's column leaning forward up to the skull, body-relational-builds.js CERVICAL_NECK; laws 4:
+  // the limbs' masses rounded out, ROUND_OUT)
+  const N = laws >= 3 ? cervicalNeck(B, name) : B;
+  return laws >= 4 ? roundOut(N) : N;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -693,8 +695,9 @@ const onClassic = (hero) => hero.form === 'classic' || ((hero.form === undefined
 export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined') is deprecated: the game body is the tiered form on the structured core (drop /hero/core); a hero that keeps it is built on the classic body";
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
  * `physique` at mint, so a later retune never moves a stored hero. 2: the relational head as ONE SKIN (hero-one-skin.js);
- * 3: the neck's column leaning forward up to the skull (body-relational-builds.js CERVICAL_NECK) */
-export const REALISTIC_LAWS_VERSION = 3;
+ * 3: the neck's column leaning forward up to the skull (body-relational-builds.js CERVICAL_NECK); 4: the limbs' masses
+ * rounded out, each joint filled between its bellies (body-relational-builds.js ROUND_OUT) */
+export const REALISTIC_LAWS_VERSION = 4;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);
