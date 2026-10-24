@@ -75,6 +75,43 @@ preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are by
     (`body.collide`, heavy: a game's player walks round it), stands long between slow wanders, and one past 20 m is
     refused as a landmark, not fauna. The walk page's eye is no body: it passes through, as through any.
   - Herds keep to the valley's side of the cliff, as the trees do.
+### Flora at night: what is drawn in a ramp's stops comes down with the hour
+
+A cube lowered at an hour bakes its land under the hour's light, but a gritty crown's chips and cores, the live grass's
+windows and the rock flora are drawn in a ramp's stops rather than baked, so at dusk and night they kept their noon
+colours over a darkened land. They now come down the ramp by the hour.
+
+- **Measured against the cube's own light**: a cube lowered at an hour keeps its reference's light beside the hour's
+  (`ownLight` on the look's card, `era/geocube.js`); the shift (`hourShift`, `era/isekai.js`) is where the bake lands the
+  foliage under the hour's light against where it lands under the cube's own, in stops, never above 0. A cube at its own
+  hour (a night palette under its own moon, a day cube at noon) and a kit's card move by none.
+- **What moves**: chips and cores by the world foliage's shift, every picked foliage the same stops; the live grass's
+  lit and shade windows; the rock flora down its ramps as far as the foliage dims (`hourDim`), so a bright gold comes
+  as far down as a dark fern; a gritty cube's leaf card tile its window of the foliage moved by the shift; the
+  swatch-coloured flora (shrubs, ikebana solids) dimmed by the same share.
+- **Unchanged**: a cube lowered with no hour, and a kit, are byte-identical. A cube lowered at its own hour draws the same
+  colours, but its look's card carries a new key, so the look's id changes.
+
+The gallery: `scripts/spikes/geotown/night.mjs` (a cube's own palette at noon, dusk and night, and a night palette
+altogether at its own hour).
+
+### Bushes and shrubs: composed in sections, blocking or walked through
+
+A biocube composes a level's bushes (`flora.bushes`, `era/thickets.js`): tree kinds with the trunk taken away (a few
+thin stems from the foot, splayed, finer limbs, a low wide crown), drawn through the trees' own leaf-branch path, chipped
+on a gritty land and plain on a quiet one.
+
+- **Sections**: patches of one kind each, off the trail and clear of the rocks, the trees and each other, mounding
+  toward the middle; no grass grows up through a bush (an avoided thing's own `clearR`, the grass's fixed reach
+  absent it).
+- **Walk**: a kind's `walk: 'block'` stops a walker on the page and is a collider for an engine; `walk: 'through'` is
+  drawn in soft groups (`flora:brush`, `flora:brush-chips`, `flora:brush-wood`) the walker passes through.
+- **In a clump**: an arranged clump's role can be cast as a bush (`clump.hikae: { bush: 0 }`, `filler: { bush: 1 }`), and
+  takes its role's harmony colour as a tree does.
+- **Cost**: a bush's lobes are coarse and it draws no twigs: about 930 faces a bush on a gritty land.
+
+The galleries: `scripts/spikes/geotown/bushes.mjs` (sections) and `clump-harmony.mjs clump-bushes` (clumps grounded on
+shrubs); the manual, the `biocube` card.
 
 ### Composed clumps: an ikebana clump cast and coloured by role
 

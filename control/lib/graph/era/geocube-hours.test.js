@@ -11,6 +11,7 @@ import { SIXTH_GEN_REFERENCES, resolveLook } from './sixth-gen.js';
 import { lookOf } from './style/looks.js';
 import { assembleStageScene } from './stage.js';
 import { readClouds } from '../matte-paint/sky.js';
+import { hourShift, hourDim, hourWin } from './isekai.js';
 
 const refOf = (cube) => SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)];
 // one cube lit by a sun and one by the moon, picked from the presets
@@ -122,5 +123,41 @@ describe('a recipe\'s clouds', () => {
     expect(lookOf(withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, weather: 'rain' }).kit).card.cloudBand).toBeUndefined();
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, clouds: 'weather' })).toThrow(/names none/);
     expect(() => withGeocube({ kind: 'stage', geocube: DAY.id, meru: true, clouds: 'weather', weather: { climate: { rain: 1 } } })).toThrow(/climate/);
+  });
+});
+
+// what is drawn in a ramp's stops rather than baked (a gritty crown's chips and cores, the live grass's windows, the
+// rock flora) comes down the ramp by the hour against the cube's own light (era/isekai.js hourShift); the swatch-drawn
+// flora dims by the same share (hourDim)
+describe('the flora at an hour', () => {
+  const cardAt = (cube, hour) => lookOf(lowerGeocube(cube, 'outside', undefined, hour).kit).card;
+  const shiftOf = (st) => hourShift(st, st.tint.crown, st.palette.foliage);
+
+  it('a cube\'s own palette comes down its ramps at night, and stays at its own hour; a cube with no hour has nothing to measure', () => {
+    const night = cardAt(DAY, readHour('night')), own = cardAt(DAY, referenceHour(refOf(DAY)));
+    expect(night.ownLight).toEqual(own.ownLight);
+    expect(shiftOf(night)).toBeLessThan(0);
+    expect(hourDim(night)).toBeLessThan(1);
+    expect(shiftOf(own)).toBe(0); expect(hourDim(own)).toBe(1);
+    expect('ownLight' in lookOf(lowerGeocube(DAY, 'outside').kit).card).toBe(false);
+    expect(shiftOf(lookOf(lowerGeocube(DAY, 'outside').kit).card)).toBe(0);
+  });
+
+  it('a gritty cube\'s leaf card tile comes down the foliage with it', () => {
+    const G = readGeocube({ from: DAY.id, grit: 0.7 }), tile = (h) => cardAt(G, h).tiles.leafcard.lit;
+    const own = tile(referenceHour(refOf(DAY))), night = tile(readHour('night'));
+    expect(Math.max(...night)).toBeLessThan(Math.max(...own));
+    expect(lookOf(lowerGeocube(G, 'outside').kit).card.tiles.leafcard.lit).toEqual(own);
+  });
+
+  it('a night palette under its own moon is drawn as designed: no shift', () => {
+    const own = cardAt(NIGHT, referenceHour(refOf(NIGHT)));
+    expect(shiftOf(own)).toBe(0); expect(hourDim(own)).toBe(1);
+  });
+
+  it('moves a live grass\'s windows down by the shift, never below the ramp\'s first stop; by day the same object', () => {
+    const w = { lit: [2, 4], shade: [0, 2] };
+    expect(hourWin(w, 0)).toBe(w);
+    expect(hourWin(w, -2)).toEqual({ lit: [0, 2], shade: [0, 0] });
   });
 });

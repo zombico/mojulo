@@ -15,7 +15,8 @@
  *   opts: { crown: { c, Rc, squash }, toSun, shadow(p, n) → 0..1, ramp (the foliage ramp, 0..255 rgb, dark to light),
  *           seed, count (chips a mass at the crown's radius), size (a chip's long radius over the crown's), stray, cup,
  *           tilt (how far a chip turns off the clump's normal),
- *           bands: [low|mid, mid|high] (the light a chip needs), keepLow (the low band's share kept), glint }
+ *           bands: [low|mid, mid|high] (the light a chip needs), keepLow (the low band's share kept), glint,
+ *           shift (the stops moved along the ramp by the hour's light: 0 by day, below at night) }
  *
  * Pure: hashed dice only.
  */
@@ -38,7 +39,9 @@ const hexOf = (c) => rgbHex(c.map((v) => v / 255));
 /** The chips over a crown's masses. */
 export function leafChips(masses, opts) {
   const o = { ...CHIP_DEFAULTS, ...opts }, { c, Rc, squash = 1 } = o.crown, out = [], ramp = o.ramp, S = o.seed | 0;
-  const stop = { low: ramp[Math.min(1, ramp.length - 1)], mid: ramp[Math.floor(ramp.length / 2)], high: ramp[Math.max(0, ramp.length - 2)], glint: ramp[ramp.length - 1] };
+  // (the stops a chip takes, moved `shift` along the ramp by the hour's light, hourShift in era/isekai.js: 0 by day)
+  const at = (i) => ramp[Math.max(0, Math.min(ramp.length - 1, i + (o.shift | 0)))];
+  const stop = { low: at(Math.min(1, ramp.length - 1)), mid: at(Math.floor(ramp.length / 2)), high: at(Math.max(0, ramp.length - 2)), glint: at(ramp.length - 1) };
   masses.forEach((m, mi) => {
     const n = Math.round(o.count * (m.r / Rc) ** 2);
     for (let i = 0; i < n; i++) {

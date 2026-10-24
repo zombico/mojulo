@@ -8,7 +8,9 @@
  *   ROCK_FLORA                    { <kind>: { read, on, climates, size: [lo, hi] (m), joint (roots in a joint) } }
  *   rockPiece(kind, it, palette)  → faces (group `isekai:rockflora`, each its `part` and `value`) for one piece at
  *                                   it { p: [x, y, z], n (the face it lies on; up by default), size, yaw, v }
- *   rockFloraFill(st, f, lit, away) → its part's ramp's stop: a stop up in the sun, a stop down turned from it
+ *   rockFloraFill(st, f, lit, away, dim = 1) → its part's ramp's stop: a stop up in the sun, a stop down turned from
+ *                                   it; at an hour that dims the land (era/isekai.js hourDim, 1 by day) the stop down its
+ *                                   ramp nearest that share of its light, so a bright part comes as far down as a dark one
  *   growRockFlora(st, { cells, cell, talus, caps, heightAt, seed, grit, keep, on, joints, shadeAt }) → pieces
  *                                   [{ kind, at, faces }]: lichen on the pavement's clints (`cells`, the turned cells'
  *                                   centres), the boulders' and stones' caps (`caps`, their faces) and the talus (`talus`,
@@ -123,9 +125,12 @@ const rampOf = (st, part) => {
   // (a fern in the joint's shade: the foliage's lower end, leaned a little to the rock)
   return mixRamp(leaf, P0.rock, 0.25);
 };
-export function rockFloraFill(st, f, lit, away) {
+const luma = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+export function rockFloraFill(st, f, lit, away, dim = 1) {
   const ramp = rampOf(st, f.part), n = ramp.length;
-  return ramp[Math.max(0, Math.min(n - 1, Math.round(f.value * (n - 1)) + (lit ? 1 : 0) - (away ? 1 : 0)))];
+  let i = Math.max(0, Math.min(n - 1, Math.round(f.value * (n - 1)) + (lit ? 1 : 0) - (away ? 1 : 0)));
+  if (dim < 1) { const want = luma(ramp[i]) * dim; while (i > 0 && Math.abs(luma(ramp[i - 1]) - want) <= Math.abs(luma(ramp[i]) - want)) i--; }
+  return ramp[i];
 }
 
 // how much: lichens a pavement cell (at a grit of 1), a cap's chance of one, a talus face's; the joint plants' tries a

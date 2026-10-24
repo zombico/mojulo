@@ -4,7 +4,7 @@
  * forest's kinds uncast, then one cast (a line, a mass, a mound) in each harmony, and a second cast: the clump nearest
  * the middle of the trail from the trail, close, and the level from above.
  *
- *   cd control && node scripts/spikes/geotown/clump-harmony.mjs [name]
+ *   cd control && node scripts/spikes/geotown/clump-harmony.mjs [name]   (name `clump-bushes`: the anchor and fillers as bushes)
  *     → ../lite-template/integration/1021/spike-output/geotown/<name>.png
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -35,6 +35,13 @@ const ROWS = [
   ['line · mass · mound, cast — season', { kinds: LINE_MASS_MOUND, clump: CAST, harmony: 'season' }],
   ['a weeping birch line · a two-stemmed plate · a small umbrella, cast — season', { kinds: SECOND, clump: CAST, harmony: 'season' }],
 ];
+// (with `clump-bushes` as the name: the clumps' anchor and fillers cast as bushes, flora.bushes, thickets.js)
+const BUSHES = { kinds: [{ form: 'spray', height: [0.9, 1.3], spread: 0.75, stems: 6 }, { form: 'tuft', height: [0.5, 0.9], spread: 0.8, walk: 'through' }, { form: 'whorl', height: [0.7, 1.1], spread: 0.7, walk: 'through' }], sections: { count: 0 } };
+const BUSH_ROWS = [
+  ['line and mass trees, a blocking bush as the anchor, brush walked through as the fillers — value', { kinds: LINE_MASS_MOUND, clump: { shin: 0, soe: 1, hikae: { bush: 0 }, filler: { bush: 1 } }, harmony: 'value' }],
+  ['the same — accent (the anchor bush the turned note)', { kinds: LINE_MASS_MOUND, clump: { shin: 0, soe: 1, hikae: { bush: 0 }, filler: { bush: 1 } }, harmony: 'accent' }],
+  ['a weeping birch line, a two-stemmed plate, a whorl shrub anchor, brush fillers — season', { kinds: SECOND, clump: { shin: 0, soe: 1, hikae: { bush: 2 }, filler: { bush: 1 } }, harmony: 'season' }],
+];
 const W = 440, H = 330, r3 = (v) => Math.round(v * 1000) / 1000;
 const browser = await launchChromium({ executablePath: await resolveChromium(), args: [...CHROMIUM_LAUNCH_ARGS, ...CHROMIUM_WEBGL_ARGS] });
 const shoot = async (P, cam) => {
@@ -60,8 +67,8 @@ const VIEWS = [
 ];
 const rows = [];
 try {
-  for (const [cap, trees] of ROWS) {
-    const { payload: P } = await resolveWorldScene({ title: 'clump harmony', manifest: { kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 }, biocube: { from: 'forest', flora: { trees } } } });
+  for (const [cap, trees] of name === 'clump-bushes' ? BUSH_ROWS : ROWS) {
+    const { payload: P } = await resolveWorldScene({ title: 'clump harmony', manifest: { kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 }, biocube: { from: 'forest', flora: { trees, ...(name === 'clump-bushes' ? { bushes: BUSHES } : {}) } } } });
     P.walkers = (P.walkers || []).map((w) => ({ ...w, follow: false }));
     const cells = [];
     for (const [c, v] of VIEWS) cells.push({ cap: c, src: await shoot(P, v) });

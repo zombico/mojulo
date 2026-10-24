@@ -51,7 +51,7 @@ import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-c
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
-import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
+import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP, SOLID_GROUP } from './ikebana-place.js';
 import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 import { readShading } from '../local-meru/plan.js';
 import { readBiocube, withFlora } from './biocube.js';
@@ -67,6 +67,7 @@ import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js'
 import { leafChips, CHIP_DEFAULTS } from './leaf-chips.js';
 import { LEAF_FORMS, readKind, pickByShare, leafForm, lobeTris, formChips, withinLobe } from './leaf-forms.js';
 import { floraRamps, harmonyRamps } from './flora-colours.js';
+import { placeThickets, clumpBushes, readBush, SOFT_BRUSH } from './thickets.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -258,6 +259,37 @@ function brokenBoulder(st, rings, centre, k, S, s, broken) {
 const lumaOf = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
 /** A light (rgb 0…1) as a canopy BAND (0 lit … 3 deep shade, between the sky's fill and the full sun) and the light left
  *  over once the band's skin has drawn its value: the light over the band's own, its hue kept. */
+/**
+ * THE HOUR'S SHIFT along a ramp: where the stage's bake lands a tint in full light under the hour's light, against where
+ * it lands under the cube's OWN light (its reference, `ownLight`, era/geocube.js outsideAt), in stops, never above 0.
+ * What is drawn in a ramp's stops rather than baked (a gritty crown's chips and core, the live grass's windows) moves by
+ * it, so a cube's own palette at dusk or night darkens as its land does; a cube at its own hour (a night palette under
+ * its own moon, a day cube at noon) and a kit's own card move by none.
+ */
+// the flora drawn in swatch colours, not a ramp's stops: dimmed by the hour (hourDim) where the ramp-drawn moves by stops
+// (a leaf card's tile and fill are its window of the foliage, moved by the shift itself: era/geocube.js outsideOf)
+const SWATCH_FLORA = new Set([SHRUB_GROUP, SOFT_GROUP, SOLID_GROUP]);
+/** How far the world's foliage comes down at the stage's hour, as a share of its light (1 by day, at the cube's own). */
+export function hourDim(st) {
+  const R = st.palette?.foliage, s = R ? hourShift(st, st.tint.crown, R) : 0;
+  if (!s) return 1;
+  const L = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], i = Math.floor(R.length / 2);
+  return L(R[Math.max(0, i + s)]) / Math.max(1, L(R[i]));
+}
+const dimmed = (f, k) => ({ ...f, ...(f.fill ? { fill: rgbHex(hexRgb(f.fill).map((v) => v * k)) } : {}), ...(f.cornerFills ? { cornerFills: f.cornerFills.map((c) => rgbHex(hexRgb(c).map((v) => v * k))) } : {}) });
+// a live grass's windows moved by the hour's shift (the same object by day)
+export const hourWin = (w, s) => (s ? { lit: w.lit.map((v) => Math.max(0, v + s)), shade: w.shade.map((v) => Math.max(0, v + s)) } : w);
+export function hourShift(st, tint, ramp) {
+  const day = st.ownLight;
+  if (!day || !ramp || !tint) return 0;
+  const E = st.ground?.exposure ?? 1;
+  const at = (L) => {
+    const A = hexRgb(L.ambient).map((v) => v * L.fill), K = hexRgb(L.key.color), c = tint.map((a, k) => Math.min(1, a * (A[k] + K[k] * L.sunGain) * E) * 255);
+    let b = 0, bd = Infinity; ramp.forEach((q, i) => { const d = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]); if (d < bd) { bd = d; b = i; } });
+    return b;
+  };
+  return Math.min(0, at(st.light) - at(day));
+}
 function canopyBand(light, shadeL, litL) {
   const t = Math.max(0, Math.min(1, (lumaOf(light) - shadeL) / Math.max(0.01, litL - shadeL))), band = t > 0.72 ? 0 : t > 0.45 ? 1 : t > 0.2 ? 2 : 3;
   const nominal = shadeL + (litL - shadeL) * [0.88, 0.6, 0.32, 0.08][band];
@@ -366,7 +398,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const SH = readShading(manifest.shading), broken = SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? SH.grit : 0;
   // (a gritty land whose trees are kinds: the theorist's offer of foliage and bark as ramps beside the world's own)
   // (and an arranged clump's harmony, its colours by role: era/flora-colours.js harmonyRamps)
-  const st = broken && st1.trees?.leafKinds ? { ...st1, palette: { ...st1.palette, ...floraRamps(st1.palette), ...(st1.trees.leafHarmony ? harmonyRamps(st1.palette, st1.trees.leafHarmony) : {}) } } : st1;
+  const st = broken && (st1.trees?.leafKinds || st1.thickets) ? { ...st1, palette: { ...st1.palette, ...floraRamps(st1.palette), ...(st1.trees?.leafHarmony ? harmonyRamps(st1.palette, st1.trees.leafHarmony) : {}) } } : st1;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
@@ -402,12 +434,19 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     trees.push(...Hs);
   } else if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
+  // (a clump's roles its cast names a bush, thickets.js clumpBushes: those trees taken out, bushes stood where they stood)
+  const CB = st.thickets && !bamboo && !sakura ? clumpBushes(trees, st.trees, st.thickets, site, { far: TREE_BANDS.far }) : null;
+  if (CB && CB.items.length) trees.splice(0, trees.length, ...CB.trees);
   const grove = bamboo ? bambooFaces(st, site, trees) : null;
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   // the trees BANDED by the trail (a card's `trees.bands`, treeBands): the hero near built whole, the stock past it
   // stamped from templates (built off the map, through everything below, then lifted out), the far a shell
   const TB = !bamboo && !sak && !st.glow ? treeBands(st, site, trees, broken) : null;
-  const wood = bamboo || sak ? [] : treeFaces(st, site, TB ? [...TB.built, ...TB.phantoms] : trees, broken);
+  // BUSHES in sections (a biocube's `bushes`, thickets.js): tree kinds with the trunk taken away, drawn through the
+  // trees' own path; a blocking bush a collider, a walked-through one drawn in the page's soft groups
+  const TS = st.thickets && !bamboo && !sak ? placeThickets(st.thickets, site, { rocks, trees, reserved: site.reserved, far: TREE_BANDS.far }, seed) : null;
+  const TH = TS || CB?.items.length ? { items: [...(TS?.items ?? []), ...(CB?.items ?? [])], colliders: [...(TS?.colliders ?? []), ...(CB?.colliders ?? [])], anchors: TS?.anchors ?? [] } : null;
+  const wood = bamboo || sak ? [] : treeFaces(st, site, [...(TB ? [...TB.built, ...TB.phantoms] : trees), ...(TH ? TH.items : [])], broken);
   // IKEBANA (a card's `ikebana`, ikebana-place.js): arrangements painted along the banks, standing on the land; what
   // the grass keeps clear of is the trees and every blocking stem
   const ike = st.ikebana ? placeIkebana(st, site, seed) : null, ikeRaw = ike ? ikebanaFaces(st, ike) : [];
@@ -421,7 +460,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (on a gritty land a bush is a crown's kin: its faces lumped about its own middle, and it stands leaf cards like a
   // crown's mass, below)
   const bushes = broken ? bushMasses(shrRaw0) : [], shrRaw = broken ? lumpBushes(shrRaw0, bushes, broken) : shrRaw0;
-  const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid];
+  // (and the bushes' footprints: no grass grows up through a bush, `clearR` its reach)
+  const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid, ...(TH ? TH.items.map((b) => ({ x: b.x, y: b.y, clearR: r5(readBush(st.thickets.kinds[b.bushIx]).spread * b.h * 0.75) })) : [])];
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
@@ -561,9 +601,11 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (GF) {
     const caps = boulders.flatMap((b) => b.cap).filter((f) => f.normal[2] > 0.6), talus = ground.faces.filter((f) => f.group === 'isekai:talus' || f.group === 'isekai:rubble').map((f) => mean(f.corners));
     const shadeAt = (p) => shadow([p[0], p[1], p[2] + 0.2], [0, 0, 1]) <= 0;
+    // (drawn in its ramps' stops: down its ramps as far as the world's foliage dims at the hour, hourDim)
+    const rs = hourDim(st);
     for (const q of growRockFlora(st, { cells: GF.to === 'bedrock' ? GF.cells : [], cell: GF.cell, talus, caps, heightAt: site.ground, seed, grit: broken || 0.5, keep, on: GF.at, joints: broken ? pavementJoints() : null, shadeAt })) {
       const isLit = lit([q.at[0], q.at[1], site.ground(q.at[0], q.at[1]) + 0.15], [0, 0, 1]);
-      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2).map((v) => v / 255)) });
+      for (const { part, value, ...f } of q.faces) cel.push({ ...f, fill: rgbHex(rockFloraFill(st, { part, value }, isLit, dot(f.normal, dir) < -0.2, rs).map((v) => v / 255)) });
     }
   }
   // a gritty crown CHIPPED (era/leaf-chips.js; the stage's crowns are never plain balls on a gritty land): its core in its
@@ -571,20 +613,22 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // those buried in a neighbouring core left out; a far tree its core alone (treeBands)
   if (broken && coreG.length) {
     const C = st.trees.crown, ramp = st.palette[st.lock[st.trees.form === 'blossom' ? 'isekai:blossom' : 'isekai:crown']] ?? st.palette.foliage, hexOf = (c) => rgbHex(c.map((v) => v / 255));
-    const dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.min(1, ramp.length - 1)]);
+    // (the hour's shift along the foliage: a core's lit stop and every chip's stops come down at dusk and night)
+    // (the hour's light is one: measured on the world's foliage, every picked foliage moves the same stops)
+    const hs = hourShift(st, st.tint.crown, ramp), dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.max(0, Math.min(1, ramp.length - 1) + hs)]);
     // (a tree kind's core in the foliage it picked: its ramp's two darkest stops)
-    const stopsOf = (f) => (f._ramp && st.palette[f._ramp] ? [hexOf(st.palette[f._ramp][0]), hexOf(st.palette[f._ramp][1])] : [dark, lite]);
+    const stopsOf = (f) => (f._ramp && st.palette[f._ramp] ? [hexOf(st.palette[f._ramp][0]), hexOf(st.palette[f._ramp][Math.max(0, 1 + hs)])] : [dark, lite]);
     for (const { tint: _t, ...f } of coreG) { const c = mean(f.corners), [dk, lt] = stopsOf(f); cel.push({ ...f, fill: dot(f.normal, dir) > 0.15 && shadow(addv(c, mul(f.normal, 0.05)), f.normal) > 0.5 ? lt : dk }); }
-    const crowned = (TB ? [...TB.built, ...TB.phantoms] : trees).filter((t) => t.masses || t.lobes), cores = crowned.flatMap((t) => (t.lobes ? [] : t.masses.map((m) => ({ ...m, t }))));
+    const crowned = [...(TB ? [...TB.built, ...TB.phantoms] : trees), ...(TH ? TH.items : [])].filter((t) => t.masses || t.lobes), cores = crowned.flatMap((t) => (t.lobes ? [] : t.masses.map((m) => ({ ...m, t }))));
     // (a species' lobes, era/leaf-forms.js: buried in a lobe of another tree by the same share of the lobe as a ball's)
     const lobes = crowned.flatMap((t) => (t.lobes ? t.lobes.map((L) => ({ L, t, r: Math.max(...L.axes) })) : []));
     const buried = (p, t) => cores.some((m) => Math.abs(m.at[0] - p[0]) < m.r && Math.abs(m.at[1] - p[1]) < m.r && Math.hypot((p[0] - m.at[0]) / m.r, (p[1] - m.at[1]) / m.r, (p[2] - m.at[2]) / (m.r * C.squash)) < CHIP_DEFAULTS.shrink * CHIP_BURIED)
       || (lobes.length > 0 && lobes.some((q) => q.t !== t && Math.abs(q.L.at[0] - p[0]) < q.r && Math.abs(q.L.at[1] - p[1]) < q.r && withinLobe(p, q.L, CHIP_DEFAULTS.shrink * CHIP_BURIED)));
     for (const t of crowned) {
       if (t.band === 'far') continue;
-      const opts = { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp: (t.leafRamp && st.palette[t.leafRamp]) || ramp, seed: Math.round(t.x * 17 + t.y * 5) };
+      const opts = { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp: (t.leafRamp && st.palette[t.leafRamp]) || ramp, seed: Math.round(t.x * 17 + t.y * 5), ...(hs ? { shift: hs } : {}) };
       const chips = t.lobes ? formChips(t.lobes, { ...opts, grain: LEAF_FORMS[t.form].grain, lean: LEAF_FORMS[t.form].lean }) : leafChips(t.masses, opts);
-      for (const f of chips) if (!buried(mean(f.corners), t)) cel.push(f);
+      for (const f of chips) if (!buried(mean(f.corners), t)) cel.push(t.soft ? { ...f, _soft: true } : f);
     }
   }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
@@ -682,7 +726,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (a gritty polygon land's flora in detail, as its rock: leaves on the crowns, bark up the trunks, gritty-flora.js; its
   // clouds' cards drawn hi-def in their own stops, isekai-tiles.js `+hd`)
   const hdCloud = (k) => (broken && /:cumulus-/.test(k || '') ? `${k}+hd` : k);
-  const drawnFaces0 = broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces;
+  // (the older flora drawn in swatch colours rather than a ramp, the shrubs, their leaf cards and the ikebana, darkened at
+  // the hour as far as the world's foliage comes down its ramp: hourShift)
+  const nightDim = hourDim(st);
+  const drawnFaces0 = (broken ? withGrittyFlora(faces, broken).map((f) => (hdCloud(f.texture) === f.texture ? f : { ...f, texture: hdCloud(f.texture) })) : faces).map(softBrush).map((f) => (nightDim < 1 && SWATCH_FLORA.has(f.group) ? dimmed(f, nightDim) : f));
   // (the stock's templates lifted out of the drawn faces, each stamped where its trees stand, in the shade a step down)
   const drawnFaces = TB ? drawnFaces0.filter((f) => !TB.isPhantom(f)) : drawnFaces0;
   const treeRepeats = TB ? TB.repeats(drawnFaces0.filter((f) => TB.isPhantom(f)), (p) => shadow(p, [0, 0, 1])) : [];
@@ -731,6 +778,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // anchor an engine can find
   if (shr.anchors.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...shr.colliders], anchors: [...(payload.anchors ?? []), ...shr.anchors] });
   if (ike) Object.assign(payload, { soft: [SOFT_GROUP], colliders: [...(payload.colliders ?? []), ...ike.colliders], anchors: [...(payload.anchors ?? []), ...ike.anchors] });
+  // (the bushes' sections: a blocking bush a collider, the walked-through drawn in soft groups, each section an anchor)
+  if (TH && TH.items.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...TH.colliders], anchors: [...(payload.anchors ?? []), ...TH.anchors],
+    ...(TH.items.some((t) => t.soft) ? { soft: [...(payload.soft ?? []), ...Object.values(SOFT_BRUSH)] } : {}) });
   // a biocube's FAUNA (era/biocube-fauna.js): the field's swarms and birds on the page (scene/channels/fauna.js), and its
   // herds as the units the world lowers to bodies on their rigs (worlds/fauna-units.js), each on its own ground; none,
   // not one byte
@@ -848,7 +898,7 @@ function grittyGrass(LG, grit, st) {
   const t = Math.max(0, Math.min(1, (grit - GRIT_PIXELS) / (1 - GRIT_PIXELS)));
   return { ...LG, real: { ...(LG.real ?? {}), ao: r5(0.6 - 0.3 * t), back: r5(0.6 + 0.4 * t), dry: 0, sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) },
     // (its crowns are chipped: the core and the chips sway with the wood)
-    ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP] } } : {}) };
+    ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far'];
 /**
@@ -1012,7 +1062,7 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     // (a cell's tufts stand anywhere in it: the whole cell clear of the trail, its half-diagonal past the edge)
     if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) + 0.1 + cell * 0.71) continue;
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.15)) continue;
-    if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < 0.45)) continue;
+    if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < (t.clearR ?? 0.45))) continue;
     if (site.reserved && !kept(site.reserved, c[0], c[1], 0.3)) continue;
     m[j * (nx - 1) + i] = 1 | (shadow([c[0], c[1], c[2] + 0.3], [0, 0, 1]) > 0 ? 2 : 0);
   }
@@ -1035,7 +1085,7 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
   const fl = !G.flowers ? null : flowerConfig(st, { ...FLOWERS_DEFAULT, ...(L.flowers || {}), ...(G.flowers && G.flowers !== true ? G.flowers : {}) }, seed);
   return {
     grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
-    ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
+    ramp: st.palette.grass, win: hourWin(L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] }, hourShift(st, st.tint.ground, st.palette.grass)),
     templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: G.density ?? L.density, height: G.height ?? L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
     sheen: L.sheen, taker: W.grass[0],
     // CONTACT: what walks, lands or strikes in the grass lays it (vegetation/grass-contact.js); `contact: false` ⇒ none
@@ -1299,6 +1349,8 @@ function lumpBushes(faces, bushes, grit) {
  * phantoms (the templates' trees), isPhantom(face), repeats(templateFaces, sunAt) } | null without bands.
  */
 export const TREE_BANDS = Object.freeze({ hero: 6, far: 15, stock: 3, shade: 0.62, off: -4000, gap: 80, vary: 0.1 });
+// a walked-through bush's faces into the page's soft groups (thickets.js SOFT_BRUSH), the mark leaving with it
+const softBrush = (f) => { if (f._soft === undefined) return f; const { _soft, ...g } = f; return { ...g, group: g.group === 'isekai:wood' ? SOFT_BRUSH.wood : g.group === CHIP_GROUP ? SOFT_BRUSH.chips : SOFT_BRUSH.core }; };
 // a tree's kind on a gritty land (the biocube's `kinds`, era/leaf-forms.js): each clump one of them, by its dice; none
 // where the land is quiet or the level names none (its crown the balls)
 // (a clump's role takes the kind its cast names, `clump`; else each clump one kind by its dice, weighed by the kinds'
@@ -1355,11 +1407,14 @@ function treeFaces(st, site, trees, grit = 0) {
     // ending in a lobe its form shapes; the lobes the dark core, hollowed, their chips once the sun is known; far, the
     // cores coarse and no twigs. Its proportions the kind's, else the kit's; its wood and crown locked to the colours it
     // picked from the theorist's offer, era/flora-colours.js)
-    const K = treeKind(T, t, grit);
+    // (a bush of a section, thickets.js: a tree kind with the trunk taken away, on any land; a tree's kind, gritty only)
+    const K = t.bushIx !== undefined ? readBush(st.thickets.kinds[t.bushIx]) : treeKind(T, t, grit);
     if (K) {
       const hk = h * (K.scale ?? 1), Rk = (K.spread ?? C.radius) * hk, far = t.band === 'far', form = K.form, g = (K.girth ?? C.trunk) * hk;
       const ck = K.scale === undefined && K.spread === undefined && K.trunk === undefined ? c : [c[0], c[1], K.trunk !== undefined ? z0 + K.trunk * hk + 0.45 * Rk : z0 + C.height * hk];
-      const fork = [ck[0], ck[1], ck[2] - 0.45 * Rk], bark = K.bark ? { _ramp: `bark-${K.bark}` } : {}, lk = leafKey(T, t, K), leafRamp = lk ? { _ramp: lk } : {};
+      const fork = [ck[0], ck[1], ck[2] - 0.45 * Rk], bark = grit && K.bark ? { _ramp: `bark-${K.bark}` } : {}, lk = grit ? leafKey(T, t, K) : null, leafRamp = lk ? { _ramp: lk } : {};
+      // (a walked-through bush's faces marked, drawn at the end in the page's soft groups)
+      const soft = t.soft ? { _soft: true } : {};
       const stem = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (fork[0] - t.x) * f, t.y + bend[1] * f * f + (fork[1] - t.y) * f, z0 + (fork[2] - z0) * f]);
       // (its wood's albedo the picked bark's against the world's: the bake lights it, the lock keeps it on its ramp)
       const pb = K.bark && st.palette[bark._ramp], wb = st.palette.bark, mid = (r) => r[Math.floor(r.length / 2)];
@@ -1379,18 +1434,21 @@ function treeFaces(st, site, trees, grit = 0) {
       } else tube(wood, stem, [g, g * 0.85, g * 0.72, g * 0.62], 6, wt, 'isekai:wood');
       const G = leafForm(form, { base: [t.x, t.y, z0], h: hk, c: ck, Rc: Rk, seed: k, density: K.density ?? 1, forks, branch: K.branch ?? 1, split: K.split ?? 0 });
       for (const l of G.limbs) tube(wood, l.pts, l.radii, 5, wt, 'isekai:wood');
-      if (!far) for (const tw of G.twigs) tube(wood, tw.pts, tw.radii, 4, wt, 'isekai:wood');
+      // (a bush draws no twigs: too fine to see at its size)
+      if (!far && t.bushIx === undefined) for (const tw of G.twigs) tube(wood, tw.pts, tw.radii, 4, wt, 'isekai:wood');
       // (its bark's colour, `_ramp` for the lock; its marks, `_rind` for the relief, era/gritty-flora.js)
-      const rind = K.barkForm && K.barkForm !== 'furrowed' ? { _rind: K.barkForm } : {};
-      for (const f of wood) out.push(K.bark || rind._rind ? { ...f, ...bark, ...rind } : f);
+      const rind = grit && K.barkForm && K.barkForm !== 'furrowed' ? { _rind: K.barkForm } : {};
+      for (const f of wood) out.push(bark._ramp || rind._rind || t.soft ? { ...f, ...bark, ...rind, ...soft } : f);
       t.crownAt = ck.map(r5); t.crownR = r5(Rk); t.lobes = G.lobes; t.form = form; t.leafRamp = leafRamp._ramp ?? null;
       for (const L of G.lobes) {
         const lobe = { at: L.at, r: Math.max(...L.axes) * CHIP_DEFAULTS.shrink, tris: [], id: lobesAll.length };
         lobesAll.push(lobe);
-        for (const cs of lobeTris(L, { detail: far ? 0 : 1, shrink: CHIP_DEFAULTS.shrink })) {
+        // (a far tree's lobes coarse, and a bush's always: small, and under its chips)
+        for (const cs of lobeTris(L, { detail: far || t.bushIx !== undefined ? 0 : 1, shrink: CHIP_DEFAULTS.shrink })) {
           const nn = facetN(cs, sub(mean(cs), L.at));
           lobe.tris.push(cs);
-          out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: CORE_GROUP, _lobe: lobe.id, ...leafRamp });
+          // (a quiet land's bush draws its lobes as a crown's masses, locked to the foliage: no core, no chips)
+          out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: grit ? CORE_GROUP : crownGroup, ...(grit ? { _lobe: lobe.id } : {}), ...leafRamp, ...soft });
         }
       }
       return;
