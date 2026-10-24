@@ -1506,12 +1506,14 @@ window.addEventListener('mouseup', (e) => { if (__mb('lock', e)) __midDown = fal
 // double-tap (LT), semi-auto fire and every press-edge action reuse the one __prev* discipline.
 // Mapping: left stick = move (strafe in look worlds, turn otherwise) · right stick = look/aim ·
 // RT fire · LT boost (double-tap = dodge) · A jump-ascend · B/LB kneel-descend · Y (PS △) tackle ·
-// D-pad ↑ switch suit · select = AI toggle. RB is the WEAPON button: a quick tap cycles, a HOLD
+// D-pad ↑ switch suit · D-pad ↓ reverse view (a chase camera) · select = AI toggle. RB is the WEAPON button: a quick tap cycles, a HOLD
 // raises the selector overlay, and face buttons chord while it is down — RB+X (PS □) = the main
 // ranged weapon, RB+Y (PS △) = the main melee, RB+B/A = the remaining slots in shelf order (a
 // chord suppresses the face button's solo action). Start is the SHELL's (pause) — the world
 // ignores it. Prefs arrive over the game-gamepad sidecar; a shell-less world plays the defaults.
 let __padOn = true, __padIdx = -1, __padSeen = false;
+// the pad a camera or watch control reads outside the pilot's poll: the one the pilot holds, else the first connected
+const __padNow = () => { if (!__padOn || !navigator.getGamepads) return null; const ps = navigator.getGamepads(); if (__padIdx >= 0 && ps[__padIdx] && ps[__padIdx].connected) return ps[__padIdx]; for (let i = 0; i < ps.length; i++) if (ps[i] && ps[i].connected) return ps[i]; return null; };
 const __padCfg = { deadZone: 0.15, lookScale: 18, invertY: false };   // lookScale: px-equivalent per frame at full deflection
 window.__mojPad = { active: () => __padOn && __padSeen, cfg: __padCfg };   // read by the pause legend (__controlRows)
 window.addEventListener('gamepadconnected', (e) => { __padSeen = true; __padIdx = e.gamepad.index; });
@@ -1798,6 +1800,9 @@ if (__world.camera && __world.camera.rule.type === 'follow') {
   __rvBtn.classList.toggle('on', !!__world.camera.rule.reverse);
   __rvBtn.onclick = __rvFlip;
   window.addEventListener('keydown', (ev) => { if (__CTL.is(__BIND, 'reverseView', 'keyboard', ev.code) && !ev.repeat) __rvFlip(); });
+  // the pad's reverse view (its binding: D-pad down), on the press edge, polled with the frame
+  let __rvPadWas = false;
+  (function __rvPad() { requestAnimationFrame(__rvPad); const g = __padNow(); const on = !!g && __CTL.held(__BIND, 'reverseView', 'gamepad', __CTL.gamepadRead(g, __DEV)); if (on && !__rvPadWas) __rvFlip(); __rvPadWas = on; })();
   hud.appendChild(__rvBtn);
 }
 // AI ATTACK toggle (worlds with ai-ambient suits): a HUD button twin of the G key. The click only
@@ -1892,6 +1897,16 @@ if (__world.spectate && __world.camera) {
     if (__CTL.is(__BIND, 'spectateNext', 'keyboard', ev.code)) { ev.preventDefault(); if (!ev.repeat) __specCycle(); }
     else if (__CTL.is(__BIND, 'spectateLock', 'keyboard', ev.code) && !ev.repeat) { __specLocked = !__specLocked; if (__specLocked) __specFollow(); else __specFree(); __specSync(); }
   });
+  // the pad's (its bindings: RB or D-pad right the next fighter, A the lock), on the press edges, polled with the frame
+  const __specPadWas = { next: false, lock: false };
+  (function __specPad() {
+    requestAnimationFrame(__specPad);
+    const g = __padNow(), rd = g && __CTL.gamepadRead(g, __DEV);
+    const next = !!g && __CTL.held(__BIND, 'spectateNext', 'gamepad', rd), lock = !!g && __CTL.held(__BIND, 'spectateLock', 'gamepad', rd);
+    if (next && !__specPadWas.next) __specCycle();
+    if (lock && !__specPadWas.lock) { __specLocked = !__specLocked; if (__specLocked) __specFollow(); else __specFree(); __specSync(); }
+    __specPadWas.next = next; __specPadWas.lock = lock;
+  })();
   __specSync();
 }
 // weapon HUD (mobile-suit R6-C): a reticle (core + assist + readiness status, sized from the camera

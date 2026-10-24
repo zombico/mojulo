@@ -73,9 +73,10 @@ const PILOT = {
     // a body with forms (controllable/forms.js): robot ↔ vehicle, on the press
     { id: 'transform', label: 'transform', group: 'move', in: MOVE, bind: { keyboard: ['KeyB'], gamepad: ['ls'] } },
     { id: 'aiToggle', label: 'AI attack on / off', group: 'world', in: MOVE, bind: { keyboard: ['KeyG'], gamepad: ['select'] } },
-    { id: 'reverseView', label: 'reverse view', group: 'camera', in: MOVE, bind: { keyboard: ['KeyV'] } },
-    { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'] } },
-    { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'] } },
+    // (a pad's: D-pad down swings the chase camera; watching, RB or D-pad right is the next fighter, A locks)
+    { id: 'reverseView', label: 'reverse view', group: 'camera', in: MOVE, bind: { keyboard: ['KeyV'], gamepad: ['down'] } },
+    { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'], gamepad: ['rb', 'right'] } },
+    { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'], gamepad: ['south'] } },
     { id: 'pause', label: 'pause', group: 'system', in: [...MOVE, 'spectate'], bind: { keyboard: ['Escape'], gamepad: ['start'] } },
     // use / talk / open, live only in reach: E strafes anywhere else, and the runtime keeps it from strafing in reach
     { id: 'interact', label: 'use / talk', group: 'world', in: ['reach'], bind: { keyboard: ['KeyE'], gamepad: ['west'], xr: ['left.squeeze'] } },
@@ -116,6 +117,7 @@ const PILOT = {
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['pause'], label: 'pause' },
     ],
     xr: [

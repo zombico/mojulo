@@ -33,6 +33,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   than one, so the sweep rolls and nudges them only then (a setting's `given`, `registry.js`), and a facet's odds count
   its settings that are not given. Without it, half of soul's rolls asked for multiplayer and the ranking of everything
   else moved.
+- **The pad does what the keyboard does in the pilot scheme.** Reverse view takes the D-pad's down, and a spectator
+  watches the next fighter on RB or the D-pad's right and locks the camera on A, each on its press edge; the pad legend
+  names the reverse view. What a pad already says another way stays so: the left stick strafes under mouselook, the RB
+  chord selects a weapon, kneel descends a glide. A test holds every other pilot action to a pad binding.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

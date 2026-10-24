@@ -203,6 +203,11 @@ import { emitThreeWorld } from './scene-three.js';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
+// Re-pinned 2026-10-24 (local multiplayer phase 2: the controller seams): the pilot scheme the page embeds binds a pad
+// to reverse view (D-pad down) and the watch controls (RB or D-pad right, A), and the runtime reads them on their press
+// edges through `__padNow` (the pilot's pad, else the first connected). On the `controllable` fixture 2 lines are
+// replaced (the scheme's JSON, the mapping comment) and 17 added; every fixture that embeds the runtime re-pinned with it.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

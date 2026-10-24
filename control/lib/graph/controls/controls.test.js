@@ -57,6 +57,13 @@ describe('schemes', () => {
     expect(K.conflicts(SCHEMES[id], K.resolve(SCHEMES[id], D))).toEqual([]);
   });
 
+  // a pad player can do what a keyboard player can in the pilot scheme: every action has a pad binding but the few a
+  // pad says another way (the left stick strafes under mouselook, the RB chord selects a weapon, kneel descends a glide)
+  it('pilot: every action but those a pad says another way has a pad binding', () => {
+    const OTHERWISE = ['strafeLeft', 'strafeRight', 'descend', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'];
+    expect(SCHEMES.pilot.actions.filter((a) => !a.bind.gamepad?.length && !OTHERWISE.includes(a.id)).map((a) => a.id)).toEqual([]);
+  });
+
   it('is plain data (the page embeds it as JSON)', () => {
     expect(JSON.parse(JSON.stringify(SCHEMES))).toEqual(SCHEMES);
   });
