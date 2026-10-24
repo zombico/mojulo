@@ -414,7 +414,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // SHRUBS (a card's `shrubs`, shrubs.js): bushes through the grass by the trail, in flower, in fruit or green; drawn the
   // ikebana's way, and the grass kept off their feet
   // (a biocube's bushes when the recipe names none)
-  const shrubAsk = manifest.shrubs !== undefined ? manifest.shrubs : B?.flora.shrubs ?? undefined;
+  const shrubAsk = manifest.shrubs !== undefined ? manifest.shrubs : B?.flora?.shrubs ?? undefined;
   const shrubErr = validateShrubs(shrubAsk); if (shrubErr.length) throw new Error(`isekai: ${shrubErr.join('; ')}`);
   const shr = placeShrubs(st.shrubs, shrubAsk, site, { rocks, trees, unit: st.rubble.unit, reserved: site.reserved }, seed);
   const shrRaw0 = ikebanaFaces(st, shr).map((f) => ({ ...f, group: SHRUB_GROUP }));
@@ -716,7 +716,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     glow: !!Gl,
     pack: true,
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
-    ...((manifest.wind || manifest.grass || (B && B.flora.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st), onSand) } : {}),
+    ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers ? { flowers: B.flora.flowers } : undefined)), broken, st), onSand) } : {}),
     // a gritty polygon land's rock: its fabric drawn near the eye, as the island's (its own strata and joints)
     ...(broken ? { fabric: (() => {
       const base = { joints: site.grid.joints ?? { spacing: st.landform.joint }, strata: site.grid.strata ?? null, grit: SH.grit, sun: dir, seed, rockColour: stopFill(st, 'cliff', true), green: stopFill(st, 'blades', true) };

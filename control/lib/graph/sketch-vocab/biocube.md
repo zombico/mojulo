@@ -1,5 +1,5 @@
 ---
-{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers) and its fauna (gnats, fireflies, butterflies, birds overhead), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass; composed clumps (ikebana), harmonious tree colours, a dominant tree with accents; wildlife, butterflies, gnats, midges, fireflies, birds flying overhead, sheep grazing, deer in the woods, rabbits, a herd, a pasture, a level that feels alive, animals to pet, animals that can be hunted or killed", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers) and its fauna (gnats, fireflies, butterflies, birds overhead), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass; composed clumps (ikebana), harmonious tree colours, a dominant tree with accents; wildlife, butterflies, gnats, midges, fireflies, birds flying overhead, sheep grazing, deer in the woods, rabbits, a herd, a pasture, a level that feels alive, animals to pet, animals that can be hunted or killed, ducks on a stream, roaches or mice in a cellar or a crypt, an elephant or a giraffe", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
 A biocube says WHAT grows in a level; the geocube says how the level LOOKS. Colours stay the cube's: the colour
@@ -86,7 +86,8 @@ Stamped trees vary a little in value each, so no two read the same.
 `fauna`: what lives in the level, beside what grows. Fauna are never enemies (a hunting animal is a game's foe), and
 not every level wants them: a biocube grows none unless asked, every preset's is none. A preset (`FAUNA_IDS`):
 `summer-day` (butterflies, gnats, a flock crossing), `summer-night` (fireflies, a few gnats), `pasture` (two flocks of
-sheep grazing, to pet, butterflies, birds), `woodland` (deer, rabbits, birds); a document `{ swarms?: { <kind>: true |
+sheep grazing, to pet, butterflies, birds), `woodland` (deer, rabbits, birds), `brook` (ducks, gnats, butterflies),
+`cellar` (roaches and mice: a room stage's); a document `{ swarms?: { <kind>: true |
 { …settings } | null }, herds?: { <species>: true | { groups, size, killable, interact } | null } }`; or `{ from:
 <preset>, swarms?, herds? }`, kind by kind and species by species, null for none.
 
@@ -95,13 +96,24 @@ The field's kinds: scenery that is never in the way, each on its own ground, in 
 - **gnats** `{ clouds (1–24), per (6–80) }`: dark specks jittering in a column over the grass by the way;
 - **fireflies** `{ count (1–400) }`: glowing specks drifting low by the trees, each blinking: a night's light;
 - **butterflies** `{ count (1–60) }`: wings beating on a wandering loop above the grass;
-- **birds** `{ flock: [lo, hi], every s, height: [lo, hi] m }`: a loose V crossing high overhead every `every` seconds.
+- **birds** `{ flock: [lo, hi], every s, height: [lo, hi] m }`: a loose V crossing high overhead every `every` seconds;
+- **ducks** `{ count (1–30) }`: floating on a stage's streams (a trail's `crossing` lays one), paddling, bobbing,
+  tipping up to feed; a stage without a stream lays none;
+- **roaches** `{ count (1–80) }`, **mice** `{ count (1–30) }`: a room stage's (a kit of rooms), along the foot of the
+  walls, still a while, then a dash.
+
+A biocube of fauna alone (`biocube: { fauna: 'brook' }`) lays no flora of its own: the kit grows its own. On a room
+stage only the fauna is laid (nothing grows under a roof), and only the kinds that live indoors; herds and the open
+ground's kinds are refused there, as roaches and mice are outdoors.
 
 Each stands for an animal in the encyclopedia, and its size class is that animal's, measured: `mini` (insects), `smol`
-(a mouse to a pet), `chonky` (to a person or cattle), `behemoth` (a hippo), `gargantuan` (an elephant and up).
+(a mouse to a pet), `chonky` (to a person or cattle), `behemoth` (a hippo), `gargantuan` (an elephant, a giraffe by its
+height, up to a Gundam's scale: a rock's or a pillar's, never a mountain's).
 
 The herds: animals that take up room, a species of the encyclopedia by its id (`sheep`, `deer`, `rabbit`, `cow`…),
-`groups` herds of `size: [lo, hi]` each on the open ground off the way. Each walks on its own gait at its own pace,
+`groups` herds of `size: [lo, hi]` each on the open ground off the way, on the valley's side of the cliff. A gargantuan
+stands like a rock or a pillar: solid (a game's player walks round it), long still between slow wanders; one past 20 m
+is a landmark, not fauna. Each walks on its own gait at its own pace,
 drawn by its own rig: a grazer crops the grass round its herd, every other animal wanders round its ground. None is
 hostile, whatever its species (a wolf here only wanders): no weapon, no side, a passive mind. Each herd may also be:
 

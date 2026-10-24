@@ -626,8 +626,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const flickerBlock = flicker && Array.isArray(flicker.lamps) && flicker.lamps.length ? stageFlickerScript(flicker) : '';
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
-  // a level's field fauna (channels/fauna.js: swarms and birds, a biocube's); absent ⇒ no bytes
-  const faunaBlock = fauna && (fauna.gnats || fauna.fireflies || fauna.butterflies || fauna.birds) ? faunaScript(fauna) : '';
+  // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
+  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
   const wetRoadBlock = wetRoad && Array.isArray(wetRoad.quads) && wetRoad.quads.length ? wetRoadScript(wetRoad) : '';
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes

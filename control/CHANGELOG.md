@@ -62,6 +62,19 @@ preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are by
     petter, playing its relax loop under a rising heart for 3 s; then it goes back to grazing. A game's bus hears
     `petted` { entity, species }. `pasture`'s sheep may be petted.
   - Petting is the World page's: Godot plays the herds and their hits, not the petting.
+- **Water, indoors and the gargantuan.**
+  - Ducks (`ducks`, a mallard's stand-in): floating on a stage's streams (`era/out-trail.js` `streamSheets`, the water a
+    trail's crossing lays, now shared with what floats on it), paddling, bobbing, tipping up to feed. Preset `brook`.
+  - Indoors (`roaches`, `mice`, preset `cellar`): a room stage lays a biocube's fauna along its rooms' walls
+    (`placeIndoorFauna`; each storey's on its own floor), each critter still a while, then a dash. Nothing grows under
+    a roof: a room stage lays no flora. The kinds keep to their side: herds and outdoor kinds are refused indoors, the
+    indoor kinds outdoors, each saying why.
+  - A biocube of fauna alone (`{ fauna }`) lays no flora of its own: the kit grows its own, byte for byte.
+  - The gargantuan is a rock's or a pillar's scale (an elephant, a giraffe, up to a Gundam's), never a mountain's. A
+    body standing 4 m or more is gargantuan whatever its length (a giraffe). A gargantuan unit is solid and holds
+    (`body.collide`, heavy: a game's player walks round it), stands long between slow wanders, and one past 20 m is
+    refused as a landmark, not fauna. The walk page's eye is no body: it passes through, as through any.
+  - Herds keep to the valley's side of the cliff, as the trees do.
 
 ### Composed clumps: an ikebana clump cast and coloured by role
 

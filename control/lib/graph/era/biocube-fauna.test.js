@@ -1,6 +1,9 @@
 // A biocube's fauna (biocube-fauna.js): read and checked, placed on its ground, drawn by the page's fauna channel.
 import { describe, expect, it } from 'vitest';
 import { readFauna, faunaOn, unitOf, FIELD_KINDS, FIELD_KIND_IDS, FAUNA_IDS, HERD_SETTINGS } from './biocube-fauna.js';
+import { GARGANTUAN_MAX } from '../fauna/size-class.js';
+import { withFlora } from './biocube.js';
+import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { SPECIES } from '../fauna/species.js';
 import { tagsOf } from '../fauna/behavior/index.js';
 import { readBiocube, BIOCUBE_IDS } from './biocube.js';
@@ -138,5 +141,50 @@ describe('fauna on a stage', () => {
     expect(emitThreeWorld({ faces: plain.faces.slice(0, 50), fauna: { seed: 1 } })).not.toContain(marker);
     expect(faunaScript(day.fauna)).toContain(marker);
     expect(emitThreeWorld({ faces: plain.faces.slice(0, 50), fauna: day.fauna })).toContain(marker);
+  });
+});
+
+describe('the gargantuan: a rock\'s or a pillar\'s scale', () => {
+  it('stands solid and still a long while, and past a Gundam\'s scale is a landmark, not fauna', () => {
+    const u = unitOf('elephant');
+    expect(u).toMatchObject({ size: 'gargantuan', solid: true });
+    expect(unitOf('sheep').solid).toBe(false);
+    expect(() => unitOf('diplodocus')).toThrow(new RegExp(`past a gargantuan's scale \\(${GARGANTUAN_MAX} m`));
+    const U = stage({ ...M, biocube: { fauna: { herds: { elephant: { size: [2, 2] } } } } }).faunaUnits;
+    for (const a of U.entities.filter((e) => e.rule.type === 'ai')) {
+      expect(a.body).toMatchObject({ heavy: true, collide: { a: expect.any(Number), c: expect.any(Number) } });
+      expect(a.rule.wanderPause).toBeGreaterThan(3);
+    }
+  });
+});
+
+describe('fauna alone, water and indoors', () => {
+  it('a biocube of fauna alone lays no flora: the kit grows its own', () => {
+    const B = readBiocube({ fauna: 'summer-day' });
+    expect(B.flora).toBeNull();
+    expect(withFlora(ISEKAI_MEADOW, B)).toBe(ISEKAI_MEADOW);
+    expect(JSON.stringify(stage({ ...M, biocube: { fauna: 'summer-day' } }).faces)).toBe(JSON.stringify(stage(M).faces));
+  });
+
+  it('floats ducks on a stage\'s streams, inside the water; a stage without a stream lays none', () => {
+    const T = { ...M, trail: { beats: ['landmark', 'crossing', 'pocket', 'reveal'] }, biocube: { fauna: 'brook' } };
+    const D = stage(T).fauna.ducks, water = stage(T).faces.filter((f) => f.group === 'trail:water');
+    expect(D.ducks.length).toBe(readFauna('brook').swarms.ducks.count);
+    const zs = water.flatMap((f) => f.corners.map((c) => c[2])), lo = Math.min(...zs), hi = Math.max(...zs);
+    for (const [x, y, z, line, half] of D.ducks) { expect(Math.abs(y - line)).toBeLessThanOrEqual(half); expect(z).toBeGreaterThanOrEqual(lo - 1e-3); expect(z).toBeLessThanOrEqual(hi + 1e-3); }
+    expect(stage({ ...M, biocube: { fauna: 'brook' } }).fauna.ducks).toBeUndefined();
+  });
+
+  it('lays a room stage\'s critters along its walls, and keeps each kind to its side of the roof', () => {
+    const R = { kind: 'stage', kit: 'catacomb', rooms: [{ id: 'a', x: 0, y: 0, w: 6, d: 8, h: 3 }] };
+    const F = stage({ ...R, biocube: { fauna: 'cellar' } }).fauna;
+    expect(F.roaches.runs).toHaveLength(readFauna('cellar').swarms.roaches.count);
+    for (const [x0, y0, x1, y1, , z] of [...F.roaches.runs, ...F.mice.runs]) { expect(x0).toBeGreaterThanOrEqual(0); expect(y1).toBeLessThanOrEqual(8); expect(x1 - x0).toBeGreaterThan(5); expect(z).toBe(0); }
+    expect(stage(R).fauna).toBeUndefined();
+    expect(() => stage({ ...R, biocube: { fauna: 'pasture' } })).toThrow(/herds stand on open ground/);
+    expect(() => stage({ ...R, biocube: { fauna: 'summer-day' } })).toThrow(/lives outdoors/);
+    expect(() => stage({ ...M, biocube: { fauna: 'cellar' } })).toThrow(/live indoors/);
+    const html = emitThreeWorld({ faces: [], fauna: F });
+    expect(html).toContain('// --- fauna: the field');
   });
 });

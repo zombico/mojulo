@@ -48,6 +48,8 @@ import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
+import { readBiocube } from './biocube.js';
+import { placeIndoorFauna } from './biocube-fauna.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
 import { withGeocube, geocubePaint } from './geocube.js';
 import { withProgram } from './programs.js';
@@ -898,6 +900,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
+  const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
+  const roomFauna = Bio?.fauna ? ((F) => (Object.keys(F).length > 1 ? F : null))(placeIndoorFauna(Bio.fauna, { rooms: plan.rooms, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1 })) : null;
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only
   const shell = geom.faces.map((f) => (f.texture === null ? (({ texture, textureLit, uv, ...g }) => g)(f) : f));
@@ -1014,6 +1018,9 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
     haze: { color: air.fog.color, density: plan.atmosphere && plan.atmosphere.fog ? +(air.fog.density * plan.atmosphere.fog).toFixed(5) : air.fog.density },
     // dust hanging in the air (channels/motes.js), lit by the lights near it; about one mote per two cubic metres at full
+    // a biocube's fauna under a roof (era/biocube-fauna.js placeIndoorFauna): the kinds that live indoors, along the
+    // rooms' walls (channels/fauna.js); nothing grows under a roof, so its flora is not laid. None ⇒ no key
+    ...(roomFauna ? { fauna: roomFauna } : {}),
     ...(plan.atmosphere && plan.atmosphere.dust > 0 ? { motes: {
       count: Math.min(3200, Math.round(plan.atmosphere.dust * 0.55 * plan.rooms.reduce((a, r) => a + (r.x1 - r.x0) * (r.y1 - r.y0) * r.h, 0))),
       boxes: plan.rooms.map((r) => [r.x0, r.y0, 0.2, r.x1, r.y1, r.h].map(r5)), lights: lights.slice(0, 48).map((l) => [...l.at, l.radius * 0.8].map(r5)),

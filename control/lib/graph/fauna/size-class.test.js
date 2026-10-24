@@ -1,6 +1,6 @@
 // Size classes (size-class.js): measured off the rosters, never tagged.
 import { describe, expect, it } from 'vitest';
-import { SIZE_CLASSES, SIZE_CLASS_IDS, classOfExtent, extentOf, sizeClassOf } from './size-class.js';
+import { SIZE_CLASSES, SIZE_CLASS_IDS, TALL, classOfExtent, extentOf, heightOf, sizeClassOf } from './size-class.js';
 import { BUG_SPECIES } from '../bugs/species.js';
 
 describe('size classes', () => {
@@ -13,6 +13,7 @@ describe('size classes', () => {
       if (Number.isFinite(SIZE_CLASSES[k].under)) expect(classOfExtent(SIZE_CLASSES[k].under - 1e-6)).toBe(k);
     }
     expect(() => classOfExtent(-1)).toThrow(/metres/);
+    expect(classOfExtent(1, TALL)).toBe('gargantuan');
   });
 
   it('measures a bug by its bauplan\'s length', () => {
@@ -27,6 +28,10 @@ describe('size classes', () => {
     expect(sizeClassOf('sheep').class).toBe('chonky');
     expect(sizeClassOf('hippo').class).toBe('behemoth');
     expect(sizeClassOf('elephant').class).toBe('gargantuan');
+    // (a giraffe is shorter than an elephant end to end, and gargantuan by its standing height)
+    expect(sizeClassOf('giraffe')).toMatchObject({ class: 'gargantuan' });
+    expect(heightOf('giraffe')).toBeGreaterThanOrEqual(TALL);
+    expect(extentOf('giraffe')).toBeLessThan(SIZE_CLASSES.behemoth.under);
     expect(extentOf('sheep')).toBe(extentOf('sheep'));
     expect(sizeClassOf('unicorn')).toBeNull();
   });

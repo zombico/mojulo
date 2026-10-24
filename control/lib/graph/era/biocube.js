@@ -25,8 +25,10 @@
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
  *
- *   fauna          a fauna preset id (summer-day, summer-night), a document { swarms }, { from, …changes }, or null
- *                  (none: every preset's): what lives in the level, never an enemy (era/biocube-fauna.js readFauna)
+ *   fauna          a fauna preset id (FAUNA_IDS), a document { swarms, herds }, { from, …changes }, or null (none:
+ *                  every preset's): what lives in the level, never an enemy (era/biocube-fauna.js readFauna). A
+ *                  document of fauna alone ({ fauna }) lays no flora (`flora: null`): the kit grows its own. A room
+ *                  stage lays only the fauna (era/stage.js): nothing grows under a roof
  *
  *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare
  *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged, the
@@ -187,7 +189,10 @@ export function readBiocube(spec) {
   if (typeof spec === 'string') { if (!BIOCUBE_PRESETS[spec]) no(`'${spec}' is not a biocube (${BIOCUBE_IDS.join(', ')})`); return readBiocube({ from: spec }); }
   if (!isObj(spec)) no(`a biocube is a preset id (${BIOCUBE_IDS.join(', ')}), a document or { from, …changes }`);
   keys(spec, ['id', 'from', 'title', 'reads', 'flora', 'fauna'], 'biocube');
+  // (a biocube of fauna alone lays no flora of its own: the kit's grows as it would, flora null)
+  const faunaOnly = spec.from === undefined && spec.flora === undefined && spec.fauna !== undefined && spec.fauna !== null;
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
+  if (faunaOnly) return { id: spec.id ?? 'biocube', title: spec.title ?? 'Biocube', reads: spec.reads ?? '', flora: null, fauna: readFauna(spec.fauna) };
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
   if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers? }');
   keys(F1, ['trees', 'grass', 'shrubs', 'flowers'], 'flora');
@@ -202,8 +207,10 @@ export function readBiocube(spec) {
   return { id: spec.id ?? spec.from ?? 'biocube', title: spec.title ?? base?.title ?? 'Biocube', reads: spec.reads ?? base?.reads ?? '', flora, fauna };
 }
 
-/** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none). */
+/** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none).
+ *  A cube of fauna alone (flora null): the card as it is. */
 export function withFlora(card, cube) {
+  if (!cube.flora) return card;
   const F = cube.flora, { kinds, clump, harmony, ...T } = F.trees, G = F.grass;
   // (the cube's tree kinds go to the card as its trees' `leafKinds`, their clump's cast and harmony beside them)
   const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}),

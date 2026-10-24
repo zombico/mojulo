@@ -13,9 +13,15 @@ import { safeJson } from '../emit-util.js';
 //     life size, to read at a walk's distance), turned to where it goes. The world's gold, violet and fruit.
 //   · BIRDS: a flock crossing high overhead every `every` s, a loose V, the wings beating and gliding by turns; between
 //     passes the sky is empty. Each pass its own heading, its own height, its own count. The world's darkest rock.
+//   · DUCKS: a little body, head and bill each, floating on a stream's water (its surface where the duck's home is),
+//     paddling a slow loop that keeps inside the stream, bobbing, now and then tipping up tail-high to feed. Shaded in
+//     their own colours by a fixed light, as a stage's baked faces are. The world's soil, foliage and gold.
+//   · ROACHES and MICE (a room stage's): each along its room's wall line, still a while, then a dash to somewhere near
+//     along the wall (a random place each turn of its own beat: it never strays far), turned the way it runs.
 // Absent `fauna` (or a fauna with none of these) ⇒ NOT emitted.
 // `cfg`: { seed, gnats?: { colour, per, clouds }, fireflies?: { colour, flies }, butterflies?: { colours, homes },
-//          birds?: { colour, flock, every, height, centre, span } }
+//          birds?: { colour, flock, every, height, centre, span }, ducks?: { colours: { body, head, bill }, ducks },
+//          roaches?, mice?: { colour, size, runs } }
 export function faunaScript(cfg) {
   return `
 // --- fauna: the field's swarms and birds, a closed form of the clock ---
@@ -129,6 +135,75 @@ export function faunaScript(cfg) {
         pose(wr, i, p, yaw, beat, 1); pose(wl, i, p, yaw, beat, -1);
       }
       wr.count = wl.count = n; wr.instanceMatrix.needsUpdate = true; wl.instanceMatrix.needsUpdate = true;
+    });
+  }
+
+  // a small solid of scaled spheres and boxes, shaded by a fixed light into its vertex colours (no light in the scene
+  // reaches a basic material: a stage's light is baked)
+  const solid = (parts) => {
+    const pos = [], col = [], L = new THREE.Vector3(0.35, -0.45, 0.82).normalize(), n = new THREE.Vector3();
+    for (const P of parts) {
+      const g = (P.box ? new THREE.BoxGeometry(1, 1, 1) : new THREE.IcosahedronGeometry(1, 1)).toNonIndexed();
+      g.scale(P.s[0], P.s[1], P.s[2]); g.translate(P.at[0], P.at[1], P.at[2]); g.computeVertexNormals();
+      const a = g.attributes.position.array, nn = g.attributes.normal.array;
+      for (let i = 0; i < a.length; i += 3) {
+        pos.push(a[i], a[i + 1], a[i + 2]); n.set(nn[i], nn[i + 1], nn[i + 2]);
+        const k = 0.58 + 0.42 * Math.max(0, n.dot(L)); col.push(P.c[0] * k, P.c[1] * k, P.c[2] * k);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    const lin = new THREE.Color(), c = new Float32Array(col.length);
+    for (let i = 0; i < col.length; i += 3) { lin.setRGB(col[i], col[i + 1], col[i + 2], THREE.SRGBColorSpace); c[i] = lin.r; c[i + 1] = lin.g; c[i + 2] = lin.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    return g;
+  };
+  const herd = (geom, n) => { const m = new THREE.InstancedMesh(geom, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }), n); m.frustumCulled = false; m.raycast = () => {}; scene.add(m); return m; };
+  const Rx = new THREE.Matrix4();
+
+  if (F.ducks && F.ducks.ducks.length) {
+    const D = F.ducks, n = D.ducks.length, C = D.colours;
+    const m = herd(solid([{ at: [0, 0, 0.05], s: [0.1, 0.17, 0.07], c: C.body }, { at: [0, -0.15, 0.08], s: [0.05, 0.06, 0.04], c: C.body },
+      { at: [0, 0.14, 0.15], s: [0.05, 0.05, 0.05], c: C.head }, { box: true, at: [0, 0.205, 0.14], s: [0.035, 0.05, 0.016], c: C.bill }]), n);
+    const at = (i, t) => {
+      const h = D.ducks[i], a = 0.05 + 0.05 * hh(i, 41), ph = TAU * hh(i, 42), lim = 0.6 * h[4];
+      return [h[0] + 1.8 * Math.sin(a * t + ph), h[3] + Math.max(-lim, Math.min(lim, h[1] - h[3] + 0.3 * h[4] * Math.sin(1.7 * a * t + ph * 1.3))), h[2] + 0.012 * Math.sin(2.2 * t + ph)];
+    };
+    steps.push((t) => {
+      for (let i = 0; i < n; i++) {
+        const p = at(i, t), q = at(i, t + 0.2), yaw = Math.atan2(q[1] - p[1], q[0] - p[0]) - Math.PI / 2;
+        // dabbling: tail up a moment on its own beat
+        const beat = 7 + 6 * hh(i, 43), u = ((t / beat + hh(i, 44)) % 1 + 1) % 1, tip = u < 0.14 ? Math.sin(Math.PI * u / 0.14) : 0;
+        M4.makeTranslation(p[0], p[1], p[2]); R.makeRotationZ(yaw); Rx.makeRotationX(-1.2 * tip); M4.multiply(R).multiply(Rx); m.setMatrixAt(i, M4);
+      }
+      m.instanceMatrix.needsUpdate = true;
+    });
+  }
+
+  for (const kind of ['roaches', 'mice']) {
+    const K = F[kind]; if (!K || !K.runs.length) continue;
+    const n = K.runs.length, s = K.size, c = K.colour, mouse = kind === 'mice', salt = mouse ? 60 : 50;
+    const m = herd(solid(mouse
+      ? [{ at: [0, 0, 0.45 * s], s: [0.24 * s, 0.5 * s, 0.22 * s], c }, { at: [0, 0.5 * s, 0.4 * s], s: [0.15 * s, 0.2 * s, 0.14 * s], c }, { box: true, at: [0, -0.95 * s, 0.12 * s], s: [0.04 * s, 0.9 * s, 0.04 * s], c }]
+      : [{ at: [0, 0, 0.2 * s], s: [0.28 * s, 0.5 * s, 0.14 * s], c }]), n);
+    // a place s along a room's wall line (its rectangle, counter-clockwise) → [x, y], and the way the line runs there
+    const along = (r, v) => {
+      const w = r[2] - r[0], h = r[3] - r[1], L = 2 * (w + h); let d = ((v % L) + L) % L;
+      if (d < w) return [r[0] + d, r[1], 0]; d -= w;
+      if (d < h) return [r[2], r[1] + d, Math.PI / 2]; d -= h;
+      if (d < w) return [r[2] - d, r[3], Math.PI]; d -= w;
+      return [r[0], r[3] - d, -Math.PI / 2];
+    };
+    steps.push((t) => {
+      for (let i = 0; i < n; i++) {
+        const r = K.runs[i], T = (mouse ? 3 : 2.2) + 3 * hh(i, salt), range = mouse ? 4 : 2.5, hold = mouse ? 0.55 : 0.65;
+        const x = t / T + hh(i, salt + 1), k = Math.floor(x), u = x - k;
+        const v = (j) => r[4] + (hh(i * 977 + j, salt + 2) - 0.5) * range;
+        const a = v(k), b = v(k + 1), e = Math.max(0, Math.min(1, (u - hold) / (1 - hold))), go = e * e * (3 - 2 * e);
+        const dir = Math.sign((u > hold ? b - a : a - v(k - 1)) || 1), P = along(r, a + (b - a) * go);
+        M4.makeTranslation(P[0], P[1], r[5]); R.makeRotationZ(P[2] + (dir > 0 ? -Math.PI / 2 : Math.PI / 2)); M4.multiply(R); m.setMatrixAt(i, M4);
+      }
+      m.instanceMatrix.needsUpdate = true;
     });
   }
 
