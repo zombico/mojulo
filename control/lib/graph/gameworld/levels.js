@@ -244,11 +244,12 @@ export function runnerEnds() {
 export const RUNNER_CAMERA = Object.freeze({ dist: 6, height: 3, lead: 8, lookH: 1.2 });
 
 /** Where a stage spawns the hero and where it ends, read off the stage as it lays (drawn once per stage recipe: a
- * stage is pure, so the same recipe always ends the same). */
-const ENDS = new Map();
+ * stage is pure, so the same recipe always ends the same). The memo keeps the last ENDS_KEPT stages (about 8 MB each,
+ * its land's corners): enough for a world's run to read each stage once, bounded for a server that makes many. */
+const ENDS = new Map(), ENDS_KEPT = 16;
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
-  if (!ENDS.has(key)) { if (ENDS.size > 64) ENDS.clear(); ENDS.set(key, readEnds(manifest)); }
+  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, readEnds(manifest)); }
   return ENDS.get(key);
 }
 function readEnds(manifest) {
@@ -315,16 +316,17 @@ function readEnds(manifest) {
 }
 
 // the stage's land as a height lookup: its walkable top faces bucketed by a 2 m grid, a point's height the highest face
-// over it (two triangles a quad), or null off the land
+// over it (two triangles a quad), or null off the land. It keeps only the matching faces' corners, never the stage's
+// whole face list: a stage's ends are memoised, and the list is tens of MB.
 function groundSampler(faces, groups = /:(top|ground)$/) {
+  const kept = faces.filter((f) => groups.test(f.group || '') && Array.isArray(f.corners) && f.corners.length >= 3).map((f) => f.corners);
   let grid = null;
   const build = () => {
     grid = new Map();
-    for (const f of faces) {
-      if (!groups.test(f.group || '') || !Array.isArray(f.corners) || f.corners.length < 3) continue;
-      const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]);
+    for (const corners of kept) {
+      const xs = corners.map((c) => c[0]), ys = corners.map((c) => c[1]);
       for (let gx = Math.floor(Math.min(...xs) / 2); gx <= Math.floor(Math.max(...xs) / 2); gx++) for (let gy = Math.floor(Math.min(...ys) / 2); gy <= Math.floor(Math.max(...ys) / 2); gy++) {
-        const k = `${gx},${gy}`; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f.corners);
+        const k = `${gx},${gy}`; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(corners);
       }
     }
   };

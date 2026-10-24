@@ -14,6 +14,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The game rail: one loop, the quick path its door
+
+- Planned. Every genre a quick game plays (race, deathmatch, defend, farm, sneak, shoot, rhythm, fly, battle, puzzle,
+  runner, a ride, a transformer) becomes a goal any level of the game designer loop can take, so `compose` and the
+  book make the games the quick path makes. `design_game({ quick })` stays, as the one-call door that writes a
+  one-level world, and as the loop's tester. Games already made re-render unchanged.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
@@ -47,6 +54,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **CI runs the whole suite, sharded**, three ways on each leg of the matrix, the e2e tier two ways, and the deep
   sweeps and the book once a leg. It runs on pull requests, on pushes to `main` and the release-candidate branches
   (`*-consolidated`), and on demand.
+- `test:changed` runs every tier it picked even when an earlier one fails.
+- The e2e job gives its test workers a 6 GB heap. `design-game.quick.test.js` was the worker that died on the macOS
+  legs, out of V8's default heap; it ran there until the e2e tier moved to its own job.
+- A stage's ends memo (`stageEnds`, `gameworld/levels.js`) no longer keeps each stage's whole face list: its height
+  lookups keep the matching faces' corners only, about 8 MB a stage where it was about 29 MB. It keeps the last 16
+  stages, the oldest dropped first, where it kept up to 64 and then cleared. A long-running server that made many
+  games could hold gigabytes in it. Output is unchanged.
 
 ### Weapon swing styling: a swing drawn in the game's look, timed by its game type, fed to each action game
 
