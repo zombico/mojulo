@@ -44,8 +44,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `Gamepad.index`: a pad that leaves no longer hands its player's place to the other.
 - **The action lab reads through the controls kernel too.** An `action` scheme holds the verbs of the action-game
   kernel (move, jump, attack, dodge, dash, lock, guard, shoot, switch, sprint) with the keys and pad buttons the lab had
-  by hand; the lab's stick stays analog past its dead zone, the D-pad winning while pressed. No page reads a pad by its
-  button numbers now but the pilot runtime's own RB chord, and a test holds the lab's old keys and buttons to the scheme.
+  by hand; the lab's stick stays analog past its dead zone, the D-pad winning while pressed, and a test holds the lab's
+  old keys and buttons to the scheme. The play itself now reads through the kernel in the pilot runtime, versus and the
+  lab; the shells' menu pollers (play-front, play-shell, game-shell, the rpg and interact channels, the pixelizer's
+  brickster shell) still read button numbers, and move with the seats.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
