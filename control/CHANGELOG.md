@@ -44,6 +44,9 @@ and leant as the form holds its leaves; far, the lobes' cores alone carry the tr
   as it was), `smooth`, `banded` (dark dashes round the trunk and a few scars, a birch's), `plated` (broad plates parted
   by deep cracks) and `peeling` (patches in three tones). The tile is a grey the bark's colour multiplies, so a white
   bark with `banded` marks is a birch. One kind at a time, with its bark close: `scripts/spikes/geotown/tree-kinds.mjs`.
+- **The manual**: the `biocube` sketch-vocab card (`get_sketch_vocab({ id: 'biocube' })`): where a biocube goes, its
+  presets and blocks, the tree kinds and their settings, the theorist's offer and some silhouettes people ask for (a
+  birch, a V, a clump, an umbrella grove); the geocube card points to it from its ingredients.
 
 ### Faster gritty builds, and the tests that build them
 

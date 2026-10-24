@@ -23,6 +23,8 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 - **Settlements** (`settlements: { <name>: { town?, houses?, enter?, doors?, anchor?, style? } }`): a town plan and how
   much of its street stands (`houses` 1–12) and is walked into (`enter` 0–4), in the cube's builders' language unless
   `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
+- **Flora** (`biocube`): what grows on its land, its trees composed as silhouettes in the cube's colours
+  (`get_sketch_vocab({ id: 'biocube' })`).
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
   (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.

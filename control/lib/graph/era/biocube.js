@@ -11,9 +11,9 @@
  *                  clump (nature.js arrangedClump); `bands` (true or { hero, far, stock }) builds a tree by how far it
  *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far.
  *                  `kinds` (1 to 6) are what the level's trees are, as composed for it: each a leaf form's name or
- *                  { form, scale, trunk, girth, spread, density, stems, splay, branch, split, leaf, bark, barkForm } (era/leaf-forms.js TREE_KIND_KEYS), its
- *                  colours picked from the theorist's offer (era/flora-colours.js); each clump one kind, its crown
- *                  grown as that kind's leaf branches on a gritty land (a quiet land keeps the balls)
+ *                  { form, …settings } (era/leaf-forms.js TREE_KIND_KEYS), its colours picked from the theorist's
+ *                  offer (era/flora-colours.js); each clump one kind, its crown grown as that kind's leaf branches on
+ *                  a gritty land (a quiet land keeps the balls). The manual: the `biocube` sketch-vocab card
  *   flora.grass    { clusters, perCluster, spacing, scatter, fringeEvery, height: [lo, hi] m, kinds?, field? } | null
  *                  the card's `grass` (nature.js grassTufts: `clusters` tussock groups of `perCluster` tufts `spacing`
  *                  m apart, `scatter` a loose share, a tuft every `fringeEvery` m along the trail's fringe; `kinds` the
