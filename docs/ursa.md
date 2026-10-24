@@ -45,6 +45,28 @@ overwriting, so the row is HEAD and the revisions are history (`beats_revisions`
 not specified bit-exact across engines or versions, which is why the substrate pins a box to the server's version.
 Equality across runtimes is a different claim, held by conformance (§3), not by identity.
 
+### The promise is policy; a hash would be its evidence
+
+**Enforced, as discipline.** The promise over minted rows is kept today three ways: new capability arrives as an opt-in
+channel that contributes zero bytes when absent, so old rows render as before; characterization pins
+(`*.char.test.js`, `*.trace.test.js`, `__snapshots__/`) freeze the output of chosen fixtures, so a change that moves
+them fails CI; and a pin moves only when the step says emission changes, which the changelog records.
+
+**The gap.** All three cover the fixtures, not the rows operators actually minted. No row records what it rendered to,
+and no manifest carries a kernel version, so a kernel change that alters a real row through a param combination no
+fixture pins is silent: to the operator, and to anyone they shared it with.
+
+**Conjecture.** A recorded fingerprint (§7) adds no new promise. It makes the existing one checkable on real rows and
+turns a silent break into a named one ("renders differently since X; the kind's kernel changed"). The breaks it shows
+already happen; today they go unseen.
+
+The one new decision is an *intended* emission change:
+
+1. **Accept and re-lock** (the default, cheap). The changelog names the kinds whose emission changed; a verify flags
+   those rows; the operator accepts the new output and the lock moves. This is the changelog rule done mechanically.
+2. **Keep the old output** (rare, expensive). The opt-in channel discipline already does most of this; reserve a kept
+   kernel path for rows whose exact output something outside depends on (a printed part's fit, a shipped build).
+
 ## 3. Lowering and backends
 
 **Enforced.** Every value in the space names what lowers it (`lowers: 'lib/graph/…#TABLE'`). The cube is the high
@@ -150,8 +172,27 @@ Conformance levels:
 | L2 reproduces | the re-render matches `expect`, same kernel version and runtime | the byte-identical re-render tests |
 | L3 ports | the claimed engine marks hold | [scripts/conformance.mjs](../control/scripts/conformance.mjs) |
 
-The first code step, when one is taken, is a canonical JSON form and a recipe content hash: every later field rests on
-it, and it needs no service.
+**What a level attests.** Reproducibility, never quality. An L2 recipe is one an outsider can re-check, the way an
+auditor's signature says the books reconcile and says nothing about the business. A level is a machine gate's stamp;
+it does not stand in for the eyes gate, and it is not a certification ("synthesize ≠ certify" holds). Levels go on
+recipes, not on people; what contributors get is a shared vocabulary ("this kernel change keeps L2 for every kind but
+one").
+
+**Two fingerprints, at two layers.**
+
+- **The recipe** (`id`): the input, in canonical form. Pure recipe layer; it touches no kernel or emitter.
+- **The output** (`expect`): needs a byte-stable layer to hash. Most emitters are, by the golden rule; a few outputs
+  vary on purpose and a verifier must know which: the planetary scene's `live` mode reads the clock at render time
+  (its one documented impurity, kept out of the pure planner), export READMEs stamp a time, and rasters from a headless
+  browser can differ between machines. Hash the resolved scene and geometry, not the pixels. No emitter changes.
+
+**The seed exists.** A model export's README already records a `manifest sha256/16` as its provenance, and can drop
+its timestamp so the bundle zips byte-identical ([sketch-model-export.js](../control/lib/mcp/tools/sketch-model-export.js)).
+It hashes `JSON.stringify(manifest)`, so key order changes it, and only model exports carry it.
+
+The first code step, when one is taken, is that hash made canonical and carried by every recipe: every later field
+rests on it, and it needs no service. The export boundary (§8) asks the one additive change of the export tools: a
+list of the files each export emitted, with their hashes.
 
 ## 8. Recipes as code: the infrastructure-as-code bridge
 
