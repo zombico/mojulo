@@ -1135,7 +1135,8 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // no-ops without rule.wall. Its gear added the 'swing' body owner after the wall (the swinger's line: swing.js; a held
     // wall wins) and the 'gear-pose' pass after 'wall-pose'; no-ops without rule.gear.
     // Local multiplayer added the 'seats' pre-step before the groups and the pilot swap (a seat with no player this frame hands its body
-    // to its AI, or holds it: pilots.plan.md); a no-op without spec.seats.
+    // to its AI, or holds it: pilots.plan.md); a no-op without spec.seats. And the 'group-leash' pass last, before the
+    // camera (a shared camera's playing pilots held inside the frame's reach); a no-op without seats or with one playing.
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'seats', 'groups', 'pilot-swap', 'transform', 'carry-snapshot', 'launch-lock', 'lock'],
@@ -1144,7 +1145,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery', 'drive-stop'],
       entityActions: ['weapon', 'missiles', 'melee', 'tackle', 'form-thrust'],
-      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
+      worldPasses: ['body-collisions', 'carry', 'launch', 'wall-pose', 'gear-pose', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial', 'group-leash'],
     });
   });
 

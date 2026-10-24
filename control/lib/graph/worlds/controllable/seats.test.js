@@ -37,3 +37,30 @@ describe('seats in the sim', () => {
     expect(x(a, 'p2')).toBe(0);
   });
 });
+
+// THE GROUP FRAME (rules-basic.js groupFrame and the group leash): a shared camera holds every playing seat in view
+describe('a shared camera with seats', () => {
+  const cam = (type) => ({ rule: type, target: 'p1', dist: type === 'side' ? 11 : 14 });
+  const mkCam = (type, seats) => createWorld({ entities: [hero('p1', 0), hero('p2', 0)], camera: cam(type), ...(seats ? { seats } : {}) });
+  it.each(['side', 'overhead'])('%s: one pilot runs off and both stay in the shot, the camera backing off to its limit', (type) => {
+    const w = mkCam(type, { bodies: ['p2'] }), C = w.camera, base = type === 'side' ? 11 : 14;
+    let far = 0;
+    for (let i = 0; i < 600; i++) {
+      stepWorld(w, { forward: 1, seats: { 2: { forward: 0 } } }, DT, FLAT);
+      const G = C.rule && { half: Math.tan((50 * Math.PI) / 360), max: base * 2.2 };
+      const a = w.byId.p1.transform.pos, b = w.byId.p2.transform.pos, mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const reach = G.max * G.half - 2;
+      expect(Math.hypot(a[0] - mid[0], a[1] - mid[1])).toBeLessThanOrEqual(reach + 1e-9);
+      far = Math.max(far, Math.hypot(C.transform.pos[0] - C.lookAt[0], C.transform.pos[1] - C.lookAt[1], C.transform.pos[2] - C.lookAt[2]));
+    }
+    expect(w.byId.p1.transform.pos[0] - w.byId.p2.transform.pos[0]).toBeGreaterThan(10);   // they did part
+    expect(far).toBeGreaterThan(base * 1.5);                                               // and the camera stood back
+    expect(C.lookAt[0]).toBeCloseTo((w.byId.p1.transform.pos[0] + w.byId.p2.transform.pos[0]) / 2, 1);
+  });
+  it('one seat: the camera frames its target, and nobody is held', () => {
+    const w = mkCam('side');
+    for (let i = 0; i < 600; i++) stepWorld(w, { forward: 1 }, DT, FLAT);
+    expect(w.byId.p1.transform.pos[0]).toBeGreaterThan(30);
+    expect(w.camera.lookAt[0]).toBeCloseTo(w.byId.p1.transform.pos[0], 6);
+  });
+});

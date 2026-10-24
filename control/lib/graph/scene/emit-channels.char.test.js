@@ -223,6 +223,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // are replaced by their seat-aware forms and 56 added; every fixture that embeds the runtime re-pinned with it. A world
 // without seats steps as before (worlds/controllable/seats.test.js, and every sim suite unchanged).
 
+// Re-pinned 2026-10-24 (pilots, phase 2: the group frame): the side and overhead cameras the runtime embeds hold the
+// group of playing seats (`groupFrame`) when a world seats more than one, and a 'group-leash' world pass keeps them inside
+// the frame's reach. On the `controllable` fixture 4 lines are replaced (the two cameras' framing) and 40 added; every
+// fixture that embeds the runtime re-pinned with it. One seat, or none: the cameras frame their target as before.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

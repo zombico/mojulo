@@ -63,6 +63,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   names the bodies seats 2 to 4 take; each runs its pilot rule on its own seat's input (`input.seats[n]`), and a seat with
   no player leaves its body to its AI (`drop: 'ai'`) or holds it (`'pause'`). The AI hunts the nearest seated pilot. A
   world without seats steps as it did; nothing lays seats yet (the camera, the page and the lowering come next).
+- **A shared camera frames every seat.** With more than one seat playing, the side and overhead cameras hold the
+  players' centre and stand back until their spread fits the view (50° with 2 m round it), never nearer than their own
+  distance and never past 2.2 × it; past that a world pass holds the leader back and brings the straggler in, so nobody
+  leaves the shot. One seat, or none, and the cameras frame their target as they did.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
