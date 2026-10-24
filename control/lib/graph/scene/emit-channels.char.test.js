@@ -228,6 +228,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the frame's reach. On the `controllable` fixture 4 lines are replaced (the two cameras' framing) and 40 added; every
 // fixture that embeds the runtime re-pinned with it. One seat, or none: the cameras frame their target as before.
 
+// Re-pinned 2026-10-24 (pilots, phase 4: the lowering): the runtime the page embeds keeps a seat's `floor` (a seated body
+// below it comes back above seat 1, in the 'seats' pre-step) and its suit swap skips a seated body. On the `controllable`
+// fixture 5 lines are replaced (the seats comment, the swap's list, the pre-step's close) and 14 written in their place;
+// every fixture that embeds the runtime re-pinned with it. A world without seats steps as before.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

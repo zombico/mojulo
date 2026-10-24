@@ -62,7 +62,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The action runtime takes a seat per body** (the first step of a pilot per seat). A world's `seats: { bodies, drop? }`
   names the bodies seats 2 to 4 take; each runs its pilot rule on its own seat's input (`input.seats[n]`), and a seat with
   no player leaves its body to its AI (`drop: 'ai'`) or holds it (`'pause'`). The AI hunts the nearest seated pilot. A
-  world without seats steps as it did; nothing lays seats yet (the lowering comes next).
+  world without seats steps as it did; a gameworld lays them (below).
 - **A shared camera frames every seat.** With more than one seat playing, the side and overhead cameras hold the
   players' centre and stand back until their spread fits the view (50° with 2 m round it), never nearer than their own
   distance and never past 2.2 × it; past that a world pass holds the leader back and brings the straggler in, so nobody
@@ -74,6 +74,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   is in. Tested in headless Chrome with two stubbed pads (`seats.live.test.js`, e2e). The target lock, the tutorial,
   the runner and the suit swap stay seat 1's, and the pause menu is still the shell's, not yet the seat's that opened it;
   a world without seats emits as it did.
+- **A gameworld seats its players from its cube.** A world whose intent says `soul.seats` two or four (`intent: { from:
+  'co-op-platformer' }`, or its own `cube.soul`) lays, on every stage the hero walks, a hero per extra seat (`hero-2`…)
+  beside the spawn: the hero itself, dressed as the goal dressed it, on the hero's rule, all on one side. While its seat
+  is empty it follows the hero as a party member does; a seated hero that falls off the world comes back above seat 1;
+  the suit swap never jumps onto another player's body. A ride, a flight, first person, building and city levels seat
+  one. In the cube, `soul.seats` two and four, `contest=co-op`, `dependence=parallel`, `frame=follow-all` (the side and
+  top-down cameras; a third-person camera follows seat 1), `input=real-time` and `join=drop-in` are built, on the web;
+  the co-op platformer and the co-op street brawler now wait only on `pool=own` (each seat its own lives).
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

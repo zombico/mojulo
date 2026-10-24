@@ -87,6 +87,29 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
+/** A world's `seats`, checked against its entities: the bodies seats 2 to 4 take (pilotable, not the pilot, each once),
+ * how many may sit (2 to 4, at most one more than the bodies), how they join (drop-in or lobby), what an empty seat's body
+ * does (its AI, or held still) and the height below which a seated body is brought back to seat 1. Throws, teaching. */
+export function readSeats(seats, entities, pilot = null) {
+  const bad = (m) => new Error(`seats${m}: seats is { bodies: [entity id, …], max?: 2-4, join?: 'drop-in' | 'lobby', drop?: 'ai' | 'pause', floor?: number }, the bodies seats 2 to 4 take`);
+  if (!seats || typeof seats !== 'object' || Array.isArray(seats)) throw bad('');
+  for (const k of Object.keys(seats)) if (!['bodies', 'max', 'join', 'drop', 'floor'].includes(k)) throw bad(`.${k} is not a seats key`);
+  const list = Array.isArray(entities) ? entities : [], first = pilot ?? list.find((e) => e && e.pilotable)?.id;
+  if (!Array.isArray(seats.bodies) || !seats.bodies.length || seats.bodies.length > 3) throw bad('.bodies names one to three bodies');
+  seats.bodies.forEach((id, i) => {
+    const e = list.find((x) => x && x.id === id);
+    if (!e || !e.pilotable) throw bad(`.bodies[${i}] '${id}' is not a pilotable entity of this world`);
+    if (id === first) throw bad(`.bodies[${i}] '${id}' is the pilot, seat 1's body`);
+    if (seats.bodies.indexOf(id) !== i) throw bad(`.bodies[${i}] '${id}' appears twice`);
+  });
+  const max = seats.max ?? seats.bodies.length + 1;
+  if (!Number.isInteger(max) || max < 2 || max > seats.bodies.length + 1) throw bad(`.max is 2 to ${seats.bodies.length + 1} (one more than the bodies)`);
+  if (seats.join !== undefined && !['drop-in', 'lobby'].includes(seats.join)) throw bad('.join is drop-in or lobby');
+  if (seats.drop !== undefined && !['ai', 'pause'].includes(seats.drop)) throw bad('.drop is ai or pause');
+  if (seats.floor !== undefined && !Number.isFinite(seats.floor)) throw bad('.floor is a height in metres');
+  return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}) };
+}
+
 export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
@@ -622,6 +645,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // operator watches from a glide/follow spectator camera (WASD free-fly, Tab cycles the watched
     // fighter). Opt-in; absent ⇒ the world seats a pilot as before (byte-identical).
     if (sketch.manifest.spectate === true) payload.spectate = true;
+    // SEATS (pilots.plan.md): `seats: { bodies, max?, join?, drop?, floor? }`, the pilotable bodies seats 2 to 4 take, each
+    // a player's own controller on the page (scene/channels/controllable seatsScript). Opt-in; absent ⇒ byte-identical.
+    if (sketch.manifest.seats !== undefined) payload.seats = readSeats(sketch.manifest.seats, sketch.manifest.entities, payload.pilot);
     // AI-attack switch: `ai:'off'` loads the world passive (ai-ambient suits stand down until the
     // G / HUD toggle wakes them); absent ⇒ authored ai runs from load.
     if (typeof sketch.manifest.ai === 'string') payload.ai = sketch.manifest.ai;

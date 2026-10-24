@@ -429,7 +429,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
-  let pilotPart;
+  let pilotPart, seatable = false;
   if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
@@ -486,6 +486,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
         : P.camera;
     pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
+    seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
     // the stage's buildings stop, when it has any). Asked for by name, it looks with the mouse (yaw and pitch) through
@@ -536,6 +537,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // the game mechanics it brings (battles.js: the party carried, the defeat)
     if (X.mechanics?.length) game.mechanics = [...game.mechanics, ...X.mechanics];
   }
+  // SEATS (the cube's soul.seats): a body per extra seat beside the hero, once the goal has dressed the hero
+  let seats = null;
+  if (seatable) ({ pilotPart, seats } = seatPart(G, pilotPart, ends, lane));
   // LOOP (the intent's `loop` concern): a low wall down the oval's middle
   if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
   // ARENA (the intent's `arena` concern): its wall, lanes and cover; the arena is the fight's cover and sightlines, so
@@ -574,11 +578,35 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...(seats ? { seats } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
+}
+
+/** SEATS (pilots.plan.md; docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
+ * beside the hero's spawn, a body per extra seat (`hero-2`…): the hero itself, dressed as the goal dressed it, on the
+ * hero's rule, its seat's ring its colour. While its seat is empty it follows the hero on the party's escort motive (the
+ * seat's `drop: 'ai'`); all of them on the hero's side. The manifest's `seats` names them for the page (soul.join: drop-in
+ * or lobby). One seat, or none said, lays nothing. */
+const SEAT_COUNT = Object.freeze({ two: 2, four: 4 });
+function seatPart(G, pilotPart, ends, lane) {
+  const soul = cubeOfWorld(G).cube.soul ?? {}, n = SEAT_COUNT[soul.seats];
+  if (!n) return { pilotPart, seats: null };
+  const entities = [...pilotPart.entities], p0 = entities[0], h = ends.heading, s = ends.spawn, side = p0.team ?? 'party';
+  entities[0] = { ...p0, team: side };
+  const ambient = { type: 'ai', mind: { motivation: 'escort' }, escort: p0.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(p0.rule?.speed) ? { speed: p0.rule.speed } : {}) };
+  const bodies = [];
+  for (let k = 2; k <= n; k++) {
+    // behind the hero and to either side; run side on, a step ahead each along the lane (behind its start is off it)
+    const back = lane ? -(k - 1) : (k - 1) * 1.2, aside = lane ? 0 : (k % 2 ? -1 : 1) * 0.9;
+    const at0 = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
+    const id = `${p0.id}-${k}`;
+    entities.push({ ...p0, id, team: side, ambient, transform: { pos: lane ? onLane({ at: at0 }, lane).at : at0, heading: h } });
+    bodies.push(id);
+  }
+  return { pilotPart: { ...pilotPart, entities }, seats: { bodies, max: n, join: soul.join === 'lobby' ? 'lobby' : 'drop-in' } };
 }
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the

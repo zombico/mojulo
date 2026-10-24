@@ -408,13 +408,14 @@ export function buildCore(E) {
     // AI-attack switch: `spec.ai:'off'` seats the world PASSIVE (ai-ambient suits stand down
     // until input.aiToggle wakes them); anything else — including absent — leaves authored ai live.
     const state = { entities, byId, camera, pilotId, spectate, aiEnabled: spec.ai !== 'off', aiTuning: null, colliders: normalizeColliders(spec.colliders), match: null, wreckExplodes: null, time: 0, projectiles: [], bursts: [], projSeq: 0, burstSeq: 0, clashes: [], clashSeq: 0, shieldBreaks: 0, cinematic: null };
-    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop? }`): the bodies seats 2, 3 and 4 take, in order, each on
-    // its pilot rule and its own input (`input.seats[n]`); seat 1 is the pilot above. A seat with no player this frame
-    // leaves its body to its AI (`drop: 'ai'`, the default) or holds it still (`'pause'`). Absent: no `seatOf`, and every
-    // body is stepped as it always was.
+    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop?, floor? }`): the bodies seats 2, 3 and 4 take, in order,
+    // each on its pilot rule and its own input (`input.seats[n]`); seat 1 is the pilot above. A seat with no player this
+    // frame leaves its body to its AI (`drop: 'ai'`, the default) or holds it still (`'pause'`); a seated body below
+    // `floor` (default -20) is brought back to seat 1. Absent: no `seatOf`, and every body is stepped as it always was.
     if (spec.seats && Array.isArray(spec.seats.bodies)) {
       state.seatOf = {};
       state.seatDrop = spec.seats.drop === 'pause' ? 'pause' : 'ai';
+      state.seatFloor = Number.isFinite(spec.seats.floor) ? spec.seats.floor : -20;
       spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
     }
     runStateInits(state, spec);   // opt-in state layers (the match bout + wreck finisher — combat-match.js, S2)
@@ -510,6 +511,13 @@ export function buildCore(E) {
       if (!e) continue;
       const here = !!(input.seats && input.seats[state.seatOf[id]]);
       e.rule = here || state.seatDrop === 'pause' ? e.pilotRule : e.ambientRule;
+      // fallen off the world (below `seats.floor`): back in just above seat 1's pilot, as a co-op game brings a lost
+      // player back to the others (seat 1's own fall is the level's catch)
+      const P = state.byId[state.pilotId];
+      if (e.transform.pos[2] < state.seatFloor && P && !P.gone) {
+        e.transform.pos = [P.transform.pos[0], P.transform.pos[1], P.transform.pos[2] + 1];
+        if (e.vel) e.vel = [0, 0, 0];
+      }
     }
   }, 25);
 
@@ -520,7 +528,8 @@ export function buildCore(E) {
   // current pilot is mid-swing / mid-dodge / charging / airborne — those own the body.
   registerPreStep('pilot-swap', (state, input) => {
     if (input.swap && state.pilotId) {
-      const pilotables = state.entities.filter((e) => e.pilotable);
+      // (never onto a body another seat drives)
+      const pilotables = state.entities.filter((e) => e.pilotable && !seated(state, e));
       const cur = state.byId[state.pilotId];
       // busy = the body is committed to a maneuver that owns it. The airborne gate is GROUND-only:
       // in SPACE the pilot is never grounded (it floats), so gating on it would refuse EVERY switch —

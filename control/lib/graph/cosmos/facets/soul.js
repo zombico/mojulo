@@ -13,10 +13,14 @@ const NOT_YET = { status: 'absent', godot: 'absent', roblox: 'absent' };
 const TOGETHER = { godot: 'absent', roblox: 'absent' };
 const VERSUS = 'lib/graph/versus/versus-core.js';
 const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
-// the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it
-const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a pad each, the keyboard one); the versus fighter plays two on it, no other kind seats a second player yet';
-// the seats kernel (devices bound to players, joining and leaving) and the action runtime with a pilot per seat
-const SEATS = { pkg: 'seats', effort: 'M' }, PILOTS = { pkg: 'pilots', effort: 'L' };
+// the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it, and a
+// gameworld's hero stage lays a body per seat (gameworld/levels.js seatPart, pilots.plan.md)
+const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a pad each, the keyboard one): the versus fighter plays two, and a gameworld\'s hero stages lay a hero per seat (levels.js seatPart; a ride, a flight, first person, building and city levels seat one); web only';
+const LEVELS = 'lib/graph/gameworld/levels.js';
+// what a pilot per seat runs (worlds/controllable/core.js spec.seats): each seat its own body, its own input, each tick
+const PILOT_PER_SEAT = 'a pilot per seat in the action runtime (worlds/controllable/core.js spec.seats), laid by a gameworld\'s hero stages (levels.js seatPart); web only';
+// the seats kernel's own gaps (a lobby beyond the versus fighter)
+const SEATS = { pkg: 'seats', effort: 'M' };
 const TWO = ['soul.seats=two'];
 // the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
 const GIVEN = Object.freeze({ seats: ['two', 'four'] });
@@ -59,14 +63,14 @@ export const SOUL = Object.freeze({
     seats: {
       values: {
         one: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },
-        two: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: SEATS_KERNEL },
-        four: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: SEATS_KERNEL },
+        two: { status: 'built', ...TOGETHER, lowers: LEVELS, note: SEATS_KERNEL },
+        four: { status: 'built', ...TOGETHER, lowers: LEVELS, note: SEATS_KERNEL },
       },
     },
     contest: {
       given: GIVEN,
       values: {
-        'co-op': { ...NOT_YET, ...PILOTS, requires: TWO },
+        'co-op': { status: 'built', ...TOGETHER, lowers: LEVELS, note: `${PILOT_PER_SEAT}: every seat on the hero's side, an empty seat's hero following the hero`, requires: TWO },
         versus: { status: 'partial', ...TOGETHER, effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
         teams: { ...NOT_YET, effort: 'S', requires: ['soul.seats=four'] },
         'free-for-all': { ...NOT_YET, effort: 'S', requires: TWO },
@@ -75,7 +79,7 @@ export const SOUL = Object.freeze({
     dependence: {
       given: GIVEN,
       values: {
-        parallel: { ...NOT_YET, ...PILOTS, requires: TWO },
+        parallel: { status: 'built', ...TOGETHER, lowers: LEVELS, note: PILOT_PER_SEAT, requires: TWO },
         roles: { ...NOT_YET, effort: 'M', requires: TWO },
         handoff: { ...NOT_YET, effort: 'L', requires: TWO },
       },
@@ -83,7 +87,7 @@ export const SOUL = Object.freeze({
     frame: {
       given: GIVEN,
       values: {
-        'follow-all': { ...NOT_YET, ...PILOTS, requires: TWO },
+        'follow-all': { status: 'built', ...TOGETHER, lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the side and top-down cameras hold every playing seat (rules-basic.js groupFrame, the group leash); a third-person camera follows seat 1 only', requires: TWO },
         fixed: { status: 'partial', ...TOGETHER, effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
         scroll: { ...NOT_YET, effort: 'M', requires: TWO },
         split: { ...NOT_YET, effort: 'L', requires: TWO },
@@ -92,7 +96,7 @@ export const SOUL = Object.freeze({
     input: {
       given: GIVEN,
       values: {
-        'real-time': { status: 'partial', ...TOGETHER, ...PILOTS, lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        'real-time': { status: 'built', ...TOGETHER, lowers: LEVELS, note: `${PILOT_PER_SEAT}; the versus fighter too`, requires: TWO },
         window: { ...NOT_YET, effort: 'M', requires: TWO },
         turns: { ...NOT_YET, effort: 'S', requires: TWO },
       },
@@ -108,7 +112,7 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         lobby: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen seats its two players before a fight; no other kind has a lobby' },
-        'drop-in': { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time with start or light on their own controller (seats-kernel.js); the versus fighter only' },
+        'drop-in': { status: 'built', ...TOGETHER, lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time on their own controller (seats-kernel.js): start or light in the versus fighter, any press on a gameworld\'s level' },
       },
     },
   },
