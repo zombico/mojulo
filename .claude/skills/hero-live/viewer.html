@@ -301,29 +301,31 @@ function frame(id) {
 for (const k of Object.keys(VIEWS)) $(k).addEventListener('click', () => frame(k));
 
 // ─── the ambient blink: seeded intervals 2.4–5.2 s, a blink 0.17 s, sometimes a double ────────────────────
+// (on the wall clock, `wall`: a slow frame skips a blink, never holds the eyes shut; a frame time clamped for the mixer
+// would stretch a 0.17 s blink over as many frames as it spans at 20 fps, a closed eye on a slow machine)
 let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-let nextBlink = 1.2, blinkT = -1, doubled = false;
-function blinkWeight(t, dt) {
-  if (blinkT < 0 && t >= nextBlink) blinkT = 0;
-  if (blinkT < 0) return 0;
-  blinkT += dt; const x = blinkT / 0.17;
-  if (x >= 1) { blinkT = -1; if (!doubled && rnd() < 0.18) { doubled = true; nextBlink = t + 0.12; } else { doubled = false; nextBlink = t + 2.4 + rnd() * 2.8; } return 0; }
+let nextBlink = 1.2, blinkAt = -1, doubled = false;
+function blinkWeight(now) {
+  if (blinkAt < 0 && now >= nextBlink) blinkAt = now;
+  if (blinkAt < 0) return 0;
+  const x = (now - blinkAt) / 0.17;
+  if (x >= 1) { blinkAt = -1; if (!doubled && rnd() < 0.18) { doubled = true; nextBlink = now + 0.12; } else { doubled = false; nextBlink = now + 2.4 + rnd() * 2.8; } return 0; }
   return Math.sin(Math.PI * x) ** 0.7;
 }
 
 function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(stage); resize();
 
-const clock = new THREE.Clock(); let t = 0;
+const clock = new THREE.Clock(); let t = 0, wall = 0;
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.05); if (!S.paused) t += dt;
+  const raw = clock.getDelta(), dt = Math.min(raw, 0.05); if (!S.paused) { t += dt; wall += raw; }
   const L = cur();
   if (L) {
     L.mixer.update(S.paused ? 0 : dt);
     const W = L.body?.morphTargetInfluences;
     if (W) {
       if (S.hold) for (const [n, i] of Object.entries(L.morph)) W[i] = S.holdW[n] ?? 0;
-      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(t, dt));
+      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(wall));
       for (const [n, i] of Object.entries(L.morph)) { const m = meterEls[n]; if (!m) continue; const v = W[i]; m.bar.style.width = `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`; m.out.textContent = v.toFixed(2); }
     }
     const a = S.take && L.actions[S.take]?.action;

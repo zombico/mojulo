@@ -103,6 +103,8 @@ whole 45° at the atlas and snapped back on the next key: the neck craned down a
   of its shape at full weight less the rest's, sparse, the correctives' too (a reader takes a target's missing NORMAL
   for the rest's). The unlit export writes what it wrote. Still open: the skin's colour near the margin is stretched
   across the shut lid, and a fleck of the iris shows at the lower margin.
+- `/hero-live`'s ambient blink keeps the wall clock: on a slow frame rate a blink stretched over as many frames as it
+  spanned, and the eyes read shut through a take.
 - `/hero-live`: the hero played as an engine gets it. Each variant (bare, an armour style, a round of its words) is
   minted through the door and exported as the skinned GLB with every clip, then played in a three.js page beside the
   mint's read: orbit, the takes, a scrubber, every morph channel live or held by hand, wireframe, bones. `shot.mjs` tiles
@@ -930,6 +932,14 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
 - The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
+- THE PLATES LIE ON THE BODY, THE ARMS OUTSIDE THEM (body-relational-armour.js `PLATE_STAND`, fieldGarment `stand`,
+  `shoulders`, `under`). A trunk plate was cast out to where the trunk's field ends, and that field runs on over the
+  arms hanging beside the chest and the deltoids blended into it: the cuirass was a barrel half again the chest's width
+  (0.25 m from the midline at the chest, the skin at 0.12 to 0.2), the arms inside it from the waist to the shoulder.
+  A trunk plate now stands at most its clearance and 2 cm past the skin; the cuirass's field leaves the deltoids out,
+  and it is worn under the upper arm: within 2.5 cm of the arm (its armhole, and over the shoulder's ball, where the
+  pauldron's cap sits) it eases down onto the skin at its clearance, after the envelope's lift. The arm hangs over its
+  edge, its lames and rerebrace their own. Other garments write what they wrote (the options are off by default).
 - The read judges what the body wears (`dressReadout`). The realistic knight's read had judged every piece of the kit
   as planned: the breast and back plates, the faulds, the sabatons, the pauldron's facing and the gorget, worn as its own
   shells or left off, each "does not read" at exposure 0, 12 of its 70 warnings. They are now `dress.unworn`, named and
