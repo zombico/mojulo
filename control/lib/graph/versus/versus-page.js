@@ -27,7 +27,8 @@ import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
-import { SCHEMES as CONTROL_SCHEMES, VERSUS_SECOND_KEYBOARD } from '../controls/schemes.js';
+import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
+import { buildSeatsKernel } from '../controls/seats-kernel.js';
 import { DEVICES } from '../controls/devices.js';
 
 // the level wire a hosted arena speaks (the game shell's own handshake: ready → init → outcome)
@@ -40,13 +41,14 @@ export const VERSUS_PAGE_MODULES = Object.freeze([
   'versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-compile.js', 'versus-input.js', 'versus-core.js', 'versus-cpu.js',
 ]);
 
-// the runtime reads its players through the controls kernel (controls/): the kernel, the families it reads and each
-// player's bindings (the versus scheme; player two's keyboard an override over it) lead the runtime wherever it is inlined
+// the runtime reads its players through the controls kernel (controls/): the kernel, the families it reads, the versus
+// scheme's bindings and the seats kernel (each player a controller) lead the runtime wherever it is inlined
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const versusControls = () => `const __VS_CTL = (${buildControlsKernel.toString()})();
 const __VS_DEV = ${json({ keyboard: DEVICES.keyboard, gamepad: DEVICES.gamepad })};
 const __VS_SCHEME = ${json(CONTROL_SCHEMES.versus)};
-const __VS_BIND = [__VS_CTL.resolve(__VS_SCHEME, __VS_DEV), __VS_CTL.resolve(__VS_SCHEME, __VS_DEV, ${json(VERSUS_SECOND_KEYBOARD)})];
+const __VS_BIND = __VS_CTL.resolve(__VS_SCHEME, __VS_DEV);
+const __VS_SEATK = (${buildSeatsKernel.toString()})();
 `;
 
 /** A sibling module as a classic-script fragment (import lines and `export ` stripped); the runtime client comes with the

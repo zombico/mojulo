@@ -1,7 +1,7 @@
 # Local multiplayer principles: one screen, everyone's state in view
 
 The principles a game played by several people at one machine is designed and checked by: one device, one app, several
-controllers (or one keyboard's halves), and one screen whose shared state every player can see at all times. They are
+controllers, and one screen whose shared state every player can see at all times. They are
 written for the rails, not for a genre: a game is a point in the space the settings below name, and each value is built
 once so every composition that asks for it works.
 
@@ -28,8 +28,10 @@ A genre is a preset point, never a lock (as an intent's genre is a starting cube
 
 ## The principles
 
-1. **One device, one app.** Every seat is a controller on the same machine: a pad, a keyboard half, or the touch pad
-   (which seats one player at most). Nothing here reaches another device.
+1. **One device, one app, a controller a seat.** Every seat is one controller on the same machine: a pad, the keyboard
+   (with its mouse), or the touch pad. A browser cannot tell two keyboards apart (a key event names no device), so the
+   keyboard is one controller however many are plugged in, and no seat is a share of one. Nothing here reaches another
+   device.
 2. **Everyone is always on screen.** The frame holds every seated body. Following all, the camera widens to a limit;
    past it, the screen's edge holds the leader back or the straggler is brought in (a bubble, a warp). A seat is never
    stranded out of view.

@@ -213,6 +213,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // resolved for each player (player two's keyboard an override), and `rawInput` reads through them, a player's pad kept
 // by its Gamepad.index; the hand-written key lists and button numbers are gone.
 
+// Re-pinned 2026-10-24 (local multiplayer phase 3: the seats): the `versus` fixture alone. Its runtime leads with the
+// seats kernel beside the controls kernel, the second keyboard's override is gone, and `rawInput` reads each player's
+// seat (a controller each, polled from menuInput); the arena client's pause is the seat's that opened it.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

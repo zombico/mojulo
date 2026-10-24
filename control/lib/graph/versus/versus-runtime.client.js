@@ -31,41 +31,51 @@ function installVersusInput(onKey) {
   window.addEventListener('blur', () => RT.held.clear());
 }
 
-// each player's pad, kept by its Gamepad.index: the first two pads to connect, in that order. A pad that leaves keeps its
-// player's place until it is back, so a player's pad never becomes the other's (a filtered list would shift them)
-const VS_PAD = [-1, -1];
-function padOf(i) {
-  if (!navigator.getGamepads) return null;
-  const ps = navigator.getGamepads();
+// THE SEATS (controls/seats-kernel.js): two, each a controller, the keyboard one and every pad another. A player sits
+// down with start or light on their own controller (the keyboard's Space too); a pad unplugged keeps its seat, away, its
+// fighter standing, until it is back. Polled once a tick, from the menus (menuInput leads every tick of every loop).
+let VS_SEATS = __VS_SEATK.newSeats({ max: 2 });
+let VS_READS = {};
+const kbRead = (c) => RT.held.has(c) || RT.latch.has(c);
+function pollSeats() {
+  const reads = { keyboard: kbRead }, frame = {};
+  const wants = (fam, rd) => __VS_CTL.held(__VS_BIND, 'start', fam, rd) || __VS_CTL.held(__VS_BIND, 'light', fam, rd);
+  frame.keyboard = { join: wants('keyboard', kbRead) || kbRead('Space') };
+  const ps = navigator.getGamepads ? navigator.getGamepads() : [];
   for (let k = 0; k < ps.length; k++) {
     const p = ps[k];
-    if (!p || !p.connected || VS_PAD.includes(p.index)) continue;
-    const free = VS_PAD.indexOf(-1); if (free < 0) break;
-    VS_PAD[free] = p.index;
+    if (!p || !p.connected) continue;
+    const id = 'pad:' + p.index, rd = __VS_CTL.gamepadRead(p, __VS_DEV);
+    reads[id] = rd; frame[id] = { connected: true, join: wants('gamepad', rd) };
   }
-  const g = VS_PAD[i] >= 0 ? ps[VS_PAD[i]] : null;
-  return g && g.connected ? g : null;
+  for (const x of VS_SEATS.seats) if (!frame[x.controller]) frame[x.controller] = { connected: false };
+  VS_SEATS = __VS_SEATK.step(VS_SEATS, frame);
+  VS_READS = reads;
 }
 /** Call once a drawn frame has stepped: the taps it saw are spent. */
 const endInputFrame = () => RT.latch.clear();
 
-// a player's controls through the kernel (__VS_BIND, versus-page.js): the keyboard's held keys and taps, and the pad's
+// a player's controls: their seat's controller through the versus scheme; an empty or away seat presses nothing
+const NO_INPUT = Object.freeze({ x: 0, y: 0, b: 0, start: false, back: false });
 function rawInput(i) {
-  const B = __VS_BIND[i], kb = (c) => RT.held.has(c) || RT.latch.has(c);
-  const g = padOf(i), gr = g ? __VS_CTL.gamepadRead(g, __VS_DEV) : null;
-  const on = (id) => __VS_CTL.held(B, id, 'keyboard', kb) || (!!gr && __VS_CTL.held(B, id, 'gamepad', gr));
+  const s = __VS_SEATK.seat(VS_SEATS, i + 1);
+  if (!s || s.away || !VS_READS[s.controller]) return NO_INPUT;
+  const fam = s.controller === 'keyboard' ? 'keyboard' : 'gamepad', rd = VS_READS[s.controller];
+  const on = (id) => __VS_CTL.held(__VS_BIND, id, fam, rd);
   const up = on('up'), down = on('down'), left = on('left'), right = on('right');
   const b = (on('light') ? BTN.L : 0) | (on('medium') ? BTN.M : 0) | (on('heavy') ? BTN.H : 0) | (on('special') ? BTN.S : 0) | (on('throw') ? BTN.T : 0);
   return { x: (right ? 1 : 0) - (left ? 1 : 0), y: (up ? 1 : 0) - (down ? 1 : 0), b, start: on('start'), back: on('back') };
 }
+const seatOfPlayer = (i) => __VS_SEATK.seat(VS_SEATS, i + 1);
 
 // menu edges for both players
 const menuPrev = [{}, {}];
 function menuInput() {
+  pollSeats();
   const out = [];
   for (let i = 0; i < 2; i++) {
-    const r = rawInput(i);
-    const now = { up: r.y > 0, down: r.y < 0, left: r.x < 0, right: r.x > 0, ok: !!(r.b & BTN.L) || r.start || (i === 0 && (RT.held.has('Space') || RT.latch.has('Space'))), back: !!(r.b & BTN.S) || r.back, pause: r.start || r.back };
+    const r = rawInput(i), kb = seatOfPlayer(i)?.controller === 'keyboard';
+    const now = { up: r.y > 0, down: r.y < 0, left: r.x < 0, right: r.x > 0, ok: !!(r.b & BTN.L) || r.start || (kb && kbRead('Space')), back: !!(r.b & BTN.S) || r.back, pause: r.start || r.back };
     const edge = {};
     for (const k of Object.keys(now)) edge[k] = now[k] && !menuPrev[i][k];
     menuPrev[i] = now;

@@ -39,7 +39,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   chord selects a weapon, kneel descends a glide. A test holds every other pilot action to a pad binding.
 - **Versus reads its players through the controls kernel.** A `versus` scheme (controls/schemes.js: a stick and the
   input grammar's five buttons, light, medium, heavy, special and throw) holds the bindings the runtime had written by
-  hand, player two's keyboard an override over it (`VERSUS_SECOND_KEYBOARD`). The runtime client comes with the kernel
+  hand. The runtime client comes with the kernel
   wherever it is inlined (the page, the arena channel, the action lab), and a player's pad is kept by its
   `Gamepad.index`: a pad that leaves no longer hands its player's place to the other.
 - **The action lab reads through the controls kernel too.** An `action` scheme holds the verbs of the action-game
@@ -48,6 +48,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   old keys and buttons to the scheme. The play itself now reads through the kernel in the pilot runtime, versus and the
   lab; the shells' menu pollers (play-front, play-shell, game-shell, the rpg and interact channels, the pixelizer's
   brickster shell) still read button numbers, and move with the seats.
+- **The seats kernel** (`controls/seats-kernel.js`, emitted from its own source as the controls kernel is). A seat is a
+  player position bound to one controller: a pad by its `Gamepad.index`, the keyboard with its mouse (one controller
+  however many keyboards are plugged in: a browser cannot tell them apart), or the touch pad. A controller sits down in
+  the lowest free seat, once; a lost pad keeps its seat, away, until the same pad is back; a leave frees the number for
+  the next to join, and seat numbers never move. Each seat has its four-port colour (P1 red, P2 blue, P3 yellow, P4
+  green). `drop-in` seats at any time, `lobby` only while it is open.
+- **Versus plays on the seats.** Each player sits down with start or light on their own controller (the keyboard's
+  Space too) and reads only it; the pause menu is the seat's that opened it, its panel naming the seat. **Two players
+  on one keyboard is gone**: the keyboard is one controller, so player two takes a pad (the arrows now move the
+  keyboard's own player). The registry says so: two and four seats and drop-in joining are partial, the versus fighter
+  only.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

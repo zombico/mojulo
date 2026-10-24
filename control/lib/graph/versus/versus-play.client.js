@@ -41,7 +41,7 @@ const WIRE = VERSUS.wire;
 const game = {
   screen: 'title', t: 0, mode: 'versus', modeIx: 0, level: 1,
   pick: [{ ix: 0, scheme: 0, locked: false }, { ix: Math.min(1, ROSTER.length - 1), scheme: 0, locked: false }],
-  stageIx: 0, pauseIx: 0, resultIx: 0, cont: 0, result: null,
+  stageIx: 0, pauseIx: 0, pauseBy: 0, resultIx: 0, cont: 0, result: null,
 };
 let match = null;   // a fight drawn here
 let host = null;    // a fight hosted in an arena's frame: { frame, params, names }
@@ -155,15 +155,18 @@ function tickMenus(inp) {
       if (any('ok')) { blip('ok'); startMatch(); }
       if (any('back')) { game.pick[1].locked = false; game.screen = 'select'; }
       break;
-    case 'pause':
-      if (any('up')) game.pauseIx = (game.pauseIx + 2) % 3;
-      if (any('down')) game.pauseIx = (game.pauseIx + 1) % 3;
-      if (any('ok')) {
+    case 'pause': {
+      // the menu is the seat's that opened it: only that player's controller moves it
+      const own = (k) => inp[game.pauseBy][k];
+      if (own('up')) game.pauseIx = (game.pauseIx + 2) % 3;
+      if (own('down')) game.pauseIx = (game.pauseIx + 1) % 3;
+      if (own('ok')) {
         if (game.pauseIx === 0) game.screen = 'fight';
         if (game.pauseIx === 1) toSelect();
         if (game.pauseIx === 2) game.screen = 'mode';
       }
       break;
+    }
     case 'result':
       if (any('up')) game.resultIx = (game.resultIx + 2) % 3;
       if (any('down')) game.resultIx = (game.resultIx + 1) % 3;
@@ -391,7 +394,7 @@ function frame(now) {
     const inp = menuInput();
     if (game.screen === 'fight') {
       // pause on start or escape (never the special button, which is back only in the menus)
-      if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { game.screen = 'pause'; game.pauseIx = 0; continue; }
+      if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { game.screen = 'pause'; game.pauseIx = 0; game.pauseBy = inp[0].pause ? 0 : 1; continue; }
       if (match.slow > 0) { match.slow--; if (++slowTick % 3) continue; }
       stepMatch(match);
       if (match.end === 150) {
@@ -413,7 +416,7 @@ function frame(now) {
     case 'stage': drawStageSelect(); break;
     case 'fight': drawFight(); break;
     case 'arena': break;
-    case 'pause': drawFight(); drawPanel('PAUSED', ['Resume', 'Character select', 'Mode select'], game.pauseIx, 'B toggles the boxes · M mutes'); break;
+    case 'pause': drawFight(); drawPanel(`PAUSED · ${seatOfPlayer(game.pauseBy)?.label ?? `P${game.pauseBy + 1}`}`, ['Resume', 'Character select', 'Mode select'], game.pauseIx, 'B toggles the boxes · M mutes'); break;
     case 'result': drawResultBackdrop(); drawPanel(R && R.winner >= 0 ? `${R.names[R.winner].toUpperCase()} WINS` : 'DRAW', ['Rematch', 'Character select', 'Mode select'], game.resultIx, R ? `${R.wins[0]} – ${R.wins[1]}` : ''); break;
     case 'continue': drawResultBackdrop(); drawPanel('CONTINUE?', [String(Math.ceil(game.cont / 60))], 0, 'press a button to fight again'); break;
     default: break;
@@ -423,4 +426,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // a handle for headless checks: the page's state, read only
-window.__versus = { game, get match() { return match; }, get host() { return host; }, ROSTER };
+window.__versus = { game, get match() { return match; }, get host() { return host; }, get seats() { return VS_SEATS; }, ROSTER };

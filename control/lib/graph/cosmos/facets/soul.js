@@ -13,6 +13,8 @@ const NOT_YET = { status: 'absent', godot: 'absent', roblox: 'absent' };
 const TOGETHER = { godot: 'absent', roblox: 'absent' };
 const VERSUS = 'lib/graph/versus/versus-core.js';
 const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
+// the seats kernel (controls/seats-kernel.js) seats up to four controllers; the versus fighter plays two on it
+const SEATS_KERNEL = 'controls/seats-kernel.js seats up to four controllers (a pad each, the keyboard one); the versus fighter plays two on it, no other kind seats a second player yet';
 // the seats kernel (devices bound to players, joining and leaving) and the action runtime with a pilot per seat
 const SEATS = { pkg: 'seats', effort: 'M' }, PILOTS = { pkg: 'pilots', effort: 'L' };
 const TWO = ['soul.seats=two'];
@@ -57,8 +59,8 @@ export const SOUL = Object.freeze({
     seats: {
       values: {
         one: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },
-        two: { status: 'partial', ...TOGETHER, ...SEATS, lowers: VERSUS, note: VERSUS_ONLY },
-        four: { ...NOT_YET, ...SEATS },
+        two: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: SEATS_KERNEL },
+        four: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: SEATS_KERNEL },
       },
     },
     contest: {
@@ -106,7 +108,7 @@ export const SOUL = Object.freeze({
       given: GIVEN,
       values: {
         lobby: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen seats its two players before a fight; no other kind has a lobby' },
-        'drop-in': { ...NOT_YET, ...SEATS },
+        'drop-in': { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/controls/seats-kernel.js', note: 'a player sits down at any time with start or light on their own controller (seats-kernel.js); the versus fighter only' },
       },
     },
   },

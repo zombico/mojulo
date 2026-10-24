@@ -305,19 +305,19 @@ const SHELL = {
 };
 
 // THE VERSUS FIGHTER (lib/graph/versus): a stick and the five buttons of the versus input grammar (versus-input.js:
-// L, M, H light, medium and heavy, S the special, T the throw), read the same in a fight and in its menus. Player one
-// keeps the left hand's keys; player two's are VERSUS_SECOND_KEYBOARD, an override over the same ids (resolve's
-// `over`). A pad: the D-pad or the left stick, A light, X medium, Y heavy, B special, either bumper the throw.
+// L, M, H light, medium and heavy, S the special, T the throw), read the same in a fight and in its menus. Each player
+// is a controller (controls/seats-kernel.js): the keyboard is one, its directions WASD or the arrows; a pad another, the
+// D-pad or the left stick, A light, X medium, Y heavy, B special, either bumper the throw.
 const VS_IN = ['fight'];
 const VERSUS = {
   id: 'versus',
   label: 'versus fighter: a stick and five buttons',
   contexts: VS_IN,
   actions: [
-    { id: 'up', label: 'up / jump', group: 'move', in: VS_IN, bind: { keyboard: ['KeyW'], gamepad: ['up', 'leftY-'] } },
-    { id: 'down', label: 'down / crouch', group: 'move', in: VS_IN, bind: { keyboard: ['KeyS'], gamepad: ['down', 'leftY+'] } },
-    { id: 'left', label: 'left', group: 'move', in: VS_IN, bind: { keyboard: ['KeyA'], gamepad: ['left', 'leftX-'] } },
-    { id: 'right', label: 'right', group: 'move', in: VS_IN, bind: { keyboard: ['KeyD'], gamepad: ['right', 'leftX+'] } },
+    { id: 'up', label: 'up / jump', group: 'move', in: VS_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'down / crouch', group: 'move', in: VS_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: VS_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: VS_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
     { id: 'light', label: 'light', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyJ'], gamepad: ['south'] } },
     { id: 'medium', label: 'medium', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyK'], gamepad: ['west'] } },
     { id: 'heavy', label: 'heavy', group: 'attack', in: VS_IN, bind: { keyboard: ['KeyL'], gamepad: ['north'] } },
@@ -359,15 +359,6 @@ const ACTION = {
     gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'dodge', 'guard'], label: 'jump / attack / dodge / guard' }, { ids: ['dash', 'lock', 'shoot', 'sprint'], label: 'dash / lock / shoot / sprint' }],
   },
 };
-
-/** Player two's keyboard in a versus match: the arrows and the numpad, or the right hand's punctuation. */
-export const VERSUS_SECOND_KEYBOARD = Object.freeze({
-  keyboard: {
-    up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
-    light: ['Numpad1', 'Comma'], medium: ['Numpad2', 'Period'], heavy: ['Numpad3', 'Slash'], special: ['Numpad4', 'Semicolon'], throw: ['Numpad5', 'Quote'],
-    start: ['NumpadEnter', 'Backslash'], back: ['Backspace'],
-  },
-});
 
 export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);
