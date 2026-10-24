@@ -14,7 +14,10 @@
  *   leafForm(form, tree)             → { limbs: [{ pts, radii }], twigs: [{ pts, radii }], lobes: [lobe] }, a lobe
  *                                      { at, axes: [a, b, c] (metres along u, v, w), frame: [u, v, w], long (unit) }
  *                                      tree: { base: [x, y, z], h, c (the crown's middle), Rc (its radius), seed,
- *                                      density (its limbs, 1 the form's own) }
+ *                                      density (its limbs, 1 the form's own), forks (each stem's top, a tree of several
+ *                                      stems; absent, one fork low in the crown), branch (its limbs' and twigs'
+ *                                      thickness, 1 the form's own), split (0, 1 or 2: how often each limb forks again
+ *                                      on its way out, finer at each) }
  *   formCore(lobes, opts)            → { faces, lobes } the lobes as dark cores (two stops by the sun, as chipCore; `detail`
  *                                      0 for a far tree's, 1 by default), with
  *                                      each lobe's triangles and bounding radius for hollowed (era/isekai.js)
@@ -72,10 +75,15 @@ export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
  *   girth    the trunk's radius, a share of its height (absent: the kit's)
  *   spread   the crown's radius, a share of its height (absent: the kit's)
  *   density  its limbs against the form's (1 the form's own)
- *   leaf     its foliage: 0 the world's, 1..FLORA_OFFER the theorist's offer (era/flora-colours.js)
- *   bark     its wood: 0 the world's, 1..FLORA_OFFER the theorist's offer
+ *   stems    how many trunks rise from its foot, each leaning out (2 a V; 1 the one trunk)
+ *   splay    how far each of several stems leans out, degrees
+ *   branch   its limbs' and twigs' thickness against the form's (under 1 the finer)
+ *   split    how often each limb forks again on its way out (0, 1 or 2): finer branching
+ *   leaf     its foliage: 0 the world's, 1..LEAF_OFFER the theorist's offer (era/flora-colours.js)
+ *   bark     its wood's colour: 0 the world's, 1..BARK_OFFER the theorist's offer
+ *   barkForm its bark's marks (matte-paint/dressed.js BARK_FORM_IDS): furrowed, smooth, banded, plated, peeling
  */
-export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'leaf', 'bark']);
+export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'stems', 'splay', 'branch', 'split', 'leaf', 'bark', 'barkForm']);
 export const readKind = (k) => (typeof k === 'string' ? { form: k } : k);
 
 /** The leaf branches and their lobes for one leaf branch of each form, from where it leaves (`p`), its limb's
@@ -118,26 +126,47 @@ const GROW = {
 };
 
 /** One tree's limbs, leaf branches and lobes in a form. */
-export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1 }) {
+export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1, forks = null, branch = 1, split = 0 }) {
   const F = LEAF_FORMS[form], grow = GROW[form];
   if (!F) throw new Error(`leaf form '${form}' is not one (${LEAF_FORM_IDS.join(', ')})`);
   const S = seed | 0, H = (a, b) => hash3(S, a, b + 4801), n0 = F.limbs[0] + Math.floor(H(1, 1) * (F.limbs[1] - F.limbs[0] + 1)), yaw = 2 * Math.PI * H(2, 1);
   const n = density === 1 ? n0 : Math.max(2, Math.round(n0 * density));
   const limbs = [], twigs = [], lobes = [];
-  // (the fork low in the crown; a plate's limbs leave the trunk in tiers, so its plates stand one over another)
-  const fork = [c[0], c[1], c[2] - 0.45 * Rc];
+  // (the fork low in the crown, or each stem's top (`forks`, a tree of several stems): a limb leaves the stem whose turn
+  // it is, heading out over that stem's own side; a plate's limbs leave in tiers, so its plates stand one over another)
+  const tops = forks ?? [[c[0], c[1], c[2] - 0.45 * Rc]], many = tops.length > 1;
+  const sideOf = (p) => Math.atan2(p[1] - c[1], p[0] - c[0]);
+  // (its leaf branches along a limb from `from` by `elbow` to `end`, the share `f` of its length, `j` their count so far)
+  const leaves = (from, elbow, end, dir, az, i, fs, j0) => fs.forEach((f, j) => {
+    const p = f <= 0.5 ? add(from, mul(sub(elbow, from), f * 2)) : add(elbow, mul(sub(end, elbow), (f - 0.5) * 2));
+    const g = grow(p, dir, az, f, j0 + j + i, Rc, (k) => H(100 + i * 31 + (j0 + j) * 7, k));
+    for (const t of g.twigs ?? (g.twig ? [g.twig] : [])) twigs.push({ pts: t, radii: [0.009 * h * branch, 0.005 * h * branch] });
+    lobes.push(...g.lobes);
+  });
   for (let i = 0; i < n; i++) {
-    const az = yaw + (form === 'plate' ? i * 2.39996 + 0.3 * H(10 + i, 2) : (2 * Math.PI * (i + 0.35 * H(10 + i, 2))) / n), el = mix(F.rise[0], F.rise[1], H(20 + i, 3)) * DEG;
+    const fork = tops[i % tops.length], own = Math.floor(i / tops.length), per = Math.ceil(n / tops.length);
+    const az = many ? sideOf(fork) + ((own - (per - 1) / 2) / Math.max(1, per)) * 2.4 + 0.3 * (H(10 + i, 2) - 0.5)
+      : yaw + (form === 'plate' ? i * 2.39996 + 0.3 * H(10 + i, 2) : (2 * Math.PI * (i + 0.35 * H(10 + i, 2))) / n), el = mix(F.rise[0], F.rise[1], H(20 + i, 3)) * DEG;
     const from = form === 'plate' ? [fork[0], fork[1], fork[2] - Rc * 0.35 + (Rc * 0.9 * i) / Math.max(1, n - 1)] : fork;
     const reach = Rc * F.reach * mix(0.85, 1.1, H(30 + i, 4)) * (form === 'plate' ? mix(1.05, 0.6, i / Math.max(1, n - 1)) : 1);
     const dir = dirOf(az, el), elbow = add(from, mul(dirOf(az, el * 1.25), reach * 0.5)), end = add(from, mul(dir, reach));
-    limbs.push({ pts: [from, elbow, end], radii: [0.03 * h, 0.022 * h, 0.012 * h] });
-    F.at.forEach((f, j) => {
-      const p = f <= 0.5 ? add(from, mul(sub(elbow, from), f * 2)) : add(elbow, mul(sub(end, elbow), (f - 0.5) * 2));
-      const g = grow(p, dir, az, f, j + i, Rc, (k) => H(100 + i * 31 + j * 7, k));
-      for (const t of g.twigs ?? (g.twig ? [g.twig] : [])) twigs.push({ pts: t, radii: [0.009 * h, 0.005 * h] });
-      lobes.push(...g.lobes);
+    if (!split) {
+      limbs.push({ pts: [from, elbow, end], radii: [0.03 * h * branch, 0.022 * h * branch, 0.012 * h * branch] });
+      leaves(from, elbow, end, dir, az, i, F.at, 0);
+      continue;
+    }
+    // (a limb that SPLITS: at its elbow into two, and each again at its own elbow when `split` is 2; the leaf branches
+    // of its outer half on every end, its inner half's on the limb; thinner at each split)
+    limbs.push({ pts: [from, elbow], radii: [0.03 * h * branch, 0.02 * h * branch] });
+    leaves(from, elbow, end, dir, az, i, F.at.filter((f) => f <= 0.5), 0);
+    const outer = F.at.filter((f) => f > 0.5);
+    const fan = (p0, az0, el0, len, r, depth, salt) => [-1, 1].forEach((sd) => {
+      const a2 = az0 + sd * mix(18, 32, H(60 + salt, 5 + sd)) * DEG, e2 = el0 + mix(-6, 10, H(61 + salt, 6 + sd)) * DEG, d2 = dirOf(a2, e2), mid = add(p0, mul(dirOf(a2, e2 * 1.2), len * 0.5)), e = add(p0, mul(d2, len));
+      if (depth > 1) { limbs.push({ pts: [p0, mid], radii: [r, r * 0.8] }); fan(mid, a2, e2, len * 0.55, r * 0.7, depth - 1, salt * 3 + sd + 7); return; }
+      limbs.push({ pts: [p0, mid, e], radii: [r, r * 0.75, r * 0.45] });
+      leaves(p0, p0, e, d2, a2, i, outer, 10 + salt);
     });
+    fan(elbow, az, el, reach * 0.62, 0.016 * h * branch, Math.min(2, split), i * 13 + 1);
   }
   return { limbs, twigs, lobes };
 }

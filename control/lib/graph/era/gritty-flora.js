@@ -83,12 +83,14 @@ export const groundKey = (C, grit) => keysFor(grit)(C, 0);
 /** The land's own turf tile at a grit, variant `v`: what the verge's outer edge is turfed with (era/trail-dress.js). */
 export const turfKey = (grit, v) => keysFor(grit)(GROUND_CUTS['isekai:ground'], v);
 
-/** The faces with the flora's relief laid on them, as strong as the land is gritty. */
+/** The faces with the flora's relief laid on them, as strong as the land is gritty. A face's `_rind` (a tree kind's
+ *  bark marks, era/isekai.js) lays its group's cut in that form, and leaves with it. */
 export function withGrittyFlora(faces, grit) {
   if (!(grit >= GRIT_PIXELS)) return faces;
   const keyOf = keysFor(grit);
-  return faces.map((f) => {
-    const C = FLORA_CUTS[f.group];
+  return faces.map((f0) => {
+    const { _rind, ...rest } = f0, f = _rind === undefined ? f0 : rest;
+    const C = _rind !== undefined && FLORA_CUTS[f.group] ? { ...FLORA_CUTS[f.group], form: _rind } : FLORA_CUTS[f.group];
     if (!C || !laid(f)) return f;
     const flat = Math.abs(f.normal[2]) > 0.7;
     if (C.wall && flat) return f;

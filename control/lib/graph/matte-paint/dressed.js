@@ -547,6 +547,51 @@ export function screeDice(cfgIn, { size = 512, seed = 1 } = {}) {
 }
 // a karst's grike: half its width at the top, its rounded lip, its depth (m)
 export const KARST_GRIKE = Object.freeze({ half: 0.028, lip: 0.014, depth: 0.05 });
+// BARK FORMS (the bark cut's `form`; absent or 'furrowed', the plates between furrows): the tile a grey the trunk's own
+// colour multiplies, so a pale bark is pale by its colour and the form draws only its marks
+//   smooth   a skin barely moved, mottled faintly and creased round the trunk here and there
+//   banded   a smooth skin crossed by short dark dashes round the trunk, and a few dark scars
+//   plated   broad plates parted by deep cracks
+//   peeling  a smooth skin in patches of three tones, each patch's edge a small step
+export const BARK_FORM_IDS = Object.freeze(['furrowed', 'smooth', 'banded', 'plated', 'peeling']);
+const BARK_FORMS = {
+  smooth: (c, size, seed, { M, g, body }) => paintedTile(c, size, SHAFT_LIGHT,
+    (x, y) => 0.0012 * sfbm(x, y, M, 0.25, 0.12, 3, seed + 3) + 0.0012 * Math.max(0, 1 - Math.abs(sfbm(x, y, M, 0.5, 0.05, 2, seed + 5)) * 6) * (0.5 + 0.5 * g),
+    (x, y, k, lit) => rampAt(body, 0.62 + (lit.value[k] - 1) * 1.1 + 0.05 * sfbm(x, y, M, 0.3, 0.3, 3, seed + 11) - 0.3 * lit.cavity[k])),
+  banded: (c, size, seed, { M, g, body }) => {
+    const mark = new Float32Array(size * size);
+    return paintedTile(c, size, SHAFT_LIGHT, (x, y, k) => {
+      let m = 0;
+      // (dashes round the trunk: long in u, thin in v)
+      marksNear(x, y, M, 0.11, 2, seed + 31, (cx, cy, h, cs) => {
+        const L = cs * (0.25 + 0.55 * h(3)), t = 0.004 + 0.008 * h(4), du = Math.abs(x - cx) / (L / 2), dv = Math.abs(y - cy) / t;
+        if (du < 1 && dv < 1) m = Math.max(m, (1 - du ** 4) * (1 - dv ** 2));
+      });
+      // (a few scars: dark, broad, ragged)
+      marksNear(x, y, M, 0.45, 1, seed + 37, (cx, cy, h, cs) => {
+        if (h(3) > 0.35 + 0.3 * g) return;
+        const d = stoneDist(x, y, cx, cy, cs * (0.12 + 0.12 * h(4)), h);
+        if (d < 1) m = Math.max(m, Math.min(1, (1 - d) * 4));
+      });
+      mark[k] = m;
+      return 0.0008 * sfbm(x, y, M, 0.3, 0.15, 2, seed + 3) - 0.0025 * m;
+    }, (x, y, k, lit) => rampAt(body, 0.8 + (lit.value[k] - 1) * 0.9 + 0.04 * sfbm(x, y, M, 0.25, 0.25, 2, seed + 11) - 0.68 * mark[k]));
+  },
+  plated: (c, size, seed, { M, g, body }) => paintedTile(c, size, SHAFT_LIGHT, (x, y) => {
+    let best = 9, z = 0;
+    marksNear(x, y, M, 0.16, 1, seed + 41, (cx, cy, h, cs) => {
+      // (a plate a little taller than wide, up the trunk)
+      const d = stoneDist(x, (y - cy) * 0.7 + cy, cx, cy, cs * (0.62 + 0.2 * h(4)), h);
+      if (d < best) { best = d; z = d < 1 ? 0.014 * (1 - d ** 6) + 0.0012 * (h(5) - 0.5) : 0; }
+    });
+    return z + (0.001 + 0.001 * g) * sfbm(x, y, M, 0.03, 0.03, 3, seed + 9) * (z > 0 ? 1 : 0);
+  }, (x, y, k, lit) => rampAt(body, 0.55 + (lit.value[k] - 1) * 1.3 + 0.05 * sfbm(x, y, M, 0.2, 0.2, 2, seed + 11) - 0.5 * lit.cavity[k] * (0.6 + 0.4 * g))),
+  peeling: (c, size, seed, { M, g, body }) => {
+    const tone = (x, y) => { const v = sfbm(x, y, M, 0.22, 0.32, 3, seed + 3); return v > 0.18 ? 2 : v > -0.12 ? 1 : 0; };
+    return paintedTile(c, size, SHAFT_LIGHT, (x, y) => 0.0018 * tone(x, y) + 0.0006 * sfbm(x, y, M, 0.08, 0.08, 2, seed + 7),
+      (x, y, k, lit) => rampAt(body, [0.42, 0.62, 0.8][tone(x, y)] + (lit.value[k] - 1) * 1.0 + 0.03 * sfbm(x, y, M, 0.15, 0.15, 2, seed + 11) - 0.25 * lit.cavity[k] * (0.5 + 0.5 * g)));
+  },
+};
 const NATURAL = {
   // a sward from above: blades in every direction, each a tapered ridge, standing in tussocks; bare earth where a broad
   // patch is worn through (more of it with grit), a shade down and smooth but for its crumbs
@@ -692,6 +737,7 @@ const NATURAL = {
   // ridge, its face scaled fine (rougher with grit)
   bark(c, size, seed) {
     const M = c.metres, g = c.grit, body = rampOf(c.stone);
+    if (c.form && c.form !== 'furrowed') return BARK_FORMS[c.form](c, size, seed, { M, g, body });
     return paintedTile(c, size, SHAFT_LIGHT, (x, y, k) => {
       // (each plate a rounded ridge rising out of the furrows either side of it)
       const r = smoothstep(0.03, 0.42, Math.abs(sfbm(x, y, M, 0.04, 0.3, 3, seed + 3)));

@@ -5,11 +5,12 @@
  * which tree takes which colour is the composition's, not the palette's.
  *
  *   floraColours({ foliage, grass, rock, soil, accent? })  (rgb 0..255, the world's key colours)
- *     → { leaves: [deep, young, turn], barks: [warm, pale, dark] }, rgb
+ *     → { leaves: [deep, young, turn], barks: [warm, pale, dark, white] }, rgb
  *        leaves: deep (darker, cooler), young (lighter, toward the yellow), turn (toward the accent, or autumn's warm);
  *                each kept apart from the grass and from each other, so a crown reads against the ground
- *        barks:  warm (the soil's hue, dark), pale (the rock's hue, light and grey), dark (a cool near-black)
- *   floraRamps(palette)  → { 'foliage-1..3', 'bark-1..3' }: the offer as ramps the length of the palette's foliage and
+ *        barks:  warm (the soil's hue, dark), pale (the rock's hue, light and grey), dark (a cool near-black), white
+ *                (a near-white in the rock's hue, a birch's)
+ *   floraRamps(palette)  → { 'foliage-1..3', 'bark-1..4' }: the offer as ramps the length of the palette's foliage and
  *                          bark, for the lock (a tree kind's `leaf: n` locks its crown to `foliage-n`, `bark: n` its
  *                          wood to `bark-n`; 0 is the world's own)
  *
@@ -18,8 +19,8 @@
 import { lchOf, oklch, deltaE, hueGap } from '../color-theorist/oklab.js';
 import { rampFrom } from './look-facets.js';
 
-/** The number of foliage colours and barks the theorist offers beyond the world's own. */
-export const FLORA_OFFER = 3;
+/** How many foliage colours and barks the theorist offers beyond the world's own. */
+export const LEAF_OFFER = 3, BARK_OFFER = 4;
 // how far apart (OKLab) a crown must stand from the grass and a leaf colour from another
 const APART = 0.05;
 const mixHue = (a, b, t) => { const d = ((b - a + 540) % 360) - 180; return (a + d * t + 360) % 360; };
@@ -43,7 +44,7 @@ export function floraColours({ foliage, grass, rock, soil, accent = null }) {
     leaves.push(rgb);
   }
   const [, Cs, hs] = lchOf(soil), [, Cr, hr] = lchOf(rock);
-  const barks = [oklch(0.36, Math.min(Cs, 0.045), hs), oklch(0.6, Math.min(Cr, 0.022), hr), oklch(0.27, 0.02, mixHue(hs, 255, 0.55))];
+  const barks = [oklch(0.36, Math.min(Cs, 0.045), hs), oklch(0.6, Math.min(Cr, 0.022), hr), oklch(0.27, 0.02, mixHue(hs, 255, 0.55)), oklch(0.9, Math.min(Cr, 0.014), hr)];
   return { leaves, barks };
 }
 

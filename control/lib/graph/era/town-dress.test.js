@@ -70,5 +70,5 @@ describe('a cube\'s town dressed', () => {
     expect(lime.faces.filter((f) => f.group === 'town:wall' && /^detail:/.test(f.texture || '')).length).toBeGreaterThan(0);
     expect(lime.faces.some((f) => f.group === 'town:opening' && f.texture)).toBe(false);
     expect(show('valley-morning').faces.some((f) => /^detail:/.test(f.texture || ''))).toBe(false);
-  });
+  }, 90000);   // (two whole towns)
 });

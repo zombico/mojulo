@@ -25,18 +25,25 @@ and leant as the form holds its leaves; far, the lobes' cores alone carry the tr
   round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
   `whorl` (a ring of level spokes round each limb's end); the gallery is `scripts/spikes/geotown/leaf-forms.mjs`.
 - **A level's trees are kinds it composes**, not species looked up from nature. A biocube's `flora.trees.kinds` lists
-  1 to 6: a form's name, or `{ form, scale, trunk, girth, spread, density, leaf, bark }` (`TREE_KIND_KEYS`): the
-  silhouette, how tall it stands against the level's heights, where its crown starts, its trunk's girth, its crown's
-  spread, its limbs against the form's, and the colours it picks. Each clump is one kind, by its dice; a cube carries
+  1 to 6: a form's name, or `{ form, scale, trunk, girth, spread, density, stems, splay, branch, split, leaf, bark,
+  barkForm }` (`TREE_KIND_KEYS`): the silhouette, how tall it stands against the level's heights, where its crown
+  starts, its trunk's girth, its crown's spread, its limbs against the form's, how many stems rise from its foot and
+  how far they lean out (two a V), its limbs' thickness and how often each forks again (finer branching), the colours
+  it picks and its bark's marks. Each clump is one kind, by its dice; a cube carries
   the kinds it wants in its own biocube. On a gritty land each tree grows its kind's crown: a hero whole, the stock
   stamped from a template for each kind and variant, a far tree its cores coarse and no twigs. A quiet land keeps the
   balls, and a level that names no kinds is as it was.
 - **The colour theorist offers the trees their colours** (`era/flora-colours.js`): from the world's own foliage, grass,
   rock and soil, three more foliage colours (deep, young, turned toward the accent or autumn's warm), each kept apart
-  from the grass and from each other, and three barks (warm from the soil, pale from the rock, a cool near-black).
+  from the grass and from each other, and four barks (warm from the soil, pale from the rock, a cool near-black, and a
+  near-white, a birch's).
   A kind's `leaf` and `bark` pick from the offer (0 the world's own); which tree takes which is the composition's. Its
   crown's core and chips stand in the picked foliage, its wood is baked from the picked bark and locked to its ramp.
   The level side by side, with the offer as swatches: `scripts/spikes/geotown/kinds.mjs`.
+- **Bark's marks** (`matte-paint/dressed.js` BARK_FORM_IDS, the bark cut's `form`): `furrowed` (plates between furrows,
+  as it was), `smooth`, `banded` (dark dashes round the trunk and a few scars, a birch's), `plated` (broad plates parted
+  by deep cracks) and `peeling` (patches in three tones). The tile is a grey the bark's colour multiplies, so a white
+  bark with `banded` marks is a birch. One kind at a time, with its bark close: `scripts/spikes/geotown/tree-kinds.mjs`.
 
 ### Faster gritty builds, and the tests that build them
 

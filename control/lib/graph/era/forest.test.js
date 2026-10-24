@@ -8,7 +8,7 @@ import { readBiocube, withFlora, BIOCUBE_IDS } from './biocube.js';
 import { outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
-import { floraColours, floraRamps, FLORA_OFFER } from './flora-colours.js';
+import { floraColours, floraRamps, LEAF_OFFER, BARK_OFFER } from './flora-colours.js';
 import { deltaE, lchOf } from '../color-theorist/oklab.js';
 import { readGeocube } from './geocube.js';
 
@@ -113,6 +113,8 @@ describe('a forest grown as its tree kinds (leaf-forms.js, flora-colours.js)', (
     expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: ['oak'] } } })).toThrow(/spray, plate, weep, tuft, whorl/);
     expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', leaf: 7 }] } } })).toThrow(/leaf/);
     expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', colour: 'red' }] } } })).toThrow(/colour is not a setting/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', barkForm: 'scaly' }] } } })).toThrow(/furrowed, smooth, banded, plated, peeling/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', stems: 6 }] } } })).toThrow(/stems/);
     // (a cube carries the kinds it wants in its own biocube)
     expect(readGeocube({ from: 'limestone-crags', biocube: { from: 'forest', flora: { trees: { kinds: ['plate', { form: 'tuft', bark: 3 }] } } } }).biocube.flora.trees.kinds).toHaveLength(2);
   }, 90000);
@@ -122,8 +124,8 @@ describe('the theorist\'s offer to the trees (flora-colours.js)', () => {
   it('offers foliage apart from the grass and each other, and barks from the world\'s soil and rock', () => {
     const pal = ISEKAI_STYLES['isekai-meadow'].palette, mid = (r) => r[Math.floor(r.length / 2)];
     const O = floraColours({ foliage: mid(pal.foliage), grass: mid(pal.grass), rock: mid(pal.rock), soil: mid(pal.soil) });
-    expect(O.leaves).toHaveLength(FLORA_OFFER);
-    expect(O.barks).toHaveLength(FLORA_OFFER);
+    expect(O.leaves).toHaveLength(LEAF_OFFER);
+    expect(O.barks).toHaveLength(BARK_OFFER);
     const all = [mid(pal.grass), mid(pal.foliage), ...O.leaves];
     for (let i = 2; i < all.length; i++) for (let j = 0; j < i; j++) expect(deltaE(all[i], all[j])).toBeGreaterThan(0.04);
     // (deep under the world's foliage, young over it; the pale bark lighter than the warm and the dark)
@@ -131,8 +133,26 @@ describe('the theorist\'s offer to the trees (flora-colours.js)', () => {
     expect(L(O.leaves[0])).toBeLessThan(L(mid(pal.foliage)));
     expect(L(O.leaves[1])).toBeGreaterThan(L(mid(pal.foliage)));
     expect(L(O.barks[1])).toBeGreaterThan(Math.max(L(O.barks[0]), L(O.barks[2])));
+    // (a white bark, a birch's: near white, barely tinted)
+    expect(L(O.barks[3])).toBeGreaterThan(0.85);
+    expect(lchOf(O.barks[3])[1]).toBeLessThan(0.02);
     const R = floraRamps(pal);
-    expect(Object.keys(R).sort()).toEqual(['bark-1', 'bark-2', 'bark-3', 'foliage-1', 'foliage-2', 'foliage-3']);
+    expect(Object.keys(R).sort()).toEqual(['bark-1', 'bark-2', 'bark-3', 'bark-4', 'foliage-1', 'foliage-2', 'foliage-3']);
     expect(R['foliage-1']).toHaveLength(pal.foliage.length);
   });
+});
+
+describe('a tree kind\'s stems and bark on the stage', () => {
+  it('stands a V on two stems, birch-white and banded: the white ramp\'s wood, the banded bark tile', () => {
+    const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 }, biocube: { from: 'forest', flora: { trees: { kinds: [{ form: 'spray', stems: 2, bark: 4, barkForm: 'banded' }] } } } }, {});
+    const all = [...P.faces, ...P.repeats.flatMap((r) => r.template)], wood = all.filter((f) => f.group === 'isekai:wood');
+    expect(all.some((f) => f._rind !== undefined || f._ramp !== undefined)).toBe(false);
+    // (the banded bark its own tile, not the furrowed one; its wood far paler than the world's bark)
+    const plain = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 }, biocube: { from: 'forest', flora: { trees: { kinds: ['spray'] } } } }, {});
+    const tex = (Q) => new Set([...Q.faces, ...Q.repeats.flatMap((r) => r.template)].filter((f) => f.group === 'isekai:wood' && f.texture).map((f) => f.texture));
+    expect([...tex(P)].some((k) => !tex(plain).has(k))).toBe(true);
+    const luma = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const med = (fs) => fs.map((f) => luma(f.fill)).sort((a, b) => a - b)[fs.length >> 1];
+    expect(med(wood)).toBeGreaterThan(med([...plain.faces, ...plain.repeats.flatMap((r) => r.template)].filter((f) => f.group === 'isekai:wood')) + 40);
+  }, 120000);
 });

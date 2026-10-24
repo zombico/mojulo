@@ -44,3 +44,24 @@ describe('a crown grown as leaf branches', () => {
     expect(mean(grained)).toBeGreaterThan(mean(loose) + 0.15);
   });
 });
+
+describe('a tree\'s structure', () => {
+  it('shares its limbs among several stems\' tops, each heading out over its own side: two stems a V', () => {
+    const forks = [[-1.2, 0, 4], [1.2, 0, 4]], T = leafForm('spray', { ...tree, forks });
+    const fromLeft = T.limbs.filter((l) => l.pts[0][0] === -1.2), fromRight = T.limbs.filter((l) => l.pts[0][0] === 1.2);
+    expect(fromLeft.length + fromRight.length).toBe(T.limbs.length);
+    expect(fromLeft.length).toBeGreaterThan(0);
+    expect(fromLeft.every((l) => l.pts.at(-1)[0] < -1.2 + 1e-6 + Rc * 0.6)).toBe(true);
+    expect(fromRight.every((l) => l.pts.at(-1)[0] > 1.2 - 1e-6 - Rc * 0.6)).toBe(true);
+    expect(fromLeft.reduce((a, l) => a + l.pts.at(-1)[0], 0) / fromLeft.length).toBeLessThan(fromRight.reduce((a, l) => a + l.pts.at(-1)[0], 0) / fromRight.length);
+  });
+
+  it('splits its limbs for finer branching, thinner at each split; `branch` thins them all; absent, as it was', () => {
+    const one = leafForm('weep', tree), twice = leafForm('weep', { ...tree, split: 2 }), fine = leafForm('weep', { ...tree, branch: 0.5 });
+    expect(JSON.stringify(leafForm('weep', { ...tree, split: 0, branch: 1, density: 1 }))).toBe(JSON.stringify(one));
+    expect(twice.limbs.length).toBeGreaterThan(one.limbs.length * 3);
+    const thinnest = (T) => Math.min(...T.limbs.flatMap((l) => l.radii));
+    expect(thinnest(twice)).toBeLessThan(thinnest(one));
+    expect(fine.limbs.every((l, i) => l.radii[0] < one.limbs[i].radii[0])).toBe(true);
+  });
+});

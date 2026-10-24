@@ -41,8 +41,8 @@ export const TILE_RAILS = Object.freeze({
     chamfer: num(0, 0.06), pillow: num(0, 0.02), spall: num(0, 1), pit: num(0, 1), vary: num(0, 40), grit: num(0, 1), seed: int(1, 99999),
     // (a lime render over the ashlar, `cut: 'render'`: its colour, and how much of it has fallen away)
     render: RGB, loss: num(0, 1),
-    // (scree's stones, `cut: 'scree'`: matte-paint/dressed.js SCREE_FORMS)
-    form: { of: ['blocks', 'plates', 'cobbles', 'rubble'] } } },
+    // (scree's stones, `cut: 'scree'`: matte-paint/dressed.js SCREE_FORMS; a bark's marks, `cut: 'bark'`: BARK_FORM_IDS)
+    form: { of: ['blocks', 'plates', 'cobbles', 'rubble', 'furrowed', 'smooth', 'banded', 'plated', 'peeling'] } } },
 });
 /** How a tile lies on its face (not a painting setting): metres per repeat. */
 const PLACEMENT = { scale: num(0.25, 8) };

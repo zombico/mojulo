@@ -11,7 +11,7 @@
  *                  clump (nature.js arrangedClump); `bands` (true or { hero, far, stock }) builds a tree by how far it
  *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far.
  *                  `kinds` (1 to 6) are what the level's trees are, as composed for it: each a leaf form's name or
- *                  { form, scale, trunk, girth, spread, density, leaf, bark } (era/leaf-forms.js TREE_KIND_KEYS), its
+ *                  { form, scale, trunk, girth, spread, density, stems, splay, branch, split, leaf, bark, barkForm } (era/leaf-forms.js TREE_KIND_KEYS), its
  *                  colours picked from the theorist's offer (era/flora-colours.js); each clump one kind, its crown
  *                  grown as that kind's leaf branches on a gritty land (a quiet land keeps the balls)
  *   flora.grass    { clusters, perCluster, spacing, scatter, fringeEvery, height: [lo, hi] m, kinds?, field? } | null
@@ -35,7 +35,8 @@ import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { validateShrubs } from './shrubs.js';
 import { LEAF_FORMS, LEAF_FORM_IDS, TREE_KIND_KEYS } from './leaf-forms.js';
-import { FLORA_OFFER } from './flora-colours.js';
+import { LEAF_OFFER, BARK_OFFER } from './flora-colours.js';
+import { BARK_FORM_IDS } from '../matte-paint/dressed.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -90,7 +91,13 @@ function checkKinds(kinds) {
     if (k.girth !== undefined) num(k.girth, 0.015, 0.12, `${at}.girth`);
     if (k.spread !== undefined) num(k.spread, 0.12, 0.6, `${at}.spread`);
     if (k.density !== undefined) num(k.density, 0.4, 2.5, `${at}.density`);
-    for (const c of ['leaf', 'bark']) if (k[c] !== undefined) int(k[c], 0, FLORA_OFFER, `${at}.${c} (0 the world's, 1 to ${FLORA_OFFER} the theorist's offer)`);
+    if (k.stems !== undefined) int(k.stems, 1, 4, `${at}.stems`);
+    if (k.splay !== undefined) num(k.splay, 0, 40, `${at}.splay (degrees)`);
+    if (k.branch !== undefined) num(k.branch, 0.3, 1.6, `${at}.branch`);
+    if (k.split !== undefined) int(k.split, 0, 2, `${at}.split`);
+    if (k.leaf !== undefined) int(k.leaf, 0, LEAF_OFFER, `${at}.leaf (0 the world's, 1 to ${LEAF_OFFER} the theorist's offer)`);
+    if (k.bark !== undefined) int(k.bark, 0, BARK_OFFER, `${at}.bark (0 the world's, 1 to ${BARK_OFFER} the theorist's offer)`);
+    if (k.barkForm !== undefined && !BARK_FORM_IDS.includes(k.barkForm)) no(`${at}.barkForm is a bark's marks (${BARK_FORM_IDS.join(', ')})`);
   });
 }
 

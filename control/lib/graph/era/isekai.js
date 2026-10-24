@@ -1332,11 +1332,25 @@ function treeFaces(st, site, trees, grit = 0) {
       // (its wood's albedo the picked bark's against the world's: the bake lights it, the lock keeps it on its ramp)
       const pb = K.bark && st.palette[bark._ramp], wb = st.palette.bark, mid = (r) => r[Math.floor(r.length / 2)];
       const wt = pb && wb ? st.tint.wood.map((v, q) => Math.min(1, (v * mid(pb)[q]) / Math.max(8, mid(wb)[q]))) : st.tint.wood, wood = [];
-      tube(wood, stem, [g, g * 0.85, g * 0.72, g * 0.62], 6, wt, 'isekai:wood');
-      const G = leafForm(form, { base: [t.x, t.y, z0], h: hk, c: ck, Rc: Rk, seed: k, density: K.density ?? 1 });
+      // (several stems, `stems`: each from the foot, leaning out `splay` degrees on its own side to its own top, the
+      // limbs shared among their tops: two a V; thinner each, as one trunk's wood is shared)
+      const ns = K.stems ?? 1, forks = ns > 1 ? [] : null;
+      if (ns > 1) {
+        const yawS = 2 * Math.PI * hash3(k, 14, 4133), lean = Math.tan(((K.splay ?? 16) * Math.PI) / 180), rise = fork[2] - z0;
+        for (let q = 0; q < ns; q++) {
+          const a = yawS + (2 * Math.PI * (q + 0.2 * hash3(k, 15 + q, 4139))) / ns, ca = Math.cos(a), sa = Math.sin(a);
+          const top = [ck[0] + ca * lean * rise, ck[1] + sa * lean * rise, fork[2] - rise * 0.06 * q], foot = [t.x + ca * g * 0.5, t.y + sa * g * 0.5, z0];
+          const midS = [mix(foot[0], top[0], 0.45) + ca * lean * rise * 0.08, mix(foot[1], top[1], 0.45) + sa * lean * rise * 0.08, mix(z0, top[2], 0.45)];
+          tube(wood, [foot, midS, top], [g * 0.78, g * 0.62, g * 0.5], 6, wt, 'isekai:wood');
+          forks.push(top);
+        }
+      } else tube(wood, stem, [g, g * 0.85, g * 0.72, g * 0.62], 6, wt, 'isekai:wood');
+      const G = leafForm(form, { base: [t.x, t.y, z0], h: hk, c: ck, Rc: Rk, seed: k, density: K.density ?? 1, forks, branch: K.branch ?? 1, split: K.split ?? 0 });
       for (const l of G.limbs) tube(wood, l.pts, l.radii, 5, wt, 'isekai:wood');
       if (!far) for (const tw of G.twigs) tube(wood, tw.pts, tw.radii, 4, wt, 'isekai:wood');
-      for (const f of wood) out.push(K.bark ? { ...f, ...bark } : f);
+      // (its bark's colour, `_ramp` for the lock; its marks, `_rind` for the relief, era/gritty-flora.js)
+      const rind = K.barkForm && K.barkForm !== 'furrowed' ? { _rind: K.barkForm } : {};
+      for (const f of wood) out.push(K.bark || rind._rind ? { ...f, ...bark, ...rind } : f);
       t.crownAt = ck.map(r5); t.crownR = r5(Rk); t.lobes = G.lobes; t.form = form; t.leafRamp = leafRamp._ramp ?? null;
       for (const L of G.lobes) {
         const lobe = { at: L.at, r: Math.max(...L.axes) * CHIP_DEFAULTS.shrink, tris: [], id: lobesAll.length };
