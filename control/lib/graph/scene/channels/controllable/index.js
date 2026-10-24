@@ -131,6 +131,7 @@ function __withSeats(inp) {
   return { ...inp, seats };
 }
 window.__mojSeats = () => __SEATS;
+window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color: '#' + __seatRing[n].material.color.getHexString(), visible: __seatRing[n].visible }));
 `;
 }
 

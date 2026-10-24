@@ -99,6 +99,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   one. In the cube, `soul.seats` two and four, `contest=co-op`, `dependence=parallel`, `frame=follow-all` (the side and
   top-down cameras; a third-person camera follows seat 1), `input=real-time` and `join=drop-in` are built, on the web;
   the co-op platformer and the co-op street brawler now wait only on `pool=own` (each seat its own lives).
+- **Four seats, and the audits with seats.** Four pads take four seats in the order they press, each driving its own
+  body under its own colour (`seats.live.test.js`). A two-seat co-op game made through `design_game` is audited with
+  seat 1, the audit's own pilot, while the empty seat's hero follows; its run and its verdict are the ones the same level
+  without seats gets (`design-game.seats.test.js`, e2e). Godot and Roblox exports name the seats among what they leave.
+  Found on the way, not from the seats: a quick side-on level is never proved beatable by the automatic audit, whose
+  walker seeks the exit in a straight line, which a lane does not run.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
