@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { GENRES, QUICK_GENRE, suggestGenres, readIntent, cubeOfWorld, intentReport } from './intent.js';
+import { GENRES, QUICK_GENRE, suggestGenres, readIntent, cubeOfWorld, intentReport, quickGenre } from './intent.js';
 import { CONCERNS, concernsOf } from './concerns.js';
-import { QUICK_GOALS } from './quick.js';
+import { QUICK_GOALS, quickWorld } from './quick.js';
+import { composeGameworld } from './compose.js';
+import { CRAFT } from '../skyscape/eye.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
 import { dryRun } from '../cosmos/cosmos.js';
@@ -160,5 +162,61 @@ describe('a target', () => {
     expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
     expect(intentReport(plain).target).toBeUndefined();
     expect(intentReport(aimed).verdict).toBe(intentReport(plain).verdict);
+  });
+});
+
+describe('the intent written on the quick and compose paths', () => {
+  // the cube read without the written intent: what the world implied before it was written
+  const unwritten = ({ intent: _, ...w }) => cubeOfWorld(w);
+
+  it('a quick game writes the genre its cube is read from, one case per way a goal names it, and the cube is unchanged', () => {
+    const craft = (space) => Object.keys(CRAFT).find((k) => !!CRAFT[k].space === space);
+    const cases = [
+      { goal: Object.keys(QUICK_GENRE)[0] },                            // a goal's own genre
+      { goal: 'race', ride: 'coupe', rivals: 3, roadway: 'kart-sprint' }, // rivals make it a kart race
+      { goal: 'shoot', craft: craft(true) },                            // a craft makes it a dogfight, in space
+      { goal: 'shoot', craft: craft(false) },                           // or in the air
+    ];
+    for (const q of cases) {
+      const W = quickWorld({ id: 'q', quick: q }), genre = quickGenre(W.quick);
+      expect(genre, q.goal).toBeTruthy();
+      expect(W.intent, q.goal).toEqual({ from: genre });
+      expect(cubeOfWorld(W), q.goal).toEqual(unwritten(W));
+      expect(intentReport(W).written).toBe(true);
+    }
+    expect(new Set(cases.map((q) => quickGenre(quickWorld({ id: 'q', quick: q }).quick))).size).toBe(cases.length);
+  });
+
+  it('a quick goal with no genre writes none, and an intent the caller wrote is kept as written', () => {
+    const bare = Object.keys(QUICK_GOALS).find((g) => !QUICK_GENRE[g] && !['runner', 'fight', 'fly'].includes(g));
+    expect(quickWorld({ id: 'q', quick: { goal: bare } }).intent).toBeUndefined();
+    const own = { from: 'dungeon-crawler', why: 'mine' };
+    expect(quickWorld({ id: 'q', intent: own, quick: { goal: Object.keys(QUICK_GENRE)[0] } }).intent).toEqual(own);
+  });
+
+  it('a quick goal patched to read as another genre keeps the written one, and the readout says so', () => {
+    const W = quickWorld({ id: 'q', quick: { goal: 'race', ride: 'coupe' } }), patched = { ...W, quick: { ...W.quick, rivals: 3 } };
+    expect(intentReport(W).drift).toBeUndefined();
+    expect(cubeOfWorld(patched).from).toBe(W.intent.from);
+    expect(intentReport(patched).drift).toEqual({ written: W.intent.from, goal: quickGenre(patched.quick) });
+  });
+
+  it('a composed world writes the genre its words name clearly, and says which words did', () => {
+    const W = composeGameworld({ prompt: 'a dungeon crawler through crypt rooms full of loot', seed: 1 });
+    expect(W.intent).toEqual({ from: 'dungeon-crawler' });
+    for (const w of ['dungeon', 'crawler', 'loot']) expect(W.brief.read.find((r) => r.word === w)?.decides, w).toContain('intent.from=dungeon-crawler');
+    expect(W.brief.unread).not.toContain('crawler');
+    expect(composeGameworld({ prompt: 'a dungeon crawler through crypt rooms full of loot', seed: 1 })).toEqual(W);
+    expect(reviewParts(W).map((p) => p.id)[0]).toBe('intent');
+  });
+
+  it('one word, a tie or no genre words write none: the creator is asked instead', () => {
+    for (const prompt of ['misty hills with towers', 'a quiet valley of rolling hills']) {
+      const W = composeGameworld({ prompt, seed: 1 });
+      expect(W.intent, prompt).toBeUndefined();
+    }
+    const [a, b] = suggestGenres('stealth guards and a race with cars');
+    expect(a.matched.length).toBe(b.matched.length);
+    expect(composeGameworld({ prompt: 'stealth guards and a race with cars', seed: 1 }).intent).toBeUndefined();
   });
 });

@@ -20,11 +20,15 @@
  *                            heuristic over words, said to be one, for the agent (the real reader of a brief) to pick
  *                            from or ask about. It suggests a starting cube and refuses nothing.
  *   readIntent(v)            → { from, cube, why } or null; throws, teaching
+ *   quickGenre(quick)        → the genre id a quick goal is, or null (the `from` a quick game's cube is read from, and
+ *                            the intent quickWorld writes)
  *   cubeOfWorld(world)       → { cube, from, said: [<facet.setting>] } the cube the world is: its genre's, then what the
  *                            world's own settings imply, then its intent's own values (`said`: the ones the intent wrote)
- *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, target? }
+ *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, drift?, target? }
  *                            the readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world,
- *                            for a world that wrote no intent the genres its brief's words suggest, and with a target
+ *                            for a world that wrote no intent the genres its brief's words suggest, for a quick game
+ *                            whose goal now reads as another genre than its written one `drift: { written, goal }`
+ *                            (the written one holds until the creator changes it), and with a target
  *                            { engine, carries, lost: ['facet.setting=value'], partly: [...], says } (dryRun's engines)
  */
 import { FIXTURES } from '../cosmos/fixtures.js';
@@ -104,11 +108,16 @@ export function readIntent(v) {
 
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
 
+/** The genre a quick goal is, or null: a race against rivals is a kart race (its cube a loop's), alone a time trial; a
+ * shooter with a craft is a dogfight, a space craft's a space shooter, an atmosphere craft's air combat. */
+export function quickGenre(Q) {
+  if (!Q) return null;
+  return (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : QUICK_GENRE[Q.goal]) ?? null;
+}
+
 export function cubeOfWorld(world) {
   const I = readIntent(world?.intent), Q = world?.quick;
-  // a race against rivals is a kart race (its cube a loop's); alone, a time trial
-  // a shooter with a craft is a dogfight: a space craft's a space shooter, an atmosphere craft's air combat
-  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : QUICK_GENRE[Q.goal])) ?? null;
+  const from = I?.from ?? quickGenre(Q);
   const cube = clone(from ? CUBES[from] : {});
   // what the world's own settings imply
   if (world?.camera) put(cube, 'space', 'camera', world.camera);
@@ -139,11 +148,14 @@ export function intentReport(world) {
   const { cube, from } = cubeOfWorld(world), written = world?.intent !== undefined;
   const brief = typeof world?.brief === 'string' ? world.brief : world?.brief?.prompt ?? world?.brief?.text ?? '';
   const suggest = !written && !world?.quick && brief ? suggestGenres(brief) : [];
-  const target = readIntent(world?.intent)?.target ?? null, run = dryRun(cube);
+  const I = readIntent(world?.intent), target = I?.target ?? null, run = dryRun(cube);
+  // a quick game's written genre against what its goal reads as now (a goal patched since): said, never rewritten
+  const reads = quickGenre(world?.quick), drift = I?.from && reads && reads !== I.from ? { written: I.from, goal: reads } : null;
   return {
     from, written, verdict: run.verdict,
     concerns: concernsOf(cube).map(({ asks: _, ...c }) => c),
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
+    ...(drift ? { drift } : {}),
     ...(target ? { target: targetAdvice(target, run.engines[target]) } : {}),
   };
 }
