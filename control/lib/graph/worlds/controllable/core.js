@@ -408,6 +408,15 @@ export function buildCore(E) {
     // AI-attack switch: `spec.ai:'off'` seats the world PASSIVE (ai-ambient suits stand down
     // until input.aiToggle wakes them); anything else — including absent — leaves authored ai live.
     const state = { entities, byId, camera, pilotId, spectate, aiEnabled: spec.ai !== 'off', aiTuning: null, colliders: normalizeColliders(spec.colliders), match: null, wreckExplodes: null, time: 0, projectiles: [], bursts: [], projSeq: 0, burstSeq: 0, clashes: [], clashSeq: 0, shieldBreaks: 0, cinematic: null };
+    // SEATS (pilots.plan.md; opt-in `spec.seats: { bodies, drop? }`): the bodies seats 2, 3 and 4 take, in order, each on
+    // its pilot rule and its own input (`input.seats[n]`); seat 1 is the pilot above. A seat with no player this frame
+    // leaves its body to its AI (`drop: 'ai'`, the default) or holds it still (`'pause'`). Absent: no `seatOf`, and every
+    // body is stepped as it always was.
+    if (spec.seats && Array.isArray(spec.seats.bodies)) {
+      state.seatOf = {};
+      state.seatDrop = spec.seats.drop === 'pause' ? 'pause' : 'ai';
+      spec.seats.bodies.slice(0, 3).forEach((id, k) => { const e = byId[id]; if (e && e.pilotable && e.id !== pilotId) { state.seatOf[id] = k + 2; e.rule = e.pilotRule; } });
+    }
     runStateInits(state, spec);   // opt-in state layers (the match bout + wreck finisher — combat-match.js, S2)
     return state;
   }
@@ -461,18 +470,18 @@ export function buildCore(E) {
     hooks = hooks || {};
     if (hooks.physics) hooks.physics(dt);
     for (const p of PRE_STEPS) { const ov = p.fn(state, input, dt, hooks); if (ov) input = ov; }
-    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), colliders: state.colliders || null, pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
+    const world = { byId: state.byId, ground: hooks.ground || null, ...(hooks.surface ? { surface: hooks.surface } : {}), colliders: state.colliders || null, ...(state.seatOf ? { seatOf: state.seatOf } : {}), pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
     for (const e of state.entities) {
       if (e.isCamera) continue;
       for (const t of ENTITY_TIMERS) t.fn(e, dt, state);
-      const owns = {};
+      const owns = {}, ein = seatInput(state, e, input);   // a seated body reads its own seat's input
       let owned = false;
-      for (const o of BODY_OWNERS) { const v = !!o.fn(e, input, dt, state, world); owns[o.key] = v; owned = owned || v; }
+      for (const o of BODY_OWNERS) { const v = !!o.fn(e, ein, dt, state, world); owns[o.key] = v; owned = owned || v; }
       for (const a of ENTITY_ASSERTS) a.fn(e, dt, owns, state);
       const fn = RULES[e.rule.type];
-      if (fn && !owned) fn(e, input, dt, world);
+      if (fn && !owned) fn(e, ein, dt, world);
       else for (const s of SUPPRESSED_TICKS) s.fn(e, dt);
-      for (const a of ENTITY_ACTIONS) a.fn(e, input, dt, state, world, owns);
+      for (const a of ENTITY_ACTIONS) a.fn(e, ein, dt, state, world, owns);
     }
     for (const w of WORLD_PASSES) w.fn(state, input, dt, world, hooks);
     if (state.camera) {
@@ -482,6 +491,27 @@ export function buildCore(E) {
     state.time += dt;
     return state;
   }
+
+  // A SEATED body (spec.seats: seats 2 to 4) reads its own seat's snapshot; every other body the frame's input. `seated` is
+  // what a rule's "is this input mine" test adds for them; a seat with no player this frame has its body's rule set by the
+  // world's drop (the 'seats' pre-step below). Without seats both read as nothing.
+  const seated = (state, e) => !!(state.seatOf && state.seatOf[e.id]);
+  const seatInput = (state, e, input) => (state.seatOf && state.seatOf[e.id] ? readInput(input.seats && input.seats[state.seatOf[e.id]]) : input);
+  // the seated pilots, seat 1's first: who the AI hunts and who the camera frames
+  const pilotsOf = (world) => {
+    const out = world.pilotId && world.byId[world.pilotId] ? [world.byId[world.pilotId]] : [];
+    if (world.seatOf) for (const id in world.seatOf) if (world.byId[id]) out.push(world.byId[id]);
+    return out;
+  };
+  registerPreStep('seats', (state, input) => {
+    if (!state.seatOf) return;
+    for (const id in state.seatOf) {
+      const e = state.byId[id];
+      if (!e) continue;
+      const here = !!(input.seats && input.seats[state.seatOf[id]]);
+      e.rule = here || state.seatDrop === 'pause' ? e.pilotRule : e.ambientRule;
+    }
+  }, 25);
 
   // SUIT SWITCHER: `input.swap` (T press edge) transfers the pilot to the next pilotable
   // entity. The vacated suit drops to its ambient rule where it stands (volatile pilot state
@@ -541,7 +571,7 @@ export function buildCore(E) {
     resolveBlocking, resolveBlocking3D, segAabbT, sightBlocked, nearestWallT, normalizeColliders, eggRadius,
     stepBodyCollisions, stepCarry,
     registerNormalize, registerStateInit, runNormalizers, runStateInits,
-    ZERO_INPUT, readInput, stepWorld, pipelineOrder, normalizeEntity, createWorld,
+    ZERO_INPUT, readInput, stepWorld, pipelineOrder, normalizeEntity, createWorld, seated, seatInput, pilotsOf,
     registerPreStep, registerEntityTimer, registerBodyOwner, registerEntityAssert,
     registerSuppressedTick, registerEntityAction, registerWorldPass,
   });

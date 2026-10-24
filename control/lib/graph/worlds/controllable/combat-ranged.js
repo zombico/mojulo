@@ -635,7 +635,7 @@ export function buildCombatRanged(E) {
   // can't fire (control is suppressed mid-air), so its spawn guard can't break until it lands.
   E.registerEntityAction('weapon', (e, input, dt, state, world, owns) => {
     const suppressed = owns.reaction || owns.drop || owns.clash || owns.cine;
-    const firesForPilot = !e.pilotable || state.pilotId === e.id;
+    const firesForPilot = !e.pilotable || state.pilotId === e.id || E.seated(state, e);
     if (e.weapon && !suppressed && e.rule && e.rule.type === 'ai') stepWeapon(e, { fire: e.aiFire ? 1 : 0 }, dt, state);
     else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, input, dt, state);   // a tackle owns the body — no firing mid-charge
   }, 10);
@@ -701,7 +701,7 @@ export function buildCombatRanged(E) {
   }
   E.registerEntityAction('missiles', (e, input, dt, state, world, owns) => {
     if (!(e.rule && e.rule.missiles) || owns.reaction || owns.drop || owns.cine) return;
-    const firesForPilot = !e.pilotable || state.pilotId === e.id;
+    const firesForPilot = !e.pilotable || state.pilotId === e.id || E.seated(state, e);
     stepMissiles(e, e.rule.type === 'ai' ? {} : firesForPilot ? input : {}, dt, state);
   }, 11);
   // a body owner (reaction / drop / clash / cine) interrupts a held weapon charge.

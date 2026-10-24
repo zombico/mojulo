@@ -217,6 +217,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // seats kernel beside the controls kernel, the second keyboard's override is gone, and `rawInput` reads each player's
 // seat (a controller each, polled from menuInput); the arena client's pause is the seat's that opened it.
 
+// Re-pinned 2026-10-24 (pilots, phase 1: the sim seats): the runtime the page embeds reads `spec.seats` (absent here) into
+// `seatOf`, hands each body its own seat's input through `seatInput`, and the rules' "is this input mine" tests and the
+// mind's target add a seated body (`seated`, `nearestPilot`); a 'seats' pre-step. On the `controllable` fixture 15 lines
+// are replaced by their seat-aware forms and 56 added; every fixture that embeds the runtime re-pinned with it. A world
+// without seats steps as before (worlds/controllable/seats.test.js, and every sim suite unchanged).
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

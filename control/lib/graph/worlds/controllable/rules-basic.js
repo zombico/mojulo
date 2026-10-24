@@ -477,7 +477,7 @@ export function buildRulesBasic(E) {
     e._climbCool = Math.max(0, (e._climbCool || 0) - dt);
     // a hit, a drop or a dormant body lets go
     if (e.staggerT != null || e.dropping || e.dormant || e.downed) { e.climbing = null; return false; }
-    const me = !state.pilotId || state.pilotId === e.id, inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0 };
+    const me = !state.pilotId || state.pilotId === e.id || E.seated(state, e), inp = me ? input : { forward: 0, strafe: 0, turn: 0, jump: 0 };
     const eye = e.rule.eye ?? 0, t = e.transform;
     if (!e.climbing) {
       if (e._climbCool > 0) return false;

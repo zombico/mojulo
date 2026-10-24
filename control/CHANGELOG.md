@@ -59,6 +59,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   on one keyboard is gone**: the keyboard is one controller, so player two takes a pad (the arrows now move the
   keyboard's own player). The registry says so: two and four seats and drop-in joining are partial, the versus fighter
   only.
+- **The action runtime takes a seat per body** (the first step of a pilot per seat). A world's `seats: { bodies, drop? }`
+  names the bodies seats 2 to 4 take; each runs its pilot rule on its own seat's input (`input.seats[n]`), and a seat with
+  no player leaves its body to its AI (`drop: 'ai'`) or holds it (`'pause'`). The AI hunts the nearest seated pilot. A
+  world without seats steps as it did; nothing lays seats yet (the camera, the page and the lowering come next).
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
