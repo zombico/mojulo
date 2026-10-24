@@ -23,8 +23,13 @@ and leant as the form holds its leaves; far, the lobes' cores alone carry the tr
 
 - **The forms**: `spray` (lobes strung along twigs, the leaves fanned along them), `plate` (flat level discs in tiers
   round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
-  `whorl` (a ring of level spokes round each limb's end). Built and seen in a gallery only
-  (`scripts/spikes/geotown/leaf-forms.mjs`); no stage grows them yet.
+  `whorl` (a ring of level spokes round each limb's end); the gallery is `scripts/spikes/geotown/leaf-forms.mjs`.
+- **A level's trees are its species.** A biocube's `flora.trees.species` lists them (1 to 6): a species (`oak` a
+  spray, `beech` plates, `willow` weeps, `pine` tufts, `schefflera` whorls; `LEAF_SPECIES`) or a form by name. Each
+  clump is one of them, by its dice; a cube carries the species it wants in its own biocube. On a gritty land each
+  tree grows its species' crown: a hero whole, the stock stamped from a template for each species and variant, a far
+  tree its cores coarse and no twigs. A quiet land keeps the balls, and a level that names no species is as it was.
+  The level side by side: `scripts/spikes/geotown/species.mjs`.
 
 ### Faster gritty builds, and the tests that build them
 

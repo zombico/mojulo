@@ -62,6 +62,7 @@ import { screeKey } from './scree-tiles.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
 import { leafChips, CHIP_DEFAULTS } from './leaf-chips.js';
+import { LEAF_FORMS, leafFormOf, leafForm, lobeTris, formChips, withinLobe } from './leaf-forms.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -398,7 +399,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   // the trees BANDED by the trail (a card's `trees.bands`, treeBands): the hero near built whole, the stock past it
   // stamped from templates (built off the map, through everything below, then lifted out), the far a shell
-  const TB = !bamboo && !sak && !st.glow ? treeBands(st, site, trees) : null;
+  const TB = !bamboo && !sak && !st.glow ? treeBands(st, site, trees, broken) : null;
   const wood = bamboo || sak ? [] : treeFaces(st, site, TB ? [...TB.built, ...TB.phantoms] : trees, broken);
   // IKEBANA (a card's `ikebana`, ikebana-place.js): arrangements painted along the banks, standing on the land; what
   // the grass keeps clear of is the trees and every blocking stem
@@ -565,11 +566,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     const C = st.trees.crown, ramp = st.palette[st.lock[st.trees.form === 'blossom' ? 'isekai:blossom' : 'isekai:crown']] ?? st.palette.foliage, hexOf = (c) => rgbHex(c.map((v) => v / 255));
     const dark = hexOf(ramp[0]), lite = hexOf(ramp[Math.min(1, ramp.length - 1)]);
     for (const { tint: _t, ...f } of coreG) { const c = mean(f.corners); cel.push({ ...f, fill: dot(f.normal, dir) > 0.15 && shadow(addv(c, mul(f.normal, 0.05)), f.normal) > 0.5 ? lite : dark }); }
-    const crowned = (TB ? [...TB.built, ...TB.phantoms] : trees).filter((t) => t.masses), cores = crowned.flatMap((t) => t.masses.map((m) => ({ ...m, t })));
-    const buried = (p, t) => cores.some((m) => Math.abs(m.at[0] - p[0]) < m.r && Math.abs(m.at[1] - p[1]) < m.r && Math.hypot((p[0] - m.at[0]) / m.r, (p[1] - m.at[1]) / m.r, (p[2] - m.at[2]) / (m.r * C.squash)) < CHIP_DEFAULTS.shrink * CHIP_BURIED);
+    const crowned = (TB ? [...TB.built, ...TB.phantoms] : trees).filter((t) => t.masses || t.lobes), cores = crowned.flatMap((t) => (t.lobes ? [] : t.masses.map((m) => ({ ...m, t }))));
+    // (a species' lobes, era/leaf-forms.js: buried in a lobe of another tree by the same share of the lobe as a ball's)
+    const lobes = crowned.flatMap((t) => (t.lobes ? t.lobes.map((L) => ({ L, t, r: Math.max(...L.axes) })) : []));
+    const buried = (p, t) => cores.some((m) => Math.abs(m.at[0] - p[0]) < m.r && Math.abs(m.at[1] - p[1]) < m.r && Math.hypot((p[0] - m.at[0]) / m.r, (p[1] - m.at[1]) / m.r, (p[2] - m.at[2]) / (m.r * C.squash)) < CHIP_DEFAULTS.shrink * CHIP_BURIED)
+      || (lobes.length > 0 && lobes.some((q) => q.t !== t && Math.abs(q.L.at[0] - p[0]) < q.r && Math.abs(q.L.at[1] - p[1]) < q.r && withinLobe(p, q.L, CHIP_DEFAULTS.shrink * CHIP_BURIED)));
     for (const t of crowned) {
       if (t.band === 'far') continue;
-      for (const f of leafChips(t.masses, { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp, seed: Math.round(t.x * 17 + t.y * 5) })) if (!buried(mean(f.corners), t)) cel.push(f);
+      const opts = { crown: { c: t.crownAt, Rc: t.crownR, squash: C.squash }, toSun: dir, shadow, ramp, seed: Math.round(t.x * 17 + t.y * 5) };
+      const chips = t.lobes ? formChips(t.lobes, { ...opts, grain: LEAF_FORMS[t.form].grain, lean: LEAF_FORMS[t.form].lean }) : leafChips(t.masses, opts);
+      for (const f of chips) if (!buried(mean(f.corners), t)) cel.push(f);
     }
   }
   // LEAF CARDS (the material pole, a canopy): crossed cutout cards stood out of each crown mass, stamped with the look's
@@ -1271,16 +1277,21 @@ function lumpBushes(faces, bushes, grit) {
  * phantoms (the templates' trees), isPhantom(face), repeats(templateFaces, sunAt) } | null without bands.
  */
 export const TREE_BANDS = Object.freeze({ hero: 6, far: 15, stock: 3, shade: 0.62, off: -4000, gap: 80 });
-function treeBands(st, site, trees) {
+// a tree's species on a gritty land (the biocube's `species`, era/leaf-forms.js): each clump one of them, by its dice;
+// null where the land is quiet or the level names none (its crown the balls)
+const treeLeaf = (T, t, grit) => (!grit || !T.leaves ? null : t.leaf ?? T.leaves[Math.floor(hash3(t.cluster ?? 0, 13, 4127) * T.leaves.length)]);
+function treeBands(st, site, trees, grit = 0) {
   const T = st.trees, B0 = T.bands;
   if (!B0) return null;
   const B = { ...TREE_BANDS, ...(B0 === true ? {} : B0) }, h0 = (T.heights[0] + T.heights[1]) / 2;
   for (const t of trees) { const d = site.trailDist(t.x, t.y) - site.halfWAt(t.y); t.band = t.hero || d < B.hero ? 'hero' : d > B.far ? 'far' : 'stock'; }
   const stock = trees.filter((t) => t.band === 'stock'), built = trees.filter((t) => t.band !== 'stock');
-  const n = Math.min(B.stock, T.variants ?? B.stock), phantoms = Array.from({ length: n }, (_, v) => ({ x: B.off - B.gap * v, y: B.off, z0: 0, h: h0, v, cluster: -2, band: 'stock' }));
+  // (a gritty land's species, treeLeaf: a template for each species and variant, so a stamped tree keeps its species)
+  const n = Math.min(B.stock, T.variants ?? B.stock), kinds = grit && T.leaves ? T.leaves : [null];
+  const phantoms = kinds.flatMap((leaf, si) => Array.from({ length: n }, (_, v) => ({ x: B.off - B.gap * (si * n + v), y: B.off, z0: 0, h: h0, v, cluster: -2, band: 'stock', ...(leaf ? { leaf } : {}) })));
   const isPhantom = (f) => f.corners[0][0] < B.off / 2;
   const repeats = (faces, sunAt) => phantoms.map((ph, v) => {
-    const mine = stock.filter((t) => t.v % n === v);
+    const mine = stock.filter((t) => t.v % n === ph.v && (!ph.leaf || treeLeaf(T, t, grit) === ph.leaf));
     if (!mine.length) return null;
     const template = faces.filter((f) => Math.round((B.off - f.corners[0][0]) / B.gap) === v).map((f) => ({ ...f, corners: f.corners.map((c) => [r5(c[0] - ph.x), r5(c[1] - ph.y), c[2]]) }));
     return { template, group: `isekai:trees:${v}`, transforms: mine.map((t) => {
@@ -1301,6 +1312,29 @@ function treeFaces(st, site, trees, grit = 0) {
     const tip = blossom ? Math.tan(((C.lean || 0) * Math.PI) / 180) * h * mix(0.4, 1, hash3(k, 7, 983)) : 0, ta = 2 * Math.PI * hash3(k, 8, 991);
     if (tip) { c[0] += Math.cos(ta) * tip; c[1] += Math.sin(ta) * tip; }
     const bend = [(hash3(k, 3, 947) - 0.5) * 0.08 * h + Math.cos(ta) * tip * 0.5, (hash3(k, 4, 953) - 0.5) * 0.08 * h + Math.sin(ta) * tip * 0.5];
+    // (a gritty land's species, era/leaf-forms.js: its trunk to the fork, its limbs throwing leaf branches, each ending
+    // in a lobe its form shapes; the lobes the dark core, hollowed, their chips once the sun is known; far, the cores
+    // coarse and no twigs)
+    const leaf = treeLeaf(T, t, grit);
+    if (leaf) {
+      const fork = [c[0], c[1], c[2] - 0.45 * Rc], far = t.band === 'far', form = leafFormOf(leaf);
+      const stem = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (fork[0] - t.x) * f, t.y + bend[1] * f * f + (fork[1] - t.y) * f, z0 + (fork[2] - z0) * f]);
+      tube(out, stem, [C.trunk * h, C.trunk * h * 0.85, C.trunk * h * 0.72, C.trunk * h * 0.62], 6, st.tint.wood, 'isekai:wood');
+      const G = leafForm(form, { base: [t.x, t.y, z0], h, c, Rc, seed: k });
+      for (const l of G.limbs) tube(out, l.pts, l.radii, 5, st.tint.wood, 'isekai:wood');
+      if (!far) for (const tw of G.twigs) tube(out, tw.pts, tw.radii, 4, st.tint.wood, 'isekai:wood');
+      t.crownAt = c.map(r5); t.crownR = r5(Rc); t.lobes = G.lobes; t.form = form;
+      for (const L of G.lobes) {
+        const lobe = { at: L.at, r: Math.max(...L.axes) * CHIP_DEFAULTS.shrink, tris: [], id: lobesAll.length };
+        lobesAll.push(lobe);
+        for (const cs of lobeTris(L, { detail: far ? 0 : 1, shrink: CHIP_DEFAULTS.shrink })) {
+          const nn = facetN(cs, sub(mean(cs), L.at));
+          lobe.tris.push(cs);
+          out.push({ corners: cs, normal: nn, outNormal: nn, tint: crownTint, group: CORE_GROUP, _lobe: lobe.id });
+        }
+      }
+      return;
+    }
     const trunk = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (c[0] - t.x) * f, t.y + bend[1] * f * f + (c[1] - t.y) * f, z0 + (c[2] - z0) * f]);
     tube(out, trunk, [C.trunk * h, C.trunk * h * 0.8, C.trunk * h * 0.62, C.trunk * h * 0.5], 6, st.tint.wood, 'isekai:wood');
     const Ms = t.hero ? st.trees.hero.masses : C.masses, n = Ms[0] + Math.floor(hash3(k, 5, 957) * (Ms[1] - Ms[0] + 1)), yaw = 2 * Math.PI * hash3(k, 6, 959);

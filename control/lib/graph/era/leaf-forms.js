@@ -6,6 +6,11 @@
  * leant as the form holds its leaves. Far, the lobes' cores alone carry the tree: its silhouette the branches' own.
  *
  *   LEAF_FORMS                       the forms: spray, plate, weep, tuft, whorl
+ *   LEAF_SPECIES                     a species' form (oak a spray, beech plates, willow weeps, pine tufts, schefflera
+ *                                      whorls): what a biocube names (`flora.trees.species`), a species or a form
+ *   leafFormOf(name)                 → the form a species or form name grows, or null
+ *   lobeTris(lobe, { detail, shrink }) → the lobe's skin as triangles (a core's facets)
+ *   withinLobe(p, lobe, s)           → whether p lies inside the lobe scaled by s
  *   leafForm(form, tree)             → { limbs: [{ pts, radii }], twigs: [{ pts, radii }], lobes: [lobe] }, a lobe
  *                                      { at, axes: [a, b, c] (metres along u, v, w), frame: [u, v, w], long (unit) }
  *                                      tree: { base: [x, y, z], h, c (the crown's middle), Rc (its radius), seed }
@@ -58,6 +63,8 @@ export const LEAF_FORMS = Object.freeze({
   whorl: Object.freeze({ limbs: [4, 5], rise: [38, 55], reach: 0.8, at: [1], grain: 0.9, lean: [0, 0, 0.2] }),
 });
 export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
+export const LEAF_SPECIES = Object.freeze({ oak: 'spray', beech: 'plate', willow: 'weep', pine: 'tuft', schefflera: 'whorl' });
+export const leafFormOf = (name) => (LEAF_FORMS[name] ? name : LEAF_SPECIES[name] ?? null);
 
 /** The leaf branches and their lobes for one leaf branch of each form, from where it leaves (`p`), its limb's
  *  heading (`dir`, `az`), its place along the limb (`f`), its index (`j`) and the crown's radius. */
@@ -126,10 +133,13 @@ export function leafForm(form, { base, h, c, Rc, seed = 1 }) {
 const onLobe = (L, d, s = 1) => add(L.at, add(add(mul(L.frame[0], d[0] * L.axes[0] * s), mul(L.frame[1], d[1] * L.axes[1] * s)), mul(L.frame[2], d[2] * L.axes[2] * s)));
 const normalOn = (L, d) => unit(add(add(mul(L.frame[0], d[0] / L.axes[0]), mul(L.frame[1], d[1] / L.axes[1])), mul(L.frame[2], d[2] / L.axes[2])));
 // inside a lobe scaled by `s`: its local coordinates within the unit ball
+export const withinLobe = (p, L, s) => within(p, L, s);
 const within = (p, L, s) => { const q = sub(p, L.at), x = dot(q, L.frame[0]) / L.axes[0], y = dot(q, L.frame[1]) / L.axes[1], z = dot(q, L.frame[2]) / L.axes[2]; return x * x + y * y + z * z < s * s; };
 // an ellipsoid's area (Knud Thomsen's): the chips a lobe takes go by it, as a ball's by its radius squared
 const areaOf = ([a, b, c]) => 4 * Math.PI * (((a * b) ** 1.6 + (a * c) ** 1.6 + (b * c) ** 1.6) / 3) ** (1 / 1.6);
 
+/** A lobe's skin as triangles, scaled by `shrink`: a core's facets. */
+export const lobeTris = (L, { detail = 1, shrink = 1 } = {}) => blobTris([0, 0, 0], [1, 1, 1], null, { detail }).map((tri) => tri.p.map((d) => P(onLobe(L, d, shrink))));
 /** The lobes as the crown's dark cores, with what hollowed needs of each. */
 export function formCore(lobes, opts) {
   const o = { ...CHIP_DEFAULTS, ...opts }, dark = hexOf(o.ramp[0]), lit = hexOf(o.ramp[Math.min(1, o.ramp.length - 1)]), faces = [], hollow = [];

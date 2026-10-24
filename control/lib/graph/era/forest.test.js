@@ -8,6 +8,8 @@ import { readBiocube, withFlora, BIOCUBE_IDS } from './biocube.js';
 import { outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
+import { LEAF_SPECIES, LEAF_FORMS } from './leaf-forms.js';
+import { readGeocube } from './geocube.js';
 
 const lobe = (at, r, id) => {
   const tris = blobTris(at, [r, r, r], null, { detail: 0 }).map((t) => t.p);
@@ -81,4 +83,33 @@ describe('a forest\'s clumps and bands', () => {
     // (a forest's clumps scattered again: compose false)
     expect(readBiocube({ from: 'forest', flora: { trees: { compose: false } } }).flora.trees.compose).toBe(false);
   });
+});
+
+describe('a forest grown as its species (leaf-forms.js)', () => {
+  const species = ['oak', 'willow'], M = { kind: 'stage', kit: 'isekai-meadow', trail: {}, biocube: { from: 'forest', flora: { trees: { species } } } };
+  const site = outTrailSite(withFlora(ISEKAI_STYLES['isekai-meadow'], readBiocube('forest')), {}, 1);
+
+  it('grows each clump one species on a gritty land: a template for each species and variant, its crown lobes and chips', () => {
+    const P = assembleStageScene({ ...M, shading: { grit: 0.7 } }, {});
+    expect(P.repeats.length).toBe(species.length * TREE_BANDS.stock);
+    // (every stock tree stamped once, from a template of its own species)
+    const trees = treeItems(withFlora(ISEKAI_STYLES['isekai-meadow'], readBiocube(M.biocube)), site, 1), d = (t) => site.trailDist(t.x, t.y) - site.halfWAt(t.y);
+    expect(P.repeats.reduce((a, r) => a + r.transforms.length, 0)).toBe(trees.filter((t) => !t.hero && d(t) >= TREE_BANDS.hero && d(t) <= TREE_BANDS.far).length);
+    expect(P.repeats.every((r) => r.template.some((f) => f.group === 'isekai:chips') && r.template.some((f) => f.group === 'isekai:core'))).toBe(true);
+    // (a willow's lobes hang: some core long and upright in the level, as no ball is)
+    const tall = (f) => Math.abs(f.normal[2]) < 0.2;
+    expect(P.faces.filter((f) => f.group === 'isekai:core').some(tall)).toBe(true);
+  }, 90000);
+
+  it('a quiet land keeps the balls; it reads its species by name and refuses what is not one', () => {
+    const quiet = { ...M, shading: true }, plain = { ...quiet, biocube: 'forest' };
+    expect(JSON.stringify(assembleStageScene(quiet, {}))).toBe(JSON.stringify(assembleStageScene(plain, {})));
+    expect(readBiocube(M.biocube).flora.trees.species).toEqual(species);
+    expect(Object.values(LEAF_SPECIES).every((f) => LEAF_FORMS[f])).toBe(true);
+    expect(readBiocube({ from: 'forest', flora: { trees: { species: ['plate', 'pine'] } } }).flora.trees.species).toEqual(['plate', 'pine']);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { species: ['baobab'] } } })).toThrow(/oak, beech, willow, pine, schefflera/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { species: ['oak', 'oak'] } } })).toThrow(/none twice/);
+    // (a cube carries the species it wants in its own biocube)
+    expect(readGeocube({ from: 'limestone-crags', biocube: { from: 'forest', flora: { trees: { species: ['beech', 'pine'] } } } }).biocube.flora.trees.species).toEqual(['beech', 'pine']);
+  }, 90000);
 });

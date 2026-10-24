@@ -9,7 +9,10 @@
  *                  round each; `crown` the masses' shape, era/style/isekai-meadow.js; `hero` the one big tree or null).
  *                  The tree's form (a blob's masses, bamboo, blossom) stays the kit's. `compose: 'ikebana'` arranges each
  *                  clump (nature.js arrangedClump); `bands` (true or { hero, far, stock }) builds a tree by how far it
- *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far
+ *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far.
+ *                  `species` (a list of species or leaf forms, era/leaf-forms.js LEAF_SPECIES) is what the level's
+ *                  trees are: each clump one of them, its crown grown as that species' leaf branches on a gritty land
+ *                  (a quiet land keeps the balls)
  *   flora.grass    { clusters, perCluster, spacing, scatter, fringeEvery, height: [lo, hi] m, kinds?, field? } | null
  *                  the card's `grass` (nature.js grassTufts: `clusters` tussock groups of `perCluster` tufts `spacing`
  *                  m apart, `scatter` a loose share, a tuft every `fringeEvery` m along the trail's fringe; `kinds` the
@@ -30,6 +33,7 @@
 import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { validateShrubs } from './shrubs.js';
+import { LEAF_FORM_IDS, LEAF_SPECIES, leafFormOf } from './leaf-forms.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -73,7 +77,10 @@ const keys = (o, ok, at) => { for (const k of Object.keys(o)) if (!ok.includes(k
 
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
-  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands'], 'flora.trees');
+  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'species'], 'flora.trees');
+  if (t.species !== undefined && !(Array.isArray(t.species) && t.species.length >= 1 && t.species.length <= 6 && t.species.every((n) => leafFormOf(n)) && new Set(t.species).size === t.species.length)) {
+    no(`flora.trees.species is a list of 1 to 6 species (${Object.keys(LEAF_SPECIES).join(', ')}) or leaf forms (${LEAF_FORM_IDS.join(', ')}), none twice`);
+  }
   if (t.compose !== undefined && t.compose !== 'ikebana' && t.compose !== false) no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump) or false (scattered)");
   if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
     if (!isObj(t.bands)) no('flora.trees.bands is true or { hero?, far?, stock? } (era/isekai.js treeBands)');
@@ -152,8 +159,9 @@ export function readBiocube(spec) {
 
 /** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none). */
 export function withFlora(card, cube) {
-  const F = cube.flora, T = F.trees, G = F.grass;
-  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}) };
+  const F = cube.flora, { species, ...T } = F.trees, G = F.grass;
+  // (the cube's species go to the card as its trees' `leaves`: a nature card's own `species` names its plant pool)
+  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(species ? { leaves: species } : {}) };
   if (T.hero === null) trees.hero = null;
   const { live: GL, ...G0 } = G ?? {};
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
