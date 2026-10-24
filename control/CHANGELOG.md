@@ -35,6 +35,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   faces stay. The muscles' beads carry the face. The lids turn about the globe's centre as far as the eye rig's own
   margins moved: a blink shuts them over the globe, a raised brow lifts the upper lid, a smile's squint the lower. The
   hair, the brows, the lashes, the beard and the piercings ride the skin (pinned to its faces).
+- A PIPE, NOT A SET OF HEADS: rolled faces no eye has seen (both poles, populations the composer reads differently)
+  each pass the machine gates unattended (hero-one-skin.deep.test.js). The skin, the mouth and the globes are sound,
+  the rim lies on the seam ring, the lips are doubled along the cut, the budget is held, and the head has two open rims
+  and no others. The sweep found what the hand-picked faces hid, now fixed. A rim the net's pinches left touching
+  itself (at the nostrils, the canthi, the sockets) was traced wrong, so its hole stayed open or its fan laid a third
+  face on an edge; it is split into simple loops now (skin-net.js `boundaryLoops`). Crossings near the mouth's
+  corners landed on one spot (welded now). A collapse could leave a face flat against the seam ring's straight front
+  (refused now).
+- The face roll's hairline is held to the skin's own range (face-compose.js): the male band reached under the dermis's
+  0.8, and a face rolled there was refused at mint. The dice are drawn as before, so every other face is as it was.
 - Still open: the shut lid's fold creases where the upper lid's crease folds under itself, and the hair's per-target
   budget is unchanged.
 

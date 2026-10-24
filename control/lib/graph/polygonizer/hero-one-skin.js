@@ -182,6 +182,19 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
     }
   }
   F = split;
+  // (two points on the line within `weld` of each other are one: near the corners crossings of neighbouring edges land
+  // on one spot, and the faces between them would have no area)
+  const same = new Map(), grid = new Map(), gk = (p) => p.map((x) => Math.floor(x / C.weld)).join();
+  for (const v of cut) {
+    let hit = -1;
+    const g = V[v].map((x) => Math.floor(x / C.weld));
+    for (let a = -1; a <= 1 && hit < 0; a++) for (let b = -1; b <= 1 && hit < 0; b++) for (let c = -1; c <= 1 && hit < 0; c++) for (const w of grid.get(`${g[0] + a},${g[1] + b},${g[2] + c}`) || []) if (Math.hypot(V[v][0] - V[w][0], V[v][1] - V[w][1], V[v][2] - V[w][2]) < C.weld) { hit = w; break; }
+    if (hit >= 0) same.set(v, hit); else { const k = gk(V[v]); (grid.get(k) || grid.set(k, []).get(k)).push(v); }
+  }
+  if (same.size) {
+    F = F.map((t) => t.map((v) => same.get(v) ?? v)).filter((t) => t[0] !== t[1] && t[1] !== t[2] && t[0] !== t[2]);
+    for (let i = cut.length - 1; i >= 0; i--) if (same.has(cut[i])) cut.splice(i, 1);
+  }
   const cutSet = new Set(cut), lower = new Map(); for (const v of cut) { lower.set(v, V.length); V.push(V[v].slice()); }
   // (a face touching the line is the lower lip's by its own corners' side of it)
   F = F.map((t) => { if (!t.some((v) => cutSet.has(v))) return t; const c = t.reduce((sum, v) => sum + cOf[v], 0); return c < 0 ? t.map((v) => lower.get(v) ?? v) : t; });

@@ -669,7 +669,9 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
   proportions.nose = Math.round(nose * 100) / 100;
   // the hairline and the hair's loss, last of all
   const H = FACE_HAIRLINE, mid = ([lo, hi]) => lo + ((d() + d()) / 2) * (hi - lo), r1 = (v) => Math.round(v * 10) / 10;
-  const hair = { hairline: Math.round(mid(H.hairline[sex]) * 1000) / 1000, round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
+  // (the hairline held to the skin's own range, 0.8 at the least: the male band reaches under it, and a roll there was
+  // refused by the dermis; the dice drawn as before, so every other face is as it was)
+  const hair = { hairline: Math.max(0.8, Math.round(mid(H.hairline[sex]) * 1000) / 1000), round: Math.round(mid(H.round) * 100) / 100, temples: r1(mid(H.temples[sex])), sideburn: r1(mid(H.sideburn)), nape: r1(mid(H.nape)) };
   let scalpHint = null;
   if (d() < H.peak.chance[sex]) { hair.peak = r1(mid(H.peak.mm[sex])); scalpHint = sex === 'female' ? H.peak.scalp : null; } else d();
   const BL = H.bald[sex], hasLoss = d() < BL.chance * (B.bald ?? 1), loss = BL.amount[0] + d() * (BL.amount[1] - BL.amount[0]);

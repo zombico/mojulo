@@ -16,8 +16,8 @@
  *        its faces), never across a locked point (a rim, a cut), never turning a face past `turn` (its normal's cosine
  *        with the old), never pinching the surface (the link condition), never where `accept(a, b, p)` says no → { V, F,
  *        of } (`of[i]`: the kept point an input point became).
- *   boundaryLoops(F), closeHoles(V, F, field), untangle(V, F, …)   a mesh's open rims; its small holes fanned shut; the
- *        faces a moved rim folded, relaxed back.
+ *   boundaryLoops(F), closeHoles(V, F, field), untangle(V, F, …)   a mesh's open rims; its small holes fanned shut (a
+ *        clean rim's only); the faces a moved rim folded, relaxed back.
  *   fieldNormals(V, field, eps)   the field's gradient at each point, unit.
  *
  * Pure and deterministic: fixed loops, ties broken by index; no dice, no clock.
@@ -240,7 +240,8 @@ export function simplifyMesh(V0, F0, { target, locked = null, weight = null, tur
       if (!alive[fi] || F[fi].includes(a) && F[fi].includes(b)) continue;
       const t = F[fi], n0 = normal(V, t), t1 = t.map((u) => (u === a || u === b ? -1 : u)), P = t1.map((u, k) => (u === -1 ? p : V[t[k]]));
       const n1 = cross(sub(P[1], P[0]), sub(P[2], P[0])), l0 = Math.hypot(...n0), l1 = Math.hypot(...n1);
-      if (!(l1 > 1e-14) || dot(n0, n1) < turn * l0 * l1) { ok = false; break; }
+      // (nor left nearly flat beside what it was: a collapse onto a point in line with two others)
+      if (!(l1 > 1e-14) || l1 < 0.02 * l0 || dot(n0, n1) < turn * l0 * l1) { ok = false; break; }
     }
     if (!ok) continue;
     // collapse b into a
@@ -273,17 +274,26 @@ export function fieldNormals(V, field, eps = 1e-4) {
 }
 
 /** The mesh's open rims as loops of points, each run against its faces (a rim edge a face runs u → w, the loop runs
- * w → u). Longest first, ties by their least point. */
+ * w → u). A rim that touches itself (a point on it twice, where a pinch was let go) is split there into simple loops.
+ * Longest first, ties by their least point. */
 export function boundaryLoops(F) {
   const uses = new Map(); for (const t of F) for (let a = 0; a < 3; a++) { const k = ek(t[a], t[(a + 1) % 3]); uses.set(k, (uses.get(k) || 0) + 1); }
-  const next = new Map();
-  for (const t of F) for (let a = 0; a < 3; a++) { const u = t[a], w = t[(a + 1) % 3]; if (uses.get(ek(u, w)) === 1) next.set(w, u); }
-  const loops = [], done = new Set();
-  for (const s of [...next.keys()].sort((a, b) => a - b)) {
-    if (done.has(s)) continue;
-    const loop = []; let v = s;
-    while (v !== undefined && !done.has(v)) { done.add(v); loop.push(v); v = next.get(v); }
-    if (loop.length > 2) loops.push(loop);
+  const out = new Map();
+  for (const t of F) for (let a = 0; a < 3; a++) { const u = t[a], w = t[(a + 1) % 3]; if (uses.get(ek(u, w)) === 1) (out.get(w) || out.set(w, []).get(w)).push(u); }
+  for (const l of out.values()) l.sort((x, y) => x - y);
+  const loops = [];
+  for (const s0 of [...out.keys()].sort((x, y) => x - y)) {
+    while (out.get(s0)?.length) {
+      // a closed walk from s0 along unused rim edges, cut into simple loops wherever it comes back to a point on it
+      const walk = [s0], at = new Map([[s0, 0]]);
+      let v = s0;
+      for (;;) {
+        const nx = out.get(v); if (!nx?.length) break;
+        const w = nx.shift();
+        if (at.has(w)) { const i = at.get(w), loop = walk.splice(i + 1); loop.unshift(w); for (const x of loop.slice(1)) at.delete(x); if (loop.length > 2) loops.push(loop); if (w === s0 && walk.length === 1) break; v = w; continue; }
+        at.set(w, walk.length); walk.push(w); v = w;
+      }
+    }
   }
   return loops.sort((a, b) => b.length - a.length || Math.min(...a) - Math.min(...b));
 }
@@ -291,9 +301,13 @@ export function boundaryLoops(F) {
 /** Each open rim of `F` but those `keep(loop)` names closed by a fan about a new point at its middle, set onto the
  * surface by `field` (a net's pinch let go leaves a hole a few cells across). → { V, F } (V extended, F with the fans). */
 export function closeHoles(V0, F0, field, { keep = () => false, project = 3 } = {}) {
-  const V = V0.map((p) => p), F = F0.map((t) => t);
+  const V = V0.map((p) => p), F = F0.map((t) => t), uses = new Map();
+  for (const t of F0) for (let a = 0; a < 3; a++) { const k = ek(t[a], t[(a + 1) % 3]); uses.set(k, (uses.get(k) || 0) + 1); }
   for (const loop of boundaryLoops(F0)) {
     if (keep(loop)) continue;
+    // (only a clean loop: each of its edges a rim edge, no point twice; a rim that touches itself is traced wrong, and
+    // its fan would lay a third face on an edge)
+    if (new Set(loop).size !== loop.length || loop.some((v, i) => uses.get(ek(v, loop[(i + 1) % loop.length])) !== 1)) continue;
     let c = [0, 1, 2].map((k) => loop.reduce((s, v) => s + V[v][k], 0) / loop.length);
     for (let it = 0; it < project; it++) {
       const f = field(P3(c[0], c[1], c[2])), g = grad(field, c[0], c[1], c[2], 1e-5), g2 = g[0] * g[0] + g[1] * g[1] + g[2] * g[2];
