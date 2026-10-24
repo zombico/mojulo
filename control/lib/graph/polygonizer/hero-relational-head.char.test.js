@@ -42,6 +42,9 @@
  * - 2026-10-24, the lids' crease (the operator: the blink's fold): the skin netted at 1 mm (the upper lid's fold is
  *   thinner than 1.5 mm and pinched ragged), the rim's untangle read only about the seam ring (it had smoothed the
  *   nostrils and the sockets). The one skin's two poles; the pieces as pinned.
+ * - 2026-10-24, the cervical neck (realistic laws 3, the operator: the head read too far forward on its neck): the neck's
+ *   column leaning up into the skull moves the seam ring the skin is cut on. The one skin is pinned under laws 2 as it
+ *   was, byte for byte, and under laws 3 beside it.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -53,6 +56,8 @@ const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
 // the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
 const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
 const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
+// the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
+const NECK_PINS = { male: '459d30a9fc5f3008', female: '23a186409b0578cd' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
@@ -62,6 +67,10 @@ describe('the relational head, pinned', () => {
     expect(pinOf(r, PARTS)).toBe(pin);
   });
   for (const [cast, pin] of Object.entries(ONE_PINS)) it(`${cast}, one skin`, { timeout: 240000 }, () => {
+    const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational', physique: { from: 'athletic', laws: 2 } }) }).recipe;
+    expect(pinOf(r, ONE_PARTS)).toBe(pin);
+  });
+  for (const [cast, pin] of Object.entries(NECK_PINS)) it(`${cast}, one skin on the cervical neck`, { timeout: 240000 }, () => {
     const r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, form: 'realistic', head: 'relational' }) }).recipe;
     expect(pinOf(r, ONE_PARTS)).toBe(pin);
   });

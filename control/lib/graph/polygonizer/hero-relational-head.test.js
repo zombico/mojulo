@@ -63,7 +63,7 @@ describe('the relational head on the realistic body', () => {
 
   it('mints as ONE SKIN under laws 2: sound, sealed to the neck on its seam ring, its lips parted by the jaw bone', { timeout: 240000 }, () => {
     const hero = heroRecord({ cast: 'male', form: 'realistic', head: 'relational' });
-    expect(hero.physique.laws).toBe(2);
+    expect(hero.physique.laws).toBeGreaterThanOrEqual(2);
     const m = expandLayeredManifest({ kind: 'layered', hero }), P = m.recipe.parts;
     // the pieces gone, the skin, the mouth and the globes in their place
     for (const k of ['cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL']) expect(P[k], k).toBeUndefined();

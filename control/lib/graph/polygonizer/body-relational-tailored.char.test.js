@@ -21,12 +21,14 @@ const hash = (cast, outfit) => {
 // weights, where the footwear's own copy had left them on the upper's bone; nothing else in their parts moved; the
 // jacket's twice: the gi cinched 8 mm past its belt each side, so the belt is a band and not a cone up to the blouse;
 // boots and sandals again at the merge of the footwear library, which makes them now (lib/graph/footwear: layered
-// soles, the card's adornments), its own byte pin in footwear.char.test.js)
+// soles, the card's adornments), its own byte pin in footwear.char.test.js; the jacket's again at the cervical neck
+// (realistic laws 3, body-relational-builds.js CERVICAL_NECK): its collar lies on the neck, which now leans up into the
+// skull; the trousers and the footwear unmoved)
 const PINS = {
   'gathered, male': { cast: 'male', outfit: ['martialPants'], hash: '29b724313540708d' },
   'to the floor, female': { cast: 'female', outfit: ['wideTrousers'], hash: '33172caef3f632a2' },
-  'jacket over, male': { cast: 'male', outfit: ['martialPants', 'gi'], hash: 'a751dce1d22f1290' },
-  'jacket over, female': { cast: 'female', outfit: ['martialPants', 'gi'], hash: '6764b0b73238dfeb' },
+  'jacket over, male': { cast: 'male', outfit: ['martialPants', 'gi'], hash: 'faf7d4b2a1b068f9' },
+  'jacket over, female': { cast: 'female', outfit: ['martialPants', 'gi'], hash: '13c7e7a5936a1bb7' },
   'boots, male': { cast: 'male', outfit: ['boots'], hash: 'bba218d019b9d024' },
   'sandals, female': { cast: 'female', outfit: ['sandals'], hash: '770ba3a90fec3ebf' },
 };

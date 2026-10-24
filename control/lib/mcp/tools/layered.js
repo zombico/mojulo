@@ -70,6 +70,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
+import { cervicalNeck } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -221,8 +222,10 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
  * physique (its laws aside) */
 function realisticBuild(hero) {
   // (a word patched in, `set /hero/physique 'jacked'`, reads as itself)
-  const p = hero.physique ?? 'athletic', { laws: _l, ...dials } = typeof p === 'string' ? { from: p } : p;
-  return physiqueBuild(femaleOf(hero) ? 'shalla' : 'norrin', Object.keys(dials).length ? dials : 'athletic');
+  const p = hero.physique ?? 'athletic', { laws = 1, ...dials } = typeof p === 'string' ? { from: p } : p;
+  const name = femaleOf(hero) ? 'shalla' : 'norrin', B = physiqueBuild(name, Object.keys(dials).length ? dials : 'athletic');
+  // (realistic laws 3: the neck's column leaning forward up to the skull, body-relational-builds.js CERVICAL_NECK)
+  return laws >= 3 ? cervicalNeck(B, name) : B;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -284,17 +287,20 @@ function faceScalp(hero, C) {
 const HEADS = new Map();
 /** a head's piercings, kept by its fit and the list (the chart they are placed on costs seconds) */
 const JEWELS = new Map(), HAIRS = new Map();
+/** the head each laid-on slice wears, by what made it (the key it is kept by): its layers are pinned to that head's skin,
+ * whose faces move with more than its fit (the neck it is cut on, the rung it is netted at), so they are kept by it */
+const HEAD_OF = new WeakMap(), wornHead = (S) => HEAD_OF.get(S) ?? JSON.stringify(S.headFit);
 /** a head's face hair (the beard's cards, the brows', the lashes'), kept as its scalp's are */
 const FACE_HAIRS = new Map();
 function faceHairOf(S, dermis, opts) {
-  const key = JSON.stringify([S.headFit, dermis, opts]);
+  const key = JSON.stringify([wornHead(S), dermis, opts]);
   let H = FACE_HAIRS.get(key);
   if (!H) { H = heroFaceHair(S, dermis, opts); FACE_HAIRS.set(key, H); if (FACE_HAIRS.size > 16) FACE_HAIRS.delete(FACE_HAIRS.keys().next().value); }
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
 function hairOf(S, dermis, scalp, level, budget = false) {
-  const key = JSON.stringify([S.headFit, dermis, scalp, level, budget]);
+  const key = JSON.stringify([wornHead(S), dermis, scalp, level, budget]);
   let H = HAIRS.get(key);
   if (!H) { H = heroHair(S, dermis, scalp, { level, budget }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
@@ -307,7 +313,7 @@ export function heroHairLevel(hero) {
 }
 const HEAD_SHARE = 7;
 function jewelleryOf(S, piercings) {
-  const key = JSON.stringify([S.headFit, piercings]);
+  const key = JSON.stringify([wornHead(S), piercings]);
   let J = JEWELS.get(key);
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
@@ -329,7 +335,9 @@ function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null } 
   }
   const D = structuredClone(d), parts = Object.fromEntries(Object.entries(S.parts).filter(([k]) => !D.removed.includes(k)));
   const dials = S.dials ? Object.fromEntries(Object.entries(S.dials).filter(([k]) => !D.dropped.includes(k)).map(([k, v]) => [k, D.redialled?.[k] ?? v])) : S.dials;
-  return { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}) };
+  const out = { ...S, parts: { ...parts, ...D.parts }, ...(D.creases !== undefined ? { creases: D.creases } : {}), ...(dials ? { dials } : {}), rig: { ...S.rig, joints: D.joints }, ...(D.headFit ? { headFit: D.headFit } : {}) };
+  HEAD_OF.set(out, key);
+  return out;
 }
 /** the realistic form's tune: the hero's own times the build's (its shoulders; the physique's stature and shoulders), so
  * the slice's frame finds the build's tune where it laid its masses out */
@@ -684,8 +692,9 @@ export const CLASSIC_DEPRECATED = "the classic body (form: 'classic', or a hero 
 const onClassic = (hero) => hero.form === 'classic' || ((hero.form === undefined || hero.form === null) && hero.core !== 'streamlined');
 export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined') is deprecated: the game body is the tiered form on the structured core (drop /hero/core); a hero that keeps it is built on the classic body";
 /** the realistic body's laws (body-relational.js: its builds, the physique's dials, the slice): stamped on the record's
- * `physique` at mint, so a later retune never moves a stored hero. 2: the relational head as ONE SKIN (hero-one-skin.js) */
-export const REALISTIC_LAWS_VERSION = 2;
+ * `physique` at mint, so a later retune never moves a stored hero. 2: the relational head as ONE SKIN (hero-one-skin.js);
+ * 3: the neck's column leaning forward up to the skull (body-relational-builds.js CERVICAL_NECK) */
+export const REALISTIC_LAWS_VERSION = 3;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'fieldPaint', 'rim', 'strokes', 'vibe', 'egocube']);

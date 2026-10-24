@@ -244,6 +244,25 @@ const SHALLA = {
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
 
+/**
+ * THE CERVICAL NECK (realistic laws 3): the neck's column leaning forward up to the skull, as the cervical spine does
+ * (from C7 up and forward into the skull's base), and a little fuller under it. The column had risen straight from the
+ * trunk's top, so the nape stood under the back of the skull (the occiput 2.4 cm behind it; people 4 to 5) and the jaw
+ * jutted 7 to 8 cm past the throat (people 5.5 to 6.5): the head read as hung off the front of a post. The head stays
+ * where its fit sets it (the ear over the shoulder); the column's top comes forward under it by `lean` (of W) and widens
+ * by `top`, its root where it was, each build its own (`name`).
+ */
+export const CERVICAL_NECK = Object.freeze({
+  // (her jaw had jutted the more, 7 cm past the throat, and her nape stood the further back: the column comes the further
+  // forward; his jaw already stood 6 cm past his throat, his occiput alone short behind his nape)
+  shalla: Object.freeze({ lean: 0.18, top: 1.2 }),
+  norrin: Object.freeze({ lean: 0.1, top: 1.2 }),
+});
+export function cervicalNeck(build, name) {
+  const { lean, top } = CERVICAL_NECK[name];
+  return { ...build, base: build.base.map((m) => (m.id === 'neck' ? { ...m, cone: [m.cone[0], [m.cone[1][0], m.cone[1][1] + lean, m.cone[1][2]]], r: [m.r[0], m.r[1] * top] } : m)) };
+}
+
 /** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
  * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set
  * out with the shoulders' muscle, the V of a superhero), `tone` their definition (the blends tighter or looser, the

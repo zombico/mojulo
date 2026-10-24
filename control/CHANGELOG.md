@@ -14,6 +14,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The realistic neck leans up into the skull
+
+REALISTIC LAWS 3 (body-relational-builds.js `CERVICAL_NECK`, read by layered.js realisticBuild). Measured on the
+midline skin, the realistic hero's head stood where a person's does over the body (the ear over the shoulder joint; C7
+at the cervicale's height, 0.85 of the stature, the craniovertebral angle about 60°, people 50 to 55), but sat forward
+on its own neck: the neck's mass rose straight from the trunk's top, so the nape stood under the back of the skull
+(the woman's occiput 2.8 cm behind it, people 4 to 5) and her jaw jutted 7.2 cm past the throat (people 5.5 to 6.5).
+In profile the head read as hung off the front of a post.
+
+- The neck's column now leans forward from its root up to the skull, as the cervical spine runs from C7 up and forward
+  into the skull's base, and is a little fuller under it. The head stays where its fit sets it; the column's top comes
+  forward under it, by the build's own `lean` (hers further: her jaw had jutted the more). The one skin's seam and the
+  column it blends into the skull follow the neck's rings, so the head's own neck comes with it.
+- The woman's occiput now stands 4.0 to 4.3 cm behind her nape and her jaw 5.5 cm past her throat. The man's occiput
+  3.7 to 3.9 cm behind his nape (it was 3) and his jaw 4.7 cm past his throat (it was 6): a compromise, his jaw already
+  in range before.
+- A realistic hero stored before keeps its laws and its neck.
+- Fixed: the head's piercings, scalp hair and face hair were kept (layered.js) by the head's fit alone, though they are
+  pinned to faces of its skin, which also moves with the neck it is cut on and the rung it is netted at. A hero minted
+  after another of the same face under other laws or another target could wear the other's pins, and fail to compile.
+  They are now kept by the head they were grown on.
+
 ### The legs pass each other: the walk's swing goes round the planted leg
 
 The hero's calibrated walk (the door's default, figure-posing.js WALK_MINT and hero-gaits.js HERO_WALK) sets the feet
