@@ -125,6 +125,7 @@ import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { quickGenre } from './intent.js';
 import { VARIABLE_PALETTES } from '../transformation/variable-suit.js';
 import { ALIEN_PALETTES } from '../transformation/alien-body.js';
 import { SCHEME_DIALS } from '../transformation/schemes.js';
@@ -536,6 +537,9 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
+  // what game it is (intent.js): the genre its cube is read from, written so the creator sees it and can change it; the
+  // cube is the same either way. A goal with no genre, or an intent the caller wrote, writes none
+  const genre = rest.intent === undefined ? quickGenre(quick) : null, intent = genre ? { intent: { from: genre } } : {};
   const kit = style?.kit ?? 'trail-valley';
   // one rule for open ground (era/stage.js isGroundKit): a room kit had a shell, passed, and failed deep in the stage
   if (!isGroundKit(kit)) throw fail(`: style.kit ${STAGE_KITS[resolveKitId(kit)] ? roomKitDoor(kit).replace('levels.<id>.building', 'quick.building').replace(' (a quick game: quick.building)', '') : `'${kit}' is not a stage kit`} (open ground: ${GROUND_KITS.join(', ')})`);
@@ -562,6 +566,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
       style: { ...(style ?? {}), kit },
       levels: { run: { name: name ?? id, runner: quick.runner ?? true } },
       quick: { ...quick, hero: quick.hero ?? {} },
+      ...intent,
     };
   }
   const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
@@ -575,6 +580,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
     style: { ...(style ?? {}), kit },
     levels,
     quick,
+    ...intent,
   };
 }
 

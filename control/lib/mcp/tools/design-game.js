@@ -276,6 +276,8 @@ function readout(ref, world, context = {}) {
   // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
   const intent = intentReport(world);
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
+  // a quick game's goal changed since its genre was written: keep the written one or change it, the creator's call
+  if (intent.drift) next.push({ step: 'intent', drift: intent.drift, card: 'gameworld-intent' });
   // the engine the intent names, and what of the world it does not carry: advice, never a refusal
   if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card

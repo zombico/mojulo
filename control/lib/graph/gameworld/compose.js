@@ -11,7 +11,8 @@
  *
  * Words also say what a level is played for (relics to collect, a boss at the end, health: a level's `goal`, quick.js
  * levelGoalMechanics) and whether it is indoors (a dungeon, a crypt: building levels in a room kit); none, and every
- * level is a walk to its exit, as before.
+ * level is a walk to its exit, as before. Words that name a game clearly (intent.js suggestGenres) write its `intent`,
+ * and its levels are laid for it.
  *
  *   composeGameworld({ prompt, name?, id?, levels?: 1…6, seed? }) → a gameworld recipe
  *
@@ -33,6 +34,7 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS } from '../era/geocube.js';
+import { suggestGenres } from './intent.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -216,7 +218,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // world plays it; its words are read. A prompt that names none writes none
   const said = suggestFeels(prompt, 1)[0], feelWords = new Set((said?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   if (said) tunnels.feel = said.matched;
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w)), tunnels }, ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  // what game it is (intent.js): the genre the words name, written as the feel is, before the levels are laid so they
+  // are laid for it. Only a clear read: the first genre ahead of the second, on two of its words at least (one word,
+  // "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the words point at
+  const [lead, next] = suggestGenres(prompt, 2), leadWords = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  const genre = lead && leadWords.size >= 2 && !(next && next.matched.length === lead.matched.length) ? lead : null;
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  // the words that named the genre are read: they decide the intent
+  for (const w of genre?.matched ?? []) {
+    const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
+    if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+  }
   // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
   // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
   const indoors = room ? (() => {

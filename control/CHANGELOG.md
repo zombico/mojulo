@@ -14,6 +14,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Written intent: compose and quick write the game they are
+
+- A quick game writes its `intent` (`{ from: <genre> }`) when its goal has a genre and the caller wrote none: the genre
+  the world's cube was already read from (a race against rivals a kart race, a shooter with a craft a dogfight), now
+  said in the recipe where the creator can see and change it. The cube does not change, so its concerns, levels and
+  effects lay as before.
+- A composed world writes its `intent` when the prompt's words name one genre clearly (its words matched two at least,
+  and more of them than the next genre's), as it already writes the `feel` they name. One word ("towers", "map") says
+  too little. The words go into the brief's `read`
+  (`intent.from=<genre>`). A tie or no genre writes none, and `design_game` still asks for one with its suggestions.
+  The intent is written before the levels are laid, so the composer's self-check sees the levels the genre's concerns
+  lay: a newly composed world whose prompt names a genre is laid for it.
+- A quick game whose goal is patched afterwards to read as another genre keeps the written one: its readout carries
+  `intent.drift` (`{ written, goal }`) and `design_game` names an `intent` step for it. Said, never rewritten.
+- The `gameworld-intent` card says both.
+- Stored worlds are untouched: nothing rewrites a recipe already minted.
+
 ### Local multiplayer: playing together, as settings of the soul facet
 
 - Several players at one machine, on one shared screen: seats (a controller each: a pad, or the keyboard) that take

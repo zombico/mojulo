@@ -84,7 +84,9 @@ describe('composed goals: what a level is played for, read from the prompt', () 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
     const w = composeGameworld({ prompt: 'a dungeon crawler through haunted crypts with relics and a boss', seed: 1 });
     const read = Object.fromEntries(w.brief.read.map((r) => [r.word, r.decides]));
-    expect(read).toMatchObject({ dungeon: ['building'], crypts: ['building', 'geocube'], relics: ['goal.collect'], boss: ['goal.boss'] });
+    // "dungeon crawler" also names the game: its words decide the intent (intent.js)
+    expect(read).toMatchObject({ dungeon: ['building', 'intent.from=dungeon-crawler'], crawler: ['intent.from=dungeon-crawler'], crypts: ['building', 'geocube'], relics: ['goal.collect'], boss: ['goal.boss'] });
+    expect(w.intent).toEqual({ from: 'dungeon-crawler' });
     const ids = Object.keys(w.levels);
     expect(w.brief.indoors).toEqual({ use: 'crypt', kit: 'gothic-stone', levels: ids });
     for (const id of ids) {
