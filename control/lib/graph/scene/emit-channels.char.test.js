@@ -208,6 +208,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // edges through `__padNow` (the pilot's pad, else the first connected). On the `controllable` fixture 2 lines are
 // replaced (the scheme's JSON, the mapping comment) and 17 added; every fixture that embeds the runtime re-pinned with it.
 
+// Re-pinned 2026-10-24 (local multiplayer phase 2: versus through the controls kernel): the `versus` fixture alone. Its
+// embedded runtime now leads with the controls kernel, the keyboard and gamepad families and the `versus` scheme
+// resolved for each player (player two's keyboard an override), and `rawInput` reads through them, a player's pad kept
+// by its Gamepad.index; the hand-written key lists and button numbers are gone.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

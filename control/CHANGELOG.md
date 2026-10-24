@@ -37,6 +37,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   watches the next fighter on RB or the D-pad's right and locks the camera on A, each on its press edge; the pad legend
   names the reverse view. What a pad already says another way stays so: the left stick strafes under mouselook, the RB
   chord selects a weapon, kneel descends a glide. A test holds every other pilot action to a pad binding.
+- **Versus reads its players through the controls kernel.** A `versus` scheme (controls/schemes.js: a stick and the
+  input grammar's five buttons, light, medium, heavy, special and throw) holds the bindings the runtime had written by
+  hand, player two's keyboard an override over it (`VERSUS_SECOND_KEYBOARD`). The runtime client comes with the kernel
+  wherever it is inlined (the page, the arena channel, the action lab), and a player's pad is kept by its
+  `Gamepad.index`: a pad that leaves no longer hands its player's place to the other.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

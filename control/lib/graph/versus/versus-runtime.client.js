@@ -31,30 +31,32 @@ function installVersusInput(onKey) {
   window.addEventListener('blur', () => RT.held.clear());
 }
 
-const VS_KEYS = [
-  { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], L: ['KeyJ'], M: ['KeyK'], H: ['KeyL'], S: ['KeyU'], T: ['KeyI'], start: ['Enter'], back: ['Escape'] },
-  { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], L: ['Numpad1', 'Comma'], M: ['Numpad2', 'Period'], H: ['Numpad3', 'Slash'], S: ['Numpad4', 'Semicolon'], T: ['Numpad5', 'Quote'], start: ['NumpadEnter', 'Backslash'], back: ['Backspace'] },
-];
-const anyHeld = (list) => list.some((k) => RT.held.has(k) || RT.latch.has(k));
+// each player's pad, kept by its Gamepad.index: the first two pads to connect, in that order. A pad that leaves keeps its
+// player's place until it is back, so a player's pad never becomes the other's (a filtered list would shift them)
+const VS_PAD = [-1, -1];
+function padOf(i) {
+  if (!navigator.getGamepads) return null;
+  const ps = navigator.getGamepads();
+  for (let k = 0; k < ps.length; k++) {
+    const p = ps[k];
+    if (!p || !p.connected || VS_PAD.includes(p.index)) continue;
+    const free = VS_PAD.indexOf(-1); if (free < 0) break;
+    VS_PAD[free] = p.index;
+  }
+  const g = VS_PAD[i] >= 0 ? ps[VS_PAD[i]] : null;
+  return g && g.connected ? g : null;
+}
 /** Call once a drawn frame has stepped: the taps it saw are spent. */
 const endInputFrame = () => RT.latch.clear();
 
+// a player's controls through the kernel (__VS_BIND, versus-page.js): the keyboard's held keys and taps, and the pad's
 function rawInput(i) {
-  const K = VS_KEYS[i];
-  let up = anyHeld(K.up), down = anyHeld(K.down), left = anyHeld(K.left), right = anyHeld(K.right);
-  let b = (anyHeld(K.L) ? BTN.L : 0) | (anyHeld(K.M) ? BTN.M : 0) | (anyHeld(K.H) ? BTN.H : 0) | (anyHeld(K.S) ? BTN.S : 0) | (anyHeld(K.T) ? BTN.T : 0);
-  let start = anyHeld(K.start), back = anyHeld(K.back);
-  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-  const gp = pads[i];
-  if (gp) {
-    const btn = (n) => !!(gp.buttons[n] && gp.buttons[n].pressed);
-    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-    up = up || btn(12) || ay < -0.5; down = down || btn(13) || ay > 0.5;
-    left = left || btn(14) || ax < -0.5; right = right || btn(15) || ax > 0.5;
-    b |= (btn(0) ? BTN.L : 0) | (btn(2) ? BTN.M : 0) | (btn(3) ? BTN.H : 0) | (btn(1) ? BTN.S : 0) | (btn(5) || btn(4) ? BTN.T : 0);
-    start = start || btn(9); back = back || btn(8);
-  }
-  return { x: (right ? 1 : 0) - (left ? 1 : 0), y: (up ? 1 : 0) - (down ? 1 : 0), b, start, back };
+  const B = __VS_BIND[i], kb = (c) => RT.held.has(c) || RT.latch.has(c);
+  const g = padOf(i), gr = g ? __VS_CTL.gamepadRead(g, __VS_DEV) : null;
+  const on = (id) => __VS_CTL.held(B, id, 'keyboard', kb) || (!!gr && __VS_CTL.held(B, id, 'gamepad', gr));
+  const up = on('up'), down = on('down'), left = on('left'), right = on('right');
+  const b = (on('light') ? BTN.L : 0) | (on('medium') ? BTN.M : 0) | (on('heavy') ? BTN.H : 0) | (on('special') ? BTN.S : 0) | (on('throw') ? BTN.T : 0);
+  return { x: (right ? 1 : 0) - (left ? 1 : 0), y: (up ? 1 : 0) - (down ? 1 : 0), b, start: on('start'), back: on('back') };
 }
 
 // menu edges for both players

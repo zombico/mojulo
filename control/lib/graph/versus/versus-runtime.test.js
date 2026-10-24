@@ -88,3 +88,30 @@ describe('versus runtime: the swing trail in a fight kind\'s look', () => {
     expect(glow.at.some((t) => t % 2 === 1)).toBe(true);
   });
 });
+
+// the players' controls come through the controls kernel (controls/schemes.js `versus`): each player's own keys, and
+// each player's own pad, kept by its Gamepad.index so a pad that leaves never hands its player's place to the other
+describe('versus runtime: each player reads their own keys and their own pad', () => {
+  const pad = (index, pressed = [], axes = [0, 0, 0, 0]) => ({ index, connected: true, id: 'Xbox pad', axes, buttons: Array.from({ length: 17 }, (_, b) => ({ pressed: pressed.includes(b), value: pressed.includes(b) ? 1 : 0 })) });
+  const boot = (pads) => {
+    const nav = { getGamepads: () => pads.list };
+    return new Function('window', 'navigator', `${src}\nRT.muted = true;\nreturn { rawInput, RT, BTN };`)({}, nav);
+  };
+  it('player one the left hand\'s keys, player two the arrows and the numpad; a pad its D-pad, stick and five buttons', () => {
+    const pads = { list: [] }, R = boot(pads);
+    R.RT.held.add('KeyA'); R.RT.held.add('KeyJ'); R.RT.held.add('ArrowUp'); R.RT.held.add('Numpad4');
+    expect(R.rawInput(0)).toEqual({ x: -1, y: 0, b: R.BTN.L, start: false, back: false });
+    expect(R.rawInput(1)).toEqual({ x: 0, y: 1, b: R.BTN.S, start: false, back: false });
+    R.RT.held.clear();
+    pads.list = [pad(0, [2, 4, 9], [0.8, 0.9, 0, 0])];   // X (medium), LB (throw), start; the stick right and down
+    expect(R.rawInput(0)).toEqual({ x: 1, y: -1, b: R.BTN.M | R.BTN.T, start: true, back: false });
+    expect(R.rawInput(1)).toEqual({ x: 0, y: 0, b: 0, start: false, back: false });
+  });
+  it('a pad keeps its player when the other pad leaves', () => {
+    const pads = { list: [pad(0), pad(1, [3])] }, R = boot(pads);
+    expect(R.rawInput(1).b).toBe(R.BTN.H);
+    pads.list = [null, pad(1, [3])];   // player one's pad unplugged
+    expect(R.rawInput(0).b).toBe(0);
+    expect(R.rawInput(1).b).toBe(R.BTN.H);
+  });
+});
