@@ -9,6 +9,7 @@ import { suitShadowBlock } from './suit-shadows.js';
 import { buildControlsKernel } from '../../../controls/controls-kernel.js';
 import { SCHEMES } from '../../../controls/schemes.js';
 import { DEVICES } from '../../../controls/devices.js';
+import { buildSeatsKernel } from '../../../controls/seats-kernel.js';
 import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
@@ -51,7 +52,89 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false } = {}) {
+/** The page's seats (pilots.plan.md; a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
+ * already has, read through its own controller once it has one; seats 2 to N each a compact read of their own controller
+ * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
+ * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
+ * seated body, and a strip names who is in. Emitted only for a world with seats. */
+function seatsScript(seats) {
+  const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
+  const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
+  return `// ── SEATS (pilots.plan.md) ──
+const __SK = (${buildSeatsKernel.toString()})();
+let __SEATS = __SK.newSeats({ max: ${max}, join: ${safeJson(seats.join === 'lobby' ? 'lobby' : 'drop-in')} });
+const __SEAT_BODY = ${safeJson(bodies)};   // seat n's body: __SEAT_BODY[n - 2]; seat 1's is the world's pilot
+const __seatPrev = {};
+// any press of a controller sits it down: a key, a button, a stick pushed past half
+function __seatFrame() {
+  const f = { keyboard: { join: Object.keys(__held).some((k) => __held[k]) } }, ps = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (let i = 0; i < ps.length; i++) {
+    const p = ps[i]; if (!p || !p.connected) continue;
+    f['pad:' + p.index] = { connected: true, join: p.buttons.some((b) => b && b.pressed) || p.axes.some((v) => Math.abs(v) > 0.5) };
+  }
+  for (const x of __SEATS.seats) if (!f[x.controller]) f[x.controller] = { connected: false };
+  return f;
+}
+// a seat's input: its own controller through the pilot scheme (move, jump, fire, boost, kneel, tackle)
+function __seatSnap(x) {
+  const kb = x.controller === 'keyboard';
+  let rd, g = null;
+  if (kb) rd = (c) => __held[c];
+  else { const ps = navigator.getGamepads ? navigator.getGamepads() : []; g = ps[+x.controller.slice(4)]; if (!g || !g.connected) return null; rd = __CTL.gamepadRead(g, __DEV); }
+  const fam = kb ? 'keyboard' : 'gamepad', h = (a) => __CTL.held(__BIND, a, fam, rd);
+  let mx, my;
+  if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
+  else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
+  const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  P.jump = jh; P.tackle = tk;
+  return out;
+}
+// the strip: who is in, in their colours; an empty seat says how to sit down
+const __seatEl = document.createElement('div');
+__seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';
+document.body.appendChild(__seatEl);
+let __seatSaid = '';
+function __seatStrip() {
+  const said = __SEATS.seats.map((x) => x.n + (x.away ? 'a' : '')).join(',');
+  if (said === __seatSaid) return;
+  __seatSaid = said;
+  __seatEl.textContent = '';
+  for (let n = 1; n <= __SEATS.max; n++) {
+    const x = __SK.seat(__SEATS, n), c = document.createElement('span'), col = __SK.SEAT_COLORS[n - 1];
+    c.style.cssText = 'padding:2px 8px;border-radius:10px;border:2px solid ' + col + ';color:' + (x ? '#fff' : col) + ';background:' + (x && !x.away ? col : 'rgba(0,0,0,.45)');
+    c.textContent = __SK.SEAT_LABELS[n - 1] + (x ? (x.away ? ' away' : '') : ' press to join');
+    __seatEl.appendChild(c);
+  }
+}
+__seatStrip();
+// the rings: a seat's colour under its body, on the ground it stands on
+const __seatRing = {};
+function __seatRings() {
+  for (const x of __SEATS.seats) {
+    const id = x.n === 1 ? __world.pilotId : __SEAT_BODY[x.n - 2], e = id && __world.byId[id];
+    if (!e) continue;
+    let r = __seatRing[x.n];
+    if (!r) { r = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 40), new THREE.MeshBasicMaterial({ color: x.color, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); r.renderOrder = 2; scene.add(r); __seatRing[x.n] = r; }
+    r.visible = !x.away && !e.gone;
+    r.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + 0.04);
+  }
+  for (const n in __seatRing) if (!__SK.seat(__SEATS, +n)) __seatRing[n].visible = false;
+}
+function __withSeats(inp) {
+  __SEATS = __SK.step(__SEATS, __seatFrame());
+  const s1 = __SK.seat(__SEATS, 1);
+  __seat1 = s1 ? s1.controller : null;
+  const seats = {};
+  for (const x of __SEATS.seats) if (x.n > 1 && !x.away) { const snap = __seatSnap(x); if (snap) seats[x.n] = snap; }
+  __seatStrip();
+  return { ...inp, seats };
+}
+window.__mojSeats = () => __SEATS;
+`;
+}
+
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -413,7 +496,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 ` : '';
   return `
 const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -1470,7 +1553,9 @@ const __SCHEME = ${safeJson(SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 let __BIND = __CTL.resolve(__SCHEME, __DEV);
 const __held = {};
-const __kbRead = (c) => __held[c];
+${seats ? `// SEATS: seat 1 reads the keyboard only while the keyboard is its controller (or nobody has sat down yet)
+let __seat1 = null;
+const __kbRead = (c) => (__seat1 && __seat1 !== 'keyboard' ? false : __held[c]);` : 'const __kbRead = (c) => __held[c];'}
 const __k = (id) => __CTL.held(__BIND, id, 'keyboard', __kbRead);
 const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.buttons).find((n) => __DEV.mouse.buttons[n] === e.button));
 let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
@@ -1587,7 +1672,10 @@ function __wcRender() {
 function __wcHide() { __wcOpen = false; __wcCur = -1; if (__wcEl) __wcEl.style.display = 'none'; }
 window.__mojWcHide = __wcHide;   // the pause sidecar closes the selector when the shell freezes the sim
 ${touchLayer ? `${touchScript(touchLayer)}` : ''}function __pollPad() {
-${touchLayer ? `  // the screen's virtual pad (touch.js) when no real one is connected: read through the same bindings, never counted
+${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is its controller), never another seat's
+  if (__seat1 === 'keyboard') return null;
+  if (__seat1) { __padIdx = +__seat1.slice(4); const __sp = navigator.getGamepads ? navigator.getGamepads()[__padIdx] : null; if (!__sp || !__sp.connected) return null; }
+` : ''}${touchLayer ? `  // the screen's virtual pad (touch.js) when no real one is connected: read through the same bindings, never counted
   // as a pad the player plugged in (the legend, the prompts and the printed layout stay the keyboard's)
   const __tp = __touchPad();
   if ((!__padOn || !navigator.getGamepads) && !__tp) return null;
@@ -1786,7 +1874,7 @@ function __readInput() {
   __lookDX = 0; __lookDY = 0;
   return inp;
 }
-// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
+${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
 __ctrlActive = __world.entities.length > 0;
 if (__world.camera) { controls.enabled = false; __ctrlOwnsCamera = true; }
@@ -3195,8 +3283,9 @@ function __updateBreaks(dt) {
 ` : ''}${runner ? runnerViewScript(runner) : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
-    for (const e of __world.entities) __syncEntity(e, dt);
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
+    for (const e of __world.entities) __syncEntity(e, dt);${seats ? `
+    __seatRings();` : ''}
     __updateFx();
     __updateChargeRings();
     __updateProjectiles();

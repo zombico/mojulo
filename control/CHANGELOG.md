@@ -16,7 +16,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Local multiplayer: playing together, as settings of the soul facet
 
-- Several players at one machine, on one shared screen: seats (a pad each, or a keyboard's halves) that take
+- Several players at one machine, on one shared screen: seats (a controller each: a pad, or the keyboard) that take
   a game's bodies, and settings of the cosmos cube's `soul` facet (`seats`, `contest`, `dependence`, `frame`, `input`,
   `pool`, `join`) that a game composes, each built once for every composition that asks for it. A cooperative kitchen,
   a party mash, brothers on a quest and a shared bullet hell are its reference points, not its products. The
@@ -62,11 +62,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The action runtime takes a seat per body** (the first step of a pilot per seat). A world's `seats: { bodies, drop? }`
   names the bodies seats 2 to 4 take; each runs its pilot rule on its own seat's input (`input.seats[n]`), and a seat with
   no player leaves its body to its AI (`drop: 'ai'`) or holds it (`'pause'`). The AI hunts the nearest seated pilot. A
-  world without seats steps as it did; nothing lays seats yet (the camera, the page and the lowering come next).
+  world without seats steps as it did; nothing lays seats yet (the lowering comes next).
 - **A shared camera frames every seat.** With more than one seat playing, the side and overhead cameras hold the
   players' centre and stand back until their spread fits the view (50° with 2 m round it), never nearer than their own
   distance and never past 2.2 × it; past that a world pass holds the leader back and brings the straggler in, so nobody
   leaves the shot. One seat, or none, and the cameras frame their target as they did.
+- **The World page seats its players.** A world with seats emits the seats kernel beside the controls kernel: any press
+  of a controller (a key, a button, a stick past half; start stays the shell's pause) sits it down, the first to press
+  being seat 1, the world's pilot, which then reads only its own controller; seats 2 to 4 read theirs through the pilot
+  scheme onto `input.seats`. A ring in the seat's colour stands under each seated body and a strip at the top names who
+  is in. Tested in headless Chrome with two stubbed pads (`seats.live.test.js`, e2e). The target lock, the tutorial,
+  the runner and the suit swap stay seat 1's, and the pause menu is still the shell's, not yet the seat's that opened it;
+  a world without seats emits as it did.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
