@@ -42,6 +42,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   hand, player two's keyboard an override over it (`VERSUS_SECOND_KEYBOARD`). The runtime client comes with the kernel
   wherever it is inlined (the page, the arena channel, the action lab), and a player's pad is kept by its
   `Gamepad.index`: a pad that leaves no longer hands its player's place to the other.
+- **The action lab reads through the controls kernel too.** An `action` scheme holds the verbs of the action-game
+  kernel (move, jump, attack, dodge, dash, lock, guard, shoot, switch, sprint) with the keys and pad buttons the lab had
+  by hand; the lab's stick stays analog past its dead zone, the D-pad winning while pressed. No page reads a pad by its
+  button numbers now but the pilot runtime's own RB chord, and a test holds the lab's old keys and buttons to the scheme.
 - **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.

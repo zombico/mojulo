@@ -15,6 +15,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../../module-dir.js';
+import { buildControlsKernel } from '../../controls/controls-kernel.js';
+import { SCHEMES } from '../../controls/schemes.js';
+import { DEVICES } from '../../controls/devices.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/gameworld/feel');
 // a module as a classic-script fragment: import lines and the kernel's re-export dropped, `export ` stripped
@@ -194,6 +197,9 @@ export function feelPageHtml({ data, versus = null, sample = null, title = 'Acti
   })()` : 'null'};</script>
   <script type="module">
   ${kernel}
+  const __LAB_CTL = (${buildControlsKernel.toString()})();
+  const __LAB_DEV = ${json({ keyboard: DEVICES.keyboard, gamepad: DEVICES.gamepad })};
+  const __LAB_BIND = __LAB_CTL.resolve(${json(SCHEMES.action)}, __LAB_DEV);
   {
   ${page}
   }

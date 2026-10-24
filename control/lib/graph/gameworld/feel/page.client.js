@@ -32,11 +32,13 @@ function reset() {
 }
 
 // ─── input: keyboard, gamepad, touch ───
-const keys = new Set(), tapped = new Set();   // tapped: pressed since the last tick, so a tap between two ticks still lands
-const KEYMAP = { KeyI: 'lock', KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', KeyJ: 'attack', KeyK: 'dodge', KeyL: 'dash', KeyQ: 'lock', KeyU: 'guard', KeyF: 'shoot', KeyZ: 'switch', ShiftLeft: 'sprint', ShiftRight: 'sprint' };
+// keys by code: held now, and pressed since the last tick (so a tap between two ticks still lands); what a key means is
+// the `action` scheme's (controls/schemes.js), read through the controls kernel (__LAB_CTL, page.js)
+const keys = new Set(), tapped = new Set();
+const keyOn = (c) => keys.has(c) || tapped.has(c);
 addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select')) return;
-  const k = KEYMAP[e.code]; if (k) { if (!e.repeat) tapped.add(k); keys.add(k); e.preventDefault(); return; }
+  if (__LAB_CTL.actionOf(__LAB_BIND, 'keyboard', e.code)) { if (!e.repeat) tapped.add(e.code); keys.add(e.code); e.preventDefault(); return; }
   if (/^Digit[1-4]$/.test(e.code)) { if (!SAMPLE) setFeel(FEEL_IDS[+e.code.slice(5) - 1]); return; }
   // a game's sample: the lab's toggles answer only where the template shows them (spar, the critter)
   if (SAMPLE && ['KeyV', 'KeyY', 'KeyE', 'KeyM', 'KeyO', 'KeyG', 'KeyC'].includes(e.code)) return;
@@ -55,7 +57,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'Escape' || e.code === 'KeyP') setPaused(!paused);
   else if (e.code === 'Period') { if (paused) stepOnce = true; }
 });
-addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys.delete(k); });
+addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
 const touch = { x: 0, y: 0, b: 0, id: null, ox: 0, oy: 0 };
@@ -74,19 +76,19 @@ for (const el of document.querySelectorAll('[data-tbtn]')) {
 
 let padName = null;
 function readPad() {
-  const on = (k) => keys.has(k) || tapped.has(k);
+  const on = (id) => __LAB_CTL.held(__LAB_BIND, id, 'keyboard', keyOn);
   let x = (on('right') ? 1 : 0) - (on('left') ? 1 : 0), y = (on('up') ? 1 : 0) - (on('down') ? 1 : 0);
   if (x && y) { x *= Math.SQRT1_2; y *= Math.SQRT1_2; }
   let b = (on('jump') ? BTN.JUMP : 0) | (on('attack') ? BTN.ATTACK : 0) | (on('dodge') ? BTN.DODGE : 0) | (on('dash') ? BTN.DASH : 0) | (on('lock') ? BTN.LOCK : 0) | (on('guard') ? BTN.GUARD : 0) | (on('shoot') ? BTN.SHOOT : 0) | (on('switch') ? BTN.SWITCH : 0) | (on('sprint') ? BTN.SPRINT : 0);
   tapped.clear();
-  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(Boolean) : null;
+  const gp = navigator.getGamepads ? [...navigator.getGamepads()].find((p) => p && p.connected) : null;
   padName = gp ? gp.id : null;
   if (gp) {
-    const ax = gp.axes[0] ?? 0, ay = gp.axes[1] ?? 0, dz = Math.hypot(ax, ay) > 0.18;
-    if (dz) { x = ax; y = -ay; }
-    const pr = (i) => !!gp.buttons[i]?.pressed;
-    if (pr(12)) y = 1; if (pr(13)) y = -1; if (pr(14)) x = -1; if (pr(15)) x = 1;
-    b |= (pr(0) ? BTN.JUMP : 0) | (pr(2) ? BTN.ATTACK : 0) | (pr(1) ? BTN.DODGE : 0) | (pr(5) ? BTN.DASH : 0) | (pr(4) || pr(11) ? BTN.LOCK : 0) | (pr(7) ? BTN.GUARD : 0) | (pr(3) ? BTN.SHOOT : 0) | (pr(8) ? BTN.SWITCH : 0) | (pr(6) || pr(10) ? BTN.SPRINT : 0);
+    // the pad through the same scheme: the stick analog past its dead zone, the D-pad winning while pressed
+    const rd = __LAB_CTL.gamepadRead(gp, __LAB_DEV), pa = (id) => __LAB_CTL.held(__LAB_BIND, id, 'gamepad', rd);
+    const px = __LAB_CTL.axis(__LAB_BIND, 'right', 'left', 'gamepad', rd), py = __LAB_CTL.axis(__LAB_BIND, 'up', 'down', 'gamepad', rd);
+    if (Math.hypot(px, py) > 0.18) { x = px; y = py; }
+    b |= (pa('jump') ? BTN.JUMP : 0) | (pa('attack') ? BTN.ATTACK : 0) | (pa('dodge') ? BTN.DODGE : 0) | (pa('dash') ? BTN.DASH : 0) | (pa('lock') ? BTN.LOCK : 0) | (pa('guard') ? BTN.GUARD : 0) | (pa('shoot') ? BTN.SHOOT : 0) | (pa('switch') ? BTN.SWITCH : 0) | (pa('sprint') ? BTN.SPRINT : 0);
   }
   if (touch.x || touch.y) { x = touch.x; y = touch.y; }
   b |= touch.b;
