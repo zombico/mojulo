@@ -24,6 +24,8 @@
  *   flora.shrubs   { count, bloom, fruit } | null: bushes by the trail (era/shrubs.js, a recipe's own `shrubs`)
  *   flora.flowers  { share, mix } | null: wildflowers in the live grass (vegetation/wildflowers.js; a recipe's
  *                  `grass.flowers`)
+ *   flora.bushes   { kinds, sections? } | absent: bushes and shrubs composed in SECTIONS (era/thickets.js), each kind a
+ *                  leaf form with its trunk taken away, blocking a walker or walked through
  *
  *   BIOCUBE_PRESETS          meadow (the meadow card's own numbers), upland, grove, forest, bare
  *   readBiocube(spec)        a preset id, a document, or { from: preset, …changes } (each flora block merged) → checked
@@ -37,6 +39,7 @@ import { validateShrubs } from './shrubs.js';
 import { LEAF_FORMS, LEAF_FORM_IDS, TREE_KIND_KEYS } from './leaf-forms.js';
 import { LEAF_OFFER, BARK_OFFER, HARMONIES, CLUMP_ROLES } from './flora-colours.js';
 import { BARK_FORM_IDS } from '../matte-paint/dressed.js';
+import { checkBushes } from './thickets.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -109,15 +112,18 @@ function checkTrees(t) {
   // (an ikebana clump's cast, era/nature.js arrangedClump: which kind each role takes; and the harmony its colours are
   // solved in, era/flora-colours.js)
   if (t.clump !== undefined) {
-    if (!t.kinds) no('flora.trees.clump casts the clump\'s roles from `kinds`: name the kinds');
     if (t.compose !== 'ikebana') no("flora.trees.clump casts an arranged clump's roles: compose 'ikebana'");
-    if (!isObj(t.clump)) no(`flora.trees.clump is { ${CLUMP_ROLES.join(', ')} }, each a kind's place in \`kinds\` (from 0)`);
+    if (!isObj(t.clump)) no(`flora.trees.clump is { ${CLUMP_ROLES.join(', ')} }, each a kind's place in \`kinds\` (from 0) or { bush: n } (a kind of \`flora.bushes\`)`);
     keys(t.clump, CLUMP_ROLES, 'flora.trees.clump');
-    for (const [r, v] of Object.entries(t.clump)) int(v, 0, t.kinds.length - 1, `flora.trees.clump.${r} (a kind's place in \`kinds\`, from 0)`);
+    for (const [r, v] of Object.entries(t.clump)) {
+      if (isObj(v)) { keys(v, ['bush'], `flora.trees.clump.${r}`); int(v.bush, 0, 5, `flora.trees.clump.${r}.bush (a kind's place in \`flora.bushes.kinds\`, from 0)`); continue; }
+      if (!t.kinds) no(`flora.trees.clump.${r} casts a tree kind: name the kinds (or { bush: n } for a bush)`);
+      int(v, 0, t.kinds.length - 1, `flora.trees.clump.${r} (a kind's place in \`kinds\`, from 0)`);
+    }
   }
   if (t.harmony !== undefined) {
     if (!HARMONIES.includes(t.harmony)) no(`flora.trees.harmony is ${HARMONIES.join(', ')}`);
-    if (!t.kinds || t.compose !== 'ikebana') no("flora.trees.harmony colours an arranged clump's roles: name the kinds and compose 'ikebana'");
+    if (!(t.kinds || t.clump) || t.compose !== 'ikebana') no("flora.trees.harmony colours an arranged clump's roles: name the kinds (or cast the clump) and compose 'ikebana'");
   }
   if (t.compose !== undefined && t.compose !== 'ikebana' && t.compose !== false) no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump) or false (scattered)");
   if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
@@ -184,13 +190,18 @@ export function readBiocube(spec) {
   keys(spec, ['id', 'from', 'title', 'reads', 'flora'], 'biocube');
   const base = spec.from === undefined ? null : BIOCUBE_PRESETS[spec.from] ?? no(`from '${spec.from}' is not a biocube (${BIOCUBE_IDS.join(', ')})`);
   const F0 = base ? base.flora : {}, F1 = spec.flora ?? {};
-  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers? }');
-  keys(F1, ['trees', 'grass', 'shrubs', 'flowers'], 'flora');
+  if (!isObj(F1)) no('flora is { trees?, grass?, shrubs?, flowers?, bushes? }');
+  keys(F1, ['trees', 'grass', 'shrubs', 'flowers', 'bushes'], 'flora');
   // (each block over the preset's: an object merged, null or a whole block in its place)
   const over = (k) => (F1[k] === undefined ? F0[k] : F1[k] === null || !isObj(F0[k]) ? F1[k] : { ...F0[k], ...F1[k] });
-  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null };
+  // (bushes composed in sections, era/thickets.js: only where a document names them, so a preset reads as it did)
+  const bu = over('bushes') ?? null;
+  const flora = { trees: over('trees'), grass: over('grass') ?? null, shrubs: over('shrubs') ?? null, flowers: over('flowers') ?? null, ...(bu ? { bushes: bu } : {}) };
   if (flora.trees === undefined) no('flora.trees is wanted (a document names its trees, or builds from a preset)');
   checkTrees(flora.trees); checkGrass(flora.grass); checkFlowers(flora.flowers);
+  if (flora.bushes) checkBushes(flora.bushes, { no, num, int, range, keys, isObj, LEAF_OFFER, BARK_OFFER, BARK_FORM_IDS });
+  // (a clump's role cast as a bush names one of the bushes' kinds)
+  for (const [r, v] of Object.entries(flora.trees.clump ?? {})) if (isObj(v) && !(flora.bushes && v.bush < flora.bushes.kinds.length)) no(`flora.trees.clump.${r}.bush is a kind's place in \`flora.bushes.kinds\`${flora.bushes ? ` (0 to ${flora.bushes.kinds.length - 1})` : ': name the bushes'}`);
   if (flora.shrubs !== null) { const e = validateShrubs(flora.shrubs); if (e.length || !isObj(flora.shrubs)) no(`flora.shrubs: ${e.join('; ') || 'is null or { count, bloom, fruit }'}`); }
   return { id: spec.id ?? spec.from ?? 'biocube', title: spec.title ?? base?.title ?? 'Biocube', reads: spec.reads ?? base?.reads ?? '', flora };
 }
@@ -206,5 +217,6 @@ export function withFlora(card, cube) {
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };
   // (the live carpet: the card's, its kind, density and height the cube's)
   const live = GL && card.live ? { ...card.live, ...GL } : card.live;
-  return { ...card, trees, grass, ...(live !== undefined ? { live } : {}) };
+  // (the cube's bushes, composed in sections: era/thickets.js)
+  return { ...card, trees, grass, ...(live !== undefined ? { live } : {}), ...(F.bushes ? { thickets: F.bushes } : {}) };
 }

@@ -30,6 +30,7 @@ clumps, the near trees whole and the far ones shapes), `bare`.
   tussocks, the trail's fringe, the sea of blades along it (`field`) and the carpet round the walker (`live: { kind,
   density, height }`).
 - **shrubs** `{ count, bloom, fruit }` or null; **flowers** `{ share, mix? }` or null (wildflowers in the carpet).
+- **bushes** `{ kinds, sections? }`: bushes and shrubs composed in SECTIONS (below).
 
 ## Tree kinds
 
@@ -65,6 +66,18 @@ colour. Some silhouettes people ask for:
 - an airy weeping tree: `{ form: 'weep', split: 2, branch: 0.5, leaf: 2, barkForm: 'peeling' }`
 - an umbrella grove: `{ form: 'whorl', scale: 1.3, trunk: 0.7, spread: 0.45 }`
 
+## Bushes and shrubs, in sections
+
+`flora.bushes.kinds` (1 to 6) are tree kinds with the trunk taken away: a form's name, or `{ form, height: [lo, hi] m,
+spread, stems, splay, trunk, girth, branch, split, density, leaf, bark, barkForm, share, walk }`. The defaults are a
+bush's (0.8–1.5 m, five thin stems from the foot, fine limbs, a wide low crown). `walk: 'block'` (default) stops a
+walker (and is a collider for an engine); `walk: 'through'` is pushed through (low brush, ferny cover).
+
+`sections: { count, radius: [lo, hi] m, fill (bushes a m²), gap m, band: [near, far] m from the trail }`: patches of
+one kind each, off the trail, clear of the rocks, the trees and each other, mounding toward their middle; no grass grows
+up through a bush. `count: 0` for none (bushes only in clumps). Mind the grass: a bush under the meadow's height sinks
+into it; a hedge is 1.2 m and up, brush you see over the grass 0.8 m and up.
+
 ## A clump, composed (ikebana)
 
 With `compose: 'ikebana'` each clump has roles: `shin` the tall line at the back, `soe` the mass stepping down, `hikae`
@@ -73,6 +86,8 @@ the low anchor in front, `filler` round them, the trail's side left open. Cast t
 - `clump: { shin, soe, hikae, filler }`: each role's kind, by its place in `kinds` (from 0). Contrast line, mass and mound:
   a tall clean-stemmed kind for `shin`, a spreading one for `soe`, a low wide one for `hikae` (`{ form: 'spray', scale:
   0.45, trunk: 0.15, spread: 0.55, stems: 3 }` is a mound).
+  A role may be a BUSH: `{ bush: n }`, a kind of `flora.bushes`: `hikae: { bush: 0 }` grounds the clump on a shrub,
+  `filler: { bush: 1 }` fills round it with brush; a bush role takes its role's harmony colour as a tree does.
 - `harmony`: the clump's colours by role, solved by the colour theorist from the world's foliage and checked (each role
   steps from the one behind it, and every role stands off the grass). `analogous` (the hue stepping cool behind to warm
   in front), `value` (one hue, dark behind to light in front: depth from afar), `accent` (the world's green, and one note

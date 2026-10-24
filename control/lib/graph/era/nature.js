@@ -581,7 +581,7 @@ export function grassTufts(st, site, trees, rocks, sun, seed) {
   const placed = new Map(), cellOf = (x, y) => `${Math.floor(x / G.spacing)},${Math.floor(y / G.spacing)}`;
   const free = (x, y) => {
     if (placed.has(cellOf(x, y))) return false;
-    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 0.6) || rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * st.rubble.unit * 0.35)) return false;
+    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < (t.clearR ?? 0.6)) || rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * st.rubble.unit * 0.35)) return false;
     placed.set(cellOf(x, y), 1); return true;
   };
   const tufts = [];

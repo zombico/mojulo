@@ -14,6 +14,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Bushes and shrubs: composed in sections, blocking or walked through
+
+A biocube composes a level's bushes (`flora.bushes`, `era/thickets.js`): tree kinds with the trunk taken away (a few
+thin stems from the foot, splayed, finer limbs, a low wide crown), drawn through the trees' own leaf-branch path, chipped
+on a gritty land and plain on a quiet one.
+
+- **Sections**: patches of one kind each, off the trail and clear of the rocks, the trees and each other, mounding
+  toward the middle; no grass grows up through a bush (an avoided thing's own `clearR`, the grass's fixed reach
+  absent it).
+- **Walk**: a kind's `walk: 'block'` stops a walker on the page and is a collider for an engine; `walk: 'through'` is
+  drawn in soft groups (`flora:brush`, `flora:brush-chips`, `flora:brush-wood`) the walker passes through.
+- **In a clump**: an arranged clump's role can be cast as a bush (`clump.hikae: { bush: 0 }`, `filler: { bush: 1 }`), and
+  takes its role's harmony colour as a tree does.
+- **Cost**: a bush's lobes are coarse and it draws no twigs: about 930 faces a bush on a gritty land.
+
+The galleries: `scripts/spikes/geotown/bushes.mjs` (sections) and `clump-harmony.mjs clump-bushes` (clumps grounded on
+shrubs); the manual, the `biocube` card.
+
 ### Composed clumps: an ikebana clump cast and coloured by role
 
 An arranged clump (`compose: 'ikebana'`) placed its trees in roles but drew them all one kind and one colour. Now a
