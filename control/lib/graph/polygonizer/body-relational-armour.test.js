@@ -3,7 +3,7 @@
 // realistic knight: its cuirass, its hoops, its boots and its pauldrons' caps made, the caps closed and wound once.
 // (Beside the module, not in the critical tier: a realistic mint takes seconds.)
 import { describe, it, expect, beforeAll } from 'vitest';
-import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { heroRecord, expandLayeredManifest, dressReadout } from '../../mcp/tools/layered.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { roleOf, wornPieces } from './body-relational-armour.js';
 import { validateArmor } from '../armor/expand.js';
@@ -44,10 +44,11 @@ describe('what the realistic body leaves off', () => {
 });
 
 describe('the realistic knight', () => {
-  let r, A;
+  let hero, m, r, mesh, A;
   beforeAll(() => {
-    r = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', adorn: { type: 'armor', style: 'knight' } }) }).recipe;
-    A = auditLayered(compileLayered(r));
+    hero = heroRecord({ cast: 'male', form: 'realistic', adorn: { type: 'armor', style: 'knight' } });
+    m = expandLayeredManifest({ kind: 'layered', hero }); r = m.recipe;
+    mesh = compileLayered(r); A = auditLayered(mesh);
   }, 300_000);
   it('wears a cuirass, hoops, boots and two pauldron caps; the kit\'s own breast, fauld, sabatons and anchors gone', () => {
     for (const k of ['cuirass_torso', 'fauld_torso', 'fauld_pelvis', 'boots_footR', 'bootsSole_footL', 'adorn.pauldronR', 'adorn.pauldronL']) expect(r.parts[k], k).toBeTruthy();
@@ -57,5 +58,11 @@ describe('the realistic knight', () => {
     for (const k of ['adorn.pauldronR', 'adorn.pauldronL', 'cuirass_torso', 'fauld_pelvis']) {
       expect(A[k].nonManifold, k).toBe(0); expect(A[k].windingErrors, k).toBe(0); expect(A[k].boundaryEdges, k).toBe(0);
     }
+  });
+  it('its read judges what it wears: the pieces its own shells replaced and the ones it leaves off are unworn, never "does not read"', { timeout: 300_000 }, () => {
+    const D = dressReadout(hero, m.plan, mesh, r);
+    expect(D.unworn).toEqual(expect.arrayContaining(['torso-breastR', 'torso-backL', 'torso-fauld', 'pelvis-fauld', 'footR-sabaton', 'torso-pauldronR', 'neck-gorget']));
+    expect(D.adornments.length).toBeGreaterThan(0);
+    for (const a of D.adornments) { expect(D.unworn, a.id).not.toContain(a.id); expect(mesh.parts[`adorn.${a.id}`], a.id).toBeTruthy(); }
   });
 });

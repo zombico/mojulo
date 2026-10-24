@@ -1,0 +1,342 @@
+<title>@TITLE@</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* hero-live: the skinned GLB an engine receives, played as is. A stage (the figure, orbitable) beside the slate:
+     variants (the same hero bare and dressed), takes (the GLB's clips), the transport, the morph channels, the debug
+     toggles and what the mint read back. Written by .claude/skills/hero-live/live.mjs; window.heroLive drives it. */
+  :root {
+    --bg: #ecebe7; --panel: #f7f6f3; --ink: #1d1f22; --muted: #62666c; --line: #d3d1cb; --accent: #b4532a; --stage: #d9d7d1; --meter: #2d6a6a; --warn: #9a5a00;
+    --body: "Helvetica Neue", Arial, sans-serif; --mono: ui-monospace, Menlo, "DejaVu Sans Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #16181b; --panel: #1e2125; --ink: #ecebe7; --muted: #9a9ea5; --line: #33373d; --accent: #e07a4f; --stage: #23262b; --meter: #6fb7b4; --warn: #e0a64f; color-scheme: dark } }
+  :root[data-theme="dark"] { --bg: #16181b; --panel: #1e2125; --ink: #ecebe7; --muted: #9a9ea5; --line: #33373d; --accent: #e07a4f; --stage: #23262b; --meter: #6fb7b4; --warn: #e0a64f; color-scheme: dark }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); padding: 20px max(16px, env(safe-area-inset-right, 0px)) 28px max(16px, env(safe-area-inset-left, 0px)); }
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
+  h1 { font-weight: 800; font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -0.01em; margin: 0; }
+  .sub { color: var(--muted); margin: 0; max-width: 66ch; line-height: 1.5; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+  @media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; aspect-ratio: 4 / 3; }
+  @media (max-width: 560px) { .stage { aspect-ratio: 4 / 5; } }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .status { position: absolute; left: 12px; bottom: 10px; right: 12px; font: 12px var(--mono); color: var(--muted); pointer-events: none; }
+  .views { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; }
+  .transport { display: flex; align-items: center; gap: 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 14px; }
+  .label { font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { font: 600 13px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; cursor: pointer; text-align: left; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .views button { background: var(--panel); font-size: 12px; padding: 5px 9px; }
+  .chips small { font: 400 11px var(--mono); color: var(--muted); margin-left: 4px; }
+  .meters { display: grid; gap: 5px; max-height: 300px; overflow: auto; }
+  .meter { display: grid; grid-template-columns: 112px 1fr 38px; gap: 8px; align-items: center; font: 12px var(--mono); }
+  .meter span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { height: 8px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--meter); }
+  .meter input[type="range"] { min-width: 0; width: 100%; margin: 0; }
+  .meter output { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 13px; }
+  .row label { display: inline-flex; align-items: center; gap: 5px; }
+  input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+  output { font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+  details { font-size: 13px; }
+  summary { cursor: pointer; font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .read { display: grid; gap: 8px; margin-top: 8px; line-height: 1.45; }
+  .read ul { margin: 0; padding-left: 18px; }
+  .read .warn { color: var(--warn); }
+  pre { font: 11px/1.45 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin: 0; overflow: auto; max-height: 220px; white-space: pre-wrap; word-break: break-word; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>@TITLE@</h1>
+    <p class="sub">The skinned GLB an engine receives, played as is: the rig, the face's morph targets keyed into the body's clips, and each variant of the same hero side by side. Drag to orbit, scroll to zoom.</p>
+  </header>
+  <div class="grid">
+    <div>
+      <div class="stage" id="stage">
+        <canvas id="view" aria-label="The hero in 3D. Drag to orbit, scroll to zoom."></canvas>
+        <div class="views" role="group" aria-label="Camera">
+          <button id="vFace" aria-pressed="true">Face</button>
+          <button id="vBust" aria-pressed="false">Bust</button>
+          <button id="vBody" aria-pressed="false">Full body</button>
+        </div>
+        <div class="status" id="status" role="status">Loading the hero…</div>
+      </div>
+      <div class="transport" style="margin-top: 10px">
+        <button id="playPause" aria-label="Pause">Pause</button>
+        <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" aria-label="Time in the take">
+        <output id="timeOut">0.00 s</output>
+      </div>
+    </div>
+    <aside class="panel">
+      <div id="variantsBox">
+        <p class="label">Variant</p>
+        <div class="chips" id="variants" role="group" aria-label="Variant"></div>
+      </div>
+      <div>
+        <p class="label">Takes</p>
+        <div class="chips" id="takes" role="group" aria-label="Take"></div>
+      </div>
+      <div class="row">
+        <label for="speed">Speed</label>
+        <input id="speed" type="range" min="0.1" max="2" step="0.05" value="1">
+        <output id="speedOut">1.00×</output>
+      </div>
+      <div class="row">
+        <label><input id="blink" type="checkbox" checked> Ambient blink</label>
+        <label><input id="wire" type="checkbox"> Wireframe</label>
+        <label><input id="bones" type="checkbox"> Bones</label>
+      </div>
+      <div>
+        <div class="row" style="justify-content: space-between"><p class="label" style="margin: 0">Morph channels</p><label><input id="hold" type="checkbox"> Hold by hand</label></div>
+        <div class="meters" id="meters" style="margin-top: 6px"></div>
+      </div>
+      <details id="readBox">
+        <summary>What the mint read back</summary>
+        <div class="read" id="read"></div>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<script type="application/json" id="manifest">@MANIFEST@</script>
+<script type="importmap">@IMPORTMAP@</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const M = JSON.parse(document.getElementById('manifest').textContent);
+const $ = (id) => document.getElementById(id);
+const canvas = $('view'), stage = $('stage'), status = $('status');
+
+// ─── the studio ─────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 4 / 3, 0.01, 60);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+// (a portrait studio: a warm key from the upper left, a cool fill, a rim behind; the figure faces −z)
+scene.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332e, 0.65));
+const key = new THREE.DirectionalLight(0xfff1e0, 2.4); key.position.set(1.6, 3.2, -2.6); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -1.5, right: 1.5, top: 2.2, bottom: -0.2, near: 0.5, far: 8 }); key.shadow.bias = -0.0004; scene.add(key);
+const fill = new THREE.DirectionalLight(0xc9dcff, 0.7); fill.position.set(-2.2, 1.6, -1.8); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 1.3); rim.position.set(-0.4, 2.4, 2.8); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(2.2, 64), new THREE.ShadowMaterial({ opacity: 0.22 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+// ─── state ──────────────────────────────────────────────────────────────────
+const S = { variant: null, take: null, paused: false, speed: 1, view: 'vFace', hold: false, holdW: {} };
+const V = Object.fromEntries(M.variants.map((v) => [v.id, { ...v, loaded: null }]));
+// a take's playing time: the manifest's (a door clip's keys), the locomotion's cycle, else from its keys
+const LOOPS = { walk: 1.1, jog: 0.8, run: 0.7, sprint: 0.6 };
+const secondsOf = (clip) => {
+  const name = clip.name.replace(/^body:/, '');
+  if (M.seconds?.[name]) return M.seconds[name];
+  if (LOOPS[name]) return LOOPS[name];
+  const keys = Math.max(...clip.tracks.map((t) => t.times.length));
+  return Math.min(6, Math.max(1.6, (keys - 1) * 0.75));
+};
+
+// ─── loading a variant (a GLB, or one packed as base64 JSON where a host serves no .glb) ─────────────────────
+async function load(v) {
+  if (v.loaded) return v.loaded;
+  const loader = new GLTFLoader();
+  let gltf;
+  if (M.packed) {
+    const { glb } = await fetch(v.file).then((r) => { if (!r.ok) throw new Error(`${v.file}: ${r.status}`); return r.json(); });
+    const bin = atob(glb), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    gltf = await loader.parseAsync(buf.buffer, '');
+  } else gltf = await loader.loadAsync(v.file, (e) => { if (e.total) status.textContent = `Loading ${v.label}… ${Math.round((e.loaded / e.total) * 100)}%`; });
+  const root = gltf.scene; let body = null;
+  root.traverse((o) => {
+    if (o.isMesh && /static/.test(o.name)) o.visible = false;   // (the export's ground slab)
+    if (o.isSkinnedMesh) { body = o; o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+  });
+  for (const m of [body?.material].flat().filter(Boolean)) { m.roughness = 0.62; m.metalness = 0; m.needsUpdate = true; }
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(body ?? root);
+  const mixer = new THREE.AnimationMixer(root), actions = {};
+  for (const clip of gltf.animations) if (clip.name.startsWith('body:')) actions[clip.name.slice(5)] = { action: mixer.clipAction(clip), seconds: secondsOf(clip) };
+  const bones = new THREE.SkeletonHelper(root); bones.visible = $('bones').checked;
+  root.visible = false; scene.add(root); scene.add(bones);
+  v.loaded = { root, body, mixer, actions, bones, morph: body?.morphTargetDictionary ?? {}, figure: { x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2, y0: box.min.y, h: box.max.y - box.min.y },
+    stats: `${body ? (body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3) | 0 : 0} triangles · ${body?.skeleton.bones.length ?? 0} bones · ${Object.keys(body?.morphTargetDictionary ?? {}).length} morph targets${v.mb ? ` · ${v.mb} MB` : ''}` };
+  return v.loaded;
+}
+
+// ─── the slate ──────────────────────────────────────────────────────────────
+const variantButtons = {};
+for (const v of M.variants) {
+  const b = document.createElement('button'); b.textContent = v.label; b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => selectVariant(v.id)); $('variants').append(b); variantButtons[v.id] = b;
+}
+if (M.variants.length < 2) $('variantsBox').hidden = true;
+
+function renderTakes(L) {
+  const box = $('takes'); box.replaceChildren();
+  for (const [name, T] of Object.entries(L.actions)) {
+    const b = document.createElement('button'); b.dataset.take = name; b.setAttribute('aria-pressed', String(name === S.take));
+    b.innerHTML = `${name}<small>${T.seconds.toFixed(1)} s</small>`; b.addEventListener('click', () => play(name)); box.append(b);
+  }
+}
+const markTakes = () => { for (const b of $('takes').children) b.setAttribute('aria-pressed', String(b.dataset.take === S.take)); };
+
+const meterEls = {};
+function renderMeters(L) {
+  const box = $('meters'); box.replaceChildren(); for (const k of Object.keys(meterEls)) delete meterEls[k];
+  for (const name of Object.keys(L.morph)) {
+    const row = document.createElement('div'); row.className = 'meter';
+    row.innerHTML = `<span title="${name}">${name}</span><span class="bar"><i></i></span><output>0.00</output>`;
+    const slider = document.createElement('input'); Object.assign(slider, { type: 'range', min: 0, max: 1, step: 0.01, value: S.holdW[name] ?? 0 });
+    slider.setAttribute('aria-label', `${name} weight`); slider.hidden = true;
+    slider.addEventListener('input', () => { S.holdW[name] = Number(slider.value); });
+    row.children[1].after(slider); box.append(row);
+    meterEls[name] = { bar: row.querySelector('i'), barBox: row.children[1], slider, out: row.querySelector('output') };
+  }
+  showHold();
+}
+function showHold() { for (const m of Object.values(meterEls)) { m.slider.hidden = !S.hold; m.barBox.hidden = S.hold; } }
+
+function renderRead(v) {
+  const R = v.read || {}, box = $('read'); box.replaceChildren();
+  const add = (html) => { const d = document.createElement('div'); d.innerHTML = html; box.append(d); };
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  if (R.ref) add(`<b>ref</b> <code>${esc(R.ref)}</code>`);
+  if (R.warnings?.length) add(`<b>warnings</b><ul>${R.warnings.map((w) => `<li class="warn">${esc(w)}</li>`).join('')}</ul>`);
+  if (R.adorn) add(`<b>adorn</b><pre>${esc(JSON.stringify(R.adorn, null, 1))}</pre>`);
+  if (R.outline) add(`<b>outline</b><pre>${esc(JSON.stringify(R.outline, null, 1))}</pre>`);
+  if (R.notes?.length) add(`<b>stylism notes</b><ul>${R.notes.map((n) => `<li>${esc(n.why ?? JSON.stringify(n))}</li>`).join('')}</ul>`);
+  add(`<b>spec</b><pre>${esc(JSON.stringify(v.spec, null, 1))}</pre>`);
+}
+
+// ─── playing ────────────────────────────────────────────────────────────────
+const cur = () => (S.variant ? V[S.variant].loaded : null);
+function play(name, { phase = 0, fade = 0.35 } = {}) {
+  const L = cur(); if (!L) return;
+  const T = L.actions[name] ?? Object.values(L.actions)[0]; if (!T) return;
+  const prev = S.take && L.actions[S.take]?.action, next = T.action;
+  S.take = Object.keys(L.actions).find((k) => L.actions[k] === T);
+  next.reset(); next.setLoop(THREE.LoopRepeat, Infinity); next.timeScale = (next.getClip().duration / T.seconds) * S.speed;
+  next.time = phase * next.getClip().duration; next.paused = S.paused; next.play();
+  if (prev && prev !== next) { if (fade > 0) prev.crossFadeTo(next, fade, false); else prev.stop(); }
+  if (S.paused) L.mixer.update(0);
+  markTakes();
+}
+const phaseNow = () => { const L = cur(), a = L && S.take && L.actions[S.take]?.action; return a ? (a.time % a.getClip().duration) / a.getClip().duration : 0; };
+
+async function selectVariant(id) {
+  const v = V[id]; if (!v) return;
+  const phase = S.variant ? phaseNow() : 0, take = S.take;
+  for (const [k, b] of Object.entries(variantButtons)) b.setAttribute('aria-pressed', String(k === id));
+  status.textContent = `Loading ${v.label}…`;
+  let L; try { L = await load(v); } catch (e) { status.textContent = `${v.label} could not be loaded: ${e.message}`; console.error(e); return; }
+  const old = cur(); if (old) { old.root.visible = false; old.bones.visible = false; old.mixer.stopAllAction(); }
+  S.variant = id; L.root.visible = true; L.bones.visible = $('bones').checked;
+  setWire($('wire').checked);
+  renderTakes(L); renderMeters(L); renderRead(v);
+  const first = !old; S.take = null;
+  play(take && L.actions[take] ? take : (M.firstTake && L.actions[M.firstTake] ? M.firstTake : Object.keys(L.actions)[0]), { phase, fade: 0 });
+  if (first) frame(S.view);
+  floor.position.y = L.figure.y0 + 0.002;
+  status.textContent = `${v.label} · ${L.stats}`;
+}
+
+function setWire(on) { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) m.wireframe = on; }
+
+// ─── the transport and the toggles ──────────────────────────────────────────
+function setPaused(p) {
+  S.paused = p; $('playPause').textContent = p ? 'Play' : 'Pause'; $('playPause').setAttribute('aria-label', p ? 'Play' : 'Pause');
+  const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.paused = p;
+}
+$('playPause').addEventListener('click', () => setPaused(!S.paused));
+function seek(phase) {
+  const L = cur(), a = L && S.take && L.actions[S.take]?.action; if (!a) return;
+  setPaused(true); for (const T of Object.values(L.actions)) if (T.action !== a) T.action.stop();
+  a.setEffectiveWeight(1); a.time = Math.max(0, Math.min(1, phase)) * a.getClip().duration * 0.9999; L.mixer.update(0);
+}
+$('scrub').addEventListener('input', (e) => seek(Number(e.target.value)));
+$('speed').addEventListener('input', (e) => {
+  S.speed = Number(e.target.value); $('speedOut').textContent = `${S.speed.toFixed(2)}×`;
+  const L = cur(); if (L) for (const T of Object.values(L.actions)) T.action.timeScale = (T.action.getClip().duration / T.seconds) * S.speed;
+});
+$('wire').addEventListener('change', (e) => setWire(e.target.checked));
+$('bones').addEventListener('change', (e) => { const L = cur(); if (L) L.bones.visible = e.target.checked; });
+$('hold').addEventListener('change', (e) => {
+  S.hold = e.target.checked; const L = cur();
+  if (S.hold && L?.body) for (const [n, i] of Object.entries(L.morph)) { S.holdW[n] = L.body.morphTargetInfluences[i]; if (meterEls[n]) meterEls[n].slider.value = S.holdW[n]; }
+  showHold();
+});
+
+// ─── the cameras, framed by the figure's own height ─────────────────────────
+const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 } };
+function frame(id) {
+  S.view = id;
+  for (const k of Object.keys(VIEWS)) $(k).setAttribute('aria-pressed', String(k === id));
+  const L = cur(); if (!L) return;
+  const W = VIEWS[id], F = L.figure, target = new THREE.Vector3(F.x, F.y0 + F.h * W.at, F.z);
+  camera.fov = W.fov; camera.updateProjectionMatrix();
+  controls.target.copy(target);
+  camera.position.set(target.x - W.dist * 0.3, target.y + W.dist * W.rise, target.z - W.dist * 0.95);
+  controls.update();
+}
+for (const k of Object.keys(VIEWS)) $(k).addEventListener('click', () => frame(k));
+
+// ─── the ambient blink: seeded intervals 2.4–5.2 s, a blink 0.17 s, sometimes a double ────────────────────
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+let nextBlink = 1.2, blinkT = -1, doubled = false;
+function blinkWeight(t, dt) {
+  if (blinkT < 0 && t >= nextBlink) blinkT = 0;
+  if (blinkT < 0) return 0;
+  blinkT += dt; const x = blinkT / 0.17;
+  if (x >= 1) { blinkT = -1; if (!doubled && rnd() < 0.18) { doubled = true; nextBlink = t + 0.12; } else { doubled = false; nextBlink = t + 2.4 + rnd() * 2.8; } return 0; }
+  return Math.sin(Math.PI * x) ** 0.7;
+}
+
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage); resize();
+
+const clock = new THREE.Clock(); let t = 0;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05); if (!S.paused) t += dt;
+  const L = cur();
+  if (L) {
+    L.mixer.update(S.paused ? 0 : dt);
+    const W = L.body?.morphTargetInfluences;
+    if (W) {
+      if (S.hold) for (const [n, i] of Object.entries(L.morph)) W[i] = S.holdW[n] ?? 0;
+      else if ($('blink').checked && L.morph.blink !== undefined && !S.paused) W[L.morph.blink] = Math.max(W[L.morph.blink], blinkWeight(t, dt));
+      for (const [n, i] of Object.entries(L.morph)) { const m = meterEls[n]; if (!m) continue; const v = W[i]; m.bar.style.width = `${Math.round(Math.min(1, Math.max(0, v)) * 100)}%`; m.out.textContent = v.toFixed(2); }
+    }
+    const a = S.take && L.actions[S.take]?.action;
+    if (a) { const d = a.getClip().duration, p = (a.time % d) / d; if (!S.paused) $('scrub').value = p; $('timeOut').textContent = `${(p * L.actions[S.take].seconds).toFixed(2)} s`; }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+// ─── window.heroLive: what a script (shot.mjs) drives ───────────────────────
+const ready = selectVariant(M.variants[0].id);
+window.heroLive = {
+  ready, manifest: M,
+  variant: (id) => selectVariant(id), take: (name) => play(name, { fade: 0 }), view: (id) => frame(id), seek, pause: setPaused,
+  hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); Object.assign(S.holdW, weights); },
+  set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
+  state: () => ({ variant: S.variant, take: S.take, paused: S.paused, phase: phaseNow(), view: S.view }),
+};
+</script>

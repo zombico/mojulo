@@ -69,6 +69,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   channels, and the key's `jaw`), with `head: 'relational'` named or not. They export as morph weights in the clip
   beside its bones, so a wave can smile and a start can raise the brows on the same beat. Before this, a named relational
   head refused the key, and its tracks resolved through the anime head's words.
+- `/hero-live`: the hero played as an engine gets it. Each variant (bare, an armour style, a round of its words) is
+  minted through the door and exported as the skinned GLB with every clip, then played in a three.js page beside the
+  mint's read: orbit, the takes, a scrubber, every morph channel live or held by hand, wireframe, bones. `shot.mjs` tiles
+  frames at set moments into a sheet for an agent to read; `--publish` packs the page for an artifact host.
 - Still open: the shut lid ripples a little; a full smile's cheek stands over the lower iris, as the face's field
   draws it.
 
@@ -892,6 +896,11 @@ coarse wraps crumpling over the belly, the pauldron's anchor folding over the sh
 - The SABATONS boots (the realistic foot turns from the ankle to the sole, which folds a plate): the footwear
   primitive's, below. The realistic foot's rings carry the authored foot's `u` (a share of its span), so an address
   made for the authored foot lands on the same share of the realistic one.
+- The read judges what the body wears (`dressReadout`). The realistic knight's read had judged every piece of the kit
+  as planned: the breast and back plates, the faulds, the sabatons, the pauldron's facing and the gorget, worn as its own
+  shells or left off, each "does not read" at exposure 0, 12 of its 70 warnings. They are now `dress.unworn`, named and
+  not judged. What remains is real: the straps' buckles buried under the cuirass, the vambraces that never read, and
+  the shells that replaced the kit's pieces carry no signature of their own (the focal pauldron's facing among them).
 
 ### Footwear: a solver library, an adapter per body's foot
 
