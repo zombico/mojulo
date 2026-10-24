@@ -14,13 +14,6 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The game rail: one loop, the quick path its door
-
-- Planned. Every genre a quick game plays (race, deathmatch, defend, farm, sneak, shoot, rhythm, fly, battle, puzzle,
-  runner, a ride, a transformer) becomes a goal any level of the game designer loop can take, so `compose` and the
-  book make the games the quick path makes. `design_game({ quick })` stays, as the one-call door that writes a
-  one-level world, and as the loop's tester. Games already made re-render unchanged.
-
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
