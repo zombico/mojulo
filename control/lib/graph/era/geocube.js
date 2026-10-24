@@ -52,6 +52,8 @@
  *   biocube   (optional) what grows on its land (era/biocube.js: a preset id, a document or { from, …changes }): its
  *             streets' flora (show 'town', a domain's street, a recipe's geocube with a trail) unless a recipe names
  *             its own. Absent, a street's land grows nothing, as its island's
+ *   snow      (optional) the snow on its land (era/snow.js: true, a depth, or { line?, depth?, hold?, drift?, lee? }):
+ *             its trail's stage under it, the far ridges capped, unless a recipe names its own. Absent, no snow
  *   grit      (optional) how gritty the style is, 0 (quiet) to 1: from local-meru GRIT_PIXELS its rock takes pixels (the
  *             page draws the rock's own fabric on the near cliffs, matte-paint/fabric.js); under it, or absent, rock is
  *             polygon only
@@ -89,6 +91,7 @@ import { ISEKAI_STYLES, hourShift } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
 import { readBiocube } from './biocube.js';
+import { readSnow } from './snow.js';
 import { TRAIL_DRESS_KEYS } from './trail-dress.js';
 import { substrateOf } from './substrate-of.js';
 import { STAGE_KITS, isGroundKit } from './stage.js';
@@ -342,7 +345,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -433,6 +436,8 @@ export function readGeocube(spec) {
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
   // biocube (optional): what grows on its land, its streets' flora unless a recipe names its own (era/biocube.js)
   if (c.biocube !== undefined) readBiocube(c.biocube);
+  // snow (optional): the snow on its land, its trail's stage under it unless a recipe names its own (era/snow.js)
+  if (c.snow !== undefined) { try { readSnow(c.snow); } catch (e) { no(e.message); } }
   // surfaces
   only(c.surfaces, ['wall', 'floor', 'accent', 'pillar', 'plinth'], 'surfaces');
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
@@ -998,7 +1003,9 @@ export function withGeocube(manifest) {
     // (its land drawn as the cube's island is, in the cube's look: its land shading, isekai.js)
     // (and its flora the cube's biocube when the recipe names none)
     const own = m.kit === undefined;
-    return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}) };
+    return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
+      // (and its snow, era/snow.js: the cube's when the recipe names none)
+      ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
   }
   if (m.meru !== undefined) {
     const low = lowerGeocube(cube, 'outside', T?.name, H, Wr);

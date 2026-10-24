@@ -46,6 +46,8 @@ export const GROUND_CUTS = Object.freeze({
   'isekai:sand': Object.freeze({ cut: 'sand', metres: 1.2, vary: 10, seed: 97, one: true }),
   // (a formation's rock ground, where the land names one: era/isekai.js formationGround) the pavement in clints and
   // grikes (its joints the rock flora roots in: era/rock-flora.js), the talus in loose stones
+  // (snow, where a level's lies: era/snow.js; the sand's cut drawn in its light, the wind's crust and its ridges)
+  'isekai:snow': Object.freeze({ cut: 'sand', metres: 2.2, vary: 6, seed: 113, one: true }),
   'isekai:pavement': Object.freeze({ cut: 'karst', metres: 3.6, vary: 10, seed: 101, one: true, rows: 3, cols: 2 }),
   'isekai:talus': Object.freeze({ cut: 'scree', form: 'blocks', metres: 1.5, vary: 12, seed: 103 }),
   'isekai:rubble': Object.freeze({ cut: 'scree', form: 'rubble', metres: 2.4, vary: 12, seed: 107 }),

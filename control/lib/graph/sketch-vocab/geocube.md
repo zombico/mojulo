@@ -25,6 +25,13 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
   `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
 - **Flora** (`biocube`): what grows on its land, its trees composed as silhouettes in the cube's colours
   (`get_sketch_vocab({ id: 'biocube' })`).
+- **Snow** (`snow`): the cube's land under snow, its trail's stage and the far ridges. `true`, a depth (`dusting`,
+  `cover`, `deep`), or `{ line?, depth?, hold?, drift?, lee? }`: `line` metres over the land's lowest ground where it
+  begins (snowcapped crags; absent, the whole land), `depth` a word or metres, `hold` how level ground must be to hold
+  it (0.5–0.98: steeper rock stands bare), `drift` how far the wind opens it in patches (0–1), `lee` how much longer
+  the side turned from the sun holds it (0–1). The colour theorist solves its colour from the cube's sky and sun; the
+  trail goes trodden snow, the grass thins under a cover and is gone under deep snow, leaves turned up carry it, and
+  the walker leaves footprints. A bare season is the biocube's (`trees.season`).
 - **Styles** (`style`, era/arch-style.js): what the builders build, so no two places need look alike. A starter's id
   (`STYLE_STARTERS`, e.g. `whitewashed-island`, `tudor-market`, `adobe-pueblo`, `art-deco`, `brutalist`), `{ from:
   <starter>, …changes }`, or your own: `{ read, class: 'ancient' | 'modern', language, materials, palette?, city? }`.
