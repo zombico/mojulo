@@ -197,7 +197,8 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral', features = null } = {}) {
   // FEATURES (opt-in, the tiered form's: tiered-form.js TIERED_FACE): the eyes', brows' and ears' sizes, the ears set
   // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin), the lean ear
-  // (`earLean`, head-ear.js). Absent ⇒ every feature as before, byte-identical.
+  // (`earLean`, head-ear.js), the skull's back deeper (`occiput`, humanoid-head-fit.js). Absent ⇒ every feature as before,
+  // byte-identical.
   const ft = features || {};
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
@@ -205,7 +206,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   { const errs = westernExpressionErrors(expression); if (errs.length) throw new Error(`humanoid: ${errs.join('; ')}`); }
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('humanoid: head scale must be positive');
   for (const [k, v] of Object.entries(shape)) if (!(k in HEAD_SHAPE_DEFAULTS) || !(Number.isFinite(v) && v > 0)) throw new Error(`humanoid: invalid head shape '${k}' (have ${Object.keys(HEAD_SHAPE_DEFAULTS).join(', ')})`);
-  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}) }, pole = HEAD_PRESETS[preset];
+  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}), ...(ft.occiput ? { occiput: ft.occiput } : {}) }, pole = HEAD_PRESETS[preset];
   const fit = HEAD_SOURCES[preset] === 'fit', anchors = humanoidAnchors(preset, knobs);
   const rows = fit ? null : landmarkRows(anchors, pole, knobs);
   const sh = { width: HEAD_WIDTH[preset], jaw: 1, nose: 1.05,

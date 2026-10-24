@@ -149,10 +149,10 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(15);
+    expect(HERO_LAWS_VERSION).toBe(16);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 15/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 16/)]);
   });
   it('laws 15 poses the head and the neck as the cervical chain and holds the wave\'s small look; laws 14 keeps its plan', () => {
     const at = (laws) => heroPlanOf({ ...heroRecord({ cast: 'female' }), laws }), p14 = at(14), p15 = at(15);
@@ -164,6 +164,19 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
     const R = validateRig(expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'female' }), laws: 15 } }).recipe.rig), deg = (r) => (r * 180) / Math.PI, side = (N) => [deg(Math.atan2(N.headBase[0] - N.neckHub[0], N.headBase[2] - N.neckHub[2])), deg(Math.atan2(N.headTop[0] - N.headBase[0], N.headTop[2] - N.headBase[2]))];
     const [r0, r1] = side(rigNodesAt(R, {}).nodes), [n, h] = side(rigNodesAt(R, p15.clips.wave[2]).nodes);
     expect(n - r0).toBeGreaterThan(2); expect(n - r0).toBeLessThan(10); expect(Math.abs(h - n - (r1 - r0))).toBeLessThan(n - r0);
+  });
+  it('laws 16 seats the head on its neck: the landmark neck leans forward up to the skull, hers the more; his skull deeper behind, the face and hers untouched', () => {
+    const at = (cast, laws) => heroPlanOf({ ...heroRecord({ cast, form: 'tiered' }), laws });
+    const lean = (p) => { const S = p.segments.find((s) => s.name === 'neck').stations, a = S[1].at, b = S[3].at; return (Math.atan2(b[1] - a[1], b[2] - a[2]) * 180) / Math.PI; };
+    const skull = (p) => p.include.flatMap((inc) => Object.values(inc.parts.cranium?.stations ?? []).flatMap((st) => Object.values(st.points)));
+    const m15 = at('male', 15), m16 = at('male', 16), f15 = at('female', 15), f16 = at('female', 16);
+    expect(lean(m16) - lean(m15)).toBeGreaterThan(1.5); expect(lean(f16) - lean(m16)).toBeGreaterThan(0.5);
+    const back = (P) => Math.min(...P.map((q) => q[1])), A = skull(m15), B = skull(m16), mid = (back(A) + Math.max(...A.map((q) => q[1]))) / 2;
+    expect(back(A) - back(B)).toBeGreaterThan(0.01);
+    // (the face's points stand within a millimetre or so: the fitted surface's triangles over the crown and the cheek span
+    // both halves, so a ray at the front can meet one the back moved)
+    expect(A.length).toBe(B.length); A.forEach((q, i) => { if (q[1] > mid) expect(Math.hypot(...q.map((v, a) => v - B[i][a]))).toBeLessThan(0.0015); });
+    expect(skull(f16)).toEqual(skull(f15));
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };

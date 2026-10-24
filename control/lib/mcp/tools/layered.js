@@ -1199,7 +1199,7 @@ function heroFormPlanOf(hero) {
   // (the cast as the hero's laws read it: hero-form.js lawCast, the chibi's head and arms under laws 6)
   const L = lawCast(hero.cast, hero.laws ?? 1, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero')), cast = L.cast;
   const body = { ...(L.body ?? {}), ...(hero.body ?? {}), ...(childCoding(hero) ? { bust: 0 } : {}) };
-  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body, girth: hero.girth ?? 1, headScale: hero.headScale ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}) };
+  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body, girth: hero.girth ?? 1, headScale: hero.headScale ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}), ...(hero.form === 'realistic' ? { seat: false } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
   if (hero.head === 'relational') return humanoidPlan({ preset: cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });

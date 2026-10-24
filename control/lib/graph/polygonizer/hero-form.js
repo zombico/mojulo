@@ -324,8 +324,11 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * shared by the neck's column and the skull's nod on the atlas, each within its own anatomical range (about 47° of
  * flexion, 75° of extension and 41° of side bend together), and the form's wave holds a small tilt toward the raised
  * hand; laws 1 to 14 swung the skull alone at the atlas in a 45° cone, and the wave's one key nodded it the whole 45°.
+ * Laws 16 SEATS THE HEAD ON ITS NECK (CERVICAL_LEAN, tiered-form.js TIERED_OCCIPUT): the landmark head's neck leans
+ * forward up into the skull and the male's skull is deeper behind the ear, so in profile the back of the skull stands
+ * over the nape as people's does; laws 1 to 15 stood the column upright under the back of the head.
  */
-export const HERO_LAWS_VERSION = 15;
+export const HERO_LAWS_VERSION = 16;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -460,6 +463,12 @@ const NAPE_LOFT = {
 /** the structured core's neck for a worn head without a neck form (the landmark head): the nape loft at the cast's own
  * neck radius (the western male's is already fuller than the anime male's column) */
 const WESTERN_NECK_FORM = deepFreeze({ ...NAPE_LOFT, girth: 1 });
+/** THE CERVICAL LEAN (hero laws 16): the landmark head's neck loft leaning forward up to the skull (degrees, NAPE_LOFT's
+ * `lean`), as the cervical column runs from C7 up and forward into the skull's base; at laws 1 to 15 its 3° stood the
+ * column all but upright under a face that reached 12 cm past its front, so in profile the head hung forward off it.
+ * The male's the less: his jaw already sat close over his throat, and his skull's back takes the rest (tiered-form.js
+ * TIERED_OCCIPUT). */
+export const CERVICAL_LEAN = Object.freeze({ female: 6, male: 5 });
 export const ANIME_NECK_FORMS = deepFreeze({
   male: { ...NAPE_LOFT, girth: 1.2, trap: { z: 0.04, r: [0.135, 0.09], yc: -0.015, tip: 0.078, blend: { torso: 0.85, neck: 0.15 } } },
   female: { ...NAPE_LOFT, girth: 1 },
@@ -542,14 +551,16 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE), 15 the cervical chain (the rig's `cervical`, the wave's look)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE), 15 the cervical chain (the rig's `cervical`, the wave's look), 16 the head seated on its neck (CERVICAL_LEAN)
+ *   seat       false keeps laws 16's CERVICAL_LEAN off (the realistic body, which leans its own neck: body-relational-builds.js
+ *              CERVICAL_NECK)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
  *              pelvis part, converged legs) or 'streamlined' (the hero before it)
  *   bare       the torso shown bare (the swimsuit's, hero-dress.js): the structured core adds the navel (CHEST_FORM)
  */
-export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1 } = {}) {
+export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, headScale, palette = PALETTE, head = null, body = {}, scale, tune, proportions = 'hero', neckForm = null, core = DEFAULT_CORE, bare = false, feet = null, laws = 1, seat = true } = {}) {
   const reg = typeof register === 'string' ? REGISTERS[register] : register;
   if (!HERO_CORES.includes(core)) throw new Error(`hero.plan: unknown core '${core}' (have ${HERO_CORES.join(', ')})`);
   const structured = core === 'structured';
@@ -652,7 +663,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the structured core lowers the neck's root to the sternal notch (NECK_ROOT), and gives a worn head without a neck
   // form of its own (the landmark head) the NAPE LOFT at its cast's radius: a round column whose back rises into the
   // occiput (the segment's three rings were a prism of flat sides with a flat cap behind)
-  const neckF = neckForm ?? (structured && head ? WESTERN_NECK_FORM : null);
+  const neckF = neckForm ?? (structured && head ? (laws >= 16 && seat ? { ...WESTERN_NECK_FORM, lean: CERVICAL_LEAN[preset?.silhouette === 'female' ? 'female' : 'male'] } : WESTERN_NECK_FORM) : null);
   const neck = neckF ? neckLoft(neckF, { b, g, zs, hb: hb + rise, ...(structured ? { base: NECK_ROOT.base } : {}) }) : { name: 'neck', kind: 'segment', from: 'neckHub', to: 'headBase', rA: g([b.neck, b.neck * 0.92]), rB: g([b.neck * 0.92, b.neck * 0.9]), slots: reg.slots, over: [structured ? NECK_ROOT.over : 0.15, 0.2], group: 'Skin', mirror: 'plane',
     bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } };
   if (preset?.suitNeck) neck.group = 'Top';   // a suited cast's neck (HEROBOT_PROPORTIONS `suitNeck`) wears the body stocking

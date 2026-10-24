@@ -14,6 +14,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The game body's head seated on its neck
+
+HERO LAWS 16 (hero-form.js `CERVICAL_LEAN`, tiered-form.js `TIERED_OCCIPUT`, humanoid-head-fit.js's `occiput` move).
+Read on the game body's midline silhouette, the landmark head stood over the body where a person's does (its ear over
+the shoulder joint), but its neck rose all but upright (3°) under the back of the head, and the man's fitted skull was
+short behind the ear (18.5 cm long, the ear at 0.41 of its length from the back; people about 0.45): his skull's back
+stood 2.2 cm behind his nape (people 4 to 5), so in profile his head read hung forward off the neck. The anime heads
+were left as they are.
+
+- The landmark head's neck leans forward up to the skull, as the cervical column runs from C7 up into the skull's
+  base: 6° for the woman, 5° for the man (on every game body that wears the landmark head, the child forms' too).
+- The man's skull is deeper behind the ear (the fitted head's `occiput` feature, set by the tiered face): the points
+  behind the ear root move back, fading out at the ear and below it toward the jaw's angle, so the back of the skull
+  stands out and his hair follows it. The face moves no more than about a millimetre, where the fitted surface's
+  triangles over the crown and the cheek span both halves.
+- Measured on the midline: his skull now stands 4.2 cm behind his nape (was 2.2), his jaw 4.7 cm past his throat (was
+  4.9); hers 5.1 cm (was 4.3) and 6.0 cm (was 6.4).
+- A statue minted now leans its neck the same way (its carved figure is a landmark hero); the realistic body keeps its
+  own neck (realistic laws 3: `heroPlan({ seat: false })`).
+- A hero or a statue stored before keeps its laws, its neck and its skull.
+
 ### The realistic neck leans up into the skull
 
 REALISTIC LAWS 3 (body-relational-builds.js `CERVICAL_NECK`, read by layered.js realisticBuild). Measured on the

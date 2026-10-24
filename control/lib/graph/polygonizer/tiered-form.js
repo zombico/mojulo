@@ -498,6 +498,11 @@ export const TIERED_FACE = Object.freeze({
     features: Object.freeze({ eye: 0.85, brow: 1, brows: Object.freeze({ arch: 0.035, head: 1.3, tail: 0.35, lift: 0.7, soft: 0.18 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }), ridge: Object.freeze({ f: 0.55, h: 0.005, socket: 0.003, temple: 0.003 }) }),
   }),
 });
+/** THE SKULL'S BACK (hero laws 16, the landmark head's `features.occiput`, humanoid-head-fit.js): the male fit's skull stood
+ * short behind the ear (18.5 cm long, the ear canal at 0.41 of its length from the back, people about 0.45), so in
+ * profile the back of the skull barely cleared the nape (2.2 cm; people 4 to 5) and the head read hung forward off its
+ * neck; his skull's back deeper by this share of the head's height. The female fit's stands as people's. */
+export const TIERED_OCCIPUT = Object.freeze({ male: 1.066 });
 /** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip
  * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. The SOCKET: the
  * brow's shadow over the eye, which a western face always has (the deeper set the male's, on his heavier ridge); its
@@ -521,12 +526,14 @@ export const TIERED_FULL_EAR_TIERS = DENSE_TIERS;
 
 /** The hero with the tiered face's defaults under its own words: the landmark head only (the anime head has its own).
  * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). The ear is the
- * lean one unless the hero's target is a TIERED_FULL_EAR_TIERS tier. */
+ * lean one unless the hero's target is a TIERED_FULL_EAR_TIERS tier. Under hero laws 16 the skull's back
+ * (TIERED_OCCIPUT). */
 export function tieredFace(hero, pole) {
   if ((hero.head ?? 'landmark') !== 'landmark') return hero;
   const F = TIERED_FACE[pole] ?? TIERED_FACE.male, own = hero.face == null ? [] : Array.isArray(hero.face) ? hero.face : [hero.face];
   const target = heroTarget(hero), fullEar = !!target && TIERED_FULL_EAR_TIERS.includes(tierOf(readTarget(target).figurePx).id);
-  return { ...hero, face: [F.face, ...own], faceFeatures: fullEar ? F.features : { ...F.features, earLean: true } };
+  const occiput = (hero.laws ?? 1) >= 16 && TIERED_OCCIPUT[pole] ? { occiput: TIERED_OCCIPUT[pole] } : {};
+  return { ...hero, face: [F.face, ...own], faceFeatures: { ...F.features, ...(fullEar ? {} : { earLean: true }), ...occiput } };
 }
 
 /** The joints a garment crosses (upper limb, lower limb, the bridge between): a piece running to the upper limb's end
