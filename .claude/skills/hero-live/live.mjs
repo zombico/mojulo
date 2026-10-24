@@ -26,7 +26,7 @@
 //   --serve     serve the out dir on 127.0.0.1 (default port 8765) after writing it
 //   --reuse     keep a variant whose <id>.glb and <id>.read.json are already in --out (iterate on the page alone)
 //
-// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'),
+// Drive it from a script through window.heroLive (shot.mjs does): variant(id), take(name), view('vFace'|'vBust'|'vBody'|'vSide'),
 // seek(phase), pause(bool), hold({ morph: weight }), state().
 import { spawn } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
@@ -40,29 +40,30 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROL = path.resolve(HERE, '../../../control');
 const THREE_CDN = '0.184.0';   // the vendored revision (lib/graph/scene/emit-util.js CDN_THREE_VERSION)
 
-// ─── the default take set: each key a stand pose plus the face (a western word or its channels) and the jaw ──────
+// ─── the default take set: each key a stand pose plus the face (a western word or its channels) and the jaw; a key's
+// `head` is the skull's axis (atlas to crown, z up, y forward), so a nod is a little y, never a gaze direction ──────
 const R = { elbowL: 'slight', elbowR: 'slight' }, UP = { shR: { yaw: -45, pitch: 90, roll: 90 } };
 const SMILE = { word: 'smile', mouthCorner: 0.01 };
 const DEFAULT_CLIPS = {
   greet: [
     { ...R, face: 'neutral' },
-    { ...R, head: { x: 0.12, y: 0.95, z: 0.25 }, face: { word: 'smile', browRaise: 0.011 } },
-    { ...R, ...UP, elbowR: 100, head: { x: 0.1, y: 0.95, z: 0.3 }, jaw: 7, face: { ...SMILE, browRaise: 0.008 } },
+    { ...R, head: { x: 0.12, y: 0.1, z: 0.99 }, face: { word: 'smile', browRaise: 0.011 } },
+    { ...R, ...UP, elbowR: 100, head: { x: 0.12, y: -0.06, z: 0.99 }, jaw: 7, face: { ...SMILE, browRaise: 0.008 } },
     { ...R, ...UP, elbowR: 78, jaw: 2, face: SMILE },
     { ...R, ...UP, elbowR: 118, jaw: 8, face: SMILE },
     { ...R, ...UP, elbowR: 85, jaw: 1, face: SMILE },
-    { ...R, head: { x: 0.05, y: 0.98, z: 0.15 }, face: { word: 'smile', mouthCorner: 0.005 } },
+    { ...R, head: { x: 0.05, y: 0.08, z: 1 }, face: { word: 'smile', mouthCorner: 0.005 } },
   ],
   surprise: [
     { ...R, face: 'neutral' },
-    { ...R, spine: { arch: 0.12 }, head: { x: 0, y: 0.9, z: 0.42 }, elbowL: 'half', elbowR: 'half', jaw: 12, face: { word: 'surprised', browRaise: 0.014 } },
-    { ...R, spine: { arch: 0.08 }, head: { x: 0, y: 0.93, z: 0.35 }, jaw: 9, face: { word: 'surprised', browRaise: 0.012 } },
-    { ...R, head: { x: -0.08, y: 0.97, z: 0.2 }, face: { word: 'smile', mouthCorner: 0.007, browRaise: 0.004 } },
+    { ...R, spine: { arch: 0.12 }, head: { x: 0, y: -0.16, z: 0.99 }, elbowL: 'half', elbowR: 'half', jaw: 12, face: { word: 'surprised', browRaise: 0.014 } },
+    { ...R, spine: { arch: 0.08 }, head: { x: 0, y: -0.1, z: 0.99 }, jaw: 9, face: { word: 'surprised', browRaise: 0.012 } },
+    { ...R, head: { x: -0.08, y: 0.02, z: 1 }, face: { word: 'smile', mouthCorner: 0.007, browRaise: 0.004 } },
   ],
   frown: [
     { ...R, face: 'neutral' },
-    { ...R, head: { x: 0, y: 0.99, z: -0.1 }, crouch: 0.02, face: { word: 'determined', browRaise: -0.009, browTilt: 0.011, mouthCorner: -0.005 } },
-    { ...R, head: { x: 0.15, y: 0.97, z: -0.08 }, face: { word: 'determined', browRaise: -0.01, browTilt: 0.012, mouthCorner: -0.006 } },
+    { ...R, head: { x: 0, y: 0.17, z: 0.98 }, crouch: 0.02, face: { word: 'determined', browRaise: -0.009, browTilt: 0.011, mouthCorner: -0.005 } },
+    { ...R, head: { x: 0.1, y: 0.15, z: 0.98 }, face: { word: 'determined', browRaise: -0.01, browTilt: 0.012, mouthCorner: -0.006 } },
     { ...R, face: 'neutral' },
   ],
 };

@@ -132,6 +132,9 @@ const HINGES = ['elbowL', 'elbowR', 'kneeL', 'kneeR'];
 // One vocabulary across the pose field, keyframes, and the gait.
 const RAW_SWIVELS = ['shL', 'shR', 'hipL', 'hipR'];
 const isAngles = (o) => o != null && typeof o === 'object' && ('yaw' in o || 'pitch' in o || 'roll' in o || 'turn' in o);
+/** Does the spec AIM the head or the neck (a direction, not the engine's raw angles)? The cervical chain shares an aim
+ * down the neck (figure-vajra.js CERVICAL_CAP); raw angles are each joint's own channel, for a solver that splits them. */
+export const aimsHead = (spec) => (spec.head != null && !isAngles(spec.head)) || (spec.neck != null && !isAngles(spec.neck));
 // `glance`: a look aside — the neck/head TURN (figure-vajra applyHeadTurn), split as the cervical spine shares
 // it: the atlas (C1–C2) carries most of a turn. Words are a full glance; degrees are + to the left.
 const GLANCE_WORDS = { left: 60, right: -60, ahead: 0 };

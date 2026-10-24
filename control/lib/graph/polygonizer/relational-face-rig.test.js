@@ -59,6 +59,30 @@ describe('the realistic face rig', () => {
     expect(moved / hair).toBeLessThan(0.2);
     expect(move('smile', /^headSkin$/)).toBeGreaterThan(0.003);
   });
+  it('turns the lashes with their lids: an upper lash points up at rest and down when the lid is shut', () => {
+    // (each lash a connected blade of the lashes' faces; its root the point nearest the skin, its tip the farthest from it)
+    const L = new Set(), ti = F.targets.indexOf('blink');
+    mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part === 'hairLashes') L.add(i); });
+    const parent = new Map([...L].map((i) => [i, i])), find = (i) => (parent.get(i) === i ? i : find(parent.get(i)));
+    for (const t of mesh.faces) if (t.every((v) => L.has(v))) for (const v of t) parent.set(find(v), find(t[0]));
+    const blades = new Map(); for (const i of L) { const r = find(i); (blades.get(r) || blades.set(r, []).get(r)).push(i); }
+    const skin = []; mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part === 'headSkin') skin.push(i); });
+    const V = mesh.vertices, d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const shut = (i) => { const k = F.sub[i], o = k * W + 3 + ti * 3; return k < 0 ? V[i] : V[i].map((x, a) => x + F.rows[o + a]); };
+    const eyeZ = Object.values(m.recipe.parts.globeR.mesh.points).reduce((t, q, _, A) => t + q[2] / A.length, 0);
+    const up = [], down = [];
+    for (const blade of blades.values()) {
+      const gap = (i) => Math.min(...skin.map((j) => d(V[i], V[j])));
+      const root = blade.reduce((a, b) => (gap(b) < gap(a) ? b : a)), tip = blade.reduce((a, b) => (d(V[b], V[root]) > d(V[a], V[root]) ? b : a));
+      if (V[root][2] < eyeZ) continue;   // (the upper lashes)
+      const dir = (A, B) => (B[2] - A[2]) / d(A, B);
+      up.push(dir(V[root], V[tip])); down.push(dir(shut(root), shut(tip)));
+    }
+    const median = (A) => [...A].sort((a, b) => a - b)[A.length >> 1];
+    expect(up.length).toBeGreaterThan(10);
+    expect(median(up)).toBeGreaterThan(0);
+    expect(median(down)).toBeLessThan(0);
+  });
   it('wears the hero\'s expression as its default weights; a hero without the relational head has none', () => {
     expect(F.meta.weights).toEqual(RELATIONAL_FACE_TARGETS.map(() => 0));
     expect(relationalFaceRig({ ...m, hero: { ...m.hero, head: 'landmark' } }, mesh)).toBeNull();

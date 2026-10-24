@@ -159,6 +159,43 @@ export const FIGURE_EDGES = [
 // axis (C1–C2), ≈ 80° together — a real cervical rotation; the atlas carries most of a glance.
 export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150, wrist: 70, wristTwist: 120, neckTurn: 35, headTurn: 45 };
 
+// ─── The cervical chain — a head aim shared down the neck, within its range ────
+// `dof.cervical` (a hero under laws 15: station-loft-rig.js `cervical`) reads the head and the neck as the cervical
+// spine they stand for, with its real range instead of two 45° cones. The NECK is the lower column (C2–C7, bending at
+// its root on the trunk), the HEAD the skull's own nod and tilt on the atlas (the occiput on C1: a short range). Each
+// segment's caps (degrees) are asymmetric as the anatomy is: the column flexes less than it extends, the atlas nods
+// little and tilts less. Together about 47° of flexion, 75° of extension and 41° of side bend, an adult's cervical range.
+// The axial turn keeps its own split (neckTurn, headTurn: C1–C2 carries most of a glance).
+//   • A HEAD AIM ALONE (a pose naming `head`, not `neck`) is the whole chain's: the aim held to the chain's range in
+//     its direction (an ellipse over the nod and the tilt) and shared by each segment's share of that range, so a nod
+//     bends the neck and the skull together, never the skull alone at the atlas.
+//   • A NECK AND A HEAD NAMED are each held to their own segment's range.
+// Pitch < 0 is a nod forward (flexion), > 0 back (extension); yaw the side bend. Without the flag, the cones as before.
+// The rig sets the flag for a pose that AIMS the head or the neck (a direction, figure-posing.js `aimsHead`); raw angles
+// stay each joint's own channel (a solver that splits the neck and the head itself: hero-aura.js's gaze).
+export const CERVICAL_CAP = Object.freeze({
+  neck: Object.freeze({ flex: 35, ext: 55, lateral: 35 }),   // C2–C7
+  head: Object.freeze({ flex: 12, ext: 20, lateral: 6 }),    // occiput–C1
+});
+/** an aim { yaw, pitch } held within a range { flex, ext, lateral } (an ellipse over the nod and the side bend) */
+function inRange(yaw, pitch, C) {
+  const s = Math.hypot(yaw / C.lateral, pitch / (pitch < 0 ? C.flex : C.ext));
+  return s > 1 ? [yaw / s, pitch / s] : [yaw, pitch];
+}
+/** The neck's and the head's swivels under the cervical chain (see above) → [neck, head], each { yaw, pitch } or null */
+export function cervicalSplit(dof) {
+  const N = dof.neck, H = dof.head, C = CERVICAL_CAP, bends = (o) => !!o && (!!o.yaw || !!o.pitch);
+  if (bends(N)) {
+    const [ny, np] = inRange(N.yaw || 0, N.pitch || 0, C.neck), [hy, hp] = bends(H) ? inRange(H.yaw || 0, H.pitch || 0, C.head) : [0, 0];
+    return [{ yaw: ny, pitch: np }, bends(H) ? { yaw: hy, pitch: hp } : null];
+  }
+  if (!bends(H)) return [null, null];
+  const flex = H.pitch < 0, nodN = flex ? C.neck.flex : C.neck.ext, nod = nodN + (flex ? C.head.flex : C.head.ext), side = C.neck.lateral + C.head.lateral;
+  const [y, p] = inRange(H.yaw || 0, H.pitch || 0, { flex: nod, ext: nod, lateral: side });
+  const sp = nodN / nod, sy = C.neck.lateral / side;
+  return [{ yaw: y * sy, pitch: p * sp }, { yaw: y * (1 - sy), pitch: p * (1 - sp) }];
+}
+
 // Kinematic subtrees — the nodes a joint carries when it rotates.
 export const ARMS_L = ['elbowL', 'wristL'], ARMS_R = ['elbowR', 'wristR'];
 export const LEG_L = ['kneeL', 'ankleL'], LEG_R = ['kneeR', 'ankleR'];
@@ -502,8 +539,14 @@ export function articulate(dof = {}, base = null) {
   // NECK: flex/tilt the whole column (carries the skull) about the neck root.
   // HEAD: nod/tilt the skull on top of the neck (about the atlas). Applied
   // proximal→distal so the head rides the neck.
-  if (dof.neck) swivelSub(m, ['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
-  if (dof.head) swivelSub(m, ['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  if (dof.cervical) {
+    const [N, H] = cervicalSplit(dof);
+    if (N) swivelSub(m, ['headBase', 'headTop'], 'neckHub', N.yaw, N.pitch, Infinity);
+    if (H) swivelSub(m, ['headTop'], 'headBase', H.yaw, H.pitch, Infinity);
+  } else {
+    if (dof.neck) swivelSub(m, ['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
+    if (dof.head) swivelSub(m, ['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  }
   applyHeadTurn(m, base, dof, (pivot, axis, deg) => { m.headTop = rotAxis(m.headTop, pivot, axis, deg); });
   return m;
 }
@@ -696,8 +739,14 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
     const trot = mvec(Rw, trel);
     T['hand' + s] = { m: mmul(Rw, hb.m), t: { x: trot.x + Pw.x, y: trot.y + Pw.y, z: trot.z + Pw.z } };
   }
-  if (dof.neck) swivel(['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
-  if (dof.head) swivel(['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  if (dof.cervical) {
+    const [N, H] = cervicalSplit(dof);
+    if (N) swivel(['headBase', 'headTop'], 'neckHub', N.yaw, N.pitch, Infinity);
+    if (H) swivel(['headTop'], 'headBase', H.yaw, H.pitch, Infinity);
+  } else {
+    if (dof.neck) swivel(['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
+    if (dof.head) swivel(['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  }
   // the head bone (carried by headTop) turns with the skull, even where headTop itself stays put
   applyHeadTurn(m, base, dof, (pivot, axis, deg) => step(['headTop'], pivot, rodMat(axis, deg)));
 

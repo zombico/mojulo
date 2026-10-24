@@ -320,8 +320,12 @@ export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
  * Laws 14 adds THE ROUND CHILD (anime-looks.js CHILD_FACE `round`, tiered-form.js CHILD_SHADE): the child's jaw and chin
  * rounder (broad, short, the jaw's corner high, the lower cheeks full; the boy's chin no longer narrowed) and its figure
  * shaded round; laws 13 drew the jaw to a V.
+ * Laws 15 adds THE CERVICAL CHAIN (the rig's `cervical`, figure-vajra.js CERVICAL_CAP): a head aim is the cervical spine's,
+ * shared by the neck's column and the skull's nod on the atlas, each within its own anatomical range (about 47° of
+ * flexion, 75° of extension and 41° of side bend together), and the form's wave holds a small tilt toward the raised
+ * hand; laws 1 to 14 swung the skull alone at the atlas in a 45° cone, and the wave's one key nodded it the whole 45°.
  */
-export const HERO_LAWS_VERSION = 14;
+export const HERO_LAWS_VERSION = 15;
 /** Does this spec read a table the hero laws cover? (the structured core's shoulder line, laws 2, leg set, laws 3, leg length, laws 4, and arm length, laws 5:
  * every hero on the default core) */
 export const readsHeroLaws = (spec) => (spec.core ?? DEFAULT_CORE) === 'structured' || spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
@@ -473,6 +477,9 @@ function deepFreeze(o) { for (const v of Object.values(o)) if (v && typeof v ===
  * opposite). Six keys, so each lands on one of the pack's 12 samples a cycle, a third of a second apart over the
  * designed 2 s: rest, in, out, in, out, in, back to rest at the seam. Found by a search over the rig's solve on the anime
  * casts; the words are directions, so one set serves every cast. */
+/** the form's wave's head under laws 15: the skull's axis (atlas to crown) tilted about 7° toward the raised right hand and
+ * about 5° back, the chin a touch up (figure-posing.js `head`: x right, y forward, z up) */
+const WAVE_LOOK = Object.freeze({ x: 0.12, y: -0.08, z: 0.99 });
 const WAVE_ARM = { shR: { yaw: -53, pitch: 20, roll: 90 }, head: { yaw: 8, pitch: 0 } };
 const WAVE_IN = { elbowL: 'slight', elbowR: 120, ...WAVE_ARM }, WAVE_OUT = { elbowL: 'slight', elbowR: 85, ...WAVE_ARM };
 export const ANIME_WAVE = deepFreeze(JSON.parse(JSON.stringify([{ elbowL: 'slight', elbowR: 'slight' }, WAVE_IN, WAVE_OUT, WAVE_IN, WAVE_OUT, WAVE_IN])));
@@ -535,7 +542,7 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
  *              thicknesses multiply its body radii. A worn head include is pre-baked: `head` scales only the blank
  *              trunk here (the humanoid starter bakes its head at the tuned scale)
  *   laws       the hero laws the hero was minted under (HERO_LAWS_VERSION; 1 when absent): 2 reads SHOULDER_LINE, 3 LEG_SET,
- *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE)
+ *              4 LEG_LENGTH, 5 ARM_LENGTH, 6 the chibi (read by the door: lawCast), 7 the tiered limb end (tieredJoints), 8 the shoulder web, 9 its cone, 10 its armpit (tieredSockets), 11 the chibi's chest (lawCast), 12 the chibi form (CHIBI_FORM), 13 the child form (CHILD_FORM), 14 the round child (CHILD_FACE, CHILD_SHADE), 15 the cervical chain (the rig's `cervical`, the wave's look)
  *   neckForm   a neck form (ANIME_NECK_FORMS' shape): the neck as a loft of rings and the trapezius ring; null (the
  *              default) is the three-ring segment
  *   core       the midsection's construction (HERO_CORES): 'structured' (DEFAULT_CORE: the basin and lumbar bones, the
@@ -1080,6 +1087,8 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     } } : {}),
     reach: 'reject',
     ...(hand ? { hands: hand.hands } : {}),
+    // laws 15: THE CERVICAL CHAIN (figure-vajra.js CERVICAL_CAP): the head and the neck posed as the cervical spine
+    ...(laws >= 15 ? { cervical: true } : {}),
   };
 
   // ── clips: pose words for the core; a walk in place (one foot planted, the other swings) ──
@@ -1091,7 +1100,11 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     walk: [{ ...READY, ...swingR }, READY, { ...READY, ...swingL }, READY],
     // the wave: the upper arm out and forward at shoulder height, the forearm standing up (the elbow never over the head),
     // the hand waving by the elbow opening and closing (raw swivels, searched on the rig: elbow ≤ the shoulder line)
-    wave: [READY, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 100, head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 78 }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 118 }],
+    // (laws 15: the head's word is the skull's axis, not a gaze: a small tilt toward the raised hand, the chin a touch up,
+    // held while the hand waves; laws 1 to 14 aimed the skull's axis forward, a 45° nod at the atlas on one key)
+    wave: laws >= 15
+      ? [READY, ...[100, 78, 118].map((e) => ({ ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: e, head: { ...WAVE_LOOK } }))]
+      : [READY, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 100, head: { x: 0.1, y: 0.95, z: 0.3 } }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 78 }, { ...READY, shR: { yaw: -45, pitch: 90, roll: 90 }, elbowR: 118 }],
   };
   if (hand) clips.wave = withWaveHand(clips.wave, WAVE_TWIST.form);
 

@@ -8,6 +8,8 @@
  *   • THE FACE alone is rebuilt (the visage, the nose, the eyes; the cranium and the jaw under it kept as stored), and
  *     WHAT RIDES IT moves with it: the parts pinned to the face (the brows, the lashes, the beard, the hair,
  *     the piercings: hero-head-layers.js) are differenced too, so a blink carries its lashes and a raised brow its hairs.
+ *     A LASH turns with its lid: each blade swung about its eye's centre as its root on the margin is, so a shut lid's
+ *     lashes point down and out as the lid does, never standing up through the fold (`lashBlades`, `turnLashes`).
  *   • THE TARGETS (RELATIONAL_FACE_TARGETS): blink, blinkLeft, blinkRight (one eye: the blink's difference weighed across
  *     the midline, Left the figure's left, mesh −x), smile, browRaise, browLower. The jaw opens by the jaw BONE.
  *   • ITS WEIGHTS come from the western expression channels (humanoid-head.js EXPRESSIONS, a key's words, the anime
@@ -37,7 +39,7 @@ const BLINK_SINK = 0.003;
 const GLOBE = /^(Sclera|Iris|Pupil)$/;
 /** the head's parts the actions move (hero-relational-head.js: the face over the cranium and the jaw, which lie under it
  * and are kept as stored; the ears are still) */
-const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/;
+const PIECES = /^(visage|nose|eye[RL])$/, SKIN_PART = /^headSkin$/, LASHES = /^hairLashes$/;
 const R = CHANNEL_RANGES;
 
 const MIDLINE = 0.004;
@@ -90,6 +92,54 @@ function carriedBy(V, face) {
   });
 }
 
+/** the carriers a lash's root rides: the nearest `ROOT_NEAR` of the face's points, by inverse distance */
+const ROOT_NEAR = 3;
+/**
+ * THE LASHES TURNED WITH THEIR LIDS: each lash (a connected blade of `lash`, the rest's vertex indices of the lashes'
+ * faces) swung about its eye's centre (the nearest of `balls`) by the turn that carries its ROOT (the blade's point
+ * nearest the face's points, `onFace`) to where the face under it went, then moved by what is left, so the root lands on the
+ * moved margin. A lash a few millimetres off the skin would otherwise move as the still fold beside it does, and stand
+ * up through a shut lid. `lashBlades` finds each blade, its root's carriers and its eye once; `turnLashes` writes a
+ * target's displacements `d` (the face's points set) for the lashes' points.
+ */
+function lashBlades(V0, faces, lash, onFace, balls) {
+  const parent = new Map(lash.map((i) => [i, i])), find = (i) => { while (parent.get(i) !== i) { parent.set(i, parent.get(parent.get(i))); i = parent.get(i); } return i; };
+  for (const t of faces) if (parent.has(t[0]) && parent.has(t[1]) && parent.has(t[2])) { const a = find(t[0]); for (const v of t) parent.set(find(v), a); }
+  const blades = new Map(); for (const i of lash) { const r = find(i); (blades.get(r) || blades.set(r, []).get(r)).push(i); }
+  const cell = CARRY.reach, grid = new Map(), keyOf = (p) => `${Math.floor(p[0] / cell)},${Math.floor(p[1] / cell)},${Math.floor(p[2] / cell)}`;
+  onFace.forEach((c, i) => { if (c) { const k = keyOf(V0[i]); (grid.get(k) || grid.set(k, []).get(k)).push(i); } });
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const nearest = (p) => {
+    const g = [0, 1, 2].map((a) => Math.floor(p[a] / cell)), top = [];
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) for (const j of grid.get(`${g[0] + x},${g[1] + y},${g[2] + z}`) || []) {
+      const e = dist(p, V0[j]); if (top.length < ROOT_NEAR || e < top[top.length - 1][0]) { top.push([e, j]); top.sort((u, v) => u[0] - v[0]); if (top.length > ROOT_NEAR) top.pop(); }
+    }
+    return top;
+  };
+  const out = [];
+  for (const blade of blades.values()) {
+    let root = -1, near = null;
+    for (const i of blade) { const t = nearest(V0[i]); if (t.length && (!near || t[0][0] < near[0][0])) { root = i; near = t; } }
+    if (root < 0) continue;   // (a blade with no skin within reach rides as the rest does)
+    const c = balls.reduce((a, b) => (dist(b.c, V0[root]) < dist(a.c, V0[root]) ? b : a)).c;
+    const w = near.map(([e]) => 1 / Math.max(e, 1e-5)), ws = w.reduce((t, x) => t + x, 0);
+    out.push({ blade, root, c, near: near.map(([, j], k) => [j, w[k] / ws]) });
+  }
+  return out;
+}
+function turnLashes(B, V0, d) {
+  for (const { blade, root, c, near } of B) {
+    const dr = [0, 1, 2].map((a) => near.reduce((t, [j, w]) => t + w * d[j * 3 + a], 0));
+    // (the shortest turn about the centre from the root to the root moved, Rodrigues)
+    const u = V0[root].map((x, a) => x - c[a]), u1 = u.map((x, a) => x + dr[a]), nn = Math.hypot(...u) * Math.hypot(...u1);
+    const ax = [u[1] * u1[2] - u[2] * u1[1], u[2] * u1[0] - u[0] * u1[2], u[0] * u1[1] - u[1] * u1[0]], s = Math.hypot(...ax) / nn;
+    const co = (u[0] * u1[0] + u[1] * u1[1] + u[2] * u1[2]) / nn, k = s > 1e-9 ? ax.map((x) => x / (s * nn)) : [1, 0, 0];
+    const turn = (v) => { const kv = k[0] * v[0] + k[1] * v[1] + k[2] * v[2], x = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]]; return v.map((q, a) => q * co + x[a] * s + k[a] * kv * (1 - co)); };
+    const to = turn(u), rest = u.map((x, a) => x + dr[a] - to[a]);
+    for (const i of blade) { const p = turn(V0[i].map((x, a) => x - c[a])); for (let a = 0; a < 3; a++) d[i * 3 + a] = c[a] + p[a] + rest[a] - V0[i][a]; }
+  }
+}
+
 /**
  * The face rig of a realistic hero's row: `m` the manifest (`hero`, `recipe` with its `headFit`), `mesh` its compiled
  * figure at rest. → null | { skipped } | { targets, sub, rows, authored, K, meta } as westernFaceRig's.
@@ -119,18 +169,24 @@ export function relationalFaceRig(m, mesh) {
         if (X.some((n, i) => !parts[n] || layoutOf(parts[n]) !== layout[i])) { T = { moved: true }; break; }
         const C = compileLayered({ ...m.recipe, parts, dials: {}, creases: {} }, {}, {});
         V[name] = C.vertices;
-        if (name === 'rest') { V.part = C.provenance.map((p) => p.part); V.globe = new Uint8Array(C.vertices.length); C.faces.forEach((t, fi) => { if (GLOBE.test(C.groups[fi])) for (const v of t) V.globe[v] = 1; }); }
+        if (name === 'rest') { V.part = C.provenance.map((p) => p.part); V.faces = C.faces; V.globe = new Uint8Array(C.vertices.length); C.faces.forEach((t, fi) => { if (GLOBE.test(C.groups[fi])) for (const v of t) V.globe[v] = 1; }); }
       }
       if (!T) {
         // (the one skin's socket behind each globe carries nothing: it is still while the lids over it move)
         const balls = skin ? ['globeR', 'globeL'].filter((g) => P[g]?.mesh).map((g) => { const pts = Object.values(P[g].mesh.points), c = [0, 1, 2].map((a) => pts.reduce((t, q) => t + q[a], 0) / pts.length); return { c, r: Math.max(...pts.map((q) => Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]))) }; }) : [];
-        const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), carrier = face.map((f, i) => f && !balls.some((b) => Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) < b.r)), near = carriedBy(V0, carrier);
+        const V0 = V.rest, n = V0.length, D = {}, face = V.part.map((p) => HEAD.test(p)), carrier = face.map((f, i) => f && !balls.some((b) => Math.hypot(V0[i][0] - b.c[0], V0[i][1] - b.c[1], V0[i][2] - b.c[2]) < b.r)), near = carriedBy(V0, carrier), lash = [];
+        V.part.forEach((p, i) => { if (LASHES.test(p)) lash.push(i); });
+        // (a lash's root rides the face's own points, the lid's margin among them: the margin lies within the globe's
+        // radius of its centre, where the socket's still points are no carriers)
+        const lashes = lash.length && balls.length ? lashBlades(V0, V.faces, lash, face, balls) : [];
         for (const name of Object.keys(BUILDS)) {
           if (name === 'rest') continue;
           const d = new Float64Array(n * 3); for (let i = 0; i < n; i++) if (face[i]) for (let c = 0; c < 3; c++) d[i * 3 + c] = V[name][i][c] - V0[i][c];
           if (name === 'blink') for (let i = 0; i < n; i++) if (V.globe[i]) d[i * 3 + 1] -= BLINK_SINK;
           // (what rides the face moves as the skin under it moves, not as the one face it is pinned to tilts)
           for (let i = 0; i < n; i++) if (!face[i]) { const N = near[i]; for (let c = 0; c < 3; c++) { let x = 0; for (let j = 0; j < N.length; j += 2) x += N[j + 1] * d[N[j] * 3 + c]; d[i * 3 + c] = x; } }
+          // (the lashes turned with their lids, about the globes)
+          if (lashes.length) turnLashes(lashes, V0, d);
           D[name] = d;
         }
         // (one eye: the blink weighed across the midline)

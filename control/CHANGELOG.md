@@ -14,6 +14,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The cervical chain: a head aim within the neck's range
+
+HERO LAWS 15 (hero-form.js; the rig's `cervical`, figure-vajra.js `CERVICAL_CAP`). A `head` pose word aims the skull's
+axis, atlas to crown, and the vajra swung the skull ALONE at the atlas in a 45° cone, the neck's column still. The
+form's own wave aimed that axis 72° forward on one key, as if it were a gaze, so every hero's wave nodded the skull the
+whole 45° at the atlas and snapped back on the next key: the neck craned down and the face looked up out of it.
+
+- The head and the neck are posed as the CERVICAL SPINE, each segment within its own range, asymmetric as the anatomy
+  is: the neck's column (C2–C7, bending at its root) flexes 35°, extends 55° and bends 35° to the side; the skull on the
+  atlas (occiput–C1) nods 12° forward, 20° back and 6° to the side. Together about 47° of flexion, 75° of extension
+  and 41° of side bend, an adult's cervical range. The axial turn keeps its split (C1–C2 carries most of a glance).
+- A head aim alone is the whole chain's: held to the chain's range in its direction and shared by each segment's share
+  of it, so a nod bends the neck more than the atlas, never the atlas alone. A neck and a head both named are each held
+  to their own. The chain reads AIMS (a direction: the words a clip or an agent writes); raw angles (`{ yaw, pitch,
+  turn }`) stay each joint's own channel, for a solver that splits the neck and the head itself (hero-aura.js's gaze),
+  so the aura's poses and every statue carve as they did.
+- The form's wave holds a small look while the hand waves: the skull tilted about 7° toward the raised hand and about
+  5° back. Laws 1 to 14 keep their wave and the cones, byte for byte; every other figure keeps the cones.
+- The layered vocabulary says what `head: {x,y,z}` is (the skull's axis, not the gaze), and `/hero-live`'s takes say
+  their looks in it.
+
 ### The realistic head as one skin
 
 - REALISTIC LAWS 2: A HERO MINTED NOW WEARS ITS HEAD AS ONE SKIN (hero-one-skin.js). The relational head's field is
@@ -69,6 +90,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   channels, and the key's `jaw`), with `head: 'relational'` named or not. They export as morph weights in the clip
   beside its bones, so a wave can smile and a start can raise the brows on the same beat. Before this, a named relational
   head refused the key, and its tracks resolved through the anime head's words.
+- THE LASHES CLOSE WITH THE LIDS (relational-face-rig.js `lashBlades`, `turnLashes`). A lash rode the skin by the same
+  Gaussian carry as the brows, and its root's nearest carriers were the fold's: the lid's margin lies within the globe's
+  radius of its centre, where the socket's still points carry nothing. So a blink left the lashes standing up through
+  the shut lid. Each lash is now turned about its eye's centre as its root on the margin turns (the root riding the
+  face's own points), so a shut upper lash points down and out with its lid. The face store's version is 2, so a rig
+  solved before is solved again.
+- THE SHUT LID SHADED AS A LID (scene-gltf.js, the skinned export under the lit handoff). A morph target carried its
+  positions alone, so the skin a blink rolls out from under the fold over the eye kept the normals it had there, facing
+  down and in, and the shut lid read as a dark band across the eye (a ray from the front meets the skin everywhere
+  across the shut eye: the lid was there, shaded as the fold). Every target now carries its NORMAL: the smooth normals
+  of its shape at full weight less the rest's, sparse, the correctives' too (a reader takes a target's missing NORMAL
+  for the rest's). The unlit export writes what it wrote. Still open: the skin's colour near the margin is stretched
+  across the shut lid, and a fleck of the iris shows at the lower margin.
 - `/hero-live`: the hero played as an engine gets it. Each variant (bare, an armour style, a round of its words) is
   minted through the door and exported as the skinned GLB with every clip, then played in a three.js page beside the
   mint's read: orbit, the takes, a scrubber, every morph channel live or held by hand, wireframe, bones. `shot.mjs` tiles

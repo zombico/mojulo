@@ -105,7 +105,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   blend: { station: { bone: w }, 'station.slot': { bone: w } } }` (the overshoot ring at a joint shared with the
   neighbour; a `station.slot` entry weighs that one point over its station's, a form in a ring with its own bone); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
-  'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
+  'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`: the skull's axis, atlas to crown, not the gaze:
+  `up` is level, a little `forward` a nod; a hero under laws 15 shares it down the neck within the cervical range) plus `crouch` (0–1, toes planted),
   `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
   the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
   and every chain channel. A rig's `hands: { R, L }` (carrier bone, wrist joint, `axes: { flex, deviation, twist }`, the

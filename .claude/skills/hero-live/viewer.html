@@ -67,6 +67,7 @@
           <button id="vFace" aria-pressed="true">Face</button>
           <button id="vBust" aria-pressed="false">Bust</button>
           <button id="vBody" aria-pressed="false">Full body</button>
+          <button id="vSide" aria-pressed="false">Side</button>
         </div>
         <div class="status" id="status" role="status">Loading the hero…</div>
       </div>
@@ -284,7 +285,8 @@ $('hold').addEventListener('change', (e) => {
 });
 
 // ─── the cameras, framed by the figure's own height ─────────────────────────
-const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 } };
+// (`side`: a profile from the figure's side at the bust, for the neck and the spine)
+const VIEWS = { vFace: { dist: 0.8, at: 0.9, fov: 22, rise: -0.02 }, vBust: { dist: 1.5, at: 0.8, fov: 26, rise: 0.05 }, vBody: { dist: 4.2, at: 0.52, fov: 30, rise: 0.1 }, vSide: { dist: 1.6, at: 0.82, fov: 26, rise: 0.02, side: true } };
 function frame(id) {
   S.view = id;
   for (const k of Object.keys(VIEWS)) $(k).setAttribute('aria-pressed', String(k === id));
@@ -292,7 +294,8 @@ function frame(id) {
   const W = VIEWS[id], F = L.figure, target = new THREE.Vector3(F.x, F.y0 + F.h * W.at, F.z);
   camera.fov = W.fov; camera.updateProjectionMatrix();
   controls.target.copy(target);
-  camera.position.set(target.x - W.dist * 0.3, target.y + W.dist * W.rise, target.z - W.dist * 0.95);
+  if (W.side) camera.position.set(target.x + W.dist, target.y + W.dist * W.rise, target.z);
+  else camera.position.set(target.x - W.dist * 0.3, target.y + W.dist * W.rise, target.z - W.dist * 0.95);
   controls.update();
 }
 for (const k of Object.keys(VIEWS)) $(k).addEventListener('click', () => frame(k));

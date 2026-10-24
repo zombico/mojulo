@@ -68,7 +68,7 @@ describe('the realistic hero at the door', () => {
     const heavy = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', form: 'realistic', physique: 'heavyset' }) });
     const front = (r) => Math.max(...r.parts.torso.stations.map((s) => s.points.front[1]));
     expect(front(heavy.recipe)).toBeGreaterThan(front(m.recipe) + 0.02);
-  }, 120_000);
+  }, 240_000);   // (two realistic mints and a physique re-sliced: about two minutes on a four-core machine)
 
   it('wears its skin: the door\'s `skin` (the palette\'s Skin its tone when it names none) on the recipe, the palette\'s Skin its base; refused by name', () => {
     expect(refused({ cast: 'male', skin: { tone: 7 } })).toMatch(/skin: the realistic body's skin.*add form: 'realistic'/);

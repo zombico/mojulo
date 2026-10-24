@@ -194,8 +194,11 @@ describe('the anime wave', () => {
     expect(JSON.stringify(heroPlan({ cast: 'male' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE_HAND));
     expect(JSON.stringify(heroPlan({ cast: 'male', core: 'streamlined' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE));
     expect(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', core: 'streamlined' })).clips.wave).toEqual(ANIME_WAVE);
-    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }])
-      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+    // (a hero under laws 14 waves the form's wave as minted; under laws 15 the form's wave holds its look, hero-form.js)
+    for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }]) {
+      expect(JSON.stringify(heroPlanOf({ ...heroRecord(spec), laws: 14 }).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
+      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(heroPlan({ cast: 'male', laws: 15 }).clips.wave));
+    }
     // the plan gets its own copy: a plan edited downstream never reaches the table
     const p = humanoidPlan({ preset: 'female', head: 'anime', hair: 'none' }); p.clips.wave[1].elbowR = 0; expect(ANIME_WAVE[1].elbowR).toBe(120);
   });
@@ -382,7 +385,7 @@ describe('the door: no gesture ⇒ byte-identical', () => {
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
     expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([resolveGesture('guard', 'male', { core: 'structured' })]);
-    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(PINS.landmarkMale[1][1]);   // nothing else moved
+    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(h(heroPlanOf(heroRecord({ cast: 'male' }))));   // nothing else moved
   });
 });
 

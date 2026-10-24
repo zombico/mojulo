@@ -149,10 +149,21 @@ describe('the hero laws: a hero reading the newer tables is stamped at mint; law
       expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
       expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
     }
-    expect(HERO_LAWS_VERSION).toBe(14);
+    expect(HERO_LAWS_VERSION).toBe(15);
     expect(heroRecord({ cast: 'male', core: 'streamlined' }).laws).toBeUndefined();   // reads none of the tables
     expect(validateHeroSpec({ cast: 'male', laws: 1 })).toEqual([]);
-    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 14/)]);
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1 … 15/)]);
+  });
+  it('laws 15 poses the head and the neck as the cervical chain and holds the wave\'s small look; laws 14 keeps its plan', () => {
+    const at = (laws) => heroPlanOf({ ...heroRecord({ cast: 'female' }), laws }), p14 = at(14), p15 = at(15);
+    expect(p15.rig.cervical).toBe(true); expect(p14.rig.cervical).toBeUndefined();
+    const heads = (p) => p.clips.wave.map((k) => k.head ?? null);
+    expect(heads(p14)).toEqual([null, { x: 0.1, y: 0.95, z: 0.3 }, null, null]);
+    expect(heads(p15)[0]).toBeNull(); expect(new Set(heads(p15).slice(1).map((h) => JSON.stringify(h))).size).toBe(1);
+    // (the wave's look on the rig: a few degrees, the neck's column carrying more of it than the atlas)
+    const R = validateRig(expandLayeredManifest({ kind: 'layered', hero: { ...heroRecord({ cast: 'female' }), laws: 15 } }).recipe.rig), deg = (r) => (r * 180) / Math.PI, side = (N) => [deg(Math.atan2(N.headBase[0] - N.neckHub[0], N.headBase[2] - N.neckHub[2])), deg(Math.atan2(N.headTop[0] - N.headBase[0], N.headTop[2] - N.headBase[2]))];
+    const [r0, r1] = side(rigNodesAt(R, {}).nodes), [n, h] = side(rigNodesAt(R, p15.clips.wave[2]).nodes);
+    expect(n - r0).toBeGreaterThan(2); expect(n - r0).toBeLessThan(10); expect(Math.abs(h - n - (r1 - r0))).toBeLessThan(n - r0);
   });
   it('laws 1 builds what an unstamped row does; laws 2 moves the torso\'s shoulder line alone', () => {
     const spec = { cast: { pole: 'female', build: 'brute' } };

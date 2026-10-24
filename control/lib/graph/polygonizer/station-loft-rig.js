@@ -44,7 +44,7 @@
  * contract scene-gltf's skinned writer already has.
  */
 import { articulate, TWIST_REF_NODES, twistPairFor, SCAPULA_POINTS } from './figure-vajra.js';
-import { resolvePose } from './figure-posing.js';
+import { resolvePose, aimsHead } from './figure-posing.js';
 import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear, faceListToMesh } from '../figures/face-mesh.js';
 import { resolveMaterial, tagFacesWithMetal } from './materials.js';
@@ -223,7 +223,10 @@ export function validateRig(rig) {
   // from its rest line carried there to its posed line, so the joint between them bends and never twists (a hidden link,
   // not a field of the bone)
   for (const b of bones) if (b.parent) { const P = bones[boneIndex[b.parent]]; if (!P || P === b) throw new Error(`station-loft-rig: bone ${b.id}.parent names unknown bone ${b.parent}`); Object.defineProperty(b, 'parentBone', { value: P, enumerable: false }); }
-  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}) };
+  // `cervical`: a head or neck AIM posed as the cervical spine, within its range (figure-vajra.js CERVICAL_CAP); raw
+  // angles stay each joint's own (a solver's that splits them itself: hero-aura.js's gaze)
+  if (rig.cervical !== undefined && rig.cervical !== true) throw new Error('station-loft-rig: cervical is true or absent');
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands, ...(Object.keys(folds).length ? { folds } : {}), ...(stance ? { stance } : {}), ...(rig.held?.length ? { held: [...rig.held] } : {}), ...(rig.cervical ? { cervical: true } : {}) };
 }
 
 /**
@@ -334,7 +337,7 @@ export function rigNodesAt(R, pose = {}) {
   // (and the scapula's points where the rig has them: the vajra turns them with the shoulder and the rhythm)
   const coreKeys = [...VAJRA_CORE, ...(rest.pelvisTilt ? ['pelvisTilt'] : []), ...(girdle ? ['girdleL', 'girdleR', 'clavicleL', 'clavicleR', ...['L', 'R'].flatMap((S) => SCAPULA_POINTS.map((k) => `${k}${S}`)).filter((k) => rest[k])] : [])];
   const core = Object.fromEntries(coreKeys.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
-  const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
+  const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}), ...(R.cervical && aimsHead(vajraSpec) ? { cervical: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
   // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
   const carried = [...coreKeys, ...TWIST_REF_NODES.filter((k) => posed[k])];
   for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
