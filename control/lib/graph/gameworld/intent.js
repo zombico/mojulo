@@ -62,6 +62,13 @@ const WORDS = Object.freeze({
   tactics: ['tactics', 'tactical', 'final fantasy tactics', 'fire emblem', 'srpg', 'strategy rpg', 'grid', 'squares', 'high ground', 'positioning'],
   rts: ['rts', 'real-time strategy', 'real time strategy', 'starcraft', 'command and conquer', 'army', 'armies', 'build orders', 'base building', 'harvesters'],
   'versus-fighter': ['fighting game', 'street fighter', 'tekken', 'versus', '1v1', 'one-on-one', 'one on one', 'combo', 'combos', 'special moves', 'fireball', 'uppercut', 'roster'],
+  'co-op-kitchen': ['co-op cooking', 'cooking together', 'kitchen', 'orders', 'chefs', 'overcooked'],
+  'party-mash': ['party game', 'party games', 'mash', 'button mash', 'minigames', 'mini-games', 'mario party'],
+  'co-op-platformer': ['co-op platformer', 'platform together', 'with my brother', 'with friends', 'couch co-op', 'local co-op'],
+  'co-op-brawler': ['beat em up', "beat 'em up", 'beat-em-up', 'brawler with friends', 'street brawler', 'final fight', 'belt scroller'],
+  'co-op-scroller': ['bullet hell', 'shmup', 'shoot em up', "shoot 'em up", 'scrolling shooter', 'run and gun together'],
+  'driver-and-gunner': ['driver and gunner', 'one drives one shoots', 'turret', 'gunner'],
+  'split-deathmatch': ['split screen', 'split-screen', 'splitscreen', 'goldeneye', 'couch deathmatch'],
   'city-stalker': ['web swing', 'web-swing', 'web-slinging', 'swing between', 'rooftop', 'rooftops', 'skyscraper', 'skyscrapers', 'wall crawl', 'crawl the walls', 'grappling hook', 'superhero', 'vigilante', 'open-world city'],
 });
 export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id, Object.freeze({ name: f.name, why: f.why, words: WORDS[f.id] ?? [] })])));

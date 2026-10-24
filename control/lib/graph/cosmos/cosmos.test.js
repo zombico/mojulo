@@ -77,3 +77,19 @@ describe('dryRun', () => {
     expect(JSON.stringify(dryRun(CRAWLER))).toBe(JSON.stringify(dryRun(CRAWLER)));
   });
 });
+
+// a facet's laws over the cube advise; they never change the verdict, and a cube they do not concern carries none
+describe('dryRun advice', () => {
+  it('a first-person camera seating several players asks for a view each; a shared camera, or one seat, does not', () => {
+    const fp = (soul) => dryRun({ space: { camera: 'first-person' }, soul });
+    expect(fp({ seats: 'two', frame: 'follow-all' }).advice.map((a) => a.law)).toEqual(['soul.one-view-per-seat']);
+    expect(fp({ seats: 'two', frame: 'split' }).advice).toBeUndefined();
+    expect(dryRun({ space: { camera: 'side' }, soul: { seats: 'four', frame: 'follow-all' } }).advice).toBeUndefined();
+    expect(dryRun(CRAWLER).advice).toBeUndefined();
+  });
+  it('a seat setting without the seats says so', () => {
+    const d = dryRun({ soul: { contest: 'co-op' } });
+    expect(d.advice.map((a) => a.law)).toEqual(['soul.seats-first']);
+    expect(d.verdict).toBe(dryRun({ soul: { seats: 'two', contest: 'co-op' } }).verdict);
+  });
+});

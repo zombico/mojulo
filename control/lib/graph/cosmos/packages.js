@@ -11,4 +11,6 @@ export const PACKAGES = Object.freeze({
   quests: { name: 'Quests and choices: ordered steps, a giver, a journal, the player\'s answers', effort: 'M' },
   'strategy-board': { name: 'The strategy board: spots over the ground and the tactical camera that plays them', effort: 'L' },
   shot: { name: 'The 3D shot and banter: a directed camera, subjects, a text box, two speakers', effort: 'L' },
+  seats: { name: 'The seats kernel: pads and keyboard halves bound to players, who join and leave', effort: 'M' },
+  pilots: { name: 'A pilot per seat in the action runtime, each its own input, the camera framing them all', effort: 'L' },
 });

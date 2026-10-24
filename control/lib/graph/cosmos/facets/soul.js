@@ -1,6 +1,24 @@
 /**
  * SOUL: the characters. Shape as in reality.js.
+ *
+ * PLAYING TOGETHER (docs/local-multiplayer-principles.md): `party` says who is in the group, the seat settings who
+ * drives them. Several players at one machine, one shared screen: `seats` (how many), `contest` (who wins against
+ * whom), `dependence` (side by side, in roles, or each step needing another's), `frame` (how the screen holds every
+ * seat), `input` (each tick, a contest over a window, or turns), `pool` (lives and score shared or each seat's), `join`
+ * (when a seat comes and goes). Each value is built once for every composition that asks for it; until then it is
+ * absent, so the sweep ranks it. The law beside them: a camera that frames one body (first person) needs a view per seat.
  */
+// a seat value the runtime does not run yet; no engine kernel seats a second player
+const NOT_YET = { status: 'absent', godot: 'absent', roblox: 'absent' };
+const TOGETHER = { godot: 'absent', roblox: 'absent' };
+const VERSUS = 'lib/graph/versus/versus-core.js';
+const VERSUS_ONLY = 'the versus fighter only (versus-core.js): two local players or the CPU, on one fixed stage; no other kind seats a second player';
+// the seats kernel (devices bound to players, joining and leaving) and the action runtime with a pilot per seat
+const SEATS = { pkg: 'seats', effort: 'M' }, PILOTS = { pkg: 'pilots', effort: 'L' };
+const TWO = ['soul.seats=two'];
+// the settings below `seats` mean something only for a game that seats more than one: rolled and nudged only then
+const GIVEN = Object.freeze({ seats: ['two', 'four'] });
+
 export const SOUL = Object.freeze({
   id: 'soul',
   asks: 'who?',
@@ -36,5 +54,75 @@ export const SOUL = Object.freeze({
         party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: 'absent', note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
       },
     },
+    seats: {
+      values: {
+        one: { status: 'built', godot: 'built', roblox: 'built', lowers: 'lib/graph/worlds/controllable/core.js', note: 'one pilot (state.pilotId); every other pilotable body runs its AI rule' },
+        two: { status: 'partial', ...TOGETHER, ...SEATS, lowers: VERSUS, note: VERSUS_ONLY },
+        four: { ...NOT_YET, ...SEATS },
+      },
+    },
+    contest: {
+      given: GIVEN,
+      values: {
+        'co-op': { ...NOT_YET, ...PILOTS, requires: TWO },
+        versus: { status: 'partial', ...TOGETHER, effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        teams: { ...NOT_YET, effort: 'S', requires: ['soul.seats=four'] },
+        'free-for-all': { ...NOT_YET, effort: 'S', requires: TWO },
+      },
+    },
+    dependence: {
+      given: GIVEN,
+      values: {
+        parallel: { ...NOT_YET, ...PILOTS, requires: TWO },
+        roles: { ...NOT_YET, effort: 'M', requires: TWO },
+        handoff: { ...NOT_YET, effort: 'L', requires: TWO },
+      },
+    },
+    frame: {
+      given: GIVEN,
+      values: {
+        'follow-all': { ...NOT_YET, ...PILOTS, requires: TWO },
+        fixed: { status: 'partial', ...TOGETHER, effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        scroll: { ...NOT_YET, effort: 'M', requires: TWO },
+        split: { ...NOT_YET, effort: 'L', requires: TWO },
+      },
+    },
+    input: {
+      given: GIVEN,
+      values: {
+        'real-time': { status: 'partial', ...TOGETHER, ...PILOTS, lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
+        window: { ...NOT_YET, effort: 'M', requires: TWO },
+        turns: { ...NOT_YET, effort: 'S', requires: TWO },
+      },
+    },
+    pool: {
+      given: GIVEN,
+      values: {
+        shared: { ...NOT_YET, effort: 'S', requires: TWO },
+        own: { ...NOT_YET, effort: 'S', requires: TWO },
+      },
+    },
+    join: {
+      given: GIVEN,
+      values: {
+        lobby: { status: 'partial', ...TOGETHER, ...SEATS, lowers: 'lib/graph/versus/versus-play.client.js', note: 'the versus select screen seats its two players before a fight; no other kind has a lobby' },
+        'drop-in': { ...NOT_YET, ...SEATS },
+      },
+    },
   },
+  // the cube's laws over these settings: advice, never a refusal (cosmos.js dryRun `advice`)
+  laws: [
+    {
+      id: 'seats-first',
+      advice: (cube) => {
+        const S = cube.soul || {}, set = ['contest', 'dependence', 'frame', 'input', 'pool', 'join'].filter((k) => S[k] !== undefined);
+        return set.length && !GIVEN.seats.includes(S.seats) ? `soul.${set.join(', soul.')} ${set.length === 1 ? 'means' : 'mean'} something only with soul.seats two or four` : null;
+      },
+    },
+    {
+      id: 'one-view-per-seat',
+      advice: (cube) => (cube.space?.camera === 'first-person' && cube.soul?.frame && cube.soul.frame !== 'split' && cube.soul.seats && cube.soul.seats !== 'one'
+        ? `a first-person camera frames one body: ${cube.soul.seats} seats need soul.frame=split (a view each), not ${cube.soul.frame}` : null),
+    },
+  ],
 });

@@ -16,11 +16,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Local multiplayer: playing together, as settings of the soul facet
 
-- Planned. Several players at one machine, on one shared screen: seats (a pad each, or a keyboard's halves) that take
+- Several players at one machine, on one shared screen: seats (a pad each, or a keyboard's halves) that take
   a game's bodies, and settings of the cosmos cube's `soul` facet (`seats`, `contest`, `dependence`, `frame`, `input`,
   `pool`, `join`) that a game composes, each built once for every composition that asks for it. A cooperative kitchen,
   a party mash, brothers on a quest and a shared bullet hell are its reference points, not its products. The
   principles are in `docs/local-multiplayer-principles.md`. A game that asks for no seats is byte for byte as before.
+- **The settings, in the cube.** `soul` holds `seats` (one, two, four), `contest` (co-op, versus, teams,
+  free-for-all), `dependence` (parallel, roles, handoff), `frame` (follow-all, fixed, scroll, split), `input`
+  (real-time, window, turns), `pool` (shared, own) and `join` (drop-in, lobby). One seat is built; what the versus
+  fighter already does (two seats, versus, real time, a fixed stage, its select screen) is partial, said in its note;
+  everything else is absent and priced, the seats kernel and a pilot per seat as packages (`packages.js`). Seven genre
+  probes are reference points of them: a co-op kitchen, a party mash, a co-op platformer, a co-op street brawler, a
+  co-op scrolling shooter, a driver and gunner, and a split-screen deathmatch, each with the words a brief uses for it
+  (`gameworld/intent.js`), so the hill-climb page names what each waits on.
+- **A setting may be given another.** The six settings after `seats` mean something only for a game that seats more
+  than one, so the sweep rolls and nudges them only then (a setting's `given`, `registry.js`), and a facet's odds count
+  its settings that are not given. Without it, half of soul's rolls asked for multiplayer and the ranking of everything
+  else moved.
+- **A facet may hold laws over the cube.** `dryRun` returns `advice` when one fires, absent otherwise, and never
+  changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
+  setting without the seats says so.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

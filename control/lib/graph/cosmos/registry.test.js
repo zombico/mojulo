@@ -57,6 +57,16 @@ describe('cosmos registry', () => {
     }
   });
 
+  it('a given setting names a setting of its own facet and values that setting holds', () => {
+    const reg = capabilityRegistry();
+    let n = 0;
+    for (const [fid, settings] of Object.entries(reg)) for (const [setting, s] of Object.entries(settings)) for (const [g, vals] of Object.entries(s.given || {})) {
+      n++;
+      for (const v of vals) expect(reg[fid][g]?.values[v], `${fid}.${setting} given ${g}=${v}`).toBeTruthy();
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
   it('holds the six facets in order, each with a question', () => {
     expect(FACETS.map((f) => f.id)).toEqual(['reality', 'space', 'power', 'soul', 'mind', 'time']);
     for (const f of FACETS) expect(f.asks).toMatch(/\?$/);
