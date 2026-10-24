@@ -14,6 +14,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Leaf forms: a gritty crown grown as leaf branches
+
+A gritty crown can grow as LEAF BRANCHES instead of one heap of balls: the trunk forks into limbs, the limbs throw leaf
+branches, and each ends in a lobe, an ellipsoid shaped and turned by the form so the leaf pattern reads as the plant's
+own (`era/leaf-forms.js`). Each lobe is cored and chipped as the painted crown is, the chips grained along its length
+and leant as the form holds its leaves; far, the lobes' cores alone carry the tree, coarser.
+
+- **The forms**: `spray` (lobes strung along twigs, the leaves fanned along them), `plate` (flat level discs in tiers
+  round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
+  `whorl` (a ring of level spokes round each limb's end). Built and seen in a gallery only
+  (`scripts/spikes/geotown/leaf-forms.mjs`); no stage grows them yet.
+
 ### Faster gritty builds, and the tests that build them
 
 Byte-identical output throughout: the same stages, faces and texture bytes, checked by hash before and after.
