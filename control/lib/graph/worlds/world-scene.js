@@ -50,6 +50,7 @@ import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
+import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
 
@@ -974,6 +975,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.figures = glyphLowered.figures;
     }
   }
+  // a stage's HERDS (era/biocube-fauna.js placeHerds, a biocube's `fauna.herds`): its animals laid after the world's own
+  // entities, each species' rig built once (worlds/fauna-units.js). None ⇒ payload untouched.
+  if (payload && 'faunaUnits' in payload) await lowerFaunaUnits(payload);
 
   // generic, opt-in figure WEATHERING (materials/procedural-material.js `weatherRigParts`): the suit
   // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig

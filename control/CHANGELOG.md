@@ -17,10 +17,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Biocube fauna: what lives in a level, beside what grows
 
 A biocube said what grows in a level. It now says what lives there too (`fauna`, beside `flora`). Fauna are never
-enemies: an animal that hunts is a game's foe. There are two tiers. UNIT fauna take up room (a sheep, a deer, a duck)
-and are not placed yet. FIELD fauna are scenery that is never in the way, and this lands them. Not every level wants
-fauna: a biocube grows none unless asked, and every preset's is none, so the geocubes that grow `meadow`, `upland` or
-`grove` are byte for byte as before.
+enemies: an animal that hunts is a game's foe. There are two tiers. UNIT fauna take up room (a sheep, a deer); FIELD
+fauna are scenery that is never in the way. Not every level wants fauna: a biocube grows none unless asked, and every
+preset's is none, so the geocubes that grow `meadow`, `upland` or `grove` are byte for byte as before.
 
 - **Size classes** (`fauna/size-class.js`): `mini` (insects), `smol` (a mouse to a pet), `chonky` (to a person or
   cattle), `behemoth` (a hippo, a rhino), `gargantuan` (an elephant and up). Measured, never tagged: a bug by its
@@ -43,6 +42,26 @@ fauna: a biocube grows none unless asked, and every preset's is none, so the geo
     own heading, height and count.
 
   Absent fauna, not one byte. Godot and Roblox mark it absent.
+- **Herds: the unit tier** (`fauna.herds`: `{ <species>: true | { groups, size: [lo, hi] } | null }`; presets
+  `pasture`, sheep in two flocks, and `woodland`, deer and rabbits). Any species of the encyclopedia that can walk a
+  level (`unitOf`): a bug is refused (a mini animal is a swarm), as are an animal of the water and a body with no stride
+  on land, each saying why.
+  - The stage places each herd's ground on the soil off the way, its animals round it, none on a trunk.
+  - Each animal is an `ai` body walking on its species' own gait at that gait's speed (`fauna/rig.js` `gaitStride`), so
+    its feet keep to the ground. Its mind is passive: a grazer crops the grass laid round its herd (`food`), every other
+    animal wanders. No weapon and no side, whatever the species: a wolf in a pasture only wanders.
+  - The world builds each species' rig once from its plan (`worlds/fauna-units.js`), with no stored sketch: its gait
+    plays the runtime's walk, its eating the graze.
+  - A level whose only minds are its fauna shows no AI-attack button.
+- **Killable and pettable herds** (a herd's `killable: false | true | { hp }` and `interact: null | 'pet'`).
+  - Killable: its body takes hits (`hp`, by its size unless named: a rabbit about 25, a sheep about 50, an elephant about
+    180), its rig carries its flinch, fall and rise as the runtime's stagger, topple and getup, and it lies where it
+    falls. It never strikes back. A `defeat-all` that names its foes never counts it (its ids begin `fauna:`).
+  - Petted (`scene/channels/fauna-pet.js`, emitted only when an animal may be): the walker, or the pilot in a game, in
+    reach of one sees the interact key and "pet". The press holds it (the cast's hold: its mind waits), turned to the
+    petter, playing its relax loop under a rising heart for 3 s; then it goes back to grazing. A game's bus hears
+    `petted` { entity, species }. `pasture`'s sheep may be petted.
+  - Petting is the World page's: Godot plays the herds and their hits, not the petting.
 
 ### Composed clumps: an ikebana clump cast and coloured by role
 
