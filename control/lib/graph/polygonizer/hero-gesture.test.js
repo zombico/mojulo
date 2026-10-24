@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GESTURE_CLIP, GESTURE_PRESETS, GESTURE_WORDS, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, ANIME_CLIP_SECONDS, heroClipSeconds, heroClipFaces } from './hero-gesture.js';
 import { resolveAnimeExpression } from './anime-head.js';
+import { resolveWesternExpression } from './humanoid-head.js';
 import { validateRig, bindLayered, rigNodesAt, boneFrames, layeredClip, auditRig } from './station-loft-rig.js';
 import { layeredSeat, layeredFaces } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
@@ -535,6 +536,13 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(F.greet).toEqual([null, { blink: 1, smile: 1, open: 0.4, brow: -0.2 }]); expect(F.greet[1]).toEqual(resolveAnimeExpression(['happy', { open: 0.4 }]));
     expect(F.run).toEqual([{ blink: 0.2, smile: 0, open: 0, brow: 0 }, null]);
     expect(F.idle).toEqual([null, null, null, null]); expect(F.gesture).toEqual([null]);
+  });
+  it("the realistic body's relational head takes the landmark head's face words on its clips, resolved as its channels", () => {
+    for (const head of ['relational', undefined]) {
+      const hr = heroRecord({ form: 'realistic', cast: 'female', ...(head ? { head } : {}), clips: { greet: [{}, { face: 'smile', jaw: 8 }] } });
+      expect(heroClipFaces(hr, { greet: [{}, {}] }).greet, head ?? 'default').toEqual([null, resolveWesternExpression('smile')]);
+    }
+    expect(() => heroRecord({ form: 'realistic', cast: 'female', head: 'relational', clips: { greet: [{ face: 'happy' }] } })).toThrow(/clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
   });
   it("the rig gates name a { seconds, keys } clip's key by its path", () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', core: 'streamlined', clips: { lunge: { seconds: 2, keys: [{}, { pelvis: 25 }] } } }) });

@@ -832,10 +832,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
   errs.push(...validateGesture(spec.gesture, 'gesture', { hands }));
   // the door's clips: the stand's pose words and the clip words; `jaw` only on a head with a jaw bone (jawedHead); a key's
-  // `face` on the anime head (its expression) and the landmark head (`western`: its channels, western-face-rig.js); a
-  // clip's `seconds` only on the anime head
-  const landmark = spec.head === undefined || spec.head === 'landmark';
-  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', western: landmark, expression: landmark, hands }));
+  // `face` on the anime head (its expression), the landmark head and the realistic body's relational head (`western`:
+  // their channels, western-face-rig.js; the relational face weighs the same, relational-face-rig.js); a clip's
+  // `seconds` only on the anime head
+  const landmark = spec.head === undefined || spec.head === 'landmark', relational = spec.head === 'relational' || (spec.form === 'realistic' && spec.head === undefined);
+  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', western: landmark || relational, expression: landmark, hands }));
   if (spec.blink !== undefined && spec.blink !== null) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');

@@ -65,6 +65,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   never swung up across the eye. A lid's points are the lid's for every action, so a smile's beads never draw the
   upper lid down. The beads carry what the lids leave (the fold follows a raised brow, with no tear), and the settle
   reaches a tenth as far in the eye's footprint, where the fold's layers lie closer than its reach.
+- A clip's keys on the realistic hero carry the face as the landmark head's do (`face: 'smile'`, a word or its
+  channels, and the key's `jaw`), with `head: 'relational'` named or not. They export as morph weights in the clip
+  beside its bones, so a wave can smile and a start can raise the brows on the same beat. Before this, a named relational
+  head refused the key, and its tracks resolved through the anime head's words.
 - Still open: the shut lid ripples a little; a full smile's cheek stands over the lower iris, as the face's field
   draws it.
 
