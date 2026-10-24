@@ -14,6 +14,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Local multiplayer: playing together, as settings of the soul facet
+
+- Planned. Several players at one machine, on one shared screen: seats (a pad each, or a keyboard's halves) that take
+  a game's bodies, and settings of the cosmos cube's `soul` facet (`seats`, `contest`, `dependence`, `frame`, `input`,
+  `pool`, `join`) that a game composes, each built once for every composition that asks for it. A cooperative kitchen,
+  a party mash, brothers on a quest and a shared bullet hell are its reference points, not its products. The
+  principles are in `docs/local-multiplayer-principles.md`. A game that asks for no seats is byte for byte as before.
+
 ### Chatbot sweep: what the chatbot factory left behind
 
 - The chatbot factory left in 3.0.0. Its leftovers go:
