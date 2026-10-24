@@ -837,7 +837,7 @@ function grittyGrass(LG, grit, st) {
     // (its crowns are chipped: the core and the chips sway with the wood)
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP] } } : {}) };
 }
-const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers'];
+const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far'];
 /**
  * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
  * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
@@ -848,6 +848,7 @@ export function validateIsekaiGrass(g) {
   if (typeof g !== 'object' || Array.isArray(g) || Object.keys(g).some((k) => !GRASS_KEYS.includes(k))) return ['grass must be true or { look?, contact?, density?, height? }'];
   const e = [];
   if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
+  if (g.far !== undefined && typeof g.far !== 'boolean') e.push('grass.far must be true or false (the far grass past the field: the card\'s, or none)');
   if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
   if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
   const F = g.flowers;
@@ -1028,6 +1029,9 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     ...(contact ? { contact: { ...contact, eye: WALK_EYE } } : {}),
     // WILDFLOWERS on a share of the tufts, riding their tufts (`grass.flowers: false` ⇒ none)
     ...(fl ? { flowers: fl } : {}),
+    // the FAR grass (the card's `live.far`): the meadow out past the field in clumps of its own, wider and sparser, that
+    // stand where the field has thinned and give way to it as it fills in (stage-grass.js); `grass.far: false` ⇒ none
+    ...(L.far && G.far !== false ? { far: { density: L.far.density, width: L.far.width } } : {}),
     // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker

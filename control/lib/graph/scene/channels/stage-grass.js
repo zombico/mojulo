@@ -10,6 +10,9 @@ import { grassContact } from '../../vegetation/grass-contact.js';
 //   · the field: tiles of `tile` m round the camera out to `radius`; in each mask cell tufts stand by a seeded hash at
 //     `density` a square metre. Past `near` they thin as (near/d)², the survivors widened; over the last fifth of the
 //     radius they shrink out while the static cards dither in. Levels L2/L1/L0 by size on screen, under `drawTris`.
+//   · THE FAR GRASS (`far`): wider, sparser clumps of the field's L0 tuft over all the grass, built once, each standing by
+//     the coverage the field has lost where it is, so the meadow reads as grass out to the horizon and the field takes
+//     over as the walker comes in. Absent ⇒ the field and the cards alone.
 //   · THE PIXEL LOCK, IN THE SHADER: a vertex's ramp coordinate is its height up the tuft; an instance carries its window
 //     of the grass ramp's stops (lit or shade, from the mask); the fragment takes the stop at lo + coord × (hi − lo),
 //     from a nearest-filtered ramp texture, so only the palette's stops reach the screen, through every bend.
@@ -57,6 +60,16 @@ const REAL_FRAG = 'float mojC = clamp(mojW.x + vRamp * (mojW.y - mojW.x) + vShif
   + '{ float g = dot(mojCol, vec3(0.2126, 0.7152, 0.0722)); mojCol = mix(mojCol, g * vec3(1.35, 1.15, 0.6), 0.65 * step(vDry, uReal.z) * smoothstep(0.25, 1.0, vRamp)); }\n'
   + '{ vec3 V = normalize(vMojW - cameraPosition); mojCol += mojCol * uSunCol * (1.5 * uReal.y * pow(max(0.0, dot(V, uSun)), 3.0) * smoothstep(0.2, 1.0, vRamp) * step(uReal.w - 0.5, vWin.y)); }\n'
   + 'mojCol *= 1.0 + 0.25 * mojL;\nvec4 diffuseColor = vec4(mojCol, opacity);';
+
+// how far the field widens a thinned tuft (at most), so its coverage is its kept share × WIDEN² up to whole
+const WIDEN = 1.8;
+/** The share of the meadow the FAR grass stands for at a distance `d` from the eye: what the field's coverage has lost
+ *  there (it keeps (near/d)² of its tufts past `near`, at least 5%, each widened up to WIDEN, and fades over the last
+ *  fifth of its radius). The page works the same in each far clump's vertex shader. */
+export function farShare(d, { near, radius }) {
+  const keep = d <= near ? 1 : Math.max(0.05, (near / d) ** 2), fade = d > 0.8 * radius ? Math.max(0, (radius - d) / (0.2 * radius)) : 1;
+  return 1 - Math.min(1, WIDEN * WIDEN * keep) * fade;
+}
 
 const FIELD = (o) => `
 (function () {
@@ -134,6 +147,46 @@ const FIELD = (o) => `
     return out;
   }
   const PER = ${o.flowers ? 9 : 8}, tiles = new Map(), stat = { tiles: 0, live: 0, tris: 0, k: 1 };
+${o.far ? `
+  // THE FAR GRASS (\`far\`): clumps over every cell grass may stand in, built once: the field's own L0 tuft, \`width\` times
+  // as wide at \`density\` a square metre, so out where the field has thinned the meadow still reads as grass. A clump
+  // stands by the coverage the field has LOST where it is (the field keeps (near/d)² of its tufts past \`near\`, widened
+  // up to 1.8, and fades over its last fifth): its rank against that share, worked in the vertex shader every frame, so
+  // walking in the field takes over clump by clump, and walking out the clumps stand back up as the field thins
+  (function () {
+    const FA = LG.far, c = G.cell, per = FA.density * c * c, byT = new Map();
+    for (let j = 0; j < G.ny - 1; j++) for (let i = 0; i < CX; i++) {
+      const m = M[j * CX + i]; if (!(m & 1)) continue;
+      const k = Math.floor(per + hash(i, j, S + 401));
+      for (let q = 0; q < k; q++) {
+        const x = G.x0 + (i + hash(i, j, S + 403 + q * 7)) * c, y = G.y0 + (j + hash(i, j, S + 405 + q * 7)) * c;
+        const h = LG.height[0] + (LG.height[1] - LG.height[0]) * hash(i, j, S + 407 + q * 7), v = Math.min(LG.variants.length - 1, Math.floor(hash(i, j, S + 409 + q * 7) * LG.variants.length));
+        const ti = LG.variants[v].L0; if (!byT.has(ti)) byT.set(ti, []);
+        byT.get(ti).push(x, y, TW.kernel.groundAt(x, y), h, (cellAt(x, y) & 2) ? 1 : 0, hash(i, j, S + 411 + q * 7), 2 * Math.PI * hash(i, j, S + 413 + q * 7));
+      }
+    }
+    const FARV = 'attribute float iRank;\\n', f3 = (v) => v.toFixed(4);
+    const FARB = '#ifdef USE_INSTANCING\\n{ float mojD = distance(instanceMatrix[3].xyz, cameraPosition), mojK = mojD <= ' + f3(NEAR) + ' ? 1.0 : max(0.05, pow(' + f3(NEAR) + ' / mojD, 2.0));'
+      + ' float mojFd = mojD > ' + f3(0.8 * RAD) + ' ? max(0.0, (' + f3(RAD) + ' - mojD) / ' + f3(0.2 * RAD) + ') : 1.0, mojF = 1.0 - min(1.0, ${(WIDEN * WIDEN).toFixed(4)} * mojK) * mojFd;'
+      + ' transformed *= smoothstep(0.0, 0.25 * mojF + 1e-3, mojF - iRank); }\\n#endif\\n';
+    const ZA = new THREE.Vector3(0, 0, 1), FM = new THREE.Matrix4(), FQ = new THREE.Quaternion(), FP = new THREE.Vector3(), FS = new THREE.Vector3();
+    let n0 = 0;
+    for (const [ti, a] of byT) {
+      const T0 = LG.templates[ti], n = a.length / 7, g = TPL[ti].g.clone(), win = new Float32Array(2 * n), rank = new Float32Array(n);
+      const base = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), inner = patchFor(T0.H);
+      base.userData.mojPatch = (sh) => { inner(sh); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + FARV).replace('#include <begin_vertex>', '#include <begin_vertex>\\n' + FARB); };
+      base.userData.mojKey = '|stage-grass-far|' + T0.H.toFixed(4);
+      const im = new THREE.InstancedMesh(g, TW.wind.material(base, LG.taker, T0.H), n);
+      for (let i = 0; i < n; i++) {
+        const q = i * 7, h = a[q + 3], W = a[q + 4] ? LG.win.lit : LG.win.shade;
+        FM.compose(FP.set(a[q], a[q + 1], a[q + 2] - 0.03), FQ.setFromAxisAngle(ZA, a[q + 6]), FS.set(h * FA.width, h * FA.width, h)); im.setMatrixAt(i, FM);
+        win[i * 2] = W[0]; win[i * 2 + 1] = W[1]; rank[i] = a[q + 5];
+      }
+      g.setAttribute('iWin', new THREE.InstancedBufferAttribute(win, 2)); g.setAttribute('iRank', new THREE.InstancedBufferAttribute(rank, 1));
+      im.frustumCulled = false; im.userData.g = 'far-grass'; scene.add(im); n0 += n;
+    }
+    stat.far = n0;
+  })();` : ''}
   function ensure(t, need) {
     if (need <= t.cap) return; if (t.im) { scene.remove(t.im); t.im.dispose(); }
     t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass';
@@ -150,7 +203,7 @@ const FIELD = (o) => `
       for (let q = 0; q < a.length; q += PER) {
         const x = a[q], y = a[q + 1], z = a[q + 2], h = a[q + 3], d = Math.hypot(x - c.x, y - c.y, z + h / 2 - c.z); if (d > RAD) continue;
         const keep = d <= NEAR ? 1 : Math.max(0.05, (NEAR / d) ** 2), rank = (a[q + 4] * 9.7361 + 0.1307) % 1; if (rank >= keep) continue;
-        const fade = d > 0.8 * RAD ? Math.max(0, (RAD - d) / (0.2 * RAD)) : 1, s = h * fade * smooth(0, 0.25 * keep, keep - rank), w = Math.min(1.8, 1 / Math.sqrt(keep));
+        const fade = d > 0.8 * RAD ? Math.max(0, (RAD - d) / (0.2 * RAD)) : 1, s = h * fade * smooth(0, 0.25 * keep, keep - rank), w = Math.min(${WIDEN}, 1 / Math.sqrt(keep));
         if (s <= 1e-3) continue;
         all.push({ x, y, z, s, w, v: Math.min(LG.variants.length - 1, Math.floor(a[q + 4] * LG.variants.length)), lit: a[q + 5], lean: a[q + 6], az: a[q + 7], px: (LG.size * s * f) / d${o.flowers ? ', fk: kindOf(a[q + 8])' : ''} });
       }
@@ -410,7 +463,8 @@ const PETALS = `
 
 /** `cfg`: { grid: { x0, y0, cell, nx, ny, zlo, zsc, z (Int16 b64), m (Uint8 b64) }, ramp, win: { lit, shade }, templates:
  *  [{ lo, sc, q, H, tris }], variants: [{ L2, L1, L0 }], size, radius, near, tile, density, height, px, drawTris, seed,
- *  sheen, contact?: { …GRASS_CONTACT_DEFAULTS, eye }, real?: { ao, back, dry, sun, sunColor }, taker, cards: [group],
+ *  sheen, contact?: { …GRASS_CONTACT_DEFAULTS, eye }, real?: { ao, back, dry, sun, sunColor }, far?: { density, width },
+ *  taker, cards: [group],
  *  crowns: { groups, phi, reach, flutter, from, full } | null, wind } */
 export function stageGrassScript(cfg) {
   const { wind, ...rest } = cfg, lg = safeJson(rest);
@@ -428,5 +482,5 @@ export function stageGrassScript(cfg) {
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers, far: !!cfg.far }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }

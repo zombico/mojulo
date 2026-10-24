@@ -14,6 +14,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Far grass: the meadow out past the field
+
+The live grass stood only round the walker: past about 13 m its cover fell away and past its radius it was gone, so
+open meadow was turf with tussocks on it and the grass grew in as the walker came close. Now the meadow has a far grass
+of its own (`scene/channels/stage-grass.js`, opt-in on a card's `live.far: { density, width }`, the meadow's on):
+clumps over every cell grass may stand in, the field's own simplest tuft drawn wider and sparser, in the same locked
+ramp and the same wind. Each clump stands by the cover the field has lost at its distance (`farShare`: none near the
+eye, all of it past the field, rising as the field thins), worked in its vertex shader each frame, so walking in, the
+field takes over clump by clump, and walking out the clumps stand back up. A recipe's `grass.far: false` turns it off.
+On the meadow it is about 3,400 clumps, 94k triangles: about an eighth of the field's own budget. The walk in, off and
+on: `scripts/spikes/geotown/far-grass.mjs`.
+
 ### Leaf forms: a gritty crown grown as leaf branches
 
 A gritty crown can grow as LEAF BRANCHES instead of one heap of balls: the trunk forks into limbs, the limbs throw leaf
