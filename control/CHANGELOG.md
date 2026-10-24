@@ -14,6 +14,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Chatbot sweep: what the chatbot factory left behind
+
+- The chatbot factory left in 3.0.0. Its leftovers go:
+  - The "nothing came back" guards: a server boot in a child process, and nine absence checks.
+  - The 2.x upgrade shims, the moved notice above all. A removed bot tool or pack name is now an unknown tool,
+    `mojulo install chatbot` an unknown pack (exit 1), and a `chatbot` token in `MOJULO_PACKS` is skipped as any unknown
+    token is. `recommend_catalysts`' deployed-bot arguments, the `artifact_materialization` commit type and the `bot`
+    worked example fall to their tools' ordinary refusals, and a catalyst's `requires.protocols` is no longer read.
+  - The bot runtime's LLM helpers nothing called: the vision and per-model protocol gates and `generateSummary`
+    (`lib/llm-providers.js` keeps the provider table, the model tiers and `generateStructured`).
+  - The server instructions and `get_substrate` no longer carry the chatbot paragraph, and code and tests no longer tell
+    the factory's history in their comments.
+- Kept:
+  - The retired-shelf prune of the semantic index, which drops any routing card or catalyst a release deletes.
+  - A 2.x install's data stays readable: its documents, its stash bindings to a bot, its meta-context bot rows.
+
 ### Test tiers: the tests a change reaches, the whole suite in CI
 
 - **`npm run test:changed`** runs the tests a change needs, picked off the import graph of control's own sources

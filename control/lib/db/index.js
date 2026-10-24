@@ -35,20 +35,18 @@ function init(db) {
 
     -- Single-user app preferences. Key/value so new settings are additive
     -- without a migration; absence of a key IS its fresh-install default, so
-    -- no seed row. Today it holds sketches.derivation (sketches.js). Until 3.0
-    -- it also held the chatbot builder's driver mode; a 2.x row stays, unread.
+    -- no seed row. Today it holds sketches.derivation (sketches.js); a key a
+    -- 2.x install wrote stays, unread.
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
 
-    -- Documents uploaded to the chatbot factory on 2.x (its RAG corpus). The
-    -- factory left in 3.0.0 and nothing writes this table any more; it stays
-    -- so a stash image item whose media_ref is a legacy doc_ key still
-    -- resolves (app/api/stashes/[ref]/media/[id]). The factory's other tables
-    -- (deployments, modular_sessions, mcp_jobs) are no longer created: an
-    -- install that has them keeps them, inert, and nothing drops them.
+    -- Documents a 2.x install uploaded. Nothing writes this table any more;
+    -- it stays so a stash image item whose media_ref is a legacy doc_ key
+    -- still resolves (app/api/stashes/[ref]/media/[id]). Other 2.x tables an
+    -- install has stay, inert, and nothing drops them.
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       original_name TEXT NOT NULL,
@@ -497,8 +495,7 @@ function init(db) {
     -- resources (app / plan / cook / contextmap_node / sketch). What turns
     -- "stash inbox" into "this app's corpus, this plan's working memory".
     -- 'bot' stays in the CHECK so rows a 2.x install bound to a deployed bot
-    -- stay readable; nothing writes it since the chatbot factory left in 3.0.0
-    -- (StashRepository.bind refuses it).
+    -- stay readable; nothing writes it (StashRepository.bind refuses it).
     -- bound_ref is NOT a foreign key — deletion of a bound resource leaves
     -- the binding as a "linked resource removed" chip (stashes survive the
     -- resources they're linked to). Purely navigational in v0 — no automatic
@@ -936,8 +933,7 @@ function triggerReindex(reason) {
 
 // A routing card or curated catalyst a release deleted keeps its index row
 // (reindexAll only upserts), so an upgraded home would go on surfacing it
-// through semantic_search — 3.0.0's removed `bot` card and chatbot-factory
-// catalysts are the case. Runs on every boot, before any search can answer,
+// through semantic_search. Runs on every boot, before any search can answer,
 // and is soft: a failure leaves the index as it was and never fails getDb().
 function pruneRetiredShelf(db) {
   try {
@@ -1100,9 +1096,7 @@ function migrateUserColumns(db) {
   // workshop_space_id (Phase 4) on the tables where delegates create things.
   // NULL = the admin's default space — every existing row is already correct.
   // The deny-first lever bounds the sweep to exactly these; creative stores
-  // stay unscoped until a real delegate needs them. deployments was the fourth
-  // until the chatbot factory left in 3.0.0: a fresh install has no such table,
-  // and an existing one already carries the column. documents stays for its
+  // stay unscoped until a real delegate needs them. documents stays for its
   // legacy read (see its CREATE above).
   for (const table of ['documents', 'sketches', 'plans']) {
     const tCols = db.prepare(`PRAGMA table_info(${table})`).all();

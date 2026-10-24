@@ -174,8 +174,7 @@ async function seedFullCorpus() {
 
   // primitive-binding materialization: the auto-summary principle plus a
   // user-supplied one, so the principle kind has a second variant beside
-  // operator_kyc. (The 2.x bot-bound artifact_materialization supplied the
-  // user variant here until it left with the chatbot factory.)
+  // operator_kyc.
   await commitPrimitiveArtifactMaterialization({
     type: 'primitive_artifact_materialization',
     adapter_id: 'generic',

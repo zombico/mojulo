@@ -290,49 +290,6 @@ describe('runCli', () => {
     }
   });
 
-  // A 2.x config that still names the chatbot group keeps working; the listing says it is ignored.
-  it('tools and packs say a retired chatbot token is ignored, and list every pack', async () => {
-    const saved = process.env.MOJULO_PACKS;
-    process.env.MOJULO_PACKS = 'creative,chatbot';
-    try {
-      for (const cmd of ['tools', 'packs']) {
-        const { lines, io } = capture();
-        expect(await runCli([cmd], io)).toBe(0);
-        const text = lines.out.join('\n');
-        expect(text).toMatch(/ignored: MOJULO_PACKS=chatbot \(the chatbot pack left mojulo in 3\.0\.0 and is ignored; `mojulo install chatbot` explains\)/);
-        // The moved notice names no destination, so the listing promises none.
-        expect(text).not.toMatch(/where it went/);
-        expect(text).not.toMatch(/not installed:/);
-      }
-    } finally {
-      if (saved === undefined) delete process.env.MOJULO_PACKS;
-      else process.env.MOJULO_PACKS = saved;
-    }
-  });
-
-  it('a chatbot-factory tool or pack name says where it went, not "unknown"', async () => {
-    const { BOT_FACTORY_MOVED } = await import('@/lib/mcp/bot-factory-moved');
-    for (const argv of [['call', 'save_modular_bot'], ['help', 'list_deployments'], ['pack_bot_build'], ['tools', 'pack_fleet'], ['pack_runtime', 'emit_chat_signal']]) {
-      const { lines, io } = capture();
-      expect(await runCli(argv, io), argv.join(' ')).toBe(2);
-      expect(lines.err.join('\n'), argv.join(' ')).toContain(BOT_FACTORY_MOVED);
-    }
-  });
-
-  it('a removed bot pack asked for a tool 3.0 kept says where that tool lives now', async () => {
-    const { BOT_FACTORY_MOVED } = await import('@/lib/mcp/bot-factory-moved');
-    for (const argv of [['pack_bot_operate', 'list_running'], ['call', 'pack_bot_operate', '--json', '{"tool":"list_running"}']]) {
-      const { lines, io } = capture();
-      expect(await runCli(argv, io), argv.join(' ')).toBe(2);
-      const text = lines.err.join('\n');
-      expect(text, argv.join(' ')).toContain("homed in pack_runtime. Dispatch it there: pack_runtime({ tool: 'list_running'");
-      expect(text, argv.join(' ')).not.toContain(BOT_FACTORY_MOVED);
-    }
-    const { lines, io } = capture();
-    expect(await runCli(['pack_bot_operate', 'get_deployment'], io)).toBe(2);
-    expect(lines.err.join('\n')).toContain(BOT_FACTORY_MOVED);
-  });
-
   it('orient prints the initialize preamble, the packs mechanic, and the shell translation', async () => {
     const server = await import('@/lib/mcp/server');
     const { listHostProfiles } = await import('@/lib/mcp/hosts/registry');

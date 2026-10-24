@@ -34,9 +34,7 @@
  * Only Linux ever drops it: as root, or after a sandboxed launch failed with one
  * of Chrome's sandbox errors; see launchChromium.
  *
- * CONTROL-PLANE concern only; the control plane is single-user/self-hosted. (The
- * Debian-slim / glibc image rules that once sat beside this note governed the chatbot
- * image, which left with the chatbot factory in 3.0.0.)
+ * CONTROL-PLANE concern only; the control plane is single-user/self-hosted.
  */
 
 import { existsSync } from 'node:fs';

@@ -45,9 +45,8 @@ import { normalizeTier } from '@/lib/agent-tasks/tiers';
 const TASK_KIND_ENVELOPE_INFERENCE = 'envelope_inference';
 
 // Envelope-shaped kinds share one submit tool + the canonical envelope schema.
-// envelope_inference (app inference) is the one today. Until 3.0 the chatbot
-// builder's web-chat relay parked a second kind, chat_turn, on this queue; it
-// left with the chatbot factory. Every envelope-shaped submit is audited.
+// envelope_inference (app inference) is the one today. Every envelope-shaped
+// submit is audited.
 const ENVELOPE_SHAPED_KINDS = new Set([TASK_KIND_ENVELOPE_INFERENCE]);
 
 function submitToolNameForKind(taskKind) {

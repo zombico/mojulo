@@ -28,11 +28,6 @@
  * Everything else — the kernel and the always-present orchestration packs — declares
  * no group and is never gated.
  *
- * `chatbot` (and its old alias `ops`) was a third group from 2.0 to 2.x: the bot factory.
- * It left mojulo in 3.0.0, so `install chatbot` installs nothing, writes nothing, prints
- * where the factory went (lib/mcp/bot-factory-moved.js) and exits 0. A marker an earlier
- * install wrote under $MOJULO_HOME/packs/chatbot is left alone; nothing reads it.
- *
  * Imported (not spawned) by scripts/mcp-stdio.mjs BEFORE it configures itself as
  * an MCP server — this verb needs neither the @/ loader nor the tool registry.
  * argv: [node, mcp-stdio.mjs, 'install', '<pack>'] → argv[3] is the pack.
@@ -45,14 +40,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { distribution, mojuloCommand } from '../lib/version/distribution.js';
-import { BOT_FACTORY_MOVED } from '../lib/mcp/bot-factory-moved.js';
 
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-
-// The marker `install chatbot` wrote on 2.x (RETIRED_CHATBOT_MARKER in lib/mcp/packs.js). Only
-// read, to mention a leftover; never written or removed.
-const CHATBOT_MARKER = 'packs/chatbot';
 
 // The recall group's home and marker (INSTALL_GROUPS.recall.markerFile) and the
 // runtime it installs there. The version range is the one the package used to
@@ -65,9 +55,6 @@ function mojuloHome() {
   return process.env.MOJULO_HOME || path.join(os.homedir(), '.mojulo');
 }
 
-function chatbotMarkerPath() {
-  return path.join(mojuloHome(), CHATBOT_MARKER);
-}
 
 function recallDir() {
   return path.join(mojuloHome(), RECALL_DIR);
@@ -204,10 +191,6 @@ async function buildRecallIndex() {
   return code;
 }
 
-function chatbotMarkerLeftover() {
-  return fs.existsSync(chatbotMarkerPath());
-}
-
 // creative is always installed (INSTALL_GROUPS.creative.alwaysInstalled in
 // lib/mcp/packs.js). What can be missing is an optional helper that some of its
 // calls load lazily; those calls say so in-band.
@@ -263,18 +246,6 @@ const pack = (process.argv[3] || '').trim().toLowerCase();
 
 if (!pack || pack === 'status' || pack === '--help' || pack === '-h') {
   printStatus();
-  process.exit(0);
-}
-
-// The chatbot factory left in 3.0.0: install nothing, write nothing, say where it went. Exit 0 so
-// a setup script that still runs `install chatbot` keeps going (the rest of mojulo is unaffected).
-if (pack === 'chatbot' || pack === 'ops') {
-  process.stdout.write(`${BOT_FACTORY_MOVED}\nNothing was installed.\n`);
-  if (chatbotMarkerLeftover()) {
-    process.stdout.write(
-      `(The marker an earlier install wrote at ${chatbotMarkerPath()} is ignored by 3.0; you may delete it.)\n`,
-    );
-  }
   process.exit(0);
 }
 

@@ -25,7 +25,6 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
-import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 
 const EXAMPLE_INDEX = `# Worked examples — one successful flight per paradigm
 
@@ -101,13 +100,6 @@ export async function workedExampleHandler(input, _ctx) {
     return {
       content: [{ type: 'text', text: EXAMPLE_INDEX }],
       _telemetrySignal: { id_requested: false, found: true },
-    };
-  }
-  // The bot trace left with the chatbot factory in 3.0.0; say where it went.
-  if (paradigm === 'bot') {
-    return {
-      content: [{ type: 'text', text: `No worked example for 'bot' in this version. ${BOT_FACTORY_MOVED}` }],
-      _telemetrySignal: { id_requested: true, found: false },
     };
   }
   // The connected-service and app traces left with the office wing in 3.1.0; say so.

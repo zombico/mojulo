@@ -31,9 +31,6 @@ const CONTROL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // CSS-var presets) shared by both wings (cook, figure, motion) — kernel-grade
 // vocabulary, not the render engine. Per the model/render principle it is NOT bucketed
 // as creative (install-capabilities.plan.md P3b).
-// The chatbot factory's engine directories (lib/deployers, builder, composer, fleet,
-// form-schema-config, preview) were ops-engine buckets until they left mojulo in 3.0.0;
-// lib/mcp/carve-boundary.test.js holds the "nothing came back" regression for them.
 const CREATIVE_ENGINE = ['lib/graph/', 'lib/motion/'];
 const OPS_ENGINE = [
   'lib/fleet-scene/', 'lib/connected-services/', 'lib/triggers/', 'lib/apps/',
@@ -208,9 +205,3 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
     expect(offenders, `kernel diagram surface → creative imports:\n${offenders.join('\n')}`).toEqual([]);
   });
 });
-
-// The 2.0 carve fence (checks F, G, H and I) guarded the chatbot factory's boundary while it
-// was an opt-in pack inside mojulo: nothing retained could import its engines, its bot-only
-// files or its data, and the dashboard routes bound to it were ledgered. The factory left in
-// 3.0.0, so there is nothing left to fence; lib/mcp/carve-boundary.test.js checks that none of
-// it comes back (on disk, in a static import, or in what a boot loads).

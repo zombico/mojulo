@@ -32,13 +32,6 @@ describe('get_worked_example — the transcript drawer', () => {
     expect(text).toContain('game');
   });
 
-  it("'bot' names where the chatbot factory went instead of a trace", async () => {
-    const { BOT_FACTORY_MOVED } = await import('@/lib/mcp/bot-factory-moved');
-    expect(WORKED_EXAMPLE_PARADIGMS).not.toContain('bot');
-    const { content } = await workedExampleHandler({ paradigm: 'bot' });
-    expect(content[0].text).toContain(BOT_FACTORY_MOVED);
-  });
-
   it('HONESTY GATE: every `tool_name(...)` mention in every trace resolves in the live registry', async () => {
     // Traces are hand-authored and must not rot into fiction when tools
     // rename. Convention (see the worked-examples.js header): every step that

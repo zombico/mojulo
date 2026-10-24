@@ -2,8 +2,7 @@
  * Local-state readers for `check_for_updates`.
  *
  * Returns what the *running* control plane thinks it is: the control-plane
- * package name and version, read from control/package.json. (Until 3.0 it also
- * read the pinned chatbot image; that pin left with the chatbot factory.)
+ * package name and version, read from control/package.json.
  *
  * Kept separate from remote.js so the local read is cheap and never fails on
  * registry outage — the tool can still report current state even when the

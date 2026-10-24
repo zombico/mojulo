@@ -37,8 +37,6 @@ import {
 // release of. Trigger binding (trigger_artifact_materialization) wires
 // activation onto an EXISTING artifact and writes its own principle, so it
 // doesn't archive the plan that bound it.
-// artifact_materialization was the third until the chatbot factory left in 3.0.0; that commit
-// type now writes nothing, so it releases no plan.
 const RELEASE_COMMIT_TYPES = new Set([
   'app_materialization',
   'primitive_artifact_materialization',

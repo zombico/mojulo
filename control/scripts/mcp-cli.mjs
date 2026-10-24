@@ -293,8 +293,6 @@ export function cliInvocation({ argv1 = '', env = {}, isSource = false, npx = ()
 // Capability that EXISTS but is not installed here. The iron wall is about
 // execution, not information hiding — the operator should know a gated pack
 // is one command away, without it cluttering the surface as if it were live.
-// A host that still carries the retired chatbot group (its marker, or the token
-// in MOJULO_PACKS) is told it is ignored, once, so the leftover explains itself.
 function uninstalledNote(packs, profile) {
   const lines = [];
   // A pack the Claude plugin profile leaves out is absent, not "not installed".
@@ -307,29 +305,14 @@ function uninstalledNote(packs, profile) {
       `  to add them: ${groups.map((g) => packs.installAdvice(g)).join(' / ')}`,
     );
   }
-  const retired = packs.retiredInstallTokens();
-  if (retired.length) {
-    // `install chatbot` prints the approved moved notice, which names no destination: promise none.
-    lines.push('', `ignored: ${retired.join(', ')} (the chatbot pack left mojulo in 3.0.0 and is ignored; \`mojulo install chatbot\` explains)`);
-  }
   return lines;
 }
 
-// A name the chatbot factory took with it answers with the moved notice, not "unknown" — or, for a
-// removed pack dispatcher asked to run a tool 3.0 kept (`member`), the redirect to its live home.
-function removedMessage(moved, packs, name, member) {
-  if (!moved.isRemovedBotTool(name)) return null;
-  const redirect = moved.removedPackRedirect(name, member, {
-    homeOf: (tool) => packs.homePackForTool(tool)?.id ?? null,
-    isSpine: (tool) => packs.SPINE.includes(tool),
-  });
-  return redirect ?? moved.botToolMovedNotice(name);
+function unknownToolMessage(name, cmd = 'mojulo') {
+  return `unknown tool: ${name} (run \`${cmd} tools\`)`;
 }
-function unknownToolMessage(moved, packs, name, member, cmd = 'mojulo') {
-  return removedMessage(moved, packs, name, member) ?? `unknown tool: ${name} (run \`${cmd} tools\`)`;
-}
-function unknownPackMessage(moved, packs, name, member, cmd = 'mojulo') {
-  return removedMessage(moved, packs, name, member) ?? `unknown pack: ${name} (run \`${cmd} packs\`)`;
+function unknownPackMessage(name, cmd = 'mojulo') {
+  return `unknown pack: ${name} (run \`${cmd} packs\`)`;
 }
 
 export async function runCli(argv, io = {}) {
@@ -357,7 +340,6 @@ export async function runCli(argv, io = {}) {
 
   const server = await import('@/lib/mcp/server');
   const packs = await import('@/lib/mcp/packs');
-  const moved = await import('@/lib/mcp/bot-factory-moved');
   // The Claude plugin profile (lib/mcp/plugin-profile.js): hidden names leave every listing, and a
   // tool's profile face replaces its own there. Every check is false outside that distribution.
   const profile = await import('@/lib/mcp/plugin-profile');
@@ -424,7 +406,7 @@ export async function runCli(argv, io = {}) {
     });
     const tool = server.getRegisteredTool(name);
     if (!tool) {
-      const e = new Error(unknownToolMessage(moved, packs, name, base?.tool, await cliCmd()));
+      const e = new Error(unknownToolMessage(name, await cliCmd()));
       e.usage = true;
       throw e;
     }
@@ -455,7 +437,7 @@ export async function runCli(argv, io = {}) {
       if (parsed.pack) {
         const pack = packs.PACKS.find((p) => p.id === parsed.pack);
         if (!pack) {
-          err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, undefined, await cliCmd())}`);
+          err(`mojulo: ${unknownPackMessage(parsed.pack, await cliCmd())}`);
           return 2;
         }
         const hiddenPack = profile.pluginProfileToolNotice(pack.id);
@@ -496,7 +478,7 @@ export async function runCli(argv, io = {}) {
     case 'help': {
       const tool = server.getRegisteredTool(parsed.name);
       if (!tool) {
-        err(`mojulo: ${unknownToolMessage(moved, packs, parsed.name, undefined, await cliCmd())}`);
+        err(`mojulo: ${unknownToolMessage(parsed.name, await cliCmd())}`);
         return 2;
       }
       const hidden = profile.pluginProfileToolNotice(parsed.name);
@@ -526,7 +508,7 @@ export async function runCli(argv, io = {}) {
 
     case 'pack': {
       if (!server.hasRegisteredTool(parsed.pack)) {
-        err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, parsed.name, await cliCmd())}`);
+        err(`mojulo: ${unknownPackMessage(parsed.pack, await cliCmd())}`);
         return 2;
       }
       if (parsed.manual) {

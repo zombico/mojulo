@@ -2,8 +2,7 @@
 // catalysts are shipped markdown that reindexAll mirrors into meta_embeddings,
 // and the mirror only ever upserts: a card or catalyst a release deletes keeps
 // its row, so semantic_search goes on returning a body whose entry tool no
-// longer exists (3.0.0 removed the `bot` routing card and the chatbot-factory
-// catalysts; a 2.x index still holds them). This drops `routing` and
+// longer exists. This drops `routing` and
 // `catalyst` rows whose source is no longer on either shelf. They are derived
 // index rows, never operator data: the operator's own active mint_catalyst
 // rows are part of the live set and are kept.

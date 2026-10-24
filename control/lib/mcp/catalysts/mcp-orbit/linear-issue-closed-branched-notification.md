@@ -147,8 +147,6 @@ meta_context_commit({
 })
 ```
 
-(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
-
 **For mcp-orbit catalysts, this commit IS the audit chain.** For branching catalysts especially, the principle should capture *which classification rule was chosen and why* — that's the most likely thing to need re-litigation six months later.
 
 ## Pitfalls

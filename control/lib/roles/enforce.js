@@ -47,9 +47,8 @@ export const DENY_LIST = [
 // outward: things that LEAVE the host (deploys, anything that spends or
 // publishes). lifecycle: things that start/stop processes. The daemon tools are
 // deny-listed above and never reach these checks.
-// No retained tool is outward today: the one that was, save_modular_bot, left
-// with the chatbot factory in 3.0.0. The flag stays mintable and checked, so a
-// key cut earlier keeps its shape and a future outward tool only joins the list.
+// No tool is outward today. The flag stays mintable and checked, so a key cut
+// earlier keeps its shape and a future outward tool only joins the list.
 export const OUTWARD_TOOLS = [];
 export const LIFECYCLE_TOOLS = ['install_scaffold', 'start_app', 'stop_app'];
 

@@ -24,9 +24,6 @@
  * and the plugin directory render, and docs/): a renderer drops it as an unknown HTML tag, so
  * "about <measured> MB" ships as "about  MB".
  *
- * (Until 3.0 a `--bot-image` flag also asked GHCR whether the chatbot image core pinned was
- * published. The image left with the chatbot factory, so the flag and its GHCR read are gone.)
- *
  * Usage (from the repo root or control/):
  *   node control/scripts/check-plugin-version.mjs [--since origin/main] [--expect 3.0.0]
  * Exit 0 when everything agrees, 1 with one line per problem otherwise.

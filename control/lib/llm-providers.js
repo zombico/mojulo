@@ -1,92 +1,32 @@
 /**
  * LLM Provider Configurations
  *
- * mojulo's one retained caller is mint_solid's prompt door (lib/graph/polygonizer/index.js:
- * generateStructured, getDefaultModelForTask, LLM_PROVIDERS). The chatbot factory, which used
- * the rest (the protocol and vision gates, generateSummary), left in 3.0.0 and takes its own copy;
- * those exports stay here until a retained caller needs them or a cleanup removes them.
+ * The one caller is mint_solid's prompt door (lib/graph/polygonizer/index.js: generateStructured,
+ * getDefaultModelForTask, LLM_PROVIDERS); the init and config scripts read the provider table.
  */
-
-/**
- * Providers whose runtime adapter accepts image input on the current user
- * turn. The chatbot runtime's Optical Read protocol gated itself against this
- * set (2.x).
- */
-export const VISION_PROVIDERS = new Set(['anthropic', 'openai']);
-
-export function providerSupportsVision(provider) {
-  return VISION_PROVIDERS.has(provider);
-}
-
-/**
- * Per-model protocol allowlist.
- *
- * Ollama — qwen3 and mistral-nemo are small enough that multi-step
- * instruction-following (form-gathering, appointments, triage, optical-read)
- * is unreliable in practice; they can answer over a knowledge base but lose
- * the thread on stateful flows. llama3.3 (70B) handles everything.
- *
- * OpenAI — gpt-4.1 stays on form-free protocols. The form-gathering flow
- * needs the model to track field state across turns and follow stricter
- * shape guidance now that wire-level enforcement is gone; gpt-5 and
- * gpt-5-mini handle it reliably, gpt-4.1 doesn't. Anchor model otherwise.
- *
- * Returns `null` when all protocols are allowed (the common case). Returns a
- * `Set` of allowed protocol IDs when the model is restricted.
- *
- * Protocol IDs match the wizard's `enabledProtocols` keys: knowledge,
- * formGathering, appointments, triage, opticalRead.
- */
-const RESTRICTED_OLLAMA_MODELS = new Set(['qwen3', 'mistral-nemo']);
-const RESTRICTED_OPENAI_MODELS = new Set(['gpt-4.1']);
-
-export function getAllowedProtocolsForModel(provider, model) {
-  if (provider === 'ollama' && RESTRICTED_OLLAMA_MODELS.has(model)) {
-    return new Set(['knowledge']);
-  }
-  if (provider === 'openai' && RESTRICTED_OPENAI_MODELS.has(model)) {
-    return new Set(['knowledge', 'appointments', 'triage', 'opticalRead']);
-  }
-  return null;
-}
-
-export function isProtocolAllowedForModel(provider, model, protocolId) {
-  const allowed = getAllowedProtocolsForModel(provider, model);
-  if (!allowed) return true;
-  return allowed.has(protocolId);
-}
 
 /**
  * MODEL LIST CONVENTION — suggestions, not a wall.
  *
- * The model field is free text everywhere (wizard input + datalist, chat
- * builder, MCP build tools): any model ID the provider's API serves is valid,
+ * The model field is free text everywhere: any model ID the provider's API serves is valid,
  * exactly as the provider spells it (e.g. `claude-sonnet-4-6`, `gpt-5-mini`,
  * `llama3.3:70b`). Nothing validates a typed model against the `models`
  * arrays below, and nothing should — that's what makes a new provider model
  * usable the day it ships, with no mojulo release.
  *
  * What the arrays below ARE for:
- *   - datalist suggestions in the wizard's model input
  *   - `defaultModel` seeding when a provider is picked or a saved key is used
  *   - MODEL_TIERS defaults for control-plane tasks
  *
- * Corollary for the protocol gates (getAllowedProtocolsForModel): restricted
- * models are DENY-listed by exact ID. An unknown ID returns null (all
- * protocols allowed) by design — the operator vouches for what they typed.
- * When a model family proves unable to run a protocol, add its exact ID to
- * the deny-list; never switch to an allow-list keyed on the arrays below.
- *
- * A mistyped ID fails at first real call with the provider's own error
- * (surfaced in the wizard's live preview before anything deploys).
+ * A mistyped ID fails at first real call with the provider's own error.
  */
 export const LLM_PROVIDERS = {
   openai: {
     name: 'OpenAI',
     // User-facing model picker. `gpt-4.1-mini` and `gpt-4.1-nano` are
     // intentionally absent here — `MODEL_TIERS` still resolves to them for
-    // control-plane tasks (form-gen, RAG summary), but they're not surfaced
-    // as bot-runtime options. `gpt-4.1` is the anchor.
+    // control-plane tasks, but they're not surfaced as options. `gpt-4.1` is
+    // the anchor.
     models: ['gpt-4.1', 'gpt-5', 'gpt-5-mini'],
     defaultModel: 'gpt-4.1',
     baseURL: 'https://api.openai.com/v1',
@@ -112,11 +52,7 @@ export const LLM_PROVIDERS = {
     defaultModel: 'llama3.3',
     // Canonical Ollama endpoint. We don't bundle Ollama — users run their
     // own. This default works from the control plane (native Node) without
-    // assuming any topology. The bot artifact (Docker) needs a different
-    // host to reach the user's Ollama: `host.docker.internal:11434` on
-    // Mac/Windows, the host's LAN IP on Linux. The wizard helper text calls
-    // this out so savvy users override deliberately rather than getting a
-    // Docker-shaped default they didn't ask for.
+    // assuming any topology.
     defaultHost: 'http://localhost:11434',
   }
 };
@@ -126,9 +62,9 @@ export const LLM_PROVIDERS = {
  * picks a provider; this map picks the right model within that provider for
  * the workload at hand. User-facing semantics of "default" are unchanged.
  *
- *   reasoning   — agentic loops with tool use (chat builder)
- *   structured  — single-shot calls bounded by a JSON schema (form gen)
- *   summary     — single-shot free-text generation (RAG / bot summary)
+ *   reasoning   — agentic loops with tool use
+ *   structured  — single-shot calls bounded by a JSON schema (mint_solid's prompt door)
+ *   summary     — single-shot free-text generation
  *
  */
 export const MODEL_TIERS = {
@@ -150,7 +86,7 @@ export const MODEL_TIERS = {
     // clean prose — one warm model covers all three workloads. Note: it's a
     // 70B model, so it only runs at usable speed on machines with the VRAM /
     // unified memory to host it. Smaller hosts should override to qwen3 or
-    // mistral-nemo via the wizard.
+    // mistral-nemo.
     reasoning: 'llama3.3',
     structured: 'llama3.3',
     summary: 'llama3.3',
@@ -180,18 +116,14 @@ export function getDefaultModelForTask(provider, task) {
  * The JSON discriminator keeps the outer function signatures stable across
  * providers.
  *
- * The host stored in deployment configs is intended for the bot artifact,
- * which runs in Docker and reaches the host via `host.docker.internal`. The
- * control plane (this code) usually runs natively (`npm run dev`) where that
- * alias doesn't resolve. Two escape hatches:
+ * A saved host may name `host.docker.internal`, the alias a container uses
+ * to reach the host; the control plane usually runs natively (`npm run dev`),
+ * where that alias doesn't resolve. Two escape hatches:
  *
- *   1. process.env.OLLAMA_HOST wins outright — set this when the control
- *      plane needs a different endpoint than the bot artifact (Dockerized
- *      control plane, remote Ollama, tunneled endpoint).
- *   2. Otherwise, rewrite `host.docker.internal` → `localhost` so a
- *      stock-default deployment config works from a native control plane
- *      without configuration. Set OLLAMA_HOST explicitly if you actually
- *      want the control plane to use the Docker alias.
+ *   1. process.env.OLLAMA_HOST wins outright (a Dockerized control plane,
+ *      remote Ollama, a tunneled endpoint).
+ *   2. Otherwise, rewrite `host.docker.internal` → `localhost`. Set
+ *      OLLAMA_HOST explicitly if you actually want the Docker alias.
  */
 export function resolveOllamaHost(apiKey) {
   const envOverride = process.env.OLLAMA_HOST?.trim();
@@ -218,201 +150,9 @@ export function resolveOllamaHost(apiKey) {
 }
 
 /**
- * Generate summary using specified LLM provider
- * @param {string} provider - The LLM provider (openai, anthropic, ollama)
- * @param {string} content - The content to summarize
- * @param {string} apiKey - The API key for the provider
- * @param {string} customPrompt - Optional custom prompt
- * @param {string} model - Optional model override
- * @returns {Promise<string>} - The generated summary
- */
-export async function generateSummary(provider, content, apiKey, customPrompt = null, model = null) {
-  const providerConfig = LLM_PROVIDERS[provider];
-
-  if (!providerConfig) {
-    throw new Error(`Unsupported provider: ${provider}`);
-  }
-
-  const selectedModel = model || providerConfig.defaultModel;
-
-  const defaultPrompt = `You are a helpful RAG (Retrieval-Augmented Generation) assistant. Analyze the following documents and provide a concise summary that:
-
-1. Identifies key terms, concepts, and topics covered
-2. Highlights the main themes and subject areas
-3. Describes what kind of questions this knowledge base can answer
-4. Lists important entities, processes, or procedures mentioned
-
-IMPORTANT: Generate the summary in the SAME LANGUAGE as the original document. If the document is in French, write the summary in French. If in German, write in German. Match the source language exactly.
-
-Keep the summary clear, structured, and focused on what information is available in these documents.`;
-
-  const systemInstruction = customPrompt || defaultPrompt;
-
-  switch (provider) {
-    case 'openai':
-      return await generateSummaryWithOpenAI(content, apiKey, systemInstruction, selectedModel, providerConfig);
-
-    case 'anthropic':
-      return await generateSummaryWithAnthropic(content, apiKey, systemInstruction, selectedModel, providerConfig);
-
-    case 'ollama': {
-      const host = resolveOllamaHost(apiKey);
-      return await generateSummaryWithOllama(content, host, systemInstruction, selectedModel);
-    }
-
-    default:
-      throw new Error(`Provider ${provider} not implemented`);
-  }
-}
-
-/**
- * Generate summary using OpenAI API
- */
-async function generateSummaryWithOpenAI(content, apiKey, systemInstruction, model, config) {
-  const url = `${config.baseURL}/chat/completions`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        {
-          role: 'system',
-          content: systemInstruction
-        },
-        {
-          role: 'user',
-          content: content
-        }
-      ],
-      max_tokens: 4096
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || 'No summary generated';
-}
-
-/**
- * Generate summary using Anthropic API
- */
-async function generateSummaryWithAnthropic(content, apiKey, systemInstruction, model, config) {
-  const url = `${config.baseURL}${config.endpoint}`;
-
-  // If content is empty, use systemInstruction as the user message
-  // Anthropic API requires non-empty content in all messages
-  const hasContent = content && content.trim().length > 0;
-
-  const body = {
-    model: model,
-    max_tokens: 4096,
-    messages: [
-      {
-        role: 'user',
-        content: hasContent ? content : systemInstruction
-      }
-    ]
-  };
-
-  // Only include system prompt if we have separate content
-  if (hasContent) {
-    body.system = systemInstruction;
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.content?.[0]?.text || 'No summary generated';
-}
-
-/**
- * Strip hybrid-reasoning scratchpad tags from Ollama model output. qwen3
- * (and other hybrid-thinking models) emit `<think>...</think>` blocks before
- * their actual answer; downstream call sites want clean prose. We pass
- * `think: false` in the request as the canonical suppression, but keep this
- * as defense in depth for models that ignore it or for older Ollama versions.
- */
-function stripReasoningTags(text) {
-  if (!text) return text;
-  // Strip both well-formed and unterminated <think> blocks.
-  return text
-    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
-    .replace(/<think\b[^>]*>[\s\S]*$/i, '')
-    .trim();
-}
-
-/**
- * Generate summary via Ollama /api/chat. Free-text return; no JSON-mode hint
- * because the call sites in tool-executors want prose digests, not structured
- * output. Caller passes the resolved host directly.
- */
-async function generateSummaryWithOllama(content, host, systemInstruction, model) {
-  const url = `${host.replace(/\/$/, '')}/api/chat`;
-  const hasContent = content && content.trim().length > 0;
-
-  // Ollama doesn't expose a separate `system` field; the system role inside
-  // messages is the supported shape.
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      // Hybrid-reasoning models (qwen3) emit <think> scratchpad unless told
-      // to skip it. This flag is Ollama's official switch; ignored by
-      // non-thinking models, so it's safe to set unconditionally.
-      think: false,
-      messages: [
-        { role: 'system', content: systemInstruction },
-        { role: 'user', content: hasContent ? content : systemInstruction },
-      ],
-      options: {
-        // Bump the context window above Ollama's default 2048 — the chat
-        // builder's summary prompts can run past 4K when documents are large.
-        num_ctx: 16384,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(`Ollama API error (${response.status}): ${errorText || response.statusText}`);
-  }
-
-  const data = await response.json();
-  const raw = data?.message?.content;
-  if (!raw || typeof raw !== 'string') {
-    throw new Error('Ollama response contained no message.content');
-  }
-  return stripReasoningTags(raw) || 'No summary generated';
-}
-
-/**
  * Generate a structured object using specified LLM provider.
  *
- * Unlike generateSummary (free-text return), this routes each provider
+ * This routes each provider
  * through its native structured-output primitive against a caller-supplied
  * JSON schema and returns a parsed object. The model cannot return prose
  * or malformed JSON — schema validity is enforced at the API contract.

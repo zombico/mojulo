@@ -70,7 +70,7 @@ describe('StashRepository', () => {
     StashRepository.gather({
       stashRef: s.stashRef,
       type: 'pointer',
-      metadata: { node_ref: 'meta_node_42', label: 'Bot factory architecture node' },
+      metadata: { node_ref: 'meta_node_42', label: 'Floorplan architecture node' },
     });
     StashRepository.gather({
       stashRef: s.stashRef,
@@ -451,7 +451,7 @@ describe('StashRepository', () => {
   });
 
   // A 2.x install may hold bindings to deployed bots. They stay readable and removable; nothing
-  // writes a new one since the chatbot factory left in 3.0.0.
+  // writes a new one.
   it("a 'bot' binding from 2.x lists and unbinds, and bind refuses a new one", () => {
     const s = StashRepository.mint({ title: 'legacy corpus' });
     getDb()
@@ -460,7 +460,7 @@ describe('StashRepository', () => {
     const listed = StashRepository.listBindings({ boundKind: 'bot', boundRef: 'dep_old' });
     expect(listed.map((r) => r.stashRef)).toEqual([s.stashRef]);
     expect(() => StashRepository.bind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_new' })).toThrow(
-      /read-only since 3\.0\.0/,
+      /read-only \(a 2\.x binding\)/,
     );
     expect(StashRepository.unbind({ stashRef: s.stashRef, boundKind: 'bot', boundRef: 'dep_old' })).toBe(true);
     expect(StashRepository.listBindings({ stashRef: s.stashRef })).toHaveLength(0);

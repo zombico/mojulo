@@ -1,7 +1,5 @@
 /**
  * Upstream registry fetcher for `check_for_updates`: the npm registry only.
- * (Until 3.0 a second fetcher listed the chatbot image's tags on GHCR; the
- * image left with the chatbot factory, so core has no GHCR reach.)
  *
  * The call is best-effort: a network blip or registry 5xx returns
  * `{ version: null, error: 'reason' }` rather than throwing. The tool's

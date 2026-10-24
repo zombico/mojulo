@@ -610,9 +610,9 @@ describe('reindexAll', () => {
 
 describe('lexicalOverlap — the routing tiebreaker (routing-context-weaving.plan.md B1)', () => {
   it('scores the query-term hit rate against the when quotes', () => {
-    const when = '"build me a bot", "a chatbot for my website", "collect leads in a conversation"';
-    expect(lexicalOverlap('build a chatbot', when)).toBe(1); // build + chatbot both hit ("a" < 3 chars, dropped)
-    expect(lexicalOverlap('chatbot pottery studio', when)).toBeCloseTo(1 / 3); // 1 of 3 terms
+    const when = '"build me a castle", "a castle for my diorama", "print a tower in a weekend"';
+    expect(lexicalOverlap('build a castle', when)).toBe(1); // build + castle both hit ("a" < 3 chars, dropped)
+    expect(lexicalOverlap('castle pottery studio', when)).toBeCloseTo(1 / 3); // 1 of 3 terms
     expect(lexicalOverlap('quarterly revenue report', when)).toBe(0);
   });
 

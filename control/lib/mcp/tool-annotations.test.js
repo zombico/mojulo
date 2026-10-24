@@ -175,8 +175,8 @@ describe('pack dispatchers take the union of their members', () => {
   it('marks the dispatchers that front a destructive or open-world member', () => {
     expect(toolAnnotations('pack_stash').annotations.destructiveHint).toBe(true); // archive_item
     expect(toolAnnotations('pack_runtime').annotations.openWorldHint).toBe(true); // start_app
-    // A pack whose every target reads is read-only. No shipped pack is today (pack_fleet was,
-    // until the chatbot factory left in 3.0.0), so the rule is checked on a pack of readers.
+    // A pack whose every target reads is read-only. No shipped pack is today, so the rule is
+    // checked on a pack of readers.
     const readers = { id: 'pack_readers', title: 'Readers', members: ['list_cooks', 'get_cook'] };
     expect(packAnnotations(readers).annotations.readOnlyHint).toBe(true);
   });

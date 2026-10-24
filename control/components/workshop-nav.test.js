@@ -37,10 +37,10 @@ describe('workshop nav — by rail type', () => {
     }
   });
 
-  it('no door is a tool or a wing that left: no game projects, no arcade, no office, no bots', () => {
+  it('no door is a tool or a wing that left: no game projects, no arcade, no office', () => {
     for (const t of tiles) {
-      expect(['games', 'arcade', 'apps', 'mcpSkills', 'bots']).not.toContain(t.key);
-      expect(t.href).not.toMatch(/^\/(apps|mcp-skills|map|graph|arcade|maker\/games|bots|bot-factory|chat-builder|data)(\/|$|\?)/);
+      expect(['games', 'arcade', 'apps', 'mcpSkills']).not.toContain(t.key);
+      expect(t.href).not.toMatch(/^\/(apps|mcp-skills|map|graph|arcade|maker\/games)(\/|$|\?)/);
       expect(t.presence).toBeUndefined();
     }
   });

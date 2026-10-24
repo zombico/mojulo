@@ -32,25 +32,18 @@ import {
   isToolInstalled,
   installNotice,
   DEFAULT_ON_GROUPS,
-  retiredInstallTokens,
   _setGroupPresence,
 } from '@/lib/mcp/packs';
-import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 // Packs-mode connect payload pin — the plan's headline number (~35KB target
 // from ~250KB flat). Growth is a conscious re-pin, same contract as the flat
 // PAYLOAD_CEILING in tool-descriptions.test.js.
 // Re-pinned 2026-09-27 (35_000 -> 37_000; measured 36,794) for tool annotations: each spine tool
 // and pack dispatcher now carries `title` + `annotations` (lib/mcp/tool-annotations.js).
-// Checked 2026-09-27 for the chatbot carve-out's rehomed tools (pin unchanged; measured 36,793 ->
-// 36,808): pack_runtime and pack_stash now name list_running, the app .env trio and recommend_kind,
-// and the bot pack descriptions no longer do.
-// Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694) for the chatbot carve-out (3.0.0): the
-// three bot pack dispatchers left, and pack_runtime and pack_connected_services stopped naming the
-// chat_turn tools and chatbots. Shrink-only from here.
+// Checked 2026-09-27 for rehomed tools (pin unchanged; measured 36,793 -> 36,808): pack_runtime and
+// pack_stash now name list_running, the app .env trio and recommend_kind.
+// Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694): three pack dispatchers left, and
+// pack_runtime and pack_connected_services shortened. Shrink-only from here.
 // Re-pinned 2026-10-06 (34_000 -> 33_400; measured 33,671 -> 33,263) for the pack menu: the shared pack
 // input schema gained `manual` and paid for it by shortening the `tool` / `args` wording.
 // Merged with the building ladder 2026-10-06 (33_400 -> 33_900; measured 33,263 -> 33,840): pack_building's
@@ -414,26 +407,6 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
     expect(isToolInstalled('start_app', env)).toBe(true);
   });
 
-  // The chatbot group left with the chatbot factory in 3.0.0. A 2.x config that still names it
-  // (or its `ops` alias) must keep working: the token is skipped, never an error, never a group.
-  it("the retired 'chatbot' and 'ops' tokens are ignored, and reported as retired", () => {
-    _setGroupPresence(['creative']);
-    try {
-      for (const csv of ['chatbot', 'ops', 'ops,chatbot']) {
-        expect([...installedGroups({ MOJULO_PACKS: csv })]).toEqual(['creative']); // falls through to disk
-        expect(installedPacks({ MOJULO_PACKS: csv }).length).toBe(PACKS.length);
-      }
-      expect([...installedGroups({ MOJULO_PACKS: 'chatbot,creative' })]).toEqual(['creative']);
-      expect([...installedGroups({ MOJULO_PACKS: 'chatbot,recall' })]).toEqual(['recall']);
-      expect(retiredInstallTokens({ MOJULO_PACKS: 'creative, Chatbot,ops' })).toEqual(
-        expect.arrayContaining(['MOJULO_PACKS=chatbot', 'MOJULO_PACKS=ops']),
-      );
-      expect(retiredInstallTokens({ MOJULO_PACKS: 'creative' }).filter((t) => t.startsWith('MOJULO_PACKS'))).toEqual([]);
-    } finally {
-      _setGroupPresence(null);
-    }
-  });
-
   it('MOJULO_PACKS=recall,creative is the full install again', () => {
     const env = { MOJULO_PACKS: 'recall,creative' };
     expect([...installedGroups(env)].sort()).toEqual(['creative', 'recall']);
@@ -456,12 +429,10 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
     expect(isPackInstalled(world(), { MOJULO_PACKS: 'creative' })).toBe(true);
   });
 
-  it('every pack declares the creative group or none, and no chatbot pack remains', () => {
+  it('every pack declares the creative group or none', () => {
     for (const pack of PACKS) {
       if (pack.installGroup) expect(pack.installGroup).toBe('creative');
     }
-    const ids = PACKS.map((p) => p.id);
-    for (const id of ['pack_bot_build', 'pack_bot_operate', 'pack_fleet']) expect(ids).not.toContain(id);
   });
 });
 
@@ -492,26 +463,6 @@ describe('install axis — physical detection is the source of truth (unset MOJU
   it('typo falls through to physical detection, never an empty workshop', () => {
     _setGroupPresence(['recall']);
     expect([...installedGroups({ MOJULO_PACKS: 'zzz' })]).toEqual(['recall']);
-  });
-
-  it('a chatbot marker left by a 2.x install is ignored by the probe and reported as retired', () => {
-    const home = mkdtempSync(join(tmpdir(), 'mojulo-retired-marker-'));
-    mkdirSync(join(home, 'packs'));
-    writeFileSync(join(home, 'packs', 'chatbot'), 'mojulo chatbot pack — presence marker.\n');
-    const prev = process.env.MOJULO_HOME;
-    process.env.MOJULO_HOME = home;
-    _setGroupPresence(null); // force the real probe
-    try {
-      const groups = installedGroups({});
-      expect(groups.has('chatbot')).toBe(false);
-      expect(groups.has('creative')).toBe(true);
-      expect(installedPacks({}).length).toBe(PACKS.length);
-      expect(retiredInstallTokens({})).toEqual([join(home, 'packs', 'chatbot')]);
-    } finally {
-      if (prev === undefined) delete process.env.MOJULO_HOME; else process.env.MOJULO_HOME = prev;
-      _setGroupPresence(null);
-      rmSync(home, { recursive: true, force: true });
-    }
   });
 });
 
@@ -559,65 +510,7 @@ describe('install gate — server wiring (listTools + tools/call)', () => {
   });
 });
 
-describe('the chatbot factory left in 3.0.0 — its names answer with the moved notice', () => {
-  it('no removed name is registered, listed in either mode, or a pack member', () => {
-    const members = new Set(PACKS.flatMap((p) => dispatchTargets(p)));
-    const flat = withFlatMode(() => listTools({}).map((t) => t.name));
-    const packs = withPacksMode(() => listTools({ clientInfo: { name: 'codex' } }).map((t) => t.name));
-    for (const name of REMOVED_BOT_TOOLS) {
-      expect(hasRegisteredTool(name), name).toBe(false);
-      expect(members.has(name), name).toBe(false);
-      expect(flat, name).not.toContain(name);
-      expect(packs, name).not.toContain(name);
-    }
-  });
-
-  it('tools/call on a removed name is an in-band isError result carrying the notice', async () => {
-    for (const name of ['save_modular_bot', 'emit_chat_signal', 'pack_bot_build']) {
-      const res = await server.dispatchMcpRequest(
-        { jsonrpc: '2.0', id: 881, method: 'tools/call', params: { name, arguments: {} } }, {});
-      expect(res.error, name).toBeUndefined();
-      expect(res.result.isError, name).toBe(true);
-      expect(res.result.content[0].text, name).toContain(BOT_FACTORY_MOVED);
-      expect(res.result.content[0].text, name).toContain(`'${name}'`);
-    }
-  });
-
-  it('a removed name dispatched through a pack, or run by the plan executor, gets the notice too', async () => {
-    const res = await server.dispatchMcpRequest(
-      { jsonrpc: '2.0', id: 882, method: 'tools/call',
-        params: { name: 'pack_runtime', arguments: { tool: 'request_chat_decision', args: {} } } }, {});
-    expect(res.result.isError).toBe(true);
-    expect(res.result.content[0].text).toContain(BOT_FACTORY_MOVED);
-    await expect(server.invokeRegisteredTool('list_deployments', {}, {})).rejects.toThrow(BOT_FACTORY_MOVED);
-  });
-
-  // A 2.x skill that managed app env or ranked cook kinds through the old bot packs: the tool is
-  // still here under a new home, so the answer is where to dispatch it, not "the factory moved".
-  it('a removed pack dispatcher naming a tool 3.0 kept is re-routed to its home pack', async () => {
-    const cases = [
-      ['pack_bot_operate', 'list_running', 'pack_runtime'],
-      ['pack_bot_operate', 'set_env', 'pack_runtime'],
-      ['pack_bot_build', 'recommend_kind', homePackForTool('recommend_kind').id],
-    ];
-    for (const [pack, tool, home] of cases) {
-      const res = await server.dispatchMcpRequest(
-        { jsonrpc: '2.0', id: 884, method: 'tools/call', params: { name: pack, arguments: { tool, args: {} } } }, {});
-      const text = res.result.content[0].text;
-      expect(res.result.isError, `${pack} ${tool}`).toBe(true);
-      expect(text, `${pack} ${tool}`).toContain(`it is homed in ${home}. Dispatch it there: ${home}({ tool: '${tool}'`);
-      expect(text, `${pack} ${tool}`).not.toContain(BOT_FACTORY_MOVED);
-    }
-    await expect(server.invokeRegisteredTool('pack_bot_operate', { tool: 'list_env' }, {})).rejects.toThrow(/homed in pack_runtime/);
-    // A removed member, or a bare call, still gets the moved notice.
-    for (const args of [{ tool: 'get_deployment', args: {} }, {}]) {
-      const res = await server.dispatchMcpRequest(
-        { jsonrpc: '2.0', id: 885, method: 'tools/call', params: { name: 'pack_bot_operate', arguments: args } }, {});
-      expect(res.result.isError).toBe(true);
-      expect(res.result.content[0].text).toContain(BOT_FACTORY_MOVED);
-    }
-  });
-
+describe('an unknown tool', () => {
   it('any other unknown name stays an unknown tool', async () => {
     const res = await server.dispatchMcpRequest(
       { jsonrpc: '2.0', id: 883, method: 'tools/call', params: { name: 'no_such_tool', arguments: {} } }, {});

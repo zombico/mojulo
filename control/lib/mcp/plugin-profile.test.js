@@ -385,8 +385,6 @@ describe('orientation surfaces under the profile', () => {
     // Fact 11 says this in every build since the notes merge; the profile no longer edits it.
     expect(substrate).toMatch(/point the operator at those docs/);
     expect(substrate).not.toMatch(/fetch the repo docs/i);
-    expect(substrate).toMatch(/Earlier 2\.x versions that include it are unmaintained and have known security issues\./);
-    expect(substrate).not.toMatch(/2\.x line keeps it/);
     for (const form of PLUGIN_PROFILE_HIDDEN_FORMS) {
       expect(text('forward_context')).not.toMatch(new RegExp(`· ${form} ·`));
       expect(text('get_creative_toolset')).not.toMatch(new RegExp(`\`${form}\``));

@@ -29,7 +29,7 @@ The operator receives support requests via email that today get triaged by hand 
 
 - No email MCP is in the declared inventory. Call `meta_context_brief({ scope: { kind: 'fleet' } })` first — `inventory.servers` is the truth.
 - No structured-record-store MCP is in the declared inventory.
-- The user wants conversational triage (back-and-forth with the sender) — that's a conversation, not a signal; mojulo has no conversational runtime (the chatbot factory left in 3.0.0), so say so rather than fake one.
+- The user wants conversational triage (back-and-forth with the sender) — that's a conversation, not a signal; mojulo has no conversational runtime, so say so rather than fake one.
 - The user wants aggregation ("weekly digest of support volume") rather than per-message routing — redirect to `weekly-linear-digest-to-drive` or a similar scheduled-aggregation catalyst.
 
 ## Materialization
@@ -131,8 +131,6 @@ meta_context_commit({
   ]
 })
 ```
-
-(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
 
 **For mcp-orbit catalysts, this commit IS the audit chain.** Don't skip it. If the commit fails, roll the artifact back via the adapter's own affordance.
 

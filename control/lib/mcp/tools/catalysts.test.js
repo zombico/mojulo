@@ -27,7 +27,6 @@ import {
   MetaPrincipleRepository,
 } from '@/lib/db/repositories/meta-context';
 import { _resetCatalogForTests } from '@/lib/mcp/catalysts/loader';
-import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
 
 // A shipped workflow catalyst every test below can rely on (no destination). refresh-connected-services held this
 // slot until it left the shelf with the office wing in 3.1.0.
@@ -44,15 +43,6 @@ describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
   it('uses the bare term "catalyst" rather than "skill catalyst" to keep concepts distinct', () => {
     // The bare term is load-bearing — catalysts produce artifacts, they are not artifacts.
     expect(CATALYST_CORE_PREAMBLE).not.toMatch(/skill catalyst/i);
-  });
-
-  // The chatbot factory left in 3.0.0: no guidance text may send the agent to one of its tools.
-  it('names no chatbot-factory tool in the preamble, the posture or the author guide', () => {
-    for (const text of [CATALYST_CORE_PREAMBLE, CONSULTATION_POSTURE, CUSTOM_CATALYST_GUIDE]) {
-      for (const name of REMOVED_BOT_TOOLS) {
-        expect(text.includes(`\`${name}\``) || text.includes(`${name}(`), name).toBe(false);
-      }
-    }
   });
 
   it('points the synthesizer at the host adapter for the artifact target — not directly at .claude/skills/', () => {
@@ -486,14 +476,6 @@ describe('mintCatalystHandler — the local shelf', () => {
     expect(mine.origin).toBe('local');
   });
 
-  // A local mint from the 2.x line may still name chatbot protocols; with no bot to run against it
-  // is listed but never recommended.
-  it('a minted catalyst that requires chatbot protocols is listed but not recommended', async () => {
-    await mintCatalystHandler({ ...mintInput, requires: { protocols: ['knowledge'] } });
-    expect((await listCatalystsHandler({})).catalysts.some((c) => c.id === 'evening-digest')).toBe(true);
-    expect((await recommendCatalystsHandler({})).applicable.some((r) => r.id === 'evening-digest')).toBe(false);
-  });
-
   it('update requires a note, appends a revision, and rev reads history', async () => {
     await mintCatalystHandler(mintInput);
     await expect(mintCatalystHandler({ ...mintInput, summary: 'v2' })).rejects.toThrow(/requires 'note'/);
@@ -621,13 +603,6 @@ describe('recommendCatalystsHandler — input', () => {
     const out = await recommendCatalystsHandler({ category: 'explainer' });
     expect(out.applicable.length).toBeGreaterThan(0);
     expect(out.applicable.every((r) => r.category === 'explainer')).toBe(true);
-  });
-
-  // The 2.x single-bot and fleet modes left with the chatbot factory.
-  it('a bot-scoped input answers with the moved notice', async () => {
-    for (const input of [{ deploymentId: 'dep-1' }, { scope: 'fleet' }, { deploymentIds: ['a'] }]) {
-      await expect(recommendCatalystsHandler(input)).rejects.toThrow(BOT_FACTORY_MOVED);
-    }
   });
 });
 

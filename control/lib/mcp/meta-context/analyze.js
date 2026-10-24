@@ -230,7 +230,7 @@ export function analyzeStaleBindings({ artifactRef } = {}) {
 /**
  * Lens dispatcher. Scope mirrors meta_context_brief: `{ kind: 'fleet' }` audits
  * every sealed binding; `{ kind: 'artifact', ref }` scopes to one connected
- * service. (A `bot` scope was a follow-up until the chatbot factory left in 3.0.0.)
+ * service.
  */
 export function analyze({ scope, lens } = {}) {
   if (!lens || !ANALYZE_LENSES.includes(lens)) {

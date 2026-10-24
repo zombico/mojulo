@@ -18,8 +18,8 @@
  * `set` replaces any existing key(s) for that provider with a single fresh
  * row, and marks it default if no default exists. The one reader of a saved
  * key is mint_solid's via:'prompt' door, so the providers are its LLM
- * providers. `list` and `unset` also reach a row for a provider 3.0 no longer
- * takes (a 2.x Fly deploy token, which only the chatbot factory read).
+ * providers. `list` and `unset` also reach a row for a provider this version no
+ * longer takes (a 2.x install's).
  */
 
 import { register } from 'node:module';

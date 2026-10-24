@@ -26,7 +26,6 @@ import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, RETIRED_PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { authNotice } from '@/lib/roles/enforce';
-import { isRemovedBotTool, botToolMovedNotice } from '@/lib/mcp/bot-factory-moved';
 import { formToolset } from '@/lib/mcp/tools/context';
 import { TOOL_LINES } from '@/lib/mcp/tool-lines';
 import { hiddenInPluginProfile, pluginProfileToolNotice, toolFace } from '@/lib/mcp/plugin-profile';
@@ -143,8 +142,6 @@ function routingProblem(pack, name, { reading = false } = {}) {
   const profileNotice = pluginProfileToolNotice(name);
   if (profileNotice) return profileNotice;
   const targets = new Set(dispatchTargets(pack));
-  // A chatbot-factory member from the 2.x line, dispatched through any pack: say where it went.
-  if (!targets.has(name) && isRemovedBotTool(name)) return botToolMovedNotice(name);
   if (targets.has(name)) return null;
   const home = homePackForTool(name);
   if (home && home.id !== pack.id) {

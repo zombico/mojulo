@@ -15,9 +15,7 @@
  * that word mean two things. See
  * lite-template/integration/app-system/0528/fleet-scene/FLEET_SCENE_PLAN.md.
  *
- * The ground plane carried a bots row (deployed chatbots, from the deployments
- * table) until the chatbot factory left mojulo in 3.0.0; it holds apps only now.
- * `loadFleetScene()` stays async so its callers need not change; every read is
+ * The ground plane holds apps. `loadFleetScene()` stays async so its callers need not change; every read is
  * a sync repository read.
  */
 

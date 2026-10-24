@@ -38,12 +38,10 @@ describe('rules card — install advice for what is left out', () => {
     expect(card.text).not.toMatch(/install creative/);
   });
 
-  // Until 3.0 the chatbot packs were the physical-install case here; no pack joins a
-  // physical-install group now (recall owns none), so a default install omits nothing.
+  // No pack joins a physical-install group (recall owns none), so a default install omits nothing.
   it('a default install leaves no pack out, so the card names no install', () => {
     const card = buildRulesCard({ env: { ...process.env, MOJULO_PACKS: 'creative' } });
     expect(card.text).not.toContain('Not installed on this host');
-    expect(card.text).not.toMatch(/install chatbot/);
   });
 });
 

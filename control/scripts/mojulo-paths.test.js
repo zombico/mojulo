@@ -42,10 +42,6 @@ describe('resolveMojuloPaths', () => {
       expect(r.outcomesDir).toBe(process.env.MOJULO_OUTCOMES_DIR);
       expect(r.exportsDir).toBe(process.env.MOJULO_EXPORTS_DIR);
       expect(existsSync(path.join(data, 'storage'))).toBe(true);
-      // The chatbot factory's bot-zip folder is no longer seeded or created (3.0.0).
-      expect(process.env.ARTIFACTS_DIR).toBeUndefined();
-      expect(r.artifactsDir).toBeUndefined();
-      expect(existsSync(path.join(data, 'artifacts'))).toBe(false);
     });
   });
 

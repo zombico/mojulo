@@ -85,8 +85,6 @@ async function loopOnce({ adapter, invokeTimeoutMs, pullWaitMs }) {
 
     // Audit BEFORE delivery so the principle is durable before the parked
     // HTTP unblocks — mirrors the MCP submit_envelope_inference handler.
-    // (Until 3.0 the chatbot builder's chat_turn kind skipped this; it left
-    // with the chatbot factory.)
     try {
       recordInferenceOutcome({
         caller_ref: payload.caller_ref,

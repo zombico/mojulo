@@ -8,8 +8,6 @@
  * which kinds render. Reuses the four existing station kinds:
  *   apps → filesystem (slate)
  *   servers → mcp_tool (teal)   services → input (dashed)
- * (A bots row, db_row purple, drew deployed chatbots until the chatbot factory
- * left in 3.0.0.)
  *
  * Node id scheme (must match crossLinks ids built in the loader):
  *   app-<ref>   server-<name>   service-<ref>

@@ -1,8 +1,7 @@
 /**
  * `mojulo-config` through the real bin against a temp MOJULO_HOME. The providers it takes are the
- * LLM providers mint_solid's via:'prompt' door reads; 3.0 dropped `fly`, the Fly deploy token only
- * the chatbot factory's cloud deployer read. A row a 2.x install saved for it still lists, and
- * `unset` still removes it.
+ * LLM providers mint_solid's via:'prompt' door reads. A row a 2.x install saved for a provider it
+ * no longer takes (`fly`) still lists, and `unset` still removes it.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

@@ -11,9 +11,6 @@ import { InventoryRepository } from '@/lib/db/repositories/mcp-inventory';
  * the product, and an empty studio is an invitation, not clutter. The operational
  * destinations are the opposite — an apps tile on a host with no apps is noise —
  * so they appear only once they have records. This route supplies those counts.
- *
- * Until 3.0 it also counted deployed bots (read through the chatbot pack's gate);
- * the chatbot factory left mojulo, and this route reads no bot data.
  */
 function lengthOf(fn) {
   try {

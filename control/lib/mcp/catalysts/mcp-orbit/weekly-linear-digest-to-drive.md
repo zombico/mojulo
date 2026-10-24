@@ -134,8 +134,6 @@ meta_context_commit({
 })
 ```
 
-(Until 3.0 this step named `artifact_materialization`, which required a deployed bot and never sealed an MCP-only artifact; that commit type left with the chatbot factory.)
-
 **For mcp-orbit catalysts, this commit IS the audit chain.** The only durable record of *why this skill exists and what it's configured to do* is this commit. **Don't skip it.** If the commit fails, roll the artifact back via the adapter's own affordance (delete the SKILL.md / cancel the automation).
 
 ## Pitfalls

@@ -56,7 +56,7 @@ const SCRIPT_LANGUAGES = new Set(['js', 'ts', 'py', 'sh', 'sql']);
 // lite-template/integration/app-system/0602/STASH_RELATIONAL_ATOMS.md.
 const BINDING_KINDS = new Set(['bot', 'app', 'plan', 'cook', 'contextmap_node', 'sketch']);
 // 'bot' stays a readable (and removable) bound_kind: rows a 2.x install bound to a deployed bot.
-// Nothing writes it since the chatbot factory left in 3.0.0, so bind() refuses it.
+// Nothing writes it, so bind() refuses it.
 const RETIRED_BINDING_KINDS = new Set(['bot']);
 const BINDING_ROLES = new Set(['corpus', 'working_memory', 'ingredient', 'reference']);
 
@@ -680,7 +680,7 @@ export const StashRepository = {
   bind({ stashRef, boundKind, boundRef, role }) {
     if (RETIRED_BINDING_KINDS.has(boundKind)) {
       throw new Error(
-        `bound_kind '${boundKind}' is read-only since 3.0.0 (the chatbot factory left mojulo); existing rows stay listable and removable. Allowed for new bindings: ${[...BINDING_KINDS].filter((k) => !RETIRED_BINDING_KINDS.has(k)).join(', ')}.`,
+        `bound_kind '${boundKind}' is read-only (a 2.x binding); existing rows stay listable and removable. Allowed for new bindings: ${[...BINDING_KINDS].filter((k) => !RETIRED_BINDING_KINDS.has(k)).join(', ')}.`,
       );
     }
     if (!BINDING_KINDS.has(boundKind)) {

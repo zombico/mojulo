@@ -3,8 +3,6 @@
 // Pins the install groups to creative only, so a suite measures the same surface on
 // every machine: without it, physical detection would add the recall group wherever
 // @huggingface/transformers happens to resolve (lib/mcp/packs.js, INSTALL_GROUPS).
-// Until 3.0 this also turned the chatbot pack on; that pack left mojulo with the
-// chatbot factory.
 //
 // This is a floor, not an override: it only fills MOJULO_PACKS when nothing set
 // it, so a suite that deliberately exercises gating (packs.test.js sets the env

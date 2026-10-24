@@ -255,7 +255,6 @@ export const PACKS = [
     ],
   },
   // ── office — the retained automation backend, listed after the studio ────
-  // (the chatbot factory's three packs left in 3.0.0; lib/mcp/bot-factory-moved.js answers for them)
 
 
   {
@@ -314,8 +313,7 @@ export const PACKS = [
       'unbind_stash',
       'list_stash_bindings',
       'sketch_stash',
-      // recommend_kind ranks publication kinds for cook(); it sat in the chatbot factory's build
-      // pack until 3.0.
+      // recommend_kind ranks publication kinds for cook().
       'recommend_kind',
       'cook',
       'get_cook',
@@ -372,8 +370,7 @@ export const RETIRED_PACKS = [
       'stop_app',
       'status_app',
       'list_runners',
-      // list_running and the .env trio act on local apps (lib/runners/local.js). Until 3.0 they sat
-      // in the chatbot factory's operate pack, so an install without that pack could not reach them.
+      // list_running and the .env trio act on local apps (lib/runners/local.js).
       'list_running',
       'list_env',
       'set_env',
@@ -541,9 +538,7 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 // context within a full install. THIS is the INSTALL axis — which capability
 // packs physically exist on the host.
 //
-// 2.0 moved this from WING-grain to PACK-grain. Under 1.5 a pack's install state
-// was a function of its wing, which forced the whole former office wing to share
-// the chatbot factory's fate. It no longer does: a pack declares its own
+// Install state is PACK-grain, not WING-grain: a pack declares its own
 // `installGroup`, and a pack that declares NONE is always present, like the
 // kernel. `wing` survives as the taxonomy/routing field only — install and wing
 // are now orthogonal, which is the generalization Phase 3's pack-host ABI needs
@@ -560,8 +555,6 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 //   recall   — the embedding runtime, below. No pack joins it.
 // The workflows ring (plan / research / stash / catalysts) and the retired office
 // packs declare no group and are therefore ALWAYS present.
-// The chatbot group (2.0 to 2.x) left with the chatbot factory in 3.0.0: see
-// RETIRED_GROUP_TOKENS below for what happens to an install that still names it.
 //
 // SOURCE OF TRUTH = physical presence per group — so an install self-describes
 // and an env flag can't silently disagree with what's on disk.
@@ -588,15 +581,6 @@ const INSTALL_GROUPS = {
 };
 const ALL_GROUPS = Object.keys(INSTALL_GROUPS);
 
-// Install tokens that no longer name a group. `chatbot` was the bot factory's group (2.0 to
-// 2.x, marker file $MOJULO_HOME/packs/chatbot, written by `mojulo install chatbot`) and `ops` its
-// deprecated alias (the 1.5 office-wing token). The factory left mojulo in 3.0.0, so a host that
-// still carries the marker or names either token in MOJULO_PACKS keeps working: the marker is
-// never probed as a group, and in MOJULO_PACKS the token is skipped like any unknown one (the
-// override then falls through to physical detection if nothing else is named). The CLI's pack
-// listing says so (retiredInstallTokens); nothing else reacts to them.
-const RETIRED_GROUP_TOKENS = ['chatbot', 'ops'];
-const RETIRED_CHATBOT_MARKER = 'packs/chatbot';
 
 let _groupPresence = null; // memoized: install state is fixed for a process's life.
 
@@ -659,25 +643,12 @@ export function installedGroups(env = process.env) {
     const groups = new Set();
     for (const tok of raw.split(',')) {
       const name = tok.trim().toLowerCase();
-      if (INSTALL_GROUPS[name]) groups.add(name); // a retired or unknown token is skipped
+      if (INSTALL_GROUPS[name]) groups.add(name); // an unknown token is skipped
     }
     if (groups.size) return groups; // explicit override wins, even vs. disk
     // typo/unknown → fall through to physical detection (never an empty workshop)
   }
   return new Set(detectedGroups());
-}
-
-/** The retired chatbot-group signals this host still carries (see RETIRED_GROUP_TOKENS): each
- * MOJULO_PACKS token naming the old group, and its marker file when present. Empty on a host
- * that never installed the chatbot pack. Informational only; nothing is gated on it. */
-export function retiredInstallTokens(env = process.env) {
-  const out = [];
-  for (const tok of (env.MOJULO_PACKS || '').split(',')) {
-    const name = tok.trim().toLowerCase();
-    if (RETIRED_GROUP_TOKENS.includes(name) && !out.includes(`MOJULO_PACKS=${name}`)) out.push(`MOJULO_PACKS=${name}`);
-  }
-  if (markerFileExists(RETIRED_CHATBOT_MARKER)) out.push(markerFilePath(RETIRED_CHATBOT_MARKER));
-  return out;
 }
 
 /** A pack with no installGroup is kernel-adjacent: always present. */

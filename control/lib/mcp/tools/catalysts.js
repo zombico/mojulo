@@ -22,10 +22,7 @@
  * artifact. The catalyst itself is not consumed and does not appear in the
  * resulting artifact.
  *
- * Until 3.0 the shelf also carried the chatbot factory's catalysts, and
- * recommend_catalysts ranked the shelf against a deployed bot's enabled
- * protocols (single-bot and fleet modes). Those catalysts and modes left with
- * the factory; recommend_catalysts now ranks the whole workflow shelf.
+ * recommend_catalysts ranks the whole workflow shelf.
  *
  * Catalysts are read-only from MCP. Authoring lives in the repo
  * ([control/lib/mcp/catalysts/](control/lib/mcp/catalysts/)) — see
@@ -39,7 +36,6 @@ import { getMergedCatalog, getMergedCatalyst, listMergedCatalysts } from '@/lib/
 import { LocalCatalystRepository } from '@/lib/db/repositories/local-catalysts';
 import { getAdapter, listAdapters, resolveCallAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
-import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
 import { registerTool, clientTakesModelTiers } from '@/lib/mcp/server';
 
@@ -372,7 +368,6 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 - \`category\` (string — see Step 2.4)
 - \`tier\` (\`ride\` | \`fill\` | \`judge\` | \`design\`) — how much judgment running the workflow takes, so a host that routes light work to a lighter model knows who should run it. Every shipped catalyst names one.
 - \`requires.destinationMcpCategory\` (one of the categories from Step 2.3)
-- (\`requires.protocols\` named chatbot capabilities on the 2.x line; leave it out. A catalyst that lists one is not recommended.)
 - \`requires.destinationExamples\` — **required if \`destinationMcpCategory\` is set.** Array of 3-5 named MCPs that satisfy the category (e.g., for \`dcc-like\`: \`["Blender MCP", "Houdini MCP", "Maya MCP"]\`). The \`recommend_catalysts\` tool surfaces these as consultation suggestions ("you could connect a Blender MCP to unlock this") — missing or empty is a hole in the consultation posture.
 - \`parameters\` (array of \`{ name, prompt, default? }\`)
 - \`mcpTools.mojulo\` (array of mojulo tool names the artifact calls)
@@ -528,20 +523,8 @@ function buildRecommendation(catalyst, shown = false) {
   };
 }
 
-// The bot-scoped inputs recommend_catalysts took on the 2.x line (single-bot and fleet modes).
-const BOT_SCOPED_INPUTS = ['deploymentId', 'deploymentIds', 'scope'];
-
 export async function recommendCatalystsHandler(input, ctx) {
   const { category } = input || {};
-  // A 2.x caller asking for a bot's or a fleet's recommendations: those modes left with the
-  // chatbot factory, so say where it went rather than silently ranking the whole shelf.
-  const botScoped = BOT_SCOPED_INPUTS.filter((key) => input?.[key] !== undefined);
-  if (botScoped.length) {
-    throw new Error(
-      `recommend_catalysts no longer takes ${botScoped.join(' / ')}: recommending against a deployed bot left with the chatbot factory. ${BOT_FACTORY_MOVED} Call recommend_catalysts({}) (optionally with a category) for the workflow shelf.`,
-    );
-  }
-
   const applicable = [];
   const shown = tiersShown(ctx);
   for (const catalyst of getMergedCatalog().values()) {
@@ -550,11 +533,6 @@ export async function recommendCatalystsHandler(input, ctx) {
     if (catalyst.kind === 'technique') continue;
     if (category && catalyst.category !== category) continue;
     if (!served(catalyst)) continue;
-    // A catalyst that still requires chatbot protocols (a local mint from the 2.x line) needs a
-    // deployed bot to run against; mojulo has none, so it is not recommended. list_catalysts
-    // still shows it.
-    const required = Array.isArray(catalyst.requires?.protocols) ? catalyst.requires.protocols : [];
-    if (required.length) continue;
     applicable.push(buildRecommendation(catalyst, shown));
   }
 
@@ -640,7 +618,7 @@ export function registerCatalystTools() {
         requires: {
           type: 'object',
           description:
-            'Optional { destinationMcpCategory, destinationExamples }. destinationExamples is REQUIRED when destinationMcpCategory is set. (protocols / optionalProtocols named 2.x chatbot capabilities; a catalyst that lists one is not recommended.)',
+            'Optional { destinationMcpCategory, destinationExamples }. destinationExamples is REQUIRED when destinationMcpCategory is set.',
         },
         parameters: {
           type: 'array',

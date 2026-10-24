@@ -7,7 +7,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import { getRegisteredTool } from '@/lib/mcp/server';
-import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
 import { TOOL_LINES, LINE_MAX, VERBS } from '@/lib/mcp/tool-lines';
 import {
   PARADIGMS,
@@ -173,8 +172,7 @@ describe('buildForwardContextBody — variant composition', () => {
     // names stay invariant across registers (the agent uses them to call tools).
     // The list includes the game paradigm + creative-arm nouns (orientation-diet
     // thread C) — paradigm parity means the glossary covers every arm, not just
-    // the service/app one. (Bot, Deployment, Protocol and Chain left with the
-    // chatbot factory in 3.0.0.)
+    // the service/app one.
     // (App, Running ref and Connected Service left with the office wing in 3.1.0; Media became
     // the outcomes Play / Print / Read / Hear / Observe.)
     const names = [
@@ -403,8 +401,8 @@ describe('get_ui_map — dashboard page map', () => {
     for (const page of ['/', '/dashboard', '/library', '/worlds', '/places', '/play', '/plan', '/research', '/stashes', '/sketches', '/settings']) {
       expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
     }
-    // The bot pages left with the chatbot factory (3.0.0); the office wing's with its tools (3.1.0).
-    for (const page of ['/bots', '/chat-builder', '/data', '/apps', '/map', '/graph', '/mcp-skills', '/arcade/<ref>']) {
+    // The office wing's pages left with its tools (3.1.0).
+    for (const page of ['/apps', '/map', '/graph', '/mcp-skills', '/arcade/<ref>']) {
       expect(text, `ui map still names ${page}`).not.toContain(`\`${page}\``);
     }
     // Hints at the breadth of UI localization without enumerating every locale.
@@ -460,16 +458,12 @@ describe('get_substrate — the working description', () => {
     expect(text).toMatch(/AES-256-GCM/);
     expect(text).toMatch(/Apache-2\.0/);
     expect(text).toMatch(/\*\*Removal\.\*\*/);
-    // The chatbot factory left in 3.0.0: no bot-data fact, no GHCR read, and no bot tool named.
-    expect(text).not.toMatch(/ghcr\.io|verify_chain|inspect_bot_env|\*\*Bot data\.\*\*/);
     // The verification layer underneath: the public repo, read at the installed tag.
     expect(text).toMatch(/github\.com\/zombico\/mojulo/);
     // Directory policy 2.F: the repo is where the operator reads further, not instructions the
     // agent fetches and follows.
     expect(text).toMatch(/point the operator at those docs/);
     expect(text).not.toMatch(/fetch the repo docs/i);
-    // The chatbot factory paragraph quotes the shared notice, so the wording changes in one place.
-    expect(text).toContain(BOT_FACTORY_MOVED);
     // Facts stay behind the drawer — never in the always-paid routing body.
     const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
     expect(body).not.toContain('## Substrate facts');
@@ -629,7 +623,6 @@ describe('workshop pulse (orientation-ramp R1) + craft floor (R5)', () => {
     expect(body).toContain('last activity 2d ago');
     const pulseLine = body.split('\n').find((l) => l.includes('Workshop pulse'));
     expect(pulseLine).not.toContain('stash'); // zero-count segments are omitted
-    expect(pulseLine).not.toMatch(/\bbots?\b/); // the bot count left with the chatbot factory (3.0.0)
   });
 
   it('empty workshop renders the first-win variant instead of counts', () => {
@@ -831,7 +824,7 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   });
 });
 
-describe('the one body (3.1.0): no office wing, no bot, every FORM and entry tool', () => {
+describe('the one body (3.1.0): no office wing, every FORM and entry tool', () => {
   const STUDIO_ENTRY_TOOLS = [
     'create_sketch',
     'sketch_what_possible',
@@ -847,12 +840,11 @@ describe('the one body (3.1.0): no office wing, no bot, every FORM and entry too
     'forge_publications',
   ];
 
-  it('routes to no retired office tool and no chatbot-factory tool, even for a retired office read', async () => {
+  it('routes to no retired office tool, even for a retired office read', async () => {
     const { RETIRED_TOOLS } = await import('@/lib/mcp/packs');
     for (const mode of [undefined, 'office']) {
       const body = buildForwardContextBody({ mode });
       for (const name of RETIRED_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
-      for (const name of REMOVED_BOT_TOOLS) expect(body, name).not.toContain(`\`${name}`);
       expect(body).not.toContain("forward_context({mode:'office'})");
     }
   });

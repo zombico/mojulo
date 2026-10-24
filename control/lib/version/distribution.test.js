@@ -58,7 +58,7 @@ describe('install and update hints under the Claude plugin', () => {
 
   it('names mojulo@<running version> in every install, dependency and update hint', async () => {
     const { distribution: d, packs, embedder, sharp, lazy, exact, scad, union, search } = m;
-    // recall is the one physical-install group left (the chatbot group left in 3.0.0), and it owns
+    // recall is the one physical-install group, and it owns
     // no pack, so its advice is the group-level install line.
     const pluginEnv = { ...PLUGIN, MOJULO_PACKS: 'creative' }; // recall absent
     const hints = {
@@ -101,9 +101,6 @@ describe('install and update hints under the Claude plugin', () => {
     // The plugin starts the server itself; `init` there would only register a second copy.
     expect(substrate).not.toContain('init --yes --no-ui');
     expect(substrate).toContain('where the mojulo plugin starts it');
-    // The chatbot factory left in 3.0.0; the preamble says where it went, and names no install for it.
-    expect(m.server.SERVER_INSTRUCTIONS).not.toMatch(/install chatbot/);
-    expect(m.server.SERVER_INSTRUCTIONS).toContain((await import('@/lib/mcp/bot-factory-moved')).BOT_FACTORY_MOVED);
   });
 
   it('wires other hosts to the plugin version and adds no second Claude Code server', () => {

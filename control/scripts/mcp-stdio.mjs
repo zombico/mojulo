@@ -53,8 +53,7 @@ if (process.argv[2] === 'init') {
   process.exit(0);
 }
 
-// `mojulo install <creative|recall>` — on-demand capability-pack installer (`install chatbot`
-// only says where the factory went). Branch
+// `mojulo install <creative|recall>` — on-demand capability-pack installer. Branch
 // out here for the same reason as `init`: it runs `npm install` for the recall group
 // and needs neither the @/ loader nor the tool registry. Self-contained and exits
 // itself; the guard exit is belt-and-suspenders.

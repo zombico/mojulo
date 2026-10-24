@@ -5,8 +5,7 @@
  * request. The control plane uses that name to auto-bind a host adapter
  * (claude-code, codex, generic) when later tool calls don't pass an explicit
  * `host` parameter. State lives in process memory and is dropped on restart,
- * like the agent-tasks queue. (Until 3.0 a sibling, session-binding.js, mapped
- * mcpSessionId → the chatbot builder's session; it left with the factory.)
+ * like the agent-tasks queue.
  */
 
 // mcpSessionId → { name, version }

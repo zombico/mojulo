@@ -98,7 +98,7 @@ A "dry-run" that skips step 3 is a preview, not a dry-run. The destination MCP I
 
 ## Commit discipline
 
-After the artifact is materialized via the host adapter, `meta_context_commit({type:'primitive_artifact_materialization', ...})` IS the audit chain: it is the only record of *why this artifact exists and what it's configured to do*, so skipping it leaves the next session with none. (Until 3.0 this section named `artifact_materialization`, which required a deployed bot and never sealed an mcp-orbit artifact; it left with the chatbot factory.)
+After the artifact is materialized via the host adapter, `meta_context_commit({type:'primitive_artifact_materialization', ...})` IS the audit chain: it is the only record of *why this artifact exists and what it's configured to do*, so skipping it leaves the next session with none.
 
 The commit's payload, specific to mcp-orbit:
 

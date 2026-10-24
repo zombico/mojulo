@@ -189,8 +189,7 @@ export const claudeCodeHeadlessAdapter = {
     vision: true,
     streaming: false,
   },
-  // envelope_inference only. The chatbot builder's chat_turn relay (and its
-  // conversational prompt) left with the chatbot factory in 3.0.0.
+  // envelope_inference only.
   supportedKinds: ['envelope_inference'],
 
   /**

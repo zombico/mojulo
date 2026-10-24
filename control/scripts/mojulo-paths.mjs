@@ -31,9 +31,6 @@
  * own state. Repo-dev `next dev` does not run this resolver and keeps its
  * control/data/ fallback.
  *
- * ARTIFACTS_DIR ($MOJULO_DATA_DIR/artifacts, the chatbot factory's bot zips) was seeded and
- * created here until the factory left in 3.0.0. An existing folder is left alone.
- *
  * Shared by [mcp-stdio.mjs](./mcp-stdio.mjs), [mcp-ui.mjs](./mcp-ui.mjs) and
  * [mcp-config.mjs](./mcp-config.mjs) so a fresh `~/.mojulo/` works for every bin.
  */

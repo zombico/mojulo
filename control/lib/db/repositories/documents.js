@@ -1,9 +1,8 @@
 import { getDb } from '../index.js';
 import { currentSpaceId } from '../../roles/scope.js';
 
-// The documents table is read-only since 3.0.0. The 2.x chatbot factory wrote it (its document
-// uploader and RAG corpus); the factory left mojulo and nothing writes documents any more. The
-// one reader is the stash media route, which resolves a legacy `doc_…` media_ref on an image item
+// The documents table is read-only: a 2.x install wrote it, and nothing writes documents any more.
+// The one reader is the stash media route, which resolves a legacy `doc_…` media_ref on an image item
 // to its stored file (app/api/stashes/[ref]/media/[id]). Existing rows are never rewritten or
 // dropped.
 

@@ -7,9 +7,8 @@
  * that's fine.)
  *
  * The stored LLM keys serve mint_solid's prompt door (via:'prompt'), which
- * reads the operator's saved key for the provider it is asked to call. The
- * builder-mode and Fly provider-key tabs left with the chatbot factory in 3.0;
- * rows a 2.x install saved for other providers stay in the table, unlisted.
+ * reads the operator's saved key for the provider it is asked to call. Rows a
+ * 2.x install saved for other providers stay in the table, unlisted.
  */
 
 import { useState, useTransition } from 'react';

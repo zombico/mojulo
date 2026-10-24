@@ -27,10 +27,9 @@ describe('dashboard package manifest', () => {
     expect(ui.dependencies.mojulo).toBe(core.version);
   });
 
-  it('ships its bin and its standalone build, and no bot template (it left with the chatbot factory)', () => {
+  it('ships its bin and its standalone build', () => {
     expect(existsSync(path.join(UI_PACKAGE_DIR, ui.bin[UI_PACKAGE_BIN]))).toBe(true);
     expect(ui.files).toContain(`${UI_STANDALONE_DIR}/`);
-    expect(ui.files.filter((entry) => entry.includes('lite-template'))).toEqual([]);
   });
 
   it('does not reuse a core bin name, which would collide in one node_modules/.bin', () => {

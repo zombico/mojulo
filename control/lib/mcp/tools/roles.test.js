@@ -238,7 +238,6 @@ describe('authNotice at the chokepoints (grants, deny-list, flags)', () => {
   });
 
   it('lifecycle actions require their flag (no retained tool is outward)', async () => {
-    // save_modular_bot was the one outward tool; it left with the chatbot factory in 3.0.0.
     // The outward flag stays mintable and checked for the next tool that leaves the host.
     expect(OUTWARD_TOOLS).toEqual([]);
     expect(LIFECYCLE_TOOLS).toEqual(['install_scaffold', 'start_app', 'stop_app']);

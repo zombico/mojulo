@@ -13,11 +13,9 @@
  *     operator_workspace_setup, primitive / app / trigger materializations)
  *   - meta_context_analyze — read-only drift audit over sealed bindings
  *
- * artifact_materialization, the 2.x seal of a catalyst materialized FOR A
- * DEPLOYED BOT (it required a bot_ref resolved against the deployments table),
- * left with the chatbot factory in 3.0.0. A new commit of that type answers
- * with the moved notice and writes nothing; the events and graph rows it wrote
- * stay readable (brief, recommend_catalysts' priorMaterializations).
+ * Events and graph rows of the retired artifact_materialization type (a 2.x
+ * seal over a deployed bot) stay readable (brief, recommend_catalysts'
+ * priorMaterializations); nothing writes that type.
  *
  * The bright line: writes happen ONLY at structural events, never at outcome
  * events. Outcomes happen at run-rate (conversations, automation runs);
@@ -35,7 +33,6 @@ import {
   MetaEdgeRepository,
   MetaPrincipleRepository,
 } from '@/lib/db/repositories/meta-context';
-import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { getAdapter } from '@/lib/mcp/adapters/loader';
@@ -53,7 +50,7 @@ import { analyze, ANALYZE_LENSES } from '@/lib/mcp/meta-context/analyze';
 // 'bot' stays a readable scope: a 2.x install's contextmap holds bot nodes that
 // artifact_materialization wrote. Nothing writes a bot node since 3.0.0.
 const BRIEF_SCOPE_KINDS = ['fleet', 'bot', 'catalyst', 'adapter', 'artifact'];
-// 'bot' still reads a 2.x install's rows but is not listed: the chatbot factory left in 3.0.
+// 'bot' still reads a 2.x install's rows but is not listed.
 const LISTED_BRIEF_SCOPE_KINDS = BRIEF_SCOPE_KINDS.filter((kind) => kind !== 'bot');
 
 export async function briefHandler(input, _ctx) {
@@ -95,9 +92,6 @@ export async function commitHandler(input, ctx) {
       return commitOperatorKyc(input);
     case 'operator_workspace_setup':
       return commitOperatorWorkspaceSetup(input);
-    case 'artifact_materialization':
-      // The bot-bound seal left with the chatbot factory (see the header). Write nothing.
-      throw new Error(ARTIFACT_MATERIALIZATION_MOVED);
     case 'primitive_artifact_materialization':
       return commitPrimitiveArtifactMaterialization(input, ctx);
     case 'app_materialization':
@@ -344,16 +338,6 @@ export async function commitOperatorWorkspaceSetup(input) {
     workspaceConventionsPrincipleId: result.conventionsPrinciple?.id ?? null,
   };
 }
-
-// ---------------------------------------------------------------------------
-// commit: artifact_materialization — moved (3.0.0)
-// ---------------------------------------------------------------------------
-
-export const ARTIFACT_MATERIALIZATION_MOVED =
-  "artifact_materialization sealed a catalyst materialized for a deployed bot; it left with the chatbot factory and writes nothing now. "
-  + `${BOT_FACTORY_MOVED} `
-  + "To seal a workflow over installed MCPs, use primitive_artifact_materialization (after bind_primitives); for an app, app_materialization. "
-  + 'Events of this type recorded earlier stay readable through meta_context_brief.';
 
 // ---------------------------------------------------------------------------
 // shared: artifact refs and user principles

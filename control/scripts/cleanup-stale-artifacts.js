@@ -5,9 +5,8 @@
  *
  *   node scripts/cleanup-stale-artifacts.js [--dry-run]
  *
- * Until 3.0 this script also swept data/artifacts/, deleting chatbot build zips and staging dirs
- * whose deployment row was gone. That leg left with the chatbot factory: 3.0 never deletes the
- * bot data a 2.x install left behind (its zips, tables and rows stay in place, inert).
+ * It never deletes the data a 2.x install left behind (its folders, tables and rows stay in place,
+ * inert).
  */
 
 import { getDb, pruneMcpToolCalls } from '../lib/db/index.js';

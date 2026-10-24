@@ -116,11 +116,12 @@ async function main() {
   if (list) { for (const t of [...S.tests, ...S.deep]) console.log(`    ${t}`); return 0; }
   if (!S.tests.length && !S.deep.length && !S.critical) { console.log(S.prose.length === changed.length ? '  prose only: no tests' : '  no test reaches the change'); return 0; }
   const run = (cfg, files) => spawnSync('npx', ['vitest', 'run', ...(cfg ? ['--config', cfg] : []), ...files], { cwd: CONTROL, stdio: 'inherit' }).status;
-  let status = 0;
-  if (S.critical) status ||= run('vitest.critical.config.js', []);
-  if (S.tests.length) status ||= run(null, S.tests);
-  if (S.deep.length) status ||= run('vitest.deep.config.js', S.deep);
-  return status;
+  // every tier runs: a red in one must not hide what the next would say
+  const statuses = [];
+  if (S.critical) statuses.push(run('vitest.critical.config.js', []));
+  if (S.tests.length) statuses.push(run(null, S.tests));
+  if (S.deep.length) statuses.push(run('vitest.deep.config.js', S.deep));
+  return statuses.find((s) => s !== 0) ?? 0;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main().then((s) => process.exit(s ?? 0));

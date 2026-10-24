@@ -1,7 +1,7 @@
 // Every script a shipped entry point imports or spawns must itself be in package.json `files`, or
 // it works from a checkout and fails with MODULE_NOT_FOUND on every npm and npx install. That is
 // how `mojulo install recall` shipped without scripts/fetch-embed-model.js: the runtime installed,
-// the model fetch failed, and `install chatbot` (which runs it first) failed with it.
+// and the model fetch failed.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

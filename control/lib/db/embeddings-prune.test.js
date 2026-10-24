@@ -1,8 +1,7 @@
-// The semantic index on a home upgraded from 2.x: 2.1.0 indexed the `bot`
-// routing card and the chatbot-factory catalysts, and 3.0.0 no longer ships
-// them. Without the retired-shelf prune the rows stayed, so semantic_search
-// answered "build me a chatbot" with a card that starts at `start_new_bot`,
-// and a catalyst hit that get_catalyst could no longer resolve.
+// The semantic index on an upgraded home: a release that deletes a routing card
+// or a curated catalyst leaves its indexed row behind. Without the retired-shelf
+// prune the rows stay, so semantic_search answers with a card whose entry tool
+// is gone, and a catalyst hit that get_catalyst can no longer resolve.
 
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
@@ -41,17 +40,17 @@ import { semanticSearchHandler } from '../mcp/tools/semantic-search.js';
 import { getRoutingCardCatalog } from '../mcp/routing-cards/loader.js';
 import { getCatalystCatalog } from '../mcp/catalysts/loader.js';
 
-// Bodies shaped like the rows 2.1.0 wrote (BodyComposition.routingCard /
-// .catalyst over the files 3.0.0 deleted), trimmed to what the queries hit.
-const STALE_BOT_CARD =
-  '# Build a chatbot (bot)\n\nA chatbot for my website that answers from my documents.\n\n' +
-  'Entry: `start_new_bot` → `save_modular_bot` → `poll_job`; read transcripts with `query_conversations`.';
+// Bodies shaped like the rows an earlier release wrote (BodyComposition.routingCard /
+// .catalyst over files a later one deleted), trimmed to what the queries hit.
+const STALE_CARD =
+  '# Weave a tapestry (tapestry)\n\nA woven tapestry for my wall from a photo.\n\n' +
+  'Entry: `start_loom` → `weave_tapestry`; read the pattern with `get_loom_pattern`.';
 const STALE_CATALYST =
-  '# qualify-lead-to-crm\n\nQualify leads a deployed bot captured into my CRM; read them with `query_submissions`.';
+  '# tapestry-order-to-shop\n\nSend a woven tapestry order to my shop; read them with `list_loom_orders`.';
 
 const LIVE_ROUTING_ID = [...getRoutingCardCatalog().keys()][0];
 const LIVE_CATALYST_ID = [...getCatalystCatalog().keys()][0];
-const LOCAL_ID = 'my-own-lead-flow';
+const LOCAL_ID = 'my-own-order-flow';
 
 async function seed(sourceKind, sourceRef, bodyText) {
   const e = await EmbeddingsRepository.embed(sourceKind, sourceRef, bodyText);
@@ -65,16 +64,16 @@ function refs(db) {
     .map((x) => x.r);
 }
 
-// A home as 2.1.0 left it: the retired rows plus live ones and a local mint.
+// A home as the earlier release left it: the retired rows plus live ones and a local mint.
 async function seedUpgradedHome(db) {
-  await seed('routing', 'bot', STALE_BOT_CARD);
-  await seed('catalyst', 'qualify-lead-to-crm', STALE_CATALYST);
+  await seed('routing', 'tapestry', STALE_CARD);
+  await seed('catalyst', 'tapestry-order-to-shop', STALE_CATALYST);
   await seed('routing', LIVE_ROUTING_ID, `# ${LIVE_ROUTING_ID}\n\na live routing card`);
   await seed('catalyst', LIVE_CATALYST_ID, `# ${LIVE_CATALYST_ID}\n\na live curated catalyst`);
   db.prepare(
     "INSERT INTO local_catalysts (id, frontmatter_json, body_md, kind, rev, status) VALUES (?, '{}', 'body', 'workflow', 1, 'active')",
   ).run(LOCAL_ID);
-  await seed('catalyst', LOCAL_ID, `# ${LOCAL_ID}\n\nmy own lead-qualifying flow into the CRM`);
+  await seed('catalyst', LOCAL_ID, `# ${LOCAL_ID}\n\nmy own tapestry order flow into the shop`);
 }
 
 const dirs = [];
@@ -95,28 +94,28 @@ afterAll(() => {
 });
 
 describe('retired-shelf prune on boot', () => {
-  it('an upgraded home stops surfacing the removed bot card and catalysts; live and local rows stay', async () => {
+  it('an upgraded home stops surfacing the removed card and catalyst; live and local rows stay', async () => {
     let db = freshFileDb();
     await seedUpgradedHome(db);
 
     // The defect as seeded: before a boot, the retired card answers.
-    const before = await semanticSearchHandler({ query: 'build me a chatbot for my website', kinds: ['routing'] });
-    expect(before.results.map((r) => r.source_ref)).toContain('bot');
+    const before = await semanticSearchHandler({ query: 'weave me a tapestry for my wall', kinds: ['routing'] });
+    expect(before.results.map((r) => r.source_ref)).toContain('tapestry');
 
     closeDb();
-    db = getDb(); // the 3.0 boot
+    db = getDb(); // the upgraded boot
 
     expect(refs(db)).toEqual(
       [`catalyst:${LIVE_CATALYST_ID}`, `catalyst:${LOCAL_ID}`, `routing:${LIVE_ROUTING_ID}`].sort(),
     );
-    const routing = await semanticSearchHandler({ query: 'build me a chatbot for my website', kinds: ['routing'] });
-    expect(routing.results.map((r) => r.source_ref)).not.toContain('bot');
-    const leads = await semanticSearchHandler({ query: 'qualify leads into my CRM' });
-    const leadRefs = leads.results.map((r) => `${r.source_kind}:${r.source_ref}`);
-    expect(leadRefs).not.toContain('catalyst:qualify-lead-to-crm');
-    expect(leadRefs).toContain(`catalyst:${LOCAL_ID}`);
+    const routing = await semanticSearchHandler({ query: 'weave me a tapestry for my wall', kinds: ['routing'] });
+    expect(routing.results.map((r) => r.source_ref)).not.toContain('tapestry');
+    const orders = await semanticSearchHandler({ query: 'send tapestry orders to my shop' });
+    const orderRefs = orders.results.map((r) => `${r.source_kind}:${r.source_ref}`);
+    expect(orderRefs).not.toContain('catalyst:tapestry-order-to-shop');
+    expect(orderRefs).toContain(`catalyst:${LOCAL_ID}`);
     // The lexical mirror follows the delete trigger.
-    expect(db.prepare("SELECT COUNT(*) AS n FROM meta_fts WHERE meta_fts MATCH '\"start_new_bot\"'").get().n).toBe(0);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM meta_fts WHERE meta_fts MATCH '\"start_loom\"'").get().n).toBe(0);
   });
 
   it('a second boot removes nothing more', async () => {
@@ -135,7 +134,7 @@ describe('retired-shelf prune on boot', () => {
     const db = freshFileDb();
     await seedUpgradedHome(db);
     expect(pruneRetiredShelfEmbeddings(db, { routingIds: new Set(), catalystIds: new Set() })).toBe(0);
-    expect(refs(db)).toContain('routing:bot');
+    expect(refs(db)).toContain('routing:tapestry');
   });
 });
 
@@ -145,8 +144,8 @@ describe('reindexAll drops rows whose source no longer ships', () => {
     await seedUpgradedHome(db);
     await reindexAll();
     const after = refs(db);
-    expect(after).not.toContain('routing:bot');
-    expect(after).not.toContain('catalyst:qualify-lead-to-crm');
+    expect(after).not.toContain('routing:tapestry');
+    expect(after).not.toContain('catalyst:tapestry-order-to-shop');
     expect(after).toContain(`catalyst:${LOCAL_ID}`);
     expect(after).toContain(`routing:${LIVE_ROUTING_ID}`);
   });

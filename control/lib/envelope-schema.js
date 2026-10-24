@@ -1,7 +1,5 @@
 // Canonical envelope shape for app inference (the agent-task queue validates
-// every submitted envelope against it). The chatbot runtime kept a mirror
-// (lite-template/helper/envelope-schema.js) until the chatbot factory left in
-// 3.0.0; this file is now the only copy in mojulo.
+// every submitted envelope against it).
 
 export const ENVELOPE_SCHEMA = {
   type: 'object',

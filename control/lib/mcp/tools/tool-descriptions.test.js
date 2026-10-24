@@ -298,8 +298,8 @@ const DESCRIPTION_ALLOWLIST = {
 // cook.js, returned by sketch_stash({ target_kind }) for the one kind being published; the deprecated
 // `template` alias is still accepted but no longer listed. Shrink-only from here.
 // RATCHETED DOWN 2026-10-06 (256_800 -> 251_600; measured 251,525) for the contextmap trim: meta_context_commit
-// 7,144 -> 3,283 bytes, meta_context_brief 1,700 -> 912, meta_context_analyze 1,413 -> 826. The chatbot-era
-// `artifact_materialization` type and the `bot` brief scope still work but are no longer listed.
+// 7,144 -> 3,283 bytes, meta_context_brief 1,700 -> 912, meta_context_analyze 1,413 -> 826. The 2.x
+// `bot` brief scope still reads but is no longer listed.
 // Merged into the release candidate 2026-10-06 (255_100 -> 237_700; measured 237,662): the create_sketch diet,
 // the cook diet and the contextmap trim together.
 // Merged with the building ladder 2026-10-06 (237_700 -> 238_700; measured 237,662 -> 238,593): mint_building's

@@ -10,9 +10,7 @@ export const UI_PACKAGE_NAME = 'mojulo-ui';
 // packages in one tree that link the same bin name make a later `npm install` fail with EEXIST.
 export const UI_PACKAGE_BIN = 'mojulo-dashboard';
 
-// Where the package keeps the Next standalone server, from its root. (Until 3.0 it also shipped
-// the chatbot runtime template, lite-template/, for the bot preview routes; both left with the
-// chatbot factory.)
+// Where the package keeps the Next standalone server, from its root.
 export const UI_STANDALONE_DIR = 'standalone';
 
 /** The command that starts the dashboard matching a given core version. */

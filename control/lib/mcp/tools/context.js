@@ -34,7 +34,6 @@ import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { buildRulesCard, overBudgetNotice } from '@/lib/mcp/tools/rules-card';
 import { CREATIVE_FORMS } from '@/lib/mcp/creative-forms';
-import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { UI_PACKAGE_NAME, uiLaunchCommand } from '@/lib/version/ui-package';
 import { distribution, mojuloCommand, npxMojulo, updateAdvice } from '@/lib/version/distribution';
 import {
@@ -143,8 +142,6 @@ function readWorkshopPulse() {
       const row = db.prepare(sql).get();
       return row && Number.isFinite(row.n) ? row.n : 0;
     };
-    // No bot count: the deployments table left with the chatbot factory (3.0.0),
-    // and a fresh install has none, so reading it would drop the whole line.
     const sketches = count('SELECT COUNT(*) AS n FROM sketches');
     const stashes = count("SELECT COUNT(*) AS n FROM stashes WHERE status = 'open'");
     const cooks = count('SELECT COUNT(*) AS n FROM stash_cooks WHERE archived_at IS NULL');
@@ -225,7 +222,7 @@ const SUBSTRATE_POSITIONING = `## What mojulo is — the working description
 
 **"3D" is a PIPELINE-POSITION claim, never a fidelity claim.** Mojulo is the agent-driven upstream that FEEDS the tools professionals already use; it does not rival them on rendering. Never enter a fidelity contest with a game engine — and never describe mojulo as "just an exporter" either: the recipe is where the thing is born and lives (and runs standalone in-browser); the engine or printer is where it is optionally *finished*. "Factory" names the output, not the fidelity: things come off the line as recipes, ready to finish elsewhere.
 
-**Chatbots are not part of mojulo.** ${BOT_FACTORY_MOVED} The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the studio and the workflows — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not describe mojulo as a bot factory, and do not offer to build apps, daemons or MCP-to-MCP automations: those left the tool surface in 3.1.0.
+The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the studio and the workflows — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not offer to build chatbots, apps, daemons or MCP-to-MCP automations: they are not part of mojulo's tool surface.
 
 **Inference runs on you.** Mojulo holds state and recipes, and no LLM credentials of its own: photo references are read by your eyes (\`reference_protocol\`), cooks are agent-authored, games are verified by agent-compiled traversals, and work parked for an outside worker waits on the agent-task queue (\`pull_agent_task\` → \`submit_envelope_inference\`). Serve the operator's intent against the substrate; do not try to make mojulo run without you.
 
@@ -252,7 +249,7 @@ const SUBSTRATE_FACTS = `## Substrate facts — derive posture answers from thes
 When the operator asks a meta-question about mojulo itself — "does it phone home?", "what does it log?", "where does my data live?", "is my customers' data safe?", "do I have to pay for anything?", "how do I uninstall?" — derive the answer from these invariants rather than guessing. Each names its own check.
 
 1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. Two MCP transports: stdio (the npm-package default) has no auth — the parent process is the boundary; the HTTP route \`/api/mcp\` is bearer-gated on \`CONTROL_PLANE_MCP_KEY\` and 404s while that key is unset, by design. The packaged dashboard entry binds 127.0.0.1; a repo checkout's \`npm run dev\` does not pin a host. Either way the dashboard refuses requests addressed to a non-loopback Host (unless \`MOJULO_UI_HOST\`, the bind address, or \`MOJULO_UI_ALLOWED_HOSTS\`, names it reaches it by, lists it) and writes from another origin. Runtime daemons are opt-in and off by default.
-2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`data/cookbook/\` (kept recipes, as plain files in a local git repo), \`data/outcomes/\` (derived renders and exports), the bake caches (\`data/scene-png/\`, \`data/turntable/\`, \`data/figure-specs/\`), a browser or ffmpeg fetched on demand (\`chromium/\`, \`ffmpeg/\`), \`secret.key\`, the opt-in recall runtime and model (\`recall/\`, \`models/\`), and \`data/storage/\` (stash media). A home a 2.x install used may also hold \`data/artifacts/\` (bot zips) and the chatbot factory's tables; 3.0 leaves them in place and never reads them. Outside it: work folders under the OS temp directory while an MP4 encode or a headless browser runs (removed afterwards; the Blender bake scripts leave their \`moj-bake-*\` / \`moj-worldgi-*\` folders), a folder the caller names when it asks for one, and the MCP host configs \`mojulo init\` edits after a yes (never from the Claude plugin). No launch agents, no system services.
+2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`data/cookbook/\` (kept recipes, as plain files in a local git repo), \`data/outcomes/\` (derived renders and exports), the bake caches (\`data/scene-png/\`, \`data/turntable/\`, \`data/figure-specs/\`), a browser or ffmpeg fetched on demand (\`chromium/\`, \`ffmpeg/\`), \`secret.key\`, the opt-in recall runtime and model (\`recall/\`, \`models/\`), and \`data/storage/\` (stash media). A home a 2.x install used may also hold folders and tables this version leaves in place and never reads. Outside it: work folders under the OS temp directory while an MP4 encode or a headless browser runs (removed afterwards; the Blender bake scripts leave their \`moj-bake-*\` / \`moj-worldgi-*\` folders), a folder the caller names when it asks for one, and the MCP host configs \`mojulo init\` edits after a yes (never from the Claude plugin). No launch agents, no system services.
 3. **Network.** No external telemetry: nothing is sent to the maintainer or to any analytics service, and starting the server makes no network call unless the opt-in recall group is installed and its search model is missing from \`~/.mojulo/models\` (then the start downloads it from huggingface.co, ~130 MB). Outbound traffic happens only on these actions: \`check_for_updates\` (registry.npmjs.org, when called); the first explicit render that needs a browser on a host with no Chrome, Chromium, Edge or Brave (\`forge_motion\` on a world, \`export_game\` hangar portraits, \`create_game\` with \`auto_audit\`, the dashboard's PNG download: a one-time ~500 MB Chrome for Testing download from storage.googleapis.com, unpacked by running the system \`unzip\` (Windows: \`tar.exe\`, then PowerShell), named in the result's \`browser_download\`; mint-time previews and thumbnails never download it); the first MP4 encode with no ffmpeg installed (ffmpeg-static from github.com, SHA-256 pinned); \`${mojuloCommand('install recall')}\` (npm, then the embedding model from huggingface.co); launching the dashboard without the separate \`${UI_PACKAGE_NAME}\` package (a one-time npm download); an HTML export with \`cdn: true\` (the page loads three.js from cdn.jsdelivr.net when opened; the default page is self-contained); and \`mint_solid\` \`via:'prompt'\` (the LLM provider the caller names, fact 4). Whatever the apps and services the operator builds call is theirs. **The local tool-call log** stays in the SQLite under \`$MOJULO_HOME\`: per call the tool name, start time, duration, status, the argument key names and byte size (never their values, unless the operator sets the off-by-default debug flag \`MOJULO_MCP_TELEMETRY_CAPTURE=full\`, which also keeps arguments and results up to 4 KB each), truncated error text, the MCP client's name and version and the session id; rows older than 30 days or beyond 50,000 are pruned at startup, each call also writes one line to stderr (which the host may keep in its MCP log), \`get_tool_ledger\` and the dashboard read it, and \`MOJULO_MCP_TELEMETRY=off\` stops the row and the line (*check: \`get_tool_ledger\`*).
 4. **The one LLM flow that leaves the machine** is an opt-in studio door: \`mint_solid\` \`via:'prompt'\` (and its retired alias \`create_polygonized_sketch\`) sends the prompt to the provider the caller names (\`provider\` is required, nothing is picked for you) with the operator's key for it; the polygonizer's \`via:'packet'\` door is key-free. Everything else parks inference on the connecting agent.
 5. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest under a random per-install key in \`$MOJULO_HOME/secret.key\` (mode 0600), or under \`API_KEY_ENCRYPTION_KEY\` when that is set; deleting the key file makes saved keys unreadable. No artifact mojulo mints needs an LLM key of its own.
@@ -743,9 +740,7 @@ const PROFILE_CONCEPT_GLOSSARY_VARIANTS = Object.fromEntries(
   ]),
 );
 
-// get_substrate: no bound meshes, no automatic downloads, no CDN page and no keyed LLM door. The
-// chatbot factory paragraph and fact 11 need no edit: every build quotes BOT_FACTORY_MOVED and
-// points the operator at the repo docs.
+// get_substrate: no bound meshes, no automatic downloads, no CDN page and no keyed LLM door.
 const PROFILE_SUBSTRATE_POSITIONING = profileEdit(SUBSTRATE_POSITIONING, [
   ['(a scad row returns its source verbatim); and `bind_mesh_render` takes an STL or 3MF made outside back into a world.', '(a scad row returns its source verbatim).'],
 ], 'SUBSTRATE_POSITIONING');
@@ -1005,9 +1000,7 @@ export const FORWARD_CONTEXT_BODY = buildForwardContextBody({
 });
 
 // Reads at call time so a runtime env change (e.g. MOJULO_HOME) shows up
-// without a process restart. Local only: no network call (until 3.0 it also
-// reported the chatbot image pin and the offline-build flag; both left with
-// the chatbot factory).
+// without a process restart. Local only: no network call.
 
 /** `version({ workers: true })`: the optional workers this host has (lib/workers/find.js). Loaded on demand. */
 async function workersSection() {
@@ -1198,8 +1191,7 @@ export async function getToolTelemetryHandler(input, _ctx) {
   };
 }
 
-// One upstream read: the npm registry for this package. Until 3.0 it also listed
-// the chatbot image's tags on GHCR; that image left with the chatbot factory.
+// One upstream read: the npm registry for this package.
 export async function checkForUpdatesHandler(_input, _ctx) {
   const pkgName = getControlPlanePackageName();
   const localVersion = getControlPlaneVersion();

@@ -24,11 +24,9 @@ import {
   commitOperatorKyc,
   commitOperatorWorkspaceSetup,
   commitPrimitiveArtifactMaterialization,
-  ARTIFACT_MATERIALIZATION_MOVED,
   commitAppMaterialization,
 } from './meta-context.js';
 import { ProviderArtifactRepository } from '@/lib/db/repositories/mcp-orbit-provider-artifacts';
-import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 
 let tmpRoot;
 let existingArtifactPath;
@@ -457,27 +455,10 @@ describe('commitOperatorWorkspaceSetup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// commit: artifact_materialization — moved with the chatbot factory (3.0.0)
+// a 2.x contextmap: the graph a bot-bound commit recorded stays readable
 // ---------------------------------------------------------------------------
 
-describe('artifact_materialization — the bot-bound seal left with the chatbot factory', () => {
-  const twoXInput = {
-    type: 'artifact_materialization',
-    adapter_id: 'claude-code',
-    artifact: { locator: '/tmp/skill.md', label: 'Qualify Lead to CRM' },
-    bot_ref: 'dep-test',
-    catalyst_ref: 'qualify-lead-to-crm',
-    bindings: [{ mcp_tool: 'hubspot.create_contact', fields_bound: ['email'] }],
-    principles: [{ scope: 'artifact', body_md: 'Route qualified leads to HubSpot.' }],
-  };
-
-  it('a new commit answers with the moved notice and writes nothing', async () => {
-    await expect(commitHandler(twoXInput)).rejects.toThrow(ARTIFACT_MATERIALIZATION_MOVED);
-    expect(ARTIFACT_MATERIALIZATION_MOVED).toContain(BOT_FACTORY_MOVED);
-    expect(ARTIFACT_MATERIALIZATION_MOVED).toMatch(/primitive_artifact_materialization/);
-    expect(MetaContextRepository.brief({ kind: 'fleet' }).nodes).toHaveLength(0);
-  });
-
+describe('a 2.x contextmap', () => {
   it('the graph a 2.x commit recorded stays readable through brief', async () => {
     const bot = MetaNodeRepository.upsert({ kind: 'bot', ref: 'dep-test', label: 'Dental Front Desk' });
     const art = MetaNodeRepository.upsert({ kind: 'artifact', ref: 'claude-code:/tmp/skill.md', label: 'QLC' });
@@ -499,8 +480,7 @@ describe('artifact_materialization — the bot-bound seal left with the chatbot 
 // ---------------------------------------------------------------------------
 // commit: primitive_artifact_materialization
 //
-// No catalyst node (the 2.x bot-bound sibling had one). The audit chain
-// in the contextmap is built from persisted provider artifacts (the rows
+// No catalyst node. The audit chain in the contextmap is built from persisted provider artifacts (the rows
 // bind_primitives produces). See MCP_PRIMITIVE_BINDING_PLAN.md.
 // ---------------------------------------------------------------------------
 

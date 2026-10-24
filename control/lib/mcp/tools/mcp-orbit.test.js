@@ -293,13 +293,11 @@ describe('e2e: full mcp-orbit flow — recommend → get_meta_catalyst → get_c
         },
       ],
     }).catch((err) => {
-      // This step never sealed: on 2.x the bot-bound artifact_materialization
-      // failed at bot resolution ('local-orbit' is not a deployment). That seal
-      // left with the chatbot factory in 3.0.0 and now answers with the moved
-      // notice, writing nothing. A composition seals through
-      // primitive_artifact_materialization after bind_primitives
-      // (meta-context.test.js). The value here is the upstream tool path.
-      expect(err.message).toMatch(/left with the chatbot factory/);
+      // artifact_materialization is no commit type: it writes nothing. A
+      // composition seals through primitive_artifact_materialization after
+      // bind_primitives (meta-context.test.js). The value here is the
+      // upstream tool path.
+      expect(err.message).toMatch(/Unknown commit event type 'artifact_materialization'/);
     });
 
     // 6. Promote the composition row to materialized to close the loop.

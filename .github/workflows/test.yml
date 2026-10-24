@@ -84,6 +84,10 @@ jobs:
 
       - name: Test the e2e tier (shard ${{ matrix.shard }} of 2)
         working-directory: control
+        # design-game.quick holds about 2 GB of live heap by its last tests, at V8's default limit: the forks get
+        # more (the runner has 16 GB). It was the worker that died on the macOS legs before it moved here.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run --config vitest.e2e.config.js --shard=${{ matrix.shard }}/2
 
   lint-hygiene:

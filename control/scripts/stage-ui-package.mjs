@@ -16,8 +16,6 @@
  *      (ui-package-manifest.mjs, fromInstallPackages) plus the dependencies only those pulled in.
  *   3. Put back the license files tracing left out and write standalone/THIRD_PARTY_NOTICES.md,
  *      and copy the repo's LICENSE and NOTICE to the package root (license-files.mjs).
- * (Until 3.0 a fourth step staged the chatbot runtime template, lite-template/; it left with the
- * chatbot factory.)
  */
 
 import { spawnSync } from 'node:child_process';

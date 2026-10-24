@@ -1,6 +1,6 @@
 // A fresh `npx -y mojulo@<v>` resolves every range anew. pdf2json 4.1.0 declared Node >=22.23.2
 // while mojulo promises 22.14, so the cold install smoke checks the installed tree against the
-// floor. (Core pinned pdf2json to the 4.0 line until 3.0.0, when it left with the chatbot factory.)
+// floor.
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -42,16 +42,6 @@ describe('engines floor', () => {
 
   it('says when it could not check', () => {
     expect(enginesViolations(nm, '22.14.0').checked).toBe(false);
-  });
-
-  it('neither core nor the dashboard depends on the chatbot factory\'s document parsers', () => {
-    const ui = JSON.parse(readFileSync(path.join(CONTROL_DIR, 'ui-package', 'package.json'), 'utf8'));
-    for (const manifest of [pkg, ui]) {
-      for (const name of ['pdf2json', 'officeparser']) {
-        expect(manifest.dependencies?.[name], name).toBeUndefined();
-        expect(manifest.optionalDependencies?.[name], name).toBeUndefined();
-      }
-    }
   });
 
   it('the locked tree accepts the floor', () => {
