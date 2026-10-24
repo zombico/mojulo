@@ -1,5 +1,5 @@
 ---
-{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "biocube", "name": "A biocube — what grows in a level, and trees composed as silhouettes", "summary": "a biocube is a level's flora as data (trees, grass, bushes, wildflowers), the geocube's sibling: the cube holds the look and its colours, the biocube what grows; its tree KINDS are silhouettes you compose (a leaf form, proportions, stems, branching, bark marks) and paint from the colour theorist's offer, never species looked up from nature", "when": "someone wants a level's trees or flora to look a certain way: a birch wood, willows by a path, an umbrella grove, a forest of mixed trees, autumn colour, V-shaped or many-stemmed trees, fine or heavy branching, white or dark bark, sparse upland trees, bare ground, more or less grass; composed clumps (ikebana), harmonious tree colours, a dominant tree with accents", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
 A biocube says WHAT grows in a level; the geocube says how the level LOOKS. Colours stay the cube's: the colour
@@ -48,7 +48,8 @@ clumps, the near trees whole and the far ones shapes), `bare`.
   split?,         how often each limb forks again (0–2: finer, airier branching)
   leaf?,          its foliage: 0 the world's, 1 deep, 2 young, 3 turned (toward the cube's accent, or autumn)
   bark?,          its wood: 0 the world's, 1 warm, 2 pale, 3 dark, 4 near-white
-  barkForm? }     its bark's marks: furrowed, smooth, banded (dark dashes and scars), plated (cracked plates), peeling
+  barkForm?,      its bark's marks: furrowed, smooth, banded (dark dashes and scars), plated (cracked plates), peeling
+  share? }        how much of the level it is against the other kinds (1 each): 6, 3, 1 is a dominant, a subordinate, an accent
 ```
 
 The colours are the theorist's offer for THIS world: each solved from the cube's own foliage, grass, rock and soil, so
@@ -64,12 +65,29 @@ colour. Some silhouettes people ask for:
 - an airy weeping tree: `{ form: 'weep', split: 2, branch: 0.5, leaf: 2, barkForm: 'peeling' }`
 - an umbrella grove: `{ form: 'whorl', scale: 1.3, trunk: 0.7, spread: 0.45 }`
 
+## A clump, composed (ikebana)
+
+With `compose: 'ikebana'` each clump has roles: `shin` the tall line at the back, `soe` the mass stepping down, `hikae`
+the low anchor in front, `filler` round them, the trail's side left open. Cast them and colour them:
+
+- `clump: { shin, soe, hikae, filler }`: each role's kind, by its place in `kinds` (from 0). Contrast line, mass and mound:
+  a tall clean-stemmed kind for `shin`, a spreading one for `soe`, a low wide one for `hikae` (`{ form: 'spray', scale:
+  0.45, trunk: 0.15, spread: 0.55, stems: 3 }` is a mound).
+- `harmony`: the clump's colours by role, solved by the colour theorist from the world's foliage and checked (each role
+  steps from the one behind it, and every role stands off the grass). `analogous` (the hue stepping cool behind to warm
+  in front), `value` (one hue, dark behind to light in front: depth from afar), `accent` (the world's green, and one note
+  turned on the anchor), `season` (the clump turning: the line green, the mass half turned, the anchor turned). A role's
+  harmony colour wins over its kind's `leaf`.
+
+Stamped trees vary a little in value each, so no two read the same.
+
 ## Example
 
 ```
 { kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 },
   biocube: { from: 'forest', flora: { trees: { kinds: [
-    { form: 'spray', branch: 0.55, split: 1, bark: 4, barkForm: 'banded' },
-    { form: 'weep', scale: 0.85, leaf: 2 },
-    { form: 'plate', stems: 2, splay: 12, leaf: 1, bark: 3, barkForm: 'smooth' } ] } } } }
+    { form: 'tuft', trunk: 0.6, girth: 0.03, branch: 0.7, bark: 2, barkForm: 'smooth', share: 2 },
+    { form: 'spray', share: 3 },
+    { form: 'spray', scale: 0.45, trunk: 0.15, spread: 0.55, stems: 3, share: 1 } ],
+    clump: { shin: 0, soe: 1, hikae: 2, filler: 1 }, harmony: 'value' } } } }
 ```

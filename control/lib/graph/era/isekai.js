@@ -62,8 +62,8 @@ import { screeKey } from './scree-tiles.js';
 import { substrateMap, turnField, cutFace, FORMATION_TURNS, SUBSTRATE_IDS } from './substrate.js';
 import { strewStrand, strandFill, duneGrass, duneGrassFaces } from './strand.js';
 import { leafChips, CHIP_DEFAULTS } from './leaf-chips.js';
-import { LEAF_FORMS, readKind, leafForm, lobeTris, formChips, withinLobe } from './leaf-forms.js';
-import { floraRamps } from './flora-colours.js';
+import { LEAF_FORMS, readKind, pickByShare, leafForm, lobeTris, formChips, withinLobe } from './leaf-forms.js';
+import { floraRamps, harmonyRamps } from './flora-colours.js';
 import { growRockFlora, rockFloraFill } from './rock-flora.js';
 import { leanHue } from './town-dress.js';
 import { valleyOf, planarise, FACET_PASSES } from '../local-meru/land-form.js';
@@ -362,7 +362,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the polygon land (`shading`, see the header): the island's drawing, and a gritty one's broken rock
   const SH = readShading(manifest.shading), broken = SH && SH.grit !== undefined && SH.grit >= GRIT_PIXELS ? SH.grit : 0;
   // (a gritty land whose trees are kinds: the theorist's offer of foliage and bark as ramps beside the world's own)
-  const st = broken && st1.trees?.leafKinds ? { ...st1, palette: { ...st1.palette, ...floraRamps(st1.palette) } } : st1;
+  // (and an arranged clump's harmony, its colours by role: era/flora-colours.js harmonyRamps)
+  const st = broken && st1.trees?.leafKinds ? { ...st1, palette: { ...st1.palette, ...floraRamps(st1.palette), ...(st1.trees.leafHarmony ? harmonyRamps(st1.palette, st1.trees.leafHarmony) : {}) } } : st1;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
@@ -1285,11 +1286,21 @@ function lumpBushes(faces, bushes, grit) {
  * height its scale, the shade a tint); FAR past it a shell (treeFaces `band: 'far'`). → { built (hero and far), stock,
  * phantoms (the templates' trees), isPhantom(face), repeats(templateFaces, sunAt) } | null without bands.
  */
-export const TREE_BANDS = Object.freeze({ hero: 6, far: 15, stock: 3, shade: 0.62, off: -4000, gap: 80 });
+export const TREE_BANDS = Object.freeze({ hero: 6, far: 15, stock: 3, shade: 0.62, off: -4000, gap: 80, vary: 0.1 });
 // a tree's kind on a gritty land (the biocube's `kinds`, era/leaf-forms.js): each clump one of them, by its dice; none
 // where the land is quiet or the level names none (its crown the balls)
-const kindIx = (T, t, grit) => (!grit || !T.leafKinds ? -1 : t.kindIx ?? Math.floor(hash3(t.cluster ?? 0, 13, 4127) * T.leafKinds.length));
+// (a clump's role takes the kind its cast names, `clump`; else each clump one kind by its dice, weighed by the kinds'
+// shares when they name any)
+const kindIx = (T, t, grit) => {
+  if (!grit || !T.leafKinds) return -1;
+  if (t.kindIx !== undefined) return t.kindIx;
+  if (T.leafClump && t.role && T.leafClump[t.role] !== undefined) return T.leafClump[t.role];
+  return pickByShare(T.leafKinds, hash3(t.cluster ?? 0, 13, 4127));
+};
 const treeKind = (T, t, grit) => { const i = kindIx(T, t, grit); return i < 0 ? null : readKind(T.leafKinds[i]); };
+// the ramp a tree's crown is locked to: its role's in the clump's harmony, else the kind's pick from the offer, else the
+// world's (null)
+const leafKey = (T, t, K) => (t.leafKey !== undefined ? t.leafKey : T.leafHarmony && t.role ? `role-${t.role}` : K && K.leaf ? `foliage-${K.leaf}` : null);
 function treeBands(st, site, trees, grit = 0) {
   const T = st.trees, B0 = T.bands;
   if (!B0) return null;
@@ -1298,16 +1309,21 @@ function treeBands(st, site, trees, grit = 0) {
   const stock = trees.filter((t) => t.band === 'stock'), built = trees.filter((t) => t.band !== 'stock');
   // (a gritty land's kinds, treeKind: a template for each kind and variant, so a stamped tree keeps its kind; built at
   // the level's middle height, the kind's scale its own, so a stamp's scale is the tree's height against it)
-  const n = Math.min(B.stock, T.variants ?? B.stock), kinds = grit && T.leafKinds ? T.leafKinds.map((_, i) => i) : [null];
-  const phantoms = kinds.flatMap((ki, si) => Array.from({ length: n }, (_, v) => ({ x: B.off - B.gap * (si * n + v), y: B.off, z0: 0, h: h0, v, cluster: -2, band: 'stock', ...(ki !== null ? { kindIx: ki } : {}) })));
+  // (with kinds: a template for each kind and crown colour the stock takes, so a role's harmony stamps true)
+  const n = Math.min(B.stock, T.variants ?? B.stock), combos = new Map();
+  if (grit && T.leafKinds) for (const t of stock) { const ki = kindIx(T, t, grit), lk = leafKey(T, t, treeKind(T, t, grit)); combos.set(`${ki}|${lk}`, { kindIx: ki, leafKey: lk }); }
+  const kinds = grit && T.leafKinds ? [...combos.values()] : [null];
+  const phantoms = kinds.flatMap((ki, si) => Array.from({ length: n }, (_, v) => ({ x: B.off - B.gap * (si * n + v), y: B.off, z0: 0, h: h0, v, cluster: -2, band: 'stock', ...(ki !== null ? ki : {}) })));
   const isPhantom = (f) => f.corners[0][0] < B.off / 2;
   const repeats = (faces, sunAt) => phantoms.map((ph, v) => {
-    const mine = stock.filter((t) => t.v % n === ph.v && (ph.kindIx === undefined || kindIx(T, t, grit) === ph.kindIx));
+    const mine = stock.filter((t) => t.v % n === ph.v && (ph.kindIx === undefined || (kindIx(T, t, grit) === ph.kindIx && leafKey(T, t, treeKind(T, t, grit)) === ph.leafKey)));
     if (!mine.length) return null;
     const template = faces.filter((f) => Math.round((B.off - f.corners[0][0]) / B.gap) === v).map((f) => ({ ...f, corners: f.corners.map((c) => [r5(c[0] - ph.x), r5(c[1] - ph.y), c[2]]) }));
     return { template, group: `isekai:trees:${v}`, transforms: mine.map((t) => {
       const z = site.ground(t.x, t.y) - 0.15, lit = sunAt([t.x, t.y, z + t.h * (T.crown?.height ?? 0.62) + 0.5]);
-      return { pos: [t.x, t.y, r5(z)], scale: r5(t.h / h0), ...(lit < 1 ? { tint: [0, 1, 2].map(() => r5(B.shade + (1 - B.shade) * lit)) } : {}) };
+      // (a kind's stamp a little darker or not, by its own dice: no two stamped trees the same value; B.vary)
+      const vr = ph.kindIx !== undefined ? 1 - B.vary * hash3(Math.round(t.x * 100), Math.round(t.y * 100), 4157) : 1, sh = lit < 1 ? B.shade + (1 - B.shade) * lit : 1;
+      return { pos: [t.x, t.y, r5(z)], scale: r5(t.h / h0), ...(lit < 1 || vr < 1 ? { tint: [0, 1, 2].map(() => r5(sh * vr)) } : {}) };
     }) };
   }).filter(Boolean);
   return { built, stock, phantoms, isPhantom, repeats };
@@ -1331,7 +1347,7 @@ function treeFaces(st, site, trees, grit = 0) {
     if (K) {
       const hk = h * (K.scale ?? 1), Rk = (K.spread ?? C.radius) * hk, far = t.band === 'far', form = K.form, g = (K.girth ?? C.trunk) * hk;
       const ck = K.scale === undefined && K.spread === undefined && K.trunk === undefined ? c : [c[0], c[1], K.trunk !== undefined ? z0 + K.trunk * hk + 0.45 * Rk : z0 + C.height * hk];
-      const fork = [ck[0], ck[1], ck[2] - 0.45 * Rk], bark = K.bark ? { _ramp: `bark-${K.bark}` } : {}, leafRamp = K.leaf ? { _ramp: `foliage-${K.leaf}` } : {};
+      const fork = [ck[0], ck[1], ck[2] - 0.45 * Rk], bark = K.bark ? { _ramp: `bark-${K.bark}` } : {}, lk = leafKey(T, t, K), leafRamp = lk ? { _ramp: lk } : {};
       const stem = [0, 0.35, 0.7, 1].map((f) => [t.x + bend[0] * f * f + (fork[0] - t.x) * f, t.y + bend[1] * f * f + (fork[1] - t.y) * f, z0 + (fork[2] - z0) * f]);
       // (its wood's albedo the picked bark's against the world's: the bake lights it, the lock keeps it on its ramp)
       const pb = K.bark && st.palette[bark._ramp], wb = st.palette.bark, mid = (r) => r[Math.floor(r.length / 2)];

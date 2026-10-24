@@ -14,6 +14,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Composed clumps: an ikebana clump cast and coloured by role
+
+An arranged clump (`compose: 'ikebana'`) placed its trees in roles but drew them all one kind and one colour. Now a
+biocube casts them and the colour theorist colours them:
+
+- **The cast** (`flora.trees.clump: { shin, soe, hikae, filler }`): each role's kind by its place in `kinds`, so a clump
+  can contrast a line, a mass and a mound.
+- **The harmony** (`flora.trees.harmony`, `era/flora-colours.js`): the clump's colours by role, solved from the world's
+  foliage: `analogous` (the hue stepping cool to warm), `value` (dark behind to light in front), `accent` (one note
+  turned on the anchor), `season` (the clump turning). The theorist's law: each role steps from the one behind it (an
+  accent stands out), every role off the grass. A role's harmony colour wins over its kind's `leaf`.
+- **Shares** (a kind's `share`): the level's kinds in proportion, a dominant, a subordinate, an accent.
+- **Each stamp its own value**: a kind's stamped trees each a little darker or not, by their own dice
+  (`TREE_BANDS.vary`).
+
+No new geometry: a template for each kind and crown colour the stock takes. The gallery:
+`scripts/spikes/geotown/clump-harmony.mjs`; the manual, the `biocube` card.
+
 ### Far grass: the meadow out past the field
 
 The live grass stood only round the walker: past about 13 m its cover fell away and past its radius it was gone, so

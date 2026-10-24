@@ -35,7 +35,7 @@ import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { validateShrubs } from './shrubs.js';
 import { LEAF_FORMS, LEAF_FORM_IDS, TREE_KIND_KEYS } from './leaf-forms.js';
-import { LEAF_OFFER, BARK_OFFER } from './flora-colours.js';
+import { LEAF_OFFER, BARK_OFFER, HARMONIES, CLUMP_ROLES } from './flora-colours.js';
 import { BARK_FORM_IDS } from '../matte-paint/dressed.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
@@ -98,13 +98,27 @@ function checkKinds(kinds) {
     if (k.leaf !== undefined) int(k.leaf, 0, LEAF_OFFER, `${at}.leaf (0 the world's, 1 to ${LEAF_OFFER} the theorist's offer)`);
     if (k.bark !== undefined) int(k.bark, 0, BARK_OFFER, `${at}.bark (0 the world's, 1 to ${BARK_OFFER} the theorist's offer)`);
     if (k.barkForm !== undefined && !BARK_FORM_IDS.includes(k.barkForm)) no(`${at}.barkForm is a bark's marks (${BARK_FORM_IDS.join(', ')})`);
+    if (k.share !== undefined) num(k.share, 0.05, 20, `${at}.share`);
   });
 }
 
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
-  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'kinds'], 'flora.trees');
+  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'kinds', 'clump', 'harmony'], 'flora.trees');
   if (t.kinds !== undefined) checkKinds(t.kinds);
+  // (an ikebana clump's cast, era/nature.js arrangedClump: which kind each role takes; and the harmony its colours are
+  // solved in, era/flora-colours.js)
+  if (t.clump !== undefined) {
+    if (!t.kinds) no('flora.trees.clump casts the clump\'s roles from `kinds`: name the kinds');
+    if (t.compose !== 'ikebana') no("flora.trees.clump casts an arranged clump's roles: compose 'ikebana'");
+    if (!isObj(t.clump)) no(`flora.trees.clump is { ${CLUMP_ROLES.join(', ')} }, each a kind's place in \`kinds\` (from 0)`);
+    keys(t.clump, CLUMP_ROLES, 'flora.trees.clump');
+    for (const [r, v] of Object.entries(t.clump)) int(v, 0, t.kinds.length - 1, `flora.trees.clump.${r} (a kind's place in \`kinds\`, from 0)`);
+  }
+  if (t.harmony !== undefined) {
+    if (!HARMONIES.includes(t.harmony)) no(`flora.trees.harmony is ${HARMONIES.join(', ')}`);
+    if (!t.kinds || t.compose !== 'ikebana') no("flora.trees.harmony colours an arranged clump's roles: name the kinds and compose 'ikebana'");
+  }
   if (t.compose !== undefined && t.compose !== 'ikebana' && t.compose !== false) no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump) or false (scattered)");
   if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
     if (!isObj(t.bands)) no('flora.trees.bands is true or { hero?, far?, stock? } (era/isekai.js treeBands)');
@@ -183,9 +197,10 @@ export function readBiocube(spec) {
 
 /** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none). */
 export function withFlora(card, cube) {
-  const F = cube.flora, { kinds, ...T } = F.trees, G = F.grass;
-  // (the cube's tree kinds go to the card as its trees' `leafKinds`)
-  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}) };
+  const F = cube.flora, { kinds, clump, harmony, ...T } = F.trees, G = F.grass;
+  // (the cube's tree kinds go to the card as its trees' `leafKinds`, their clump's cast and harmony beside them)
+  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}),
+    ...(clump ? { leafClump: clump } : {}), ...(harmony ? { leafHarmony: harmony } : {}) };
   if (T.hero === null) trees.hero = null;
   const { live: GL, ...G0 } = G ?? {};
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };

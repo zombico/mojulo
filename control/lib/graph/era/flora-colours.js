@@ -14,6 +14,18 @@
  *                          bark, for the lock (a tree kind's `leaf: n` locks its crown to `foliage-n`, `bark: n` its
  *                          wood to `bark-n`; 0 is the world's own)
  *
+ * HARMONY — an ikebana clump's colours by role (its tall line `shin`, its mass `soe`, its low anchor `hikae`, the
+ * `filler` round them; era/nature.js arrangedClump), solved from the world's foliage as one harmony the composition
+ * names, so a clump reads as composed (HARMONIES):
+ *   analogous  the hue stepping from cool behind to warm in front, the value held
+ *   value      one hue, the value stepping from dark behind to light in front: depth read from afar
+ *   accent     the world's own green, and one note turned (toward the accent, or autumn) on the anchor in front
+ *   season     the clump turning: the line the world's green, the mass half turned, the anchor turned
+ *   harmonyColours({ foliage, grass, accent? }, harmony) → { shin, soe, hikae, filler } rgb
+ *   harmonyLaw(colours, grass, harmony) → { ok, value }: the roles step apart where the harmony steps (an accent stands
+ *                          out from the rest), and every role stands apart from the grass
+ *   harmonyRamps(palette, harmony) → { 'role-shin', 'role-soe', 'role-hikae', 'role-filler' } ramps for the lock
+ *
  * Pure.
  */
 import { lchOf, oklch, deltaE, hueGap } from '../color-theorist/oklab.js';
@@ -59,3 +71,53 @@ export function floraRamps(palette) {
   barks.forEach((c, i) => { out[`bark-${i + 1}`] = rampFrom(c, B.length); });
   return out;
 }
+
+export const HARMONIES = Object.freeze(['analogous', 'value', 'accent', 'season']);
+export const CLUMP_ROLES = Object.freeze(['shin', 'soe', 'hikae', 'filler']);
+// how far (OKLab) a stepping harmony's neighbouring roles stand apart, and an accent from the rest
+const STEP = 0.035, ACCENT = 0.08;
+const turnedHue = (h, A) => (A && A[1] > 0.04 && hueGap(h, A[2]) < 150 ? mixHue(h, A[2], 0.7) : mixHue(h, 58, 0.75));
+
+export function harmonyColours({ foliage, grass, accent = null }, harmony) {
+  const [L, C, h] = lchOf(foliage), A = accent ? lchOf(accent) : null, ht = turnedHue(h, A), Ct = Math.max(C, 0.09);
+  const want = {
+    analogous: { shin: [L, C, mixHue(h, 205, 0.14)], soe: [L, C, h], hikae: [Math.min(0.86, L * 1.04), C * 1.06, mixHue(h, 95, 0.32)] },
+    value: { shin: [L * 0.76, C, h], soe: [L, C, h], hikae: [Math.min(0.88, L * 1.2 + 0.02), C * 1.08, h] },
+    accent: { shin: [L, C, h], soe: [L, C, h], hikae: [Math.min(0.8, L * 1.06), Ct, ht] },
+    season: { shin: [L, C, h], soe: [L * 1.02, (C + Ct) / 2, mixHue(h, ht, 0.45)], hikae: [Math.min(0.8, L * 1.06), Ct, ht] },
+  }[harmony];
+  if (!want) throw new Error(`harmony '${harmony}' is not one (${HARMONIES.join(', ')})`);
+  const out = {};
+  for (const role of ['shin', 'soe', 'hikae']) {
+    const [l, c, hh] = want[role];
+    let rgb = oklch(l, c, hh);
+    // (kept apart from the grass, and where the harmony steps, from the role behind it: by lightness, away from each)
+    const behind = harmony === 'accent' ? [] : role === 'soe' ? [out.shin] : role === 'hikae' ? [out.soe] : [];
+    for (let i = 0; i < 8; i++) {
+      const near = deltaE(rgb, grass) < APART ? grass : behind.find((o) => deltaE(rgb, o) < STEP);
+      if (!near) break;
+      const [Ln] = lchOf(near), [Lr] = lchOf(rgb);
+      rgb = oklch(Lr + (Lr >= Ln ? 0.03 : -0.03), c, hh);
+    }
+    out[role] = rgb;
+  }
+  out.filler = out.soe;
+  return out;
+}
+
+export function harmonyLaw(colours, grass, harmony) {
+  const apart = CLUMP_ROLES.filter((r) => deltaE(colours[r], grass) < APART);
+  const steps = harmony === 'accent' ? [deltaE(colours.hikae, colours.shin), deltaE(colours.hikae, colours.soe)].map((d) => d >= ACCENT)
+    : [deltaE(colours.shin, colours.soe), deltaE(colours.soe, colours.hikae)].map((d) => d >= STEP);
+  const ok = !apart.length && steps.every(Boolean);
+  return { ok, value: ok ? `${harmony}: the roles step apart, every one off the grass` : `${harmony}: ${apart.length ? `${apart.join(', ')} too near the grass` : ''}${apart.length && !steps.every(Boolean) ? '; ' : ''}${!steps.every(Boolean) ? (harmony === 'accent' ? 'the accent does not stand out' : 'a role does not step from the one behind it') : ''}` };
+}
+
+export function harmonyRamps(palette, harmony) {
+  const mid = (r) => r[Math.floor(r.length / 2)], F = palette.foliage;
+  if (!F || !palette.grass) return {};
+  const H = harmonyColours({ foliage: mid(F), grass: mid(palette.grass), accent: palette.accent ? mid(palette.accent) : null }, harmony), out = {};
+  for (const r of CLUMP_ROLES) out[`role-${r}`] = rampFrom(H[r], F.length);
+  return out;
+}
+

@@ -8,7 +8,8 @@ import { readBiocube, withFlora, BIOCUBE_IDS } from './biocube.js';
 import { outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
-import { floraColours, floraRamps, LEAF_OFFER, BARK_OFFER } from './flora-colours.js';
+import { floraColours, floraRamps, LEAF_OFFER, BARK_OFFER, HARMONIES, harmonyColours, harmonyLaw, harmonyRamps } from './flora-colours.js';
+import { pickByShare } from './leaf-forms.js';
 import { deltaE, lchOf } from '../color-theorist/oklab.js';
 import { readGeocube } from './geocube.js';
 
@@ -156,3 +157,44 @@ describe('a tree kind\'s stems and bark on the stage', () => {
     expect(med(wood)).toBeGreaterThan(med([...plain.faces, ...plain.repeats.flatMap((r) => r.template)].filter((f) => f.group === 'isekai:wood')) + 40);
   }, 120000);
 });
+
+describe('an arranged clump cast and coloured by role (nature.js arrangedClump, flora-colours.js harmony)', () => {
+  const pal = ISEKAI_STYLES['isekai-meadow'].palette, mid = (r) => r[Math.floor(r.length / 2)], hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+  it('solves each harmony from the world\'s foliage, its roles stepping (an accent standing out) and off the grass', () => {
+    for (const h of HARMONIES) {
+      const C = harmonyColours({ foliage: mid(pal.foliage), grass: mid(pal.grass) }, h);
+      expect(harmonyLaw(C, mid(pal.grass), h).ok).toBe(true);
+    }
+    // (value: the line darkest, the anchor lightest; accent: the line and the mass one green, the world's kept off the grass)
+    const V = harmonyColours({ foliage: mid(pal.foliage), grass: mid(pal.grass) }, 'value'), A = harmonyColours({ foliage: mid(pal.foliage), grass: mid(pal.grass) }, 'accent');
+    expect(lchOf(V.shin)[0]).toBeLessThan(lchOf(V.soe)[0]);
+    expect(lchOf(V.hikae)[0]).toBeGreaterThan(lchOf(V.soe)[0]);
+    expect(A.shin).toEqual(A.soe);
+    expect(() => harmonyColours({ foliage: mid(pal.foliage), grass: mid(pal.grass) }, 'rainbow')).toThrow(/analogous, value, accent, season/);
+  });
+
+  it('weighs the level\'s kinds by their shares: a dominant, a subordinate and an accent in proportion', () => {
+    const K = [{ form: 'spray', share: 6 }, { form: 'plate', share: 3 }, { form: 'weep', share: 1 }], n = [0, 0, 0];
+    for (let i = 0; i < 1000; i++) n[pickByShare(K, (i + 0.5) / 1000)]++;
+    expect(n).toEqual([600, 300, 100]);
+    expect(pickByShare(['spray', 'plate'], 0.7)).toBe(1);   // (no shares: uniform, as it was)
+  });
+
+  it('casts each role its kind and colours it by the harmony: a template per kind and colour, each stamp its own value', () => {
+    const kinds = [{ form: 'tuft', trunk: 0.6, girth: 0.03 }, 'spray', { form: 'spray', scale: 0.45, trunk: 0.15, spread: 0.55, stems: 3 }];
+    const P = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: {}, shading: { grit: 0.7 }, biocube: { from: 'forest', flora: { trees: { kinds, clump: { shin: 0, soe: 1, hikae: 2, filler: 1 }, harmony: 'value' } } } }, {});
+    const all = [...P.faces, ...P.repeats.flatMap((r) => r.template)], cores = new Set(all.filter((f) => f.group === 'isekai:core').map((f) => f.fill));
+    // (the line's crown in its role's colour, the anchor's in its own)
+    const R = harmonyRamps(pal, 'value');
+    for (const role of ['shin', 'hikae']) expect(R[`role-${role}`].map(hex).some((c) => cores.has(c))).toBe(true);
+    // (more templates than kinds: a kind's stamps of two roles are two colours)
+    expect(P.repeats.length).toBeGreaterThan(kinds.length * TREE_BANDS.stock);
+    // (each stamp a little darker or not, never lighter than lit)
+    const tints = P.repeats.flatMap((r) => r.transforms.map((t) => t.tint?.[0] ?? 1));
+    expect(new Set(tints).size).toBeGreaterThan(tints.length / 2);
+    expect(tints.every((v) => v <= 1 && v >= TREE_BANDS.shade * (1 - TREE_BANDS.vary) - 1e-6)).toBe(true);
+    expect(() => readBiocube({ from: 'grove', flora: { trees: { kinds, clump: { shin: 0 } } } })).toThrow(/compose 'ikebana'/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds, clump: { shin: 5 } } } })).toThrow(/clump.shin/);
+  }, 120000);
+});
+

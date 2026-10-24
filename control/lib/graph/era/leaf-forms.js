@@ -9,6 +9,7 @@
  *   TREE_KIND_KEYS                   a tree kind's settings (a biocube's `flora.trees.kinds`, era/biocube.js): a form,
  *                                      its proportions and the colours it takes from the theorist's offer
  *   readKind(kind)                   a form's name or a kind → the kind ({ form, … })
+ *   pickByShare(kinds, r)            the kind a roll r (0..1) picks, weighed by the kinds' shares
  *   lobeTris(lobe, { detail, shrink }) → the lobe's skin as triangles (a core's facets)
  *   withinLobe(p, lobe, s)           → whether p lies inside the lobe scaled by s
  *   leafForm(form, tree)             → { limbs: [{ pts, radii }], twigs: [{ pts, radii }], lobes: [lobe] }, a lobe
@@ -82,9 +83,18 @@ export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
  *   leaf     its foliage: 0 the world's, 1..LEAF_OFFER the theorist's offer (era/flora-colours.js)
  *   bark     its wood's colour: 0 the world's, 1..BARK_OFFER the theorist's offer
  *   barkForm its bark's marks (matte-paint/dressed.js BARK_FORM_IDS): furrowed, smooth, banded, plated, peeling
+ *   share    how much of the level it is against the other kinds (1 each by default): a dominant, a subordinate, an accent
  */
-export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'stems', 'splay', 'branch', 'split', 'leaf', 'bark', 'barkForm']);
+export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'stems', 'splay', 'branch', 'split', 'leaf', 'bark', 'barkForm', 'share']);
 export const readKind = (k) => (typeof k === 'string' ? { form: k } : k);
+/** A kind for a roll `r` (0..1): uniform over the kinds, or weighed by their shares when any names one (1 each else). */
+export function pickByShare(kinds, r) {
+  if (!kinds.some((k) => typeof k === 'object' && k.share !== undefined)) return Math.floor(r * kinds.length);
+  const w = kinds.map((k) => (typeof k === 'object' && k.share !== undefined ? k.share : 1)), tot = w.reduce((a, b) => a + b, 0);
+  let u = r * tot;
+  for (let i = 0; i < w.length; i++) { u -= w[i]; if (u < 0) return i; }
+  return kinds.length - 1;
+}
 
 /** The leaf branches and their lobes for one leaf branch of each form, from where it leaves (`p`), its limb's
  *  heading (`dir`, `az`), its place along the limb (`f`), its index (`j`) and the crown's radius. */
