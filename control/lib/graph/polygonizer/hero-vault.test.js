@@ -60,3 +60,20 @@ describe('hero-vault', () => {
     expect(() => heroVault('kongVault', R, { h: 0.5, from: 'jog' })).toThrow(/out of sprint/);
   }, 120000);
 });
+
+// a move follows the body it was built on: the leg set (laws 3) tucks the step vault's trailing foot tighter, the arm
+// length (laws 5) draws a guard in; a hero minted before those laws gets neither, its clips as they were made
+describe('the hero laws a move reads', () => {
+  const plan = (laws) => expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', motion: { stepVault: true, chudan: true }, ...(laws ? { laws } : {}) }) }).recipe;
+  it('a hero minted now: its vault says legSet and its guard armLength; one minted under laws 1 says neither', () => {
+    const now = plan().locomotion, before = plan(1).locomotion;
+    expect([now.stepVault.legSet, now.chudan.armLength]).toEqual([true, true]);
+    expect([before.stepVault.legSet, before.chudan.armLength]).toEqual([undefined, undefined]);
+  });
+  it('laws 1 vaults on the words the move shipped with; the leg set on its own', () => {
+    const R = validateRig(plan(1).rig), box = { h: 0.8 * R.joints.pelvisHub[2], d: 0.3, from: 'jog' };
+    const a = heroVault('stepVault', R, box), b = heroVault('stepVault', R, { ...box, legSet: false }), c = heroVault('stepVault', R, { ...box, legSet: true });
+    expect(JSON.stringify(b.keys ?? b.fn(0.8))).toBe(JSON.stringify(a.keys ?? a.fn(0.8)));
+    expect(JSON.stringify(c.fn(0.8))).not.toBe(JSON.stringify(a.fn(0.8)));
+  });
+});

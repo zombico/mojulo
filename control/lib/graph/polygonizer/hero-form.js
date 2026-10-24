@@ -364,6 +364,15 @@ export const LEG_LENGTH = Object.freeze({ rise: 0.055, thigh: 0.55 });
  * humerus stood at 0.189 of the stature from the shoulder's joint to the elbow (the body's about 0.165) and the forearm
  * at 0.161 (0.146), so the span ran 1.08 to 1.09 of the stature and the fingertips passed Leonardo's circle by 7 to 10 cm */
 export const ARM_LENGTH = Object.freeze({ upperArm: 0.88, forearm: 0.91 });
+/** whether a hero's plan takes the leg set (laws 3, the structured core) and the arm length (laws 5, the adult hero
+ * casts): what heroPlan reads, for a reader of the rig that must follow the body it was built on (hero-vault, hero-grip) */
+export const takesLegSet = ({ core = DEFAULT_CORE, laws = 1 } = {}) => core === 'structured' && laws >= 3;
+export function takesArmLength({ cast = 'canonical', proportions = 'hero', core = DEFAULT_CORE, laws = 1 } = {}) {
+  const preset = castOf(cast, proportions);
+  return core === 'structured' && laws >= 5 && proportions === 'hero' && !!preset && !preset.child;
+}
+/** the arm's whole length after ARM_LENGTH over before it, from the shortened arm's own bones (metres) */
+export const armReach = (upper, fore) => (upper + fore) / (upper / ARM_LENGTH.upperArm + fore / ARM_LENGTH.forearm);
 const NECK_ROOT = Object.freeze({ notch: 0.02, fall: 2.5, step: 0.007, base: 0.8, over: 0.9, trap: Object.freeze({ z: 0.036, r: [0.092, 0.066], yc: -0.02 }), trapZ: Object.freeze({ female: 0.64, male: 0.5 }), deltoid: Object.freeze({ over: -0.25, cap: 0.95, mid: 0.28, top: 0.8 }) });
 /** THE NECK FORM (`heroPlan({ neckForm })`; the humanoid starter passes a cast's own under the anime head and anime
  * proportions): the neck as a LOFT of explicit rings instead of the three-ring segment, so the column shades round and
@@ -501,7 +510,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     castDials.thigh = r6(castDials.thigh * (lt + LEG_LENGTH.thigh * run) / lt); castDials.shank = r6(castDials.shank * (ls + (1 - LEG_LENGTH.thigh) * run) / ls); castDials.lumbar = r6(castDials.lumbar * (ll - run) / ll);
   }
   // laws 5: the arm length (ARM_LENGTH), on the same casts
-  if (structured && laws >= 5 && proportions === 'hero' && preset && !preset.child) { castDials.upperArm = r6(castDials.upperArm * ARM_LENGTH.upperArm); castDials.forearm = r6(castDials.forearm * ARM_LENGTH.forearm); }
+  if (takesArmLength({ cast, proportions, core, laws })) { castDials.upperArm = r6(castDials.upperArm * ARM_LENGTH.upperArm); castDials.forearm = r6(castDials.forearm * ARM_LENGTH.forearm); }
   const m = withMath(dmath, () => castArmature(castDials));   // the shared figure cast, on dmath (util/math-scope.js)
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);
@@ -538,7 +547,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     const kneeX = r6(Math.max(J.hip[0] - drop * dmath.tan(FEMUR_IN[femaleLeg ? 'female' : 'male'] * Math.PI / 180), b.calf / TN.calf + KNEE_CLEAR));   // the untuned calf: `calf` thickens, it moves no joint
     if (kneeX < J.knee[0]) { J.knee = [kneeX, J.knee[1], J.knee[2]]; J.ankle = [kneeX, J.ankle[1], J.ankle[2]]; }
     // laws 3: the leg set (LEG_SET), the hip's joint and the knee back by their shares of the hip's height
-    if (laws >= 3) {
+    if (takesLegSet({ core, laws })) {
       const zh = J.hip[2], back = LEG_SET.hipBack * zh, k = (J.knee[2] - J.ankle[2]) / (zh - J.ankle[2]);
       J.hip = [J.hip[0], r6(J.hip[1] - back), J.hip[2]]; J.knee = [J.knee[0], r6(J.knee[1] - back * k), J.knee[2]];
     }

@@ -439,15 +439,18 @@ function clearanceOf(R, rt, frames) {
 
 /**
  * A move over an obstacle on a rig. `name` a VAULT_NAMES name (`…Left`: the right foot takes off, the mirror); `h`, `d`,
- * `w` the box (metres: its top over the floor, its depth along the run, its width); `from` the gait it is taken out of.
+ * `w` the box (metres: its top over the floor, its depth along the run, its width); `from` the gait it is taken out of;
+ * `legSet` true on a rig whose leg took hero-form LEG_SET (laws 3: takesLegSet), the move's own words for it.
  * → { name, move, from, foot (taking off), landing, seconds, keys (30 a second), fn(t) (t 0 … 1: the clip in place, as
  * the gaits are), root ({ y(t), z(t) } world metres of the pelvis: the engine carries the character along y), entry
  * ({ phase: the gait's phase at the first frame, foot, takeoff: metres from the take-off toe to the near face }), exit
  * ({ phase, foot, landing: metres past the far face }), air ([{ from, to, vz }]: the flights), beats ({ name, t }),
  * box, props, checks }.
  */
-export function heroVault(name, R, { h, d = 0.3, w = 1.5, from, seconds } = {}) {
-  const left = /Left$/.test(name), base = left ? name.slice(0, -4) : name, V = VAULTS[base];
+export function heroVault(name, R, { h, d = 0.3, w = 1.5, from, seconds, legSet = false } = {}) {
+  const left = /Left$/.test(name), base = left ? name.slice(0, -4) : name, V0 = VAULTS[base];
+  // a rig whose leg took hero-form LEG_SET (laws 3) vaults with the move's own legSet words where it has them
+  const V = legSet && V0?.legSet ? { ...V0, ...V0.legSet } : V0;
   if (!V) throw new Error(`hero-vault: no move '${name}' (have ${VAULT_NAMES.join(', ')})`);
   if (!(Number.isFinite(h) && h > 0)) throw new Error('hero-vault: h (the obstacle\'s height, metres) is required');
   const gait = from ?? V.from[0]; if (!V.from.includes(gait)) throw new Error(`hero-vault: ${base} is taken out of ${V.from.join(' or ')} (not ${gait})`);
@@ -607,7 +610,7 @@ const cached = (R, key, f) => { const m = vaultCache.get(R) || new Map(); vaultC
  * The obstacle bands are the figure's own: a share of its hip height up to its waist. A box beyond them, or one no move
  * can be fitted to at this speed and distance, returns move null and why.
  */
-export function freeRun(state, obstacle, R) {
+export function freeRun(state, obstacle, R, { legSet = false } = {}) {
   const { gait = 'jog', phase = 0 } = state || {}, { h, d = 0.3, w = 1.5, distance } = obstacle || {};
   if (!(Number.isFinite(h) && h > 0) || !Number.isFinite(distance)) throw new Error('hero-vault: freeRun needs obstacle { h, distance } (metres)');
   const g = gaitOn(R, gait), J = R.joints, floor = floorOf(R), hipH = J.pelvisHub[2] - floor, waist = J.navel[2] - floor;
@@ -626,7 +629,7 @@ export function freeRun(state, obstacle, R) {
     let fit = null;
     for (const foot of SIDES) {
       const name = foot === 'L' ? base : `${base}Left`;
-      const clip = cached(R, `${name}|${gait}|${r3(h)}|${r3(d)}|${r3(w)}`, () => heroVault(name, R, { h, d, w, from: gait }));
+      const clip = cached(R, `${name}|${gait}|${r3(h)}|${r3(d)}|${r3(w)}${legSet ? '|legSet' : ''}`, () => heroVault(name, R, { h, d, w, from: gait, ...(legSet ? { legSet } : {}) }));
       if (!Object.values(clip.checks.laws).every(Boolean)) { tried.push(`${name}: ${Object.entries(clip.checks.laws).filter(([, x]) => !x).map(([k]) => k).join(', ')}`); continue; }
       // the take-off toe's place ahead of the pelvis at its touchdown, at the gait's own stride; the next touchdowns of
       // that foot, a cycle apart; the one whose stretch is least off 1 within ±STRETCH

@@ -1197,6 +1197,14 @@ Opt-in and versioned: a default hero keeps its bytes.
   upper arm's dial by 0.88 and the forearm's by 0.91 on the casts the leg length takes: the span 1.01 and 0.99 of the
   stature on the realistic slice's builds, the middle fingertips on the circle with the arms raised to the head's top.
   A row stamped 4 or before builds byte for byte; the anime wave's raised elbow reads its drop as a share of the humerus.
+- **The moves follow the body they were built on.** The leg set and the arm length moved joints the vaults and the guards
+  were tuned on. A step vault's trailing foot, its leg set back by laws 3, dragged over the far edge (a male's clearance
+  lift 0.091 m, the law 0.08); a guard's hilt, placed in fixed metres off the trunk, sat past the reach of an arm
+  shortened by laws 5, the wrists bent past their ease. A hero stamped laws 3 or later vaults on the step vault's own
+  `legSet` words (the trailing knee tucked 125° where it was 115°: lift 0.040 m), and one whose arm took laws 5 holds
+  every guard drawn in toward the shoulders by its arm's shortening (hero-form.js `takesLegSet`, `takesArmLength`,
+  `armReach`, which `heroPlan` itself reads). A hero minted before them, as everything 3.1.1 shipped was, gets
+  neither: its clips as they were.
 - **A boot under a skirt.** A garment piece is lifted over every garment already worn on its part, and a skirt (a hull
   round the hips and both legs) counts as worn on the shank: a boot's shaft worn after it was lifted round the skirt's
   whole hem, a ring 21 cm across round both legs (the operative's card read as a bell for it). A piece on a shank, a foot,

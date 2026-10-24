@@ -128,7 +128,14 @@ export function landmark(n, at) {
   if (/^(shoulder|hip)[LR]$/.test(at)) return [...n[at]];
   throw new Error(`hero-grip: no landmark '${at}' (belly, navel, chest, chin, forehead, eyes, throat, knees, shoulderR/L, hipR/L)`);
 }
-const placeOf = (n, h) => { const lm = landmark(n, h.at); return [(h.line ? 0 : lm[0]) + (h.side || 0), lm[1] + (h.fwd || 0), lm[2] + (h.up || 0)]; };
+// (`reach` < 1: a shorter arm's guard, the place drawn in toward the shoulders' midpoint by the arm's shortening; 1 is
+// the place as the words put it)
+const placeOf = (n, h, reach = 1) => {
+  const lm = landmark(n, h.at), p = [(h.line ? 0 : lm[0]) + (h.side || 0), lm[1] + (h.fwd || 0), lm[2] + (h.up || 0)];
+  if (reach === 1) return p;
+  const c = mul(add(n.shoulderL, n.shoulderR), 0.5);
+  return add(c, mul(sub(p, c), reach));
+};
 /** where an `at` aim points: the same mark on an opponent of the figure's own size, `far` metres before its pelvis */
 const markOf = (n, p) => { const lm = landmark(n, p.at); return [0, n.pelvisHub[1] + p.far, lm[2]]; };
 
@@ -176,8 +183,8 @@ export function stationsOf(G, R, hands) {
 const itemPoint = (F, G, q) => add(F.at, mv(F.W, mul(sub(q, [0, 0, F.s]), G.k)));
 /** the sword's frame from the guard's words on the posed body: the grip's middle at `at`, the blade's CHORD (the guard
  * to the tip: a curved blade's point is off its grip's line) along the aim, the edge square to it as the words face it */
-function swordFrame(n, words, G, st) {
-  const mid = placeOf(n, words.at);
+function swordFrame(n, words, G, st, reach = 1) {
+  const mid = placeOf(n, words.at, reach);
   const aim = words.point.at ? unit(sub(markOf(n, words.point), mid)) : dirOf(words.point);
   const e = dirOf(words.edge); let edge = sub(e, mul(aim, dot(e, aim)));
   if (len(edge) < 1e-6) throw new Error('hero-grip: the edge lies along the blade');
@@ -346,12 +353,12 @@ const without = (pose, keys) => Object.fromEntries(Object.entries(pose).filter((
 
 /** a guard solved right-handed: { G (mounts by side), st (stations), frame, arms (the arm, wrist and finger channels),
  * held (the whole held pose), stance, off / shield (their frames) } */
-function solveGuard(K, R) {
+function solveGuard(K, R, reach = 1) {
   const stance = heroStance(K.stance, R); const body = withTrunk(without(stance.hold, ARM_KEYS), K.trunk);
   const n0 = rigNodesAt(liteOf(R), elbowsDown(R, body)).nodes;
   const G = { R: mountOf(R, K.sword, 'R', K.grip) }; if (K.hands === 2) G.L = mountOf(R, K.sword, 'L', K.grip);
   const st = stationsOf(G.R, R, K.hands);
-  const frame = swordFrame(n0, K, G.R, st);
+  const frame = swordFrame(n0, K, G.R, st, reach);
   const arms = {}; const holds = {};
   const want = { R: handWant(R, G.R, frame, st.upper, 'R') };
   if (K.hands === 2) want.L = handWant(R, G.L, frame, st.lower, 'L');
@@ -359,7 +366,7 @@ function solveGuard(K, R) {
   if (K.off) {
     // the second blade: its own guard words (the point and edge the main guard's), on the left hand
     G.L = mountOf(R, K.off.sword, 'L'); const so = stationsOf(G.L, R, 1);
-    off = swordFrame(n0, { ...K, at: K.off.at }, G.L, so); off.st = so;
+    off = swordFrame(n0, { ...K, at: K.off.at }, G.L, so, reach); off.st = so;
     want.L = handWant(R, G.L, off, so.upper, 'L');
   }
   for (const side of Object.keys(want)) {
@@ -372,7 +379,7 @@ function solveGuard(K, R) {
     G.L = shieldMount(R, K.shield.sword, 'L', K.shield.strap);
     const face = dirOf(K.shield.face ?? { fwd: 1 }), up0 = dirOf(K.shield.up ?? { up: 1 }), up = unit(sub(up0, mul(face, dot(up0, face))));
     const Y = mul(face, -1), W = fromColumns(cross(Y, up), Y, up);
-    const m = mm(W, T(G.L.M)), P = placeOf(n0, K.shield.at);
+    const m = mm(W, T(G.L.M)), P = placeOf(n0, K.shield.at, reach);
     want.L = { m, P, wrist: sub(P, mv(m, sub(G.L.t, R.joints.wristL))) };
     const a = holdArm(R, body, 'L', want.L.wrist, m, { skilled: K.regime === 'skilled', band: STRAPPED }); holds.L = a;
     Object.assign(arms, { shL: a.sh, elbowL: a.elbow, wristL: a.wrist, fingersL: { ...HAND_POSES.grip } });
@@ -395,15 +402,16 @@ export const swordPoint = itemPoint;
 /**
  * A guard on a rig: { name, regime, stance, tradition, hands, grip, clip (the stance's enter, the arms closing into the
  * guard), hold (the held pose), swords: [{ side, G, station, item }] (what each hand carries: carriedFrame), mounts (the
- * same as gear mounts, for gearFaces), checks }.
+ * same as gear mounts, for gearFaces), checks }. `reach` (1) is the arm's length over the one the guard words were
+ * placed for: a hero whose arm took hero-form ARM_LENGTH (laws 5) holds every guard drawn in by it (hero-form armReach).
  */
-export function heroGuard(name, R, { seconds = 0.9, left: asLeft = false } = {}) {
+export function heroGuard(name, R, { seconds = 0.9, left: asLeft = false, reach = 1 } = {}) {
   // a guard by name, or its words themselves (an authored guard: `left` asks its mirror)
   const own = typeof name === 'object' && name;
   const left = own ? asLeft : /Left$/.test(name) && GUARDS[name.slice(0, -4)]; const base = own ? 'own' : left ? name.slice(0, -4) : name;
   const K = own || GUARDS[base]; if (!K) throw new Error(`hero-grip: no guard '${name}' (have ${GUARD_NAMES.join(', ')})`);
   if (own) name = left ? 'ownLeft' : 'own';
-  const S = solveGuard(K, R);
+  const S = solveGuard(K, R, reach);
   // the enter: the stance's own steps, the last key's arms the guard's, its wrists and fingers closing on the grip
   const keysR = S.stance.keys.map((k, i, all) => (i === all.length - 1 ? { ...k, pose: { ...withTrunk(without(k.pose, ARM_KEYS), K.trunk), ...S.arms } } : k));
   const keys = left ? mirrored(keysR) : keysR;

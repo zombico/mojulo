@@ -45,7 +45,7 @@ import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { outlineMeasures, outlineCritic } from '@/lib/graph/polygonizer/dress-outline';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
 import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
-import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, takesLegSet, takesArmLength, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -930,10 +930,17 @@ function tieredDress(plan, hero, target) {
   return dressed.adorn?.length ? { ...dressed, adorn: tierKit(tieredKit(dressed.adorn, dressed), dressed, target ?? DEFAULT_TARGET).kit } : dressed;
 }
 /** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
- * packed); absent ⇒ the plan as it was */
+ * packed); absent ⇒ the plan as it was. A vault on a leg the hero laws set back (LEG_SET, laws 3) says `legSet`, and a
+ * guard on an arm they shortened (ARM_LENGTH, laws 5) says `armLength`: the moves follow the body they were built on,
+ * and a hero minted before those laws gets neither, its clips as they were. */
 function withLocomotion(hero, plan) {
   const locomotion = plan?.rig ? motionPlan(hero.motion) : null;
-  return locomotion ? { ...plan, locomotion } : plan;
+  if (!locomotion) return plan;
+  const body = { core: hero.core ?? DEFAULT_CORE, laws: hero.laws ?? 1 };
+  const legSet = takesLegSet(body), armLength = takesArmLength({ ...body, cast: hero.cast ?? 'male', proportions: hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero') });
+  if (!legSet && !armLength) return { ...plan, locomotion };
+  const marked = Object.fromEntries(Object.entries(locomotion).map(([n, e]) => [n, e.vault && legSet ? { ...e, legSet: true } : e.guard && armLength ? { ...e, armLength: true } : e]));
+  return { ...plan, locomotion: marked };
 }
 /** A hand that holds gear (gear.right / gear.left: a blade's or a staff's grip, a shield's back grip) closes round it:
  * every clip key that says nothing of that hand's fingers takes the `grip` hand word, on a rig whose hands have digits

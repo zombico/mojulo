@@ -45,6 +45,9 @@ export const VAULTS = Object.freeze({
     fall: 0.32,
     flight: [{ name: 'tuckTrail', at: 0.45, words: { hinge: 16, ...legs(65, 60, 10, 115), ...arms(70, 30, 40, 40), head: { pitch: 10 } } }],
     land: { hipR: { pitch: 15 }, kneeR: 115 },
+    // on a leg set back (hero-form LEG_SET, laws 3) the trailing foot hangs further back and lower: tucked tighter, it
+    // clears the far edge (heroVault's `legSet`)
+    legSet: { flight: [{ name: 'tuckTrail', at: 0.45, words: { hinge: 16, ...legs(65, 60, 10, 125), ...arms(70, 30, 40, 40), head: { pitch: 10 } } }] },
   },
   // THE SPEED VAULT: off the left foot, the right knee driving, the body turning to the right and reclining onto the
   // left hand on the top; the legs go over together beside it, the hand pushes off, the right foot lands and runs out.

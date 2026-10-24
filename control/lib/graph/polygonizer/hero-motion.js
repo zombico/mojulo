@@ -38,6 +38,7 @@ import { faceColorLinear } from '../figures/face-mesh.js';
 import { boneFrames } from './station-loft-rig.js';
 import { heroRise } from './hero-rise.js';
 import { REACTS, heroReact } from './hero-react.js';
+import { armReach } from './hero-form.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -473,19 +474,23 @@ export function stampHeroMotion(motion) {
   }));
 }
 
+/** the arm's shortening on a rig whose arm took hero-form ARM_LENGTH: its whole length over the length before (4 places) */
+const armReachOf = (R) => { const J = R.joints, d = (a, b) => Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); return Math.round(armReach(d('shoulderR', 'elbowR'), d('elbowR', 'wristR')) * 1e4) / 1e4; };
 /**
  * A recipe's `locomotion` compiled on its rig: the clips (functions the rig pack samples, each `keys` frames a cycle), their
  * seconds and their ground speeds. Throws naming the gait when one cannot be baked.
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard, legSet, armLength }] of Object.entries(locomotion || {})) {
     if (hold || guard) {
       // a held thing: a hold eases from the stand into the solved hold (hero-carry heroHold: the pose its effort answers),
       // a guard plays its own clip (hero-grip heroGuard: the stance entered, the arms closing); one-shot. `held` rides the
       // clip (what is held, the hands, a hold's mass and perceived effort, the laws) and `props(dz)` its things at rest on
       // their hand's bone, for the pack (the gear's own seating: gearPackParts; a carried box, carryTriangles)
-      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}`, () => (hold ? heroHold(name, R) : heroGuard(name, R, { seconds: s }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      // (a guard on an arm that took hero-form ARM_LENGTH, laws 5: its places drawn in by the arm's shortening)
+      const reach = guard && armLength ? armReachOf(R) : 1;
+      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}${reach !== 1 ? `|${reach}` : ''}`, () => (hold ? heroHold(name, R) : heroGuard(name, R, { seconds: s, ...(reach !== 1 ? { reach } : {}) }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const fn = hold ? easeInto(X.pose, R) : ((t) => X.clip.fn(t)), T = hold ? s : X.clip.seconds ?? s;
       const K = Math.max(keys, Math.round(T * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
@@ -513,7 +518,7 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       // (the gait's phase and foot, metres from the near face and past the far), the run it covers, the flights, its laws
       const V = VAULTS[vault], gait = from ?? V.from[0], band = V.band[gait], hip = R.joints.pelvisHub[2], r3 = (x) => Math.round(x * 1e3) / 1e3;
       const box = { h: h ?? r3(((band[0] + band[1]) / 2) * hip), d: d ?? r3((V.depth[0] + V.depth[1]) / 2), w: w ?? 1.5 };
-      let X; try { X = solvedOnce(`vault|${rigKey(R)}|${name}|${JSON.stringify([box, gait, s])}`, () => heroVault(left ? `${vault}Left` : vault, R, { ...box, from: gait, seconds: s })); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      let X; try { X = solvedOnce(`vault|${rigKey(R)}|${name}|${JSON.stringify([box, gait, s])}${legSet ? '|legSet' : ''}`, () => heroVault(left ? `${vault}Left` : vault, R, { ...box, from: gait, seconds: s, ...(legSet ? { legSet } : {}) })); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const K = Math.max(keys, Math.round(X.seconds * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, X.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
