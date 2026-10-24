@@ -35,7 +35,8 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
 - **Re-sampled parts:** `torso`, `neck`, `pelvis`, `upperArmR/L`, `foreArmR/L`, `thighR/L`, `shankR/L`, `footR/L`,
   `toesR/L`. Each is a
   closed part with `slots = ringSlots(N)` (`'front'`, `s01R` … down the right, `'back'`, … `s01L`; N = 48 round the male
-  torso, 64 the female, 32 the neck, 24 the arms and the shank, 32 the thigh, 72 the foot, 64 the toes) and stations whose `u` keeps the authored
+  torso, 64 the female, 32 the neck, 24 the arms and the shank (32 under realistic laws 4, as the thigh: the knee's
+  ring is shared), 32 the thigh, 72 the foot, 64 the toes) and stations whose `u` keeps the authored
   address: an integer station is `st<k>`, a fractional one `st<a>_st<b>_<mmm>` (`mmm` the fraction in thousandths, three
   digits; the authored plan's own fractional ids are in hundredths, `st1_st2_50`). `slotT` is dropped. The left limb is
   the right's mirror, slot for slot (R ↔ L). The bind's blends are per slot (`<station>.<slot>`).
@@ -46,6 +47,10 @@ height?, laws }` (each dial −1 to 1; a word patched in by path reads as `{ fro
   the foot to the big toe's tip. The soles flat on the authored shoe's lowest point (the ground the gaits plant). The
   foot's points near the shank's skin or over the level carry the shank's own shares, the toe base a hinge band (the
   foot's bone and the toes', no fold). Their `group` is the shoe's (`Shoes`) still.
+- **The hinges (realistic laws 4):** the knee and the elbow are stitched. The upper segment's last ring and the lower's
+  first are one ring at the joint's plane, the same points, so the two shells are one surface and the shading welds
+  across it (`formSlice` `stitch`). Before laws 4 the two overlapped across the plane, the upper's skin tucked inside
+  past it.
 - **Kept authored:** the head, the hands. Under a physique with bulk the hands and their joints are scaled
   about the wrist (`build.hands`).
 - **Rig additions:** joints `scapulaAcr<S>`, `scapulaSup<S>`, `scapulaInf<S>`, bone `scapula<S>`; the folds

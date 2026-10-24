@@ -32,8 +32,18 @@ adductors' origin under the groin, and every limb mass joined in a tight crease.
 - Measured on his limbs: the pinch over the knee 1.8 cm (was 5.3), the wrist 18.7 cm against a 30 cm belly (0.62), the
   forearm's steepest fall 1.5 cm per cm (was 2.4), the pinch under the knee 0.6 cm (was 1.4); hers 2.5 at the thigh's
   top (was 4.2 over her knee), the wrist 0.59 of her forearm.
-- Not here: the shading seam where one part meets the next (the knee, the elbow, the wrist, the shoulder) and the hip's
-  line, which still read the segments; they are the slice's, not the builds'.
+- The knee and the elbow STITCHED (body-relational.js formSlice `stitch`): the upper segment's last ring and the lower's
+  first are one ring at the joint's plane, the same points (the shank rung 32 round, as the thigh), so the two shells
+  are one surface and the shading welds across it. Handed over by overlapping across the plane, the upper's skin tucked
+  3 mm inside past it, the two skins crossed nearly flat with each its own facets, and every knee and elbow wore a
+  jagged line in the light; a steeper tuck did not clear it (the rings stand 1.4 to 2 cm apart, so the crossing is a
+  facet wide wherever it falls). The stitched end's cap turns back into its own segment. The shared ring keeps the
+  segment's end address (the upper's last station, the lower's first), so dress and armour addressed up to a limb's end
+  (an elbow's plate) still land on it. The gi's sleeve, copied off the arm, stretches 4.8 cm over a sprint's bent elbow
+  (3.2 under the round-out alone, the sleeve smooth there): its test's bound is 5 cm, a spike still tens of centimetres.
+- Not yet: a knee bent past about 100° (the sprint's) folds behind, the thigh's skin passing through the calf's (the
+  blend of the hinge's bones, as before, where the overlap hid a little more of it): a flexion corrective, as the
+  shoulder's, is the fix. The wrist's, the shoulder's and the hip's handovers keep their own seams.
 - A realistic hero stored before keeps its laws and its limbs.
 
 ### The game body's head seated on its neck

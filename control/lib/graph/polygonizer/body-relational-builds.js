@@ -377,6 +377,10 @@ export function physique(build, dials = 'athletic') {
  */
 export const ROUND_OUT = Object.freeze({
   kLimb: 1.35,
+  // the hinges' segments stitched on one ring at the joint's plane (body-relational.js formSlice `stitch`), the shank
+  // rung as the thigh is so the ring is shared point for point
+  stitch: Object.freeze([Object.freeze(['thigh', 'shank']), Object.freeze(['upperArm', 'foreArm'])]),
+  around: Object.freeze({ shank: 32 }),
   limbs: Object.freeze({
     // the forearm: the bone fuller at the wrist and the wrist's mass a little longer and flatter (wider than deep), the
     // bellies reaching further toward the wrist, so the forearm tapers instead of stepping down to a stalk
@@ -414,5 +418,6 @@ function roundMass(m, e) {
 export function roundOut(build) {
   const R = ROUND_OUT;
   const limbs = Object.fromEntries(Object.entries(build.limbs).map(([k, L]) => [k, R.limbs[k] ? { ...L, masses: L.masses.map((m) => (R.limbs[k][m.id] ? roundMass(m, R.limbs[k][m.id]) : m)) } : L]));
-  return { ...build, kLimb: build.kLimb * R.kLimb, limbs };
+  const rung = Object.fromEntries(Object.entries(limbs).map(([k, L]) => [k, R.around[k] ? { ...L, around: R.around[k] } : L]));
+  return { ...build, kLimb: build.kLimb * R.kLimb, limbs: rung, stitch: R.stitch };
 }
