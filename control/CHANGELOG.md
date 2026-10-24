@@ -45,8 +45,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (refused now).
 - The face roll's hairline is held to the skin's own range (face-compose.js): the male band reached under the dermis's
   0.8, and a face rolled there was refused at mint. The dice are drawn as before, so every other face is as it was.
-- Still open: the shut lid's fold creases where the upper lid's crease folds under itself, and the hair's per-target
-  budget is unchanged.
+- THE HEAD'S BUDGET BY ITS SIZE ON SCREEN (laws 2). The hero's `target` sets the head's rung (a head 200 px tall and
+  over L2, 80 and over L1, under that L0), and the whole head follows it, not just the scalp's blades. The skin is
+  simplified to 30k, 18k or 8k faces (hero-one-skin.js `ONE_SKIN_RUNGS`), and the globes are lighter at L0. The coats
+  under the scalp's blades and the beard's are simplified to the rung's count (hero-head-layers.js `HEAD_BUDGET`). The
+  beard is on the scalp's own rung, not one finer, and the brows are shorter blades, with fewer hairs and no twins at
+  L0. A bearded head drawn for 1080p third-person falls from 124k faces to 51k, and an untargeted one from 191k to
+  118k. A hero drawn for no target keeps its skin whole (the eyes gate's). The hair is lit as one volume about the skin
+  it rides: the one skin has no cranium, and the hair had been lit facet by facet. The scalp's strips lose their faces
+  without area (a blade's segment of no length), so the hair passes its audit. The skin's count rides the head's fit,
+  so what is pinned to it is never worn on another count's faces.
+- Still open: the shut lid's fold creases where the upper lid's crease folds under itself (the net pinches the fold:
+  it is thinner than a cell).
 
 ### The realistic hero's face: rolled, bounded, aimed
 

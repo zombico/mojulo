@@ -4,6 +4,7 @@
 // realistic mint takes seconds.)
 import { describe, it, expect } from 'vitest';
 import { compileLayered, auditLayered } from './station-loft.js';
+import { ONE_SKIN_RUNGS } from './hero-one-skin.js';
 
 import { heroDermisSpec } from '../epidermis/dermal-hero.js';
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, withFaceFit, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
@@ -144,6 +145,13 @@ describe('the realistic hero at the door', () => {
     expect(m.recipe.parts.torso.slots).toEqual(bare.recipe.parts.torso.slots);
     const A = auditLayered(compileLayered(m.recipe, m.dials));
     expect(Object.entries(A).filter(([, a]) => a && a.pass === false).map(([k]) => k)).toEqual([]);
+    // (the head's BUDGET on the target's rung, realistic laws 2: a 1080p third-person head is ~50 px tall, L0; its skin,
+    // its globes and its hair's coats lighter, the whole head under half the untargeted one's)
+    const faces = (r, re) => { const C = compileLayered(r.recipe, r.dials); return C.faces.filter((t) => re.test(C.provenance[t[0]].part)).length; };
+    const HEAD = /^(headSkin|globe[RL]|mouth|ear[RL]|hair\w*|jewel\w*)$/;
+    expect(m.recipe.headFit.skinFaces).toBe(ONE_SKIN_RUNGS.L0.faces); expect(bare.recipe.headFit.skinFaces).toBeUndefined();
+    expect(faces(m, /^headSkin$/)).toBeLessThan(ONE_SKIN_RUNGS.L0.faces * 1.15);
+    expect(faces(m, HEAD)).toBeLessThan(faces(bare, HEAD) / 2);
   }, 300_000);
   it('its face\'s own fit: worn while it is the fit of its words, the pole\'s once they change', () => {
     const spec = withFaceFit({ form: 'realistic', cast: 'male', face: { seed: 4, ethnicity: 'western' } });

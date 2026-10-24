@@ -575,7 +575,9 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
     parts.earR = R; parts.earL = withNormals(mirrorPart(R, { ...R, bind: { bone: 'head' } }), (q) => fE([-q[0], q[1], q[2]]));
   }
   for (const d of Object.values(r.dials || {})) if (Array.isArray(d.parts)) d.parts = d.parts.filter((n) => parts[n] || !HEADS.includes(n));
-  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}), skin: 'one' };
+  // (the skin's own density when a target set it: what is pinned to its faces is kept by the fit, and must not be worn
+  // on another count's faces)
+  r.headFit = { sex, k: r6(k), ty: r6(ty), men: r6(men), ...own, ...(own_ ? { tune: own_ } : {}), skin: 'one', ...(opts.oneSkin?.faces ? { skinFaces: opts.oneSkin.faces } : {}) };
   const J = r.rig.joints, at = (name, p) => { if (J[name]) J[name] = Array.isArray(J[name]) ? rp(p) : { ...J[name], at: rp(p) }; };
   at('jawHinge', [0, cd[1], cd[2]]); at('jawTip', toHero(P.gn));
   return r;

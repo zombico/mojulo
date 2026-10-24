@@ -36,6 +36,15 @@ export const ONE_SKIN = Object.freeze({
   bag: { gap: 0.001, depth: 0.026, height: 0.024, wide: 0.004, rings: 10, slots: 24 },
 });
 
+/** the one skin by the head's rung on screen (dermal-hair.js `hairLevel`, from the hero's target: L2 a head 200 px tall
+ * and over, L1 80 and over, L0 under): its faces and its globes', over ONE_SKIN. A hero drawn for no target wears
+ * ONE_SKIN as it is (a hero's export: the eyes gate's) */
+export const ONE_SKIN_RUNGS = Object.freeze({
+  L2: Object.freeze({ faces: 30000 }),
+  L1: Object.freeze({ faces: 18000 }),
+  L0: Object.freeze({ faces: 8000, globeSlots: 24, globeRings: Object.freeze({ pupil: 1, iris: 3, sclera: 8 }) }),
+});
+
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const rp = (p) => p.map(r6);

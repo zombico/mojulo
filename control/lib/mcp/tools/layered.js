@@ -87,6 +87,7 @@ import { giJacket, LOOSE_TOPS } from '@/lib/graph/polygonizer/body-relational-gi
 import { wearPieces } from '@/lib/graph/polygonizer/body-relational-wear';
 import { placeSurfaceOffset, surfaceLocalOffset } from '@/lib/graph/polygonizer/surface-pin';
 import { relationalHeadRecipe } from '@/lib/graph/polygonizer/hero-relational-head';
+import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
 import { heroJewellery, heroHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
@@ -234,8 +235,11 @@ function realisticRecipe(recipe, hero) {
   // (the relational head, `head: 'relational'`, swapped in on the sliced body: hero-relational-head.js)
   if (hero.head !== 'relational') return S;
   // (realistic laws 2: the head as ONE SKIN, hero-one-skin.js; laws 1 the pieces)
-  const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1;
-  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: laws >= 2 });
+  // (and under laws 2 the head's whole BUDGET by its size on screen: the skin, the globes, the hair's coats, the beard
+  // and the brows on the target's rung; a hero drawn for no target its skin whole: hero-one-skin.js ONE_SKIN_RUNGS,
+  // hero-head-layers.js HEAD_BUDGET)
+  const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
+  const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null });
   // THE FACE'S PIERCINGS on its head (hero-head-layers.js): the composed face's, pinned to the visage, their metals'
   // colours under the palette's own
   if (!face || !H.headFit) return H;
@@ -247,12 +251,12 @@ function realisticRecipe(recipe, hero) {
   const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
   // (the hair's rung on the grass's ladder by the head's size on screen: the hero's target, else a third of the blades)
   const level = heroHairLevel(hero);
-  if (scalp) wear(hairOf(H, dermis, scalp, level));
+  if (scalp) wear(hairOf(H, dermis, scalp, level, one));
   // THE FACE'S HAIR (hero-head-layers.js heroFaceHair): a styled beard curling by the scalp's type, the brows and the
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level }));
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}) }));
   return out;
 }
 /** the realistic face's SCALP groom: its ancestry's (dermal-looks.js readAncestry), the composed cut in its place when the
@@ -278,10 +282,10 @@ function faceHairOf(S, dermis, opts) {
   return H;
 }
 /** a head's hair cards, kept by its fit, its dermis and its groom (growing them costs seconds) */
-function hairOf(S, dermis, scalp, level) {
-  const key = JSON.stringify([S.headFit, dermis, scalp, level]);
+function hairOf(S, dermis, scalp, level, budget = false) {
+  const key = JSON.stringify([S.headFit, dermis, scalp, level, budget]);
   let H = HAIRS.get(key);
-  if (!H) { H = heroHair(S, dermis, scalp, { level }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = heroHair(S, dermis, scalp, { level, budget }); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -297,13 +301,13 @@ function jewelleryOf(S, piercings) {
   if (!J) { J = heroJewellery(S, piercings); JEWELS.set(key, J); if (JEWELS.size > 16) JEWELS.delete(JEWELS.keys().next().value); }
   return J;
 }
-function relationalHeadOn(S, sex, face = null, { oneSkin = false } = {}) {
+function relationalHeadOn(S, sex, face = null, { oneSkin = false, rung = null } = {}) {
   const own = face ? { relations: face.relations, eyes: face.eyes, ...(face.tune ? { tune: face.tune } : {}) } : {};
-  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin]);
+  const key = JSON.stringify([S.parts.neck, S.parts.cranium, S.parts.jaw, S.rig.joints, sex, own, oneSkin, rung]);
   let d = HEADS.get(key);
   if (d) { HEADS.delete(key); HEADS.set(key, d); }
   else {
-    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin });
+    const r = relationalHeadRecipe(S, { sex, ...own, oneSkin, ...(rung ? { opts: { oneSkin: ONE_SKIN_RUNGS[rung] } } : {}) });
     d = {
       parts: Object.fromEntries(Object.entries(r.parts).filter(([k, p]) => JSON.stringify(p) !== JSON.stringify(S.parts[k]))),
       removed: Object.keys(S.parts).filter((k) => !r.parts[k]), creases: r.creases, dropped: Object.keys(S.dials || {}).filter((k) => !r.dials?.[k]), joints: r.rig.joints, headFit: r.headFit,
