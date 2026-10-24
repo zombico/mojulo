@@ -6,14 +6,15 @@
  * leant as the form holds its leaves. Far, the lobes' cores alone carry the tree: its silhouette the branches' own.
  *
  *   LEAF_FORMS                       the forms: spray, plate, weep, tuft, whorl
- *   LEAF_SPECIES                     a species' form (oak a spray, beech plates, willow weeps, pine tufts, schefflera
- *                                      whorls): what a biocube names (`flora.trees.species`), a species or a form
- *   leafFormOf(name)                 → the form a species or form name grows, or null
+ *   TREE_KIND_KEYS                   a tree kind's settings (a biocube's `flora.trees.kinds`, era/biocube.js): a form,
+ *                                      its proportions and the colours it takes from the theorist's offer
+ *   readKind(kind)                   a form's name or a kind → the kind ({ form, … })
  *   lobeTris(lobe, { detail, shrink }) → the lobe's skin as triangles (a core's facets)
  *   withinLobe(p, lobe, s)           → whether p lies inside the lobe scaled by s
  *   leafForm(form, tree)             → { limbs: [{ pts, radii }], twigs: [{ pts, radii }], lobes: [lobe] }, a lobe
  *                                      { at, axes: [a, b, c] (metres along u, v, w), frame: [u, v, w], long (unit) }
- *                                      tree: { base: [x, y, z], h, c (the crown's middle), Rc (its radius), seed }
+ *                                      tree: { base: [x, y, z], h, c (the crown's middle), Rc (its radius), seed,
+ *                                      density (its limbs, 1 the form's own) }
  *   formCore(lobes, opts)            → { faces, lobes } the lobes as dark cores (two stops by the sun, as chipCore; `detail`
  *                                      0 for a far tree's, 1 by default), with
  *                                      each lobe's triangles and bounding radius for hollowed (era/isekai.js)
@@ -63,8 +64,19 @@ export const LEAF_FORMS = Object.freeze({
   whorl: Object.freeze({ limbs: [4, 5], rise: [38, 55], reach: 0.8, at: [1], grain: 0.9, lean: [0, 0, 0.2] }),
 });
 export const LEAF_FORM_IDS = Object.freeze(Object.keys(LEAF_FORMS));
-export const LEAF_SPECIES = Object.freeze({ oak: 'spray', beech: 'plate', willow: 'weep', pine: 'tuft', schefflera: 'whorl' });
-export const leafFormOf = (name) => (LEAF_FORMS[name] ? name : LEAF_SPECIES[name] ?? null);
+/**
+ * A TREE KIND: a silhouette and how it is built, composed by whoever makes the level, not looked up from nature.
+ *   form     the silhouette (LEAF_FORMS)
+ *   scale    its height against the level's tree heights (1 as they are)
+ *   trunk    where the crown starts, a share of its height (absent: the kit's crown)
+ *   girth    the trunk's radius, a share of its height (absent: the kit's)
+ *   spread   the crown's radius, a share of its height (absent: the kit's)
+ *   density  its limbs against the form's (1 the form's own)
+ *   leaf     its foliage: 0 the world's, 1..FLORA_OFFER the theorist's offer (era/flora-colours.js)
+ *   bark     its wood: 0 the world's, 1..FLORA_OFFER the theorist's offer
+ */
+export const TREE_KIND_KEYS = Object.freeze(['form', 'scale', 'trunk', 'girth', 'spread', 'density', 'leaf', 'bark']);
+export const readKind = (k) => (typeof k === 'string' ? { form: k } : k);
 
 /** The leaf branches and their lobes for one leaf branch of each form, from where it leaves (`p`), its limb's
  *  heading (`dir`, `az`), its place along the limb (`f`), its index (`j`) and the crown's radius. */
@@ -106,10 +118,11 @@ const GROW = {
 };
 
 /** One tree's limbs, leaf branches and lobes in a form. */
-export function leafForm(form, { base, h, c, Rc, seed = 1 }) {
+export function leafForm(form, { base, h, c, Rc, seed = 1, density = 1 }) {
   const F = LEAF_FORMS[form], grow = GROW[form];
   if (!F) throw new Error(`leaf form '${form}' is not one (${LEAF_FORM_IDS.join(', ')})`);
-  const S = seed | 0, H = (a, b) => hash3(S, a, b + 4801), n = F.limbs[0] + Math.floor(H(1, 1) * (F.limbs[1] - F.limbs[0] + 1)), yaw = 2 * Math.PI * H(2, 1);
+  const S = seed | 0, H = (a, b) => hash3(S, a, b + 4801), n0 = F.limbs[0] + Math.floor(H(1, 1) * (F.limbs[1] - F.limbs[0] + 1)), yaw = 2 * Math.PI * H(2, 1);
+  const n = density === 1 ? n0 : Math.max(2, Math.round(n0 * density));
   const limbs = [], twigs = [], lobes = [];
   // (the fork low in the crown; a plate's limbs leave the trunk in tiers, so its plates stand one over another)
   const fork = [c[0], c[1], c[2] - 0.45 * Rc];

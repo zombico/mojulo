@@ -10,9 +10,10 @@
  *                  The tree's form (a blob's masses, bamboo, blossom) stays the kit's. `compose: 'ikebana'` arranges each
  *                  clump (nature.js arrangedClump); `bands` (true or { hero, far, stock }) builds a tree by how far it
  *                  stands from the trail (isekai.js treeBands): whole near it, stamped from templates, a shell far.
- *                  `species` (a list of species or leaf forms, era/leaf-forms.js LEAF_SPECIES) is what the level's
- *                  trees are: each clump one of them, its crown grown as that species' leaf branches on a gritty land
- *                  (a quiet land keeps the balls)
+ *                  `kinds` (1 to 6) are what the level's trees are, as composed for it: each a leaf form's name or
+ *                  { form, scale, trunk, girth, spread, density, leaf, bark } (era/leaf-forms.js TREE_KIND_KEYS), its
+ *                  colours picked from the theorist's offer (era/flora-colours.js); each clump one kind, its crown
+ *                  grown as that kind's leaf branches on a gritty land (a quiet land keeps the balls)
  *   flora.grass    { clusters, perCluster, spacing, scatter, fringeEvery, height: [lo, hi] m, kinds?, field? } | null
  *                  the card's `grass` (nature.js grassTufts: `clusters` tussock groups of `perCluster` tufts `spacing`
  *                  m apart, `scatter` a loose share, a tuft every `fringeEvery` m along the trail's fringe; `kinds` the
@@ -33,7 +34,8 @@
 import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { validateShrubs } from './shrubs.js';
-import { LEAF_FORM_IDS, LEAF_SPECIES, leafFormOf } from './leaf-forms.js';
+import { LEAF_FORMS, LEAF_FORM_IDS, TREE_KIND_KEYS } from './leaf-forms.js';
+import { FLORA_OFFER } from './flora-colours.js';
 
 const no = (m) => { throw new Error(`biocube: ${m}`); };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -75,12 +77,27 @@ const int = (v, lo, hi, at) => { if (!(Number.isInteger(v) && v >= lo && v <= hi
 const range = (v, lo, hi, at, whole = false) => { if (!(Array.isArray(v) && v.length === 2 && v.every((x) => (whole ? Number.isInteger(x) : Number.isFinite(x)) && x >= lo && x <= hi) && v[0] <= v[1])) no(`${at} is [lo, hi], ${whole ? 'whole numbers ' : ''}${lo} to ${hi}, lo ≤ hi`); };
 const keys = (o, ok, at) => { for (const k of Object.keys(o)) if (!ok.includes(k)) no(`${at}.${k} is not a setting (${ok.join(', ')})`); };
 
+// a level's tree kinds (era/leaf-forms.js): a form's name, or a form with its proportions and its colours' picks
+function checkKinds(kinds) {
+  if (!(Array.isArray(kinds) && kinds.length >= 1 && kinds.length <= 6)) no(`flora.trees.kinds is a list of 1 to 6 tree kinds, each a leaf form (${LEAF_FORM_IDS.join(', ')}) or { ${TREE_KIND_KEYS.join(', ')} }`);
+  kinds.forEach((k, i) => {
+    const at = `flora.trees.kinds[${i}]`, form = typeof k === 'string' ? k : isObj(k) ? k.form : undefined;
+    if (!LEAF_FORMS[form]) no(`${at}${typeof k === 'string' ? '' : '.form'} is a leaf form (${LEAF_FORM_IDS.join(', ')})`);
+    if (typeof k === 'string') return;
+    keys(k, TREE_KIND_KEYS, at);
+    if (k.scale !== undefined) num(k.scale, 0.4, 2, `${at}.scale`);
+    if (k.trunk !== undefined) num(k.trunk, 0.15, 0.8, `${at}.trunk`);
+    if (k.girth !== undefined) num(k.girth, 0.015, 0.12, `${at}.girth`);
+    if (k.spread !== undefined) num(k.spread, 0.12, 0.6, `${at}.spread`);
+    if (k.density !== undefined) num(k.density, 0.4, 2.5, `${at}.density`);
+    for (const c of ['leaf', 'bark']) if (k[c] !== undefined) int(k[c], 0, FLORA_OFFER, `${at}.${c} (0 the world's, 1 to ${FLORA_OFFER} the theorist's offer)`);
+  });
+}
+
 function checkTrees(t) {
   if (!isObj(t)) no('flora.trees is { clusters, perCluster, spread, heights, clearTrail, clearCliff, crown?, hero? }');
-  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'species'], 'flora.trees');
-  if (t.species !== undefined && !(Array.isArray(t.species) && t.species.length >= 1 && t.species.length <= 6 && t.species.every((n) => leafFormOf(n)) && new Set(t.species).size === t.species.length)) {
-    no(`flora.trees.species is a list of 1 to 6 species (${Object.keys(LEAF_SPECIES).join(', ')}) or leaf forms (${LEAF_FORM_IDS.join(', ')}), none twice`);
-  }
+  keys(t, ['clusters', 'perCluster', 'spread', 'heights', 'clearTrail', 'clearCliff', 'crown', 'hero', 'compose', 'bands', 'kinds'], 'flora.trees');
+  if (t.kinds !== undefined) checkKinds(t.kinds);
   if (t.compose !== undefined && t.compose !== 'ikebana' && t.compose !== false) no("flora.trees.compose is 'ikebana' (a clump arranged: era/nature.js arrangedClump) or false (scattered)");
   if (t.bands !== undefined && t.bands !== true && t.bands !== false) {
     if (!isObj(t.bands)) no('flora.trees.bands is true or { hero?, far?, stock? } (era/isekai.js treeBands)');
@@ -159,9 +176,9 @@ export function readBiocube(spec) {
 
 /** A kit card with the cube's flora laid over it: its trees and grass in the card's own keys (a grass of null: none). */
 export function withFlora(card, cube) {
-  const F = cube.flora, { species, ...T } = F.trees, G = F.grass;
-  // (the cube's species go to the card as its trees' `leaves`: a nature card's own `species` names its plant pool)
-  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(species ? { leaves: species } : {}) };
+  const F = cube.flora, { kinds, ...T } = F.trees, G = F.grass;
+  // (the cube's tree kinds go to the card as its trees' `leafKinds`)
+  const trees = { ...card.trees, ...T, ...(T.crown ? { crown: { ...card.trees?.crown, ...T.crown } } : {}), ...(kinds ? { leafKinds: kinds } : {}) };
   if (T.hero === null) trees.hero = null;
   const { live: GL, ...G0 } = G ?? {};
   const grass = G === null || !card.grass ? null : { ...card.grass, ...G0, kinds: { ...card.grass.kinds, ...(G.kinds ?? {}) }, ...(G.field === undefined ? {} : { field: G.field }) };

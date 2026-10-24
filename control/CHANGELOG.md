@@ -24,12 +24,19 @@ and leant as the form holds its leaves; far, the lobes' cores alone carry the tr
 - **The forms**: `spray` (lobes strung along twigs, the leaves fanned along them), `plate` (flat level discs in tiers
   round the trunk), `weep` (long drops hanging from arching limbs), `tuft` (small upright brushes at bare limbs' tips),
   `whorl` (a ring of level spokes round each limb's end); the gallery is `scripts/spikes/geotown/leaf-forms.mjs`.
-- **A level's trees are its species.** A biocube's `flora.trees.species` lists them (1 to 6): a species (`oak` a
-  spray, `beech` plates, `willow` weeps, `pine` tufts, `schefflera` whorls; `LEAF_SPECIES`) or a form by name. Each
-  clump is one of them, by its dice; a cube carries the species it wants in its own biocube. On a gritty land each
-  tree grows its species' crown: a hero whole, the stock stamped from a template for each species and variant, a far
-  tree its cores coarse and no twigs. A quiet land keeps the balls, and a level that names no species is as it was.
-  The level side by side: `scripts/spikes/geotown/species.mjs`.
+- **A level's trees are kinds it composes**, not species looked up from nature. A biocube's `flora.trees.kinds` lists
+  1 to 6: a form's name, or `{ form, scale, trunk, girth, spread, density, leaf, bark }` (`TREE_KIND_KEYS`): the
+  silhouette, how tall it stands against the level's heights, where its crown starts, its trunk's girth, its crown's
+  spread, its limbs against the form's, and the colours it picks. Each clump is one kind, by its dice; a cube carries
+  the kinds it wants in its own biocube. On a gritty land each tree grows its kind's crown: a hero whole, the stock
+  stamped from a template for each kind and variant, a far tree its cores coarse and no twigs. A quiet land keeps the
+  balls, and a level that names no kinds is as it was.
+- **The colour theorist offers the trees their colours** (`era/flora-colours.js`): from the world's own foliage, grass,
+  rock and soil, three more foliage colours (deep, young, turned toward the accent or autumn's warm), each kept apart
+  from the grass and from each other, and three barks (warm from the soil, pale from the rock, a cool near-black).
+  A kind's `leaf` and `bark` pick from the offer (0 the world's own); which tree takes which is the composition's. Its
+  crown's core and chips stand in the picked foliage, its wood is baked from the picked bark and locked to its ramp.
+  The level side by side, with the offer as swatches: `scripts/spikes/geotown/kinds.mjs`.
 
 ### Faster gritty builds, and the tests that build them
 

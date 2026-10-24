@@ -8,7 +8,8 @@ import { readBiocube, withFlora, BIOCUBE_IDS } from './biocube.js';
 import { outTrailSite } from './out-trail.js';
 import { assembleStageScene } from './stage.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
-import { LEAF_SPECIES, LEAF_FORMS } from './leaf-forms.js';
+import { floraColours, floraRamps, FLORA_OFFER } from './flora-colours.js';
+import { deltaE, lchOf } from '../color-theorist/oklab.js';
 import { readGeocube } from './geocube.js';
 
 const lobe = (at, r, id) => {
@@ -85,31 +86,53 @@ describe('a forest\'s clumps and bands', () => {
   });
 });
 
-describe('a forest grown as its species (leaf-forms.js)', () => {
-  const species = ['oak', 'willow'], M = { kind: 'stage', kit: 'isekai-meadow', trail: {}, biocube: { from: 'forest', flora: { trees: { species } } } };
+describe('a forest grown as its tree kinds (leaf-forms.js, flora-colours.js)', () => {
+  const kinds = ['weep', { form: 'plate', scale: 1.3, trunk: 0.6, leaf: 2, bark: 2 }], M = { kind: 'stage', kit: 'isekai-meadow', trail: {}, biocube: { from: 'forest', flora: { trees: { kinds } } } };
   const site = outTrailSite(withFlora(ISEKAI_STYLES['isekai-meadow'], readBiocube('forest')), {}, 1);
 
-  it('grows each clump one species on a gritty land: a template for each species and variant, its crown lobes and chips', () => {
+  it('grows each clump one kind on a gritty land: a template for each kind and variant, its crown lobes and chips', () => {
     const P = assembleStageScene({ ...M, shading: { grit: 0.7 } }, {});
-    expect(P.repeats.length).toBe(species.length * TREE_BANDS.stock);
-    // (every stock tree stamped once, from a template of its own species)
+    expect(P.repeats.length).toBe(kinds.length * TREE_BANDS.stock);
+    // (every stock tree stamped once, from a template of its own kind)
     const trees = treeItems(withFlora(ISEKAI_STYLES['isekai-meadow'], readBiocube(M.biocube)), site, 1), d = (t) => site.trailDist(t.x, t.y) - site.halfWAt(t.y);
     expect(P.repeats.reduce((a, r) => a + r.transforms.length, 0)).toBe(trees.filter((t) => !t.hero && d(t) >= TREE_BANDS.hero && d(t) <= TREE_BANDS.far).length);
     expect(P.repeats.every((r) => r.template.some((f) => f.group === 'isekai:chips') && r.template.some((f) => f.group === 'isekai:core'))).toBe(true);
-    // (a willow's lobes hang: some core long and upright in the level, as no ball is)
-    const tall = (f) => Math.abs(f.normal[2]) < 0.2;
-    expect(P.faces.filter((f) => f.group === 'isekai:core').some(tall)).toBe(true);
+    // (the weep's lobes hang: some core long and upright, as no ball is; the plate's crown in the young leaf it picked)
+    expect(P.faces.filter((f) => f.group === 'isekai:core').some((f) => Math.abs(f.normal[2]) < 0.2)).toBe(true);
+    const young = floraRamps(ISEKAI_STYLES['isekai-meadow'].palette)['foliage-2'].map((c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''));
+    const all = [...P.faces, ...P.repeats.flatMap((r) => r.template)];
+    expect(all.some((f) => f.group === 'isekai:core' && young.includes(f.fill))).toBe(true);
+    // (no face carries the lock's working key out)
+    expect(all.some((f) => f._ramp !== undefined)).toBe(false);
   }, 90000);
 
-  it('a quiet land keeps the balls; it reads its species by name and refuses what is not one', () => {
+  it('a quiet land keeps the balls; it reads its kinds and refuses what is not one', () => {
     const quiet = { ...M, shading: true }, plain = { ...quiet, biocube: 'forest' };
     expect(JSON.stringify(assembleStageScene(quiet, {}))).toBe(JSON.stringify(assembleStageScene(plain, {})));
-    expect(readBiocube(M.biocube).flora.trees.species).toEqual(species);
-    expect(Object.values(LEAF_SPECIES).every((f) => LEAF_FORMS[f])).toBe(true);
-    expect(readBiocube({ from: 'forest', flora: { trees: { species: ['plate', 'pine'] } } }).flora.trees.species).toEqual(['plate', 'pine']);
-    expect(() => readBiocube({ from: 'forest', flora: { trees: { species: ['baobab'] } } })).toThrow(/oak, beech, willow, pine, schefflera/);
-    expect(() => readBiocube({ from: 'forest', flora: { trees: { species: ['oak', 'oak'] } } })).toThrow(/none twice/);
-    // (a cube carries the species it wants in its own biocube)
-    expect(readGeocube({ from: 'limestone-crags', biocube: { from: 'forest', flora: { trees: { species: ['beech', 'pine'] } } } }).biocube.flora.trees.species).toEqual(['beech', 'pine']);
+    expect(readBiocube(M.biocube).flora.trees.kinds).toEqual(kinds);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: ['oak'] } } })).toThrow(/spray, plate, weep, tuft, whorl/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', leaf: 7 }] } } })).toThrow(/leaf/);
+    expect(() => readBiocube({ from: 'forest', flora: { trees: { kinds: [{ form: 'weep', colour: 'red' }] } } })).toThrow(/colour is not a setting/);
+    // (a cube carries the kinds it wants in its own biocube)
+    expect(readGeocube({ from: 'limestone-crags', biocube: { from: 'forest', flora: { trees: { kinds: ['plate', { form: 'tuft', bark: 3 }] } } } }).biocube.flora.trees.kinds).toHaveLength(2);
   }, 90000);
+});
+
+describe('the theorist\'s offer to the trees (flora-colours.js)', () => {
+  it('offers foliage apart from the grass and each other, and barks from the world\'s soil and rock', () => {
+    const pal = ISEKAI_STYLES['isekai-meadow'].palette, mid = (r) => r[Math.floor(r.length / 2)];
+    const O = floraColours({ foliage: mid(pal.foliage), grass: mid(pal.grass), rock: mid(pal.rock), soil: mid(pal.soil) });
+    expect(O.leaves).toHaveLength(FLORA_OFFER);
+    expect(O.barks).toHaveLength(FLORA_OFFER);
+    const all = [mid(pal.grass), mid(pal.foliage), ...O.leaves];
+    for (let i = 2; i < all.length; i++) for (let j = 0; j < i; j++) expect(deltaE(all[i], all[j])).toBeGreaterThan(0.04);
+    // (deep under the world's foliage, young over it; the pale bark lighter than the warm and the dark)
+    const L = (c) => lchOf(c)[0];
+    expect(L(O.leaves[0])).toBeLessThan(L(mid(pal.foliage)));
+    expect(L(O.leaves[1])).toBeGreaterThan(L(mid(pal.foliage)));
+    expect(L(O.barks[1])).toBeGreaterThan(Math.max(L(O.barks[0]), L(O.barks[2])));
+    const R = floraRamps(pal);
+    expect(Object.keys(R).sort()).toEqual(['bark-1', 'bark-2', 'bark-3', 'foliage-1', 'foliage-2', 'foliage-3']);
+    expect(R['foliage-1']).toHaveLength(pal.foliage.length);
+  });
 });
