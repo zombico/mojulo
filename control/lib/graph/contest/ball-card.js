@@ -41,6 +41,9 @@ export const BALLS = Object.freeze({
   basketball: { mass: 0.62, radius: 0.12, restitution: rebound(1.3, 1.8), friction: 0.5, aero: null, cited: false, words: 'a basketball' },
   // R&A and USGA: at most 45.93 g, at least 42.67 mm across; e ≈ 0.8 against a hard face at low speed
   golf: { mass: 0.04593, radius: 0.021335, restitution: 0.8, friction: 0.4, aero: null, cited: false, words: 'a golf ball' },
+  // USBC: at most 16 lb (7.26 kg), 8.5 to 8.595 in across (radius 0.108 m); a dead ball on the lane, e ≈ 0.3; the
+  // lane's oil keeps the friction low until the dry back end
+  bowling: { mass: 7.26, radius: 0.108, restitution: 0.3, friction: 0.12, aero: null, cited: false, words: 'a bowling ball' },
   // ITTF: 2.7 g, 40 mm; a rebound of 24 to 26 cm from 30.5 cm reads e ≈ 0.89 to 0.92
   pingpong: { mass: 0.0027, radius: 0.02, restitution: rebound(25, 30.5), friction: 0.3, aero: null, cited: false, words: 'a table-tennis ball' },
 });

@@ -1,16 +1,26 @@
 /**
- * THE COURT MIND — the computer across the net (match-sim.js): plain, seeded, bounded. It serves when its turn comes,
- * reads where the ball will land by running the ball's own physics on a copy (the physics property's integrator, never a
- * guess), runs there after its reaction time, and swings when the ball comes into reach, aiming across the court or down
- * the line by its own habit. Its levels are the mind's skill tiers (lib/graph/mind/vocab.js SKILLS: novice, regular,
- * veteran, ace; held to the same names by the test): the reaction before it moves, the wobble on its aim, how much of
- * the body's speed it uses, and how long it waits to serve.
+ * THE CONTEST MINDS — the computer in a contest: plain, seeded, bounded. Their levels are the mind's skill tiers
+ * (lib/graph/mind/vocab.js SKILLS: novice, regular, veteran, ace; held to the same names by the test): the reaction
+ * before it moves, the wobble on its aim, how much of the body's speed it uses, how long it waits to play.
+ *
+ * THE COURT MIND (match-sim.js): it serves when its turn comes, reads where the ball will land by running the ball's
+ * own physics on a copy (the physics property's integrator, never a guess), runs there after its reaction time, and
+ * swings when the ball comes into reach, aiming across the court or down the line by its own habit.
+ * THE TURN MIND (turn-sim.js): at its seat it plans the shot (the club the lie gives, the speed that carries the
+ * distance left on the verb's arc, or the roll's line to the pocket and its hook), waits its wait, turns the aim with
+ * the stick and releases the press at the meter it wants, each with the level's wobble.
+ * THE POSITIONAL MIND (the seed of the team game's teammates): a role's home region, a mark to stand goal-side of,
+ * the ball to press when near; the point it goes to is always inside what the kernel says is legal.
  *
  *   MIND_LEVELS                       { <level>: { react (s), wobble (a share of the stick), pace (a share of the speed),
  *                                       serveWait (s) } }
  *   newCourtMind(level, seed)          → M (its memory: the level, dice, the target, the reaction left, the last read)
  *   courtMind(M, S, who, ctx, sim)     → { x, y, b } the pad it holds this frame (the player's own frame: y toward the net)
  *   predictLanding(sim, state, id, { steps }) → { at: [x, y], t } where the ball meets the floor, or null (a copy is run)
+ *   newTurnMind(level, seed), turnMind(M, S, ctx) → { x, y, b } the pad at the seat this frame
+ *   fieldTarget({ me, home, legal, ball?, mark?, press? }) → { to: [x, y], why: 'press' | 'mark' | 'home' } the point a
+ *                                       role goes to, clamped into the legal shapes (the kernel's region shapes)
+ *   nearestInside(shape, p)            the point of a rect or circle nearest p (p itself when inside)
  *
  * Pure and seeded: mulberry32 on the mind's own state, so the same match is the same to the byte.
  */
@@ -169,4 +179,89 @@ export function courtMind(M, S, who, ctx, sim) {
     return { x: aimX, y: aimY, b: 1 };
   }
   return { x: stick[0], y: stick[1], b: 0 };
+}
+
+// ── the turn mind ────────────────────────────────────────────────────────────────────────────────────────────
+
+export function newTurnMind(level = 'regular', seed = 1) {
+  if (!MIND_LEVELS[level]) throw new Error(`contest: mind level '${level}' is one of ${MIND_LEVEL_IDS.join(', ')}`);
+  return { level, r: (seed * 2654435761) >>> 0, want: null, wait: 0 };
+}
+
+/**
+ * The shot the mind wants at its seat, read on the sim's own probe (turn-sim.js probeShot: the strike flown on a copy):
+ * the meter bisected until the shot rests at the distance left to the cup along its line (the full meter when nothing
+ * reaches), or the aim bisected until the roll crosses the pin line at the pocket with the hook it likes; the level's
+ * wobble on each.
+ */
+export function planShot(M, S, ctx, probe) {
+  const L = MIND_LEVELS[M.level];
+  const wob = (k) => (mindDice(M) - 0.5) * L.wobble * k;
+  if (ctx.kind === 'strokes') {
+    const b = S.sim.bodies[0], t = ctx.C.rounds[Math.min(S.K.round, ctx.C.rounds.length) - 1].course.regions[ctx.C.turn.holed].circle;
+    const D = Math.hypot(t[0] - b.position[0], t[1] - b.position[1]);
+    const reach = (power) => probe(S, ctx, { power, aim: [0, 0] });
+    const full = reach(0.99);
+    let meter;
+    if (full.holed) meter = 0.99;
+    else if (full.along < D && !full.penalty) meter = 0.99;   // nothing reaches: all of it
+    else {
+      let lo = 0.05, hi = 0.99;
+      for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2, r = reach(mid); if (r.holed) { lo = hi = mid; break; } if (r.along >= D || r.penalty) hi = mid; else lo = mid; }
+      meter = (lo + hi) / 2;
+    }
+    return { x: mr4(wob(0.4)), y: 0, meter: mr4(mclamp(meter + wob(0.5), 0.05, 0.99)) };
+  }
+  // the roll: the hook it likes, the aim bisected so the ball crosses the pin line at the pocket
+  const spots = ctx.sport.pins.spots, pocket = spots[2][0] / 2, hook = mclamp(0.3 + wob(0.6), -1, 1), meter = mclamp(0.85 + wob(0.4), 0.3, 0.99);
+  let lo = -0.6, hi = 0.6;
+  for (let i = 0; i < 8; i++) {
+    const mid = (lo + hi) / 2, r = probe(S, ctx, { power: meter, aim: [mid, hook], yLine: spots[0][1] });
+    const x = r.cross ? r.cross[0] : r.at[0];
+    if (x > pocket) hi = mid; else lo = mid;   // the stick right aims right: a crossing right of the pocket wants less
+  }
+  return { x: mr4(mclamp((lo + hi) / 2 + wob(0.3), -1, 1)), y: mr4(hook), meter: mr4(meter) };
+}
+
+/** The pad at the seat this frame: the aim turned toward the plan, the press held to the meter the plan wants. */
+export function turnMind(M, S, ctx, probe) {
+  const L = MIND_LEVELS[M.level], dt = 1 / 60;
+  if (S.shot || S.dead > 0 || S.over || S.K.phase !== 'turn') { M.want = null; return { x: 0, y: 0, b: 0 }; }
+  if (!M.want) { M.want = planShot(M, S, ctx, probe); M.wait = L.serveWait; }
+  M.wait = Math.max(0, M.wait - dt);
+  if (M.wait > 0) return { x: 0, y: 0, b: 0 };
+  const W = M.want, dx = W.x - S.aim.x;
+  if (Math.abs(dx) > 0.02) return { x: Math.sign(dx), y: W.y, b: 0 };   // turning the aim first
+  // the press: held while the meter climbs to the want, released there (the sim fires on the release)
+  const hold = !S.charge.held || (S.charge.rising && S.charge.meter < W.meter);
+  if (!hold) M.want = null;
+  return { x: 0, y: W.y, b: hold ? 1 : 0 };
+}
+
+// ── the positional mind ──────────────────────────────────────────────────────────────────────────────────────
+
+/** The point of a shape (the kernel's { kind: 'rect', rect } | { kind: 'circle', circle }) nearest p; p when inside. */
+export function nearestInside(sh, p) {
+  if (sh.kind === 'rect') { const [x0, y0, x1, y1] = sh.rect; return [mclamp(p[0], x0, x1), mclamp(p[1], y0, y1)]; }
+  const [cx, cy, r] = sh.circle, d = Math.hypot(p[0] - cx, p[1] - cy);
+  if (d <= r) return [p[0], p[1]];
+  return [cx + ((p[0] - cx) * r) / d, cy + ((p[1] - cy) * r) / d];
+}
+const shapeCentre = (sh) => (sh.kind === 'rect' ? [(sh.rect[0] + sh.rect[2]) / 2, (sh.rect[1] + sh.rect[3]) / 2] : [sh.circle[0], sh.circle[1]]);
+
+/**
+ * Where a role goes: the ball when it is within `press` of me (press it), else goal-side of the mark (a third of the
+ * way from the mark toward home's centre), else home's centre; always inside one of the legal shapes (the nearest
+ * point of the nearest, when the want lies outside them all).
+ */
+export function fieldTarget({ me, home, legal, ball = null, mark = null, press = 0 }) {
+  if (!Array.isArray(me) || !home || !Array.isArray(legal) || !legal.length) throw new Error('contest: fieldTarget is { me: [x, y], home: shape, legal: [shapes], ball?, mark?, press? }');
+  const hc = shapeCentre(home);
+  let want, why;
+  if (ball && press > 0 && Math.hypot(ball[0] - me[0], ball[1] - me[1]) <= press) { want = [ball[0], ball[1]]; why = 'press'; }
+  else if (mark) { want = [mark[0] + (hc[0] - mark[0]) / 3, mark[1] + (hc[1] - mark[1]) / 3]; why = 'mark'; }
+  else { want = hc; why = 'home'; }
+  let best = null, bestD = Infinity;
+  for (const sh of legal) { const q = nearestInside(sh, want); const d = Math.hypot(q[0] - want[0], q[1] - want[1]); if (d < bestD) { bestD = d; best = q; } if (d === 0) break; }
+  return { to: [mr4(best[0]), mr4(best[1])], why, clamped: bestD > 0 };
 }

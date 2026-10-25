@@ -168,6 +168,7 @@ export const PAGE_MARKS = Object.freeze({
   board: m(A, 'the strategy board (board/*: tactics, a maze defence, a skirmish) is the page\'s own: nothing in the kernel plays it'),
   meet: m(A, 'the athletic meet (contest/meet-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel runs it'),
   court: m(A, 'the net game (contest/match-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
+  turns: m(A, 'the turn sport (contest/turn-sim.js, scene/channels/contest.js) is the page\'s own frame simulation: nothing in the kernel plays it'),
   screen: m(P, 'project.godot\'s [display] holds the frame the game is made for (its viewport, stretch and handheld orientation) and an upright screen\'s cameras hold its width (kernel/level.gd); the touch pad and the safe-area zones are the page\'s'),
   runner: m(A, 'the endless run (its lanes, rows, hurdles and crash: worlds/controllable/runner.js) is the page\'s'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),

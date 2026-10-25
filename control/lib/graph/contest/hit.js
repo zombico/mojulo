@@ -48,6 +48,11 @@ export const HIT_VERBS = Object.freeze({
   throw: Object.freeze({ arc: 30, lift: 20, spin: 'back', rate: 5, power: 0.6, hands: 1, swing: null }),
   bat: Object.freeze({ arc: 25, lift: 15, spin: 'back', rate: 30, power: 1.5, hands: 2, swing: 'bat' }),
   putt: Object.freeze({ arc: 0, lift: 0, spin: 'top', rate: 2, power: 0.1, hands: 2, swing: null }),
+  // the turn sports' (turn-sim.js): the club's launch is the verb's arc and backspin, the charge the tip's share; the
+  // bowling roll leaves the hand flat with its hook as the stick's spin
+  drive: Object.freeze({ arc: 11, lift: 5, spin: 'back', rate: 45, power: 1, hands: 2, swing: null }),
+  iron: Object.freeze({ arc: 20, lift: 8, spin: 'back', rate: 70, power: 0.7, hands: 2, swing: null }),
+  roll: Object.freeze({ arc: 0, lift: 0, spin: 'none', rate: 0, power: 0.2, hands: 1, swing: null }),
 });
 export const HIT_VERB_IDS = Object.freeze(Object.keys(HIT_VERBS));
 

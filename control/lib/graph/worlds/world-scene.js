@@ -1238,6 +1238,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { matchArenaData } = await import('@/lib/graph/contest/match-arena.js');
     payload.court = matchArenaData(sketch.manifest.court);
   }
+  // a turn sport on a course (contest/turn-arena.js): the sport, the seats, the register, the contest compiled, the
+  // level wire's names; the page's turns channel plays it. Absent ⇒ nothing (scene/channels/contest.js).
+  if (payload && sketch.manifest.turns && typeof sketch.manifest.turns === 'object') {
+    const { turnsArenaData } = await import('@/lib/graph/contest/turn-arena.js');
+    payload.turns = turnsArenaData(sketch.manifest.turns);
+  }
   // a board over the world's own ground (board/board-scene.js boardOverWorld: a level played as a tactics battle): its
   // spots a layer over the stage, its battle and the figures of who fights it. Absent ⇒ nothing (scene/channels/board.js).
   // (a city's `board` is its plan's street grid, city/plan: never spots)

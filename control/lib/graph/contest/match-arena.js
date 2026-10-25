@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { contestRead } from './contest-kernel.js';
-import { SPORTS, SPORT_IDS } from './sports.js';
+import { SPORTS, MATCH_SPORT_IDS } from './sports.js';
 import { MATCH_REGISTER_IDS } from './match-sim.js';
 import { MIND_LEVEL_IDS } from './contest-mind.js';
 import { ARENA_KITS } from '../versus/versus-arena.js';
@@ -48,7 +48,7 @@ export function readMatch(spec = {}) {
   if (!isObj(spec)) fail('a court is { sport?, players?, register?, level?, sets?, seed?, kit?, look?, crowd?, title? }');
   for (const k of Object.keys(spec)) if (!['sport', 'players', 'register', 'level', 'sets', 'seed', 'kit', 'look', 'crowd', 'title'].includes(k)) fail(`a court has no '${k}' (sport, players, register, level, sets, seed, kit, look, crowd, title)`);
   const M = { ...MATCH_DEFAULTS, ...spec };
-  if (!SPORTS[M.sport]) fail(`sport '${M.sport}' is one of ${SPORT_IDS.join(', ')}`);
+  if (!MATCH_SPORT_IDS.includes(M.sport)) fail(`sport '${M.sport}' is one of ${MATCH_SPORT_IDS.join(', ')} (a net game; a turn sport plays on a course)`);
   if (!(Number.isInteger(M.players) && M.players >= 0 && M.players <= 2)) fail('players is 0 (an exhibition), 1 (against the computer) or 2 (both sides local)');
   if (!MATCH_REGISTER_IDS.includes(M.register)) fail(`register is one of ${MATCH_REGISTER_IDS.join(', ')}`);
   if (!MIND_LEVEL_IDS.includes(M.level)) fail(`level is one of ${MIND_LEVEL_IDS.join(', ')} (the computer's)`);

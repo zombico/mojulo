@@ -19,6 +19,7 @@ import { shootSubjects } from '../shoot/subjects.js';
 import { versusArenaData } from '../versus/versus-page.js';
 import { meetArenaData } from '../contest/meet-arena.js';
 import { matchArenaData } from '../contest/match-arena.js';
+import { turnsArenaData } from '../contest/turn-arena.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
 
@@ -262,6 +263,8 @@ export const EMIT_FIXTURES = [
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned
   ['court', { faces: [floor()], court: matchArenaData({ sport: 'tennis', players: 1 }) }],
+  // turns (a turn sport on a course): the turns block, its own frame step (`stepTurnSport`), the camera owned
+  ['turns', { faces: [floor()], turns: turnsArenaData({ sport: 'bowling', seats: 2, players: 1, rounds: 3 }) }],
   // board (a tactics board over the ground): the board kernel, the tactical camera and the page in one block, its own
   // frame step (`stepBoard`), the camera owned
   ['board', { faces: [floor()], board: boardChannelData(layBoard({ seed: 'fixture', cols: 4, rows: 4 }), { units: [{ id: 'a', side: 'p', at: 'A1' }, { id: 'b', side: 'q', at: 'D4' }] }) }],

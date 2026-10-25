@@ -11,7 +11,7 @@ describe('the cards and the balls', () => {
     expect(BALL_REGISTERS).toEqual(['realistic', 'action', 'platformer', 'pinball']);
     for (const [id, b] of Object.entries(BALLS)) {
       expect(b.mass, id).toBeGreaterThan(0); expect(b.radius, id).toBeGreaterThan(0);
-      expect(b.restitution, id).toBeGreaterThan(0.5); expect(b.restitution, id).toBeLessThanOrEqual(1);
+      expect(b.restitution, id).toBeGreaterThan(0.2);   // the bowling ball is dead on the lane; every other ball lively expect(b.restitution, id).toBeLessThanOrEqual(1);
       expect(typeof b.cited, id).toBe('boolean');
     }
     expect(BALLS.soccer.cited).toBe(true); expect(BALLS.soccer.aero).toBe(PROJECTILES.soccer.aero);

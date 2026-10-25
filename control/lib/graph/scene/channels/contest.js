@@ -12,6 +12,7 @@
 import { safeJson } from '../emit-util.js';
 import { contestSource } from '../../contest/meet-arena.js';
 import { graphSource, COURT_PAGE_MODULES } from '../../contest/match-arena.js';
+import { TURNS_PAGE_MODULES } from '../../contest/turn-arena.js';
 
 export const MEET_PAGE_MODULES = Object.freeze(['contest-kernel.js', 'meet-sim.js', 'meet-arena.client.js']);
 
@@ -38,5 +39,20 @@ export function courtChannelScript(cfg) {
 const COURT_ARENA = ${safeJson(cfg)};
 ${lib}
 stepCourt = stepCourtArena;
+}`;
+}
+
+// turns channel: a turn sport on the world (lib/graph/contest turn-sim.js: golf, bowling). Opt-in on a world's `turns`
+// key (a course stage: contest/turn-arena.js); absent, it adds nothing. One block as the court's: the same physics and
+// hit modules, the kernel, the minds and the turn sim inlined by source, then the browser runtime; it hands the page
+// `stepTurnSport` and publishes `window.__mojTurns`. It owns the camera.
+export function turnsChannelScript(cfg) {
+  const lib = TURNS_PAGE_MODULES.map(graphSource).join('\n');
+  return `
+// ── turns: the turn sport on this course ──
+{
+const TURNS_ARENA = ${safeJson(cfg)};
+${lib}
+stepTurnSport = stepTurnsArena;
 }`;
 }

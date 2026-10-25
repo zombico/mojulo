@@ -147,8 +147,32 @@ and a ball card's on the ball. Planned, in order:
   realistic speed carries past a close target, so the mind's lift sits on the cord's floor; depth there is spin and
   pace, which the mind does not yet modulate), volleyball and pong on the same sim, no bus emit; no split screen. The
   eyes gate is open: nobody has watched a rally yet.
-- **Turn sports and the positional mind**, planned: golf and bowling as one shot a turn, hot-seat; the CPU's role
-  (a home region, a mark, a press) within the kernel's legal regions, the seed of a team's players.
+- **Turn sports and the positional mind**, built as a course the World page plays, with a stopping point: the kernel's
+  third shape, `turns` (seats played hot-seat in order, rounds each seat plays in turn, one shot at a time and the
+  ball's rest the shot's end; `strokes`: the tee, the lie, a rest in the water or out of bounds a stroke from the last
+  lie, the cup the round's end, the pick-up, the fewest strokes; `pins`: tenpin's frames, strikes and spares, the tenth
+  frame's fill, its card with running totals; `lieOf` the region a point lies in; the kernel still calls every
+  round); golf and bowling in the book (`sports.js`: three stadium holes as courses of regions with par and the ground's
+  rolling resistance by the lie, the clubs by the lie and the distance left; the lane, the gutters, the pit, the ten
+  pins on their spots, the hook), the drive, the iron and the roll as hit verbs, the bowling ball on the ball card;
+  `contest/turn-sim.js` (the match sim's shape for one pad: the stick turns the aim about the line to the target across
+  the sport's spread, a press runs the meter up and back (the action lab's hold-and-release) and its release strikes at
+  the meter's share of the club's tip speed; the ball on the physics property's integrator in its register's air over
+  the course's ground (the lie's resistance, the cup that takes a slow ball, the water and the out where it went in, the
+  gutter to the pit, the pins as spheres that fall when moved from their spots, racked again as the kernel says);
+  `probeShot`, a shot tried on a copy); the turn mind in `contest-mind.js` (it plans on the sim's own probe, never a
+  guess: the meter bisected until the shot rests at the distance left, the aim bisected until the roll crosses the pin
+  line at the pocket, the level's wobble on each); the positional mind there too (`fieldTarget`: a role presses the ball
+  near it, stands goal-side of its mark, else holds its home region, always inside the kernel's legal shapes: the seed
+  of the team game's teammates); `contest/turn-arena.js` and `turn-arena.client.js` with the `turns` channel (the
+  arrows or WASD aim, Space or F charges, Enter again; the course from the kernel's regions, the flag, the pins, the
+  aim line, the meter, the card, the camera behind the ball following the shot, the hosted wire), hooked up as the
+  court is, the `turns` emit fixture pinned (`meet` and `court` re-pinned for the kernel's, the minds' and the hit's
+  source), the e2e `turns-page.live.test.js`. Stopping point: the quick goal `turns` (the shell's level, as `meet`'s
+  and `contest`'s), the hero library's clips on the golfer and the bowler (nobody is drawn yet: the ball, the aim and
+  the card are the play), the golf ball's own aero constants (it flies on soccer's curves and the card says so), a pin
+  that topples (a sphere sweeps instead), the oil pattern (the lane's friction is one number), curling and billiards on
+  the same shape, no bus emit. The eyes gate is open: nobody has watched a hole or a frame yet.
 - **The team goal game**, planned last: a second local pilot in the controllable runtime (the single-pilot world byte
   for byte), soccer and hockey with possession, offside as legality conditional on the pass, fouls from contact facts,
   teammates by role over the board's continuous positions.

@@ -215,6 +215,12 @@ import { emitThreeWorld } from './scene-three.js';
 // `meet` fixture re-pins with the kernel's source (its double-bounce rule: a ball bounced in and never returned is the
 // striker's point, in the bounce and the out branches), additions only; every other page is byte-identical, and a page
 // without a `court` key emits no block.
+// Pinned 2026-10-25 (battle city: the turn sports): the `turns` fixture joins the matrix (a turn sport on a course: the
+// turns block, inlining the same physics and hit modules, the kernel, the minds, the turn sim and its arena client, its
+// own frame step `stepTurnSport`, the camera owned). The `meet` and `court` fixtures re-pin with the kernel's source (the
+// turns shape joins the closure) and the court with the minds' (the turn mind and the positional mind join the court
+// mind's module) and the hit's (the turn sports' verbs), additions only; every other page is byte-identical, and a page
+// without a `turns` key emits no block.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

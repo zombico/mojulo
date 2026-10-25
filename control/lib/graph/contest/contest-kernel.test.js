@@ -3,8 +3,9 @@
 // (no bounce, three touches, side-out), a sprint (the gun, the false start, placings by time), the long jump
 // (attempts, the foul, the best), a goal game (the clock's periods, a draw or overtime, a free restart).
 import { describe, it, expect } from 'vitest';
-import { buildContest, contestRead, contestStart, contestLegal, contestApply, contestDisplay, contestRegion, contestInside, contestSideOf, contestPlayers } from './contest-kernel.js';
+import { buildContest, contestRead, contestStart, contestLegal, contestApply, contestDisplay, contestRegion, contestInside, contestSideOf, contestPlayers, contestLieOf } from './contest-kernel.js';
 import { tennis } from './fixtures/tennis.js';
+import { golf, bowling } from './sports.js';
 import { volleyball } from './fixtures/volleyball.js';
 import { sprint } from './fixtures/sprint.js';
 import { longJump } from './fixtures/long-jump.js';
@@ -36,7 +37,7 @@ const pointToServer = [serveIn, landsIn, (S) => ({ kind: 'bounce', at: [1, Y(S.s
 describe('reading a contest', () => {
   it('teaches the shape', () => {
     expect(() => contestRead('tennis')).toThrow(/a contest is an object/);
-    expect(() => contestRead({ shape: 'duel' })).toThrow(/shape is match \| meet/);
+    expect(() => contestRead({ shape: 'duel' })).toThrow(/shape is match \| meet \| turns/);
     expect(() => contestRead({ shape: 'match', scoring: { ladder: [{ unit: 'point', to: 11 }] } })).toThrow(/a match has a court/);
     expect(() => contestRead({ ...tennis(), rally: { in: 'pitch' } })).toThrow(/rally.in is a region of the court \(half, service-right/);
     expect(() => contestRead({ ...tennis(), serve: { into: 'baseline' } })).toThrow(/serve.into is a region/);
@@ -46,12 +47,81 @@ describe('reading a contest', () => {
     expect(() => contestRead({ shape: 'meet', event: { kind: 'sprint', lanes: 4, measure: 'laps' } })).toThrow(/event.measure is time \| distance \| height/);
     expect(() => contestRead({ ...sprint(), event: { ...sprint().event, attempts: 3 } })).toThrow(/a timed event is one attempt/);
     expect(() => contestRead({ ...tennis(), roles: { one: { home: 'half' }, two: { home: 'half' } } })).toThrow(/names 2 roles for 1 players/);
-    for (const spec of [tennis(), volleyball(), sprint(), longJump(), periods()]) expect(() => contestRead(spec), spec.title).not.toThrow();
+    for (const spec of [tennis(), volleyball(), sprint(), longJump(), periods(), golf(), bowling()]) expect(() => contestRead(spec), spec.title).not.toThrow();
+    // a turn sport
+    expect(() => contestRead({ shape: 'turns', rounds: 3, turn: { kind: 'pins' } })).toThrow(/rounds\[0\] has no course and the spec names none/);
+    expect(() => contestRead({ ...bowling(), turn: { kind: 'frames' } })).toThrow(/turn.kind is strokes \| pins/);
+    expect(() => contestRead({ ...bowling(), turn: { kind: 'pins', shots: 3 } })).toThrow(/turn.shots in a pins turn is 2/);
+    expect(() => contestRead({ ...golf(), turn: { kind: 'strokes', holed: 'cup' } })).toThrow(/turn.from names the tee region/);
+    expect(() => contestRead({ ...golf(), turn: { kind: 'strokes', from: 'tee', holed: 'flag' } })).toThrow(/turn.holed 'flag' is not a region of round 1's course \(cup, bunker1/);
+    expect(() => contestRead({ ...golf(), turn: { kind: 'strokes', from: 'tee', holed: 'cup', pins: 10 } })).toThrow(/turn.pins belongs to a pins turn/);
+    expect(() => contestRead({ ...bowling(), players: 9 })).toThrow(/players is 1 to 8 \(the seats/);
   });
   it('names the players by side and lane', () => {
     expect(contestPlayers(T)).toEqual(['a1', 'b1']);
     expect(contestPlayers(contestRead(volleyball())).length).toBe(12);
     expect(contestPlayers(contestRead(sprint({ lanes: 3 })))).toEqual(['r1', 'r2', 'r3']);
+    expect(contestPlayers(contestRead({ ...bowling(), players: 2 }))).toEqual(['p1', 'p2']);
+  });
+});
+
+describe('a turn sport: seats hot-seat, one shot at a time, the rest the shot\'s end', () => {
+  const B = contestRead({ ...bowling(), players: 2 });
+  /** A game from each seat's list of pins standing after each roll. */
+  const bowl = (C, standing) => {
+    let S = contestStart(C, 1); const calls = [], idx = {};
+    while (S.phase !== 'over') {
+      const who = S.turn; idx[who] = idx[who] || 0;
+      let r = contestApply(C, S, { kind: 'shot', who }); S = r.S; calls.push(...r.calls);
+      r = contestApply(C, S, { kind: 'rest', standing: standing[who][idx[who]++] }); S = r.S; calls.push(...r.calls);
+    }
+    return { S, calls };
+  };
+  it('tenpin: a perfect game is 300, all spares with a nine is 190, the fill frame\'s marks read a strike, a miss and a spare; the seats alternate by the frame', () => {
+    const nines = []; for (let i = 0; i < 10; i++) nines.push(1, 0); nines.push(1);
+    const { S, calls } = bowl(B, { p1: Array(12).fill(0), p2: nines });
+    expect(S.totals).toEqual({ p1: 300, p2: 190 }); expect(S.winner).toBe('p1');
+    const d = contestDisplay(B, S);
+    expect(d.seats[0].frames[9]).toMatchObject({ rolls: [10, 10, 10], mark: ['X', 'X', 'X'], score: 300 });
+    expect(d.seats[1].frames[9]).toMatchObject({ rolls: [9, 1, 9], mark: ['9', '/', '9'], score: 190 });
+    expect(d.seats[1].frames[0].score).toBe(19);   // the spare and the nine that follows
+    // the turns alternate by the frame: p1's frame (the start's, not a call), then p2's, then p1's second
+    const turns = calls.filter((c) => c.kind === 'turn').map((c) => `${c.who}:${c.round}`);
+    expect(contestStart(B, 1).restart).toMatchObject({ kind: 'rack', who: 'p1', round: 1, standing: 10 });
+    expect(turns.slice(0, 4)).toEqual(['p2:1', 'p1:2', 'p2:2', 'p1:3']);
+    expect(calls.filter((c) => c.kind === 'roll' && c.mark === 'strike').length).toBe(12);
+    const odd = []; for (let i = 0; i < 9; i++) odd.push(7, 7); odd.push(0, 10, 0);
+    const G = bowl(B, { p1: odd, p2: odd });
+    expect(contestDisplay(B, G.S).seats[0].frames[9]).toMatchObject({ rolls: [10, 0, 10], mark: ['X', '0', '/'] });
+    expect(G.S.winner).toBeNull(); expect(G.S.tied).toEqual(['p1', 'p2']);
+    expect(() => contestApply(B, contestApply(B, contestStart(B, 1), { kind: 'shot', who: 'p1' }).S, { kind: 'rest', standing: 11 })).toThrow(/standing: 0 to 10/);
+  });
+  it('golf: the tee, a lie, the water and out of bounds a stroke each from the last lie, the cup the round\'s end, the pick-up, the seats by the hole, the fewest strokes', () => {
+    const G = contestRead({ ...golf({ holes: 2 }), players: 2 });
+    let S = contestStart(G, 3); const calls = [];
+    const go = (f) => { const r = contestApply(G, S, f); S = r.S; calls.push(...r.calls); };
+    expect(contestLegal(G, S, 'p1')).toMatchObject({ turn: true, regions: ['tee'], may: ['shot'] }); expect(contestLegal(G, S, 'p2').may).toEqual(['wait']);
+    expect(contestLieOf(G, S, S.lie)).toBe('tee');
+    const cup = G.rounds[0].course.regions.cup.circle;
+    go({ kind: 'shot', who: 'p1' }); expect(contestLegal(G, S, 'p1').may).toEqual(['wait']);   // in flight
+    go({ kind: 'rest', at: [0, 10] });                                                            // the fairway
+    expect(S.lie).toEqual([0, 10]); expect(S.restart).toMatchObject({ kind: 'lie', region: 'fairway' });
+    go({ kind: 'shot', who: 'p2' });                                                              // not p2's turn: nothing
+    expect(S.shots).toBe(1);
+    go({ kind: 'shot', who: 'p1' }); go({ kind: 'rest', at: [-15, 5] });                            // the water: a stroke, the last lie again
+    expect(calls.at(-1)).toMatchObject({ kind: 'penalty', region: 'water', strokes: 1, from: [0, 10] }); expect(S.shots).toBe(3); expect(S.lie).toEqual([0, 10]);
+    go({ kind: 'shot', who: 'p1' }); go({ kind: 'rest', at: [0, 200] });                            // out of bounds
+    expect(calls.at(-1)).toMatchObject({ kind: 'penalty', region: 'out' }); expect(S.shots).toBe(5);
+    go({ kind: 'shot', who: 'p1' }); go({ kind: 'rest', at: [cup[0], cup[1]] });                   // holed
+    expect(calls.at(-2)).toMatchObject({ kind: 'holed', who: 'p1', strokes: 6, par: 3, toPar: 3 }); expect(calls.at(-1)).toMatchObject({ kind: 'turn', who: 'p2', round: 1 });
+    for (let i = 0; i < 12; i++) { go({ kind: 'shot', who: 'p2' }); go({ kind: 'rest', at: [0, 20] }); }   // never holed: picked up at ten
+    expect(S.cards.p2.rounds[0]).toMatchObject({ strokes: 10, why: 'picked-up' }); expect(S.round).toBe(2); expect(S.turn).toBe('p1');
+    const cup2 = G.rounds[1].course.regions.cup.circle;
+    for (const who of ['p1', 'p2']) { go({ kind: 'shot', who }); go({ kind: 'rest', at: [cup2[0], cup2[1]] }); }   // two aces
+    expect(S.phase).toBe('over'); expect(S.totals).toEqual({ p1: 7, p2: 11 }); expect(S.winner).toBe('p1');
+    expect(contestDisplay(G, S).seats[0]).toMatchObject({ total: 7, toPar: 0 });
+    expect(contestLegal(G, S, 'p1').may).toEqual([]);
+    expect(() => contestLieOf(B, contestStart(B, 1), [0, 0])).not.toThrow(); expect(() => contestLieOf(contestRead(tennis()), null, [0, 0])).toThrow(/lieOf is a turn sport/);
   });
 });
 

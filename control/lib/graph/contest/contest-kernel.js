@@ -11,14 +11,16 @@
  * are mulberry32 on the state (S.r) from the contest's seed (the toss, the gun's delay), and `apply` returns a new
  * state, so the same start and the same facts are the same contest to the byte.
  *
- * Two shapes of contest, one kernel:
+ * Three shapes of contest, one kernel:
  *   match   sides, a ball, possession, a court of named regions mirrored for the other side, a ladder of scoring
  *           units (points into games into sets), a serve or a kickoff as the restart, a clock with periods
  *   meet    an athletic event: lanes, a set and a gun, a false start, a measure (time, distance, height), attempts
+ *   turns   a turn sport: seats played hot-seat, one shot at a time, the ball's rest the shot's end; rounds (holes,
+ *           frames) each seat plays in turn; the score the strokes (the fewest win) or the pins (tenpin's marks)
  *
  *   read(spec) → C   the contest compiled; throws on what it cannot read, teaching the shape
  *     spec: {
- *       shape: 'match' | 'meet', title?,
+ *       shape: 'match' | 'meet' | 'turns', title?,
  *       players?: n (a side; 1), roles?: { <role>: { home: <region> } } (a side's players by role, in order),
  *       court?: { frame: [width, depth] (m; x across, y along, the centre 0,0; side a's end is y < 0), mirror: 'half-turn' |
  *                'reflect' (how side b's regions are made from side a's), regions: { <name>: { rect: [x0, y0, x1, y1] } |
@@ -38,10 +40,22 @@
  *       — a meet —
  *       event: { kind, lanes: n, measure: 'time' | 'distance' | 'height', best?: 'low' | 'high' (time: low), attempts?: n
  *                (a measured event; 1), falseStart?: 'disqualify' | 'warn' (a warning, then disqualified) }
+ *       — turns —
+ *       players: n (the seats, 1 to 8, played hot-seat in order: p1, p2 …)
+ *       course?: { frame, regions } (no sides: every region as authored, the first that holds a point the ball's lie)
+ *       rounds: n | [{ par?, course? }, …]   the holes or frames; a round with no course plays the spec's
+ *       turn: { kind: 'strokes' | 'pins', shots?: n, from?: <region> (strokes: the tee; the ball starts at its centre),
+ *               holed?: <region> (strokes: a rest in it ends the round), penalties?: { <region>: { strokes: n } } (a rest
+ *               there costs so many and the ball is played again from its last lie), out?: { strokes: n } (a rest outside
+ *               the frame, the same), pins?: n (10) }
+ *               strokes: shots is the most a round before the pick-up (10); pins: 2 a frame, the last frame's bonus
+ *               rolls tenpin's (a strike or a spare in it earns the fill)
  *     }
- *   start(C, seed) → S          the first state: the toss (match: who serves or kicks off), the lanes drawn (meet)
+ *   start(C, seed) → S          the first state: the toss (match: who serves or kicks off), the lanes drawn (meet), the
+ *                                first seat's turn at the first round (turns)
  *   legal(C, S, who) → { regions, touch, serve, may }   where `who` may stand (region names on its side), whether it may
- *                                touch the ball, whether it is the server; a meet's runner: its lane and what it may do
+ *                                touch the ball, whether it is the server; a meet's runner: its lane and what it may do;
+ *                                a seat: whether it is its turn, where its ball lies, what it may do
  *   apply(C, S, fact) → { S, calls }   a fact the movement layer saw, the next state and the calls it made (a point, a
  *                                fault, a let, a game, a set, a gun, a false start, a finish, a mark, the end). A fact
  *                                the rules do not care about now changes nothing and calls nothing.
@@ -51,14 +65,19 @@
  *                    { kind: 'tick', dt } | { kind: 'resume' } (the restart taken: play is live)
  *     facts (meet):  { kind: 'set' } | { kind: 'tick', dt } | { kind: 'press', who } | { kind: 'finish', who } |
  *                    { kind: 'mark', who, value, foul? }
- *   display(C, S) → { score: { a: [words], b: [words] }, phase, clock }   the scoreboard's words (deuce, advantage)
- *   region(C, name, side) → the shape on that side; inside(C, name, side, p); sideOf(C, p) → 'a' | 'b' | null (the net)
- *   players(C) → ['a1', 'a2', …, 'b1', …]; sideOf a player id is its first letter
+ *     facts (turns): { kind: 'shot', who } (the ball struck: a stroke, a roll) | { kind: 'rest', at } (strokes: where it
+ *                    came to rest) | { kind: 'rest', standing } (pins: how many still stand)
+ *   display(C, S) → { score: { a: [words], b: [words] }, phase, clock }   the scoreboard's words (deuce, advantage);
+ *                                turns: the card, each seat's rounds and total (tenpin's marks and running totals)
+ *   region(C, name, side, round?) → the shape on that side (turns: the round's course); inside(C, name, side, p);
+ *                                sideOf(C, p) → 'a' | 'b' | null (the net); lieOf(C, S, p) → the region a point lies in
+ *   players(C) → ['a1', 'a2', …, 'b1', …] | ['r1', …] | ['p1', …]; sideOf a player id is its first letter
  */
 
 export function buildContest() {
   const SIDES = ['a', 'b'];
-  const SHAPES = ['match', 'meet'];
+  const SHAPES = ['match', 'meet', 'turns'];
+  const TURN_KINDS = ['strokes', 'pins'];
   const MIRRORS = ['half-turn', 'reflect'];
   const MEASURES = ['time', 'distance', 'height'];
   const ROTATES = ['game', 'point', 'side-out'];
@@ -189,8 +208,55 @@ export function buildContest() {
     C.players = C.event.lanes;
   }
 
+  function readTurns(spec, C) {
+    only(spec, ['shape', 'title', 'players', 'course', 'rounds', 'turn'], 'a turn sport');
+    if (C.players > 8) fail('players is 1 to 8 (the seats, played hot-seat)');
+    const shared = spec.course !== undefined ? readCourt(spec.course) : null;
+    const R = spec.rounds;
+    const list = isCount(R) ? Array.from({ length: R }, () => ({})) : Array.isArray(R) && R.length ? R : fail('rounds is a count, or a list [{ par?, course? }, …] (the holes, the frames)');
+    if (list.length > 36) fail('rounds is at most 36');
+    C.rounds = list.map((r, i) => {
+      if (!isObj(r)) fail(`rounds[${i}] is { par?, course? }`);
+      only(r, ['par', 'course'], `rounds[${i}]`);
+      if (r.par !== undefined && !isCount(r.par)) fail(`rounds[${i}].par is a whole number of strokes`);
+      const course = r.course !== undefined ? readCourt(r.course) : shared;
+      if (!course) fail(`rounds[${i}] has no course and the spec names none`);
+      return { par: r.par ?? null, course };
+    });
+    C.court = C.rounds[0].course;
+    const t = spec.turn;
+    if (!isObj(t)) fail('turn is { kind: strokes | pins, shots?, from?, holed?, penalties?, out?, pins? }');
+    only(t, ['kind', 'shots', 'from', 'holed', 'penalties', 'out', 'pins'], 'turn');
+    if (!TURN_KINDS.includes(t.kind)) fail(`turn.kind is ${TURN_KINDS.join(' | ')}`);
+    if (t.shots !== undefined && !isCount(t.shots)) fail('turn.shots is a whole number: the most shots a round');
+    const everyRound = (name, what) => { for (const [i, r] of C.rounds.entries()) if (!r.course.regions[name]) fail(`turn.${what} '${name}' is not a region of round ${i + 1}'s course (${Object.keys(r.course.regions).join(', ')})`); };
+    if (t.kind === 'strokes') {
+      if (typeof t.from !== 'string') fail('turn.from names the tee region (the ball starts at its centre)');
+      everyRound(t.from, 'from');
+      if (typeof t.holed !== 'string') fail('turn.holed names the hole region (a rest in it ends the round)');
+      everyRound(t.holed, 'holed');
+      const penalties = {};
+      if (t.penalties !== undefined) {
+        if (!isObj(t.penalties)) fail('turn.penalties is { <region>: { strokes } }');
+        for (const [name, pen] of Object.entries(t.penalties)) {
+          everyRound(name, 'penalties');
+          if (!isObj(pen) || !isCount(pen.strokes)) fail(`turn.penalties.${name} is { strokes }`);
+          penalties[name] = { strokes: pen.strokes };
+        }
+      }
+      if (t.out !== undefined && (!isObj(t.out) || !isCount(t.out.strokes))) fail('turn.out is { strokes }: a rest outside the frame');
+      if (t.pins !== undefined) fail('turn.pins belongs to a pins turn');
+      C.turn = { kind: 'strokes', shots: t.shots ?? 10, from: t.from, holed: t.holed, penalties, out: t.out ? { strokes: t.out.strokes } : { strokes: 1 } };
+    } else {
+      for (const k of ['from', 'holed', 'penalties', 'out']) if (t[k] !== undefined) fail(`turn.${k} belongs to a strokes turn`);
+      if (t.pins !== undefined && !isCount(t.pins)) fail('turn.pins is how many pins stand (10)');
+      if (t.shots !== undefined && t.shots !== 2) fail('turn.shots in a pins turn is 2: tenpin\'s frame (the last frame\'s fill is the rule\'s)');
+      C.turn = { kind: 'pins', shots: 2, pins: t.pins ?? 10 };
+    }
+  }
+
   function read(spec) {
-    if (!isObj(spec)) fail('a contest is an object: { shape: match | meet, … }');
+    if (!isObj(spec)) fail('a contest is an object: { shape: match | meet | turns, … }');
     if (!SHAPES.includes(spec.shape)) fail(`shape is ${SHAPES.join(' | ')}`);
     if (spec.title !== undefined && typeof spec.title !== 'string') fail('title is a string');
     if (spec.players !== undefined && !(isCount(spec.players) && spec.players <= 12)) fail('players is 1 to 12 (a side)');
@@ -199,7 +265,7 @@ export function buildContest() {
       if (!isObj(spec.roles) || !Object.keys(spec.roles).length) fail('roles is { <role>: { home: <region> } }, a side\'s players in order');
       C.roles = spec.roles;   // checked against the court below
     }
-    if (C.shape === 'match') readMatch(spec, C); else readMeet(spec, C);
+    if (C.shape === 'match') readMatch(spec, C); else if (C.shape === 'meet') readMeet(spec, C); else readTurns(spec, C);
     if (C.roles) {
       if (C.shape !== 'match') fail('roles belong to a match');
       for (const [role, r] of Object.entries(C.roles)) {
@@ -216,9 +282,10 @@ export function buildContest() {
   // (`|| 0` keeps a mirrored 0 from reading as -0, so a region's JSON is the same whichever side authored it)
   const mirrorPoint = (C, p) => (C.court.mirror === 'half-turn' ? [-p[0] || 0, -p[1] || 0] : [p[0], -p[1] || 0]);
   /** The region's shape on a side: side a's as authored, side b's mirrored; a shared region the same on both. */
-  function region(C, name, side) {
-    const r = C.court && C.court.regions[name];
-    if (!r) fail(`no region '${name}' (${C.court ? Object.keys(C.court.regions).join(', ') : 'no court'})`);
+  function region(C, name, side, round) {
+    const court = C.shape === 'turns' && round !== undefined ? (C.rounds[round] || fail(`no round ${round + 1} (${C.rounds.length} rounds)`)).course : C.court;
+    const r = court && court.regions[name];
+    if (!r) fail(`no region '${name}' (${court ? Object.keys(court.regions).join(', ') : 'no court'})`);
     if (!SIDES.includes(side)) fail(`side is ${SIDES.join(' or ')}`);
     if (r.shared || side === 'a') return r.kind === 'rect' ? { kind: 'rect', rect: r.rect.slice() } : { kind: 'circle', circle: r.circle.slice() };
     if (r.kind === 'circle') { const [cx, cy, rad] = r.circle; const m = mirrorPoint(C, [cx, cy]); return { kind: 'circle', circle: [m[0], m[1], rad] }; }
@@ -231,10 +298,19 @@ export function buildContest() {
     const [cx, cy, r] = sh.circle;
     return Math.hypot(p[0] - cx, p[1] - cy) <= r + EPS;
   }
-  const inside = (C, name, side, p) => insideShape(region(C, name, side), p);
+  const inside = (C, name, side, p, round) => insideShape(region(C, name, side, round), p);
   /** Which side of the net a point is on: a is y < 0, b is y > 0, the net itself null. */
   const sideOf = (C, p) => (p[1] < 0 ? 'a' : p[1] > 0 ? 'b' : null);
-  const players = (C) => (C.shape === 'meet' ? Array.from({ length: C.event.lanes }, (_, i) => `r${i + 1}`) : SIDES.flatMap((s) => Array.from({ length: C.players }, (_, i) => `${s}${i + 1}`)));
+  const inFrame = (course, p) => Math.abs(p[0]) <= course.frame[0] / 2 + EPS && Math.abs(p[1]) <= course.frame[1] / 2 + EPS;
+  /** The region a point lies in on a turn sport's current course: the first authored that holds it; 'out' beyond the frame; null in none. */
+  function lieOf(C, S, p) {
+    if (C.shape !== 'turns') fail('lieOf is a turn sport\'s');
+    const course = C.rounds[Math.min(S.round, C.rounds.length) - 1].course;
+    if (!inFrame(course, p)) return 'out';
+    for (const name of Object.keys(course.regions)) if (insideShape(course.regions[name], p)) return name;
+    return null;
+  }
+  const players = (C) => (C.shape === 'meet' ? Array.from({ length: C.event.lanes }, (_, i) => `r${i + 1}`) : C.shape === 'turns' ? Array.from({ length: C.players }, (_, i) => `p${i + 1}`) : SIDES.flatMap((s) => Array.from({ length: C.players }, (_, i) => `${s}${i + 1}`)));
   const playerOf = (C, side, index) => `${side}${index + 1}`;
   const at = (fact) => {
     if (!Array.isArray(fact.at) || fact.at.length < 2 || !Number.isFinite(fact.at[0]) || !Number.isFinite(fact.at[1])) fail(`a ${fact.kind} fact carries at: [x, y] in the court's frame`);
@@ -492,26 +568,172 @@ export function buildContest() {
     return { lane: L.lane, state: L.state, may, attemptsLeft: C.event.measure === 'time' ? null : C.event.attempts - L.marks.length };
   }
 
+  // ── a turn sport ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  const centreOf = (sh) => (sh.kind === 'rect' ? [(sh.rect[0] + sh.rect[2]) / 2, (sh.rect[1] + sh.rect[3]) / 2] : [sh.circle[0], sh.circle[1]]);
+  const roundCourse = (C, S) => C.rounds[Math.min(S.round, C.rounds.length) - 1].course;
+
+  function startTurns(C, seed) {
+    const S = { r: seed >>> 0, n: 0, phase: 'turn', round: 1, seat: 0, turn: 'p1', shots: 0, pending: false, lie: null, standing: null, fresh: false, frame: null, cards: {}, totals: null, winner: null, tied: null, restart: null, last: null };
+    for (const id of players(C)) S.cards[id] = { rounds: [], total: 0 };
+    beginTurn(C, S, []);
+    return S;
+  }
+
+  /** The seat's turn at the round: the ball on the tee, the pins racked. */
+  function beginTurn(C, S, calls) {
+    const T = C.turn, course = roundCourse(C, S);
+    S.turn = players(C)[S.seat]; S.shots = 0; S.pending = false;
+    if (T.kind === 'strokes') { S.lie = centreOf(course.regions[T.from]); S.restart = { kind: 'tee', who: S.turn, round: S.round, at: S.lie.slice() }; }
+    else { S.standing = T.pins; S.fresh = true; S.frame = []; S.restart = { kind: 'rack', who: S.turn, round: S.round, standing: T.pins }; }
+    calls.push({ kind: 'turn', who: S.turn, round: S.round });
+  }
+
+  /** Tenpin's card from a seat's frames ([[down, down?, fill?], …]): each frame's mark and its running total (null while it waits on the next rolls). */
+  function tenpin(frames, pins, count) {
+    const rolls = [], frameAt = [];
+    for (const [i, f] of frames.entries()) for (const r of f) { rolls.push(r); frameAt.push(i); }
+    const out = []; let total = 0, k = 0;
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i], last = i === count - 1;
+      let score = null, mark;
+      if (last) {
+        // the fill frame: a roll on a fresh rack that fells every pin is a strike, one that fells the rest a spare
+        mark = []; let fresh = true, prev = 0;
+        for (const r of f) { mark.push(fresh && r === pins ? 'X' : !fresh && prev + r === pins ? '/' : String(r)); const reset = fresh ? r === pins : prev + r === pins; prev = reset ? 0 : r; fresh = reset; }
+        if (f.length === 3 || (f.length === 2 && f[0] + f[1] < pins)) score = f[0] + f[1] + (f[2] || 0);
+        k += f.length;
+      }
+      else if (f[0] === pins) { mark = ['X']; if (rolls.length >= k + 3) score = pins + rolls[k + 1] + rolls[k + 2]; k += 1; }
+      else if (f.length === 2 && f[0] + f[1] === pins) { mark = [String(f[0]), '/']; if (rolls.length >= k + 3) score = pins + rolls[k + 2]; k += 2; }
+      else if (f.length === 2) { mark = [String(f[0]), String(f[1])]; score = f[0] + f[1]; k += 2; }
+      else { mark = [String(f[0])]; k += 1; }
+      if (score !== null) total += score;
+      out.push({ frame: i + 1, rolls: f.slice(), mark, score: score === null ? null : total });
+    }
+    void frameAt;
+    return { frames: out, total };
+  }
+
+  function finishTurns(C, S, calls) {
+    const ids = players(C), low = C.turn.kind === 'strokes';
+    S.totals = Object.fromEntries(ids.map((id) => [id, S.cards[id].total]));
+    const best = ids.reduce((b, id) => (b === null || (low ? S.totals[id] < S.totals[b] : S.totals[id] > S.totals[b]) ? id : b), null);
+    const tied = ids.filter((id) => S.totals[id] === S.totals[best]);
+    S.winner = tied.length === 1 ? best : null; S.tied = tied.length > 1 ? tied : null;
+    S.phase = 'over'; S.turn = null; S.restart = null;
+    calls.push({ kind: 'over', winner: S.winner, tied: S.tied, totals: clone(S.totals) });
+  }
+
+  /** The seat's round is done: the next seat, or the next round, or the end. */
+  function endTurn(C, S, calls) {
+    S.seat += 1;
+    if (S.seat >= C.players) { S.seat = 0; S.round += 1; }
+    if (S.round > C.rounds.length) { finishTurns(C, S, calls); return; }
+    beginTurn(C, S, calls);
+  }
+
+  function applyTurns(C, S, f, calls) {
+    const k = f.kind, T = C.turn;
+    if (k === 'shot') {
+      if (S.phase !== 'turn' || f.who !== S.turn || S.pending) return;
+      S.shots += 1; S.pending = true;
+      S.last = { kind: 'shot', who: S.turn, shot: S.shots, round: S.round };
+      calls.push({ kind: 'shot', who: S.turn, shot: S.shots, round: S.round });
+      return;
+    }
+    if (k === 'rest') {
+      if (S.phase !== 'turn' || !S.pending) return;
+      S.pending = false;
+      const who = S.turn, card = S.cards[who], round = C.rounds[S.round - 1];
+      if (T.kind === 'strokes') {
+        const p = at(f), lie = lieOf(C, S, p);
+        const record = (why) => {
+          const strokes = S.shots, par = round.par;
+          card.rounds.push({ round: S.round, strokes, par, toPar: par === null ? null : strokes - par, why });
+          card.total += strokes;
+          calls.push({ kind: 'holed', who, round: S.round, strokes, par, toPar: par === null ? null : strokes - par, why });
+          S.last = calls[calls.length - 1];
+          endTurn(C, S, calls);
+        };
+        if (lie === T.holed) { record('holed'); return; }
+        const pen = lie === 'out' ? T.out : lie && T.penalties[lie] ? T.penalties[lie] : null;
+        if (pen) { S.shots += pen.strokes; S.last = { kind: 'penalty', who, region: lie, strokes: pen.strokes, from: S.lie.slice() }; calls.push({ kind: 'penalty', who, region: lie, strokes: pen.strokes, from: S.lie.slice() }); }
+        else { S.lie = [p[0], p[1]]; S.last = { kind: 'lie', who, region: lie, at: S.lie.slice() }; calls.push({ kind: 'lie', who, region: lie, at: S.lie.slice() }); }
+        if (S.shots >= T.shots) { record('picked-up'); return; }
+        S.restart = { kind: 'lie', who, round: S.round, at: S.lie.slice(), region: lieOf(C, S, S.lie) };
+        return;
+      }
+      const standing = f.standing;
+      if (!(Number.isInteger(standing) && standing >= 0 && standing <= S.standing)) fail(`a rest fact in a pins turn carries standing: 0 to ${S.standing} (the pins still up)`);
+      const down = S.standing - standing, F = S.frame, last = S.round === C.rounds.length, pins = T.pins;
+      F.push(down); S.standing = standing;
+      const roll = F.length;
+      // every pin felled on a fresh rack is a strike, the rest felled a spare; the rack is fresh again after either
+      const mark = standing === 0 ? (S.fresh ? 'strike' : 'spare') : null;
+      S.fresh = standing === 0;
+      calls.push({ kind: 'roll', who, round: S.round, roll, down, standing, mark });
+      S.last = calls[calls.length - 1];
+      let over;
+      if (!last) over = standing === 0 || roll === 2;
+      else {
+        const fill = F[0] === pins || (roll >= 2 && F[0] + F[1] === pins);
+        over = roll === 3 || (roll === 2 && !fill);
+        if (!over && standing === 0) S.standing = pins;   // the rack reset for the fill
+      }
+      if (over) {
+        card.rounds.push({ round: S.round, rolls: F.slice(), mark: mark || (roll === 2 ? 'open' : null) });
+        card.total = tenpin(card.rounds.map((r) => r.rolls), pins, C.rounds.length).total;
+        endTurn(C, S, calls);
+      } else S.restart = { kind: 'rack', who, round: S.round, standing: S.standing };
+      return;
+    }
+    fail(`no fact '${k}' in a turn sport (shot, rest)`);
+  }
+
+  function legalTurns(C, S, who) {
+    if (!players(C).includes(who)) fail(`'${who}' is not a seat (${players(C).join(', ')})`);
+    const mine = S.phase === 'turn' && S.turn === who;
+    const regions = C.turn.kind === 'strokes' ? [lieOf(C, S, S.lie) || 'rough'] : [Object.keys(roundCourse(C, S).regions)[0]];
+    return { turn: mine, regions, at: mine && S.lie ? S.lie.slice() : null, may: S.phase === 'over' ? [] : mine ? (S.pending ? ['wait'] : ['shot']) : ['wait'] };
+  }
+
+  function displayTurns(C, S) {
+    const ids = players(C), low = C.turn.kind === 'strokes';
+    const seats = ids.map((id) => {
+      const card = S.cards[id];
+      if (low) {
+        const played = card.rounds.filter((r) => r.par !== null);
+        return { id, rounds: card.rounds.map((r) => ({ round: r.round, strokes: r.strokes, par: r.par, toPar: r.toPar })), total: card.total, toPar: played.length === card.rounds.length && card.rounds.length ? card.rounds.reduce((a, r) => a + r.toPar, 0) : null };
+      }
+      const live = S.phase === 'turn' && S.turn === id && S.frame && S.frame.length ? [...card.rounds.map((r) => r.rolls), S.frame] : card.rounds.map((r) => r.rolls);
+      const T = tenpin(live, C.turn.pins, C.rounds.length);
+      return { id, frames: T.frames, total: T.total };
+    });
+    return { phase: S.phase, round: S.round, rounds: C.rounds.length, turn: S.turn, shots: S.shots, standing: S.standing, lie: S.lie ? S.lie.slice() : null, seats, winner: S.winner, tied: S.tied ? S.tied.slice() : null, restart: S.restart ? clone(S.restart) : null };
+  }
+
   // ── the shared face ──────────────────────────────────────────────────────────────────────────────────────────
 
   function start(C, seed = 1) {
     if (!Number.isInteger(seed)) fail('seed is a whole number');
-    return C.shape === 'meet' ? startMeet(C, seed) : startMatch(C, seed);
+    return C.shape === 'meet' ? startMeet(C, seed) : C.shape === 'turns' ? startTurns(C, seed) : startMatch(C, seed);
   }
 
   function apply(C, S, fact) {
     if (!isObj(fact) || typeof fact.kind !== 'string') fail('a fact is { kind, … }');
     const next = clone(S), calls = [];
     next.n += 1;
-    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else applyMatch(C, next, fact, calls);
+    if (C.shape === 'meet') applyMeet(C, next, fact, calls); else if (C.shape === 'turns') applyTurns(C, next, fact, calls); else applyMatch(C, next, fact, calls);
     return { S: next, calls };
   }
 
-  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : legalMatch(C, S, who));
+  const legal = (C, S, who) => (C.shape === 'meet' ? legalMeet(C, S, who) : C.shape === 'turns' ? legalTurns(C, S, who) : legalMatch(C, S, who));
 
   /** The scoreboard's words: the tennis game's 0 15 30 40, deuce and advantage, else the counts. */
   function display(C, S) {
     if (C.shape === 'meet') return { phase: S.phase, t: S.t, lanes: clone(S.lanes), placings: S.placings ? clone(S.placings) : null };
+    if (C.shape === 'turns') return displayTurns(C, S);
     const L = C.scoring.ladder, out = { a: [], b: [] };
     for (let i = 0; i < L.length; i++) {
       const a = S.score.a[i], b = S.score.b[i], u = L[i];
@@ -523,7 +745,7 @@ export function buildContest() {
     return { phase: S.phase, score: out, server: S.server, clock: S.clock ? clone(S.clock) : null, restart: S.restart ? clone(S.restart) : null, winner: S.winner };
   }
 
-  return { read, start, legal, apply, display, region, inside, sideOf, players, SIDES, SHAPES };
+  return { read, start, legal, apply, display, region, inside, sideOf, lieOf, players, SIDES, SHAPES };
 }
 
 const _contest = buildContest();
@@ -535,4 +757,5 @@ export const contestDisplay = _contest.display;
 export const contestRegion = _contest.region;
 export const contestInside = _contest.inside;
 export const contestSideOf = _contest.sideOf;
+export const contestLieOf = _contest.lieOf;
 export const contestPlayers = _contest.players;
