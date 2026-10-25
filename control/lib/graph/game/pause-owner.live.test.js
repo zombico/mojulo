@@ -49,11 +49,14 @@ describe('the pause is the seat\'s that opened it', () => {
     await page.goto(`${ORIGIN}/`);
     await page.waitForFunction(() => window.__inited === true, { timeout: 20000 });
     await new Promise((r) => setTimeout(r, 300));
+    // a press held across two of the page's frames and released across two more: the shell polls the pads once a frame
+    // (play-shell padPoll), so a fixed hold could fall between polls on a slow runner and the press would never land
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const start = async (i) => {
       await page.evaluate((i) => { window.__pads[i].buttons[9] = { pressed: true, value: 1 }; }, i);
-      await new Promise((r) => setTimeout(r, 120));
+      await frames();
       await page.evaluate((i) => { window.__pads[i].buttons[9] = { pressed: false, value: 0 }; }, i);
-      await new Promise((r) => setTimeout(r, 120));
+      await frames();
     };
     const pause = () => page.evaluate(() => { const p = document.getElementById('pause'), h = p.querySelector('h2'); return { open: p.style.display === 'flex', title: h ? h.textContent : null, color: h ? h.style.color : null }; });
 
