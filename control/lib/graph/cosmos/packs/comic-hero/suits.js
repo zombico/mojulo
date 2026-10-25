@@ -15,7 +15,8 @@ export const SUIT_KEYS = Object.freeze(['paint', 'outfit', 'adorn', 'detail']);
 // (a designed piece is coloured by its role: a cloak is `secondary`, outfit-plan.js COLOUR_GROUPS → OutfitSecond)
 const PRIMARIES = Object.freeze({ Top: '#c62828', Bottom: '#1a237e', Shoes: '#1a237e', Gloves: '#1a237e', Trim: '#ffd400', OutfitBase: '#c62828', OutfitSecond: '#c62828', OutfitTrim: '#ffd400', OutfitAccent: '#ffd400' });
 // the emblem: a motif worked on the chest of the suit's top (outfit/expand.js embroidery, role chest), not a field paint
-// on the body's skin, which the suit covers
+// on the body's skin, which the suit covers. The closed motifs (diamond, chevron) read at a glance; the star is three
+// strokes (station-loft-adorn.js MOTIFS: an asterisk) and reads as stitches, so the classic suit wears the diamond
 const EMBLEM = (motif) => [{ prim: 'embroidery', role: 'chest', motif }];
 const CAPE = (over = {}) => ({ kind: 'cloak', wrap: 0.55, hem: 'calf', flare: 0.16, rigidity: 'soft', ...over });
 // the bodysuit as cloth: a knit top with long sleeves and a knit bottom with long skinny legs, skin-fit, so both bodies
@@ -25,11 +26,11 @@ const SKIN_SUIT = (style, pieces, motif, dials = {}) => ({ type: 'outfit', style
 
 export const SUITS = Object.freeze({
   classic: {
-    reads: 'the classic suit: a bodysuit in two primaries, a cape from the shoulders, a chest emblem, a belt, boots and gloves',
+    reads: 'the classic suit: a bodysuit in two primaries, a cape from the shoulders, a gold chest emblem, a belt, boots and gloves',
     palette: PRIMARIES,
     at: {
-      banded: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'star') },
-      material: { outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'star') },
+      banded: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'diamond') },
+      material: { outfit: SKIN_SUIT('athlete', [CAPE(), { kind: 'belt' }], 'diamond') },
     },
   },
   street: {
@@ -41,11 +42,11 @@ export const SUITS = Object.freeze({
     },
   },
   sleek: {
-    reads: 'the sleek suit: a bodysuit with a diamond emblem and no cape; the rival, the flier',
+    reads: 'the sleek suit: a bodysuit with a chevron on the chest and no cape; the rival, the flier',
     palette: { Top: '#1a237e', Bottom: '#0d1442', Shoes: '#0d1442', Gloves: '#0d1442', Trim: '#c62828', OutfitBase: '#1a237e', OutfitSecond: '#0d1442', OutfitTrim: '#c62828' },
     at: {
-      banded: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [{ kind: 'bracers' }], 'diamond', { ornament: 0 }) },
-      material: { outfit: SKIN_SUIT('athlete', [{ kind: 'bracers' }], 'diamond', { ornament: 0 }) },
+      banded: { paint: ['catsuit', 'gloves'], outfit: SKIN_SUIT('athlete', [{ kind: 'bracers' }], 'chevron', { ornament: 0 }) },
+      material: { outfit: SKIN_SUIT('athlete', [{ kind: 'bracers' }], 'chevron', { ornament: 0 }) },
     },
   },
   armored: {

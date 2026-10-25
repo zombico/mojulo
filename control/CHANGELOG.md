@@ -50,6 +50,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   egocube's own compiler, replaces the sheet's cut with the suit, puts the realistic body on at the material pole, and
   asks the toon the stop wants: the character light with its ink at the comic stop (the silhouette hull the character
   book never asks for), ink alone at the painted stop, none at the material pole. Every member validates at both poles.
+  The toon and the vibe ride inside the spec, since `mint_solid` hands its handler the spec alone and drops a key
+  beside it without a word (the character book's own hero order puts its toon beside the spec, so a gameworld hero
+  minted through `mint_solid` never gets its character light: found, not fixed here).
 
 ### Written intent: compose and quick write the game they are
 

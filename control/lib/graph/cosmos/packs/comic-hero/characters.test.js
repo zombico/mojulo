@@ -51,10 +51,11 @@ describe('comic hero pack: member orders', () => {
     for (const m of CAST) {
       for (const [pole, look] of Object.entries(byPole)) {
         const { mint, sheet } = memberOrders(m.id, look);
-        expect(validateHeroSpec(mint.args.spec), `${m.id} at ${look}`).toEqual([]);
+        const { toon: _t, vibe: _v, ...fields } = mint.args.spec;
+        expect(validateHeroSpec(fields), `${m.id} at ${look}`).toEqual([]);
         expect(mint.args.spec.form, `${m.id} at ${look}`).toBe(pole === 'material' ? 'realistic' : undefined);
         expect(sheet.facets.archetype).toBe(m.facets.archetype);
-        expect(mint.args.vibe).toBe(m.vibe);
+        expect(mint.args.spec.vibe).toBe(m.vibe);
       }
     }
   });
@@ -62,7 +63,7 @@ describe('comic hero pack: member orders', () => {
     const hero = memberOrders('hero', byPole.banded).mint.args.spec;
     expect(hero.paint).toEqual(['catsuit', 'gloves']);
     expect(hero.outfit.pieces.map((p) => p.kind)).toEqual(['cloak', 'belt']);
-    expect(hero.outfit.detail).toEqual([{ prim: 'embroidery', role: 'chest', motif: 'star' }]);
+    expect(hero.outfit.detail).toEqual([{ prim: 'embroidery', role: 'chest', motif: 'diamond' }]);
     expect(hero.outfit.language.bottom).toMatchObject({ leg: 'long', cut: 'skinny' });
     expect(hero.palette.OutfitSecond).toBe('#c62828');
     expect(hero.palette.Top).toBe('#c62828');
@@ -70,10 +71,10 @@ describe('comic hero pack: member orders', () => {
     expect(boss.adorn).toMatchObject({ type: 'armor', style: 'armored-hero' });
     expect(boss.outfit).toBeUndefined();
   });
-  it('the toon follows the stop: light and ink at the comic stop, ink alone painted, none at the material pole', () => {
-    const toonAt = (look) => memberOrders('hero', look).mint.args.toon;
-    expect(toonAt('comic-night')).toEqual({ light: true, ink: { width: 0.014 } });
-    expect(toonAt('painted-dusk')).toEqual({ ink: { width: 0.006 } });
+  it('the toon follows the stop and rides inside the spec (mint_solid hands the door the spec alone): light and ink at the comic stop, ink alone painted, none at the material pole', () => {
+    const toonAt = (look) => memberOrders('hero', look).mint.args.spec.toon;
+    expect(toonAt('comic-night')).toEqual({ light: true, ink: true });
+    expect(toonAt('painted-dusk')).toEqual({ ink: { width: 0.005 } });
     expect(toonAt('realistic-city')).toBeUndefined();
     expect(memberOrders('hero', 'realistic-city').mint.args.spec.paint).toBeUndefined();
   });

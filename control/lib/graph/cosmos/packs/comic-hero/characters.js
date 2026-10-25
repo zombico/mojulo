@@ -39,11 +39,14 @@ export function memberOrders(id, lookId, { seed = 1 } = {}) {
   spec.palette = { ...(spec.palette || {}), ...suitPalette };
   spec.gesture = m.gesture;
   if (L.hero.form === 'realistic') { spec.form = 'realistic'; for (const k of STYLIZED_ONLY) delete spec[k]; }
-  // the ink's width is a share of the figure's bounding radius (scene-three.js toonInkCfg, 0.008 by default): the comic
-  // page draws it bolder, the painted cover finer
-  const toon = L.stop === 'comic' ? { light: true, ink: { width: 0.014 } } : L.stop === 'painted' ? { ink: { width: 0.006 } } : null;
+  // the ink's width is a share of the figure's bounding radius (scene-three.js toonInkCfg, 0.008 by default). The hull is
+  // drawn round every part, the nose and the lips among them, so a bolder line (0.014 was tried) blots the face: the
+  // comic page keeps the default, the painted cover draws it finer
+  const toon = L.stop === 'comic' ? { light: true, ink: true } : L.stop === 'painted' ? { ink: { width: 0.005 } } : null;
+  // `toon` and `vibe` are the hero door's own keys (layered.js HERO_DOOR_KEYS) and ride INSIDE `spec`: mint_solid hands
+  // its handler the spec alone (mint-solid.js mergeTop), so a toon beside it is dropped without a word
   return {
     sheet: { facets: sheet.facets, reading: sheet.reading, seed: sheet.seed },
-    mint: { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: plan.create.title, spec, vibe: m.vibe, ...(toon ? { toon } : {}) } },
+    mint: { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: plan.create.title, spec: { ...spec, vibe: m.vibe, ...(toon ? { toon } : {}) } } },
   };
 }
