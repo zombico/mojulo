@@ -305,11 +305,16 @@ const __rimPatch = (m, rim) => {
   // and steer the shadow box to the pilot each frame. Gated on the explicit cast key so every
   // existing shadows world (true / { occlude } / tuning objects) emits its byte-identical
   // blob template.
-  const cast = !!(sh && typeof shadows === 'object' && shadows.cast);
+  // The live light's ACTOR shadows (`shadows.actors`, scene/live-light.js) integrate the same way; their box follows the
+  // pilot, or with seats the centre of the seated pilots, grown to their spread (the group frame's centre).
+  const actors = !!(sh && typeof shadows === 'object' && shadows.actors);
+  const cast = !!(sh && typeof shadows === 'object' && shadows.cast) || actors;
   const shadowBlock = cast ? '' : sh ? suitShadowBlock(sh) : '';
-  const shadowHook = cast
-    ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0]; if (__pe && __pe.transform) window.__mojCast.follow(__pe.transform.pos[0], __pe.transform.pos[1], __pe.transform.pos[2]); }'
-    : sh ? '\n    __updateSuitShadows();' : '';
+  const shadowHook = actors
+    ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0], __ps = __pe && __pe.transform ? [__pe] : []; if (__world.seatOf) for (const id in __world.seatOf) { const e = __world.byId[id]; if (e && e.transform && !e.gone && e !== __pe) __ps.push(e); } if (__ps.length) { const __c = [0, 0, 0]; for (const e of __ps) for (let k = 0; k < 3; k++) __c[k] += e.transform.pos[k] / __ps.length; let __r = 0; for (const e of __ps) __r = Math.max(__r, Math.hypot(e.transform.pos[0] - __c[0], e.transform.pos[1] - __c[1])); window.__mojCast.follow(__c[0], __c[1], __c[2], __r); } }'
+    : cast
+      ? '\n    if (window.__mojCast) { const __pe = (__world.pilotId && __world.byId[__world.pilotId]) || __world.entities[0]; if (__pe && __pe.transform) window.__mojCast.follow(__pe.transform.pos[0], __pe.transform.pos[1], __pe.transform.pos[2]); }'
+      : sh ? '\n    __updateSuitShadows();' : '';
   const castHook = cast ? '\n    mesh.castShadow = true;' : '';
   // projectile smoke: `true` or a tuning object over the defaults (max = sprite pool cap ·
   // spacing = trail puff spacing in TRAVEL units · alpha = peak puff opacity · burstCount =

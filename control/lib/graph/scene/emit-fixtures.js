@@ -191,6 +191,14 @@ export const EMIT_FIXTURES = [
   // mass + body; channels/cast-shadows.js). `shadows.cast` swaps the controllable blob for the
   // caster/follow integration; the blob fixture above stays byte-identical (the opt-in pin).
   ['cast-shadows', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: { cast: true } }],
+  // the live light (scene/live-light.js): actor shadows over a baked sun (a floor whose corners carry their sun share, a
+  // textured one welded with it, a pilot that casts and steers the box), the hour's static map, and both together
+  ['live-shadows-actors', {
+    faces: [floor('#445566', { sunShare: [0.6, 0.6, 0, 0] }), quad('#888888', { texture: 'stone', textureLit: true, uv: [[0, 0], [1, 0], [1, 1], [0, 1]], sunShare: 0.4 })],
+    textures: { stone: 'data:image/png;base64,AA==' }, pack: true, entities: ENTITIES, camera: CAMERA, shadows: { actors: true },
+  }],
+  ['live-shadows-hour', { faces: [floor('#445566', { sunShare: [0.6, 0.6, 0, 0] }), quad()], shadows: { hour: true, noCastGroups: ['static'] } }],
+  ['live-shadows-both', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shadows: { actors: true, hour: true }, metersPerUnit: 3.66 }],
   // projectile smoke: the opt-in trail/burst puff block. Same opt-in discipline as shadows.
   ['controllable-smoke', { faces: [floor()], entities: ENTITIES, camera: CAMERA, smoke: true }],
   ['controllable-figure', {

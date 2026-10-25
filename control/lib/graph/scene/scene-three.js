@@ -46,7 +46,7 @@ import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
 import { contrastFaces } from '../era/vertex-contrast.js';
 import {
-  actionsChannelScript, audioChannelScript, castShadowScript, channelRuntimeSection, channelSetupSection,
+  actionsChannelScript, audioChannelScript, castShadowScript, liveShadowScript, channelRuntimeSection, channelSetupSection,
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
   glowSpriteScript, inkDecalScript, mojStepCalls, normalizeRuntimeChannels,
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
@@ -57,6 +57,7 @@ import {
 import { xrModeScript } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
 import { readCreases, creasesChannelScript } from './channels/creases.js';
+import { readLiveShadows } from './live-light.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { scienceChannelScript } from './channels/science.js';
@@ -206,18 +207,19 @@ export function decollideExceptBound(faces) {
 // index (a quad sends 4 vertices, not 6) — and its baked colour sent as 8-bit sRGB, decoded in-page back to linear
 // (the display is 8-bit sRGB, so the picture is the same). Absent ⇒ every page is byte-identical.
 const toSrgb8 = (c) => { const v = Math.min(1, Math.max(0, c)); return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
-function packTex(g) {
-  const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [];
+function packTex(g, suns = null) {
+  const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [], sun = suns ? [] : null;
   for (let i = 0; i < n; i++) {
     const p = [g.positions[3 * i], g.positions[3 * i + 1], g.positions[3 * i + 2]], q = [g.uvs[2 * i], g.uvs[2 * i + 1]];
     const c = [toSrgb8(g.colors[3 * i]), toSrgb8(g.colors[3 * i + 1]), toSrgb8(g.colors[3 * i + 2])];
-    const k = `${Math.fround(p[0])},${Math.fround(p[1])},${Math.fround(p[2])},${Math.fround(q[0])},${Math.fround(q[1])},${c}`;
+    // (a vertex's sun share, the live light's, welds with it: two corners that differ in it stay two)
+    const k = `${Math.fround(p[0])},${Math.fround(p[1])},${Math.fround(p[2])},${Math.fround(q[0])},${Math.fround(q[1])},${c}${sun ? `,${Math.fround(suns[i])}` : ''}`;
     let v = seen.get(k);
-    if (v === undefined) { v = pos.length / 3; seen.set(k, v); pos.push(...p); uv.push(...q); col.push(...c); }
+    if (v === undefined) { v = pos.length / 3; seen.set(k, v); pos.push(...p); uv.push(...q); col.push(...c); if (sun) sun.push(suns[i]); }
     idx.push(v);
   }
   const wide = pos.length / 3 > 65535;
-  return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
+  return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}), ...(sun ? { sun: b64(new Float32Array(sun)) } : {}) };
 }
 
 // THE SCREEN'S ZONES (game/screen.js): a game made for a screen lays its level UI out once, by the page's
@@ -276,9 +278,14 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // creases (channels/creases.js): the vgl rule over the scene's depth — its mask-and-depth prepass runs first. Absent ⇒
   // null ⇒ no block, no prepass, no marks: every byte identical.
   const creasesCfg = readCreases(creases);
+  // LIVE LIGHT (scene/live-light.js): `shadows.actors` (what moves casts, each frame) and `shadows.hour` (the static
+  // world's own map, drawn when the hour changes), the cast channel's split; with either, a baked sun's per-vertex share
+  // (`sunShare` on the faces) rides each group as `aSun`. Absent ⇒ null ⇒ no share packed, the cast block as it was
+  const liveShadows = readLiveShadows(shadows);
   // a group's (or a repeat's) class in the crease mask: angular if any face is, else land if any face is, else none
   const creaseOf = (fs) => (fs.some((f) => f && !f.organic) ? true : fs.some((f) => f && f.organic === 'land') ? 'land' : null);
-  const prePass = (creasesCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
+  // (the live light's hour pass goes first: it arms the static map for the next render, whichever that is)
+  const prePass = (liveShadows ? '__mojHourPass(); ' : '') + (creasesCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
   // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
@@ -464,7 +471,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const wireframe = fs.some((f) => f.wireframe);
     // textured sub-groups (label wraps): one { key, pos, uv } per texture, rendered as a
     // MeshBasicMaterial({ map }). Empty for every existing scene → no behavior change.
-    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => (pack && !g.specs ? { key, ...packTex(g), lit: !!g.lit } : { key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}) }));
+    // (a texture group's sun share rides with it when the live light asks: liveShadows below)
+    const tex = Object.entries(gm.textureGroups || {}).map(([key, g]) => (pack && !g.specs ? { key, ...packTex(g, liveShadows && g.suns ? g.suns : null), lit: !!g.lit } : { key, pos: b64(g.positions), uv: b64(g.uvs), col: b64(g.colors), lit: !!g.lit, ...(g.specs ? { spec: b64(g.specs) } : {}), ...(liveShadows && g.suns ? { sun: b64(g.suns) } : {}) }));
     // per-group translucency (cellular-view jelly + organelles): a face-level `alpha` < 1 turns
     // the whole group into a transparent mesh. null/absent → opaque, unchanged for every existing
     // scene. Stays a real group mesh (raycastable for picks, togglable to wireframe).
@@ -490,7 +498,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
     // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
     const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}) };
+    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
@@ -666,7 +674,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // dust in a stage's air (channels/motes.js); absent ⇒ no bytes
   const motesBlock = motes && motes.count > 0 ? motesScript(motes) : '';
   // a level's field fauna (channels/fauna.js: swarms, birds, ducks, a room's roaches and mice, a biocube's); absent ⇒ no bytes
-  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna) : '';
+  const faunaBlock = fauna && ['gnats', 'fireflies', 'butterflies', 'birds', 'ducks', 'roaches', 'mice'].some((k) => fauna[k]) ? faunaScript(fauna, liveShadows && liveShadows.actors ? { cast: true } : {}) : '';
   // a wet road (roads/race-mood.js): the sky and the lamps thrown back off the road's film; absent ⇒ not emitted
   const wetRoadBlock = wetRoad && Array.isArray(wetRoad.quads) && wetRoad.quads.length ? wetRoadScript(wetRoad) : '';
   // the world's weather (channels/weather.js): fog that moves, a fall round the camera, lightning; absent ⇒ no bytes
@@ -830,6 +838,23 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // themselves as casters; the controllable pilot steers the follow box. Absent ⇒ '' ⇒ every
   // existing world's emitted bytes are untouched (the char net holds).
   const castShadows = shadows && typeof shadows === 'object' && shadows.cast ? shadows : null;
+  // the live light's split (liveShadows, above): what moves casts each frame (`actors`), the static world into its own
+  // map when the hour changes (`hour`). Its box follows the action at `span` (30 m by default, in world units)
+  const liveUnit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
+  const liveShadowBlock = liveShadows ? liveShadowScript({
+    actors: liveShadows.actors, hour: liveShadows.hour,
+    toLight: Array.isArray(shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight
+      : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
+    alpha: typeof shadows.alpha === 'number' ? shadows.alpha : 0.38,
+    mapSize: shadows.mapSize || 2048,
+    span: shadows.span || Math.round((30 / liveUnit) * 1e4) / 1e4,
+    ...(liveUnit !== 1 ? { unit: liveUnit } : {}),
+    ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
+    ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),
+    ...(Number.isFinite(shadows.fitMin) && shadows.fitMin > 0 ? { fitMin: shadows.fitMin } : {}),
+  }) : '';
+  // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
+  const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
   const castShadowBlock = castShadows ? castShadowScript({
     toLight: Array.isArray(castShadows.toLight) && castShadows.toLight.length === 3 ? castShadows.toLight
       : (light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]),
@@ -844,7 +869,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
   // walkers that wait at signalled crossings (the planned city's) read the cars' signals; any other walks as before
-  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}) }) : '';
+  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: castsActors, capture: !!capture, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}) }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
   // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
   // its preview key. Absent ⇒ zero bytes.
@@ -878,7 +903,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // a signalised city hands `signals` + `trafficLanes` (world-kinds attachCityCars): the cars then run
   // the shared traffic model; without them the legacy constant-speed script is emitted, byte-identical
   const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals, T: trafficConstants || undefined } : null;
-  const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: !!castShadows, traffic: trafficSpec }) : '';
+  const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: castsActors, traffic: trafficSpec }) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
   // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
   // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).
@@ -985,7 +1010,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
       ...(vertexContrast && vertexContrast.metal > 0 ? { shade: true, ground: vertexContrast.ground, air: vertexContrast.sky } : {}) }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
-    glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
+    glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock || liveShadowBlock,
     splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
     creases: creasesCfg ? creasesChannelScript(creasesCfg, { metersPerUnit }) : '',
     fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock,
@@ -1087,7 +1112,8 @@ const meshes = {}, hideable = [], solids = [], xrayGroups = [];   // solids: eve
 for (const grp of GROUPS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(grp.pos), 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(grp.col), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(grp.col), 3));${liveShadows ? `
+  if (grp.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(grp.sun), 1));   // the baked sun's share (live light)` : ''}
   geo.computeBoundingSphere();
   const translucent = typeof grp.alpha === 'number' && grp.alpha < 1;
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: ${hasSingleSide ? 'grp.singleSide ? THREE.FrontSide : THREE.DoubleSide' : 'THREE.DoubleSide'}, transparent: grp.hideable || translucent, opacity: translucent ? grp.alpha : 1, depthWrite: !translucent });
@@ -1110,7 +1136,8 @@ for (const grp of GROUPS) {
     const url = TEXTURES[t.key]; if (!url) continue;
     const tg = new THREE.BufferGeometry();
     tg.setAttribute('position', new THREE.BufferAttribute(decodeF32(t.pos), 3));
-    tg.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));${pack ? `
+    tg.setAttribute('uv', new THREE.BufferAttribute(decodeF32(t.uv), 2));${liveShadows ? `
+    if (t.sun) tg.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(t.sun), 1));` : ''}${pack ? `
     if (t.c8) { const c8 = decodeU8(t.c8), lin = new Float32Array(c8.length); for (let i = 0; i < c8.length; i++) lin[i] = __SRGB_LIN[c8[i]]; t.col = null; tg.setAttribute('color', new THREE.BufferAttribute(lin, 3)); const ib = decodeU8(t.idx); tg.setIndex(new THREE.BufferAttribute(t.wide ? new Uint32Array(ib.buffer) : new Uint16Array(ib.buffer), 1)); }` : ''}
     // MULTIPLY-lit textures (textureLit faces, e.g. asphalt roads/ground) carry the baked
     // per-vertex colour so the GPU does texel * bakedLight. lit ONLY controls that multiply;

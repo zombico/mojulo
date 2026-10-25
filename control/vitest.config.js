@@ -28,6 +28,7 @@ export const E2E = [
   'lib/graph/science-worlds/quantum/conformance.chrome.test.js',
   'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
+  'lib/graph/scene/live-light.chrome.test.js',
 ];
 
 // What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).

@@ -376,4 +376,4 @@ export { walkersChannelScript } from './walkers.js';
 export { rigPreviewChannelScript } from './rig-preview.js';
 export { strokeOverlayChannelScript } from './stroke-overlay.js';
 export { carsChannelScript } from './cars.js';
-export { castShadowScript } from './cast-shadows.js';
+export { castShadowScript, liveShadowScript } from './cast-shadows.js';
