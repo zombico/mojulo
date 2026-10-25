@@ -34,6 +34,7 @@
 //
 // A non-perspective camera hides the quad. `__mojCreases` is the live handle (set(on), tint(hex)).
 // Absent `creases` ⇒ no block, no prepass, no marks: the page is byte-identical.
+import { occlusionKernel } from '../live-light.js';
 
 /** the defaults: a warm umber ink, the line's and the wash's strength, the wash's reach in metres */
 export const CREASE_DEFAULTS = Object.freeze({ ink: '#2b2116', line: 0.85, wash: 0.6, reach: 2 });
@@ -165,10 +166,164 @@ void main() {
   gl_FragColor = vec4(uOutInk * ol + uInk * al * (1.0 - ol), ol + al * (1.0 - ol));
 }`;
 
+
+// THE OCCLUSION (opt-in `occlusion`, scene/live-light.js readOcclusion): live contact occlusion on the same prepass. With
+// it on, the prepass draws into TWO targets in its one render (WebGL2 multiple render targets): the depth and mask as
+// above, and the face's view-space normal (from the depth's own derivatives: the merged fills carry no normal). A pass at
+// half the resolution samples a hemisphere round each pixel's normal (`samples` offsets, a golden spiral rising from the
+// rim, nearer the earlier, turned per pixel by the creases' 4x4 Bayer spin) out to `reach` metres: a sample is occluded
+// where the depth there stands in front of it, weighed down where that surface is far off the pixel's (no halo round a
+// silhouette). Its composite (a fullscreen quad in the scene, under the creases' and the fog) averages each pixel's 4x4
+// half-resolution neighbours on the same surface (depth within 3 %), which cancels the spin and blurs without bleeding
+// across an edge, and darkens by `strength`, faded by the fog as the creases are. One prepass for both: a world with
+// creases pays nothing more for it. `__mojOcclusion` is the live handle (set(on)); `__mojLight` counts the prepass's
+// calls (`prepassCalls`), its renders (`prepasses`) and the occlusion passes (`aoPasses`). Static occlusion stays baked.
+// live-light.js occlusionAt is this pass in JS, pinned on stubs.
+
+const OCC_FRAG = `uniform sampler2D uZM; uniform sampler2D uN; uniform vec2 uRes; uniform float uFov; uniform float uReach; uniform vec3 uKern[KERN];
+float zAt(vec2 px) { return texture2D(uZM, px / uRes).r; }
+void main() {
+  vec2 hp = floor(gl_FragCoord.xy), fc = hp * 2.0 + 0.5;
+  float z = zAt(fc);
+  if (z <= 0.0) { gl_FragColor = vec4(0.0); return; }
+  float t = tan(uFov * 0.5);
+  vec2 uv = (fc - 0.5 * uRes) / (0.5 * uRes.y);
+  vec3 P = vec3(uv * t * z, z), N = normalize(texture2D(uN, fc / uRes).xyz);
+  vec2 b0 = mod(hp, 2.0), b1 = mod(floor(hp * 0.5), 2.0);
+  float spin = (4.0 * mod(b0.x * 2.0 + b0.y * 3.0, 4.0) + mod(b1.x * 2.0 + b1.y * 3.0, 4.0) + 0.5) / 16.0;
+  vec3 up = abs(N.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+  vec3 T0 = normalize(cross(up, N)), B0 = cross(N, T0);
+  float a = spin * 6.2831853;
+  vec3 T = T0 * cos(a) + B0 * sin(a), B = cross(N, T);
+  float occ = 0.0;
+  for (int i = 0; i < KERN; i++) {
+    vec3 k = uKern[i];
+    vec3 S = P + (T * k.x + B * k.y + N * k.z) * uReach;
+    if (S.z <= 1e-3) continue;
+    vec2 q = floor(0.5 * uRes + (S.xy / (S.z * t)) * 0.5 * uRes.y) + 0.5;
+    if (q.x < 0.0 || q.y < 0.0 || q.x > uRes.x || q.y > uRes.y) continue;
+    float zq = zAt(q);
+    if (zq <= 0.0) continue;
+    float range = smoothstep(0.0, 1.0, uReach / max(abs(z - zq), 1e-6));
+    occ += (zq < S.z - 0.02 * uReach ? 1.0 : 0.0) * range;
+  }
+  gl_FragColor = vec4(occ / float(KERN), z, 0.0, 1.0);
+}`;
+
+const OCC_COMPOSITE = `uniform sampler2D uZM; uniform sampler2D uAO; uniform vec2 uRes; uniform vec2 uHalf; uniform vec3 uFog; uniform float uStrength;
+void main() {
+  vec2 fc = gl_FragCoord.xy;
+  float z = texture2D(uZM, fc / uRes).r;
+  if (z <= 0.0) { gl_FragColor = vec4(0.0); return; }
+  float fogK = uFog.x > 1.5 ? 1.0 - smoothstep(uFog.y, uFog.z, z) : uFog.x > 0.5 ? exp(-uFog.y * uFog.y * z * z) : 1.0;
+  vec2 h = floor(fc * 0.5);
+  float s = 0.0, w = 0.0;
+  for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) {
+    vec4 ao = texture2D(uAO, (h + vec2(float(i) - 1.0, float(j) - 1.0) + 0.5) / uHalf);
+    float wq = (ao.g > 0.0 && abs(ao.g - z) < 0.03 * z) ? 1.0 : 0.0;
+    s += wq * ao.r; w += wq;
+  }
+  float al = w > 0.0 ? clamp(uStrength * fogK * s / w, 0.0, 1.0) : 0.0;
+  gl_FragColor = vec4(0.0, 0.0, 0.0, al);
+}`;
+
 /**
- * The crease block. `cfg`: readCreases' terms; `metersPerUnit` sizes the wash's reach in world units (absent: 1).
+ * The prepass block with OCCLUSION on (`occ`: readOcclusion's terms), the creases' with it when `cfg` is set (null: the
+ * occlusion alone). One prepass into two targets; the ink pass when creases are on, the occlusion pass, their composites.
  */
-export function creasesChannelScript(cfg, { metersPerUnit = null } = {}) {
+function prepassWithOcclusion(cfg, occ, metersPerUnit) {
+  const unit = Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1;
+  const reachUnits = cfg ? Math.round((cfg.reach / unit) * 1e4) / 1e4 : 0;
+  const occReach = Math.round((occ.reach / unit) * 1e4) / 1e4;
+  const kern = occlusionKernel(occ.samples);
+  return `
+// --- ${cfg ? 'creases and occlusion' : 'occlusion'} (opt-in ${cfg ? "'creases' + " : ''}'occlusion'): one prepass into two targets (depth and mask, normal)${cfg ? ', the vgl rule over the depth' : ''}, contact occlusion at half resolution ---
+const __crRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, count: 2 });
+const __crVS = 'varying float vZ;\\nvarying vec3 vVP;\\n#include <common>\\n#include <skinning_pars_vertex>\\nvoid main() {\\n#include <skinbase_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n#include <project_vertex>\\nvZ = -mvPosition.z;\\nvVP = vec3(mvPosition.xy, -mvPosition.z);\\n}';
+// (the second target: the face's normal in the creases' view frame, x right, y up, z forward; turned to the camera)
+const __crFS = 'layout(location = 0) out highp vec4 oZM;\\nlayout(location = 1) out highp vec4 oN;\\nuniform float uM; varying float vZ; varying vec3 vVP;\\nvoid main() { vec3 n = normalize(cross(dFdx(vVP), dFdy(vVP))); if (dot(n, vVP) > 0.0) n = -n; oZM = vec4(vZ, uM, 0.0, 1.0); oN = vec4(n, 1.0); }';
+const __crMask = (m) => new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: __crVS, fragmentShader: __crFS, uniforms: { uM: { value: m } }, side: THREE.DoubleSide });
+${cfg ? 'const __crA = __crMask(1), __crL = __crMask(0.5), __crB = __crMask(0);   // angular, land, organic' : 'const __crB = __crMask(0);   // (no creases: one class)'}
+const __crVSQ = 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }';${cfg ? `
+const __crInkRT = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+const __crU = { uZM: { value: __crRT.textures[0] }, uRes: { value: new THREE.Vector2() }, uCamPos: { value: new THREE.Vector3() }, uCamBasis: { value: new THREE.Matrix3() }, uFov: { value: 1 },
+  uLineW: { value: 2.5 }, uLineA: { value: ${cfg.line} }, uWashR: { value: ${reachUnits} }, uWashA: { value: ${cfg.wash} },
+  uOutW: { value: 1.5 }, uOutA: { value: ${cfg.outline ? 1 : 0} } };
+const __crInkScene = new THREE.Scene();
+const __crInkQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __crU, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(CREASE_FRAG)}, depthTest: false, depthWrite: false }));
+__crInkQuad.frustumCulled = false; __crInkScene.add(__crInkQuad);
+const __crCU = { uZM: __crU.uZM, uInkT: { value: __crInkRT.texture }, uRes: __crU.uRes, uInk: { value: new THREE.Vector3(${srgb(cfg.ink).join(', ')}) }, uOutInk: { value: new THREE.Vector3(${srgb(cfg.outline ? cfg.outline.ink : cfg.ink).join(', ')}) }, uFog: { value: new THREE.Vector3() } };
+const __crQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __crCU, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(CREASE_COMPOSITE)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
+__crQuad.frustumCulled = false; __crQuad.renderOrder = 99999;   // under fog (100000) and the effects layers
+scene.add(__crQuad);` : ''}
+// the occlusion: its half-resolution pass into its own target (r: occlusion, g: the depth it was read at), its composite
+const __aoRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+const __aoU = { uZM: { value: __crRT.textures[0] }, uN: { value: __crRT.textures[1] }, uRes: { value: new THREE.Vector2() }, uFov: { value: 1 }, uReach: { value: ${occReach} },
+  uKern: { value: ${JSON.stringify(kern)}.map((k) => new THREE.Vector3(k[0], k[1], k[2])) } };
+const __aoScene = new THREE.Scene();
+const __aoPassQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoU, defines: { KERN: ${kern.length} }, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(OCC_FRAG)}, depthTest: false, depthWrite: false }));
+__aoPassQuad.frustumCulled = false; __aoScene.add(__aoPassQuad);
+const __aoCU = { uZM: __aoU.uZM, uAO: { value: __aoRT.texture }, uRes: __aoU.uRes, uHalf: { value: new THREE.Vector2() }, uFog: { value: new THREE.Vector3() }, uStrength: { value: ${occ.strength} } };
+const __aoQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: __aoCU, vertexShader: __crVSQ, fragmentShader: ${JSON.stringify(OCC_COMPOSITE)}, transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
+__aoQuad.frustumCulled = false; __aoQuad.renderOrder = 99998;   // under the creases' ink, the fog and the effects layers
+scene.add(__aoQuad);
+const __crFw = new THREE.Vector3(), __crRi = new THREE.Vector3(), __crUp = new THREE.Vector3(), __crSz = new THREE.Vector2(), __crCc = new THREE.Color();${cfg ? `
+const __mojCreases = window.__mojCreases = { on: true, set(on) { this.on = !!on; }, tint(hex) { const c = new THREE.Color(hex); __crCU.uInk.value.set(c.r, c.g, c.b); } };` : ''}
+const __mojOcclusion = window.__mojOcclusion = { on: true, set(on) { this.on = !!on; } };
+const __mojLight = window.__mojLight = Object.assign(window.__mojLight || {}, { prepassCalls: 0, prepasses: 0, aoPasses: 0 });
+// the prepass, before every frame's render: solids drawn with the override materials into both targets at once
+const __creasePrepass = () => {
+  __mojLight.prepassCalls++;
+  const __persp = !!camera.isPerspectiveCamera;${cfg ? `
+  __crQuad.visible = __mojCreases.on && __persp;` : ''}
+  __aoQuad.visible = __mojOcclusion.on && __persp;
+  if (${cfg ? '!__crQuad.visible && ' : ''}!__aoQuad.visible) return;
+  renderer.getSize(__crSz); const __dpr = renderer.getPixelRatio();
+  const __w = Math.max(1, Math.round(__crSz.x * __dpr)), __h = Math.max(1, Math.round(__crSz.y * __dpr));
+  if (__crRT.width !== __w || __crRT.height !== __h) { __crRT.setSize(__w, __h);${cfg ? ' __crInkRT.setSize(__w, __h);' : ''} __aoRT.setSize(Math.max(1, __w >> 1), Math.max(1, __h >> 1)); }
+  const __sw = [];
+  scene.traverseVisible((o) => {
+    if (o === scene) return;
+    const m = o.material;
+    const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
+    const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
+    if (solid || water) { __sw.push([o, m]); o.material = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; }
+    else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
+  });
+  // (the shadow maps are the frame's, not the prepass's: three skips them here)
+  const __bg = scene.background, __ca = renderer.getClearAlpha(), __sm = renderer.shadowMap.autoUpdate; renderer.getClearColor(__crCc);
+  scene.background = null; renderer.setClearColor(0x000000, 0); renderer.shadowMap.autoUpdate = false;
+  renderer.setRenderTarget(__crRT); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null); __mojLight.prepasses++;
+  renderer.setClearColor(__crCc, __ca); scene.background = __bg; renderer.shadowMap.autoUpdate = __sm;
+  for (const [o, m] of __sw) { if (m) o.material = m; else o.visible = true; }
+  const __fg = scene.fog, __fv = [__fg && __fg.isFogExp2 ? 1 : __fg && __fg.isFog ? 2 : 0, __fg ? (__fg.isFogExp2 ? __fg.density : __fg.near) : 0, __fg && __fg.isFog ? __fg.far : 0];${cfg ? `
+  if (__crQuad.visible) {
+    camera.getWorldDirection(__crFw); __crRi.crossVectors(__crFw, camera.up).normalize(); __crUp.crossVectors(__crRi, __crFw).normalize();
+    __crU.uCamBasis.value.set(__crRi.x, __crUp.x, __crFw.x, __crRi.y, __crUp.y, __crFw.y, __crRi.z, __crUp.z, __crFw.z);
+    __crU.uCamPos.value.copy(camera.position); __crU.uFov.value = camera.fov * Math.PI / 180;
+    __crCU.uFog.value.set(__fv[0], __fv[1], __fv[2]);
+    __crU.uRes.value.set(__w, __h); __crU.uLineW.value = 1.25 * __dpr; __crU.uOutW.value = ${cfg.outline ? cfg.outline.width : 1.5} * __dpr;
+    // the ink pass: coverage into its own target, read back by the composite quad in the scene
+    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(__crInkRT); renderer.clear(); renderer.render(__crInkScene, camera); renderer.setRenderTarget(null);
+    renderer.setClearColor(__crCc, __ca);
+  }` : ''}
+  if (__aoQuad.visible) {
+    __aoU.uRes.value.set(__w, __h); __aoU.uFov.value = camera.fov * Math.PI / 180; __aoCU.uHalf.value.set(__aoRT.width, __aoRT.height); __aoCU.uFog.value.set(__fv[0], __fv[1], __fv[2]);
+    // the occlusion pass: half the resolution, into its own target, read back (blurred on the surface) by its composite
+    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(__aoRT); renderer.clear(); renderer.render(__aoScene, camera); renderer.setRenderTarget(null); __mojLight.aoPasses++;
+    renderer.setClearColor(__crCc, __ca);
+  }
+};
+`;
+}
+
+/**
+ * The crease block. `cfg`: readCreases' terms (null with occlusion alone); `metersPerUnit` sizes the wash's reach in
+ * world units (absent: 1); `occlusion` (readOcclusion's terms, scene/live-light.js) puts the occlusion on the same
+ * prepass. Without it the block is the creases' alone, as it always was.
+ */
+export function creasesChannelScript(cfg, { metersPerUnit = null, occlusion = null } = {}) {
+  if (occlusion) return prepassWithOcclusion(cfg, occlusion, metersPerUnit);
   const reachUnits = Math.round((cfg.reach / (Number.isFinite(metersPerUnit) && metersPerUnit > 0 ? metersPerUnit : 1)) * 1e4) / 1e4;
   return `
 // --- creases (opt-in 'creases'): the vgl rule over the scene's depth, angular surfaces only; the outline when asked ---

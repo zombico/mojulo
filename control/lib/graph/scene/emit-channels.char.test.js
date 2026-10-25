@@ -243,6 +243,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // `live-shadows-hour`, `live-shadows-both`) and no existing hash moved. A face's `sunShare` is packed, and the live
 // shadow block written, only when a world's `shadows` asks for `actors` or `hour`.
 
+// Pinned 2026-10-25 (live light, phase 3: occlusion on the shared prepass): two new rows (`occlusion`,
+// `occlusion-creases`) and no existing hash moved. Without `occlusion` the creases' block is the one it was.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

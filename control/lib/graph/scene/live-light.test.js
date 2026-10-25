@@ -5,12 +5,13 @@
  *   · the receive patch darkens a fragment by its sun share: a lit vertex darkens, a baked-shadowed one does not;
  *   · a stage's sun bake writes each corner's share beside the colour it always made, and only when asked;
  *   · actors: the static solids receive and never cast, what moves casts, the box follows the pilot (the seats' centre);
- *   · the hour: the static map's light has its autoUpdate off and an hour pass before every render.
+ *   · the hour: the static map's light has its autoUpdate off and an hour pass before every render;
+ *   · occlusion: on a depth / normal stub a flat surface takes none and a step takes some; with creases, one prepass.
  * The pixels are in live-light.chrome.test.js.
  */
 import { describe, expect, it } from 'vitest';
 
-import { readLiveShadows, wantsSunShare, sunShare, liveShade, LIVE_SHADOW_KEYS } from './live-light.js';
+import { readLiveShadows, wantsSunShare, sunShare, liveShade, LIVE_SHADOW_KEYS, readOcclusion, OCCLUSION_DEFAULTS, occlusionKernel, occlusionAt, occlusionComposite } from './live-light.js';
 import { emitThreeWorld } from './scene-three.js';
 import { faceListToMesh } from '../figures/face-mesh.js';
 import { bakeStageLight, assembleStageScene } from '../era/stage.js';
@@ -150,5 +151,76 @@ describe('live light: a world asks for it', () => {
     const unshaded = (await resolveWorldScene({ manifest: { ...M, shadows: { actors: true } }, title: 't' }, { unshaded: true })).payload;
     expect(unshaded.faces.some((f) => 'sunShare' in f)).toBe(false);
     await expect(resolveWorldScene({ manifest: { ...M, shadows: { hour: 'noon' } }, title: 't' })).rejects.toThrow(/shadows\.hour is true or false/);
+  });
+});
+
+describe('occlusion: the setting', () => {
+  it('reads true as the defaults and an object over them; absent or false is off', () => {
+    expect(readOcclusion(true)).toEqual({ ...OCCLUSION_DEFAULTS });
+    expect(readOcclusion({ samples: 12 })).toEqual({ ...OCCLUSION_DEFAULTS, samples: 12 });
+    for (const off of [undefined, null, false]) expect(readOcclusion(off)).toBeNull();
+  });
+  it('refuses what it cannot draw, naming the setting', () => {
+    expect(() => readOcclusion('on')).toThrow(/occlusion is true or/);
+    expect(() => readOcclusion({ radius: 1 })).toThrow(/occlusion\.radius is not a setting/);
+    expect(() => readOcclusion({ strength: 0 })).toThrow(/occlusion\.strength/);
+    expect(() => readOcclusion({ reach: 9 })).toThrow(/occlusion\.reach/);
+    expect(() => readOcclusion({ samples: 4 })).toThrow(/occlusion\.samples/);
+  });
+});
+
+describe('occlusion: the math on a depth / normal stub', () => {
+  const res = [200, 200], fov = 1, kernel = occlusionKernel(10), N = () => [0, 0, -1];
+  it('the kernel lies in the hemisphere over the normal, nearer the earlier', () => {
+    expect(kernel).toHaveLength(10);
+    for (const k of kernel) { expect(k[2]).toBeGreaterThan(0); expect(Math.hypot(...k)).toBeLessThanOrEqual(1.0001); }
+    expect(Math.hypot(...kernel[0])).toBeLessThan(Math.hypot(...kernel[9]));
+  });
+  it('a flat surface facing the camera takes none; beside a nearer step it takes some, fading with the step\'s distance', () => {
+    const flat = { res, fov, reach: 0.5, kernel, depth: () => 5, normal: N };
+    expect(occlusionAt(flat, [100.5, 100.5])).toBe(0);
+    const step = (dz) => ({ ...flat, depth: (q) => (q[0] >= 100 ? 5 - dz : 5) });
+    // (a step half a metre nearer, the pixel two pixels from it: its contact)
+    const near = occlusionAt(step(0.5), [98.5, 100.5]), far = occlusionAt(step(0.5), [40.5, 100.5]);
+    expect(near).toBeGreaterThan(0.2);
+    expect(far).toBe(0);
+    expect(occlusionAt(step(0.5), [95.5, 100.5])).toBeLessThan(near);   // fading away from the step
+    // a surface far in front (a silhouette, not a contact) occludes far less: no halo
+    expect(occlusionAt(step(4), [98.5, 100.5])).toBeLessThan(near / 10);
+    expect(occlusionAt({ ...flat, depth: () => 0 }, [100.5, 100.5])).toBe(0);   // the sky
+  });
+  it('the composite darkens by strength, faded by the fog', () => {
+    expect(occlusionComposite(0.5, 0.6)).toBeCloseTo(0.3);
+    expect(occlusionComposite(0.5, 0.6, 0)).toBe(0);
+    expect(occlusionComposite(2, 1)).toBe(1);
+  });
+});
+
+describe('occlusion: the World page', () => {
+  const faces = [floor(), { corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill: '#8a7a5c' }];
+  it('absent, the creases\' block is as it was, and nothing at all without creases', () => {
+    expect(emitThreeWorld({ faces, occlusion: null })).toBe(emitThreeWorld({ faces }));
+    expect(emitThreeWorld({ faces, creases: true, occlusion: false })).toBe(emitThreeWorld({ faces, creases: true }));
+    expect(emitThreeWorld({ faces, creases: true })).not.toContain('__mojOcclusion');
+  });
+  it('alone or with the creases: one prepass into two targets, its pass and composite, before every render', () => {
+    for (const extra of [{}, { creases: true }]) {
+      const page = emitThreeWorld({ faces, occlusion: true, ...extra });
+      expect(page).toContain('depthBuffer: true, count: 2 });');
+      expect(page.split('renderer.setRenderTarget(__crRT)').length - 1).toBe(1);   // one prepass for both
+      expect(page).toContain('uKern: { value: ' + JSON.stringify(occlusionKernel(OCCLUSION_DEFAULTS.samples)));
+      expect(page).toContain('__aoQuad.renderOrder = 99998;');
+      const renders = page.split('renderer.render(scene, camera)').length - 1;
+      expect(page.split('__creasePrepass(); renderer.render(scene, camera)').length - 1).toBe(renders - 1);   // all but the prepass's own
+      expect(page.includes('__crInkScene')).toBe(!!extra.creases);
+    }
+  });
+  it('world-scene carries it only when asked, and the unshaded base drops it', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const sk = (manifest) => ({ manifest, title: 't' });
+    expect((await resolveWorldScene(sk({ kind: 'floorplan' }))).payload.occlusion).toBeUndefined();
+    expect((await resolveWorldScene(sk({ kind: 'floorplan', occlusion: true }))).payload.occlusion).toEqual({ ...OCCLUSION_DEFAULTS });
+    expect((await resolveWorldScene(sk({ kind: 'floorplan', occlusion: true }), { unshaded: true })).payload.occlusion).toBeUndefined();
+    await expect(resolveWorldScene(sk({ kind: 'floorplan', occlusion: { reach: 99 } }))).rejects.toThrow(/occlusion\.reach/);
   });
 });

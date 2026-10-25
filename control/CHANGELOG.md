@@ -74,6 +74,16 @@ for none of them emits the same bytes as before.
   per-vertex sun stays the fallback and the light the captures use. The page's probe counts it: `__mojLight.hourMaps`
   (the times it was asked for) and `hourDraws` (the renders that drew it), beside `frames`. For the one frame the
   static map is drawn, the actors' map keeps its last frame.
+- **Occlusion on the shared prepass** (`occlusion: true` or `{ strength, reach, samples }`). Live contact shadowing:
+  a hero's feet on the floor, a prop on the ground, what no bake knows. Static occlusion stays baked. The creases'
+  prepass also writes normals when occlusion is on (two render targets in one render). A half-resolution pass then
+  samples a hemisphere (`samples`, 6 to 16) out to `reach` metres, and the composite blurs it on the surface (it never
+  bleeds across an edge) and lays it under fog, as the creases are. A world with both creases and occlusion draws one
+  prepass. The page's probe counts it: `__mojLight.prepassCalls`, `prepasses` (the renders into the prepass target)
+  and `aoPasses`. With occlusion on, the prepass skips the shadow maps, which the frame's own render draws. A camera
+  that is not perspective hides it. `__mojOcclusion.set(on)` turns it off and on. The unshaded export drops it. A
+  world with creases and no occlusion keeps the creases' block as it was.
+- The Godot and Roblox legs mark `occlusion` absent. Neither draws it yet.
 
 ### Written intent: compose and quick write the game they are
 

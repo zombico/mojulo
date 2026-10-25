@@ -49,7 +49,7 @@ import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures } from '@/lib/graph/era/geocube';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
-import { wantsSunShare } from '@/lib/graph/scene/live-light';
+import { wantsSunShare, readOcclusion } from '@/lib/graph/scene/live-light';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -291,6 +291,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // corner's share of light from the sun (`sunShare`), so an actor's shadow on the page never doubles a baked one.
     // Dropped under the unshaded export (it bakes no sun). Absent ⇒ false ⇒ every byte identical
     liveSun: !unshaded && wantsSunShare(sketch.manifest.shadows),
+    // OCCLUSION (scene/live-light.js, on the creases' prepass): live contact occlusion; the unshaded base drops it
+    occlusion: unshaded ? null : readOcclusion(sketch.manifest.occlusion),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -530,6 +532,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the crease pass (ctx.creases above): the World page reads the resolved terms; stills and exports ignore them
   // (and the land and the plant pools' faces take their class off their groups: scene/crease-roles.js)
   if (payload && ctx.creases && Array.isArray(payload.faces) && payload.faces.length) { payload.creases = ctx.creases; tagCreaseRoles(payload); }
+  // the live occlusion pass (ctx.occlusion above): the World page reads the resolved terms; stills and exports ignore them
+  if (payload && ctx.occlusion && Array.isArray(payload.faces) && payload.faces.length) payload.occlusion = ctx.occlusion;
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints
   // the image behind a TRANSPARENT canvas (emitThreeWorld gates the alpha + CSS on it), so the

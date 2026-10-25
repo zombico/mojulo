@@ -57,7 +57,7 @@ import {
 import { xrModeScript } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
 import { readCreases, creasesChannelScript } from './channels/creases.js';
-import { readLiveShadows } from './live-light.js';
+import { readLiveShadows, readOcclusion } from './live-light.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { scienceChannelScript } from './channels/science.js';
@@ -244,7 +244,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-rpg-field{flex-direction:column}html[data-orientation=portrait] .moj-rpg-field .mem{width:auto}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
@@ -282,10 +282,13 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // world's own map, drawn when the hour changes), the cast channel's split; with either, a baked sun's per-vertex share
   // (`sunShare` on the faces) rides each group as `aSun`. Absent ⇒ null ⇒ no share packed, the cast block as it was
   const liveShadows = readLiveShadows(shadows);
+  // OCCLUSION (scene/live-light.js, on the creases' prepass: channels/creases.js): live contact occlusion. With creases
+  // or alone, one prepass a frame. Absent ⇒ null ⇒ the creases' block as it was, or none
+  const occlusionCfg = readOcclusion(occlusion);
   // a group's (or a repeat's) class in the crease mask: angular if any face is, else land if any face is, else none
   const creaseOf = (fs) => (fs.some((f) => f && !f.organic) ? true : fs.some((f) => f && f.organic === 'land') ? 'land' : null);
   // (the live light's hour pass goes first: it arms the static map for the next render, whichever that is)
-  const prePass = (liveShadows ? '__mojHourPass(); ' : '') + (creasesCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
+  const prePass = (liveShadows ? '__mojHourPass(); ' : '') + (creasesCfg || occlusionCfg ? '__creasePrepass(); ' : '') + fogPre + (fxDepth ? '__fxPrepass(); ' : '');
   // effects[] — additional stacked overlay layers beside fog. Each gets its own fullscreen quad,
   // camera-fed onBeforeRender, and a renderOrder above fog so they composite last. Deterministic
   // under camera bakes because frame() now pins __mojClock (U3). Absent ⇒ no bytes.
@@ -1012,7 +1015,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock || liveShadowBlock,
     splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
-    creases: creasesCfg ? creasesChannelScript(creasesCfg, { metersPerUnit }) : '',
+    creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}) }) : '',
     fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, board: boardBlock,
   };
 
