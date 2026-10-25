@@ -48,14 +48,12 @@ describe('the co-op screen', () => {
 });
 
 describe('the sneak past watchers', () => {
-  it('a quick sneak opens it, and its run lays guards who see and the unseen goal', () => {
+  it('a quick sneak opens it, and its run lays guards who see and the unseen goal, as its cube asks', () => {
     const w = quickWorld({ id: 'sn', quick: { goal: 'sneak' }, style: { kit: 'trail-valley' } }), cube = cubeOfWorld(w).cube;
     const [r] = resonanceCheck(cube, orders(w));
-    expect(r).toMatchObject({ id: 'watched-sneak', laid: true });
-    // the check's first finding: the stealth cube asks for watchers who remember (mind.perception=memory) and the run
-    // lays guards who only see; reported, never refused. When the guards are laid as the cube asks, this holds.
-    expect(r.held).toBe(false);
-    expect(r.says).toMatch(/asks mind\.perception=memory; 3 watchers are laid with sight/);
+    // (the check's first finding, 1025: the stealth cube asked for watchers who remember and the run laid guards who
+    // see; guards stay goldfish, simple and local, so the cube now asks for sight, and the sneak holds)
+    expect(r).toMatchObject({ id: 'watched-sneak', laid: true, held: true, says: null });
   }, 300_000);
 
   it('watchers laid as the cube asks hold; the unseen goal alone is not laid', () => {

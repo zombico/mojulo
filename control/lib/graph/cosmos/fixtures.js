@@ -153,13 +153,14 @@ export const FIXTURES = Object.freeze([
     id: 'stealth',
     name: 'Stealth infiltration',
     anchor: false,
-    why: 'guards who see and remember, a house of rooms to cross, and being seen is the failure',
+    // (guards are goldfish: they see what is in front of them and forget it, simple and local; the operator, 1025)
+    why: 'guards who see what is in front of them, a house of rooms to cross, and being seen is the failure',
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'floormap', links: 'door' },
       power: { mechanics: ['unseen', 'reach-exit'] },
       soul: { hero: 'hero' },
-      mind: { motivation: 'guard', aggressiveness: 'wary', perception: 'memory', pathing: 'navmesh' },
+      mind: { motivation: 'guard', aggressiveness: 'wary', perception: 'sight', pathing: 'navmesh' },
       time: { progression: 'linear' },
     },
   },
