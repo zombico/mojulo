@@ -120,6 +120,7 @@ import { validateStructures } from '../fractal-structure/read.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { planLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from './out-town.js';
+import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -1039,7 +1040,9 @@ export function withGeocube(manifest) {
   if (clouds !== undefined) no('clouds are the outside\'s: a stage on a geocube takes them with trail or meru');
   const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside', D?.interior);
   if (m.kit !== undefined && m.kit !== low.kit) no(`a stage on a geocube takes its kit from the cube's bones ('${low.kit}'); drop kit`);
-  return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles };
+  // (a recipe's shadows that name only the page's keys, the live light's actors or hour, keep the cube's bake under them)
+  const pageOnly = m.shadows && typeof m.shadows === 'object' && !Array.isArray(m.shadows) && low.shadows && Object.keys(m.shadows).every((k) => LIVE_SHADOW_KEYS.includes(k));
+  return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles, ...(pageOnly ? { shadows: { ...low.shadows, ...m.shadows } } : {}) };
 }
 
 /** A stage's `terrain`: a name it asks for, or { ask?, hint? } (hint: its heartbeat's). → pickTerrain's answer. */

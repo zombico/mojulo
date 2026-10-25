@@ -53,11 +53,12 @@ export function bakeLand(faces, ambient, sun, S) {
     const k = `${keyOf(c)}|${faces[i].group}`;
     if (!at.has(k)) { at.set(k, points.length); points.push({ corners: [c], normal: unit(vn.get(keyOf(c))), tint: faces[i].tint, group: faces[i].group }); }
   }
-  const lit = bakeStageLight(points, [], ambient, undefined, sun).map((p) => hexRgb(p.fill));
+  const bakedPts = bakeStageLight(points, [], ambient, undefined, sun), lit = bakedPts.map((p) => hexRgb(p.fill));
   for (const i of soft) {
-    const { tint, ...f } = faces[i], cs = f.corners.map((c) => lit[at.get(`${keyOf(c)}|${f.group}`)]);
+    const { tint, ...f } = faces[i], ix = f.corners.map((c) => at.get(`${keyOf(c)}|${f.group}`)), cs = ix.map((j) => lit[j]);
     const m = [0, 1, 2].map((j) => cs.reduce((a, v) => a + v[j], 0) / cs.length);
-    out[i] = { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex) };
+    // (each corner's sun share, when the live light asks for it: scene/live-light.js)
+    out[i] = sun && sun.share ? { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex), sunShare: ix.map((j) => bakedPts[j].sunShare) } : { ...f, fill: rgbHex(m), cornerFills: cs.map(rgbHex) };
   }
   return out;
 }

@@ -45,6 +45,7 @@ import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
 import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
+import { sunShare, LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
@@ -454,9 +455,12 @@ export function planStage(m = {}) {
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
-function readShadows(v) {
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: shadows is { torch, sun, cells }');
-  for (const k of Object.keys(v)) if (!(k in SHADOWS)) throw new Error(`stage: shadows.${k} is not a setting (shadows: torch, sun, cells)`);
+function readShadows(v0) {
+  if (v0 === null || typeof v0 !== 'object' || Array.isArray(v0)) throw new Error('stage: shadows is { torch, sun, cells }');
+  // (the page's own keys, the cast channel's and the live light's, are the World page's to read: scene/live-light.js)
+  const v = Object.fromEntries(Object.entries(v0).filter(([k]) => !LIVE_SHADOW_KEYS.includes(k)));
+  if (!Object.keys(v).length) return null;
+  for (const k of Object.keys(v)) if (!(k in SHADOWS)) throw new Error(`stage: shadows.${k} is not a setting (shadows: torch, sun, cells; the page's: ${LIVE_SHADOW_KEYS.join(', ')})`);
   const S = { ...SHADOWS, ...v };
   if (!['off', 'hard', 'soft'].includes(S.torch)) throw new Error("stage: shadows.torch is 'off', 'hard' or 'soft' (a placed light's shadow, its edge soft over the flame's size)");
   if (!(typeof S.sun === 'number' && S.sun >= 0 && S.sun <= 5)) throw new Error('stage: shadows.sun is the sun\'s soft edge in degrees, 0 (hard) to 5');
@@ -766,12 +770,17 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
     return h.every((v) => v === h[0]) ? h : null;
   });
   let hardAt = null;
+  // the live light's SUN SHARE (`sun.share`, a world whose shadows ask for actors or the hour: scene/live-light.js): the
+  // share of each corner's finished light that comes straight from the sun, so the page darkens an actor's shadow by it
+  // and never doubles a baked one. The colour is worked as it always was; the share is read beside it
+  let sunT = null;
   const at = (f, c, k = -1) => {
       const lit = [...ambient];
       if (sun) {
         // daylight: the sun's Lambert where the shadow test reaches it, plus warm bounce off the ground onto faces that look down or sideways
         const lam = Math.max(0, dot(f.normal, sun.dir));
-        if (lam > 0) { const reach = sun.shadow(c, f.normal); for (let k = 0; k < 3; k++) lit[k] += sun.rgb[k] * sun.gain * lam * reach; }
+        if (sun.share) sunT = [0, 0, 0];
+        if (lam > 0) { const reach = sun.shadow(c, f.normal); for (let k = 0; k < 3; k++) lit[k] += sun.rgb[k] * sun.gain * lam * reach; if (sunT) for (let k = 0; k < 3; k++) sunT[k] = sun.rgb[k] * sun.gain * lam * reach; }
         const down = Math.max(0, 0.5 - 0.5 * f.normal[2]);
         for (let k = 0; k < 3; k++) lit[k] += sun.bounce[k] * sun.bounceGain * down;
       }
@@ -788,20 +797,25 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
         else for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall * reach;
       }
       const grime = dirt(f, c);
+      if (sunT) { shareAt = sunShare(lit, lit.map((v, k) => v - sunT[k]), shoulder); sunT = null; }
       return lit.map((v, k) => shoulder(v) * f.tint[k] * grime[k]);
   };
+  let shareAt = 0;
+  const share = sun && sun.share;
   return faces.map((f) => {
     if (!f.tint) return f;   // self-lit (glass): carries its own fill
     const { tint, top, ...rest } = f;
     // a quad gets a colour per corner; an n-gon (a rubble stone) is lit once at its centroid
     if (f.corners.length !== 4) {
       const c = [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
-      return { ...rest, fill: rgbHex(at(f, c)) };
+      const fill = rgbHex(at(f, c));
+      return share ? { ...rest, fill, sunShare: shareAt } : { ...rest, fill };
     }
     hardAt = L.length && L.some((l) => l.shadow && l.shadow.hard) ? edge(f) : null;
-    const cols = f.corners.map((c, k) => at(f, c, k));
+    const shares = share ? [] : null;
+    const cols = f.corners.map((c, k) => { const v = at(f, c, k); if (shares) shares.push(shareAt); return v; });
     const mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / cols.length);
-    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
+    return shares ? { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex), sunShare: shares } : { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
 }
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
@@ -942,7 +956,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const dir = sunDir(key.elevation, key.azimuth ?? 225), sk = plan.kit.sky;
     // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
     const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
-    return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain,
+    return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain, ...(ctx.liveSun ? { share: true } : {}),
       shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them

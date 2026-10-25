@@ -49,6 +49,7 @@ import { airCard } from '@/lib/graph/era/air';
 import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures } from '@/lib/graph/era/geocube';
 import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
+import { wantsSunShare } from '@/lib/graph/scene/live-light';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -286,6 +287,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // when it is on (fractal-city, city); the payload carries it below. Dropped under the unshaded export, as the other
     // baked shading is. Absent ⇒ null ⇒ every byte identical.
     creases: unshaded ? null : readCreases(sketch.manifest.creases ?? scene.creases ?? geocubeRegisterOf(sketch.manifest) ?? undefined),
+    // LIVE LIGHT (scene/live-light.js): a world whose `shadows` ask for actors or the hour has its sun bake write each
+    // corner's share of light from the sun (`sunShare`), so an actor's shadow on the page never doubles a baked one.
+    // Dropped under the unshaded export (it bakes no sun). Absent ⇒ false ⇒ every byte identical
+    liveSun: !unshaded && wantsSunShare(sketch.manifest.shadows),
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
@@ -645,7 +650,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // under every rig-figure body, the landing tell). `shadows: { cast: true, alpha?, span?,
   // mapSize?, toLight? }` is the scene-level CAST-SHADOW channel: real shadow-map silhouettes
   // off every opaque mass and figure (static masses, walkers, controllable bodies), light keyed
-  // to the payload's baked sun when one exists. Opt-in; absent ⇒ byte-identical.
+  // to the payload's baked sun when one exists. `shadows: { actors: true }` and `{ hour: true }` are the LIVE LIGHT's
+  // split of it (scene/live-light.js, read and checked into ctx.liveSun above): what moves casts each frame, the static
+  // world into its own map when the hour changes. Opt-in; absent ⇒ byte-identical.
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.

@@ -546,6 +546,23 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     const head = [...faceTangent(f.corners, m.ta || 0), metSurfaces.indexOf(m.s), Number.isFinite(m.d) ? m.d : 0];
     const sn = smooth.get(f); for (let i = 0; i < n; i++) { const nn = sn ? sn[idx ? idx[i] : 0] || sn.face : [0, 0, 0]; mets.push(...head, ...(idx && sn ? nn : sn ? sn.face : nn)); }
   };
+  // Per-vertex SUN SHARE (the live light, scene/live-light.js): a face carrying `sunShare` (a number, or one per corner:
+  // the share of its baked light that comes straight from the sun) contributes it per vertex, so the World's actor
+  // shadows darken by it. Packed ONLY when some face carries one (suns stays null otherwise: byte-identical downstream);
+  // a face without one in a mesh that packs them takes 0 (nothing to darken). Textured faces pack per texture group.
+  const hasSun = faces.some((f) => f && f.sunShare !== undefined);
+  const suns = hasSun ? [] : null;
+  let sunSeen = false;
+  const sunOf = (f, idx) => {
+    const s = f.sunShare;
+    if (Array.isArray(s)) return idx !== null && idx < s.length ? s[idx] : s.reduce((a, v) => a + v, 0) / (s.length || 1);
+    return typeof s === 'number' ? s : 0;
+  };
+  const pushSun = (f, n, idxs = null) => {
+    if (!suns) return;
+    if (f.sunShare !== undefined) sunSeen = true;
+    for (let i = 0; i < n; i++) suns.push(sunOf(f, idxs ? idxs[i] : null));
+  };
   // Faces carrying a `texture` key + per-corner `uv` are split into one mesh group per key (rendered
   // with a MeshBasicMaterial({ map }) by emitThreeWorld — the workbench's label-wrap path). Faces
   // WITHOUT a texture follow the exact path below, so a scene with no textured faces is unchanged.
@@ -595,7 +612,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= (isTri ? 3 : 4)) {
       // a textured n-gon fans over every corner when it carries a uv for each; else its first four, as before
       const tt = f.uv.length >= c.length ? faceTris(c) : TRIS;
-      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
+      const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false, ...(suns ? { suns: [], hasSun: false } : {}) });
+      if (grp.suns && f.sunShare !== undefined) grp.hasSun = true;
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
       // Label wraps omit it → unlit sticker, exactly as before.
@@ -611,6 +629,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
           grp.uvs.push(uv[0], uv[1]);
           grp.colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
           if (grp.specs) grp.specs.push(fs ? fs[0] : 0, fs ? fs[1] : 1);
+          if (grp.suns) grp.suns.push(sunOf(f, idx));
         }
       }
       for (let i = 0; i < c.length; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
@@ -641,6 +660,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
         pushSpec(f, 3);
         pushCry(f, 3);
         pushMet(f, 3);   // clip/radius vertices: the face normal
+        pushSun(f, 3);   // (and the face's mean share)
         pushNormal(3);
       }
     } else {
@@ -663,6 +683,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       pushSpec(f, tris.length * 3);
       pushCry(f, tris.length * 3);
       pushMet(f, tris.length * 3, tris.flat());
+      pushSun(f, tris.length * 3, tris.flat());
       const cn = normals && Array.isArray(f.cornerNormals) && f.cornerNormals.length === c.length ? f.cornerNormals : null;
       if (cn) for (const tri of tris) for (const idx of tri) normals.push(cn[idx][0], cn[idx][1], cn[idx][2]);
       else pushNormal(tris.length * 3);
@@ -689,6 +710,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       lit: grp.lit,
       // per-vertex [strength, power] — null unless a spec face touched THIS group
       specs: grp.hasSpec && grp.specs ? Float32Array.from(grp.specs) : null,
+      // per-vertex sun share — only when a face of THIS group carries one
+      ...(grp.hasSun ? { suns: Float32Array.from(grp.suns) } : {}),
     };
   }
   return {
@@ -706,6 +729,8 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     ...(mets && mets.length ? { mets: Float32Array.from(mets), metSurfaces } : {}),
     // per-vertex [depth, across, along] in the billet — only when some metal face is pattern-welded
     ...(metP && metP.length ? { metP: Float32Array.from(metP) } : {}),
+    // per-vertex sun share (the live light) — only when some untextured face carries one
+    ...(sunSeen && suns.length ? { suns: Float32Array.from(suns) } : {}),
     vertexCount: positions.length / 3,
     faceCount: faces.length,
     center,

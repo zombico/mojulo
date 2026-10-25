@@ -411,7 +411,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), soft = p.recipe.shading ? p.recipe.shading.sun : 0;
   const shadow = soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });
-  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
+  const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const reach = (q, nn) => Math.max(0, dot(nn, dir)) * shadow(add(q, mul(nn, 0.05)), nn), lit = (q, nn) => reach(q, nn) >= st.cel;
   // the polygon land (`shading`): no tiles on the land, rock baked flat per facet, the rest smoothed, then the rules
   const SH = p.recipe.shading || null;

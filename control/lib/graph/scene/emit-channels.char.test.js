@@ -239,6 +239,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // `controllable` fixture 11 lines are replaced and 48 written in their place; every fixture that embeds the runtime
 // re-pinned with it. A world without seats steps as before.
 
+// Pinned 2026-10-25 (live light, phases 1 and 2: actor shadows, the hour's map): three new rows (`live-shadows-actors`,
+// `live-shadows-hour`, `live-shadows-both`) and no existing hash moved. A face's `sunShare` is packed, and the live
+// shadow block written, only when a world's `shadows` asks for `actors` or `hour`.
+
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

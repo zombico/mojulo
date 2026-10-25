@@ -14,6 +14,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Live light: actor shadows, the hour's shadow map, occlusion
+
+What does not move stays baked; what moves gets live light on the World page. Each piece is opt-in. A world that asks
+for none of them emits the same bytes as before.
+
+- **Actor shadows over the baked sun** (`shadows: { actors: true }`, beside `cast`). Only what moves casts: the pilot,
+  the seats' bodies, walkers, cars, fauna on the ground, and any subtree a channel hands to `__mojCast.adopt`. The
+  static world only receives. The shadow box follows the pilot, or the centre of the seated pilots when seats play.
+  Where the stage bake lights a world by the sun (a stage kit under the sun, and a meru outside, whose land is baked
+  the same way), it writes each corner's share of its light that comes straight from the sun (`sunShare`; 0 where
+  the baked sun is already shadowed or the face looks away). The page carries the share as a vertex attribute. An
+  actor's shadow darkens a fragment by that share, so it takes a lit floor down to the baked shade beside it and never
+  doubles a baked shadow. A world whose bake writes no share (the island's, a city's, a world with no baked sun)
+  darkens by the cast's `alpha`, as `shadows.cast` does. Leaves, grass and far flora never cast. `cast` with `actors`
+  or `hour` is refused, with a message that says why.
+- A stage's `shadows` takes the page's keys (`cast`, `actors`, `hour` and the cast's tuning) beside its bake's
+  `torch`, `sun` and `cells`; before, they were refused. On a geocube, a recipe's `shadows` that names only page keys
+  keeps the cube's bake shadows under them.
+- **The hour's shadow map** (`shadows: { hour: true }`). The static world is drawn into its own shadow map once at
+  load, and again only when the hour changes (`__mojCast.hour([x, y, z])`, the direction toward the sun). It is never
+  drawn per frame. With `actors`, the actors' map is drawn each frame and the receive patch reads both. The baked
+  per-vertex sun stays the fallback and the light the captures use. The page's probe counts it: `__mojLight.hourMaps`
+  (the times it was asked for) and `hourDraws` (the renders that drew it), beside `frames`. For the one frame the
+  static map is drawn, the actors' map keeps its last frame.
+
 ### Written intent: compose and quick write the game they are
 
 - A quick game writes its `intent` (`{ from: <genre> }`) when its goal has a genre and the caller wrote none: the genre
