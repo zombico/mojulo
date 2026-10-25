@@ -4,7 +4,8 @@
  * much of each, the ground's character); what no word decides, the seed does, inside the same rails a creator would
  * choose from. Then the agent checks its own work: a level whose town's laws advise is laid again on the next seed,
  * up to a few times, before it is handed over. Its levels stand on the geocube the words point at (CUBE_WORDS, else
- * the kit's nearest), drawn on the kit's own card, its colours left to the color theorist where the world is stored.
+ * the kit's nearest), drawn on the kit's own card, its colours left to the color theorist where the world is stored,
+ * and lit at the hour a word names (HOUR_OF_WORDS: dusk, dawn, night…, the world's `style.hour`) unless it is lit at it already.
  * The world comes back in autonomous mode, every part stamped by its
  * machine gate (review.js), the prompt and every decision kept in its `brief`, ready for the creator to approve or
  * send back.
@@ -35,6 +36,8 @@ import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
 import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
 import { suggestGenres, cubeOfWorld } from './intent.js';
+import { readHour, referenceHour } from '../era/geocube-hours.js';
+import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
 import { composerFills } from './resonance.js';
 
 /**
@@ -99,6 +102,11 @@ export const CUBE_WORDS = Object.freeze({
   island: 'island-noon', coast: 'island-noon', sea: 'island-noon', shore: 'island-noon', beach: 'island-noon', sunny: 'island-noon', tropical: 'island-noon', noon: 'island-noon',
   jungle: 'jungle-haze', haze: 'jungle-haze', hazy: 'jungle-haze', swamp: 'jungle-haze', overgrown: 'jungle-haze', humid: 'jungle-haze',
   limestone: 'limestone-crags', crag: 'limestone-crags',
+});
+// the hour a word lights the cube's outside at (era/geocube-hours.js, the world's `style.hour`): the first word to name
+// one decides it, read once the cube is chosen. An hour the cube is lit at already adds nothing (the night of a night cube)
+export const HOUR_OF_WORDS = Object.freeze({
+  dawn: 'dawn', sunrise: 'dawn', morning: 'morning', afternoon: 'afternoon', sunset: 'golden', dusk: 'dusk', twilight: 'dusk', evening: 'dusk', night: 'night', moonlit: 'night',
 });
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
 const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
@@ -310,6 +318,20 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       for (const w of new Set(world.brief.domains.filter((x) => x.word).map((x) => x.word))) {
         const r = world.brief.read.find((x) => x.word === w);
         if (r) r.decides = [...r.decides, 'domain']; else world.brief.read.push({ word: w, decides: ['domain'] });
+        world.brief.unread = world.brief.unread.filter((x) => x !== w);
+      }
+    }
+  }
+  // the hour: the first word naming one lights the cube's outside at it, unless the cube is lit at it already
+  const hourOf = (w) => HOUR_OF_WORDS[w] ?? HOUR_OF_WORDS[w.replace(/s$/, '')];
+  const hourWord = style.geocube !== undefined ? P.words.find(hourOf) : undefined;
+  if (hourWord) {
+    const hour = hourOf(hourWord), cube = readGeocube(style.geocube);
+    if (readHour(hour) !== referenceHour(SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)])) {
+      style.hour = hour;
+      for (const w of [...new Set(P.words.filter(hourOf))]) {
+        const says = w === hourWord || hourOf(w) === hour ? 'hour' : `hour (gave way to ${hourWord})`, r = world.brief.read.find((x) => x.word === w);
+        if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
         world.brief.unread = world.brief.unread.filter((x) => x !== w);
       }
     }

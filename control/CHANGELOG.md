@@ -27,6 +27,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   built" now names the Unity and Unreal legs; the install map's always-present packs drop the retired office packs;
   the substrate no longer tells an agent to clone the deprecated external recipe book.
 
+### Rail fixes: what the level demo found
+
+- **A design run that fails partway keeps the record of what it made.** `design_game` `run: true` makes each ready
+  step through the real handlers and records it in the world's `made`; a step that threw left the steps made before
+  it written as rows with no record saved, so the next run read them as edited by hand (`edited`) and left them unless
+  forced. The run now saves the world with the record of the steps that succeeded before it rethrows, and the error
+  reaches the caller as it was; the next run keeps or remakes those steps as usual. A failure before anything was made
+  writes nothing.
+- **Night, and any hour, from a gameworld's style.** A world's or a level's `style.hour` (a level's over the world's,
+  read by the cube's own `readHour`: dawn, morning, noon, afternoon, golden, dusk, night, or 0 to 24) lowers onto each
+  stage its level's geocube paints, the trails and the climb, as the stage's `hour`, over its domain's own; until now
+  night was reachable only through a cube domain's hour. The level recipe takes `hour` beside its `geocube` (refused
+  without one), and a painted stage's `painted` readout names the hour it got. A stage no cube paints (a section in its
+  own kit, a level with no cube, a building, a city, a track) is lit as before and says so as advice on its step in the
+  run (`hour: … is not on one`), never a refusal. The composer reads an hour word (dawn, sunrise, morning, afternoon,
+  sunset, dusk, twilight, evening, night, moonlit) into `style.hour`, unless the cube is lit at that hour already, so
+  "a gothic night" composes as it did and "a sunny island at night" is the island at night. A world with no hour emits
+  the bytes it did. The world card's style line names it.
+
 ### Level edit demo: a level made and changed by conversation
 
 - A structure a cube raises `on: 'summit'` stands on a terraced mountain's crown. The climb a level walks up from its
