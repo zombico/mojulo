@@ -26,9 +26,9 @@ index (SQLite FTS5, inside `better-sqlite3`; the embedding model is the opt-in *
 **diagram maker** (see the stub below). This is the floor every install carries; its measured size is in
 [tech-requirements.md](tech-requirements.md#package-size-and-disk-footprint).
 
-**Always-present packs (no `installGroup`).** The orchestration plumbing: connected-service workflows
-over the operator's other MCPs, catalysts, triggers, local apps/daemons, plan, research, stash. Pure code
-with no heavy optional deps to shed, so it ships in every install and is never gated.
+**Always-present packs (no `installGroup`).** The workflow plumbing: plan, research, stash and catalysts.
+Pure code with no heavy optional deps to shed, so it ships in every install and is never gated. (The office
+packs, connected-service workflows and local apps/daemons, left the listed surface in 3.1.0: see above.)
 
 **The chatbot group is gone.** It was the third group from 2.0 on. The chatbot factory is no longer
 part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are

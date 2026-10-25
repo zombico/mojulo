@@ -1,6 +1,6 @@
 # Mojulo
 
-**Mojulo is a 3D factory with a media studio for Claude.** Describe a character, an object, a walkable
+**Mojulo is a 3D compiler for Claude.** Describe a character, an object, a walkable
 world, a small game, a diagram or a piece of music, and Claude builds it through mojulo's tools as a
 deterministic recipe: a few hundred bytes of JSON, or
 an OpenSCAD program, that compiles back to the same result every time. You edit and diff the

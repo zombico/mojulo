@@ -7,7 +7,7 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard: a 3D factory with a media studio. The agent makes things to Play, Print,
+A local MCP server with a dashboard: a 3D compiler for agents. The agent makes things to Play, Print,
 Read, Hear and Observe by conversation, characters (`create_character`) first among them; each one is a tiny deterministic recipe (a `sketches` row) that
 regenerates on every read and exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Workflows (plans,
 sweeps, stash and cook, catalysts) orchestrate the rest. Mojulo is the agent-driven upstream that feeds those

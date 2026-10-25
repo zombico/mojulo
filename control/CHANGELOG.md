@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### One name: a 3D compiler for agents
+
+- Every surface says the same thing: the README, the npm README, `package.json`, the Claude plugin, `glama.json`,
+  `server.json`, `CLAUDE.md`, the agent reference, and the agent-facing `initialize` preamble and `get_substrate`
+  drawer, which said "a 3D factory with a media studio".
+- The README's first screen leads with what a user gets from a sentence (a room, a chest of drawers, a printable part,
+  a city: source, a model for Blender or Godot, print files at true size, a cutting plan) and shows the dresser's shop
+  sheet; the host list and the footprint move below it.
+- Stale claims swept: local apps and MCP workflows (retired from the listed surface in 3.1.0) left the README's
+  "also in the box"; the tour is labelled as the 2.0.4 page it is; CONTRIBUTING's "Unreal is aligned-for and not
+  built" now names the Unity and Unreal legs; the install map's always-present packs drop the retired office packs;
+  the substrate no longer tells an agent to clone the deprecated external recipe book.
+
 ### Level edit demo: a level made and changed by conversation
 
 - A structure a cube raises `on: 'summit'` stands on a terraced mountain's crown. The climb a level walks up from its

@@ -64,7 +64,7 @@ export { getServerVersion };
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick
 // even on clients that truncate aggressively. It says what mojulo is (a 3D
-// factory with a media studio), names what it makes by what people do with it
+// compiler for agents), names what it makes by what people do with it
 // (the PARADIGMS outcomes: Play, Print, Read, Hear, Observe) with an entry
 // tool each, and points at `forward_context` as a cheap routing index. The
 // depth (glossary, full tool index, dashboard map, self-description) lives
@@ -73,7 +73,7 @@ export { getServerVersion };
 // Budget ~230–260 words; paid once per session by every connecting agent.
 // Exported for the paradigm-coverage sweep in context.test.js (every PARADIGMS
 // member must be named here — the preamble is the first orientation surface).
-export const SERVER_INSTRUCTIONS = `Mojulo is a **3D factory with a media studio** on the operator's machine: a stateful MCP server over its own SQLite store. The agent makes things by conversation, and each one is a tiny deterministic recipe: the recipe is the source, renders are derived and regenerate on every read. Mojulo is the agent-driven upstream that feeds Godot, Unity, Unreal, Blender and the slicer. It does not rival them on rendering, and it is not merely an exporter.
+export const SERVER_INSTRUCTIONS = `Mojulo is a **3D compiler for agents** on the operator's machine: a stateful MCP server over its own SQLite store. The agent makes things by conversation, and each one is a tiny deterministic recipe: the recipe is the source, renders are derived and regenerate on every read. Mojulo is the agent-driven upstream that feeds Godot, Unity, Unreal, Blender and the slicer. It does not rival them on rendering, and it is not merely an exporter.
 
 What it makes, by what people do with it:
 - **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. It plays in the browser or as a desktop app; the engines get a translation, Godot the fullest.

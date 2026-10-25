@@ -2,7 +2,7 @@
 
 Dense agent-facing reference for details that used to live in `CLAUDE.md`. This doc is intentionally more specific than the fast orientation file, but still points to source-of-truth docs and code for the deepest details.
 
-Mojulo is a **3D factory with a media studio**: the agent makes things to **Play**, **Print**, **Read**, **Hear** and **Observe** by conversation, and each one is a deterministic recipe (the recipe is the source, renders are derived). **Workflows** orchestrate the rest for batches and variations. The canonical self-description is the `get_substrate` drawer in [context.js](../control/lib/mcp/tools/context.js). The office wing (apps, daemons, the contextmap, MCP-to-MCP binding) left the tool surface in 3.1.0 (see [The retired office surface](#the-retired-office-surface)); the chatbot factory left in 3.0.0 (see [The chatbot factory](#the-chatbot-factory)).
+Mojulo is a **3D compiler for agents**: the agent makes things to **Play**, **Print**, **Read**, **Hear** and **Observe** by conversation, and each one is a deterministic recipe (the recipe is the source, renders are derived). **Workflows** orchestrate the rest for batches and variations. The canonical self-description is the `get_substrate` drawer in [context.js](../control/lib/mcp/tools/context.js). The office wing (apps, daemons, the contextmap, MCP-to-MCP binding) left the tool surface in 3.1.0 (see [The retired office surface](#the-retired-office-surface)); the chatbot factory left in 3.0.0 (see [The chatbot factory](#the-chatbot-factory)).
 
 ## How the surface is organized: ring → pack → tool line
 

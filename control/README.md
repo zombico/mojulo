@@ -4,7 +4,7 @@
 
 <sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one repainted and rearranged, a walkthrough out; just over two minutes of agent time, 30 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
 
-Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
+Mojulo is a 3D compiler for agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 
 ```bash
 npx mojulo init

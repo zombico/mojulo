@@ -6,7 +6,11 @@
 
 ![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
 
-Mojulo is a **3D factory with a media studio** for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds things to play, print, read, hear and watch (games, objects, walkable worlds, pictures, scores) by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read (byte for byte on the same platform), and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
+Mojulo is a **3D compiler for agents**. Ask the agent you already run (Claude Code, Codex, any MCP host) for a furnished room, a chest of drawers, a printable part or a walkable city, and it writes a small **recipe** that mojulo compiles into the real thing: a model that opens in Blender or Godot, a print-ready STL or 3MF at true size, a cutting plan and a parts list. You change the sentence, not the mesh. The recipe is the source, a few hundred bytes of JSON or an OpenSCAD program that compiles the same way on every read, so you can edit it, diff it and keep it like code; renders are disposable. Local: no API key, no account, no telemetry.
+
+!["Build a plywood chest of drawers, 900 wide, four drawers", as mojulo reports it: the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over finding that tells you to fix it to the wall, and the build order](docs/images/dresser-shop-sheet.png)
+
+It runs wherever your agent runs: on your machine, or in the throwaway Linux box a chat app gives itself (Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio), and the recipe is small enough to carry home and compile again on your own disk. It also exports to Unity, Unreal, glTF and OpenUSD. Your agent does the thinking; mojulo holds the state and does the geometry.
 
 ## Quickstart
 
@@ -234,9 +238,9 @@ The control plane is single-operator and localhost-only by default. The stdio MC
 
 A Next.js app exposes two faces over one SQLite: an MCP server (stdio for the npm package, HTTP for remote clients) that your agent calls, and a dashboard at `localhost:3001` that renders what accumulates. The compiler shape: a recipe is the source (params plus a `kind`), a kernel is the backend that regenerates it on every read, and each emitter is a target that owns its own frame and unit conversion from the native z-up metre frame. A kernel's output for given params is a compatibility promise over already-minted rows, tested byte-for-byte. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies; absence degrades one loop without breaking any.
 
-Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications and research notebooks, local apps whose inference parks back on your agent, and workflows over the MCPs you already run.
+Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications and research notebooks, and workflows (plans and sweeps) that chain makes together.
 
-- [docs/tour.md](docs/tour.md) — the long tour: everything mojulo makes and who it is for
+- [docs/tour.md](docs/tour.md) — the long tour as it stood at 2.0.4, kept for its catalog (parts of it predate 3.x)
 - [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) — rings, packs and tool lines, workflows, the substrate, data layout
 - [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) — transport, session binding, deliberation surfaces
 - [docs/POLYGONIZER-SYNTHESIS.md](docs/POLYGONIZER-SYNTHESIS.md) — the geometry substrate

@@ -425,7 +425,7 @@ describe('get_substrate — the working description', () => {
     expect(text).toMatch(/Two pipelines, one honesty rule/);
     expect(text).toMatch(/Inference runs on you/);
     expect(text).toMatch(/Workers and other MCPs/);
-    expect(text).toMatch(/3D factory with a media studio/);
+    expect(text).toMatch(/3D compiler\*\* for agents/);
     expect(text).toMatch(/no auto-scaling, multi-region, multi-tenancy, IAM or per-call billing/);
     // The office wing left the surface in 3.1.0: the description offers none of it.
     expect(text).not.toMatch(/Connected Service|install_scaffold|bind_primitives|bind_trigger|meta_context_commit/);
