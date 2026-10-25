@@ -31,7 +31,8 @@ import {
   characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
-import { intentReport } from '@/lib/graph/gameworld/intent.js';
+import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
+import { compilerGaps } from '@/lib/graph/gameworld/resonance.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -216,8 +217,12 @@ async function runWorld(ref, world, { force = false } = {}) {
   if (!first.length) return { world: W, ran };
   await act(first[0]);
   // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-  for (const step of runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1)) await act(step);
-  return { world: Object.keys(made).length ? { ...W, made } : W, ran };
+  const rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
+  for (const step of rest) await act(step);
+  // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
+  // lay, or laid and does not hold; reported with the run, never refused
+  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order));
+  return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(gaps.length ? { resonance: gaps } : {}) };
 }
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
@@ -397,11 +402,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     }
   }
   // the run
-  let ran;
+  let ran, resonance;
   if (run) {
     readGameworld(W);
     const out = await runWorld(ref, W, { force: !!force });
     ran = out.ran;
+    resonance = out.resonance;
     // a run that made and remade nothing writes nothing: no revision, no new head
     if (JSON.stringify(out.world) !== JSON.stringify(W)) {
       await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
@@ -421,8 +427,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

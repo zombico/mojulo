@@ -17,6 +17,8 @@
  *   resonanceCheck(cube, orders) → [{ id, name, laid, held, says }] for each opened row: `orders` the design run's
  *                              step orders (a level's is { title, manifest }), `held` null when the row has no law or
  *                              nothing was laid, `says` the law's advice (null when it holds)
+ *   compilerGaps(cube, orders) → the opened rows the run did not lay ({ id, laid: false }) or laid and did not hold
+ *                              ({ id, says }): the compiler's own defects, reported with a design run, never refused
  * Pure; reads the cube and the orders, never a store.
  */
 
@@ -105,4 +107,8 @@ export function resonanceCheck(cube, orders) {
     const says = laid && r.law ? r.law(levels, cube) : null;
     return { id: r.id, name: r.name, laid, held: laid && r.law ? says === null : null, says };
   });
+}
+
+export function compilerGaps(cube, orders) {
+  return resonanceCheck(cube, orders).filter((r) => !r.laid || r.held === false).map((r) => (r.laid ? { id: r.id, says: r.says } : { id: r.id, laid: false }));
 }

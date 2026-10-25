@@ -24,6 +24,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The table and the check.** `RESONANCES` (`{ id, name, of, when, outcome, lowers, laid, law?, voiced? }`, `when`
   ANDed across its keys, `a|b` inside a key ORed), `resonancesOf(cube)`, `resonanceCheck(cube, orders)`. The first
   rows are what the compiler already lays: `co-op-screen`, `watched-sneak`, `escorting-party`.
+- **The compiler checks itself.** A design run checks, after its steps, what its cube opens: an opened resonance its
+  steps did not lay, or laid and does not hold, comes back with the run as `resonance` (`compilerGaps`), absent when
+  there is none; nothing refuses. A gate (`resonance.gate.test.js`) makes worlds the ways a creator does (words
+  composed, a quick game) and FIRES on a new gap; its ledger of known gaps only shrinks (a gap filled fails until its
+  line goes). It found three at once: the composed co-op platformer lays no hero per seat on its side camera, the
+  composed stealth game lays no watchers, and the quick sneak lays guards who see where its cube asks for memory.
 
 ### Written intent: compose and quick write the game they are
 
