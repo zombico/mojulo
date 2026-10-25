@@ -7,14 +7,18 @@
  * exactly the Unity sequencing (the tool description sits at ceiling).
  *
  * A pack is DATA (score.json / model.glb / WAV / recipe) plus the emitter's
- * text (unreal-project.js: import_mojulo.py, T-numbered guide, README). No
+ * text (unreal-project.js: import_mojulo.py, T-numbered guide, README). A
+ * rigged layered figure ships SKINNED (one mesh, its clips; Interchange makes
+ * a SkeletalMesh and an AnimSequence per clip), as on the Godot leg; a world
+ * pack's `humanoid` ships it as the engine skeleton (VRM-named joints at the
+ * T-pose rest, the seam an IK Retargeter maps from). No
  * .meta sidecars — UE idempotency rides deterministic asset paths + the
  * import script rebuilding in place. Deterministic: same rows → same pack
  * bytes; the folder is wholly derived and clean-emitted on every build.
  */
 import { assessPortability } from './engine-portability.js';
 import { emitUnrealProject, emitUnrealGame, UNREAL_LEG_VERSION } from './unreal-project.js';
-import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, bedWriter, emitFolder } from './engines/pack.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, bedWriter, emitFolder, figureClip, figureClipNames, figureSkeleton } from './engines/pack.js';
 
 const refuse = (sketch, ref) => refusePixelizer(sketch, ref, 'a 2D reducer is not a scene (export-unreal.plan.md)');
 
@@ -30,12 +34,17 @@ async function writePack({ outDir, binaries, emitted, portability }) {
 /** A standalone world → Unreal pack at outDir (U0 scope). `posture` is the
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
-export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
+export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = false, log = () => {} }) {
   const sketch = loadSketch(ref);
   const manifest = refuse(sketch, ref);
-  if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — game scope is the U1 track (export-unreal.plan.md)`);
-  const { kind, exported, score, soundtrack } = await resolveLevel(sketch, { engine: 'unreal', clips, posture, lit });
-  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
+  if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildUnrealGamePack`);
+  const { kind, exported, score, soundtrack, fig, engine } = await resolveLevel(sketch, { engine: 'unreal', clips, posture, lit, figure: true, humanoid });
+  // the skinned figure: the clip the importer loops on it (no kernel in a world pack), and its skeleton
+  const figure = fig ? (() => {
+    const [name, f] = fig, clipNames = figureClipNames(clips, f);
+    return { name, clip: figureClip(manifest.recipe?.clips, clipNames), clips: clipNames, ...figureSkeleton(f, engine) };
+  })() : null;
+  log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
     { rel: 'score.json', bytes: JSON.stringify(score, null, 2) },
@@ -45,14 +54,14 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
   const manifestHash = packHash(manifest);
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'unreal' });
   const emitted = emitUnrealProject({
-    ref, score, manifestHash, audioFile, lit,
-    remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}`,
+    ref, score, manifestHash, audioFile, lit, figure,
+    remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}${humanoid ? ' --humanoid' : ''}`,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
     scope: 'world', ref, dir: outDir, manifestHash, legVersion: UNREAL_LEG_VERSION,
     glbStats: worldGlbStats(exported),
-    written, ledger: emitted.ledger, portability,
+    written, ledger: emitted.ledger, portability, ...(figure ? { figure } : {}),
   };
 }
 
@@ -77,7 +86,8 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
   for (let i = 0; i < specs.length; i++) {
     const spec = specs[i];
     const lvSketch = loadSketch(spec.ref);
-    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { engine: 'unreal', clips, posture: posturePack, lit });
+    // a level's rigged layered figure ships skinned, as a world pack's does (the kernel plays its clips as AnimSequences)
+    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { engine: 'unreal', clips, posture: posturePack, lit, figure: true });
     // The battle rotation, stamped into DATA (the shipped Unity/Godot
     // behavior): a level without its own soundtrack gets the game's rotation
     // pick baked into its sidecar copy — the kernel never knows a rotation.
@@ -88,8 +98,9 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
     glbStats.levels[spec.ref] = {
       bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0,
+      ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}),
     };
-    levels.push({ ref: spec.ref, title: spec.title, gate: spec.gate, score });
+    levels.push({ ref: spec.ref, title: spec.title, gate: spec.gate, score, ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}) });
     log(`level '${spec.ref}' resolved — GLB ${exported.byteLength} bytes${score.soundtrack ? `, bed ${score.soundtrack}` : ''}`);
   }
   await beds.put(music.menu, 'audio/menu.wav');

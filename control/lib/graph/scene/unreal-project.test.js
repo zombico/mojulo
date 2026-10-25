@@ -3,7 +3,10 @@
 // the honest U0 ledger (mechanics are data-only until the U1 kernel), and a
 // snapshot of the guide. Mirrors unity-project.test.js.
 import { describe, it, expect } from 'vitest';
+import { readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { emitUnrealProject, emitUnrealGame, unrealLevelLedger } from './unreal-project.js';
+import { emitUnrealKernel } from './unreal-kernel.js';
 
 const score = {
   ref: 'sk_test_world',
@@ -185,7 +188,10 @@ describe('unreal locomotion + rigs (U2)', () => {
     const files = emitGame().files;
     const gm = files.find((f) => f.file.endsWith('MojuloGameMode.cpp')).text;
     expect(gm).toContain('"/Game/MojuloPack/Levels/")) + LevelRef');
-    expect(gm).toContain('SequenceIndex = Scoped.Num() > 0 ? Scoped : PackWide');
+    expect(gm).toContain('return Scoped.Num() > 0 ? Scoped : PackWide');
+    // the rigid figures' LevelSequences and the skinned figures' AnimSequences, both scoped the same way
+    expect(gm).toContain('SequenceIndex = IndexLevelAssets(ULevelSequence::StaticClass(), LevelRef)');
+    expect(gm).toContain('AnimIndex = IndexLevelAssets(UAnimSequence::StaticClass(), LevelRef)');
     const py = files.find((f) => f.file === 'import_mojulo.py').text;
     expect(py).toContain("scored.append((score, CONTENT_ROOT + '/Levels/' + ref))");
     expect(py).toContain('verify_clips([(score, CONTENT_ROOT)])');
@@ -267,5 +273,64 @@ describe('shader look (rim + ink, shader-look phase 4)', () => {
     expect(text).toContain("set_material_instance_vector_parameter_value(mic, 'RimColor', unreal.LinearColor(float(rim[0]), float(rim[1]), float(rim[2]), 1.0))");
     expect(text).toContain("set_material_instance_scalar_parameter_value(mic, 'RimStrength', float(rim[3]))");
     expect(text).toContain("set_material_instance_scalar_parameter_value(mic, 'RimPower', float(rim[4]))");
+  });
+});
+
+describe('the kernel as source files (unreal-kernel/)', () => {
+  it('a game pack ships every file of the plugin folder as it is, and nothing the folder lacks', () => {
+    const root = path.join(process.cwd(), 'lib/graph/scene/unreal-kernel');
+    const walk = (d) => readdirSync(d).flatMap((n) => (statSync(path.join(d, n)).isDirectory() ? walk(path.join(d, n)) : [path.join(d, n)]));
+    const onDisk = walk(root).map((f) => path.relative(root, f).split(path.sep).join('/')).sort();
+    const shipped = emitUnrealKernel().map((f) => f.file);
+    expect([...shipped].sort()).toEqual(onDisk);
+    const game = emitGame().files;
+    for (const f of emitUnrealKernel()) expect(game.find((g) => g.file === f.file)?.text, f.file).toBe(f.text);
+  });
+});
+
+describe('skinned figures (C1)', () => {
+  const kernel = () => emitGame().files.find((f) => f.file.endsWith('MojuloGameMode.cpp')).text;
+
+  it('the kernel plays a skinned figure\'s clips as AnimSequences on its mesh, else through its LevelSequence', () => {
+    const gm = kernel();
+    expect(gm).toContain('if (!PlayFigureClip(Figure, Entity.IdleClip, true)) PlayClip(Entity.IdleClip, true);');
+    expect(gm).toContain('Mesh->PlayAnimation(Anim, bLoop);');
+    // the suit: idle and walk swap on the mesh when both are there; the LevelSequences when no AnimSequence is found
+    expect(gm).toContain('SuitSkeletal->PlayAnimation(bMoving ? SuitWalkAnim : SuitIdleAnim, true);');
+    expect(gm).toContain('else SuitSkeletal = nullptr; // no AnimSequence by either name: the LevelSequences below');
+    // the clip by its cleaned GLB name, else the one asset containing it — the importer's find_clip reads the same way
+    expect(gm).toContain('if (Hits.Num() == 1) Path = AnimIndex.Find(Hits[0]);');
+    const py = emitGame().files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain('return index[hits[0]] if len(hits) == 1 else None');
+  });
+
+  it('a world pack\'s importer loops the figure\'s clip at import; a game pack\'s leaves it to the kernel', () => {
+    const figure = { name: 'body', clip: 'idle', clips: ['idle', 'walk'], joints: 57 };
+    const world = emitUnrealProject({ ref: 'sk_test_world', score, manifestHash: 'abcd1234abcd1234', figure }).files;
+    const py = world.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain('FIGURE_CLIPS = {"body":"body:idle"}');
+    expect(py).toContain('    if game_mode is None:\n        loop_figure_clips(content_dir)\n');
+    expect(py).toContain("comp.override_animation_data(anim, True, True, 0.0, 1.0)");
+    expect(emitGame().files.find((f) => f.file === 'import_mojulo.py').text).toContain('FIGURE_CLIPS = {}');
+    // without a figure the world guide is the snapshot's; with one it says what the eyes should see
+    expect(world.find((f) => f.file === 'IMPORT-GUIDE.md').text).toContain('#003 the figure `body` stands skinned');
+  });
+
+  it('verify: a SkeletalMesh per skin the GLB declares, the world figure\'s clip set, AnimSequences bind as clips', () => {
+    const py = emitGame().files.find((f) => f.file === 'import_mojulo.py').text;
+    expect(py).toContain("check(prefix + 'figure_skinned:' + figure");
+    expect(py).toContain("check('figure_clip:' + figure");
+    expect(py).toContain("if name.endswith(':skin'):");
+    expect(py).toContain('p = names.get(want) or find_clip(anims, clip)');
+    expect(py).toContain("verify_figures([(os.path.join(PACK, 'model.glb'), CONTENT_ROOT, '')])");
+  });
+
+  it('the README names the characters only when a figure ships skinned', () => {
+    const readme = (files) => files.find((f) => f.file === 'README.md').text;
+    expect(readme(emit().files)).not.toContain('## Characters');
+    expect(readme(emitGame().files)).not.toContain('## Characters');
+    const skinned = emitUnrealGame({ ref: 'sk_test_game', manifest: gameManifest, levels: [{ ...gameLevels[0], skinned: ['body'] }, gameLevels[1]], manifestHash: 'abcd1234abcd1234' });
+    expect(readme(skinned.files)).toContain('- `lv-one`: `body`');
+    expect(readme(skinned.files)).not.toContain('`lv-two`:');
   });
 });
