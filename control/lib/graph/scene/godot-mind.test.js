@@ -44,6 +44,16 @@ describe('the mind in Godot', () => {
     expect(seen('loadout-rotation', (o) => o.minds.l.slot === 1)).toBe(true);
     expect(seen('boss-phases', (o) => o.minds.boss.phase === 1)).toBe(true);
     expect(seen('sentry-tower', (o) => o.bodies.p.hits > 0)).toBe(true);
+    // the match player: it fights the one it sees and not the pilot behind the wall, until the pilot's hits turn it
+    const fw = runMinds(scenarioById('frag-whom-it-sees')).snaps.map((x) => JSON.parse(x));
+    expect(fw[120].bodies.p.hits).toBe(0);
+    expect(fw[120].bodies.a.hits).toBeGreaterThan(5);
+    expect(fw.at(-1).bodies.p.hits).toBeGreaterThan(0);
+    // heard and hunted round the wall; items, then the objective held
+    expect(seen('frag-hears-and-hunts', (o) => o.minds.h.path > 1)).toBe(true);
+    expect(seen('frag-hears-and-hunts', (o) => o.bodies.p.hits > 0)).toBe(true);
+    const fi = JSON.parse(runMinds(scenarioById('frag-items-objective')).snaps.at(-1)).minds.i;
+    expect(Math.hypot(fi.pos[0] + 3, fi.pos[1] + 6)).toBeLessThanOrEqual(1.5);
   });
 
   it.skipIf(!GODOT)('kernel/mind.gd and nav.gd are equal to the web\'s, frame by frame, at the five seeds (MOJULO_GODOT)', () => {
@@ -84,6 +94,16 @@ describe('the mind in Godot', () => {
     { file: 'cast.gd', name: 'a respawned mind remembers its last sighting', from: 'e["lastSeen"] = null; e["searchT"] = null;', to: 'e["searchT"] = null;' },
     { file: 'cast.gd', name: 'a sighting the bus never hears', from: 'if cur["n"] > int(p.get("n", 0)):', to: 'if false:' },
     { file: 'combat.gd', name: 'a stowed gun that does not reload', from: '			if lw is Dictionary:\n				tick_weapon(lw, dt)', to: '			if lw is Dictionary and is_same(lw, e["weapon"]):\n				tick_weapon(lw, dt)' },
+    // the match player (frag, since 0.31.0)
+    { file: 'mind.gd', name: 'a grudge that turns nobody', from: 'if o["id"] == grudge:\n			c *= 0.3', to: 'if o["id"] == grudge:\n			c *= 1.0' },
+    { file: 'mind.gd', name: 'a match player that sees through its back', from: 'if not can_see(e, r, o, world, mine):', to: 'if not can_see(e, r, o, world, true):' },
+    { file: 'mind.gd', name: 'a strafe a step short', from: 'var ss := speed * nf(r, "strafe", 0.6) * dt', to: 'var ss := speed * nf(r, "strafe", 0.6) * dt * 0.9' },
+    { file: 'mind.gd', name: 'a match player that hears nothing', from: 'var hd := nf(r, "hearRange", 35.0)', to: 'var hd := nf(r, "hearRange", 35.0) * 0.0' },
+    { file: 'combat.gd', name: 'a shot nobody hears', from: 'e["lastShot"] = {"t": mind_clock if mind_clock >= 0.0 else float(st.get("time", 0.0)), "from": from.duplicate()}', to: 'pass' },
+    { file: 'mind.gd', name: 'a lead kept too long', from: 'var span := nf(r, "leadSpan", 6.0)', to: 'var span := nf(r, "leadSpan", 6.0) * 2.0' },
+    { file: 'mind.gd', name: 'a hunch on other dice', from: '7919 + n', to: '7919 + n + 1' },
+    { file: 'mind.gd', name: 'health wanted only when nearly gone', from: 'nf(r, "itemsBelow", 0.6)', to: 'nf(r, "itemsBelow", 0.2)' },
+    { file: 'mind.gd', name: 'an objective held looking the wrong way', from: 'e["heading"] = float(e["heading"]) + nf(r, "turn", 3.0) * 0.3 * dt', to: 'e["heading"] = float(e["heading"]) + nf(r, "turn", 3.0) * 0.31 * dt' },
   ];
   // a hitscan's cover is traced to where the ray enters the egg (combat-ranged.js), not to the body's centre: the seeded
   // scenario that told the two apart (the Roblox port found it; Godot traced to the centre until 0.29.0)

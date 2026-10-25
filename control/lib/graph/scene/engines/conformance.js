@@ -21,6 +21,7 @@ import * as mindC from '../mind-conformance.js';
 import * as rulesC from '../rules-conformance.js';
 import * as scenesC from '../scenes-conformance.js';
 import * as levelC from '../level-conformance.js';
+import * as spritesC from '../sprites-conformance.js';
 
 const byId = (scenarios, run) => Object.fromEntries(scenarios.map((sc) => [sc.id, run(sc)]));
 
@@ -68,6 +69,14 @@ export const CORPORA = Object.freeze({
   // pilot: a Roblox Humanoid): the bus and every other ruled body, frame by frame. The Roblox step is kernel/level.luau
   // a whole level with its cast, fight and minds, the pilot fed from the web's run: the Roblox place's case (its player is
   // a Humanoid); Godot's whole-level equality is its own harness (level-equivalence.godot.test.js)
+  // a world's game sfx: the beads of each verb's path and the cards drawn (the Godot kernel's sfx.gd; the Roblox place
+  // draws no sfx yet). It names the bus as every corpus does: the runner's project always has it
+  sprites: {
+    engines: ['godot'],
+    module: 'lib/graph/scene/sprites-conformance.js', kernel: ['bus', 'json', 'sfx'],
+    scenarios: () => spritesC.corpus(),
+    web: (scenarios) => byId(scenarios, (sc) => spritesC.runSprites(spritesC.scenarioById(sc.id))),
+  },
   levelcast: {
     engines: ['roblox'],
     module: 'lib/graph/scene/level-conformance.js', kernel: ['bus', 'json', 'stats', 'game', 'rules', 'nav', 'mind', 'group', 'cast', 'combat', 'scenes', 'quests', 'level'],

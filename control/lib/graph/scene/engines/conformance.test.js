@@ -10,7 +10,7 @@ const LUNE = process.env.MOJULO_LUNE;
 
 describe('the neutral half', () => {
   it('names each corpus\'s kernel modules by module id, and every engine with marks has a runner', () => {
-    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes', 'levelcast']);
+    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes', 'sprites', 'levelcast']);
     for (const c of Object.values(CORPORA)) expect(c.kernel).toContain('bus');
     expect(Object.keys(RUNNERS).sort()).toEqual([...MARKED_ENGINES].sort());
   });

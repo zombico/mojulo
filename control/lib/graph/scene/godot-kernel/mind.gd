@@ -751,6 +751,200 @@ func graze_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> v
 	wander_step(e, r, dt, world, {"speedMul": 0.35, "pause": [4.0, 7.0], "pauseLoco": "graze"})
 
 
+# ── FRAG (`rule.mind.motivation: 'frag'`, mind.js, since 0.31.0): a match player. Everyone not on its team is its foe
+# (`rule.target`, else 'enemy' on a team, 'all' without one). It fights whom it can SEE, never the nearest body behind a
+# wall; seen, the one that shot it last (for `fragGrudge`, 3 s) and the one it already fights count closer. Seeing no
+# one it never stands: an item it wants first (opt-in `rule.items`), then an objective to hold (`rule.objective`), then
+# its freshest LEAD (the shooter that hit it, a shot heard within `hearRange` in the last half second, where it last saw
+# a foe) for `leadSpan`; with none, a HUNCH: every `hunchEvery` s a rival its seeded dice pick. While it shoots it
+# strafes on its juke clock (`strafe`). A perch for a long gun (`keepRange`, `perches`) and the peek stay the web's.
+static func frag_policy(e: Dictionary, r: Dictionary):
+	if r.get("target") != null:
+		return r["target"]
+	return "enemy" if Js.truthy(e.get("team")) else "all"
+
+
+static func frag_foe(e: Dictionary, o: Dictionary, policy) -> bool:
+	if is_same(o, e) or Js.truthy(o.get("isCamera")) or Js.truthy(o.get("downed")) or Js.truthy(o.get("gone")) or Js.truthy(o.get("invincible")) or not _hittable_body(o):
+		return false
+	return not (policy == "enemy" and Js.truthy(e.get("team")) and o.get("team") == e["team"])
+
+
+# in sight range, in its facing cone (unless wide: the one it fights, the one that shot it), a clear line eye to eye
+static func can_see(e: Dictionary, r: Dictionary, o: Dictionary, world: Dictionary, wide: bool) -> bool:
+	var q: Array = o["pos"]
+	var dx: float = q[0] - e["pos"][0]
+	var dy: float = q[1] - e["pos"][1]
+	if Js.hypot2(dx, dy) > nf(r, "sightRange", 120.0):
+		return false
+	if not wide:
+		var off := atan2(dy, dx) - float(e["heading"])
+		if absf(atan2(sin(off), cos(off))) > nf(r, "sightCone", 1.2):
+			return false
+	return not (world.get("colliders") is Array and Js.sight_blocked([e["pos"][0], e["pos"][1], float(e["pos"][2]) + eye_h(e)], [q[0], q[1], float(q[2]) + eye_h(o)], world["colliders"]))
+
+
+func frag_notice(e: Dictionary, r: Dictionary, world: Dictionary):
+	if not (world.get("byId") is Dictionary):
+		return null
+	var now: float = world.get("time", 0.0)
+	var policy = frag_policy(e, r)
+	# a hit says who and where from: a grudge, and a lead to the shooter
+	if int(nn(e, "hits", 0)) > int(nn(e, "fragHits", 0)):
+		e["fragHits"] = e["hits"]
+		var by = world["byId"].get(e["lastHitBy"]) if Js.truthy(e.get("lastHitBy")) else null
+		if by != null and not is_same(by, e):
+			e["fragGrudge"] = {"id": by["id"], "t": now}
+			e["fragLead"] = {"pos": (by["pos"] as Array).duplicate(), "t": now}
+	var grudge = null
+	if e.get("fragGrudge") is Dictionary and now - float(e["fragGrudge"]["t"]) < nf(r, "fragGrudge", 3.0):
+		grudge = e["fragGrudge"]["id"]
+	var best = null
+	var bc := INF
+	for id in world["order"]:
+		var o: Dictionary = world["byId"][id]
+		if not frag_foe(e, o, policy):
+			continue
+		var mine: bool = o["id"] == e.get("fragTarget") or o["id"] == grudge
+		if not can_see(e, r, o, world, mine):
+			continue
+		var c := Js.hypot2(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
+		if o["id"] == e.get("fragTarget"):
+			c *= 0.6
+		if o["id"] == grudge:
+			c *= 0.3
+		if c < bc:
+			bc = c
+			best = o
+	e["fragTarget"] = best["id"] if best != null else null
+	return best
+
+
+# ITEMS (opt-in `rule.items`: [{ at, gives, back }]): hurt (under `itemsBelow` of its hp) the nearest health or armor,
+# short of rounds ammo, an overdrive within 12 m on the way, a weapon not yet carried or nearly dry within `gunReach`;
+# each taken (stood on) is not gone back for before its `back`. → the item's place, or null
+static func _num_int(v) -> bool:
+	return (v is float or v is int) and float(v) == floor(float(v))
+
+
+func item_goal(e: Dictionary, r: Dictionary, world: Dictionary):
+	var items = r.get("items")
+	var now: float = world.get("time", 0.0)
+	if not (items is Array) or items.is_empty():
+		return null
+	if not (e.get("itemTook") is Dictionary):
+		e["itemTook"] = {}
+	var took: Dictionary = e["itemTook"]
+	for k in items.size():
+		var at: Array = items[k]["at"]
+		if Js.hypot2(float(at[0]) - e["pos"][0], float(at[1]) - e["pos"][1]) < 1.2:
+			took[k] = now
+	var hurt: bool = Js.finite(e.get("hpMax")) and float(e["hpMax"]) > 0.0 and Js.finite(e.get("hp")) and float(e["hp"]) < nf(r, "itemsBelow", 0.6) * float(e["hpMax"])
+	var w = e.get("weapon")
+	var dry: bool = w is Dictionary and w.get("reserve") != null and float(w["ammo"]) + float(w["reserve"]) < float(w["magazine"])
+	var lo = null
+	if e.get("pilotRule") is Dictionary and e["pilotRule"].get("loadout") is Array:
+		lo = e["pilotRule"]["loadout"]
+	elif r.get("loadout") is Array:
+		lo = r["loadout"]
+	var best = null
+	var bd := INF
+	for k in items.size():
+		var it: Dictionary = items[k]
+		if took.get(k) != null and now - float(took[k]) < nf(it, "back", INF):
+			continue
+		var at: Array = it["at"]
+		var d := Js.hypot2(float(at[0]) - e["pos"][0], float(at[1]) - e["pos"][1])
+		var gives = it.get("gives")
+		var want: bool = ((gives == "health" or gives == "armor") and hurt) or (gives == "ammo" and dry) or (gives == "overdrive" and d < 12.0)
+		if not want and gives == "weapon" and d < nf(r, "gunReach", 18.0) and lo != null and e.get("loadoutWeapons") is Array:
+			var i := -1
+			if _num_int(it.get("slot")):
+				i = int(it["slot"])
+			else:
+				for j in (lo as Array).size():
+					if lo[j] is Dictionary and lo[j].get("name") == it.get("slot"):
+						i = j
+						break
+			var lws: Array = e["loadoutWeapons"]
+			var g = lws[i] if i >= 0 and i < lws.size() else null
+			var held = e.get("loadoutHeld")
+			want = g is Dictionary and ((held is Array and i < held.size() and not Js.truthy(held[i])) or (g.get("reserve") != null and float(g["ammo"]) + float(g["reserve"]) < float(g["magazine"])))
+		if want and d < bd:
+			bd = d
+			best = it
+	return best["at"] if best != null else null
+
+
+# no foe in sight: an item it wants, an objective, then a lead (a hit, a shot heard, a sighting), else a hunch
+func frag_roam(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> void:
+	var now: float = world.get("time", 0.0)
+	var span := nf(r, "leadSpan", 6.0)
+	var speed := nf(r, "speed", 6.0)
+	var item = item_goal(e, r, world)
+	if item != null:
+		e["aiFire"] = 0
+		e["seekingItem"] = true
+		go_to(e, r, dt, world, item, speed)
+		return
+	e["seekingItem"] = false
+	var ob = r.get("objective")
+	if ob is Dictionary and ob.get("at") is Array:
+		e["aiFire"] = 0
+		var oa: Array = ob["at"]
+		if Js.hypot2(float(oa[0]) - e["pos"][0], float(oa[1]) - e["pos"][1]) > nf(ob, "radius", 2.0):
+			go_to(e, r, dt, world, oa, speed)
+			return
+		e["moving"] = false
+		e["heading"] = float(e["heading"]) + nf(r, "turn", 3.0) * 0.3 * dt
+		return
+	if world.get("byId") is Dictionary:
+		var heard = null
+		var hd := nf(r, "hearRange", 35.0)
+		for id in world["order"]:
+			var o: Dictionary = world["byId"][id]
+			var s = o.get("lastShot")
+			if is_same(o, e) or not (s is Dictionary) or now - float(s["t"]) > 0.5 or not (s.get("from") is Array):
+				continue
+			var d := Js.hypot2(float(s["from"][0]) - e["pos"][0], float(s["from"][1]) - e["pos"][1])
+			if d < hd:
+				hd = d
+				heard = s["from"]
+		if heard != null and not (e.get("fragLead") is Dictionary and now - float(e["fragLead"]["t"]) < 0.5):
+			e["fragLead"] = {"pos": (heard as Array).duplicate(), "t": now}
+	# where it last saw a foe is a lead too, as old as the sighting
+	var ls = e.get("lastSeen")
+	if ls is Dictionary and (not (e.get("fragLead") is Dictionary) or float(ls["t"]) > float(e["fragLead"]["t"])):
+		e["fragLead"] = {"pos": (ls["pos"] as Array).duplicate(), "t": ls["t"]}
+	var goal = e["fragLead"]["pos"] if e.get("fragLead") is Dictionary and now - float(e["fragLead"]["t"]) < span else null
+	if goal != null and Js.hypot2(float(goal[0]) - e["pos"][0], float(goal[1]) - e["pos"][1]) < 2.0:
+		e["fragLead"] = null
+		e["lastSeen"] = null
+		goal = null
+	if goal == null:
+		if not (e.get("fragHunch") is Dictionary) or now >= float(e["fragHunch"]["until"]):
+			var foes: Array = []
+			var policy = frag_policy(e, r)
+			for id in world["order"]:
+				var o: Dictionary = world["byId"][id]
+				if frag_foe(e, o, policy):
+					foes.append(o)
+			var n := int(nn(e, "fragHunchN", 0)) + 1
+			e["fragHunchN"] = n
+			if foes.is_empty():
+				e["fragHunch"] = null
+			else:
+				e["fragHunch"] = {"id": foes[int(floor(hash01(String(e["id"]), 7919 + n) * foes.size()))]["id"], "until": now + nf(r, "hunchEvery", 8.0)}
+		var h = world["byId"].get(e["fragHunch"]["id"]) if e.get("fragHunch") is Dictionary else null
+		if h != null and not Js.truthy(h.get("downed")) and not Js.truthy(h.get("gone")):
+			goal = h["pos"]
+	if goal == null:
+		e["moving"] = false
+		return
+	e["aiFire"] = 0
+	go_to(e, r, dt, world, goal, speed)
+
+
 func idle(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, motive) -> void:
 	if Js.truthy(e.get("groupId")) and e.get("groupSlot") is Array:
 		var gs: Array = e["groupSlot"]
@@ -769,6 +963,9 @@ func idle(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, motive) ->
 		return
 	if motive == "forage":
 		graze_step(e, r, dt, world)
+		return
+	if motive == "frag":
+		frag_roam(e, r, dt, world)
 		return
 	e["moving"] = false
 
@@ -975,14 +1172,14 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	var policy = r.get("target")
 	if policy == null and motive == "escort":
 		policy = "enemy" if Js.truthy(e.get("team")) else "all"
-	var target = pick_target(e, world, policy, ward)
+	var target = frag_notice(e, r, world) if motive == "frag" else pick_target(e, world, policy, ward)
 	if Js.truthy(r.get("cover")) and target != null and not is_same(target, e) and take_cover(e, r, dt, world, target):
 		e["reactionEnded"] = false
 		return
 	var percept = mind.get("perception") if mind is Dictionary else null
 	if Js.truthy(percept) and target != null and not is_same(target, e) and not perceive(e, r, target, world) and e.get("groupFocus") != target["id"]:
 		target = null
-		if percept == "memory" and recall(e, r, dt, world):
+		if percept == "memory" and motive != "frag" and recall(e, r, dt, world):
 			e["reactionEnded"] = false
 			return
 	if target == null or is_same(target, e):
@@ -1329,6 +1526,14 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			e["pos"][0] += f2[0] * move_f
 			e["pos"][1] += f2[1] * move_f
 		move_mag = move_f
+		# FRAG: it strafes as it shoots, side to side on its juke clock; not with a slot that `plant`s
+		var planted: bool = a_slot is Dictionary and Js.truthy(a_slot.get("plant"))
+		if motive == "frag" and facing and w is Dictionary and nf(r, "strafe", 0.6) > 0.0 and not planted:
+			var side := float(next_juke(e, r, dt))
+			var ss := speed * nf(r, "strafe", 0.6) * dt
+			e["pos"][0] += rt2[0] * side * ss
+			e["pos"][1] += rt2[1] * side * ss
+			move_mag = maxf(move_mag, ss)
 	if not space and cols is Array:
 		block(e, r, eye, world)
 	if not space:

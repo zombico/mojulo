@@ -220,6 +220,7 @@ export const LEDGER_MARKS = Object.freeze({
   skipped_movers: ledger('mover/platform integrator channels do not travel'),
   skipped_physics: ledger('live physics channels do not travel'),
   skipped_fx: ledger('camera-facing fx (billboards, glows) are not drawn'),
+  skipped_effects: ledger('screen effects (raymarch layers) are not drawn'),
   skipped_sprite_sfx: ledger('sprite sfx are not drawn'),
   sky_approximated: ledger('the backdrop image the page loads by URL is not carried'),
   weather_partial: ledger('the weather does not play in a Roblox export'),

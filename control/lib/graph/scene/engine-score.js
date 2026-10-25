@@ -25,6 +25,7 @@ import { extractCombat } from './combat-score.js';
 import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
 import { figureOverlays } from './engines/marks.js';
+import { collectGlowSprites } from '../figures/face-mesh.js';
 import { DEFAULT_ENGINE, marksOf } from './engines/registry.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
@@ -234,6 +235,18 @@ function driverRows(payload) {
     });
 }
 
+// the cards a Godot level draws (score.glows, spriteSfx, fx): each absent when the page draws none
+function cardRows(payload) {
+  const cfg = payload?.glow && typeof payload.glow === 'object' ? payload.glow : {};
+  const glows = payload?.glow === false ? [] : collectGlowSprites(Array.isArray(payload?.faces) ? payload.faces : [], { scale: cfg.scale ?? 1 })
+    .map((g) => ({ ...g, opacity: cfg.opacity ?? 0.95 }));
+  const sfx = Array.isArray(payload?.spriteSfx) ? payload.spriteSfx.filter((L) => L && typeof L.verb === 'string' && Array.isArray(L.cc)) : [];
+  const fx = payload?.fx && typeof payload.fx === 'object' && (payload.fx.states || payload.fx.on) ? payload.fx : null;
+  // the first undershot cloud deck (effects-clouds.js composeCloudDeck's `deck`, z up), which the kernel draws in its sky
+  const deck = (Array.isArray(payload?.effects) ? payload.effects : []).find((e) => e && typeof e.frag === 'string' && e.deck)?.deck ?? null;
+  return { ...(glows.length ? { glows } : {}), ...(sfx.length ? { spriteSfx: JSON.parse(JSON.stringify(sfx)) } : {}), ...(fx ? { fx: JSON.parse(JSON.stringify(fx)) } : {}), ...(deck ? { cloudDeck: JSON.parse(JSON.stringify(deck)) } : {}) };
+}
+
 // the pilot the level-equivalence key names first (a pilotable entity, else the first walker), when it walks or runs
 function pilotRow(payload) {
   const ents = Array.isArray(payload?.entities) ? payload.entities : [];
@@ -332,6 +345,9 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   skip('skipped_fx', countOf(payload.fx), 'camera-facing/runtime fx (billboards, glows) — not geometry');
   skip('skipped_physics', countOf(payload.physics), 'live physics-body channels do not bake');
   skip('skipped_sprite_sfx', countOf(payload.spriteSfx), 'sprite sfx cues — re-orchestrate in-engine');
+  // the screen effects a kernel cannot draw: every raymarch layer but the first cloud deck (which a Godot sky carries)
+  const decks = (Array.isArray(payload.effects) ? payload.effects : []).filter((e) => e && typeof e.frag === 'string');
+  skip('skipped_effects', decks.filter((e, i) => !(e.deck && decks.findIndex((x) => x.deck) === i)).length, 'screen effects (raymarch layers) the page draws alone');
   // the page's backdrop is an IMAGE it loads by URL behind a transparent canvas: a pack fetches nothing, so it is named
   // (the background colour, the sky dome and the haze ride the score since 0.23.0: score.bg, score.skyDome, score.haze)
   if (payload.backdrop) {
@@ -550,6 +566,10 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
     // moving decks and lifts (mover, a carrier's `carry` top) and the patrols (since 0.31.0); kernel/rules.gd steps each
     // as the web does. Absent ⇒ no key.
     ...(drivers.length ? { drivers } : {}),
+    // what the page draws as cards, for a kernel that draws them (Godot's level.gd, since 0.31.0), in recipe units: the
+    // fixtures' glows as the page collects them (channels/glow.js, unless the payload turns glow off), the game sfx
+    // layers (kernel/sfx.gd moves their beads) and the UI language's states and gestures. Absent ⇒ no key.
+    ...(engine === 'godot' ? cardRows(payload) : {}),
     // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
     // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
     ...(blendNodes.length ? { blendNodes } : {}),

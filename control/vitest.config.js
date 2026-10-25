@@ -17,6 +17,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
   'lib/graph/car-designer/racer-live.test.js',
+  'lib/graph/scene/godot-clouds.chrome.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
   'lib/graph/board/board-page.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',

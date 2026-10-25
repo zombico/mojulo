@@ -16,9 +16,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Godot recoup: the export catches up with what plays on the web
 
-Kernel 0.31.0. Of the 500 worlds the sweep rolls near the genre probes, 256 now play in Godot (192 before); of 500
-random worlds, 72 (65 before). The 3D collectathon, the metroidvania, the flight sim, the space shooter and air combat
-now play in Godot.
+Kernel 0.31.0. Of the 500 worlds the sweep rolls near the genre probes, 270 now play in Godot (192 before); of 500
+random worlds, 73 (65 before). The 3D collectathon, the metroidvania, the flight sim, the space shooter, air combat and
+the arena shooter now play in Godot.
 
 - **Three genres were hollow and now play.** The party role-playing game, the farming sim and the tower defence
   exported as hollow because their cast stands on `static`, `core.js`'s default for a body with no rule of its own. The
@@ -36,16 +36,52 @@ now play in Godot.
     level harness agrees: a rider does not stand on a deck raised off the floor. Godot matches the web here; standing
     on a raised deck is a web change.
   - A catapult's throw (`launcher`) is still the web's.
+- **The arena shooter's bots play the match** (`mind.motivation: 'frag'`). Before, `kernel/mind.gd` had no match
+  player: a bot with no `target` fell through to hunting the pilot, through walls, and stood still when it saw no one,
+  so a deathmatch became every bot chasing the player. Now, as on the web:
+  - A bot fights whom it can see: its sight range, its facing cone, a clear line. The one it already fights counts
+    closer, and the one that shot it last closer still, seen wide for its grudge.
+  - It strafes as it shoots, on its juke clock.
+  - Seeing no one, it goes for an item it wants (health or armor when hurt, ammo when short, an overdrive on the way, a
+    gun it lacks), each not gone back for before its time. Then it holds its side's objective. Then it follows its
+    freshest lead: the shooter that hit it, a shot heard within `hearRange`, where it last saw a foe. With none, its
+    seeded hunch picks a rival.
+  - `kernel/combat.gd` keeps each shot's time and muzzle (`lastShot`), which is what a bot hears.
+  - Still the web's: a long gun's perch and its kept range, the peek round an edge.
+- **The look the web draws as cards and clouds.**
+  - **The cloud deck** every staged level carries (`effects-clouds.js`, undershot) is drawn in Godot's sky
+    (`kernel/clouds_sky.gdshader`): the same slab, noise, phase and fade, laid over the dome in display space. The
+    scene stands in front of it wherever geometry is, as the page's depth clip leaves it. Fifteen of the fixtures
+    carried this one effect and dropped it. `composeCloudDeck` now returns the deck's numbers as data beside its
+    fragment (`deck`; the page reads only the fragment). Any other screen effect stays the web's and is named per level
+    (`skipped_effects`).
+  - **Game sfx** (`spriteSfx`: a sparkle over a pickup, an aura, a beacon) are drawn as the page's additive cards.
+    `kernel/sfx.gd` moves every bead along its verb's path.
+  - **Glows**: each emissive fixture's halo is drawn as a card of its colour and size.
+  - **The UI language** (`fx`) plays on the bodies' nodes: float, spin and pulse, and the pop, burst, ghost and dissolve
+    a bus event queues (a collected coin bursts and goes). Its tints and ink verbs stay the web's.
+  - Each is approximated, not built: Godot blends and colours its own way, and no one has looked at them in a Godot
+    window yet.
 - **Marks that had fallen behind the kernel.**
   - The aircraft hero and the airspace level form were marked absent with "Godot has no fly rule". The fly rule has run
     in the kernel since 0.27.0, and the three flight fixtures export as playing in part. Both are approximated: a
     fighter's homing missiles and flares stay the web's, and so does the haze's falloff curve.
   - The double jump's gait was marked absent. The air jump itself runs in `kernel/rules.gd` (`airJumps`); only its
     clip does not play, as with the other jumps. It is approximated.
-- **Proof.** The rules corpus gains a drone scenario and seven body scenarios: a shuttle, a rail, a looped rail, a
-  march past a box and up a ramp, an arc, a lift stood on, and a deck that carries its rider. A corpus scenario may now
-  carry a carrier beside its pilot. The planted-bug list gains a bug for each new port. The equality tests need Godot
-  (`MOJULO_GODOT`), which neither this branch's machine nor CI has, so they have not run against a real engine yet.
+- **Proof.**
+  - The rules corpus gains a drone scenario and seven body scenarios: a shuttle, a rail, a looped rail, a march past a
+    box and up a ramp, an arc, a lift stood on, and a deck that carries its rider. A corpus scenario may now carry a
+    carrier beside its pilot.
+  - The mind corpus gains three match-player scenarios: whom it sees and the grudge, a shot heard and a hunt round a
+    wall, items then an objective.
+  - A new sprites corpus holds `kernel/sfx.gd` to the web's verb shelf at 1e-6. The sparkle's scatter hash parts two
+    maths libraries near the ninth digit, past what a float32 card shows.
+  - The planted-bug lists gain a bug for each new port.
+  - These equality tests need Godot (`MOJULO_GODOT`), which neither this branch's machine nor CI has, so they have not
+    run against a real engine yet.
+  - The cloud deck is held to the page's fragment in Chrome instead (`godot-clouds.chrome.test.js`, the e2e tier): the
+    port's maths and the page's render the same rays into float targets and agree to float32 rounding, and both sky
+    shaders compile as GLSL under the sky wrap.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

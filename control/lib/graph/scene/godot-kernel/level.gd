@@ -33,6 +33,7 @@ const JsonExact := preload("res://kernel/json_exact.gd")
 const Js := preload("res://kernel/js.gd")
 const GameChannel := preload("res://kernel/game_channel.gd")
 const Beat := preload("res://kernel/beat.gd")
+const SfxScript := preload("res://kernel/sfx.gd")
 const HAZARD_COOLDOWN := 0.8
 
 var score: Dictionary = {}
@@ -193,6 +194,7 @@ func _ready() -> void:
 	_build_colliders()
 	_build_address()
 	_build_crystal_light()
+	_build_cards()
 	_build_cameras()
 	_spawn_walker()
 	_build_rigs()
@@ -1041,6 +1043,202 @@ func _spawn_walker() -> void:
 	_build_drivers()
 
 
+# THE CARDS (since 0.31.0): what the page draws as additive camera-facing sprites. A world's game sfx (score.spriteSfx:
+# each layer's beads moved along its verb's path by kernel/sfx.gd, held equal to the web by the sprites corpus) and its
+# fixtures' glows (score.glows, standing still), each a billboard quad under the page's radial falloff; and the game UI
+# language's decoration of its bodies (score.fx, channels/fx.js): the standing states (float, spin, pulse) and the
+# one-shot gestures a bus event queues (pop, burst, ghost, dissolve: moved, scaled, faded, hidden at the end) on the
+# body's node. The tints (dim, shimmer, the pop's flash) and the ink verbs stay the web's. One clock for all of it.
+var card_clock := 0.0
+var sfx_layers: Array = []   # [{ L, cards: [MeshInstance3D] }]
+var fx_spec = null           # score.fx
+var fx_queue: Array = []     # gestures heard this frame: [{ id, gesture }]
+var fx_active: Array = []    # gestures in flight: [{ id, gesture, t0 }]
+var fx_rest: Dictionary = {} # id -> { node, rest: Transform3D, move: bool, hidden: bool }
+var _card_tex: GradientTexture2D = null
+
+
+func _card_texture() -> GradientTexture2D:
+	if _card_tex == null:
+		var gr := Gradient.new()
+		gr.offsets = PackedFloat32Array([0.0, 0.25, 0.6, 1.0])
+		gr.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.13), Color(1, 1, 1, 0)])
+		_card_tex = GradientTexture2D.new()
+		_card_tex.gradient = gr
+		_card_tex.fill = GradientTexture2D.FILL_RADIAL
+		_card_tex.fill_from = Vector2(0.5, 0.5)
+		_card_tex.fill_to = Vector2(1.0, 0.5)
+	return _card_tex
+
+
+func _card(size: float, color, opacity: float) -> MeshInstance3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.albedo_texture = _card_texture()
+	var c: Array = color if color is Array and (color as Array).size() >= 3 else [1, 1, 1]
+	mat.albedo_color = Color(float(c[0]), float(c[1]), float(c[2]), opacity)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1, 1)
+	var m := MeshInstance3D.new()
+	m.mesh = quad
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.scale = Vector3.ONE * size
+	add_child(m)
+	return m
+
+
+func _build_cards() -> void:
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	for g in score.get("glows", []):
+		if g is Dictionary and g.get("pos") is Array:
+			var m := _card(float(g.get("size", 1.0)) * mpu, g.get("color"), float(g.get("opacity", 0.95)))
+			m.position = to_yup(g["pos"]) * mpu
+	for L in score.get("spriteSfx", []):
+		if not (L is Dictionary and L.get("cc") is Array):
+			continue
+		var params: Dictionary = L["params"] if L.get("params") is Dictionary else {}
+		var cards: Array = []
+		for i in SfxScript.beads(String(L.get("verb", "")), L["cc"], 0.0, params).size():
+			var m := _card(1.0, L.get("color"), 0.9)
+			m.visible = false
+			cards.append(m)
+		sfx_layers.append({"L": L, "params": params, "cards": cards})
+	fx_spec = score.get("fx") if score.get("fx") is Dictionary else null
+	if (score.get("glows", []) as Array).size() + sfx_layers.size() > 0 or fx_spec != null:
+		print("moj: cards %d glows, %d sfx layers, fx %s" % [(score.get("glows", []) as Array).size(), sfx_layers.size(), "on" if fx_spec != null else "off"])
+
+
+func _step_cards(delta: float) -> void:
+	card_clock += delta
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	for layer in sfx_layers:
+		var L: Dictionary = layer["L"]
+		var rate := float(L["rate"]) if Js.truthy(L.get("rate")) else 1.0
+		var size := float(L["size"]) if Js.truthy(L.get("size")) else 0.6
+		var bs: Array = SfxScript.beads(String(L.get("verb", "")), L["cc"], card_clock * rate, layer["params"])
+		var cards: Array = layer["cards"]
+		for i in cards.size():
+			var m: MeshInstance3D = cards[i]
+			var c = SfxScript.card(bs[i] if i < bs.size() else null, size)
+			if c == null:
+				m.visible = false
+				continue
+			m.visible = true
+			m.position = to_yup(c["p"]) * mpu
+			m.scale = Vector3.ONE * float(c["size"]) * mpu
+			var mat := m.material_override as StandardMaterial3D
+			var col: Color = mat.albedo_color
+			col.a = float(c["opacity"])
+			mat.albedo_color = col
+	if fx_spec != null:
+		_step_fx(mpu)
+
+
+# a bus event matching a binding (its type, or the zone it comes from) queues that binding's gesture on its target
+func _fx_heard(events: Array) -> void:
+	if fx_spec == null or not (fx_spec.get("on") is Dictionary):
+		return
+	for ev in events:
+		if not (ev is Dictionary):
+			continue
+		for pat in fx_spec["on"]:
+			var hit: bool = Js.glob(ev.get("type"), pat) or (ev.get("source") is String and Js.glob(ev["source"], pat)) or (ev.get("zone") is String and Js.glob(ev["zone"], pat))
+			if not hit:
+				continue
+			var b = fx_spec["on"][pat]
+			var gesture = b.get("gesture") if b is Dictionary else b
+			var target = b["target"] if b is Dictionary and Js.truthy(b.get("target")) else null
+			if target == null:
+				for k in ["id", "entity"]:
+					if target == null and Js.truthy(ev.get(k)):
+						target = ev[k]
+				if target == null and ev.get("match") is Dictionary and Js.truthy(ev["match"].get("target")):
+					target = ev["match"]["target"]
+				if target == null and Js.truthy(fx_spec.get("onTarget")):
+					target = fx_spec["onTarget"]
+			fx_queue.append({"id": target, "gesture": gesture})
+			break
+
+
+func _fx_body(id: String):
+	if not fx_rest.has(id):
+		var n := _entity_node(id)
+		if n == null:
+			fx_rest[id] = null
+		else:
+			fx_rest[id] = {"node": n, "rest": n.transform, "move": s_(_entity(id).get("figure")) != "", "hidden": false}
+	return fx_rest[id]
+
+
+static func _fx_fade(n: Node, k: float) -> void:
+	for g in n.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).transparency = clampf(1.0 - k, 0.0, 1.0)
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).transparency = clampf(1.0 - k, 0.0, 1.0)
+
+
+# the body at rest, then moved: up by dz (recipe units), turned about the up axis, scaled; faded to k
+func _fx_pose(b: Dictionary, mpu: float, dz: float, turn: float, s: float, k: float) -> void:
+	var n: Node3D = b["node"]
+	var rest: Transform3D = b["rest"]
+	var move: bool = b["move"]
+	n.transform = Transform3D(Basis(Vector3.UP, turn if move else 0.0) * rest.basis.scaled(Vector3.ONE * s), rest.origin + Vector3(0, (dz if move else 0.0) * mpu, 0))
+	_fx_fade(n, k)
+
+
+func _step_fx(mpu: float) -> void:
+	var t := card_clock
+	for g in fx_queue:
+		g["t0"] = t
+		fx_active.append(g)
+	fx_queue = []
+	var busy := {}
+	for i in range(fx_active.size() - 1, -1, -1):
+		var g: Dictionary = fx_active[i]
+		var b = _fx_body(s_(g.get("id"))) if Js.truthy(g.get("id")) else null
+		if b == null:
+			fx_active.remove_at(i)
+			continue
+		var p := minf(1.0, (t - float(g["t0"])) / 0.5)
+		busy[s_(g["id"])] = true
+		match String(g.get("gesture", "")):
+			"pop":
+				if p < 0.3:
+					_fx_pose(b, mpu, 0.0, 0.0, 1.0 + 0.22 * (p / 0.3), 1.0)
+				else:
+					_fx_pose(b, mpu, 0.0, 0.0, maxf(0.001, 1.22 * (1.0 - (p - 0.3) / 0.7)), 1.0)
+			"burst":
+				_fx_pose(b, mpu, 0.0, 0.0, 1.0 + 1.3 * p, maxf(0.0, 1.0 - p * 1.1))
+			"ghost":
+				_fx_pose(b, mpu, 1.1 * p * p, 0.0, 1.0 + 0.2 * p, maxf(0.0, 1.0 - p))
+			"dissolve":
+				_fx_pose(b, mpu, 0.0, p * 6.0, maxf(0.001, 1.0 - p), maxf(0.0, 1.0 - p * 0.9))
+			_:
+				_fx_pose(b, mpu, 0.0, 0.0, 1.0, 1.0)
+		if p >= 1.0:
+			(b["node"] as Node3D).visible = false
+			b["hidden"] = true
+			fx_active.remove_at(i)
+	if fx_spec.get("states") is Dictionary:
+		for id in fx_spec["states"]:
+			var b = _fx_body(String(id))
+			if b == null or b["hidden"] or busy.has(String(id)):
+				continue
+			match String(fx_spec["states"][id]) if fx_spec["states"][id] is String else "":
+				"float":
+					_fx_pose(b, mpu, 0.16 * sin(t * 2.2), 0.0, 1.0, 1.0)
+				"spin":
+					_fx_pose(b, mpu, 0.12 * sin(t * 2.2), fmod(t * 1.6, TAU), 1.0, 1.0)
+				"pulse":
+					_fx_pose(b, mpu, 0.0, 0.0, 1.0 + 0.12 * sin(t * 3.0), 1.0)
+
+
 # THE DRIVERS (score.drivers, since 0.23.0): the bodies no one pilots that move by their own rule, each stepped by
 # kernel/rules.gd as the web's world steps them, its node riding its pose: the rivals (the racer rule); since 0.31.0 the
 # moving decks and lifts (mover) and the patrols. A carrier (its `carry` top) takes the pilot standing on it along, and a
@@ -1424,6 +1622,7 @@ func _live_frame() -> bool:
 
 func _process(delta: float) -> void:
 	_step_edit(delta)
+	_step_cards(delta)
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
 	if sim:
 		var f = sim_frames[sim_frame]
@@ -1732,6 +1931,7 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	bus_prompt.visible = top != null and menu_open == null
 	if top != null:
 		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
+	_fx_heard(incoming)
 	var n0: int = (bus_state["log"] as Array).size()
 	bus.frame(bus_state, incoming, minf(delta, 0.05))
 	_grants_heard(n0)
@@ -2809,8 +3009,27 @@ func quest_view() -> Array:
 # smoothing; a TONE (score.tone: kernel/tone.gdshader) colours each surface's lit value off its ramp. A level with none of
 # them builds nothing.
 const SkyShader := preload("res://kernel/sky.gdshader")
+const CloudSkyShader := preload("res://kernel/clouds_sky.gdshader")
 const ToneShader := preload("res://kernel/tone.gdshader")
 var look_env: Environment = null
+
+
+# the page's cloud deck (score.cloudDeck: effects-clouds.js's numbers) on kernel/clouds_sky.gdshader
+func _set_deck(mat: ShaderMaterial, d: Dictionary) -> void:
+	mat.set_shader_parameter("mpu", float(score.get("metersPerUnit", 1.0)))
+	for k in ["base", "top", "thick", "density", "scale", "worley", "lo", "hi", "reach"]:
+		mat.set_shader_parameter(k, float(d.get(k, 0.0)))
+	mat.set_shader_parameter("phase_cap", float(d.get("phaseCap", 2.0)))
+	mat.set_shader_parameter("max_dist", float(d.get("maxDist", 900.0)))
+	mat.set_shader_parameter("fade", float(d.get("fade", 420.0)))
+	var v3 := func(a, dflt: Vector3) -> Vector3: return Vector3(float(a[0]), float(a[1]), float(a[2])) if a is Array and (a as Array).size() >= 3 else dflt
+	mat.set_shader_parameter("albedo", v3.call(d.get("albedo"), Vector3(0.95, 0.95, 0.95)))
+	mat.set_shader_parameter("deck_sun", v3.call(d.get("sun"), Vector3(0, 0, 1)))
+	mat.set_shader_parameter("sun_col", v3.call(d.get("sunCol"), Vector3(1.0, 0.94, 0.84)))
+	mat.set_shader_parameter("sky_col", v3.call(d.get("skyCol"), Vector3(0.52, 0.64, 0.86)))
+	mat.set_shader_parameter("gnd_col", v3.call(d.get("gndCol"), Vector3(0.3, 0.28, 0.25)))
+	var dr = d.get("drift")
+	mat.set_shader_parameter("drift", Vector2(float(dr[0]), float(dr[1])) if dr is Array and (dr as Array).size() >= 2 else Vector2(0.01, 0.006))
 
 
 static func _srgb_lin(c: float) -> float:
@@ -2853,15 +3072,31 @@ func _build_look() -> void:
 	var bg = score.get("bg")
 	var dome = score.get("skyDome")
 	var haze = score.get("haze")
+	var deck = score.get("cloudDeck")
 	var metal := _metal_nodes()
-	if bg is String or dome is Dictionary or haze is Dictionary or metal:
+	if bg is String or dome is Dictionary or haze is Dictionary or metal or deck is Dictionary:
 		var env := _look_environment()
 		look_env = env
 		if bg is String:
 			env.background_color = Color(bg)
+		# a cloud deck with no dome: a sky of the background's colour for the deck to lie over (since 0.31.0)
+		if deck is Dictionary and not (dome is Dictionary):
+			var flat := ShaderMaterial.new()
+			flat.shader = CloudSkyShader
+			var bc := Color(bg) if bg is String else Color(0.05, 0.06, 0.08)
+			var lin := Color(_srgb_lin(bc.r * 255.0), _srgb_lin(bc.g * 255.0), _srgb_lin(bc.b * 255.0))
+			flat.set_shader_parameter("zenith", lin)
+			flat.set_shader_parameter("horizon", lin)
+			_set_deck(flat, deck)
+			var fsky := Sky.new()
+			fsky.sky_material = flat
+			env.sky = fsky
+			env.background_mode = Environment.BG_SKY
 		if dome is Dictionary:
 			var mat := ShaderMaterial.new()
-			mat.shader = SkyShader
+			mat.shader = CloudSkyShader if deck is Dictionary else SkyShader
+			if deck is Dictionary:
+				_set_deck(mat, deck)
 			var z: Array = dome.get("zenith", [])
 			var h: Array = dome.get("horizon", [])
 			if z.size() >= 3 and h.size() >= 3:

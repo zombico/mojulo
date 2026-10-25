@@ -40,7 +40,7 @@ export const RULE_MARKS = Object.freeze({
   racer: m(B, 'kernel/rules.gd: the rivals drive their lines as the web\'s (score.drivers), braking into bends, counting laps, backing off when held up'),
   fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown) and its dials since 0.27.0 (a glider, the throttle lever, space, the boost, the barrel roll, the assist, the map\'s bound)'),
   patrol: m(B, 'kernel/rules.gd (since 0.31.0): the dummy marches its waypoints (or its arc) as the web\'s, its node riding it, the cast\'s copy with it; downed, it stands'),
-  ai: m(B, 'kernel/mind.gd (since 0.26.0): the web mind (every motivation, perception and memory, cover, pathing on the web\'s grid in kernel/nav.gd, groups in kernel/group.gd, the blade, the roll, the charge, the loadout, the tier, a body\'s own tuning, a boss\'s phases and adapting), firing and swinging through kernel/combat.gd; the commander and the pilot\'s shove-down set piece stay the web\'s'),
+  ai: m(B, 'kernel/mind.gd (since 0.26.0): the web mind (every motivation, perception and memory, cover, pathing on the web\'s grid in kernel/nav.gd, groups in kernel/group.gd, the blade, the roll, the charge, the loadout, the tier, a body\'s own tuning, a boss\'s phases and adapting; the match player since 0.31.0, its items and objective too), firing and swinging through kernel/combat.gd; the commander and the pilot\'s shove-down set piece stay the web\'s'),
 });
 
 // the platform rule's keys (worlds/controllable rules-platform.js, maneuvers.js, combat-melee.js read them), each where
@@ -65,9 +65,8 @@ export const PLATFORM_KEYS = Object.freeze({
 // the `ai` rule's opt-in moves the kernel's mind does not run (yet): the match player and the arena shooter's moves
 // (worlds/controllable/mind.js since the shooter spike). Named per level, as the platform rule's are.
 export const AI_LOST = Object.freeze({
-  floors: 'floors and their stairs', peek: 'peeking round an edge', items: 'items and their timing', keepRange: 'keeping a long gun\'s range',
-  perches: 'perches', objective: 'an objective to hold', clearLine: 'holding fire past a teammate', clearance: 'a flier\'s ground clearance',
-  hearRange: 'the match player (frag)', leadSpan: 'the match player (frag)', hunchEvery: 'the match player (frag)', fragGrudge: 'the match player (frag)',
+  floors: 'floors and their stairs', peek: 'peeking round an edge', keepRange: 'keeping a long gun\'s range',
+  perches: 'perches', clearLine: 'holding fire past a teammate', clearance: 'a flier\'s ground clearance',
 });
 // a weapon's opt-in behaviour kernel/combat.gd does not run (yet): the arena shooter's and the dogfight's guns
 // (worlds/controllable/combat-ranged.js since the shooter spike). Named per level.
@@ -87,7 +86,6 @@ export function weaponLost(e) {
 export function aiLost(rule) {
   if (!rule || rule.type !== 'ai') return [];
   const out = Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && AI_LOST[k]).map((k) => AI_LOST[k]);
-  if (rule.mind && rule.mind.motivation === 'frag') out.push('the match player (frag)');
   if (Array.isArray(rule.loadout) && rule.loadout.some((c) => c && (Array.isArray(c.band) || c.held === false || c.plant))) out.push('the gun for the range (bands)');
   return [...new Set(out)].sort();
 }
@@ -112,7 +110,7 @@ export const PAGE_MARKS = Object.freeze({
   backdrop: m(A, 'the backdrop is an image the page loads by URL: a pack fetches nothing (sky_approximated)'),
   sky: m(P, 'score.skyDome: kernel/sky.gdshader paints the dome\'s gradient, the moon and the sun; its stars are scattered by a hash, not where the page puts them, and the moon\'s phase is not carved'),
   light: m(B, 'baked into the vertex colours by scene-gltf.js, as the page bakes it'),
-  glow: m(A, 'glow sprites (camera-facing additive cards) are not drawn'),
+  glow: m(P, 'kernel/level.gd (since 0.31.0) draws each fixture\'s glow as the page does: an additive camera-facing card, its colour, size and opacity under a radial falloff (Godot\'s blend and colour space)'),
   textures: m(B, 'embedded in the GLB (TEXCOORD_0 + PNG)'),
   cutouts: m(P, 'the cutout textures ride the GLB opaque: no alpha test'),
   soft: m(B, 'soft groups carry no colliders, as on the page'),
@@ -143,8 +141,8 @@ export const PAGE_MARKS = Object.freeze({
   hazeHeight: m(A, 'the haze does not thin with the camera\'s height (a city stalker\'s district): Godot keeps its density'),
   splats: m(A, 'fur and grass splats are not drawn'),
   audio: m(P, 'the soundtrack and one-shot sounds play (kernel/sound.gd); positional sound and weather beds are the web\'s'),
-  fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),
-  spriteSfx: m(A, 'sprite sfx are not drawn (skipped_sprite_sfx)'), marks: m(A, 'strength marks are not drawn'),
+  fx: m(P, 'kernel/level.gd (since 0.31.0) plays the UI language on the bodies\' nodes: float, spin and pulse, the pop, burst, ghost and dissolve a bus event queues, faded and hidden at the end; the tints (dim, shimmer, the pop\'s flash) and the ink verbs are the web\'s'), effects: m(P, 'a cloud deck (effects-clouds.js, undershot) is drawn in the sky (kernel/clouds_sky.gdshader since 0.31.0, its maths the fragment\'s), the scene standing in front of it as the page\'s depth clip leaves it; any other screen effect is the web\'s (skipped_effects)'),
+  spriteSfx: m(P, 'kernel/sfx.gd (since 0.31.0) moves every bead as the web\'s does (the sprites corpus) and kernel/level.gd draws each as an additive camera-facing card (Godot\'s blend and colour space)'), marks: m(A, 'strength marks are not drawn'),
   driveSurface: m(P, 'the drive rule runs in kernel/rules.gd; the grip and rolling of the ground under a car (`surfaceGrip`) are the web\'s: in Godot a car grips as on its own tarmac'),
   shoot: m(P, 'the edit plays on P (kernel/level.gd, since 0.25.0): the program camera cut for cut, its lens frame by frame; the set pieces and transitions are the page\'s picture, and the world\'s clock does not follow the shots'),
   game: m(B, 'contract.json: the level ends through its contract (kernel/game.gd)'),
@@ -256,11 +254,10 @@ export const LINK_MARKS = Object.freeze({
 });
 
 // ── the mind (cosmos facet mind): kernel/mind.gd runs the web's mind (since 0.26.0), held equal by the mind corpus. What
-// stays the web's is named here: the commander (a page's strategist), and the opportunist's counter on the pilot, which
+// stays the web's is named here (the match player, frag, runs since 0.31.0): the commander (a page's strategist), and the opportunist's counter on the pilot, which
 // the page plays as a shove-down set piece where the kernel plays the plain counter (the swinger stuffed and flung)
 export const MIND_WEB = Object.freeze({
   commander: { builtin: m(A, 'the commander is the page\'s: a commanded mind keeps its authored strategy'), agent: m(A, 'the commander is the page\'s (its hook and http ports)') },
-  motivation: { frag: m(A, 'the match player (sight, leads, hearing, hunches, the strafe) is the web\'s: kernel/mind.gd hunts as `hunt` does') },
   aggressiveness: { opportunist: m(P, 'kernel/mind.gd: the counter-charge runs; when the pilot is in it the page plays a shove-down set piece, the kernel the plain counter') },
 });
 export const mindMark = (axis, value) => MIND_WEB[axis]?.[value] ?? m(B, 'kernel/mind.gd runs it as the web\'s mind does (the mind corpus)');
@@ -322,8 +319,9 @@ export const LEDGER_MARKS = Object.freeze({
   bodies_solid: ledger(P, 'solid bodies (body.collide) push the walkers out of them on the web; in Godot the pilot passes through them'),
   skipped_movers: ledger(A, 'mover/platform integrator channels do not travel'),
   skipped_physics: ledger(A, 'live physics channels do not travel'),
-  skipped_fx: ledger(A, 'camera-facing fx (billboards, glows) are not drawn'),
-  skipped_sprite_sfx: ledger(A, 'sprite sfx are not drawn'),
+  skipped_fx: ledger(P, 'the UI language plays on the bodies (float, spin, pulse and the gestures a bus event queues); its tints and ink verbs stay the web\'s'),
+  skipped_effects: ledger(A, 'screen effects other than a cloud deck (raymarch layers) are not drawn'),
+  skipped_sprite_sfx: ledger(P, 'the game sfx are drawn as the web\'s cards, their beads equal to the web\'s (kernel/sfx.gd); Godot blends them its own way'),
   sky_approximated: ledger(A, 'the backdrop image the page loads by URL is not carried'),
   weather_partial: ledger(P, 'the weather plays its fog, colour and light; rain, snow, dust, petals and lightning stay the web\'s'),
   tone_graded_on_page: ledger(B, 'the tone is graded in Godot as on the page (kernel/tone.gdshader)'),

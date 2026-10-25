@@ -535,6 +535,8 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 		var mf := _or(mo.get("f"), 0.0)
 		var mr := _or(mo.get("r"), 0.0)
 		from = [float(p[0]) + hf[0] * mf + hr[0] * mr * r_mul, float(p[1]) + hf[1] * mf + hr[1] * mr * r_mul, float(p[2]) + _nn(mo, "u", float(w["eye"]))]
+	# the shot as the web keeps it (combat-ranged.js e.lastShot): when and from where, which a match player hears
+	e["lastShot"] = {"t": mind_clock if mind_clock >= 0.0 else float(st.get("time", 0.0)), "from": from.duplicate()}
 	if w["fireClass"] == "lob":
 		var dir := Js.fwd3(h, pitch + _or(w.get("lobAngle"), 0.0) * PI / 180.0)
 		var sp := _or(w.get("projectileSpeed"), 60.0)
