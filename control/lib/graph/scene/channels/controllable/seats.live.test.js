@@ -36,7 +36,9 @@ describe('seats on the World page', () => {
     await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats, { timeout: 20000 });
     const x = () => page.evaluate(() => ['p1', 'p2'].map((id) => window.__mojCtrl.world.byId[id].transform.pos[0]));
     const push = (i, v) => page.evaluate(([i, v]) => { window.__pads[i].axes[1] = v; }, [i, v]);
-    const settle = () => new Promise((r) => setTimeout(r, 400));
+    // a wait of the page's own frames (about 0.4 s at 60 fps): the world steps once a frame, so a wall-clock wait moves a
+    // body less on a slow runner, where fewer frames run
+    const settle = () => page.evaluate(() => new Promise((r) => { let n = 24; const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }));
 
     await push(0, -1);   // pad 0 pushes forward first: it is seat 1, the pilot
     await settle();
@@ -64,12 +66,17 @@ describe('seats on the World page', () => {
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.setContent(world({ bodies: ['p2', 'p3', 'p4'] }, 4).replace('<head>', '<head>' + PADS), { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojSeats, { timeout: 20000 });
-    const settle = (ms = 200) => new Promise((r) => setTimeout(r, ms));
-    // pads 3, 1, 0, 2 press a button, one after the other: seats 1 to 4 in that order
+    // a wait of the page's own frames for `ms` at 60 fps (the world steps once a frame: see the test above)
+    const settle = (ms = 200) => page.evaluate((n) => new Promise((r) => { const f = () => (--n > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), Math.max(1, Math.round(ms / 16.7)));
+    // pads 3, 1, 0, 2 press a button, one after the other: seats 1 to 4 in that order. Each press is held across two of
+    // the page's frames and released across two more: the world polls the pads once a frame, so a fixed hold could fall
+    // between polls on a slow runner and the press would never land
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     for (const i of [3, 1, 0, 2]) {
       await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: true, value: 1 }; }, i);
-      await settle(120);
+      await frames();
       await page.evaluate((i) => { window.__pads[i].buttons[0] = { pressed: false, value: 0 }; }, i);
+      await frames();
     }
     const seats = await page.evaluate(() => window.__mojSeats().seats.map((s) => [s.n, s.controller, s.color]));
     expect(seats).toEqual([[1, 'pad:3', '#e5483b'], [2, 'pad:1', '#3b7be5'], [3, 'pad:0', '#f2c230'], [4, 'pad:2', '#36b04c']]);
