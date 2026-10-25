@@ -54,7 +54,7 @@ describe('world-scene — the title gate', () => {
   });
 
   it('a bad look or style on a title row fails the gate with the closed words', async () => {
-    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', look: 'explode' }] }))).rejects.toThrow(/look must be one of: slam, rise, stamp/);
+    await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', look: 'explode' }] }))).rejects.toThrow(/look must be one of: slam, rise, stamp, fade, slide/);
     await expect(resolveWorldScene(world({ ...live, hud: [{ on: 'f', text: 'GO', as: 'title', style: 'comic' }] }))).rejects.toThrow(/style must be one of: heavy, blocky, slick, thin, italic/);
   });
 
@@ -91,9 +91,9 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(events.titles).toBeUndefined();
     expect(events.hud.filter((r) => r.as === 'title').length).toBe(3);
     const widgets = JSON.parse(html.match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]);
-    expect(widgets.filter((w) => w.kind === 'title').map((w) => [w.on, w.look, w.style, w.hex, w.ttl])).toEqual([
-      ['round-start', 'slam', 'blocky', '#5fb0ff', 1.8], ['fight', 'stamp', 'heavy', '#ff5a4d', 1.8], ['clear', 'rise', 'heavy', '#5fb0ff', 1.8],
-    ]);
+    expect(widgets.filter((w) => w.kind === 'title').map((w) => [w.on, w.theme, w.look, w.style, w.hex, w.ttl, w.caps, w.edge])).toEqual([
+      ['round-start', 'arcade', 'slam', 'blocky', '#5fb0ff', 1.8, true, 'both'], ['fight', 'arcade', 'stamp', 'heavy', '#ff5a4d', 1.8, true, 'both'], ['clear', 'arcade', 'rise', 'heavy', '#5fb0ff', 1.8, true, 'both'],
+    ]);   // no juice floor ⇒ the arcade announcer; a row's own look, style and colour win over the theme's
     for (const src of pageScripts(html)) if (src.trim()) expect(() => new Function(src.replace(/^\s*import[^\n]*\n/gm, ''))).not.toThrow();
     // the composed floor's western register bakes the metal look
     const west = emitThreeWorld(await titled({ fxStyle: { register: 'western' } }));
@@ -124,7 +124,7 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     const { document, wrap } = dom();
     const bus = { vars: { round: 1 }, log: [] };
     const scene = new Obj(), camera = { position: new V3(0, 0, 5), quaternion: { copy() { return this; } }, fov: 50, aspect: 1.6 };
-    const window = { __mojGlyphs: { spark: { tex: {} }, streak: { tex: {} }, dot: { tex: {} } } };   // the sprite textures are made once per page; here they are given
+    const window = { __mojGlyphs: { spark: { tex: {} }, streak: { tex: {}, stretch: true }, dot: { tex: {} } } };   // the sprite textures are made once per page; here they are given
     const h = new Function('document', 'wrap', '__busState', 'THREE', 'scene', 'camera', 'window', html.slice(a, b) + '\nreturn { sync: __syncHud, titles: () => __hudTitles, flash: () => __ttFlash, rig: () => __ttRig, layout: __ttLayout };')(document, wrap, bus, THREE, scene, camera, window);
     return { ...h, bus, scene };
   };
@@ -162,7 +162,7 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     h.sync(260, []);
     expect(Number(h.flash().style.opacity)).toBeGreaterThan(0.3);   // the landing's flash, decaying
     expect(r.sparks.filter((q) => q.s.visible).length).toBe(14);
-    expect(r.ring.visible).toBe(true);   // the anime look's halo
+    expect(r.ring).toBeNull();   // the arcade theme throws no halo (the cel theme does)
     h.sync(1000, []);
     expect(Number(h.flash().style.opacity)).toBe(0);
     expect(r.sparks.some((q) => q.s.visible)).toBe(false);
@@ -193,10 +193,49 @@ describe.runIf(hasFont)('the title layer on the page (a face found on this host)
     expect(f.grp.position.z).toBeGreaterThan(-1);   // nearer the eye than its place at -1
     h.sync(900, []);
     expect(f.grp.position.z).toBeCloseTo(-1, 5);
-    expect(f.letters[0].edge.material.color).toBe('#290e0c');   // the ink hull in the title's dark (harm)
+    expect(f.letters[0].hull.material.color).toBe('#290e0c');   // the ink hull in the title's dark (harm)
+    expect(f.letters[0].shadow.material.color).toBe('#290e0c');   // and the arcade theme's drop copy
     h.sync(600 + 1750, []);
     const xs = f.letters.map((L) => L.lg.position.x);
     expect(new Set(xs.map((x) => Math.round(x * 100))).size).toBeGreaterThan(1);   // scattering on their own lines
     expect(f.letters.some((L) => Math.abs(L.lg.rotation.z) > 0.1)).toBe(true);
+  });
+
+  it('the theme a game implies: its juice floor\'s register and game type, written onto the row; a named theme wins', async () => {
+    const rows = [{ on: 'go', text: 'go', as: 'title' }, { on: 'win', text: 'win', as: 'title', theme: 'pixel' }];
+    const cartoon = await titled({ fxStyle: { register: 'anime', flavor: 'platformer' } }, rows);
+    expect(cartoon.events.hud.map((r) => r.theme)).toEqual(['cartoon', 'pixel']);
+    const w = JSON.parse(emitThreeWorld(cartoon).match(/const __HUD = (\[[\s\S]*?\]);\n/)[1]);
+    expect(w[0]).toMatchObject({ theme: 'cartoon', look: 'rise', style: 'heavy', caps: false, edge: 'ink', hex: '#ffd700', ttl: 2 });
+    expect(w[1]).toMatchObject({ theme: 'pixel', look: 'rise', style: 'blocky', caps: true, flash: 0, sparks: false });
+    expect(Object.keys(cartoon.events.titles.styles).sort()).toEqual(['blocky', 'heavy']);
+    expect(cartoon.events.titles.styles.blocky.glyphs.W).toBeTruthy();   // the pixel theme's capitals carved
+    expect(cartoon.events.titles.styles.heavy.glyphs.g).toBeTruthy();    // the cartoon theme's mixed case kept
+    const cinematic = await titled({ fxStyle: { register: 'western', flavor: 'realistic' } }, [rows[0]]);
+    expect(cinematic.events.hud[0].theme).toBe('cinematic');
+    expect(JSON.parse(emitThreeWorld(cinematic).match(/const __HUD = (\[[\s\S]*?\]);\n/)[1])[0]).toMatchObject({ look: 'fade', style: 'thin', edge: 'none', hex: '#ffffff', ttl: 2.8, scale: 0.5 });
+    await expect(titled({}, [{ on: 'go', text: 'go', as: 'title', theme: 'baroque' }])).rejects.toThrow(/theme must be one of: arcade, pixel, cel, cartoon, cinematic, speed/);
+  });
+
+  it('fade comes in slowly with nothing else; slide comes in from the right, stretched, with streaks, and leaves to the left', async () => {
+    const h = await mount({}, [{ on: 'go', text: 'GO', as: 'title', theme: 'cinematic' }, { on: 'lap', text: 'LAP', as: 'title', theme: 'speed' }]);
+    h.sync(0, []); h.bus.log.push({ type: 'go' }); h.sync(0, []);
+    const g = run(h, 'go');
+    expect(g.sparks).toEqual([]); expect(g.ring).toBeNull(); expect(g.letters[0].hull).toBeNull(); expect(g.letters[0].shadow).toBeNull();
+    h.sync(100, []);
+    expect(g.letters[0].m.material.opacity).toBeGreaterThan(0); expect(g.letters[0].m.material.opacity).toBeLessThan(0.5);
+    expect(Number(h.flash().style.opacity)).toBe(0);
+    h.sync(800, []);
+    expect(g.letters[0].m.material.opacity).toBeCloseTo(1, 5);
+    h.bus.log.push({ type: 'lap' }); h.sync(800, []);
+    const l = run(h, 'lap');
+    expect(l.sparks.length).toBe(14); expect(l.sparks.every((q) => q.stretch)).toBe(true); expect(l.letters[0].shadow).toBeTruthy(); expect(l.letters[0].hull).toBeNull();
+    h.sync(830, []);
+    expect(l.grp.position.x).toBeGreaterThan(0.1);   // still coming in from the right
+    expect(l.letters[0].lg.scale.x).toBeGreaterThan(1.2);   // stretched along its flight
+    h.sync(1200, []);
+    expect(l.grp.position.x).toBeCloseTo(0, 2); expect(l.letters[0].lg.scale.x).toBeCloseTo(1, 5);
+    h.sync(800 + 1450, []);
+    expect(l.grp.position.x).toBeLessThan(-0.05);   // leaving to the left
   });
 });

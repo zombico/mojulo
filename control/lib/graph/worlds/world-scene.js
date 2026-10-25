@@ -51,7 +51,7 @@ import { tagCreaseRoles } from '@/lib/graph/scene/crease-roles';
 import { readCreases } from '@/lib/graph/scene/channels/creases';
 import { wantsSunShare, readOcclusion } from '@/lib/graph/scene/live-light';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
-import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
+import { normalizeHud, validateHudStyle, titleThemeFor } from '@/lib/graph/game/hud-widgets';
 import { hasTitleWords, localizeHudRows, readTitleLocale } from '@/lib/graph/game/title-words';
 import { carveTitles } from '@/lib/graph/game/title-carve';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -1146,6 +1146,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // a row's text may name a word in the world's language ('@fight': game/title-words.js, the dashboard's own
       // catalogs); the world's `locale` is read only when a row does, so a world without one is never gated on it
       if (hasTitleWords(ev.hud)) ev = { ...ev, hud: localizeHudRows(ev.hud, readTitleLocale(sketch.manifest.locale, 'locale')) };
+      // a title row without a theme gets the one its game implies (hud-widgets.js titleThemeFor: the composed juice floor's
+      // register and game type; none ⇒ the arcade announcer), written onto the row so the emitter reads the same
+      if (ev.hud.some((r) => r && r.as === 'title' && r.theme === undefined)) {
+        const fxs = sketch.manifest.fxStyle;
+        const juice = fxs === true ? { register: 'anime', flavor: 'action' } : fxs && typeof fxs === 'object' ? (await import('@/lib/graph/scene/juice-style.js')).readJuiceStyle(fxs) : null;
+        const theme = titleThemeFor(juice);
+        ev = { ...ev, hud: ev.hud.map((r) => (r && r.as === 'title' && r.theme === undefined ? { ...r, theme } : r)) };
+      }
       const h = normalizeHud(ev.hud);
       if (h.errors.length) throw new Error(`events.hud is invalid — see get_game_vocab({ id: 'hud-guide' }):\n- ${h.errors.join('\n- ')}`);
       // the carved banners (`as: 'title'`, game/title-carve.js): their words carved here into the glyph atlas the page lays

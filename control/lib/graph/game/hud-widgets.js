@@ -9,10 +9,12 @@
  *   banner   { on: '<busEventPattern>', text, slot?: 'center', ttl?: 2, color? }
  *   toast    { on, text, as: 'toast', slot?: 'center', ttl?: 0.8, color? }   — a banner that STACKS
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
- *   title    { on, text, as: 'title', slot?: 'center', ttl?: 1.8, color?, look?: 'slam', style?: 'heavy' }
- *            — a banner CARVED: its words as 3D letters slammed onto the screen (title-carve.js, the glyph carver's
- *            letters), juiced by the game's register; `look` is the entrance (TITLE_LOOKS), `style` the carve
- *            (TITLE_STYLES). A text may name a word in the world's language: '@fight' (title-words.js)
+ *   title    { on, text, as: 'title', theme?, slot?: 'center', ttl?, color?, look?, style?, caps?, edge? }
+ *            — a banner CARVED: its words as 3D letters put on the screen (title-carve.js, the glyph carver's
+ *            letters) in a design THEME (TITLE_THEMES: arcade, pixel, cel, cartoon, cinematic, speed; the game's own
+ *            by default, titleThemeFor), each dial of which a row may name itself: `look` the entrance (TITLE_LOOKS),
+ *            `style` the carve (TITLE_STYLES), `caps`, `edge` (TITLE_EDGES), `color`, `ttl`. A text may name a word
+ *            in the world's language: '@fight' (title-words.js)
  *   legend   { text, slot?: 'bottom', ttl? }
  *
  * Any row may carry `id` (a part's: a cue shows, hides or restates it through the bus vars ui-<id> = 0 | 1 and
@@ -43,11 +45,61 @@ export const MOMENT_KINDS = ['banner', 'toast', 'title'];   // what an `on` row 
 export const TOAST_TTL = 0.8;                        // seconds a damage number lives (default)
 export const TITLE_TTL = 1.8;                        // seconds a title card stands (default), its entrance and exit inside
 // a title's entrance: slam (scaled down onto the screen, a flash and a jolt), rise (the letters rise one after another and
-// settle), stamp (punched in from the viewer, then a bounce); its exit mirrors it. The first is the default.
-export const TITLE_LOOKS = ['slam', 'rise', 'stamp'];
-// a title's carve (lib/motion/glyph-carver.js CARVE_STYLES): heavy (bold, bevelled), blocky (grid-snapped, chunky),
-// slick, thin, italic. The first is the default.
+// settle), stamp (punched in from the viewer, then a bounce), fade (in slowly, drifting, and out), slide (in from the
+// side, stretched, out the other way); its exit mirrors it.
+export const TITLE_LOOKS = ['slam', 'rise', 'stamp', 'fade', 'slide'];
+// a title's carve (lib/motion/glyph-carver.js CARVE_STYLES): heavy (bold, bevelled), blocky (rastered, chunky),
+// slick, thin, italic.
 export const TITLE_STYLES = ['heavy', 'blocky', 'slick', 'thin', 'italic'];
+// what stands behind a title's letters: ink (a dark hull round each letter), shadow (a dark copy offset behind), both,
+// glow (a copy in the title's colour, added, larger), none
+export const TITLE_EDGES = ['ink', 'shadow', 'both', 'glow', 'none'];
+/**
+ * TITLE THEMES — the graphic-design styles game titles are set in, each a whole: the carve, the entrance, the case,
+ * the tracking, the size, what stands behind the letters, a lean, how hard the landing hits (flash 0..1), whether it
+ * throws sparks or a halo ring, the colour token, and how long it stands. A row names one (`theme`), or gets the one
+ * its game implies (titleThemeFor: the juice floor's register and game type); any dial a row names on its own wins.
+ *
+ *   arcade     the fighting game's announcer: heavy caps with an ink line and a drop shadow, slammed down with a flash
+ *              and sparks (Street Fighter's ROUND 1 / FIGHT, Tekken's K.O.)
+ *   pixel      the 8- and 16-bit cabinet: bitmap blocks, flat colour, a hard dark edge, letters rising in turn, no flash
+ *              (STAGE CLEAR on a NES, Shovel Knight, Celeste)
+ *   cel        the anime fighter's cut-in: slanted heavy caps, thick ink, a tilt, stamped in from the eye with a halo
+ *              and sparks (Guilty Gear, Dragon Ball FighterZ, Persona's cutouts)
+ *   cartoon    the platformer's cheer: round chunky letters in mixed case, bright gold, bouncing up one by one
+ *              (Mario's COURSE CLEAR, Rayman, Crash)
+ *   cinematic  the prestige card: small, widely tracked thin caps in the ink colour, fading in slowly and out, nothing
+ *              else (Dark Souls' YOU DIED, Halo's MISSION COMPLETE, God of War's chapter titles)
+ *   speed      the racer's and the arena's readout: slanted slick caps, a drop shadow, sliding in from the side with
+ *              streaks and out the other way (Wipeout, F-Zero, Overwatch's PLAY OF THE GAME)
+ */
+export const TITLE_THEMES = Object.freeze({
+  arcade: { about: 'the fighting game\'s announcer: heavy caps, an ink line and a drop shadow, slammed down with a flash and sparks', style: 'heavy', look: 'slam', caps: true, tracking: 0.05, scale: 1, edge: 'both', tilt: 0, flash: 1, sparks: true, ring: false, color: 'accent', ttl: 1.8 },
+  pixel: { about: 'the 8- and 16-bit cabinet: bitmap blocks, flat colour, a hard dark edge, letters rising in turn, no flash', style: 'blocky', look: 'rise', caps: true, tracking: 0.1, scale: 0.9, edge: 'ink', tilt: 0, flash: 0, sparks: false, ring: false, color: 'accent', ttl: 2 },
+  cel: { about: 'the anime fighter\'s cut-in: slanted heavy caps, thick ink, a tilt, stamped in from the eye with a halo and sparks', style: 'italic', look: 'stamp', caps: true, tracking: 0.03, scale: 1.05, edge: 'ink', tilt: -0.1, flash: 1, sparks: true, ring: true, color: 'accent', ttl: 1.8 },
+  cartoon: { about: 'the platformer\'s cheer: round chunky letters in mixed case, bright gold, bouncing up one by one', style: 'heavy', look: 'rise', caps: false, tracking: 0.08, scale: 1.1, edge: 'ink', tilt: 0.04, flash: 0, sparks: true, ring: false, color: 'value', ttl: 2 },
+  cinematic: { about: 'the prestige card: small, widely tracked thin caps in the ink colour, fading in slowly and out, nothing else', style: 'thin', look: 'fade', caps: true, tracking: 0.3, scale: 0.5, edge: 'none', tilt: 0, flash: 0, sparks: false, ring: false, color: 'ink', ttl: 2.8 },
+  speed: { about: 'the racer\'s and the arena\'s readout: slanted slick caps, a drop shadow, sliding in from the side with streaks and out the other way', style: 'italic', look: 'slide', caps: true, tracking: 0.02, scale: 0.85, edge: 'shadow', tilt: 0, flash: 0.4, sparks: true, ring: false, color: 'accent2', ttl: 1.5 },
+});
+export const TITLE_THEME_IDS = Object.keys(TITLE_THEMES);
+/** The theme a game implies: the juice floor's { register, flavor } (null ⇒ the arcade announcer, which reads anywhere). */
+export function titleThemeFor(juice) {
+  if (!juice || typeof juice !== 'object') return 'arcade';
+  const register = juice.register === 'western' ? 'western' : 'anime', flavor = juice.flavor || 'action';
+  if (flavor === 'realistic') return 'cinematic';
+  if (flavor === 'platformer') return 'cartoon';
+  if (flavor === 'pinball') return register === 'western' ? 'speed' : 'arcade';
+  return register === 'western' ? 'arcade' : 'cel';
+}
+const TITLE_DIALS = ['style', 'look', 'caps', 'tracking', 'scale', 'edge', 'tilt', 'flash', 'sparks', 'ring', 'color'];
+/** A title row's dials: its theme's, each overridden by the dial the row names itself. */
+export function titleDials(r) {
+  const T = TITLE_THEMES[TITLE_THEME_IDS.includes(r.theme) ? r.theme : 'arcade'];
+  const out = { theme: TITLE_THEME_IDS.includes(r.theme) ? r.theme : 'arcade' };
+  for (const k of TITLE_DIALS) out[k] = r[k] !== undefined && r[k] !== null ? r[k] : T[k];
+  out.ttl = Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : T.ttl;
+  return out;
+}
 export const STYLE_TOKENS = ['accent', 'accent2', 'ink', 'bg', 'panel', 'line'];
 export const FONTS = {
   system: 'system-ui,sans-serif',
@@ -205,10 +257,14 @@ export function normalizeHud(rows) {
       if (!isStr(r.text)) errors.push(`${where}: a ${kind === 'toast' ? 'toast' : 'banner'} needs text (shown when the bus emits '${r.on}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
       const k = MOMENT_KINDS.includes(kind) ? kind : 'banner';
-      if (k === 'title') {   // the carved banner: its entrance and its carve are closed words
+      if (k === 'title') {   // the carved banner: its theme, entrance, carve, case and edge are closed words
+        if (r.theme !== undefined && !TITLE_THEME_IDS.includes(r.theme)) errors.push(`${where}.theme must be one of: ${TITLE_THEME_IDS.join(', ')} (a title's design style)`);
         if (r.look !== undefined && !TITLE_LOOKS.includes(r.look)) errors.push(`${where}.look must be one of: ${TITLE_LOOKS.join(', ')} (a title's entrance)`);
         if (r.style !== undefined && !TITLE_STYLES.includes(r.style)) errors.push(`${where}.style must be one of: ${TITLE_STYLES.join(', ')} (a title's carve)`);
-        widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(TITLE_TTL), color: isHudColor(r.color) ? r.color : undefined, look: TITLE_LOOKS.includes(r.look) ? r.look : TITLE_LOOKS[0], style: TITLE_STYLES.includes(r.style) ? r.style : TITLE_STYLES[0], ...gate });
+        if (r.edge !== undefined && !TITLE_EDGES.includes(r.edge)) errors.push(`${where}.edge must be one of: ${TITLE_EDGES.join(', ')} (what stands behind a title's letters)`);
+        if (r.caps !== undefined && typeof r.caps !== 'boolean') errors.push(`${where}.caps is true (the words in capitals) or false`);
+        const d = titleDials({ theme: r.theme, look: TITLE_LOOKS.includes(r.look) ? r.look : undefined, style: TITLE_STYLES.includes(r.style) ? r.style : undefined, edge: TITLE_EDGES.includes(r.edge) ? r.edge : undefined, caps: typeof r.caps === 'boolean' ? r.caps : undefined, color: isHudColor(r.color) ? r.color : undefined, ttl: r.ttl });
+        widgets.push({ kind: 'title', on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ...d, ...gate });
         return;
       }
       widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined, ...gate });

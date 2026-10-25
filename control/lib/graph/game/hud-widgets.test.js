@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle, MOMENT_KINDS, TOAST_TTL, hudSubst, fmtDelta } from './hud-widgets.js';
+import { HUD_SLOTS, HUD_KINDS, FONTS, colorCss, hudSlotsUsed, normalizeHud, styleTokens, styleVars, validateHudStyle, MOMENT_KINDS, TOAST_TTL, hudSubst, fmtDelta, TITLE_THEMES, TITLE_THEME_IDS, TITLE_LOOKS, TITLE_STYLES, TITLE_EDGES, titleThemeFor, titleDials } from './hud-widgets.js';
 
 describe('normalizeHud — the widget language over events.hud', () => {
   it('a legacy { var, label } row is a text readout at top-left (every existing world means what it meant)', () => {
@@ -103,6 +103,12 @@ describe('normalizeHud — the widget language over events.hud', () => {
     expect(HUD_SLOTS).toEqual(['top-left', 'top', 'top-right', 'center', 'bottom-left', 'bottom', 'bottom-right']);
     expect(HUD_KINDS).toEqual(['text', 'counter', 'bar', 'clock']);
     expect(MOMENT_KINDS).toEqual(['banner', 'toast', 'title']);
+    expect(TITLE_THEME_IDS).toEqual(['arcade', 'pixel', 'cel', 'cartoon', 'cinematic', 'speed']);
+    // every theme is whole: a carve, an entrance, an edge, a colour and a time from the closed lists
+    for (const [id, T] of Object.entries(TITLE_THEMES)) {
+      expect(TITLE_STYLES, id).toContain(T.style); expect(TITLE_LOOKS, id).toContain(T.look); expect(TITLE_EDGES, id).toContain(T.edge);
+      expect(typeof T.caps, id).toBe('boolean'); expect(T.ttl, id).toBeGreaterThan(0); expect(T.flash, id).toBeGreaterThanOrEqual(0); expect(T.about, id).toMatch(/\S/);
+    }
     expect(hudSlotsUsed(normalizeHud([{ var: 'a', slot: 'bottom' }, { var: 'b' }, { on: 'x', text: 'y' }]).widgets)).toEqual(['top-left', 'center', 'bottom']);
   });
 });
@@ -132,5 +138,23 @@ describe('style tokens — one shape for the shell theme and a world\'s events.s
     expect(colorCss('harm')).toBe('var(--moj-harm)');
     expect(colorCss('accent2')).toBe('var(--moj-accent2)');
     expect(colorCss('url(x)', 'inherit')).toBe('inherit');
+  });
+});
+
+describe('title themes — the game implies one, a row\'s own dial wins', () => {
+  it('titleThemeFor reads the juice floor; titleDials lays a row\'s dials over its theme', () => {
+    expect(titleThemeFor(null)).toBe('arcade');
+    expect(titleThemeFor({ register: 'anime', flavor: 'action' })).toBe('cel');
+    expect(titleThemeFor({ register: 'western', flavor: 'action' })).toBe('arcade');
+    expect(titleThemeFor({ register: 'anime', flavor: 'platformer' })).toBe('cartoon');
+    expect(titleThemeFor({ register: 'western', flavor: 'realistic' })).toBe('cinematic');
+    expect(titleThemeFor({ register: 'western', flavor: 'pinball' })).toBe('speed');
+    expect(titleThemeFor({ register: 'anime', flavor: 'pinball' })).toBe('arcade');
+    expect(titleDials({ theme: 'pixel' })).toMatchObject({ theme: 'pixel', style: 'blocky', look: 'rise', caps: true, edge: 'ink', color: 'accent', ttl: 2 });
+    expect(titleDials({ theme: 'pixel', look: 'slam', color: 'harm', ttl: 3 })).toMatchObject({ style: 'blocky', look: 'slam', color: 'harm', ttl: 3 });
+    expect(titleDials({})).toMatchObject({ theme: 'arcade', edge: 'both', caps: true });
+    const { widgets, errors } = normalizeHud([{ on: 'x', text: 'go', as: 'title', theme: 'cel', caps: false }, { on: 'y', text: 'y', as: 'title', theme: 'disco', edge: 'halo', caps: 'yes' }]);
+    expect(widgets[0]).toMatchObject({ kind: 'title', theme: 'cel', style: 'italic', look: 'stamp', caps: false, edge: 'ink', tilt: -0.1, ring: true });
+    expect(errors).toEqual(['hud[1].theme must be one of: arcade, pixel, cel, cartoon, cinematic, speed (a title\'s design style)', 'hud[1].edge must be one of: ink, shadow, both, glow, none (what stands behind a title\'s letters)', 'hud[1].caps is true (the words in capitals) or false']);
   });
 });

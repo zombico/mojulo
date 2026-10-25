@@ -13,7 +13,7 @@
 import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, shootCameraDefs } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
-import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS } from '@/lib/graph/game/hud-widgets';
+import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS, isHudColor } from '@/lib/graph/game/hud-widgets';
 import { cleanDials } from '@/lib/graph/playscape/ui/register';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
 import { crystalRigFor, rigForScore } from './crystal-rig.js';
@@ -335,7 +335,7 @@ export function extractEngineScore(sketch, payload, { posture = null, engine = D
   if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack and the Godot kernel changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (kernel/sound.gd, the page\'s meter); Unity and Unreal play the explore score only' };
   // a carved title (hud-widgets.js `as: 'title'`, the web's 3D letters) travels as the kernel's banner: the same words at
   // the same firing, on a plate; the carve, the look and the entrance stay the web's
-  const hudWidgets = normalizeHud(payload.events?.hud).widgets.map((w) => (w.kind === 'title' ? { kind: 'banner', on: w.on, text: w.text, slot: w.slot, ttl: w.ttl, ...(w.color ? { color: w.color } : {}), ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) } : w));
+  const hudWidgets = normalizeHud(payload.events?.hud).widgets.map((w) => (w.kind === 'title' ? { kind: 'banner', on: w.on, text: w.caps ? String(w.text).toUpperCase() : w.text, slot: w.slot, ttl: w.ttl, ...(isHudColor(w.color) ? { color: w.color } : {}), ...(w.id ? { id: w.id } : {}), ...(w.when ? { when: w.when } : {}) } : w));
   const titleCount = normalizeHud(payload.events?.hud).widgets.filter((w) => w.kind === 'title').length;
   if (titleCount) ledger.titles_as_banners = { count: titleCount, note: 'carved title cards (the web page\'s 3D letters, their entrance and sparks) ride score.json `hud` as banners: the same words at the same firing, drawn on the kernel\'s plate' };
   if (hudWidgets.length) {

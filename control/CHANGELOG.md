@@ -36,6 +36,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   metal with a glint and a drop copy, into vertex colour, unlit, so the scene's lights do not matter. Everything plays
   on the frame clock from the firing, every number of chance hashed from the firing's count: a capture draws the same.
   Card `hud-title`; idiom `title(…)`; a `play.parts` banner passes `as`, `look` and `style` through.
+- **Themes: the design styles game titles are set in.** A title row names a `theme` or takes the one its game
+  implies (the juice floor's register and game type: anime action → `cel`, western action → `arcade`, a platformer →
+  `cartoon`, a realistic game → `cinematic`, a western pinball or racer → `speed`; no floor → `arcade`). Each is a
+  whole — the carve, the entrance, the case, the tracking, the size, what stands behind the letters (an ink hull, a
+  drop copy, both, a glow, nothing), a lean, how hard the landing hits, sparks or a halo, the colour token and how long
+  it stands — modelled on the fighting game's announcer, the 8-bit cabinet, the anime cut-in, the platformer's cheer,
+  the prestige card and the racer's readout. Two entrances join for them: `fade` (in slowly, nothing else) and `slide`
+  (in from the right, stretched, streaks behind, out to the left). A dial a row names itself (`look`, `style`,
+  `caps`, `edge`, `color`, `ttl`) wins over the theme's.
 - **Words in the player's language.** A HUD row's `text` may name a word instead of spelling it (`'@fight'`,
   `'@round'`, `'@gameOver'`, …: the `gameTitles` namespace of the dashboard's own locale catalogs, added to every
   shipped language), read in the world's top-level `locale` (a shipped code; absent ⇒ `en`). A new language reaches

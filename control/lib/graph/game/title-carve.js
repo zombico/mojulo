@@ -43,19 +43,21 @@ const SHELF_DIR = path.resolve(moduleDir(import.meta.url, 'lib/graph/game'), '..
 export const TITLE_SIZING = Object.freeze({ space: 0.6, tracking: 0.08 });
 
 // the extrusion a title gets per carve style (depth in cap heights; the bevel rounds the front edge)
+// only the heavy carve is bevelled: its strokes are wide enough that the inset ring the bevel is built from never
+// folds at a tight inner curve (a folded ring reads as a dark panel in a round letter); the others keep a hard edge
 const EXTRUDE = Object.freeze({
   heavy: { depth: 0.28, bevel: 0.05, bevelSteps: 2 },
   blocky: { depth: 0.34, bevel: 0, bevelSteps: 0 },
-  slick: { depth: 0.2, bevel: 0.04, bevelSteps: 2 },
-  thin: { depth: 0.16, bevel: 0.03, bevelSteps: 2 },
-  italic: { depth: 0.22, bevel: 0.04, bevelSteps: 2 },
+  slick: { depth: 0.2, bevel: 0, bevelSteps: 0 },
+  thin: { depth: 0.16, bevel: 0, bevelSteps: 0 },
+  italic: { depth: 0.22, bevel: 0, bevelSteps: 0 },
 });
 const CURVE_STEPS = 5;   // the page draws letters at a glance, not a wordmark up close
 // the blocky carve is RASTERED, not snapped: the outline's even-odd fill sampled on a grid of cells per cap height, each
 // filled cell a block (the pixel-art letter; a snapped outline touches itself in a thin stroke and its cap tears). The
 // same raster, finer, is the guard for any glyph whose cap tessellation fails to cover its footprint (a thin carve's
 // erosion can fold an outline): a chunkier letter, never a torn one.
-export const TITLE_GRID = Object.freeze({ blocky: 12, guard: 24 });
+export const TITLE_GRID = Object.freeze({ blocky: 12, guard: 32 });
 const COVERAGE_TOLERANCE = 0.015;
 
 // faces tried in order, a character taking the first that covers it; .ttc collections are not parsed by opentype.js
@@ -280,12 +282,13 @@ export function carveTitles(widgets) {
   const caps = F.map(({ font }) => capHeight(font));
   for (const w of titles) {
     const styleName = TITLE_STYLES.includes(w.style) ? w.style : TITLE_STYLES[0];
-    const shaped = needsShaping(w.text);
+    const text = w.caps ? String(w.text).toUpperCase() : w.text;   // a theme in capitals carves the capitals (the page uppercases the same way)
+    const shaped = needsShaping(text);
     if (shaped) { out.fallback.push({ on: w.on, text: w.text, reason: `shaped-script:${shaped}` }); continue; }
     if (!F.length) { out.fallback.push({ on: w.on, text: w.text, reason: _fontsReason || 'no-font' }); continue; }
     const glyphs = out.styles[styleName] ? out.styles[styleName].glyphs : {};
     const missing = [];
-    for (const ch of titleChars(w.text)) {
+    for (const ch of titleChars(text)) {
       if (glyphs[ch]) continue;
       const k = F.findIndex(({ font }) => font.hasChar(ch));
       if (k < 0) { missing.push(ch); continue; }

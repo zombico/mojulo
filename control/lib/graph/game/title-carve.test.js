@@ -86,6 +86,13 @@ describe.runIf(hasFont)('title-carve — the atlas (a face found on this host)',
     expect(ymin).toBeGreaterThan(-0.2);
   });
 
+  it('a title in capitals carves the capitals, as the page will uppercase the words', () => {
+    const { styles } = carveTitles(hud([{ on: 'go', text: 'go', as: 'title', caps: true }]));
+    expect(Object.keys(styles.heavy.glyphs).sort()).toEqual(['G', 'O']);
+    const mixed = carveTitles(hud([{ on: 'go', text: 'go', as: 'title', caps: false }]));
+    expect(Object.keys(mixed.styles.heavy.glyphs).sort()).toEqual(['g', 'o']);
+  });
+
   it('a character no face on the host covers is a fallback for its title; the others still carve', () => {
     const out = carveTitles(hud([{ on: 'ok', text: 'GO', as: 'title' }, { on: 'odd', text: 'GO \u{10FFFD}', as: 'title' }]));
     expect(out.styles.heavy.glyphs.G).toBeTruthy();

@@ -5,15 +5,34 @@
 ## The row
 
 ```json
-{ "on": "round-start", "text": "@round", "as": "title", "look"?: "slam", "style"?: "heavy", "slot"?: "center", "ttl"?: 1.8, "color"?: "accent" }
+{ "on": "round-start", "text": "@round", "as": "title", "theme"?: "arcade", "look"?, "style"?, "caps"?, "edge"?, "slot"?: "center", "ttl"?, "color"? }
 ```
+
+A title is set in a **theme**, a whole graphic-design style — the carve, the entrance, the case, the tracking,
+the size, what stands behind the letters, a lean, how hard the landing hits, sparks or a halo, the colour and
+how long it stands. Name one, or take the one the game implies (the composed juice floor's register and game
+type: anime action → `cel`, western action → `arcade`, a platformer → `cartoon`, a realistic game → `cinematic`,
+a western pinball or racer → `speed`; no floor → `arcade`, which reads anywhere). Any dial a row names itself
+(`look`, `style`, `caps`, `edge`, `color`, `ttl`) wins over the theme's.
+
+| theme | the reference | carve | entrance | case | behind | landing |
+|---|---|---|---|---|---|---|
+| `arcade` | the fighting game's announcer (ROUND 1, FIGHT!, K.O.) | heavy | slam | caps | ink + shadow | flash, jolt, sparks |
+| `pixel` | the 8- and 16-bit cabinet (STAGE CLEAR) | blocky | rise | caps | ink | none |
+| `cel` | the anime fighter's cut-in | italic, a tilt | stamp | caps | ink | flash, jolt, sparks, a halo |
+| `cartoon` | the platformer's cheer (COURSE CLEAR) | heavy, mixed case, gold | rise | as written | ink | sparks |
+| `cinematic` | the prestige card (YOU DIED, MISSION COMPLETE) | thin, small, tracked wide, ink colour | fade | caps | none | none |
+| `speed` | the racer's and the arena's readout (PLAY OF THE GAME) | italic, slick | slide | caps | shadow | streaks |
+
+## The dials
 
 A title is a banner row with `as: 'title'`: the same `on` (an event type or a glob), the same `text`
 with `{var}` and `{event.field}` substitution, `slot`, `ttl` and `color`. It differs in what the page
 draws: not a plate with words on it, but the words themselves, carved into 3D letters (the glyph
 carver that makes `mint_solid kind: 'carved-solid'` wordmarks) and put on the screen in front of the
-camera for `ttl` seconds (default 1.8), its entrance and exit inside that time.
+camera for `ttl` seconds (the theme's), its entrance and exit inside that time.
 
+- `theme` — the design style above (default: the game's own).
 - `look` — the entrance, and its exit:
   - `slam` (default): the word scales down onto the screen with an overshoot and a settling tilt;
     on landing a white flash, a jolt, and sparks thrown from the word (a halo ring in the anime look).
@@ -22,15 +41,20 @@ camera for `ttl` seconds (default 1.8), its entrance and exit inside that time.
     no sparks. It leaves falling letter by letter.
   - `stamp`: the word is punched in from the viewer's eye, lands with a bounce and a harder jolt.
     It leaves scattering, each letter flying out on its own line and spin.
+  - `fade`: in slowly, drifting down a little as it sharpens; nothing else. It leaves fading.
+  - `slide`: in from the right, stretched along its flight, streaks behind it. It leaves out to the left.
 - `style` — the carve: `heavy` (default; bold, bevelled), `blocky` (grid-snapped, chunky — the retro
   look), `slick`, `thin`, `italic`.
-- `color` — hex or a semantic name (`harm`, `value`, `goal`, `accent`, `accent2`); default the accent.
+- `caps` — the words in capitals (the theme's; most are).
+- `edge` — what stands behind each letter: `ink` (a dark hull), `shadow` (a dark copy, down-right), `both`,
+  `glow` (the title's colour, added, larger), `none`.
+- `color` — hex or a semantic name (`harm`, `value`, `goal`, `accent`, `accent2`); default the theme's token.
   The letters are baked in it.
 - `slot` — `center` (default); `top` / `bottom` raise or lower the word. Corners read as their edge.
 
 ## The look is the game's
 
-The letters take the composed juice floor's register (`fxStyle: { register }`, the gameworld's `juice`):
+The theme is the game's (above), and the letters take the composed juice floor's register (`fxStyle: { register }`, the gameworld's `juice`):
 **anime** (the default) draws cel bands with a dark ink hull behind each letter; **western** draws
 lambert metal with a specular glint and a dark drop copy behind. Nothing is authored per title.
 
