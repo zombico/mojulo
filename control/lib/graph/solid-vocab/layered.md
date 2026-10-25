@@ -762,7 +762,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
   slot's item, hold, bone, length (m) and share of the figure's height.
   THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
-  `plant` (a staff driven down) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
+  `plant` (a staff driven down), and the contest's `forehand`, `backhand` (level arcs across the body) and `bat` (two
+  hands, level) swing the `right` hand's gear; `bash` the `left` (a shield). The hero stands in the
   swing's ready pose and the swing plays as its own looping clip (the World's clip picker, the skinned and engine
   exports). The body drives it: the shoulders and spine coil at the cock and uncoil through the strike, the trunk hinges
   over and the knees sink, both feet planted. The item sets the timing (law 8): a dagger strikes early from a small

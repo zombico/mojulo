@@ -59,14 +59,37 @@ and a ball card's on the ball. Planned, in order:
   the closure runs from its own source with no imports, and that it never mutates a state. A published game asked for
   by name is written out from the rules the person explains, as the tabletop kernel's rule already says; tiebreaks,
   possession by carry and offside wait on the team game.
-- **The ball and the hit**, planned: the ball is the physics property's sphere (mass, restitution, friction, spin, its
-  contacts emitted as facts), already live on the World page; a ball card per register names its bounce, its drag and
-  whether it flies in real air (the realistic card adds the spin-aware flight model's drag crisis and Magnus lift as a
-  force rule on the live ball; the action card grows the rally hit by hit; pinball gives back more than it got). The
-  hit joins the swing system's strike frame to the ball: an impulse whose direction is the stick and the verb's arc,
-  whose speed is the register's power over the body's real tip speed, whose spin is the verb's. New verbs through the
-  swing system (a forehand, a backhand, a serve, a bump, a set, a spike, a bat, a putt), a kick as a leg clip from the
-  vault's solve, a throw and a catch over the reaching arm; what an arc cannot show is said, never faked.
+- **The ball and the hit**, built, with a recorded stopping point:
+  - **Real air on the live ball.** The physics property's integrator (`worlds/physics-sim.js`) gained the `aero` force
+    rule: drag with the drag crisis and Magnus lift saturating with the spin ratio, the spin-aware flight model's own
+    curves and constants (`physics/flight.js`, the oracle it is held to), the air's density and a spin decay in flight,
+    `on` the bodies it acts on. On the model's free-kick launch the live ball lands within half a per cent of the
+    oracle's range, apex and curl at the oracle's step, within one at the page's; no crisis flies farther, no spin flies
+    straight, no air is the parabola; a body the rule is not on keeps every byte. Every page that embeds the integrator
+    re-pins with the rule's source (additions only; a world without an `aero` force runs as before).
+  - **The ball card** (`lib/graph/contest/ball-card.js`): the sports' balls (soccer, tennis, volleyball, basketball,
+    golf, table tennis: mass, size, the rebound each sport's rule allows as a restitution, the aero curve where one is
+    cited, soccer's otherwise and said so), and a card per register, the feel cards' own names: realistic flies the
+    sport's ball in real air; action drops the air and grows the rally a share a clean hit to a cap (the cartoon tennis)
+    with a livelier bounce; the platformer's ball is slow and floaty under lighter gravity; pinball's never stops
+    gaining and bounces lossless. A card makes the sim's body, its force rules and its gravity; the report says what it
+    leaves out (a bounce that gives back more than it got is the hit's to add: the table keeps a contact lossless at most).
+  - **The hit** (`lib/graph/contest/hit.js`): the join of the swing and the ball. The hit is live through the swing
+    system's contact window and lands on its strike phase, on the game type's timeline where one re-times it; a ball
+    inside takes a velocity whose direction is the body's facing turned by the stick within the register's spread and
+    the verb's arc lifted by the stick, whose speed is the register's base plus its gain on the swing's real tip speed by
+    the verb's power (realistic is the tip alone), grown by the ball card's rally, and whose spin is the verb's (topspin
+    about up × the heading, backspin the other way, sidespin about the vertical), scaled by the register. The result is
+    the sim's own impulse and the contest kernel's `touch` fact.
+  - **The forehand, the backhand and the bat** in the swing system (`hero-swing.js`): a level arc on the right side
+    taken back and out and carried across the body, the same from the other side, and the two-handed level swing; each
+    through every gate the swing system holds on both casts at every class (solvable at mint, the item clear of the head
+    and above the floor, the elbow at the shoulder line, the strike on its key). Until a racquet and a bat are gear items
+    they swing the hand's gear whatever it is.
+  - **Not built, said where it is asked for:** the overhead serve and spike (they lift the elbow over the head, which
+    the swing system's law forbids: an overhead clip family is a later step), the volleyball's bare-handed bump and set
+    (the swing door needs an item in the hand), the kick (a leg clip from the vault's solve), the throw, the catch and
+    the putt. Each is a hit verb already (its arc, spin and power hold) whose window says no clip plays it yet.
 - **The meet**, planned: a quick game's `meet` goal (a sprint, hurdles, the long jump, a throw; lanes; up to four local
   players, each a pad), a pure step over every pad in versus's shape, each lane's body on the register's feel card, the
   gun and the false start the kernel's, the hurdle the library's solved vault, the throw a launched body measured where

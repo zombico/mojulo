@@ -200,6 +200,12 @@ import { emitThreeWorld } from './scene-three.js';
 // actions (airdash, airjump: rules-gated, no fixture switches them on), readRules' `kind`, and the runtime client's swing
 // trails (drawn only with a kind's look, which no fixture names), the reset system and its banner, and iron's systems
 // (limbs, strings, bound, sidestep) with the sidestep's pose and the bound's spark; every other page is unchanged.
+// Re-pinned 2026-10-25 (battle city: the ball's air): the physics integrator the page embeds (worlds/physics-sim.js,
+// inlined by source) gained the `aero` force rule (a sphere in real air: the drag crisis and Magnus lift, the flight
+// model's curves; `on` the bodies it acts on; its spin decay in step). The six fixtures that embed the integrator
+// (physics, physics-actions, events, events-hud, kitchen-sink, kitchen-sink-capture) re-pin with its source, additions
+// only; a world with no `aero` force integrates every byte as before (physics-sim.test.js), and the other 65 pages are
+// byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
