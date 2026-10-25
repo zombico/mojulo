@@ -28,6 +28,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `soul.equipment=cape` (`cape`, a garment that trails, not a held item). The shot: `time.shots=panel`
   (`comic-panel`, a beat held as a still with a border and a caption). Every one is absent today and says so; a cube
   that names one dry-runs `blocked` naming it. The hillclimb page is regenerated.
+- The pack itself, as data (`lib/graph/cosmos/packs/comic-hero/`): six cubes in registry words, each a genre row with
+  the words a brief uses and the planned values it `wants` (`cubes.js`); one look dial from the comic page to the
+  realistic hero, every stop a geocube the tree reads today (`from` a sixth-gen preset, the `cel`, `ink-wash` or
+  `continuous` register over it) with the hero direction that goes with it, its two ends the tree's own `banded` and
+  `material` poles (`looks.js`); five resonance laws in the facet law shape, advice from the gameplay to the look and
+  never a verdict (`resonance.js`); `packReport` dry-runs the cubes and reads each want's status (an unknown want is
+  reported, never thrown) and `qaOrders(look)` sets the table for the eyes gate at one stop: a `create_sketch` of the
+  example gameworld with the pack cube as its intent, the look's direction and a downtown painted by the look's
+  geocube, and the hero at that pole (`pack.js`). Nothing reads the pack yet: the loader seam is next.
 
 ### Written intent: compose and quick write the game they are
 
