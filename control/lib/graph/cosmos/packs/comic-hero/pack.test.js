@@ -39,9 +39,9 @@ describe('comic hero pack: cubes', () => {
 });
 
 describe('comic hero pack: looks', () => {
-  it('walk the dial from the banded pole to the material pole, every stop named by a look', () => {
-    expect(DIAL[0].pole).toBe('banded');
-    expect(DIAL[DIAL.length - 1].pole).toBe('material');
+  it('walk the dial from the tiered body to the realistic body, every stop named by a look', () => {
+    expect(DIAL[0].body).toBe('tiered');
+    expect(DIAL[DIAL.length - 1].body).toBe('realistic');
     const stops = new Set(DIAL.map((d) => d.id));
     for (const [id, L] of Object.entries(LOOKS)) expect(stops.has(L.stop), id).toBe(true);
     for (const d of DIAL) expect(Object.values(LOOKS).some((L) => L.stop === d.id), d.id).toBe(true);
@@ -65,18 +65,16 @@ describe('comic hero pack: looks', () => {
       expect(c.register.name, id).toBe(REGISTER[stop]);
       const { form, ...direction } = L.hero;
       const D = resolveDirection({ characters: { direction }, style: { kit: 'island-plaza', civilization: 'a' }, civilizations: {}, seed: 1 });
-      expect(D.tradition, id).toBe(L.hero.tradition);
-      // the material pole is the western tradition's realistic hero; the banded pole keeps heroic proportions (comic, not anime)
-      if (stop === 'realistic') expect([form, D.hero.toon], id).toEqual(['realistic', false]);
-      else expect(D.hero.proportions, id).toBe('hero');
+      // never cel shaded: the western tradition at every stop (no character light), the realistic body at the realistic one
+      expect([D.tradition, D.hero.toon, D.hero.proportions], id).toEqual(['western', false, 'hero']);
+      expect(form, id).toBe(stop === 'realistic' ? 'realistic' : undefined);
     }
-    expect(TRADITIONS.western.pole).toBe('material');
+    expect(TRADITIONS.western.toon).toBe(false);
   });
   it('the night look differs from the day look only in its base and its secondary element: one dial, not two packs', () => {
     const day = LOOKS['comic-day'], night = LOOKS['comic-night'];
     expect(night.geocube.register).toBe(day.geocube.register);
     expect(night.hero.tradition).toBe(day.hero.tradition);
-    expect(night.hero.bridge).toEqual(day.hero.bridge);
     expect(night.geocube.from).not.toBe(day.geocube.from);
   });
 });
@@ -111,11 +109,11 @@ describe('comic hero pack: QA orders', () => {
     expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-city'].geocube, ...LOOKS['realistic-city'].paint });
     expect(resolveDirection(G).hero.toon).toBe(false);
     expect([hero.tool, hero.args.kind, hero.args.via, hero.args.spec.form, hero.args.toon]).toEqual(['mint_solid', 'layered', 'hero', 'realistic', undefined]);
-    // the banded pole: the comic stop's world reads too, its hero lit as a character
+    // the comic stop's world reads too; its hero is never cel shaded: the tiered body, no toon
     const { kind: _k, ...day } = qaOrders('comic-day')[0].args.manifest;
-    expect(resolveDirection(readGameworld(day)).hero).toEqual({ head: 'landmark', proportions: 'hero', toon: true });
+    expect(resolveDirection(readGameworld(day)).hero).toEqual({ head: 'landmark', proportions: 'hero', toon: false });
     const dayHero = qaOrders('comic-day')[1].args;
-    expect([dayHero.toon, dayHero.spec.form]).toEqual([{ light: true }, undefined]);
+    expect([dayHero.toon, dayHero.spec.form]).toEqual([undefined, undefined]);
     expect(PACK.wants).toContain('reality.look=comic-day');
   });
 });

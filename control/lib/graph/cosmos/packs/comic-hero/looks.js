@@ -1,11 +1,12 @@
 /**
  * THE COMIC HERO PACK'S LOOKS: one dial from the comic page to the realistic hero, every stop a geocube the tree reads
  * TODAY (era/geocube.js readGeocube: a `from` preset with a named register over it) and the hero direction that goes
- * with it (gameworld/characters.js: a tradition, its pole and its character light). The dial's two ends are the tree's
- * own two poles, `banded` (the anime tradition's: bands and an outline) and `material` (the western tradition's: light
- * on material, no outline); the pack does not invent a third, it walks between them.
+ * with it (gameworld/characters.js). The WORLD walks the registers (cel, ink-wash, continuous); the HERO is never cel
+ * shaded: the western tradition at every stop (the landmark head, heroic proportions, no character light, no ink),
+ * on the standard tiered body at the comic and painted stops and on the realistic body at the realistic stop. The
+ * dial's two ends are the two bodies.
  *
- *   DIAL            the stops in order, banded first: [{ id, pole, reads }]
+ *   DIAL            the stops in order, the comic page first: [{ id, body, reads }]
  *   LOOKS           { <look id>: { stop, reads, geocube, paint, hero, why } } a look is a stop by day or by night
  *                     geocube  the spec a level's `geocube` takes, readable now; its `light` the air (outsideFog against
  *                              the reference's, the sky's fog colour), its `contrast` and `grit` how hard the light and
@@ -19,9 +20,9 @@
  * the sixth-gen look row that would make them is the `comic-look` package. Until then a world takes the geocube directly.
  */
 export const DIAL = Object.freeze([
-  { id: 'comic', pole: 'banded', reads: 'the comic page: three bands, an ink outline, bold flat colour' },
-  { id: 'painted', pole: 'banded', reads: 'the painted cover: continuous light under an ink wash and a fine line' },
-  { id: 'realistic', pole: 'material', reads: 'the live-action film: light on material, the realistic hero, no outline; gritty when the air is thick and the walls are worn' },
+  { id: 'comic', body: 'tiered', reads: 'the comic page: the world in three bands with an ink outline and bold flat colour; the hero the tiered body, shaded smooth' },
+  { id: 'painted', body: 'tiered', reads: 'the painted cover: the world in continuous light under an ink wash and a fine line; the hero the tiered body' },
+  { id: 'realistic', body: 'realistic', reads: 'the live-action film: light on material, the realistic hero, no outline; gritty when the air is thick and the walls are worn' },
 ]);
 
 // the comic palette: a bold two-ramp key, a primary against its complement, the shade leaning blue (geocube default)
@@ -32,22 +33,22 @@ export const LOOKS = Object.freeze({
     stop: 'comic', reads: 'the comic page at noon: a hard sun, white light, primaries',
     geocube: { from: 'island-noon', register: 'cel', colour: { ...COMIC_COLOUR, stone: '#d9d2c4', floor: '#b8aa96' }, light: { outsideFog: 0.7 } },
     paint: { hour: 'noon', clouds: 'fair' },
-    hero: { tradition: 'anime', from: 'world', bridge: { head: 'landmark', proportions: 'hero' }, primary: 'the emblem', secondary: 'the belt' },
-    why: ['Three bands and an outline: what a printed page can hold.', 'A red against a blue, nothing muddy.', 'The hero keeps heroic proportions and the landmark head: comic, not anime; only the light is banded.', 'Clear air: a page has no haze; the far towers stay drawn.'],
+    hero: { tradition: 'western', from: 'world', primary: 'the emblem', secondary: 'the belt' },
+    why: ['Three bands and an outline on the world: what a printed page can hold.', 'A red against a blue, nothing muddy.', 'The hero is the tiered body shaded smooth, the landmark head, heroic proportions: never cel shaded.', 'Clear air: a page has no haze; the far towers stay drawn.'],
   },
   'comic-night': {
     stop: 'comic', reads: 'the comic page by night: the same ink and bands, the city\'s sodium and neon, rim light on the cast',
     geocube: { from: 'city-night', register: 'cel', colour: COMIC_COLOUR, light: { outsideFog: 0.5, sky: { zenith: '#120f1e', horizon: '#3a2c4a', fog: '#2a2440' } } },
     paint: { hour: 'night', clouds: 'high' },
-    hero: { tradition: 'anime', from: 'world', bridge: { head: 'landmark', proportions: 'hero' }, primary: 'the emblem', secondary: 'the cowl' },
+    hero: { tradition: 'western', from: 'world', primary: 'the emblem', secondary: 'the cowl' },
     why: ['Night is a colour, not black: the city\'s own light.', 'The outline carries the figure where the bands go dark.', 'A thin violet air under high cloud: the page\'s night, not a fog.'],
   },
   'painted-dusk': {
     stop: 'painted', reads: 'the painted cover at dusk: a warm sky, a wash in the corners, a fine line',
     geocube: { from: 'valley-morning', register: 'ink-wash', colour: { accent: '#c8452c' }, light: { outsideFog: 1.4, sky: { zenith: '#5a6fa0', horizon: '#e0a070', fog: '#c9a58a' } } },
     paint: { hour: 'dusk', clouds: 'overcast' },
-    hero: { tradition: 'anime', from: 'world', bridge: { head: 'landmark', proportions: 'hero', toon: false }, primary: 'the cape\'s line', secondary: 'the gauntlets' },
-    why: ['Continuous light, inked: the cover, not the page.', 'The hero crosses to material light; the world keeps its line.', 'Dusk under a lid of cloud, a warm haze pooling down the street: the wash is in the air too.'],
+    hero: { tradition: 'western', from: 'world', primary: 'the cape\'s line', secondary: 'the gauntlets' },
+    why: ['Continuous light, inked: the cover, not the page.', 'The hero in material light on the tiered body; the world keeps its line.', 'Dusk under a lid of cloud, a warm haze pooling down the street: the wash is in the air too.'],
   },
   'realistic-city': {
     stop: 'realistic', reads: 'the film: a night city, worked steel and leather, no outline',

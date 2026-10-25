@@ -14,9 +14,9 @@
  *                           gameworld (the tree's own example world, gameworld/examples.js, with the pack cube that suits
  *                           the look as its intent, the look's hero direction, and a downtown city level painted by the
  *                           look's geocube at its hour under its clouds), and the `mint_solid` hero the world's own hero page orders (hero-looks.js
- *                           heroOrders: `via: 'hero'`, the character light at the banded pole, the realistic body at
- *                           the material one). The QA hero wears pole-neutral looks (the example's are the anime
- *                           head's). The eyes gate is the operator's; this only sets the table
+ *                           heroOrders: `via: 'hero'`, the realistic body at the realistic stop, never a character
+ *                           light). The QA hero wears plain looks (the example's are the anime head's). The eyes gate
+ *                           is the operator's; this only sets the table
  */
 import { PACK_CUBES } from './cubes.js';
 import { LOOKS, DIAL, lookOf } from './looks.js';
@@ -56,7 +56,7 @@ export function packReport() {
   return { cubes, wants };
 }
 
-// the QA hero's looks: pole-neutral (the example world's are the anime head's, which the comic stop's landmark head refuses)
+// the QA hero's looks: plain (the example world's are the anime head's, which the landmark head refuses)
 const QA_LOOKS = Object.freeze({ body: { cast: 'male', tune: 'athletic' }, head: {}, hair: ['crop'], colour: { palette: { Trim: '#e03a2f' } } });
 
 export function qaOrders(lookId) {
@@ -72,6 +72,7 @@ export function qaOrders(lookId) {
   const hero = heroOrders(readGameworld(world)).mint;
   return [
     { tool: 'create_sketch', args: { title: world.name, manifest: { kind: 'gameworld', ...world } } },
-    { ...hero, args: { ...hero.args, title: `Comic hero QA: ${lookId} hero`, ...(form ? { spec: { ...hero.args.spec, form } } : {}) } },
+    // never cel shaded: a toon the character book might put beside the spec is left out (mint_solid would drop it anyway)
+    { ...hero, args: { ...(({ toon: _t, ...a }) => a)(hero.args), title: `Comic hero QA: ${lookId} hero`, ...(form ? { spec: { ...hero.args.spec, form } } : {}) } },
   ];
 }
