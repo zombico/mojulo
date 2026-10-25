@@ -13,8 +13,10 @@
  *   qaOrders(lookId)        the orders that put one stop of the dial in front of the operator: a `create_sketch` of a
  *                           gameworld (the tree's own example world, gameworld/examples.js, with the pack cube that suits
  *                           the look as its intent, the look's hero direction, and a downtown city level painted by the
- *                           look's geocube), and the `mint_solid` hero at that pole. The eyes gate is the operator's;
- *                           this only sets the table
+ *                           look's geocube), and the `mint_solid` hero the world's own hero page orders (hero-looks.js
+ *                           heroOrders: `via: 'hero'`, the character light at the banded pole, the realistic body at
+ *                           the material one). The QA hero wears pole-neutral looks (the example's are the anime
+ *                           head's). The eyes gate is the operator's; this only sets the table
  */
 import { PACK_CUBES } from './cubes.js';
 import { LOOKS, DIAL, lookOf } from './looks.js';
@@ -22,6 +24,7 @@ import { LAWS, resonance } from './resonance.js';
 import { dryRun } from '../../cosmos.js';
 import { capabilityRegistry } from '../../registry.js';
 import { MEADOWMARK_HERO } from '../../../gameworld/examples.js';
+import { readGameworld, heroOrders } from '../../../gameworld/index.js';
 
 export const PACK = Object.freeze({
   id: 'comic-hero',
@@ -53,19 +56,22 @@ export function packReport() {
   return { cubes, wants };
 }
 
+// the QA hero's looks: pole-neutral (the example world's are the anime head's, which the comic stop's landmark head refuses)
+const QA_LOOKS = Object.freeze({ body: { cast: 'male', tune: 'athletic' }, head: {}, hair: ['crop'], colour: { palette: { Trim: '#e03a2f' } } });
+
 export function qaOrders(lookId) {
   const L = lookOf(lookId), { form, ...direction } = L.hero;
   const cube = PACK_CUBES.find((c) => c.look === lookId) || PACK_CUBES[0];
-  const manifest = {
-    kind: 'gameworld',
+  const world = {
     ...MEADOWMARK_HERO,
     id: `comic-hero-qa-${lookId}`, name: `Comic hero QA: ${lookId}`,
     intent: { cube: cube.cube, why: `the ${L.stop} stop of the comic hero dial: ${L.reads}` },
-    characters: { ...MEADOWMARK_HERO.characters, direction },
+    characters: { ...MEADOWMARK_HERO.characters, direction, hero: { ...MEADOWMARK_HERO.characters.hero, looks: QA_LOOKS } },
     levels: { ...MEADOWMARK_HERO.levels, downtown: { name: 'Downtown', city: { board: { cols: 12, rows: 9 }, seed: 4 }, style: { geocube: L.geocube } } },
   };
+  const hero = heroOrders(readGameworld(world)).mint;
   return [
-    { tool: 'create_sketch', args: { title: manifest.name, manifest } },
-    { tool: 'mint_solid', args: { kind: 'hero', title: `Comic hero QA: ${lookId} hero`, ...(form ? { form } : {}), toon: direction.bridge?.toon ?? (direction.tradition === 'anime'), geocube: L.geocube } },
+    { tool: 'create_sketch', args: { title: world.name, manifest: { kind: 'gameworld', ...world } } },
+    { ...hero, args: { ...hero.args, title: `Comic hero QA: ${lookId} hero`, ...(form ? { spec: { ...hero.args.spec, form } } : {}) } },
   ];
 }

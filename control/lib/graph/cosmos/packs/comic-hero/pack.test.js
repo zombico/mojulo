@@ -100,11 +100,12 @@ describe('comic hero pack: QA orders', () => {
     expect(G.intent.cube).toEqual(M.intent.cube);
     expect(resolveLevel(G, 'downtown').city.plan.paint).toEqual({ geocube: LOOKS['realistic-city'].geocube });
     expect(resolveDirection(G).hero.toon).toBe(false);
-    expect([hero.tool, hero.args.form, hero.args.toon]).toEqual(['mint_solid', 'realistic', false]);
+    expect([hero.tool, hero.args.kind, hero.args.via, hero.args.spec.form, hero.args.toon]).toEqual(['mint_solid', 'layered', 'hero', 'realistic', undefined]);
     // the banded pole: the comic stop's world reads too, its hero lit as a character
     const { kind: _k, ...day } = qaOrders('comic-day')[0].args.manifest;
     expect(resolveDirection(readGameworld(day)).hero).toEqual({ head: 'landmark', proportions: 'hero', toon: true });
-    expect(qaOrders('comic-day')[1].args).toMatchObject({ toon: true });
+    const dayHero = qaOrders('comic-day')[1].args;
+    expect([dayHero.toon, dayHero.spec.form]).toEqual([{ light: true }, undefined]);
     expect(PACK.wants).toContain('reality.look=comic-day');
   });
 });
