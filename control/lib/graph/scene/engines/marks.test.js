@@ -34,7 +34,8 @@ describe('the engine registry', () => {
       expect([null, 'absent']).toContain(ENGINES[e].unmarked);
     }
     expect(ENGINES.godot.unmarked).toBeNull();   // Godot is closed: an unmarked cosmos value throws
-    expect(ENGINE_OUT_DIRS).toEqual(['godot', 'roblox', 'unity', 'unreal']);
+    expect(ENGINE_OUT_DIRS).toEqual(['godot', 'roblox', 'unity']);   // Unreal and Blender take assets and art passes, no game pack
+    expect(ENGINES.unreal.kind).toBe('art');
     expect(marksOf('unity')).toBeNull();
     expect(marksOf(null)).toBeNull();
     expect(() => engineOf('frostbite')).toThrow(/unknown engine 'frostbite'/);
@@ -138,9 +139,9 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
 });
 
 describe('an engine without a runtime kernel reads no marks', () => {
-  it('Unity and Unreal: no reading, no bus coverage, no Godot rows, no verdict', () => {
+  it('Unity: no reading, no bus coverage, no Godot rows, no verdict', () => {
     const payload = { entities: [{ id: 'hero', rule: { type: 'glide' }, transform: { pos: [0, 0, 1] } }], events: { reactions: [{ on: 'a', do: 'emit', type: 'b' }] } };
-    for (const e of ['unity', 'unreal']) {
+    for (const e of ['unity']) {
       const score = extractEngineScore({ ref: 'r', manifest: {} }, payload, { engine: e });
       for (const k of ['rules_carried', 'channels_carried', 'figures_carried', 'events_carried']) expect(score.ledger).not.toHaveProperty(k);
       expect(Object.keys(score.ledger.bus_carried).filter((k) => MARKED_ENGINES.includes(k))).toEqual([]);

@@ -172,7 +172,8 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`, `roblox-project.js`;
+  Engine legs: `godot-project.js`, `unity-project.js`, `blender-project.js`, `roblox-project.js`; Unreal takes assets,
+  not games or levels (`unreal-project.js`: `export_model { format: 'unreal' }`, a character or solid as GLB + importer);
   one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
   need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
   GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.

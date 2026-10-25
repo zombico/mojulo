@@ -6,7 +6,7 @@
 `audio.soundtrack: 'club:drive'` (or `{ score: { style: 'club', mood: 'drive', game?, seed?, cast? } }`, or
 `create_beats({ score: { style: 'club', mood } })` for a stored cue) generates an electronic loop. It is the field
 score's sibling: the same seeds, the same game identity (its tonic and hall, so a game that mixes the two keeps one
-key), the same cast jobs, and it ships to the World page and to Godot, Unity and Unreal as a looped bed.
+key), the same cast jobs, and it ships to the World page and to Godot and Unity as a looped bed.
 
 ## The ladder
 

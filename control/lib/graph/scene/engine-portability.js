@@ -11,7 +11,7 @@
  *   plays-partly  something is drawn simpler, or a look or a feel stays the web's; the game still plays
  *   hollow        something the game turns on does not run (a terminal that cannot fire, a pilot that cannot move, a
  *                 fact nothing feeds, a story that does not travel): it imports and runs, and it is not the game
- * An engine without marks (Unity, Unreal: a closed kernel of five mechanics) is read against MECHANICS_VOCAB: flags,
+ * An engine without marks (Unity: a closed kernel of five mechanics) is read against MECHANICS_VOCAB: flags,
  * no verdict.
  */
 import { lowerMechanic, MECHANIC_KINDS } from '../game/mechanics.js';

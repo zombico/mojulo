@@ -222,55 +222,50 @@ for none of them emits the same bytes as before.
   changes the verdict: a first-person camera seating several players needs `frame: split` (a view each), and a seat
   setting without the seats says so.
 
-### Unreal catch-up: the hero as Unreal's character, the levels by the Godot pattern
+### Unreal takes assets: characters and solids, not games or levels
 
-- **The Unreal kernel is source files.** The MojuloKernel plugin's C++ lives in `scene/unreal-kernel/MojuloKernel/`,
-  the files a game pack ships, copied as they are (it was written out from strings in `unreal-kernel.js`). Every pack
-  is byte-identical.
-- **The hero ships skinned to Unreal** (leg 0.5.0), as it does to Godot. A rigged layered figure goes out as one
-  skinned mesh with its clips, in a world pack and in a game's levels; Interchange imports it as a SkeletalMesh and an
-  AnimSequence per clip.
-  - The kernel plays a skinned figure's clips on its mesh: the player's suit swaps idle and walk as it moves, the others
-    loop their idle. A rigid figure plays through its LevelSequences as before.
-  - A world pack has no kernel, so the importer loops the figure's clip on it at import: idle, else its first moving
-    clip, as Godot's figure scene does.
-  - A humanoid figure ships as the engine skeleton by default, in world and game packs: VRM-named joints at the T-pose
-    rest, the seam an IK Retargeter maps from. `--no-humanoid` (`humanoid: false`) keeps the flat skeleton.
-  - The importer's verify adds `figures_skinned` (a SkeletalMesh for each skin the GLB declares, with at least its
-    joints as bones) and, in a world pack, `figure_clip`. `clips_bound` counts an AnimSequence as a bound clip.
-  - The README gains a Characters section when a figure ships skinned.
-  - A pack with no rigged layered figure carries the GLB it carried before. Its importer and kernel text change.
-  - Not yet run in Unreal: the kernel's compile, the figure checks and the eyes gate are the operator's
-    (`MOJULO_UNREAL`). The AnimSequence names Interchange gives the clips are read by exact name, else by the one asset
-    that contains it, and the first gate run pins them.
+What reaches Unreal is a GLB's surface: geometry, vertex colour and painted textures travel; the materials and the look
+mojulo draws on the web (its tone, ink, grass, sway, glow, sky, water, effects) do not, and a game's behaviour stayed in
+a kernel of five mechanics. A game or level in Unreal was that surface with nothing mojulo does on it. A character, a
+prop, a building, a robot or anything assembled in mojulo is different: as an asset, its geometry and colour are what
+it is. So Unreal is an asset target now.
+
+- **`export_model { ref, format: 'unreal' }`** writes an asset pack for any row that resolves to a model, beside
+  Blender's `format: 'blender'`: the GLB, the recipe, an editor Python importer, its guide and README. `lit: true`
+  hands the lighting to Unreal; `humanoid: false` keeps a humanoid figure on its flat skeleton.
+  `node scripts/export-unreal.mjs --ref <ref>` writes the same pack and runs the advisory gate when `MOJULO_UNREAL`
+  names an editor. A game is refused with the move: export its characters and solids by their refs.
+- **The importer brings in one asset**, under `/Game/Mojulo/<ref>/`:
+  - its meshes on mojulo's vertex-colour material (unlit, or lit under `lit`);
+  - its own lights;
+  - a preview map with a floor and a day light rig to look at it in.
+- **A character arrives as a character.**
+  - A rigged layered figure ships as one skinned mesh with its clips and face morphs: a SkeletalMesh and an
+    AnimSequence per clip, its clip looping in the preview.
+  - A humanoid one ships as the engine skeleton (VRM-named joints at the T-pose rest), turned to the world's facing.
+  - Its IK Rig (`IK_Mojulo_<figure>`: the hips its root, one chain per limb named as Unreal's mannequin rig names its
+    chains) comes with it, plus an IK Retargeter from the mannequin when the project holds the mannequin's rig (the
+    Third Person template's `IK_Mannequin`, or `MOJULO_SOURCE_IK_RIG`), so the project's own animation plays on the
+    figure. A re-import rebuilds both in place.
+- **Verify** checks the preview map, the imported asset, its materials, its lights, each skinned figure's mesh and clip,
+  and its retarget rig. With a skinned figure, `mojulo-gate.json` also carries a `diagnostics` block, facts not
+  verdicts: the clips' asset names, the meshes' bones, where each mesh hangs in the actor tree, and each import step
+  and whether it held. Every IK Rig and Retargeter call is tried and logged, since Unreal's Python API for them moved
+  between 5.2 and 5.6.
+- **Gone:**
+  - `export_game { target: 'unreal' }`, the game and level packs (the menu and per-level maps, the promoted ground,
+    the colliders and the PlayerStart);
+  - the `MojuloKernel` C++ plugin;
+  - the Night Run worked example, a game played in Unreal.
+
+  The engine registry marks Unreal an art pass, as Blender is.
 - **A placed engine skeleton stands where its entity stands.** A humanoid figure exported as the engine skeleton (a
   scene root in the VRM space, beside the z-up root) took its entity's z-up placement as is: about a metre off its spot
   and tipped over. It now takes the placement said in the VRM space, turned half a turn since the VRM front is the
-  figure's back, the world's unit scale applied. It lands where the flat skeleton lands. Only humanoid exports with a
-  placed figure change: no shipped pack placed one (Godot's game packs carry the flat skeleton).
-- **The retarget seam in Unreal.** For each humanoid figure its GLB declares, the importer makes an IK Rig
-  (`IK_Mojulo_<figure>` under the level's `Retarget/`): its root the hips, one chain per limb named as Unreal's mannequin
-  rig names its chains. When the project holds the mannequin's rig (the Third Person template's `IK_Mannequin`, or
-  `MOJULO_SOURCE_IK_RIG`), it also makes `RTG_Mojulo_<figure>`, an IK Retargeter from it to the figure, so the project's
-  animation (motion matching, any mannequin clip) plays on the figure.
-  - A re-import rebuilds both in place, so an AnimBP pointed at them survives a re-mint.
-  - A lone humanoid figure (no entity places it) is turned at import to the world's facing, as Godot's figure scene
-    turns it.
-  - Verify adds `retarget_rig` (the rig with every chain the figure's bones make) and, with a mannequin rig present,
-    `retargeter`.
-  - The chains are read off the GLB by the importer's own code. A test runs that code under python3 with a stub editor
-    against a pack's GLB.
-  - Not run in Unreal: every IK Rig and Retargeter call is tried and logged, since the API moved between 5.2 and 5.6.
-    The operator's gate run says which calls held, and the eyes gate is a mannequin clip playing on the figure.
-- **The first gate run reports what it found.** With a skinned figure in the pack, `mojulo-gate.json` carries a
-  `diagnostics` block beside its checks, facts and never verdicts:
-  - the AnimSequence names Interchange gave the clips;
-  - each SkeletalMesh with its first bones;
-  - where each skinned figure's mesh hangs in the actor tree;
-  - the import run's notes (`mojulo-import.json`): which clip each figure loops, the figures turned, each retarget step
-    and whether it held.
-
-  A pack without a skinned figure writes the gate file as before.
+  figure's back, the world's unit scale applied, and lands where the flat skeleton lands. This applies to every engine
+  and to `export_model { humanoid: true, rest: 'tpose' }`. Only humanoid exports with a placed figure change.
+- Not yet run in Unreal: the importer's run and the eyes gate are the operator's. The clips' asset names are read by
+  exact name, else by the one asset that contains it, and the first gate run pins them.
 
 ### Chatbot sweep: what the chatbot factory left behind
 

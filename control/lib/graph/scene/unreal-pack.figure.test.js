@@ -1,8 +1,8 @@
-// unreal-pack.figure.test.js — a rigged layered figure's Unreal packs over an in-memory DB: the figure ships SKINNED as
-// the engine skeleton by default (VRM names, the T-pose rest: export_model { humanoid: true, rest: 'tpose' }'s bytes) in
-// a world pack and in a game's level, the importer loops its clip in the world pack and reads its retarget chains off the
-// GLB; `humanoid: false` keeps the flat skeleton; every other pack — an unrigged layered solid, the figure kind —
-// carries the GLB it carried before the figure (no skin).
+// unreal-pack.figure.test.js — the Unreal ASSET pack over an in-memory DB: a rigged layered figure ships SKINNED as the
+// engine skeleton by default (VRM names, the T-pose rest: export_model { humanoid: true, rest: 'tpose' }'s bytes), the
+// importer loops its clip and reads its retarget chains off the GLB; `humanoid: false` keeps the flat skeleton; a solid
+// with no figure carries the GLB it always exported; a game is refused (Unreal takes assets, not games), and
+// export_model { format: 'unreal' } writes the same pack.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -18,7 +18,9 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
-import { buildUnrealWorldPack, buildUnrealGamePack } from './unreal-pack.js';
+import { buildUnrealAssetPack } from './unreal-pack.js';
+import { exportModelHandler } from '../../mcp/tools/sketch-model-export.js';
+import { exportGameHandler } from '../../mcp/tools/export-game.js';
 import { tposeRig } from '../figures/rig-tpose.js';
 
 const glbJson = (bytes) => JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString('utf8'));
@@ -61,10 +63,12 @@ const CHAINS = [
     .map(([chain, vrm, first]) => [`${side[0].toUpperCase()}${side.slice(1)}${chain}`, `${side}${vrm}${first}`, `${side}${vrm}Distal`])),
 ];
 
-describe('buildUnrealWorldPack — a rigged layered figure', () => {
+describe('buildUnrealAssetPack — a rigged layered figure', () => {
   it('ships the engine skeleton by default: skinned, VRM-named at the T-pose rest, its idle looped, its IK Rig made', async () => {
     SketchRepository.create({ ref: 'sk_uf_hero', title: 'hero', manifest: HERO });
-    const pack = await buildUnrealWorldPack({ ref: 'sk_uf_hero', outDir: outDir('sk_uf_hero') });
+    const pack = await buildUnrealAssetPack({ ref: 'sk_uf_hero', outDir: outDir('sk_uf_hero') });
+    expect(pack.scope).toBe('asset');
+    expect(pack.written.map((f) => f.file)).toEqual(['model.glb', 'recipe/sk_uf_hero.json', 'import_mojulo.py', 'IMPORT-GUIDE.md', 'README.md']);
     const { humanoid, ...rest } = pack.figure;
     expect(rest).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], joints: 58 });
     expect(humanoid).toEqual(expect.arrayContaining(['hips', 'spine', 'head', 'leftUpperArm', 'rightFoot']));
@@ -84,9 +88,8 @@ describe('buildUnrealWorldPack — a rigged layered figure', () => {
     expect(text('sk_uf_hero', 'IMPORT-GUIDE.md')).toContain('the figure `body` stands skinned (one mesh, its skeleton) and loops its `idle` clip');
     const readme = text('sk_uf_hero', 'README.md');
     expect(readme).toContain('`body` ships skinned: one mesh on a 58-joint skeleton and its clips (`idle`, `walk`, `wave`).');
-    expect(readme).toContain('importer loops `idle` on it (single node), since a world pack has no kernel.');
     expect(readme).toContain('the joints carry VRM names');
-    expect(readme).toContain('`IK_Mojulo_<figure>` under `Content/MojuloPack/Retarget`');
+    expect(readme).toContain('`IK_Mojulo_<figure>` under `Content/Mojulo/sk_uf_hero/Retarget`');
     expect(readme).not.toContain('--no-humanoid');
   }, 60000);
 
@@ -95,7 +98,7 @@ describe('buildUnrealWorldPack — a rigged layered figure', () => {
   });
 
   it('--no-humanoid: the flat skeleton, no VRM, nothing to retarget', async () => {
-    const pack = await buildUnrealWorldPack({ ref: 'sk_uf_hero', outDir: outDir('sk_uf_hero_flat'), humanoid: false });
+    const pack = await buildUnrealAssetPack({ ref: 'sk_uf_hero', outDir: outDir('sk_uf_hero_flat'), humanoid: false });
     expect(pack.figure).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], joints: 57 });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('sk_uf_hero'), {});
     const want = facesToGlb(payload, { generator: 'mojulo sk_uf_hero', clips: '_all', skinned: true }).bytes;
@@ -107,12 +110,12 @@ describe('buildUnrealWorldPack — a rigged layered figure', () => {
     if (PYTHON) expect(importerReads(outDir('sk_uf_hero_flat'), 'model.glb')).toEqual({ skins: [['body', 57]], chains: {} });
   }, 60000);
 
-  it('every other pack as before: an unrigged layered solid, the figure kind', async () => {
+  it('a solid with no figure: the GLB it always exported, no skin, no Characters', async () => {
     const { rig: _r, clips: _c, ...bare } = HERO.recipe;
     SketchRepository.create({ ref: 'sk_uf_unrigged', title: 'unrigged', manifest: { kind: 'layered', title: 'unrigged', recipe: bare, dials: HERO.dials, units: 'm' } });
     SketchRepository.create({ ref: 'sk_uf_kind', title: 'walking figure', manifest: FIGURE_KIND });
     for (const ref of ['sk_uf_unrigged', 'sk_uf_kind']) {
-      const pack = await buildUnrealWorldPack({ ref, outDir: outDir(ref) });
+      const pack = await buildUnrealAssetPack({ ref, outDir: outDir(ref) });
       expect(pack.figure, ref).toBeUndefined();
       const { payload } = await resolveWorldScene(SketchRepository.getByRef(ref), {});
       const before = facesToGlb(payload, { generator: `mojulo ${ref}`, clips: '_all' }).bytes;
@@ -124,20 +127,21 @@ describe('buildUnrealWorldPack — a rigged layered figure', () => {
   }, 60000);
 });
 
-describe('buildUnrealGamePack — a level with a rigged layered figure', () => {
-  it('ships the level humanoid and skinned, the kernel plays it (no import-time loop), the README names the level', async () => {
+describe('Unreal takes assets, not games', () => {
+  it('a game is refused with the asset move, by the pack, by export_game and by export_model', async () => {
     SketchRepository.create({ ref: 'sk_uf_game', title: 'hero game', manifest: { kind: 'game', title: 'Hero Game', levels: [{ ref: 'sk_uf_hero', title: 'Hero' }] } });
-    const pack = await buildUnrealGamePack({ ref: 'sk_uf_game', outDir: outDir('sk_uf_game') });
-    expect(pack.glbStats.levels.sk_uf_hero.skinned).toEqual(['body']);
-    const j = glbJson(read('sk_uf_game', 'levels/sk_uf_hero/model.glb'));
-    expect(j.skins).toHaveLength(1);
-    expect(j.extensionsUsed).toContain('VRMC_vrm');
-    expect(text('sk_uf_game', 'import_mojulo.py')).toContain('FIGURE_CLIPS = {}');
-    const readme = text('sk_uf_game', 'README.md');
-    expect(readme).toContain('## Characters');
-    expect(readme).toContain('- `sk_uf_hero`: `body` (humanoid)');
-    expect(readme).toContain('under `Content/MojuloPack/Levels/<level>/Retarget`');
-    expect(text('sk_uf_game', 'MojuloKernel/Source/MojuloKernel/Private/MojuloGameMode.cpp')).toContain('PlayFigureClip');
-    if (PYTHON) expect(importerReads(outDir('sk_uf_game'), 'levels/sk_uf_hero/model.glb').chains.body).toEqual(CHAINS);
+    const move = /Unreal takes mojulo's assets, not its games or levels/;
+    await expect(buildUnrealAssetPack({ ref: 'sk_uf_game', outDir: outDir('sk_uf_game') })).rejects.toThrow(move);
+    await expect(exportGameHandler({ ref: 'sk_uf_game', target: 'unreal' })).rejects.toThrow(/export_model \{ ref, format: 'unreal' \}/);
+    await expect(exportModelHandler({ ref: 'sk_uf_game', format: 'unreal' })).rejects.toThrow(move);
+  });
+
+  it("export_model { format: 'unreal' } writes the asset pack where export-unreal.mjs writes it", async () => {
+    const out = await exportModelHandler({ ref: 'sk_uf_kind', format: 'unreal', lit: true });
+    expect(out).toMatchObject({ ok: true, ref: 'sk_uf_kind', format: 'unreal', dir: outDir('sk_uf_kind') });
+    expect(out.files).toEqual(['model.glb', 'recipe/sk_uf_kind.json', 'import_mojulo.py', 'IMPORT-GUIDE.md', 'README.md']);
+    expect(out.commands.gate).toBe('node scripts/export-unreal.mjs --ref sk_uf_kind --lit');
+    expect(text('sk_uf_kind', 'import_mojulo.py')).toContain('LIT = True');
+    await expect(exportModelHandler({ ref: 'sk_uf_kind', format: 'unreal', humanoid: 'yes' })).rejects.toThrow(/`humanoid` must be a boolean/);
   }, 60000);
 });

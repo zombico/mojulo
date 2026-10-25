@@ -1,5 +1,5 @@
 // The screen a game is made for (game/screen.js), carried by its exports: the desktop window, Godot's [display] and its
-// kernel's cameras, the score's cameras, the Unity and Unreal guides. Absent, every export as it was.
+// kernel's cameras, the score's cameras, the Unity guide. Absent, every export as it was.
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { desktopWindow, desktopMainJs } from '../game/desktop-shell.js';
 import { emitGodotGame } from './godot-project.js';
 import { emitUnityGame } from './unity-project.js';
-import { emitUnrealGame } from './unreal-project.js';
 import { levelCameras } from './scene-gltf-level.js';
 
 const KERNEL = path.join(path.dirname(fileURLToPath(import.meta.url)), 'godot-kernel');
@@ -54,18 +53,13 @@ describe('the screen in the exports', () => {
     expect(named.aspectRatio).toBeCloseTo(0.5625, 9);
   });
 
-  it('Unity and Unreal: the guide matches the editor\'s play view and the build\'s orientation; absent, no section', () => {
+  it('Unity: the guide matches the editor\'s play view and the build\'s orientation; absent, no section', () => {
     const unity = (screen) => file(emitUnityGame({ ref: 'g', title: 'G', manifestHash: 'ffff0000ffff0000', levels: [lv], ...(screen ? { screen } : {}) }), 'IMPORT-GUIDE.md');
     const u = unity('phone');
     expect(u).toContain('## The screen it is made for');
     expect(u).toContain('Width 9, Height 16');
     expect(u).toContain('Default Orientation > `Portrait`');
     expect(unity(null)).not.toContain('The screen it is made for');
-    const unreal = (screen) => file(emitUnrealGame({ ref: 'g', manifest: { kind: 'game', title: 'G', levels: [{ ref: 'lv-a' }], ...(screen ? { screen } : {}) }, levels: [{ ref: 'lv-a', score }], manifestHash: 'abcd1234abcd1234' }), 'IMPORT-GUIDE.md');
-    const r = unreal('screen');
-    expect(r).toContain('New Viewport Resolution > 1280 × 720');
-    expect(r).toContain('Orientation > landscape only');
-    expect(unreal(null)).not.toContain('The screen it is made for');
-    for (const g of [u, r]) for (const line of g.split('\n').filter((l) => /^T\d/.test(l))) expect(line).toMatch(/^T(\d{3})(?:\.(\d{2}))? \S/);
+    for (const g of [u]) for (const line of g.split('\n').filter((l) => /^T\d/.test(l))) expect(line).toMatch(/^T(\d{3})(?:\.(\d{2}))? \S/);
   });
 });

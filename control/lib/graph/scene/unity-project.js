@@ -1,7 +1,7 @@
 /**
  * unity-project.js — the Unity 6 pack emitter (export-unity.plan.md Y0+Y1).
  *
- * Third engine leg beside godot-project.js (built) and the Unreal spec. The
+ * Third engine leg beside godot-project.js (built). The
  * pack is DATA (GLBs + score.json sidecars + game.json + audio + recipe)
  * plus the mojulo-unity kernel: one editor-side instrument
  * (Editor/MojuloImport.cs — builds and saves the scenes) and four runtime
