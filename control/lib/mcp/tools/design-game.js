@@ -4,7 +4,8 @@
  * it: every step that is ready is made through the same handlers an agent would call (the hero through the hero door,
  * the gear through the equipment door, the systems world through create_sketch), at refs derived from the gameworld's
  * own, and recorded in its `made` (gameworld/made.js). A run with nothing changed makes nothing; what the creator edited
- * by hand since a run is left as it is unless `force`. Its answer is the readout: each part's stamp, which steps may
+ * by hand since a run is left as it is unless `force`; a run a step fails partway keeps the record of the steps made
+ * before it, so the next run never reads them as edited. Its answer is the readout: each part's stamp, which steps may
  * start, what was made, and the next moves. The world bible is `/api/sketches/<ref>/bible`, the character bible
  * `…/bible?book=characters`, and with a feel its feel book (`…/bible?book=feel`: the stick view of its controls); the
  * sketch page shows them.
@@ -215,10 +216,21 @@ async function runWorld(ref, world, { force = false } = {}) {
   const heroRef = heroRefOf(W, ref);
   const first = runSteps(W, { ref, lookup: heroLookup(heroRef) });
   if (!first.length) return { world: W, ran };
-  await act(first[0]);
-  // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-  const rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
-  for (const step of rest) await act(step);
+  let rest;
+  try {
+    await act(first[0]);
+    // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
+    rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
+    for (const step of rest) await act(step);
+  } catch (err) {
+    // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
+    // (else the next run reads them as edited by hand and leaves them); the error reaches the caller as it was
+    const partial = Object.keys(made).length ? { ...W, made } : W;
+    if (JSON.stringify(partial) !== JSON.stringify(world)) {
+      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...partial }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
+    }
+    throw err;
+  }
   // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
   // lay, or laid and does not hold; reported with the run, never refused
   const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order), W);

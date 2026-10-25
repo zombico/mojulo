@@ -14,6 +14,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Rail fixes: what the level demo found
+
+- **A design run that fails partway keeps the record of what it made.** `design_game` `run: true` makes each ready
+  step through the real handlers and records it in the world's `made`; a step that threw left the steps made before
+  it written as rows with no record saved, so the next run read them as edited by hand (`edited`) and left them unless
+  forced. The run now saves the world with the record of the steps that succeeded before it rethrows, and the error
+  reaches the caller as it was; the next run keeps or remakes those steps as usual. A failure before anything was made
+  writes nothing.
+
 ### Level edit demo: a level made and changed by conversation
 
 - A structure a cube raises `on: 'summit'` stands on a terraced mountain's crown. The climb a level walks up from its
